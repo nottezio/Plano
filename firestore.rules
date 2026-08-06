@@ -1,0 +1,88 @@
+rules_version = '2';
+
+/**
+ * SPEC 8 — access control.
+ *
+ * Deviation from the spec draft, deliberate: the draft allowed `delete` on
+ * patients. SPEC 1.5 forbids hard deletes from the client, and a rule that
+ * permits what the app promises never to do is not a rule — it is a bug
+ * waiting for a stray call site or a compromised session. Deletion of
+ * user-authored content is denied *at the server*, so "soft-delete only" is
+ * enforced rather than merely intended.
+ *
+ * The one exception is entries/{date}/revisions, which are derived safety
+ * snapshots capped at 30. Pruning the oldest is a hard delete by design.
+ */
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function authed() {
+      return request.auth != null;
+    }
+
+    function isMemberOf(data) {
+      return authed() && request.auth.uid in data.memberIds;
+    }
+
+    // Costs one document read per subcollection rule evaluation. Acceptable at
+    // ward scale (tens of patients, one user); documented rather than hidden.
+    function isMember(pid) {
+      return authed() &&
+             request.auth.uid in
+               get(/databases/$(database)/documents/patients/$(pid)).data.memberIds;
+    }
+
+    match /patients/{pid} {
+      allow read: if isMemberOf(resource.data);
+
+      allow create: if authed()
+        && request.resource.data.ownerId == request.auth.uid
+        && request.resource.data.memberIds == [request.auth.uid]
+        && request.resource.data.deletedAt == null;
+
+      // Ownership is immutable; sharing happens by adding to memberIds only.
+      allow update: if isMemberOf(resource.data)
+        && request.resource.data.ownerId == resource.data.ownerId
+        && request.auth.uid in request.resource.data.memberIds;
+
+      allow delete: if false;
+
+      match /entries/{date} {
+        allow read, create, update: if isMember(pid);
+        allow delete: if false;
+
+        match /revisions/{revisionId} {
+          allow read, create: if isMember(pid);
+          // A revision is an immutable snapshot. Editing one would destroy the
+          // only recoverable copy of a conflicting version.
+          allow update: if false;
+          allow delete: if isMember(pid);
+        }
+      }
+
+      match /checklist/{date} {
+        allow read, create, update: if isMember(pid);
+        allow delete: if false;
+      }
+    }
+
+    match /users/{uid} {
+      allow read, create, update: if authed() && request.auth.uid == uid;
+      allow delete: if false;
+
+      match /documents/{documentId} {
+        allow read, create, update: if authed() && request.auth.uid == uid;
+        allow delete: if false;
+      }
+
+      match /templates/{templateId} {
+        allow read, create, update, delete: if authed() && request.auth.uid == uid;
+      }
+    }
+
+    // Anything not matched above is denied.
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

@@ -1,0 +1,38 @@
+{
+  "indexes": [
+    {
+      "collectionGroup": "patients",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "memberIds", "arrayConfig": "CONTAINS" },
+        { "fieldPath": "status", "order": "ASCENDING" },
+        { "fieldPath": "deletedAt", "order": "ASCENDING" },
+        { "fieldPath": "pinned", "order": "DESCENDING" },
+        { "fieldPath": "updatedAt", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "patients",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "memberIds", "arrayConfig": "CONTAINS" },
+        { "fieldPath": "deletedAt", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "documents",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "deletedAt", "order": "ASCENDING" },
+        { "fieldPath": "pinned", "order": "DESCENDING" },
+        { "fieldPath": "order", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "revisions",
+      "queryScope": "COLLECTION",
+      "fields": [{ "fieldPath": "at", "order": "DESCENDING" }]
+    }
+  ],
+  "fieldOverrides": []
+}

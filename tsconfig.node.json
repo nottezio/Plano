@@ -1,0 +1,18 @@
+{
+  // Typechecks the build-time files (which run in Node, not the browser).
+  // Invoked directly, not via project references, so noEmit is legal here.
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "lib": ["ES2022"],
+    "types": ["node"],
+    "allowSyntheticDefaultImports": true,
+    "allowJs": true,
+    "checkJs": false,
+    "strict": true,
+    "skipLibCheck": true,
+    "noEmit": true
+  },
+  "include": ["vite.config.ts", "tailwind.config.js", "postcss.config.js", "src/version.js"]
+}

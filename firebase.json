@@ -1,0 +1,7 @@
+{
+  "//": "Hosting is NOT used — the app is published to GitHub Pages. This file exists so rules and indexes can be deployed with: firebase deploy --only firestore:rules,firestore:indexes",
+  "firestore": {
+    "rules": "firestore.rules",
+    "indexes": "firestore.indexes.json"
+  }
+}

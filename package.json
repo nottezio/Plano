@@ -1,0 +1,53 @@
+{
+  "name": "visite",
+  "private": true,
+  "type": "module",
+  "description": "Visite \u2014 clinical rounds note app (offline-first PWA). Version lives ONLY in src/version.js (see SPEC 16).",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc --noEmit -p tsconfig.json && tsc --noEmit -p tsconfig.sw.json && vite build",
+    "preview": "vite preview",
+    "test": "TZ=UTC vitest run",
+    "test:watch": "TZ=UTC vitest",
+    "typecheck": "tsc --noEmit -p tsconfig.json && tsc --noEmit -p tsconfig.sw.json",
+    "check:version": "bash scripts/check-version.sh",
+    "check:contrast": "node scripts/check-contrast.mjs",
+    "verify": "npm run typecheck && npm run test && npm run check:version && npm run check:contrast && npm run check:a11y && npm run build",
+    "check:a11y": "node scripts/check-a11y.mjs"
+  },
+  "dependencies": {
+    "@radix-ui/react-dialog": "^1.1.23",
+    "clsx": "^2.1.1",
+    "date-fns": "^4.4.0",
+    "date-fns-tz": "^3.2.0",
+    "diff-match-patch": "^1.0.5",
+    "firebase": "^12.17.1",
+    "nanoid": "^6.0.1",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "react-router-dom": "^6.26.2",
+    "zustand": "^4.5.5"
+  },
+  "devDependencies": {
+    "@types/diff-match-patch": "^1.0.36",
+    "@types/react": "^18.3.11",
+    "@types/react-dom": "^18.3.1",
+    "@vitejs/plugin-react": "^4.3.2",
+    "autoprefixer": "^10.4.20",
+    "postcss": "^8.4.47",
+    "tailwindcss": "^3.4.13",
+    "typescript": "^5.6.2",
+    "vite": "^5.4.8",
+    "vite-plugin-pwa": "^0.20.5",
+    "vitest": "^2.1.2",
+    "workbox-core": "^7.1.0",
+    "workbox-expiration": "^7.1.0",
+    "workbox-precaching": "^7.1.0",
+    "workbox-routing": "^7.1.0",
+    "workbox-strategies": "^7.1.0",
+    "workbox-window": "^7.1.0"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

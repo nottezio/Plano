@@ -1,0 +1,41 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "useDefineForClassFields": true,
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    "module": "ESNext",
+    "skipLibCheck": true,
+
+    /* Bundler mode */
+    "moduleResolution": "bundler",
+    "allowImportingTsExtensions": true,
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    "noEmit": true,
+    "jsx": "react-jsx",
+
+    /* version.js is intentionally plain JS: it is the single source of truth
+       (SPEC 16) and must be importable from the service worker, config files
+       and app code alike without a build step. */
+    "allowJs": true,
+    "checkJs": false,
+
+    /* Strict — SPEC 4: "React 18 + TypeScript (strict)" */
+    "strict": true,
+    "noUncheckedIndexedAccess": true,
+    "exactOptionalPropertyTypes": true,
+    "noImplicitOverride": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "noFallthroughCasesInSwitch": true,
+    "forceConsistentCasingInFileNames": true,
+
+    "baseUrl": ".",
+    "paths": { "@/*": ["src/*"] },
+    "types": ["vite/client", "vite-plugin-pwa/react", "vitest/globals"]
+  },
+  // sw.ts is typechecked separately (tsconfig.sw.json) because the WebWorker
+  // and DOM libs declare conflicting globals and cannot share one program.
+  "include": ["src"],
+  "exclude": ["src/sw.ts"]
+}

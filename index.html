@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="id" class="">
+  <head>
+    <meta charset="UTF-8" />
+    <!-- viewport-fit=cover + safe-area insets: the bottom tab bar must clear
+         the iPhone home indicator (SPEC 17). -->
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=5"
+    />
+    <meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)" />
+    <meta name="theme-color" content="#0b0f14" media="(prefers-color-scheme: dark)" />
+
+    <!-- iOS standalone install (SPEC 17) -->
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+    <meta name="apple-mobile-web-app-title" content="Visite" />
+    <link rel="apple-touch-icon" href="./icons/apple-touch-icon.png" />
+
+    <link rel="icon" type="image/svg+xml" href="./icons/favicon.svg" />
+
+    <!-- SPEC 18 — no third-party scripts, no analytics, no CDN app code. -->
+    <meta name="referrer" content="no-referrer" />
+    <meta name="robots" content="noindex, nofollow" />
+
+    <title>Visite</title>
+
+    <script>
+      // Resolve the theme before first paint so a night-shift user never gets
+      // flashbanged by a white screen. Duplicated intentionally in inline
+      // script (it must run before the bundle); the store is the source of
+      // truth afterwards.
+      (function () {
+        try {
+          var stored = localStorage.getItem('visite.theme'); // 'system'|'light'|'dark'
+          var prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+          var dark = stored === 'dark' || ((!stored || stored === 'system') && prefersDark);
+          if (dark) document.documentElement.classList.add('dark');
+        } catch (err) {
+          // localStorage can throw in private mode; light theme is a safe default.
+          console.warn('[theme] preference unavailable, defaulting to light', err);
+        }
+      })();
+    </script>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>
