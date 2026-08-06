@@ -1,0 +1,65 @@
+import {
+  onSnapshot,
+  serverTimestamp,
+  setDoc,
+  updateDoc,
+  type DocumentData,
+  type Unsubscribe,
+} from 'firebase/firestore';
+import type { User } from 'firebase/auth';
+
+import { userDoc } from '../paths';
+import { trackWrite } from '../syncStatus';
+import { defaultUserSettings } from '@/domain/defaults';
+import { SCHEMA_VERSION, type UserProfile, type UserSettings } from '@/domain/types';
+
+/**
+ * The profile document carries settings. It is created on first sign-in with
+ * the seed defaults; `{ merge: true }` means a second device signing in never
+ * overwrites settings the first device already customised.
+ */
+export function ensureProfile(user: User): Promise<void> {
+  const record: DocumentData = {
+    uid: user.uid,
+    displayName: user.displayName ?? '',
+    email: user.email ?? '',
+    schemaVersion: SCHEMA_VERSION,
+  };
+  return trackWrite(setDoc(userDoc(user.uid), record, { merge: true }));
+}
+
+/** Seeds settings only when the field is genuinely absent. */
+export function seedSettingsIfMissing(uid: string): Promise<void> {
+  return trackWrite(
+    setDoc(
+      userDoc(uid),
+      { settings: defaultUserSettings(), createdAt: serverTimestamp() },
+      { merge: true },
+    ),
+  );
+}
+
+export function subscribeProfile(
+  uid: string,
+  callback: (profile: UserProfile | null) => void,
+  onError: (error: Error) => void,
+): Unsubscribe {
+  return onSnapshot(
+    userDoc(uid),
+    (snapshot) => callback(snapshot.exists() ? (snapshot.data() as UserProfile) : null),
+    onError,
+  );
+}
+
+/**
+ * Settings are patched by dotted path so that two devices editing different
+ * settings (theme here, checklist order there) do not overwrite each other.
+ */
+export function updateSettings(uid: string, patch: Partial<UserSettings>): Promise<void> {
+  const payload: DocumentData = {};
+  for (const [key, value] of Object.entries(patch)) {
+    if (value !== undefined) payload[`settings.${key}`] = value;
+  }
+  if (Object.keys(payload).length === 0) return Promise.resolve();
+  return trackWrite(updateDoc(userDoc(uid), payload));
+}

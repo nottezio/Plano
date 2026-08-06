@@ -1,0 +1,288 @@
+import {
+  arrayUnion,
+  deleteField,
+  onSnapshot,
+  orderBy,
+  query,
+  serverTimestamp,
+  setDoc,
+  updateDoc,
+  where,
+  type DocumentData,
+  type QuerySnapshot,
+  type Unsubscribe,
+} from 'firebase/firestore';
+import { nanoid } from 'nanoid';
+
+import { getDeviceId } from '../deviceId';
+import { patientDoc, patientsCol } from '../paths';
+import { trackWrite } from '../syncStatus';
+import type {
+  ArchiveReason,
+  ClinicalDate,
+  Patient,
+  PatientStatus,
+  Sex,
+} from '@/domain/types';
+
+/**
+ * SPEC 5 — "UI never imports firebase/firestore directly."
+ * Everything crosses this boundary.
+ */
+
+export interface CreatePatientInput {
+  name: string;
+  admittedAt: ClinicalDate;
+  mrn?: string;
+  age?: number;
+  sex?: Sex;
+  ward?: string;
+  bed?: string;
+  dpjp?: string;
+  diagnoses?: string[];
+  labels?: string[];
+}
+
+/** F10 — lowercase haystack for instant offline search. */
+export function buildSearchBlob(
+  patient: Pick<Patient, 'name' | 'diagnoses'> &
+    Partial<Pick<Patient, 'mrn' | 'bed' | 'ward' | 'dpjp'>>,
+): string {
+  return [patient.name, patient.mrn, patient.bed, patient.ward, patient.dpjp, ...patient.diagnoses]
+    .filter((part): part is string => Boolean(part))
+    .join(' ')
+    .toLowerCase();
+}
+
+/**
+ * Client-generated nanoid (SPEC 6.3): the document id exists before the write
+ * leaves the device, so creating a patient in airplane mode is instant, has a
+ * stable route, and cannot produce a duplicate on reconnect.
+ */
+export function createPatient(uid: string, input: CreatePatientInput): {
+  id: string;
+  written: Promise<void>;
+} {
+  const id = nanoid(12);
+  const diagnoses = input.diagnoses ?? [];
+  const labels = input.labels ?? [];
+
+  const record: DocumentData = {
+    id,
+    ownerId: uid,
+    memberIds: [uid],
+    name: input.name.trim(),
+    diagnoses,
+    labels,
+    admittedAt: input.admittedAt,
+    status: 'active' satisfies PatientStatus,
+    pinned: false,
+    colorOverride: null,
+    searchBlob: buildSearchBlob({ ...input, diagnoses }),
+    createdAt: serverTimestamp(),
+    updatedAt: serverTimestamp(),
+    updatedBy: getDeviceId(),
+    deletedAt: null,
+  };
+
+  // Firestore rejects `undefined`; omit rather than write nulls that would
+  // then have to be distinguished from "explicitly cleared" later.
+  for (const key of ['mrn', 'age', 'sex', 'ward', 'bed', 'dpjp'] as const) {
+    const value = input[key];
+    if (value !== undefined && value !== '') record[key] = value;
+  }
+
+  return { id, written: trackWrite(setDoc(patientDoc(id), record)) };
+}
+
+/** Longest preview the board can show: 4 lines at a comfortable card width. */
+const PREVIEW_LIMIT = 240;
+
+export function buildPreview(body: string): string {
+  const trimmed = body.trim();
+  return trimmed.length > PREVIEW_LIMIT ? `${trimmed.slice(0, PREVIEW_LIMIT)}…` : trimmed;
+}
+
+/**
+ * Refreshes the board caches after a body write. Called from entries.repo so
+ * no call site can forget it and leave the board showing yesterday's text.
+ */
+export function touchEntryMeta(
+  patientId: string,
+  date: ClinicalDate,
+  body: string,
+): Promise<void> {
+  return trackWrite(
+    updateDoc(patientDoc(patientId), {
+      lastEntryDate: date,
+      preview: buildPreview(body),
+      previewDate: date,
+      updatedAt: serverTimestamp(),
+      updatedBy: getDeviceId(),
+    }),
+  );
+}
+
+/**
+ * Rewrites the whole cache object rather than merging a single key: a merge
+ * would leave yesterday's ticks sitting under today's date the first time an
+ * item is ticked after midnight.
+ */
+export function cacheBoardChecklist(
+  patientId: string,
+  date: ClinicalDate,
+  done: Record<string, boolean>,
+): Promise<void> {
+  return trackWrite(
+    updateDoc(patientDoc(patientId), {
+      boardChecklist: { date, done },
+      updatedAt: serverTimestamp(),
+      updatedBy: getDeviceId(),
+    }),
+  );
+}
+
+export type PatientPatch = Partial<
+  Pick<
+    Patient,
+    | 'name'
+    | 'mrn'
+    | 'age'
+    | 'sex'
+    | 'ward'
+    | 'bed'
+    | 'dpjp'
+    | 'diagnoses'
+    | 'labels'
+    | 'pinned'
+    | 'colorOverride'
+    | 'admittedAt'
+    | 'lastEntryDate'
+  >
+>;
+
+export function updatePatient(
+  patientId: string,
+  patch: PatientPatch,
+  searchBlobSource?: Parameters<typeof buildSearchBlob>[0],
+): Promise<void> {
+  const payload: DocumentData = {
+    ...patch,
+    updatedAt: serverTimestamp(),
+    updatedBy: getDeviceId(),
+  };
+  if (searchBlobSource) payload['searchBlob'] = buildSearchBlob(searchBlobSource);
+
+  // An explicit `undefined` in a patch means "clear this field".
+  for (const [key, value] of Object.entries(patch)) {
+    if (value === undefined) payload[key] = deleteField();
+  }
+
+  return trackWrite(updateDoc(patientDoc(patientId), payload));
+}
+
+export function archivePatient(
+  patientId: string,
+  reason: ArchiveReason,
+  note?: string,
+): Promise<void> {
+  const archive: DocumentData = { reason, at: serverTimestamp() };
+  if (note && note.trim()) archive['note'] = note.trim();
+
+  return trackWrite(
+    updateDoc(patientDoc(patientId), {
+      status: 'archived' satisfies PatientStatus,
+      archive,
+      updatedAt: serverTimestamp(),
+      updatedBy: getDeviceId(),
+    }),
+  );
+}
+
+export function reopenPatient(patientId: string): Promise<void> {
+  return trackWrite(
+    updateDoc(patientDoc(patientId), {
+      status: 'active' satisfies PatientStatus,
+      archive: deleteField(),
+      updatedAt: serverTimestamp(),
+      updatedBy: getDeviceId(),
+    }),
+  );
+}
+
+/**
+ * There is NO delete in this repository — not even a soft one.
+ *
+ * Removing a patient from the board is archiving, and archiving keeps every
+ * entry, checklist day and revision. A delete path would exist only to satisfy
+ * a tidiness instinct, and the cost of a mis-tap is a ward round's worth of
+ * notes. `deletedAt` survives in the schema because every query filters on it
+ * and the security rules already deny `delete` outright.
+ */
+
+/** v1 no-op seam: sharing is a config change, not a migration (SPEC 6.1). */
+export function addMember(patientId: string, uid: string): Promise<void> {
+  return trackWrite(
+    updateDoc(patientDoc(patientId), {
+      memberIds: arrayUnion(uid),
+      updatedAt: serverTimestamp(),
+      updatedBy: getDeviceId(),
+    }),
+  );
+}
+
+export function subscribePatient(
+  patientId: string,
+  callback: (patient: Patient | null) => void,
+  onError: (error: Error) => void,
+): Unsubscribe {
+  return onSnapshot(
+    patientDoc(patientId),
+    (snapshot) => callback(snapshot.exists() ? (snapshot.data() as Patient) : null),
+    onError,
+  );
+}
+
+export interface PatientsSnapshot {
+  patients: Patient[];
+  /** True while the payload is served from cache with writes still queued. */
+  fromCache: boolean;
+  hasPendingWrites: boolean;
+}
+
+function mapSnapshot(snapshot: QuerySnapshot): PatientsSnapshot {
+  return {
+    patients: snapshot.docs.map((entry) => entry.data() as Patient),
+    fromCache: snapshot.metadata.fromCache,
+    hasPendingWrites: snapshot.metadata.hasPendingWrites,
+  };
+}
+
+/**
+ * Board query (SPEC 8): memberIds array-contains uid, status, deletedAt,
+ * ordered pinned desc then updatedAt desc. Mirrored in firestore.indexes.json.
+ */
+export function subscribePatients(
+  uid: string,
+  status: PatientStatus,
+  callback: (snapshot: PatientsSnapshot) => void,
+  onError: (error: Error) => void,
+): Unsubscribe {
+  const q = query(
+    patientsCol(),
+    where('memberIds', 'array-contains', uid),
+    where('status', '==', status),
+    where('deletedAt', '==', null),
+    orderBy('pinned', 'desc'),
+    orderBy('updatedAt', 'desc'),
+  );
+
+  return onSnapshot(
+    q,
+    // Cache-first so the board paints with no signal, then re-renders on sync.
+    { includeMetadataChanges: true },
+    (snapshot) => callback(mapSnapshot(snapshot)),
+    onError,
+  );
+}
+
