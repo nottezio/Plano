@@ -1,0 +1,164 @@
+/**
+ * SPEC 9.3 — Card colour tokens are DOMAIN DATA, not styling sugar.
+ *
+ * A ChecklistItemDef stores a `colorToken` key (e.g. "step-3"), never a raw
+ * hex. That indirection is what lets the user reorder / recolour / add
+ * checklist items in Settings without any data migration, and what lets dark
+ * mode exist at all.
+ *
+ * A palette of 12 steps + `done` ships so that ANY checklist length works
+ * (SPEC 15: "Do not hardcode 7 anywhere"). Item N maps to token
+ * `step-((N - 1) % 12) + 1` when a new item is created.
+ *
+ * Every token exposes three variables:
+ *   --card-<token>-bg      card background
+ *   --card-<token>-accent  chip / progress-strip / border accent
+ *   --card-<token>-fg      text colour guaranteed >= 4.5:1 on -bg
+ */
+
+:root {
+  color-scheme: light;
+
+  /* ---- Neutral shell (SPEC 11.4: neutral clinical base) ---- */
+  --bg: #ffffff;
+  --bg-subtle: #f6f7f9;
+  --surface: #ffffff;
+  --surface-raised: #ffffff;
+  --border: #e3e7ec;
+  --border-strong: #c9d1da;
+  --fg: #0b0f14;
+  --fg-muted: #5b6672;
+  --fg-faint: #8b95a1;
+  --accent: #0d6efd;
+  --danger: #dc2626;
+  --focus-ring: #2563eb;
+  --overlay: rgb(11 15 20 / 45%);
+
+  /* ---- Checklist palette: light ---- */
+  --card-step-1-bg: #fee2e2;
+  --card-step-1-accent: #dc2626;
+  --card-step-2-bg: #ffedd5;
+  --card-step-2-accent: #ea580c;
+  --card-step-3-bg: #fef9c3;
+  --card-step-3-accent: #a16207;
+  --card-step-4-bg: #ecfccb;
+  --card-step-4-accent: #4d7c0f;
+  --card-step-5-bg: #ccfbf1;
+  --card-step-5-accent: #0f766e;
+  --card-step-6-bg: #dbeafe;
+  --card-step-6-accent: #2563eb;
+  --card-step-7-bg: #ede9fe;
+  --card-step-7-accent: #7c3aed;
+  --card-step-8-bg: #fce7f3;
+  --card-step-8-accent: #be185d;
+  --card-step-9-bg: #e0f2fe;
+  --card-step-9-accent: #0369a1;
+  --card-step-10-bg: #e2e8f0;
+  --card-step-10-accent: #475569;
+  --card-step-11-bg: #ffe4e6;
+  --card-step-11-accent: #be123c;
+  --card-step-12-bg: #d1fae5;
+  --card-step-12-accent: #047857;
+  --card-done-bg: #dcfce7;
+  --card-done-accent: #15803d;
+
+  /* Light mode: one near-black foreground clears 4.5:1 on every pastel above.
+     Verified in scripts/check-contrast.mjs. */
+  --card-step-1-fg: #0b0f14;
+  --card-step-2-fg: #0b0f14;
+  --card-step-3-fg: #0b0f14;
+  --card-step-4-fg: #0b0f14;
+  --card-step-5-fg: #0b0f14;
+  --card-step-6-fg: #0b0f14;
+  --card-step-7-fg: #0b0f14;
+  --card-step-8-fg: #0b0f14;
+  --card-step-9-fg: #0b0f14;
+  --card-step-10-fg: #0b0f14;
+  --card-step-11-fg: #0b0f14;
+  --card-step-12-fg: #0b0f14;
+  --card-done-fg: #0b0f14;
+}
+
+.dark {
+  color-scheme: dark;
+
+  --bg: #0b0f14;
+  --bg-subtle: #0f151c;
+  --surface: #141b23;
+  --surface-raised: #1a232d;
+  --border: #232e3a;
+  --border-strong: #33404f;
+  --fg: #e6edf3;
+  --fg-muted: #9aa7b4;
+  --fg-faint: #6f7d8b;
+  --accent: #5b9cff;
+  --danger: #f87171;
+  --focus-ring: #5b9cff;
+  --overlay: rgb(0 0 0 / 62%);
+
+  /* Dark palette: desaturated deep tints so text stays legible at 3am. */
+  --card-step-1-bg: #3b1c1e;
+  --card-step-1-accent: #f87171;
+  --card-step-2-bg: #3b2415;
+  --card-step-2-accent: #fb923c;
+  --card-step-3-bg: #382f12;
+  --card-step-3-accent: #facc15;
+  --card-step-4-bg: #26340f;
+  --card-step-4-accent: #a3e635;
+  --card-step-5-bg: #10322e;
+  --card-step-5-accent: #2dd4bf;
+  --card-step-6-bg: #142944;
+  --card-step-6-accent: #60a5fa;
+  --card-step-7-bg: #251f45;
+  --card-step-7-accent: #a78bfa;
+  --card-step-8-bg: #3a1730;
+  --card-step-8-accent: #f472b6;
+  --card-step-9-bg: #10293c;
+  --card-step-9-accent: #38bdf8;
+  --card-step-10-bg: #1e2833;
+  --card-step-10-accent: #94a3b8;
+  --card-step-11-bg: #3a1622;
+  --card-step-11-accent: #fb7185;
+  --card-step-12-bg: #0f3026;
+  --card-step-12-accent: #34d399;
+  --card-done-bg: #10331f;
+  --card-done-accent: #4ade80;
+
+  --card-step-1-fg: #f2f6fa;
+  --card-step-2-fg: #f2f6fa;
+  --card-step-3-fg: #f2f6fa;
+  --card-step-4-fg: #f2f6fa;
+  --card-step-5-fg: #f2f6fa;
+  --card-step-6-fg: #f2f6fa;
+  --card-step-7-fg: #f2f6fa;
+  --card-step-8-fg: #f2f6fa;
+  --card-step-9-fg: #f2f6fa;
+  --card-step-10-fg: #f2f6fa;
+  --card-step-11-fg: #f2f6fa;
+  --card-step-12-fg: #f2f6fa;
+  --card-done-fg: #f2f6fa;
+}
+
+/**
+ * Consumer surface. A card sets `data-color-token="step-3"` and reads the
+ * resolved trio through these three variables — no per-token Tailwind classes,
+ * so an arbitrary number of checklist items works without a safelist.
+ */
+[data-color-token] {
+  --token-bg: var(--card-step-10-bg);
+  --token-accent: var(--card-step-10-accent);
+  --token-fg: var(--card-step-10-fg);
+}
+[data-color-token='step-1'] { --token-bg: var(--card-step-1-bg); --token-accent: var(--card-step-1-accent); --token-fg: var(--card-step-1-fg); }
+[data-color-token='step-2'] { --token-bg: var(--card-step-2-bg); --token-accent: var(--card-step-2-accent); --token-fg: var(--card-step-2-fg); }
+[data-color-token='step-3'] { --token-bg: var(--card-step-3-bg); --token-accent: var(--card-step-3-accent); --token-fg: var(--card-step-3-fg); }
+[data-color-token='step-4'] { --token-bg: var(--card-step-4-bg); --token-accent: var(--card-step-4-accent); --token-fg: var(--card-step-4-fg); }
+[data-color-token='step-5'] { --token-bg: var(--card-step-5-bg); --token-accent: var(--card-step-5-accent); --token-fg: var(--card-step-5-fg); }
+[data-color-token='step-6'] { --token-bg: var(--card-step-6-bg); --token-accent: var(--card-step-6-accent); --token-fg: var(--card-step-6-fg); }
+[data-color-token='step-7'] { --token-bg: var(--card-step-7-bg); --token-accent: var(--card-step-7-accent); --token-fg: var(--card-step-7-fg); }
+[data-color-token='step-8'] { --token-bg: var(--card-step-8-bg); --token-accent: var(--card-step-8-accent); --token-fg: var(--card-step-8-fg); }
+[data-color-token='step-9'] { --token-bg: var(--card-step-9-bg); --token-accent: var(--card-step-9-accent); --token-fg: var(--card-step-9-fg); }
+[data-color-token='step-10'] { --token-bg: var(--card-step-10-bg); --token-accent: var(--card-step-10-accent); --token-fg: var(--card-step-10-fg); }
+[data-color-token='step-11'] { --token-bg: var(--card-step-11-bg); --token-accent: var(--card-step-11-accent); --token-fg: var(--card-step-11-fg); }
+[data-color-token='step-12'] { --token-bg: var(--card-step-12-bg); --token-accent: var(--card-step-12-accent); --token-fg: var(--card-step-12-fg); }
+[data-color-token='done'] { --token-bg: var(--card-done-bg); --token-accent: var(--card-done-accent); --token-fg: var(--card-done-fg); }

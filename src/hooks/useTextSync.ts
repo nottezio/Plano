@@ -1,0 +1,226 @@
+import { useCallback, useEffect, useRef, useState } from 'react';
+
+import { mergeThreeWay, type MergeOutcome } from '@/domain/merge/threeWayMerge';
+import { useDrafts } from '@/store/useDrafts';
+import { useUI } from '@/store/useUI';
+
+/** SPEC 7.2 step 2. */
+const IDLE_DEBOUNCE_MS = 800;
+const MAX_UNSAVED_MS = 15_000;
+
+export type SnapshotReason = 'pre-conflict' | 'restore';
+
+export interface TextSyncOptions {
+  /** Stable identity for the draft, e.g. `patientId|date` or `doc|documentId`. */
+  key: string;
+  /** The body as the server currently holds it. */
+  serverText: string;
+  locked: boolean;
+  write: (text: string) => Promise<void>;
+  /**
+   * Optional durability hook, called BEFORE a conflict resolution or restore
+   * lands. Entries use it to append to the revision trail; anything without a
+   * trail simply omits it.
+   */
+  snapshot?: (text: string, reason: SnapshotReason) => void;
+}
+
+export interface TextSyncState {
+  value: string;
+  setValue: (next: string) => void;
+  flush: () => void;
+  dirty: boolean;
+  remoteChangedWhileDirty: boolean;
+  conflict: Extract<MergeOutcome, { kind: 'conflict' }> | null;
+  resolveConflict: (text: string) => void;
+  restoreTo: (text: string) => void;
+  adoptRemote: () => void;
+}
+
+/**
+ * SPEC 7.2 — the local write path, extracted so every editable body in the app
+ * gets the same guarantees.
+ *
+ * SOAP entries and documents are the same problem: a free-form string that must
+ * survive a dropped connection, a backgrounded tab, and a second device. When
+ * only entries had this machinery, documents were one copy-paste away from
+ * quietly having weaker durability than the notes beside them — so the
+ * machinery moved here rather than being duplicated.
+ *
+ * Ordering, which is the whole point:
+ *   1. Keystrokes update the draft store synchronously; nothing awaits.
+ *   2. Write 800 ms after typing stops, and force it on blur, unmount,
+ *      `visibilitychange`, `pagehide`, `beforeunload`, and after 15 s of
+ *      continuous typing — someone who types for two minutes straight and then
+ *      drops the phone must not lose two minutes.
+ *   3. Firestore's own queue handles retry. No custom queue.
+ *
+ * Remote adoption is conditional: a snapshot overwrites the editor only when
+ * this device has nothing unsaved. Otherwise the two versions go through
+ * `mergeThreeWay`, and an unresolvable merge is handed to the UI untouched.
+ */
+export function useTextSync({
+  key,
+  serverText,
+  locked,
+  write,
+  snapshot,
+}: TextSyncOptions): TextSyncState {
+  const draft = useDrafts((state) => state.drafts[key]);
+  const base = useDrafts((state) => state.bases[key]);
+  const setDraft = useDrafts((state) => state.setDraft);
+  const setBase = useDrafts((state) => state.setBase);
+
+  const markDirty = useUI((state) => state.markDirty);
+  const markClean = useUI((state) => state.markClean);
+
+  const value = draft ?? serverText;
+  const dirty = draft !== undefined && draft !== serverText;
+  const remoteChangedWhileDirty = dirty && base !== undefined && base !== serverText;
+
+  const [conflict, setConflict] = useState<Extract<
+    MergeOutcome,
+    { kind: 'conflict' }
+  > | null>(null);
+
+  const timerRef = useRef(0);
+  const firstDirtyAtRef = useRef(0);
+  // Refs so window-level handlers always see current values without
+  // re-subscribing on every keystroke.
+  const latest = useRef({ value, dirty, locked, key, write });
+  latest.current = { value, dirty, locked, key, write };
+
+  const flush = useCallback(() => {
+    const current = latest.current;
+    window.clearTimeout(timerRef.current);
+    firstDirtyAtRef.current = 0;
+
+    if (!current.dirty || current.locked) return;
+
+    setBase(current.key, current.value);
+    void current.write(current.value).catch((error: unknown) => {
+      console.error('[textsync] write rejected', error);
+    });
+  }, [setBase]);
+
+  const setValue = useCallback(
+    (next: string) => {
+      setDraft(key, next);
+
+      if (firstDirtyAtRef.current === 0) firstDirtyAtRef.current = Date.now();
+
+      window.clearTimeout(timerRef.current);
+      if (Date.now() - firstDirtyAtRef.current >= MAX_UNSAVED_MS) {
+        // Continuous typing: stop waiting for an idle gap that may never come.
+        flush();
+        return;
+      }
+      timerRef.current = window.setTimeout(flush, IDLE_DEBOUNCE_MS);
+    },
+    [key, setDraft, flush],
+  );
+
+  const adoptRemote = useCallback(() => {
+    setDraft(key, serverText);
+    setBase(key, serverText);
+  }, [key, serverText, setDraft, setBase]);
+
+  /** SPEC 7.2 step 5 — merge whenever the server moves under unsaved text. */
+  useEffect(() => {
+    if (!remoteChangedWhileDirty) {
+      setConflict(null);
+      return;
+    }
+
+    const outcome = mergeThreeWay(base ?? null, value, serverText);
+
+    if (outcome.kind === 'conflict') {
+      setConflict(outcome);
+      return;
+    }
+
+    setConflict(null);
+    if (outcome.body !== value) setDraft(key, outcome.body);
+    setBase(key, serverText);
+  }, [remoteChangedWhileDirty, serverText, base, key, setDraft, setBase, value]);
+
+  /**
+   * SPEC 7.4 — snapshot BOTH versions before applying a resolution.
+   * Before the write, not after: if the app dies in between, the losing version
+   * must already be recoverable.
+   */
+  const resolveConflict = useCallback(
+    (text: string) => {
+      const current = latest.current;
+      snapshot?.(current.value, 'pre-conflict');
+      snapshot?.(serverText, 'pre-conflict');
+
+      setConflict(null);
+      setDraft(current.key, text);
+      setBase(current.key, serverText);
+    },
+    [serverText, setDraft, setBase, snapshot],
+  );
+
+  /** Restoring is itself undoable: the current text is snapshotted first. */
+  const restoreTo = useCallback(
+    (text: string) => {
+      const current = latest.current;
+      snapshot?.(current.value, 'restore');
+      setDraft(current.key, text);
+    },
+    [setDraft, snapshot],
+  );
+
+  // Seed the merge base the first time this key is seen on this device.
+  useEffect(() => {
+    if (base === undefined && serverText.length > 0) setBase(key, serverText);
+  }, [base, key, serverText, setBase]);
+
+  // Drop a draft that has caught up with the server, so a later snapshot from
+  // another device is adopted rather than fought by a stale local copy.
+  useEffect(() => {
+    if (draft !== undefined && draft === serverText) {
+      useDrafts.getState().clearDraft(key);
+    }
+  }, [draft, serverText, key]);
+
+  // SPEC 17 — the service-worker update gate reads this.
+  useEffect(() => {
+    if (dirty) markDirty(key);
+    else markClean(key);
+    return () => markClean(key);
+  }, [dirty, key, markDirty, markClean]);
+
+  useEffect(() => {
+    const onVisibility = (): void => {
+      if (document.visibilityState === 'hidden') flush();
+    };
+    const onPageHide = (): void => flush();
+    const onBeforeUnload = (): void => flush();
+
+    document.addEventListener('visibilitychange', onVisibility);
+    window.addEventListener('pagehide', onPageHide);
+    window.addEventListener('beforeunload', onBeforeUnload);
+
+    return () => {
+      document.removeEventListener('visibilitychange', onVisibility);
+      window.removeEventListener('pagehide', onPageHide);
+      window.removeEventListener('beforeunload', onBeforeUnload);
+      // Unmount = route change. Flush before the component disappears.
+      flush();
+    };
+  }, [flush]);
+
+  return {
+    value,
+    setValue,
+    flush,
+    dirty,
+    remoteChangedWhileDirty,
+    conflict,
+    resolveConflict,
+    restoreTo,
+    adoptRemote,
+  };
+}
