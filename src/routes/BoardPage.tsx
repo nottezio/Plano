@@ -1,13 +1,14 @@
-import { useMemo, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 
 import { AppShell } from '@/components/common/AppShell';
-import { CreatePatientSheet } from '@/components/board/CreatePatientSheet';
 import { FilterBar } from '@/components/board/FilterBar';
 import { PatientCard } from '@/components/board/PatientCard';
 import { QuickChecklistSheet } from '@/components/board/QuickChecklistSheet';
 import { IconSearch } from '@/components/common/Icons';
 import { useClinicalToday } from '@/hooks/useClinicalToday';
 import { useDebouncedValue } from '@/hooks/useDebouncedValue';
+import { createBlankPatient } from '@/data/repositories/patients.repo';
 import { usePatients } from '@/hooks/usePatients';
 import {
   availableLabels,
@@ -24,12 +25,25 @@ import { useSession } from '@/store/useSession';
 
 export default function BoardPage(): JSX.Element {
   const today = useClinicalToday();
+  const navigate = useNavigate();
+  const uid = useSession((state) => state.user?.uid ?? null);
+
+  /**
+   * SPEC 1.2 rule 5 — nothing between the tap and a cursor in a blank note.
+   * The record is created locally and navigated to immediately; the write is
+   * never awaited, so this works with no signal.
+   */
+  const createAndOpen = useCallback(() => {
+    if (!uid) return;
+    const { id, written } = createBlankPatient(uid, today);
+    void written.catch((error: unknown) => console.error('[board] create rejected', error));
+    navigate(`/p/${id}/${today}`);
+  }, [uid, today, navigate]);
   const settings = useSession((state) => state.settings());
   const { patients, loading, error } = usePatients('active');
 
   const [query, setQuery] = useState('');
   const [filters, setFilters] = useState<BoardFilters>(EMPTY_FILTERS);
-  const [createOpen, setCreateOpen] = useState(false);
   const [quickPatientId, setQuickPatientId] = useState<string | null>(null);
 
   const debouncedQuery = useDebouncedValue(query, 150);
@@ -80,7 +94,7 @@ export default function BoardPage(): JSX.Element {
       ) : loading ? (
         <p className="px-4 py-10 text-center text-sm text-fg-muted">Memuat…</p>
       ) : cards.length === 0 ? (
-        <EmptyState filtering={filtering} onCreate={() => setCreateOpen(true)} />
+        <EmptyState filtering={filtering} onCreate={createAndOpen} />
       ) : (
         // CSS multi-column masonry: no measurement pass, no layout library,
         // and it reflows correctly when a card grows as the note is typed.
@@ -93,14 +107,13 @@ export default function BoardPage(): JSX.Element {
 
       <button
         type="button"
-        onClick={() => setCreateOpen(true)}
+        onClick={createAndOpen}
         aria-label="Pasien baru"
         className="fixed bottom-[calc(env(safe-area-inset-bottom)+76px)] right-4 z-30 flex h-14 w-14 items-center justify-center rounded-full bg-accent text-2xl text-white shadow-lg sm:bottom-6"
       >
         +
       </button>
 
-      <CreatePatientSheet open={createOpen} onOpenChange={setCreateOpen} today={today} />
       <QuickChecklistSheet
         patient={quickPatient}
         items={items}

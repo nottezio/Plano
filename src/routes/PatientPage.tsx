@@ -5,6 +5,7 @@ import { BodyEditor } from '@/components/patient/BodyEditor';
 import { CopySheet } from '@/components/copy/CopySheet';
 import { SectionCopyBar } from '@/components/copy/SectionCopyBar';
 import { ChecklistPills } from '@/components/patient/ChecklistPills';
+import { IdentitySheet } from '@/components/patient/IdentitySheet';
 import { PatientActionsSheet } from '@/components/patient/PatientActionsSheet';
 import { ConflictDialog } from '@/components/patient/ConflictDialog';
 import { DateRail } from '@/components/patient/DateRail';
@@ -50,6 +51,7 @@ export default function PatientPage(): JSX.Element {
   const [trailOpen, setTrailOpen] = useState(false);
   const [copyOpen, setCopyOpen] = useState(false);
   const [actionsOpen, setActionsOpen] = useState(false);
+  const [identityOpen, setIdentityOpen] = useState(false);
 
   const hariRawat = patient ? daysBetween(patient.admittedAt, selected) + 1 : 1;
 
@@ -140,7 +142,7 @@ export default function PatientPage(): JSX.Element {
   }
 
   const identity = [
-    patient.name,
+    patient.name?.trim() || null,
     patient.age ? `${patient.age}th` : null,
     patient.sex,
     patient.mrn ? `RM ${patient.mrn}` : null,
@@ -158,7 +160,19 @@ export default function PatientPage(): JSX.Element {
       <div className="flex min-h-0 flex-1 flex-col">
         <header className="border-b border-border px-4 py-3">
           <div className="flex items-start gap-2">
-            <p className="min-w-0 flex-1 text-xs text-fg-muted">{identity}</p>
+            {identity ? (
+              <p className="min-w-0 flex-1 text-xs text-fg-muted">{identity}</p>
+            ) : (
+              // Identity is optional metadata, not a precondition. The note is
+              // already usable; this is an offer, not a prompt.
+              <button
+                type="button"
+                onClick={() => setIdentityOpen(true)}
+                className="min-w-0 flex-1 text-left text-xs text-accent underline"
+              >
+                Tambah identitas pasien
+              </button>
+            )}
             <button
               type="button"
               onClick={() => setActionsOpen(true)}
@@ -306,6 +320,12 @@ export default function PatientPage(): JSX.Element {
           onResolve={editor.resolveConflict}
         />
       ) : null}
+
+      <IdentitySheet
+        open={identityOpen}
+        onOpenChange={setIdentityOpen}
+        patient={patient}
+      />
 
       <PatientActionsSheet
         open={actionsOpen}
