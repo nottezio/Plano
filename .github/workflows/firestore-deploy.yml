@@ -1,1 +1,21 @@
+name: Deploy Firestore Rules & Indexes
 
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'firestore.rules'
+      - 'firestore.indexes.json'
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: w9jds/firebase-action@master
+        with:
+          args: deploy --only firestore:rules,firestore:indexes --project plano-85e9e
+        env:
+          GCP_SA_KEY: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
