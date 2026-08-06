@@ -177,6 +177,10 @@ would have done.
 
 ### Product
 
+- **A patient is created by tapping +, not by filling in a form.** Identity is
+  optional metadata; the board titles an unnamed patient by the first line of
+  their note. Requiring a name before you can write is exactly the structure
+  the prime directive forbids imposing — the note *is* the record.
 - **Soft presence is a hint, never a lock.** A hard lock is worse than the
   problem: the holder walks away, the document stays locked, and the person who
   needs to write is stuck — offline, with no way to release it.

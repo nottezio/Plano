@@ -27,6 +27,11 @@
         { "fieldPath": "pinned", "order": "DESCENDING" },
         { "fieldPath": "order", "order": "DESCENDING" }
       ]
+    },
+    {
+      "collectionGroup": "revisions",
+      "queryScope": "COLLECTION",
+      "fields": [{ "fieldPath": "at", "order": "DESCENDING" }]
     }
   ],
   "fieldOverrides": []
