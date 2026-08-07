@@ -78,6 +78,7 @@ export function createPatient(uid: string, input: CreatePatientInput): {
     ownerId: uid,
     memberIds: [uid],
     name: input.name?.trim() ?? '',
+    notes: '',
     diagnoses,
     labels,
     admittedAt: input.admittedAt,
@@ -167,6 +168,7 @@ type PatientPatchKey = keyof Pick<
   | 'ward'
   | 'bed'
   | 'dpjp'
+  | 'notes'
   | 'diagnoses'
   | 'labels'
   | 'pinned'

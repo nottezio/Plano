@@ -51,7 +51,7 @@ export function DateRail({
             className={[
               'flex min-h-tap shrink-0 rounded-lg px-3 py-1 text-xs',
               orientation === 'vertical'
-                ? 'w-full flex-row items-center justify-between gap-2'
+                ? 'w-full min-w-0 flex-row items-center justify-between gap-2 text-left'
                 : 'flex-col items-center justify-center',
               active ? 'bg-accent font-medium text-white' : 'text-fg-muted',
             ].join(' ')}

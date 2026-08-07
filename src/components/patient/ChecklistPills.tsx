@@ -53,7 +53,7 @@ export function ChecklistPills({
               className={[
                 'flex min-h-tap items-center gap-1.5 border px-3 text-xs',
                 orientation === 'vertical'
-                  ? 'w-full rounded-lg text-left'
+                  ? 'w-full min-w-0 rounded-lg py-2 text-left'
                   : 'shrink-0 rounded-full',
                 done
                   ? 'border-transparent bg-token font-medium text-token-fg'
@@ -62,7 +62,13 @@ export function ChecklistPills({
               ].join(' ')}
             >
               <span aria-hidden="true">{done ? '✓' : '○'}</span>
-              <span className={orientation === 'vertical' ? 'flex-1' : 'whitespace-nowrap'}>
+              <span
+                className={
+                  orientation === 'vertical'
+                    ? 'min-w-0 flex-1 whitespace-normal break-words'
+                    : 'whitespace-nowrap'
+                }
+              >
                 {item.label}
               </span>
             </button>

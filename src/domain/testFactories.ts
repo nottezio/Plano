@@ -30,6 +30,7 @@ export function makePatient(overrides: PatientOverrides = {}): Patient {
     ownerId: 'u1',
     memberIds: ['u1'],
     name: 'Tn. Budi Santoso',
+    notes: '',
     diagnoses: [],
     admittedAt: '2026-08-06',
     status: 'active',

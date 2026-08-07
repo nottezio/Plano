@@ -7,6 +7,7 @@ import { SectionCopyBar } from '@/components/copy/SectionCopyBar';
 import { ChecklistPills } from '@/components/patient/ChecklistPills';
 import { IdentitySheet } from '@/components/patient/IdentitySheet';
 import { PatientActionsSheet } from '@/components/patient/PatientActionsSheet';
+import { PatientNotes } from '@/components/patient/PatientNotes';
 import { OpeningSheet } from '@/components/patient/OpeningSheet';
 import { TemplatePicker } from '@/components/patient/TemplatePicker';
 import { ConflictDialog } from '@/components/patient/ConflictDialog';
@@ -170,8 +171,18 @@ export default function PatientPage(): JSX.Element {
         The note column keeps a readable measure; the rail and checklist move
         into a sidebar that does not move when the note grows.
       */}
-      <div className="mx-auto flex min-h-0 w-full max-w-3xl flex-1 flex-col xl:max-w-none xl:flex-row xl:gap-6 xl:px-6">
-        <div className="flex min-h-0 flex-1 flex-col xl:max-w-3xl">
+      <div className="mx-auto flex min-h-0 w-full max-w-3xl flex-1 flex-col overflow-hidden xl:max-w-none xl:flex-row xl:gap-6 xl:pr-4">
+        {/*
+          `min-w-0` is load-bearing, not decoration.
+
+          A flex item defaults to `min-width: auto`, which means it refuses to
+          shrink below the intrinsic width of its content. A long unbroken line
+          in the note therefore pushed this column wider than the row, the fixed
+          sidebar was shoved past the viewport edge, and the whole page grew a
+          horizontal scrollbar. `min-w-0` lets the column shrink and the text
+          wrap instead.
+        */}
+        <div className="flex min-h-0 min-w-0 flex-1 flex-col">
         <header className="border-b border-border px-4 py-3">
           <div className="flex items-start gap-2">
             {identity ? (
@@ -229,6 +240,10 @@ export default function PatientPage(): JSX.Element {
             <p className="mt-1 text-xs text-fg-faint">{patient.diagnoses.join(', ')}</p>
           ) : null}
         </header>
+
+        <div className="xl:hidden">
+          <PatientNotes patient={patient} />
+        </div>
 
         <div className="xl:hidden">
           <ChecklistPills
@@ -378,7 +393,9 @@ export default function PatientPage(): JSX.Element {
         </div>
 
         {/* Sidebar: fixed-width context, scrolls independently. */}
-        <aside className="hidden w-[300px] shrink-0 flex-col gap-4 overflow-y-auto py-4 xl:flex">
+        <aside className="hidden w-[300px] shrink-0 flex-col gap-4 overflow-y-auto overflow-x-hidden py-4 xl:flex">
+          <PatientNotes patient={patient} />
+
           <section>
             <h3 className="mb-1.5 text-xs font-semibold text-fg-muted">Tanggal</h3>
             <DateRail

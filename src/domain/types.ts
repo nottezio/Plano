@@ -127,6 +127,16 @@ export interface Patient {
   ward?: string;
   bed?: string;
   dpjp?: string;
+  /**
+   * Free-form note that belongs to the PATIENT, not to a day.
+   *
+   * Never carried, never cleared, never rolled over — it simply persists.
+   * Things like allergies, family contacts, access lines, or a reminder about
+   * which consultant wants what. Kept off the daily entry deliberately: a
+   * standing fact repeated into thirty days of SOAP is thirty places to
+   * correct it when it changes.
+   */
+  notes: string;
   diagnoses: string[];
   admittedAt: ClinicalDate;
   status: PatientStatus;

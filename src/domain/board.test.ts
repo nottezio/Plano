@@ -311,3 +311,15 @@ describe('filter chip sources', () => {
     expect(availableLabels(patients)).toEqual(['covid', 'isolasi']);
   });
 });
+
+describe('standing patient notes', () => {
+  it('are not part of the searchable board blob by default', () => {
+    // The note is private working memory, not an index. Including it would
+    // surface a patient by a family contact's name, which is not what the
+    // board search is for.
+    const patient = makePatient({ name: 'Tn. Budi' });
+    const withNote = { ...patient, notes: 'alergi penisilin' };
+    expect(matchesQuery(withNote, 'penisilin')).toBe(false);
+    expect(matchesQuery(withNote, 'budi')).toBe(true);
+  });
+});
