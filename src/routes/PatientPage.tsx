@@ -158,10 +158,20 @@ export default function PatientPage(): JSX.Element {
 
   return (
     <AppShell title={patient.name}>
-      {/* A note is prose. Letting it run to 2000 px makes it unreadable, so
-          the whole column is capped and centred from tablet up — the editor
-          still fills the height, only the width is constrained. */}
-      <div className="mx-auto flex min-h-0 w-full max-w-3xl flex-1 flex-col">
+      {/*
+        Two columns from 1280 px, one below it.
+
+        Capping everything at max-w-3xl and centring it was still a phone layout
+        — it just had margins. On a laptop the note deserves the width it has,
+        and the things you consult WHILE writing (which day, what is still
+        outstanding) belong beside it rather than stacked above it, where every
+        one of them pushed the text further down the screen.
+
+        The note column keeps a readable measure; the rail and checklist move
+        into a sidebar that does not move when the note grows.
+      */}
+      <div className="mx-auto flex min-h-0 w-full max-w-3xl flex-1 flex-col xl:max-w-none xl:flex-row xl:gap-6 xl:px-6">
+        <div className="flex min-h-0 flex-1 flex-col xl:max-w-3xl">
         <header className="border-b border-border px-4 py-3">
           <div className="flex items-start gap-2">
             {identity ? (
@@ -177,11 +187,32 @@ export default function PatientPage(): JSX.Element {
                 Tambah identitas pasien
               </button>
             )}
+            {/* Pembuka and Salin were 11px underlined text at the very bottom
+                of the page — the two things reached for most often, placed
+                where they had to be hunted for. They are buttons in the header
+                now, next to the note they act on. */}
+            {!locked ? (
+              <button
+                type="button"
+                onClick={() => setOpeningOpen(true)}
+                disabled={editor.value.trim().length === 0}
+                className="min-h-tap shrink-0 rounded-lg border border-border px-3 text-xs font-medium disabled:opacity-40"
+              >
+                Pembuka
+              </button>
+            ) : null}
+            <button
+              type="button"
+              onClick={() => setCopyOpen(true)}
+              className="min-h-tap shrink-0 rounded-lg bg-accent px-3 text-xs font-medium text-white"
+            >
+              Salin
+            </button>
             <button
               type="button"
               onClick={() => setActionsOpen(true)}
               aria-label="Tindakan pasien"
-              className="min-h-tap min-w-tap -mr-2 -mt-2 shrink-0 text-fg-faint"
+              className="min-h-tap min-w-tap shrink-0 text-fg-faint"
             >
               ⋯
             </button>
@@ -199,21 +230,25 @@ export default function PatientPage(): JSX.Element {
           ) : null}
         </header>
 
-        <ChecklistPills
-          items={settings.checklistItems}
-          states={checklist.states}
-          progress={checklist.progress}
-          onToggle={checklist.toggle}
-          disabled={locked}
-        />
+        <div className="xl:hidden">
+          <ChecklistPills
+            items={settings.checklistItems}
+            states={checklist.states}
+            progress={checklist.progress}
+            onToggle={checklist.toggle}
+            disabled={locked}
+          />
+        </div>
 
-        <DateRail
-          dates={railDates}
-          selected={selected}
-          today={today}
-          datesWithContent={datesWithContent}
-          onSelect={goToDate}
-        />
+        <div className="xl:hidden">
+          <DateRail
+            dates={railDates}
+            selected={selected}
+            today={today}
+            datesWithContent={datesWithContent}
+            onSelect={goToDate}
+          />
+        </div>
 
         {hint ? (
           <Banner tone="info">
@@ -258,7 +293,10 @@ export default function PatientPage(): JSX.Element {
             <button
               type="button"
               onClick={() => {
-                if (patientId) void setEntryLocked(patientId, selected, false);
+                if (!patientId) return;
+                void setEntryLocked(patientId, selected, false).catch((error: unknown) =>
+                  console.error('[patient] unlock failed', error),
+                );
               }}
               className="font-medium text-accent underline"
             >
@@ -308,22 +346,6 @@ export default function PatientPage(): JSX.Element {
         {/* SPEC F4 — microcopy only. There is no save button by design. */}
         <div className="flex items-center gap-3 px-4 py-2 text-[11px] text-fg-faint">
           <span className="flex-1">{editor.dirty ? 'Menyimpan…' : 'Tersimpan'}</span>
-          {editor.value.trim().length > 0 && !locked ? (
-            <button
-              type="button"
-              onClick={() => setOpeningOpen(true)}
-              className="min-h-tap px-1 underline"
-            >
-              Pembuka
-            </button>
-          ) : null}
-          <button
-            type="button"
-            onClick={() => setCopyOpen(true)}
-            className="min-h-tap px-1 underline"
-          >
-            Salin…
-          </button>
           <button
             type="button"
             onClick={() => setTrailOpen(true)}
@@ -332,7 +354,6 @@ export default function PatientPage(): JSX.Element {
             Riwayat perubahan
           </button>
         </div>
-      </div>
 
       {editor.conflict ? (
         <ConflictDialog
@@ -353,6 +374,36 @@ export default function PatientPage(): JSX.Element {
         onOpenChange={setActionsOpen}
         patient={patient}
       />
+
+        </div>
+
+        {/* Sidebar: fixed-width context, scrolls independently. */}
+        <aside className="hidden w-[300px] shrink-0 flex-col gap-4 overflow-y-auto py-4 xl:flex">
+          <section>
+            <h3 className="mb-1.5 text-xs font-semibold text-fg-muted">Tanggal</h3>
+            <DateRail
+              dates={railDates}
+              selected={selected}
+              today={today}
+              datesWithContent={datesWithContent}
+              onSelect={goToDate}
+              orientation="vertical"
+            />
+          </section>
+
+          <section>
+            <h3 className="mb-1.5 text-xs font-semibold text-fg-muted">Checklist</h3>
+            <ChecklistPills
+              items={settings.checklistItems}
+              states={checklist.states}
+              progress={checklist.progress}
+              onToggle={checklist.toggle}
+              disabled={locked}
+              orientation="vertical"
+            />
+          </section>
+        </aside>
+      </div>
 
       <OpeningSheet
         open={openingOpen}

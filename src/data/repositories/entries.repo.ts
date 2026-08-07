@@ -211,17 +211,33 @@ export function clearEditing(patientId: string, date: ClinicalDate): Promise<voi
   );
 }
 
+/**
+ * Lock or unlock a day.
+ *
+ * `setDoc(..., { merge: true })`, not `updateDoc`, because the document may not
+ * exist. Auto-lock is DERIVED from the date — a day older than 48 hours reads
+ * as locked whether or not anything was ever written to it. So "Buka kunci" on
+ * an empty old day was calling `updateDoc` on a non-existent document, which
+ * rejects with "No document to update", and the rejection was unhandled: the
+ * button did nothing at all, silently.
+ *
+ * Merging also means unlocking never touches `body` or `rev`.
+ */
 export function setEntryLocked(
   patientId: string,
   date: ClinicalDate,
   locked: boolean,
 ): Promise<void> {
   return trackWrite(
-    updateDoc(entryDoc(patientId, date), {
-      locked,
-      updatedAt: serverTimestamp(),
-      updatedBy: getDeviceId(),
-    }),
+    setDoc(
+      entryDoc(patientId, date),
+      {
+        locked,
+        updatedAt: serverTimestamp(),
+        updatedBy: getDeviceId(),
+      },
+      { merge: true },
+    ),
   );
 }
 

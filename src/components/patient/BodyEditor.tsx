@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef } from 'react';
+import { useCallback, useLayoutEffect, useRef } from 'react';
 
 import {
   BOLD,
@@ -43,11 +43,36 @@ export function BodyEditor({
   const resize = useCallback(() => {
     const node = ref.current;
     if (!node) return;
-    node.style.height = 'auto';
-    node.style.height = `${node.scrollHeight}px`;
+
+    /**
+     * Autosize without letting the page jump to the top on every keystroke.
+     *
+     * The naive version sets `height = 'auto'` to measure, which momentarily
+     * collapses the textarea to one row. The scroll container's scrollHeight
+     * collapses with it, the browser clamps scrollTop to the new (much
+     * smaller) maximum, and when the real height is restored the scroll
+     * position is gone — so a long note scrolled itself to the top on every
+     * character typed.
+     *
+     * Fix has three parts: measure against a shrink-only step rather than a
+     * full collapse, capture and restore the ancestor's scrollTop around the
+     * measurement, and run it in a layout effect so it happens before paint —
+     * otherwise the jump is visible even when it is corrected.
+     */
+    const scroller = node.closest('main') ?? document.scrollingElement;
+    const scrollTop = scroller?.scrollTop ?? 0;
+
+    const previous = node.style.height;
+    node.style.height = '0px';
+    const next = `${node.scrollHeight}px`;
+    node.style.height = previous === next ? previous : next;
+
+    if (scroller && scroller.scrollTop !== scrollTop) scroller.scrollTop = scrollTop;
   }, []);
 
-  useEffect(resize, [value, resize]);
+  // Layout effect, not effect: the measurement must land before the browser
+  // paints, or the collapse is visible as a flicker.
+  useLayoutEffect(resize, [value, resize]);
 
   const applyEdit = useCallback(
     (edit: TextEdit) => {

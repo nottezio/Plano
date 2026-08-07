@@ -14,12 +14,15 @@ export function DateRail({
   today,
   datesWithContent,
   onSelect,
+  orientation = 'horizontal',
 }: {
   dates: ClinicalDate[];
   selected: ClinicalDate;
   today: ClinicalDate;
   datesWithContent: ReadonlySet<ClinicalDate>;
   onSelect: (date: ClinicalDate) => void;
+  /** Horizontal strip on phone; a stacked list in the desktop sidebar. */
+  orientation?: 'horizontal' | 'vertical';
 }): JSX.Element {
   const pickerRef = useRef<HTMLInputElement>(null);
   const selectedRef = useRef<HTMLButtonElement>(null);
@@ -29,7 +32,13 @@ export function DateRail({
   }, [selected]);
 
   return (
-    <div className="flex items-center gap-2 overflow-x-auto border-b border-border px-4 py-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+    <div
+      className={
+        orientation === 'vertical'
+          ? 'flex flex-col gap-1'
+          : 'flex items-center gap-2 overflow-x-auto border-b border-border px-4 py-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden'
+      }
+    >
       {dates.map((date) => {
         const active = date === selected;
         return (
@@ -40,7 +49,10 @@ export function DateRail({
             onClick={() => onSelect(date)}
             aria-current={active ? 'date' : undefined}
             className={[
-              'flex min-h-tap shrink-0 flex-col items-center justify-center rounded-lg px-3 py-1 text-xs',
+              'flex min-h-tap shrink-0 rounded-lg px-3 py-1 text-xs',
+              orientation === 'vertical'
+                ? 'w-full flex-row items-center justify-between gap-2'
+                : 'flex-col items-center justify-center',
               active ? 'bg-accent font-medium text-white' : 'text-fg-muted',
             ].join(' ')}
           >
@@ -72,7 +84,7 @@ export function DateRail({
             if (typeof input.showPicker === 'function') input.showPicker();
             else input.click();
           }}
-          className="flex min-h-tap items-center gap-1 rounded-lg border border-dashed border-border-strong px-3 text-xs text-fg-muted"
+          className="flex min-h-tap w-full items-center gap-1 rounded-lg border border-dashed border-border-strong px-3 text-xs text-fg-muted"
         >
           <span aria-hidden="true">📅</span>
           Tanggal lain

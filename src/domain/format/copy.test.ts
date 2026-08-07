@@ -347,3 +347,30 @@ describe('single-asterisk bold pasted from WhatsApp', () => {
     expect(toPlain('* awal saja')).toBe('* awal saja');
   });
 });
+
+describe('identity lines with trailing blanks', () => {
+  it('strips asterisks even when the span ends in a space', () => {
+    expect(toPlain('*Tn.  /  /  tahun / RM *')).toBe('Tn.  /  /  tahun / RM ');
+  });
+
+  it('strips a filled-in identity line', () => {
+    expect(toPlain('*Tn. Abdullah / 11-04-1967/ 59 tahun/ RM 1667031*')).toBe(
+      'Tn. Abdullah / 11-04-1967/ 59 tahun/ RM 1667031',
+    );
+  });
+
+  it('strips the ward line with its blank placeholders', () => {
+    const line = "Tabe dokter, melaporkan pasien di *Ruang  Kamar  Bed *  atas nama :";
+    expect(findPlainTextLeaks(toPlain(line))).toEqual([]);
+  });
+
+  it('still refuses a span that starts with a space', () => {
+    expect(toPlain('nilai * penting *')).toBe('nilai * penting *');
+  });
+
+  it('leaves multiplication shorthand alone', () => {
+    expect(toPlain('Metformin 500 mg 3*1 dan Ceftriaxone 2*1')).toBe(
+      'Metformin 500 mg 3*1 dan Ceftriaxone 2*1',
+    );
+  });
+});

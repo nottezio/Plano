@@ -60,10 +60,16 @@ export function CopySheet({
   const [format, setFormat] = useState<OutputFormat>('whatsapp');
   const [range, setRange] = useState<CopyRange>('specific');
   const [selected, setSelected] = useState<SectionId[] | 'all'>('all');
-  // Off by default: templates now carry the greeting and identity inside the
-  // note itself, so prepending them again would duplicate every header.
-  const [includeIdentity, setIncludeIdentity] = useState(false);
-  const [includeDateHeader, setIncludeDateHeader] = useState(false);
+  /**
+   * Identity and date header are no longer options.
+   *
+   * Templates carry the greeting, ward, identity line and closing INSIDE the
+   * note (see templates.ts), so prepending them again printed every header
+   * twice. A toggle whose only two states are "correct" and "duplicated" is not
+   * a choice, it is a trap — so it is gone rather than defaulted off.
+   */
+  const includeIdentity = false;
+  const includeDateHeader = false;
   const [allDays, setAllDays] = useState<CopyDay[]>([]);
   const [copied, setCopied] = useState(false);
 
@@ -107,8 +113,6 @@ export function CopySheet({
   const applyPreset = (preset: CopyPreset): void => {
     setFormat(preset.format);
     setSelected(preset.sections);
-    setIncludeIdentity(preset.includeIdentity);
-    setIncludeDateHeader(preset.includeDateHeader);
     setRange(preset.range);
   };
 
@@ -183,15 +187,6 @@ export function CopySheet({
             {section.label}
           </Chip>
         ))}
-      </Group>
-
-      <Group label="Sertakan">
-        <Chip active={includeIdentity} onClick={() => setIncludeIdentity((v) => !v)}>
-          Identitas pasien
-        </Chip>
-        <Chip active={includeDateHeader} onClick={() => setIncludeDateHeader((v) => !v)}>
-          Tanggal & hari rawat
-        </Chip>
       </Group>
 
       <p className="mb-1 mt-4 text-xs font-medium text-fg-muted">Pratinjau</p>

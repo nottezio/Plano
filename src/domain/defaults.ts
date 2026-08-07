@@ -94,6 +94,8 @@ export function defaultUserSettings(): UserSettings {
       'Tabe dokter, mohon izin melaporkan follow up pasien di *Ruang  Kamar  Bed *  atas nama :',
       'Tabe dokter, mohon izin melaporkan pasien baru rencana tindakan dari *POLI * di *Ruang  Kamar  Bed * atas nama:',
       'Tabe dokter, mohon izin melaporkan pasien baru di *Ruang  Kamar  Bed *  atas nama :',
+      'Tabe dokter izin melaporkan follow up pasien *KJS TS  ()* di *Ruang  Kamar * atas nama :',
+      'Tabe dokter mohon izin melaporkan follow up perpindahan pasien dari *  bed * ke *Ruang  Kamar  Bed * pasien atas nama:',
     ],
     copyPresets: DEFAULT_COPY_PRESETS.map((preset) => ({ ...preset })),
     privacy: {

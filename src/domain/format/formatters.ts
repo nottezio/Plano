@@ -41,11 +41,23 @@ const BULLET_LINE_RE = /^(\s*)- /gm;
  * typed with the toolbar, `*x*` when pasted from a chat — and plain text has to
  * strip both.
  *
- * The leading `(^|[^\w*])` guard is what keeps clinical shorthand intact:
- * in `Ceftriaxone 2*1 g` the asterisk is preceded by a word character, so it
- * never matches. Same no-lookbehind constraint as everywhere else.
+ * Two guards, and only two, because each one has to earn its place:
+ *
+ *  - `(^|[^\w*])` before the opening marker keeps clinical shorthand intact —
+ *    in `Ceftriaxone 2*1 g` the asterisk follows a word character, so it never
+ *    matches.
+ *  - the span must START with a non-space, which is what distinguishes
+ *    `*Tn. Abdullah*` from the stray asterisk in `nilai * penting`.
+ *
+ * It deliberately does NOT require the span to END with a non-space. Real
+ * identity lines are written `*Tn.  /  /  tahun / RM *` with the placeholder
+ * left blank, and an earlier version that demanded a non-space on both sides
+ * skipped exactly those — so the patient identity was the one line that copied
+ * into SIMGOS with its asterisks still attached.
+ *
+ * Same no-lookbehind constraint as everywhere else.
  */
-const SINGLE_BOLD_RE = /(^|[^\w*])\*([^\s*](?:[^\n*]*[^\s*])?)\*(?!\w)/g;
+const SINGLE_BOLD_RE = /(^|[^\w*])\*([^\s*][^\n*]*?)\*(?!\w)/g;
 
 /**
  * SPEC 12.3 — WhatsApp.
