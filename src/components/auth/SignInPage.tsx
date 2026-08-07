@@ -48,7 +48,7 @@ export function SignInPage(): JSX.Element {
     <div className="flex min-h-[100dvh] flex-col bg-bg">
       <div className="flex flex-1 items-center justify-center px-5 py-10">
         <div className="w-full max-w-sm">
-          <h1 className="text-2xl font-semibold tracking-tight">Visite</h1>
+          <h1 className="text-2xl font-semibold tracking-tight">Plano</h1>
           <p className="mt-1 text-sm text-fg-muted">
             Catatan visite pasien. Masuk sekali, lalu bisa dipakai offline.
           </p>

@@ -37,7 +37,7 @@ export function LockScreen(): JSX.Element {
   return (
     <div className="fixed inset-0 z-[100] flex flex-col bg-bg">
       <div className="flex flex-1 flex-col items-center justify-center px-6">
-        <h1 className="text-lg font-semibold">Visite terkunci</h1>
+        <h1 className="text-lg font-semibold">Plano terkunci</h1>
         <p className="mt-1 text-center text-xs text-fg-muted">
           Masukkan PIN untuk melanjutkan.
         </p>

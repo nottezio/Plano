@@ -33,7 +33,13 @@ service cloud.firestore {
     }
 
     match /patients/{pid} {
-      allow read: if isMemberOf(resource.data);
+      // `resource` is null for a document that does not exist on the server
+      // yet. Evaluating `resource.data` in that case throws, the rule denies,
+      // and the listener errors out — which is exactly what happened when a
+      // patient created offline was opened before its write had landed.
+      // Allowing reads of non-existent documents reveals nothing: the snapshot
+      // simply comes back empty.
+      allow read: if resource == null || isMemberOf(resource.data);
 
       allow create: if authed()
         && request.resource.data.ownerId == request.auth.uid

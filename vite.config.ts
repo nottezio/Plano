@@ -47,8 +47,8 @@ export default defineConfig({
       injectRegister: null, // registration happens in src/pwa.ts, explicitly
       manifest: {
         id: base,
-        name: 'Visite',
-        short_name: 'Visite',
+        name: 'Plano',
+        short_name: 'Plano',
         description: 'Catatan visite pasien — offline-first.',
         lang: 'id',
         start_url: base,
@@ -58,9 +58,9 @@ export default defineConfig({
         background_color: '#ffffff',
         theme_color: '#ffffff',
         icons: [
-          { src: 'icons/icon-192.png', sizes: '192x192', type: 'image/png', purpose: 'any' },
-          { src: 'icons/icon-512.png', sizes: '512x512', type: 'image/png', purpose: 'any' },
-          { src: 'icons/maskable-512.png', sizes: '512x512', type: 'image/png', purpose: 'maskable' },
+          { src: `${base}icons/icon-192.png`, sizes: '192x192', type: 'image/png', purpose: 'any' },
+          { src: `${base}icons/icon-512.png`, sizes: '512x512', type: 'image/png', purpose: 'any' },
+          { src: `${base}icons/maskable-512.png`, sizes: '512x512', type: 'image/png', purpose: 'maskable' },
         ],
       },
       injectManifest: {

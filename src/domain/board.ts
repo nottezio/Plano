@@ -1,5 +1,6 @@
 import { checklistProgress, resolveCardColor, type ChecklistStates } from './checklist';
 import { hariRawat } from './clinicalDate';
+import { displayName } from './identity';
 import type {
   ChecklistItemDef,
   ClinicalDate,
@@ -33,8 +34,17 @@ export function initials(name: string): string {
   return letters.length > 0 ? letters.join('.') : '—';
 }
 
+/**
+ * A patient with no typed name is titled by the first line of their note
+ * (see identity.ts). Initials-only mode applies to the derived title too —
+ * a privacy setting that hid the name field while leaking the note's opening
+ * line would be worse than no setting.
+ */
 export function cardTitle(patient: Patient, showInitialsOnly: boolean): string {
-  const label = showInitialsOnly ? initials(patient.name) : patient.name;
+  const name = displayName(patient);
+  if (!name) return patient.bed ? `Catatan baru · ${patient.bed}` : 'Catatan baru';
+
+  const label = showInitialsOnly ? initials(name) : name;
   return patient.bed ? `${label} · ${patient.bed}` : label;
 }
 
@@ -123,7 +133,15 @@ export const EMPTY_FILTERS: BoardFilters = {
 export function matchesQuery(patient: Patient, query: string): boolean {
   const tokens = query.trim().toLowerCase().split(/\s+/).filter(Boolean);
   if (tokens.length === 0) return true;
-  const haystack = patient.searchBlob || patient.name.toLowerCase();
+  // The preview is included because a patient with no typed name is titled by
+  // their note — searching for the words on the card must find the card.
+  const haystack = [
+    patient.searchBlob,
+    patient.name ?? '',
+    patient.preview ?? '',
+  ]
+    .join(' ')
+    .toLowerCase();
   return tokens.every((token) => haystack.includes(token));
 }
 
@@ -158,13 +176,19 @@ export function filterPatients(
  * a partially-reconciled set, so the client sorts again rather than trusting
  * arrival order.
  */
+/**
+ * Pinned first, otherwise the query's own order (newest note first).
+ *
+ * This used to re-sort by `updatedAt`, which meant every keystroke moved the
+ * card being typed into to the top of the board and pushed everything else
+ * down. On a round that is unusable: you look away, look back, and the card
+ * you were reading is somewhere else. Position is now stable for the whole
+ * session — only pinning moves anything.
+ */
 export function sortPatients(patients: readonly Patient[]): Patient[] {
-  return [...patients].sort((a, b) => {
-    if (a.pinned !== b.pinned) return a.pinned ? -1 : 1;
-    const aTime = a.updatedAt?.toMillis?.() ?? 0;
-    const bTime = b.updatedAt?.toMillis?.() ?? 0;
-    return bTime - aTime;
-  });
+  const pinned = patients.filter((patient) => patient.pinned);
+  const rest = patients.filter((patient) => !patient.pinned);
+  return [...pinned, ...rest];
 }
 
 /** Distinct ward values present on the board, for the filter chips. */

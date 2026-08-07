@@ -1,6 +1,6 @@
 /// <reference lib="webworker" />
 /**
- * Visite service worker (SPEC 17).
+ * Plano service worker (SPEC 17).
  *
  * Two things this file must get right, both of them data-safety concerns
  * rather than performance concerns:

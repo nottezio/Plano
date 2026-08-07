@@ -27,14 +27,25 @@ export const COLOR_TOKENS: readonly ColorTokenDef[] = [
   { id: 'step-11', label: 'Rose' },
   { id: 'step-12', label: 'Zamrud' },
   { id: 'done', label: 'Selesai' },
+  { id: 'neutral', label: 'Belum mulai' },
 ] as const;
 
-/** Tokens assignable to a checklist item (everything except the terminal state). */
+/**
+ * Tokens assignable to a checklist item.
+ *
+ * Defined by EXCLUSION of the two reserved states rather than by "everything
+ * except done" — that phrasing is what let `neutral` leak into the 12-step
+ * palette the moment it was added, silently changing where the wrap lands.
+ */
+const RESERVED_TOKENS = ['done', 'neutral'] as const;
+
 export const STEP_TOKENS: readonly string[] = COLOR_TOKENS.filter(
-  (token) => token.id !== 'done',
+  (token) => !RESERVED_TOKENS.includes(token.id as (typeof RESERVED_TOKENS)[number]),
 ).map((token) => token.id);
 
 export const DONE_TOKEN = 'done';
+/** Nothing ticked yet — the card recedes into the surface. */
+export const NEUTRAL_TOKEN = 'neutral';
 
 /** Colour for the Nth checklist item (1-based), wrapping past 12. */
 export function tokenForIndex(index: number): string {

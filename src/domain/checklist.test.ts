@@ -16,7 +16,7 @@ import {
   setChecklistItemActive,
 } from './checklist';
 import { DEFAULT_CHECKLIST } from './defaults';
-import { STEP_TOKENS, tokenForIndex } from './colorTokens';
+import { NEUTRAL_TOKEN, STEP_TOKENS, tokenForIndex } from './colorTokens';
 import type { ChecklistItemDef, DailyChecklist } from './types';
 
 /** Builds an N-item checklist. N is a parameter everywhere, never 7. */
@@ -60,8 +60,8 @@ describe('resolveCardColor — the lowest-order unchecked item', () => {
     describe(`with N = ${n}`, () => {
       const items = makeItems(n);
 
-      it('is the first item colour when nothing is ticked', () => {
-        expect(resolveCardColor(items, resolveStates(items, null))).toBe(tokenForIndex(1));
+      it('is neutral when nothing is ticked — an untouched card is not an alert', () => {
+        expect(resolveCardColor(items, resolveStates(items, null))).toBe(NEUTRAL_TOKEN);
       });
 
       it('advances one step per completed item, in order', () => {
@@ -100,7 +100,8 @@ describe('resolveCardColor — the lowest-order unchecked item', () => {
 
   it('skips disabled items when choosing the colour', () => {
     const items = setChecklistItemActive(makeItems(5), 'c1', false);
-    expect(resolveCardColor(items, resolveStates(items, null))).toBe(tokenForIndex(2));
+    // c2 is now the first ACTIVE item; ticking it makes c3 the pending one.
+    expect(resolveCardColor(items, resolveStates(items, ticked(['c2'])))).toBe(tokenForIndex(3));
   });
 
   it('reads as done when no items are active at all', () => {
@@ -113,8 +114,10 @@ describe('resolveCardColor — the lowest-order unchecked item', () => {
       { id: 'b', order: 2, label: 'Kedua', colorToken: 'step-2', active: true },
       { id: 'a', order: 1, label: 'Pertama', colorToken: 'step-1', active: true },
     ];
-    expect(resolveCardColor(items, resolveStates(items, null))).toBe('step-1');
+    // pendingItem is order-driven regardless of ticks; the colour only shows
+    // once something is ticked, so tick 'a' to see 'b' become pending.
     expect(pendingItem(items, resolveStates(items, null))?.id).toBe('a');
+    expect(resolveCardColor(items, resolveStates(items, ticked(['a'])))).toBe('step-2');
   });
 });
 
@@ -194,11 +197,13 @@ describe('checklist editors', () => {
 
   it('reordering changes the card colour immediately', () => {
     const items = makeItems(4);
-    const before = resolveCardColor(items, resolveStates(items, null));
+    // One tick, so the card is in a coloured state at all; the colour must
+    // then follow the NEW first-pending item after the reorder.
     const moved = moveChecklistItem(items, 'c3', 0);
-    const after = resolveCardColor(moved, resolveStates(moved, null));
-    expect(before).toBe(tokenForIndex(1));
-    expect(after).toBe(items[2]?.colorToken);
+    const before = resolveCardColor(items, resolveStates(items, ticked(['c1'])));
+    const after = resolveCardColor(moved, resolveStates(moved, ticked(['c3'])));
+    expect(before).toBe(tokenForIndex(2));
+    expect(after).toBe(items[0]?.colorToken);
   });
 
   it('clamps an out-of-range move instead of dropping the item', () => {

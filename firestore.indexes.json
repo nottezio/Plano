@@ -7,8 +7,7 @@
         { "fieldPath": "memberIds", "arrayConfig": "CONTAINS" },
         { "fieldPath": "status", "order": "ASCENDING" },
         { "fieldPath": "deletedAt", "order": "ASCENDING" },
-        { "fieldPath": "pinned", "order": "DESCENDING" },
-        { "fieldPath": "updatedAt", "order": "DESCENDING" }
+        { "fieldPath": "createdAt", "order": "DESCENDING" }
       ]
     },
     {

@@ -1,4 +1,4 @@
-import { DONE_TOKEN, tokenForIndex } from './colorTokens';
+import { DONE_TOKEN, NEUTRAL_TOKEN, tokenForIndex } from './colorTokens';
 import type {
   ChecklistItemDef,
   ChecklistTickState,
@@ -68,12 +68,30 @@ export function pendingItem(
  * nothing left to do, so the card reads as done rather than falling back to a
  * neutral colour that would look like an error.
  */
+/**
+ * SPEC 9.2, corrected.
+ *
+ * A card with NOTHING ticked is neutral, not step-1 coloured. Colouring an
+ * untouched patient the same as one stalled at step 1 made every fresh card
+ * read as an alert — the loudest colour on the board applied to the state that
+ * carries the least information. Colour now means "progress has started and
+ * this is where it stopped", which is the only reading that is actionable.
+ */
 export function resolveCardColor(
   items: readonly ChecklistItemDef[],
   states: ChecklistStates,
   override?: string | null,
 ): string {
   if (override) return override;
+
+  const active = activeItems(items);
+  // No active items at all = vacuously complete, which is a finished state
+  // rather than an unstarted one.
+  if (active.length === 0) return DONE_TOKEN;
+
+  const anyDone = active.some((item) => isDone(states, item.id));
+  if (!anyDone) return NEUTRAL_TOKEN;
+
   const pending = pendingItem(items, states);
   return pending ? pending.colorToken : DONE_TOKEN;
 }

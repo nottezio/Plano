@@ -61,6 +61,8 @@
   --card-step-12-accent: #047857;
   --card-done-bg: #dcfce7;
   --card-done-accent: #15803d;
+  --card-neutral-bg: #f4f6f8;
+  --card-neutral-accent: #64748b;
 
   /* Light mode: one near-black foreground clears 4.5:1 on every pastel above.
      Verified in scripts/check-contrast.mjs. */
@@ -77,6 +79,7 @@
   --card-step-11-fg: #0b0f14;
   --card-step-12-fg: #0b0f14;
   --card-done-fg: #0b0f14;
+  --card-neutral-fg: #0b0f14;
 }
 
 .dark {
@@ -123,6 +126,8 @@
   --card-step-12-accent: #34d399;
   --card-done-bg: #10331f;
   --card-done-accent: #4ade80;
+  --card-neutral-bg: #161c24;
+  --card-neutral-accent: #94a3b8;
 
   --card-step-1-fg: #f2f6fa;
   --card-step-2-fg: #f2f6fa;
@@ -137,6 +142,7 @@
   --card-step-11-fg: #f2f6fa;
   --card-step-12-fg: #f2f6fa;
   --card-done-fg: #f2f6fa;
+  --card-neutral-fg: #f2f6fa;
 }
 
 /**
@@ -161,4 +167,5 @@
 [data-color-token='step-10'] { --token-bg: var(--card-step-10-bg); --token-accent: var(--card-step-10-accent); --token-fg: var(--card-step-10-fg); }
 [data-color-token='step-11'] { --token-bg: var(--card-step-11-bg); --token-accent: var(--card-step-11-accent); --token-fg: var(--card-step-11-fg); }
 [data-color-token='step-12'] { --token-bg: var(--card-step-12-bg); --token-accent: var(--card-step-12-accent); --token-fg: var(--card-step-12-fg); }
+[data-color-token='neutral'] { --token-bg: var(--card-neutral-bg); --token-accent: var(--card-neutral-accent); --token-fg: var(--card-neutral-fg); }
 [data-color-token='done'] { --token-bg: var(--card-done-bg); --token-accent: var(--card-done-accent); --token-fg: var(--card-done-fg); }

@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import { Sheet } from '@/components/common/Sheet';
 import {
   archivePatient,
+  deletePatient,
   reopenPatient,
   updatePatient,
 } from '@/data/repositories/patients.repo';
@@ -17,9 +18,10 @@ import type { ArchiveReason, Patient } from '@/domain/types';
  * when "why is this patient here" is the only question that matters. The reason
  * is required; the note is not.
  *
- * There is no delete action, by design. Archiving already removes the patient
- * from the board while keeping the record intact, so a second, lossier way to
- * do the same thing would only ever be a mis-tap risk.
+ * Archive and delete are both offered, and they are not the same thing:
+ * archiving keeps the record readable and copyable, deleting removes it from
+ * every list. Delete is therefore two taps behind a confirm, and is still a
+ * SOFT delete at the data layer — the rules deny hard deletion outright.
  */
 export function PatientActionsSheet({
   open,
@@ -33,12 +35,14 @@ export function PatientActionsSheet({
   const navigate = useNavigate();
   const [reason, setReason] = useState<ArchiveReason | null>(null);
   const [note, setNote] = useState('');
+  const [confirmDelete, setConfirmDelete] = useState(false);
 
   const archived = patient.status === 'archived';
 
   const close = (): void => {
     setReason(null);
     setNote('');
+    setConfirmDelete(false);
     onOpenChange(false);
   };
 
@@ -115,6 +119,44 @@ export function PatientActionsSheet({
         </section>
       ) : null}
 
+      <section className="mt-6 border-t border-border pt-4">
+        {confirmDelete ? (
+          <>
+            <p className="text-xs text-fg-muted">
+              Hapus {patient.name?.trim() || 'catatan ini'}? Catatan akan hilang dari papan
+              dan arsip. Gunakan Arsipkan bila hanya ingin menyelesaikan pasien.
+            </p>
+            <div className="mt-2 flex gap-2">
+              <button
+                type="button"
+                onClick={() => setConfirmDelete(false)}
+                className="min-h-tap flex-1 rounded-lg border border-border text-sm"
+              >
+                Batal
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  void deletePatient(patient.id);
+                  close();
+                  navigate('/');
+                }}
+                className="min-h-tap flex-1 rounded-lg border border-danger text-sm font-medium text-danger"
+              >
+                Hapus
+              </button>
+            </div>
+          </>
+        ) : (
+          <button
+            type="button"
+            onClick={() => setConfirmDelete(true)}
+            className="min-h-tap w-full rounded-lg border border-border px-3 text-sm text-danger"
+          >
+            Hapus pasien
+          </button>
+        )}
+      </section>
     </Sheet>
   );
 }

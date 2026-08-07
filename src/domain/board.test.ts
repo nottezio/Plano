@@ -110,7 +110,9 @@ describe('buildCard', () => {
     const done = Object.fromEntries(ITEMS.map((item) => [item.id, true]));
     const patient = makePatient({ boardChecklist: { date: '2026-08-05', done } });
     expect(buildCard(patient, ITEMS, '2026-08-05', true).colorToken).toBe('done');
-    expect(buildCard(patient, ITEMS, TODAY, true).colorToken).toBe('step-1');
+    // A new day has no ticks, so the card reads as unstarted rather than
+    // jumping straight to the step-1 alert colour.
+    expect(buildCard(patient, ITEMS, TODAY, true).colorToken).toBe('neutral');
   });
 
   it('computes hari rawat from the admission date', () => {
@@ -196,6 +198,15 @@ describe('matchesQuery', () => {
   });
 });
 
+describe('search finds unnamed patients by their note', () => {
+  it('matches text from the preview when no name was typed', () => {
+    const patient = makePatient({ name: '', preview: 'Tn. Budi, pneumonia komunitas' });
+    expect(matchesQuery(patient, 'pneumonia')).toBe(true);
+    expect(matchesQuery(patient, 'budi')).toBe(true);
+    expect(matchesQuery(patient, 'sepsis')).toBe(false);
+  });
+});
+
 describe('filterPatients', () => {
   const a = makePatient({
     id: 'a',
@@ -268,15 +279,24 @@ describe('filterPatients', () => {
 });
 
 describe('sortPatients', () => {
-  it('puts pinned first, then most recently updated', () => {
-    const older = makePatient({ id: 'older', updatedAtMillis: 1000 });
-    const newer = makePatient({ id: 'newer', updatedAtMillis: 2000 });
+  it('puts pinned first and otherwise preserves the incoming order', () => {
+    const first = makePatient({ id: 'first', updatedAtMillis: 1000 });
+    const second = makePatient({ id: 'second', updatedAtMillis: 2000 });
     const pinned = makePatient({ id: 'pinned', pinned: true, updatedAtMillis: 1 });
-    expect(sortPatients([older, newer, pinned]).map((patient) => patient.id)).toEqual([
+    expect(sortPatients([first, second, pinned]).map((patient) => patient.id)).toEqual([
       'pinned',
-      'newer',
-      'older',
+      'first',
+      'second',
     ]);
+  });
+
+  it('does not reorder when a card is edited', () => {
+    const a = makePatient({ id: 'a', updatedAtMillis: 1 });
+    const b = makePatient({ id: 'b', updatedAtMillis: 2 });
+    const before = sortPatients([a, b]).map((patient) => patient.id);
+    // b gets typed into; its updatedAt jumps. Position must not change.
+    const edited = makePatient({ id: 'b', updatedAtMillis: 999_999 });
+    expect(sortPatients([a, edited]).map((patient) => patient.id)).toEqual(before);
   });
 });
 

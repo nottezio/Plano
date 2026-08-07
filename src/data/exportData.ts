@@ -79,7 +79,7 @@ export function downloadJson(bundle: ExportBundle): void {
   const url = URL.createObjectURL(blob);
   const link = document.createElement('a');
   link.href = url;
-  link.download = `visite-export-${bundle.exportedAt.slice(0, 10)}.json`;
+  link.download = `plano-export-${bundle.exportedAt.slice(0, 10)}.json`;
   document.body.appendChild(link);
   link.click();
   document.body.removeChild(link);

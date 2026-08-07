@@ -31,7 +31,13 @@ import type {
  */
 
 export interface CreatePatientInput {
-  name: string;
+  /**
+   * Optional. A patient created from the board's + button has no name yet —
+   * the board titles them from the first line of their note until someone
+   * fills this in. Requiring it here would put a form between the user and a
+   * blank page, which is the one thing this app must never do (SPEC 1.2).
+   */
+  name?: string;
   admittedAt: ClinicalDate;
   mrn?: string;
   age?: number;
@@ -71,14 +77,14 @@ export function createPatient(uid: string, input: CreatePatientInput): {
     id,
     ownerId: uid,
     memberIds: [uid],
-    name: input.name.trim(),
+    name: input.name?.trim() ?? '',
     diagnoses,
     labels,
     admittedAt: input.admittedAt,
     status: 'active' satisfies PatientStatus,
     pinned: false,
     colorOverride: null,
-    searchBlob: buildSearchBlob({ ...input, diagnoses }),
+    searchBlob: buildSearchBlob({ ...input, name: input.name?.trim() ?? '', diagnoses }),
     createdAt: serverTimestamp(),
     updatedAt: serverTimestamp(),
     updatedBy: getDeviceId(),
@@ -142,23 +148,31 @@ export function cacheBoardChecklist(
   );
 }
 
-export type PatientPatch = Partial<
-  Pick<
-    Patient,
-    | 'name'
-    | 'mrn'
-    | 'age'
-    | 'sex'
-    | 'ward'
-    | 'bed'
-    | 'dpjp'
-    | 'diagnoses'
-    | 'labels'
-    | 'pinned'
-    | 'colorOverride'
-    | 'admittedAt'
-    | 'lastEntryDate'
-  >
+/**
+ * `undefined` is meaningful here, not merely absent: `updatePatient` reads it
+ * as "clear this field" and writes `deleteField()`. Under
+ * `exactOptionalPropertyTypes` that has to be spelled out, or callers cannot
+ * express a clear at all.
+ */
+export type PatientPatch = {
+  [K in PatientPatchKey]?: Patient[K] | undefined;
+};
+
+type PatientPatchKey = keyof Pick<
+  Patient,
+  | 'name'
+  | 'mrn'
+  | 'age'
+  | 'sex'
+  | 'ward'
+  | 'bed'
+  | 'dpjp'
+  | 'diagnoses'
+  | 'labels'
+  | 'pinned'
+  | 'colorOverride'
+  | 'admittedAt'
+  | 'lastEntryDate'
 >;
 
 export function updatePatient(
@@ -208,6 +222,42 @@ export function reopenPatient(patientId: string): Promise<void> {
       updatedBy: getDeviceId(),
     }),
   );
+}
+
+/**
+ * Soft delete.
+ *
+ * Sets `deletedAt`, which every query already filters on, so the patient
+ * disappears from the board and the archive at once. The document itself
+ * stays: `firestore.rules` still denies hard `delete`, so a mistake here is
+ * recoverable by an admin rather than final. Restoring is a one-field write.
+ */
+export function deletePatient(patientId: string): Promise<void> {
+  return trackWrite(
+    updateDoc(patientDoc(patientId), {
+      deletedAt: serverTimestamp(),
+      updatedAt: serverTimestamp(),
+      updatedBy: getDeviceId(),
+    }),
+  );
+}
+
+/**
+ * SPEC 1.2 rule 5 — the blank page.
+ *
+ * Tapping + on the board creates the record immediately and navigates. No
+ * sheet, no required fields, nothing between the tap and a cursor in an empty
+ * note. Identity can be filled in later, or never: the board derives a title
+ * from the note itself.
+ *
+ * `admittedAt` defaults to today because hari rawat has to count from
+ * something; it is editable afterwards like every other field.
+ */
+export function createBlankPatient(
+  uid: string,
+  today: ClinicalDate,
+): { id: string; written: Promise<void> } {
+  return createPatient(uid, { admittedAt: today });
 }
 
 /**
@@ -273,8 +323,10 @@ export function subscribePatients(
     where('memberIds', 'array-contains', uid),
     where('status', '==', status),
     where('deletedAt', '==', null),
-    orderBy('pinned', 'desc'),
-    orderBy('updatedAt', 'desc'),
+    // Newest note first, like a notes app. The previous pinned+updatedAt
+    // ordering reshuffled the board every time anyone typed a character,
+    // so a card was never twice in the same place — unusable on a round.
+    orderBy('createdAt', 'desc'),
   );
 
   return onSnapshot(
