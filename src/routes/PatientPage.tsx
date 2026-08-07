@@ -3,7 +3,6 @@ import { Link, useNavigate, useParams } from 'react-router-dom';
 
 import { BodyEditor } from '@/components/patient/BodyEditor';
 import { CopySheet } from '@/components/copy/CopySheet';
-import { SectionCopyBar } from '@/components/copy/SectionCopyBar';
 import { ChecklistPills } from '@/components/patient/ChecklistPills';
 import { IdentitySheet } from '@/components/patient/IdentitySheet';
 import { PatientActionsSheet } from '@/components/patient/PatientActionsSheet';
@@ -186,7 +185,15 @@ export default function PatientPage(): JSX.Element {
         <header className="border-b border-border px-4 py-3">
           <div className="flex items-start gap-2">
             {identity ? (
-              <p className="min-w-0 flex-1 text-xs text-fg-muted">{identity}</p>
+              // Editable after the fact. A one-way form is how a typo in an MRN
+              // becomes permanent.
+              <button
+                type="button"
+                onClick={() => setIdentityOpen(true)}
+                className="min-w-0 flex-1 truncate text-left text-xs text-fg-muted underline decoration-border underline-offset-2"
+              >
+                {identity}
+              </button>
             ) : (
               // Identity is optional metadata, not a precondition. The note is
               // already usable; this is an offer, not a prompt.
@@ -350,12 +357,6 @@ export default function PatientPage(): JSX.Element {
           aliases={settings.sectionAliases}
           readOnly={locked}
           placeholder="Tulis SOAP hari ini…"
-        />
-
-        <SectionCopyBar
-          body={editor.value}
-          aliases={settings.sectionAliases}
-          format="whatsapp"
         />
 
         {/* SPEC F4 — microcopy only. There is no save button by design. */}

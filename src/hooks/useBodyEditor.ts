@@ -1,9 +1,12 @@
-import { useCallback, useMemo } from 'react';
+import { useCallback, useMemo, useRef } from 'react';
 
 import { appendRevision, writeBody } from '@/data/repositories/entries.repo';
 import { draftKey } from '@/store/useDrafts';
 import { useTextSync, type SnapshotReason, type TextSyncState } from './useTextSync';
 import type { ClinicalDate, DailyEntry } from '@/domain/types';
+
+/** One snapshot per five minutes of editing (SPEC 7.4). */
+const REVISION_INTERVAL_MS = 5 * 60_000;
 
 export type BodyEditorState = TextSyncState & {
   /** Alias kept for readability at the call site. */
@@ -35,9 +38,48 @@ export function useBodyEditor({
 }): BodyEditorState {
   const key = draftKey(patientId, date);
 
+  /**
+   * SPEC 7.4 — periodic snapshots.
+   *
+   * The revision trail declared an `autosave` reason from the start, and
+   * nothing ever wrote one: revisions were only appended on conflict
+   * resolution and restore. On a single device neither ever happens, so the
+   * trail was permanently empty and the feature looked broken because it was.
+   *
+   * A snapshot is taken of the body being REPLACED, not the one being written —
+   * the point of a trail is to recover what you had, and what you are about to
+   * save is already safe.
+   *
+   * Throttled to one every five minutes. Snapshotting each 800 ms autosave
+   * would burn through the 30-entry cap in under a minute and leave a trail
+   * covering only the last few keystrokes, which is precisely the window you
+   * never need to recover.
+   */
+  const lastSnapshot = useRef<{ at: number; body: string }>({ at: 0, body: '' });
+
   const write = useCallback(
-    (body: string) => writeBody(patientId, date, body, hariRawat, { isNew: !exists }),
-    [patientId, date, hariRawat, exists],
+    (body: string) => {
+      const previous = entry?.body ?? '';
+      const now = Date.now();
+      const stale = now - lastSnapshot.current.at >= REVISION_INTERVAL_MS;
+
+      if (
+        previous.trim().length > 0 &&
+        previous !== body &&
+        previous !== lastSnapshot.current.body &&
+        stale
+      ) {
+        lastSnapshot.current = { at: now, body: previous };
+        void appendRevision(patientId, date, {
+          body: previous,
+          rev: entry?.rev ?? 0,
+          reason: 'autosave',
+        }).catch((error: unknown) => console.error('[editor] autosave snapshot failed', error));
+      }
+
+      return writeBody(patientId, date, body, hariRawat, { isNew: !exists });
+    },
+    [patientId, date, hariRawat, exists, entry?.body, entry?.rev],
   );
 
   const snapshot = useCallback(

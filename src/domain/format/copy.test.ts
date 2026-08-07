@@ -192,13 +192,16 @@ describe('composeCopy — section subsets', () => {
     expect(output.split('\n\n')).toHaveLength(2);
   });
 
-  it('skips sections that are empty in this note', () => {
+  it('keeps a requested heading even when nothing sits directly under it', () => {
+    // `O:` here is a bare label whose values are their own sections. Emitting
+    // the heading is right: a dated `*Laboratorium PJT (04-08-2026)*` parses
+    // the same way, and dropping it would keep the values and lose the date.
     const output = composeCopy(days, {
       ...OPTIONS,
       format: 'plain',
       sections: ['o', 'a'] as SectionId[],
     });
-    expect(output).toBe('A: Pneumonia komunitas');
+    expect(output).toBe('O:\n\nA: Pneumonia komunitas');
   });
 
   it('never invents a header for the intro block', () => {

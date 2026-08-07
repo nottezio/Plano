@@ -8,7 +8,12 @@ import {
   type CopyDay,
 } from '@/domain/format/composeCopy';
 import { FORMAT_LABELS, findMarkdownLeaks } from '@/domain/format/formatters';
-import { copyableSections } from '@/domain/sections/parseSections';
+import {
+  COPY_GROUPS,
+  availableGroups,
+  sectionsForGroups,
+  type CopyGroupId,
+} from '@/domain/format/copyGroups';
 import { copyText } from '@/lib/clipboard';
 import type {
   ClinicalDate,
@@ -17,7 +22,6 @@ import type {
   OutputFormat,
   Patient,
   SectionAlias,
-  SectionId,
 } from '@/domain/types';
 
 const RANGE_LABELS: Record<CopyRange, string> = {
@@ -59,7 +63,7 @@ export function CopySheet({
 }): JSX.Element {
   const [format, setFormat] = useState<OutputFormat>('whatsapp');
   const [range, setRange] = useState<CopyRange>('specific');
-  const [selected, setSelected] = useState<SectionId[] | 'all'>('all');
+  const [groups, setGroups] = useState<CopyGroupId[] | 'all'>('all');
   /**
    * Identity and date header are no longer options.
    *
@@ -73,7 +77,19 @@ export function CopySheet({
   const [allDays, setAllDays] = useState<CopyDay[]>([]);
   const [copied, setCopied] = useState(false);
 
-  const available = useMemo(() => copyableSections(body, aliases), [body, aliases]);
+  const present = useMemo(() => availableGroups(body, aliases), [body, aliases]);
+
+  /**
+   * Whole note, or an explicit subset expanded from the chosen groups.
+   *
+   * "Semua" stays `'all'` rather than every group selected, because the whole
+   * note is byte-faithful while a subset is recomposed — and the greeting,
+   * identity and closing live outside the five groups entirely.
+   */
+  const selected = useMemo(
+    () => (groups === 'all' ? ('all' as const) : sectionsForGroups(body, aliases, groups)),
+    [groups, body, aliases],
+  );
 
   // Loaded once per opening: ranges beyond the current day need other bodies.
   useEffect(() => {
@@ -112,20 +128,16 @@ export function CopySheet({
 
   const applyPreset = (preset: CopyPreset): void => {
     setFormat(preset.format);
-    setSelected(preset.sections);
     setRange(preset.range);
   };
 
-  const toggleSection = (sectionId: SectionId): void => {
-    const current = selected === 'all' ? available.map((section) => section.sectionId) : selected;
-    const next = current.includes(sectionId)
-      ? current.filter((id) => id !== sectionId)
-      : [...current, sectionId];
-    setSelected(next.length === available.length ? 'all' : next);
+  const toggleGroup = (id: CopyGroupId): void => {
+    const current = groups === 'all' ? COPY_GROUPS.map((group) => group.id) : groups;
+    const next = current.includes(id)
+      ? current.filter((candidate) => candidate !== id)
+      : [...current, id];
+    setGroups(next.length === COPY_GROUPS.length ? 'all' : next);
   };
-
-  const isSelected = (sectionId: SectionId): boolean =>
-    selected === 'all' || selected.includes(sectionId);
 
   const onCopy = (): void => {
     void copyText(output).then((ok) => setCopied(ok));
@@ -175,16 +187,17 @@ export function CopySheet({
       </Group>
 
       <Group label="Bagian">
-        <Chip active={selected === 'all'} onClick={() => setSelected('all')}>
-          Semua
+        <Chip active={groups === 'all'} onClick={() => setGroups('all')}>
+          Seluruh catatan
         </Chip>
-        {available.map((section) => (
+        {COPY_GROUPS.map((group) => (
           <Chip
-            key={section.sectionId}
-            active={selected !== 'all' && isSelected(section.sectionId)}
-            onClick={() => toggleSection(section.sectionId)}
+            key={group.id}
+            active={groups !== 'all' && groups.includes(group.id)}
+            disabled={!present.has(group.id)}
+            onClick={() => toggleGroup(group.id)}
           >
-            {section.label}
+            {group.label}
           </Chip>
         ))}
       </Group>
@@ -221,19 +234,22 @@ function Group({
 function Chip({
   active,
   onClick,
+  disabled = false,
   children,
 }: {
   active: boolean;
   onClick: () => void;
+  disabled?: boolean;
   children: React.ReactNode;
 }): JSX.Element {
   return (
     <button
       type="button"
       onClick={onClick}
+      disabled={disabled}
       aria-pressed={active}
       className={[
-        'min-h-tap rounded-full border px-3 text-xs',
+        'min-h-tap rounded-full border px-3 text-xs disabled:opacity-30',
         active ? 'border-accent bg-bg-subtle font-medium text-accent' : 'border-border text-fg-muted',
       ].join(' ')}
     >

@@ -5,7 +5,6 @@ import { AppShell } from '@/components/common/AppShell';
 import { Sheet } from '@/components/common/Sheet';
 import { BodyEditor } from '@/components/patient/BodyEditor';
 import { ConflictDialog } from '@/components/patient/ConflictDialog';
-import { SectionCopyBar } from '@/components/copy/SectionCopyBar';
 import { softDeleteDocument, updateDocument } from '@/data/repositories/documents.repo';
 import { composeDocument } from '@/domain/format/composeCopy';
 import { FORMAT_LABELS } from '@/domain/format/formatters';
@@ -86,12 +85,6 @@ export default function DocumentPage(): JSX.Element {
           aliases={settings.sectionAliases}
           readOnly={false}
           placeholder="Tulis isi dokumen…"
-        />
-
-        <SectionCopyBar
-          body={editor.value}
-          aliases={settings.sectionAliases}
-          format={format}
         />
 
         <div className="flex flex-wrap items-center gap-2 px-4 py-2 text-[11px] text-fg-faint">

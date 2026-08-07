@@ -68,7 +68,11 @@ function renderDayBody(body: string, options: ComposeOptions): string {
 
   const wanted = new Set(options.sections);
   const merged = mergeSections(parseSections(body, options.aliases))
-    .filter((section) => wanted.has(section.sectionId) && !section.empty)
+    // NOT filtered by `empty`. A dated heading like
+    // `*Laboratorium PJT (04-08-2026)*` parses as empty whenever its own values
+    // are themselves headings (`GDS : 222`). Dropping it would keep the number
+    // and lose the date it belongs to, which is worse than an unused heading.
+    .filter((section) => wanted.has(section.sectionId))
     .sort(
       (a, b) =>
         sectionSortIndex(a.sectionId, options.aliases) -

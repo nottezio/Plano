@@ -1,10 +1,12 @@
-import { IconSearch } from './Icons';
 import { SyncPill } from './SyncPill';
 
 /**
- * SPEC 11.1 — search, sync pill, avatar.
- * Search is inert in P0; F10 (client-side, offline, debounced 150 ms) lands
- * with the board in P4.
+ * SPEC 11.1 — page title and sync state.
+ *
+ * The search icon that used to live here was a P0 stub: permanently `disabled`,
+ * never wired to anything, and sitting directly above the board's real search
+ * field. Two search affordances where only one works is worse than one, so it
+ * is gone rather than hooked up — the field below it is already the answer.
  */
 export function TopBar({ title }: { title: string }): JSX.Element {
   return (
@@ -15,16 +17,8 @@ export function TopBar({ title }: { title: string }): JSX.Element {
         <h1 className="mr-auto truncate text-lg font-semibold tracking-tight lg:hidden">
           {title}
         </h1>
-        <span className="mr-auto lg:hidden" />
+        <span className="mr-auto hidden lg:block" />
         <SyncPill />
-        <button
-          type="button"
-          aria-label="Cari"
-          disabled
-          className="min-h-tap min-w-tap flex items-center justify-center rounded-lg text-fg-muted disabled:opacity-40"
-        >
-          <IconSearch />
-        </button>
       </div>
     </header>
   );
