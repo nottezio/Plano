@@ -32,7 +32,3 @@ export const documentsCol = (uid: string): CollectionReference =>
   collection(db(), 'users', uid, 'documents');
 export const documentDoc = (uid: string, documentId: string): DocumentReference =>
   doc(db(), 'users', uid, 'documents', documentId);
-export const templatesCol = (uid: string): CollectionReference =>
-  collection(db(), 'users', uid, 'templates');
-export const templateDoc = (uid: string, templateId: string): DocumentReference =>
-  doc(db(), 'users', uid, 'templates', templateId);

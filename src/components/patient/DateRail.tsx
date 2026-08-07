@@ -21,6 +21,7 @@ export function DateRail({
   datesWithContent: ReadonlySet<ClinicalDate>;
   onSelect: (date: ClinicalDate) => void;
 }): JSX.Element {
+  const pickerRef = useRef<HTMLInputElement>(null);
   const selectedRef = useRef<HTMLButtonElement>(null);
 
   useEffect(() => {
@@ -51,6 +52,42 @@ export function DateRail({
           </button>
         );
       })}
+
+      {/*
+        Any date, not just the ones already in the rail.
+        The rail lists days that have a note plus today, which is right for
+        navigation but leaves no way to back-fill a day that was missed or to
+        pre-write one. A native date input is deliberate: it brings each
+        platform's own calendar, including the year jump needed for a long
+        admission, and needs no picker component of our own.
+      */}
+      <div className="relative shrink-0">
+        <button
+          type="button"
+          onClick={() => {
+            // showPicker() is unsupported on older Safari; focus+click is the
+            // fallback that still opens the native calendar there.
+            const input = pickerRef.current;
+            if (!input) return;
+            if (typeof input.showPicker === 'function') input.showPicker();
+            else input.click();
+          }}
+          className="flex min-h-tap items-center gap-1 rounded-lg border border-dashed border-border-strong px-3 text-xs text-fg-muted"
+        >
+          <span aria-hidden="true">📅</span>
+          Tanggal lain
+        </button>
+        <input
+          ref={pickerRef}
+          type="date"
+          value={selected}
+          aria-label="Pilih tanggal catatan"
+          onChange={(event) => {
+            if (event.target.value) onSelect(event.target.value as ClinicalDate);
+          }}
+          className="pointer-events-none absolute inset-0 h-full w-full opacity-0"
+        />
+      </div>
     </div>
   );
 }

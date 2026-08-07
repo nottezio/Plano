@@ -4,7 +4,8 @@ import { AppShell } from '@/components/common/AppShell';
 import { AliasEditor } from '@/components/settings/AliasEditor';
 import { ChecklistEditor } from '@/components/settings/ChecklistEditor';
 import { ClinicalDayEditor } from '@/components/settings/ClinicalDayEditor';
-import { SettingsSection, Toggle } from '@/components/settings/SettingsSection';
+import { SettingsGroup, SettingsSection, Toggle } from '@/components/settings/SettingsSection';
+import { StringListEditor } from '@/components/settings/StringListEditor';
 import { TemplateEditor } from '@/components/settings/TemplateEditor';
 import { PinSetupSheet } from '@/components/privacy/PinSetupSheet';
 import { useLock } from '@/store/useLock';
@@ -70,7 +71,9 @@ export default function SettingsPage(): JSX.Element {
   return (
     <AppShell title="Pengaturan">
       <div className="mx-auto w-full max-w-3xl space-y-4 px-4 py-4">
-        <SettingsSection title="Tampilan" description="Mode gelap untuk jaga malam.">
+        <SettingsGroup label="Sehari-hari" />
+
+        <SettingsSection title="Tampilan" description="Mode gelap untuk jaga malam." defaultOpen>
           <div className="flex gap-2">
             {THEME_OPTIONS.map((option) => (
               <button
@@ -94,12 +97,15 @@ export default function SettingsPage(): JSX.Element {
         <SettingsSection
           title="Checklist harian"
           description="Tambah, ubah nama, warna, urutan, atau nonaktifkan. Jumlah langkah bebas."
+          defaultOpen
         >
           <ChecklistEditor
             items={settings.checklistItems}
             onChange={(checklistItems) => patch({ checklistItems })}
           />
         </SettingsSection>
+
+        <SettingsGroup label="Format laporan" />
 
         <SettingsSection
           title="Format catatan"
@@ -110,6 +116,31 @@ export default function SettingsPage(): JSX.Element {
             onChange={(noteTemplates) => patch({ noteTemplates })}
           />
         </SettingsSection>
+
+        <SettingsSection
+          title="Salam"
+          description="Pilihan salam yang bisa ditukar di catatan yang sudah jadi."
+        >
+          <StringListEditor
+            values={settings.greetings}
+            onChange={(greetings) => patch({ greetings })}
+            placeholder="Selamat pagi dokter."
+          />
+        </SettingsSection>
+
+        <SettingsSection
+          title="Kalimat pembuka"
+          description="Kerangka kalimat laporan. Ruang, kamar dan poli tetap diisi manual."
+        >
+          <StringListEditor
+            multiline
+            values={settings.openingSentences}
+            onChange={(openingSentences) => patch({ openingSentences })}
+            placeholder="Tabe dokter, mohon izin melaporkan…"
+          />
+        </SettingsSection>
+
+        <SettingsGroup label="Lanjutan" />
 
         <SettingsSection
           title="Hari klinis"
@@ -310,7 +341,9 @@ export default function SettingsPage(): JSX.Element {
           ) : null}
         </SettingsSection>
 
-        <SettingsSection title="Akun">
+        <SettingsGroup label="Akun & data" />
+
+        <SettingsSection title="Akun" defaultOpen>
           <p className="truncate text-xs text-fg-muted">{user?.email ?? '—'}</p>
           <button
             type="button"
@@ -324,7 +357,7 @@ export default function SettingsPage(): JSX.Element {
           </p>
         </SettingsSection>
 
-        <SettingsSection title="Tentang">
+        <SettingsSection title="Tentang" collapsible={false}>
           <dl className="space-y-1 text-xs text-fg-muted">
             <div className="flex justify-between gap-4">
               <dt>Versi aplikasi</dt>

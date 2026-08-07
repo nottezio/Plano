@@ -7,6 +7,7 @@ import { SectionCopyBar } from '@/components/copy/SectionCopyBar';
 import { ChecklistPills } from '@/components/patient/ChecklistPills';
 import { IdentitySheet } from '@/components/patient/IdentitySheet';
 import { PatientActionsSheet } from '@/components/patient/PatientActionsSheet';
+import { OpeningSheet } from '@/components/patient/OpeningSheet';
 import { TemplatePicker } from '@/components/patient/TemplatePicker';
 import { ConflictDialog } from '@/components/patient/ConflictDialog';
 import { DateRail } from '@/components/patient/DateRail';
@@ -51,6 +52,7 @@ export default function PatientPage(): JSX.Element {
   const [copyOpen, setCopyOpen] = useState(false);
   const [actionsOpen, setActionsOpen] = useState(false);
   const [identityOpen, setIdentityOpen] = useState(false);
+  const [openingOpen, setOpeningOpen] = useState(false);
 
   const hariRawat = patient ? daysBetween(patient.admittedAt, selected) + 1 : 1;
 
@@ -306,6 +308,15 @@ export default function PatientPage(): JSX.Element {
         {/* SPEC F4 — microcopy only. There is no save button by design. */}
         <div className="flex items-center gap-3 px-4 py-2 text-[11px] text-fg-faint">
           <span className="flex-1">{editor.dirty ? 'Menyimpan…' : 'Tersimpan'}</span>
+          {editor.value.trim().length > 0 && !locked ? (
+            <button
+              type="button"
+              onClick={() => setOpeningOpen(true)}
+              className="min-h-tap px-1 underline"
+            >
+              Pembuka
+            </button>
+          ) : null}
           <button
             type="button"
             onClick={() => setCopyOpen(true)}
@@ -341,6 +352,18 @@ export default function PatientPage(): JSX.Element {
         open={actionsOpen}
         onOpenChange={setActionsOpen}
         patient={patient}
+      />
+
+      <OpeningSheet
+        open={openingOpen}
+        onOpenChange={setOpeningOpen}
+        body={editor.value}
+        greetings={settings.greetings}
+        openingSentences={settings.openingSentences}
+        onApply={(next) => {
+          editor.setValue(next);
+          setOpeningOpen(false);
+        }}
       />
 
       <CopySheet

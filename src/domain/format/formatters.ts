@@ -33,6 +33,21 @@ const ITALIC_RE = /(^|[^\w*])_([^\n_]+?)_(?!\w)/g;
 const BULLET_LINE_RE = /^(\s*)- /gm;
 
 /**
+ * Single-asterisk bold, as WhatsApp writes it.
+ *
+ * The parser learned to read `*Header*` last release; the formatters did not,
+ * so a note pasted in from WhatsApp copied out to SIMGOS with every asterisk
+ * still in it. Stored bodies legitimately contain both spellings — `**x**` when
+ * typed with the toolbar, `*x*` when pasted from a chat — and plain text has to
+ * strip both.
+ *
+ * The leading `(^|[^\w*])` guard is what keeps clinical shorthand intact:
+ * in `Ceftriaxone 2*1 g` the asterisk is preceded by a word character, so it
+ * never matches. Same no-lookbehind constraint as everywhere else.
+ */
+const SINGLE_BOLD_RE = /(^|[^\w*])\*([^\s*](?:[^\n*]*[^\s*])?)\*(?!\w)/g;
+
+/**
  * SPEC 12.3 — WhatsApp.
  *
  * `**b**` → `*b*`, `_i_` unchanged, `~~s~~` → `~s~`, `- ` → `• `.
@@ -54,15 +69,27 @@ export function toWhatsApp(body: string): string {
  * Every marker is removed; the words and the line structure survive untouched.
  */
 export function toPlain(body: string): string {
-  return body
-    .replace(BOLD_RE, '$1')
-    .replace(STRIKE_RE, '$1')
-    .replace(ITALIC_RE, '$1$2');
+  return (
+    body
+      // `**` first: otherwise the single-asterisk rule would eat one pair of
+      // markers and leave the other behind.
+      .replace(BOLD_RE, '$1')
+      .replace(STRIKE_RE, '$1')
+      .replace(SINGLE_BOLD_RE, '$1$2')
+      .replace(ITALIC_RE, '$1$2')
+  );
 }
 
-/** SPEC 12.3 — markdown-lite is already valid Markdown, so this is identity. */
+/**
+ * SPEC 12.3 — Markdown.
+ *
+ * Almost identity, with one correction: `*x*` means BOLD in WhatsApp and
+ * ITALIC in Markdown. Passing it through unchanged would silently reclassify
+ * every heading pasted in from a chat, so single-asterisk spans are promoted to
+ * `**x**` and keep their intended weight.
+ */
 export function toMarkdown(body: string): string {
-  return body;
+  return body.replace(SINGLE_BOLD_RE, '$1**$2**');
 }
 
 export function formatBody(body: string, format: OutputFormat): string {
@@ -91,5 +118,14 @@ export function findMarkdownLeaks(text: string): string[] {
   if (text.includes('**')) leaks.push('**');
   if (text.includes('~~')) leaks.push('~~');
   if (/^(\s*)- /m.test(text)) leaks.push('- ');
+  return leaks;
+}
+
+/** Nothing a paste into SIMGOS should carry: no bold, italic or strike markers. */
+export function findPlainTextLeaks(text: string): string[] {
+  const leaks: string[] = [];
+  if (/\*/.test(text)) leaks.push('*');
+  if (/~/.test(text)) leaks.push('~');
+  if (new RegExp(ITALIC_RE.source).test(text)) leaks.push('_');
   return leaks;
 }

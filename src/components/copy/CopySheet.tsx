@@ -60,8 +60,10 @@ export function CopySheet({
   const [format, setFormat] = useState<OutputFormat>('whatsapp');
   const [range, setRange] = useState<CopyRange>('specific');
   const [selected, setSelected] = useState<SectionId[] | 'all'>('all');
-  const [includeIdentity, setIncludeIdentity] = useState(true);
-  const [includeDateHeader, setIncludeDateHeader] = useState(true);
+  // Off by default: templates now carry the greeting and identity inside the
+  // note itself, so prepending them again would duplicate every header.
+  const [includeIdentity, setIncludeIdentity] = useState(false);
+  const [includeDateHeader, setIncludeDateHeader] = useState(false);
   const [allDays, setAllDays] = useState<CopyDay[]>([]);
   const [copied, setCopied] = useState(false);
 

@@ -45,8 +45,8 @@ export const DEFAULT_COPY_PRESETS: readonly CopyPreset[] = [
     name: 'WA ke Chief',
     format: 'whatsapp',
     sections: 'all',
-    includeIdentity: true,
-    includeDateHeader: true,
+    includeIdentity: false,
+    includeDateHeader: false,
     range: 'today',
   },
   {
@@ -61,22 +61,6 @@ export const DEFAULT_COPY_PRESETS: readonly CopyPreset[] = [
 ] as const;
 
 /** SPEC 13 — headers only. Never invent clinical content. */
-export const DEFAULT_TEMPLATE_BODY = [
-  'S:',
-  '',
-  'O:',
-  'TTV:',
-  '',
-  'Penunjang:',
-  '',
-  'A:',
-  '',
-  'P:',
-  '',
-  'Terapi:',
-  '',
-].join('\n');
-
 export function defaultUserSettings(): UserSettings {
   return {
     timezone: 'Asia/Jakarta',
@@ -99,7 +83,18 @@ export function defaultUserSettings(): UserSettings {
     // forward. Investigations are removed by hand when they stop being
     // relevant, never on a schedule.
     carryForwardClearSections: ['s'],
-    defaultTemplateId: null,
+    greetings: [
+      "Assalamu'alaikum dokter.",
+      'Selamat pagi dokter.',
+      'Selamat siang dokter.',
+      'Selamat sore dokter.',
+      'Selamat malam dokter.',
+    ],
+    openingSentences: [
+      'Tabe dokter, mohon izin melaporkan follow up pasien di *Ruang  Kamar  Bed *  atas nama :',
+      'Tabe dokter, mohon izin melaporkan pasien baru rencana tindakan dari *POLI * di *Ruang  Kamar  Bed * atas nama:',
+      'Tabe dokter, mohon izin melaporkan pasien baru di *Ruang  Kamar  Bed *  atas nama :',
+    ],
     copyPresets: DEFAULT_COPY_PRESETS.map((preset) => ({ ...preset })),
     privacy: {
       // Full names are stored, so the lock is ON by default (SPEC 18).

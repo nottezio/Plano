@@ -61,6 +61,26 @@ describe('seed templates', () => {
     expect(belowS(ADMISI_BODY)).toBe(belowS(FOLLOWUP_BODY));
   });
 
+  it('carry the whole message: greeting, identity, DPJP, closing', () => {
+    for (const body of ALL) {
+      expect(body.startsWith("Assalamu'alaikum dokter")).toBe(true);
+      expect(body).toContain('atas nama :');
+      expect(body).toContain('RM');
+      expect(body).toContain('DPJP Utama');
+      expect(body.trimEnd().endsWith('Tabe terimakasih dokter')).toBe(true);
+    }
+  });
+
+  it('name the procedure line correctly for each context', () => {
+    expect(FOLLOWUP_BODY).toContain('Post Tindakan');
+    expect(ADMISI_BODY).toContain('Rencana Tindakan');
+  });
+
+  it('say "follow up" or "pasien baru" to match their use', () => {
+    expect(FOLLOWUP_BODY).toContain('melaporkan follow up pasien');
+    expect(ADMISI_BODY).toContain('melaporkan pasien baru');
+  });
+
   it('pre-print no investigation headings — those accumulate as they arrive', () => {
     for (const body of ALL) {
       expect(body).not.toContain('EKG');

@@ -82,7 +82,10 @@ export interface UserSettings {
    * every time a consultant changes how they want a handover written.
    */
   noteTemplates: NoteTemplate[];
-  defaultTemplateId: string | null;
+  /** Salam presets — swapped on an existing note, per SPEC 14. */
+  greetings: string[];
+  /** Reporting-sentence presets ("mohon izin melaporkan …"). */
+  openingSentences: string[];
   copyPresets: CopyPreset[];
   privacy: PrivacySettings;
   theme: 'system' | 'light' | 'dark';
@@ -211,13 +214,6 @@ export interface AppDocument {
   deletedAt: Timestamp | null;
 }
 
-export interface SoapTemplate {
-  id: string;
-  name: string;
-  body: string;
-  isDefault: boolean;
-  updatedAt: Timestamp;
-}
 
 /** Current schema generation. Bump only alongside a written migration. */
 export const SCHEMA_VERSION = 1;

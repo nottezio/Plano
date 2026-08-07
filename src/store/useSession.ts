@@ -20,7 +20,6 @@ import {
   seedSettingsIfMissing,
   subscribeProfile,
 } from '@/data/repositories/settings.repo';
-import { seedDefaultTemplate } from '@/data/repositories/templates.repo';
 import type { UserProfile, UserSettings } from '@/domain/types';
 import { defaultUserSettings } from '@/domain/defaults';
 
@@ -104,7 +103,6 @@ async function bootstrapAccount(user: User): Promise<void> {
   try {
     await ensureProfile(user);
     await seedSettingsIfMissing(user.uid);
-    await seedDefaultTemplate(user.uid);
   } catch (error) {
     // Offline first sign-in: these writes stay queued and apply on reconnect,
     // so this is a warning rather than a blocker.

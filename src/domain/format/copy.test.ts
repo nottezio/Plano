@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import {
   findMarkdownLeaks,
+  findPlainTextLeaks,
   formatBody,
   toMarkdown,
   toPlain,
@@ -301,5 +302,48 @@ describe('resolveRange', () => {
 describe('identityLine', () => {
   it('omits fields the record does not have', () => {
     expect(identityLine(makePatient({ name: 'Ny. Siti' }))).toBe('Ny. Siti');
+  });
+});
+
+describe('single-asterisk bold pasted from WhatsApp', () => {
+  const pasted = [
+    '*S:*',
+    '- nyeri dada tidak ada',
+    '',
+    '*EKG PJT Lantai 5 06-08-2026*',
+    'Sinus bradikardi, HR 45 bpm',
+    '',
+    '_DPJP Utama : DR. dr. Az Hafid Nashar, SpJP (K)_',
+  ].join('\n');
+
+  it('strips it for SIMGOS — the whole point of plain text', () => {
+    const plain = toPlain(pasted);
+    expect(plain).toContain('S:');
+    expect(plain).toContain('EKG PJT Lantai 5 06-08-2026');
+    expect(plain).toContain('DPJP Utama : DR. dr. Az Hafid Nashar, SpJP (K)');
+    expect(findPlainTextLeaks(plain)).toEqual([]);
+  });
+
+  it('leaves clinical shorthand with an asterisk alone', () => {
+    expect(toPlain('Ceftriaxone 2*1 g IV')).toBe('Ceftriaxone 2*1 g IV');
+    expect(toPlain('Metformin 500 mg 3*1')).toBe('Metformin 500 mg 3*1');
+  });
+
+  it('handles both spellings in the same note', () => {
+    expect(toPlain('*tebal satu* dan **tebal dua**')).toBe('tebal satu dan tebal dua');
+  });
+
+  it('promotes it to real bold for Markdown, not italic', () => {
+    expect(toMarkdown('*Penunjang*')).toBe('**Penunjang**');
+    expect(toMarkdown('**sudah tebal**')).toBe('**sudah tebal**');
+  });
+
+  it('leaves WhatsApp output untouched — it is already the target format', () => {
+    expect(toWhatsApp('*S:*')).toBe('*S:*');
+  });
+
+  it('does not match an unbalanced or spaced asterisk', () => {
+    expect(toPlain('nilai * penting')).toBe('nilai * penting');
+    expect(toPlain('* awal saja')).toBe('* awal saja');
   });
 });
