@@ -1,4 +1,6 @@
 import { NavLink } from 'react-router-dom';
+
+import { APP_VERSION } from '@/version.js';
 import { IconArchive, IconBoard, IconDocuments, IconSettings } from './Icons';
 
 /**
@@ -59,6 +61,15 @@ export function TabBar(): JSX.Element {
           )}
         </NavLink>
       ))}
+
+      {/* Desktop only: the sidebar has dead space at the bottom, and a footer
+          under the content pushed the empty state off-centre. On phone the tab
+          bar is 64 px of thumb target — nothing else belongs in it. */}
+      <p className="mt-auto hidden px-3 pb-1 text-[11px] leading-relaxed text-fg-faint lg:block">
+        © Avicenna
+        <br />
+        <span className="font-mono">v{APP_VERSION}</span>
+      </p>
     </nav>
   );
 }

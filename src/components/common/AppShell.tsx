@@ -56,7 +56,10 @@ export function AppShell({
           {/* A second boundary inside the shell: a crash in one route leaves
               the navigation usable instead of blanking the whole app. */}
           <ErrorBoundary variant="inline">{children}</ErrorBoundary>
-          <Footer />
+          {/* Phone/tablet only — from lg the sidebar carries it. */}
+          <div className="lg:hidden">
+            <Footer />
+          </div>
         </main>
       </div>
       <UpdateBanner />

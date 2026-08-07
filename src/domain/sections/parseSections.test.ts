@@ -313,3 +313,83 @@ describe('validateAliases', () => {
     ).toBe(false);
   });
 });
+
+describe('WhatsApp-style wrapped headers', () => {
+  const aliases = DEFAULT_SECTION_ALIASES;
+
+  it('detects a single-asterisk wrapped label with digits and no colon', () => {
+    const body = '*EKG PJT Lantai 5 06-08-2026*\nSinus bradikardi, HR 45 bpm';
+    const sections = parseSections(body, aliases);
+    const ekg = sections.find((s) => s.label.startsWith('EKG'));
+    expect(ekg).toBeDefined();
+    expect(ekg?.text.trim()).toBe('Sinus bradikardi, HR 45 bpm');
+  });
+
+  it('keeps each dated investigation block as its own section', () => {
+    const body = [
+      '*EKG PJT Lantai 5 06-08-2026*',
+      'HR 45 bpm',
+      '',
+      '*EKG PJT Lantai 5 05-08-2026*',
+      'HR 45 bpm',
+      '',
+      '*Laboratorium PJT (04-08-2026)*',
+      'GDS : 222',
+    ].join('\n');
+
+    const sections = parseSections(body, aliases);
+    const ids = sections.map((s) => s.sectionId);
+    expect(new Set(ids).size).toBe(ids.length);
+
+    // Three wrapped blocks. (`GDS : 222` is also a header — a colon label is
+    // one by the existing rule, and copying just the glucose is reasonable.)
+    const wrapped = sections.filter((s) => /^(EKG|Laboratorium)/.test(s.label));
+    expect(wrapped).toHaveLength(3);
+  });
+
+  it('accepts double-asterisk wrapping too', () => {
+    const sections = parseSections('**Foto Thorax 28-07-2026**\nCor normal', aliases);
+    expect(sections.some((s) => s.label === 'Foto Thorax 28-07-2026')).toBe(true);
+  });
+
+  it('maps a wrapped KNOWN label onto its real section, not a custom one', () => {
+    const sections = parseSections('*S:*\nsesak berkurang', aliases);
+    expect(sections.some((s) => s.sectionId === 's')).toBe(true);
+    expect(sections.some((s) => s.sectionId.startsWith('custom_'))).toBe(false);
+  });
+
+  it('ignores bold used mid-sentence', () => {
+    const body = 'Pasien dengan *nyeri dada* sejak kemarin';
+    const sections = parseSections(body, aliases);
+    expect(sections).toHaveLength(1);
+    expect(sections[0]?.sectionId).toBe('_intro');
+  });
+
+  it('ignores an asterisk separator with no letters', () => {
+    const sections = parseSections('***\nisi', aliases);
+    expect(sections[0]?.sectionId).toBe('_intro');
+  });
+
+  it('ignores a wrapped line that is really a whole paragraph', () => {
+    const long = `*${'a'.repeat(90)}*`;
+    expect(parseSections(`${long}\nisi`, aliases)[0]?.sectionId).toBe('_intro');
+  });
+
+  it('stays lossless across a real pasted handover', () => {
+    const body = [
+      '*S:*',
+      '- nyeri dada tidak ada',
+      '',
+      '*EKG PJT Lantai 5 06-08-2026*',
+      'Sinus bradikardi',
+      '',
+      '*Laporan PCI PJT (05-08-2026)*',
+      'Post PCI 2 Stent DES di LAD',
+    ].join('\n');
+
+    const rebuilt = parseSections(body, aliases)
+      .map((section) => body.slice(section.start, section.end))
+      .join('');
+    expect(rebuilt).toBe(body);
+  });
+});

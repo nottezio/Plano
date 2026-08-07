@@ -66,8 +66,8 @@ export default function BoardPage(): JSX.Element {
 
   return (
     <AppShell title="Aktif">
-      <div className="flex items-center gap-2 px-4 pb-2 pt-1">
-        <label className="flex min-h-tap flex-1 items-center gap-2 rounded-lg border border-border bg-surface px-3">
+      <div className="flex items-center gap-2 px-4 pb-2 pt-1 lg:pt-3">
+        <label className="flex min-h-tap flex-1 items-center gap-2 rounded-lg border border-border bg-surface px-3 lg:max-w-md">
           <IconSearch className="shrink-0 text-fg-faint" width={18} height={18} />
           <input
             type="search"
@@ -83,20 +83,27 @@ export default function BoardPage(): JSX.Element {
         <button
           type="button"
           onClick={createAndOpen}
-          className="hidden min-h-tap shrink-0 items-center gap-1.5 rounded-lg bg-accent px-4 text-sm font-medium text-white sm:flex"
+          className="hidden min-h-tap shrink-0 items-center gap-1.5 rounded-lg bg-accent px-4 text-sm font-medium text-white sm:flex lg:ml-auto"
         >
           <span aria-hidden="true" className="text-base leading-none">+</span>
           Pasien baru
         </button>
       </div>
 
-      <FilterBar
-        wards={availableWards(patients)}
-        labels={availableLabels(patients)}
-        pending={pendingFilters(items)}
-        filters={filters}
-        onChange={setFilters}
-      />
+      {/* Filters hidden for now. The row of "Belum …" chips ate
+          the top of the board and pushed the cards below the fold before there
+          were enough patients for filtering to earn that space. The state and
+          the component are untouched — restoring it is deleting this comment
+          and the `false &&`. */}
+      {false && (
+        <FilterBar
+          wards={availableWards(patients)}
+          labels={availableLabels(patients)}
+          pending={pendingFilters(items)}
+          filters={filters}
+          onChange={setFilters}
+        />
+      )}
 
       {error ? (
         <p role="alert" className="px-4 py-6 text-center text-sm text-danger">
@@ -146,7 +153,9 @@ function EmptyState({
   onCreate: () => void;
 }): JSX.Element {
   return (
-    <div className="px-6 py-14 text-center">
+    // Left-aligned and near the top from lg: a message centred in a 900 px
+    // viewport reads as an error page rather than an empty list.
+    <div className="px-6 py-14 text-center lg:px-4 lg:py-10 lg:text-left">
       <p className="text-sm text-fg-muted">
         {filtering ? 'Tidak ada pasien yang cocok.' : 'Belum ada pasien aktif.'}
       </p>

@@ -87,6 +87,40 @@ const CUSTOM_HEADER_SOURCE =
 
 const MAX_CUSTOM_WORDS = 3;
 
+/**
+ * A line that is ENTIRELY wrapped in asterisks is a header.
+ *
+ * Notes pasted from WhatsApp use single-asterisk bold, and the section labels
+ * in real handovers look like `*EKG PJT Lantai 5 06-08-2026*`,
+ * `*Laboratorium PJT (04-08-2026)*`, `*Foto Thorax 28-07-2026*`. Every one of
+ * those carries digits and no colon, so `CUSTOM_HEADER_SOURCE` — which forbids
+ * both, deliberately, to avoid inventing sections out of prose — rejects all of
+ * them. The result was that the investigation stack, the part of the note most
+ * worth copying one block at a time, parsed as one undifferentiated blob.
+ *
+ * This rule is safe precisely because it is so literal: the whole line, nothing
+ * outside the markers, and short. Ordinary prose is never fully asterisk-
+ * wrapped, and a bolded sentence mid-paragraph does not occupy its own line.
+ * Both `*x*` and `**x**` are accepted, since the same note may contain both.
+ */
+const WRAPPED_HEADER_RE = /^[ \t]*(\*{1,2})([^*\n][^\n]*?)\1[ \t]*$/;
+
+/** Long enough for `*Laporan Angiografi Koroner RS Pelamonia 23/06/2026*`. */
+const MAX_WRAPPED_HEADER_LENGTH = 72;
+
+/** Matches a fully wrapped header line, returning its inner label. */
+export function matchWrappedHeader(line: string): string | null {
+  const match = WRAPPED_HEADER_RE.exec(line);
+  if (!match) return null;
+
+  const label = match[2]?.trim() ?? '';
+  if (label.length === 0 || label.length > MAX_WRAPPED_HEADER_LENGTH) return null;
+  // Must contain a letter — `***` and `* * *` separators are not headers.
+  if (!/[A-Za-zÀ-ÖØ-öø-ÿ]/.test(label)) return null;
+
+  return label;
+}
+
 function escapeRegExp(value: string): string {
   return value.replace(/[.*+?^${}()|[\]\\/]/g, '\\$&');
 }
@@ -192,6 +226,27 @@ function detectHeader(
         label: labelFor(sectionId, aliases),
       };
     }
+  }
+
+  // A fully asterisk-wrapped line is a header in its own right. Checked before
+  // the general custom rule because it is the stricter of the two: the whole
+  // line must match, so there is nothing for it to false-positive on.
+  const wrapped = matchWrappedHeader(line.text);
+  if (wrapped) {
+    // A wrapped label may still name a KNOWN section — `*Penunjang:*` should
+    // land in `penunjang`, not a custom bucket that duplicates it.
+    const knownInside = matcher.pattern.exec(wrapped);
+    const insideId =
+      knownInside && knownInside.index === 0
+        ? matcher.lookup.get(tokenOf(knownInside[0]).toLowerCase())
+        : undefined;
+
+    return {
+      start: line.start,
+      headerEnd: line.start + line.text.length,
+      sectionId: insideId ?? customSectionId(wrapped),
+      label: insideId ? labelFor(insideId, aliases) : wrapped,
+    };
   }
 
   const custom = new RegExp(CUSTOM_HEADER_SOURCE).exec(line.text);
