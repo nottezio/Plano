@@ -76,10 +76,24 @@ export interface UserSettings {
   sectionAliases: SectionAlias[];
   carryForwardOnNewDay: boolean;
   carryForwardClearSections: SectionId[];
+  /**
+   * Starting skeletons offered on an empty day. Data, not code: the formats
+   * differ per DPJP and per ward, and hardcoding them would mean a redeploy
+   * every time a consultant changes how they want a handover written.
+   */
+  noteTemplates: NoteTemplate[];
   defaultTemplateId: string | null;
   copyPresets: CopyPreset[];
   privacy: PrivacySettings;
   theme: 'system' | 'light' | 'dark';
+}
+
+export interface NoteTemplate {
+  id: string;
+  name: string;
+  /** Markdown-lite, inserted verbatim into an empty day. */
+  body: string;
+  order: number;
 }
 
 export interface UserProfile {

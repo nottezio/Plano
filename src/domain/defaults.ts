@@ -1,4 +1,5 @@
 import { DONE_TOKEN, tokenForIndex } from './colorTokens';
+import { ADMISI_BODY, FOLLOWUP_BODY, FOLLOWUP_DX_BODY } from './templates';
 import type {
   ChecklistItemDef,
   CopyPreset,
@@ -87,8 +88,17 @@ export function defaultUserSettings(): UserSettings {
       ...alias,
       aliases: [...alias.aliases],
     })),
+    noteTemplates: [
+      { id: 'followup', order: 1, name: 'Follow-up harian', body: FOLLOWUP_BODY },
+      { id: 'followup-dx', order: 2, name: 'Follow-up (Dx primer/sekunder)', body: FOLLOWUP_DX_BODY },
+      { id: 'admisi', order: 3, name: 'Pasien baru (admisi)', body: ADMISI_BODY },
+    ],
     carryForwardOnNewDay: true,
-    carryForwardClearSections: ['s', 'penunjang'],
+    // Only S. Clearing `penunjang` would delete the accumulated EKG / lab /
+    // echo stack every morning — and that stack IS the value of carrying a note
+    // forward. Investigations are removed by hand when they stop being
+    // relevant, never on a schedule.
+    carryForwardClearSections: ['s'],
     defaultTemplateId: null,
     copyPresets: DEFAULT_COPY_PRESETS.map((preset) => ({ ...preset })),
     privacy: {

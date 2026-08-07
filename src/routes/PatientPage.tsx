@@ -7,6 +7,7 @@ import { SectionCopyBar } from '@/components/copy/SectionCopyBar';
 import { ChecklistPills } from '@/components/patient/ChecklistPills';
 import { IdentitySheet } from '@/components/patient/IdentitySheet';
 import { PatientActionsSheet } from '@/components/patient/PatientActionsSheet';
+import { TemplatePicker } from '@/components/patient/TemplatePicker';
 import { ConflictDialog } from '@/components/patient/ConflictDialog';
 import { DateRail } from '@/components/patient/DateRail';
 import { RevisionTrail } from '@/components/patient/RevisionTrail';
@@ -278,6 +279,14 @@ export default function PatientPage(): JSX.Element {
         ) : null}
 
         {carrySummary ? <Banner tone="muted">{carrySummary}</Banner> : null}
+
+        {/* Empty day only — see TemplatePicker for why this is never automatic. */}
+        {!locked && editor.value.trim().length === 0 ? (
+          <TemplatePicker
+            templates={settings.noteTemplates}
+            onPick={(body) => editor.setValue(body)}
+          />
+        ) : null}
 
         <BodyEditor
           value={editor.value}

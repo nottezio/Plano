@@ -5,6 +5,7 @@ import { AliasEditor } from '@/components/settings/AliasEditor';
 import { ChecklistEditor } from '@/components/settings/ChecklistEditor';
 import { ClinicalDayEditor } from '@/components/settings/ClinicalDayEditor';
 import { SettingsSection, Toggle } from '@/components/settings/SettingsSection';
+import { TemplateEditor } from '@/components/settings/TemplateEditor';
 import { PinSetupSheet } from '@/components/privacy/PinSetupSheet';
 import { useLock } from '@/store/useLock';
 import { updateSettings } from '@/data/repositories/settings.repo';
@@ -97,6 +98,16 @@ export default function SettingsPage(): JSX.Element {
           <ChecklistEditor
             items={settings.checklistItems}
             onChange={(checklistItems) => patch({ checklistItems })}
+          />
+        </SettingsSection>
+
+        <SettingsSection
+          title="Format catatan"
+          description="Kerangka yang ditawarkan saat hari masih kosong. Sesuaikan dengan gaya laporan tiap DPJP."
+        >
+          <TemplateEditor
+            templates={settings.noteTemplates}
+            onChange={(noteTemplates) => patch({ noteTemplates })}
           />
         </SettingsSection>
 
