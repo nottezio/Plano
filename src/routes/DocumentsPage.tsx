@@ -37,6 +37,18 @@ export default function DocumentsPage(): JSX.Element {
 
   return (
     <AppShell title="Dokumen">
+      <div className="mx-auto w-full max-w-3xl">
+      <div className="hidden justify-end px-4 pb-2 pt-1 sm:flex">
+        <button
+          type="button"
+          onClick={() => setCreateOpen(true)}
+          className="flex min-h-tap items-center gap-1.5 rounded-lg bg-accent px-4 text-sm font-medium text-white"
+        >
+          <span aria-hidden="true" className="text-base leading-none">+</span>
+          Dokumen baru
+        </button>
+      </div>
+
       {loading ? (
         <p className="px-4 py-10 text-center text-sm text-fg-muted">Memuat…</p>
       ) : documents.length === 0 ? (
@@ -86,10 +98,12 @@ export default function DocumentsPage(): JSX.Element {
         type="button"
         onClick={() => setCreateOpen(true)}
         aria-label="Dokumen baru"
-        className="fixed bottom-[calc(env(safe-area-inset-bottom)+76px)] right-4 z-30 flex h-14 w-14 items-center justify-center rounded-full bg-accent text-2xl text-white shadow-lg sm:bottom-6"
+        className="fixed bottom-[calc(env(safe-area-inset-bottom)+76px)] right-4 z-30 flex h-14 w-14 items-center justify-center rounded-full bg-accent text-2xl text-white shadow-lg sm:hidden"
       >
         +
       </button>
+
+      </div>
 
       <CreateDocumentSheet open={createOpen} onOpenChange={setCreateOpen} />
     </AppShell>

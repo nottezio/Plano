@@ -66,8 +66,8 @@ export default function BoardPage(): JSX.Element {
 
   return (
     <AppShell title="Aktif">
-      <div className="px-4 pb-2 pt-1">
-        <label className="flex min-h-tap items-center gap-2 rounded-lg border border-border bg-surface px-3">
+      <div className="flex items-center gap-2 px-4 pb-2 pt-1">
+        <label className="flex min-h-tap flex-1 items-center gap-2 rounded-lg border border-border bg-surface px-3">
           <IconSearch className="shrink-0 text-fg-faint" width={18} height={18} />
           <input
             type="search"
@@ -77,6 +77,17 @@ export default function BoardPage(): JSX.Element {
             className="min-w-0 flex-1 bg-transparent py-2 text-sm outline-none"
           />
         </label>
+
+        {/* From tablet up the primary action belongs in the content flow, not
+            floating over the bottom-right corner of a desktop window. */}
+        <button
+          type="button"
+          onClick={createAndOpen}
+          className="hidden min-h-tap shrink-0 items-center gap-1.5 rounded-lg bg-accent px-4 text-sm font-medium text-white sm:flex"
+        >
+          <span aria-hidden="true" className="text-base leading-none">+</span>
+          Pasien baru
+        </button>
       </div>
 
       <FilterBar
@@ -109,7 +120,8 @@ export default function BoardPage(): JSX.Element {
         type="button"
         onClick={createAndOpen}
         aria-label="Pasien baru"
-        className="fixed bottom-[calc(env(safe-area-inset-bottom)+76px)] right-4 z-30 flex h-14 w-14 items-center justify-center rounded-full bg-accent text-2xl text-white shadow-lg sm:bottom-6"
+        // Phone only — the tablet/desktop equivalent lives beside the search box.
+        className="fixed bottom-[calc(env(safe-area-inset-bottom)+76px)] right-4 z-30 flex h-14 w-14 items-center justify-center rounded-full bg-accent text-2xl text-white shadow-lg sm:hidden"
       >
         +
       </button>

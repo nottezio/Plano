@@ -68,7 +68,7 @@ export default function SettingsPage(): JSX.Element {
 
   return (
     <AppShell title="Pengaturan">
-      <div className="mx-auto max-w-2xl space-y-4 px-4 py-4">
+      <div className="mx-auto w-full max-w-3xl space-y-4 px-4 py-4">
         <SettingsSection title="Tampilan" description="Mode gelap untuk jaga malam.">
           <div className="flex gap-2">
             {THEME_OPTIONS.map((option) => (

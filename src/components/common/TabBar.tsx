@@ -2,8 +2,14 @@ import { NavLink } from 'react-router-dom';
 import { IconArchive, IconBoard, IconDocuments, IconSettings } from './Icons';
 
 /**
- * SPEC 11.1 / 11.2 — bottom tab bar on phone, left rail from 640 px up.
- * One component, two layouts: the alternative (two components) drifts.
+ * SPEC 11.1 / 11.2 — three layouts, one component:
+ *   phone  (<640)  bottom tab bar
+ *   tablet (>=640) 76 px icon rail
+ *   desktop(>=1024) 224 px sidebar with labels beside the icons
+ *
+ * The desktop tier exists because a 76 px icon rail on a 27" monitor is what
+ * makes a web app feel like a stretched phone build. Two components would
+ * drift; three breakpoints on one component cannot.
  */
 const TABS = [
   { to: '/', label: 'Aktif', Icon: IconBoard, end: true },
@@ -22,8 +28,14 @@ export function TabBar(): JSX.Element {
         'pb-[env(safe-area-inset-bottom)]',
         // tablet/desktop: static left rail
         'sm:static sm:h-full sm:w-[76px] sm:flex-col sm:gap-1 sm:border-r sm:border-t-0 sm:py-4',
+        'lg:w-[224px] lg:items-stretch lg:px-3',
       ].join(' ')}
     >
+      {/* Wordmark only where there is room for it. */}
+      <span className="hidden lg:mb-3 lg:block lg:px-3 lg:text-lg lg:font-semibold lg:tracking-tight">
+        Plano
+      </span>
+
       {TABS.map(({ to, label, Icon, end }) => (
         <NavLink
           key={to}
@@ -33,7 +45,9 @@ export function TabBar(): JSX.Element {
             [
               'flex min-h-tap flex-1 flex-col items-center justify-center gap-1 px-1 py-2 text-[11px]',
               'sm:flex-none sm:rounded-lg sm:py-3',
-              isActive ? 'text-accent' : 'text-fg-faint',
+              // Desktop: horizontal, left-aligned, readable label.
+              'lg:flex-row lg:justify-start lg:gap-3 lg:px-3 lg:text-sm',
+              isActive ? 'text-accent lg:bg-bg-subtle' : 'text-fg-faint',
             ].join(' ')
           }
         >

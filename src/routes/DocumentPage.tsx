@@ -66,7 +66,7 @@ export default function DocumentPage(): JSX.Element {
 
   return (
     <AppShell title={document.title}>
-      <div className="flex min-h-0 flex-1 flex-col">
+      <div className="mx-auto flex min-h-0 w-full max-w-3xl flex-1 flex-col">
         <header className="flex items-center gap-2 border-b border-border px-4 py-3">
           <h2 className="min-w-0 flex-1 truncate text-sm font-semibold">{document.title}</h2>
           <button

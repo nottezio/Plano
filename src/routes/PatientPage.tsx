@@ -14,7 +14,6 @@ import { AppShell } from '@/components/common/AppShell';
 import { setEntryLocked } from '@/data/repositories/entries.repo';
 import { carryForward, carryForwardSummary } from '@/domain/carryForward';
 import {
-  addDays,
   daysBetween,
   formatDayHeader,
   previousDay,
@@ -32,7 +31,6 @@ import { useSession } from '@/store/useSession';
 import type { ClinicalDate } from '@/domain/types';
 
 /** Minimum window the rail offers, so a patient admitted today can still scroll. */
-const RAIL_MIN_DAYS = 7;
 
 export default function PatientPage(): JSX.Element {
   const { patientId, date: routeDate } = useParams<{ patientId: string; date?: string }>();
@@ -157,7 +155,10 @@ export default function PatientPage(): JSX.Element {
 
   return (
     <AppShell title={patient.name}>
-      <div className="flex min-h-0 flex-1 flex-col">
+      {/* A note is prose. Letting it run to 2000 px makes it unreadable, so
+          the whole column is capped and centred from tablet up — the editor
+          still fills the height, only the width is constrained. */}
+      <div className="mx-auto flex min-h-0 w-full max-w-3xl flex-1 flex-col">
         <header className="border-b border-border px-4 py-3">
           <div className="flex items-start gap-2">
             {identity ? (
@@ -380,15 +381,21 @@ function Banner({
  * The rail spans admission → today, with a minimum window, plus any date that
  * already has an entry so a back-dated note stays reachable.
  */
+/**
+ * Days that actually have a note, plus today.
+ *
+ * This used to render every calendar day since admission, which on a long stay
+ * meant scrolling past two weeks of empty chips to reach the three days that
+ * had anything in them. A rail is for navigation, and an empty day is not a
+ * destination — today is the only exception, because that is where writing
+ * starts.
+ */
 function buildRail(
-  admittedAt: ClinicalDate,
+  _admittedAt: ClinicalDate,
   today: ClinicalDate,
   entryDates: readonly ClinicalDate[],
 ): ClinicalDate[] {
-  const span = Math.max(daysBetween(admittedAt, today), RAIL_MIN_DAYS - 1);
   const dates = new Set<ClinicalDate>(entryDates);
-  for (let offset = span; offset >= 0; offset -= 1) {
-    dates.add(addDays(today, -offset));
-  }
+  dates.add(today);
   return [...dates].sort();
 }

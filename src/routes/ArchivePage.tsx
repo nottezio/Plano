@@ -28,6 +28,7 @@ export default function ArchivePage(): JSX.Element {
 
   return (
     <AppShell title="Arsip">
+      <div className="mx-auto w-full max-w-3xl">
       <div className="px-4 py-2">
         <label className="flex min-h-tap items-center gap-2 rounded-lg border border-border bg-surface px-3">
           <IconSearch className="shrink-0 text-fg-faint" width={18} height={18} />
@@ -65,6 +66,7 @@ export default function ArchivePage(): JSX.Element {
           ))}
         </div>
       )}
+      </div>
     </AppShell>
   );
 }
