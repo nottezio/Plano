@@ -49,3 +49,47 @@ export function displayName(patient: Pick<Patient, 'name' | 'preview'>): string 
 export function hasDisplayName(patient: Pick<Patient, 'name' | 'preview'>): boolean {
   return displayName(patient).length > 0;
 }
+
+/**
+ * The board preview should start at clinical content, not at the greeting.
+ *
+ * Since templates carry the whole message, the first ~240 characters of a body
+ * are `Assalamu'alaikum dokter…`, the identity line, and the DPJP line — which
+ * made every card on the board show the same three lines of boilerplate, and
+ * printed the patient's full name directly under a title that was deliberately
+ * reduced to initials.
+ *
+ * So the preview skips leading blocks until the first heading the parser
+ * recognises as clinical. Only KNOWN section ids qualify: the identity line is
+ * itself a wrapped header (`*Tn. Basra / … / RM 1068190*`) and parses as a
+ * custom section, so "skip the intro" alone would not have skipped it.
+ */
+const CLINICAL_SECTION_IDS: readonly string[] = ['s', 'o', 'ttv', 'penunjang', 'a', 'p', 'terapi'];
+
+export function clinicalStart(sections: readonly ParsedSectionLike[]): number {
+  for (const section of sections) {
+    if (CLINICAL_SECTION_IDS.includes(section.sectionId)) return section.start;
+  }
+  // No recognised heading: a free-form note is its own preview.
+  return 0;
+}
+
+export interface ParsedSectionLike {
+  sectionId: string;
+  start: number;
+}
+
+/**
+ * Removes the patient's name from text shown on the board.
+ *
+ * The initials-only setting exists to keep full names off a screen that may be
+ * visible to a corridor. Reducing the title while the preview underneath spells
+ * the name out in full is not a partial protection — it is none.
+ */
+export function redactName(text: string, name: string): string {
+  const trimmed = name.trim();
+  if (trimmed.length < 3) return text;
+
+  const escaped = trimmed.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  return text.replace(new RegExp(escaped, 'gi'), '—');
+}

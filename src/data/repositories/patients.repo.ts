@@ -15,6 +15,10 @@ import {
 import { nanoid } from 'nanoid';
 
 import { getDeviceId } from '../deviceId';
+import { clinicalStart } from '@/domain/identity';
+import { parseSections } from '@/domain/sections/parseSections';
+import { DEFAULT_SECTION_ALIASES } from '@/domain/sections/aliases';
+import type { SectionAlias } from '@/domain/types';
 import { patientDoc, patientsCol } from '../paths';
 import { trackWrite } from '../syncStatus';
 import type {
@@ -105,8 +109,11 @@ export function createPatient(uid: string, input: CreatePatientInput): {
 /** Longest preview the board can show: 4 lines at a comfortable card width. */
 const PREVIEW_LIMIT = 240;
 
-export function buildPreview(body: string): string {
-  const trimmed = body.trim();
+export function buildPreview(body: string, aliases?: readonly SectionAlias[]): string {
+  const resolved = aliases ?? DEFAULT_SECTION_ALIASES;
+  const sections = parseSections(body, resolved);
+  const trimmed = body.slice(clinicalStart(sections)).trim();
+
   return trimmed.length > PREVIEW_LIMIT ? `${trimmed.slice(0, PREVIEW_LIMIT)}…` : trimmed;
 }
 

@@ -1,6 +1,6 @@
 import { checklistProgress, resolveCardColor, type ChecklistStates } from './checklist';
 import { hariRawat } from './clinicalDate';
-import { displayName } from './identity';
+import { displayName, redactName } from './identity';
 import type {
   ChecklistItemDef,
   ClinicalDate,
@@ -91,7 +91,13 @@ export function buildCard(
     colorToken: resolveCardColor(items, states, patient.colorOverride),
     hariRawat: hariRawat(today, patient.admittedAt),
     progress: checklistProgress(items, states),
-    preview: patient.preview ?? '',
+    // Redacted when the board is in initials-only mode. Reducing the title to
+    // initials while the preview under it spells the name out in full is not
+    // partial protection, it is none — and a stored preview written before this
+    // rule existed can still contain the name.
+    preview: showInitialsOnly
+      ? redactName(patient.preview ?? '', patient.name ?? '')
+      : (patient.preview ?? ''),
     // Falling back to an older day is fine, but the card says so rather than
     // implying the note was written today.
     previewIsStale: Boolean(patient.preview) && patient.previewDate !== today,

@@ -1,6 +1,12 @@
 import { describe, expect, it } from 'vitest';
 
-import { displayName, firstMeaningfulLine, hasDisplayName } from './identity';
+import {
+  clinicalStart,
+  displayName,
+  firstMeaningfulLine,
+  hasDisplayName,
+  redactName,
+} from './identity';
 
 describe('firstMeaningfulLine', () => {
   it('skips leading blank lines', () => {
@@ -44,5 +50,45 @@ describe('displayName', () => {
   it('is empty when nothing has been written yet', () => {
     expect(displayName({ name: '', preview: '' })).toBe('');
     expect(hasDisplayName({ name: '', preview: '' })).toBe(false);
+  });
+});
+
+describe('clinicalStart', () => {
+  it('skips the greeting, identity and DPJP blocks', () => {
+    const sections = [
+      { sectionId: '_intro', start: 0 },
+      { sectionId: 'custom_tn_basra_rm_1068190', start: 80 },
+      { sectionId: 'custom_dpjp_utama', start: 140 },
+      { sectionId: 's', start: 200 },
+      { sectionId: 'o', start: 260 },
+    ];
+    expect(clinicalStart(sections)).toBe(200);
+  });
+
+  it('returns 0 for a free-form note with no recognised heading', () => {
+    expect(clinicalStart([{ sectionId: '_intro', start: 0 }])).toBe(0);
+  });
+
+  it('starts at O when there is no S', () => {
+    expect(
+      clinicalStart([
+        { sectionId: '_intro', start: 0 },
+        { sectionId: 'o', start: 50 },
+      ]),
+    ).toBe(50);
+  });
+});
+
+describe('redactName', () => {
+  it('removes every occurrence, case-insensitively', () => {
+    expect(redactName('Tn. Basra dan basra lagi', 'Basra')).toBe('Tn. — dan — lagi');
+  });
+
+  it('ignores a name too short to be meaningful', () => {
+    expect(redactName('Ada nyeri', 'A')).toBe('Ada nyeri');
+  });
+
+  it('treats regex characters in a name literally', () => {
+    expect(redactName('Tn. A. (Bapak)', 'A. (Bapak)')).toBe('Tn. —');
   });
 });

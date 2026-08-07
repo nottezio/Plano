@@ -323,3 +323,26 @@ describe('standing patient notes', () => {
     expect(matchesQuery(withNote, 'budi')).toBe(true);
   });
 });
+
+describe('initials-only mode does not leak the name in the preview', () => {
+  const patient = makePatient({
+    name: 'Tn. Basra',
+    preview: '*Tn. Basra / 02-12-1970 / 55 tahun / RM 1068190*\nS: nyeri dada tidak ada',
+  });
+
+  it('redacts the name from the preview when initials-only is on', () => {
+    const card = buildCard(patient, ITEMS, TODAY, true);
+    expect(card.title).toBe('B');
+    expect(card.preview).not.toContain('Basra');
+    expect(card.preview).toContain('nyeri dada');
+  });
+
+  it('leaves the preview intact when initials-only is off', () => {
+    expect(buildCard(patient, ITEMS, TODAY, false).preview).toContain('Basra');
+  });
+
+  it('does not redact a name too short to be one', () => {
+    const short = makePatient({ name: 'A', preview: 'Ada nyeri dada' });
+    expect(buildCard(short, ITEMS, TODAY, true).preview).toBe('Ada nyeri dada');
+  });
+});
