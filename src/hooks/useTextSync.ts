@@ -7,6 +7,8 @@ import { useUI } from '@/store/useUI';
 /** SPEC 7.2 step 2. */
 const IDLE_DEBOUNCE_MS = 800;
 const MAX_UNSAVED_MS = 15_000;
+/** How many un-echoed writes to remember. Two or three are ever in flight. */
+const PENDING_CAP = 8;
 
 export type SnapshotReason = 'pre-conflict' | 'restore';
 
@@ -74,9 +76,21 @@ export function useTextSync({
   const markDirty = useUI((state) => state.markDirty);
   const markClean = useUI((state) => state.markClean);
 
+  /**
+   * Bodies this device has written and not yet seen echoed back.
+   *
+   * Firestore replays every local write through `onSnapshot`, so a saved body
+   * arrives as a "new" server value a moment after we sent it. Without this
+   * set, that echo is indistinguishable from another device's edit — and the
+   * merge treats our own text as a remote change.
+   */
+  const pending = useRef<Set<string>>(new Set());
+  const isOwnEcho = pending.current.has(serverText);
+
   const value = draft ?? serverText;
   const dirty = draft !== undefined && draft !== serverText;
-  const remoteChangedWhileDirty = dirty && base !== undefined && base !== serverText;
+  const remoteChangedWhileDirty =
+    dirty && !isOwnEcho && base !== undefined && base !== serverText;
 
   const [conflict, setConflict] = useState<Extract<
     MergeOutcome,
@@ -97,11 +111,32 @@ export function useTextSync({
 
     if (!current.dirty || current.locked) return;
 
-    setBase(current.key, current.value);
+    /**
+     * The base is NOT advanced here.
+     *
+     * It used to be, and that was a race with a bite: between `setBase(value)`
+     * and the write echoing back through `onSnapshot`, `serverText` still held
+     * the OLD body. So `base !== serverText` while dirty — the exact condition
+     * for "someone else edited this" — and the merge ran with `local === base`,
+     * producing a `remote-only` outcome that adopted the old body and undid the
+     * keystroke. When the ranges overlapped instead, the conflict dialog
+     * appeared and vanished a frame later.
+     *
+     * The base now advances only when the echo actually arrives, which is the
+     * only moment we know the server has our text.
+     */
+    pending.current.add(current.value);
+    // Bounded: only the most recent writes can still be in flight, and an
+    // unbounded set would keep every keystroke alive for the session.
+    if (pending.current.size > PENDING_CAP) {
+      const oldest = pending.current.values().next().value;
+      if (oldest !== undefined) pending.current.delete(oldest);
+    }
+
     void current.write(current.value).catch((error: unknown) => {
       console.error('[textsync] write rejected', error);
     });
-  }, [setBase]);
+  }, []);
 
   const setValue = useCallback(
     (next: string) => {
@@ -124,6 +159,16 @@ export function useTextSync({
     setDraft(key, serverText);
     setBase(key, serverText);
   }, [key, serverText, setDraft, setBase]);
+
+  /**
+   * The echo landed: the server now holds text this device wrote, so that text
+   * is the new common ancestor. Nothing to merge.
+   */
+  useEffect(() => {
+    if (!isOwnEcho) return;
+    pending.current.delete(serverText);
+    if (base !== serverText) setBase(key, serverText);
+  }, [isOwnEcho, serverText, base, key, setBase]);
 
   /** SPEC 7.2 step 5 — merge whenever the server moves under unsaved text. */
   useEffect(() => {

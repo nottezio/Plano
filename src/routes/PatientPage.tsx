@@ -6,7 +6,7 @@ import { CopySheet } from '@/components/copy/CopySheet';
 import { ChecklistPills } from '@/components/patient/ChecklistPills';
 import { IdentitySheet } from '@/components/patient/IdentitySheet';
 import { PatientActionsSheet } from '@/components/patient/PatientActionsSheet';
-import { PatientNotes } from '@/components/patient/PatientNotes';
+import { PatientNotes, usePatientNotes } from '@/components/patient/PatientNotes';
 import { OpeningSheet } from '@/components/patient/OpeningSheet';
 import { TemplatePicker } from '@/components/patient/TemplatePicker';
 import { ConflictDialog } from '@/components/patient/ConflictDialog';
@@ -85,6 +85,7 @@ export default function PatientPage(): JSX.Element {
   const otherDevice = otherDeviceEditing(entry);
   const revisions = useRevisions(patientId, selected, trailOpen);
   const checklist = useChecklist(patientId, selected, settings.checklistItems);
+  const notesSync = usePatientNotes(patient ?? null);
 
   const railDates = useMemo(
     () => buildRail(patient?.admittedAt ?? today, today, entryDates),
@@ -249,7 +250,7 @@ export default function PatientPage(): JSX.Element {
         </header>
 
         <div className="xl:hidden">
-          <PatientNotes patient={patient} />
+          <PatientNotes sync={notesSync} />
         </div>
 
         <div className="xl:hidden">
@@ -395,7 +396,7 @@ export default function PatientPage(): JSX.Element {
 
         {/* Sidebar: fixed-width context, scrolls independently. */}
         <aside className="hidden w-[300px] shrink-0 flex-col gap-4 overflow-y-auto overflow-x-hidden py-4 xl:flex">
-          <PatientNotes patient={patient} />
+          <PatientNotes sync={notesSync} />
 
           <section>
             <h3 className="mb-1.5 text-xs font-semibold text-fg-muted">Tanggal</h3>

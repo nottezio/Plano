@@ -185,3 +185,45 @@ describe('diff view', () => {
     expect(stats.removed).toBe(0);
   });
 });
+
+describe('the echo race that broke typing', () => {
+  /**
+   * Reproduces the exact state the editor reached between saving and the write
+   * echoing back, when the base was advanced optimistically:
+   *
+   *   base       = what the user just typed   (advanced too early)
+   *   local      = what the user just typed
+   *   remote     = the body still on the server (the echo has not arrived)
+   *
+   * `local === base`, so the merge reads it as "only the other device changed"
+   * and returns the OLD body — silently undoing the keystroke.
+   */
+  it('would adopt the stale server body when the base is advanced too early', () => {
+    const typed = 'S: sesak berkurang, batuk (+)';
+    const stillOnServer = 'S: sesak berkurang, batuk (';
+
+    const result = mergeThreeWay(typed, typed, stillOnServer);
+
+    expect(result.kind).toBe('remote-only');
+    expect(result.body).toBe(stillOnServer);
+  });
+
+  /**
+   * With the base left where it belongs — the last body the server actually
+   * confirmed — the same moment merges to the typed text instead.
+   */
+  it('keeps the typed text when the base is the last confirmed body', () => {
+    const confirmed = 'S: sesak berkurang, batuk (';
+    const typed = 'S: sesak berkurang, batuk (+)';
+
+    const result = mergeThreeWay(confirmed, typed, confirmed);
+
+    expect(result.kind).toBe('local-only');
+    expect(result.body).toBe(typed);
+  });
+
+  it('is a no-op once the echo lands', () => {
+    const typed = 'S: sesak berkurang, batuk (+)';
+    expect(mergeThreeWay('S: sesak', typed, typed).kind).toBe('unchanged');
+  });
+});

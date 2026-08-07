@@ -1,40 +1,50 @@
 import { useCallback, useState } from 'react';
 
 import { updatePatient } from '@/data/repositories/patients.repo';
-import { useTextSync } from '@/hooks/useTextSync';
+import { useTextSync, type TextSyncState } from '@/hooks/useTextSync';
 import type { Patient } from '@/domain/types';
 
 /**
  * SPEC F3 — the standing note.
  *
- * Belongs to the patient, not to a day: never carried forward, never cleared at
+ * Belongs to the patient, not the day: never carried forward, never cleared at
  * midnight, never part of a SOAP entry. Allergies, family contact, access
  * lines, which consultant wants what — facts that stay true tomorrow.
  *
- * Kept off the daily note deliberately. A standing fact repeated into thirty
- * days of SOAP is thirty places to correct when it changes, and twenty-nine of
- * them will be wrong.
+ * Kept off the daily note deliberately: a standing fact repeated into thirty
+ * days of SOAP is thirty places to correct when it changes.
  *
- * It is also NOT included in copy. What goes to the chief is the day's report;
- * this is a place to keep things for yourself, and a note that silently
- * appeared in a handover message would stop being useful for that.
+ * Also NOT included in copy, and NOT in board search. What goes to the chief is
+ * the day's report; this is a place to keep things for yourself.
  */
-export function PatientNotes({ patient }: { patient: Patient }): JSX.Element {
-  const [open, setOpen] = useState(false);
+
+/**
+ * The sync lives in a hook called ONCE by the page, because the panel is
+ * rendered in two places — inline below `xl`, in the sidebar above it.
+ *
+ * Two components sharing a draft key each keep their own record of which writes
+ * are still in flight, so each sees the other's write as a remote edit and the
+ * two fight over the same text. One hook, two views, no argument.
+ */
+export function usePatientNotes(patient: Patient | null): TextSyncState {
+  // Accepts null because hooks cannot sit behind the page's loading guard.
+  const id = patient?.id ?? null;
 
   const write = useCallback(
-    (notes: string) => updatePatient(patient.id, { notes }),
-    [patient.id],
+    (notes: string) => (id ? updatePatient(id, { notes }) : Promise.resolve()),
+    [id],
   );
 
-  // Same durability as a SOAP body: debounce, force-flush, three-way merge.
-  const sync = useTextSync({
-    key: `patient-notes|${patient.id}`,
-    serverText: patient.notes ?? '',
-    locked: false,
+  return useTextSync({
+    key: `patient-notes|${id ?? 'none'}`,
+    serverText: patient?.notes ?? '',
+    locked: id === null,
     write,
   });
+}
 
+export function PatientNotes({ sync }: { sync: TextSyncState }): JSX.Element {
+  const [open, setOpen] = useState(false);
   const preview = sync.value.trim().split('\n')[0] ?? '';
 
   return (
