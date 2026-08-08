@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import {
   findMarkdownLeaks,
+  findNonAsciiChars,
   findPlainTextLeaks,
   formatBody,
   toMarkdown,
@@ -154,7 +155,9 @@ describe('composeCopy — all sections', () => {
       format: 'plain',
       includeDateHeader: true,
     });
-    expect(output).toContain('Kamis, 6 Agustus 2026 · Hari rawat ke-4');
+    // The middot folds to a hyphen in plain text: SIMGOS renders anything
+    // outside its legacy encoding as `?`.
+    expect(output).toContain('Kamis, 6 Agustus 2026 - Hari rawat ke-4');
   });
 });
 
@@ -345,9 +348,13 @@ describe('single-asterisk bold pasted from WhatsApp', () => {
     expect(toWhatsApp('*S:*')).toBe('*S:*');
   });
 
-  it('does not match an unbalanced or spaced asterisk', () => {
+  it('does not treat a mid-line asterisk as bold', () => {
     expect(toPlain('nilai * penting')).toBe('nilai * penting');
-    expect(toPlain('* awal saja')).toBe('* awal saja');
+  });
+
+  it('reads a leading `* ` as a bullet, not as bold', () => {
+    expect(toPlain('* awal saja')).toBe('- awal saja');
+    expect(toWhatsApp('* awal saja')).toBe('• awal saja');
   });
 });
 
@@ -375,5 +382,62 @@ describe('identity lines with trailing blanks', () => {
     expect(toPlain('Metformin 500 mg 3*1 dan Ceftriaxone 2*1')).toBe(
       'Metformin 500 mg 3*1 dan Ceftriaxone 2*1',
     );
+  });
+});
+
+describe('asterisk bullets pasted from WhatsApp', () => {
+  const list = ['* Clopidogrel 75mg', '* Miniaspi 80mg', '- Atorvastatin 20mg'].join('\n');
+
+  it('converts both bullet spellings for WhatsApp', () => {
+    expect(toWhatsApp(list)).toBe(
+      ['• Clopidogrel 75mg', '• Miniaspi 80mg', '• Atorvastatin 20mg'].join('\n'),
+    );
+  });
+
+  it('normalises both to `- ` for plain text', () => {
+    expect(toPlain(list)).toBe(
+      ['- Clopidogrel 75mg', '- Miniaspi 80mg', '- Atorvastatin 20mg'].join('\n'),
+    );
+  });
+
+  it('preserves indentation', () => {
+    expect(toWhatsApp('  * Cek DPL')).toBe('  • Cek DPL');
+  });
+
+  it('does not mistake bold at the start of a line for a bullet', () => {
+    expect(toPlain('*Terapi:*')).toBe('Terapi:');
+  });
+});
+
+describe('SIMGOS cannot render non-ASCII — it shows `?`', () => {
+  it('folds the bullet the WhatsApp formatter emits', () => {
+    expect(toPlain('• Clopidogrel')).toBe('- Clopidogrel');
+  });
+
+  it('folds curly quotes from phone autocorrect', () => {
+    expect(toPlain('S\u2019 lateral 14 cm/s')).toBe("S' lateral 14 cm/s");
+    expect(toPlain('\u201Cnyeri\u201D')).toBe('"nyeri"');
+  });
+
+  it('folds dashes, ellipsis and non-breaking spaces', () => {
+    expect(toPlain('EF 55\u201360%')).toBe('EF 55-60%');
+    expect(toPlain('lanjut\u2026')).toBe('lanjut...');
+    expect(toPlain('TD\u00A0116/72')).toBe('TD 116/72');
+  });
+
+  it('folds degree and comparison symbols used in vitals', () => {
+    expect(toPlain('Suhu 36.7\u00B0C')).toBe('Suhu 36.7 derajat C');
+    expect(toPlain('eGFR \u2265 60')).toBe('eGFR >= 60');
+  });
+
+  it('leaves a realistic note fully ASCII', () => {
+    const note = [
+      '*O:*',
+      '• TD 116/72 mmHg',
+      'Suhu 36.7\u00B0C',
+      'S\u2019 lateral 14 cm/s',
+      'EF 55\u201360 %',
+    ].join('\n');
+    expect(findNonAsciiChars(toPlain(note))).toEqual([]);
   });
 });

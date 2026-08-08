@@ -30,7 +30,20 @@ const STRIKE_RE = /~~([^\n~]+?)~~/g;
  */
 const ITALIC_RE = /(^|[^\w*])_([^\n_]+?)_(?!\w)/g;
 
-const BULLET_LINE_RE = /^(\s*)- /gm;
+/**
+ * Bullets, both spellings.
+ *
+ * markdown-lite writes `- `, but text pasted in from WhatsApp frequently uses
+ * `* ` — people type it, and some keyboards autocorrect to it. Handling only
+ * `- ` meant those lines passed through untouched, so a list copied back out
+ * arrived with literal asterisks where the bullets should be. That is the
+ * "bullet turns into a star, sometimes" case: it depended entirely on which
+ * character the original author had typed.
+ *
+ * `* ` is unambiguous as a bullet because the bold rule requires a non-space
+ * immediately after the marker — `*teks*` is bold, `* teks` is a list item.
+ */
+const BULLET_LINE_RE = /^([ \t]*)[-*] /gm;
 
 /**
  * Single-asterisk bold, as WhatsApp writes it.
@@ -77,11 +90,47 @@ export function toWhatsApp(body: string): string {
 }
 
 /**
+ * Characters that survive a copy but not the paste into SIMGOS.
+ *
+ * SIMGOS renders in a legacy single-byte encoding, so anything outside it
+ * arrives as `?`. The offenders are all characters this app or a phone keyboard
+ * introduces without being asked: the bullet the WhatsApp formatter emits,
+ * curly quotes from iOS autocorrect, en/em dashes, the ellipsis used in
+ * truncation, and non-breaking spaces pasted from web tables.
+ *
+ * Replaced with ASCII equivalents rather than stripped — a dash carries the
+ * same meaning as an en dash, whereas a missing character silently changes a
+ * dose range into a number.
+ */
+const ASCII_FOLD: ReadonlyArray<readonly [RegExp, string]> = [
+  [/[\u2022\u25CF\u25AA\u00B7]/g, '-'],
+  [/[\u2018\u2019\u201B]/g, "'"],
+  [/[\u201C\u201D]/g, '"'],
+  [/[\u2013\u2014\u2212]/g, '-'],
+  [/\u2026/g, '...'],
+  [/[\u00A0\u2007\u202F]/g, ' '],
+  [/\u00B0/g, ' derajat '],
+  [/[\u2264]/g, '<='],
+  [/[\u2265]/g, '>='],
+  [/\u00D7/g, 'x'],
+];
+
+export function foldToAscii(text: string): string {
+  return ASCII_FOLD.reduce((acc, [pattern, replacement]) => acc.replace(pattern, replacement), text);
+}
+
+/** Anything left that SIMGOS would render as `?`. */
+export function findNonAsciiChars(text: string): string[] {
+  // eslint-disable-next-line no-control-regex
+  return [...new Set(text.match(/[^\x00-\x7F]/g) ?? [])];
+}
+
+/**
  * SPEC 12.3 — plain text for SIMGOS and other systems that show raw characters.
  * Every marker is removed; the words and the line structure survive untouched.
  */
 export function toPlain(body: string): string {
-  return (
+  return foldToAscii(
     body
       // `**` first: otherwise the single-asterisk rule would eat one pair of
       // markers and leave the other behind.
@@ -89,6 +138,8 @@ export function toPlain(body: string): string {
       .replace(STRIKE_RE, '$1')
       .replace(SINGLE_BOLD_RE, '$1$2')
       .replace(ITALIC_RE, '$1$2')
+      // `* ` bullets become `- `, the spelling plain text has always used.
+      .replace(BULLET_LINE_RE, '$1- '),
   );
 }
 

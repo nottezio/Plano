@@ -6,17 +6,20 @@ import { CopySheet } from '@/components/copy/CopySheet';
 import { ChecklistPills } from '@/components/patient/ChecklistPills';
 import { IdentitySheet } from '@/components/patient/IdentitySheet';
 import { PatientActionsSheet } from '@/components/patient/PatientActionsSheet';
+import { IdentityBar } from '@/components/patient/IdentityBar';
 import { PatientNotes, usePatientNotes } from '@/components/patient/PatientNotes';
+import { ScrollToTop } from '@/components/patient/ScrollToTop';
 import { OpeningSheet } from '@/components/patient/OpeningSheet';
 import { TemplatePicker } from '@/components/patient/TemplatePicker';
 import { ConflictDialog } from '@/components/patient/ConflictDialog';
 import { DateRail } from '@/components/patient/DateRail';
 import { RevisionTrail } from '@/components/patient/RevisionTrail';
 import { AppShell } from '@/components/common/AppShell';
-import { setEntryLocked } from '@/data/repositories/entries.repo';
+import { fetchEntryBodies, setEntryLocked } from '@/data/repositories/entries.repo';
 import { carryForward, carryForwardSummary } from '@/domain/carryForward';
 import {
   daysBetween,
+  formatShortDate,
   formatDayHeader,
   previousDay,
   shouldAutoLock,
@@ -112,14 +115,37 @@ export default function PatientPage(): JSX.Element {
     navigate(`/p/${patientId}/${next}`);
   };
 
+  /**
+   * Copy the previous note forward.
+   *
+   * Sources from the newest earlier day that actually HAS content, not strictly
+   * from yesterday. A patient admitted Friday and reviewed Monday has two empty
+   * days in between, and "yesterday was empty so there is nothing to copy" is
+   * wrong in exactly the situation where retyping hurts most.
+   */
   const applyCarryForward = (): void => {
-    const result = carryForward(
-      previous.entry?.body ?? '',
-      settings.carryForwardClearSections,
-      settings.sectionAliases,
-    );
-    editor.setValue(result.body);
-    setCarrySummary(carryForwardSummary(result));
+    if (!patientId) return;
+
+    void fetchEntryBodies(patientId)
+      .then((days) => {
+        const source = days
+          .filter((day) => day.date < selected && day.body.trim().length > 0)
+          .sort((a, b) => (a.date < b.date ? 1 : -1))[0];
+
+        if (!source) {
+          setCarrySummary('Tidak ada catatan sebelumnya untuk disalin.');
+          return;
+        }
+
+        const result = carryForward(
+          source.body,
+          settings.carryForwardClearSections,
+          settings.sectionAliases,
+        );
+        editor.setValue(result.body);
+        setCarrySummary(`${carryForwardSummary(result)} (dari ${formatShortDate(source.date)})`);
+      })
+      .catch((error: unknown) => console.error('[patient] carry-forward failed', error));
   };
 
   if (loading) {
@@ -154,8 +180,10 @@ export default function PatientPage(): JSX.Element {
     .filter(Boolean)
     .join(' · ');
 
-  const canCarryForward =
-    !locked && !exists && editor.value.trim().length === 0 && previous.exists;
+  // Any empty day qualifies. The old `!exists` condition meant the offer
+  // vanished the moment the document was materialised — which happens on the
+  // first keystroke, or when a template is inserted and then cleared.
+  const canCarryForward = !locked && editor.value.trim().length === 0;
 
   return (
     <AppShell title={patient.name}>
@@ -248,6 +276,13 @@ export default function PatientPage(): JSX.Element {
             <p className="mt-1 text-xs text-fg-faint">{patient.diagnoses.join(', ')}</p>
           ) : null}
         </header>
+
+        <IdentityBar
+          patient={patient}
+          showInitialsOnly={settings.privacy.boardShowInitialsOnly}
+          hariRawat={hariRawat}
+          onEdit={() => setIdentityOpen(true)}
+        />
 
         <div className="xl:hidden">
           <PatientNotes sync={notesSync} />
@@ -423,6 +458,8 @@ export default function PatientPage(): JSX.Element {
           </section>
         </aside>
       </div>
+
+      <ScrollToTop />
 
       <OpeningSheet
         open={openingOpen}
