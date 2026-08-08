@@ -55,7 +55,7 @@ describe('resolveStates', () => {
   });
 });
 
-describe('resolveCardColor — the lowest-order unchecked item', () => {
+describe('resolveCardColor — the last ticked item', () => {
   for (const n of [3, 7, 12]) {
     describe(`with N = ${n}`, () => {
       const items = makeItems(n);
@@ -68,7 +68,8 @@ describe('resolveCardColor — the lowest-order unchecked item', () => {
         for (let done = 1; done < n; done += 1) {
           const doneIds = Array.from({ length: done }, (_, i) => `c${i + 1}`);
           const states = resolveStates(items, ticked(doneIds));
-          expect(resolveCardColor(items, states)).toBe(tokenForIndex(done + 1));
+          // Colour follows the step just ticked, not the one still owed.
+          expect(resolveCardColor(items, states)).toBe(tokenForIndex(done));
         }
       });
 
@@ -77,10 +78,11 @@ describe('resolveCardColor — the lowest-order unchecked item', () => {
         expect(resolveCardColor(items, resolveStates(items, ticked(allIds)))).toBe('done');
       });
 
-      it('shows what still needs doing, not what was just finished', () => {
-        // Ticking a later item out of order must not advance the colour.
+      it('shows what was just finished, not what is still owed', () => {
+        // Ticking a later item out of order colours by THAT item: it is the
+        // furthest point actually reached.
         const states = resolveStates(items, ticked([`c${n}`]));
-        expect(resolveCardColor(items, states)).toBe(tokenForIndex(1));
+        expect(resolveCardColor(items, states)).toBe(tokenForIndex(n));
       });
 
       it('gives every item a distinct colour', () => {
@@ -100,8 +102,9 @@ describe('resolveCardColor — the lowest-order unchecked item', () => {
 
   it('skips disabled items when choosing the colour', () => {
     const items = setChecklistItemActive(makeItems(5), 'c1', false);
-    // c2 is now the first ACTIVE item; ticking it makes c3 the pending one.
-    expect(resolveCardColor(items, resolveStates(items, ticked(['c2'])))).toBe(tokenForIndex(3));
+    // A tick on a DISABLED item cannot set the colour; c2 can.
+    expect(resolveCardColor(items, resolveStates(items, ticked(['c1'])))).toBe(NEUTRAL_TOKEN);
+    expect(resolveCardColor(items, resolveStates(items, ticked(['c2'])))).toBe(tokenForIndex(2));
   });
 
   it('reads as done when no items are active at all', () => {
@@ -114,10 +117,10 @@ describe('resolveCardColor — the lowest-order unchecked item', () => {
       { id: 'b', order: 2, label: 'Kedua', colorToken: 'step-2', active: true },
       { id: 'a', order: 1, label: 'Pertama', colorToken: 'step-1', active: true },
     ];
-    // pendingItem is order-driven regardless of ticks; the colour only shows
-    // once something is ticked, so tick 'a' to see 'b' become pending.
     expect(pendingItem(items, resolveStates(items, null))?.id).toBe('a');
-    expect(resolveCardColor(items, resolveStates(items, ticked(['a'])))).toBe('step-2');
+    // Ticking the order-1 item colours by IT, even though it sits second in
+    // the array.
+    expect(resolveCardColor(items, resolveStates(items, ticked(['a'])))).toBe('step-1');
   });
 });
 
@@ -202,8 +205,10 @@ describe('checklist editors', () => {
     const moved = moveChecklistItem(items, 'c3', 0);
     const before = resolveCardColor(items, resolveStates(items, ticked(['c1'])));
     const after = resolveCardColor(moved, resolveStates(moved, ticked(['c3'])));
-    expect(before).toBe(tokenForIndex(2));
-    expect(after).toBe(items[0]?.colorToken);
+    // Colour is the ticked item's own token, so it follows the item through
+    // a reorder rather than following the position.
+    expect(before).toBe(items[0]?.colorToken);
+    expect(after).toBe(items[2]?.colorToken);
   });
 
   it('clamps an out-of-range move instead of dropping the item', () => {

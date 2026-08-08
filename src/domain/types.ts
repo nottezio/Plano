@@ -125,6 +125,8 @@ export interface Patient {
   age?: number;
   sex?: Sex;
   ward?: string;
+  /** Room number. Kept apart from `ward` so the two format independently. */
+  room?: string;
   bed?: string;
   dpjp?: string;
   /**

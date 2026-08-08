@@ -4,6 +4,7 @@ import {
   clinicalStart,
   displayName,
   firstMeaningfulLine,
+  formatLocation,
   hasDisplayName,
   redactName,
 } from './identity';
@@ -90,5 +91,27 @@ describe('redactName', () => {
 
   it('treats regex characters in a name literally', () => {
     expect(redactName('Tn. A. (Bapak)', 'A. (Bapak)')).toBe('Tn. —');
+  });
+});
+
+describe('formatLocation', () => {
+  it('spells out the full location', () => {
+    expect(formatLocation({ ward: 'PJT Lantai 5', room: '517', bed: '3' })).toBe(
+      'PJT Lantai 5 Kamar 517 Bed 3',
+    );
+  });
+
+  it('omits parts that are not filled in', () => {
+    expect(formatLocation({ ward: 'PJT Lantai 5' })).toBe('PJT Lantai 5');
+    expect(formatLocation({ ward: 'CVCU', bed: '4' })).toBe('CVCU Bed 4');
+  });
+
+  it('is empty when nothing is known', () => {
+    expect(formatLocation({})).toBe('');
+  });
+
+  it('does not repeat a label the user already typed', () => {
+    // Users type "517", not "Kamar 517" — but if they do, no double label.
+    expect(formatLocation({ room: '517' })).toBe('Kamar 517');
   });
 });

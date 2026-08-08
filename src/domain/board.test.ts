@@ -82,14 +82,14 @@ describe('boardTickStates — the midnight reset, on the board', () => {
 });
 
 describe('buildCard', () => {
-  it('colours the card by the lowest-order unchecked item', () => {
+  it('colours the card by the last ticked item', () => {
     const card = buildCard(
       makePatient({ boardChecklist: { date: TODAY, done: { c1: true, c2: true } } }),
       ITEMS,
       TODAY,
       true,
     );
-    expect(card.colorToken).toBe('step-3');
+    expect(card.colorToken).toBe('step-2');
     expect(card.progress.pendingLabel).toBe('Kirim ke Chief');
     expect(card.progress.total).toBe(7);
   });

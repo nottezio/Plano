@@ -90,12 +90,21 @@ export function defaultUserSettings(): UserSettings {
       'Selamat sore dokter.',
       'Selamat malam dokter.',
     ],
+    /**
+     * Placeholders are spelled out rather than left blank.
+     *
+     * A blank gap gives no clue what belongs in it, and reads as a typo to
+     * anyone glancing at the list. `(Nama DPJP)` and `(Ruang) Kamar (no) Bed
+     * (no)` say what to replace and are impossible to mistake for finished
+     * text — a leftover placeholder is obvious in a sent message, a leftover
+     * blank is not.
+     */
     openingSentences: [
-      'Tabe dokter, mohon izin melaporkan follow up pasien di *Ruang  Kamar  Bed *  atas nama :',
-      'Tabe dokter, mohon izin melaporkan pasien baru rencana tindakan dari *POLI * di *Ruang  Kamar  Bed * atas nama:',
-      'Tabe dokter, mohon izin melaporkan pasien baru di *Ruang  Kamar  Bed *  atas nama :',
-      'Tabe dokter izin melaporkan follow up pasien *KJS TS  ()* di *Ruang  Kamar * atas nama :',
-      'Tabe dokter mohon izin melaporkan follow up perpindahan pasien dari *  bed * ke *Ruang  Kamar  Bed * pasien atas nama:',
+      'Tabe dokter, mohon izin melaporkan follow up pasien di *(Ruang) Kamar (no) Bed (no)* atas nama :',
+      'Tabe dokter, mohon izin melaporkan pasien baru rencana tindakan dari *(Poli)* di *(Ruang) Kamar (no) Bed (no)* atas nama :',
+      'Tabe dokter, mohon izin melaporkan pasien baru di *(Ruang) Kamar (no) Bed (no)* atas nama :',
+      'Tabe dokter izin melaporkan follow up pasien KJS *TS (Bagian) ((Nama DPJP))* di *(Ruang) Kamar (no) Bed (no)* atas nama :',
+      'Tabe dokter mohon izin melaporkan follow up perpindahan pasien dari *(Ruang asal) Bed (no)* ke *(Ruang tujuan) Kamar (no) Bed (no)* pasien atas nama :',
     ],
     copyPresets: DEFAULT_COPY_PRESETS.map((preset) => ({ ...preset })),
     privacy: {
@@ -103,7 +112,10 @@ export function defaultUserSettings(): UserSettings {
       pinLockEnabled: true,
       autoLockMinutes: 3,
       blurOnBackground: true,
-      boardShowInitialsOnly: true,
+      // Full names by default. The initials mode still exists for anyone who wants
+      // it, but defaulting to it made the board unreadable for its actual user —
+      // and the person holding the phone already knows who these patients are.
+      boardShowInitialsOnly: false,
     },
     theme: 'system',
   };

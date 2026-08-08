@@ -80,8 +80,15 @@ export function IdentitySheet({
           </div>
         </div>
 
+        {/* Three fields, because they are written together and change apart:
+            a transfer moves the room while the ward stays. */}
+        <Field
+          label="Ruang / Lantai"
+          value={patient.ward ?? ''}
+          onChange={(ward) => patch({ ward })}
+        />
         <div className="grid grid-cols-2 gap-3">
-          <Field label="Ruang" value={patient.ward ?? ''} onChange={(ward) => patch({ ward })} />
+          <Field label="Kamar" value={patient.room ?? ''} onChange={(room) => patch({ room })} />
           <Field label="Bed" value={patient.bed ?? ''} onChange={(bed) => patch({ bed })} />
         </div>
 

@@ -1,3 +1,5 @@
+import { formatLocation } from '@/domain/identity';
+import { initials } from '@/domain/board';
 import type { Patient } from '@/domain/types';
 
 /**
@@ -23,19 +25,8 @@ export function IdentityBar({
   onEdit: () => void;
 }): JSX.Element {
   const name = patient.name?.trim();
-  const label = !name
-    ? 'Tanpa nama'
-    : showInitialsOnly
-      ? name
-          .replace(/\b(Tn|Ny|Nn|An|Sdr|Sdri)\.?\s*/gi, '')
-          .split(/\s+/)
-          .filter(Boolean)
-          .slice(0, 3)
-          .map((word) => word[0]?.toUpperCase() ?? '')
-          .join('.')
-      : name;
-
-  const location = [patient.ward, patient.bed].filter(Boolean).join(' ');
+  const label = !name ? 'Tanpa nama' : showInitialsOnly ? initials(name) : name;
+  const location = formatLocation(patient);
 
   return (
     <button

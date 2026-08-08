@@ -17,6 +17,7 @@ import { RevisionTrail } from '@/components/patient/RevisionTrail';
 import { AppShell } from '@/components/common/AppShell';
 import { fetchEntryBodies, setEntryLocked } from '@/data/repositories/entries.repo';
 import { carryForward, carryForwardSummary } from '@/domain/carryForward';
+import { formatLocation } from '@/domain/identity';
 import {
   daysBetween,
   formatShortDate,
@@ -174,7 +175,7 @@ export default function PatientPage(): JSX.Element {
     patient.age ? `${patient.age}th` : null,
     patient.sex,
     patient.mrn ? `RM ${patient.mrn}` : null,
-    [patient.ward, patient.bed].filter(Boolean).join(' ').trim() || null,
+    formatLocation(patient) || null,
     patient.dpjp ? `DPJP: ${patient.dpjp}` : null,
   ]
     .filter(Boolean)
@@ -198,8 +199,14 @@ export default function PatientPage(): JSX.Element {
 
         The note column keeps a readable measure; the rail and checklist move
         into a sidebar that does not move when the note grows.
+
+        `overflow-x-clip`, NOT `overflow-hidden`: `overflow: hidden` makes this
+        element the scroll container for anything `position: sticky` inside it,
+        which is why the identity bar sat still at the top of the note instead
+        of following the scroll. `clip` contains the same horizontal overflow
+        without creating a scroll container.
       */}
-      <div className="mx-auto flex min-h-0 w-full max-w-3xl flex-1 flex-col overflow-hidden xl:max-w-none xl:flex-row xl:gap-6 xl:pr-4">
+      <div className="mx-auto flex min-h-0 w-full max-w-3xl flex-1 flex-col overflow-x-clip xl:max-w-none xl:flex-row xl:gap-6 xl:pr-4">
         {/*
           `min-w-0` is load-bearing, not decoration.
 
@@ -214,15 +221,10 @@ export default function PatientPage(): JSX.Element {
         <header className="border-b border-border px-4 py-3">
           <div className="flex items-start gap-2">
             {identity ? (
-              // Editable after the fact. A one-way form is how a typo in an MRN
-              // becomes permanent.
-              <button
-                type="button"
-                onClick={() => setIdentityOpen(true)}
-                className="min-w-0 flex-1 truncate text-left text-xs text-fg-muted underline decoration-border underline-offset-2"
-              >
-                {identity}
-              </button>
+              // The sticky IdentityBar below carries the name, location and day.
+              // Repeating it here was the same information twice, one line
+              // apart, in a header that also holds the primary actions.
+              <span className="min-w-0 flex-1" />
             ) : (
               // Identity is optional metadata, not a precondition. The note is
               // already usable; this is an offer, not a prompt.

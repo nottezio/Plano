@@ -71,11 +71,17 @@ export function pendingItem(
 /**
  * SPEC 9.2, corrected.
  *
- * A card with NOTHING ticked is neutral, not step-1 coloured. Colouring an
- * untouched patient the same as one stalled at step 1 made every fresh card
- * read as an alert — the loudest colour on the board applied to the state that
- * carries the least information. Colour now means "progress has started and
- * this is where it stopped", which is the only reading that is actionable.
+ * The colour is the LAST TICKED step, not the next pending one.
+ *
+ * Both encode the same position, but only one is readable at a glance: the
+ * ticked step is a thing that happened, so the colour answers "how far did this
+ * patient get". Colouring by the next pending step answers "what is owed", which
+ * sounds equivalent and is not — it shifts every card one colour ahead of the
+ * work actually done, and a card showing the colour of a step nobody has
+ * touched is a card you have to stop and decode.
+ *
+ * Nothing ticked stays neutral. An untouched patient carries the least
+ * information on the board and should not wear its loudest colour.
  */
 export function resolveCardColor(
   items: readonly ChecklistItemDef[],
@@ -89,11 +95,13 @@ export function resolveCardColor(
   // rather than an unstarted one.
   if (active.length === 0) return DONE_TOKEN;
 
-  const anyDone = active.some((item) => isDone(states, item.id));
-  if (!anyDone) return NEUTRAL_TOKEN;
+  const ordered = [...active].sort((a, b) => a.order - b.order);
+  const ticked = ordered.filter((item) => isDone(states, item.id));
 
-  const pending = pendingItem(items, states);
-  return pending ? pending.colorToken : DONE_TOKEN;
+  if (ticked.length === 0) return NEUTRAL_TOKEN;
+  if (ticked.length === ordered.length) return DONE_TOKEN;
+
+  return ticked[ticked.length - 1]?.colorToken ?? NEUTRAL_TOKEN;
 }
 
 export interface ProgressSegment {

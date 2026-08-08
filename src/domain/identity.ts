@@ -93,3 +93,29 @@ export function redactName(text: string, name: string): string {
   const escaped = trimmed.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
   return text.replace(new RegExp(escaped, 'gi'), '—');
 }
+
+/**
+ * "PJT Lantai 5 Kamar 517 Bed 3".
+ *
+ * Three fields rather than one free-text location, because they are written
+ * together and searched separately: the board filters by ward, the handover
+ * line needs the whole thing spelled out, and a transfer changes the room while
+ * the ward stays. Storing them merged means re-parsing a string every time any
+ * one of them matters.
+ *
+ * The labels are part of the format, not the data — nobody types "Kamar 517",
+ * they type "517".
+ */
+export function formatLocation(patient: {
+  ward?: string | undefined;
+  room?: string | undefined;
+  bed?: string | undefined;
+}): string {
+  return [
+    patient.ward?.trim(),
+    patient.room?.trim() ? `Kamar ${patient.room.trim()}` : null,
+    patient.bed?.trim() ? `Bed ${patient.bed.trim()}` : null,
+  ]
+    .filter(Boolean)
+    .join(' ');
+}

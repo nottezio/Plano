@@ -31,6 +31,8 @@ export default function DocumentPage(): JSX.Element {
   const editor = useDocumentEditor(documentId, document);
 
   const [menuOpen, setMenuOpen] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(false);
+  const [shared, setShared] = useState(false);
   const [format, setFormat] = useState<OutputFormat>('whatsapp');
   const [copied, setCopied] = useState(false);
 
@@ -117,7 +119,14 @@ export default function DocumentPage(): JSX.Element {
         />
       ) : null}
 
-      <Sheet open={menuOpen} onOpenChange={setMenuOpen} title={document.title}>
+      <Sheet
+        open={menuOpen}
+        onOpenChange={(next) => {
+          if (!next) setConfirmDelete(false);
+          setMenuOpen(next);
+        }}
+        title={document.title}
+      >
         <div className="space-y-2">
           <button
             type="button"
@@ -129,17 +138,77 @@ export default function DocumentPage(): JSX.Element {
           >
             {document.pinned ? 'Lepas sematan' : 'Sematkan'}
           </button>
+          {/*
+            Export as text, for sending to someone else.
+
+            The title is included because a jadwal poli pasted into a group chat
+            with no heading is a wall of names nobody can place. Format follows
+            the toggle at the bottom of the page, so what is shared matches what
+            was being read.
+          */}
           <button
             type="button"
             onClick={() => {
-              if (uid) void softDeleteDocument(uid, document.id);
-              setMenuOpen(false);
-              navigate('/dokumen');
+              const text = `*${document.title}*\n\n${composeDocument(
+                editor.value,
+                'all',
+                format,
+                settings.sectionAliases,
+              )}`;
+              void copyText(text).then((ok) => {
+                setShared(ok);
+                window.setTimeout(() => setShared(false), 1500);
+              });
             }}
-            className="w-full rounded-lg border border-border px-3 py-3 text-left text-sm text-danger"
+            className="w-full rounded-lg border border-border px-3 py-3 text-left text-sm font-medium"
           >
-            Arsipkan dokumen
+            {shared ? 'Tersalin ✓' : 'Bagikan (salin judul + isi)'}
           </button>
+
+          {/*
+            Delete, not archive.
+
+            A document has no clinical history to preserve and no archive view to
+            live in, so "Arsipkan" meant "disappears, and there is nowhere to
+            look for it" — a delete wearing a gentler word. This says what it
+            does. The write is still a soft delete at the data layer, so a
+            mis-tap is recoverable by an admin rather than final.
+          */}
+          {confirmDelete ? (
+            <div className="rounded-lg border border-danger p-3">
+              <p className="text-xs text-fg-muted">
+                Hapus “{document.title}”? Dokumen tidak akan muncul lagi di daftar.
+              </p>
+              <div className="mt-2 flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => setConfirmDelete(false)}
+                  className="min-h-tap flex-1 rounded-lg border border-border text-sm"
+                >
+                  Batal
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (uid) void softDeleteDocument(uid, document.id);
+                    setMenuOpen(false);
+                    navigate('/dokumen');
+                  }}
+                  className="min-h-tap flex-1 rounded-lg border border-danger text-sm font-medium text-danger"
+                >
+                  Hapus
+                </button>
+              </div>
+            </div>
+          ) : (
+            <button
+              type="button"
+              onClick={() => setConfirmDelete(true)}
+              className="w-full rounded-lg border border-border px-3 py-3 text-left text-sm text-danger"
+            >
+              Hapus dokumen
+            </button>
+          )}
         </div>
       </Sheet>
     </AppShell>

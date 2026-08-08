@@ -47,6 +47,7 @@ export interface CreatePatientInput {
   age?: number;
   sex?: Sex;
   ward?: string;
+  room?: string;
   bed?: string;
   dpjp?: string;
   diagnoses?: string[];
@@ -173,6 +174,7 @@ type PatientPatchKey = keyof Pick<
   | 'age'
   | 'sex'
   | 'ward'
+  | 'room'
   | 'bed'
   | 'dpjp'
   | 'notes'
