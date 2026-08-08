@@ -34,6 +34,7 @@ import { usePatient } from '@/hooks/usePatient';
 import { otherDeviceEditing, usePresenceHeartbeat } from '@/hooks/usePresence';
 import { useRevisions } from '@/hooks/useRevisions';
 import { useSession } from '@/store/useSession';
+import { useUI } from '@/store/useUI';
 import type { ClinicalDate } from '@/domain/types';
 
 /** Minimum window the rail offers, so a patient admitted today can still scroll. */
@@ -57,6 +58,8 @@ export default function PatientPage(): JSX.Element {
   const [actionsOpen, setActionsOpen] = useState(false);
   const [identityOpen, setIdentityOpen] = useState(false);
   const [openingOpen, setOpeningOpen] = useState(false);
+  const paneOpen = useUI((state) => state.contextPaneOpen);
+  const togglePane = useUI((state) => state.toggleContextPane);
 
   const hariRawat = patient ? daysBetween(patient.admittedAt, selected) + 1 : 1;
 
@@ -218,66 +221,76 @@ export default function PatientPage(): JSX.Element {
           wrap instead.
         */}
         <div className="flex min-h-0 min-w-0 flex-1 flex-col">
-        <header className="border-b border-border px-4 py-3">
-          <div className="flex items-start gap-2">
-            {identity ? (
-              // The sticky IdentityBar below carries the name, location and day.
-              // Repeating it here was the same information twice, one line
-              // apart, in a header that also holds the primary actions.
-              <span className="min-w-0 flex-1" />
-            ) : (
+        {/*
+          One row, not three.
+
+          The date heading and the action buttons were on separate lines with an
+          empty slot between them where the identity line used to be, so the
+          header spent three rows and a gap saying what fits on one.
+        */}
+        <header className="flex items-center gap-2 border-b border-border px-4 py-2">
+          <div className="min-w-0 flex-1">
+            <h2 className="truncate text-sm font-semibold">
+              {formatDayHeader(selected, patient.admittedAt)}
+            </h2>
+            {!identity ? (
               // Identity is optional metadata, not a precondition. The note is
               // already usable; this is an offer, not a prompt.
               <button
                 type="button"
                 onClick={() => setIdentityOpen(true)}
-                className="min-w-0 flex-1 text-left text-xs text-accent underline"
+                className="text-left text-[11px] text-accent underline"
               >
                 Tambah identitas pasien
               </button>
-            )}
-            {/* Pembuka and Salin were 11px underlined text at the very bottom
-                of the page — the two things reached for most often, placed
-                where they had to be hunted for. They are buttons in the header
-                now, next to the note they act on. */}
-            {!locked ? (
-              <button
-                type="button"
-                onClick={() => setOpeningOpen(true)}
-                disabled={editor.value.trim().length === 0}
-                className="min-h-tap shrink-0 rounded-lg border border-border px-3 text-xs font-medium disabled:opacity-40"
-              >
-                Pembuka
-              </button>
+            ) : patient.diagnoses.length > 0 ? (
+              <p className="truncate text-[11px] text-fg-faint">
+                {patient.diagnoses.join(', ')}
+              </p>
             ) : null}
-            <button
-              type="button"
-              onClick={() => setCopyOpen(true)}
-              className="min-h-tap shrink-0 rounded-lg bg-accent px-3 text-xs font-medium text-white"
-            >
-              Salin
-            </button>
-            <button
-              type="button"
-              onClick={() => setActionsOpen(true)}
-              aria-label="Tindakan pasien"
-              className="min-h-tap min-w-tap shrink-0 text-fg-faint"
-            >
-              ⋯
-            </button>
           </div>
-          <h2 className="mt-1 text-sm font-semibold">
-            {formatDayHeader(selected, patient.admittedAt)}
-          </h2>
-          {patient.status === 'archived' ? (
-            <p className="mt-1 text-[11px] text-fg-faint">
-              Pasien terarsip — catatan tetap dapat dibaca, disalin, dan diubah.
-            </p>
+
+          {!locked ? (
+            <button
+              type="button"
+              onClick={() => setOpeningOpen(true)}
+              disabled={editor.value.trim().length === 0}
+              className="min-h-tap shrink-0 rounded-lg border border-border px-3 text-xs font-medium disabled:opacity-40"
+            >
+              Pembuka
+            </button>
           ) : null}
-          {patient.diagnoses.length > 0 ? (
-            <p className="mt-1 text-xs text-fg-faint">{patient.diagnoses.join(', ')}</p>
-          ) : null}
+          <button
+            type="button"
+            onClick={() => setCopyOpen(true)}
+            className="min-h-tap shrink-0 rounded-lg bg-accent px-3 text-xs font-medium text-white"
+          >
+            Salin
+          </button>
+          <button
+            type="button"
+            onClick={togglePane}
+            aria-label={paneOpen ? 'Sembunyikan panel samping' : 'Tampilkan panel samping'}
+            aria-expanded={paneOpen}
+            className="hidden min-h-tap min-w-tap shrink-0 text-fg-faint xl:block"
+          >
+            <span aria-hidden="true">{paneOpen ? '⇥' : '⇤'}</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => setActionsOpen(true)}
+            aria-label="Tindakan pasien"
+            className="min-h-tap min-w-tap shrink-0 text-fg-faint"
+          >
+            ⋯
+          </button>
         </header>
+
+        {patient.status === 'archived' ? (
+          <p className="border-b border-border px-4 py-1 text-[11px] text-fg-faint">
+            Pasien terarsip — catatan tetap dapat dibaca, disalin, dan diubah.
+          </p>
+        ) : null}
 
         <IdentityBar
           patient={patient}
@@ -432,7 +445,14 @@ export default function PatientPage(): JSX.Element {
         </div>
 
         {/* Sidebar: fixed-width context, scrolls independently. */}
-        <aside className="hidden w-[300px] shrink-0 flex-col gap-4 overflow-y-auto overflow-x-hidden py-4 xl:flex">
+        {/* Collapsing gives the note the full width. The state persists, so a
+            preference set once survives navigation and reloads. */}
+        <aside
+          className={[
+            'w-[300px] shrink-0 flex-col gap-4 overflow-y-auto overflow-x-hidden py-4',
+            paneOpen ? 'hidden xl:flex' : 'hidden',
+          ].join(' ')}
+        >
           <PatientNotes sync={notesSync} />
 
           <section>

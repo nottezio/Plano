@@ -14,6 +14,9 @@ export type SyncState =
 interface UIState {
   theme: ThemePreference;
   setTheme: (theme: ThemePreference) => void;
+  /** Desktop context sidebar on the patient page. Expanded by default. */
+  contextPaneOpen: boolean;
+  toggleContextPane: () => void;
 
   sync: SyncState;
   setSync: (sync: SyncState) => void;
@@ -31,6 +34,22 @@ interface UIState {
 }
 
 const THEME_STORAGE_KEY = 'visite.theme';
+const PANE_STORAGE_KEY = 'visite.contextPane';
+
+/**
+ * Expanded unless the user has said otherwise.
+ *
+ * The pane holds the date rail and the checklist — things consulted while
+ * writing, not occasionally. Defaulting it closed would hide the checklist
+ * behind a click on the one screen where ticking it is the job.
+ */
+function readStoredPane(): boolean {
+  try {
+    return localStorage.getItem(PANE_STORAGE_KEY) !== 'closed';
+  } catch {
+    return true;
+  }
+}
 
 function applyThemeClass(theme: ThemePreference): void {
   const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
@@ -50,6 +69,17 @@ function readStoredTheme(): ThemePreference {
 
 export const useUI = create<UIState>((set, get) => ({
   theme: readStoredTheme(),
+  contextPaneOpen: readStoredPane(),
+  toggleContextPane: () =>
+    set((state) => {
+      const next = !state.contextPaneOpen;
+      try {
+        localStorage.setItem(PANE_STORAGE_KEY, next ? 'open' : 'closed');
+      } catch (error) {
+        console.warn('[ui] pane preference not saved', error);
+      }
+      return { contextPaneOpen: next };
+    }),
   setTheme: (theme) => {
     try {
       localStorage.setItem(THEME_STORAGE_KEY, theme);

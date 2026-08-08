@@ -129,7 +129,7 @@ export function BodyEditor({
         />
       </div>
 
-      <div className="sticky bottom-0">
+      <div className="sticky bottom-0 px-4 pb-2">
         <FormatToolbar
           aliases={aliases}
           disabled={readOnly}

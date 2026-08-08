@@ -27,7 +27,10 @@ export function FormatToolbar({
   onInsertSection: (label: string) => void;
 }): JSX.Element {
   return (
-    <div className="flex items-center gap-1 overflow-x-auto border-t border-border bg-surface px-2 py-1.5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+    // Sized to its contents rather than spanning the column. A full-width bar
+    // of four small buttons reads as a section of the page; a compact one reads
+    // as a tool attached to the text above it.
+    <div className="flex w-fit max-w-full items-center gap-0.5 overflow-x-auto rounded-lg border border-border bg-surface px-1 py-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
       <Button label="B" title="Tebal" bold disabled={disabled} onClick={onBold} />
       <Button label="I" title="Miring" italic disabled={disabled} onClick={onItalic} />
       <Button label="•" title="Poin" disabled={disabled} onClick={onBullet} />

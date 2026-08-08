@@ -47,7 +47,12 @@ export function AppShell({
 
       <TabBar />
       <div className="flex min-w-0 flex-1 flex-col">
-        <TopBar title={title} />
+        {/* Phone and tablet only. On desktop the sidebar carries both the
+            section name and the sync state, so this row was 56 px of chrome
+            saying nothing the left rail did not already say. */}
+        <div className="lg:hidden">
+          <TopBar title={title} />
+        </div>
         <main
           id="main"
           className="min-h-0 flex-1 overflow-y-auto pb-[calc(env(safe-area-inset-bottom)+64px)] sm:pb-0"

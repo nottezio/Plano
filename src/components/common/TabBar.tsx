@@ -1,5 +1,6 @@
 import { NavLink } from 'react-router-dom';
 
+import { SyncPill } from './SyncPill';
 import { APP_VERSION } from '@/version.js';
 import { IconArchive, IconBoard, IconDocuments, IconSettings } from './Icons';
 
@@ -65,7 +66,14 @@ export function TabBar(): JSX.Element {
       {/* Desktop only: the sidebar has dead space at the bottom, and a footer
           under the content pushed the empty state off-centre. On phone the tab
           bar is 64 px of thumb target — nothing else belongs in it. */}
-      <p className="mt-auto hidden px-3 pb-1 text-[11px] leading-relaxed text-fg-faint lg:block">
+      {/* Sync state lives here on desktop: it is ambient status, not an action,
+          so it belongs with the other ambient furniture rather than in a bar of
+          its own across the top of the content. */}
+      <div className="mt-auto hidden px-3 pb-2 lg:block">
+        <SyncPill />
+      </div>
+
+      <p className="hidden px-3 pb-1 text-[11px] leading-relaxed text-fg-faint lg:block">
         © Avicenna
         <br />
         <span className="font-mono">v{APP_VERSION}</span>
