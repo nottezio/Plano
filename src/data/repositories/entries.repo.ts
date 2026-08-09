@@ -87,10 +87,23 @@ export async function fetchEntryBodies(
   const snapshot = await getDocs(query(entriesCol(patientId), orderBy('date', 'desc')));
   return snapshot.docs
     .map((entry) => entry.data() as DailyEntry)
-    .filter((entry) => entry.deletedAt === null)
+    // `!entry.deletedAt`, not `=== null`. Only the creation path sets the field
+    // explicitly; a document first materialised by a merge write — locking an
+    // untouched day does exactly that — has it `undefined`. The strict
+    // comparison discarded every one of those, which is why "salin dari hari
+    // sebelumnya" reported that there was nothing to copy.
+    .filter((entry) => !entry.deletedAt)
     .map((entry) => ({ date: entry.date, body: entry.body }));
 }
 
+/**
+ * Dates that actually have a note.
+ *
+ * A document existing is not the same as a day having content: locking an
+ * untouched day, or opening one and typing nothing, both leave an empty
+ * document behind. Listing those put dates on the rail that lead to a blank
+ * page, which is exactly what the rail is supposed to save you from.
+ */
 export function subscribeEntryDates(
   patientId: string,
   callback: (dates: ClinicalDate[]) => void,
@@ -98,7 +111,15 @@ export function subscribeEntryDates(
 ): Unsubscribe {
   return onSnapshot(
     query(entriesCol(patientId), orderBy('date', 'desc')),
-    (snapshot) => callback(snapshot.docs.map((entry) => entry.id)),
+    (snapshot) =>
+      callback(
+        snapshot.docs
+          .filter((entry) => {
+            const data = entry.data() as DailyEntry;
+            return !data.deletedAt && (data.body ?? '').trim().length > 0;
+          })
+          .map((entry) => entry.id),
+      ),
     onError,
   );
 }

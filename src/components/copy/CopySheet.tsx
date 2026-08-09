@@ -8,6 +8,7 @@ import {
   type CopyDay,
 } from '@/domain/format/composeCopy';
 import { FORMAT_LABELS, findMarkdownLeaks } from '@/domain/format/formatters';
+import { composePdfReport } from '@/domain/format/pdfReport';
 import {
   COPY_GROUPS,
   availableGroups,
@@ -76,6 +77,13 @@ export function CopySheet({
   const includeDateHeader = false;
   const [allDays, setAllDays] = useState<CopyDay[]>([]);
   const [copied, setCopied] = useState(false);
+  /**
+   * The short form three DPJPs want as a PDF: staffing lines, the opening block
+   * verbatim, diagnoses, closing. It replaces the section picker entirely
+   * rather than sitting beside it, because the shape is fixed — offering group
+   * chips next to it would imply a choice that does not exist.
+   */
+  const [pdfMode, setPdfMode] = useState(false);
 
   const present = useMemo(() => availableGroups(body, aliases), [body, aliases]);
 
@@ -113,15 +121,17 @@ export function CopySheet({
 
   const output = useMemo(
     () =>
-      composeCopy(days, {
+      pdfMode
+        ? composePdfReport(body, { aliases, format })
+        : composeCopy(days, {
         format,
         sections: selected,
         includeIdentity,
         includeDateHeader,
-        aliases,
-        patient,
-      }),
-    [days, format, selected, includeIdentity, includeDateHeader, aliases, patient],
+            aliases,
+            patient,
+          }),
+    [pdfMode, body, days, format, selected, includeIdentity, includeDateHeader, aliases, patient],
   );
 
   const leaks = findMarkdownLeaks(format === 'whatsapp' ? output : '');
@@ -186,6 +196,23 @@ export function CopySheet({
         ))}
       </Group>
 
+      <Group label="Bentuk">
+        <Chip active={!pdfMode} onClick={() => setPdfMode(false)}>
+          Laporan harian
+        </Chip>
+        <Chip active={pdfMode} onClick={() => setPdfMode(true)}>
+          Ringkas (PDF)
+        </Chip>
+      </Group>
+
+      {pdfMode ? (
+        <p className="mb-4 text-[11px] text-fg-faint">
+          Berisi baris Chief/Junior (dikosongkan), blok pembuka apa adanya, daftar
+          diagnosis, dan kalimat penutup. Tanpa S, O, terapi, dan plan.
+        </p>
+      ) : null}
+
+      {!pdfMode ? (
       <Group label="Bagian">
         <Chip active={groups === 'all'} onClick={() => setGroups('all')}>
           Seluruh catatan
@@ -201,6 +228,7 @@ export function CopySheet({
           </Chip>
         ))}
       </Group>
+      ) : null}
 
       <p className="mb-1 mt-4 text-xs font-medium text-fg-muted">Pratinjau</p>
       <pre className="max-h-56 overflow-auto whitespace-pre-wrap rounded-lg border border-border bg-bg-subtle p-3 text-xs leading-relaxed">

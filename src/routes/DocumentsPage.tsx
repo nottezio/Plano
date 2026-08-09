@@ -4,6 +4,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { AppShell } from '@/components/common/AppShell';
 import { Sheet } from '@/components/common/Sheet';
 import { createDocument } from '@/data/repositories/documents.repo';
+import { SEED_DOCUMENTS } from '@/domain/seedDocuments';
 import { useDocumentList } from '@/hooks/useDocuments';
 import { useSession } from '@/store/useSession';
 import type { AppDocument } from '@/domain/types';
@@ -18,12 +19,41 @@ import type { AppDocument } from '@/domain/types';
 const CATEGORY_LABELS: Record<string, string> = {
   jadwal_poli: 'Jadwal poli',
   format: 'Format',
+  pasien: 'Terkait pasien',
   lainnya: 'Lainnya',
 };
 
 export default function DocumentsPage(): JSX.Element {
   const { documents, loading } = useDocumentList();
   const [createOpen, setCreateOpen] = useState(false);
+  const [seeding, setSeeding] = useState(false);
+  const uid = useSession((state) => state.user?.uid ?? null);
+
+  /**
+   * Adds the starter documents, once, on request.
+   *
+   * Skips any title already present so a second tap cannot duplicate them, and
+   * so a set added months ago is topped up rather than doubled.
+   */
+  const addSeeds = (): void => {
+    if (!uid || seeding) return;
+    setSeeding(true);
+
+    const existing = new Set(documents.map((document) => document.title.trim().toLowerCase()));
+    for (const seed of SEED_DOCUMENTS) {
+      if (existing.has(seed.title.trim().toLowerCase())) continue;
+      const { written } = createDocument(uid, {
+        title: seed.title,
+        category: seed.category,
+        body: seed.body,
+      });
+      void written.catch((error: unknown) =>
+        console.error('[documents] seed rejected', error),
+      );
+    }
+
+    window.setTimeout(() => setSeeding(false), 800);
+  };
 
   const grouped = useMemo(() => {
     const groups = new Map<string, AppDocument[]>();
@@ -38,6 +68,19 @@ export default function DocumentsPage(): JSX.Element {
   return (
     <AppShell title="Dokumen">
       <div className="mx-auto w-full max-w-3xl">
+      {documents.length > 0 ? (
+        <div className="px-4 pb-1 pt-1">
+          <button
+            type="button"
+            onClick={addSeeds}
+            disabled={seeding}
+            className="text-xs text-fg-muted underline disabled:opacity-50"
+          >
+            {seeding ? 'Menambahkan…' : 'Tambahkan format bawaan yang belum ada'}
+          </button>
+        </div>
+      ) : null}
+
       <div className="hidden justify-end px-4 pb-2 pt-1 sm:flex">
         <button
           type="button"
@@ -60,6 +103,13 @@ export default function DocumentsPage(): JSX.Element {
             className="mt-3 min-h-tap rounded-lg border border-border px-4 text-sm text-accent"
           >
             Buat dokumen pertama
+          </button>
+          <button
+            type="button"
+            onClick={addSeeds}
+            className="mt-2 block w-full text-xs text-fg-muted underline"
+          >
+            Atau tambahkan {SEED_DOCUMENTS.length} format bawaan
           </button>
         </div>
       ) : (
