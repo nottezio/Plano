@@ -20,6 +20,9 @@ export function TemplateEditor({
 }): JSX.Element {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
+  /** A confirm stops a mis-tap; it does nothing for a decision regretted a
+   *  moment later. Both are cheap to offer, so both are offered. */
+  const [undo, setUndo] = useState<{ template: NoteTemplate; index: number } | null>(null);
 
   const ordered = [...templates].sort((a, b) => a.order - b.order);
 
@@ -37,13 +40,31 @@ export function TemplateEditor({
   };
 
   const remove = (id: string): void => {
+    const index = ordered.findIndex((item) => item.id === id);
+    const removed = ordered[index];
+    if (removed) {
+      setUndo({ template: removed, index });
+      window.setTimeout(
+        () => setUndo((current) => (current?.template.id === id ? null : current)),
+        10_000,
+      );
+    }
+
     onChange(
       ordered
         .filter((item) => item.id !== id)
-        .map((item, index) => ({ ...item, order: index + 1 })),
+        .map((item, position) => ({ ...item, order: position + 1 })),
     );
     setConfirmDeleteId(null);
     setEditingId(null);
+  };
+
+  const restore = (): void => {
+    if (!undo) return;
+    const next = [...ordered];
+    next.splice(Math.min(undo.index, next.length), 0, undo.template);
+    onChange(next.map((item, position) => ({ ...item, order: position + 1 })));
+    setUndo(null);
   };
 
   const move = (id: string, direction: -1 | 1): void => {
@@ -141,6 +162,21 @@ export function TemplateEditor({
           </li>
         ))}
       </ul>
+
+      {undo ? (
+        <div className="mt-2 flex items-center gap-2 rounded-lg border border-border bg-bg-subtle px-3 py-2">
+          <span className="min-w-0 flex-1 truncate text-xs text-fg-muted">
+            Dihapus: {undo.template.name}
+          </span>
+          <button
+            type="button"
+            onClick={restore}
+            className="min-h-tap shrink-0 text-xs font-medium text-accent underline"
+          >
+            Urungkan
+          </button>
+        </div>
+      ) : null}
 
       <button
         type="button"

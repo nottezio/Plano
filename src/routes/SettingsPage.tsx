@@ -10,6 +10,16 @@ import { TemplateEditor } from '@/components/settings/TemplateEditor';
 import { PinSetupSheet } from '@/components/privacy/PinSetupSheet';
 import { useLock } from '@/store/useLock';
 import { updateSettings } from '@/data/repositories/settings.repo';
+import {
+  SEED_GREETINGS,
+  SEED_NOTE_TEMPLATES,
+  SEED_OPENING_SENTENCES,
+} from '@/domain/defaults';
+import {
+  restoreMissing,
+  restoreMissingStrings,
+  restoredMessage,
+} from '@/domain/restoreDefaults';
 import { downloadJson, exportAll } from '@/data/exportData';
 import { FORMAT_LABELS } from '@/domain/format/formatters';
 import { signOutAndClear, useSession } from '@/store/useSession';
@@ -33,7 +43,20 @@ export default function SettingsPage(): JSX.Element {
   const removePin = useLock((state) => state.removePin);
   const lock = useLock((state) => state.lock);
   const [pinSetupOpen, setPinSetupOpen] = useState(false);
+  const [restored, setRestored] = useState<string | null>(null);
   const [exporting, setExporting] = useState(false);
+
+  /**
+   * Puts back seeded entries that are missing, without touching the rest.
+   *
+   * Merging rather than replacing matters: someone who deleted one preset and
+   * edited three others needs the missing one back, not their three edits
+   * reverted. Restoring must never become a second way to lose work.
+   */
+  const announce = (count: number): void => {
+    setRestored(restoredMessage(count));
+    window.setTimeout(() => setRestored(null), 4000);
+  };
   const [exportError, setExportError] = useState<string | null>(null);
 
   /**
@@ -115,6 +138,17 @@ export default function SettingsPage(): JSX.Element {
             templates={settings.noteTemplates}
             onChange={(noteTemplates) => patch({ noteTemplates })}
           />
+          <RestoreButton
+            onClick={() => {
+              const { next, restored: count } = restoreMissing(
+                settings.noteTemplates,
+                SEED_NOTE_TEMPLATES,
+                (template) => template.name,
+              );
+              if (count > 0) patch({ noteTemplates: next });
+              announce(count);
+            }}
+          />
         </SettingsSection>
 
         <SettingsSection
@@ -125,6 +159,16 @@ export default function SettingsPage(): JSX.Element {
             values={settings.greetings}
             onChange={(greetings) => patch({ greetings })}
             placeholder="Selamat pagi dokter."
+          />
+          <RestoreButton
+            onClick={() => {
+              const { next, restored: count } = restoreMissingStrings(
+                settings.greetings,
+                SEED_GREETINGS,
+              );
+              if (count > 0) patch({ greetings: next });
+              announce(count);
+            }}
           />
         </SettingsSection>
 
@@ -137,6 +181,16 @@ export default function SettingsPage(): JSX.Element {
             values={settings.openingSentences}
             onChange={(openingSentences) => patch({ openingSentences })}
             placeholder="Tabe dokter, mohon izin melaporkan…"
+          />
+          <RestoreButton
+            onClick={() => {
+              const { next, restored: count } = restoreMissingStrings(
+                settings.openingSentences,
+                SEED_OPENING_SENTENCES,
+              );
+              if (count > 0) patch({ openingSentences: next });
+              announce(count);
+            }}
           />
         </SettingsSection>
 
@@ -369,9 +423,34 @@ export default function SettingsPage(): JSX.Element {
             </div>
           </dl>
         </SettingsSection>
+        {restored ? (
+          <p
+            role="status"
+            className="sticky bottom-4 rounded-lg border border-border bg-surface px-3 py-2 text-center text-xs text-fg-muted shadow-lg"
+          >
+            {restored}
+          </p>
+        ) : null}
       </div>
 
       <PinSetupSheet open={pinSetupOpen} onOpenChange={setPinSetupOpen} />
     </AppShell>
+  );
+}
+
+/**
+ * Deliberately quiet and always present, not shown only when something is
+ * missing: noticing that a preset is gone is the hard part, and a button that
+ * appears only once you have noticed is no help at all.
+ */
+function RestoreButton({ onClick }: { onClick: () => void }): JSX.Element {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="mt-2 min-h-tap text-xs text-accent underline"
+    >
+      Pulihkan format bawaan yang hilang
+    </button>
   );
 }

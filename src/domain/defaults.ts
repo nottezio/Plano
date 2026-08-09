@@ -1,5 +1,6 @@
 import { DONE_TOKEN, tokenForIndex } from './colorTokens';
 import { ADMISI_BODY, FOLLOWUP_BODY, FOLLOWUP_DX_BODY } from './templates';
+import type { NoteTemplate } from './types';
 import type {
   ChecklistItemDef,
   CopyPreset,
@@ -61,6 +62,35 @@ export const DEFAULT_COPY_PRESETS: readonly CopyPreset[] = [
 ] as const;
 
 /** SPEC 13 — headers only. Never invent clinical content. */
+/**
+ * Seeds, exported so Settings can put them back.
+ *
+ * These lists are the only copy of the defaults that survives a user deleting
+ * theirs — settings carry no revision trail, so without an exported seed there
+ * would be nothing to restore from.
+ */
+export const SEED_GREETINGS: readonly string[] = [
+      "Assalamu'alaikum dokter.",
+      'Selamat pagi dokter.',
+      'Selamat siang dokter.',
+      'Selamat sore dokter.',
+      'Selamat malam dokter.',
+];
+
+export const SEED_OPENING_SENTENCES: readonly string[] = [
+      'Tabe dokter, mohon izin melaporkan follow up pasien di *(Ruang) Kamar (no) Bed (no)* atas nama :',
+      'Tabe dokter, mohon izin melaporkan pasien baru rencana tindakan dari *(Poli)* di *(Ruang) Kamar (no) Bed (no)* atas nama :',
+      'Tabe dokter, mohon izin melaporkan pasien baru di *(Ruang) Kamar (no) Bed (no)* atas nama :',
+      'Tabe dokter izin melaporkan follow up pasien KJS *TS (Bagian) ((Nama DPJP))* di *(Ruang) Kamar (no) Bed (no)* atas nama :',
+      'Tabe dokter mohon izin melaporkan follow up perpindahan pasien dari *(Ruang asal) Bed (no)* ke *(Ruang tujuan) Kamar (no) Bed (no)* pasien atas nama :',
+];
+
+export const SEED_NOTE_TEMPLATES: readonly NoteTemplate[] = [
+      { id: 'followup', order: 1, name: 'Follow-up harian', body: FOLLOWUP_BODY },
+      { id: 'followup-dx', order: 2, name: 'Follow-up (Dx primer/sekunder)', body: FOLLOWUP_DX_BODY },
+      { id: 'admisi', order: 3, name: 'Pasien baru (admisi)', body: ADMISI_BODY },
+];
+
 export function defaultUserSettings(): UserSettings {
   return {
     timezone: 'Asia/Jakarta',
@@ -72,24 +102,14 @@ export function defaultUserSettings(): UserSettings {
       ...alias,
       aliases: [...alias.aliases],
     })),
-    noteTemplates: [
-      { id: 'followup', order: 1, name: 'Follow-up harian', body: FOLLOWUP_BODY },
-      { id: 'followup-dx', order: 2, name: 'Follow-up (Dx primer/sekunder)', body: FOLLOWUP_DX_BODY },
-      { id: 'admisi', order: 3, name: 'Pasien baru (admisi)', body: ADMISI_BODY },
-    ],
+    noteTemplates: SEED_NOTE_TEMPLATES.map((template) => ({ ...template })),
     carryForwardOnNewDay: true,
     // Only S. Clearing `penunjang` would delete the accumulated EKG / lab /
     // echo stack every morning — and that stack IS the value of carrying a note
     // forward. Investigations are removed by hand when they stop being
     // relevant, never on a schedule.
     carryForwardClearSections: ['s'],
-    greetings: [
-      "Assalamu'alaikum dokter.",
-      'Selamat pagi dokter.',
-      'Selamat siang dokter.',
-      'Selamat sore dokter.',
-      'Selamat malam dokter.',
-    ],
+    greetings: [...SEED_GREETINGS],
     /**
      * Placeholders are spelled out rather than left blank.
      *
@@ -99,13 +119,7 @@ export function defaultUserSettings(): UserSettings {
      * text — a leftover placeholder is obvious in a sent message, a leftover
      * blank is not.
      */
-    openingSentences: [
-      'Tabe dokter, mohon izin melaporkan follow up pasien di *(Ruang) Kamar (no) Bed (no)* atas nama :',
-      'Tabe dokter, mohon izin melaporkan pasien baru rencana tindakan dari *(Poli)* di *(Ruang) Kamar (no) Bed (no)* atas nama :',
-      'Tabe dokter, mohon izin melaporkan pasien baru di *(Ruang) Kamar (no) Bed (no)* atas nama :',
-      'Tabe dokter izin melaporkan follow up pasien KJS *TS (Bagian) ((Nama DPJP))* di *(Ruang) Kamar (no) Bed (no)* atas nama :',
-      'Tabe dokter mohon izin melaporkan follow up perpindahan pasien dari *(Ruang asal) Bed (no)* ke *(Ruang tujuan) Kamar (no) Bed (no)* pasien atas nama :',
-    ],
+    openingSentences: [...SEED_OPENING_SENTENCES],
     copyPresets: DEFAULT_COPY_PRESETS.map((preset) => ({ ...preset })),
     privacy: {
       // Full names are stored, so the lock is ON by default (SPEC 18).

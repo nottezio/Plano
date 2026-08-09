@@ -19,12 +19,38 @@ export function StringListEditor({
 }): JSX.Element {
   const [draft, setDraft] = useState('');
 
+  /**
+   * Undo, not a confirm dialog.
+   *
+   * The `×` here deletes instantly, which is right for a list you edit often —
+   * a confirm on every removal punishes the common case to guard the rare one.
+   * What it needed was a way back. One level, ten seconds, restored to its
+   * original position rather than appended.
+   */
+  const [undo, setUndo] = useState<{ value: string; index: number } | null>(null);
+
   const update = (index: number, value: string): void => {
     onChange(values.map((item, position) => (position === index ? value : item)));
   };
 
   const remove = (index: number): void => {
+    const removed = values[index];
+    if (removed === undefined) return;
+
+    setUndo({ value: removed, index });
+    window.setTimeout(
+      () => setUndo((current) => (current?.value === removed ? null : current)),
+      10_000,
+    );
     onChange(values.filter((_, position) => position !== index));
+  };
+
+  const restore = (): void => {
+    if (!undo) return;
+    const next = [...values];
+    next.splice(Math.min(undo.index, next.length), 0, undo.value);
+    onChange(next);
+    setUndo(null);
   };
 
   const move = (index: number, direction: -1 | 1): void => {
@@ -91,6 +117,21 @@ export function StringListEditor({
           </li>
         ))}
       </ul>
+
+      {undo ? (
+        <div className="mt-2 flex items-center gap-2 rounded-lg border border-border bg-bg-subtle px-3 py-2">
+          <span className="min-w-0 flex-1 truncate text-xs text-fg-muted">
+            Dihapus: {undo.value}
+          </span>
+          <button
+            type="button"
+            onClick={restore}
+            className="min-h-tap shrink-0 text-xs font-medium text-accent underline"
+          >
+            Urungkan
+          </button>
+        </div>
+      ) : null}
 
       <div className="mt-2 flex gap-2">
         <input
