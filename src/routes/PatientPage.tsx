@@ -7,6 +7,7 @@ import { ChecklistPills } from '@/components/patient/ChecklistPills';
 import { IdentitySheet } from '@/components/patient/IdentitySheet';
 import { PatientActionsSheet } from '@/components/patient/PatientActionsSheet';
 import { IdentityBar } from '@/components/patient/IdentityBar';
+import { LabSheet } from '@/components/patient/LabSheet';
 import { PatientNotes, usePatientNotes } from '@/components/patient/PatientNotes';
 import { ScrollToTop } from '@/components/patient/ScrollToTop';
 import { OpeningSheet } from '@/components/patient/OpeningSheet';
@@ -58,6 +59,7 @@ export default function PatientPage(): JSX.Element {
   const [actionsOpen, setActionsOpen] = useState(false);
   const [identityOpen, setIdentityOpen] = useState(false);
   const [openingOpen, setOpeningOpen] = useState(false);
+  const [labOpen, setLabOpen] = useState(false);
   const paneOpen = useUI((state) => state.contextPaneOpen);
   const togglePane = useUI((state) => state.toggleContextPane);
 
@@ -250,6 +252,15 @@ export default function PatientPage(): JSX.Element {
             ) : null}
           </div>
 
+          {!locked ? (
+            <button
+              type="button"
+              onClick={() => setLabOpen(true)}
+              className="min-h-tap shrink-0 rounded-lg border border-border px-3 text-xs font-medium"
+            >
+              Lab
+            </button>
+          ) : null}
           {!locked ? (
             <button
               type="button"
@@ -480,6 +491,19 @@ export default function PatientPage(): JSX.Element {
           </section>
         </aside>
       </div>
+
+      <LabSheet
+        open={labOpen}
+        onOpenChange={setLabOpen}
+        date={selected}
+        onInsert={(text) => {
+          // Appended, never inserted mid-note: the investigation stack lives at
+          // the end and grows downward, and guessing an insertion point inside
+          // someone's note is not a guess worth making.
+          const current = editor.value.trimEnd();
+          editor.setValue(current ? `${current}\n\n${text}` : text);
+        }}
+      />
 
       <ScrollToTop />
 
