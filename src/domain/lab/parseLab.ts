@@ -214,10 +214,17 @@ export function parseLab(raw: string): LabParseResult {
     const value = extractValue(trimmed);
     const label = trimmed.slice(0, trimmed.search(/-?\d/)).replace(/[:\s]+$/, '').trim();
 
+    // Analyte names are one to three words. That single constraint is what
+    // separates a real unrecognised result from OCR noise: garbled text arrives
+    // as a run of short fake words followed by a number, and passing it through
+    // as "Lain-lain" presents nonsense as if it were a lab value.
+    const words = label.split(/\s+/).filter(Boolean);
+
     if (
       value &&
       label.length >= 2 &&
       label.length <= 30 &&
+      words.length <= 3 &&
       /[A-Za-z]/.test(label) &&
       !IGNORED_LABELS.some((word) => normalise(label).includes(word))
     ) {

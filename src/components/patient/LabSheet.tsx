@@ -3,6 +3,7 @@ import { useMemo, useRef, useState } from 'react';
 import { Sheet } from '@/components/common/Sheet';
 import { labHeading, parseLab } from '@/domain/lab/parseLab';
 import { copyText } from '@/lib/clipboard';
+import { preprocessForOcr } from '@/lib/ocrPreprocess';
 import { formatShortDate } from '@/domain/clinicalDate';
 import type { ClinicalDate } from '@/domain/types';
 
@@ -55,9 +56,25 @@ export function LabSheet({
       // dependency of the build, so there are no types to import.
       const url = 'https://cdn.jsdelivr.net/npm/tesseract.js@5/+esm';
       const tesseract = (await import(/* @vite-ignore */ url)) as {
-        recognize: (image: File, lang: string) => Promise<{ data: { text: string } }>;
+        recognize: (
+          image: Blob,
+          lang: string,
+          options?: Record<string, string>,
+        ) => Promise<{ data: { text: string } }>;
       };
-      const { data } = await tesseract.recognize(file, 'eng');
+      const prepared = await preprocessForOcr(file);
+      const { data } = await tesseract.recognize(prepared, 'eng', {
+        // A lab report is one uniform block of text in reading order. The
+        // default mode hunts for page layout and, on a ruled table, decides the
+        // rules are columns — which is how forty rows of results came back as
+        // one line of nonsense.
+        tessedit_pageseg_mode: '6',
+        preserve_interword_spaces: '1',
+        // Values, ranges and units only. Restricting the alphabet stops the
+        // recogniser inventing letters out of table rules.
+        tessedit_char_whitelist:
+          'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789.,/()<>=+-% ',
+      });
       setRaw((current) => (current ? `${current}\n${data.text}` : data.text));
       setOcrState('idle');
     } catch (error) {
@@ -105,9 +122,11 @@ export function LabSheet({
           disabled={ocrState === 'running'}
           className="min-h-tap rounded-lg border border-border px-3 text-xs disabled:opacity-50"
         >
-          {ocrState === 'running' ? 'Membaca gambar…' : 'Ambil dari gambar'}
+          {ocrState === 'running' ? 'Membaca gambar…' : 'Coba baca gambar'}
         </button>
-        <span className="text-[11px] text-fg-faint">Perlu koneksi. Hasil wajib diperiksa.</span>
+        <span className="text-[11px] text-fg-faint">
+          Sering meleset pada tabel kecil. Cara paling andal: blok teks di PDF lab lalu tempel.
+        </span>
         <input
           ref={fileRef}
           type="file"
@@ -120,6 +139,20 @@ export function LabSheet({
           }}
         />
       </div>
+
+      {/*
+        The failure that matters is not an exception — it is OCR returning
+        confident nonsense. Comparing what was read against what parsed is the
+        only signal available, and staying quiet about it would let a garbled
+        table look like a thin one.
+      */}
+      {raw.trim().length > 40 && result.known.length < 3 ? (
+        <p role="alert" className="mt-2 rounded-lg border border-danger p-2 text-[11px] text-danger">
+          Hanya {result.known.length} nilai yang terbaca dari teks sepanjang ini — kemungkinan
+          hasil pembacaan gambar tidak terpakai. Blok teks langsung dari PDF lab, atau gunakan
+          Live Text (iOS) / Google Lens lalu tempel di sini.
+        </p>
+      ) : null}
 
       {ocrState === 'failed' ? (
         <p role="alert" className="mt-2 text-xs text-danger">

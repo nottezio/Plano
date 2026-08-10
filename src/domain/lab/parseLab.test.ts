@@ -112,3 +112,24 @@ describe('labHeading', () => {
     expect(labHeading('07-08-2026', 'Laboratorium PJT')).toBe('*Laboratorium PJT (07-08-2026)*');
   });
 });
+
+describe('OCR noise', () => {
+  it('does not present garbled text as a lab value', () => {
+    // Verbatim from a failed OCR run on a lab screenshot.
+    expect(parseLab('Nara pre Tog oT 13550').formatted).toBe('');
+  });
+
+  it('still keeps a genuine two-word analyte', () => {
+    expect(parseLab('Asam urat 7.2').formatted).toContain('Asam urat 7.2');
+  });
+
+  it('keeps a three-word analyte', () => {
+    expect(parseLab('Total protein serum 6.8').formatted).toContain('Total protein serum 6.8');
+  });
+
+  it('rejects a sentence that happens to contain a number', () => {
+    expect(
+      parseLab('Hasil ini hanya berlaku untuk sampel yang diterima 2026').formatted,
+    ).toBe('');
+  });
+});
