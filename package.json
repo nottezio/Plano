@@ -2,7 +2,7 @@
   "name": "visite",
   "private": true,
   "type": "module",
-  "description": "Visite \u2014 clinical rounds note app (offline-first PWA). Version lives ONLY in src/version.js (see SPEC 16).",
+  "description": "Visite — clinical rounds note app (offline-first PWA). Version lives ONLY in src/version.js (see SPEC 16).",
   "scripts": {
     "dev": "vite",
     "build": "tsc --noEmit -p tsconfig.json && tsc --noEmit -p tsconfig.sw.json && vite build",
@@ -23,6 +23,7 @@
     "diff-match-patch": "^1.0.5",
     "firebase": "^12.17.1",
     "nanoid": "^6.0.1",
+    "pdfjs-dist": "^6.2.108",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "react-router-dom": "^6.26.2",

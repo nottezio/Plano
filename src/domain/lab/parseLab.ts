@@ -144,6 +144,34 @@ const QUALITATIVE = /\b(non\s*reactive|reactive|negatif|negative|positif|positiv
  * only thing that works: there is no structural difference between
  * `Halaman 1 dari 2` and `Albumin 3.3`.
  */
+/**
+ * Recognised, and deliberately not reported.
+ *
+ * A third category, distinct from "unknown". These are genuine results — red
+ * cell indices, the platelet and differential extras — that a handover never
+ * carries. Dumping them into "Lain-lain" would bury the one genuinely
+ * unfamiliar test under eight routine ones, which defeats the point of having
+ * that section at all.
+ *
+ * They are omitted, not lost: the full report is still the source of truth, and
+ * anything here can be added to ALIASES and GROUPS the day it starts mattering.
+ */
+const OMITTED_ANALYTES: readonly string[] = [
+  'rdw sd',
+  'rdw cv',
+  'rdw',
+  'pdw',
+  'mpv',
+  'pct',
+  'mono',
+  'eo',
+  'baso',
+  'nrbc',
+  'p lcr',
+  'plcr',
+  'ig',
+];
+
 const IGNORED_LABELS: readonly string[] = [
   'halaman',
   'page',
@@ -219,9 +247,11 @@ export function parseLab(raw: string): LabParseResult {
     // as a run of short fake words followed by a number, and passing it through
     // as "Lain-lain" presents nonsense as if it were a lab value.
     const words = label.split(/\s+/).filter(Boolean);
+    const flatLabel = normalise(label);
 
     if (
       value &&
+      !OMITTED_ANALYTES.includes(flatLabel) &&
       label.length >= 2 &&
       label.length <= 30 &&
       words.length <= 3 &&

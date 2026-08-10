@@ -65,6 +65,16 @@ export default defineConfig({
       },
       injectManifest: {
         globPatterns: ['**/*.{js,css,html,svg,png,woff2}'],
+        /**
+         * The PDF engine is fetched on demand, not precached.
+         *
+         * It is ~1.7 MB and most sessions never open a lab report. Precaching
+         * it would more than double what every device downloads on install and
+         * again on every deploy — over hospital wifi, to add a feature used
+         * occasionally. The browser caches the chunk normally after first use,
+         * so it stays available offline once it has been used once.
+         */
+        globIgnores: ['**/pdf*.js', '**/pdf.worker*.mjs'],
         // Bust the precache manifest whenever the app version changes.
         additionalManifestEntries: [{ url: base, revision: APP_VERSION }],
         dontCacheBustURLsMatching: /\.[0-9a-f]{8}\./,

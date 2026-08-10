@@ -133,3 +133,114 @@ describe('OCR noise', () => {
     ).toBe('');
   });
 });
+
+describe('text extracted from a lab PDF', () => {
+  /** Exactly as the PDF text layer yields it, header and footer included. */
+  const PDF_TEXT = `
+HASIL PEMERIKSAAN LABORATORIUM
+No. RM : 01661366
+Nama : IRWAN
+Sex / Tgl Lahir : Laki-Laki / 04-10-1984
+No. Lab : 1011601062608100068
+Diagnosa : ACLI
+No. Registrasi 2608032053
+Tgl. Hasil 10/08/2026 12:58:20
+PEMERIKSAAN HASIL NILAI RUJUKAN SATUAN
+HEMATOLOGI
+Hematologi Rutin
+HEMATOLOGI RUTIN + LED
+WBC 5.98 4.00 - 10.0 10^3/ul
+RBC 4.16 4.00 - 6.00 10^6/uL
+HGB 12.3 12.0 - 16.0 gr/dl
+HCT 37.1 37.0 - 48.0 %
+MCV 89.1 80.0 - 97.0 fL
+MCH 29.5 26.5 - 33.5
+MCHC 33.2 31.5 - 35.0 gr/dl
+PLT 386 150 - 400 10^3/ul
+RDW-SD 40.1 37.0 - 54.0 fL
+RDW-CV 12.8 10.0 - 15.0 %
+PDW 15.8 10.0 - 18.0 fL
+MPV 8.0 6.50 - 11.0 fL
+PCT 0.310 0.15 - 0.50 %
+NEUT 64.0 52.0 - 75.0 %
+LYMPH 26.6 20.0 - 40.0 %
+MONO 6.1 2.00 - 8.00 %
+EO 3.1 1.00 - 3.00 %
+BASO 0.2 0.00 - 0.10 %
+LED 38 (L <10, P <20 ) mm
+NRBC% 0.000 0.00 - 0.05 /100 WBC
+Koagulasi
+APTT/PTTK
+APTT 31.4 22.0 - 30.0 detik
+KIMIA DARAH
+Elektrolit
+ELEKTROLIT DARAH (NA, K, CL)
+Natrium 135 136 - 145 mmol/l
+Kalium 3.7 3.5 - 5.1 mmol/l
+Klorida 105 97 - 111 mmol/l
+Kesan / Saran : Pemanjangan masa hemostasis faktor ekstrinsik
+Halaman 1 dari 2
+`;
+
+  const result = parseLab(PDF_TEXT);
+
+  it('produces exactly the handover lines', () => {
+    expect(result.formatted).toBe(
+      [
+        'WBC 5.98',
+        'RBC 4.16',
+        'HGB 12.3',
+        'HCT 37.1',
+        'MCV/MCH/MCHC 89.1/29.5/33.2',
+        'PLT 386',
+        'NEUT/LYMPH 64.0/26.6',
+        'LED 38',
+        'APTT 31.4',
+        'Na/K/Cl 135/3.7/105',
+      ].join('\n'),
+    );
+  });
+
+  it('reports APTT alone when INR and PT are absent', () => {
+    expect(result.formatted).toContain('APTT 31.4');
+    expect(result.formatted).not.toContain('APTT/INR/PT');
+  });
+
+  it('drops the patient header, not just the page footer', () => {
+    expect(result.formatted).not.toContain('01661366');
+    expect(result.formatted).not.toContain('2608032053');
+    expect(result.formatted).not.toContain('IRWAN');
+  });
+
+  it('leaves no Lain-lain section for a clean report', () => {
+    expect(result.formatted).not.toContain('Lain-lain');
+    expect(result.unknown).toHaveLength(0);
+  });
+});
+
+describe('recognised but not reported', () => {
+  it('omits routine indices instead of burying real findings under them', () => {
+    const output = parseLab(
+      [
+        'WBC 5.98',
+        'RDW-SD 40.1',
+        'RDW-CV 12.8',
+        'PDW 15.8',
+        'MPV 8.0',
+        'PCT 0.310',
+        'MONO 6.1',
+        'EO 3.1',
+        'BASO 0.2',
+        'NRBC% 0.000',
+        'Prokalsitonin 0.12',
+      ].join('\n'),
+    ).formatted;
+
+    expect(output).toContain('WBC 5.98');
+    // The one genuinely unfamiliar test is visible, not eighth in a list.
+    expect(output).toContain('Prokalsitonin 0.12');
+    expect(output).not.toContain('RDW');
+    expect(output).not.toContain('MONO');
+    expect(output).not.toContain('BASO');
+  });
+});

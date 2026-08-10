@@ -4,6 +4,7 @@ import { Sheet } from '@/components/common/Sheet';
 import { labHeading, parseLab } from '@/domain/lab/parseLab';
 import { copyText } from '@/lib/clipboard';
 import { preprocessForOcr } from '@/lib/ocrPreprocess';
+import { extractPdfText, isPdf } from '@/lib/pdfText';
 import { formatShortDate } from '@/domain/clinicalDate';
 import type { ClinicalDate } from '@/domain/types';
 
@@ -35,6 +36,7 @@ export function LabSheet({
   const [raw, setRaw] = useState('');
   const [source, setSource] = useState('Laboratorium');
   const [ocrState, setOcrState] = useState<'idle' | 'running' | 'failed'>('idle');
+  const [readMode, setReadMode] = useState<'pdf' | 'image' | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
 
   const result = useMemo(() => parseLab(raw), [raw]);
@@ -49,6 +51,33 @@ export function LabSheet({
    * for a feature used occasionally and only when online. If it cannot load,
    * the paste box is still there and still works.
    */
+  /**
+   * PDF first, always.
+   *
+   * A lab PDF has a text layer, so its numbers are read exactly rather than
+   * recognised — no upscaling, no thresholding, no confidence score. OCR
+   * remains only as the fallback for a photo or screenshot, where there is no
+   * text layer to read.
+   */
+  const readFile = async (file: File): Promise<void> => {
+    if (isPdf(file)) {
+      setReadMode('pdf');
+      setOcrState('running');
+      try {
+        const text = await extractPdfText(file);
+        setRaw((current) => (current ? `${current}\n${text}` : text));
+        setOcrState('idle');
+      } catch (error) {
+        console.error('[lab] PDF read failed', error);
+        setOcrState('failed');
+      }
+      return;
+    }
+
+    setReadMode('image');
+    await runOcr(file);
+  };
+
   const runOcr = async (file: File): Promise<void> => {
     setOcrState('running');
     try {
@@ -88,7 +117,7 @@ export function LabSheet({
       open={open}
       onOpenChange={onOpenChange}
       title="Format hasil lab"
-      description="Tempel teks hasil lab, periksa, lalu sisipkan ke catatan."
+      description="Ambil dari PDF lab, atau tempel teksnya. Berkas tidak diunggah ke mana pun."
       footer={
         <button
           type="button"
@@ -122,19 +151,19 @@ export function LabSheet({
           disabled={ocrState === 'running'}
           className="min-h-tap rounded-lg border border-border px-3 text-xs disabled:opacity-50"
         >
-          {ocrState === 'running' ? 'Membaca gambar…' : 'Coba baca gambar'}
+          {ocrState === 'running' ? 'Membaca…' : 'Ambil dari PDF / gambar'}
         </button>
         <span className="text-[11px] text-fg-faint">
-          Sering meleset pada tabel kecil. Cara paling andal: blok teks di PDF lab lalu tempel.
+          PDF lab dibaca persis. Gambar dikenali dan wajib diperiksa.
         </span>
         <input
           ref={fileRef}
           type="file"
-          accept="image/*"
+          accept="application/pdf,image/*"
           className="hidden"
           onChange={(event) => {
             const file = event.target.files?.[0];
-            if (file) void runOcr(file);
+            if (file) void readFile(file);
             event.target.value = '';
           }}
         />
@@ -146,7 +175,7 @@ export function LabSheet({
         only signal available, and staying quiet about it would let a garbled
         table look like a thin one.
       */}
-      {raw.trim().length > 40 && result.known.length < 3 ? (
+      {readMode === 'image' && raw.trim().length > 40 && result.known.length < 3 ? (
         <p role="alert" className="mt-2 rounded-lg border border-danger p-2 text-[11px] text-danger">
           Hanya {result.known.length} nilai yang terbaca dari teks sepanjang ini — kemungkinan
           hasil pembacaan gambar tidak terpakai. Blok teks langsung dari PDF lab, atau gunakan
@@ -156,7 +185,7 @@ export function LabSheet({
 
       {ocrState === 'failed' ? (
         <p role="alert" className="mt-2 text-xs text-danger">
-          Gagal membaca gambar. Tempel teksnya secara manual di bawah.
+          Gagal membaca berkas. Tempel teksnya secara manual di bawah.
         </p>
       ) : null}
 
