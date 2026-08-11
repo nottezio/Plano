@@ -28,6 +28,13 @@ export interface PdfReportOptions {
   format: OutputFormat;
   chief?: string;
   junior?: string;
+  /**
+   * `Chief :` / `Junior :` at the top. Omitted for reports sent to Telegram,
+   * where there is no ward group to tag.
+   */
+  staffing?: boolean;
+  /** `_Jam verifikasi HH.MM WITA_` before the closing sentence. */
+  verificationTime?: string;
 }
 
 /**
@@ -69,18 +76,25 @@ export function composePdfReport(body: string, options: PdfReportOptions): strin
   const opening = openingBlock(body, options.aliases);
   const diagnoses = diagnosisBlock(body, options.aliases);
 
-  const parts = [
+  const parts: string[] = [];
+
+  if (options.staffing !== false) {
     // Left blank on purpose: who is on which shift changes daily and is not in
     // the note. Filling them with a guess would be worse than an obvious gap.
-    `Chief : ${options.chief ?? ''}`.trimEnd(),
-    `Junior : ${options.junior ?? ''}`.trimEnd(),
-    '',
-    opening,
-    '',
-    diagnoses ? `*Diagnosis:*\n${diagnoses}` : '*Diagnosis:*',
-    '',
-    CLOSING,
-  ];
+    parts.push(`Chief : ${options.chief ?? ''}`.trimEnd());
+    parts.push(`Junior : ${options.junior ?? ''}`.trimEnd());
+    parts.push('');
+  }
+
+  parts.push(opening, '');
+  parts.push(diagnoses ? `*Diagnosis:*\n${diagnoses}` : '*Diagnosis:*');
+  parts.push('');
+
+  if (options.verificationTime) {
+    parts.push(`_Jam verifikasi ${options.verificationTime} WITA_`, '');
+  }
+
+  parts.push(CLOSING);
 
   return formatBody(parts.join('\n').replace(/\n{3,}/g, '\n\n').trim(), options.format);
 }

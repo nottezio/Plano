@@ -1,5 +1,10 @@
 import { DONE_TOKEN, tokenForIndex } from './colorTokens';
-import { ADMISI_BODY, FOLLOWUP_BODY, FOLLOWUP_DX_BODY } from './templates';
+import {
+  ADMISI_BODY,
+  FOLLOWUP_BODY,
+  FOLLOWUP_DX_BODY,
+  FOLLOWUP_RINGKAS_BODY,
+} from './templates';
 import type { NoteTemplate } from './types';
 import type {
   ChecklistItemDef,
@@ -88,7 +93,13 @@ export const SEED_OPENING_SENTENCES: readonly string[] = [
 export const SEED_NOTE_TEMPLATES: readonly NoteTemplate[] = [
       { id: 'followup', order: 1, name: 'Follow-up harian', body: FOLLOWUP_BODY },
       { id: 'followup-dx', order: 2, name: 'Follow-up (Dx primer/sekunder)', body: FOLLOWUP_DX_BODY },
-      { id: 'admisi', order: 3, name: 'Pasien baru (admisi)', body: ADMISI_BODY },
+      {
+        id: 'followup-fisis-normal',
+        order: 3,
+        name: 'Follow-up (fisis normal, O ringkas)',
+        body: FOLLOWUP_RINGKAS_BODY,
+      },
+      { id: 'admisi', order: 4, name: 'Pasien baru (admisi)', body: ADMISI_BODY },
 ];
 
 export function defaultUserSettings(): UserSettings {
@@ -126,7 +137,21 @@ export function defaultUserSettings(): UserSettings {
      * unset rather than guessed — a wrong reminder about what a consultant
      * wants is worse than no reminder.
      */
-    dpjpFormats: { ahn: 'diagnosis' },
+    dpjpFormats: {
+      // The three who want the short PDF form.
+      afm: { format: 'ringkas', staffing: true },
+      afg: { format: 'ringkas', staffing: true },
+      zd: { format: 'ringkas', staffing: true, verificationTime: true },
+      // Same short form, but to Telegram and without the staffing lines.
+      mz: {
+        format: 'ringkas',
+        staffing: false,
+        plainText: true,
+        hint: 'Kirim via Telegram',
+      },
+      ahn: { format: 'diagnosis' },
+      aha: { format: 'harian', hint: 'Bila fisis normal, ringkas O jadi satu baris' },
+    },
     copyPresets: DEFAULT_COPY_PRESETS.map((preset) => ({ ...preset })),
     privacy: {
       // Full names are stored, so the lock is ON by default (SPEC 18).

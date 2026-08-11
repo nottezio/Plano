@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
-import { DPJPS, detectDpjps, dpjpById, primaryDpjp } from './dpjp';
+import { DPJPS, describeConfig, detectDpjps, dpjpById, primaryDpjp } from './dpjp';
+import { defaultUserSettings } from './defaults';
 
 const REAL_NOTE = [
   "Selamat pagi prof. Tabe prof, melaporkan follow up pasien di *PJT Lantai 5 Kamar 517 Bed 3* atas nama:",
@@ -112,5 +113,59 @@ describe('dpjpById', () => {
 
   it('is undefined for an unknown id', () => {
     expect(dpjpById('nope')).toBeUndefined();
+  });
+});
+
+describe('describeConfig', () => {
+  it('names the format on its own', () => {
+    expect(describeConfig({ format: 'diagnosis' })).toBe('Diagnosis primer/sekunder');
+  });
+
+  it('calls out the missing staffing lines', () => {
+    expect(describeConfig({ format: 'ringkas', staffing: false })).toContain(
+      'tanpa Chief/Junior',
+    );
+  });
+
+  it('calls out the verification time', () => {
+    expect(describeConfig({ format: 'ringkas', verificationTime: true })).toContain(
+      'jam verifikasi',
+    );
+  });
+
+  it('appends a free-text note', () => {
+    expect(
+      describeConfig({ format: 'ringkas', staffing: false, hint: 'Kirim via Telegram' }),
+    ).toBe('Ringkas (PDF) — tanpa Chief/Junior, Kirim via Telegram');
+  });
+});
+
+describe('the seeded bindings match what each consultant asked for', () => {
+  const seeded = defaultUserSettings().dpjpFormats;
+
+  it('gives the short PDF form to AFM, AFG and ZD', () => {
+    for (const id of ['afm', 'afg', 'zd']) {
+      expect(seeded[id]?.format).toBe('ringkas');
+    }
+  });
+
+  it('adds a verification time for ZD only', () => {
+    expect(seeded['zd']?.verificationTime).toBe(true);
+    expect(seeded['afm']?.verificationTime).toBeUndefined();
+  });
+
+  it('drops the staffing lines for MZ, whose report goes to Telegram', () => {
+    expect(seeded['mz']?.format).toBe('ringkas');
+    expect(seeded['mz']?.staffing).toBe(false);
+    expect(seeded['mz']?.hint).toContain('Telegram');
+  });
+
+  it('gives AHN the primary/secondary diagnosis split', () => {
+    expect(seeded['ahn']?.format).toBe('diagnosis');
+  });
+
+  it('leaves AHA on the daily form with a note about condensing O', () => {
+    expect(seeded['aha']?.format).toBe('harian');
+    expect(seeded['aha']?.hint).toContain('fisis normal');
   });
 });

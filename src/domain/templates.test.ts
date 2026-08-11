@@ -1,16 +1,21 @@
 import { describe, expect, it } from 'vitest';
 
-import { ADMISI_BODY, FOLLOWUP_BODY, FOLLOWUP_DX_BODY } from './templates';
+import {
+  ADMISI_BODY,
+  FOLLOWUP_BODY,
+  FOLLOWUP_DX_BODY,
+  FOLLOWUP_RINGKAS_BODY,
+} from './templates';
 import { defaultUserSettings } from './defaults';
 import { parseSections } from './sections/parseSections';
 import { findMarkdownLeaks, toWhatsApp } from './format/formatters';
 
-const ALL = [FOLLOWUP_BODY, FOLLOWUP_DX_BODY, ADMISI_BODY];
+const ALL = [FOLLOWUP_BODY, FOLLOWUP_DX_BODY, FOLLOWUP_RINGKAS_BODY, ADMISI_BODY];
 const SETTINGS = defaultUserSettings();
 
 describe('seed templates', () => {
   it('are all registered in the default settings', () => {
-    expect(SETTINGS.noteTemplates).toHaveLength(3);
+    expect(SETTINGS.noteTemplates).toHaveLength(4);
     expect(SETTINGS.noteTemplates.map((t) => t.body)).toEqual(
       expect.arrayContaining(ALL),
     );
@@ -19,7 +24,7 @@ describe('seed templates', () => {
   it('have unique ids and a contiguous order', () => {
     const templates = SETTINGS.noteTemplates;
     expect(new Set(templates.map((t) => t.id)).size).toBe(templates.length);
-    expect(templates.map((t) => t.order).sort()).toEqual([1, 2, 3]);
+    expect(templates.map((t) => t.order).sort()).toEqual([1, 2, 3, 4]);
   });
 
   it('parse into sections without the parser losing a byte', () => {
@@ -59,6 +64,13 @@ describe('seed templates', () => {
   it('share an identical block below S, so one can continue as the other', () => {
     const belowS = (body: string): string => body.slice(body.indexOf('*O:*'));
     expect(belowS(ADMISI_BODY)).toBe(belowS(FOLLOWUP_BODY));
+  });
+
+  it('condenses the objective block in the fisis-normal variant', () => {
+    expect(FOLLOWUP_RINGKAS_BODY).toContain('_Pemeriksaan fisis dalam batas normal_');
+    // Vitals on one line, semicolon-separated, as the consultant reads them.
+    expect(FOLLOWUP_RINGKAS_BODY).toContain('GCS E4V5M6; Tekanan Darah');
+    expect(FOLLOWUP_RINGKAS_BODY).not.toContain('Anemis tidak ada');
   });
 
   it('carry the whole message: greeting, identity, DPJP, closing', () => {

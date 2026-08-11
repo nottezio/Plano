@@ -18,7 +18,7 @@
  * consultant is a card someone will act on.
  */
 
-import type { OutputFormat, ReportFormat } from './types';
+import type { DpjpReportConfig, OutputFormat, ReportFormat } from './types';
 
 export type { ReportFormat };
 
@@ -122,6 +122,18 @@ export function primaryDpjp(body: string): Dpjp | null {
   const utama = detected.find((entry) => /utama/i.test(entry.role ?? ''));
   const id = (utama ?? detected[0])?.id;
   return id ? (dpjpById(id) ?? null) : null;
+}
+
+/** One line describing a consultant's preferences, for the reminder. */
+export function describeConfig(config: DpjpReportConfig): string {
+  const extras: string[] = [];
+  if (config.format === 'ringkas' && config.staffing === false) extras.push('tanpa Chief/Junior');
+  if (config.verificationTime) extras.push('dengan jam verifikasi');
+  if (config.plainText) extras.push('tanpa tebal/miring');
+  if (config.hint) extras.push(config.hint);
+
+  const base = REPORT_FORMAT_LABELS[config.format];
+  return extras.length > 0 ? `${base} — ${extras.join(', ')}` : base;
 }
 
 export const REPORT_FORMAT_LABELS: Record<ReportFormat, string> = {

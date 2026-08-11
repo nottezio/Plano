@@ -106,6 +106,34 @@ ${THERAPY_AND_PLAN}
 
 ${CLOSING}`;
 
+/**
+ * Follow-up with the objective block condensed to one line.
+ *
+ * Used when the physical examination is unremarkable: vitals run together with
+ * semicolons and the rest collapses to `_Pemeriksaan fisis dalam batas normal_`.
+ * Copied from a real handover rather than invented — the point of a short form
+ * is that it matches what the consultant already reads, not that it is shorter.
+ */
+export const FOLLOWUP_RINGKAS_BODY = `${OPENING}
+
+*S/*
+- 
+
+*O/*
+GCS E4V5M6; Tekanan Darah :  mmHg; Nadi :  kali/menit, reguler; Pernapasan :  kali/menit; Suhu :  derajat celcius; Saturasi : % on room air
+
+_Pemeriksaan fisis dalam batas normal_
+
+TB  cm
+BB  kg
+
+*Mohon izin pasien kami assess dengan :*
+- 
+
+${THERAPY_AND_PLAN}
+
+${CLOSING}`;
+
 /** Long S — history, review of systems, prior medication, risk factors. */
 export const ADMISI_BODY = `Assalamu'alaikum dokter. Tabe dokter, mohon izin melaporkan pasien baru di *Ruang  Kamar  Bed *  atas nama : 
 

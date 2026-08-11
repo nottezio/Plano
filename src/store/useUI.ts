@@ -14,6 +14,26 @@ export type SyncState =
 interface UIState {
   theme: ThemePreference;
   setTheme: (theme: ThemePreference) => void;
+  /**
+   * Force-save callbacks from every live editor.
+   *
+   * The update banner used to refuse to reload while anything was unsaved and
+   * leave the user there — correct about the risk, useless about the remedy,
+   * since "save first" describes something the app does on a timer and offers
+   * no button for. It can now save everything itself and then reload.
+   */
+  registerFlush: (key: string, flush: () => void) => () => void;
+  flushAll: () => void;
+  /**
+   * The reporting format expected for the patient currently open.
+   *
+   * Lives in the store rather than being passed down because the sidebar and
+   * the patient page are siblings under the shell, and threading a prop through
+   * `AppShell` would make every screen carry a field only one of them uses.
+   * Set by the patient page, cleared when it unmounts.
+   */
+  dpjpHint: { initials: string; name: string; description: string } | null;
+  setDpjpHint: (hint: { initials: string; name: string; description: string } | null) => void;
   /** Desktop context sidebar on the patient page. Expanded by default. */
   contextPaneOpen: boolean;
   toggleContextPane: () => void;
@@ -32,6 +52,12 @@ interface UIState {
   markClean: (editorId: string) => void;
   hasUnsavedWork: () => boolean;
 }
+
+/**
+ * Outside the store on purpose: these are callbacks, not state. Putting them in
+ * the store would re-render every subscriber each time an editor mounts.
+ */
+const FLUSHERS = new Map<string, () => void>();
 
 const THEME_STORAGE_KEY = 'visite.theme';
 const PANE_STORAGE_KEY = 'visite.contextPane';
@@ -69,6 +95,23 @@ function readStoredTheme(): ThemePreference {
 
 export const useUI = create<UIState>((set, get) => ({
   theme: readStoredTheme(),
+  dpjpHint: null,
+  setDpjpHint: (dpjpHint) => set({ dpjpHint }),
+  registerFlush: (key, flush) => {
+    FLUSHERS.set(key, flush);
+    return () => {
+      FLUSHERS.delete(key);
+    };
+  },
+  flushAll: () => {
+    for (const flush of FLUSHERS.values()) {
+      try {
+        flush();
+      } catch (error) {
+        console.error('[ui] flush failed', error);
+      }
+    }
+  },
   contextPaneOpen: readStoredPane(),
   toggleContextPane: () =>
     set((state) => {

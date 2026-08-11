@@ -230,6 +230,10 @@ export function useTextSync({
     }
   }, [draft, serverText, key]);
 
+  // Let the update banner save this editor rather than refusing to reload.
+  const registerFlush = useUI((state) => state.registerFlush);
+  useEffect(() => registerFlush(key, flush), [key, flush, registerFlush]);
+
   // SPEC 17 — the service-worker update gate reads this.
   useEffect(() => {
     if (dirty) markDirty(key);

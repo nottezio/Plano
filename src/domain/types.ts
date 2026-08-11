@@ -26,6 +26,34 @@ export type SectionId =
 /** What shape of report a consultant expects (see dpjp.ts). */
 export type ReportFormat = 'harian' | 'diagnosis' | 'ringkas';
 
+/**
+ * A consultant's reporting preferences.
+ *
+ * More than a single enum, because the real requirements vary along axes that
+ * combine: the short PDF form goes to four consultants, but one wants a
+ * verification time on it and another wants it without the Chief/Junior lines
+ * because it goes to Telegram rather than the ward group. Encoding those as
+ * separate formats would need one variant per combination, and a fifth
+ * consultant with a new preference would need two more.
+ */
+export interface DpjpReportConfig {
+  format: ReportFormat;
+  /** `Chief :` / `Junior :` at the top. Off for reports sent to Telegram. */
+  staffing?: boolean;
+  /** `_Jam verifikasi HH.MM WITA_` before the closing sentence. */
+  verificationTime?: boolean;
+  /**
+   * Strip `*bold*` and `_italic_` from the output.
+   *
+   * Telegram does not render WhatsApp's markers, so a report pasted there
+   * arrives with the asterisks and underscores visible around every heading.
+   * Plain text is the correct output for that destination, not a degraded one.
+   */
+  plainText?: boolean;
+  /** Free note shown alongside the reminder, e.g. "kirim via Telegram". */
+  hint?: string;
+}
+
 export type Sex = 'L' | 'P';
 export type PatientStatus = 'active' | 'archived';
 export type ArchiveReason = 'pulang' | 'pindah' | 'meninggal' | 'lainnya';
@@ -96,7 +124,7 @@ export interface UserSettings {
    * is the wrong unit of change for that. Unset means the standard daily
    * handover, so the map only ever holds the exceptions.
    */
-  dpjpFormats: Record<string, ReportFormat>;
+  dpjpFormats: Record<string, DpjpReportConfig>;
   copyPresets: CopyPreset[];
   privacy: PrivacySettings;
   theme: 'system' | 'light' | 'dark';

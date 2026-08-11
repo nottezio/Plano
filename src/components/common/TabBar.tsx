@@ -3,6 +3,7 @@ import { NavLink } from 'react-router-dom';
 import { SyncPill } from './SyncPill';
 import { APP_VERSION } from '@/version.js';
 import { IconArchive, IconBoard, IconDocuments, IconSettings } from './Icons';
+import { useUI } from '@/store/useUI';
 
 /**
  * SPEC 11.1 / 11.2 — three layouts, one component:
@@ -22,6 +23,8 @@ const TABS = [
 ] as const;
 
 export function TabBar(): JSX.Element {
+  const hint = useUI((state) => state.dpjpHint);
+
   return (
     <nav
       aria-label="Navigasi utama"
@@ -66,10 +69,32 @@ export function TabBar(): JSX.Element {
       {/* Desktop only: the sidebar has dead space at the bottom, and a footer
           under the content pushed the empty state off-centre. On phone the tab
           bar is 64 px of thumb target — nothing else belongs in it. */}
+      {/*
+        Reporting format for the patient currently open.
+
+        Bottom of the rail, above the sync pill: it is a reminder you glance at
+        before copying, not something to act on, so it belongs in the furniture
+        rather than over the note. Desktop only — on phone the rail is 64 px of
+        thumb target, and the patient page already shows the same line under the
+        date.
+      */}
+      {hint ? (
+        <div
+          title={hint.name}
+          className="mx-3 mb-2 mt-auto hidden rounded-lg border border-border bg-bg-subtle p-2 lg:block"
+        >
+          <p className="text-[10px] font-semibold uppercase tracking-wide text-fg-faint">
+            Format laporan
+          </p>
+          <p className="mt-0.5 text-xs font-medium">{hint.initials}</p>
+          <p className="mt-0.5 text-[11px] leading-snug text-fg-muted">{hint.description}</p>
+        </div>
+      ) : null}
+
       {/* Sync state lives here on desktop: it is ambient status, not an action,
           so it belongs with the other ambient furniture rather than in a bar of
           its own across the top of the content. */}
-      <div className="mt-auto hidden px-3 pb-2 lg:block">
+      <div className={`${hint ? '' : 'mt-auto '}hidden px-3 pb-2 lg:block`}>
         <SyncPill />
       </div>
 

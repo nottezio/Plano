@@ -101,3 +101,65 @@ describe('composePdfReport', () => {
     expect(composePdfReport(BODY, OPTIONS)).not.toMatch(/\n{3,}/);
   });
 });
+
+describe('per-consultant variants of the short form', () => {
+  it('omits the staffing lines when the report goes to Telegram', () => {
+    const output = composePdfReport(BODY, { ...OPTIONS, staffing: false });
+    expect(output).not.toContain('Chief :');
+    expect(output).not.toContain('Junior :');
+    // Everything else is unchanged.
+    expect(output).toContain('Tn. Hamzah Rahuddin');
+    expect(output).toContain('Diagnosis:');
+    expect(output.trimEnd().endsWith('Terima kasih dokter')).toBe(true);
+  });
+
+  it('adds the verification time before the closing sentence', () => {
+    const output = composePdfReport(BODY, { ...OPTIONS, verificationTime: '08.14' });
+    expect(output).toContain('_Jam verifikasi 08.14 WITA_');
+    expect(output.indexOf('Jam verifikasi')).toBeLessThan(output.indexOf('Terima kasih'));
+    expect(output.indexOf('Jam verifikasi')).toBeGreaterThan(output.indexOf('Diagnosis:'));
+  });
+
+  it('combines both switches independently', () => {
+    const output = composePdfReport(BODY, {
+      ...OPTIONS,
+      staffing: false,
+      verificationTime: '08.14',
+    });
+    expect(output).not.toContain('Chief :');
+    expect(output).toContain('Jam verifikasi 08.14');
+  });
+
+  it('keeps staffing by default, so an unconfigured consultant is unaffected', () => {
+    expect(composePdfReport(BODY, OPTIONS)).toContain('Chief :');
+  });
+});
+
+describe('plain-text output for a destination that renders no markers', () => {
+  it('carries no bold or italic markers', () => {
+    const output = composePdfReport(BODY, {
+      ...OPTIONS,
+      format: 'plain',
+      staffing: false,
+    });
+
+    expect(output).not.toContain('*');
+    expect(output).not.toMatch(/_[^\s]/);
+    // The content is all still there — only the decoration is gone.
+    expect(output).toContain('Tn. Hamzah Rahuddin');
+    expect(output).toContain('DPJP Utama dan Tindakan');
+    expect(output).toContain('Diagnosis:');
+    expect(output).toContain('Chronic Coronary Syndrome');
+  });
+
+  it('still honours the other switches', () => {
+    const output = composePdfReport(BODY, {
+      ...OPTIONS,
+      format: 'plain',
+      staffing: false,
+      verificationTime: '08.14',
+    });
+    expect(output).not.toContain('Chief :');
+    expect(output).toContain('Jam verifikasi 08.14 WITA');
+  });
+});

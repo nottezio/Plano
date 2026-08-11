@@ -21,7 +21,7 @@ import { fillPatientFromNote } from '@/data/repositories/patients.repo';
 import { carryForward, carryForwardSummary } from '@/domain/carryForward';
 import { formatLocation } from '@/domain/identity';
 import { insertIntoObjective } from '@/domain/lab/parseLab';
-import { dpjpById, primaryDpjp, REPORT_FORMAT_LABELS } from '@/domain/dpjp';
+import { describeConfig, dpjpById, primaryDpjp } from '@/domain/dpjp';
 import { parseSections } from '@/domain/sections/parseSections';
 import {
   daysBetween,
@@ -136,6 +136,27 @@ export default function PatientPage(): JSX.Element {
     [editor.value, patient?.dpjpId],
   );
   const dpjpFormat = dpjp ? settings.dpjpFormats[dpjp.id] : undefined;
+
+  /**
+   * Publish the reporting format to the sidebar while this patient is open.
+   *
+   * Cleared on unmount so the rail never shows a format belonging to a patient
+   * that is no longer on screen — a stale reminder is worse than none, because
+   * it is indistinguishable from a current one.
+   */
+  const setDpjpHint = useUI((state) => state.setDpjpHint);
+  useEffect(() => {
+    if (dpjp && dpjpFormat) {
+      setDpjpHint({
+        initials: dpjp.initials,
+        name: dpjp.name,
+        description: describeConfig(dpjpFormat),
+      });
+    } else {
+      setDpjpHint(null);
+    }
+    return () => setDpjpHint(null);
+  }, [dpjp, dpjpFormat, setDpjpHint]);
 
   const railDates = useMemo(
     () => buildRail(patient?.admittedAt ?? today, today, entryDates),
@@ -298,7 +319,7 @@ export default function PatientPage(): JSX.Element {
               </button>
             ) : dpjpFormat ? (
               <p className="truncate text-[11px] text-fg-faint">
-                {dpjp?.initials} — {REPORT_FORMAT_LABELS[dpjpFormat]}
+                {dpjp?.initials} — {describeConfig(dpjpFormat)}
               </p>
             ) : patient.diagnoses.length > 0 ? (
               <p className="truncate text-[11px] text-fg-faint">

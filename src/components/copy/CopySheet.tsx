@@ -9,7 +9,7 @@ import {
 } from '@/domain/format/composeCopy';
 import { FORMAT_LABELS, findMarkdownLeaks } from '@/domain/format/formatters';
 import { composePdfReport } from '@/domain/format/pdfReport';
-import { primaryDpjp, REPORT_FORMAT_LABELS } from '@/domain/dpjp';
+import { describeConfig, primaryDpjp } from '@/domain/dpjp';
 import {
   COPY_GROUPS,
   availableGroups,
@@ -22,8 +22,8 @@ import type {
   CopyPreset,
   CopyRange,
   OutputFormat,
+  DpjpReportConfig,
   Patient,
-  ReportFormat,
   SectionAlias,
 } from '@/domain/types';
 
@@ -45,6 +45,12 @@ const RANGE_LABELS: Record<CopyRange, string> = {
  * The output is composed on every change and shown as a preview, because a
  * resident pasting into a group chat cannot undo it.
  */
+/** Local clock, formatted the way the verification line is written. */
+function nowWita(): string {
+  const now = new Date();
+  return `${String(now.getHours()).padStart(2, '0')}.${String(now.getMinutes()).padStart(2, '0')}`;
+}
+
 export function CopySheet({
   open,
   onOpenChange,
@@ -64,7 +70,7 @@ export function CopySheet({
   today: ClinicalDate;
   aliases: readonly SectionAlias[];
   presets: readonly CopyPreset[];
-  dpjpFormats: Record<string, ReportFormat>;
+  dpjpFormats: Record<string, DpjpReportConfig>;
 }): JSX.Element {
   const [format, setFormat] = useState<OutputFormat>('whatsapp');
   const [range, setRange] = useState<CopyRange>('specific');
@@ -137,7 +143,17 @@ export function CopySheet({
   const output = useMemo(
     () =>
       pdfMode
-        ? composePdfReport(body, { aliases, format })
+        ? composePdfReport(body, {
+            aliases,
+            // A consultant who reads the report somewhere that does not render
+            // WhatsApp markers gets plain text, whatever chip is selected.
+            format: expected?.plainText ? 'plain' : format,
+            // The consultant's own switches, so choosing "Ringkas (PDF)" for
+            // ZD produces a report with a verification time and for MZ one
+            // without staffing lines, rather than one shape for everyone.
+            staffing: expected?.staffing ?? true,
+            ...(expected?.verificationTime ? { verificationTime: nowWita() } : {}),
+          })
         : composeCopy(days, {
         format,
         sections: selected,
@@ -211,9 +227,15 @@ export function CopySheet({
         ))}
       </Group>
 
+      {expected?.plainText && pdfMode ? (
+        <p className="mb-2 text-[11px] text-fg-faint">
+          Format teks polos dipakai otomatis untuk {dpjp?.initials}.
+        </p>
+      ) : null}
+
       {expected ? (
         <p className="mb-2 text-[11px] text-fg-muted">
-          {dpjp?.initials} biasanya meminta: <strong>{REPORT_FORMAT_LABELS[expected]}</strong>
+          {dpjp?.initials} biasanya meminta: <strong>{describeConfig(expected)}</strong>
         </p>
       ) : null}
 
