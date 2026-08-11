@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
 
-import { labHeading, parseLab } from './parseLab';
+import { insertIntoObjective, labHeading, parseLab } from './parseLab';
+import { parseSections } from '../sections/parseSections';
+import { DEFAULT_SECTION_ALIASES as ALIASES } from '../sections/aliases';
 
 /** Transcribed from a real printout, reference ranges and units included. */
 const PRINTOUT = `
@@ -242,5 +244,69 @@ describe('recognised but not reported', () => {
     expect(output).not.toContain('RDW');
     expect(output).not.toContain('MONO');
     expect(output).not.toContain('BASO');
+  });
+});
+
+describe('insertIntoObjective', () => {
+  const body = [
+    'Pembuka di sini.',
+    '',
+    '*S:*',
+    '- nyeri (-)',
+    '',
+    '*O:*',
+    'TD 116/72',
+    '',
+    '*EKG 06-08*',
+    'Sinus',
+    '',
+    '*A:*',
+    '- CAD',
+    '',
+    '*Plan :*',
+    '- Monitoring',
+  ].join('\n');
+
+  /** Real offsets from the real parser, not hand-written ones. */
+  const boundaries = (text: string) =>
+    parseSections(text, ALIASES).map((section) => ({
+      sectionId: section.sectionId,
+      start: section.start,
+      end: section.end,
+    }));
+
+  it('lands after the investigation stack, before A', () => {
+    const out = insertIntoObjective(body, '*Lab (10-08)*\nHGB 12.3', boundaries(body));
+    expect(out.indexOf('Lab (10-08)')).toBeGreaterThan(out.indexOf('EKG 06-08'));
+    expect(out.indexOf('Lab (10-08)')).toBeLessThan(out.indexOf('*A:*'));
+  });
+
+  it('never lands after Plan', () => {
+    const out = insertIntoObjective(body, '*Lab*\nHGB 12.3', boundaries(body));
+    expect(out.indexOf('*Lab*')).toBeLessThan(out.indexOf('*Plan :*'));
+  });
+
+  it('appends when the note has no objective section', () => {
+    const thin = '*S:*\n- nyeri (-)';
+    const out = insertIntoObjective(thin, '*Lab*\nHGB 12.3', boundaries(thin));
+    expect(out.endsWith('*Lab*\nHGB 12.3')).toBe(true);
+  });
+
+  it('handles an empty note', () => {
+    expect(insertIntoObjective('', '*Lab*\nHGB 12.3', [])).toBe('*Lab*\nHGB 12.3');
+  });
+
+  it('loses no existing text', () => {
+    const out = insertIntoObjective(body, '*Lab*\nHGB 12.3', boundaries(body));
+    for (const fragment of ['nyeri (-)', 'TD 116/72', 'Sinus', '- CAD', '- Monitoring']) {
+      expect(out).toContain(fragment);
+    }
+  });
+
+  it('stacks a second lab below the first', () => {
+    const once = insertIntoObjective(body, '*Lab (09-08)*\nHGB 12.0', boundaries(body));
+    const twice = insertIntoObjective(once, '*Lab (10-08)*\nHGB 12.3', boundaries(once));
+    expect(twice.indexOf('Lab (10-08)')).toBeGreaterThan(twice.indexOf('Lab (09-08)'));
+    expect(twice.indexOf('Lab (10-08)')).toBeLessThan(twice.indexOf('*A:*'));
   });
 });

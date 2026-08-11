@@ -47,6 +47,18 @@ export default function BoardPage(): JSX.Element {
   const [quickPatientId, setQuickPatientId] = useState<string | null>(null);
 
   const debouncedQuery = useDebouncedValue(query, 150);
+
+  /**
+   * The archive is searched too, but only while searching.
+   *
+   * A patient discharged last week is exactly who you look for by name, and
+   * "not found" on the board is indistinguishable from "does not exist" —
+   * which sends someone to create a duplicate record. The second listener
+   * attaches only when there is a query, so an idle board still costs one.
+   */
+  const searching = debouncedQuery.trim().length > 0;
+  const { patients: archived } = usePatients('archived', searching);
+
   const items = settings.checklistItems;
 
   const cards = useMemo(() => {
@@ -60,6 +72,21 @@ export default function BoardPage(): JSX.Element {
       buildCard(patient, items, today, settings.privacy.boardShowInitialsOnly),
     );
   }, [patients, filters, debouncedQuery, items, today, settings.privacy.boardShowInitialsOnly]);
+
+  const archivedCards = useMemo(() => {
+    if (!searching) return [];
+    return sortPatients(
+      filterPatients(archived, { ...filters, query: debouncedQuery }, items, today),
+    ).map((patient) => buildCard(patient, items, today, settings.privacy.boardShowInitialsOnly));
+  }, [
+    searching,
+    archived,
+    filters,
+    debouncedQuery,
+    items,
+    today,
+    settings.privacy.boardShowInitialsOnly,
+  ]);
 
   const quickPatient = patients.find((patient) => patient.id === quickPatientId) ?? null;
   const filtering = hasActiveFilters({ ...filters, query: debouncedQuery });
@@ -111,16 +138,45 @@ export default function BoardPage(): JSX.Element {
         </p>
       ) : loading ? (
         <p className="px-4 py-10 text-center text-sm text-fg-muted">Memuat…</p>
-      ) : cards.length === 0 ? (
+      ) : cards.length === 0 && archivedCards.length === 0 ? (
         <EmptyState filtering={filtering} onCreate={createAndOpen} />
       ) : (
-        // CSS multi-column masonry: no measurement pass, no layout library,
-        // and it reflows correctly when a card grows as the note is typed.
-        <div className="columns-1 gap-3 px-4 pt-1 sm:columns-2 lg:columns-3 xl:columns-4 2xl:columns-5">
-          {cards.map((card) => (
-            <PatientCard key={card.patient.id} card={card} onLongPress={setQuickPatientId} />
-          ))}
-        </div>
+        <>
+          {/* Headed only while searching. On an idle board the heading would be
+              noise — there is nothing to distinguish it from. */}
+          {searching && cards.length > 0 ? (
+            <SectionHeading label={`Pasien aktif (${cards.length})`} />
+          ) : null}
+
+          {cards.length > 0 ? (
+            // CSS multi-column masonry: no measurement pass, no layout library,
+            // and it reflows correctly when a card grows as the note is typed.
+            <div className="columns-1 gap-3 px-4 pt-1 sm:columns-2 lg:columns-3 xl:columns-4 2xl:columns-5">
+              {cards.map((card) => (
+                <PatientCard key={card.patient.id} card={card} onLongPress={setQuickPatientId} />
+              ))}
+            </div>
+          ) : searching ? (
+            <p className="px-4 py-3 text-sm text-fg-muted">
+              Tidak ada pasien aktif yang cocok.
+            </p>
+          ) : null}
+
+          {searching && archivedCards.length > 0 ? (
+            <>
+              <SectionHeading label={`Arsip (${archivedCards.length})`} />
+              <div className="columns-1 gap-3 px-4 pt-1 sm:columns-2 lg:columns-3 xl:columns-4 2xl:columns-5">
+                {archivedCards.map((card) => (
+                  <PatientCard
+                    key={card.patient.id}
+                    card={card}
+                    onLongPress={setQuickPatientId}
+                  />
+                ))}
+              </div>
+            </>
+          ) : null}
+        </>
       )}
 
       <button
@@ -142,6 +198,14 @@ export default function BoardPage(): JSX.Element {
         }}
       />
     </AppShell>
+  );
+}
+
+function SectionHeading({ label }: { label: string }): JSX.Element {
+  return (
+    <h2 className="px-4 pb-1 pt-3 text-xs font-semibold uppercase tracking-wide text-fg-faint">
+      {label}
+    </h2>
   );
 }
 

@@ -37,6 +37,7 @@ export default function SettingsPage(): JSX.Element {
   const theme = useUI((state) => state.theme);
   const setTheme = useUI((state) => state.setTheme);
   const user = useSession((state) => state.user);
+  const persistence = useSession((state) => state.storagePersistence);
   const settings = useSession((state) => state.settings());
 
   const pinEnabled = useLock((state) => state.pinEnabled);
@@ -398,6 +399,13 @@ export default function SettingsPage(): JSX.Element {
         <SettingsGroup label="Akun & data" />
 
         <SettingsSection title="Akun" defaultOpen>
+          {persistence !== 'persisted' ? (
+            <p className="mb-3 rounded-lg border border-border bg-bg-subtle p-3 text-[11px] leading-relaxed text-fg-muted">
+              Penyimpanan browser di perangkat ini masih bisa dihapus otomatis saat memori
+              menipis — itu yang membuat sesi tiba-tiba keluar. Pasang aplikasi ke layar
+              utama (Bagikan → Tambah ke Layar Utama) agar sesi dan data offline bertahan.
+            </p>
+          ) : null}
           <p className="truncate text-xs text-fg-muted">{user?.email ?? '—'}</p>
           <button
             type="button"

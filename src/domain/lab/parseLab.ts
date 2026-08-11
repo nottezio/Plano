@@ -289,3 +289,47 @@ export function parseLab(raw: string): LabParseResult {
 export function labHeading(date: string, source = 'Laboratorium'): string {
   return `*${source} (${date})*`;
 }
+
+/**
+ * Where a lab block belongs in the note.
+ *
+ * Investigations are read as part of the objective findings, and every handover
+ * you write stacks them under O. Appending to the end of the note put them
+ * after Plan, which is both wrong to read and wrong to copy: the "O + Penunjang"
+ * copy group selects by section, so a block sitting under Plan would be copied
+ * with the plan instead.
+ *
+ * Inserted at the END of the O block — after any existing dated blocks, so the
+ * stack grows downward in the order results arrived — and before the next
+ * unrelated section. With no O section at all it appends, which is the only
+ * honest fallback: guessing a position inside a note is worse than the end.
+ */
+export function insertIntoObjective(
+  body: string,
+  block: string,
+  boundaries: readonly { sectionId: string; start: number; end: number }[],
+): string {
+  const objectiveIds = ['o', 'ttv', 'penunjang'];
+  const clinicalAfter = ['a', 'p', 'terapi'];
+
+  const objective = boundaries.filter((section) => objectiveIds.includes(section.sectionId));
+  if (objective.length === 0) {
+    const trimmed = body.trimEnd();
+    return trimmed ? `${trimmed}\n\n${block}` : block;
+  }
+
+  const lastObjectiveEnd = Math.max(...objective.map((section) => section.end));
+
+  // Any custom block (an EKG, a previous lab) sitting between O and the next
+  // clinical heading is part of the investigation stack, so insert after it.
+  const nextClinical = boundaries
+    .filter((section) => section.start >= lastObjectiveEnd)
+    .filter((section) => clinicalAfter.includes(section.sectionId))
+    .sort((a, b) => a.start - b.start)[0];
+
+  const at = nextClinical ? nextClinical.start : body.length;
+  const before = body.slice(0, at).trimEnd();
+  const after = body.slice(at);
+
+  return `${before}\n\n${block}${after ? `\n\n${after.trimStart()}` : ''}`;
+}

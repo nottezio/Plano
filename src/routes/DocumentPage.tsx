@@ -69,6 +69,14 @@ export default function DocumentPage(): JSX.Element {
     <AppShell title={document.title}>
       <div className="mx-auto flex min-h-0 w-full max-w-3xl flex-1 flex-col">
         <header className="flex items-center gap-2 border-b border-border px-4 py-3">
+          <button
+            type="button"
+            onClick={() => navigate('/dokumen')}
+            aria-label="Kembali ke daftar dokumen"
+            className="min-h-tap min-w-tap shrink-0 text-fg-muted"
+          >
+            <span aria-hidden="true">←</span>
+          </button>
           <h2 className="min-w-0 flex-1 truncate text-sm font-semibold">{document.title}</h2>
           <button
             type="button"

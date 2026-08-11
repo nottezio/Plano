@@ -441,3 +441,44 @@ describe('SIMGOS cannot render non-ASCII — it shows `?`', () => {
     expect(findNonAsciiChars(toPlain(note))).toEqual([]);
   });
 });
+
+describe('unfilled bullet placeholders', () => {
+  const withPlaceholders = [
+    '*Mohon izin pasien kami terapi dengan :*',
+    '- ',
+    '',
+    '*Plan :*',
+    '- Monitoring tanda vital dan hemodinamik',
+    '- ',
+    '',
+    'Tabe terimakasih dokter',
+  ].join('\n');
+
+  it('does not send a lone bullet to WhatsApp', () => {
+    const output = toWhatsApp(withPlaceholders);
+    expect(output).not.toMatch(/^\s*•\s*$/m);
+    expect(output).toContain('• Monitoring tanda vital dan hemodinamik');
+    expect(output).toContain('Tabe terimakasih dokter');
+  });
+
+  it('drops them from plain text too', () => {
+    expect(toPlain(withPlaceholders)).not.toMatch(/^\s*-\s*$/m);
+  });
+
+  it('closes the gap instead of leaving a blank line', () => {
+    expect(toWhatsApp('*Plan :*\n- \n\nTabe terimakasih')).toBe(
+      '*Plan :*\n\nTabe terimakasih',
+    );
+  });
+
+  it('keeps a bullet that has content, however short', () => {
+    expect(toWhatsApp('- x')).toBe('• x');
+  });
+
+  it('keeps the placeholder in the stored note — only the copy drops it', () => {
+    // The formatter is pure; the body it was given is unchanged.
+    const body = '*Plan :*\n- ';
+    toWhatsApp(body);
+    expect(body).toBe('*Plan :*\n- ');
+  });
+});

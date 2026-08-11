@@ -19,6 +19,8 @@ import { AppShell } from '@/components/common/AppShell';
 import { fetchEntryBodies, setEntryLocked } from '@/data/repositories/entries.repo';
 import { carryForward, carryForwardSummary } from '@/domain/carryForward';
 import { formatLocation } from '@/domain/identity';
+import { insertIntoObjective } from '@/domain/lab/parseLab';
+import { parseSections } from '@/domain/sections/parseSections';
 import {
   daysBetween,
   formatShortDate,
@@ -231,6 +233,16 @@ export default function PatientPage(): JSX.Element {
           header spent three rows and a gap saying what fits on one.
         */}
         <header className="flex items-center gap-2 border-b border-border px-4 py-2">
+          {/* Browser back exists, but on an installed PWA there is no chrome to
+              show it, and on desktop the note fills the window. */}
+          <button
+            type="button"
+            onClick={() => navigate('/')}
+            aria-label="Kembali ke papan"
+            className="min-h-tap min-w-tap shrink-0 text-fg-muted"
+          >
+            <span aria-hidden="true">←</span>
+          </button>
           <div className="min-w-0 flex-1">
             <h2 className="truncate text-sm font-semibold">
               {formatDayHeader(selected, patient.admittedAt)}
@@ -497,11 +509,17 @@ export default function PatientPage(): JSX.Element {
         onOpenChange={setLabOpen}
         date={selected}
         onInsert={(text) => {
-          // Appended, never inserted mid-note: the investigation stack lives at
-          // the end and grows downward, and guessing an insertion point inside
-          // someone's note is not a guess worth making.
-          const current = editor.value.trimEnd();
-          editor.setValue(current ? `${current}\n\n${text}` : text);
+          // Into the objective block, after any existing dated investigations.
+          // Appending to the end put lab results below Plan, where they read
+          // wrong and where the "O + Penunjang" copy group would miss them.
+          const boundaries = parseSections(editor.value, settings.sectionAliases).map(
+            (section) => ({
+              sectionId: section.sectionId,
+              start: section.start,
+              end: section.end,
+            }),
+          );
+          editor.setValue(insertIntoObjective(editor.value, text, boundaries));
         }}
       />
 

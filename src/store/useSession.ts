@@ -22,6 +22,10 @@ import {
 } from '@/data/repositories/settings.repo';
 import type { UserProfile, UserSettings } from '@/domain/types';
 import { defaultUserSettings } from '@/domain/defaults';
+import {
+  requestPersistentStorage,
+  type StoragePersistence,
+} from '@/lib/storagePersistence';
 
 export type SessionStatus =
   | 'loading'
@@ -31,6 +35,8 @@ export type SessionStatus =
 
 interface SessionState {
   status: SessionStatus;
+  /** Whether the browser has promised not to evict our IndexedDB. */
+  storagePersistence: StoragePersistence;
   user: User | null;
   profile: UserProfile | null;
   missingConfig: string[];
@@ -42,6 +48,7 @@ interface SessionState {
 
 export const useSession = create<SessionState>((set, get) => ({
   status: 'loading',
+  storagePersistence: 'unsupported',
   user: null,
   profile: null,
   missingConfig: [],
@@ -85,6 +92,21 @@ export function initSession(): () => void {
     }
 
     useSession.setState({ status: 'signed-in', user });
+
+    /**
+     * Ask for persistent storage once we have a session to protect.
+     *
+     * Requested here rather than at boot because browsers weigh site
+     * engagement, and a signed-in user is the strongest signal we can offer.
+     * The result is advisory — Settings surfaces it, since "install the app"
+     * is only useful advice to someone whose storage is still evictable.
+     */
+    void requestPersistentStorage().then((state) => {
+      useSession.setState({ storagePersistence: state });
+      if (state !== 'persisted') {
+        console.warn('[storage] not persistent — session may be evicted', state);
+      }
+    });
 
     void bootstrapAccount(user);
 

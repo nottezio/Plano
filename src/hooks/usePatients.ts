@@ -19,7 +19,7 @@ export interface PatientsResult {
  * entries and checklists would be 2N streams for a screen showing four lines
  * per patient.
  */
-export function usePatients(status: PatientStatus): PatientsResult {
+export function usePatients(status: PatientStatus, enabled = true): PatientsResult {
   const uid = useSession((state) => state.user?.uid ?? null);
   const [result, setResult] = useState<PatientsResult>({
     patients: [],
@@ -58,7 +58,7 @@ export function usePatients(status: PatientStatus): PatientsResult {
         });
       },
     );
-  }, [uid, status]);
+  }, [uid, status, enabled]);
 
   return result;
 }

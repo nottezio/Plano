@@ -46,6 +46,30 @@ const ITALIC_RE = /(^|[^\w*])_([^\n_]+?)_(?!\w)/g;
 const BULLET_LINE_RE = /^([ \t]*)[-*] /gm;
 
 /**
+ * A bullet with nothing after it.
+ *
+ * Templates ship `- ` placeholders under every heading, and any left unfilled
+ * copy out as a lone `•` floating under "Plan :". In WhatsApp that does not
+ * read as an empty slot — it reads as a mistake, or worse as an item whose text
+ * failed to send.
+ *
+ * Dropped on copy only. The placeholder stays in the note, where it is doing
+ * its job of showing you where to type; it just does not travel to the chief.
+ */
+const EMPTY_BULLET_LINE_RE = /^[ \t]*[-*][ \t]*$/gm;
+
+function dropEmptyBullets(text: string): string {
+  return text
+    .replace(EMPTY_BULLET_LINE_RE, '\u0000')
+    // Remove the marked line together with its newline, so the gap closes
+    // rather than leaving a blank line where the bullet was.
+    // Only the marked line and its own newline. A blanket `\n{3,}` collapse
+    // would also flatten blank runs the resident typed themselves, and copying
+    // the whole note is supposed to be byte-faithful.
+    .replace(/\u0000\n?/g, '');
+}
+
+/**
  * Single-asterisk bold, as WhatsApp writes it.
  *
  * The parser learned to read `*Header*` last release; the formatters did not,
@@ -82,7 +106,7 @@ const SINGLE_BOLD_RE = /(^|[^\w*])\*([^\s*][^\n*]*?)\*(?!\w)/g;
  * reads as a typo rather than a list.
  */
 export function toWhatsApp(body: string): string {
-  return body
+  return dropEmptyBullets(body)
     .replace(BOLD_RE, '*$1*')
     .replace(STRIKE_RE, '~$1~')
     .replace(ITALIC_RE, '$1_$2_')
@@ -131,7 +155,7 @@ export function findNonAsciiChars(text: string): string[] {
  */
 export function toPlain(body: string): string {
   return foldToAscii(
-    body
+    dropEmptyBullets(body)
       // `**` first: otherwise the single-asterisk rule would eat one pair of
       // markers and leave the other behind.
       .replace(BOLD_RE, '$1')
