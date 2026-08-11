@@ -63,12 +63,14 @@ describe('toWhatsApp', () => {
     expect(toWhatsApp('~~stop O2~~')).toBe('~stop O2~');
   });
 
-  it('converts bullets to a real bullet character', () => {
-    expect(toWhatsApp('- Lanjut O2\n- Cek DPL')).toBe('• Lanjut O2\n• Cek DPL');
+  it('leaves hyphen bullets exactly as written', () => {
+    // Real handovers are written and read with hyphens. An earlier version
+    // converted these to `•`, and that is what arrived in the chief's chat.
+    expect(toWhatsApp('- Lanjut O2\n- Cek DPL')).toBe('- Lanjut O2\n- Cek DPL');
   });
 
   it('preserves indentation on nested bullets', () => {
-    expect(toWhatsApp('  - Cek DPL')).toBe('  • Cek DPL');
+    expect(toWhatsApp('  - Cek DPL')).toBe('  - Cek DPL');
   });
 
   it('leaves numbered lists as they are', () => {
@@ -354,7 +356,7 @@ describe('single-asterisk bold pasted from WhatsApp', () => {
 
   it('reads a leading `* ` as a bullet, not as bold', () => {
     expect(toPlain('* awal saja')).toBe('- awal saja');
-    expect(toWhatsApp('* awal saja')).toBe('• awal saja');
+    expect(toWhatsApp('* awal saja')).toBe('- awal saja');
   });
 });
 
@@ -388,9 +390,9 @@ describe('identity lines with trailing blanks', () => {
 describe('asterisk bullets pasted from WhatsApp', () => {
   const list = ['* Clopidogrel 75mg', '* Miniaspi 80mg', '- Atorvastatin 20mg'].join('\n');
 
-  it('converts both bullet spellings for WhatsApp', () => {
+  it('normalises both bullet spellings to a hyphen', () => {
     expect(toWhatsApp(list)).toBe(
-      ['• Clopidogrel 75mg', '• Miniaspi 80mg', '• Atorvastatin 20mg'].join('\n'),
+      ['- Clopidogrel 75mg', '- Miniaspi 80mg', '- Atorvastatin 20mg'].join('\n'),
     );
   });
 
@@ -401,7 +403,7 @@ describe('asterisk bullets pasted from WhatsApp', () => {
   });
 
   it('preserves indentation', () => {
-    expect(toWhatsApp('  * Cek DPL')).toBe('  • Cek DPL');
+    expect(toWhatsApp('  * Cek DPL')).toBe('  - Cek DPL');
   });
 
   it('does not mistake bold at the start of a line for a bullet', () => {
@@ -442,43 +444,18 @@ describe('SIMGOS cannot render non-ASCII — it shows `?`', () => {
   });
 });
 
-describe('unfilled bullet placeholders', () => {
-  const withPlaceholders = [
-    '*Mohon izin pasien kami terapi dengan :*',
-    '- ',
-    '',
-    '*Plan :*',
-    '- Monitoring tanda vital dan hemodinamik',
-    '- ',
-    '',
-    'Tabe terimakasih dokter',
-  ].join('\n');
+describe('bare bullets are content, not noise', () => {
+  const withBare = ['Plan Diagnostik:', '-', '', 'Plan Monitoring:', '- Monitoring TTV'].join(
+    '\n',
+  );
 
-  it('does not send a lone bullet to WhatsApp', () => {
-    const output = toWhatsApp(withPlaceholders);
-    expect(output).not.toMatch(/^\s*•\s*$/m);
-    expect(output).toContain('• Monitoring tanda vital dan hemodinamik');
-    expect(output).toContain('Tabe terimakasih dokter');
+  it('keeps a bullet with nothing after it', () => {
+    // A bare `-` under a heading means "nothing here" in a real handover.
+    // Removing it changes what the note says.
+    expect(toWhatsApp(withBare)).toBe(withBare);
   });
 
-  it('drops them from plain text too', () => {
-    expect(toPlain(withPlaceholders)).not.toMatch(/^\s*-\s*$/m);
-  });
-
-  it('closes the gap instead of leaving a blank line', () => {
-    expect(toWhatsApp('*Plan :*\n- \n\nTabe terimakasih')).toBe(
-      '*Plan :*\n\nTabe terimakasih',
-    );
-  });
-
-  it('keeps a bullet that has content, however short', () => {
-    expect(toWhatsApp('- x')).toBe('• x');
-  });
-
-  it('keeps the placeholder in the stored note — only the copy drops it', () => {
-    // The formatter is pure; the body it was given is unchanged.
-    const body = '*Plan :*\n- ';
-    toWhatsApp(body);
-    expect(body).toBe('*Plan :*\n- ');
+  it('keeps it in plain text too', () => {
+    expect(toPlain(withBare)).toBe(withBare);
   });
 });

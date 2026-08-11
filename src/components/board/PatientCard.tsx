@@ -43,6 +43,17 @@ export function PatientCard({
     >
       <div className="flex items-start gap-2">
         <h3 className="min-w-0 flex-1 truncate text-sm font-semibold">{card.title}</h3>
+        {/* Consultant initials, read from the note's DPJP line. Initials
+            rather than a name because the card has one line for it and a
+            resident reads these as a set. */}
+        {card.dpjp ? (
+          <span
+            title={card.dpjp.name}
+            className="shrink-0 rounded border border-current/30 px-1 text-[10px] font-semibold opacity-80"
+          >
+            {card.dpjp.initials}
+          </span>
+        ) : null}
         {patient.pinned ? (
           <span aria-label="Disematkan" className="text-xs">
             ★

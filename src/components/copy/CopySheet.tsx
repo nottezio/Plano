@@ -9,6 +9,7 @@ import {
 } from '@/domain/format/composeCopy';
 import { FORMAT_LABELS, findMarkdownLeaks } from '@/domain/format/formatters';
 import { composePdfReport } from '@/domain/format/pdfReport';
+import { primaryDpjp, REPORT_FORMAT_LABELS } from '@/domain/dpjp';
 import {
   COPY_GROUPS,
   availableGroups,
@@ -22,6 +23,7 @@ import type {
   CopyRange,
   OutputFormat,
   Patient,
+  ReportFormat,
   SectionAlias,
 } from '@/domain/types';
 
@@ -52,6 +54,7 @@ export function CopySheet({
   today,
   aliases,
   presets,
+  dpjpFormats,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -61,6 +64,7 @@ export function CopySheet({
   today: ClinicalDate;
   aliases: readonly SectionAlias[];
   presets: readonly CopyPreset[];
+  dpjpFormats: Record<string, ReportFormat>;
 }): JSX.Element {
   const [format, setFormat] = useState<OutputFormat>('whatsapp');
   const [range, setRange] = useState<CopyRange>('specific');
@@ -84,6 +88,17 @@ export function CopySheet({
    * chips next to it would imply a choice that does not exist.
    */
   const [pdfMode, setPdfMode] = useState(false);
+
+  /**
+   * A reminder, not a switch.
+   *
+   * The consultant's expected format is shown next to the Bentuk chips and the
+   * matching one is highlighted, but nothing is selected on the user's behalf:
+   * a copy sheet that silently changed shape between patients would be
+   * unpredictable exactly when it matters.
+   */
+  const dpjp = useMemo(() => primaryDpjp(body), [body]);
+  const expected = dpjp ? dpjpFormats[dpjp.id] : undefined;
 
   const present = useMemo(() => availableGroups(body, aliases), [body, aliases]);
 
@@ -195,6 +210,12 @@ export function CopySheet({
           </Chip>
         ))}
       </Group>
+
+      {expected ? (
+        <p className="mb-2 text-[11px] text-fg-muted">
+          {dpjp?.initials} biasanya meminta: <strong>{REPORT_FORMAT_LABELS[expected]}</strong>
+        </p>
+      ) : null}
 
       <Group label="Bentuk">
         <Chip active={!pdfMode} onClick={() => setPdfMode(false)}>

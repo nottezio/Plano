@@ -1,6 +1,7 @@
 import { checklistProgress, resolveCardColor, type ChecklistStates } from './checklist';
 import { hariRawat } from './clinicalDate';
 import { displayName, redactName } from './identity';
+import { dpjpById, type Dpjp } from './dpjp';
 import type {
   ChecklistItemDef,
   ClinicalDate,
@@ -74,6 +75,8 @@ export interface BoardCard {
   colorToken: string;
   hariRawat: number;
   progress: ReturnType<typeof checklistProgress>;
+  /** Consultant detected from the note, for the card badge. */
+  dpjp: Dpjp | null;
   preview: string;
   previewIsStale: boolean;
 }
@@ -95,6 +98,7 @@ export function buildCard(
     // initials while the preview under it spells the name out in full is not
     // partial protection, it is none — and a stored preview written before this
     // rule existed can still contain the name.
+    dpjp: patient.dpjpId ? (dpjpById(patient.dpjpId) ?? null) : null,
     preview: showInitialsOnly
       ? redactName(patient.preview ?? '', patient.name ?? '')
       : (patient.preview ?? ''),
@@ -141,10 +145,15 @@ export function matchesQuery(patient: Patient, query: string): boolean {
   if (tokens.length === 0) return true;
   // The preview is included because a patient with no typed name is titled by
   // their note — searching for the words on the card must find the card.
+  const dpjp = patient.dpjpId ? dpjpById(patient.dpjpId) : undefined;
+
   const haystack = [
     patient.searchBlob,
     patient.name ?? '',
     patient.preview ?? '',
+    // Searchable by consultant, by full name or by initials: "AHN" and
+    // "nashar" both find his patients.
+    dpjp ? `${dpjp.name} ${dpjp.initials} ${dpjp.match.join(' ')}` : '',
   ]
     .join(' ')
     .toLowerCase();

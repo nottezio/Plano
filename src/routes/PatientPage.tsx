@@ -20,6 +20,7 @@ import { fetchEntryBodies, setEntryLocked } from '@/data/repositories/entries.re
 import { carryForward, carryForwardSummary } from '@/domain/carryForward';
 import { formatLocation } from '@/domain/identity';
 import { insertIntoObjective } from '@/domain/lab/parseLab';
+import { primaryDpjp, REPORT_FORMAT_LABELS } from '@/domain/dpjp';
 import { parseSections } from '@/domain/sections/parseSections';
 import {
   daysBetween,
@@ -97,6 +98,14 @@ export default function PatientPage(): JSX.Element {
   const revisions = useRevisions(patientId, selected, trailOpen);
   const checklist = useChecklist(patientId, selected, settings.checklistItems);
   const notesSync = usePatientNotes(patient ?? null);
+
+  /**
+   * Read from the note, not from a field. The DPJP line is already there, and
+   * a second place to record the same fact is a second place for it to be
+   * wrong.
+   */
+  const dpjp = useMemo(() => primaryDpjp(editor.value), [editor.value]);
+  const dpjpFormat = dpjp ? settings.dpjpFormats[dpjp.id] : undefined;
 
   const railDates = useMemo(
     () => buildRail(patient?.admittedAt ?? today, today, entryDates),
@@ -257,6 +266,10 @@ export default function PatientPage(): JSX.Element {
               >
                 Tambah identitas pasien
               </button>
+            ) : dpjpFormat ? (
+              <p className="truncate text-[11px] text-fg-faint">
+                {dpjp?.initials} — {REPORT_FORMAT_LABELS[dpjpFormat]}
+              </p>
             ) : patient.diagnoses.length > 0 ? (
               <p className="truncate text-[11px] text-fg-faint">
                 {patient.diagnoses.join(', ')}
@@ -546,6 +559,7 @@ export default function PatientPage(): JSX.Element {
         today={today}
         aliases={settings.sectionAliases}
         presets={settings.copyPresets}
+        dpjpFormats={settings.dpjpFormats}
       />
 
       <RevisionTrail

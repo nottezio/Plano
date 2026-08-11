@@ -46,71 +46,46 @@ const ITALIC_RE = /(^|[^\w*])_([^\n_]+?)_(?!\w)/g;
 const BULLET_LINE_RE = /^([ \t]*)[-*] /gm;
 
 /**
- * A bullet with nothing after it.
- *
- * Templates ship `- ` placeholders under every heading, and any left unfilled
- * copy out as a lone `•` floating under "Plan :". In WhatsApp that does not
- * read as an empty slot — it reads as a mistake, or worse as an item whose text
- * failed to send.
- *
- * Dropped on copy only. The placeholder stays in the note, where it is doing
- * its job of showing you where to type; it just does not travel to the chief.
- */
-const EMPTY_BULLET_LINE_RE = /^[ \t]*[-*][ \t]*$/gm;
-
-function dropEmptyBullets(text: string): string {
-  return text
-    .replace(EMPTY_BULLET_LINE_RE, '\u0000')
-    // Remove the marked line together with its newline, so the gap closes
-    // rather than leaving a blank line where the bullet was.
-    // Only the marked line and its own newline. A blanket `\n{3,}` collapse
-    // would also flatten blank runs the resident typed themselves, and copying
-    // the whole note is supposed to be byte-faithful.
-    .replace(/\u0000\n?/g, '');
-}
-
-/**
  * Single-asterisk bold, as WhatsApp writes it.
  *
- * The parser learned to read `*Header*` last release; the formatters did not,
- * so a note pasted in from WhatsApp copied out to SIMGOS with every asterisk
- * still in it. Stored bodies legitimately contain both spellings — `**x**` when
- * typed with the toolbar, `*x*` when pasted from a chat — and plain text has to
- * strip both.
+ * Stored bodies legitimately contain both spellings — `**x**` when typed with
+ * the toolbar, `*x*` when pasted from a chat — and plain text has to strip both.
  *
- * Two guards, and only two, because each one has to earn its place:
+ * Two guards, and only two, because each has to earn its place:
  *
- *  - `(^|[^\w*])` before the opening marker keeps clinical shorthand intact —
+ *  - `(^|[^\w*])` before the opening marker keeps clinical shorthand intact:
  *    in `Ceftriaxone 2*1 g` the asterisk follows a word character, so it never
  *    matches.
- *  - the span must START with a non-space, which is what distinguishes
- *    `*Tn. Abdullah*` from the stray asterisk in `nilai * penting`.
+ *  - the span must START with a non-space, which distinguishes `*Tn. Abdullah*`
+ *    from the stray asterisk in `nilai * penting`, and a bold marker from a
+ *    `* ` bullet.
  *
- * It deliberately does NOT require the span to END with a non-space. Real
- * identity lines are written `*Tn.  /  /  tahun / RM *` with the placeholder
- * left blank, and an earlier version that demanded a non-space on both sides
- * skipped exactly those — so the patient identity was the one line that copied
- * into SIMGOS with its asterisks still attached.
- *
- * Same no-lookbehind constraint as everywhere else.
+ * It deliberately does NOT require a non-space at the END: identity lines are
+ * written `*Tn.  /  /  tahun / RM *` with placeholders blank, and demanding one
+ * on both sides skipped exactly those.
  */
 const SINGLE_BOLD_RE = /(^|[^\w*])\*([^\s*][^\n*]*?)\*(?!\w)/g;
 
 /**
  * SPEC 12.3 — WhatsApp.
  *
- * `**b**` → `*b*`, `_i_` unchanged, `~~s~~` → `~s~`, `- ` → `• `.
+ * `**b**` → `*b*`, `_i_` unchanged, `~~s~~` → `~s~`, and bullets stay `- `.
  *
- * Bullets become a literal `•` because WhatsApp renders no list syntax at all:
- * a leading `- ` would paste as a stray hyphen, and on a handover message that
- * reads as a typo rather than a list.
+ * An earlier version converted `- ` to `• `, reasoning that WhatsApp renders no
+ * list syntax so a hyphen would read as a stray dash. Real handovers say
+ * otherwise: they are written with hyphens, read with hyphens, and a `•`
+ * arriving in the chief's chat is the thing that looks out of place.
+ *
+ * `* ` bullets are normalised to `- ` so a note assembled from several pasted
+ * sources comes out consistent, and so a leading asterisk cannot be mistaken
+ * for an unclosed bold marker.
  */
 export function toWhatsApp(body: string): string {
-  return dropEmptyBullets(body)
+  return body
     .replace(BOLD_RE, '*$1*')
     .replace(STRIKE_RE, '~$1~')
     .replace(ITALIC_RE, '$1_$2_')
-    .replace(BULLET_LINE_RE, '$1• ');
+    .replace(BULLET_LINE_RE, '$1- ');
 }
 
 /**
@@ -155,7 +130,7 @@ export function findNonAsciiChars(text: string): string[] {
  */
 export function toPlain(body: string): string {
   return foldToAscii(
-    dropEmptyBullets(body)
+    body
       // `**` first: otherwise the single-asterisk rule would eat one pair of
       // markers and leave the other behind.
       .replace(BOLD_RE, '$1')
@@ -199,12 +174,13 @@ export const FORMAT_LABELS: Record<OutputFormat, string> = {
 /**
  * Diagnostic used by the tests and by the copy sheet's preview.
  * Any hit here is a leak the acceptance criterion forbids.
+ *
+ * `- ` is NOT checked: bullets are meant to survive into WhatsApp unchanged.
  */
 export function findMarkdownLeaks(text: string): string[] {
   const leaks: string[] = [];
   if (text.includes('**')) leaks.push('**');
   if (text.includes('~~')) leaks.push('~~');
-  if (/^(\s*)- /m.test(text)) leaks.push('- ');
   return leaks;
 }
 

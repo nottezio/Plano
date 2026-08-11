@@ -23,6 +23,9 @@ export type SectionId =
   | 'terapi'
   | `custom_${string}`;
 
+/** What shape of report a consultant expects (see dpjp.ts). */
+export type ReportFormat = 'harian' | 'diagnosis' | 'ringkas';
+
 export type Sex = 'L' | 'P';
 export type PatientStatus = 'active' | 'archived';
 export type ArchiveReason = 'pulang' | 'pindah' | 'meninggal' | 'lainnya';
@@ -86,6 +89,14 @@ export interface UserSettings {
   greetings: string[];
   /** Reporting-sentence presets ("mohon izin melaporkan …"). */
   openingSentences: string[];
+  /**
+   * Which report shape each DPJP expects, keyed by registry id.
+   *
+   * Configuration, not code: consultants change what they want, and a redeploy
+   * is the wrong unit of change for that. Unset means the standard daily
+   * handover, so the map only ever holds the exceptions.
+   */
+  dpjpFormats: Record<string, ReportFormat>;
   copyPresets: CopyPreset[];
   privacy: PrivacySettings;
   theme: 'system' | 'light' | 'dark';
@@ -129,6 +140,15 @@ export interface Patient {
   room?: string;
   bed?: string;
   dpjp?: string;
+  /**
+   * Registry id of the consultant detected from the note's DPJP lines.
+   *
+   * Denormalised for the same reason as `preview`: the board needs it for
+   * every card and cannot open every note to find it. Derived, never typed —
+   * refreshed on each body write, so correcting the DPJP line in the note is
+   * the only place it is ever edited.
+   */
+  dpjpId?: string;
   /**
    * Free-form note that belongs to the PATIENT, not to a day.
    *

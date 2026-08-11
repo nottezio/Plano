@@ -120,6 +120,13 @@ export function defaultUserSettings(): UserSettings {
      * blank is not.
      */
     openingSentences: [...SEED_OPENING_SENTENCES],
+    /**
+     * Seeded with the one binding that is known: Az Hafid Nashar's handovers
+     * carry the primary/secondary diagnosis split. Everything else is left
+     * unset rather than guessed — a wrong reminder about what a consultant
+     * wants is worse than no reminder.
+     */
+    dpjpFormats: { ahn: 'diagnosis' },
     copyPresets: DEFAULT_COPY_PRESETS.map((preset) => ({ ...preset })),
     privacy: {
       // Full names are stored, so the lock is ON by default (SPEC 18).

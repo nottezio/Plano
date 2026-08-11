@@ -6,6 +6,7 @@ import { ChecklistEditor } from '@/components/settings/ChecklistEditor';
 import { ClinicalDayEditor } from '@/components/settings/ClinicalDayEditor';
 import { SettingsGroup, SettingsSection, Toggle } from '@/components/settings/SettingsSection';
 import { StringListEditor } from '@/components/settings/StringListEditor';
+import { DpjpFormatEditor } from '@/components/settings/DpjpFormatEditor';
 import { TemplateEditor } from '@/components/settings/TemplateEditor';
 import { PinSetupSheet } from '@/components/privacy/PinSetupSheet';
 import { useLock } from '@/store/useLock';
@@ -192,6 +193,16 @@ export default function SettingsPage(): JSX.Element {
               if (count > 0) patch({ openingSentences: next });
               announce(count);
             }}
+          />
+        </SettingsSection>
+
+        <SettingsSection
+          title="Format per DPJP"
+          description="Pengingat format laporan yang diharapkan tiap konsulen."
+        >
+          <DpjpFormatEditor
+            formats={settings.dpjpFormats}
+            onChange={(dpjpFormats) => patch({ dpjpFormats })}
           />
         </SettingsSection>
 

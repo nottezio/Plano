@@ -16,6 +16,7 @@ import { nanoid } from 'nanoid';
 
 import { getDeviceId } from '../deviceId';
 import { clinicalStart } from '@/domain/identity';
+import { primaryDpjp } from '@/domain/dpjp';
 import { parseSections } from '@/domain/sections/parseSections';
 import { DEFAULT_SECTION_ALIASES } from '@/domain/sections/aliases';
 import type { SectionAlias } from '@/domain/types';
@@ -132,6 +133,10 @@ export function touchEntryMeta(
       lastEntryDate: date,
       preview: buildPreview(body),
       previewDate: date,
+      // Derived here so the board never has to open a note to know whose
+      // patient this is. `deleteField` when nobody is named: an absent DPJP and
+      // a stale one are very different things on a card.
+      dpjpId: primaryDpjp(body)?.id ?? deleteField(),
       updatedAt: serverTimestamp(),
       updatedBy: getDeviceId(),
     }),
@@ -177,6 +182,7 @@ type PatientPatchKey = keyof Pick<
   | 'room'
   | 'bed'
   | 'dpjp'
+  | 'dpjpId'
   | 'notes'
   | 'diagnoses'
   | 'labels'
