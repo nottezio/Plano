@@ -17,6 +17,7 @@ import { nanoid } from 'nanoid';
 import { getDeviceId } from '../deviceId';
 import { clinicalStart } from '@/domain/identity';
 import { primaryDpjp } from '@/domain/dpjp';
+import { parsePatientFacts } from '@/domain/parsePatient';
 import { parseSections } from '@/domain/sections/parseSections';
 import { DEFAULT_SECTION_ALIASES } from '@/domain/sections/aliases';
 import type { SectionAlias } from '@/domain/types';
@@ -123,6 +124,73 @@ export function buildPreview(body: string, aliases?: readonly SectionAlias[]): s
  * Refreshes the board caches after a body write. Called from entries.repo so
  * no call site can forget it and leave the board showing yesterday's text.
  */
+/**
+ * Facts the note can tell us about the patient.
+ *
+ * ABSENCE IS NOT A CORRECTION. An earlier version cleared `dpjpId` whenever the
+ * body being written named nobody — which meant opening a fresh day and typing
+ * one character wiped the consultant, because a blank new day names nobody.
+ * The patient's DPJP is a fact about the patient, not about today's page.
+ *
+ * So a derived field is only ever WRITTEN when the note actually contains it.
+ * Clearing happens when the user clears the field in the identity form, which
+ * is the one place they can say they meant it.
+ *
+ * Identity fields go further and fill only what is BLANK: someone who typed a
+ * name into the form outranks a line in a note, and silently overwriting a
+ * corrected MRN with the uncorrected one from the note text would be the worst
+ * possible reading of "keep them in sync".
+ */
+function derivedPatientFields(body: string): DocumentData {
+  const fields: DocumentData = {};
+
+  const dpjp = primaryDpjp(body);
+  if (dpjp) fields['dpjpId'] = dpjp.id;
+
+  return fields;
+}
+
+/**
+ * Fills blank patient fields from the note. Never overwrites a typed value.
+ *
+ * Separate from `touchEntryMeta` because it needs the CURRENT patient to know
+ * what is blank, and because it should run on a real edit rather than on every
+ * autosave flush.
+ */
+export function fillPatientFromNote(patient: Patient, body: string): Promise<void> | null {
+  const facts = parsePatientFacts(body);
+  const patch: PatientPatch = {};
+
+  if (!patient.name?.trim() && facts.name) patch.name = facts.name;
+  if (!patient.mrn?.trim() && facts.mrn) patch.mrn = facts.mrn;
+  if (patient.age === undefined && facts.age !== undefined) patch.age = facts.age;
+  if (!patient.ward?.trim() && facts.ward) patch.ward = facts.ward;
+  if (!patient.room?.trim() && facts.room) patch.room = facts.room;
+  if (!patient.bed?.trim() && facts.bed) patch.bed = facts.bed;
+
+  if (Object.keys(patch).length === 0) return null;
+
+  // The search blob is rebuilt from the merged result, so a name learned from
+  // the note becomes searchable in the same write that stores it.
+  // The search blob is rebuilt from the merged result, so a name learned from
+  // the note becomes searchable in the same write that stores it. Optional keys
+  // are only included when set — `exactOptionalPropertyTypes` treats "absent"
+  // and "present but undefined" as different, and so does Firestore.
+  const blobSource: Parameters<typeof buildSearchBlob>[0] = {
+    name: patch.name ?? patient.name ?? '',
+    diagnoses: patient.diagnoses,
+  };
+  const mrn = patch.mrn ?? patient.mrn;
+  const ward = patch.ward ?? patient.ward;
+  const bed = patch.bed ?? patient.bed;
+  if (mrn) blobSource.mrn = mrn;
+  if (ward) blobSource.ward = ward;
+  if (bed) blobSource.bed = bed;
+  if (patient.dpjp) blobSource.dpjp = patient.dpjp;
+
+  return updatePatient(patient.id, patch, blobSource);
+}
+
 export function touchEntryMeta(
   patientId: string,
   date: ClinicalDate,
@@ -133,10 +201,7 @@ export function touchEntryMeta(
       lastEntryDate: date,
       preview: buildPreview(body),
       previewDate: date,
-      // Derived here so the board never has to open a note to know whose
-      // patient this is. `deleteField` when nobody is named: an absent DPJP and
-      // a stale one are very different things on a card.
-      dpjpId: primaryDpjp(body)?.id ?? deleteField(),
+      ...derivedPatientFields(body),
       updatedAt: serverTimestamp(),
       updatedBy: getDeviceId(),
     }),

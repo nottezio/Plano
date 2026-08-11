@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 
 import { BodyEditor } from '@/components/patient/BodyEditor';
@@ -17,10 +17,11 @@ import { DateRail } from '@/components/patient/DateRail';
 import { RevisionTrail } from '@/components/patient/RevisionTrail';
 import { AppShell } from '@/components/common/AppShell';
 import { fetchEntryBodies, setEntryLocked } from '@/data/repositories/entries.repo';
+import { fillPatientFromNote } from '@/data/repositories/patients.repo';
 import { carryForward, carryForwardSummary } from '@/domain/carryForward';
 import { formatLocation } from '@/domain/identity';
 import { insertIntoObjective } from '@/domain/lab/parseLab';
-import { primaryDpjp, REPORT_FORMAT_LABELS } from '@/domain/dpjp';
+import { dpjpById, primaryDpjp, REPORT_FORMAT_LABELS } from '@/domain/dpjp';
 import { parseSections } from '@/domain/sections/parseSections';
 import {
   daysBetween,
@@ -92,6 +93,24 @@ export default function PatientPage(): JSX.Element {
     locked,
   });
 
+  /**
+   * Learn identity and location from the note.
+   *
+   * Runs when the note settles rather than on every keystroke, and fills only
+   * fields that are still blank — a name typed into the identity form outranks
+   * a line in a note, and overwriting a corrected MRN with the uncorrected one
+   * from the note text is the worst possible reading of "keep them in sync".
+   */
+  useEffect(() => {
+    if (!patient || editor.dirty) return;
+    const written = fillPatientFromNote(patient, editor.value);
+    if (written) {
+      void written.catch((error: unknown) =>
+        console.error('[patient] could not fill from note', error),
+      );
+    }
+  }, [patient, editor.dirty, editor.value]);
+
   // SPEC 7.5 — announce presence only while the day is actually editable.
   usePresenceHeartbeat(patientId, selected, !locked);
   const otherDevice = otherDeviceEditing(entry);
@@ -104,7 +123,18 @@ export default function PatientPage(): JSX.Element {
    * a second place to record the same fact is a second place for it to be
    * wrong.
    */
-  const dpjp = useMemo(() => primaryDpjp(editor.value), [editor.value]);
+  /**
+   * Today's note first, the patient's stored consultant second.
+   *
+   * A day that has not been written yet names nobody, and "no DPJP" on a blank
+   * page is not a fact about the patient — it is a fact about the page. The
+   * stored value comes from the last day that did name someone, which is the
+   * answer the user actually wants at 6am before rounds.
+   */
+  const dpjp = useMemo(
+    () => primaryDpjp(editor.value) ?? (patient?.dpjpId ? dpjpById(patient.dpjpId) : null),
+    [editor.value, patient?.dpjpId],
+  );
   const dpjpFormat = dpjp ? settings.dpjpFormats[dpjp.id] : undefined;
 
   const railDates = useMemo(
