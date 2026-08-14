@@ -106,6 +106,20 @@ export function CopySheet({
   const dpjp = useMemo(() => primaryDpjp(body), [body]);
   const expected = dpjp ? dpjpFormats[dpjp.id] : undefined;
 
+  /**
+   * The consultant's preferences are OFFERED, never imposed.
+   *
+   * An earlier version read `expected` directly when composing, which meant
+   * choosing "WhatsApp" for MZ silently produced plain text — the chip said one
+   * thing and the output was another. A control that does not do what it says
+   * is worse than no control.
+   *
+   * Applying is one tap and it is visible: the switches move, so what you get
+   * is always what the sheet shows.
+   */
+  const [applied, setApplied] = useState(false);
+  const active = applied ? expected : undefined;
+
   const present = useMemo(() => availableGroups(body, aliases), [body, aliases]);
 
   /**
@@ -147,12 +161,12 @@ export function CopySheet({
             aliases,
             // A consultant who reads the report somewhere that does not render
             // WhatsApp markers gets plain text, whatever chip is selected.
-            format: expected?.plainText ? 'plain' : format,
+            format: active?.plainText ? 'plain' : format,
             // The consultant's own switches, so choosing "Ringkas (PDF)" for
             // ZD produces a report with a verification time and for MZ one
             // without staffing lines, rather than one shape for everyone.
-            staffing: expected?.staffing ?? true,
-            ...(expected?.verificationTime ? { verificationTime: nowWita() } : {}),
+            staffing: active?.staffing ?? true,
+            ...(active?.verificationTime ? { verificationTime: nowWita() } : {}),
           })
         : composeCopy(days, {
         format,
@@ -213,7 +227,14 @@ export function CopySheet({
 
       <Group label="Format">
         {(Object.keys(FORMAT_LABELS) as OutputFormat[]).map((value) => (
-          <Chip key={value} active={format === value} onClick={() => setFormat(value)}>
+          <Chip
+            key={value}
+            active={format === value}
+            onClick={() => {
+              setFormat(value);
+              setApplied(false);
+            }}
+          >
             {FORMAT_LABELS[value]}
           </Chip>
         ))}
@@ -227,23 +248,42 @@ export function CopySheet({
         ))}
       </Group>
 
-      {expected?.plainText && pdfMode ? (
-        <p className="mb-2 text-[11px] text-fg-faint">
-          Format teks polos dipakai otomatis untuk {dpjp?.initials}.
-        </p>
-      ) : null}
-
       {expected ? (
-        <p className="mb-2 text-[11px] text-fg-muted">
-          {dpjp?.initials} biasanya meminta: <strong>{describeConfig(expected)}</strong>
-        </p>
+        <div className="mb-3 rounded-lg border border-border bg-bg-subtle p-2">
+          <p className="text-[11px] text-fg-muted">
+            {dpjp?.initials} biasanya meminta: <strong>{describeConfig(expected)}</strong>
+          </p>
+          <button
+            type="button"
+            onClick={() => {
+              setApplied(true);
+              setPdfMode(expected.format === 'ringkas');
+            }}
+            disabled={applied}
+            className="mt-1 min-h-tap text-xs font-medium text-accent underline disabled:text-fg-faint disabled:no-underline"
+          >
+            {applied ? 'Format ini sedang dipakai' : 'Pakai format ini'}
+          </button>
+        </div>
       ) : null}
 
       <Group label="Bentuk">
-        <Chip active={!pdfMode} onClick={() => setPdfMode(false)}>
+        <Chip
+          active={!pdfMode}
+          onClick={() => {
+            setPdfMode(false);
+            setApplied(false);
+          }}
+        >
           Laporan harian
         </Chip>
-        <Chip active={pdfMode} onClick={() => setPdfMode(true)}>
+        <Chip
+          active={pdfMode}
+          onClick={() => {
+            setPdfMode(true);
+            setApplied(false);
+          }}
+        >
           Ringkas (PDF)
         </Chip>
       </Group>

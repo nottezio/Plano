@@ -139,6 +139,14 @@ export interface NoteTemplate {
 }
 
 export interface UserProfile {
+  /**
+   * A single free-text note belonging to the user, not to any patient.
+   *
+   * On the profile document rather than in a collection because there is
+   * exactly one: a collection would invite a list, and a list would make you
+   * choose a note before you could write in one.
+   */
+  scratchNote?: string;
   uid: string;
   displayName: string;
   email: string;

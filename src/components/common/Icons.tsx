@@ -52,6 +52,14 @@ export const IconDocuments = (props: IconProps): JSX.Element => (
   </Base>
 );
 
+export const IconNote = (props: IconProps): JSX.Element => (
+  <Base {...props}>
+    <path d="M4 5a1 1 0 0 1 1-1h14a1 1 0 0 1 1 1v10l-5 5H5a1 1 0 0 1-1-1z" />
+    <path d="M20 15h-4a1 1 0 0 0-1 1v4" />
+    <path d="M8 9h8M8 13h5" />
+  </Base>
+);
+
 export const IconSettings = (props: IconProps): JSX.Element => (
   <Base {...props}>
     <circle cx="12" cy="12" r="3" />

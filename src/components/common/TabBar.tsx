@@ -2,7 +2,7 @@ import { NavLink } from 'react-router-dom';
 
 import { SyncPill } from './SyncPill';
 import { APP_VERSION } from '@/version.js';
-import { IconArchive, IconBoard, IconDocuments, IconSettings } from './Icons';
+import { IconArchive, IconBoard, IconDocuments, IconNote, IconSettings } from './Icons';
 import { useUI } from '@/store/useUI';
 
 /**
@@ -19,6 +19,7 @@ const TABS = [
   { to: '/', label: 'Aktif', Icon: IconBoard, end: true },
   { to: '/arsip', label: 'Arsip', Icon: IconArchive, end: false },
   { to: '/dokumen', label: 'Dokumen', Icon: IconDocuments, end: false },
+  { to: '/catatan', label: 'Catatan', Icon: IconNote, end: false },
   { to: '/pengaturan', label: 'Pengaturan', Icon: IconSettings, end: false },
 ] as const;
 

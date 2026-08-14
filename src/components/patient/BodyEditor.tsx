@@ -120,11 +120,24 @@ export function BodyEditor({
           readOnly={readOnly}
           placeholder={placeholder}
           spellCheck
+          /**
+           * No `lang` attribute on purpose.
+           *
+           * The document is `lang="id"`, which makes the browser check Indonesian
+           * only — so `patient`, `discharge` and every English abbreviation in a
+           * cardiology note gets underlined. Leaving `lang` unset here lets the
+           * browser use every dictionary the user has installed, which is the
+           * closest thing to a mixed Indonesian/English checker that exists.
+           *
+           * There is no medical dictionary anywhere: drug names and abbreviations
+           * will be flagged. See CHANGES for why shipping one would be worse.
+           */
           autoCapitalize="sentences"
           autoCorrect="on"
           // `break-words` so a pasted lab line with no spaces wraps instead of
           // widening the column and dragging a scrollbar across the page.
           className="w-full resize-none break-words border-0 bg-transparent text-[15px] leading-7 outline-none placeholder:text-fg-faint read-only:opacity-70"
+          lang=""
           rows={12}
         />
       </div>

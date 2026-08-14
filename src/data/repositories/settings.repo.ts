@@ -63,3 +63,10 @@ export function updateSettings(uid: string, patch: Partial<UserSettings>): Promi
   if (Object.keys(payload).length === 0) return Promise.resolve();
   return trackWrite(updateDoc(userDoc(uid), payload));
 }
+
+/**
+ * The personal scratch note. Merged, so it never disturbs settings alongside it.
+ */
+export function updateProfileNote(uid: string, scratchNote: string): Promise<void> {
+  return trackWrite(setDoc(userDoc(uid), { scratchNote }, { merge: true }));
+}
