@@ -61,6 +61,12 @@
   --card-step-12-accent: #047857;
   --card-done-bg: #dcfce7;
   --card-done-accent: #15803d;
+  --sec-identitas: #eef2ff;
+  --sec-s: #ecfdf5;
+  --sec-o: #eff6ff;
+  --sec-a: #fef3c7;
+  --sec-terapi: #fdf2f8;
+  --sec-ts: #f5f3ff;
   --note-red: #dc2626;
   --note-amber: #b45309;
   --note-green: #15803d;
@@ -130,6 +136,12 @@
   --card-step-12-accent: #34d399;
   --card-done-bg: #10331f;
   --card-done-accent: #4ade80;
+  --sec-identitas: #171a2b;
+  --sec-s: #10231c;
+  --sec-o: #111d2e;
+  --sec-a: #241f10;
+  --sec-terapi: #241522;
+  --sec-ts: #1c1730;
   --note-red: #f87171;
   --note-amber: #fbbf24;
   --note-green: #4ade80;

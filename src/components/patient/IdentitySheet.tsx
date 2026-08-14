@@ -1,3 +1,5 @@
+import { useEffect, useState } from 'react';
+
 import { Sheet } from '@/components/common/Sheet';
 import { updatePatient } from '@/data/repositories/patients.repo';
 import type { Patient, Sex } from '@/domain/types';
@@ -109,6 +111,18 @@ export function IdentitySheet({
   );
 }
 
+/**
+ * Typed text lives locally until the field is left.
+ *
+ * Binding `value` straight to the Firestore document made these fields
+ * unusable: each keystroke wrote, and React re-rendered with the value the
+ * server still held, so the character was erased before the echo arrived. The
+ * same class of bug as the editor that undid every keystroke — a controlled
+ * input whose source of truth is a round trip away.
+ *
+ * The draft follows the document while the field is idle, so a change made on
+ * another device still shows up, and stops following it while you are typing.
+ */
 function Field({
   label,
   value,
@@ -124,15 +138,32 @@ function Field({
   inputMode?: 'numeric';
   autoFocus?: boolean;
 }): JSX.Element {
+  const [draft, setDraft] = useState(value);
+  const [editing, setEditing] = useState(false);
+
+  useEffect(() => {
+    if (!editing) setDraft(value);
+  }, [value, editing]);
+
   return (
     <label className="block">
       <span className="mb-1 block text-xs text-fg-muted">{label}</span>
       <input
         type={type}
-        value={value}
+        value={draft}
         autoFocus={autoFocus}
         {...(inputMode ? { inputMode } : {})}
-        onChange={(event) => onChange(event.target.value)}
+        onFocus={() => setEditing(true)}
+        onChange={(event) => setDraft(event.target.value)}
+        onBlur={() => {
+          setEditing(false);
+          if (draft !== value) onChange(draft);
+        }}
+        onKeyDown={(event) => {
+          // Enter commits without leaving the sheet, which is how these get
+          // filled in: a run of short fields, tabbed through.
+          if (event.key === 'Enter') event.currentTarget.blur();
+        }}
         className="min-h-tap w-full rounded-lg border border-border bg-surface px-3 text-sm outline-none"
       />
     </label>

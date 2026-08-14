@@ -4,6 +4,7 @@ import { Link, useNavigate, useParams } from 'react-router-dom';
 import { BodyEditor } from '@/components/patient/BodyEditor';
 import { CopySheet } from '@/components/copy/CopySheet';
 import { ChecklistPills } from '@/components/patient/ChecklistPills';
+import { CompareSheet } from '@/components/patient/CompareSheet';
 import { IdentitySheet } from '@/components/patient/IdentitySheet';
 import { PatientActionsSheet } from '@/components/patient/PatientActionsSheet';
 import { IdentityBar } from '@/components/patient/IdentityBar';
@@ -64,6 +65,7 @@ export default function PatientPage(): JSX.Element {
   const [identityOpen, setIdentityOpen] = useState(false);
   const [openingOpen, setOpeningOpen] = useState(false);
   const [labOpen, setLabOpen] = useState(false);
+  const [compareOpen, setCompareOpen] = useState(false);
   const paneOpen = useUI((state) => state.contextPaneOpen);
   const togglePane = useUI((state) => state.toggleContextPane);
 
@@ -365,6 +367,15 @@ export default function PatientPage(): JSX.Element {
           </button>
           <button
             type="button"
+            onClick={() => setCompareOpen(true)}
+            aria-label="Bandingkan dengan hari sebelumnya"
+            title="Bandingkan hari"
+            className="min-h-tap min-w-tap shrink-0 text-fg-faint"
+          >
+            <span aria-hidden="true">⇄</span>
+          </button>
+          <button
+            type="button"
             onClick={() => setActionsOpen(true)}
             aria-label="Tindakan pasien"
             className="min-h-tap min-w-tap shrink-0 text-fg-faint"
@@ -516,6 +527,14 @@ export default function PatientPage(): JSX.Element {
           onResolve={editor.resolveConflict}
         />
       ) : null}
+
+      <CompareSheet
+        open={compareOpen}
+        onOpenChange={setCompareOpen}
+        patientId={patientId ?? ''}
+        today={selected}
+        todayBody={editor.value}
+      />
 
       <IdentitySheet
         open={identityOpen}

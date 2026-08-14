@@ -11,6 +11,7 @@ import {
 } from '@/domain/format/markdownLite';
 import type { SectionAlias } from '@/domain/types';
 import { FormatToolbar } from './FormatToolbar';
+import { SectionBands } from './SectionBands';
 
 /**
  * SPEC F4 — one free-form page per clinical day.
@@ -110,7 +111,8 @@ export function BodyEditor({
 
   return (
     <div className="flex min-h-0 min-w-0 flex-1 flex-col">
-      <div className="min-w-0 flex-1 px-4 py-3">
+      <div className="relative min-w-0 flex-1">
+        <SectionBands body={value} aliases={aliases} />
         <textarea
           ref={ref}
           value={value}
@@ -136,7 +138,7 @@ export function BodyEditor({
           autoCorrect="on"
           // `break-words` so a pasted lab line with no spaces wraps instead of
           // widening the column and dragging a scrollbar across the page.
-          className="w-full resize-none break-words border-0 bg-transparent text-[15px] leading-7 outline-none placeholder:text-fg-faint read-only:opacity-70"
+          className="relative w-full resize-none break-words border-0 bg-transparent px-4 py-3 text-[15px] leading-7 outline-none placeholder:text-fg-faint read-only:opacity-70"
           lang=""
           rows={12}
         />

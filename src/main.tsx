@@ -8,6 +8,7 @@ import { ErrorBoundary } from '@/components/common/ErrorBoundary';
 import { initSyncStatus } from '@/data/syncStatus';
 import { initSession } from '@/store/useSession';
 import { initThemeSync } from '@/store/useUI';
+import { installChunkRecovery, markBootSucceeded } from '@/lib/chunkRecovery';
 import { registerServiceWorker } from './pwa';
 import '@/styles/index.css';
 
@@ -18,9 +19,14 @@ if (!container) {
   throw new Error('[visite] #root missing from index.html');
 }
 
+// Before anything else: a stale precached shell fails during module load.
+installChunkRecovery();
+
 initThemeSync();
 initSyncStatus();
 initSession();
+
+markBootSucceeded();
 
 createRoot(container).render(
   <StrictMode>
