@@ -138,6 +138,14 @@ export interface UserSettings {
    * WhatsApp shows as a character rather than as a list.
    */
   whatsappBullet: 'hyphen' | 'guarded' | 'bullet';
+  /**
+   * Tint the section HEADERS in the editor.
+   *
+   * Off by default: it is a scanning aid, and an aid nobody asked for that
+   * changes how the note looks is an imposition. Anyone who wants it turns it
+   * on once.
+   */
+  sectionTint: boolean;
   copyPresets: CopyPreset[];
   privacy: PrivacySettings;
   theme: 'system' | 'light' | 'dark';

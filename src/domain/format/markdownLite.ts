@@ -15,7 +15,16 @@
  * so the toolbar never has to reason about the DOM.
  */
 
-export const BOLD = '**';
+/**
+ * Single asterisk, as WhatsApp writes it and as the notes are actually typed.
+ *
+ * This used to be `**`, the Markdown spelling, on the reasoning that the stored
+ * body should be canonical Markdown. But the body is read and written by people
+ * who write `*bold*`, and pressing B produced two asterisks they then deleted.
+ * The parser and every formatter have accepted both spellings since the
+ * WhatsApp-paste work, so storing the one that gets typed costs nothing.
+ */
+export const BOLD = '*';
 export const ITALIC = '_';
 export const STRIKE = '~~';
 

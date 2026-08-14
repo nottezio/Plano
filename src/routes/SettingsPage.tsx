@@ -207,6 +207,18 @@ export default function SettingsPage(): JSX.Element {
         </SettingsSection>
 
         <SettingsSection
+          title="Warna bagian catatan"
+          description="Latar samar di belakang judul tiap bagian, untuk memindai posisi."
+        >
+          <Toggle
+            label="Beri warna pada judul bagian"
+            description="Identitas, S, O + penunjang, A, Terapi + Plan, dan TS masing-masing berbeda."
+            checked={settings.sectionTint}
+            onChange={(sectionTint) => patch({ sectionTint })}
+          />
+        </SettingsSection>
+
+        <SettingsSection
           title="Bullet di WhatsApp"
           description="WhatsApp mengubah baris yang diawali “- ” menjadi daftar bulatnya sendiri."
         >

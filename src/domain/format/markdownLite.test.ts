@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
+import { toPlain, toWhatsApp } from './formatters';
 import {
   BOLD,
   ITALIC,
@@ -12,17 +13,17 @@ import {
 describe('toggleWrap', () => {
   it('wraps a selection', () => {
     const result = toggleWrap('sesak berat', 0, 5, BOLD);
-    expect(result.text).toBe('**sesak** berat');
+    expect(result.text).toBe('*sesak* berat');
     expect(result.text.slice(result.selectionStart, result.selectionEnd)).toBe('sesak');
   });
 
   it('unwraps when the markers are inside the selection', () => {
-    const result = toggleWrap('**sesak** berat', 0, 9, BOLD);
+    const result = toggleWrap('*sesak* berat', 0, 7, BOLD);
     expect(result.text).toBe('sesak berat');
   });
 
   it('unwraps when the markers sit just outside the selection', () => {
-    const result = toggleWrap('**sesak** berat', 2, 7, BOLD);
+    const result = toggleWrap('*sesak* berat', 1, 6, BOLD);
     expect(result.text).toBe('sesak berat');
     expect(result.text.slice(result.selectionStart, result.selectionEnd)).toBe('sesak');
   });
@@ -109,5 +110,23 @@ describe('insertSectionHeader', () => {
   it('produces a header the parser actually detects', () => {
     const result = insertSectionHeader('', 0, 'Penunjang');
     expect(result.text).toBe('Penunjang: ');
+  });
+});
+
+describe('bold is the spelling that gets typed', () => {
+  it('wraps in a single asterisk, as WhatsApp writes it', () => {
+    expect(toggleWrap('sesak berat', 0, 5, BOLD).text).toBe('*sesak* berat');
+  });
+
+  it('round-trips: wrapping then unwrapping restores the text', () => {
+    const wrapped = toggleWrap('sesak berat', 0, 5, BOLD);
+    expect(toggleWrap(wrapped.text, 1, 6, BOLD).text).toBe('sesak berat');
+  });
+
+  it('is the spelling every formatter already accepts', () => {
+    // Both spellings have been handled since the WhatsApp-paste work, so
+    // storing the typed one costs nothing downstream.
+    expect(toWhatsApp('*tebal*')).toBe('*tebal*');
+    expect(toPlain('*tebal*')).toBe('tebal');
   });
 });

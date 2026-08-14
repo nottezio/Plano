@@ -504,6 +504,7 @@ export default function PatientPage(): JSX.Element {
           onChange={editor.setValue}
           onBlur={editor.flush}
           aliases={settings.sectionAliases}
+          tint={settings.sectionTint}
           readOnly={locked}
           placeholder="Tulis SOAP hari ini…"
         />

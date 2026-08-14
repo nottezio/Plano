@@ -22,11 +22,18 @@ import { SectionBands } from './SectionBands';
  * the byte-faithful copy guarantee, and the three-way merge that operates on
  * plain text. The editor is dumb so that everything downstream can be exact.
  */
+/**
+ * Everything that decides where a line wraps. Shared verbatim with SectionBands.
+ */
+export const METRICS =
+  'whitespace-pre-wrap break-words px-4 py-3 text-[15px] leading-7 font-sans tracking-normal';
+
 export function BodyEditor({
   value,
   onChange,
   onBlur,
   aliases,
+  tint = false,
   readOnly,
   placeholder,
 }: {
@@ -34,6 +41,8 @@ export function BodyEditor({
   onChange: (next: string) => void;
   onBlur: () => void;
   aliases: readonly SectionAlias[];
+  /** Tint section headers; off unless the user turned it on. */
+  tint?: boolean;
   readOnly: boolean;
   placeholder: string;
 }): JSX.Element {
@@ -111,8 +120,17 @@ export function BodyEditor({
 
   return (
     <div className="flex min-h-0 min-w-0 flex-1 flex-col">
+      {/*
+        The mirror and the textarea share one class string.
+        
+        Colour bleeding into the next section was not a parsing error — it was
+        the two layers wrapping at different points because their metrics had
+        drifted apart. Anything that affects where a line breaks has to be
+        identical, so the shared values live in one constant and both elements
+        use it. Changing padding in one place now changes it in both.
+      */}
       <div className="relative min-w-0 flex-1">
-        <SectionBands body={value} aliases={aliases} />
+        {tint ? <SectionBands body={value} aliases={aliases} /> : null}
         <textarea
           ref={ref}
           value={value}
@@ -138,7 +156,7 @@ export function BodyEditor({
           autoCorrect="on"
           // `break-words` so a pasted lab line with no spaces wraps instead of
           // widening the column and dragging a scrollbar across the page.
-          className="relative w-full resize-none break-words border-0 bg-transparent px-4 py-3 text-[15px] leading-7 outline-none placeholder:text-fg-faint read-only:opacity-70"
+          className={`${METRICS} relative w-full resize-none border-0 bg-transparent outline-none placeholder:text-fg-faint read-only:opacity-70`}
           lang=""
           rows={12}
         />

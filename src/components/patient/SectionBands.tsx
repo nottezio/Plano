@@ -3,19 +3,25 @@ import { useMemo } from 'react';
 import { parseSections } from '@/domain/sections/parseSections';
 import { TINT_VAR, tintFor } from '@/domain/sections/sectionTint';
 import type { SectionAlias } from '@/domain/types';
+import { METRICS } from './BodyEditor';
 
 /**
- * Faint bands behind the editor, one per part of the note.
+ * A faint background behind each section HEADER, so a scroll shows you which
+ * part of the note you are in.
  *
- * Drawn UNDERNEATH a transparent textarea rather than around the text, because
- * the editor is a plain textarea by design — the stored body has to stay
- * exactly what was typed, and wrapping sections in elements would mean owning a
- * document model and giving that up.
+ * Headers only, not whole blocks. Tinting a whole section put colour behind
+ * running text, which reads as highlighting — as if those words were marked —
+ * and any drift between this mirror and the textarea showed up as colour
+ * bleeding into the section below. A header is one line and a short one, so
+ * there is far less surface for either problem.
  *
- * So this renders the same text, invisibly, in an element with identical
- * metrics, and colours the blocks. It is a mirror: every font, spacing and
- * padding value here must match the textarea, or the bands drift from the text
- * they are meant to mark.
+ * The mirror technique is unavoidable: the editor is a plain textarea by
+ * design, because the stored body has to stay exactly what was typed and
+ * wrapping sections in elements would mean owning a document model. So the same
+ * text is laid out invisibly underneath, and only the header lines are painted.
+ *
+ * EVERY metric here must match the textarea exactly — font, size, line height,
+ * padding, wrapping. They are set together in BodyEditor for that reason.
  */
 export function SectionBands({
   body,
@@ -24,31 +30,53 @@ export function SectionBands({
   body: string;
   aliases: readonly SectionAlias[];
 }): JSX.Element {
-  const blocks = useMemo(() => {
+  const parts = useMemo(() => {
     const sections = parseSections(body, aliases);
-    return sections.map((section, index) => ({
-      key: `${section.sectionId}-${index}`,
-      text: body.slice(section.start, section.end),
-      tint: tintFor(section.sectionId, section.label),
-    }));
+    const result: Array<{ key: string; text: string; tint: string | null }> = [];
+    let cursor = 0;
+
+    for (const [index, section] of sections.entries()) {
+      // The header is the first line of the section; everything after it is
+      // body text and stays untinted.
+      const slice = body.slice(section.start, section.end);
+      const newline = slice.indexOf('\n');
+      const headerEnd = newline === -1 ? section.end : section.start + newline;
+
+      if (section.start > cursor) {
+        result.push({ key: `gap-${index}`, text: body.slice(cursor, section.start), tint: null });
+      }
+
+      const tint = tintFor(section.sectionId, section.label);
+      result.push({
+        key: `head-${index}`,
+        text: body.slice(section.start, headerEnd),
+        tint: tint ? TINT_VAR[tint] : null,
+      });
+      result.push({ key: `rest-${index}`, text: body.slice(headerEnd, section.end), tint: null });
+      cursor = section.end;
+    }
+
+    if (cursor < body.length) {
+      result.push({ key: 'tail', text: body.slice(cursor), tint: null });
+    }
+
+    return result;
   }, [body, aliases]);
 
   return (
     <div
       aria-hidden="true"
-      className="pointer-events-none absolute inset-0 overflow-hidden whitespace-pre-wrap break-words px-4 py-3 text-[15px] leading-7"
+      className={`${METRICS} pointer-events-none absolute inset-0 overflow-hidden text-transparent`}
     >
-      {blocks.map((block) => (
-        <span
-          key={block.key}
-          style={block.tint ? { backgroundColor: TINT_VAR[block.tint] } : undefined}
-          className="rounded-sm"
-        >
-          {/* The text itself is invisible — only its shape matters, since the
-              real characters are drawn by the textarea sitting on top. */}
-          <span className="text-transparent">{block.text}</span>
-        </span>
-      ))}
+      {parts.map((part) =>
+        part.tint ? (
+          <span key={part.key} style={{ backgroundColor: part.tint }}>
+            {part.text}
+          </span>
+        ) : (
+          <span key={part.key}>{part.text}</span>
+        ),
+      )}
     </div>
   );
 }

@@ -153,6 +153,7 @@ export function defaultUserSettings(): UserSettings {
       aha: { format: 'harian', hint: 'Bila fisis normal, ringkas O jadi satu baris' },
     },
     whatsappBullet: 'hyphen',
+    sectionTint: false,
     copyPresets: DEFAULT_COPY_PRESETS.map((preset) => ({ ...preset })),
     privacy: {
       // Full names are stored, so the lock is ON by default (SPEC 18).
