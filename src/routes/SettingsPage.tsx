@@ -208,14 +208,14 @@ export default function SettingsPage(): JSX.Element {
 
         <SettingsSection
           title="Bullet di WhatsApp"
-          description="WhatsApp mengubah baris yang diawali “- ” menjadi daftar miliknya sendiri."
+          description="WhatsApp mengubah baris yang diawali “- ” menjadi daftar bulatnya sendiri."
         >
           <div className="flex flex-wrap gap-2">
             {(
               [
-                ['guarded', 'Tanda hubung (tahan format)'],
-                ['hyphen', 'Tanda hubung biasa'],
-                ['bullet', 'Bulatan •'],
+                ['hyphen', 'Tanda hubung — jadi bullet di WA'],
+                ['guarded', 'Tanda hubung — tetap “-” di WA'],
+                ['bullet', 'Bulatan • langsung'],
               ] as Array<[typeof settings.whatsappBullet, string]>
             ).map(([value, label]) => (
               <button
@@ -235,8 +235,9 @@ export default function SettingsPage(): JSX.Element {
             ))}
           </div>
           <p className="mt-2 text-[11px] text-fg-faint">
-            “Tahan format” menyisipkan spasi tak-putus setelah tanda hubung. Tampilannya
-            sama, tetapi kotak tulis WhatsApp tidak lagi mengubahnya menjadi “* ”.
+            Pilihan pertama membiarkan WhatsApp membuat daftar bulatnya sendiri — ini yang
+            dipakai untuk laporan. Pilihan kedua menyisipkan karakter tak terlihat agar
+            tanda hubung tetap apa adanya, untuk tujuan selain WhatsApp.
           </p>
         </SettingsSection>
 

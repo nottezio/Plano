@@ -81,14 +81,16 @@ const SINGLE_BOLD_RE = /(^|[^\w*])\*([^\s*][^\n*]*?)\*(?!\w)/g;
  * for an unclosed bold marker.
  */
 /**
- * WhatsApp's compose box rewrites `- ` at the start of a line into its own
- * bullet list, which is where the `* ` you are seeing comes from — the
- * conversion happens after the paste, inside WhatsApp, not here.
+ * WhatsApp's compose box turns a line starting `- ` into its own bullet list.
  *
- * A non-breaking space after the hyphen defeats that detection: the compose box
- * only treats `- ` (hyphen, ordinary space) as list syntax, and the line looks
- * identical either way. It costs one non-ASCII character, which `toPlain`
- * already folds back to a normal space for SIMGOS.
+ * That conversion is WANTED: it is how a handover renders in the chat, and it
+ * is why the default emits a plain hyphen and gets out of the way. I spent two
+ * releases defeating it — first by writing `•` myself, then with invisible
+ * guard characters — on the assumption that an app changing the text after a
+ * paste was a bug. It was the feature.
+ *
+ * The guards below remain as an option for the opposite preference, which is a
+ * real one: someone pasting into a system that shows `- ` literally.
  */
 const NBSP = '\u00A0';
 

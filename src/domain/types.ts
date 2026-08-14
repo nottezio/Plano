@@ -128,9 +128,14 @@ export interface UserSettings {
   /**
    * How bullets are written into WhatsApp output.
    *
-   * `hyphen` is what the note stores. `guarded` is the same hyphen followed by
-   * a non-breaking space, which WhatsApp's compose box does not recognise as
-   * list syntax and so leaves alone. `bullet` writes a literal `•`.
+   * `hyphen` is the default and the one that works: WhatsApp's compose box
+   * turns a line starting `- ` into its own bullet list, which is the rendering
+   * a handover is read with. The app's job is to hand WhatsApp something it
+   * recognises, not to produce the bullets itself.
+   *
+   * `guarded` suppresses that conversion with invisible characters, for anyone
+   * who wants literal hyphens to survive. `bullet` writes a `•` directly, which
+   * WhatsApp shows as a character rather than as a list.
    */
   whatsappBullet: 'hyphen' | 'guarded' | 'bullet';
   copyPresets: CopyPreset[];

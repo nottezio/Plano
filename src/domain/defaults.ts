@@ -152,7 +152,7 @@ export function defaultUserSettings(): UserSettings {
       ahn: { format: 'diagnosis' },
       aha: { format: 'harian', hint: 'Bila fisis normal, ringkas O jadi satu baris' },
     },
-    whatsappBullet: 'guarded',
+    whatsappBullet: 'hyphen',
     copyPresets: DEFAULT_COPY_PRESETS.map((preset) => ({ ...preset })),
     privacy: {
       // Full names are stored, so the lock is ON by default (SPEC 18).

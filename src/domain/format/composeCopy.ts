@@ -130,8 +130,9 @@ export function composeDocument(
   sections: SectionId[] | 'all',
   format: OutputFormat,
   aliases: readonly SectionAlias[],
+  bullet?: BulletStyle,
 ): string {
-  if (sections === 'all') return formatBody(body.trim(), format);
+  if (sections === 'all') return formatBody(body.trim(), format, bullet);
 
   const wanted = new Set(sections);
   const merged = mergeSections(parseSections(body, aliases))
@@ -146,6 +147,7 @@ export function composeDocument(
       })
       .join('\n\n'),
     format,
+    bullet,
   );
 }
 
@@ -156,6 +158,7 @@ export function composeSection(
   format: OutputFormat,
   aliases: readonly SectionAlias[],
   includeHeader = true,
+  bullet?: BulletStyle,
 ): string {
   const section = copyableSections(body, aliases).find(
     (candidate) => candidate.sectionId === sectionId,
@@ -164,7 +167,7 @@ export function composeSection(
 
   const header = section.blocks[0]?.headerLine?.replace(/[ \t]+$/, '');
   const text = includeHeader && header ? `${header} ${section.text}`.trim() : section.text;
-  return formatBody(text, format);
+  return formatBody(text, format, bullet);
 }
 
 /**

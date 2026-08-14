@@ -27,3 +27,24 @@ describe('the real handover round-trips unchanged', () => {
     expect(toWhatsApp(body)).not.toContain('\u2022');
   });
 });
+
+describe('WhatsApp is left to make its own bullet list', () => {
+  const plan = ['*Plan:*', '- Rawat jalan hari ini', '- Cek elektrolit kontrol'].join('\n');
+
+  it('emits a plain hyphen by default, which WhatsApp turns into a list', () => {
+    // The point: hand WhatsApp something it recognises. Producing the bullets
+    // ourselves — or suppressing its conversion — both fight the renderer.
+    expect(toWhatsApp(plan)).toBe(plan);
+    expect(toWhatsApp(plan)).toMatch(/^- /m);
+  });
+
+  it('carries no invisible characters in the default output', () => {
+    const output = toWhatsApp(plan);
+    expect(output).not.toContain('\u200B');
+    expect(output).not.toContain('\u00A0');
+  });
+
+  it('normalises `* ` to `- ` so pasted text lists the same way', () => {
+    expect(toWhatsApp('* Cek DPL')).toBe('- Cek DPL');
+  });
+});
