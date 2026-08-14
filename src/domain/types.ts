@@ -125,6 +125,14 @@ export interface UserSettings {
    * handover, so the map only ever holds the exceptions.
    */
   dpjpFormats: Record<string, DpjpReportConfig>;
+  /**
+   * How bullets are written into WhatsApp output.
+   *
+   * `hyphen` is what the note stores. `guarded` is the same hyphen followed by
+   * a non-breaking space, which WhatsApp's compose box does not recognise as
+   * list syntax and so leaves alone. `bullet` writes a literal `•`.
+   */
+  whatsappBullet: 'hyphen' | 'guarded' | 'bullet';
   copyPresets: CopyPreset[];
   privacy: PrivacySettings;
   theme: 'system' | 'light' | 'dark';

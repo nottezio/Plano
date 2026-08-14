@@ -80,12 +80,28 @@ const SINGLE_BOLD_RE = /(^|[^\w*])\*([^\s*][^\n*]*?)\*(?!\w)/g;
  * sources comes out consistent, and so a leading asterisk cannot be mistaken
  * for an unclosed bold marker.
  */
-export function toWhatsApp(body: string): string {
+/**
+ * WhatsApp's compose box rewrites `- ` at the start of a line into its own
+ * bullet list, which is where the `* ` you are seeing comes from — the
+ * conversion happens after the paste, inside WhatsApp, not here.
+ *
+ * A non-breaking space after the hyphen defeats that detection: the compose box
+ * only treats `- ` (hyphen, ordinary space) as list syntax, and the line looks
+ * identical either way. It costs one non-ASCII character, which `toPlain`
+ * already folds back to a normal space for SIMGOS.
+ */
+const NBSP = '\u00A0';
+
+export type BulletStyle = 'hyphen' | 'guarded' | 'bullet';
+
+export function toWhatsApp(body: string, bullet: BulletStyle = 'hyphen'): string {
+  const marker = bullet === 'bullet' ? '• ' : bullet === 'guarded' ? `-${NBSP}` : '- ';
+
   return body
     .replace(BOLD_RE, '*$1*')
     .replace(STRIKE_RE, '~$1~')
     .replace(ITALIC_RE, '$1_$2_')
-    .replace(BULLET_LINE_RE, '$1- ');
+    .replace(BULLET_LINE_RE, `$1${marker}`);
 }
 
 /**
@@ -154,10 +170,14 @@ export function toMarkdown(body: string): string {
   return body.replace(SINGLE_BOLD_RE, '$1**$2**');
 }
 
-export function formatBody(body: string, format: OutputFormat): string {
+export function formatBody(
+  body: string,
+  format: OutputFormat,
+  bullet: BulletStyle = 'hyphen',
+): string {
   switch (format) {
     case 'whatsapp':
-      return toWhatsApp(body);
+      return toWhatsApp(body, bullet);
     case 'plain':
       return toPlain(body);
     case 'markdown':

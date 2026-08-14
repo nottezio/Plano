@@ -459,3 +459,37 @@ describe('bare bullets are content, not noise', () => {
     expect(toPlain(withBare)).toBe(withBare);
   });
 });
+
+describe('WhatsApp rewrites `- ` into its own list — the guard stops it', () => {
+  const list = '- Clopidogrel 75mg\n- Miniaspi 80mg';
+
+  it('defaults to a plain hyphen when no style is given', () => {
+    expect(toWhatsApp(list)).toBe(list);
+  });
+
+  it('guards the hyphen with a non-breaking space', () => {
+    const output = toWhatsApp(list, 'guarded');
+    // Hyphen then NBSP: WhatsApp only treats hyphen + ordinary space as list
+    // syntax, so the line survives the paste looking identical.
+    expect(output).toBe('-\u00A0Clopidogrel 75mg\n-\u00A0Miniaspi 80mg');
+    expect(output).not.toContain('- ');
+  });
+
+  it('normalises `* ` bullets through the guard too', () => {
+    expect(toWhatsApp('* Cek DPL', 'guarded')).toBe('-\u00A0Cek DPL');
+  });
+
+  it('can still write a literal bullet character', () => {
+    expect(toWhatsApp(list, 'bullet')).toBe('• Clopidogrel 75mg\n• Miniaspi 80mg');
+  });
+
+  it('folds the guard back to a normal space for SIMGOS', () => {
+    // The NBSP is exactly the character SIMGOS renders as `?`.
+    expect(toPlain(toWhatsApp(list, 'guarded'))).toBe(list);
+    expect(findNonAsciiChars(toPlain(toWhatsApp(list, 'guarded')))).toEqual([]);
+  });
+
+  it('leaves a bare bullet alone in every style', () => {
+    expect(toWhatsApp('-', 'guarded')).toBe('-');
+  });
+});

@@ -61,6 +61,10 @@
   --card-step-12-accent: #047857;
   --card-done-bg: #dcfce7;
   --card-done-accent: #15803d;
+  --note-red: #dc2626;
+  --note-amber: #b45309;
+  --note-green: #15803d;
+  --note-blue: #1d4ed8;
   --card-neutral-bg: #f4f6f8;
   --card-neutral-accent: #64748b;
 
@@ -126,6 +130,10 @@
   --card-step-12-accent: #34d399;
   --card-done-bg: #10331f;
   --card-done-accent: #4ade80;
+  --note-red: #f87171;
+  --note-amber: #fbbf24;
+  --note-green: #4ade80;
+  --note-blue: #60a5fa;
   --card-neutral-bg: #161c24;
   --card-neutral-accent: #94a3b8;
 

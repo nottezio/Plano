@@ -1,4 +1,4 @@
-import { formatBody } from './formatters';
+import { formatBody, type BulletStyle } from './formatters';
 import { copyableSections, mergeSections, parseSections } from '../sections/parseSections';
 import { sectionSortIndex } from '../sections/aliases';
 import { formatLongDate, hariRawat } from '../clinicalDate';
@@ -32,6 +32,8 @@ export interface CopyDay {
 
 export interface ComposeOptions {
   format: OutputFormat;
+  /** How bullets are written for WhatsApp; see formatters.ts. */
+  bullet?: BulletStyle;
   sections: SectionId[] | 'all';
   includeIdentity: boolean;
   includeDateHeader: boolean;
@@ -113,7 +115,7 @@ export function composeCopy(days: readonly CopyDay[], options: ComposeOptions): 
     parts.push(chunk.join('\n'));
   }
 
-  return formatBody(parts.join('\n\n').trim(), options.format);
+  return formatBody(parts.join('\n\n').trim(), options.format, options.bullet);
 }
 
 /**

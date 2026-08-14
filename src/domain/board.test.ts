@@ -1,18 +1,20 @@
 import { describe, expect, it } from 'vitest';
 
 import {
+  EMPTY_FILTERS,
   availableLabels,
   availableWards,
   boardTickStates,
   buildCard,
   cardTitle,
   filterPatients,
+  groupLabel,
   hasActiveFilters,
   initials,
   matchesQuery,
+  orderPatients,
   previewLines,
   sortPatients,
-  EMPTY_FILTERS,
 } from './board';
 import { DEFAULT_CHECKLIST } from './defaults';
 import { buildSearchBlobFor, makePatient } from './testFactories';
@@ -344,5 +346,92 @@ describe('initials-only mode does not leak the name in the preview', () => {
   it('does not redact a name too short to be one', () => {
     const short = makePatient({ name: 'A', preview: 'Ada nyeri dada' });
     expect(buildCard(short, ITEMS, TODAY, true).preview).toBe('Ada nyeri dada');
+  });
+});
+
+describe('ordering by place in the denah', () => {
+  const at = (id: string, ward: string, room?: string, bed?: string) => {
+    const patient = makePatient({ id, ward });
+    return { ...patient, ...(room ? { room } : {}), ...(bed ? { bed } : {}) };
+  };
+
+  it('sorts rooms numerically, not as text', () => {
+    // The bug this exists to prevent: a string sort puts 410 between 41 and 42,
+    // which on a ward numbered 401-421 looks deliberate and is wrong.
+    const order = orderPatients(
+      [at('c', 'PJT Lt 4', '421'), at('a', 'PJT Lt 4', '401'), at('b', 'PJT Lt 4', '410')],
+      'location',
+    );
+    expect(order.map((p) => p.id)).toEqual(['a', 'b', 'c']);
+  });
+
+  it('sorts beds numerically within a room', () => {
+    const order = orderPatients(
+      [
+        at('b6', 'PJT Lt 4', '420', '6'),
+        at('b2', 'PJT Lt 4', '420', '2'),
+        at('b10', 'PJT Lt 4', '420', '10'),
+      ],
+      'location',
+    );
+    expect(order.map((p) => p.id)).toEqual(['b2', 'b6', 'b10']);
+  });
+
+  it('groups by ward before room', () => {
+    const order = orderPatients(
+      [at('b', 'PJT Lt 5', '501'), at('a', 'PJT Lt 4', '420')],
+      'location',
+    );
+    expect(order.map((p) => p.id)).toEqual(['a', 'b']);
+  });
+
+  it('puts non-numeric rooms after the numbered ones', () => {
+    const order = orderPatients(
+      [at('vip', 'PJT Lt 4', 'VIP'), at('n', 'PJT Lt 4', '419')],
+      'location',
+    );
+    expect(order.map((p) => p.id)).toEqual(['n', 'vip']);
+  });
+
+  it('puts patients with no location last, where you left them', () => {
+    const order = orderPatients(
+      [makePatient({ id: 'blank' }), at('a', 'PJT Lt 4', '401')],
+      'location',
+    );
+    expect(order.map((p) => p.id)).toEqual(['a', 'blank']);
+  });
+
+  it('keeps pinned patients on top regardless of order', () => {
+    const pinned = { ...makePatient({ id: 'pin', pinned: true }), room: '999' };
+    const order = orderPatients([at('a', 'PJT Lt 4', '401'), pinned], 'location');
+    expect(order[0]?.id).toBe('pin');
+  });
+
+  it('leaves the incoming order alone in recent mode', () => {
+    const order = orderPatients(
+      [at('c', 'PJT Lt 4', '421'), at('a', 'PJT Lt 4', '401')],
+      'recent',
+    );
+    expect(order.map((p) => p.id)).toEqual(['c', 'a']);
+  });
+});
+
+describe('grouping the board', () => {
+  it('labels a location group with ward and room', () => {
+    const patient = { ...makePatient({ ward: 'PJT Lt 4' }), room: '420' };
+    expect(groupLabel(patient, 'location')).toBe('PJT Lt 4 · Kamar 420');
+  });
+
+  it('labels patients with no location', () => {
+    expect(groupLabel(makePatient({}), 'location')).toBe('Tanpa lokasi');
+  });
+
+  it('labels a DPJP group', () => {
+    const patient = { ...makePatient({}), dpjpId: 'ahn' };
+    expect(groupLabel(patient, 'dpjp')).toContain('AHN');
+  });
+
+  it('labels patients with no DPJP', () => {
+    expect(groupLabel(makePatient({}), 'dpjp')).toBe('Tanpa DPJP');
   });
 });

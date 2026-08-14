@@ -223,3 +223,99 @@ export function hasActiveFilters(filters: BoardFilters): boolean {
     filters.pendingItemIds.length > 0
   );
 }
+
+/**
+ * Sort by physical location, the way the denah is laid out.
+ *
+ * Rounds walk the ward in room order, so a board in that order is a board you
+ * can work down without hunting. This is the same information the denah
+ * encodes — ward, then room, then bed — read from the fields already parsed out
+ * of each note.
+ *
+ * Room and bed are compared NUMERICALLY where they look like numbers. A string
+ * sort puts 410 between 41 and 42, and orders 1, 10, 2 — which on a ward with
+ * rooms 401–421 is worse than no sorting at all, because it looks deliberate.
+ * Anything non-numeric (`VIP`, `Super VIP`) falls back to a text compare and
+ * sorts after the numbered rooms.
+ */
+function locationKey(value: string | undefined): [number, string] {
+  const text = (value ?? '').trim();
+  if (!text) return [Number.MAX_SAFE_INTEGER, ''];
+
+  const digits = /^(\d+)/.exec(text);
+  return digits?.[1]
+    ? [Number(digits[1]), text.toLowerCase()]
+    : [Number.MAX_SAFE_INTEGER - 1, text.toLowerCase()];
+}
+
+function compareLocation(a: Patient, b: Patient): number {
+  // Ward first, alphabetically: a ward is a place you walk to, not a number.
+  const wardDiff = (a.ward ?? '').localeCompare(b.ward ?? '', 'id');
+  if (wardDiff !== 0) return wardDiff;
+
+  const [aRoom, aRoomText] = locationKey(a.room);
+  const [bRoom, bRoomText] = locationKey(b.room);
+  if (aRoom !== bRoom) return aRoom - bRoom;
+  if (aRoomText !== bRoomText) return aRoomText.localeCompare(bRoomText, 'id');
+
+  const [aBed, aBedText] = locationKey(a.bed);
+  const [bBed, bBedText] = locationKey(b.bed);
+  if (aBed !== bBed) return aBed - bBed;
+  return aBedText.localeCompare(bBedText, 'id');
+}
+
+export type BoardOrder = 'recent' | 'location' | 'dpjp';
+
+/**
+ * Patients with no location sort last, together.
+ *
+ * They are the ones just created and not yet filled in, and burying them among
+ * the located patients means the card you are about to write in is somewhere
+ * unpredictable. At the end they are exactly where you left them.
+ */
+export function orderPatients(patients: readonly Patient[], order: BoardOrder): Patient[] {
+  const pinned = patients.filter((patient) => patient.pinned);
+  const rest = patients.filter((patient) => !patient.pinned);
+
+  if (order === 'recent') return [...pinned, ...rest];
+
+  const sorted = [...rest].sort((a, b) => {
+    if (order === 'dpjp') {
+      // Unassigned last, then by initials, then by location within a consultant
+      // — a DPJP's list is still walked in room order.
+      const aDpjp = a.dpjpId ? (dpjpById(a.dpjpId)?.initials ?? '') : '';
+      const bDpjp = b.dpjpId ? (dpjpById(b.dpjpId)?.initials ?? '') : '';
+      if (aDpjp !== bDpjp) {
+        if (!aDpjp) return 1;
+        if (!bDpjp) return -1;
+        return aDpjp.localeCompare(bDpjp, 'id');
+      }
+      return compareLocation(a, b);
+    }
+
+    const aHas = Boolean(a.ward?.trim() || a.room?.trim() || a.bed?.trim());
+    const bHas = Boolean(b.ward?.trim() || b.room?.trim() || b.bed?.trim());
+    if (aHas !== bHas) return aHas ? -1 : 1;
+
+    return compareLocation(a, b);
+  });
+
+  return [...pinned, ...sorted];
+}
+
+/** Heading a card belongs under, for the grouped board. */
+export function groupLabel(patient: Patient, order: BoardOrder): string {
+  if (order === 'location') {
+    const ward = patient.ward?.trim();
+    const room = patient.room?.trim();
+    if (!ward && !room) return 'Tanpa lokasi';
+    return [ward, room ? `Kamar ${room}` : null].filter(Boolean).join(' · ');
+  }
+
+  if (order === 'dpjp') {
+    const dpjp = patient.dpjpId ? dpjpById(patient.dpjpId) : undefined;
+    return dpjp ? `${dpjp.initials} — ${dpjp.name}` : 'Tanpa DPJP';
+  }
+
+  return '';
+}

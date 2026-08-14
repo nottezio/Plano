@@ -1,5 +1,5 @@
 import { mergeSections, parseSections } from '../sections/parseSections';
-import { formatBody } from './formatters';
+import { formatBody, type BulletStyle } from './formatters';
 import { findOpeningLine } from '../opening';
 import type { OutputFormat, SectionAlias } from '../types';
 
@@ -26,6 +26,7 @@ const DIAGNOSIS_KEYWORDS = ['diagnos', 'assess', 'problem'];
 export interface PdfReportOptions {
   aliases: readonly SectionAlias[];
   format: OutputFormat;
+  bullet?: BulletStyle;
   chief?: string;
   junior?: string;
   /**
@@ -96,5 +97,9 @@ export function composePdfReport(body: string, options: PdfReportOptions): strin
 
   parts.push(CLOSING);
 
-  return formatBody(parts.join('\n').replace(/\n{3,}/g, '\n\n').trim(), options.format);
+  return formatBody(
+    parts.join('\n').replace(/\n{3,}/g, '\n\n').trim(),
+    options.format,
+    options.bullet,
+  );
 }

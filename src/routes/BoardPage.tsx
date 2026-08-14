@@ -16,9 +16,12 @@ import {
   buildCard,
   filterPatients,
   hasActiveFilters,
+  groupLabel,
+  orderPatients,
   sortPatients,
   EMPTY_FILTERS,
   type BoardFilters,
+  type BoardOrder,
 } from '@/domain/board';
 import { pendingFilters } from '@/domain/checklist';
 import { useSession } from '@/store/useSession';
@@ -46,6 +49,32 @@ export default function BoardPage(): JSX.Element {
   const [filters, setFilters] = useState<BoardFilters>(EMPTY_FILTERS);
   const [quickPatientId, setQuickPatientId] = useState<string | null>(null);
 
+  /**
+   * Board order, remembered across sessions.
+   *
+   * `location` walks the ward the way the denah is laid out, which is the order
+   * a round is actually done in. Stored in localStorage rather than settings
+   * because it is a per-device view preference, not a fact about the user —
+   * the phone in your pocket and the laptop at the desk are used differently.
+   */
+  const [order, setOrder] = useState<BoardOrder>(() => {
+    try {
+      const stored = localStorage.getItem('visite.boardOrder');
+      return stored === 'location' || stored === 'dpjp' ? stored : 'recent';
+    } catch {
+      return 'recent';
+    }
+  });
+
+  const changeOrder = (next: BoardOrder): void => {
+    setOrder(next);
+    try {
+      localStorage.setItem('visite.boardOrder', next);
+    } catch (error) {
+      console.warn('[board] order preference not saved', error);
+    }
+  };
+
   const debouncedQuery = useDebouncedValue(query, 150);
 
   /**
@@ -68,10 +97,39 @@ export default function BoardPage(): JSX.Element {
       items,
       today,
     );
-    return sortPatients(matched).map((patient) =>
+    return orderPatients(matched, order).map((patient) =>
       buildCard(patient, items, today, settings.privacy.boardShowInitialsOnly),
     );
-  }, [patients, filters, debouncedQuery, items, today, settings.privacy.boardShowInitialsOnly]);
+  }, [
+    patients,
+    filters,
+    debouncedQuery,
+    items,
+    today,
+    order,
+    settings.privacy.boardShowInitialsOnly,
+  ]);
+
+  /**
+   * Cards grouped under their heading, in the order they already sit in.
+   *
+   * Grouping is a render concern, not a sort: the sort put them in walking
+   * order, and this only inserts a heading each time the room changes. Doing it
+   * the other way round — grouping first, then sorting groups — is how a board
+   * ends up with Kamar 410 before Kamar 401.
+   */
+  const groups = useMemo(() => {
+    if (order === 'recent') return [{ label: '', cards }];
+
+    const result: Array<{ label: string; cards: typeof cards }> = [];
+    for (const card of cards) {
+      const label = card.patient.pinned ? 'Disematkan' : groupLabel(card.patient, order);
+      const last = result[result.length - 1];
+      if (last && last.label === label) last.cards.push(card);
+      else result.push({ label, cards: [card] });
+    }
+    return result;
+  }, [cards, order]);
 
   const archivedCards = useMemo(() => {
     if (!searching) return [];
@@ -117,6 +175,33 @@ export default function BoardPage(): JSX.Element {
         </button>
       </div>
 
+      {/* Walking order. Labels say what the order IS, not what it sorts by:
+          "Sesuai denah" is the thing a resident recognises. */}
+      <div className="flex gap-2 px-4 pb-2">
+        {(
+          [
+            ['recent', 'Terbaru'],
+            ['location', 'Sesuai denah'],
+            ['dpjp', 'Per DPJP'],
+          ] as Array<[BoardOrder, string]>
+        ).map(([value, label]) => (
+          <button
+            key={value}
+            type="button"
+            aria-pressed={order === value}
+            onClick={() => changeOrder(value)}
+            className={[
+              'min-h-tap rounded-full border px-3 text-xs',
+              order === value
+                ? 'border-accent bg-bg-subtle font-medium text-accent'
+                : 'border-border text-fg-muted',
+            ].join(' ')}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
+
       {/* Filters hidden for now. The row of "Belum …" chips ate
           the top of the board and pushed the cards below the fold before there
           were enough patients for filtering to earn that space. The state and
@@ -149,13 +234,23 @@ export default function BoardPage(): JSX.Element {
           ) : null}
 
           {cards.length > 0 ? (
-            // CSS multi-column masonry: no measurement pass, no layout library,
-            // and it reflows correctly when a card grows as the note is typed.
-            <div className="columns-1 gap-3 px-4 pt-1 sm:columns-2 lg:columns-3 xl:columns-4 2xl:columns-5">
-              {cards.map((card) => (
-                <PatientCard key={card.patient.id} card={card} onLongPress={setQuickPatientId} />
-              ))}
-            </div>
+            groups.map((group) => (
+              <section key={group.label || 'all'}>
+                {group.label ? <SectionHeading label={group.label} /> : null}
+                {/* CSS multi-column masonry: no measurement pass, no layout
+                    library, and it reflows correctly when a card grows as the
+                    note is typed. */}
+                <div className="columns-1 gap-3 px-4 pt-1 sm:columns-2 lg:columns-3 xl:columns-4 2xl:columns-5">
+                  {group.cards.map((card) => (
+                    <PatientCard
+                      key={card.patient.id}
+                      card={card}
+                      onLongPress={setQuickPatientId}
+                    />
+                  ))}
+                </div>
+              </section>
+            ))
           ) : searching ? (
             <p className="px-4 py-3 text-sm text-fg-muted">
               Tidak ada pasien aktif yang cocok.

@@ -7,7 +7,11 @@ import {
   resolveRange,
   type CopyDay,
 } from '@/domain/format/composeCopy';
-import { FORMAT_LABELS, findMarkdownLeaks } from '@/domain/format/formatters';
+import {
+  FORMAT_LABELS,
+  findMarkdownLeaks,
+  type BulletStyle,
+} from '@/domain/format/formatters';
 import { composePdfReport } from '@/domain/format/pdfReport';
 import { describeConfig, primaryDpjp } from '@/domain/dpjp';
 import {
@@ -61,6 +65,7 @@ export function CopySheet({
   aliases,
   presets,
   dpjpFormats,
+  bullet,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -71,6 +76,7 @@ export function CopySheet({
   aliases: readonly SectionAlias[];
   presets: readonly CopyPreset[];
   dpjpFormats: Record<string, DpjpReportConfig>;
+  bullet: BulletStyle;
 }): JSX.Element {
   const [format, setFormat] = useState<OutputFormat>('whatsapp');
   const [range, setRange] = useState<CopyRange>('specific');
@@ -162,6 +168,7 @@ export function CopySheet({
             // A consultant who reads the report somewhere that does not render
             // WhatsApp markers gets plain text, whatever chip is selected.
             format: active?.plainText ? 'plain' : format,
+            bullet,
             // The consultant's own switches, so choosing "Ringkas (PDF)" for
             // ZD produces a report with a verification time and for MZ one
             // without staffing lines, rather than one shape for everyone.
@@ -175,6 +182,7 @@ export function CopySheet({
         includeDateHeader,
             aliases,
             patient,
+            bullet,
           }),
     [pdfMode, body, days, format, selected, includeIdentity, includeDateHeader, aliases, patient],
   );

@@ -611,6 +611,7 @@ export default function PatientPage(): JSX.Element {
         aliases={settings.sectionAliases}
         presets={settings.copyPresets}
         dpjpFormats={settings.dpjpFormats}
+        bullet={settings.whatsappBullet}
       />
 
       <RevisionTrail
