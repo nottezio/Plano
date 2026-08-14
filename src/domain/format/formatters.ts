@@ -92,10 +92,30 @@ const SINGLE_BOLD_RE = /(^|[^\w*])\*([^\s*][^\n*]*?)\*(?!\w)/g;
  */
 const NBSP = '\u00A0';
 
+/**
+ * Zero-width space, placed BEFORE the hyphen.
+ *
+ * A non-breaking space after the hyphen was not enough: WhatsApp's compose box
+ * still recognises a line that begins with `-` and turns it into its own list.
+ * The only reliable defeat is for the line not to begin with a hyphen at all.
+ *
+ * A zero-width space is invisible and occupies no width, so the pasted line
+ * looks exactly as typed while no longer matching the list pattern. It is
+ * folded back out for SIMGOS along with the other non-ASCII characters.
+ */
+const ZWSP = '\u200B';
+
 export type BulletStyle = 'hyphen' | 'guarded' | 'bullet';
 
 export function toWhatsApp(body: string, bullet: BulletStyle = 'hyphen'): string {
-  const marker = bullet === 'bullet' ? '• ' : bullet === 'guarded' ? `-${NBSP}` : '- ';
+  const marker =
+    bullet === 'bullet'
+      ? '• '
+      : bullet === 'guarded'
+        ? // Both guards together: the line no longer STARTS with a hyphen, and
+          // the space after it is not an ordinary one either.
+          `${ZWSP}-${NBSP}`
+        : '- ';
 
   return body
     .replace(BOLD_RE, '*$1*')
@@ -124,6 +144,9 @@ const ASCII_FOLD: ReadonlyArray<readonly [RegExp, string]> = [
   [/[\u2013\u2014\u2212]/g, '-'],
   [/\u2026/g, '...'],
   [/[\u00A0\u2007\u202F]/g, ' '],
+  // Zero-width characters carry no meaning to strip — they are removed, not
+  // replaced, or every guarded bullet would gain a stray space in SIMGOS.
+  [/[\u200B\u200C\u200D\uFEFF]/g, ''],
   [/\u00B0/g, ' derajat '],
   [/[\u2264]/g, '<='],
   [/[\u2265]/g, '>='],

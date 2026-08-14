@@ -467,16 +467,18 @@ describe('WhatsApp rewrites `- ` into its own list — the guard stops it', () =
     expect(toWhatsApp(list)).toBe(list);
   });
 
-  it('guards the hyphen with a non-breaking space', () => {
+  it('stops the line beginning with a hyphen at all', () => {
     const output = toWhatsApp(list, 'guarded');
-    // Hyphen then NBSP: WhatsApp only treats hyphen + ordinary space as list
-    // syntax, so the line survives the paste looking identical.
-    expect(output).toBe('-\u00A0Clopidogrel 75mg\n-\u00A0Miniaspi 80mg');
-    expect(output).not.toContain('- ');
+    // A zero-width space before the hyphen and a non-breaking space after it.
+    // WhatsApp's list detection needs a line that STARTS with `- `; this one
+    // does neither, while looking identical on screen.
+    expect(output).toBe('\u200B-\u00A0Clopidogrel 75mg\n\u200B-\u00A0Miniaspi 80mg');
+    expect(output).not.toMatch(/^- /m);
+    expect(output).not.toMatch(/^\* /m);
   });
 
   it('normalises `* ` bullets through the guard too', () => {
-    expect(toWhatsApp('* Cek DPL', 'guarded')).toBe('-\u00A0Cek DPL');
+    expect(toWhatsApp('* Cek DPL', 'guarded')).toBe('\u200B-\u00A0Cek DPL');
   });
 
   it('can still write a literal bullet character', () => {

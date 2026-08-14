@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 
 import { AppShell } from '@/components/common/AppShell';
 import { FilterBar } from '@/components/board/FilterBar';
+import { DenahView } from '@/components/board/DenahView';
 import { PatientCard } from '@/components/board/PatientCard';
 import { QuickChecklistSheet } from '@/components/board/QuickChecklistSheet';
 import { IconSearch } from '@/components/common/Icons';
@@ -181,7 +182,7 @@ export default function BoardPage(): JSX.Element {
         {(
           [
             ['recent', 'Terbaru'],
-            ['location', 'Sesuai denah'],
+            ['location', 'Denah'],
             ['dpjp', 'Per DPJP'],
           ] as Array<[BoardOrder, string]>
         ).map(([value, label]) => (
@@ -233,7 +234,13 @@ export default function BoardPage(): JSX.Element {
             <SectionHeading label={`Pasien aktif (${cards.length})`} />
           ) : null}
 
-          {cards.length > 0 ? (
+          {cards.length > 0 && order === 'location' ? (
+            <DenahView
+              patients={cards.map((card) => card.patient)}
+              today={today}
+              showInitialsOnly={settings.privacy.boardShowInitialsOnly}
+            />
+          ) : cards.length > 0 ? (
             groups.map((group) => (
               <section key={group.label || 'all'}>
                 {group.label ? <SectionHeading label={group.label} /> : null}
