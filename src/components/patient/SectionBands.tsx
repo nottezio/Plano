@@ -43,7 +43,12 @@ export function SectionBands({
 
   const parts = useMemo(() => {
     const sections = parseSections(settled, aliases);
-    const result: Array<{ key: string; text: string; tint: string | null }> = [];
+    const result: Array<{
+      key: string;
+      text: string;
+      tint: string | null;
+      block?: boolean;
+    }> = [];
     let cursor = 0;
 
     for (const [index, section] of sections.entries()) {
@@ -66,10 +71,15 @@ export function SectionBands({
         key: `head-${index}`,
         text: settled.slice(section.start, headerEnd),
         tint: tint ? TINT_VAR[tint] : null,
+        block: true,
       });
+      // The newline is consumed by the block above — a block element already
+      // ends its line, so leaving the `\n` here would open a second one and
+      // every band would drift one line further down the note.
+      const restStart = settled[headerEnd] === '\n' ? headerEnd + 1 : headerEnd;
       result.push({
         key: `rest-${index}`,
-        text: settled.slice(headerEnd, section.end),
+        text: settled.slice(restStart, section.end),
         tint: null,
       });
       cursor = section.end;
@@ -89,7 +99,18 @@ export function SectionBands({
     >
       {parts.map((part) =>
         part.tint ? (
-          <span key={part.key} style={{ backgroundColor: part.tint }}>
+          // Block, and stretched past the padding to both edges: a band that
+          // stops at the last character reads as a highlight on those words.
+          // Running border to border reads as the section it marks.
+          <span
+            key={part.key}
+            className="-mx-4 block px-4"
+            style={{ backgroundColor: part.tint }}
+          >
+            {part.text}
+          </span>
+        ) : part.block ? (
+          <span key={part.key} className="block">
             {part.text}
           </span>
         ) : (

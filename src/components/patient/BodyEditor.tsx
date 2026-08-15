@@ -152,8 +152,17 @@ export function BodyEditor({
            * There is no medical dictionary anywhere: drug names and abbreviations
            * will be flagged. See CHANGES for why shipping one would be worse.
            */
+          /**
+           * Check, do not change.
+           *
+           * `autoCorrect` rewrites words as you type; `spellCheck` only
+           * underlines them and waits to be asked. On a note full of drug names
+           * the difference is the whole thing — an underline you can ignore, a
+           * silent substitution in a dose you cannot.
+           */
           autoCapitalize="sentences"
-          autoCorrect="on"
+          autoCorrect="off"
+          autoComplete="off"
           // `break-words` so a pasted lab line with no spaces wraps instead of
           // widening the column and dragging a scrollbar across the page.
           className={`${METRICS} relative w-full resize-none border-0 bg-transparent outline-none placeholder:text-fg-faint read-only:opacity-70`}

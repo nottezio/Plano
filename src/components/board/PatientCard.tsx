@@ -2,6 +2,7 @@ import { Link } from 'react-router-dom';
 
 import { previewLines, type BoardCard } from '@/domain/board';
 import { ProgressStrip } from './ProgressStrip';
+import { formatLocation } from '@/domain/identity';
 
 /**
  * SPEC F2 — a Google-Keep-style card.
@@ -61,10 +62,13 @@ export function PatientCard({
         ) : null}
       </div>
 
+      {/* Location spelled out, not just the ward: on a round the room and bed
+          are what you are walking to, and a card that shows only "PJT Lt 4"
+          still needs opening to find out where. */}
       <p className="mt-0.5 text-[11px] opacity-70">
-        Hari rawat ke-{card.hariRawat}
-        {patient.ward ? ` · ${patient.ward}` : ''}
+        {formatLocation(patient) || 'Lokasi belum diisi'}
       </p>
+      <p className="text-[11px] opacity-60">Hari rawat ke-{card.hariRawat}</p>
 
       {lines.length > 0 ? (
         <p className="mt-2 whitespace-pre-line text-xs leading-relaxed opacity-90">

@@ -4,6 +4,7 @@ import ArchivePage from '@/routes/ArchivePage';
 import DocumentsPage from '@/routes/DocumentsPage';
 import DocumentPage from '@/routes/DocumentPage';
 import NotePage from '@/routes/NotePage';
+import CalculatorPage from '@/routes/CalculatorPage';
 import SettingsPage from '@/routes/SettingsPage';
 import PatientPage from '@/routes/PatientPage';
 import NotFoundPage from '@/routes/NotFoundPage';
@@ -21,6 +22,7 @@ export default function App(): JSX.Element {
       <Route path="/dokumen" element={<DocumentsPage />} />
       <Route path="/dokumen/:documentId" element={<DocumentPage />} />
       <Route path="/catatan" element={<NotePage />} />
+      <Route path="/kalkulator" element={<CalculatorPage />} />
       <Route path="/pengaturan" element={<SettingsPage />} />
       <Route path="/p/:patientId" element={<PatientPage />} />
       <Route path="/p/:patientId/:date" element={<PatientPage />} />
