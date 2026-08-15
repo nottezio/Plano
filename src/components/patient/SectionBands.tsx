@@ -4,6 +4,7 @@ import { parseSections } from '@/domain/sections/parseSections';
 import { TINT_VAR, tintFor } from '@/domain/sections/sectionTint';
 import type { SectionAlias } from '@/domain/types';
 import { METRICS } from './BodyEditor';
+import { useDebouncedValue } from '@/hooks/useDebouncedValue';
 
 /**
  * A faint background behind each section HEADER, so a scroll shows you which
@@ -30,38 +31,56 @@ export function SectionBands({
   body: string;
   aliases: readonly SectionAlias[];
 }): JSX.Element {
+  /**
+   * Parsed from a settled copy, not from every keystroke.
+   *
+   * The bands are a scanning aid — being a fraction of a second behind the
+   * cursor costs nothing, and re-parsing a long note on every character is what
+   * made typing feel heavy. The text itself is drawn by the textarea above and
+   * is never delayed.
+   */
+  const settled = useDebouncedValue(body, 300);
+
   const parts = useMemo(() => {
-    const sections = parseSections(body, aliases);
+    const sections = parseSections(settled, aliases);
     const result: Array<{ key: string; text: string; tint: string | null }> = [];
     let cursor = 0;
 
     for (const [index, section] of sections.entries()) {
       // The header is the first line of the section; everything after it is
       // body text and stays untinted.
-      const slice = body.slice(section.start, section.end);
+      const slice = settled.slice(section.start, section.end);
       const newline = slice.indexOf('\n');
       const headerEnd = newline === -1 ? section.end : section.start + newline;
 
       if (section.start > cursor) {
-        result.push({ key: `gap-${index}`, text: body.slice(cursor, section.start), tint: null });
+        result.push({
+          key: `gap-${index}`,
+          text: settled.slice(cursor, section.start),
+          tint: null,
+        });
       }
 
       const tint = tintFor(section.sectionId, section.label);
       result.push({
         key: `head-${index}`,
-        text: body.slice(section.start, headerEnd),
+        text: settled.slice(section.start, headerEnd),
         tint: tint ? TINT_VAR[tint] : null,
       });
-      result.push({ key: `rest-${index}`, text: body.slice(headerEnd, section.end), tint: null });
+      result.push({
+        key: `rest-${index}`,
+        text: settled.slice(headerEnd, section.end),
+        tint: null,
+      });
       cursor = section.end;
     }
 
-    if (cursor < body.length) {
-      result.push({ key: 'tail', text: body.slice(cursor), tint: null });
+    if (cursor < settled.length) {
+      result.push({ key: 'tail', text: settled.slice(cursor), tint: null });
     }
 
     return result;
-  }, [body, aliases]);
+  }, [settled, aliases]);
 
   return (
     <div

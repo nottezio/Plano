@@ -30,7 +30,11 @@ export const DEFAULT_CHECKLIST: readonly ChecklistItemDef[] = [
   { id: 'c4', order: 4, label: 'SOAP dikoreksi', colorToken: 'step-4', active: true },
   { id: 'c5', order: 5, label: 'Lapor DPJP', colorToken: 'step-5', active: true },
   { id: 'c6', order: 6, label: 'Input SIMGOS', colorToken: 'step-6', active: true },
-  { id: 'c7', order: 7, label: 'Plan & terapi dilaksanakan', colorToken: 'step-7', active: true },
+  // Inserted after SIMGOS input, where it belongs in the round. Given its own
+  // id rather than renumbering the existing ones: the ids key every historical
+  // tick, so shifting `c7` to a new meaning would relabel months of history.
+  { id: 'c8', order: 7, label: 'Order obat', colorToken: 'step-7', active: true },
+  { id: 'c7', order: 8, label: 'Plan & terapi dilaksanakan', colorToken: 'step-8', active: true },
 ] as const;
 
 /** SPEC 12.1 — drives the READ-ONLY parser. Editing these re-parses on the fly. */

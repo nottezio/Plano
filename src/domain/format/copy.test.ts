@@ -495,3 +495,36 @@ describe('WhatsApp rewrites `- ` into its own list — the guard stops it', () =
     expect(toWhatsApp('-', 'guarded')).toBe('-');
   });
 });
+
+describe('invisible characters pasted in from elsewhere', () => {
+  it('removes the word joiner WhatsApp leaves after a bullet', () => {
+    // Verbatim from a note that produced `?` in SIMGOS.
+    const pasted = '- \u2060Alprazolam 0.5 mg malam sebelum tindakan';
+    expect(toPlain(pasted)).toBe('- Alprazolam 0.5 mg malam sebelum tindakan');
+    expect(findNonAsciiChars(toPlain(pasted))).toEqual([]);
+  });
+
+  it('removes the rest of the invisible family, not just the one reported', () => {
+    // An explicit list is always one character behind the next source, so the
+    // whole Unicode format category goes.
+    const messy = [
+      'a\u200Bb',
+      'c\u200Cd',
+      'e\u2060f',
+      'g\uFEFFh',
+      'i\u00ADj',
+      'k\u2061l',
+    ].join('\n');
+    expect(findNonAsciiChars(toPlain(messy))).toEqual([]);
+    expect(toPlain(messy)).toBe(['ab', 'cd', 'ef', 'gh', 'ij', 'kl'].join('\n'));
+  });
+
+  it('removes rather than replaces, so line width is unchanged', () => {
+    // They occupy no width; a space would shift every line they appear in.
+    expect(toPlain('Ur/Cr\u2060 26/0.93')).toBe('Ur/Cr 26/0.93');
+  });
+
+  it('leaves ordinary text alone', () => {
+    expect(toPlain('- Alprazolam 0.5 mg')).toBe('- Alprazolam 0.5 mg');
+  });
+});

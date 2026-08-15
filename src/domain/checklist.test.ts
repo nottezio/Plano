@@ -265,8 +265,7 @@ describe('buildDoneMap', () => {
 });
 
 describe('the shipped seed', () => {
-  it('matches Appendix A exactly', () => {
-    expect(DEFAULT_CHECKLIST).toHaveLength(7);
+  it('is the round in order', () => {
     expect(DEFAULT_CHECKLIST.map((item) => item.label)).toEqual([
       'Visite pasien + TTV + EKG sesuai kebutuhan',
       'Update SOAP',
@@ -274,13 +273,23 @@ describe('the shipped seed', () => {
       'SOAP dikoreksi',
       'Lapor DPJP',
       'Input SIMGOS',
+      'Order obat',
       'Plan & terapi dilaksanakan',
     ]);
   });
 
+  it('gives a new step a new id rather than renumbering', () => {
+    // Ids key every historical tick. Reusing `c7` for "Order obat" would
+    // relabel months of ticks that meant "Plan & terapi dilaksanakan".
+    const orderObat = DEFAULT_CHECKLIST.find((item) => item.label === 'Order obat');
+    const plan = DEFAULT_CHECKLIST.find((item) => item.label.startsWith('Plan &'));
+    expect(orderObat?.id).toBe('c8');
+    expect(plan?.id).toBe('c7');
+  });
+
   it('uses stable literal ids so two offline devices cannot fork the seed', () => {
     expect(DEFAULT_CHECKLIST.map((item) => item.id)).toEqual([
-      'c1', 'c2', 'c3', 'c4', 'c5', 'c6', 'c7',
+      'c1', 'c2', 'c3', 'c4', 'c5', 'c6', 'c8', 'c7',
     ]);
   });
 });

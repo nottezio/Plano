@@ -391,7 +391,14 @@ export function CopySheet({
             value={output || '(kosong)'}
             rows={10}
             spellCheck={false}
-            onFocus={(event) => event.currentTarget.select()}
+            /**
+             * No select-on-focus.
+             *
+             * Switching tabs re-mounts this textarea, which refocuses it — and
+             * a select-all on focus then wiped a selection the user had just
+             * made by hand. Selecting everything is an explicit action now,
+             * which is also the only time anyone wants it.
+             */
             className="w-full resize-y rounded-lg border border-border bg-bg-subtle p-3 font-mono text-xs leading-relaxed outline-none"
           />
           <button

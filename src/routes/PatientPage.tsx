@@ -42,6 +42,7 @@ import { useRevisions } from '@/hooks/useRevisions';
 import { useSession } from '@/store/useSession';
 import { useUI } from '@/store/useUI';
 import type { ClinicalDate } from '@/domain/types';
+import { useDebouncedValue } from '@/hooks/useDebouncedValue';
 
 /** Minimum window the rail offers, so a patient admitted today can still scroll. */
 
@@ -96,6 +97,20 @@ export default function PatientPage(): JSX.Element {
   });
 
   /**
+   * A settled copy of the note, for everything derived from it.
+   *
+   * `primaryDpjp` and `parsePatientFacts` each walk the whole body, and both
+   * were running on every keystroke — on a note carrying three days of EKG and
+   * a full plan, that is thousands of characters re-parsed per character typed.
+   * That is where the lag came from.
+   *
+   * None of these consumers needs to be current to the keystroke: the DPJP
+   * reminder and the identity fill are both fine a moment late. The editor
+   * itself still updates instantly, because it reads `editor.value` directly.
+   */
+  const settledBody = useDebouncedValue(editor.value, 400);
+
+  /**
    * Learn identity and location from the note.
    *
    * Runs when the note settles rather than on every keystroke, and fills only
@@ -105,13 +120,13 @@ export default function PatientPage(): JSX.Element {
    */
   useEffect(() => {
     if (!patient || editor.dirty) return;
-    const written = fillPatientFromNote(patient, editor.value);
+    const written = fillPatientFromNote(patient, settledBody);
     if (written) {
       void written.catch((error: unknown) =>
         console.error('[patient] could not fill from note', error),
       );
     }
-  }, [patient, editor.dirty, editor.value]);
+  }, [patient, editor.dirty, settledBody]);
 
   // SPEC 7.5 — announce presence only while the day is actually editable.
   usePresenceHeartbeat(patientId, selected, !locked);
@@ -134,8 +149,8 @@ export default function PatientPage(): JSX.Element {
    * answer the user actually wants at 6am before rounds.
    */
   const dpjp = useMemo(
-    () => primaryDpjp(editor.value) ?? (patient?.dpjpId ? dpjpById(patient.dpjpId) : null),
-    [editor.value, patient?.dpjpId],
+    () => primaryDpjp(settledBody) ?? (patient?.dpjpId ? dpjpById(patient.dpjpId) : null),
+    [settledBody, patient?.dpjpId],
   );
   const dpjpFormat = dpjp ? settings.dpjpFormats[dpjp.id] : undefined;
 

@@ -146,9 +146,21 @@ const ASCII_FOLD: ReadonlyArray<readonly [RegExp, string]> = [
   [/[\u2013\u2014\u2212]/g, '-'],
   [/\u2026/g, '...'],
   [/[\u00A0\u2007\u202F]/g, ' '],
-  // Zero-width characters carry no meaning to strip — they are removed, not
-  // replaced, or every guarded bullet would gain a stray space in SIMGOS.
-  [/[\u200B\u200C\u200D\uFEFF]/g, ''],
+  /**
+   * Invisible formatting characters, removed rather than replaced.
+   *
+   * The listed set was not enough. Text pasted from WhatsApp carries U+2060
+   * WORD JOINER after each bullet — invisible in every editor, and the `?` that
+   * kept appearing in SIMGOS. An explicit list will always be one character
+   * behind the next source, so this is the whole Unicode "format" category
+   * (`\p{Cf}`) plus the soft hyphen and Mongolian vowel separator, which are
+   * not in it but behave the same way.
+   *
+   * Replacing them with a space would be wrong: they occupy no width, so a
+   * space would shift every line they appear in.
+   */
+  [/[\u00AD\u180E]/gu, ''],
+  [/\p{Cf}/gu, ''],
   [/\u00B0/g, ' derajat '],
   [/[\u2264]/g, '<='],
   [/[\u2265]/g, '>='],

@@ -93,7 +93,7 @@ describe('buildCard', () => {
     );
     expect(card.colorToken).toBe('step-2');
     expect(card.progress.pendingLabel).toBe('Kirim ke Chief');
-    expect(card.progress.total).toBe(7);
+    expect(card.progress.total).toBe(8);
   });
 
   it('goes green only when the day is complete', () => {
