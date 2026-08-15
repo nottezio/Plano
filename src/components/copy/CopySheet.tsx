@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 
 import { Sheet } from '@/components/common/Sheet';
 import { fetchEntryBodies } from '@/data/repositories/entries.repo';
@@ -10,6 +10,7 @@ import {
 import {
   FORMAT_LABELS,
   findMarkdownLeaks,
+  findNonAsciiChars,
   type BulletStyle,
 } from '@/domain/format/formatters';
 import { composePdfReport } from '@/domain/format/pdfReport';
@@ -21,6 +22,7 @@ import {
   type CopyGroupId,
 } from '@/domain/format/copyGroups';
 import { copyText } from '@/lib/clipboard';
+import { RenderedPreview } from './RenderedPreview';
 import type {
   ClinicalDate,
   CopyPreset,
@@ -93,6 +95,15 @@ export function CopySheet({
   const includeDateHeader = false;
   const [allDays, setAllDays] = useState<CopyDay[]>([]);
   const [copied, setCopied] = useState(false);
+  /**
+   * Text you can select and copy, or a rendering of how it will look.
+   *
+   * Two views rather than one, because they cannot be the same thing: copying
+   * from a rendering loses the markers that produced the formatting, so the
+   * paste would arrive unbolded. The text view is the one that is real.
+   */
+  const [preview, setPreview] = useState<'teks' | 'tampilan'>('teks');
+  const outputRef = useRef<HTMLTextAreaElement>(null);
   /**
    * The short form three DPJPs want as a PDF: staffing lines, the opening block
    * verbatim, diagnoses, closing. It replaces the section picker entirely
@@ -188,6 +199,16 @@ export function CopySheet({
   );
 
   const leaks = findMarkdownLeaks(format === 'whatsapp' ? output : '');
+
+  /**
+   * Characters SIMGOS renders as `?`.
+   *
+   * Only the plain formatter folds these out, so selecting the WhatsApp
+   * preview by hand and pasting it into SIMGOS produces exactly the question
+   * marks reported. The sheet cannot know where a manual copy is going, so it
+   * says what is in the text and offers the one-tap fix rather than guessing.
+   */
+  const nonAscii = useMemo(() => findNonAsciiChars(output), [output]);
 
   const applyPreset = (preset: CopyPreset): void => {
     setFormat(preset.format);
@@ -321,10 +342,85 @@ export function CopySheet({
       </Group>
       ) : null}
 
-      <p className="mb-1 mt-4 text-xs font-medium text-fg-muted">Pratinjau</p>
-      <pre className="max-h-56 overflow-auto whitespace-pre-wrap rounded-lg border border-border bg-bg-subtle p-3 text-xs leading-relaxed">
-        {output || '(kosong)'}
-      </pre>
+      <div className="mb-1 mt-4 flex items-center gap-2">
+        <p className="flex-1 text-xs font-medium text-fg-muted">Pratinjau</p>
+        {(
+          [
+            ['teks', 'Teks'],
+            ['tampilan', 'Tampilan'],
+          ] as Array<['teks' | 'tampilan', string]>
+        ).map(([value, label]) => (
+          <button
+            key={value}
+            type="button"
+            aria-pressed={preview === value}
+            onClick={() => setPreview(value)}
+            className={[
+              'min-h-tap rounded-full border px-3 text-[11px]',
+              preview === value
+                ? 'border-accent bg-bg-subtle font-medium text-accent'
+                : 'border-border text-fg-muted',
+            ].join(' ')}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
+
+      {preview === 'tampilan' ? (
+        <>
+          <RenderedPreview text={output} />
+          <p className="mt-1 text-[11px] text-fg-faint">
+            Perkiraan tampilan di WhatsApp. Jangan menyalin dari sini — tanda formatnya
+            ikut hilang. Gunakan tab “Teks”.
+          </p>
+        </>
+      ) : (
+        <>
+          {/*
+            A real textarea, not a <pre>.
+            
+            Read-only, but selectable, scrollable and — the point — tappable to
+            select everything at once. On a phone, dragging a selection through
+            forty lines inside a sheet is not a realistic way to copy a
+            handover.
+          */}
+          <textarea
+            ref={outputRef}
+            readOnly
+            value={output || '(kosong)'}
+            rows={10}
+            spellCheck={false}
+            onFocus={(event) => event.currentTarget.select()}
+            className="w-full resize-y rounded-lg border border-border bg-bg-subtle p-3 font-mono text-xs leading-relaxed outline-none"
+          />
+          <button
+            type="button"
+            onClick={() => outputRef.current?.select()}
+            className="mt-1 min-h-tap text-[11px] text-accent underline"
+          >
+            Pilih semua teks
+          </button>
+        </>
+      )}
+
+      {nonAscii.length > 0 && format !== 'plain' ? (
+        <p className="mt-2 rounded-lg border border-border bg-bg-subtle p-2 text-[11px] leading-relaxed text-fg-muted">
+          Teks ini memuat karakter yang muncul sebagai “?” di SIMGOS:{' '}
+          <span className="font-mono">{nonAscii.join(' ')}</span>. Untuk SIMGOS, pilih format{' '}
+          <button
+            type="button"
+            onClick={() => {
+              setFormat('plain');
+              setApplied(false);
+            }}
+            className="font-medium text-accent underline"
+          >
+            Teks polos
+          </button>
+          .
+        </p>
+      ) : null}
 
       {leaks.length > 0 ? (
         <p role="alert" className="mt-2 text-xs text-danger">
