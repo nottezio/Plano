@@ -151,6 +151,13 @@ export interface UserSettings {
   theme: 'system' | 'light' | 'dark';
 }
 
+export interface ScratchNote {
+  id: string;
+  title: string;
+  /** Rich text, like the original single note. */
+  body: string;
+}
+
 export interface NoteTemplate {
   id: string;
   name: string;
@@ -161,13 +168,22 @@ export interface NoteTemplate {
 
 export interface UserProfile {
   /**
-   * A single free-text note belonging to the user, not to any patient.
+   * The original single scratch note.
    *
-   * On the profile document rather than in a collection because there is
-   * exactly one: a collection would invite a list, and a list would make you
-   * choose a note before you could write in one.
+   * Kept in the schema after tabs arrived so nothing written before the change
+   * is stranded: it is migrated into the first tab on read, and never written
+   * again. Removing the field would have meant a migration, and a migration
+   * that runs on a note someone is mid-sentence in is a way to lose it.
    */
   scratchNote?: string;
+  /**
+   * Named scratch notes, in tab order.
+   *
+   * A list, now that there is more than one — but still opening straight into
+   * the last one used, so the common case is unchanged: the tab opens and the
+   * cursor is where it was.
+   */
+  notes?: ScratchNote[];
   uid: string;
   displayName: string;
   email: string;

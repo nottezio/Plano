@@ -7,6 +7,7 @@ import { ChecklistPills } from '@/components/patient/ChecklistPills';
 import { CompareSheet } from '@/components/patient/CompareSheet';
 import { IdentitySheet } from '@/components/patient/IdentitySheet';
 import { PatientActionsSheet } from '@/components/patient/PatientActionsSheet';
+import { ReformatSheet } from '@/components/patient/ReformatSheet';
 import { IdentityBar } from '@/components/patient/IdentityBar';
 import { LabSheet } from '@/components/patient/LabSheet';
 import { PatientNotes, usePatientNotes } from '@/components/patient/PatientNotes';
@@ -67,6 +68,7 @@ export default function PatientPage(): JSX.Element {
   const [openingOpen, setOpeningOpen] = useState(false);
   const [labOpen, setLabOpen] = useState(false);
   const [compareOpen, setCompareOpen] = useState(false);
+  const [reformatOpen, setReformatOpen] = useState(false);
   const paneOpen = useUI((state) => state.contextPaneOpen);
   const togglePane = useUI((state) => state.toggleContextPane);
 
@@ -527,6 +529,15 @@ export default function PatientPage(): JSX.Element {
         {/* SPEC F4 — microcopy only. There is no save button by design. */}
         <div className="flex items-center gap-3 px-4 py-2 text-[11px] text-fg-faint">
           <span className="flex-1">{editor.dirty ? 'Menyimpan…' : 'Tersimpan'}</span>
+          {!locked ? (
+            <button
+              type="button"
+              onClick={() => setReformatOpen(true)}
+              className="min-h-tap px-1 underline"
+            >
+              Format bangsal
+            </button>
+          ) : null}
           <button
             type="button"
             onClick={() => setTrailOpen(true)}
@@ -543,6 +554,13 @@ export default function PatientPage(): JSX.Element {
           onResolve={editor.resolveConflict}
         />
       ) : null}
+
+      <ReformatSheet
+        open={reformatOpen}
+        onOpenChange={setReformatOpen}
+        body={editor.value}
+        onApply={editor.setValue}
+      />
 
       <CompareSheet
         open={compareOpen}

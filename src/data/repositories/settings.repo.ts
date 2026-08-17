@@ -11,7 +11,12 @@ import type { User } from 'firebase/auth';
 import { userDoc } from '../paths';
 import { trackWrite } from '../syncStatus';
 import { defaultUserSettings } from '@/domain/defaults';
-import { SCHEMA_VERSION, type UserProfile, type UserSettings } from '@/domain/types';
+import {
+  SCHEMA_VERSION,
+  type ScratchNote,
+  type UserProfile,
+  type UserSettings,
+} from '@/domain/types';
 
 /**
  * The profile document carries settings. It is created on first sign-in with
@@ -69,4 +74,15 @@ export function updateSettings(uid: string, patch: Partial<UserSettings>): Promi
  */
 export function updateProfileNote(uid: string, scratchNote: string): Promise<void> {
   return trackWrite(setDoc(userDoc(uid), { scratchNote }, { merge: true }));
+}
+
+/**
+ * The whole tab list, written as one field.
+ *
+ * Wholesale rather than per-note, because reordering, renaming and deleting all
+ * change the array's shape, and a per-index patch would race with them. The
+ * list is a handful of short notes; writing it whole costs nothing.
+ */
+export function updateScratchNotes(uid: string, notes: ScratchNote[]): Promise<void> {
+  return trackWrite(setDoc(userDoc(uid), { notes }, { merge: true }));
 }

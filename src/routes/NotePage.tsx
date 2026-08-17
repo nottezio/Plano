@@ -1,9 +1,10 @@
-import { useCallback, useEffect, useRef } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import { AppShell } from '@/components/common/AppShell';
-import { updateProfileNote } from '@/data/repositories/settings.repo';
+import { updateScratchNotes } from '@/data/repositories/settings.repo';
 import { useTextSync } from '@/hooks/useTextSync';
 import { useSession } from '@/store/useSession';
+import type { ScratchNote } from '@/domain/types';
 
 /**
  * A single scratch note, for the user rather than for a patient.
@@ -57,17 +58,71 @@ export default function NotePage(): JSX.Element {
   const profile = useSession((state) => state.profile);
   const ref = useRef<HTMLDivElement>(null);
 
+  /**
+   * The stored list, with the original single note folded in.
+   *
+   * Anyone who wrote in the app before tabs existed has their text in
+   * `scratchNote`. Migrating it on read rather than with a write means nothing
+   * is rewritten while they might be mid-sentence in it, and the old field is
+   * simply never written again.
+   */
+  const notes = useMemo<ScratchNote[]>(() => {
+    const stored = profile?.notes ?? [];
+    if (stored.length > 0) return stored;
+
+    const legacy = profile?.scratchNote ?? '';
+    return [{ id: 'n1', title: 'Catatan', body: legacy }];
+  }, [profile?.notes, profile?.scratchNote]);
+
+  const [activeId, setActiveId] = useState<string>(() => notes[0]?.id ?? 'n1');
+  const active = notes.find((note) => note.id === activeId) ?? notes[0];
+
   const write = useCallback(
-    (note: string) => (uid ? updateProfileNote(uid, note) : Promise.resolve()),
-    [uid],
+    (body: string) => {
+      if (!uid || !active) return Promise.resolve();
+      return updateScratchNotes(
+        uid,
+        notes.map((note) => (note.id === active.id ? { ...note, body } : note)),
+      );
+    },
+    [uid, notes, active],
   );
 
   const sync = useTextSync({
-    key: `scratch|${uid ?? 'none'}`,
-    serverText: profile?.scratchNote ?? '',
+    // Keyed per note: two tabs sharing a draft key would each see the other's
+    // text as a remote edit, which is how the standing-note panel broke.
+    key: `scratch|${uid ?? 'none'}|${active?.id ?? 'n1'}`,
+    serverText: active?.body ?? '',
     locked: uid === null,
     write,
   });
+
+  const addNote = (): void => {
+    if (!uid) return;
+    const id = `n${Date.now().toString(36)}`;
+    const next = [...notes, { id, title: `Catatan ${notes.length + 1}`, body: '' }];
+    void updateScratchNotes(uid, next).catch((error: unknown) =>
+      console.error('[catatan] could not add', error),
+    );
+    setActiveId(id);
+  };
+
+  const renameNote = (title: string): void => {
+    if (!uid || !active) return;
+    void updateScratchNotes(
+      uid,
+      notes.map((note) => (note.id === active.id ? { ...note, title } : note)),
+    ).catch((error: unknown) => console.error('[catatan] could not rename', error));
+  };
+
+  const deleteNote = (): void => {
+    if (!uid || !active || notes.length <= 1) return;
+    const next = notes.filter((note) => note.id !== active.id);
+    void updateScratchNotes(uid, next).catch((error: unknown) =>
+      console.error('[catatan] could not delete', error),
+    );
+    setActiveId(next[0]?.id ?? 'n1');
+  };
 
   /**
    * Written into the DOM only when the two have actually diverged.
@@ -93,6 +148,54 @@ export default function NotePage(): JSX.Element {
   return (
     <AppShell title="Catatan">
       <div className="mx-auto flex min-h-0 w-full max-w-3xl flex-1 flex-col px-4 pb-4 pt-4">
+        <div className="mb-2 flex items-center gap-1 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+          {notes.map((note) => (
+            <button
+              key={note.id}
+              type="button"
+              aria-pressed={note.id === active?.id}
+              onClick={() => {
+                sync.flush();
+                setActiveId(note.id);
+              }}
+              className={[
+                'min-h-tap shrink-0 rounded-lg border px-3 text-xs',
+                note.id === active?.id
+                  ? 'border-accent bg-bg-subtle font-medium text-accent'
+                  : 'border-border text-fg-muted',
+              ].join(' ')}
+            >
+              {note.title || 'Tanpa judul'}
+            </button>
+          ))}
+          <button
+            type="button"
+            onClick={addNote}
+            aria-label="Catatan baru"
+            className="min-h-tap min-w-tap shrink-0 rounded-lg border border-dashed border-border-strong text-sm text-fg-muted"
+          >
+            +
+          </button>
+        </div>
+
+        <div className="mb-2 flex items-center gap-2">
+          <input
+            type="text"
+            value={active?.title ?? ''}
+            onChange={(event) => renameNote(event.target.value)}
+            placeholder="Judul catatan"
+            className="min-h-tap min-w-0 flex-1 rounded-lg border border-transparent bg-transparent px-2 text-sm font-medium outline-none focus:border-border"
+          />
+          {notes.length > 1 ? (
+            <button
+              type="button"
+              onClick={deleteNote}
+              className="min-h-tap shrink-0 px-2 text-xs text-danger"
+            >
+              Hapus
+            </button>
+          ) : null}
+        </div>
         <div className="mb-2 flex flex-wrap items-center gap-1 rounded-lg border border-border bg-surface p-1">
           <ToolButton label="Tebal" onClick={() => apply('bold')}>
             <strong>B</strong>

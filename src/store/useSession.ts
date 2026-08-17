@@ -139,13 +139,35 @@ function isStandalonePwa(): boolean {
   );
 }
 
+/**
+ * Coarse on purpose: this decides between two working flows, so a wrong guess
+ * costs a page load rather than a failure.
+ */
+function isHandheld(): boolean {
+  if (typeof navigator === 'undefined') return false;
+  const coarse = window.matchMedia?.('(pointer: coarse)').matches ?? false;
+  return coarse || /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+}
+
 export async function signInWithGoogle(): Promise<void> {
   const { auth } = services();
   const provider = new GoogleAuthProvider();
   provider.setCustomParameters({ prompt: 'select_account' });
 
   try {
-    if (isStandalonePwa()) {
+    /**
+     * Redirect on any handheld, not only an installed PWA.
+     *
+     * A popup on mobile is throttled or silently blocked often enough that the
+     * common failure is not an error but a HANG — the window never appears and
+     * nothing rejects, so the app sits there looking broken. Redirect always
+     * works, at the cost of a page load, and a reliable slow path beats a fast
+     * one that sometimes never returns.
+     *
+     * Desktop keeps the popup: it is reliable there, and it does not throw away
+     * the page state.
+     */
+    if (isStandalonePwa() || isHandheld()) {
       await signInWithRedirect(auth, provider);
       return;
     }
