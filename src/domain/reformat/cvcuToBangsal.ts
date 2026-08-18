@@ -1,25 +1,25 @@
 /**
- * CVCU layout → bangsal layout.
+ * CVCU layout → bangsal layout, doing exactly one thing.
  *
- * A CVCU note organises O by organ system — Airway, Breathing, Circulation,
- * Disability, Exposure, Fluid, Glucose & Gut, Haematology, Infection — with the
- * investigations scattered inside whichever system they belong to. A bangsal
- * note puts vital signs in a flat list, then the examination, then every dated
- * investigation stacked below.
+ * A CVCU note wraps its objective findings in organ-system headers — Airway,
+ * Breathing, Circulation, Disability, Exposure, Fluid, Glucose & Gut,
+ * Haematology, Infection. A bangsal note has the same findings without them.
  *
- * Same facts, different order. Retyping that on transfer is half an hour and an
- * invitation to drop a line.
+ * So this REMOVES THE HEADERS AND NOTHING ELSE. Order is preserved exactly.
  *
- * ONE RULE ABOVE ALL: nothing is discarded. Any line that is not recognised is
- * carried through rather than dropped, because a reformatter that silently
- * loses a finding is worse than none — the note still looks complete, and
- * nobody goes back to check.
+ * The first version did more: it collected vitals to the top, examination
+ * findings next, and moved every investigation below them. That is what the
+ * bangsal notes look like, so it seemed right — but re-ordering a clinical note
+ * means deciding what each line is, and every wrong decision moves a finding to
+ * a place it does not belong. It broke notes.
  *
- * The output is a DRAFT, shown in a preview before it replaces anything. "Same
- * facts, different order" is a judgement this code makes, and it can be wrong.
+ * Reordering is a judgement. Unwrapping a header is not: the text after it is
+ * the same text, in the same order, with one label gone. That is the whole
+ * difference between the two layouts that can be made mechanically, and the
+ * rest is better done by hand than badly by me.
  */
 
-/** Organ-system headers a CVCU note uses, with or without emphasis. */
+/** Organ-system headers a CVCU note uses. */
 const SYSTEM_HEADERS = [
   'airway',
   'breathing',
@@ -28,7 +28,9 @@ const SYSTEM_HEADERS = [
   'exposure',
   'fluid',
   'glucose',
+  'glucose & gut',
   'gut',
+  'hypo/hyperthermia and haematology',
   'hypo',
   'hyperthermia',
   'haematology',
@@ -36,74 +38,48 @@ const SYSTEM_HEADERS = [
   'infection',
 ];
 
-/** Vital signs, wherever in the note they were written. */
-const VITAL_PATTERNS: RegExp[] = [
-  /\bGCS\b/i,
-  /\b(tekanan darah|TD)\b\s*:?\s*\d/i,
-  /\b(nadi|HR)\b\s*:?\s*\d/i,
-  /\b(pernapasan|RR|respirasi)\b\s*:?\s*\d/i,
-  /\bsuhu\b\s*:?\s*\d/i,
-  /\b(spo2|saturasi)\b/i,
-];
-
-/** Investigations, recognised by their opening word in both layouts. */
-const INVESTIGATION_START =
-  /^\s*\*?\s*(EKG|Lab|Laboratorium|Foto|Rontgen|Thorax|Echo|Echocardiography|USG|CT|MRI|LUS|Lung ultrasound|Laporan|Angiograf|PTCA|Urin)/i;
-
-const EXAM_HINTS =
-  /\b(JVP|bunyi (jantung|napas|pernapasan)|BJ I|vesikuler|rhonki|ronkhi|wheezing|akral|edema|anemis|ikterus|abdomen|peristaltik|konjungtiva|sklera|CRT|patent)\b/i;
+export interface ReformatResult {
+  body: string;
+  /** Headers removed, for the preview — the only thing that changed. */
+  removed: string[];
+}
 
 /**
- * Strips a leading organ-system header, returning what was on the line after it.
+ * Splits a header from whatever was written after it on the same line.
  *
- * These are written both ways — `*Circulation* :` on its own line, and
- * `*Airway* : Patent, SpO2 96% on Room Air` with the finding on the same line.
- * Treating the whole line as a header dropped the finding with it, which is
- * exactly the silent loss this file is built to avoid. My own test caught it.
+ * These appear both ways — `*Circulation* :` alone, and
+ * `*Airway* : Patent, SpO2 96% on Room Air` with the finding attached. Treating
+ * the whole line as a label deletes that finding, which is the one failure this
+ * must not have.
  *
- * Returns `null` when the line is not a system header at all.
+ * Returns `null` when the line is not a system header.
  */
-function stripSystemHeader(line: string): string | null {
-  // Split at the first colon rather than pattern-matching the name. A lazy
-  // group matched one letter and reported `Airway` as `a`, so the header was
-  // never recognised and the finding after it kept the header attached.
+function splitSystemHeader(line: string): { name: string; rest: string } | null {
   const colon = line.indexOf(':');
+
   if (colon === -1) {
     const bare = line.replace(/[*_]/g, '').trim().toLowerCase();
-    if (bare.length > 0 && bare.length <= 40 && SYSTEM_HEADERS.some((h) => bare.startsWith(h))) {
-      return '';
+    if (bare.length === 0 || bare.length > 45) return null;
+    if (!SYSTEM_HEADERS.some((header) => bare === header || bare.startsWith(`${header} `))) {
+      return null;
     }
-    return null;
+    return { name: line.trim(), rest: '' };
   }
 
   const name = line.slice(0, colon).replace(/[*_]/g, '').trim().toLowerCase();
-  if (name.length === 0 || name.length > 40) return null;
-  if (!SYSTEM_HEADERS.some((header) => name.startsWith(header))) return null;
+  if (name.length === 0 || name.length > 45) return null;
+  if (!SYSTEM_HEADERS.some((header) => name === header || name.startsWith(header))) return null;
 
-  return line.slice(colon + 1).trim();
+  return { name: line.slice(0, colon).trim(), rest: line.slice(colon + 1).trim() };
 }
-
-export interface ReformatResult {
-  body: string;
-  /** What moved where, so the user can check rather than trust. */
-  summary: {
-    vitals: number;
-    exam: number;
-    investigations: number;
-    unrecognised: number;
-  };
-}
-
-const EMPTY_SUMMARY = { vitals: 0, exam: 0, investigations: 0, unrecognised: 0 };
 
 /**
- * Only the O section is rearranged.
+ * Only lines inside the O section are considered.
  *
- * Everything before it — greeting, identity, DPJP lines, S — and everything
- * from A onward is untouched, which keeps the blast radius of a wrong guess
- * inside one section.
+ * `Infection` and `Fluid` are ordinary words; outside O they could plausibly
+ * begin a real line, and unwrapping one there would silently edit a finding.
  */
-function locateObjective(lines: readonly string[]): { start: number; end: number } | null {
+function objectiveBounds(lines: readonly string[]): { start: number; end: number } | null {
   const start = lines.findIndex((line) => /^\s*\*?\s*O\s*[:/]/i.test(line));
   if (start === -1) return null;
 
@@ -120,108 +96,52 @@ function locateObjective(lines: readonly string[]): { start: number; end: number
 
 export function cvcuToBangsal(body: string): ReformatResult {
   const lines = body.split('\n');
-  const bounds = locateObjective(lines);
+  const bounds = objectiveBounds(lines);
+  if (!bounds) return { body, removed: [] };
 
-  // No O section to rearrange: return the note untouched rather than guess at
-  // its structure.
-  if (!bounds) return { body, summary: { ...EMPTY_SUMMARY } };
+  const removed: string[] = [];
+  const out: string[] = [];
 
-  const head = lines.slice(0, bounds.start);
-  const middle = lines.slice(bounds.start, bounds.end);
-  const tail = lines.slice(bounds.end);
+  for (const [index, line] of lines.entries()) {
+    const insideObjective = index > bounds.start && index < bounds.end;
 
-  const vitals: string[] = [];
-  const exam: string[] = [];
-  const investigations: string[] = [];
-  const other: string[] = [];
-
-  // The O header keeps whatever followed it on the same line — usually
-  // `Compos mentis`.
-  const objectiveHeader = middle[0] ?? '*O:*';
-  let insideInvestigation = false;
-
-  for (const line of middle.slice(1)) {
-    if (INVESTIGATION_START.test(line)) {
-      insideInvestigation = true;
-      investigations.push(line);
+    if (!insideObjective) {
+      out.push(line);
       continue;
     }
 
-    // The header itself is layout, not a finding — but anything written after
-    // it on the same line IS a finding, and gets sorted like any other.
-    const afterHeader = stripSystemHeader(line);
-    const content = afterHeader === null ? line : afterHeader;
-
-    if (afterHeader !== null) {
-      insideInvestigation = false;
-      if (content.length === 0) continue;
-    }
-
-    if (VITAL_PATTERNS.some((pattern) => pattern.test(content))) {
-      insideInvestigation = false;
-      // A line can hold vitals AND exam findings — `TD 103/73, Nadi 94, JVP
-      // R+3, BJ I/II murni` is one line in a CVCU note. Splitting it would
-      // reword the note; it goes with the vitals, where it reads correctly.
-      vitals.push(content.trim());
+    const header = splitSystemHeader(line);
+    if (!header) {
+      out.push(line);
       continue;
     }
 
-    if (EXAM_HINTS.test(content)) {
-      insideInvestigation = false;
-      exam.push(content.trim());
-      continue;
-    }
-
-    if (afterHeader !== null) {
-      other.push(content);
-      continue;
-    }
-
-    // A blank line ends an investigation block; anything else inside one
-    // belongs to it, which is how multi-line echo and angiography reports stay
-    // attached to their heading.
-    if (insideInvestigation) {
-      if (line.trim().length === 0) insideInvestigation = false;
-      investigations.push(line);
-      continue;
-    }
-
-    other.push(line);
+    removed.push(header.name);
+    // The content that shared the line stays, in place. Only the label goes.
+    if (header.rest.length > 0) out.push(header.rest);
   }
 
-  const keptOther = trimBlanks(other).filter((line) => line.trim().length > 0);
-
-  const rebuilt = [
-    objectiveHeader,
-    ...vitals,
-    ...(exam.length > 0 ? ['', ...exam] : []),
-    // Unrecognised lines are kept and placed where they can be seen. Losing one
-    // silently is the failure this function must not have.
-    ...(keptOther.length > 0 ? ['', ...keptOther] : []),
-    ...(investigations.length > 0 ? ['', ...trimBlanks(investigations)] : []),
-  ];
-
-  return {
-    body: [...head, ...rebuilt, '', ...trimLeadingBlanks(tail)].join('\n'),
-    summary: {
-      vitals: vitals.length,
-      exam: exam.length,
-      investigations: investigations.filter((line) => INVESTIGATION_START.test(line)).length,
-      unrecognised: keptOther.length,
-    },
-  };
+  return { body: collapseBlankRuns(out).join('\n'), removed };
 }
 
-function trimBlanks(lines: readonly string[]): string[] {
-  let start = 0;
-  let end = lines.length;
-  while (start < end && lines[start]?.trim() === '') start += 1;
-  while (end > start && lines[end - 1]?.trim() === '') end -= 1;
-  return lines.slice(start, end);
-}
+/**
+ * Removing a header that stood alone leaves two blank lines where there was
+ * one. Three or more never appear in a note that was written by hand, so
+ * collapsing to two is safe and leaves paragraphing intact.
+ */
+function collapseBlankRuns(lines: readonly string[]): string[] {
+  const out: string[] = [];
+  let blanks = 0;
 
-function trimLeadingBlanks(lines: readonly string[]): string[] {
-  let start = 0;
-  while (start < lines.length && lines[start]?.trim() === '') start += 1;
-  return lines.slice(start);
+  for (const line of lines) {
+    if (line.trim() === '') {
+      blanks += 1;
+      if (blanks > 1) continue;
+    } else {
+      blanks = 0;
+    }
+    out.push(line);
+  }
+
+  return out;
 }

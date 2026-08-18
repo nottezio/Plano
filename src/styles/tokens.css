@@ -61,6 +61,9 @@
   --card-step-12-accent: #047857;
   --card-done-bg: #dcfce7;
   --card-done-accent: #15803d;
+  --discharge-fg: #0b0f14;
+  --discharge-h1: #f59e0b;
+  --discharge-today: #16a34a;
   --sec-identitas: #eef2ff;
   --sec-s: #ecfdf5;
   --sec-o: #eff6ff;
@@ -136,6 +139,9 @@
   --card-step-12-accent: #34d399;
   --card-done-bg: #10331f;
   --card-done-accent: #4ade80;
+  --discharge-fg: #0b0f14;
+  --discharge-h1: #fbbf24;
+  --discharge-today: #4ade80;
   --sec-identitas: #171a2b;
   --sec-s: #10231c;
   --sec-o: #111d2e;

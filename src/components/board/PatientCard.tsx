@@ -41,6 +41,21 @@ export function PatientCard({
         onLongPress(patient.id);
       }}
       className="mb-3 block break-inside-avoid rounded-xl border border-black/5 bg-token p-3 text-token-fg shadow-sm transition-shadow hover:shadow-md dark:border-white/10"
+      style={
+        // A left edge rather than a different card colour: the card colour
+        // already means how far the round got, and one colour cannot carry two
+        // unrelated facts without making both unreadable. An edge reads as a
+        // marker on the card instead of a change to it.
+        card.discharge
+          ? {
+              borderLeftWidth: '4px',
+              borderLeftColor:
+                card.discharge === 'today'
+                  ? 'var(--discharge-today)'
+                  : 'var(--discharge-h1)',
+            }
+          : undefined
+      }
     >
       <div className="flex items-start gap-2">
         <h3 className="min-w-0 flex-1 truncate text-sm font-semibold">{card.title}</h3>
@@ -53,6 +68,23 @@ export function PatientCard({
             className="shrink-0 rounded border border-current/30 px-1 text-[10px] font-semibold opacity-80"
           >
             {card.dpjp.initials}
+          </span>
+        ) : null}
+        {card.discharge ? (
+          <span
+            className="shrink-0 rounded px-1 text-[10px] font-semibold"
+            style={{
+              backgroundColor:
+                card.discharge === 'today'
+                  ? 'var(--discharge-today)'
+                  : 'var(--discharge-h1)',
+              // Dark text on both badge colours in both themes: the badges are
+              // deliberately bright, so the foreground does not flip with the
+              // theme the way the rest of the card does.
+              color: 'var(--discharge-fg)',
+            }}
+          >
+            {card.discharge === 'today' ? 'PULANG' : 'H-1'}
           </span>
         ) : null}
         {patient.pinned ? (

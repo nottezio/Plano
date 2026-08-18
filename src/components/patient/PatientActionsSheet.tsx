@@ -69,8 +69,41 @@ export function PatientActionsSheet({
         ) : null}
       </div>
 
+      {/* Discharge planning, kept above archiving: it is the step before, and
+          the two get confused if they sit together. */}
+      <section className="mt-5">
+        <h3 className="text-sm font-semibold">Rencana pulang</h3>
+        <div className="mt-2 flex gap-2">
+          {(
+            [
+              [undefined, 'Belum'],
+              ['h1', 'H-1 pulang'],
+              ['today', 'Pulang hari ini'],
+            ] as Array<[Patient['discharge'], string]>
+          ).map(([value, label]) => (
+            <button
+              key={label}
+              type="button"
+              aria-pressed={patient.discharge === value}
+              onClick={() => void updatePatient(patient.id, { discharge: value })}
+              className={[
+                'min-h-tap flex-1 rounded-lg border px-2 text-xs',
+                patient.discharge === value
+                  ? 'border-accent bg-bg-subtle font-medium text-accent'
+                  : 'border-border text-fg-muted',
+              ].join(' ')}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+        <p className="mt-1 text-[11px] text-fg-faint">
+          Ditandai di papan sampai diubah — tidak hilang saat ganti hari.
+        </p>
+      </section>
+
       {!archived ? (
-        <section className="mt-5">
+      <section className="mt-5">
           <h3 className="text-sm font-semibold">Arsipkan</h3>
           <p className="mt-0.5 text-xs text-fg-muted">
             Hilang dari papan, tetap tersimpan lengkap dan tetap bisa disalin.

@@ -238,6 +238,14 @@ export interface Patient {
   archive?: PatientArchiveInfo;
   labels: string[];
   pinned: boolean;
+  /**
+   * Where the patient is in discharge planning.
+   *
+   * A flag on the patient, not a checklist tick: it survives the day rollover,
+   * because "going home tomorrow" is true tomorrow morning too, and a checklist
+   * resets at midnight.
+   */
+  discharge?: 'h1' | 'today';
   colorOverride?: string | null;
   lastEntryDate?: ClinicalDate;
 
@@ -312,6 +320,14 @@ export interface AppDocument {
   category: string;
   body: string;
   pinned: boolean;
+  /**
+   * Where the patient is in discharge planning.
+   *
+   * A flag on the patient, not a checklist tick: it survives the day rollover,
+   * because "going home tomorrow" is true tomorrow morning too, and a checklist
+   * resets at midnight.
+   */
+  discharge?: 'h1' | 'today';
   order: number;
   labels: string[];
   createdAt: Timestamp;

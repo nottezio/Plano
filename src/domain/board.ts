@@ -70,6 +70,8 @@ export function boardTickStates(
 }
 
 export interface BoardCard {
+  /** Discharge stage, if flagged. Drawn as an edge, not as the card colour. */
+  discharge: Patient['discharge'];
   patient: Patient;
   title: string;
   colorToken: string;
@@ -98,6 +100,10 @@ export function buildCard(
     // initials while the preview under it spells the name out in full is not
     // partial protection, it is none — and a stored preview written before this
     // rule existed can still contain the name.
+    // Deliberately NOT folded into `colorToken`. The card colour tracks how far
+    // the round got; discharge is a different axis entirely, and overloading one
+    // colour to mean both makes neither readable.
+    ...(patient.discharge ? { discharge: patient.discharge } : { discharge: undefined }),
     dpjp: patient.dpjpId ? (dpjpById(patient.dpjpId) ?? null) : null,
     preview: showInitialsOnly
       ? redactName(patient.preview ?? '', patient.name ?? '')
