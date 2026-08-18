@@ -134,6 +134,82 @@ ${THERAPY_AND_PLAN}
 
 ${CLOSING}`;
 
+/**
+ * KJS consult — a new patient referred jointly across specialties.
+ *
+ * Structurally different from every other seed: the diagnosis list and closing
+ * come BEFORE the SOAP body, not after. That is not a mistake in the template —
+ * it is how these are actually written, because the referring service wants the
+ * consult question answered in the first few lines, and the full workup follows
+ * for whoever reads further.
+ */
+export const KONSUL_KJS_BODY = `Assalamualaikum dokter. Tabe dok, mohon izin melaporkan pasien baru KJS *TS (Bagian) (Nama DPJP)* di *(Ruang) Kamar (no) Bed (no)* atas nama: 
+
+*(Nama) / (tgl lahir) / (umur) / RM (no)*
+
+_DPJP Kardio : (Nama DPJP Kardio)_
+_DPJP (Bagian) (Utama) : (Nama DPJP)_
+
+_Pasien dikonsulkan untuk evaluasi dan tatalaksana pasien rencana (rencana tindakan) ((hari, tanggal))_
+
+*Diagnosis*
+- 
+
+Tabe selanjutnya mohon arahannya dokter, terima kasih dokter
+
+*S:*
+- 
+
+${VITALS}
+
+*Mohon izin kami assess dengan:*
+- 
+
+*Mohon izin kami terapi dengan:*
+- 
+
+*Plan:*
+- Monitoring tanda vital dan hemodinamik
+- `;
+
+/**
+ * New patient referred from poli, admitted directly to a bangsal bed.
+ *
+ * Distinct from ADMISI_BODY: that one is a general long-S admission, this one
+ * carries the specific opening line for a poli referral ("pengantar dari poli
+ * di bangsal") and the diagnosis split into Primer / Sekunder / Problem that
+ * these referrals are written with.
+ */
+export const POLI_BARU_BODY = `Assalamualaikum, tabe dokter, mohon izin melaporkan pasien baru pengantar dari poli di bangsal *(Ruang) Kamar (no) Bed (no)* atas nama: 
+ 
+*(Nama) / (tgl lahir) / (umur) / RM (no)*
+ 
+_DPJP Utama dan tindakan: (Nama DPJP)_
+ 
+Rencana tindakan : (rencana tindakan) ((hari, tanggal))
+
+*S:*
+- 
+
+${VITALS}
+
+*Mohon izin kami Assess dengan:*
+Diagnosis Primer:
+- 
+
+Diagnosis Sekunder:
+- 
+
+Problem:
+- 
+
+*Mohon izin kami terapi dengan:*
+- 
+
+*Plan:*
+- Monitoring tanda vital dan hemodinamik
+- `;
+
 /** Long S — history, review of systems, prior medication, risk factors. */
 export const ADMISI_BODY = `Assalamu'alaikum dokter. Tabe dokter, mohon izin melaporkan pasien baru di *Ruang  Kamar  Bed *  atas nama : 
 

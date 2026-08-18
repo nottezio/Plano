@@ -5,17 +5,26 @@ import {
   FOLLOWUP_BODY,
   FOLLOWUP_DX_BODY,
   FOLLOWUP_RINGKAS_BODY,
+  KONSUL_KJS_BODY,
+  POLI_BARU_BODY,
 } from './templates';
 import { defaultUserSettings } from './defaults';
 import { parseSections } from './sections/parseSections';
 import { findMarkdownLeaks, toWhatsApp } from './format/formatters';
 
-const ALL = [FOLLOWUP_BODY, FOLLOWUP_DX_BODY, FOLLOWUP_RINGKAS_BODY, ADMISI_BODY];
+const ALL = [
+  FOLLOWUP_BODY,
+  FOLLOWUP_DX_BODY,
+  FOLLOWUP_RINGKAS_BODY,
+  ADMISI_BODY,
+  KONSUL_KJS_BODY,
+  POLI_BARU_BODY,
+];
 const SETTINGS = defaultUserSettings();
 
 describe('seed templates', () => {
   it('are all registered in the default settings', () => {
-    expect(SETTINGS.noteTemplates).toHaveLength(4);
+    expect(SETTINGS.noteTemplates).toHaveLength(6);
     expect(SETTINGS.noteTemplates.map((t) => t.body)).toEqual(
       expect.arrayContaining(ALL),
     );
@@ -24,7 +33,7 @@ describe('seed templates', () => {
   it('have unique ids and a contiguous order', () => {
     const templates = SETTINGS.noteTemplates;
     expect(new Set(templates.map((t) => t.id)).size).toBe(templates.length);
-    expect(templates.map((t) => t.order).sort()).toEqual([1, 2, 3, 4]);
+    expect(templates.map((t) => t.order).sort()).toEqual([1, 2, 3, 4, 5, 6]);
   });
 
   it('parse into sections without the parser losing a byte', () => {
@@ -74,12 +83,25 @@ describe('seed templates', () => {
   });
 
   it('carry the whole message: greeting, identity, DPJP, closing', () => {
-    for (const body of ALL) {
+    // KONSUL_KJS_BODY and POLI_BARU_BODY are transcribed verbatim from real
+    // messages with their own greeting, DPJP line and closing — they are
+    // checked on their own below rather than forced into this shape.
+    const standard = [FOLLOWUP_BODY, FOLLOWUP_DX_BODY, FOLLOWUP_RINGKAS_BODY, ADMISI_BODY];
+    for (const body of standard) {
       expect(body.startsWith("Assalamu'alaikum dokter")).toBe(true);
       expect(body).toContain('atas nama :');
       expect(body).toContain('RM');
       expect(body).toContain('DPJP Utama');
       expect(body.trimEnd().endsWith('Tabe terimakasih dokter')).toBe(true);
+    }
+  });
+
+  it('every template carries an identity line and an RM, however it is worded', () => {
+    // The one invariant that does hold across all six: something to identify
+    // the patient by, and their record number.
+    for (const body of ALL) {
+      expect(body).toMatch(/atas nama\s*:/);
+      expect(body).toContain('RM');
     }
   });
 
@@ -108,5 +130,46 @@ describe('carry-forward defaults', () => {
 
   it('clears only the subjective section', () => {
     expect(SETTINGS.carryForwardClearSections).toEqual(['s']);
+  });
+});
+
+
+describe('KONSUL_KJS_BODY', () => {
+  it('puts the diagnosis list and closing before the SOAP body', () => {
+    // Not a mistake — this is how a KJS consult is actually structured: the
+    // consult question answered first, the workup for whoever reads on.
+    const diagnosisAt = KONSUL_KJS_BODY.indexOf('*Diagnosis*');
+    const closingAt = KONSUL_KJS_BODY.indexOf('Tabe selanjutnya mohon arahannya');
+    const sAt = KONSUL_KJS_BODY.indexOf('*S:*');
+    expect(diagnosisAt).toBeGreaterThan(-1);
+    expect(diagnosisAt).toBeLessThan(closingAt);
+    expect(closingAt).toBeLessThan(sAt);
+  });
+
+  it('carries the KJS opening line with placeholders for specialty and DPJP', () => {
+    expect(KONSUL_KJS_BODY).toContain('pasien baru KJS *TS (Bagian) (Nama DPJP)*');
+    expect(KONSUL_KJS_BODY).toContain('_DPJP Kardio : (Nama DPJP Kardio)_');
+  });
+
+  it('shares the same vitals block as the other templates', () => {
+    expect(KONSUL_KJS_BODY).toContain('Anemis tidak ada, ikterus tidak ada');
+  });
+});
+
+describe('POLI_BARU_BODY', () => {
+  it('carries the poli-referral opening line', () => {
+    expect(POLI_BARU_BODY).toContain('pengantar dari poli di bangsal');
+    expect(POLI_BARU_BODY).toContain('Rencana tindakan : (rencana tindakan)');
+  });
+
+  it('splits the assessment into Primer, Sekunder and Problem', () => {
+    expect(POLI_BARU_BODY).toContain('Diagnosis Primer:');
+    expect(POLI_BARU_BODY).toContain('Diagnosis Sekunder:');
+    expect(POLI_BARU_BODY).toContain('Problem:');
+  });
+
+  it('is distinct from the general admission template', () => {
+    expect(POLI_BARU_BODY).not.toBe(ADMISI_BODY);
+    expect(POLI_BARU_BODY).not.toContain('Faktor resiko koroner');
   });
 });

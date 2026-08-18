@@ -4,6 +4,8 @@ import {
   FOLLOWUP_BODY,
   FOLLOWUP_DX_BODY,
   FOLLOWUP_RINGKAS_BODY,
+  KONSUL_KJS_BODY,
+  POLI_BARU_BODY,
 } from './templates';
 import type { NoteTemplate } from './types';
 import type {
@@ -104,6 +106,8 @@ export const SEED_NOTE_TEMPLATES: readonly NoteTemplate[] = [
         body: FOLLOWUP_RINGKAS_BODY,
       },
       { id: 'admisi', order: 4, name: 'Pasien baru (admisi)', body: ADMISI_BODY },
+      { id: 'konsul-kjs', order: 5, name: 'Konsul KJS (pasien baru)', body: KONSUL_KJS_BODY },
+      { id: 'poli-baru', order: 6, name: 'Pasien baru dari poli', body: POLI_BARU_BODY },
 ];
 
 export function defaultUserSettings(): UserSettings {
