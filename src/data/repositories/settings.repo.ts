@@ -13,6 +13,7 @@ import { trackWrite } from '../syncStatus';
 import { defaultUserSettings } from '@/domain/defaults';
 import {
   SCHEMA_VERSION,
+  type SavedChecklist,
   type ScratchNote,
   type UserProfile,
   type UserSettings,
@@ -85,4 +86,9 @@ export function updateProfileNote(uid: string, scratchNote: string): Promise<voi
  */
 export function updateScratchNotes(uid: string, notes: ScratchNote[]): Promise<void> {
   return trackWrite(setDoc(userDoc(uid), { notes }, { merge: true }));
+}
+
+/** The whole checklist collection, written as one field, for the same reason. */
+export function updateChecklists(uid: string, checklists: SavedChecklist[]): Promise<void> {
+  return trackWrite(setDoc(userDoc(uid), { checklists }, { merge: true }));
 }

@@ -35,6 +35,35 @@ export default function DocumentsPage(): JSX.Element {
    * Skips any title already present so a second tap cannot duplicate them, and
    * so a set added months ago is topped up rather than doubled.
    */
+  /**
+   * Export every document as the source form the seeds are written in.
+   *
+   * The point is that the output can be handed back to me and become built-in
+   * defaults — so it is emitted as the same `{ category, title, body }` shape
+   * `seedDocuments.ts` already uses, rather than as prose. Anything else means
+   * transcribing it by hand on the way in, which is where errors enter.
+   *
+   * Downloaded as a file rather than copied: these run to thousands of lines,
+   * and a clipboard that large is refused by some browsers.
+   */
+  const exportDocuments = (): void => {
+    const payload = documents.map((document) => ({
+      category: document.category,
+      title: document.title,
+      body: document.body,
+    }));
+
+    const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const link = window.document.createElement('a');
+    link.href = url;
+    link.download = `plano-dokumen-${new Date().toISOString().slice(0, 10)}.json`;
+    window.document.body.appendChild(link);
+    link.click();
+    window.document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  };
+
   const addSeeds = (): void => {
     if (!uid || seeding) return;
     setSeeding(true);
@@ -77,6 +106,13 @@ export default function DocumentsPage(): JSX.Element {
             className="text-xs text-fg-muted underline disabled:opacity-50"
           >
             {seeding ? 'Menambahkan…' : 'Tambahkan format bawaan yang belum ada'}
+          </button>
+          <button
+            type="button"
+            onClick={exportDocuments}
+            className="ml-3 text-xs text-fg-muted underline"
+          >
+            Ekspor semua dokumen (JSON)
           </button>
         </div>
       ) : null}

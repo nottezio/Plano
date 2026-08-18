@@ -158,6 +158,15 @@ export interface ScratchNote {
   body: string;
 }
 
+export interface SavedChecklist {
+  id: string;
+  title: string;
+  context?: string;
+  items: Array<{ id: string; label: string }>;
+  /** Item ids currently ticked. */
+  done: string[];
+}
+
 export interface NoteTemplate {
   id: string;
   name: string;
@@ -184,6 +193,15 @@ export interface UserProfile {
    * cursor is where it was.
    */
   notes?: ScratchNote[];
+  /**
+   * Reusable checklists and their current ticks.
+   *
+   * Ticks live with the list rather than per patient, because these are worked
+   * through once and reset — the state is "where am I in this procedure right
+   * now", not a record of anything. A per-patient history would imply these
+   * were evidence, which they are not.
+   */
+  checklists?: SavedChecklist[];
   uid: string;
   displayName: string;
   email: string;

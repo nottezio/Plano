@@ -68,6 +68,15 @@ export const IconCalculator = (props: IconProps): JSX.Element => (
   </Base>
 );
 
+export const IconChecklist = (props: IconProps): JSX.Element => (
+  <Base {...props}>
+    <path d="M4 6l2 2 3-3" />
+    <path d="M4 13l2 2 3-3" />
+    <path d="M4 20l2 2 3-3" />
+    <path d="M13 7h7M13 14h7M13 21h7" />
+  </Base>
+);
+
 export const IconSettings = (props: IconProps): JSX.Element => (
   <Base {...props}>
     <circle cx="12" cy="12" r="3" />

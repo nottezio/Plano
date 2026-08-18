@@ -43,6 +43,16 @@ export function SectionBands({
 
   const parts = useMemo(() => {
     const sections = parseSections(settled, aliases);
+    /**
+     * One band per section KIND, at its first appearance.
+     *
+     * A note carries three EKG blocks, five lab dates and two consult replies,
+     * and tinting every one produced a striped page where the colour said
+     * nothing — the point of the band is "you have arrived at O", not "here is
+     * another O-ish thing". Marking only the first occurrence makes the colour
+     * a boundary again, which is what a scanning aid is.
+     */
+    const seen = new Set<string>();
     const result: Array<{
       key: string;
       text: string;
@@ -66,7 +76,9 @@ export function SectionBands({
         });
       }
 
-      const tint = tintFor(section.sectionId, section.label);
+      const kind = tintFor(section.sectionId, section.label);
+      const tint = kind && !seen.has(kind) ? kind : null;
+      if (kind) seen.add(kind);
       result.push({
         key: `head-${index}`,
         text: settled.slice(section.start, headerEnd),

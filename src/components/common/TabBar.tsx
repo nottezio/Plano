@@ -6,6 +6,7 @@ import {
   IconArchive,
   IconBoard,
   IconCalculator,
+  IconChecklist,
   IconDocuments,
   IconNote,
   IconSettings,
@@ -28,6 +29,7 @@ const TABS = [
   { to: '/dokumen', label: 'Dokumen', Icon: IconDocuments, end: false },
   { to: '/catatan', label: 'Catatan', Icon: IconNote, end: false },
   { to: '/kalkulator', label: 'Kalkulator', Icon: IconCalculator, end: false },
+  { to: '/checklist', label: 'Checklist', Icon: IconChecklist, end: false },
   { to: '/pengaturan', label: 'Pengaturan', Icon: IconSettings, end: false },
 ] as const;
 
