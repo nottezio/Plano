@@ -162,6 +162,8 @@ export interface SavedChecklist {
   id: string;
   title: string;
   context?: string;
+  /** Caveats from the sheet, shown but not tickable. */
+  notes?: string[];
   items: Array<{ id: string; label: string }>;
   /** Item ids currently ticked. */
   done: string[];

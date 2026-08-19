@@ -33,8 +33,8 @@ export function UpdateBanner(): JSX.Element | null {
 
     setSaving(true);
     flushAll();
-    // One frame for the writes to reach Firestore's queue before the document
-    // is torn down. They are durable from that point, online or not.
+    // A moment for the writes to reach Firestore's queue before the document is
+    // torn down. They are durable from that point, online or not.
     window.setTimeout(() => void applyUpdate(), 300);
   };
 

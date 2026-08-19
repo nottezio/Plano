@@ -25,6 +25,15 @@ export interface ChecklistTemplate {
   /** Shown under the title — when this list applies. */
   context?: string;
   items: ChecklistTemplateItem[];
+  /**
+   * The "Catatan" under a sheet: rules that qualify the items rather than
+   * being steps themselves.
+   *
+   * Kept as notes rather than folded into the list, because turning a caveat
+   * into a tickable step changes what ticking means — "Faktor risiko: kalau
+   * NIHIL tulis di riwayat" is not something you do once and finish.
+   */
+  notes?: string[];
 }
 
 function items(...labels: string[]): ChecklistTemplateItem[] {
@@ -34,52 +43,51 @@ function items(...labels: string[]): ChecklistTemplateItem[] {
 export const SEED_CHECKLISTS: readonly ChecklistTemplate[] = [
   {
     id: 'poli-tindakan',
-    title: 'Pasien poli rencana tindakan',
-    context: 'CA standby PCI, advanced PCI, staging PCI, PPM, TPM, EP study',
+    title: 'Pasien poli untuk CA standby + PPM + EP study',
+    context: 'Termasuk advanced PCI, staging PCI, TPM',
     items: items(
       'Cek SEP (tindakan apa, DPJP utama dan DPJP tindakan)',
       'Anamnesis + TTV dan EKG pasien',
       'Buka laporan invasif (nyanyian invasif)',
       'Lapor di grup invasif PJT (attach EKG + swipe)',
       'IC + site marking + edukasi',
-      'Bikin SOAP (anamnesis panjang)',
-      'Pasien baru: lapor ke chief',
-      'PDF untuk trio, PPT untuk Prof MZ',
-      'SOAP fix ditulis di CPPT',
-      'Order lab / order resep',
-      'Konsul invasif di sistem (besoknya, sesuai hari H tindakan)',
-      'Pastikan ada jadwal rencana kegiatan (SIMGOS → Perencanaan)',
-      'Kontak senior minta operan dan nyanyian terakhir',
-      'Kirim chief',
-      'TTD chief',
+      'Bikin SOAP (pakai anamnesis panjang). Untuk pasien baru lapor ke chief. PDF untuk trio, PPT untuk Prof MZ',
+      'SOAP fix tulis di CPPT, order lab / order resep',
+      'Konsul invasif di sistem (besoknya) sesuai hari H tindakan',
+      'Pastikan sudah ada jadwal rencana kegiatan (di SIMGOS = Perencanaan)',
     ),
+    notes: [
+      'Untuk pasien IGD yang mau tindakan: buka perencanaan, jadwal tindakan (yang belum ada rencana).',
+      'Kalau dari poli, biasanya sudah direncanakan dari poli.',
+    ],
   },
   {
     id: 'pindah-cvcu',
-    title: 'Perpindahan pasien dari CVCU',
+    title: 'Perpindahan pasien CVCU',
     items: items(
-      'Chat senior paling junior yang stase IACC untuk minta SOAP panjang',
-      'Anamnesis singkat (sesak / nyeri / berdebar) + TTV dan EKG pasien',
-      'Ubah format dari CVCU ke SOAP bangsal',
-      'Cek plan di SOAP panjang (mis. cek lab, koreksi elektrolit)',
+      'Chat senior paling junior yang lagi stase IACC untuk meminta SOAP panjang',
+      'Anamnesis singkat (sesak / nyeri / berdebar) + TTV dan EKG pasien (ubah format dari CVCU ke SOAP)',
+      'Cek plan di SOAP panjang, misal cek lab / koreksi elektrolit',
       'Bikin SOAP fix → lapor chief, jika ACC lanjutkan sesuai instruksi',
       'Order radiologi / lab',
       'Order resep',
-      'SOAP fix ditulis di CPPT',
+      'SOAP fix tulis di CPPT',
     ),
+    notes: [
+      'Untuk pasien IGD yang mau tindakan: buka perencanaan, jadwal tindakan (yang belum ada rencana).',
+    ],
   },
   {
     id: 'pindah-igd',
-    title: 'Perpindahan pasien dari IGD',
+    title: 'Perpindahan pasien IGD',
     items: items(
-      'Chat senior paling junior yang stase IGD untuk minta SOAP panjang',
+      'Chat senior paling junior yang lagi stase IGD untuk meminta SOAP panjang',
       'Anamnesis singkat (sesak / nyeri / berdebar) + TTV dan EKG pasien',
-      'Cek plan di SOAP panjang (mis. cek lab, koreksi elektrolit)',
+      'Cek plan di SOAP panjang, misal cek lab / koreksi elektrolit',
       'Bikin SOAP fix → lapor chief, jika ACC lanjutkan sesuai instruksi',
       'Order radiologi / lab',
       'Order resep',
-      'SOAP fix ditulis di CPPT',
-      'Pasien IGD yang mau tindakan: buka perencanaan, jadwal tindakan',
+      'SOAP fix tulis di CPPT',
     ),
   },
   {
@@ -87,31 +95,35 @@ export const SEED_CHECKLISTS: readonly ChecklistTemplate[] = [
     title: 'Pasien rencana pulang (H-1)',
     items: items(
       'Centang H-1 di CPPT, atur tanggal pulang',
-      'Konsul resep rencana pulang ke chief; jika ACC, order resep pulang',
+      'Konsul untuk resep rencana pulang ke chief; jika sudah ACC, order resep pulang (centang)',
       'Bikin resume',
       'Bikin kartu kontrol (cek jadwal poli)',
       'Tulis diagnosis pulang di lembar MR1',
-      'Resume: ceritakan perjalanan penyakit (ada format)',
-      'Faktor risiko — NIHIL: tulis di riwayat penyakit sekarang; ada: ceklist di resume',
-      'Cantumkan pemeriksaan fisis awal dan akhir',
-      'Indikasi rawat inap (dari IGD) dikosongkan',
-      'Isi KIE dan edukasi',
-      'Pemeriksaan lain: EKG, echo, hasil CA, hasil 6MWT',
-      'Konsul: hasil konsul dengan TS lain',
-      'Centang hijau satu saja',
-      'Pasien trio atau post tindakan: 6MWT sebelum pulang, pastikan terkonekta',
-      'Jika pasien sudah pulang: coding, lihat diagnosis yang tercoder',
     ),
+    notes: [
+      'Resume: SOAP panjang; ceritakan perjalanan penyakit pasien (ada format).',
+      'Faktor risiko: kalau NIHIL tulis semua di riwayat penyakit sekarang; kalau ada, ceklist satu-satu di kolom resume.',
+      'Pemeriksaan fisis awal dan akhir dicantumkan.',
+      'Indikasi rawat inap (dari IGD) dikosongkan.',
+      'Isi KIE dan edukasi.',
+      'Pemeriksaan lainnya: EKG, echo, hasil CA, hasil 6MWT.',
+      'Konsul: hasil konsul dengan TS lain.',
+      'Jangan lupa centang hijau-hijau, 1 saja.',
+      'Resume dibikin H-1. Jika pasien sudah pulang, jangan lupa coding — lihat diagnosis yang tercoder.',
+      'Pasien trio atau post tindakan: jangan lupa 6MWT sebelum pulang. Kalau sudah 6MWT, PASTIKAN sudah terkonekta.',
+    ],
   },
   {
     id: 'konsul-cabg',
-    title: 'Pasien konsul CABG (dari BTKV)',
+    title: 'Pasien konsul mau CABG (dari BTKV)',
     items: items(
-      'Cek riwayat pasien sebelumnya dan DPJP-nya (yang mengerjakan = DPJP-nya)',
-      'Tanyakan kapan terakhir minum aspilet dan CPG — stop minimal 5 hari sebelum tindakan',
+      'Cek riwayat pasien sebelumnya dan sama DPJP siapa (yang mengerjakan, itu berarti DPJP-nya)',
+      'Tanyakan kapan terakhir minum aspilet dan CPG — harus di-stop minimal 5 hari sebelum tindakan',
       'Format SOAP ada di komunitas (cari riwayat pemeriksaan di SIMGOS)',
-      'Konsul kelayakan: format "setelah dilakukan anamnesis…" + Lee criteria untuk risiko MACE',
-      'Konsul rawat bersama: format "setelah dilakukan anamnesis…" + assessment dan plan',
     ),
+    notes: [
+      'Konsul KELAYAKAN: cukup format "setelah dilakukan anamnesis…", tambahkan Lee criteria untuk risiko MACE.',
+      'Konsul RAWAT BERSAMA: format "setelah dilakukan anamnesis…" ditambah Assessment dan Plan.',
+    ],
   },
 ];

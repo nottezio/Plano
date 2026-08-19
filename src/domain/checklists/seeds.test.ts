@@ -34,9 +34,22 @@ describe('the seeded checklists', () => {
 
   it('names the procedures the poli list applies to', () => {
     const poli = SEED_CHECKLISTS.find((list) => list.id === 'poli-tindakan');
-    expect(poli?.context).toContain('CA standby PCI');
-    expect(poli?.context).toContain('PPM');
-    expect(poli?.context).toContain('EP study');
+    // The sheet's own title names three; the context adds the rest.
+    const both = `${poli?.title} ${poli?.context}`;
+    for (const procedure of ['CA standby', 'PPM', 'EP study', 'advanced PCI', 'staging PCI']) {
+      expect(both).toContain(procedure);
+    }
+  });
+
+  it('keeps the caveats as notes rather than as tickable steps', () => {
+    // Turning a caveat into a step changes what ticking means: "Faktor risiko:
+    // kalau NIHIL tulis di riwayat" is not something you do once and finish.
+    const pulang = SEED_CHECKLISTS.find((list) => list.id === 'pulang-h1');
+    expect(pulang?.notes?.join('\n')).toContain('Faktor risiko');
+    expect(pulang?.items.map((item) => item.label).join('\n')).not.toContain('Faktor risiko');
+
+    const cabg = SEED_CHECKLISTS.find((list) => list.id === 'konsul-cabg');
+    expect(cabg?.notes?.join('\n')).toContain('Lee criteria');
   });
 
   it('keeps the specifics that make an item actionable', () => {
@@ -46,6 +59,6 @@ describe('the seeded checklists', () => {
     expect(labels.join('\n')).toContain('DPJP utama dan DPJP tindakan');
     expect(labels.join('\n')).toContain('PDF untuk trio, PPT untuk Prof MZ');
     expect(labels.join('\n')).toContain('stop minimal 5 hari sebelum tindakan');
-    expect(labels.join('\n')).toContain('Lee criteria');
+
   });
 });

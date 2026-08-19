@@ -57,6 +57,15 @@ export function useBodyEditor({
    */
   const lastSnapshot = useRef<{ at: number; body: string }>({ at: 0, body: '' });
 
+  /**
+   * A second gate, independent of the caller.
+   *
+   * `locked` already stops the flush, but this is the write that can destroy a
+   * day's work, and one guard for that is not enough. Refusing to replace a
+   * non-empty body with an empty one costs nothing real — clearing a note is
+   * done by selecting and deleting, which leaves a body that is empty but was
+   * typed, and that path goes through the editor with the entry loaded.
+   */
   const write = useCallback(
     (body: string) => {
       const previous = entry?.body ?? '';
@@ -75,6 +84,11 @@ export function useBodyEditor({
           rev: entry?.rev ?? 0,
           reason: 'autosave',
         }).catch((error: unknown) => console.error('[editor] autosave snapshot failed', error));
+      }
+
+      if (body.trim().length === 0 && previous.trim().length > 0) {
+        console.warn('[editor] refused to blank a non-empty entry');
+        return Promise.resolve();
       }
 
       return writeBody(patientId, date, body, hariRawat, { isNew: !exists });

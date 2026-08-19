@@ -58,8 +58,8 @@ const ALIASES: Record<string, readonly string[]> = {
   PT: ['pt', 'protrombin', 'prothrombin'],
   GDS: ['gds', 'glukosa sewaktu', 'gula darah sewaktu'],
   GDP: ['gdp', 'glukosa puasa'],
-  Ureum: ['ureum', 'urea', 'bun'],
-  Kreatinin: ['kreatinin', 'creatinin', 'creatinine'],
+  Ureum: ['ureum', 'urea', 'bun', 'ur'],
+  Kreatinin: ['kreatinin', 'creatinin', 'creatinine', 'cr'],
   eGFR: ['egfr', 'gfr'],
   Albumin: ['albumin'],
   GOT: ['got', 'sgot', 'ast'],
@@ -216,6 +216,47 @@ function matchAnalyte(line: string): { key: string; rest: string } | null {
   return null;
 }
 
+/**
+ * A line already in handover form: `Na/K/Cl: 141/4.4/103`.
+ *
+ * The printout parser reads one analyte per row, which is right for a lab
+ * report — but a note carries the compact grouped form, and pasting a previous
+ * day's block back in has to work too. Both are the same information; only the
+ * shape differs.
+ *
+ * Split only when the counts match. `Ur/Cr: 30` is ambiguous — is 30 the urea
+ * or the creatinine? — and a guess there puts a number under the wrong name,
+ * which is exactly the failure that reads as plausible.
+ */
+function splitGrouped(line: string): Array<[string, string]> | null {
+  const match = /^\s*([A-Za-z][A-Za-z0-9\s]*(?:\/[A-Za-z0-9\s]+)+)\s*[:=]\s*(.+)$/.exec(line);
+  if (!match?.[1] || !match[2]) return null;
+
+  const names = match[1].split('/').map((name) => name.trim());
+  const values = match[2].split('/').map((value) => value.trim());
+  if (names.length < 2 || names.length !== values.length) return null;
+
+  const pairs: Array<[string, string]> = [];
+  for (const [index, name] of names.entries()) {
+    const key = resolveAlias(name);
+    const value = values[index];
+    if (!key || !value || !/\d/.test(value)) return null;
+    pairs.push([key, value]);
+  }
+
+  return pairs;
+}
+
+/** Canonical key for an analyte name, or null when it is not one we know. */
+function resolveAlias(name: string): string | null {
+  const flat = normalise(name);
+  if (!flat) return null;
+  for (const [alias, key] of LOOKUP) {
+    if (flat === alias) return key;
+  }
+  return null;
+}
+
 export function parseLab(raw: string): LabParseResult {
   const found = new Map<string, string>();
   const unknown: LabValue[] = [];
@@ -223,6 +264,14 @@ export function parseLab(raw: string): LabParseResult {
   for (const line of raw.split('\n')) {
     const trimmed = line.trim();
     if (!trimmed) continue;
+
+    const grouped = splitGrouped(trimmed);
+    if (grouped) {
+      for (const [key, value] of grouped) {
+        if (!found.has(key)) found.set(key, value);
+      }
+      continue;
+    }
 
     const matched = matchAnalyte(trimmed);
     if (matched) {

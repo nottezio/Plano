@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 
 import { AppShell } from '@/components/common/AppShell';
@@ -28,9 +28,17 @@ export default function DocumentPage(): JSX.Element {
   const settings = useSession((state) => state.settings());
 
   const { document, loading } = useDocument(documentId);
+
+  // Follows the stored title until the field is touched — same reason the
+  // identity fields keep a local draft: a value bound straight to Firestore is
+  // erased by the re-render before the echo returns.
+  useEffect(() => {
+    if (document) setTitleDraft(document.title);
+  }, [document?.id, document?.title]);
   const editor = useDocumentEditor(documentId, document);
 
   const [menuOpen, setMenuOpen] = useState(false);
+  const [titleDraft, setTitleDraft] = useState('');
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [shared, setShared] = useState(false);
   const [format, setFormat] = useState<OutputFormat>('whatsapp');
@@ -77,7 +85,28 @@ export default function DocumentPage(): JSX.Element {
           >
             <span aria-hidden="true">←</span>
           </button>
-          <h2 className="min-w-0 flex-1 truncate text-sm font-semibold">{document.title}</h2>
+          {/* Editable in place. A title set once at creation and never again is
+              how a document ends up called "Untitled" forever. */}
+          <input
+            type="text"
+            value={titleDraft}
+            onChange={(event) => setTitleDraft(event.target.value)}
+            onBlur={() => {
+              const next = titleDraft.trim();
+              if (uid && next.length > 0 && next !== document.title) {
+                void updateDocument(uid, document.id, { title: next });
+              } else if (next.length === 0) {
+                // An empty title would make the document unfindable in the
+                // list, so a cleared field reverts rather than saving.
+                setTitleDraft(document.title);
+              }
+            }}
+            onKeyDown={(event) => {
+              if (event.key === 'Enter') event.currentTarget.blur();
+            }}
+            aria-label="Judul dokumen"
+            className="min-h-tap min-w-0 flex-1 rounded-lg border border-transparent bg-transparent px-2 text-sm font-semibold outline-none focus:border-border"
+          />
           <button
             type="button"
             onClick={() => setMenuOpen(true)}

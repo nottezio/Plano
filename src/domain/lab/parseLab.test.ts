@@ -310,3 +310,51 @@ describe('insertIntoObjective', () => {
     expect(twice.indexOf('Lab (10-08)')).toBeLessThan(twice.indexOf('*A:*'));
   });
 });
+
+describe('the compact lab format as written in a report', () => {
+  /** Verbatim from a konsul kelayakan note — already in handover shorthand. */
+  const WRITTEN = [
+    '*Hasil Pemeriksaan Laboratorium PJT 06/08/2026*',
+    'WBC: 5.08',
+    'Hb: 12.8',
+    'HCT: 39.0',
+    'PLT: 252000',
+    'APTT/INR/PT: 27.0/0.91/9.5',
+    'GDS: 66',
+    'Ur/Cr: 30/0.73',
+    'GOT/GPT: 40/38',
+    'Na/K/Cl: 141/4.4/103',
+    'HBsAg Non Reactive',
+    'Anti HCV Non Reactive',
+    'Anti HIV Non Reactive',
+  ].join('\n');
+
+  const result = parseLab(WRITTEN);
+
+  it('reads a note that is already in the output format', () => {
+    // Re-parsing your own output has to be lossless, or pasting a previous
+    // day's block back in would quietly drop values.
+    expect(result.formatted).toContain('WBC 5.08');
+    expect(result.formatted).toContain('HGB 12.8');
+    expect(result.formatted).toContain('HCT 39.0');
+    expect(result.formatted).toContain('PLT 252000');
+    expect(result.formatted).toContain('GDS 66');
+  });
+
+  it('splits a combined line into its analytes', () => {
+    expect(result.formatted).toContain('APTT/INR/PT 27.0/0.91/9.5');
+    expect(result.formatted).toContain('Ur/Cr 30/0.73');
+    expect(result.formatted).toContain('GOT/GPT 40/38');
+    expect(result.formatted).toContain('Na/K/Cl 141/4.4/103');
+  });
+
+  it('keeps the serology results as written', () => {
+    expect(result.formatted).toContain('HBsAg Non Reactive');
+    expect(result.formatted).toContain('Anti HCV Non Reactive');
+    expect(result.formatted).toContain('Anti HIV Non Reactive');
+  });
+
+  it('leaves no Lain-lain for a note in this format', () => {
+    expect(result.formatted).not.toContain('Lain-lain');
+  });
+});

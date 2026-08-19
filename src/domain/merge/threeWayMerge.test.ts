@@ -227,3 +227,33 @@ describe('the echo race that broke typing', () => {
     expect(mergeThreeWay('S: sesak', typed, typed).kind).toBe('unchanged');
   });
 });
+
+describe('the empty-server race that wiped a note after sign-in', () => {
+  /**
+   * A redirect sign-in reloads the page and lands back on the note. Until the
+   * entry snapshot arrives, the editor's server text is '' — and a merge run in
+   * that window sees the real body as a deletion.
+   */
+  it('reads a loaded body against an empty one as a full deletion', () => {
+    const real = 'S: sesak berkurang\nO:\nTD 130/80\nA: pneumonia';
+
+    // base '' (nothing known yet), local '' (blank editor), remote = the real
+    // note arriving. Adopting remote is correct — the danger is the reverse.
+    const arriving = mergeThreeWay('', '', real);
+    expect(arriving.kind).toBe('remote-only');
+    expect(arriving.body).toBe(real);
+  });
+
+  it('does not silently prefer the blank when both sides moved', () => {
+    const real = 'S: sesak berkurang\nA: pneumonia';
+    const typedIntoBlank = 'x';
+
+    // If a keystroke lands before the entry loads, this is the state. It must
+    // NOT resolve automatically to the keystroke — the editor being locked
+    // while loading is what prevents reaching here at all.
+    const result = mergeThreeWay('', typedIntoBlank, real);
+    expect(result.kind).toBe('conflict');
+    if (result.kind !== 'conflict') return;
+    expect(result.remote).toBe(real);
+  });
+});

@@ -55,7 +55,7 @@ export default function PatientPage(): JSX.Element {
 
   const selected: ClinicalDate = routeDate ?? today;
   const { patient, loading, error } = usePatient(patientId);
-  const { entry, exists } = useEntry(patientId, selected);
+  const { entry, exists, loading: entryLoading } = useEntry(patientId, selected);
   const entryDates = useEntryDates(patientId);
   const previous = useEntry(patientId, previousDay(selected));
 
@@ -87,7 +87,20 @@ export default function PatientPage(): JSX.Element {
     settings.timezone,
     settings.dayRolloverHour,
   );
-  const locked = entry?.locked === true || (autoLocked && entry?.locked !== false);
+  /**
+   * Locked while the entry is still loading.
+   *
+   * This is the bug that wiped a day's note after a mobile sign-in. Until the
+   * snapshot arrives, `entry` is null, so the editor's `serverText` is '' — an
+   * empty, WRITABLE document standing in for one that may be full. A redirect
+   * sign-in reloads the whole page and lands you straight back on the note, so
+   * that window is exactly when a keystroke or a force-flush would land, and
+   * the write would replace the real body with what was typed into the blank.
+   *
+   * An editor that does not yet know what it is editing must not be editable.
+   */
+  const locked =
+    entryLoading || entry?.locked === true || (autoLocked && entry?.locked !== false);
 
   const editor = useBodyEditor({
     patientId: patientId ?? '',

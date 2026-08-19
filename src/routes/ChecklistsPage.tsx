@@ -35,6 +35,7 @@ export default function ChecklistsPage(): JSX.Element {
       id: seed.id,
       title: seed.title,
       ...(seed.context ? { context: seed.context } : {}),
+      ...(seed.notes ? { notes: seed.notes } : {}),
       items: seed.items.map((item) => ({ ...item })),
       done: [],
     }));
@@ -143,6 +144,19 @@ export default function ChecklistsPage(): JSX.Element {
                       );
                     })}
                   </ul>
+
+                  {list.notes && list.notes.length > 0 ? (
+                    <div className="mt-3 rounded-lg border border-border bg-bg-subtle p-2">
+                      <p className="text-[11px] font-semibold text-fg-muted">Catatan</p>
+                      <ul className="mt-1 space-y-1">
+                        {list.notes.map((note) => (
+                          <li key={note} className="text-[11px] leading-relaxed text-fg-muted">
+                            • {note}
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  ) : null}
 
                   <button
                     type="button"

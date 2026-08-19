@@ -25,12 +25,33 @@ export function onUpdateAvailable(listener: UpdateListener): () => void {
 }
 
 /**
- * Activates the waiting worker and reloads. The caller MUST have confirmed
- * that no editor is dirty — see useUI.hasUnsavedWork.
+ * Activates the waiting worker and reloads.
+ *
+ * `updateSW(true)` posts SKIP_WAITING and reloads when `controllerchange`
+ * fires. When that event never arrives — a worker that fails to activate, or a
+ * page with no controller at all — the promise simply never settles and the
+ * button looks dead. That is what "Muat ulang tidak dapat dipencet" was: the
+ * click worked, and nothing downstream of it did.
+ *
+ * So the reload is guaranteed here rather than delegated. If the normal path
+ * has not torn the page down within two seconds, this reloads directly. A
+ * duplicate reload is invisible; a button that does nothing is not.
  */
 export async function applyUpdate(): Promise<void> {
-  if (!applyUpdateFn) return;
-  await applyUpdateFn();
+  const fallback = window.setTimeout(() => {
+    window.location.reload();
+  }, 2000);
+
+  try {
+    if (applyUpdateFn) await applyUpdateFn();
+  } catch (error) {
+    console.error('[pwa] update failed, reloading anyway', error);
+  } finally {
+    window.clearTimeout(fallback);
+    // Reached only if `updateSW` resolved without reloading, which happens when
+    // there was no waiting worker to activate in the first place.
+    window.location.reload();
+  }
 }
 
 export function registerServiceWorker(): void {
