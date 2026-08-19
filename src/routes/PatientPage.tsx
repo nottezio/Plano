@@ -11,6 +11,7 @@ import { ReformatSheet } from '@/components/patient/ReformatSheet';
 import { IdentityBar } from '@/components/patient/IdentityBar';
 import { LabSheet } from '@/components/patient/LabSheet';
 import { PatientNotes, usePatientNotes } from '@/components/patient/PatientNotes';
+import { PatientTodos } from '@/components/patient/PatientTodos';
 import { ScrollToTop } from '@/components/patient/ScrollToTop';
 import { OpeningSheet } from '@/components/patient/OpeningSheet';
 import { TemplatePicker } from '@/components/patient/TemplatePicker';
@@ -432,6 +433,10 @@ export default function PatientPage(): JSX.Element {
         </div>
 
         <div className="xl:hidden">
+          <PatientTodos patient={patient} />
+        </div>
+
+        <div className="xl:hidden">
           <ChecklistPills
             items={settings.checklistItems}
             states={checklist.states}
@@ -600,13 +605,24 @@ export default function PatientPage(): JSX.Element {
         {/* Sidebar: fixed-width context, scrolls independently. */}
         {/* Collapsing gives the note the full width. The state persists, so a
             preference set once survives navigation and reloads. */}
+        {/*
+          Sticky to the viewport, scrolling on its own.
+          
+          It used to scroll with the note, so on a long note the checklist —
+          the thing you tick WHILE reading — was somewhere off the top of the
+          screen. `max-h` plus its own overflow means a long checklist still
+          scrolls without dragging the note with it.
+        */}
         <aside
           className={[
-            'w-[300px] shrink-0 flex-col gap-4 overflow-y-auto overflow-x-hidden py-4',
+            'sticky top-0 max-h-[100dvh] w-[300px] shrink-0 flex-col gap-4',
+            'overflow-y-auto overflow-x-hidden py-4',
             paneOpen ? 'hidden xl:flex' : 'hidden',
           ].join(' ')}
         >
           <PatientNotes sync={notesSync} />
+
+          <PatientTodos patient={patient} />
 
           <section>
             <h3 className="mb-1.5 text-xs font-semibold text-fg-muted">Tanggal</h3>

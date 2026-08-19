@@ -528,3 +528,40 @@ describe('invisible characters pasted in from elsewhere', () => {
     expect(toPlain('- Alprazolam 0.5 mg')).toBe('- Alprazolam 0.5 mg');
   });
 });
+
+describe('plain text is ASCII, guaranteed rather than curated', () => {
+  it('strips an invisible character at the start of a line', () => {
+    // Reported as `?` before "Compos mentis" in SIMGOS.
+    const pasted = '*O:*\n\u2060Compos mentis\nTekanan Darah : 118/64 mmHg';
+    const out = toPlain(pasted);
+    expect(out).toContain('\nCompos mentis');
+    expect(findNonAsciiChars(out)).toEqual([]);
+  });
+
+  it('keeps an accented name readable instead of deleting the letter', () => {
+    expect(toPlain('Tn. José Müller')).toBe('Tn. Jose Muller');
+  });
+
+  it('turns a line separator into a real newline', () => {
+    // Invisible, and would otherwise weld two lines together.
+    expect(toPlain('baris satu\u2028baris dua')).toBe('baris satu\nbaris dua');
+  });
+
+  it('leaves nothing non-ASCII for any of the characters seen so far', () => {
+    const everything = [
+      '\u2022 bullet',
+      'S\u2019 lateral',
+      '\u201Cnyeri\u201D',
+      'EF 55\u201360%',
+      'lanjut\u2026',
+      'TD\u00A0116/72',
+      'Suhu 36.7\u00B0C',
+      'eGFR \u2265 60',
+      'Kamis \u00B7 Hari rawat',
+      '- \u2060Alprazolam',
+      'x\u200By',
+      'a\uFEFFb',
+    ].join('\n');
+    expect(findNonAsciiChars(toPlain(everything))).toEqual([]);
+  });
+});

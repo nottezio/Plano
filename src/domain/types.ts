@@ -274,6 +274,15 @@ export interface Patient {
    * resets at midnight.
    */
   discharge?: 'h1' | 'today';
+  /**
+   * One-off checklist for this patient.
+   *
+   * Separate from the daily checklist, which is the same steps for everyone and
+   * resets each day, and from the Checklist tab, which is a reusable procedure.
+   * This is "things to remember for THIS admission" — and it persists across
+   * days, because that is what makes it worth writing down.
+   */
+  todos?: Array<{ id: string; label: string; done: boolean }>;
   colorOverride?: string | null;
   lastEntryDate?: ClinicalDate;
 
@@ -356,6 +365,15 @@ export interface AppDocument {
    * resets at midnight.
    */
   discharge?: 'h1' | 'today';
+  /**
+   * One-off checklist for this patient.
+   *
+   * Separate from the daily checklist, which is the same steps for everyone and
+   * resets each day, and from the Checklist tab, which is a reusable procedure.
+   * This is "things to remember for THIS admission" — and it persists across
+   * days, because that is what makes it worth writing down.
+   */
+  todos?: Array<{ id: string; label: string; done: boolean }>;
   order: number;
   labels: string[];
   createdAt: Timestamp;

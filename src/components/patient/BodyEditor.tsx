@@ -50,6 +50,9 @@ export function BodyEditor({
 
   // Auto-grow: the page scrolls, the textarea never does. A nested scroll
   // region on a phone is how you lose your place mid-round.
+  // Length at the last measurement, to tell growth from deletion.
+  const lastLength = useRef(0);
+
   const resize = useCallback(() => {
     const node = ref.current;
     if (!node) return;
@@ -71,6 +74,27 @@ export function BodyEditor({
      */
     const scroller = node.closest('main') ?? document.scrollingElement;
     const scrollTop = scroller?.scrollTop ?? 0;
+
+    /**
+     * The shrink-measure runs only when the text got SHORTER.
+     *
+     * Setting `height` to 0 and reading `scrollHeight` forces two full layout
+     * passes, and it was happening on every keystroke — on a note carrying
+     * three days of EKG that is the mobile lag.
+     *
+     * It is only necessary when the box may now be too tall. When text is added,
+     * `scrollHeight` already reports the height needed without collapsing
+     * first, so the measurement is one pass instead of two and no scroll
+     * restoration is needed either.
+     */
+    const grew = node.value.length >= lastLength.current;
+    lastLength.current = node.value.length;
+
+    if (grew) {
+      const needed = `${node.scrollHeight}px`;
+      if (node.style.height !== needed) node.style.height = needed;
+      return;
+    }
 
     const previous = node.style.height;
     node.style.height = '0px';

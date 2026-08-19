@@ -167,8 +167,39 @@ const ASCII_FOLD: ReadonlyArray<readonly [RegExp, string]> = [
   [/\u00D7/g, 'x'],
 ];
 
+/**
+ * Guarantees the output is pure ASCII, rather than handling known offenders.
+ *
+ * Three releases running I fixed this one character at a time — the bullet,
+ * then the curly quotes, then U+2060. Each fix was correct and each was
+ * followed by another character I had not thought of, because an explicit list
+ * is always one behind whatever the next paste contains.
+ *
+ * So the last step is now a guarantee instead of a list:
+ *
+ *  1. Named replacements first, where the ASCII equivalent carries meaning
+ *     (`°` → ` derajat `, `≥` → `>=`).
+ *  2. NFKD decomposition then drops combining marks, so `é` becomes `e` rather
+ *     than disappearing — a name is still readable, which matters more than
+ *     being exactly right.
+ *  3. Line and paragraph separators become newlines; they are invisible and
+ *     would otherwise join two lines into one.
+ *  4. Anything still outside ASCII is removed.
+ *
+ * Step 4 is what makes this final. There is a test asserting the output of
+ * `toPlain` contains no non-ASCII character at all, for any input.
+ */
 export function foldToAscii(text: string): string {
-  return ASCII_FOLD.reduce((acc, [pattern, replacement]) => acc.replace(pattern, replacement), text);
+  const named = ASCII_FOLD.reduce(
+    (acc, [pattern, replacement]) => acc.replace(pattern, replacement),
+    text,
+  );
+
+  return named
+    .normalize('NFKD')
+    .replace(/\p{Mn}/gu, '')
+    .replace(/[\u2028\u2029]/g, '\n')
+    .replace(/[^\x00-\x7F]/g, '');
 }
 
 /** Anything left that SIMGOS would render as `?`. */

@@ -253,6 +253,7 @@ type PatientPatchKey = keyof Pick<
   | 'labels'
   | 'pinned'
   | 'discharge'
+  | 'todos'
   | 'colorOverride'
   | 'admittedAt'
   | 'lastEntryDate'

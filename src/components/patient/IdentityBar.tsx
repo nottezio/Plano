@@ -35,19 +35,26 @@ export function IdentityBar({
       // Padding on every breakpoint. `xl:px-0` let the name sit flush against
       // the column edge, which on desktop is the sidebar border — so the name
       // read as if it were touching the navigation.
-      className="sticky top-0 z-20 flex min-h-tap w-full items-center gap-3 border-b border-border bg-bg/95 px-4 text-left backdrop-blur"
+      // Tinted and taller. This is the line that answers "am I in the right
+      // chart", and it was competing with the note for attention by looking
+      // exactly like it.
+      className="sticky top-0 z-20 w-full border-b border-border px-4 py-2 text-left backdrop-blur"
+      style={{ backgroundColor: 'var(--sec-identitas)' }}
     >
-      <span className="min-w-0 shrink truncate text-sm font-semibold">{label}</span>
-      {/* The location may be long; it truncates before the name does. */}
-      {location ? (
-        <span className="min-w-0 flex-1 truncate text-right text-xs text-fg-muted">
-          {location}
+      <span className="flex items-baseline gap-2">
+        <span className="min-w-0 flex-1 truncate text-base font-semibold">{label}</span>
+        <span className="shrink-0 whitespace-nowrap text-[11px] text-fg-muted">
+          Hari ke-{hariRawat}
         </span>
-      ) : (
-        <span className="flex-1" />
-      )}
-      <span className="shrink-0 whitespace-nowrap text-[11px] text-fg-faint">
-        Hari ke-{hariRawat}
+      </span>
+
+      <span className="mt-0.5 flex flex-wrap items-baseline gap-x-3 text-xs text-fg-muted">
+        {patient.mrn ? (
+          <span className="whitespace-nowrap font-medium">RM {patient.mrn}</span>
+        ) : null}
+        {patient.age !== undefined ? <span>{patient.age} th</span> : null}
+        {patient.sex ? <span>{patient.sex}</span> : null}
+        {location ? <span className="min-w-0 truncate">{location}</span> : null}
       </span>
     </button>
   );
