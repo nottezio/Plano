@@ -118,6 +118,14 @@ export interface UserSettings {
   /** Reporting-sentence presets ("mohon izin melaporkan …"). */
   openingSentences: string[];
   /**
+   * Closing-line presets.
+   *
+   * Six variants appear across the real reports — the Prof forms differ from
+   * the dokter forms, and getting that wrong in a message to a consultant is
+   * exactly the sort of small error that reads as carelessness.
+   */
+  closingSentences: string[];
+  /**
    * Which report shape each DPJP expects, keyed by registry id.
    *
    * Configuration, not code: consultants change what they want, and a redeploy

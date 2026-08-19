@@ -43,6 +43,66 @@ export default function ChecklistsPage(): JSX.Element {
     return [...saved, ...unsaved];
   }, [profile?.checklists]);
 
+  /**
+   * Saved lists that no longer match their seed.
+   *
+   * A saved copy shadows its seed forever — correct, because it is the user's
+   * data and a new release must not silently rewrite it. But that also meant
+   * every correction I shipped was invisible to anyone who had ticked a box
+   * once, which is why the checklists "were not fixed": they were fixed in the
+   * code and shadowed in the account.
+   *
+   * Comparing item labels rather than counts catches a reworded step as well as
+   * an added one.
+   */
+  const outdated = useMemo(() => {
+    const saved = profile?.checklists ?? [];
+    return SEED_CHECKLISTS.filter((seed) => {
+      const mine = saved.find((list) => list.id === seed.id);
+      if (!mine) return false;
+      const a = seed.items.map((item) => item.label).join('|');
+      const b = mine.items.map((item) => item.label).join('|');
+      return a !== b || seed.title !== mine.title;
+    });
+  }, [profile?.checklists]);
+
+  /**
+   * Replaces outdated lists with the current seed, keeping anything the user
+   * added themselves. Ticks are dropped deliberately — they mark a position in
+   * a procedure, and a position in a list whose steps just changed is not a
+   * position in the new one.
+   */
+  const refreshSeeds = (): void => {
+    if (!uid) return;
+    const saved = profile?.checklists ?? [];
+    const outdatedIds = new Set(outdated.map((seed) => seed.id));
+
+    persist([
+      ...saved.map((list) => {
+        const seed = outdated.find((candidate) => candidate.id === list.id);
+        if (!seed) return list;
+        return {
+          id: seed.id,
+          title: seed.title,
+          ...(seed.context ? { context: seed.context } : {}),
+          ...(seed.notes ? { notes: seed.notes } : {}),
+          items: seed.items.map((item) => ({ ...item })),
+          done: [],
+        };
+      }),
+      ...SEED_CHECKLISTS.filter(
+        (seed) => !saved.some((list) => list.id === seed.id) && !outdatedIds.has(seed.id),
+      ).map((seed) => ({
+        id: seed.id,
+        title: seed.title,
+        ...(seed.context ? { context: seed.context } : {}),
+        ...(seed.notes ? { notes: seed.notes } : {}),
+        items: seed.items.map((item) => ({ ...item })),
+        done: [],
+      })),
+    ]);
+  };
+
   const persist = (next: SavedChecklist[]): void => {
     if (!uid) return;
     void updateChecklists(uid, next).catch((error: unknown) =>
@@ -72,6 +132,23 @@ export default function ChecklistsPage(): JSX.Element {
   return (
     <AppShell title="Checklist">
       <div className="mx-auto w-full max-w-2xl space-y-3 px-4 py-4">
+        {outdated.length > 0 ? (
+          <div className="rounded-xl border border-accent bg-bg-subtle p-3">
+            <p className="text-xs text-fg">
+              {outdated.length} checklist tersimpan berbeda dari versi terbaru di aplikasi.
+            </p>
+            <button
+              type="button"
+              onClick={refreshSeeds}
+              className="mt-2 min-h-tap rounded-lg border border-accent px-3 text-xs font-medium text-accent"
+            >
+              Perbarui ke versi terbaru
+            </button>
+            <p className="mt-1 text-[11px] text-fg-faint">
+              Centang yang sedang berjalan akan direset, karena langkahnya berubah.
+            </p>
+          </div>
+        ) : null}
         {lists.map((list) => {
           const open = openId === list.id;
           const done = list.done.length;

@@ -210,6 +210,156 @@ Problem:
 - Monitoring tanda vital dan hemodinamik
 - `;
 
+/**
+ * Konsul kelayakan pra-operasi — the largest gap the report examples showed.
+ *
+ * Three of eight real reports are this shape and no template matched it: the
+ * opening names the planned operation, there are TWO DPJP lines (Kardio plus
+ * the referring specialty as utama), and it closes with an explicit fitness
+ * statement rather than a plan.
+ *
+ * Split from `rawat bersama` rather than combined, because the two answer
+ * different questions — this one answers "is this patient fit for the
+ * operation", and per your CABG sheet it needs Lee criteria for MACE risk. A
+ * single template carrying both would mean deleting half of it every time, and
+ * the half left behind is the one that gets sent by mistake.
+ */
+export const KONSUL_KELAYAKAN_BODY = `Assalamualaikum dokter. Tabe dokter, mohon izin melaporkan konsul kelayakan tindakan dari *TS (Bagian) ((Nama DPJP TS))* di *(Ruang) Kamar (no) Bed (no)* atas nama :
+
+*(Nama) / (tgl lahir) / (umur) / RM (no)*
+
+_DPJP Kardio : (Nama DPJP Kardio)_
+_DPJP (Bagian) (utama) : (Nama DPJP TS)_
+
+_Pasien dikonsulkan untuk kelayakan rencana tindakan (nama tindakan), hari (hari, tanggal)_
+
+*S:*
+- 
+
+Faktor risiko kardiovaskular :
+- Riwayat hipertensi tidak ada
+- Riwayat diabetes tidak ada
+- Riwayat merokok tidak ada
+- Riwayat penyakit jantung dalam keluarga tidak ada
+
+${VITALS}
+
+*Mohon izin kami assess dengan :*
+- 
+
+*Risiko MACE (Lee Revised Cardiac Risk Index) :*
+- Penyakit jantung iskemik : 
+- Gagal jantung kongestif : 
+- Penyakit serebrovaskular : 
+- Diabetes dengan insulin : 
+- Kreatinin > 2 mg/dL : 
+- Operasi risiko tinggi : 
+Skor:  — risiko: 
+
+*Kesimpulan kelayakan :*
+- Setelah dilakukan anamnesis, pemeriksaan fisis dan pemeriksaan penunjang, pasien dinilai  untuk dilakukan tindakan (nama tindakan).
+
+Selanjutnya mohon arahan dokter. Terima kasih dokter`;
+
+/**
+ * Konsul rawat bersama — the other half of the split.
+ *
+ * Same opening, but it answers "manage this patient with us", so it carries
+ * Assessment and Plan where the kelayakan form carries a fitness statement.
+ */
+export const KONSUL_RAWAT_BERSAMA_BODY = `Assalamualaikum dokter. Tabe dokter, mohon izin melaporkan konsul rawat bersama dari *TS (Bagian) ((Nama DPJP TS))* di *(Ruang) Kamar (no) Bed (no)* atas nama :
+
+*(Nama) / (tgl lahir) / (umur) / RM (no)*
+
+_DPJP Kardio : (Nama DPJP Kardio)_
+_DPJP (Bagian) (utama) : (Nama DPJP TS)_
+
+_Pasien dikonsulkan untuk rawat bersama dengan rencana (nama tindakan/rencana)_
+
+*S:*
+- 
+
+Faktor risiko kardiovaskular :
+- Riwayat hipertensi tidak ada
+- Riwayat diabetes tidak ada
+- Riwayat merokok tidak ada
+- Riwayat penyakit jantung dalam keluarga tidak ada
+
+${VITALS}
+
+*Mohon izin kami assess dengan :*
+- 
+
+*Mohon izin kami terapi dengan :*
+- 
+
+*Plan :*
+- Monitoring tanda vital dan hemodinamik
+- 
+
+Selanjutnya mohon arahan dokter. Terima kasih dokter`;
+
+/**
+ * Follow-up post-tindakan with a temporary pacemaker.
+ *
+ * The paired `On TPM` / `Off TPM` ECG blocks appear nine times across the real
+ * reports — it is a standing pattern, not an occasional one, and the pair is
+ * the point: the Off strip is what shows whether the patient is still pacing
+ * dependent.
+ */
+export const FOLLOWUP_TPM_BODY = `${OPENING}
+
+*S:*
+- Saat ini keluhan nyeri dada tidak ada, sesak napas tidak ada, berdebar tidak ada.
+- Keluhan pusing atau rasa mau pingsan tidak ada.
+
+${VITALS}
+
+*EKG (Ruang) ((tanggal)) On TPM*
+- 
+
+*EKG (Ruang) ((tanggal)) Off TPM*
+- 
+
+*Mohon izin kami assess dengan :*
+- 
+
+${THERAPY_AND_PLAN}
+- Monitoring irama dan capture TPM
+- Evaluasi ketergantungan pacing
+
+${CLOSING}`;
+
+/**
+ * Balasan konsul to another service.
+ *
+ * The `I/` … `P/` form, which is structurally unlike every other template here:
+ * it is a reply written into someone else's note, so it opens with the
+ * impression rather than with a greeting and identity block.
+ */
+export const BALASAN_KONSUL_BODY = `Terima kasih atas konsulnya dokter.
+
+Setelah dilakukan anamnesis, pemeriksaan fisis dan pemeriksaan penunjang pada pasien:
+
+*(Nama) / (umur) / RM (no)*
+
+A/ 
+- 
+
+I/ 
+- 
+
+P/ Plan Diagnostik: 
+- 
+
+Plan Monitoring: 
+- Pantau klinis, tanda vital
+
+Plan Terapi: 
+- 
+
+Demikian, terima kasih dokter`;
+
 /** Long S — history, review of systems, prior medication, risk factors. */
 export const ADMISI_BODY = `Assalamu'alaikum dokter. Tabe dokter, mohon izin melaporkan pasien baru di *Ruang  Kamar  Bed *  atas nama : 
 

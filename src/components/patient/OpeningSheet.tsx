@@ -1,6 +1,7 @@
 import { Sheet } from '@/components/common/Sheet';
 import {
   findOpeningLine,
+  replaceClosing,
   replaceGreeting,
   replaceOpeningSentence,
   splitOpening,
@@ -26,6 +27,7 @@ export function OpeningSheet({
   body,
   greetings,
   openingSentences,
+  closingSentences,
   onApply,
 }: {
   open: boolean;
@@ -33,6 +35,7 @@ export function OpeningSheet({
   body: string;
   greetings: readonly string[];
   openingSentences: readonly string[];
+  closingSentences: readonly string[];
   onApply: (nextBody: string) => void;
 }): JSX.Element {
   const line = findOpeningLine(body);
@@ -100,6 +103,26 @@ export function OpeningSheet({
         <p className="mt-2 text-[11px] text-fg-faint">
           Ruang, kamar, bed, dan poli tetap diisi manual — daftar ini hanya kerangka
           kalimatnya. Tambah atau ubah di Pengaturan → Format catatan.
+        </p>
+      </section>
+
+      <section className="mt-5">
+        <h3 className="text-xs font-medium text-fg-muted">Kalimat penutup</h3>
+        <div className="mt-1.5 space-y-1.5">
+          {closingSentences.map((closing) => (
+            <button
+              key={closing}
+              type="button"
+              onClick={() => onApply(replaceClosing(body, closing))}
+              className="w-full rounded-lg border border-border px-3 py-2.5 text-left text-xs leading-relaxed text-fg"
+            >
+              {closing}
+            </button>
+          ))}
+        </div>
+        <p className="mt-2 text-[11px] text-fg-faint">
+          Mengganti baris penutup yang ada. Bila catatan belum punya penutup, kalimat
+          ditambahkan di bawah tanpa menghapus apa pun.
         </p>
       </section>
     </Sheet>

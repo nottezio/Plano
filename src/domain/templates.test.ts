@@ -7,6 +7,10 @@ import {
   FOLLOWUP_RINGKAS_BODY,
   KONSUL_KJS_BODY,
   POLI_BARU_BODY,
+  KONSUL_KELAYAKAN_BODY,
+  KONSUL_RAWAT_BERSAMA_BODY,
+  FOLLOWUP_TPM_BODY,
+  BALASAN_KONSUL_BODY,
 } from './templates';
 import { defaultUserSettings } from './defaults';
 import { parseSections } from './sections/parseSections';
@@ -24,7 +28,7 @@ const SETTINGS = defaultUserSettings();
 
 describe('seed templates', () => {
   it('are all registered in the default settings', () => {
-    expect(SETTINGS.noteTemplates).toHaveLength(6);
+    expect(SETTINGS.noteTemplates).toHaveLength(10);
     expect(SETTINGS.noteTemplates.map((t) => t.body)).toEqual(
       expect.arrayContaining(ALL),
     );
@@ -33,7 +37,9 @@ describe('seed templates', () => {
   it('have unique ids and a contiguous order', () => {
     const templates = SETTINGS.noteTemplates;
     expect(new Set(templates.map((t) => t.id)).size).toBe(templates.length);
-    expect(templates.map((t) => t.order).sort()).toEqual([1, 2, 3, 4, 5, 6]);
+    expect([...templates.map((t) => t.order)].sort((a, b) => a - b)).toEqual([
+      1, 2, 3, 4, 5, 6, 7, 8, 9, 10,
+    ]);
   });
 
   it('parse into sections without the parser losing a byte', () => {
@@ -171,5 +177,67 @@ describe('POLI_BARU_BODY', () => {
   it('is distinct from the general admission template', () => {
     expect(POLI_BARU_BODY).not.toBe(ADMISI_BODY);
     expect(POLI_BARU_BODY).not.toContain('Faktor resiko koroner');
+  });
+});
+
+describe('the four presets drawn from the report examples', () => {
+  it('splits kelayakan from rawat bersama, because they answer different questions', () => {
+    // Kelayakan answers "is this patient fit"; rawat bersama answers "manage
+    // them with us". One template carrying both means deleting half every
+    // time, and the half left behind is what gets sent by mistake.
+    expect(KONSUL_KELAYAKAN_BODY).toContain('Lee Revised Cardiac Risk Index');
+    expect(KONSUL_KELAYAKAN_BODY).toContain('Kesimpulan kelayakan');
+    expect(KONSUL_KELAYAKAN_BODY).not.toContain('Mohon izin kami terapi dengan');
+
+    expect(KONSUL_RAWAT_BERSAMA_BODY).toContain('Mohon izin kami terapi dengan');
+    expect(KONSUL_RAWAT_BERSAMA_BODY).toContain('*Plan :*');
+    expect(KONSUL_RAWAT_BERSAMA_BODY).not.toContain('Lee Revised');
+  });
+
+  it('gives both consult forms the two DPJP lines the real reports carry', () => {
+    for (const body of [KONSUL_KELAYAKAN_BODY, KONSUL_RAWAT_BERSAMA_BODY]) {
+      expect(body).toContain('_DPJP Kardio :');
+      expect(body).toContain('(utama) :');
+    }
+  });
+
+  it('pairs the On TPM and Off TPM blocks', () => {
+    // The Off strip is the point: it shows whether the patient still paces.
+    expect(FOLLOWUP_TPM_BODY).toContain('On TPM*');
+    expect(FOLLOWUP_TPM_BODY).toContain('Off TPM*');
+    expect(FOLLOWUP_TPM_BODY.indexOf('On TPM*')).toBeLessThan(
+      FOLLOWUP_TPM_BODY.indexOf('Off TPM*'),
+    );
+    expect(FOLLOWUP_TPM_BODY).toContain('Evaluasi ketergantungan pacing');
+  });
+
+  it('writes the balasan as a reply, not as a new report', () => {
+    // It goes into someone else's note, so it opens with the impression rather
+    // than a greeting and identity block.
+    expect(BALASAN_KONSUL_BODY.startsWith('Terima kasih atas konsulnya')).toBe(true);
+    expect(BALASAN_KONSUL_BODY).toContain('A/');
+    expect(BALASAN_KONSUL_BODY).toContain('I/');
+    expect(BALASAN_KONSUL_BODY).toContain('P/ Plan Diagnostik:');
+    expect(BALASAN_KONSUL_BODY).toContain('Plan Monitoring:');
+  });
+});
+
+describe('section aliases from the report examples', () => {
+  it('recognises AGD, urinalisa and conference results as penunjang', () => {
+    const penunjang = defaultUserSettings().sectionAliases.find(
+      (alias) => alias.sectionId === 'penunjang',
+    );
+    for (const heading of ['AGD', 'Analisa Gas Darah', 'Urinalisa', 'Hasil Confrence']) {
+      expect(penunjang?.aliases).toContain(heading);
+    }
+  });
+});
+
+describe('closing-line presets', () => {
+  it('carries the variants the real reports use, Prof forms included', () => {
+    const closings = defaultUserSettings().closingSentences;
+    expect(closings).toContain('Selanjutnya mohon arahan dokter. Terima kasih dokter');
+    expect(closings.some((line) => line.includes('Prof'))).toBe(true);
+    expect(closings).toContain('Tabe terimakasih dokter');
   });
 });

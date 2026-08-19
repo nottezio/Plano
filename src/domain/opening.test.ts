@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import {
   findOpeningLine,
+  replaceClosing,
   replaceGreeting,
   replaceOpeningLine,
   replaceOpeningSentence,
@@ -108,5 +109,41 @@ describe('suggestGreetingIndex', () => {
 
   it('falls back to the first entry when nothing matches', () => {
     expect(suggestGreetingIndex(["Assalamu'alaikum dokter."], 8)).toBe(0);
+  });
+});
+
+describe('replaceClosing', () => {
+  const NOTE = ['*S:*', '- nyeri dada tidak ada', '', 'Tabe terimakasih dokter'].join('\n');
+
+  it('swaps a closing that is already there', () => {
+    const next = replaceClosing(NOTE, 'Selanjutnya mohon arahan Prof. Terima kasih Prof');
+    expect(next).toContain('Selanjutnya mohon arahan Prof. Terima kasih Prof');
+    expect(next).not.toContain('Tabe terimakasih dokter');
+  });
+
+  it('leaves every line above it byte-identical', () => {
+    const next = replaceClosing(NOTE, 'Selanjutnya mohon arahan dokter. Terima kasih dokter');
+    const head = (text: string): string => text.slice(0, text.lastIndexOf('\n'));
+    expect(head(next)).toBe(head(NOTE));
+  });
+
+  it('appends rather than overwriting when there is no closing', () => {
+    // The last line of a note without a closing is usually a plan item.
+    // Overwriting it would delete a finding.
+    const noClosing = '*Plan :*\n- Monitoring tanda vital';
+    const next = replaceClosing(noClosing, 'Terima kasih dokter');
+    expect(next).toContain('- Monitoring tanda vital');
+    expect(next.trimEnd().endsWith('Terima kasih dokter')).toBe(true);
+  });
+
+  it('recognises the Prof variants as closings', () => {
+    const withProf = '*Plan :*\n- x\n\nMohon arahanta Prof, terima kasih Prof';
+    const next = replaceClosing(withProf, 'Terima kasih dokter');
+    expect(next).not.toContain('arahanta Prof');
+    expect(next).toContain('- x');
+  });
+
+  it('handles an empty note', () => {
+    expect(replaceClosing('', 'Terima kasih dokter')).toBe('Terima kasih dokter');
   });
 });

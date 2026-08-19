@@ -6,6 +6,10 @@ import {
   FOLLOWUP_RINGKAS_BODY,
   KONSUL_KJS_BODY,
   POLI_BARU_BODY,
+  KONSUL_KELAYAKAN_BODY,
+  KONSUL_RAWAT_BERSAMA_BODY,
+  FOLLOWUP_TPM_BODY,
+  BALASAN_KONSUL_BODY,
 } from './templates';
 import type { NoteTemplate } from './types';
 import type {
@@ -44,7 +48,31 @@ export const DEFAULT_SECTION_ALIASES: readonly SectionAlias[] = [
   { sectionId: 's', label: 'Subjektif', order: 1, aliases: ['S', 'Subjektif', 'Subjective', 'Keluhan'] },
   { sectionId: 'o', label: 'Objektif', order: 2, aliases: ['O', 'Objektif', 'Objective', 'Status Generalis'] },
   { sectionId: 'ttv', label: 'TTV', order: 3, aliases: ['TTV', 'TD/N/RR/S', 'Vital Sign', 'VS', 'Tanda Vital'] },
-  { sectionId: 'penunjang', label: 'Penunjang', order: 4, aliases: ['Penunjang', 'Pemeriksaan Penunjang', 'Lab', 'Laboratorium', 'Radiologi', 'EKG'] },
+  // `AGD`, `Urinalisa` and `Hasil Confrence` are used constantly in the real
+  // reports and were missing, so those blocks parsed as generic custom sections
+  // — which meant the "O + Penunjang" copy group could miss them.
+  {
+    sectionId: 'penunjang',
+    label: 'Penunjang',
+    order: 4,
+    aliases: [
+      'Penunjang',
+      'Pemeriksaan Penunjang',
+      'Lab',
+      'Laboratorium',
+      'Radiologi',
+      'EKG',
+      'AGD',
+      'Analisa Gas Darah',
+      'Urinalisa',
+      'Urinalisis',
+      'Foto Thorax',
+      'Echocardiography',
+      'Echo',
+      'Hasil Confrence',
+      'Hasil Conference',
+    ],
+  },
   { sectionId: 'a', label: 'Assessment', order: 5, aliases: ['A', 'Assessment', 'Asesmen', 'Diagnosis Kerja'] },
   { sectionId: 'p', label: 'Plan', order: 6, aliases: ['P', 'Plan', 'Planning', 'Rencana'] },
   { sectionId: 'terapi', label: 'Terapi', order: 7, aliases: ['Terapi', 'Tx', 'Th/', 'Medikamentosa', 'Obat'] },
@@ -108,6 +136,20 @@ export const SEED_NOTE_TEMPLATES: readonly NoteTemplate[] = [
       { id: 'admisi', order: 4, name: 'Pasien baru (admisi)', body: ADMISI_BODY },
       { id: 'konsul-kjs', order: 5, name: 'Konsul KJS (pasien baru)', body: KONSUL_KJS_BODY },
       { id: 'poli-baru', order: 6, name: 'Pasien baru dari poli', body: POLI_BARU_BODY },
+      {
+        id: 'konsul-kelayakan',
+        order: 7,
+        name: 'Konsul kelayakan pra-tindakan',
+        body: KONSUL_KELAYAKAN_BODY,
+      },
+      {
+        id: 'konsul-rawat-bersama',
+        order: 8,
+        name: 'Konsul rawat bersama',
+        body: KONSUL_RAWAT_BERSAMA_BODY,
+      },
+      { id: 'followup-tpm', order: 9, name: 'Follow-up dengan TPM', body: FOLLOWUP_TPM_BODY },
+      { id: 'balasan-konsul', order: 10, name: 'Balasan konsul ke TS', body: BALASAN_KONSUL_BODY },
 ];
 
 export function defaultUserSettings(): UserSettings {
@@ -138,6 +180,14 @@ export function defaultUserSettings(): UserSettings {
      * text — a leftover placeholder is obvious in a sent message, a leftover
      * blank is not.
      */
+    closingSentences: [
+      'Selanjutnya mohon arahan dokter. Terima kasih dokter',
+      'Selanjutnya mohon arahannya dokter. Terima kasih dokter',
+      'Selanjutnya mohon arahan Prof. Terima kasih Prof',
+      'Mohon arahanta Prof, terima kasih Prof',
+      'Tabe dokter, selanjutnya mohon arahannya dok. Terima kasih dok.',
+      'Tabe terimakasih dokter',
+    ],
     openingSentences: [...SEED_OPENING_SENTENCES],
     /**
      * Seeded with the one binding that is known: Az Hafid Nashar's handovers

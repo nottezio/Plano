@@ -661,6 +661,7 @@ export default function PatientPage(): JSX.Element {
         body={editor.value}
         greetings={settings.greetings}
         openingSentences={settings.openingSentences}
+        closingSentences={settings.closingSentences}
         onApply={(next) => {
           editor.setValue(next);
           setOpeningOpen(false);

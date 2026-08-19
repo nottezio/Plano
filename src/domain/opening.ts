@@ -104,3 +104,34 @@ export function suggestGreetingIndex(greetings: readonly string[], hour: number)
   const match = greetings.findIndex((greeting) => greeting.toLowerCase().includes(wanted));
   return match >= 0 ? match : 0;
 }
+
+/**
+ * Replaces the closing sentence — the last non-empty line.
+ *
+ * Symmetrical with the opening helpers and constrained the same way: it
+ * rewrites at most one line, so everything above it is byte-identical
+ * afterwards. That is what makes it safe on a finished note.
+ *
+ * Only replaces a line that already looks like a closing. Otherwise it appends,
+ * because overwriting the last line of a note that has no closing would delete
+ * a finding — usually the final plan item.
+ */
+const CLOSING_HINT = /(terima\s*kasih|arahan|tabe)/i;
+
+export function replaceClosing(body: string, closing: string): string {
+  const lines = body.split('\n');
+
+  for (let index = lines.length - 1; index >= 0; index -= 1) {
+    const line = lines[index];
+    if (line === undefined || line.trim().length === 0) continue;
+
+    if (CLOSING_HINT.test(line)) {
+      lines[index] = closing;
+      return lines.join('\n');
+    }
+    break;
+  }
+
+  const trimmed = body.trimEnd();
+  return trimmed.length > 0 ? `${trimmed}\n\n${closing}` : closing;
+}
