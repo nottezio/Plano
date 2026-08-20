@@ -51,6 +51,16 @@ export default function BoardPage(): JSX.Element {
   const [quickPatientId, setQuickPatientId] = useState<string | null>(null);
 
   /**
+   * Night-shift patients are held apart, not mixed in.
+   *
+   * They are covered for one shift and handed back, so they do not belong in a
+   * count of "my patients" — a board that says twelve when four of them go home
+   * with someone else at 7am is not telling you what you need. Same cards, same
+   * checklist, separate list.
+   */
+  const [scope, setScope] = useState<'mine' | 'temporary'>('mine');
+
+  /**
    * Board order, remembered across sessions.
    *
    * `location` walks the ward the way the denah is laid out, which is the order
@@ -93,7 +103,9 @@ export default function BoardPage(): JSX.Element {
 
   const cards = useMemo(() => {
     const matched = filterPatients(
-      patients,
+      patients.filter((patient) =>
+        scope === 'temporary' ? patient.temporary === true : patient.temporary !== true,
+      ),
       { ...filters, query: debouncedQuery },
       items,
       today,
@@ -103,6 +115,7 @@ export default function BoardPage(): JSX.Element {
     );
   }, [
     patients,
+    scope,
     filters,
     debouncedQuery,
     items,
@@ -110,6 +123,11 @@ export default function BoardPage(): JSX.Element {
     order,
     settings.privacy.boardShowInitialsOnly,
   ]);
+
+  const temporaryCount = useMemo(
+    () => patients.filter((patient) => patient.temporary === true).length,
+    [patients],
+  );
 
   /**
    * Cards grouped under their heading, in the order they already sit in.
@@ -174,6 +192,30 @@ export default function BoardPage(): JSX.Element {
           <span aria-hidden="true" className="text-base leading-none">+</span>
           Pasien baru
         </button>
+      </div>
+
+      <div className="flex gap-2 px-4 pb-2">
+        {(
+          [
+            ['mine', `Pasien saya (${patients.length - temporaryCount})`],
+            ['temporary', `Titipan (${temporaryCount})`],
+          ] as Array<['mine' | 'temporary', string]>
+        ).map(([value, label]) => (
+          <button
+            key={value}
+            type="button"
+            aria-pressed={scope === value}
+            onClick={() => setScope(value)}
+            className={[
+              'min-h-tap flex-1 rounded-lg border px-3 text-sm',
+              scope === value
+                ? 'border-accent bg-bg-subtle font-medium text-accent'
+                : 'border-border text-fg-muted',
+            ].join(' ')}
+          >
+            {label}
+          </button>
+        ))}
       </div>
 
       {/* Walking order. Labels say what the order IS, not what it sorts by:

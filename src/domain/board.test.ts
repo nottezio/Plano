@@ -435,3 +435,31 @@ describe('grouping the board', () => {
     expect(groupLabel(makePatient({}), 'dpjp')).toBe('Tanpa DPJP');
   });
 });
+
+describe('discharge stage on the card', () => {
+  const withDate = (date: string) => ({
+    ...makePatient({ id: 'p' }),
+    dischargePlannedFor: date,
+  });
+
+  it('reads H-1 the day before and PULANG on the day, with no re-marking', () => {
+    const patient = withDate(TODAY);
+    expect(buildCard(patient, ITEMS, TODAY, false).discharge).toBe('today');
+
+    const yesterday = '2026-08-05';
+    expect(buildCard(withDate(TODAY), ITEMS, yesterday, false).discharge).toBe('h1');
+  });
+
+  it('flags a planned date that has passed', () => {
+    expect(buildCard(withDate('2026-08-01'), ITEMS, TODAY, false).discharge).toBe('overdue');
+  });
+
+  it('is null for a patient with no plan', () => {
+    expect(buildCard(makePatient({}), ITEMS, TODAY, false).discharge).toBeNull();
+  });
+
+  it('still reads a legacy stage rather than losing it', () => {
+    const legacy = { ...makePatient({}), discharge: 'h1' as const };
+    expect(buildCard(legacy, ITEMS, TODAY, false).discharge).toBe('h1');
+  });
+});

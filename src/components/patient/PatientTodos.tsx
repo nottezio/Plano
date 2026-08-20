@@ -1,8 +1,9 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { nanoid } from 'nanoid';
 
 import { updatePatient } from '@/data/repositories/patients.repo';
 import { SEED_CHECKLISTS } from '@/domain/checklists/seeds';
+import { useSession } from '@/store/useSession';
 import type { Patient } from '@/domain/types';
 
 /**
@@ -24,6 +25,28 @@ export function PatientTodos({ patient }: { patient: Patient }): JSX.Element {
 
   const todos = patient.todos ?? [];
 
+  /**
+   * Import from the user's OWN checklists, falling back to the seeds.
+   *
+   * This read `SEED_CHECKLISTS` directly, which is why importing "did not work
+   * sometimes": a list you had edited imported its original wording, and a list
+   * you created yourself did not appear at all — there was no seed to find. The
+   * tab is the source of truth for what a checklist contains; this now reads
+   * the same thing.
+   */
+  const saved = useSession((state) => state.profile?.checklists ?? []);
+  const available = useMemo(() => {
+    const savedIds = new Set(saved.map((list) => list.id));
+    return [
+      ...saved.map((list) => ({ id: list.id, title: list.title, items: list.items })),
+      ...SEED_CHECKLISTS.filter((seed) => !savedIds.has(seed.id)).map((seed) => ({
+        id: seed.id,
+        title: seed.title,
+        items: seed.items,
+      })),
+    ];
+  }, [saved]);
+
   const save = (next: Patient['todos']): void => {
     void updatePatient(patient.id, { todos: next }).catch((error: unknown) =>
       console.error('[todos] write rejected', error),
@@ -37,7 +60,7 @@ export function PatientTodos({ patient }: { patient: Patient }): JSX.Element {
   };
 
   const importList = (id: string): void => {
-    const seed = SEED_CHECKLISTS.find((list) => list.id === id);
+    const seed = available.find((list) => list.id === id);
     if (!seed) return;
 
     // Skip labels already present, so importing twice does not double the list.
@@ -72,7 +95,7 @@ export function PatientTodos({ patient }: { patient: Patient }): JSX.Element {
 
       {importOpen ? (
         <div className="mt-1 space-y-1">
-          {SEED_CHECKLISTS.map((list) => (
+          {available.map((list) => (
             <button
               key={list.id}
               type="button"

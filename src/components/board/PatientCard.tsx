@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { previewLines, type BoardCard } from '@/domain/board';
 import { ProgressStrip } from './ProgressStrip';
 import { formatLocation } from '@/domain/identity';
+import { STAGE_LABELS, STAGE_TOKEN } from '@/domain/discharge';
 
 /**
  * SPEC F2 — a Google-Keep-style card.
@@ -49,10 +50,7 @@ export function PatientCard({
         card.discharge
           ? {
               borderLeftWidth: '4px',
-              borderLeftColor:
-                card.discharge === 'today'
-                  ? 'var(--discharge-today)'
-                  : 'var(--discharge-h1)',
+              borderLeftColor: STAGE_TOKEN[card.discharge],
             }
           : undefined
       }
@@ -74,17 +72,14 @@ export function PatientCard({
           <span
             className="shrink-0 rounded px-1 text-[10px] font-semibold"
             style={{
-              backgroundColor:
-                card.discharge === 'today'
-                  ? 'var(--discharge-today)'
-                  : 'var(--discharge-h1)',
+              backgroundColor: STAGE_TOKEN[card.discharge],
               // Dark text on both badge colours in both themes: the badges are
               // deliberately bright, so the foreground does not flip with the
               // theme the way the rest of the card does.
               color: 'var(--discharge-fg)',
             }}
           >
-            {card.discharge === 'today' ? 'PULANG' : 'H-1'}
+            {STAGE_LABELS[card.discharge]}
           </span>
         ) : null}
         {patient.pinned ? (

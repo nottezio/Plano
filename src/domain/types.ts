@@ -267,13 +267,28 @@ export interface Patient {
   labels: string[];
   pinned: boolean;
   /**
+   * Held temporarily — someone else's patient, covered on a shift.
+   *
+   * A flag rather than a separate collection: they are ordinary patients with
+   * notes, checklists and a DPJP, and the only difference is that they are not
+   * yours to carry tomorrow. Splitting the storage would mean two of every
+   * query and a migration the day one becomes permanent.
+   */
+  temporary?: boolean;
+  /**
    * Where the patient is in discharge planning.
    *
    * A flag on the patient, not a checklist tick: it survives the day rollover,
    * because "going home tomorrow" is true tomorrow morning too, and a checklist
    * resets at midnight.
    */
+  /**
+   * Legacy discharge stage. Superseded by `dischargePlannedFor` and read only
+   * for migration — see domain/discharge.ts.
+   */
   discharge?: 'h1' | 'today';
+  /** The clinical date the patient is expected to go home. */
+  dischargePlannedFor?: ClinicalDate;
   /**
    * One-off checklist for this patient.
    *
@@ -358,13 +373,28 @@ export interface AppDocument {
   body: string;
   pinned: boolean;
   /**
+   * Held temporarily — someone else's patient, covered on a shift.
+   *
+   * A flag rather than a separate collection: they are ordinary patients with
+   * notes, checklists and a DPJP, and the only difference is that they are not
+   * yours to carry tomorrow. Splitting the storage would mean two of every
+   * query and a migration the day one becomes permanent.
+   */
+  temporary?: boolean;
+  /**
    * Where the patient is in discharge planning.
    *
    * A flag on the patient, not a checklist tick: it survives the day rollover,
    * because "going home tomorrow" is true tomorrow morning too, and a checklist
    * resets at midnight.
    */
+  /**
+   * Legacy discharge stage. Superseded by `dischargePlannedFor` and read only
+   * for migration — see domain/discharge.ts.
+   */
   discharge?: 'h1' | 'today';
+  /** The clinical date the patient is expected to go home. */
+  dischargePlannedFor?: ClinicalDate;
   /**
    * One-off checklist for this patient.
    *

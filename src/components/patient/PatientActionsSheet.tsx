@@ -9,6 +9,8 @@ import {
   updatePatient,
 } from '@/data/repositories/patients.repo';
 import { ARCHIVE_REASON_LABELS } from '@/domain/archive';
+import { dateForStage, migrateLegacyDischarge } from '@/domain/discharge';
+import { useClinicalToday } from '@/hooks/useClinicalToday';
 import type { ArchiveReason, Patient } from '@/domain/types';
 
 /**
@@ -32,6 +34,9 @@ export function PatientActionsSheet({
   onOpenChange: (open: boolean) => void;
   patient: Patient;
 }): JSX.Element {
+  const today = useClinicalToday();
+  const planned = migrateLegacyDischarge(patient, today);
+
   const navigate = useNavigate();
   const [reason, setReason] = useState<ArchiveReason | null>(null);
   const [note, setNote] = useState('');
@@ -49,6 +54,18 @@ export function PatientActionsSheet({
   return (
     <Sheet open={open} onOpenChange={(next) => (next ? onOpenChange(true) : close())} title={patient.name}>
       <div className="space-y-2">
+        <Action
+          label={patient.temporary ? 'Jadikan pasien saya' : 'Tandai sebagai titipan'}
+          detail={
+            patient.temporary
+              ? 'Pindah ke daftar pasien saya.'
+              : 'Pindah ke daftar Titipan — untuk pasien yang dijaga sementara.'
+          }
+          onClick={() => {
+            void updatePatient(patient.id, { temporary: !patient.temporary });
+            close();
+          }}
+        />
         <Action
           label={patient.pinned ? 'Lepas sematan' : 'Sematkan di papan'}
           onClick={() => {
@@ -73,32 +90,66 @@ export function PatientActionsSheet({
           the two get confused if they sit together. */}
       <section className="mt-5">
         <h3 className="text-sm font-semibold">Rencana pulang</h3>
+
         <div className="mt-2 flex gap-2">
-          {(
-            [
-              [undefined, 'Belum'],
-              ['h1', 'H-1 pulang'],
-              ['today', 'Pulang hari ini'],
-            ] as Array<[Patient['discharge'], string]>
-          ).map(([value, label]) => (
-            <button
-              key={label}
-              type="button"
-              aria-pressed={patient.discharge === value}
-              onClick={() => void updatePatient(patient.id, { discharge: value })}
-              className={[
-                'min-h-tap flex-1 rounded-lg border px-2 text-xs',
-                patient.discharge === value
-                  ? 'border-accent bg-bg-subtle font-medium text-accent'
-                  : 'border-border text-fg-muted',
-              ].join(' ')}
-            >
-              {label}
-            </button>
-          ))}
+          <button
+            type="button"
+            aria-pressed={!planned}
+            onClick={() => void updatePatient(patient.id, { dischargePlannedFor: undefined })}
+            className={[
+              'min-h-tap flex-1 rounded-lg border px-2 text-xs',
+              !planned
+                ? 'border-accent bg-bg-subtle font-medium text-accent'
+                : 'border-border text-fg-muted',
+            ].join(' ')}
+          >
+            Belum
+          </button>
+          {(['h1', 'today'] as const).map((stage) => {
+            const date = dateForStage(stage, today);
+            return (
+              <button
+                key={stage}
+                type="button"
+                aria-pressed={planned === date}
+                onClick={() =>
+                  void updatePatient(patient.id, { dischargePlannedFor: date })
+                }
+                className={[
+                  'min-h-tap flex-1 rounded-lg border px-2 text-xs',
+                  planned === date
+                    ? 'border-accent bg-bg-subtle font-medium text-accent'
+                    : 'border-border text-fg-muted',
+                ].join(' ')}
+              >
+                {stage === 'h1' ? 'H-1 pulang' : 'Pulang hari ini'}
+              </button>
+            );
+          })}
         </div>
+
+        {/* The date is the stored value, so it is also editable directly —
+            a discharge four days out is a real plan, and the two buttons above
+            only cover the last two days of it. */}
+        <label className="mt-2 block">
+          <span className="mb-1 block text-[11px] text-fg-muted">Tanggal pulang</span>
+          <input
+            type="date"
+            value={planned ?? ''}
+            onChange={(event) =>
+              void updatePatient(patient.id, {
+                dischargePlannedFor: event.target.value
+                  ? (event.target.value as typeof planned)
+                  : undefined,
+              })
+            }
+            className="min-h-tap w-full rounded-lg border border-border bg-surface px-3 text-sm outline-none"
+          />
+        </label>
+
         <p className="mt-1 text-[11px] text-fg-faint">
-          Ditandai di papan sampai diubah — tidak hilang saat ganti hari.
+          Disimpan sebagai tanggal, bukan status — jadi H-1 hari ini otomatis menjadi
+          &ldquo;pulang hari ini&rdquo; besok pagi.
         </p>
       </section>
 

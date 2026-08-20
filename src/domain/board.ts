@@ -2,6 +2,7 @@ import { checklistProgress, resolveCardColor, type ChecklistStates } from './che
 import { hariRawat } from './clinicalDate';
 import { displayName, redactName } from './identity';
 import { dpjpById, type Dpjp } from './dpjp';
+import { dischargeStage, migrateLegacyDischarge, type DischargeStage } from './discharge';
 import type {
   ChecklistItemDef,
   ClinicalDate,
@@ -70,8 +71,8 @@ export function boardTickStates(
 }
 
 export interface BoardCard {
-  /** Discharge stage, if flagged. Drawn as an edge, not as the card colour. */
-  discharge: Patient['discharge'];
+  /** Derived from the planned date, so it is right every morning by itself. */
+  discharge: DischargeStage | null;
   patient: Patient;
   title: string;
   colorToken: string;
@@ -103,7 +104,9 @@ export function buildCard(
     // Deliberately NOT folded into `colorToken`. The card colour tracks how far
     // the round got; discharge is a different axis entirely, and overloading one
     // colour to mean both makes neither readable.
-    ...(patient.discharge ? { discharge: patient.discharge } : { discharge: undefined }),
+    // Derived rather than stored: a stage is a fact about today that goes
+    // stale overnight, a date does not.
+    discharge: dischargeStage(migrateLegacyDischarge(patient, today), today),
     dpjp: patient.dpjpId ? (dpjpById(patient.dpjpId) ?? null) : null,
     preview: showInitialsOnly
       ? redactName(patient.preview ?? '', patient.name ?? '')
