@@ -12,6 +12,13 @@
 
 export interface ParsedIdentity {
   name?: string;
+  /**
+   * Read from the honorific, which is the only place it appears.
+   *
+   * `Tn.` and `Ny.` carry it unambiguously and every identity line has one, so
+   * asking for it again in the form was asking for something already written.
+   */
+  sex?: 'L' | 'P';
   /** As written, `dd-mm-yyyy`. Not converted: it is displayed, not computed on. */
   birthDate?: string;
   age?: number;
@@ -57,6 +64,17 @@ export function parseIdentity(body: string): ParsedIdentity {
 
   // The name runs from the title to the first separator that introduces
   // something else — a date, an age, or the MRN.
+  // Sdri before Sdr, Nn before Ny: a shorter honorific that prefixes a longer
+  // one would match first and take the wrong sex.
+  const honorific = /\b(Sdri|Sdr|Tn|Ny|Nn|An)\b/i.exec(line);
+  if (honorific?.[1]) {
+    const marker = honorific[1].toLowerCase();
+    // `An.` is a child of either sex, so it is deliberately not mapped —
+    // guessing would put a wrong value into a field nobody re-checks.
+    if (marker === 'tn' || marker === 'sdr') result.sex = 'L';
+    else if (marker === 'ny' || marker === 'nn' || marker === 'sdri') result.sex = 'P';
+  }
+
   const nameMatch = /((?:Tn|Ny|Nn|An|Sdr|Sdri)\.?\s+[^/,]+)/i.exec(line);
   if (nameMatch?.[1]) {
     const name = nameMatch[1]

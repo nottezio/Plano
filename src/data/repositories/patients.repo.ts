@@ -164,6 +164,7 @@ export function fillPatientFromNote(patient: Patient, body: string): Promise<voi
   if (!patient.name?.trim() && facts.name) patch.name = facts.name;
   if (!patient.mrn?.trim() && facts.mrn) patch.mrn = facts.mrn;
   if (patient.age === undefined && facts.age !== undefined) patch.age = facts.age;
+  if (!patient.sex && facts.sex) patch.sex = facts.sex;
   if (!patient.ward?.trim() && facts.ward) patch.ward = facts.ward;
   if (!patient.room?.trim() && facts.room) patch.room = facts.room;
   if (!patient.bed?.trim() && facts.bed) patch.bed = facts.bed;

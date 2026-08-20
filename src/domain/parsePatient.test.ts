@@ -20,6 +20,7 @@ describe('parseIdentity', () => {
       birthDate: '01-02-1960',
       age: 66,
       mrn: '1478911',
+      sex: 'P',
     });
   });
 
@@ -29,12 +30,14 @@ describe('parseIdentity', () => {
       birthDate: '11-04-1967',
       age: 59,
       mrn: '1667031',
+      sex: 'L',
     });
     expect(parseIdentity('*Tn. Hamzah Rahuddin / 01-01-1973 / 53 thn / RM 1656066*')).toEqual({
       name: 'Tn. Hamzah Rahuddin',
       birthDate: '01-01-1973',
       age: 53,
       mrn: '1656066',
+      sex: 'L',
     });
   });
 
@@ -45,6 +48,7 @@ describe('parseIdentity', () => {
       name: 'Tn. Budi',
       age: 52,
       mrn: '123456',
+      sex: 'L',
     });
   });
 
@@ -112,6 +116,7 @@ describe('parsePatientFacts', () => {
       birthDate: '01-02-1960',
       age: 66,
       mrn: '1478911',
+      sex: 'P',
       ward: 'PJT Lantai 5',
       room: '517',
       bed: '3',
@@ -120,5 +125,36 @@ describe('parsePatientFacts', () => {
 
   it('is empty for a note that says nothing about the patient', () => {
     expect(parsePatientFacts('S :\n- nyeri dada')).toEqual({});
+  });
+});
+
+describe('sex from the honorific', () => {
+  it('reads it from every form that carries it', () => {
+    expect(parseIdentity('*Tn. Budi / 52 tahun / RM 1*').sex).toBe('L');
+    expect(parseIdentity('*Ny. Siti / 40 tahun / RM 1*').sex).toBe('P');
+    expect(parseIdentity('*Nn. Dewi / 19 tahun / RM 1*').sex).toBe('P');
+    expect(parseIdentity('*Sdr. Anwar / 22 tahun / RM 1*').sex).toBe('L');
+    expect(parseIdentity('*Sdri. Anisa / 21 tahun / RM 1*').sex).toBe('P');
+  });
+
+  it('does not guess for An., which is a child of either sex', () => {
+    // A wrong value in a field nobody re-checks is worse than an empty one.
+    expect(parseIdentity('*An. Rafi / 7 tahun / RM 1*').sex).toBeUndefined();
+  });
+
+  it('matches the longer honorific first', () => {
+    // `Sdr` prefixes `Sdri`; matching it first would report the wrong sex.
+    expect(parseIdentity('*Sdri. Anisa / 21 tahun / RM 1*').sex).toBe('P');
+  });
+
+  it('reads the real report lines correctly', () => {
+    expect(parseIdentity('*Tn. Ardiansa/ 17-01-1987/ 39 thn / RM 01679091*')).toEqual({
+      name: 'Tn. Ardiansa',
+      birthDate: '17-01-1987',
+      age: 39,
+      mrn: '01679091',
+      sex: 'L',
+    });
+    expect(parseIdentity('*Ny. Bubi Dg Pajja/ 01-02-1960/ 66 tahun / RM 1478911*').sex).toBe('P');
   });
 });

@@ -58,7 +58,30 @@ export default function BoardPage(): JSX.Element {
    * with someone else at 7am is not telling you what you need. Same cards, same
    * checklist, separate list.
    */
-  const [scope, setScope] = useState<'mine' | 'temporary'>('mine');
+  /**
+   * Remembered, like the board order.
+   *
+   * It reset to "mine" on every navigation, so marking a patient as titipan and
+   * coming back showed them gone from the list you were looking at — which is
+   * indistinguishable from the flag not having saved. That is almost certainly
+   * the "selalu kembali ke pasien utama": the write was fine, the tab was not.
+   */
+  const [scope, setScope] = useState<'mine' | 'temporary'>(() => {
+    try {
+      return localStorage.getItem('visite.boardScope') === 'temporary' ? 'temporary' : 'mine';
+    } catch {
+      return 'mine';
+    }
+  });
+
+  const changeScope = (next: 'mine' | 'temporary'): void => {
+    setScope(next);
+    try {
+      localStorage.setItem('visite.boardScope', next);
+    } catch (error) {
+      console.warn('[board] scope preference not saved', error);
+    }
+  };
 
   /**
    * Board order, remembered across sessions.
@@ -194,28 +217,39 @@ export default function BoardPage(): JSX.Element {
         </button>
       </div>
 
-      <div className="flex gap-2 px-4 pb-2">
-        {(
-          [
-            ['mine', `Pasien saya (${patients.length - temporaryCount})`],
-            ['temporary', `Titipan (${temporaryCount})`],
-          ] as Array<['mine' | 'temporary', string]>
-        ).map(([value, label]) => (
+      {/* Chips, not full-width buttons. Two of these at `flex-1` claimed a
+          whole row of a phone screen for a switch that is used occasionally,
+          and pushed the cards below the fold. Titipan hides entirely when
+          there are none — an empty list is not worth a permanent control. */}
+      <div className="flex items-center gap-2 px-4 pb-2">
+        <button
+          type="button"
+          aria-pressed={scope === 'mine'}
+          onClick={() => changeScope('mine')}
+          className={[
+            'min-h-tap rounded-full border px-3 text-xs',
+            scope === 'mine'
+              ? 'border-accent bg-bg-subtle font-medium text-accent'
+              : 'border-border text-fg-muted',
+          ].join(' ')}
+        >
+          Pasien saya ({patients.length - temporaryCount})
+        </button>
+        {temporaryCount > 0 || scope === 'temporary' ? (
           <button
-            key={value}
             type="button"
-            aria-pressed={scope === value}
-            onClick={() => setScope(value)}
+            aria-pressed={scope === 'temporary'}
+            onClick={() => changeScope('temporary')}
             className={[
-              'min-h-tap flex-1 rounded-lg border px-3 text-sm',
-              scope === value
+              'min-h-tap rounded-full border px-3 text-xs',
+              scope === 'temporary'
                 ? 'border-accent bg-bg-subtle font-medium text-accent'
                 : 'border-border text-fg-muted',
             ].join(' ')}
           >
-            {label}
+            Titipan ({temporaryCount})
           </button>
-        ))}
+        ) : null}
       </div>
 
       {/* Walking order. Labels say what the order IS, not what it sorts by:
