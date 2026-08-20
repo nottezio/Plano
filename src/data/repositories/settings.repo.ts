@@ -2,7 +2,6 @@ import {
   onSnapshot,
   serverTimestamp,
   setDoc,
-  updateDoc,
   type DocumentData,
   type Unsubscribe,
 } from 'firebase/firestore';
@@ -61,13 +60,25 @@ export function subscribeProfile(
  * Settings are patched by dotted path so that two devices editing different
  * settings (theme here, checklist order there) do not overwrite each other.
  */
+/**
+ * Settings are written with `setDoc(..., { merge: true })`, not `updateDoc`.
+ *
+ * `updateDoc` with dotted paths — `settings.theme` — **fails outright if the
+ * document does not exist**, and the rejection was logged rather than surfaced,
+ * so settings silently did not save. Exactly the failure `setEntryLocked` had:
+ * a write that assumes a document someone else was supposed to create.
+ *
+ * `setDoc` with merge works whether or not the profile exists, and merges
+ * nested maps key by key, so patching one setting still leaves the rest alone.
+ */
 export function updateSettings(uid: string, patch: Partial<UserSettings>): Promise<void> {
-  const payload: DocumentData = {};
+  const settings: DocumentData = {};
   for (const [key, value] of Object.entries(patch)) {
-    if (value !== undefined) payload[`settings.${key}`] = value;
+    if (value !== undefined) settings[key] = value;
   }
-  if (Object.keys(payload).length === 0) return Promise.resolve();
-  return trackWrite(updateDoc(userDoc(uid), payload));
+  if (Object.keys(settings).length === 0) return Promise.resolve();
+
+  return trackWrite(setDoc(userDoc(uid), { settings }, { merge: true }));
 }
 
 /**

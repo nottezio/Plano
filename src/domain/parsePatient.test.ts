@@ -158,3 +158,58 @@ describe('sex from the honorific', () => {
     expect(parseIdentity('*Ny. Bubi Dg Pajja/ 01-02-1960/ 66 tahun / RM 1478911*').sex).toBe('P');
   });
 });
+
+describe('reading the wrong patient — what the parser must refuse', () => {
+  it('ignores an identity line belonging to a different patient further down', () => {
+    // A consult reply quotes another patient. Scanning the whole note meant
+    // that name could be written into THIS patient's record.
+    const note = [
+      'Tabe dokter, melaporkan pasien di *PJT Lt 5 Kamar 501* atas nama:',
+      '*Tn. Budi Santoso / 01-01-1970 / 56 tahun / RM 1111111*',
+      '',
+      '*S:*',
+      '- nyeri dada tidak ada',
+      '',
+      '*TS Neuro*',
+      'Balasan konsul untuk *Ny. Siti Aminah / 02-02-1960 / 66 tahun / RM 9999999*',
+    ].join('\n');
+
+    const result = parseIdentity(note);
+    expect(result.name).toBe('Tn. Budi Santoso');
+    expect(result.mrn).toBe('1111111');
+  });
+
+  it('refuses a template placeholder line', () => {
+    // It matches the identity shape exactly, and filling from it would write
+    // "(Nama)" as somebody's name.
+    const blank = 'melaporkan pasien atas nama:\n*(Nama) / (tgl lahir) / (umur) / RM (no)*';
+    expect(parseIdentity(blank)).toEqual({});
+  });
+
+  it('rejects a record number too short to be one', () => {
+    // A wrong MRN is the worst output this parser has, because it is what
+    // identifies the patient to another system.
+    expect(parseIdentity('*Tn. Budi / 52 tahun / RM 5*').mrn).toBeUndefined();
+  });
+
+  it('rejects a record number absurdly long', () => {
+    expect(parseIdentity('*Tn. Budi / 52 tahun / RM 1234567890123456*').mrn).toBeUndefined();
+  });
+
+  it('still reads the real lines it is meant to', () => {
+    expect(parseIdentity('*Tn. Ardiansa/ 17-01-1987/ 39 thn / RM 01679091*').mrn).toBe(
+      '01679091',
+    );
+  });
+
+  it('takes the location from the opening, not from a quoted report', () => {
+    const note = [
+      'melaporkan pasien di *PJT Lt 5 Kamar 501 Bed 2* atas nama:',
+      '*Tn. Budi / 52 tahun / RM 123456*',
+      '',
+      '*S:*',
+      '- dirujuk dari *CVCU bed 9* atas nama pasien lain',
+    ].join('\n');
+    expect(parseLocation(note)).toEqual({ ward: 'PJT Lt 5', room: '501', bed: '2' });
+  });
+});

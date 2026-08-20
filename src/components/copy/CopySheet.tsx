@@ -22,6 +22,7 @@ import {
   type CopyGroupId,
 } from '@/domain/format/copyGroups';
 import { copyText } from '@/lib/clipboard';
+import { checkIdentity } from '@/domain/identityCheck';
 import { RenderedPreview } from './RenderedPreview';
 import type {
   ClinicalDate,
@@ -209,6 +210,18 @@ export function CopySheet({
    * says what is in the text and offers the one-tap fix rather than guessing.
    */
   const nonAscii = useMemo(() => findNonAsciiChars(output), [output]);
+
+  /**
+   * Does this note belong to the patient whose chart is open?
+   *
+   * The mistake this guards is copying one patient's report into another
+   * patient's chat — undetectable afterwards, because the message reads as a
+   * perfectly coherent report about somebody.
+   *
+   * It warns rather than blocks. A mismatch has legitimate causes, and a copy
+   * button that refused would be worked around within a day.
+   */
+  const identityCheck = useMemo(() => checkIdentity(patient, body), [patient, body]);
 
   const applyPreset = (preset: CopyPreset): void => {
     setFormat(preset.format);
@@ -410,6 +423,28 @@ export function CopySheet({
           </button>
         </>
       )}
+
+      {identityCheck.status === 'mismatch' ? (
+        <div
+          role="alert"
+          className="mb-3 rounded-lg border border-danger p-2 text-[11px] leading-relaxed"
+        >
+          <p className="font-semibold text-danger">Identitas tidak cocok</p>
+          <p className="mt-0.5 text-fg">
+            Catatan ini menyebut{' '}
+            <strong>
+              {identityCheck.field === 'mrn' ? 'RM ' : ''}
+              {identityCheck.noteValue}
+            </strong>
+            , tetapi pasien yang dibuka adalah{' '}
+            <strong>
+              {identityCheck.field === 'mrn' ? 'RM ' : ''}
+              {identityCheck.recordValue}
+            </strong>
+            . Periksa sebelum menyalin.
+          </p>
+        </div>
+      ) : null}
 
       {nonAscii.length > 0 && format !== 'plain' ? (
         <p className="mt-2 rounded-lg border border-border bg-bg-subtle p-2 text-[11px] leading-relaxed text-fg-muted">

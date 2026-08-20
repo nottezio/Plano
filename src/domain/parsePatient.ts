@@ -43,18 +43,55 @@ const TITLE = /\b(Tn|Ny|Nn|An|Sdr|Sdri)\.?\s/i;
  * is the number after `RM`. Splitting on `/` and trusting the order breaks the
  * moment someone omits the birth date, which happens often.
  */
+/**
+ * Markers that a line is a template placeholder rather than a real patient.
+ *
+ * `*(Nama) / (tgl lahir) / (umur) / RM (no)*` matches the identity shape
+ * exactly, and filling a record from it writes "(Nama)" as somebody's name.
+ */
+const PLACEHOLDER = /\((nama|tgl|umur|no|ruang|bagian)[^)]*\)/i;
+
+/**
+ * Only the opening block is searched.
+ *
+ * A note can name more than one patient — a consult reply quotes another, a
+ * pasted report carries its own header — and scanning the whole body meant the
+ * parser could pick the wrong one and write it into this patient's record.
+ * The identity line of THIS patient is in the opening, above the first clinical
+ * heading, which is where it is written every time.
+ */
+const CLINICAL_START =
+  /^\s*\*?\s*(S|O|A|P)\s*[:/]|^\s*\*?\s*(Mohon i[zj]in|Plan|Diagnosis|Faktor risiko)/im;
+
+function openingBlock(body: string): string {
+  const match = CLINICAL_START.exec(body);
+  return match ? body.slice(0, match.index) : body;
+}
+
 export function parseIdentity(body: string): ParsedIdentity {
-  const line = body
+  const line = openingBlock(body)
     .split('\n')
     .map((candidate) => candidate.replace(/[*_]/g, '').trim())
-    .find((candidate) => TITLE.test(candidate) && /\bRM\b/i.test(candidate));
+    .find(
+      (candidate) =>
+        TITLE.test(candidate) && /\bRM\b/i.test(candidate) && !PLACEHOLDER.test(candidate),
+    );
 
   if (!line) return {};
 
   const result: ParsedIdentity = {};
 
-  const mrn = /\bRM\.?\s*:?\s*([0-9][0-9.\-\s]{3,})/i.exec(line);
-  if (mrn?.[1]) result.mrn = mrn[1].replace(/[\s.\-]/g, '');
+  /**
+   * The MRN must look like one: at least four digits, and no more than twelve.
+   *
+   * The old pattern accepted any digit run after `RM`, so `RM 5` — or the tail
+   * of a date that happened to follow the word — became a record number. A
+   * wrong MRN is the single worst thing this parser can produce, because it is
+   * the field used to identify the patient to another system.
+   */
+  const mrn = /\bRM\.?\s*:?\s*([0-9][0-9.\-\s]{2,})/i.exec(line);
+  const digits = mrn?.[1]?.replace(/[\s.\-]/g, '');
+  if (digits && digits.length >= 4 && digits.length <= 12) result.mrn = digits;
 
   const birth = /\b(\d{1,2}[-/]\d{1,2}[-/]\d{4})\b/.exec(line);
   if (birth?.[1]) result.birthDate = birth[1].replace(/\//g, '-');
@@ -98,7 +135,7 @@ export function parseIdentity(body: string): ParsedIdentity {
  * name nobody anticipated still comes through intact.
  */
 export function parseLocation(body: string): ParsedLocation {
-  const opening = body
+  const opening = openingBlock(body)
     .split('\n')
     .map((line) => line.trim())
     .find((line) => /\batas nama\b/i.test(line));
