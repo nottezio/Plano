@@ -1,7 +1,7 @@
 import { getDocs, query, where } from 'firebase/firestore';
 
 import { checklistDoc, documentsCol, entriesCol, patientsCol, userDoc } from './paths';
-import { getDoc } from 'firebase/firestore';
+import { getDoc, getDocFromCache, getDocsFromCache } from 'firebase/firestore';
 import type {
   AppDocument,
   DailyChecklist,
@@ -38,9 +38,36 @@ export interface ExportBundle {
   documents: AppDocument[];
 }
 
+/**
+ * Read from the server, falling back to the local cache.
+ *
+ * `getDoc` and `getDocs` go to the server and REJECT when it is unreachable,
+ * which is why "Unduh JSON" reported "Ekspor gagal. Coba lagi saat daring." —
+ * even though every document was sitting in the offline cache already.
+ *
+ * That failure is exactly backwards for this feature: an export is the thing
+ * you want most when the connection is unreliable, because it is the only copy
+ * of your data you control.
+ */
+async function readDoc(reference: Parameters<typeof getDoc>[0]) {
+  try {
+    return await getDoc(reference);
+  } catch {
+    return await getDocFromCache(reference);
+  }
+}
+
+async function readDocs(reference: Parameters<typeof getDocs>[0]) {
+  try {
+    return await getDocs(reference);
+  } catch {
+    return await getDocsFromCache(reference);
+  }
+}
+
 export async function exportAll(uid: string): Promise<ExportBundle> {
-  const profileSnap = await getDoc(userDoc(uid));
-  const patientSnap = await getDocs(
+  const profileSnap = await readDoc(userDoc(uid));
+  const patientSnap = await readDocs(
     query(patientsCol(), where('memberIds', 'array-contains', uid)),
   );
 
@@ -48,21 +75,21 @@ export async function exportAll(uid: string): Promise<ExportBundle> {
 
   for (const doc of patientSnap.docs) {
     const patient = doc.data() as Patient;
-    const entrySnap = await getDocs(entriesCol(patient.id));
+    const entrySnap = await readDocs(entriesCol(patient.id));
     const entries = entrySnap.docs.map((entry) => entry.data() as DailyEntry);
 
     // Checklists are keyed by the same clinical dates as the entries, so there
     // is no separate listing to walk.
     const checklists: DailyChecklist[] = [];
     for (const entry of entries) {
-      const checklistSnap = await getDoc(checklistDoc(patient.id, entry.date));
+      const checklistSnap = await readDoc(checklistDoc(patient.id, entry.date));
       if (checklistSnap.exists()) checklists.push(checklistSnap.data() as DailyChecklist);
     }
 
     patients.push({ ...patient, entries, checklists });
   }
 
-  const documentSnap = await getDocs(documentsCol(uid));
+  const documentSnap = await readDocs(documentsCol(uid));
 
   return {
     exportedAt: new Date().toISOString(),

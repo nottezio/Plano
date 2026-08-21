@@ -69,15 +69,17 @@ describe('seed templates', () => {
 
   it('distinguish admission from follow-up by the length of S', () => {
     const sOf = (body: string): string =>
-      body.slice(body.indexOf('*S:*'), body.indexOf('*O:*'));
+      body.slice(body.indexOf('*S:*'), body.indexOf('*O :*'));
 
-    expect(sOf(ADMISI_BODY).length).toBeGreaterThan(sOf(FOLLOWUP_BODY).length * 3);
+    // The vitals block shrank when it was corrected against the real note, so
+    // the ratio changed; the distinction is still the length of S.
+    expect(sOf(ADMISI_BODY).length).toBeGreaterThan(sOf(FOLLOWUP_BODY).length * 2);
     expect(sOf(ADMISI_BODY)).toContain('Faktor resiko koroner');
     expect(sOf(FOLLOWUP_BODY)).not.toContain('Faktor resiko koroner');
   });
 
   it('share an identical block below S, so one can continue as the other', () => {
-    const belowS = (body: string): string => body.slice(body.indexOf('*O:*'));
+    const belowS = (body: string): string => body.slice(body.indexOf('*O :*'));
     expect(belowS(ADMISI_BODY)).toBe(belowS(FOLLOWUP_BODY));
   });
 
@@ -98,7 +100,7 @@ describe('seed templates', () => {
       expect(body).toContain('atas nama :');
       expect(body).toContain('RM');
       expect(body).toContain('DPJP Utama');
-      expect(body.trimEnd().endsWith('Tabe terimakasih dokter')).toBe(true);
+      expect(body.trimEnd().endsWith('Mohon arahannya dokter. Terima kasih dokter.')).toBe(true);
     }
   });
 

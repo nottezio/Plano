@@ -1,4 +1,4 @@
-import { useCallback, useLayoutEffect, useRef } from 'react';
+import { useCallback, useLayoutEffect, useRef, useState } from 'react';
 
 import {
   BOLD,
@@ -52,6 +52,7 @@ export function BodyEditor({
   // region on a phone is how you lose your place mid-round.
   // Length at the last measurement, to tell growth from deletion.
   const lastLength = useRef(0);
+  const [focused, setFocused] = useState(false);
 
   const resize = useCallback(() => {
     const node = ref.current;
@@ -159,7 +160,11 @@ export function BodyEditor({
           ref={ref}
           value={value}
           onChange={(event) => onChange(event.target.value)}
-          onBlur={onBlur}
+          onFocus={() => setFocused(true)}
+          onBlur={() => {
+            setFocused(false);
+            onBlur();
+          }}
           onKeyDown={onKeyDown}
           readOnly={readOnly}
           placeholder={placeholder}
@@ -195,7 +200,19 @@ export function BodyEditor({
         />
       </div>
 
-      <div className="sticky bottom-0 px-4 pb-2">
+      {/*
+        Dimmed until the editor has focus.
+        
+        It sits over the note permanently, and four buttons that are used
+        occasionally should not compete with the text for attention. Focus is
+        the right trigger: the toolbar is only reachable while typing anyway.
+      */}
+      <div
+        className={[
+          'sticky bottom-0 px-4 pb-2 transition-opacity',
+          focused ? 'opacity-100' : 'opacity-40 hover:opacity-100',
+        ].join(' ')}
+      >
         <FormatToolbar
           aliases={aliases}
           disabled={readOnly}

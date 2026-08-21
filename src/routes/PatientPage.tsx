@@ -21,6 +21,7 @@ import { RevisionTrail } from '@/components/patient/RevisionTrail';
 import { AppShell } from '@/components/common/AppShell';
 import { fetchEntryBodies, setEntryLocked } from '@/data/repositories/entries.repo';
 import { fillPatientFromNote } from '@/data/repositories/patients.repo';
+import { parsePatientFacts } from '@/domain/parsePatient';
 import { carryForward, carryForwardSummary } from '@/domain/carryForward';
 import { formatLocation } from '@/domain/identity';
 import { insertIntoObjective } from '@/domain/lab/parseLab';
@@ -127,22 +128,36 @@ export default function PatientPage(): JSX.Element {
   const settledBody = useDebouncedValue(editor.value, 400);
 
   /**
-   * Learn identity and location from the note.
+   * Identity read from the note is SUGGESTED, never written silently.
    *
-   * Runs when the note settles rather than on every keystroke, and fills only
-   * fields that are still blank — a name typed into the identity form outranks
-   * a line in a note, and overwriting a corrected MRN with the uncorrected one
-   * from the note text is the worst possible reading of "keep them in sync".
+   * It used to fill blank fields by itself. When it was right that was
+   * invisible, and when it was wrong it was also invisible — a wrong name or a
+   * wrong record number appeared in the chart with nothing to say where it came
+   * from or that anyone should look at it.
+   *
+   * A parser working on free text will be wrong sometimes; that is not a bug to
+   * be finished, it is a property. So the fix is not a better guess, it is
+   * showing the guess. One tap accepts it, and it can be dismissed.
    */
-  useEffect(() => {
-    if (!patient || editor.dirty) return;
-    const written = fillPatientFromNote(patient, settledBody);
-    if (written) {
-      void written.catch((error: unknown) =>
-        console.error('[patient] could not fill from note', error),
-      );
+  const suggestion = useMemo(() => {
+    if (!patient) return null;
+
+    const facts = parsePatientFacts(settledBody);
+    const missing: Array<[string, string]> = [];
+
+    if (!patient.name?.trim() && facts.name) missing.push(['Nama', facts.name]);
+    if (!patient.mrn?.trim() && facts.mrn) missing.push(['RM', facts.mrn]);
+    if (patient.age === undefined && facts.age !== undefined) {
+      missing.push(['Umur', `${facts.age} th`]);
     }
-  }, [patient, editor.dirty, settledBody]);
+    if (!patient.ward?.trim() && facts.ward) missing.push(['Ruang', facts.ward]);
+    if (!patient.room?.trim() && facts.room) missing.push(['Kamar', facts.room]);
+    if (!patient.bed?.trim() && facts.bed) missing.push(['Bed', facts.bed]);
+
+    return missing.length > 0 ? { facts, missing } : null;
+  }, [patient, settledBody]);
+
+  const [suggestionDismissed, setSuggestionDismissed] = useState(false);
 
   // SPEC 7.5 — announce presence only while the day is actually editable.
   usePresenceHeartbeat(patientId, selected, !locked);
@@ -525,6 +540,39 @@ export default function PatientPage(): JSX.Element {
         ) : null}
 
         {carrySummary ? <Banner tone="muted">{carrySummary}</Banner> : null}
+
+        {suggestion && !suggestionDismissed && !locked ? (
+          <Banner tone="info">
+            <span className="min-w-0 flex-1">
+              Dari catatan:{' '}
+              {suggestion.missing.map(([label, value]) => `${label} ${value}`).join(' · ')}
+            </span>
+            <button
+              type="button"
+              onClick={() => {
+                if (!patient) return;
+                const written = fillPatientFromNote(patient, settledBody);
+                if (written) {
+                  void written.catch((error: unknown) =>
+                    console.error('[patient] could not fill from note', error),
+                  );
+                }
+                setSuggestionDismissed(true);
+              }}
+              className="shrink-0 font-medium text-accent underline"
+            >
+              Isi identitas
+            </button>
+            <button
+              type="button"
+              onClick={() => setSuggestionDismissed(true)}
+              aria-label="Abaikan"
+              className="shrink-0 text-fg-faint"
+            >
+              ×
+            </button>
+          </Banner>
+        ) : null}
 
         {/* Empty day only — see TemplatePicker for why this is never automatic. */}
         {!locked && editor.value.trim().length === 0 ? (

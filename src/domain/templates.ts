@@ -37,32 +37,44 @@ _DPJP Utama dan Tindakan : _
 
 _Post Tindakan :  ()_`;
 
-const VITALS = `*O:* 
-Compos mentis
-Tekanan Darah :  mmHg
-Nadi :  kali/menit, reguler
-Pernapasan :  kali/menit 
+/**
+ * Transcribed from a real note rather than written from memory.
+ *
+ * The wording matters more than it looks: the ward writes `Tensi` and `Nafas`,
+ * not `Tekanan Darah` and `Pernapasan`, and GCS sits on the `*O :*` line with
+ * "Compos Mentis". A template that reads almost-right is worse than none —
+ * every use starts by correcting it, and the corrections are what get missed at
+ * five in the morning.
+ *
+ * Height, weight and the physical examination sit BELOW the vitals with a blank
+ * line between, which is how they are read.
+ */
+const VITALS = `*O :*
+Compos Mentis GCS (E4V5M6)
+Tensi :  mmHg
+Nadi :  x/menit, reguler
+Nafas :  kali/menit
 Suhu :  derajat Celcius
-SpO2 : % on room air
+SpO2 : %
+
+TB :  cm
+BB :  kg
 
 Anemis tidak ada, ikterus tidak ada
 JVP R+2 cmH20
-BJ I/II murni reguler, murmur tidak ada 
+BJ I/II murni reguler, murmur tidak terdengar
 BP Vesikuler, ronkhi dan wheezing tidak ada
-Abdomen dalam batas normal
-Edema ekstremitas tidak ada, akral teraba hangat.
+Abdomen peristaltik kesan normal
+Edema ekstremitas tidak ada, akral hangat, CTR < 2 detik`;
 
-TB :  cm
-BB:  kg`;
-
-const THERAPY_AND_PLAN = `*Mohon izin pasien kami terapi dengan :*
+const THERAPY_AND_PLAN = `*Mohon izin kami terapi dengan:*
 - 
 
-*Plan :*
-- Monitoring tanda vital dan hemodinamik
+*Plan:*
+- Pantau tanda vital dan hemodinamik
 - `;
 
-const CLOSING = `Tabe terimakasih dokter`;
+const CLOSING = `Mohon arahannya dokter. Terima kasih dokter.`;
 
 /** Short S — the daily follow-up. */
 export const FOLLOWUP_BODY = `${OPENING}
@@ -73,7 +85,7 @@ export const FOLLOWUP_BODY = `${OPENING}
 
 ${VITALS}
 
-*Mohon izin pasien kami assess dengan :*
+*Mohon izin kami assessment dengan :*
 - 
 
 ${THERAPY_AND_PLAN}
@@ -92,7 +104,7 @@ export const FOLLOWUP_DX_BODY = `${OPENING}
 
 ${VITALS}
 
-*Mohon izin pasien kami assess dengan :*
+*Mohon izin kami assessment dengan :*
 Diagnosis Primer : 
 - 
 
@@ -127,7 +139,7 @@ _Pemeriksaan fisis dalam batas normal_
 TB  cm
 BB  kg
 
-*Mohon izin pasien kami assess dengan :*
+*Mohon izin kami assessment dengan :*
 - 
 
 ${THERAPY_AND_PLAN}
@@ -162,7 +174,7 @@ Tabe selanjutnya mohon arahannya dokter, terima kasih dokter
 
 ${VITALS}
 
-*Mohon izin kami assess dengan:*
+*Mohon izin kami assessment dengan :*
 - 
 
 *Mohon izin kami terapi dengan:*
@@ -193,7 +205,7 @@ Rencana tindakan : (rencana tindakan) ((hari, tanggal))
 
 ${VITALS}
 
-*Mohon izin kami Assess dengan:*
+*Mohon izin kami assessment dengan :*
 Diagnosis Primer:
 - 
 
@@ -244,7 +256,7 @@ Faktor risiko kardiovaskular :
 
 ${VITALS}
 
-*Mohon izin kami assess dengan :*
+*Mohon izin kami assessment dengan :*
 - 
 
 *Risiko MACE (Lee Revised Cardiac Risk Index) :*
@@ -287,7 +299,7 @@ Faktor risiko kardiovaskular :
 
 ${VITALS}
 
-*Mohon izin kami assess dengan :*
+*Mohon izin kami assessment dengan :*
 - 
 
 *Mohon izin kami terapi dengan :*
@@ -321,7 +333,7 @@ ${VITALS}
 *EKG (Ruang) ((tanggal)) Off TPM*
 - 
 
-*Mohon izin kami assess dengan :*
+*Mohon izin kami assessment dengan :*
 - 
 
 ${THERAPY_AND_PLAN}
@@ -384,7 +396,7 @@ Faktor resiko koroner:
 
 ${VITALS}
 
-*Mohon izin pasien kami assess dengan :*
+*Mohon izin kami assessment dengan :*
 - 
 
 ${THERAPY_AND_PLAN}

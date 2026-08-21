@@ -247,13 +247,32 @@ export function CopySheet({
       title="Salin catatan"
       description="Pilih format, bagian, dan rentang tanggal."
       footer={
+        /*
+         * The button names the patient.
+         *
+         * The mistake worth preventing is not a bad note — it is switching
+         * between SIMGOS and Plano a dozen times and copying from the chart you
+         * were on a moment ago. A confirmation dialog would be dismissed
+         * without reading; a name written on the button you are already
+         * pressing is read, because it is where you are looking.
+         */
         <button
           type="button"
           onClick={onCopy}
           disabled={!output.trim()}
-          className="min-h-tap w-full rounded-lg bg-accent px-4 text-sm font-medium text-white disabled:opacity-40"
+          className="min-h-tap w-full rounded-lg bg-accent px-4 py-1 text-sm font-medium text-white disabled:opacity-40"
         >
-          {copied ? 'Tersalin ✓' : 'Salin'}
+          {copied ? (
+            'Tersalin ✓'
+          ) : (
+            <>
+              <span className="block">Salin</span>
+              <span className="block truncate text-[11px] font-normal opacity-90">
+                {patient.name?.trim() || 'Tanpa nama'}
+                {patient.mrn ? ` · RM ${patient.mrn}` : ''}
+              </span>
+            </>
+          )}
         </button>
       }
     >
