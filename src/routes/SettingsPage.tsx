@@ -85,10 +85,23 @@ export default function SettingsPage(): JSX.Element {
     setExporting(true);
     setExportError(null);
     void exportAll(user.uid)
-      .then(downloadJson)
+      .then((bundle) => {
+        downloadJson(bundle);
+        // Say what is missing rather than claiming success. A partial export is
+        // still worth having; a silent partial one is not.
+        if (bundle.incomplete && bundle.incomplete.length > 0) {
+          setExportError(
+            `Terunduh, tetapi catatan ${bundle.incomplete.length} pasien tidak terbaca: ${bundle.incomplete.join(', ')}`,
+          );
+        }
+      })
       .catch((error: unknown) => {
         console.error('[settings] export failed', error);
-        setExportError('Ekspor gagal. Coba lagi saat daring.');
+        setExportError(
+          error instanceof Error
+            ? `Ekspor gagal: ${error.message}`
+            : 'Ekspor gagal. Coba lagi.',
+        );
       })
       .finally(() => setExporting(false));
   };

@@ -107,6 +107,22 @@ export default function DocumentPage(): JSX.Element {
             aria-label="Judul dokumen"
             className="min-h-tap min-w-0 flex-1 rounded-lg border border-transparent bg-transparent px-2 text-sm font-semibold outline-none focus:border-border"
           />
+          {/* A second window, not an in-app tab.
+              
+              The browser already does tabs, and it does them better than a
+              reimplementation inside one page would: real back button, real
+              history, and two documents genuinely side by side on a desktop.
+              An in-app tab strip would have to duplicate all of that and would
+              still be one window. */}
+          <button
+            type="button"
+            onClick={() => window.open(window.location.href, '_blank', 'noopener')}
+            aria-label="Buka di jendela baru"
+            title="Buka di jendela baru"
+            className="hidden min-h-tap min-w-tap shrink-0 text-fg-faint sm:block"
+          >
+            <span aria-hidden="true">⧉</span>
+          </button>
           <button
             type="button"
             onClick={() => setMenuOpen(true)}

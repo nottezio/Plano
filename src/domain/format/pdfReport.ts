@@ -21,7 +21,9 @@ const CLOSING = 'Selanjutnya mohon arahan dokter.  Terima kasih dokter';
 
 /** Ids whose content is the diagnosis list. */
 const DIAGNOSIS_IDS = ['a'];
-const DIAGNOSIS_KEYWORDS = ['diagnos', 'assess', 'problem'];
+// `assessment` and `assess` both appear; `izin kami assessment dengan` is the
+// heading the ward actually writes, so matching the verb alone is not enough.
+const DIAGNOSIS_KEYWORDS = ['diagnos', 'assess', 'problem', 'masalah'];
 
 export interface PdfReportOptions {
   aliases: readonly SectionAlias[];

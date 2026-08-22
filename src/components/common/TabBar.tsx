@@ -99,6 +99,17 @@ export function TabBar(): JSX.Element {
           </p>
           <p className="mt-0.5 text-xs font-medium">{hint.initials}</p>
           <p className="mt-0.5 text-[11px] leading-snug text-fg-muted">{hint.description}</p>
+          {hint.poli ? (
+            <>
+              <p className="mt-1.5 text-[10px] font-semibold uppercase tracking-wide text-fg-faint">
+                Poli berikutnya
+              </p>
+              <p className="text-[11px] leading-snug text-fg-muted">{hint.poli}</p>
+              {/* The roster is a dated document — say which one, so nobody
+                  reads last month's by accident. */}
+              <p className="mt-0.5 text-[10px] text-fg-faint">Jadwal {hint.period}</p>
+            </>
+          ) : null}
         </div>
       ) : null}
 

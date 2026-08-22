@@ -26,6 +26,7 @@ import { carryForward, carryForwardSummary } from '@/domain/carryForward';
 import { formatLocation } from '@/domain/identity';
 import { insertIntoObjective } from '@/domain/lab/parseLab';
 import { describeConfig, dpjpById, primaryDpjp } from '@/domain/dpjp';
+import { SCHEDULE_PERIOD, nextPoli, weekdayName } from '@/domain/poli/schedule';
 import { parseSections } from '@/domain/sections/parseSections';
 import {
   daysBetween,
@@ -185,6 +186,9 @@ export default function PatientPage(): JSX.Element {
   );
   const dpjpFormat = dpjp ? settings.dpjpFormats[dpjp.id] : undefined;
 
+  /** The consultant's next outpatient clinic, from the signed roster. */
+  const poli = useMemo(() => (dpjp ? nextPoli(dpjp.id, today) : null), [dpjp, today]);
+
   /**
    * Publish the reporting format to the sidebar while this patient is open.
    *
@@ -199,12 +203,18 @@ export default function PatientPage(): JSX.Element {
         initials: dpjp.initials,
         name: dpjp.name,
         description: describeConfig(dpjpFormat),
+        ...(poli
+          ? {
+              poli: `${weekdayName(poli.weekday)}, ${poli.date} · ${poli.slot.clinic} · ${poli.slot.time}`,
+              period: SCHEDULE_PERIOD,
+            }
+          : {}),
       });
     } else {
       setDpjpHint(null);
     }
     return () => setDpjpHint(null);
-  }, [dpjp, dpjpFormat, setDpjpHint]);
+  }, [dpjp, dpjpFormat, poli, setDpjpHint]);
 
   const railDates = useMemo(
     () => buildRail(patient?.admittedAt ?? today, today, entryDates),
@@ -365,6 +375,12 @@ export default function PatientPage(): JSX.Element {
               >
                 Tambah identitas pasien
               </button>
+            ) : poli ? (
+              <p className="truncate text-[11px] text-fg-faint">
+                {dpjp?.initials} poli {weekdayName(poli.weekday)}
+                {poli.inDays === 0 ? ' (hari ini)' : poli.inDays === 1 ? ' (besok)' : ''} ·{' '}
+                {poli.slot.clinic} · {poli.slot.time}
+              </p>
             ) : dpjpFormat ? (
               <p className="truncate text-[11px] text-fg-faint">
                 {dpjp?.initials} — {describeConfig(dpjpFormat)}

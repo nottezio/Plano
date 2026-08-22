@@ -27,6 +27,31 @@ export default function DocumentsPage(): JSX.Element {
   const { documents, loading } = useDocumentList();
   const [createOpen, setCreateOpen] = useState(false);
   const [seeding, setSeeding] = useState(false);
+
+  /**
+   * Category filter, remembered per device.
+   *
+   * The list grew past thirty documents once the seeds were added, and a flat
+   * list of thirty is a list nobody scans — you search it, which only works if
+   * you already know the title.
+   */
+  const [category, setCategory] = useState<string>(() => {
+    try {
+      return localStorage.getItem('visite.docCategory') ?? 'all';
+    } catch {
+      return 'all';
+    }
+  });
+
+  const categories = useMemo(() => {
+    const present = new Set(documents.map((document) => document.category));
+    return ['all', ...[...present].sort()];
+  }, [documents]);
+
+  const shown = useMemo(
+    () => (category === 'all' ? documents : documents.filter((d) => d.category === category)),
+    [documents, category],
+  );
   const uid = useSession((state) => state.user?.uid ?? null);
 
   /**
@@ -86,17 +111,45 @@ export default function DocumentsPage(): JSX.Element {
 
   const grouped = useMemo(() => {
     const groups = new Map<string, AppDocument[]>();
-    for (const document of documents) {
+    for (const document of shown) {
       const bucket = groups.get(document.category);
       if (bucket) bucket.push(document);
       else groups.set(document.category, [document]);
     }
     return [...groups.entries()];
-  }, [documents]);
+  }, [shown]);
 
   return (
     <AppShell title="Dokumen">
       <div className="mx-auto w-full max-w-3xl">
+      {documents.length > 0 ? (
+        <div className="flex flex-wrap gap-1.5 px-4 pb-1 pt-1">
+          {categories.map((value) => (
+            <button
+              key={value}
+              type="button"
+              aria-pressed={category === value}
+              onClick={() => {
+                setCategory(value);
+                try {
+                  localStorage.setItem('visite.docCategory', value);
+                } catch (error) {
+                  console.warn('[documents] filter not saved', error);
+                }
+              }}
+              className={[
+                'min-h-tap rounded-full border px-3 text-xs',
+                category === value
+                  ? 'border-accent bg-bg-subtle font-medium text-accent'
+                  : 'border-border text-fg-muted',
+              ].join(' ')}
+            >
+              {value === 'all' ? 'Semua' : (CATEGORY_LABELS[value] ?? value)}
+            </button>
+          ))}
+        </div>
+      ) : null}
+
       {documents.length > 0 ? (
         <div className="px-4 pb-1 pt-1">
           <button

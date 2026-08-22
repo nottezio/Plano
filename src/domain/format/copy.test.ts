@@ -565,3 +565,29 @@ describe('plain text is ASCII, guaranteed rather than curated', () => {
     expect(findNonAsciiChars(toPlain(everything))).toEqual([]);
   });
 });
+
+describe('invisible characters are stripped from every format', () => {
+  const dirty = '\u2060Compos mentis\n- \u2060IVFD NaCl 0.9% 500 ml/24 jam/IV';
+
+  it('removes them from WhatsApp output, which is where the `?` came from', () => {
+    // toPlain has guaranteed ASCII for a while; this text was being copied as
+    // WhatsApp format, where the fold never ran.
+    const out = toWhatsApp(dirty);
+    expect(out).toContain('Compos mentis');
+    expect(out).not.toContain('\u2060');
+    expect(out.startsWith('Compos')).toBe(true);
+  });
+
+  it('removes them from Markdown too', () => {
+    expect(toMarkdown('\u2060Compos mentis')).toBe('Compos mentis');
+  });
+
+  it('leaves visible non-ASCII alone outside plain text', () => {
+    // WhatsApp renders these correctly; folding them there would be a loss.
+    expect(toWhatsApp('Suhu 36.5 °C')).toContain('°');
+  });
+
+  it('still lets the guarded bullet insert its own invisible characters', () => {
+    expect(toWhatsApp('- Aspilet', 'guarded')).toBe('\u200B-\u00A0Aspilet');
+  });
+});

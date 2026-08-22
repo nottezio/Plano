@@ -32,8 +32,14 @@ interface UIState {
    * `AppShell` would make every screen carry a field only one of them uses.
    * Set by the patient page, cleared when it unmounts.
    */
-  dpjpHint: { initials: string; name: string; description: string } | null;
-  setDpjpHint: (hint: { initials: string; name: string; description: string } | null) => void;
+  dpjpHint: {
+    initials: string;
+    name: string;
+    description: string;
+    poli?: string;
+    period?: string;
+  } | null;
+  setDpjpHint: (hint: UIState['dpjpHint']) => void;
   /** Desktop context sidebar on the patient page. Expanded by default. */
   contextPaneOpen: boolean;
   toggleContextPane: () => void;

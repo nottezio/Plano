@@ -25,6 +25,8 @@ import { APP_VERSION } from '@/version.js';
  * in a Downloads folder is a privacy incident waiting to happen.
  */
 export interface ExportBundle {
+  /** Patients whose notes could not be read. Empty on a clean export. */
+  incomplete?: string[];
   exportedAt: string;
   appVersion: string;
   schemaVersion: number;
@@ -73,25 +75,52 @@ export async function exportAll(uid: string): Promise<ExportBundle> {
 
   const patients: ExportBundle['patients'] = [];
 
+  /**
+   * One failure must not lose the whole export.
+   *
+   * It walks every patient, every entry and every checklist in sequence, so a
+   * single rejection anywhere — a rules denial on one subcollection, a document
+   * missing from the cache — rejected the entire promise and reported "coba
+   * lagi saat daring", which was wrong twice over: the connection was fine, and
+   * everything else had read successfully.
+   *
+   * An export that is missing one patient and says so is worth far more than no
+   * export at all.
+   */
+  const failures: string[] = [];
+
   for (const doc of patientSnap.docs) {
     const patient = doc.data() as Patient;
-    const entrySnap = await readDocs(entriesCol(patient.id));
-    const entries = entrySnap.docs.map((entry) => entry.data() as DailyEntry);
 
-    // Checklists are keyed by the same clinical dates as the entries, so there
-    // is no separate listing to walk.
-    const checklists: DailyChecklist[] = [];
-    for (const entry of entries) {
-      const checklistSnap = await readDoc(checklistDoc(patient.id, entry.date));
-      if (checklistSnap.exists()) checklists.push(checklistSnap.data() as DailyChecklist);
+    try {
+      const entrySnap = await readDocs(entriesCol(patient.id));
+      const entries = entrySnap.docs.map((entry) => entry.data() as DailyEntry);
+
+      // Checklists are keyed by the same clinical dates as the entries, so
+      // there is no separate listing to walk.
+      const checklists: DailyChecklist[] = [];
+      for (const entry of entries) {
+        try {
+          const checklistSnap = await readDoc(checklistDoc(patient.id, entry.date));
+          if (checklistSnap.exists()) checklists.push(checklistSnap.data() as DailyChecklist);
+        } catch {
+          // A missing checklist is not a reason to lose the note it belongs to.
+        }
+      }
+
+      patients.push({ ...patient, entries, checklists });
+    } catch (error) {
+      console.error('[export] skipped patient', patient.id, error);
+      failures.push(patient.name?.trim() || patient.id);
+      // The patient record itself still goes in; only their notes are missing.
+      patients.push({ ...patient, entries: [], checklists: [] });
     }
-
-    patients.push({ ...patient, entries, checklists });
   }
 
   const documentSnap = await readDocs(documentsCol(uid));
 
   return {
+    ...(failures.length > 0 ? { incomplete: failures } : {}),
     exportedAt: new Date().toISOString(),
     appVersion: APP_VERSION,
     schemaVersion: SCHEMA_VERSION,

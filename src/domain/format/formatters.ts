@@ -109,6 +109,22 @@ const ZWSP = '\u200B';
 
 export type BulletStyle = 'hyphen' | 'guarded' | 'bullet';
 
+/**
+ * Invisible characters, removed from EVERY format rather than only plain text.
+ *
+ * `toPlain` has guaranteed ASCII for a while, but a `?` kept appearing in
+ * SIMGOS — because the text was copied as WhatsApp format, where the fold never
+ * ran. The invisible ones (word joiner, zero-width space, BOM) are the culprits
+ * and they carry no meaning anywhere, so stripping them everywhere loses
+ * nothing.
+ *
+ * Visible non-ASCII — `é`, `°` — is left alone outside plain text, because
+ * WhatsApp renders it correctly and folding it there would be a loss.
+ */
+function stripInvisible(text: string): string {
+  return text.replace(/[\u00AD\u180E]/gu, '').replace(/\p{Cf}/gu, '');
+}
+
 export function toWhatsApp(body: string, bullet: BulletStyle = 'hyphen'): string {
   const marker =
     bullet === 'bullet'
@@ -119,7 +135,9 @@ export function toWhatsApp(body: string, bullet: BulletStyle = 'hyphen'): string
           `${ZWSP}-${NBSP}`
         : '- ';
 
-  return body
+  // Invisible characters go first: the guarded bullet style inserts its own
+  // deliberately, and stripping after would remove them again.
+  return stripInvisible(body)
     .replace(BOLD_RE, '*$1*')
     .replace(STRIKE_RE, '~$1~')
     .replace(ITALIC_RE, '$1_$2_')
@@ -235,7 +253,7 @@ export function toPlain(body: string): string {
  * `**x**` and keep their intended weight.
  */
 export function toMarkdown(body: string): string {
-  return body.replace(SINGLE_BOLD_RE, '$1**$2**');
+  return stripInvisible(body).replace(SINGLE_BOLD_RE, '$1**$2**');
 }
 
 export function formatBody(
