@@ -12,6 +12,7 @@ import { IdentityBar } from '@/components/patient/IdentityBar';
 import { LabSheet } from '@/components/patient/LabSheet';
 import { PatientNotes, usePatientNotes } from '@/components/patient/PatientNotes';
 import { PatientTodos } from '@/components/patient/PatientTodos';
+import { DocumentPanel } from '@/components/patient/DocumentPanel';
 import { ScrollToTop } from '@/components/patient/ScrollToTop';
 import { OpeningSheet } from '@/components/patient/OpeningSheet';
 import { TemplatePicker } from '@/components/patient/TemplatePicker';
@@ -72,6 +73,8 @@ export default function PatientPage(): JSX.Element {
   const [labOpen, setLabOpen] = useState(false);
   const [compareOpen, setCompareOpen] = useState(false);
   const [reformatOpen, setReformatOpen] = useState(false);
+  /** What the context pane is showing: the patient's own panels, or documents. */
+  const [paneView, setPaneView] = useState<'pasien' | 'dokumen'>('pasien');
   const paneOpen = useUI((state) => state.contextPaneOpen);
   const togglePane = useUI((state) => state.toggleContextPane);
 
@@ -684,6 +687,34 @@ export default function PatientPage(): JSX.Element {
             paneOpen ? 'hidden xl:flex' : 'hidden',
           ].join(' ')}
         >
+          <div className="flex gap-1">
+            {(
+              [
+                ['pasien', 'Pasien'],
+                ['dokumen', 'Dokumen'],
+              ] as Array<['pasien' | 'dokumen', string]>
+            ).map(([value, label]) => (
+              <button
+                key={value}
+                type="button"
+                aria-pressed={paneView === value}
+                onClick={() => setPaneView(value)}
+                className={[
+                  'min-h-tap flex-1 rounded-lg border text-xs',
+                  paneView === value
+                    ? 'border-accent bg-bg-subtle font-medium text-accent'
+                    : 'border-border text-fg-muted',
+                ].join(' ')}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+
+          {paneView === 'dokumen' ? <DocumentPanel /> : null}
+
+          {paneView === 'pasien' ? (
+            <>
           <PatientNotes sync={notesSync} />
 
           <PatientTodos patient={patient} />
@@ -711,6 +742,8 @@ export default function PatientPage(): JSX.Element {
               orientation="vertical"
             />
           </section>
+            </>
+          ) : null}
         </aside>
       </div>
 

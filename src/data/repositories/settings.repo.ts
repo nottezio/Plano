@@ -1,4 +1,5 @@
 import {
+  getDoc,
   onSnapshot,
   serverTimestamp,
   setDoc,
@@ -33,9 +34,26 @@ export function ensureProfile(user: User): Promise<void> {
   return trackWrite(setDoc(userDoc(user.uid), record, { merge: true }));
 }
 
-/** Seeds settings only when the field is genuinely absent. */
-export function seedSettingsIfMissing(uid: string): Promise<void> {
-  return trackWrite(
+/**
+ * Seeds settings ONLY when there are none. It has to read before it writes.
+ *
+ * The comment above this function used to say it seeded only when the field was
+ * absent, and it did not: `setDoc` with `merge: true` **deep-merges maps**, so
+ * it wrote every default key back on top of the stored ones. It runs on every
+ * sign-in, so every page refresh silently reset every setting that differed
+ * from its default.
+ *
+ * The settings were saving correctly the whole time — the export proves it —
+ * and were being overwritten a moment later on the way back in.
+ *
+ * A read costs one round trip on sign-in and is the only way to tell "no
+ * settings yet" from "settings that happen to look like defaults".
+ */
+export async function seedSettingsIfMissing(uid: string): Promise<void> {
+  const snapshot = await getDoc(userDoc(uid));
+  if (snapshot.exists() && snapshot.data()?.['settings']) return;
+
+  await trackWrite(
     setDoc(
       userDoc(uid),
       { settings: defaultUserSettings(), createdAt: serverTimestamp() },

@@ -49,13 +49,13 @@ _Post Tindakan :  ()_`;
  * Height, weight and the physical examination sit BELOW the vitals with a blank
  * line between, which is how they are read.
  */
-const VITALS = `*O :*
+const VITALS = `*O:*
 Compos Mentis GCS (E4V5M6)
-Tensi :  mmHg
-Nadi :  x/menit, reguler
-Nafas :  kali/menit
+Tekanan Darah :  mmHg
+Nadi :  kali/menit, reguler
+Pernapasan :  kali/menit
 Suhu :  derajat Celcius
-SpO2 : %
+SpO2 : % on room air
 
 TB :  cm
 BB :  kg
@@ -74,7 +74,7 @@ const THERAPY_AND_PLAN = `*Mohon izin kami terapi dengan:*
 - Pantau tanda vital dan hemodinamik
 - `;
 
-const CLOSING = `Mohon arahannya dokter. Terima kasih dokter.`;
+const CLOSING = `Selanjutnya mohon arahan dokter. Terima kasih dokter.`;
 
 /** Short S — the daily follow-up. */
 export const FOLLOWUP_BODY = `${OPENING}
@@ -85,7 +85,7 @@ export const FOLLOWUP_BODY = `${OPENING}
 
 ${VITALS}
 
-*Mohon izin kami assessment dengan :*
+*Mohon izin kami assess dengan:*
 - 
 
 ${THERAPY_AND_PLAN}
@@ -104,7 +104,7 @@ export const FOLLOWUP_DX_BODY = `${OPENING}
 
 ${VITALS}
 
-*Mohon izin kami assessment dengan :*
+*Mohon izin kami assess dengan:*
 Diagnosis Primer : 
 - 
 
@@ -139,7 +139,7 @@ _Pemeriksaan fisis dalam batas normal_
 TB  cm
 BB  kg
 
-*Mohon izin kami assessment dengan :*
+*Mohon izin kami assess dengan:*
 - 
 
 ${THERAPY_AND_PLAN}
@@ -174,7 +174,7 @@ Tabe selanjutnya mohon arahannya dokter, terima kasih dokter
 
 ${VITALS}
 
-*Mohon izin kami assessment dengan :*
+*Mohon izin kami assess dengan:*
 - 
 
 *Mohon izin kami terapi dengan:*
@@ -205,7 +205,7 @@ Rencana tindakan : (rencana tindakan) ((hari, tanggal))
 
 ${VITALS}
 
-*Mohon izin kami assessment dengan :*
+*Mohon izin kami assess dengan:*
 Diagnosis Primer:
 - 
 
@@ -256,7 +256,7 @@ Faktor risiko kardiovaskular :
 
 ${VITALS}
 
-*Mohon izin kami assessment dengan :*
+*Mohon izin kami assess dengan:*
 - 
 
 *Risiko MACE (Lee Revised Cardiac Risk Index) :*
@@ -299,7 +299,7 @@ Faktor risiko kardiovaskular :
 
 ${VITALS}
 
-*Mohon izin kami assessment dengan :*
+*Mohon izin kami assess dengan:*
 - 
 
 *Mohon izin kami terapi dengan :*
@@ -333,7 +333,7 @@ ${VITALS}
 *EKG (Ruang) ((tanggal)) Off TPM*
 - 
 
-*Mohon izin kami assessment dengan :*
+*Mohon izin kami assess dengan:*
 - 
 
 ${THERAPY_AND_PLAN}
@@ -396,7 +396,7 @@ Faktor resiko koroner:
 
 ${VITALS}
 
-*Mohon izin kami assessment dengan :*
+*Mohon izin kami assess dengan:*
 - 
 
 ${THERAPY_AND_PLAN}

@@ -69,7 +69,7 @@ describe('seed templates', () => {
 
   it('distinguish admission from follow-up by the length of S', () => {
     const sOf = (body: string): string =>
-      body.slice(body.indexOf('*S:*'), body.indexOf('*O :*'));
+      body.slice(body.indexOf('*S:*'), body.indexOf('*O:*'));
 
     // The vitals block shrank when it was corrected against the real note, so
     // the ratio changed; the distinction is still the length of S.
@@ -79,7 +79,7 @@ describe('seed templates', () => {
   });
 
   it('share an identical block below S, so one can continue as the other', () => {
-    const belowS = (body: string): string => body.slice(body.indexOf('*O :*'));
+    const belowS = (body: string): string => body.slice(body.indexOf('*O:*'));
     expect(belowS(ADMISI_BODY)).toBe(belowS(FOLLOWUP_BODY));
   });
 
@@ -100,7 +100,9 @@ describe('seed templates', () => {
       expect(body).toContain('atas nama :');
       expect(body).toContain('RM');
       expect(body).toContain('DPJP Utama');
-      expect(body.trimEnd().endsWith('Mohon arahannya dokter. Terima kasih dokter.')).toBe(true);
+      expect(
+        body.trimEnd().endsWith('Selanjutnya mohon arahan dokter. Terima kasih dokter.'),
+      ).toBe(true);
     }
   });
 
@@ -241,5 +243,40 @@ describe('closing-line presets', () => {
     expect(closings).toContain('Selanjutnya mohon arahan dokter. Terima kasih dokter');
     expect(closings.some((line) => line.includes('Prof'))).toBe(true);
     expect(closings).toContain('Tabe terimakasih dokter');
+  });
+});
+
+describe('template wording follows the corpus, not one example', () => {
+  /**
+   * Counted across 59 real notes from the export:
+   *   `*O:*` 32 vs `*O :*` 4
+   *   `Tekanan Darah` 39 vs `Tensi` 0
+   *   `Pernapasan` 33 vs `Nafas` 0
+   *   `assess dengan` 31 vs `assessment dengan` 0
+   *
+   * I had changed all four the other way after reading a single example
+   * document. These assertions exist so a future sample cannot quietly
+   * outvote the corpus again.
+   */
+  it('uses the heading and labels the notes actually carry', () => {
+    for (const body of ALL) {
+      if (!body.includes('*O:*')) continue;
+      expect(body).toContain('*O:*');
+      expect(body).not.toContain('*O :*');
+    }
+    expect(FOLLOWUP_BODY).toContain('Tekanan Darah :');
+    expect(FOLLOWUP_BODY).toContain('Pernapasan :');
+    expect(FOLLOWUP_BODY).not.toContain('Tensi :');
+  });
+
+  it('writes assess, not assessment', () => {
+    expect(FOLLOWUP_BODY).toContain('assess dengan');
+    expect(FOLLOWUP_BODY).not.toContain('assessment dengan');
+  });
+
+  it('closes the way the notes most often close', () => {
+    expect(FOLLOWUP_BODY.trimEnd()).toMatch(
+      /Selanjutnya mohon arahan dokter\. Terima kasih dokter\.$/,
+    );
   });
 });
