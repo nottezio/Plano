@@ -1,0 +1,177 @@
+import { describe, expect, it } from 'vitest';
+
+import { toPlain, toWhatsApp } from './formatters';
+import {
+  BOLD,
+  normaliseBullets,
+  restoreEmphasis,
+  ITALIC,
+  insertSectionHeader,
+  toggleBullet,
+  toggleNumbered,
+  toggleWrap,
+} from './markdownLite';
+
+describe('toggleWrap', () => {
+  it('wraps a selection', () => {
+    const result = toggleWrap('sesak berat', 0, 5, BOLD);
+    expect(result.text).toBe('*sesak* berat');
+    expect(result.text.slice(result.selectionStart, result.selectionEnd)).toBe('sesak');
+  });
+
+  it('unwraps when the markers are inside the selection', () => {
+    const result = toggleWrap('*sesak* berat', 0, 7, BOLD);
+    expect(result.text).toBe('sesak berat');
+  });
+
+  it('unwraps when the markers sit just outside the selection', () => {
+    const result = toggleWrap('*sesak* berat', 1, 6, BOLD);
+    expect(result.text).toBe('sesak berat');
+    expect(result.text.slice(result.selectionStart, result.selectionEnd)).toBe('sesak');
+  });
+
+  it('inserts an empty pair and parks the caret inside', () => {
+    const result = toggleWrap('S: ', 3, 3, ITALIC);
+    expect(result.text).toBe('S: __');
+    expect(result.selectionStart).toBe(4);
+    expect(result.selectionEnd).toBe(4);
+  });
+
+  it('round-trips', () => {
+    const once = toggleWrap('sesak', 0, 5, BOLD);
+    const twice = toggleWrap(once.text, once.selectionStart, once.selectionEnd, BOLD);
+    expect(twice.text).toBe('sesak');
+  });
+});
+
+describe('toggleBullet', () => {
+  it('bullets every selected line', () => {
+    const text = 'O2 3 lpm\nCek DPL';
+    const result = toggleBullet(text, 0, text.length);
+    expect(result.text).toBe('- O2 3 lpm\n- Cek DPL');
+  });
+
+  it('removes bullets when every line already has one', () => {
+    const text = '- O2 3 lpm\n- Cek DPL';
+    expect(toggleBullet(text, 0, text.length).text).toBe('O2 3 lpm\nCek DPL');
+  });
+
+  it('leaves blank lines alone', () => {
+    const text = 'O2 3 lpm\n\nCek DPL';
+    expect(toggleBullet(text, 0, text.length).text).toBe('- O2 3 lpm\n\n- Cek DPL');
+  });
+
+  it('operates on the caret line when nothing is selected', () => {
+    const text = 'S: sesak\nO2 3 lpm';
+    const result = toggleBullet(text, 12, 12);
+    expect(result.text).toBe('S: sesak\n- O2 3 lpm');
+  });
+
+  it('replaces numbering rather than stacking it', () => {
+    const text = '1. O2 3 lpm';
+    expect(toggleBullet(text, 0, text.length).text).toBe('- O2 3 lpm');
+  });
+});
+
+describe('toggleNumbered', () => {
+  it('numbers a block from 1', () => {
+    const text = 'O2 3 lpm\nCek DPL\nKonsul';
+    expect(toggleNumbered(text, 0, text.length).text).toBe(
+      '1. O2 3 lpm\n2. Cek DPL\n3. Konsul',
+    );
+  });
+
+  it('removes numbering when every line already has it', () => {
+    const text = '1. O2\n2. DPL';
+    expect(toggleNumbered(text, 0, text.length).text).toBe('O2\nDPL');
+  });
+
+  it('renumbers rather than trusting the existing digits', () => {
+    const text = '- O2\n- DPL';
+    expect(toggleNumbered(text, 0, text.length).text).toBe('1. O2\n2. DPL');
+  });
+});
+
+describe('insertSectionHeader', () => {
+  it('inserts at the caret when already at a line start', () => {
+    const result = insertSectionHeader('S: sesak\n', 9, 'Penunjang');
+    expect(result.text).toBe('S: sesak\nPenunjang: ');
+    expect(result.selectionStart).toBe(result.text.length);
+  });
+
+  it('breaks the line first when the caret is mid-line', () => {
+    const result = insertSectionHeader('S: sesak', 8, 'Penunjang');
+    expect(result.text).toBe('S: sesak\nPenunjang: ');
+  });
+
+  it('keeps following text on its own line', () => {
+    const result = insertSectionHeader('S: sesak\nA: pneumonia', 9, 'Penunjang');
+    expect(result.text).toBe('S: sesak\nPenunjang: \nA: pneumonia');
+  });
+
+  it('produces a header the parser actually detects', () => {
+    const result = insertSectionHeader('', 0, 'Penunjang');
+    expect(result.text).toBe('Penunjang: ');
+  });
+});
+
+describe('bold is the spelling that gets typed', () => {
+  it('wraps in a single asterisk, as WhatsApp writes it', () => {
+    expect(toggleWrap('sesak berat', 0, 5, BOLD).text).toBe('*sesak* berat');
+  });
+
+  it('round-trips: wrapping then unwrapping restores the text', () => {
+    const wrapped = toggleWrap('sesak berat', 0, 5, BOLD);
+    expect(toggleWrap(wrapped.text, 1, 6, BOLD).text).toBe('sesak berat');
+  });
+
+  it('is the spelling every formatter already accepts', () => {
+    // Both spellings have been handled since the WhatsApp-paste work, so
+    // storing the typed one costs nothing downstream.
+    expect(toWhatsApp('*tebal*')).toBe('*tebal*');
+    expect(toPlain('*tebal*')).toBe('tebal');
+  });
+});
+
+describe('restoreEmphasis', () => {
+  it('puts the markers back on headings a plain paste stripped', () => {
+    const plain = ['S:', '- nyeri dada tidak ada', '', 'Plan:', '- Monitoring'].join('\n');
+    const out = restoreEmphasis(plain);
+    expect(out).toContain('*S:*');
+    expect(out).toContain('*Plan:*');
+    expect(out).toContain('- nyeri dada tidak ada');
+  });
+
+  it('italicises the DPJP and referral lines', () => {
+    expect(restoreEmphasis('DPJP Utama : dr. A')).toBe('_DPJP Utama : dr. A_');
+    expect(restoreEmphasis('Pasien dirujuk dari RSUD X')).toBe('_Pasien dirujuk dari RSUD X_');
+  });
+
+  it('emphasises a dated investigation heading', () => {
+    expect(restoreEmphasis('EKG PJT Lt. 4 (19-08-2026)')).toBe('*EKG PJT Lt. 4 (19-08-2026)*');
+  });
+
+  it('leaves body text alone', () => {
+    const body = '- Aspilet 80mg/24jam/oral';
+    expect(restoreEmphasis(body)).toBe(body);
+  });
+
+  it('is idempotent — a line that already has markers is untouched', () => {
+    const once = restoreEmphasis('S:');
+    expect(restoreEmphasis(once)).toBe(once);
+  });
+});
+
+describe('normaliseBullets', () => {
+  it('turns the iPhone bullet into a hyphen', () => {
+    expect(normaliseBullets('• Aspilet\n• Clopidogrel')).toBe('- Aspilet\n- Clopidogrel');
+  });
+
+  it('preserves indentation', () => {
+    expect(normaliseBullets('  • Cek DPL')).toBe('  - Cek DPL');
+  });
+
+  it('leaves a mid-line bullet alone, which is never list syntax', () => {
+    expect(normaliseBullets('nilai • penting')).toBe('nilai • penting');
+  });
+});
