@@ -42,8 +42,7 @@ describe('parseLab', () => {
         'NEUT/LYMPH 85.5/5.3',
         'LED 112',
         'GDS 246',
-        'Ur/Cr 70/1.20',
-        'eGFR 63',
+        'Ur/Cr 70/1.20 (eGFR 63)',
         'Na/K/Cl 130/4.6/103',
       ].join('\n'),
     );
@@ -356,5 +355,79 @@ describe('the compact lab format as written in a report', () => {
 
   it('leaves no Lain-lain for a note in this format', () => {
     expect(result.formatted).not.toContain('Lain-lain');
+  });
+});
+
+describe('the panels in the real lab PDFs', () => {
+  /** From the printout text layer, as pdfjs returns it. */
+  const AGD = [
+    'ANALISA GAS DARAH',
+    'PH 7.472 7.35 - 7.45',
+    'PO2 132.3 80.0 - 100.0 mmHg',
+    'PCO2 25.1 35.0 - 45.0 mmHg',
+    'SO2 99.6 95 - 98 %',
+    'HCO3 18.5 22 - 26 mmol/l',
+    'BE -5.3 - 2 s/d +2 mmol/l',
+    'ctO2 19.8 15.8 - 22.3',
+    'ctCO2 19.3 23 - 27 mmol/l',
+  ].join('\n');
+
+  it('prints a blood gas as a blood gas, not as loose lines', () => {
+    // Eight values that mean nothing apart. They used to land in "Lain-lain",
+    // which lost the fact that they are one measurement.
+    const out = parseLab(AGD).formatted;
+    expect(out).toContain('Analisa Gas Darah :');
+    expect(out).toContain('pH 7.472');
+    expect(out).toContain('PCO2 25.1');
+    expect(out).toContain('HCO3 18.5');
+    expect(out).not.toContain('Lain-lain');
+  });
+
+  it('takes the result, not the reference range, inside a panel', () => {
+    expect(parseLab(AGD).formatted).toContain('SO2 99.6');
+    expect(parseLab(AGD).formatted).not.toContain('SO2 95');
+  });
+
+  it('groups a urinalysis under its own heading', () => {
+    const urin = [
+      'URINALISIS (AUTOMATIK)',
+      'Warna Kuning Kuning Muda',
+      'Ph 5.5 4.5 - 8.0',
+      'Bj 1.030 1.005 - 1.035',
+      'Protein Negatif Negatif mg/dl',
+      'Urobilinogen 1+ Normal mg/dl',
+    ].join('\n');
+    const out = parseLab(urin).formatted;
+    expect(out).toContain('Urinalisis :');
+    expect(out).toContain('BJ 1.030');
+  });
+
+  it('writes eGFR beside Ur/Cr, as the notes do', () => {
+    const renal = 'ureum 31 10 - 50 mg/dl\nKreatinin 1.25\neGFR 64 >= 90';
+    expect(parseLab(renal).formatted).toContain('Ur/Cr 31/1.25 (eGFR 64)');
+  });
+
+  it('keeps the blood group', () => {
+    expect(parseLab('Golongan darah B Rh+').formatted).toContain('Golongan darah');
+  });
+
+  it('reads a full haematology printout without a Lain-lain section', () => {
+    const cbc = [
+      'WBC 7.24 4.00 - 10.0 10^3/ul',
+      'RBC 4.62 4.00 - 6.00 10^6/uL',
+      'HGB 14.1 12.0 - 16.0 gr/dl',
+      'HCT 42.4 37.0 - 48.0 %',
+      'MCV 91.8 80.0 - 97.0 fL',
+      'MCH 30.4 26.5 - 33.5',
+      'MCHC 33.3 31.5 - 35.0 gr/dl',
+      'PLT 170 150 - 400 10^3/ul',
+      'NEUT 59.3 52.0 - 75.0 %',
+      'LYMPH 32.3 20.0 - 40.0 %',
+      'LED 10 (L <10, P <20 ) mm',
+    ].join('\n');
+    const out = parseLab(cbc).formatted;
+    expect(out).toContain('MCV/MCH/MCHC 91.8/30.4/33.3');
+    expect(out).toContain('NEUT/LYMPH 59.3/32.3');
+    expect(out).not.toContain('Lain-lain');
   });
 });

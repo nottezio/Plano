@@ -26,6 +26,27 @@ export interface LabValue {
   value: string;
 }
 
+/**
+ * Panels that print as their own block, the way the notes write them.
+ *
+ * A blood gas is eight values that mean nothing apart; listing them among the
+ * chemistry — or worse, under "Lain-lain" — loses the fact that they are one
+ * measurement. Same for a urinalysis.
+ */
+const PANELS: ReadonlyArray<{ heading: string; keys: readonly string[] }> = [
+  {
+    heading: 'Analisa Gas Darah :',
+    keys: ['pH', 'PO2', 'PCO2', 'SO2', 'HCO3', 'BE', 'ctO2', 'ctCO2', 'Laktat'],
+  },
+  {
+    heading: 'Urinalisis :',
+    keys: [
+      'Urin warna', 'Urin pH', 'Urin BJ', 'Protein', 'Glukosa', 'Bilirubin',
+      'Urobilinogen', 'Keton', 'Nitrit', 'Blood', 'Leukosit',
+    ],
+  },
+];
+
 export interface LabParseResult {
   /** Recognised analytes, in the order the output groups them. */
   known: LabValue[];
@@ -76,6 +97,29 @@ const ALIASES: Record<string, readonly string[]> = {
   Magnesium: ['magnesium', 'mg'],
   Kalsium: ['kalsium', 'calcium', 'ca'],
   LED: ['led', 'esr'],
+  // Blood gas. These were falling into "Lain-lain", which buried a whole panel.
+  pH: ['ph'],
+  PO2: ['po2', 'p o 2'],
+  PCO2: ['pco2', 'p c o 2'],
+  SO2: ['so2', 's o 2'],
+  HCO3: ['hco3', 'h c o 3'],
+  BE: ['be', 'base excess'],
+  ctO2: ['cto2'],
+  ctCO2: ['ctco2'],
+  Laktat: ['laktat', 'lactate'],
+  // Urinalysis, reported as its own block in every note that carries it.
+  'Urin warna': ['warna'],
+  'Urin pH': ['ph urin'],
+  'Urin BJ': ['bj', 'berat jenis'],
+  Protein: ['protein'],
+  Glukosa: ['glukose', 'glukosa urin'],
+  Bilirubin: ['bilirubine', 'bilirubin'],
+  Urobilinogen: ['urobilinogen', 'urobilonegen'],
+  Keton: ['keton'],
+  Nitrit: ['nitrit'],
+  Blood: ['blood'],
+  Leukosit: ['lekosit', 'leukosit urin'],
+  'Golongan darah': ['golongan darah', 'gol darah'],
 };
 
 /**
@@ -97,7 +141,6 @@ const GROUPS: ReadonlyArray<{ label: string; keys: readonly string[] }> = [
   { label: 'GDS', keys: ['GDS'] },
   { label: 'GDP', keys: ['GDP'] },
   { label: 'Ur/Cr', keys: ['Ureum', 'Kreatinin'] },
-  { label: 'eGFR', keys: ['eGFR'] },
   { label: 'Albumin', keys: ['Albumin'] },
   { label: 'GOT/GPT', keys: ['GOT', 'GPT'] },
   { label: 'Na/K/Cl', keys: ['Na', 'K', 'Cl'] },
@@ -134,7 +177,17 @@ const LOOKUP: ReadonlyArray<readonly [string, string]> = Object.entries(ALIASES)
  * Non-numeric results (`Reactive`, `Non Reactive`, `Negatif`) are matched
  * separately and passed through as written.
  */
-const QUALITATIVE = /\b(non\s*reactive|reactive|negatif|negative|positif|positive)\b/i;
+const QUALITATIVE =
+  /\b(non\s*reactive|reactive|negatif|negative|positif|positive|kuning\s*\w*|jernih|keruh)\b/i;
+
+/**
+ * Blood group, which is the one result with no number and no yes/no.
+ *
+ * `B Rh+` matched neither the numeric nor the qualitative pattern, so it was
+ * dropped entirely — silently, which is the worst way to lose a value that
+ * matters before an operation.
+ */
+const BLOOD_GROUP = /\b(A|B|AB|O)\s*(Rh)?\s*[+-]?\s*(positif|negatif|pos|neg)?/i;
 
 /**
  * Report furniture that looks exactly like a result line.
@@ -192,7 +245,12 @@ const IGNORED_LABELS: readonly string[] = [
   'nilai rujukan',
 ];
 
-function extractValue(rest: string): string | null {
+function extractValue(rest: string, key?: string): string | null {
+  if (key === 'Golongan darah') {
+    const group = BLOOD_GROUP.exec(rest);
+    if (group?.[0]) return group[0].replace(/\s+/g, ' ').trim();
+  }
+
   const qualitative = QUALITATIVE.exec(rest);
   if (qualitative?.[0]) return qualitative[0].replace(/\s+/g, ' ').trim();
 
@@ -275,7 +333,7 @@ export function parseLab(raw: string): LabParseResult {
 
     const matched = matchAnalyte(trimmed);
     if (matched) {
-      const value = extractValue(matched.rest);
+      const value = extractValue(matched.rest, matched.key);
       // First occurrence wins: printouts repeat analyte names in section
       // headers and footers, and the first is the result row.
       if (value && !found.has(matched.key)) found.set(matched.key, value);
@@ -324,6 +382,29 @@ export function parseLab(raw: string): LabParseResult {
       present.length === group.keys.length ? group.label : present.join('/');
     lines.push(`${label} ${present.map((key) => found.get(key)).join('/')}`);
   }
+
+  // eGFR is written in parentheses after Ur/Cr, not on a line of its own.
+  const egfr = found.get('eGFR');
+  if (egfr) {
+    const index = lines.findIndex((line) => line.startsWith('Ur/Cr '));
+    if (index >= 0) lines[index] = `${lines[index]} (eGFR ${egfr})`;
+    else lines.push(`eGFR ${egfr}`);
+  }
+
+  for (const panel of PANELS) {
+    const present = panel.keys.filter((key) => found.has(key));
+    if (present.length === 0) continue;
+    lines.push('');
+    lines.push(panel.heading);
+    for (const key of present) {
+      const label = key.startsWith('Urin ') ? key.slice(5) : key;
+      lines.push(`${label} ${found.get(key)}`);
+      known.push({ key, value: found.get(key) ?? '' });
+    }
+  }
+
+  const bloodGroup = found.get('Golongan darah');
+  if (bloodGroup) lines.push(`Golongan darah ${bloodGroup}`);
 
   if (unknown.length > 0) {
     lines.push('');
