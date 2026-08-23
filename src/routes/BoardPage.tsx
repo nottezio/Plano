@@ -4,6 +4,8 @@ import { useNavigate } from 'react-router-dom';
 import { AppShell } from '@/components/common/AppShell';
 import { FilterBar } from '@/components/board/FilterBar';
 import { DenahView } from '@/components/board/DenahView';
+import { LabSheet } from '@/components/patient/LabSheet';
+import { copyText } from '@/lib/clipboard';
 import { PatientCard } from '@/components/board/PatientCard';
 import { QuickChecklistSheet } from '@/components/board/QuickChecklistSheet';
 import { IconSearch } from '@/components/common/Icons';
@@ -49,6 +51,15 @@ export default function BoardPage(): JSX.Element {
   const [query, setQuery] = useState('');
   const [filters, setFilters] = useState<BoardFilters>(EMPTY_FILTERS);
   const [quickPatientId, setQuickPatientId] = useState<string | null>(null);
+  /**
+   * The lab extractor, reachable without opening a patient.
+   *
+   * A lab PDF often arrives before you know which chart it belongs to, and
+   * having to open some patient first meant opening the wrong one to use a tool
+   * that is not about them. Here it just copies; inserting still happens on the
+   * patient page, where there is a note to insert into.
+   */
+  const [labOpen, setLabOpen] = useState(false);
 
   /**
    * Night-shift patients are held apart, not mixed in.
@@ -252,6 +263,16 @@ export default function BoardPage(): JSX.Element {
         ) : null}
       </div>
 
+      <div className="flex justify-end px-4 pb-1">
+        <button
+          type="button"
+          onClick={() => setLabOpen(true)}
+          className="min-h-tap rounded-lg border border-border px-3 text-xs text-fg-muted"
+        >
+          Format hasil lab
+        </button>
+      </div>
+
       {/* Walking order. Labels say what the order IS, not what it sorts by:
           "Sesuai denah" is the thing a resident recognises. */}
       <div className="flex gap-2 px-4 pb-2">
@@ -366,6 +387,13 @@ export default function BoardPage(): JSX.Element {
       >
         +
       </button>
+
+      <LabSheet
+        open={labOpen}
+        onOpenChange={setLabOpen}
+        date={today}
+        onInsert={(text) => void copyText(text)}
+      />
 
       <QuickChecklistSheet
         patient={quickPatient}

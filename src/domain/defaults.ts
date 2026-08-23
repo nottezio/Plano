@@ -1,13 +1,12 @@
 import { DONE_TOKEN, tokenForIndex } from './colorTokens';
 import {
-  ADMISI_BODY,
   FOLLOWUP_BODY,
   FOLLOWUP_DX_BODY,
   FOLLOWUP_RINGKAS_BODY,
   KONSUL_KJS_BODY,
   POLI_BARU_BODY,
+  PERPINDAHAN_BODY,
   KONSUL_KELAYAKAN_BODY,
-  KONSUL_RAWAT_BERSAMA_BODY,
   FOLLOWUP_TPM_BODY,
   BALASAN_KONSUL_BODY,
 } from './templates';
@@ -133,23 +132,17 @@ export const SEED_NOTE_TEMPLATES: readonly NoteTemplate[] = [
         name: 'Follow-up (fisis normal, O ringkas)',
         body: FOLLOWUP_RINGKAS_BODY,
       },
-      { id: 'admisi', order: 4, name: 'Pasien baru (admisi)', body: ADMISI_BODY },
-      { id: 'konsul-kjs', order: 5, name: 'Konsul KJS (pasien baru)', body: KONSUL_KJS_BODY },
-      { id: 'poli-baru', order: 6, name: 'Pasien baru dari poli', body: POLI_BARU_BODY },
+      { id: 'konsul-kjs', order: 4, name: 'Konsul KJS (pasien baru)', body: KONSUL_KJS_BODY },
+      { id: 'poli-baru', order: 5, name: 'Pasien baru dari poli', body: POLI_BARU_BODY },
+      { id: 'perpindahan', order: 6, name: 'Pasien perpindahan', body: PERPINDAHAN_BODY },
       {
         id: 'konsul-kelayakan',
         order: 7,
         name: 'Konsul kelayakan pra-tindakan',
         body: KONSUL_KELAYAKAN_BODY,
       },
-      {
-        id: 'konsul-rawat-bersama',
-        order: 8,
-        name: 'Konsul rawat bersama',
-        body: KONSUL_RAWAT_BERSAMA_BODY,
-      },
-      { id: 'followup-tpm', order: 9, name: 'Follow-up dengan TPM', body: FOLLOWUP_TPM_BODY },
-      { id: 'balasan-konsul', order: 10, name: 'Balasan konsul ke TS', body: BALASAN_KONSUL_BODY },
+      { id: 'followup-tpm', order: 8, name: 'Follow-up dengan TPM', body: FOLLOWUP_TPM_BODY },
+      { id: 'balasan-konsul', order: 9, name: 'Balasan konsul ke TS', body: BALASAN_KONSUL_BODY },
 ];
 
 export function defaultUserSettings(): UserSettings {

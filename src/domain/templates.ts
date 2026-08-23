@@ -155,22 +155,25 @@ ${CLOSING}`;
  * consult question answered in the first few lines, and the full workup follows
  * for whoever reads further.
  */
-export const KONSUL_KJS_BODY = `Assalamualaikum dokter. Tabe dok, mohon izin melaporkan pasien baru KJS *TS (Bagian) (Nama DPJP)* di *(Ruang) Kamar (no) Bed (no)* atas nama: 
+export const KONSUL_KJS_BODY = `Assalamualaikum dokter. Tabe dokter, mohon izin melaporkan pasien baru KJS *TS (Bagian) ((Nama DPJP TS))* di *(Ruang) Kamar (no) Bed (no)* atas nama :
 
-*(Nama) / (tgl lahir) / (umur) / RM (no)*
+*(Nama)/(tgl lahir)/(umur)/RM (no)*
 
+_DPJP (Bagian) (Utama): (Nama DPJP TS)_
 _DPJP Kardio : (Nama DPJP Kardio)_
-_DPJP (Bagian) (Utama) : (Nama DPJP)_
 
-_Pasien dikonsulkan untuk evaluasi dan tatalaksana pasien rencana (rencana tindakan) ((hari, tanggal))_
-
-*Diagnosis*
-- 
-
-Tabe selanjutnya mohon arahannya dokter, terima kasih dokter
+_Pasien dikonsulkan untuk evaluasi dan tatalaksana pasien rencana (tindakan) ((hari, tanggal))_
 
 *S:*
 - 
+- Keluhan batuk tidak ada. Mual dan muntah tidak ada, nyeri ulu hati tidak ada. Demam tidak ada. BAB dan BAK kesan lancar.
+- Riwayat serangan jantung tidak ada. Riwayat stroke tidak ada, riwayat asma tidak ada, riwayat batuk lama tidak ada, riwayat alergi makanan tidak ada, riwayat alergi obat tidak ada.
+
+Faktor resiko koroner:
+- Riwayat Hipertensi tidak ada.
+- Riwayat Diabetes tidak ada.
+- Riwayat Merokok tidak ada.
+- Riwayat Penyakit Jantung dalam keluarga tidak ada.
 
 ${VITALS}
 
@@ -182,7 +185,15 @@ ${VITALS}
 
 *Plan:*
 - Monitoring tanda vital dan hemodinamik
-- `;
+
+*TS (Bagian)*
+A/
+- 
+
+P/
+- 
+
+${CLOSING}`;
 
 /**
  * New patient referred from poli, admitted directly to a bangsal bed.
@@ -192,27 +203,30 @@ ${VITALS}
  * di bangsal") and the diagnosis split into Primer / Sekunder / Problem that
  * these referrals are written with.
  */
-export const POLI_BARU_BODY = `Assalamualaikum, tabe dokter, mohon izin melaporkan pasien baru pengantar dari poli di bangsal *(Ruang) Kamar (no) Bed (no)* atas nama: 
- 
-*(Nama) / (tgl lahir) / (umur) / RM (no)*
- 
+export const POLI_BARU_BODY = `Assalamualaikum dokter, tabe dokter izin melaporkan pasien baru dari *Poli (nama poli)* di *(Ruang) Kamar (no) Bed (no)* atas nama :
+
+*(Nama)/(tgl lahir)/(umur)/RM (no)*
+
 _DPJP Utama dan tindakan: (Nama DPJP)_
- 
-Rencana tindakan : (rencana tindakan) ((hari, tanggal))
+
+_Rencana tindakan : (tindakan) ((hari, tanggal))_
 
 *S:*
+- Pasien masuk pengantar dari poli (nama poli) dengan rencana tindakan : (tindakan) ((hari, tanggal))
 - 
+- Keluhan nyeri dada tidak ada, riwayat nyeri dada tidak ada. Berdebar tidak ada, riwayat berdebar tidak ada. Sesak nafas tidak ada, riwayat sesak nafas tidak ada.
+- Demam tidak ada, batuk dan beringus tidak ada, mual dan muntah tidak ada. BAB dan BAK dalam batas normal.
+- Obat rutin disangkal.
+
+Faktor Risiko Kardiovaskular :
+- Riwayat hipertensi tidak ada
+- Riwayat Diabetes Mellitus tidak ada
+- Riwayat merokok tidak ada
+- Riwayat keluarga menderita penyakit jantung tidak ada
 
 ${VITALS}
 
 *Mohon izin kami assess dengan:*
-Diagnosis Primer:
-- 
-
-Diagnosis Sekunder:
-- 
-
-Problem:
 - 
 
 *Mohon izin kami terapi dengan:*
@@ -220,7 +234,42 @@ Problem:
 
 *Plan:*
 - Monitoring tanda vital dan hemodinamik
-- `;
+- EKG per hari
+- Rencana tindakan : (tindakan) ((hari, tanggal))
+
+${CLOSING}`;
+
+/**
+ * Transfer into the ward — from IGD, CVCU or another floor.
+ *
+ * The commonest note there is, and it had no template: the opening states both
+ * ends of the move, and the plan carries the follow-up checks the transfer
+ * itself creates.
+ */
+export const PERPINDAHAN_BODY = `Assalamualaikum dokter, Tabe dokter, mohon izin melaporkan follow up pasien perpindahan dari *(Ruang asal)* ke *(Ruang tujuan) Kamar (no) Bed (no)* atas nama:
+
+*(Nama)/(tgl lahir)/(umur)/RM (no)*
+
+_DPJP Utama: (Nama DPJP)_
+
+*S:*
+- Nyeri dada tidak ada, riwayat nyeri dada ada. Sesak nafas tidak ada, riwayat sesak nafas ada. Berdebar tidak ada, riwayat berdebar tidak ada.
+- Keluhan lain mual tidak ada, demam tidak ada, batuk dan beringus tidak ada.
+- BAB dan BAK kesan normal.
+
+${VITALS}
+
+*Mohon izin kami assess dengan:*
+- 
+
+*Mohon izin kami terapi dengan:*
+- 
+
+*Plan:*
+- Pantau tanda vital, hemodinamik, urine output dan balance cairan
+- EKG/hari
+
+${CLOSING}`;
 
 /**
  * Konsul kelayakan pra-operasi — the largest gap the report examples showed.
@@ -273,43 +322,7 @@ Skor:  — risiko:
 
 Selanjutnya mohon arahan dokter. Terima kasih dokter`;
 
-/**
- * Konsul rawat bersama — the other half of the split.
- *
- * Same opening, but it answers "manage this patient with us", so it carries
- * Assessment and Plan where the kelayakan form carries a fitness statement.
- */
-export const KONSUL_RAWAT_BERSAMA_BODY = `Assalamualaikum dokter. Tabe dokter, mohon izin melaporkan konsul rawat bersama dari *TS (Bagian) ((Nama DPJP TS))* di *(Ruang) Kamar (no) Bed (no)* atas nama :
 
-*(Nama) / (tgl lahir) / (umur) / RM (no)*
-
-_DPJP Kardio : (Nama DPJP Kardio)_
-_DPJP (Bagian) (utama) : (Nama DPJP TS)_
-
-_Pasien dikonsulkan untuk rawat bersama dengan rencana (nama tindakan/rencana)_
-
-*S:*
-- 
-
-Faktor risiko kardiovaskular :
-- Riwayat hipertensi tidak ada
-- Riwayat diabetes tidak ada
-- Riwayat merokok tidak ada
-- Riwayat penyakit jantung dalam keluarga tidak ada
-
-${VITALS}
-
-*Mohon izin kami assess dengan:*
-- 
-
-*Mohon izin kami terapi dengan :*
-- 
-
-*Plan :*
-- Monitoring tanda vital dan hemodinamik
-- 
-
-Selanjutnya mohon arahan dokter. Terima kasih dokter`;
 
 /**
  * Follow-up post-tindakan with a temporary pacemaker.
@@ -372,33 +385,4 @@ Plan Terapi:
 
 Demikian, terima kasih dokter`;
 
-/** Long S — history, review of systems, prior medication, risk factors. */
-export const ADMISI_BODY = `Assalamu'alaikum dokter. Tabe dokter, mohon izin melaporkan pasien baru di *Ruang  Kamar  Bed *  atas nama : 
 
-*Tn.  /  /  tahun / RM *
-
-_DPJP Utama dan Tindakan : _
-
-_Rencana Tindakan :  ()_
-
-*S:*
-- Pasien datang dengan pengantar dari 
-- Pasien datang dengan keluhan  sejak . Saat ini keluhan sesak napas tidak ada, riwayat sesak napas tidak ada, sesak napas saat aktivitas tidak ada, terbangun malam hari karena sesak tidak ada, pasien dapat baring datar tanpa sesak napas. Berdebar-debar tidak ada, riwayat berdebar-debar tidak ada.
-- Keluhan batuk tidak ada. Mual dan muntah tidak ada, nyeri ulu hati tidak ada. Demam tidak ada. BAB dan BAK kesan lancar.
-- Riwayat serangan jantung tidak ada. Riwayat stroke tidak ada, riwayat asma tidak ada, riwayat batuk lama tidak ada, riwayat alergi makanan tidak ada, riwayat alergi obat tidak ada.
-- Saat ini pasien riwayat berobat 
-
-Faktor resiko koroner:
-- Riwayat Hipertensi tidak ada.
-- Riwayat Diabetes tidak ada.
-- Riwayat Merokok disangkal.
-- Riwayat Penyakit Jantung dalam keluarga tidak ada.
-
-${VITALS}
-
-*Mohon izin kami assess dengan:*
-- 
-
-${THERAPY_AND_PLAN}
-
-${CLOSING}`;

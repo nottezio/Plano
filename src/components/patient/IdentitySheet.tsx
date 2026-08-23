@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react';
 
 import { Sheet } from '@/components/common/Sheet';
+import { fillPatientFromNote } from '@/data/repositories/patients.repo';
+import { parsePatientFacts } from '@/domain/parsePatient';
 import { updatePatient } from '@/data/repositories/patients.repo';
 import type { Patient, Sex } from '@/domain/types';
 
@@ -20,10 +22,13 @@ export function IdentitySheet({
   open,
   onOpenChange,
   patient,
+  body,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   patient: Patient;
+  /** Today's note, for the fill-from-note action. */
+  body: string;
 }): JSX.Element {
   // Each field writes on change, like every other surface in the app.
   const patch = (next: Parameters<typeof updatePatient>[1]): void => {
@@ -32,6 +37,23 @@ export function IdentitySheet({
     );
   };
 
+  /**
+   * Fill from the note on request.
+   *
+   * The same read the banner offers, reachable from where the fields are — so
+   * someone correcting identity has the note's version one tap away instead of
+   * retyping it. It fills blanks only, like every other derived value: a field
+   * you typed is not overwritten by a parse.
+   */
+  const facts = parsePatientFacts(body);
+  const canFill =
+    (!patient.name?.trim() && Boolean(facts.name)) ||
+    (!patient.mrn?.trim() && Boolean(facts.mrn)) ||
+    (patient.age === undefined && facts.age !== undefined) ||
+    (!patient.ward?.trim() && Boolean(facts.ward)) ||
+    (!patient.room?.trim() && Boolean(facts.room)) ||
+    (!patient.bed?.trim() && Boolean(facts.bed));
+
   return (
     <Sheet
       open={open}
@@ -39,6 +61,23 @@ export function IdentitySheet({
       title="Identitas pasien"
       description="Semua kolom opsional. Papan memakai baris pertama catatan bila nama kosong."
     >
+      {canFill ? (
+        <button
+          type="button"
+          onClick={() => {
+            const written = fillPatientFromNote(patient, body);
+            if (written) {
+              void written.catch((error: unknown) =>
+                console.error('[identity] fill rejected', error),
+              );
+            }
+          }}
+          className="mb-3 min-h-tap w-full rounded-lg border border-accent px-3 text-xs font-medium text-accent"
+        >
+          Ambil dari catatan hari ini
+        </button>
+      ) : null}
+
       <div className="space-y-3">
         <Field
           label="Nama"

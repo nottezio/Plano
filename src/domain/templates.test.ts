@@ -1,14 +1,13 @@
 import { describe, expect, it } from 'vitest';
 
 import {
-  ADMISI_BODY,
   FOLLOWUP_BODY,
   FOLLOWUP_DX_BODY,
   FOLLOWUP_RINGKAS_BODY,
   KONSUL_KJS_BODY,
   POLI_BARU_BODY,
+  PERPINDAHAN_BODY,
   KONSUL_KELAYAKAN_BODY,
-  KONSUL_RAWAT_BERSAMA_BODY,
   FOLLOWUP_TPM_BODY,
   BALASAN_KONSUL_BODY,
 } from './templates';
@@ -20,15 +19,15 @@ const ALL = [
   FOLLOWUP_BODY,
   FOLLOWUP_DX_BODY,
   FOLLOWUP_RINGKAS_BODY,
-  ADMISI_BODY,
   KONSUL_KJS_BODY,
   POLI_BARU_BODY,
+  PERPINDAHAN_BODY,
 ];
 const SETTINGS = defaultUserSettings();
 
 describe('seed templates', () => {
   it('are all registered in the default settings', () => {
-    expect(SETTINGS.noteTemplates).toHaveLength(10);
+    expect(SETTINGS.noteTemplates).toHaveLength(9);
     expect(SETTINGS.noteTemplates.map((t) => t.body)).toEqual(
       expect.arrayContaining(ALL),
     );
@@ -38,7 +37,7 @@ describe('seed templates', () => {
     const templates = SETTINGS.noteTemplates;
     expect(new Set(templates.map((t) => t.id)).size).toBe(templates.length);
     expect([...templates.map((t) => t.order)].sort((a, b) => a - b)).toEqual([
-      1, 2, 3, 4, 5, 6, 7, 8, 9, 10,
+      1, 2, 3, 4, 5, 6, 7, 8, 9,
     ]);
   });
 
@@ -67,21 +66,9 @@ describe('seed templates', () => {
     expect(FOLLOWUP_BODY).not.toContain('Diagnosis Primer');
   });
 
-  it('distinguish admission from follow-up by the length of S', () => {
-    const sOf = (body: string): string =>
-      body.slice(body.indexOf('*S:*'), body.indexOf('*O:*'));
 
-    // The vitals block shrank when it was corrected against the real note, so
-    // the ratio changed; the distinction is still the length of S.
-    expect(sOf(ADMISI_BODY).length).toBeGreaterThan(sOf(FOLLOWUP_BODY).length * 2);
-    expect(sOf(ADMISI_BODY)).toContain('Faktor resiko koroner');
-    expect(sOf(FOLLOWUP_BODY)).not.toContain('Faktor resiko koroner');
-  });
 
-  it('share an identical block below S, so one can continue as the other', () => {
-    const belowS = (body: string): string => body.slice(body.indexOf('*O:*'));
-    expect(belowS(ADMISI_BODY)).toBe(belowS(FOLLOWUP_BODY));
-  });
+
 
   it('condenses the objective block in the fisis-normal variant', () => {
     expect(FOLLOWUP_RINGKAS_BODY).toContain('_Pemeriksaan fisis dalam batas normal_');
@@ -94,7 +81,7 @@ describe('seed templates', () => {
     // KONSUL_KJS_BODY and POLI_BARU_BODY are transcribed verbatim from real
     // messages with their own greeting, DPJP line and closing — they are
     // checked on their own below rather than forced into this shape.
-    const standard = [FOLLOWUP_BODY, FOLLOWUP_DX_BODY, FOLLOWUP_RINGKAS_BODY, ADMISI_BODY];
+    const standard = [FOLLOWUP_BODY, FOLLOWUP_DX_BODY, FOLLOWUP_RINGKAS_BODY];
     for (const body of standard) {
       expect(body.startsWith("Assalamu'alaikum dokter")).toBe(true);
       expect(body).toContain('atas nama :');
@@ -115,19 +102,16 @@ describe('seed templates', () => {
     }
   });
 
-  it('name the procedure line correctly for each context', () => {
-    expect(FOLLOWUP_BODY).toContain('Post Tindakan');
-    expect(ADMISI_BODY).toContain('Rencana Tindakan');
-  });
 
-  it('say "follow up" or "pasien baru" to match their use', () => {
-    expect(FOLLOWUP_BODY).toContain('melaporkan follow up pasien');
-    expect(ADMISI_BODY).toContain('melaporkan pasien baru');
-  });
+
+
 
   it('pre-print no investigation headings — those accumulate as they arrive', () => {
+    // POLI_BARU_BODY carries "EKG per hari" as a PLAN item, which is an
+    // instruction rather than a pre-printed result heading.
+    const planLines = /EKG per hari|EKG\/hari/g;
     for (const body of ALL) {
-      expect(body).not.toContain('EKG');
+      expect(body.replace(planLines, '')).not.toContain('EKG');
       expect(body).not.toContain('Laboratorium');
     }
   });
@@ -145,20 +129,17 @@ describe('carry-forward defaults', () => {
 
 
 describe('KONSUL_KJS_BODY', () => {
-  it('puts the diagnosis list and closing before the SOAP body', () => {
-    // Not a mistake — this is how a KJS consult is actually structured: the
-    // consult question answered first, the workup for whoever reads on.
-    const diagnosisAt = KONSUL_KJS_BODY.indexOf('*Diagnosis*');
-    const closingAt = KONSUL_KJS_BODY.indexOf('Tabe selanjutnya mohon arahannya');
-    const sAt = KONSUL_KJS_BODY.indexOf('*S:*');
-    expect(diagnosisAt).toBeGreaterThan(-1);
-    expect(diagnosisAt).toBeLessThan(closingAt);
-    expect(closingAt).toBeLessThan(sAt);
+  it('carries the KJS opening with both DPJP lines', () => {
+    expect(KONSUL_KJS_BODY).toContain('pasien baru KJS *TS (Bagian)');
+    expect(KONSUL_KJS_BODY).toContain('_DPJP (Bagian) (Utama):');
+    expect(KONSUL_KJS_BODY).toContain('_DPJP Kardio :');
   });
 
-  it('carries the KJS opening line with placeholders for specialty and DPJP', () => {
-    expect(KONSUL_KJS_BODY).toContain('pasien baru KJS *TS (Bagian) (Nama DPJP)*');
-    expect(KONSUL_KJS_BODY).toContain('_DPJP Kardio : (Nama DPJP Kardio)_');
+  it('ends with the referring service block, as the real reports do', () => {
+    expect(KONSUL_KJS_BODY).toContain('*TS (Bagian)*');
+    expect(KONSUL_KJS_BODY.indexOf('*TS (Bagian)*')).toBeGreaterThan(
+      KONSUL_KJS_BODY.indexOf('*Plan:*'),
+    );
   });
 
   it('shares the same vitals block as the other templates', () => {
@@ -166,40 +147,48 @@ describe('KONSUL_KJS_BODY', () => {
   });
 });
 
-describe('POLI_BARU_BODY', () => {
-  it('carries the poli-referral opening line', () => {
-    expect(POLI_BARU_BODY).toContain('pengantar dari poli di bangsal');
-    expect(POLI_BARU_BODY).toContain('Rencana tindakan : (rencana tindakan)');
+describe('PERPINDAHAN_BODY', () => {
+  it('states both ends of the move', () => {
+    expect(PERPINDAHAN_BODY).toContain('perpindahan dari *(Ruang asal)*');
+    expect(PERPINDAHAN_BODY).toContain('ke *(Ruang tujuan)');
   });
 
-  it('splits the assessment into Primer, Sekunder and Problem', () => {
-    expect(POLI_BARU_BODY).toContain('Diagnosis Primer:');
-    expect(POLI_BARU_BODY).toContain('Diagnosis Sekunder:');
-    expect(POLI_BARU_BODY).toContain('Problem:');
-  });
-
-  it('is distinct from the general admission template', () => {
-    expect(POLI_BARU_BODY).not.toBe(ADMISI_BODY);
-    expect(POLI_BARU_BODY).not.toContain('Faktor resiko koroner');
+  it('carries the follow-up checks a transfer creates', () => {
+    expect(PERPINDAHAN_BODY).toContain('urine output dan balance cairan');
   });
 });
 
-describe('the four presets drawn from the report examples', () => {
-  it('splits kelayakan from rawat bersama, because they answer different questions', () => {
-    // Kelayakan answers "is this patient fit"; rawat bersama answers "manage
-    // them with us". One template carrying both means deleting half every
-    // time, and the half left behind is what gets sent by mistake.
-    expect(KONSUL_KELAYAKAN_BODY).toContain('Lee Revised Cardiac Risk Index');
-    expect(KONSUL_KELAYAKAN_BODY).toContain('Kesimpulan kelayakan');
-    expect(KONSUL_KELAYAKAN_BODY).not.toContain('Mohon izin kami terapi dengan');
 
-    expect(KONSUL_RAWAT_BERSAMA_BODY).toContain('Mohon izin kami terapi dengan');
-    expect(KONSUL_RAWAT_BERSAMA_BODY).toContain('*Plan :*');
-    expect(KONSUL_RAWAT_BERSAMA_BODY).not.toContain('Lee Revised');
+describe('POLI_BARU_BODY', () => {
+  it('carries the poli-referral opening line and the planned procedure', () => {
+    expect(POLI_BARU_BODY).toContain('pasien baru dari *Poli (nama poli)*');
+    expect(POLI_BARU_BODY).toContain('_Rencana tindakan :');
   });
 
-  it('gives both consult forms the two DPJP lines the real reports carry', () => {
-    for (const body of [KONSUL_KELAYAKAN_BODY, KONSUL_RAWAT_BERSAMA_BODY]) {
+  it('uses a flat assessment, not the primer/sekunder split', () => {
+    // That split belongs to AHN alone, so it lives in FOLLOWUP_DX_BODY.
+    // Carrying it in the default templates meant every other consultant got a
+    // structure they had not asked for and had to delete.
+    expect(POLI_BARU_BODY).toContain('*Mohon izin kami assess dengan:*');
+    expect(POLI_BARU_BODY).not.toContain('Diagnosis Primer');
+    expect(POLI_BARU_BODY).not.toContain('Diagnosis Sekunder');
+  });
+});
+
+describe('the primer/sekunder split is AHN-only', () => {
+  it('appears in exactly one template', () => {
+    const carrying = ALL.filter((body) => body.includes('Diagnosis Primer'));
+    expect(carrying).toHaveLength(1);
+    expect(FOLLOWUP_DX_BODY).toContain('Diagnosis Primer');
+  });
+});
+
+
+describe('the four presets drawn from the report examples', () => {
+
+
+  it('gives the consult form the two DPJP lines the real reports carry', () => {
+    for (const body of [KONSUL_KELAYAKAN_BODY]) {
       expect(body).toContain('_DPJP Kardio :');
       expect(body).toContain('(utama) :');
     }

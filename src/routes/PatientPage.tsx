@@ -57,10 +57,20 @@ export default function PatientPage(): JSX.Element {
   const today = useClinicalToday();
   const settings = useSession((state) => state.settings());
 
-  const selected: ClinicalDate = routeDate ?? today;
+  /**
+   * Without a date in the URL, open the most recent day that HAS a note.
+   *
+   * It used to open today unconditionally, which on a patient not yet seen this
+   * morning meant landing on a blank page with yesterday's note one tap away
+   * and invisible. Opening the last written day shows the patient; today is one
+   * tap on the rail, and writing there creates it as before.
+   */
+  const entryDatesForInit = useEntryDates(patientId);
+  const latestWritten = entryDatesForInit[0];
+  const selected: ClinicalDate = routeDate ?? latestWritten ?? today;
   const { patient, loading, error } = usePatient(patientId);
   const { entry, exists, loading: entryLoading } = useEntry(patientId, selected);
-  const entryDates = useEntryDates(patientId);
+  const entryDates = entryDatesForInit;
   const previous = useEntry(patientId, previousDay(selected));
 
   const [hintDismissed, setHintDismissed] = useState(false);
@@ -656,6 +666,7 @@ export default function PatientPage(): JSX.Element {
       />
 
       <IdentitySheet
+        body={editor.value}
         open={identityOpen}
         onOpenChange={setIdentityOpen}
         patient={patient}
