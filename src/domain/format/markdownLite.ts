@@ -176,3 +176,60 @@ export function insertSectionHeader(text: string, caret: number, label: string):
     selectionEnd: caretAfter,
   };
 }
+
+/**
+ * Restore the emphasis a plain-text paste lost.
+ *
+ * Copying a SOAP out of WhatsApp and back in strips the markers, so headings
+ * arrive as bare text. This puts them back by recognising the lines that are
+ * always emphasised in a report — the headings themselves — and nothing else.
+ *
+ * Deliberately NOT automatic. Applying it on paste would edit text the moment
+ * it arrives, and the one time it guessed wrong there would be no way to tell
+ * what the original said. It is an action on the toolbar; you look at the
+ * result and keep it or undo it.
+ *
+ * It never touches a line that already carries a marker, so running it twice
+ * changes nothing.
+ */
+const HEADING_PATTERNS: readonly RegExp[] = [
+  /^(S|O|A|P)\s*[:/]\s*$/i,
+  /^Mohon i[zj]in .*(assess|assessment|terapi|inisial terapi) dengan\s*:?\s*$/i,
+  /^Plan\s*:?\s*$/i,
+  /^Diagnosis( Primer| Sekunder)?\s*:?\s*$/i,
+  /^Problem\s*:?\s*$/i,
+  /^TS [A-Z].*$/,
+  /^(EKG|Laboratorium|Lab|Foto Thorax|Echo\w*|LUS|Laporan|USG|CT|MRI|Holter|AGD|Urinalisa)\b.*\(?\d{2}[-/]\d{2}[-/]\d{2,4}\)?\s*$/i,
+];
+
+/** Italic in a report: the DPJP lines and the referral sentence. */
+const ITALIC_PATTERNS: readonly RegExp[] = [
+  /^_?DPJP\b.*$/i,
+  /^Pasien (dikonsul|dirujuk|rencana|datang|masuk)\b.*$/i,
+  /^Rencana tindakan\s*:.*$/i,
+];
+
+export function restoreEmphasis(body: string): string {
+  return body
+    .split('\n')
+    .map((line) => {
+      const trimmed = line.trim();
+      if (!trimmed || trimmed.includes('*') || trimmed.startsWith('_')) return line;
+
+      if (HEADING_PATTERNS.some((pattern) => pattern.test(trimmed))) return `*${trimmed}*`;
+      if (ITALIC_PATTERNS.some((pattern) => pattern.test(trimmed))) return `_${trimmed}_`;
+      return line;
+    })
+    .join('\n');
+}
+
+/**
+ * The bullet an iPhone keyboard inserts, turned back into a hyphen.
+ *
+ * Separate from `restoreEmphasis` because it is a different decision: this one
+ * is safe to run on anything, since `•` at the start of a line is never
+ * anything but a bullet.
+ */
+export function normaliseBullets(body: string): string {
+  return body.replace(/^([ \t]*)[•‣▪·]\s*/gm, '$1- ');
+}

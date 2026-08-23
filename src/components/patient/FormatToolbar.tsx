@@ -1,5 +1,6 @@
 import { sortedAliases } from '@/domain/sections/aliases';
 import type { SectionAlias } from '@/domain/types';
+import { normaliseBullets, restoreEmphasis } from '@/domain/format/markdownLite';
 
 /**
  * SPEC F4 — Bold, Italic, Bullet, and "Sisipkan bagian".
@@ -17,6 +18,8 @@ export function FormatToolbar({
   onBullet,
   onNumbered,
   onInsertSection,
+  value,
+  onReplace,
 }: {
   aliases: readonly SectionAlias[];
   disabled: boolean;
@@ -25,6 +28,9 @@ export function FormatToolbar({
   onBullet: () => void;
   onNumbered: () => void;
   onInsertSection: (label: string) => void;
+  /** Current body, for the whole-note actions. */
+  value: string;
+  onReplace: (next: string) => void;
 }): JSX.Element {
   return (
     // Sized to its contents rather than spanning the column. A full-width bar
@@ -58,6 +64,27 @@ export function FormatToolbar({
           </option>
         ))}
       </select>
+      <span aria-hidden="true" className="mx-1 h-5 w-px bg-border" />
+
+      {/* Both are actions, never automatic. Applying either on paste would edit
+          text the moment it arrives, and the one time it guessed wrong there
+          would be no way to tell what the original said. */}
+      <button
+        type="button"
+        onClick={() => onReplace(restoreEmphasis(value))}
+        title="Kembalikan tebal/miring pada judul"
+        className="min-h-tap rounded-lg px-2 text-xs text-fg-muted"
+      >
+        Aa*
+      </button>
+      <button
+        type="button"
+        onClick={() => onReplace(normaliseBullets(value))}
+        title="Ubah • menjadi -"
+        className="min-h-tap rounded-lg px-2 text-xs text-fg-muted"
+      >
+        •→-
+      </button>
     </div>
   );
 }

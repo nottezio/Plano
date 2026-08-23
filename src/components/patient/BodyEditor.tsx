@@ -216,6 +216,8 @@ export function BodyEditor({
         <FormatToolbar
           aliases={aliases}
           disabled={readOnly}
+          value={value}
+          onReplace={onChange}
           onBold={() => withSelection((text, start, end) => toggleWrap(text, start, end, BOLD))}
           onItalic={() =>
             withSelection((text, start, end) => toggleWrap(text, start, end, ITALIC))

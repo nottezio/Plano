@@ -3,6 +3,8 @@ import { describe, expect, it } from 'vitest';
 import { toPlain, toWhatsApp } from './formatters';
 import {
   BOLD,
+  normaliseBullets,
+  restoreEmphasis,
   ITALIC,
   insertSectionHeader,
   toggleBullet,
@@ -128,5 +130,48 @@ describe('bold is the spelling that gets typed', () => {
     // storing the typed one costs nothing downstream.
     expect(toWhatsApp('*tebal*')).toBe('*tebal*');
     expect(toPlain('*tebal*')).toBe('tebal');
+  });
+});
+
+describe('restoreEmphasis', () => {
+  it('puts the markers back on headings a plain paste stripped', () => {
+    const plain = ['S:', '- nyeri dada tidak ada', '', 'Plan:', '- Monitoring'].join('\n');
+    const out = restoreEmphasis(plain);
+    expect(out).toContain('*S:*');
+    expect(out).toContain('*Plan:*');
+    expect(out).toContain('- nyeri dada tidak ada');
+  });
+
+  it('italicises the DPJP and referral lines', () => {
+    expect(restoreEmphasis('DPJP Utama : dr. A')).toBe('_DPJP Utama : dr. A_');
+    expect(restoreEmphasis('Pasien dirujuk dari RSUD X')).toBe('_Pasien dirujuk dari RSUD X_');
+  });
+
+  it('emphasises a dated investigation heading', () => {
+    expect(restoreEmphasis('EKG PJT Lt. 4 (19-08-2026)')).toBe('*EKG PJT Lt. 4 (19-08-2026)*');
+  });
+
+  it('leaves body text alone', () => {
+    const body = '- Aspilet 80mg/24jam/oral';
+    expect(restoreEmphasis(body)).toBe(body);
+  });
+
+  it('is idempotent — a line that already has markers is untouched', () => {
+    const once = restoreEmphasis('S:');
+    expect(restoreEmphasis(once)).toBe(once);
+  });
+});
+
+describe('normaliseBullets', () => {
+  it('turns the iPhone bullet into a hyphen', () => {
+    expect(normaliseBullets('• Aspilet\n• Clopidogrel')).toBe('- Aspilet\n- Clopidogrel');
+  });
+
+  it('preserves indentation', () => {
+    expect(normaliseBullets('  • Cek DPL')).toBe('  - Cek DPL');
+  });
+
+  it('leaves a mid-line bullet alone, which is never list syntax', () => {
+    expect(normaliseBullets('nilai • penting')).toBe('nilai • penting');
   });
 });

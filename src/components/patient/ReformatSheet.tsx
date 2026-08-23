@@ -59,11 +59,17 @@ export function ReformatSheet({
         </p>
       ) : (
         <>
-          <p className="mb-3 text-xs text-fg-muted">
-            {result.removed.length} header dihapus:{' '}
-            <span className="text-fg">{result.removed.join(', ')}</span>. Isi di baris yang
-            sama tetap ada, dan urutannya tidak berubah.
-          </p>
+          <ul className="mb-3 space-y-1 text-xs text-fg-muted">
+            <li>{result.summary.vitals} tanda vital diangkat ke atas</li>
+            <li>{result.summary.exam} baris pemeriksaan fisis</li>
+            <li>{result.summary.investigations} blok penunjang dipindah ke bawah</li>
+            {result.summary.unmatched > 0 ? (
+              <li className="text-fg">
+                {result.summary.unmatched} bagian tidak dikenali — dikumpulkan di
+                “Lain-lain”, periksa sebelum menerapkan
+              </li>
+            ) : null}
+          </ul>
 
           <p className="mb-1 text-xs font-medium text-fg-muted">Pratinjau</p>
           <pre className="max-h-[50vh] overflow-auto whitespace-pre-wrap break-words rounded-lg border border-border bg-bg-subtle p-3 text-xs leading-relaxed">
@@ -71,8 +77,9 @@ export function ReformatSheet({
           </pre>
 
           <p className="mt-2 text-[11px] text-fg-faint">
-            Hanya header yang dihapus; tidak ada baris yang dipindah atau dibuang. Bila
-            hasilnya tidak sesuai, versi sebelumnya ada di Riwayat perubahan.
+            Tidak ada isi yang dibuang — bagian yang tidak dikenali tetap dibawa ke
+            “Lain-lain”. Bila hasilnya tidak sesuai, versi sebelumnya ada di Riwayat
+            perubahan.
           </p>
         </>
       )}
