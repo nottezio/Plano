@@ -263,16 +263,6 @@ export default function BoardPage(): JSX.Element {
         ) : null}
       </div>
 
-      <div className="flex justify-end px-4 pb-1">
-        <button
-          type="button"
-          onClick={() => setLabOpen(true)}
-          className="min-h-tap rounded-lg border border-border px-3 text-xs text-fg-muted"
-        >
-          Format hasil lab
-        </button>
-      </div>
-
       {/* Walking order. Labels say what the order IS, not what it sorts by:
           "Sesuai denah" is the thing a resident recognises. */}
       <div className="flex gap-2 px-4 pb-2">
@@ -298,6 +288,17 @@ export default function BoardPage(): JSX.Element {
             {label}
           </button>
         ))}
+
+        {/* Sits with the order chips rather than on a row of its own — it is
+            the same kind of control, and a whole row for one occasional button
+            pushed the cards down the screen. */}
+        <button
+          type="button"
+          onClick={() => setLabOpen(true)}
+          className="ml-auto min-h-tap rounded-full border border-border px-3 text-xs text-fg-muted"
+        >
+          Format lab
+        </button>
       </div>
 
       {/* Filters hidden for now. The row of "Belum …" chips ate

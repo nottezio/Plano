@@ -163,3 +163,68 @@ describe('plain-text output for a destination that renders no markers', () => {
     expect(output).toContain('Jam verifikasi 08.14 WITA');
   });
 });
+
+describe('the Ringkas bugs from real notes', () => {
+  it('does not swallow the whole SOAP when there is no clinical heading', () => {
+    // A KJS report opens straight into diagnoses. The opening used to fall back
+    // to `body.length`, so the entire note became the "opening" of a report
+    // meant to be four lines long.
+    const noHeadings = [
+      'Assalamualaikum dokter. Melaporkan pasien di *PJT Lt 4 Kamar 418* atas nama:',
+      '*Tn. Aco Ridwan/01-06-1967/41 tahun/RM 01690671*',
+      '_DPJP Kardio : dr. Aussie Fitriani Ghaznawie, Sp.JP_',
+      '',
+      '*Diagnosis*',
+      '- Severe Mitral Regurgitation',
+      '',
+      '*Mohon izin kami terapi dengan:*',
+      '- Furosemide 40mg/24jam/oral',
+      '- Spironolactone 25mg/24jam/oral',
+    ].join('\n');
+
+    const out = composePdfReport(noHeadings, OPTIONS);
+    expect(out).toContain('Tn. Aco Ridwan');
+    expect(out).toContain('Severe Mitral Regurgitation');
+    expect(out).not.toContain('Furosemide');
+    expect(out).not.toContain('Spironolactone');
+  });
+
+  it('stops the diagnosis list at the therapy heading', () => {
+    // No `*Plan:*` here: with one present the opening runs to it, which is a
+    // separate limitation noted in CHANGES rather than something this asserts.
+    const note = [
+      'Melaporkan pasien atas nama:',
+      '*Tn. A / 50 tahun / RM 123456*',
+      '',
+      '*Mohon izin kami assess dengan:*',
+      '- CAD 3VD',
+      '- Hypertensive Heart Disease',
+      '',
+      '*Mohon izin kami terapi dengan:*',
+      '- Aspilet 80mg',
+    ].join('\n');
+
+    const out = composePdfReport(note, OPTIONS);
+    expect(out).toContain('CAD 3VD');
+    expect(out).toContain('Hypertensive Heart Disease');
+    expect(out).not.toContain('Aspilet');
+  });
+
+  it('stops it at a TS block too', () => {
+    const note = [
+      'Melaporkan pasien atas nama:',
+      '*Tn. A / 50 tahun / RM 123456*',
+      '',
+      '*Diagnosis*',
+      '- Severe Mitral Stenosis',
+      '',
+      '*TS BTKV*',
+      'A/',
+      '- Pro MVR',
+    ].join('\n');
+
+    const out = composePdfReport(note, OPTIONS);
+    expect(out).toContain('Severe Mitral Stenosis');
+    expect(out).not.toContain('Pro MVR');
+  });
+});

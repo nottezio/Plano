@@ -1,7 +1,8 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 
 import { Sheet } from '@/components/common/Sheet';
 import { cvcuToBangsal } from '@/domain/reformat/cvcuToBangsal';
+import { diffSegments } from '@/domain/merge/threeWayMerge';
 
 /**
  * Reformat a CVCU note into the bangsal layout.
@@ -30,6 +31,18 @@ export function ReformatSheet({
   onApply: (next: string) => void;
 }): JSX.Element {
   const result = useMemo(() => cvcuToBangsal(body), [body]);
+  /**
+   * Two views, the same pair the day comparison offers.
+   *
+   * A single pane of output tells you what the result says but not what moved,
+   * and "what moved" is the only question worth asking of a transform you are
+   * about to apply to a clinical note.
+   */
+  const [view, setView] = useState<'berdampingan' | 'perubahan'>('berdampingan');
+  const segments = useMemo(
+    () => (view === 'perubahan' ? diffSegments(body, result.body) : null),
+    [view, body, result.body],
+  );
   const changed = result.body !== body;
 
   return (
@@ -71,10 +84,64 @@ export function ReformatSheet({
             ) : null}
           </ul>
 
-          <p className="mb-1 text-xs font-medium text-fg-muted">Pratinjau</p>
-          <pre className="max-h-[50vh] overflow-auto whitespace-pre-wrap break-words rounded-lg border border-border bg-bg-subtle p-3 text-xs leading-relaxed">
-            {result.body}
-          </pre>
+          <div className="mb-1 flex items-center gap-2">
+            <p className="flex-1 text-xs font-medium text-fg-muted">Pratinjau</p>
+            {(
+              [
+                ['berdampingan', 'Berdampingan'],
+                ['perubahan', 'Tandai perubahan'],
+              ] as Array<['berdampingan' | 'perubahan', string]>
+            ).map(([value, label]) => (
+              <button
+                key={value}
+                type="button"
+                aria-pressed={view === value}
+                onClick={() => setView(value)}
+                className={[
+                  'min-h-tap rounded-full border px-3 text-[11px]',
+                  view === value
+                    ? 'border-accent bg-bg-subtle font-medium text-accent'
+                    : 'border-border text-fg-muted',
+                ].join(' ')}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+
+          {segments ? (
+            <pre className="max-h-[50vh] overflow-auto whitespace-pre-wrap break-words rounded-lg border border-border bg-bg-subtle p-3 text-xs leading-relaxed">
+              {segments.map((segment, index) => (
+                <span
+                  key={index}
+                  className={
+                    segment.type === 'insert'
+                      ? 'bg-[var(--card-step-12-bg)] text-[var(--card-step-12-fg)]'
+                      : segment.type === 'delete'
+                        ? 'bg-[var(--card-step-1-bg)] text-[var(--card-step-1-fg)] line-through'
+                        : undefined
+                  }
+                >
+                  {segment.text}
+                </span>
+              ))}
+            </pre>
+          ) : (
+            <div className="grid gap-2 sm:grid-cols-2">
+              <div className="min-w-0">
+                <p className="mb-1 text-[11px] font-semibold text-fg-muted">Sebelum</p>
+                <pre className="max-h-[45vh] overflow-auto whitespace-pre-wrap break-words rounded-lg border border-border bg-bg-subtle p-2 text-[11px] leading-relaxed">
+                  {body}
+                </pre>
+              </div>
+              <div className="min-w-0">
+                <p className="mb-1 text-[11px] font-semibold text-fg-muted">Sesudah</p>
+                <pre className="max-h-[45vh] overflow-auto whitespace-pre-wrap break-words rounded-lg border border-border bg-bg-subtle p-2 text-[11px] leading-relaxed">
+                  {result.body}
+                </pre>
+              </div>
+            </div>
+          )}
 
           <p className="mt-2 text-[11px] text-fg-faint">
             Tidak ada isi yang dibuang — bagian yang tidak dikenali tetap dibawa ke

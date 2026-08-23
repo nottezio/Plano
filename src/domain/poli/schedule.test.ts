@@ -11,15 +11,16 @@ describe('POLI_SCHEDULE', () => {
   it('names the month it was transcribed from', () => {
     // A roster is a document with a date on it; reading last month's by
     // accident is the mistake worth preventing.
-    expect(SCHEDULE_PERIOD).toBe('Januari 2026');
+    expect(SCHEDULE_PERIOD).toBe('Juli 2026');
   });
 
-  it('covers Monday to Friday with six slots each', () => {
-    for (const weekday of [1, 2, 3, 4, 5]) {
-      expect(POLI_SCHEDULE.filter((slot) => slot.weekday === weekday)).toHaveLength(
-        weekday === 5 ? 6 : 5,
-      );
-    }
+  it('covers Monday to Friday, with the split slots the sheet shows', () => {
+    // Tuesday and Friday carry six: a clinic split between two consultants at
+    // different hours is two rows on the sheet and two slots here.
+    const counts = [1, 2, 3, 4, 5].map(
+      (weekday) => POLI_SCHEDULE.filter((slot) => slot.weekday === weekday).length,
+    );
+    expect(counts).toEqual([5, 6, 5, 5, 6]);
   });
 
   it('links each consultant to the registry where one exists', () => {

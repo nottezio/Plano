@@ -16,7 +16,7 @@ import type { ClinicalDate } from '../types';
  * them.
  */
 
-export const SCHEDULE_PERIOD = 'Januari 2026';
+export const SCHEDULE_PERIOD = 'Juli 2026';
 
 /** 1 = Monday … 5 = Friday, matching `Date.getDay()`. */
 export interface PoliSlot {
@@ -32,37 +32,33 @@ export interface PoliSlot {
 const DAY = '08.00 - 16.00';
 
 export const POLI_SCHEDULE: readonly PoliSlot[] = [
-  // Senin
   { weekday: 1, dpjpId: 'ks', name: 'Dr. dr. Khalid Saleh, Sp.PD-KKV', clinic: '1 (Cardio PJT)', time: DAY },
   { weekday: 1, dpjpId: null, name: 'dr. M.Tasrif Mansur, Sp.PD,KKV', clinic: '2 (Cardio PJT)', time: DAY },
   { weekday: 1, dpjpId: 'pt', name: 'dr. Pendrik Tandean Sp.PD-KKV', clinic: '4 (Cardio PJT)', time: DAY },
   { weekday: 1, dpjpId: 'maa', name: 'dr. Muhammad Asrul Apris, Sp.JP(K)', clinic: '5 (Cardio PJT)', time: DAY },
   { weekday: 1, dpjpId: 'zd', name: 'dr. Zaenab Djafar, Sp.PD, Sp.JP(K)', clinic: 'Poli Konsul & Echo IRJ', time: DAY },
-  // Selasa
   { weekday: 2, dpjpId: 'zd', name: 'dr. Zaenab Djafar, Sp.PD, Sp.JP(K)', clinic: '1 (Cardio PJT)', time: DAY },
   { weekday: 2, dpjpId: 'ahn', name: 'dr. Az Hafid Nashar, SpJP(K)', clinic: '2 (Cardio PJT)', time: DAY },
-  { weekday: 2, dpjpId: 'pk', name: 'Prof. dr. Peter Kabo, Ph.D, Sp.FK, Sp.JP(K)', clinic: '4 (Cardio PJT)', time: DAY },
+  { weekday: 2, dpjpId: 'pk', name: 'Prof. dr. Peter Kabo, Ph.D, Sp.FK, Sp.JP(K)', clinic: '4 (Cardio PJT)', time: '08.00 - 12.00' },
+  { weekday: 2, dpjpId: 'np', name: 'dr. Nurminsyah Purnamawan, Sp.Jp (K)', clinic: '4 (Cardio PJT)', time: '13.00 - 16.00' },
   { weekday: 2, dpjpId: 'aha', name: 'Dr. dr. Abdul Hakim Alkatiri, Sp.JP(K)', clinic: '5 (Cardio PJT)', time: DAY },
   { weekday: 2, dpjpId: 'ks', name: 'Dr. dr. Khalid Saleh, Sp.PD-KKV', clinic: 'Poli Konsul & Echo IRJ', time: DAY },
-  // Rabu
   { weekday: 3, dpjpId: 'afm', name: 'Dr.dr. Akhtar Fajar Muzakkir, SpJP(K)', clinic: '1 (Cardio PJT)', time: DAY },
   { weekday: 3, dpjpId: 'afg', name: 'dr. Aussie Fitriani Ghaznawie, Sp.JP(K)', clinic: '2 (Cardio PJT)', time: DAY },
-  { weekday: 3, dpjpId: 'ks', name: 'Dr. dr. Khalid Saleh, Sp.PD-KKV', clinic: '4 (Cardio PJT)', time: DAY },
-  { weekday: 3, dpjpId: null, name: 'dr. M.Tasrif Mansur, Sp.PD, KKV', clinic: '5 (Cardio PJT)', time: DAY },
+  { weekday: 3, dpjpId: 'np', name: 'dr. Nurminsyah Purnamawan, Sp.Jp (K)', clinic: '4 (Cardio PJT)', time: DAY },
+  { weekday: 3, dpjpId: null, name: 'dr. M.Tasrif Mansur, Sp.PD,KKV', clinic: '5 (Cardio PJT)', time: DAY },
   { weekday: 3, dpjpId: 'pt', name: 'dr. Pendrik Tandean Sp.PD-KKV', clinic: 'Poli Konsul & Echo IRJ', time: DAY },
-  // Kamis
   { weekday: 4, dpjpId: 'afg', name: 'dr. Aussie Fitriani Ghaznawie, Sp.JP(K)', clinic: '1 (Cardio PJT)', time: DAY },
   { weekday: 4, dpjpId: 'pk', name: 'Prof. dr. Peter Kabo, Ph.D, Sp.FK, Sp.JP(K)', clinic: '2 (Cardio PJT)', time: DAY },
   { weekday: 4, dpjpId: 'pt', name: 'dr. Pendrik Tandean Sp.PD-KKV', clinic: '4 (Cardio PJT)', time: DAY },
   { weekday: 4, dpjpId: 'ks', name: 'Dr. dr. Khalid Saleh, Sp.PD-KKV', clinic: '5 (Cardio PJT)', time: DAY },
   { weekday: 4, dpjpId: null, name: 'dr. M.Tasrif Mansur, Sp.PD,KKV', clinic: 'Poli Konsul & Echo IRJ', time: DAY },
-  // Jumat — the one day with times that differ, so they are written per slot.
   { weekday: 5, dpjpId: 'zd', name: 'dr. Zaenab Djafar, Sp.PD, Sp.JP(K)', clinic: '1 (Cardio PJT)', time: '08.00 - 12.00' },
   { weekday: 5, dpjpId: 'im', name: 'Dr. dr. Idar Mappangara, Sp.PD, Sp.JP(K)', clinic: '1 (Cardio PJT)', time: '13.00 - 16.30' },
   { weekday: 5, dpjpId: 'ahn', name: 'dr. Az Hafid Nashar, SpJP(K)', clinic: '2 (Cardio PJT)', time: '08.00 - 16.30' },
   { weekday: 5, dpjpId: 'maa', name: 'dr. Muhammad Asrul Apris, Sp.JP(K)', clinic: '4 (Cardio PJT)', time: '08.00 - 16.30' },
   { weekday: 5, dpjpId: 'aha', name: 'Dr. dr. Abdul Hakim Alkatiri, Sp.JP(K)', clinic: '5 (Cardio PJT)', time: '08.00 - 16.30' },
-  { weekday: 5, dpjpId: 'afg', name: 'dr. Aussie Fitriani Ghaznawie, Sp.JP(K)', clinic: 'Poli Konsul & Echo IRJ', time: DAY },
+  { weekday: 5, dpjpId: 'np', name: 'dr. Nurminsyah Purnamawan, Sp.Jp (K)', clinic: 'Poli Konsul & Echo IRJ', time: DAY },
 ];
 
 export interface NextPoli {

@@ -26,9 +26,14 @@ export function DocumentPanel(): JSX.Element {
   const open = documents.find((document) => document.id === openId);
 
   const listed = useMemo(() => {
+    // Patient-related documents only. The rest — JARKOM notices, shift
+    // confirmations, iuran — have nothing to do with writing a SOAP, and a
+    // list you have to filter by eye every time is one you stop opening.
+    const relevant = documents.filter((document) => document.category === 'pasien');
+
     const needle = query.trim().toLowerCase();
-    if (!needle) return documents;
-    return documents.filter(
+    if (!needle) return relevant;
+    return relevant.filter(
       (document) =>
         document.title.toLowerCase().includes(needle) ||
         document.body.toLowerCase().includes(needle),

@@ -21,6 +21,16 @@ const CLOSING = 'Selanjutnya mohon arahan dokter.  Terima kasih dokter';
 
 /** Ids whose content is the diagnosis list. */
 const DIAGNOSIS_IDS = ['a'];
+
+/**
+ * Headings that END the diagnosis list.
+ *
+ * Without these, a section that runs to the end of the note dragged the therapy
+ * and plan in with it. In the corpus the list is always followed by one of
+ * these, so the first match is the boundary.
+ */
+const DIAGNOSIS_END =
+  /^\s*\*?\s*(Mohon i[zj]in (kami|pasien)?\s*(kami\s*)?(terapi|inisial terapi)|Plan|Selesai|TS |Terapi|Tabe|Selanjutnya)/im;
 // `assessment` and `assess` both appear; `izin kami assessment dengan` is the
 // heading the ward actually writes, so matching the verb alone is not enough.
 const DIAGNOSIS_KEYWORDS = ['diagnos', 'assess', 'problem', 'masalah'];
@@ -54,10 +64,59 @@ function openingBlock(body: string, aliases: readonly SectionAlias[]): string {
     ['s', 'o', 'ttv', 'penunjang', 'a', 'p', 'terapi'].includes(section.sectionId),
   );
 
-  const end = firstClinical ? firstClinical.start : body.length;
+  /**
+   * With no clinical heading found, stop at the first blank line after the
+   * identity block rather than taking the whole note.
+   *
+   * `body.length` was the fallback, so a note without an `*S:*`/`*O:*` heading —
+   * a consult reply, a KJS report that opens straight into diagnoses — put the
+   * ENTIRE SOAP into the "opening" of a report that is supposed to be four
+   * lines long. That is the bug where Ringkas copied everything.
+   */
+  /**
+   * The EARLIER of the first clinical heading and the end of the identity
+   * block.
+   *
+   * Taking the clinical heading alone was wrong whenever the first recognised
+   * one appears late: a note whose assessment and therapy headings are custom
+   * but whose `*Plan:*` is recognised put assessment AND therapy into the
+   * opening, because Plan was the first heading the list knew about.
+   *
+   * The opening is a run of short lines at the top; it cannot extend past the
+   * blank line that ends them, whatever comes later.
+   */
+  const end = firstClinical ? firstClinical.start : fallbackOpeningEnd(body);
   const opening = findOpeningLine(body);
 
   return body.slice(opening?.start ?? 0, end).trim();
+}
+
+/**
+ * Where the opening stops when nothing marks it.
+ *
+ * The opening is the greeting, location, identity and DPJP lines — a run of
+ * short lines at the top. It ends at the first blank line that follows a line
+ * carrying `RM` or `DPJP`, which is how every real report is laid out.
+ */
+function fallbackOpeningEnd(body: string): number {
+  const lines = body.split('\n');
+
+  // The END of the LAST identity line, not the first blank after the first one.
+  // Stopping at the first blank cut the identity off a report whose greeting
+  // and identity are separated by one, and the DPJP lines off every report —
+  // they come after another blank again.
+  let offset = 0;
+  let lastIdentityEnd = 0;
+
+  for (const line of lines) {
+    const next = offset + line.length + 1;
+    if (/\bRM\b|\bDPJP\b|atas nama|dikonsul|dirujuk|Rencana tindakan/i.test(line)) {
+      lastIdentityEnd = next;
+    }
+    offset = next;
+  }
+
+  return lastIdentityEnd;
 }
 
 function diagnosisBlock(body: string, aliases: readonly SectionAlias[]): string {
@@ -70,7 +129,11 @@ function diagnosisBlock(body: string, aliases: readonly SectionAlias[]): string 
   });
 
   return matches
-    .map((section) => section.text.trim())
+    .map((section) => {
+      const text = section.text;
+      const stop = DIAGNOSIS_END.exec(text);
+      return (stop ? text.slice(0, stop.index) : text).trim();
+    })
     .filter(Boolean)
     .join('\n');
 }
