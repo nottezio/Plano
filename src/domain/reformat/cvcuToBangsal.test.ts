@@ -58,8 +58,9 @@ describe('cvcuToBangsal', () => {
   });
 
   it('keeps the examination findings', () => {
-    // Fragments are capitalised, since each becomes its own line.
-    for (const finding of ['JVP R+2', 'BJ I/II murni reguler', 'Akral hangat']) {
+    // Grouped by system, so `akral hangat` now shares a line with the edema
+    // finding rather than standing alone.
+    for (const finding of ['JVP R+2', 'BJ I/II murni reguler', 'akral hangat']) {
       expect(body).toContain(finding);
     }
   });
@@ -108,5 +109,40 @@ describe('cvcuToBangsal', () => {
   it('returns the note untouched when there is no O section', () => {
     const noO = '*S:*\n- nyeri dada tidak ada';
     expect(cvcuToBangsal(noO).body).toBe(noO);
+  });
+});
+
+describe('the examination is grouped, not one fragment per line', () => {
+  const note = [
+    '*O:*',
+    'Circulation: TD 120/79 mmHg, nadi 90 x/menit irreguler, JVP R+3 cmH20, BJ I/II murni irreguler, murmur sistolik grade IV/VI, edema ekstremitas tidak ada, akral hangat',
+    'Breathing: RR 20 x/menit, BP Vesikuler, ronkhi minimal di basal bilateral, wheezing tidak ada',
+    'Exposure: Suhu 36.6, anemis tidak ada, ikterus tidak ada',
+    '',
+    '*A:*',
+    '- x',
+  ].join('\n');
+
+  const body = cvcuToBangsal(note).body;
+
+  it('joins each system onto one line, in ward order', () => {
+    // Eight one-line entries is not how anyone reads an examination.
+    expect(body).toContain('Anemis tidak ada, ikterus tidak ada');
+    expect(body).toContain('JVP R+3 cmH20');
+    expect(body).toContain('BJ I/II murni irreguler, murmur sistolik grade IV/VI');
+    expect(body).toContain('BP Vesikuler, ronkhi minimal di basal bilateral, wheezing tidak ada');
+    expect(body).toContain('Edema ekstremitas tidak ada, akral hangat');
+  });
+
+  it('puts them in the order a bangsal note is read', () => {
+    const order = ['Anemis', 'JVP', 'BJ I/II', 'BP Vesikuler', 'Edema'];
+    const positions = order.map((label) => body.indexOf(label));
+    expect(positions.every((value) => value > -1)).toBe(true);
+    expect(positions).toEqual([...positions].sort((a, b) => a - b));
+  });
+
+  it('still lifts the vitals out above them', () => {
+    expect(body.indexOf('Tekanan Darah :')).toBeLessThan(body.indexOf('Anemis'));
+    expect(body).toContain('Suhu : 36.6');
   });
 });

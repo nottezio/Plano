@@ -231,5 +231,17 @@ export function restoreEmphasis(body: string): string {
  * anything but a bullet.
  */
 export function normaliseBullets(body: string): string {
-  return body.replace(/^([ \t]*)[•‣▪·]\s*/gm, '$1- ');
+  return (
+    body
+      .replace(/^([ \t]*)[•‣▪·]\s*/gm, '$1- ')
+      /**
+       * `* ` at the start of a line is the bullet an iPhone inserts.
+       *
+       * A heading is `*Mohon izin kami terapi dengan:*` — asterisk immediately
+       * against the word. A bullet is `* IVFD NaCl`, with a space. That single
+       * space is the whole difference, and it is reliable because bold with a
+       * leading space does not render as bold in WhatsApp either.
+       */
+      .replace(/^([ \t]*)\*[ \t]+/gm, '$1- ')
+  );
 }

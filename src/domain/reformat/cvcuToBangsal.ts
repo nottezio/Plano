@@ -189,8 +189,40 @@ function wrapHeading(line: string): string {
   return `*${bare}*`;
 }
 
+/**
+ * Examination fragments regrouped into the ward's five lines.
+ *
+ * One fragment per line produced a correct but unreadable note — a CVCU
+ * sentence carries eight findings, and eight one-line entries is not how anyone
+ * reads an examination. A bangsal note groups them by system, always in the
+ * same order, which is why it can be scanned.
+ *
+ * Anything matching no group keeps its own line rather than being forced into
+ * one, since a wrong grouping reads as a wrong finding.
+ */
+const EXAM_GROUPS: ReadonlyArray<{ test: RegExp; fallback: string }> = [
+  { test: /\b(anemis|ikterus|ikterik|konjungtiva|sklera)\b/i, fallback: '' },
+  { test: /\bJVP\b/i, fallback: '' },
+  { test: /\b(BJ I|bunyi jantung|murmur|gallop|thrill)\b/i, fallback: '' },
+  { test: /\b(BP |bunyi pernapasan|vesikuler|ronkhi|rhonki|wheezing)\b/i, fallback: '' },
+  { test: /\b(abdomen|peristaltik|hepar|lien)\b/i, fallback: '' },
+  { test: /\b(edema|akral|CTR|CRT)\b/i, fallback: '' },
+];
+
 function joinExam(exam: readonly string[]): string[] {
-  return exam.map((line) => capitalise(line));
+  const buckets: string[][] = EXAM_GROUPS.map(() => []);
+  const loose: string[] = [];
+
+  for (const fragment of exam) {
+    const index = EXAM_GROUPS.findIndex((group) => group.test.test(fragment));
+    if (index === -1) loose.push(fragment);
+    else buckets[index]?.push(fragment);
+  }
+
+  return [
+    ...buckets.filter((bucket) => bucket.length > 0).map((bucket) => capitalise(bucket.join(', '))),
+    ...loose.map((line) => capitalise(line)),
+  ];
 }
 
 function trimBlanks(lines: readonly string[]): string[] {

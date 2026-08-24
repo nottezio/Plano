@@ -80,6 +80,8 @@ export interface BoardCard {
   progress: ReturnType<typeof checklistProgress>;
   /** Consultant detected from the note, for the card badge. */
   dpjp: Dpjp | null;
+  /** Joint-care patient — `KJS` in the note, or two DPJP services named. */
+  kjs: boolean;
   preview: string;
   previewIsStale: boolean;
 }
@@ -108,6 +110,10 @@ export function buildCard(
     // stale overnight, a date does not.
     discharge: dischargeStage(migrateLegacyDischarge(patient, today), today),
     dpjp: patient.dpjpId ? (dpjpById(patient.dpjpId) ?? null) : null,
+    // Read from the preview rather than a field: KJS is stated in the note's
+    // opening line, and a second place to record it is a second place for it
+    // to be wrong.
+    kjs: /\bKJS\b/i.test(patient.preview ?? '') || /\bKJS\b/i.test(patient.searchBlob ?? ''),
     preview: showInitialsOnly
       ? redactName(patient.preview ?? '', patient.name ?? '')
       : (patient.preview ?? ''),

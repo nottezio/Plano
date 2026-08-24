@@ -44,8 +44,19 @@ export const DEFAULT_CHECKLIST: readonly ChecklistItemDef[] = [
 
 /** SPEC 12.1 — drives the READ-ONLY parser. Editing these re-parses on the fly. */
 export const DEFAULT_SECTION_ALIASES: readonly SectionAlias[] = [
-  { sectionId: 's', label: 'Subjektif', order: 1, aliases: ['S', 'Subjektif', 'Subjective', 'Keluhan'] },
-  { sectionId: 'o', label: 'Objektif', order: 2, aliases: ['O', 'Objektif', 'Objective', 'Status Generalis'] },
+  {
+    sectionId: 's',
+    label: 'Subjektif',
+    order: 1,
+    aliases: ['S', 'S/', 'Subjektif', 'Subjective', 'Keluhan', 'Anamnesis'],
+  },
+  {
+    sectionId: 'o',
+    label: 'Objektif',
+    order: 2,
+    // `O/` and `O :` both appear in the corpus alongside `O:`.
+    aliases: ['O', 'O/', 'Objektif', 'Objective', 'Status Generalis', 'Pemeriksaan Fisis'],
+  },
   { sectionId: 'ttv', label: 'TTV', order: 3, aliases: ['TTV', 'TD/N/RR/S', 'Vital Sign', 'VS', 'Tanda Vital'] },
   // `AGD`, `Urinalisa` and `Hasil Confrence` are used constantly in the real
   // reports and were missing, so those blocks parsed as generic custom sections
@@ -72,9 +83,44 @@ export const DEFAULT_SECTION_ALIASES: readonly SectionAlias[] = [
       'Hasil Conference',
     ],
   },
-  { sectionId: 'a', label: 'Assessment', order: 5, aliases: ['A', 'Assessment', 'Asesmen', 'Diagnosis Kerja'] },
-  { sectionId: 'p', label: 'Plan', order: 6, aliases: ['P', 'Plan', 'Planning', 'Rencana'] },
-  { sectionId: 'terapi', label: 'Terapi', order: 7, aliases: ['Terapi', 'Tx', 'Th/', 'Medikamentosa', 'Obat'] },
+  {
+    sectionId: 'a',
+    label: 'Assessment',
+    order: 5,
+    /**
+     * Every spelling the corpus uses for the same heading: `assess`,
+     * `assessment`, `assest`, `asses`, with `izin`/`ijin` and with or without
+     * `pasien`. They mean one thing, and reading them as different sections is
+     * why Ringkas sometimes found no diagnosis at all.
+     */
+    aliases: [
+      // NOT `A/` — that is what a TS block uses for its own assessment, and
+      // aliasing it merged the consulting team's list into the patient's.
+      'A', 'Assessment', 'Asesmen', 'Diagnosis Kerja', 'Diagnosis', 'Diagnosa',
+      'Mohon izin kami assess dengan', 'Mohon izin kami assessment dengan',
+      'Mohon izin pasien kami assess dengan', 'Mohon ijin kami assess dengan',
+      'Mohon izin kami asses dengan', 'Mohon izin kami assest dengan',
+      'Mohon ijin kami assest dengan', 'Mohon izin kami Assess dengan',
+    ],
+  },
+  {
+    sectionId: 'p',
+    label: 'Plan',
+    order: 6,
+    // `P/` omitted for the same reason as `A/`.
+    aliases: ['P', 'Plan', 'Planning', 'Rencana', 'Plan Monitoring', 'Plan Diagnostik'],
+  },
+  {
+    sectionId: 'terapi',
+    label: 'Terapi',
+    order: 7,
+    aliases: [
+      'Terapi', 'Tx', 'Th/', 'Medikamentosa', 'Obat',
+      'Mohon izin kami terapi dengan', 'Mohon izin pasien kami terapi dengan',
+      'Mohon ijin pasien kami terapi dengan', 'Mohon ijin kami terapi dengan',
+      'Mohon izin kami inisial terapi dengan',
+    ],
+  },
 ] as const;
 
 /** SPEC 12.5 — two seeded one-tap chips. */

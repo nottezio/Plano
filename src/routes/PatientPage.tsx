@@ -388,12 +388,6 @@ export default function PatientPage(): JSX.Element {
               >
                 Tambah identitas pasien
               </button>
-            ) : poli ? (
-              <p className="truncate text-[11px] text-fg-faint">
-                {dpjp?.initials} poli {weekdayName(poli.weekday)}
-                {poli.inDays === 0 ? ' (hari ini)' : poli.inDays === 1 ? ' (besok)' : ''} ·{' '}
-                {poli.slot.clinic} · {poli.slot.time}
-              </p>
             ) : dpjpFormat ? (
               <p className="truncate text-[11px] text-fg-faint">
                 {dpjp?.initials} — {describeConfig(dpjpFormat)}
@@ -401,6 +395,20 @@ export default function PatientPage(): JSX.Element {
             ) : patient.diagnoses.length > 0 ? (
               <p className="truncate text-[11px] text-fg-faint">
                 {patient.diagnoses.join(', ')}
+              </p>
+            ) : null}
+            {/*
+              Its own line, not a branch of the identity chain.
+              
+              It used to sit inside that ternary after `!identity`, so the
+              moment a patient had a name it could never render — which is why
+              a recognised DPJP showed no clinic.
+            */}
+            {poli ? (
+              <p className="truncate text-[11px] text-fg-faint">
+                Poli {dpjp?.initials} {weekdayName(poli.weekday)}
+                {poli.inDays === 0 ? ' (hari ini)' : poli.inDays === 1 ? ' (besok)' : ''} ·{' '}
+                {poli.slot.clinic} · {poli.slot.time}
               </p>
             ) : null}
           </div>

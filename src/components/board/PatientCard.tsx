@@ -68,6 +68,14 @@ export function PatientCard({
             {card.dpjp.initials}
           </span>
         ) : null}
+        {card.kjs ? (
+          <span
+            title="Kelola Jantung Sinergi — pasien rawat bersama"
+            className="shrink-0 rounded border border-current/40 px-1 text-[10px] font-semibold opacity-80"
+          >
+            KJS
+          </span>
+        ) : null}
         {card.discharge ? (
           <span
             className="shrink-0 rounded px-1 text-[10px] font-semibold"

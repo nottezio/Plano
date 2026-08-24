@@ -175,3 +175,33 @@ describe('normaliseBullets', () => {
     expect(normaliseBullets('nilai • penting')).toBe('nilai • penting');
   });
 });
+
+describe('the iPhone asterisk bullet', () => {
+  it('converts `* ` at the start of a line', () => {
+    const pasted = [
+      '*Mohon izin kami terapi dengan:*',
+      '* IVFD NaCl 0.9% 500 ml/24 jam/IV',
+      '* Furosemide 40 mg/24 jam/IV',
+    ].join('\n');
+
+    const out = normaliseBullets(pasted);
+    expect(out).toContain('- IVFD NaCl 0.9% 500 ml/24 jam/IV');
+    expect(out).toContain('- Furosemide 40 mg/24 jam/IV');
+  });
+
+  it('leaves a bold heading alone', () => {
+    // The difference is the space: `*Heading*` has none, `* item` does.
+    expect(normaliseBullets('*Mohon izin kami terapi dengan:*')).toBe(
+      '*Mohon izin kami terapi dengan:*',
+    );
+    expect(normaliseBullets('*Plan:*')).toBe('*Plan:*');
+  });
+
+  it('preserves indentation on a nested asterisk bullet', () => {
+    expect(normaliseBullets('  * Cek DPL')).toBe('  - Cek DPL');
+  });
+
+  it('leaves a mid-line asterisk alone', () => {
+    expect(normaliseBullets('Ceftriaxone 2*1 g')).toBe('Ceftriaxone 2*1 g');
+  });
+});
