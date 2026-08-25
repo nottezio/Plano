@@ -285,42 +285,51 @@ ${CLOSING}`;
  * single template carrying both would mean deleting half of it every time, and
  * the half left behind is the one that gets sent by mistake.
  */
-export const KONSUL_KELAYAKAN_BODY = `Assalamualaikum dokter. Tabe dokter, mohon izin melaporkan konsul kelayakan tindakan dari *TS (Bagian) ((Nama DPJP TS))* di *(Ruang) Kamar (no) Bed (no)* atas nama :
+export const KONSUL_KELAYAKAN_BODY = `Assalamualaikum dokter. Tabe dokter, mohon izin melaporkan konsul baru dari *TS (Bagian) ((Nama DPJP TS))* di *(Ruang) Kamar (no) Bed (no)* atas nama :
 
 *(Nama) / (tgl lahir) / (umur) / RM (no)*
 
-_DPJP Kardio : (Nama DPJP Kardio)_
-_DPJP (Bagian) (utama) : (Nama DPJP TS)_
+_DPJP : (Nama DPJP Kardio)_
 
-_Pasien dikonsulkan untuk kelayakan rencana tindakan (nama tindakan), hari (hari, tanggal)_
+_Pasien dikonsul untuk kelayakan tindakan (nama tindakan)_
 
 *S:*
-- 
+- Saat ini keluhan nyeri dada kiri tidak ada. Riwayat nyeri dada kiri sebelumnya tidak ada. Keluhan sesak nafas tidak ada, riwayat sesak sebelumnya tidak ada. DOE (-), PND (-) ortopnea (-). Keluhan berdebar dan riwayat berdebar tidak ada. Demam tidak ada, batuk tidak ada, mual dan muntah tidak ada. BAB dan BAK dalam batas normal.
+- Pasien masuk dengan keluhan 
+- Pasien saat ini hari perawatan ke  hari, 
 
-Faktor risiko kardiovaskular :
+Faktor Risiko Kardiovaskular :
 - Riwayat hipertensi tidak ada
-- Riwayat diabetes tidak ada
+- Riwayat diabetes melitus tidak ada
 - Riwayat merokok tidak ada
-- Riwayat penyakit jantung dalam keluarga tidak ada
+- Riwayat penyakit jantung di keluarga tidak ada
 
-${VITALS}
+*O:*
+Compos mentis/ GCS : E4M6V5
+Tekanan Darah :  mmHg
+Nadi :  kali/menit, reguler
+Pernapasan :  kali/ menit
+Suhu : °C
+SpO2 : % room air
 
-*Mohon izin kami assess dengan:*
+Konjungtiva anemis tidak ada, sklera ikterus tidak ada
+JVP R+2 cmH20
+BJ I/II murni reguler, murmur tidak ada
+BP bronkovesikular, rhonki dan wheezing tidak ada
+Abdomen datar, peristaltik ada kesan normal
+Edema pretibial tidak ada, akral teraba hangat
+
+*_Saat ini evaluasi kardiologi berdasarkan anamnesis, pemeriksaan fisik, pemeriksaan EKG, serta echocardiography bedside, pasien termasuk kategori (Low/Moderate/High) Risk (Lee Revised Cardiac Risk Index) % estimated risk of MACE (Major Adverse Cardiovascular Events) untuk tindakan (nama tindakan)._*
+
+*TS (Bagian)*
+Diagnosis:
+- 
+Terapi:
+- 
+Plan:
 - 
 
-*Risiko MACE (Lee Revised Cardiac Risk Index) :*
-- Penyakit jantung iskemik : 
-- Gagal jantung kongestif : 
-- Penyakit serebrovaskular : 
-- Diabetes dengan insulin : 
-- Kreatinin > 2 mg/dL : 
-- Operasi risiko tinggi : 
-Skor:  — risiko: 
-
-*Kesimpulan kelayakan :*
-- Setelah dilakukan anamnesis, pemeriksaan fisis dan pemeriksaan penunjang, pasien dinilai  untuk dilakukan tindakan (nama tindakan).
-
-Selanjutnya mohon arahan dokter. Terima kasih dokter`;
+${CLOSING}`;
 
 
 

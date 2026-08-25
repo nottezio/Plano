@@ -189,8 +189,7 @@ describe('the four presets drawn from the report examples', () => {
 
   it('gives the consult form the two DPJP lines the real reports carry', () => {
     for (const body of [KONSUL_KELAYAKAN_BODY]) {
-      expect(body).toContain('_DPJP Kardio :');
-      expect(body).toContain('(utama) :');
+      expect(body).toContain('_DPJP :');
     }
   });
 
