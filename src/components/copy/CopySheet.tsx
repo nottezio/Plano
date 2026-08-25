@@ -34,9 +34,17 @@ import type {
   SectionAlias,
 } from '@/domain/types';
 
+/**
+ * "Hari ini" and "Tanggal ini" were the same words for two different days.
+ *
+ * They only differ when you are looking at a day that is not today — which is
+ * exactly when the distinction matters and exactly when the labels stopped
+ * helping. The second one now names what it actually copies: the note on
+ * screen.
+ */
 const RANGE_LABELS: Record<CopyRange, string> = {
   today: 'Hari ini',
-  specific: 'Tanggal ini',
+  specific: 'SOAP yang dibuka',
   lastN: '3 hari terakhir',
   all: 'Semua hari',
 };

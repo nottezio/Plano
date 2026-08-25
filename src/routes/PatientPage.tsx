@@ -21,6 +21,8 @@ import { DateRail } from '@/components/patient/DateRail';
 import { RevisionTrail } from '@/components/patient/RevisionTrail';
 import { AppShell } from '@/components/common/AppShell';
 import { clearEntry, fetchEntryBodies, setEntryLocked } from '@/data/repositories/entries.repo';
+import { updateArchiveNote } from '@/data/repositories/patients.repo';
+import { archiveSummary } from '@/domain/archive';
 import { fillPatientFromNote } from '@/data/repositories/patients.repo';
 import { parsePatientFacts } from '@/domain/parsePatient';
 import { carryForward, carryForwardSummary } from '@/domain/carryForward';
@@ -60,29 +62,21 @@ export default function PatientPage(): JSX.Element {
   const settings = useSession((state) => state.settings());
 
   /**
-   * Without a date in the URL, open the most recent day that HAS a note.
+   * Without a date in the URL, open TODAY.
    *
-   * It used to open today unconditionally, which on a patient not yet seen this
-   * morning meant landing on a blank page with yesterday's note one tap away
-   * and invisible. Opening the last written day shows the patient; today is one
-   * tap on the rail, and writing there creates it as before.
+   * It opened the most recent written day for a while, so a patient not yet
+   * seen this morning showed yesterday's note instead of a blank page. That
+   * turned out to be the wrong trade: the note you are about to write is
+   * today's, and landing on yesterday's means every round starts by changing
+   * the date — and risks writing into the wrong day when it is not noticed.
+   *
+   * Yesterday stays one tap away on the rail, and "salin dari hari sebelumnya"
+   * still offers its content on an empty day.
    */
-  const entryDatesForInit = useEntryDates(patientId);
-  /**
-   * The admission note is never the default.
-   *
-   * Entries are ordered by id descending, and `'igd'` sorts above every
-   * `2026-…` string — so the moment a patient had one, opening their chart
-   * landed on the day they arrived rather than on today's round.
-   *
-   * It stays one tap away at the top of the rail, which is where it is looked
-   * for deliberately.
-   */
-  const latestWritten = entryDatesForInit.find((date) => !isIgdEntry(date));
-  const selected: ClinicalDate = routeDate ?? latestWritten ?? today;
+  const selected: ClinicalDate = routeDate ?? today;
   const { patient, loading, error } = usePatient(patientId);
   const { entry, exists, loading: entryLoading } = useEntry(patientId, selected);
-  const entryDates = entryDatesForInit;
+  const entryDates = useEntryDates(patientId);
   const previous = useEntry(patientId, previousDay(selected));
 
   const [hintDismissed, setHintDismissed] = useState(false);
@@ -103,6 +97,12 @@ export default function PatientPage(): JSX.Element {
    * cleared rather than asking a generic "are you sure".
    */
   const [clearDate, setClearDate] = useState<ClinicalDate | null>(null);
+
+  // Local draft, like every other field bound to a Firestore document.
+  const [archiveNote, setArchiveNote] = useState('');
+  useEffect(() => {
+    setArchiveNote(patient?.archive?.note ?? '');
+  }, [patient?.id, patient?.archive?.note]);
   /** What the context pane is showing: the patient's own panels, or documents. */
   const [paneView, setPaneView] = useState<'pasien' | 'dokumen'>('pasien');
   const paneOpen = useUI((state) => state.contextPaneOpen);
@@ -508,10 +508,41 @@ export default function PatientPage(): JSX.Element {
           </button>
         </header>
 
+        {/*
+          The archive note lives with the patient, not on the archive list.
+          
+          The list is for finding someone; this is a detail about them, and
+          editing it there meant every row carried a control that only matters
+          once you have already found the right person.
+          
+          The reason and the date stay fixed — they record what happened and
+          when, and a record you can rewrite is not a record. The note is
+          commentary, so it is the part that can be corrected.
+        */}
         {patient.status === 'archived' ? (
-          <p className="border-b border-border px-4 py-1 text-[11px] text-fg-faint">
-            Pasien terarsip — catatan tetap dapat dibaca, disalin, dan diubah.
-          </p>
+          <div className="border-b border-border px-4 py-1.5">
+            <p className="text-[11px] text-fg-faint">
+              Pasien terarsip{patient.archive ? ` — ${archiveSummary(patient)}` : ''}. Catatan
+              tetap dapat dibaca, disalin, dan diubah.
+            </p>
+            <input
+              type="text"
+              value={archiveNote}
+              placeholder="Catatan arsip (opsional)…"
+              onChange={(event) => setArchiveNote(event.target.value)}
+              onKeyDown={(event) => {
+                if (event.key === 'Enter') event.currentTarget.blur();
+              }}
+              onBlur={() => {
+                if (archiveNote.trim() !== (patient.archive?.note ?? '')) {
+                  void updateArchiveNote(patient.id, archiveNote).catch((error: unknown) =>
+                    console.error('[archive] note write rejected', error),
+                  );
+                }
+              }}
+              className="mt-1 min-h-tap w-full rounded-lg border border-transparent bg-transparent px-2 text-xs outline-none focus:border-border"
+            />
+          </div>
         ) : null}
 
         <IdentityBar
