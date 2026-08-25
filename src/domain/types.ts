@@ -162,6 +162,14 @@ export interface UserSettings {
 export interface ScratchNote {
   id: string;
   title: string;
+  /**
+   * Archived rather than deleted.
+   *
+   * A note you have finished with is not a note you want gone — the whole point
+   * of writing it down was that you might need it again. Same reasoning as
+   * patients: nothing here is hard-deleted.
+   */
+  archived?: boolean;
   /** Rich text, like the original single note. */
   body: string;
 }

@@ -44,7 +44,7 @@ export function TabBar(): JSX.Element {
         'fixed inset-x-0 bottom-0 z-40 flex border-t border-border bg-surface',
         'pb-[env(safe-area-inset-bottom)]',
         // tablet/desktop: static left rail
-        'sm:static sm:h-full sm:w-[76px] sm:flex-col sm:gap-1 sm:border-r sm:border-t-0 sm:py-4',
+        'sm:static sm:h-full sm:w-[76px] sm:flex-col sm:gap-0.5 sm:border-r sm:border-t-0 sm:py-2',
         'lg:w-[224px] lg:items-stretch lg:px-3',
       ].join(' ')}
     >
@@ -92,23 +92,22 @@ export function TabBar(): JSX.Element {
       {hint ? (
         <div
           title={hint.name}
-          className="mx-3 mb-2 mt-auto hidden rounded-lg border border-border bg-bg-subtle p-2 lg:block"
+          className="mx-3 mb-2 mt-auto hidden rounded-lg border border-border bg-bg-subtle px-2 py-1.5 text-[11px] lg:block"
         >
-          <p className="text-[10px] font-semibold uppercase tracking-wide text-fg-faint">
-            Format laporan
+          {/* One line per fact instead of a labelled block. The panel was
+              taller than the nav it sat under, which is what made the rail feel
+              crammed. */}
+          <p className="font-medium">
+            {hint.initials}
+            <span className="ml-1 font-normal text-fg-muted">{hint.description}</span>
           </p>
-          <p className="mt-0.5 text-xs font-medium">{hint.initials}</p>
-          <p className="mt-0.5 text-[11px] leading-snug text-fg-muted">{hint.description}</p>
           {hint.poli ? (
-            <>
-              <p className="mt-1.5 text-[10px] font-semibold uppercase tracking-wide text-fg-faint">
-                Poli berikutnya
-              </p>
-              <p className="text-[11px] leading-snug text-fg-muted">{hint.poli}</p>
+            <p className="mt-1 leading-snug text-fg-muted">
+              Poli: {hint.poli}
               {/* The roster is a dated document — say which one, so nobody
                   reads last month's by accident. */}
-              <p className="mt-0.5 text-[10px] text-fg-faint">Jadwal {hint.period}</p>
-            </>
+              <span className="ml-1 text-fg-faint">({hint.period})</span>
+            </p>
           ) : null}
         </div>
       ) : null}

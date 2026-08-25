@@ -2,6 +2,7 @@ import { useEffect, useRef } from 'react';
 
 import { formatShortDate, relativeDayLabel } from '@/domain/clinicalDate';
 import type { ClinicalDate } from '@/domain/types';
+import { IGD_ENTRY } from '@/domain/clinicalDate';
 
 /**
  * SPEC F4 — horizontal date rail, newest on the right, today auto-selected.
@@ -39,6 +40,27 @@ export function DateRail({
           : 'flex items-center gap-2 overflow-x-auto border-b border-border px-4 py-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden'
       }
     >
+      {/*
+        The admission note sits above the dated entries, always.
+        
+        It is not a day, so it cannot be sorted among them — and it is the one
+        entry you look for by name rather than by date.
+      */}
+      <button
+        type="button"
+        onClick={() => onSelect(IGD_ENTRY)}
+        aria-current={selected === IGD_ENTRY}
+        className={[
+          'flex min-h-tap w-full items-center gap-2 rounded-lg border px-3 text-left text-xs',
+          selected === IGD_ENTRY
+            ? 'border-accent bg-accent font-medium text-white'
+            : 'border-border text-fg-muted',
+        ].join(' ')}
+      >
+        <span className="flex-1">SOAP IGD</span>
+        {datesWithContent.has(IGD_ENTRY) ? <span aria-hidden="true">·</span> : null}
+      </button>
+
       {dates.map((date) => {
         const active = date === selected;
         return (

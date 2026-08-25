@@ -97,7 +97,27 @@ export function formatShortDate(date: ClinicalDate): string {
 }
 
 /** "Kamis, 6 Agustus 2026 · Hari rawat ke-4" — the patient page header (SPEC 9.1). */
+/**
+ * The admission note, kept outside the day sequence.
+ *
+ * It is written in the emergency department before the ward stay begins, so it
+ * has no hari rawat and belongs before every dated entry. Modelling it as a
+ * date would mean inventing one — and any date invented for it is wrong the
+ * moment someone reads it as the day something happened.
+ *
+ * It is stored as an entry id like any other, so it inherits the merge, the
+ * revision trail and the copy machinery unchanged. Only the places that do
+ * arithmetic on dates need to know it is special.
+ */
+export const IGD_ENTRY = 'igd' as ClinicalDate;
+
+export function isIgdEntry(date: ClinicalDate): boolean {
+  return date === IGD_ENTRY;
+}
+
 export function formatDayHeader(date: ClinicalDate, admittedAt: ClinicalDate): string {
+  // No date and no hari rawat: it is the note from before the stay.
+  if (date === IGD_ENTRY) return 'SOAP IGD · sebelum masuk bangsal';
   return `${formatLongDate(date)} · Hari rawat ke-${hariRawat(date, admittedAt)}`;
 }
 
@@ -186,3 +206,4 @@ export function shouldAutoLock(
   const today = clinicalDate(now, tz, rolloverHour);
   return daysBetween(entryDate, today) * 24 >= AUTO_LOCK_HOURS;
 }
+

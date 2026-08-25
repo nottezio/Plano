@@ -25,6 +25,7 @@ import { fillPatientFromNote } from '@/data/repositories/patients.repo';
 import { parsePatientFacts } from '@/domain/parsePatient';
 import { carryForward, carryForwardSummary } from '@/domain/carryForward';
 import { formatLocation } from '@/domain/identity';
+import { isIgdEntry } from '@/domain/clinicalDate';
 import { insertIntoObjective } from '@/domain/lab/parseLab';
 import { describeConfig, dpjpById, primaryDpjp } from '@/domain/dpjp';
 import { SCHEDULE_PERIOD, nextPoli, weekdayName } from '@/domain/poli/schedule';
@@ -88,7 +89,9 @@ export default function PatientPage(): JSX.Element {
   const paneOpen = useUI((state) => state.contextPaneOpen);
   const togglePane = useUI((state) => state.toggleContextPane);
 
-  const hariRawat = patient ? daysBetween(patient.admittedAt, selected) + 1 : 1;
+  // The admission note has no hari rawat — it precedes the stay.
+  const hariRawat =
+    patient && !isIgdEntry(selected) ? daysBetween(patient.admittedAt, selected) + 1 : 0;
 
   /**
    * SPEC F4 — past entries auto-lock after 48 h.
@@ -404,6 +407,17 @@ export default function PatientPage(): JSX.Element {
               moment a patient had a name it could never render — which is why
               a recognised DPJP showed no clinic.
             */}
+            {/*
+              When a consultant is recognised but has no clinic, say so.
+              Rendering nothing made two different situations look identical —
+              "not on the roster" and "the line is broken again" — and I could
+              not tell them apart from a screenshot either.
+            */}
+            {dpjp && !poli ? (
+              <p className="truncate text-[11px] text-fg-faint">
+                {dpjp.initials} tidak ada di jadwal poli {SCHEDULE_PERIOD}
+              </p>
+            ) : null}
             {poli ? (
               <p className="truncate text-[11px] text-fg-faint">
                 Poli {dpjp?.initials} {weekdayName(poli.weekday)}

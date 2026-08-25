@@ -8,6 +8,7 @@ import { cardTitle, matchesQuery } from '@/domain/board';
 import { formatShortDate } from '@/domain/clinicalDate';
 import { useDebouncedValue } from '@/hooks/useDebouncedValue';
 import { usePatients } from '@/hooks/usePatients';
+import { updateArchiveNote } from '@/data/repositories/patients.repo';
 import { useSession } from '@/store/useSession';
 import type { Patient } from '@/domain/types';
 
@@ -86,10 +87,21 @@ function ArchiveRow({
   patient: Patient;
   showInitialsOnly: boolean;
 }): JSX.Element {
+  /**
+   * The note is editable; the reason and the date are not.
+   *
+   * Those two record what happened and when — a record you can rewrite is not
+   * a record. The note is commentary, so it is the part that can be corrected
+   * afterwards, which is usually when you find out what was actually wrong.
+   */
+  const [note, setNote] = useState(patient.archive?.note ?? '');
+  const [editing, setEditing] = useState(false);
+
   return (
+    <div className="rounded-lg border border-border bg-surface">
     <Link
       to={`/p/${patient.id}`}
-      className="block rounded-lg border border-border bg-surface px-3 py-2.5"
+      className="block px-3 py-2.5"
     >
       <span className="flex items-baseline gap-2">
         <span className="min-w-0 flex-1 truncate text-sm font-medium">
@@ -108,5 +120,40 @@ function ArchiveRow({
         </span>
       ) : null}
     </Link>
+
+      <div className="border-t border-border px-3 py-2">
+        {editing ? (
+          <div className="flex gap-2">
+            <input
+              type="text"
+              value={note}
+              autoFocus
+              placeholder="Catatan arsip…"
+              onChange={(event) => setNote(event.target.value)}
+              onKeyDown={(event) => {
+                if (event.key === 'Enter') event.currentTarget.blur();
+              }}
+              onBlur={() => {
+                setEditing(false);
+                if (note.trim() !== (patient.archive?.note ?? '')) {
+                  void updateArchiveNote(patient.id, note).catch((error: unknown) =>
+                    console.error('[archive] note write rejected', error),
+                  );
+                }
+              }}
+              className="min-h-tap min-w-0 flex-1 rounded-lg border border-border bg-surface px-2 text-xs outline-none"
+            />
+          </div>
+        ) : (
+          <button
+            type="button"
+            onClick={() => setEditing(true)}
+            className="min-h-tap w-full truncate text-left text-[11px] text-fg-muted"
+          >
+            {note.trim() || <span className="text-fg-faint">Tambah catatan arsip…</span>}
+          </button>
+        )}
+      </div>
+    </div>
   );
 }

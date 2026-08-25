@@ -38,11 +38,11 @@ export function IdentityBar({
       // Tinted and taller. This is the line that answers "am I in the right
       // chart", and it was competing with the note for attention by looking
       // exactly like it.
-      className="sticky top-0 z-20 w-full border-b border-border px-4 py-2 text-left backdrop-blur"
+      className="sticky top-0 z-20 w-full border-b border-border px-4 py-1.5 text-left backdrop-blur"
       style={{ backgroundColor: 'var(--sec-identitas)' }}
     >
       <span className="flex items-baseline gap-2">
-        <span className="min-w-0 flex-1 truncate text-base font-semibold">{label}</span>
+        <span className="min-w-0 flex-1 truncate text-sm font-semibold sm:text-base">{label}</span>
         <span className="shrink-0 whitespace-nowrap text-[11px] text-fg-muted">
           Hari ke-{hariRawat}
         </span>

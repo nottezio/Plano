@@ -10,6 +10,7 @@ describe('the seeded checklists', () => {
       'pindah-igd',
       'pulang-h1',
       'konsul-cabg',
+      'enam-mwt',
     ]);
   });
 

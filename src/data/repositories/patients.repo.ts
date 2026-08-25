@@ -282,6 +282,23 @@ export function updatePatient(
   return trackWrite(updateDoc(patientDoc(patientId), payload));
 }
 
+/**
+ * Edit the note on an already-archived patient.
+ *
+ * The reason and the timestamp stay fixed — they record what happened and when,
+ * and a record you can rewrite is not a record. The note is the one part that
+ * is commentary rather than fact, so it is the one part that can be corrected.
+ */
+export function updateArchiveNote(patientId: string, note: string): Promise<void> {
+  return trackWrite(
+    updateDoc(patientDoc(patientId), {
+      'archive.note': note.trim(),
+      updatedAt: serverTimestamp(),
+      updatedBy: getDeviceId(),
+    }),
+  );
+}
+
 export function archivePatient(
   patientId: string,
   reason: ArchiveReason,

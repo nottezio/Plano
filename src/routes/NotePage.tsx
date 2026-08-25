@@ -74,8 +74,27 @@ export default function NotePage(): JSX.Element {
     return [{ id: 'n1', title: 'Catatan', body: legacy }];
   }, [profile?.notes, profile?.scratchNote]);
 
+  const [showArchived, setShowArchived] = useState(false);
+
+  const visible = useMemo(
+    () => notes.filter((note) => (showArchived ? note.archived : !note.archived)),
+    [notes, showArchived],
+  );
+  const archivedCount = useMemo(
+    () => notes.filter((note) => note.archived).length,
+    [notes],
+  );
+
   const [activeId, setActiveId] = useState<string>(() => notes[0]?.id ?? 'n1');
-  const active = notes.find((note) => note.id === activeId) ?? notes[0];
+  const active = visible.find((note) => note.id === activeId) ?? visible[0] ?? notes[0];
+
+  const setArchived = (archived: boolean): void => {
+    if (!uid || !active) return;
+    void updateScratchNotes(
+      uid,
+      notes.map((note) => (note.id === active.id ? { ...note, archived } : note)),
+    ).catch((error: unknown) => console.error('[catatan] archive rejected', error));
+  };
 
   const write = useCallback(
     (body: string) => {
@@ -149,7 +168,7 @@ export default function NotePage(): JSX.Element {
     <AppShell title="Catatan">
       <div className="mx-auto flex min-h-0 w-full max-w-3xl flex-1 flex-col px-4 pb-4 pt-4">
         <div className="mb-2 flex items-center gap-1 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-          {notes.map((note) => (
+          {visible.map((note) => (
             <button
               key={note.id}
               type="button"
@@ -168,6 +187,15 @@ export default function NotePage(): JSX.Element {
               {note.title || 'Tanpa judul'}
             </button>
           ))}
+          {archivedCount > 0 || showArchived ? (
+            <button
+              type="button"
+              onClick={() => setShowArchived((current) => !current)}
+              className="min-h-tap shrink-0 rounded-lg border border-border px-2 text-[11px] text-fg-muted"
+            >
+              {showArchived ? 'Aktif' : `Arsip (${archivedCount})`}
+            </button>
+          ) : null}
           <button
             type="button"
             onClick={addNote}
@@ -186,6 +214,13 @@ export default function NotePage(): JSX.Element {
             placeholder="Judul catatan"
             className="min-h-tap min-w-0 flex-1 rounded-lg border border-transparent bg-transparent px-2 text-sm font-medium outline-none focus:border-border"
           />
+          <button
+            type="button"
+            onClick={() => setArchived(!active?.archived)}
+            className="min-h-tap shrink-0 px-2 text-xs text-accent"
+          >
+            {active?.archived ? 'Pulihkan' : 'Arsipkan'}
+          </button>
           {notes.length > 1 ? (
             <button
               type="button"

@@ -126,4 +126,16 @@ export const SEED_CHECKLISTS: readonly ChecklistTemplate[] = [
       'Konsul RAWAT BERSAMA: format "setelah dilakukan anamnesis…" ditambah Assessment dan Plan.',
     ],
   },
+  {
+    id: 'enam-mwt',
+    title: 'Prosedur 6MWT',
+    context: 'Pasien trio atau post tindakan, sebelum pulang',
+    items: items(
+      'Pasien tidak ada gejala',
+      'Pastikan pasien ter-aff infus dan kateter, terpasang connecta',
+      'Konfirmasi ke senior untuk 6MWT',
+      'Layangkan konsul ke rehabilitasi kardiopulmoner',
+      'Minta perawat input tindakan 6MWT',
+    ),
+  },
 ];
