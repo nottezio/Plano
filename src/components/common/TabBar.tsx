@@ -23,14 +23,25 @@ import { useUI } from '@/store/useUI';
  * makes a web app feel like a stretched phone build. Two components would
  * drift; three breakpoints on one component cannot.
  */
+/**
+ * Seven destinations does not fit a phone bar or a 76px rail.
+ *
+ * The split is by how often each is opened, not by what they are: Aktif, Arsip
+ * and Dokumen are used constantly, the four tools occasionally. Trimming the
+ * primary row to four keeps every tap target full width, and the tools sit
+ * behind one more tap rather than being squeezed into a column that scrolls.
+ */
+const TOOL_TABS = [
+  { to: '/catatan', label: 'Catatan', Icon: IconNote },
+  { to: '/kalkulator', label: 'Kalkulator', Icon: IconCalculator },
+  { to: '/checklist', label: 'Checklist', Icon: IconChecklist },
+  { to: '/pengaturan', label: 'Pengaturan', Icon: IconSettings },
+] as const;
+
 const TABS = [
   { to: '/', label: 'Aktif', Icon: IconBoard, end: true },
   { to: '/arsip', label: 'Arsip', Icon: IconArchive, end: false },
   { to: '/dokumen', label: 'Dokumen', Icon: IconDocuments, end: false },
-  { to: '/catatan', label: 'Catatan', Icon: IconNote, end: false },
-  { to: '/kalkulator', label: 'Kalkulator', Icon: IconCalculator, end: false },
-  { to: '/checklist', label: 'Checklist', Icon: IconChecklist, end: false },
-  { to: '/pengaturan', label: 'Pengaturan', Icon: IconSettings, end: false },
 ] as const;
 
 export function TabBar(): JSX.Element {
@@ -80,6 +91,32 @@ export function TabBar(): JSX.Element {
       {/* Desktop only: the sidebar has dead space at the bottom, and a footer
           under the content pushed the empty state off-centre. On phone the tab
           bar is 64 px of thumb target — nothing else belongs in it. */}
+      {/* Tools, one row on a phone and a compact block on the rail. */}
+      <div
+        className={[
+          'flex shrink-0',
+          'sm:mt-1 sm:w-full sm:flex-col sm:gap-0.5 sm:border-t sm:border-border sm:pt-1',
+        ].join(' ')}
+      >
+        {TOOL_TABS.map(({ to, label, Icon }) => (
+          <NavLink
+            key={to}
+            to={to}
+            aria-label={label}
+            className={({ isActive }) =>
+              [
+                'flex min-h-tap flex-1 flex-col items-center justify-center gap-0.5',
+                'sm:w-full sm:py-1 lg:flex-row lg:justify-start lg:gap-2 lg:px-3',
+                isActive ? 'text-accent' : 'text-fg-faint',
+              ].join(' ')
+            }
+          >
+            <Icon className="h-5 w-5" />
+            <span className="text-[10px] sm:hidden lg:inline lg:text-xs">{label}</span>
+          </NavLink>
+        ))}
+      </div>
+
       {/*
         Reporting format for the patient currently open.
 

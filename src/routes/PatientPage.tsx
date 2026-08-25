@@ -20,7 +20,7 @@ import { ConflictDialog } from '@/components/patient/ConflictDialog';
 import { DateRail } from '@/components/patient/DateRail';
 import { RevisionTrail } from '@/components/patient/RevisionTrail';
 import { AppShell } from '@/components/common/AppShell';
-import { fetchEntryBodies, setEntryLocked } from '@/data/repositories/entries.repo';
+import { clearEntry, fetchEntryBodies, setEntryLocked } from '@/data/repositories/entries.repo';
 import { fillPatientFromNote } from '@/data/repositories/patients.repo';
 import { parsePatientFacts } from '@/domain/parsePatient';
 import { carryForward, carryForwardSummary } from '@/domain/carryForward';
@@ -49,6 +49,7 @@ import { useSession } from '@/store/useSession';
 import { useUI } from '@/store/useUI';
 import type { ClinicalDate } from '@/domain/types';
 import { useDebouncedValue } from '@/hooks/useDebouncedValue';
+import { ConfirmDialog } from '@/components/common/ConfirmDialog';
 
 /** Minimum window the rail offers, so a patient admitted today can still scroll. */
 
@@ -84,6 +85,14 @@ export default function PatientPage(): JSX.Element {
   const [labOpen, setLabOpen] = useState(false);
   const [compareOpen, setCompareOpen] = useState(false);
   const [reformatOpen, setReformatOpen] = useState(false);
+  /**
+   * Confirmation before clearing a day, because there is no undo on the rail.
+   *
+   * The text is recoverable from Riwayat perubahan afterwards, but only by
+   * someone who knows to look — so the confirmation names the day being
+   * cleared rather than asking a generic "are you sure".
+   */
+  const [clearDate, setClearDate] = useState<ClinicalDate | null>(null);
   /** What the context pane is showing: the patient's own panels, or documents. */
   const [paneView, setPaneView] = useState<'pasien' | 'dokumen'>('pasien');
   const paneOpen = useUI((state) => state.contextPaneOpen);
@@ -680,6 +689,23 @@ export default function PatientPage(): JSX.Element {
         />
       ) : null}
 
+      {clearDate ? (
+        <ConfirmDialog
+          title={`Hapus catatan ${formatShortDate(clearDate)}?`}
+          description="Isi catatan hari itu dikosongkan. Teksnya masih bisa dipulihkan dari Riwayat perubahan."
+          confirmLabel="Hapus"
+          onCancel={() => setClearDate(null)}
+          onConfirm={() => {
+            const target = clearDate;
+            setClearDate(null);
+            if (!patientId) return;
+            void clearEntry(patientId, target).catch((error: unknown) =>
+              console.error('[entry] clear rejected', error),
+            );
+          }}
+        />
+      ) : null}
+
       <ReformatSheet
         open={reformatOpen}
         onOpenChange={setReformatOpen}
@@ -764,6 +790,7 @@ export default function PatientPage(): JSX.Element {
             <h3 className="mb-1.5 text-xs font-semibold text-fg-muted">Tanggal</h3>
             <DateRail
               dates={railDates}
+              onClear={setClearDate}
               selected={selected}
               today={today}
               datesWithContent={datesWithContent}

@@ -11,6 +11,7 @@ import { IGD_ENTRY } from '@/domain/clinicalDate';
  */
 export function DateRail({
   dates,
+  onClear,
   selected,
   today,
   datesWithContent,
@@ -18,6 +19,8 @@ export function DateRail({
   orientation = 'horizontal',
 }: {
   dates: ClinicalDate[];
+  /** Clear a day's note. Omitted where there is no room for the control. */
+  onClear?: (date: ClinicalDate) => void;
   selected: ClinicalDate;
   today: ClinicalDate;
   datesWithContent: ReadonlySet<ClinicalDate>;
@@ -63,9 +66,17 @@ export function DateRail({
 
       {dates.map((date) => {
         const active = date === selected;
+        const hasContent = datesWithContent.has(date);
+
         return (
-          <button
+          <div
             key={date}
+            className={[
+              'flex shrink-0 items-center',
+              orientation === 'vertical' ? 'w-full gap-1' : '',
+            ].join(' ')}
+          >
+          <button
             ref={active ? selectedRef : undefined}
             type="button"
             onClick={() => onSelect(date)}
@@ -81,9 +92,27 @@ export function DateRail({
             <span>{date === today ? 'Hari ini' : relativeDayLabel(date, today)}</span>
             <span className={active ? 'opacity-90' : 'opacity-60'}>
               {formatShortDate(date)}
-              {datesWithContent.has(date) ? ' ·' : ''}
+              {hasContent ? ' ·' : ''}
             </span>
           </button>
+
+          {/*
+            Only where there is something to clear, and only in the sidebar.
+            A delete control on an empty day is a control that can only do
+            nothing, and on the horizontal phone rail there is no room for one
+            that is not a mis-tap waiting to happen.
+          */}
+          {onClear && hasContent && orientation === 'vertical' ? (
+            <button
+              type="button"
+              aria-label={`Hapus catatan ${formatShortDate(date)}`}
+              onClick={() => onClear(date)}
+              className="min-h-tap min-w-[28px] shrink-0 text-xs text-fg-faint hover:text-danger"
+            >
+              ×
+            </button>
+          ) : null}
+          </div>
         );
       })}
 

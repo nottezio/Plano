@@ -324,3 +324,29 @@ export function subscribeRevisions(
     onError,
   );
 }
+
+/**
+ * Clear a day's note.
+ *
+ * Soft, like everything else here: the entry document stays and its body is
+ * emptied, so the revision trail for that day survives and the text can be
+ * recovered from it. A hard delete would take the trail with it, and the trail
+ * is the only reason an accidental clear is not permanent.
+ *
+ * The `deletedAt` marker is what hides it from the rail and from
+ * "salin dari hari sebelumnya".
+ */
+export function clearEntry(patientId: string, date: ClinicalDate): Promise<void> {
+  return trackWrite(
+    setDoc(
+      entryDoc(patientId, date),
+      {
+        body: '',
+        deletedAt: serverTimestamp(),
+        updatedAt: serverTimestamp(),
+        updatedBy: getDeviceId(),
+      },
+      { merge: true },
+    ),
+  );
+}

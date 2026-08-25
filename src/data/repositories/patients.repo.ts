@@ -17,6 +17,7 @@ import { nanoid } from 'nanoid';
 import { getDeviceId } from '../deviceId';
 import { clinicalStart } from '@/domain/identity';
 import { primaryDpjp } from '@/domain/dpjp';
+import { isIgdEntry } from '@/domain/clinicalDate';
 import { parsePatientFacts } from '@/domain/parsePatient';
 import { parseSections } from '@/domain/sections/parseSections';
 import { DEFAULT_SECTION_ALIASES } from '@/domain/sections/aliases';
@@ -197,11 +198,21 @@ export function touchEntryMeta(
   date: ClinicalDate,
   body: string,
 ): Promise<void> {
+  /**
+   * The admission note never becomes the card preview.
+   *
+   * The board answers "where is this patient today", and a card showing the
+   * IGD note answers "where were they when they arrived" — which on day six is
+   * actively misleading. Writing it still updates the derived fields, because
+   * the DPJP and identity in it are as true as anywhere else.
+   */
+  const previewFields: DocumentData = isIgdEntry(date)
+    ? {}
+    : { lastEntryDate: date, preview: buildPreview(body), previewDate: date };
+
   return trackWrite(
     updateDoc(patientDoc(patientId), {
-      lastEntryDate: date,
-      preview: buildPreview(body),
-      previewDate: date,
+      ...previewFields,
       ...derivedPatientFields(body),
       updatedAt: serverTimestamp(),
       updatedBy: getDeviceId(),
