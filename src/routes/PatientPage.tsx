@@ -68,7 +68,17 @@ export default function PatientPage(): JSX.Element {
    * tap on the rail, and writing there creates it as before.
    */
   const entryDatesForInit = useEntryDates(patientId);
-  const latestWritten = entryDatesForInit[0];
+  /**
+   * The admission note is never the default.
+   *
+   * Entries are ordered by id descending, and `'igd'` sorts above every
+   * `2026-…` string — so the moment a patient had one, opening their chart
+   * landed on the day they arrived rather than on today's round.
+   *
+   * It stays one tap away at the top of the rail, which is where it is looked
+   * for deliberately.
+   */
+  const latestWritten = entryDatesForInit.find((date) => !isIgdEntry(date));
   const selected: ClinicalDate = routeDate ?? latestWritten ?? today;
   const { patient, loading, error } = usePatient(patientId);
   const { entry, exists, loading: entryLoading } = useEntry(patientId, selected);

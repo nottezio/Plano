@@ -12,6 +12,7 @@ import {
   hariRawat,
   isClinicalDate,
   isDateLike,
+  isIgdEntry,
   localHour,
   previousDay,
   relativeDayLabel,
@@ -250,5 +251,15 @@ describe('labels survive an entry id that is not a date', () => {
   it('returns zero days rather than NaN', () => {
     expect(daysBetween(IGD_ENTRY, '2026-08-25' as ClinicalDate)).toBe(0);
     expect(daysBetween('2026-08-20' as ClinicalDate, '2026-08-25' as ClinicalDate)).toBe(5);
+  });
+});
+
+describe('sorting entry ids', () => {
+  it('shows why the admission note must be excluded from the default', () => {
+    // Entries come back ordered by id descending. `'igd'` beats every date
+    // string, so a plain `[0]` picked it every time.
+    const ids = ['2026-08-25', 'igd', '2026-08-24'].sort().reverse();
+    expect(ids[0]).toBe('igd');
+    expect(ids.find((id) => !isIgdEntry(id as ClinicalDate))).toBe('2026-08-25');
   });
 });
