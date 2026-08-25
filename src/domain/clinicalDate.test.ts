@@ -2,19 +2,23 @@ import { describe, expect, it } from 'vitest';
 
 import {
   AUTO_LOCK_HOURS,
+  IGD_ENTRY,
   addDays,
   clinicalDate,
   daysBetween,
   formatDayHeader,
   formatLongDate,
+  formatShortDate,
   hariRawat,
   isClinicalDate,
+  isDateLike,
   localHour,
   previousDay,
   relativeDayLabel,
   shouldAutoLock,
   yesterdayHint,
 } from './clinicalDate';
+import type { ClinicalDate } from './types';
 
 const JKT = 'Asia/Jakarta'; // UTC+7, no DST
 const NY = 'America/New_York'; // UTC-4/-5, has DST
@@ -205,5 +209,46 @@ describe('shouldAutoLock', () => {
 describe('previousDay', () => {
   it('steps back across a year boundary', () => {
     expect(previousDay('2027-01-01')).toBe('2026-12-31');
+  });
+});
+
+describe('the admission entry is not a date', () => {
+  it('does not throw when asked for the day before it', () => {
+    // `previousDay(IGD_ENTRY)` made an Invalid Date, and `toISOString()` on
+    // that throws — which took the whole patient page down.
+    expect(() => previousDay(IGD_ENTRY)).not.toThrow();
+    expect(previousDay(IGD_ENTRY)).toBe(IGD_ENTRY);
+  });
+
+  it('has no next day either', () => {
+    expect(addDays(IGD_ENTRY, 1)).toBe(IGD_ENTRY);
+  });
+
+  it('still does arithmetic on real dates', () => {
+    expect(addDays('2026-08-31' as ClinicalDate, 1)).toBe('2026-09-01');
+    expect(previousDay('2026-09-01' as ClinicalDate)).toBe('2026-08-31');
+  });
+
+  it('reads as the admission note in the day header', () => {
+    expect(formatDayHeader(IGD_ENTRY, '2026-08-20' as ClinicalDate)).toContain('SOAP IGD');
+  });
+
+  it('recognises a real date from an entry id', () => {
+    expect(isDateLike('2026-08-25')).toBe(true);
+    expect(isDateLike('igd')).toBe(false);
+  });
+});
+
+describe('labels survive an entry id that is not a date', () => {
+  it('formats the admission entry as IGD rather than throwing', () => {
+    // date-fns throws on an invalid date, and these callers are all labels —
+    // a page that cannot render a date should still render the page.
+    expect(() => formatShortDate(IGD_ENTRY)).not.toThrow();
+    expect(formatShortDate(IGD_ENTRY)).toBe('IGD');
+  });
+
+  it('returns zero days rather than NaN', () => {
+    expect(daysBetween(IGD_ENTRY, '2026-08-25' as ClinicalDate)).toBe(0);
+    expect(daysBetween('2026-08-20' as ClinicalDate, '2026-08-25' as ClinicalDate)).toBe(5);
   });
 });

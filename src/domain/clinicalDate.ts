@@ -39,6 +39,12 @@ export function toUtcInstant(date: ClinicalDate): Date {
 
 /** A UTC instant → "YYYY-MM-DD". */
 export function toDateString(instant: Date): ClinicalDate {
+  // Guard the throw at its source too, so no future caller can crash a page by
+  // handing this an unparseable date.
+  if (Number.isNaN(instant.getTime())) {
+    console.warn('[clinicalDate] invalid instant');
+    return '' as ClinicalDate;
+  }
   return instant.toISOString().slice(0, 10);
 }
 
@@ -62,7 +68,19 @@ export function localHour(now: Date, tz: string): number {
 }
 
 export function addDays(date: ClinicalDate, days: number): ClinicalDate {
+  // `IGD_ENTRY` is an entry id, not a date. Arithmetic on it produced an
+  // Invalid Date, and `toISOString()` on that THROWS — which is what took the
+  // whole page down when the admission note was opened.
+  //
+  // Returning it unchanged is right rather than merely safe: the admission note
+  // has no previous day and no next day, so "a day away from it" is itself.
+  if (!isDateLike(date)) return date;
   return toDateString(new Date(toUtcInstant(date).getTime() + days * MS_PER_DAY));
+}
+
+/** A real `YYYY-MM-DD`, as opposed to an entry id like `igd`. */
+export function isDateLike(value: string): boolean {
+  return /^\d{4}-\d{2}-\d{2}$/.test(value);
 }
 
 export function previousDay(date: ClinicalDate): ClinicalDate {
@@ -75,6 +93,8 @@ export function nextDay(date: ClinicalDate): ClinicalDate {
 
 /** Whole days between two clinical dates; correct across months and years. */
 export function daysBetween(from: ClinicalDate, to: ClinicalDate): number {
+  // NaN would propagate into hari rawat and every rail label built from it.
+  if (!isDateLike(from) || !isDateLike(to)) return 0;
   return Math.round((toUtcInstant(to).getTime() - toUtcInstant(from).getTime()) / MS_PER_DAY);
 }
 
@@ -93,6 +113,9 @@ export function formatLongDate(date: ClinicalDate): string {
 
 /** "6 Agu" — compact form for the date rail. */
 export function formatShortDate(date: ClinicalDate): string {
+  // `date-fns` throws on an invalid date, and every caller here is a label —
+  // a page that cannot render a date should still render the page.
+  if (!isDateLike(date)) return date === IGD_ENTRY ? 'IGD' : date;
   return format(shiftUtcToLocalFields(date), 'd MMM', { locale: localeId });
 }
 

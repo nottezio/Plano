@@ -233,9 +233,17 @@ export default function PatientPage(): JSX.Element {
   }, [dpjp, dpjpFormat, poli, setDpjpHint]);
 
   const railDates = useMemo(
-    () => buildRail(patient?.admittedAt ?? today, today, entryDates),
+    () =>
+      buildRail(
+        patient?.admittedAt ?? today,
+        today,
+        entryDates.filter((date) => !isIgdEntry(date)),
+      ),
     [patient?.admittedAt, today, entryDates],
   );
+  // The admission entry is rendered on its own above the rail, so it must not
+  // also be sorted in among the days — it would land wherever `igd` falls
+  // alphabetically, which is nowhere meaningful.
   const datesWithContent = useMemo(() => new Set(entryDates), [entryDates]);
 
   const hint = useMemo(
