@@ -265,6 +265,7 @@ type PatientPatchKey = keyof Pick<
   | 'labels'
   | 'pinned'
   | 'temporary'
+  | 'chief'
   | 'discharge'
   | 'dischargePlannedFor'
   | 'todos'

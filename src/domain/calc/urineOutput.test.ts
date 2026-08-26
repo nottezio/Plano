@@ -19,10 +19,13 @@ describe('calculateUrineOutput', () => {
     expect(calculateUrineOutput({ volumeMl: 250, hours: 6, weightKg: 60 })?.perDayMl).toBe(1000);
   });
 
-  it('bands the rate for orientation', () => {
-    expect(calculateUrineOutput({ volumeMl: 240, hours: 24, weightKg: 60 })?.band).toBe('oliguria');
-    expect(calculateUrineOutput({ volumeMl: 1000, hours: 24, weightKg: 60 })?.band).toBe('low');
-    expect(calculateUrineOutput({ volumeMl: 2000, hours: 24, weightKg: 60 })?.band).toBe('normal');
+  it('bands the rate against the published thresholds', () => {
+    // 0.5 ml/kg/h is the oliguria threshold, 0.3 the severe one (KDIGO).
+    // 1000 ml/24h/60kg = 0.69 is ADEQUATE — the old bands called it "Rendah",
+    // which labelled a normal output as low.
+    expect(calculateUrineOutput({ volumeMl: 400, hours: 24, weightKg: 60 })?.band).toBe('severe');
+    expect(calculateUrineOutput({ volumeMl: 600, hours: 24, weightKg: 60 })?.band).toBe('oliguria');
+    expect(calculateUrineOutput({ volumeMl: 1000, hours: 24, weightKg: 60 })?.band).toBe('normal');
     expect(calculateUrineOutput({ volumeMl: 6000, hours: 24, weightKg: 60 })?.band).toBe('high');
   });
 
@@ -43,7 +46,7 @@ describe('calculateUrineOutput', () => {
   it('accepts a zero volume, which is a finding rather than an error', () => {
     const result = calculateUrineOutput({ volumeMl: 0, hours: 12, weightKg: 60 });
     expect(result?.rate).toBe(0);
-    expect(result?.band).toBe('oliguria');
+    expect(result?.band).toBe('severe');
   });
 
   it('handles a fractional weight without printing noise', () => {

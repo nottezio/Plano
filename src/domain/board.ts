@@ -82,6 +82,8 @@ export interface BoardCard {
   dpjp: Dpjp | null;
   /** Joint-care patient — `KJS` in the note, or two DPJP services named. */
   kjs: boolean;
+  /** Chief on duty, shown on the card. */
+  chief: string | null;
   preview: string;
   previewIsStale: boolean;
 }
@@ -109,6 +111,7 @@ export function buildCard(
     // Derived rather than stored: a stage is a fact about today that goes
     // stale overnight, a date does not.
     discharge: dischargeStage(migrateLegacyDischarge(patient, today), today),
+    chief: patient.chief?.trim() || null,
     dpjp: patient.dpjpId ? (dpjpById(patient.dpjpId) ?? null) : null,
     // Read from the preview rather than a field: KJS is stated in the note's
     // opening line, and a second place to record it is a second place for it

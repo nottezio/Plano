@@ -103,7 +103,10 @@ export function PatientCard({
       <p className="mt-0.5 text-[11px] opacity-70">
         {formatLocation(patient) || 'Lokasi belum diisi'}
       </p>
-      <p className="text-[11px] opacity-60">Hari rawat ke-{card.hariRawat}</p>
+      <p className="text-[11px] opacity-60">
+        Hari rawat ke-{card.hariRawat}
+        {card.chief ? ` · Chief ${card.chief}` : ''}
+      </p>
 
       {lines.length > 0 ? (
         <p className="mt-2 whitespace-pre-line text-xs leading-relaxed opacity-90">

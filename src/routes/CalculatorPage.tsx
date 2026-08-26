@@ -3,8 +3,10 @@ import { useMemo, useState } from 'react';
 import { AppShell } from '@/components/common/AppShell';
 import { BAND_LABELS, calculateUrineOutput } from '@/domain/calc/urineOutput';
 import {
+  K_SEVERITY_LABELS,
   OSMOLALITY_BANDS,
   calculateOsmolality,
+  calculatePotassiumDeficit,
   calculateSodiumCorrection,
   type Sex,
 } from '@/domain/calc/sodium';
@@ -27,6 +29,7 @@ export default function CalculatorPage(): JSX.Element {
       <div className="mx-auto w-full max-w-2xl space-y-4 px-4 py-4">
         <UrineOutputCard />
         <SodiumCard />
+        <PotassiumCard />
         <OsmolalityCard />
         <p className="px-1 text-[11px] text-fg-faint">
           Kalkulator lain menyusul. Hasil tidak disimpan — salin barisnya ke catatan.
@@ -300,5 +303,68 @@ function CopyLine({
     >
       {copied ? 'Tersalin ✓' : 'Salin baris'}
     </button>
+  );
+}
+
+function PotassiumCard(): JSX.Element {
+  const [current, setCurrent] = useState('');
+  const [target, setTarget] = useState('3.5');
+  const [weight, setWeight] = useState('');
+  const [copied, setCopied] = useState(false);
+
+  const result = useMemo(
+    () =>
+      calculatePotassiumDeficit({
+        current: Number(current),
+        target: Number(target),
+        weightKg: Number(weight),
+      }),
+    [current, target, weight],
+  );
+
+  return (
+    <section className="rounded-xl border border-border bg-surface p-4">
+      <h2 className="text-sm font-semibold">Defisit kalium</h2>
+      <p className="mt-0.5 text-xs text-fg-muted">(Target − K) × BB × 0.4, ditambah maintenance.</p>
+
+      <div className="mt-3 grid grid-cols-3 gap-2">
+        <NumberField label="K saat ini" value={current} onChange={setCurrent} />
+        <NumberField label="Target" value={target} onChange={setTarget} />
+        <NumberField label="Berat (kg)" value={weight} onChange={setWeight} />
+      </div>
+
+      {result ? (
+        <div className="mt-3 rounded-lg border border-border bg-bg-subtle p-3">
+          <p className="text-lg font-semibold">
+            {result.totalMeq} <span className="text-xs font-normal text-fg-muted">mEq</span>
+          </p>
+          <p className="mt-0.5 text-xs text-fg-muted">
+            Defisit {result.deficitMeq} + maintenance {result.maintenanceMeq} · ≈{' '}
+            {result.kclGrams} g KCl · {K_SEVERITY_LABELS[result.severity]}
+          </p>
+
+          {/*
+            The warning travels with the number.
+            
+            Every source that publishes this formula also says it underestimates:
+            ~98% of body potassium is intracellular, so a 1 mmol/L fall in serum
+            often means a 200–400 mEq total-body deficit. A number shown alone is
+            a number that gets acted on.
+          */}
+          <p className="mt-2 text-[11px] leading-relaxed text-fg-faint">
+            Perkiraan <strong>minimal</strong>. Kalium tubuh 98% intraselular, sehingga
+            penurunan 1 mmol/L serum sering berarti defisit total 200–400 mEq. Periksa dan
+            koreksi magnesium lebih dulu; hipomagnesemia membuat koreksi kalium tidak berhasil.
+          </p>
+
+          <p className="mt-2 break-words font-mono text-[11px] leading-relaxed">{result.line}</p>
+          <CopyLine text={result.line} copied={copied} setCopied={setCopied} />
+        </div>
+      ) : (
+        <p className="mt-3 text-xs text-fg-faint">
+          Isi kalium, target, dan berat badan. Tidak dihitung bila kalium sudah mencapai target.
+        </p>
+      )}
+    </section>
   );
 }

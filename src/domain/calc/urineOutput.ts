@@ -22,7 +22,7 @@ export interface UrineOutputResult {
   rate: number;
   /** Projected 24-hour volume, for a collection shorter than a day. */
   perDayMl: number;
-  band: 'oliguria' | 'low' | 'normal' | 'high';
+  band: 'severe' | 'oliguria' | 'normal' | 'high';
   /** The handover line, ready to paste. */
   line: string;
 }
@@ -30,22 +30,27 @@ export interface UrineOutputResult {
 /**
  * Bands are for orientation, not diagnosis.
  *
- * 0.5 ml/kg/h is the conventional oliguria threshold. The band is shown as a
- * word, never as a colour alone and never as advice — what it means depends on
- * the patient, and the app does not know the patient.
+ * Corrected against the sources: **≥0.5 ml/kg/h is adequate** in an adult, so
+ * the old 0.5–1.0 band labelled "Rendah" was wrong — it called a normal output
+ * low. KDIGO uses <0.5 for AKI stages 1–2 and <0.3 for stage 3, which is why
+ * 0.3 is a band of its own.
+ *
+ * Staging is deliberately NOT attempted: it depends on how long the rate has
+ * persisted (6h, 12h, 24h), and a single collection cannot establish that. The
+ * band is a word, never a colour alone and never advice.
  */
 function bandFor(rate: number): UrineOutputResult['band'] {
+  if (rate < 0.3) return 'severe';
   if (rate < 0.5) return 'oliguria';
-  if (rate < 1) return 'low';
   if (rate <= 3) return 'normal';
   return 'high';
 }
 
 export const BAND_LABELS: Record<UrineOutputResult['band'], string> = {
+  severe: 'Oliguria berat (<0.3)',
   oliguria: 'Oliguria (<0.5)',
-  low: 'Rendah (0.5–1.0)',
-  normal: 'Normal (1.0–3.0)',
-  high: 'Tinggi (>3.0)',
+  normal: 'Cukup (0.5–3.0)',
+  high: 'Poliuria (>3.0)',
 };
 
 function round(value: number, places: number): number {

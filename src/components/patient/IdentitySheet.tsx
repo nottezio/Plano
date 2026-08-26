@@ -80,6 +80,11 @@ export function IdentitySheet({
 
       <div className="space-y-3">
         <Field
+          label="Chief"
+          value={patient.chief ?? ''}
+          onChange={(chief) => patch({ chief })}
+        />
+        <Field
           label="Nama"
           value={patient.name ?? ''}
           onChange={(name) => patch({ name })}

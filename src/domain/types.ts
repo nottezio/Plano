@@ -284,6 +284,13 @@ export interface Patient {
    */
   temporary?: boolean;
   /**
+   * Chief on duty for this patient.
+   *
+   * Per patient rather than per shift: a chief covers some of your patients and
+   * not others, and the one you need is the one who signs off THIS note.
+   */
+  chief?: string;
+  /**
    * Where the patient is in discharge planning.
    *
    * A flag on the patient, not a checklist tick: it survives the day rollover,
@@ -389,6 +396,13 @@ export interface AppDocument {
    * query and a migration the day one becomes permanent.
    */
   temporary?: boolean;
+  /**
+   * Chief on duty for this patient.
+   *
+   * Per patient rather than per shift: a chief covers some of your patients and
+   * not others, and the one you need is the one who signs off THIS note.
+   */
+  chief?: string;
   /**
    * Where the patient is in discharge planning.
    *

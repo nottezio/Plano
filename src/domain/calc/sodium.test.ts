@@ -1,6 +1,10 @@
 import { describe, expect, it } from 'vitest';
 
-import { calculateOsmolality, calculateSodiumCorrection } from './sodium';
+import {
+  calculateOsmolality,
+  calculatePotassiumDeficit,
+  calculateSodiumCorrection,
+} from './sodium';
 
 describe('calculateSodiumCorrection', () => {
   it('reproduces the worked example from the reference sheet', () => {
@@ -115,6 +119,60 @@ describe('calculateOsmolality', () => {
   it('shows its working', () => {
     expect(calculateOsmolality({ sodium: 140, glucose: 90, bun: 14 })?.line).toBe(
       'Osmolalitas = 2(140) + 90/18 + 14/2.8 = 290 mOsm/kg',
+    );
+  });
+});
+
+describe('calculatePotassiumDeficit', () => {
+  it('matches the worked example published with the formula', () => {
+    // 70 kg, K 3.0, target 3.5 → (3.5-3.0) × 70 × 0.4 = 14 mEq.
+    const result = calculatePotassiumDeficit({ current: 3.0, target: 3.5, weightKg: 70 });
+    expect(result?.deficitMeq).toBe(14);
+  });
+
+  it('matches the other published example, target 4.0', () => {
+    // (4.0 - 3.0) × 70 × 0.4 = 28 mEq.
+    expect(
+      calculatePotassiumDeficit({ current: 3.0, target: 4.0, weightKg: 70 })?.deficitMeq,
+    ).toBe(28);
+  });
+
+  it('adds daily maintenance at 1 mmol/kg, which the deficit excludes', () => {
+    // Giving only the deficit is why a potassium corrected yesterday is low
+    // again today.
+    const result = calculatePotassiumDeficit({ current: 3.0, target: 3.5, weightKg: 70 });
+    expect(result?.maintenanceMeq).toBe(70);
+    expect(result?.totalMeq).toBe(84);
+  });
+
+  it('converts to grams of KCl at 13.4 mmol per gram', () => {
+    const result = calculatePotassiumDeficit({ current: 3.0, target: 3.5, weightKg: 70 });
+    expect(result?.kclGrams).toBeCloseTo(6.3, 1);
+  });
+
+  it('grades severity by the measured value', () => {
+    expect(calculatePotassiumDeficit({ current: 3.2, target: 3.5, weightKg: 60 })?.severity).toBe(
+      'ringan',
+    );
+    expect(calculatePotassiumDeficit({ current: 2.8, target: 3.5, weightKg: 60 })?.severity).toBe(
+      'sedang',
+    );
+    expect(calculatePotassiumDeficit({ current: 2.2, target: 3.5, weightKg: 60 })?.severity).toBe(
+      'berat',
+    );
+  });
+
+  it('returns nothing when potassium is already at target', () => {
+    expect(calculatePotassiumDeficit({ current: 4.0, target: 3.5, weightKg: 70 })).toBeNull();
+  });
+
+  it('returns nothing without a weight', () => {
+    expect(calculatePotassiumDeficit({ current: 3.0, target: 3.5, weightKg: 0 })).toBeNull();
+  });
+
+  it('shows its working', () => {
+    expect(calculatePotassiumDeficit({ current: 3.0, target: 3.5, weightKg: 70 })?.line).toContain(
+      '(3.5-3) x 70 x 0.4 = 14 mEq',
     );
   });
 });
