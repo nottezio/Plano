@@ -113,12 +113,37 @@ export function createPatient(uid: string, input: CreatePatientInput): {
 /** Longest preview the board can show: 4 lines at a comfortable card width. */
 const PREVIEW_LIMIT = 240;
 
+/**
+ * What the card shows: the assessment, falling back to the note's opening.
+ *
+ * It used to show whatever came first after the greeting — which is S, so every
+ * card read "nyeri dada tidak ada, sesak tidak ada". True, identical across
+ * half the ward, and no help at all in finding a patient.
+ *
+ * The assessment is what identifies them: `CAD 3VD`, `Severe MR pro MVR`,
+ * `CHF NYHA IV`. That is the line you scan a board for, so that is the line the
+ * card leads with.
+ *
+ * When there is no assessment yet — a fresh admission, a note still being
+ * written — it falls back to the old behaviour rather than showing an empty
+ * card, because "nothing written yet" is better said by showing the beginning
+ * of what was.
+ */
 export function buildPreview(body: string, aliases?: readonly SectionAlias[]): string {
   const resolved = aliases ?? DEFAULT_SECTION_ALIASES;
   const sections = parseSections(body, resolved);
-  const trimmed = body.slice(clinicalStart(sections)).trim();
 
-  return trimmed.length > PREVIEW_LIMIT ? `${trimmed.slice(0, PREVIEW_LIMIT)}…` : trimmed;
+  const assessment = sections.find((section) => {
+    if (section.sectionId === 'a') return true;
+    const haystack = `${section.sectionId} ${section.label}`.toLowerCase();
+    return /diagnos|assess|problem/.test(haystack);
+  });
+
+  const source = assessment?.text.trim()
+    ? assessment.text.trim()
+    : body.slice(clinicalStart(sections)).trim();
+
+  return source.length > PREVIEW_LIMIT ? `${source.slice(0, PREVIEW_LIMIT)}…` : source;
 }
 
 /**

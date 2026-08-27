@@ -18,6 +18,7 @@ import {
 } from './board';
 import { DEFAULT_CHECKLIST } from './defaults';
 import { buildSearchBlobFor, makePatient } from './testFactories';
+import { buildPreview } from '@/data/repositories/patients.repo';
 
 const ITEMS = DEFAULT_CHECKLIST.map((item) => ({ ...item }));
 const TODAY = '2026-08-06';
@@ -461,5 +462,33 @@ describe('discharge stage on the card', () => {
   it('still reads a legacy stage rather than losing it', () => {
     const legacy = { ...makePatient({}), discharge: 'h1' as const };
     expect(buildCard(legacy, ITEMS, TODAY, false).discharge).toBe('h1');
+  });
+});
+
+describe('what the card leads with', () => {
+  it('shows the assessment, not the subjective', () => {
+    // Every card used to read "nyeri dada tidak ada, sesak tidak ada" — true,
+    // identical across half the ward, and no help in finding a patient.
+    const body = [
+      'Assalamualaikum dokter. Melaporkan pasien atas nama:',
+      '*Tn. A / 50 tahun / RM 123456*',
+      '',
+      '*S:*',
+      '- nyeri dada tidak ada, sesak tidak ada',
+      '',
+      '*Mohon izin kami assess dengan:*',
+      '- CAD 3 Vessel Disease',
+      '- Hypertensive Heart Disease',
+    ].join('\n');
+
+    const preview = buildPreview(body);
+    expect(preview).toContain('CAD 3 Vessel Disease');
+    expect(preview).not.toContain('nyeri dada tidak ada');
+  });
+
+  it('falls back to the opening when there is no assessment yet', () => {
+    // A fresh admission still being written should not show a blank card.
+    const body = '*S:*\n- sesak sejak 3 hari';
+    expect(buildPreview(body)).toContain('sesak sejak 3 hari');
   });
 });

@@ -84,7 +84,10 @@ export function DateRail({
             className={[
               'flex min-h-tap shrink-0 rounded-lg px-3 py-1 text-xs',
               orientation === 'vertical'
-                ? 'w-full min-w-0 flex-row items-center justify-between gap-2 text-left'
+                // `flex-1`, not `w-full`: the row shares its width with the
+                // clear button beside it, and `w-full` left that button no room
+                // at all — which is why it never appeared.
+                ? 'min-w-0 flex-1 flex-row items-center justify-between gap-2 text-left'
                 : 'flex-col items-center justify-center',
               active ? 'bg-accent font-medium text-white' : 'text-fg-muted',
             ].join(' ')}

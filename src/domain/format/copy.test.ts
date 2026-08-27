@@ -16,9 +16,9 @@ import {
   resolveRange,
   type CopyDay,
 } from './composeCopy';
-import { DEFAULT_SECTION_ALIASES } from '../sections/aliases';
 import { makePatient } from '../testFactories';
 import type { SectionId } from '../types';
+import { DEFAULT_SECTION_ALIASES } from '../sections/aliases';
 
 const PATIENT = makePatient({
   name: 'Tn. Budi Santoso',
@@ -249,8 +249,9 @@ describe('composeCopy — multiple days', () => {
 
 describe('composeSection', () => {
   it('copies one section with its header as typed', () => {
+    // The heading keeps its own line, as it has in the note.
     expect(composeSection(BODY, 'penunjang' as SectionId, 'plain', DEFAULT_SECTION_ALIASES)).toBe(
-      'Penunjang: Hb 10.2',
+      'Penunjang:\nHb 10.2',
     );
   });
 
@@ -589,5 +590,16 @@ describe('invisible characters are stripped from every format', () => {
 
   it('still lets the guarded bullet insert its own invisible characters', () => {
     expect(toWhatsApp('- Aspilet', 'guarded')).toBe('\u200B-\u00A0Aspilet');
+  });
+});
+
+describe('copying a single section', () => {
+  it('puts the heading on its own line', () => {
+    // `*Plan:* - Monitoring` was what a space produced. Every real note has the
+    // first item on the line below its heading.
+    const body = ['*S:*', '- nyeri dada tidak ada', '', '*Plan:*', '- Monitoring TTV'].join('\n');
+    const out = composeSection(body, 'p', 'whatsapp', DEFAULT_SECTION_ALIASES);
+    expect(out).toContain('*Plan:*\n- Monitoring TTV');
+    expect(out).not.toContain('*Plan:* -');
   });
 });

@@ -166,7 +166,10 @@ export function composeSection(
   if (!section) return '';
 
   const header = section.blocks[0]?.headerLine?.replace(/[ \t]+$/, '');
-  const text = includeHeader && header ? `${header} ${section.text}`.trim() : section.text;
+  // A newline, not a space. `*Plan:* - Monitoring` is what a space produced,
+  // and every real note puts the first item on the line below its heading.
+  const text =
+    includeHeader && header ? `${header}\n${section.text.trimStart()}`.trimEnd() : section.text;
   return formatBody(text, format, bullet);
 }
 

@@ -413,7 +413,18 @@ export default function PatientPage(): JSX.Element {
           view exactly when they were needed. The identity bar sits below it, so
           the two stack rather than overlap.
         */}
-        <header className="sticky top-0 z-30 flex items-center gap-2 border-b border-border bg-bg/95 px-4 py-2 backdrop-blur">
+        {/*
+          ONE sticky bar, not two.
+          
+          The date header and the identity bar were both sticky, so they stacked
+          and covered a third of a phone screen — and the identity bar's own
+          text was hidden behind the header above it.
+          
+          The identity now lives inside this bar as its second line, which is
+          also where it reads best: name and record number directly under the
+          day they belong to.
+        */}
+        <header className="sticky top-0 z-30 flex items-center gap-2 border-b border-border bg-bg/95 px-4 py-1.5 backdrop-blur">
           {/* Browser back exists, but on an installed PWA there is no chrome to
               show it, and on desktop the note fills the window. */}
           <button

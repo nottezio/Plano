@@ -160,6 +160,24 @@ export function BodyEditor({
           ref={ref}
           value={value}
           onChange={(event) => onChange(event.target.value)}
+          /**
+           * A dropped link is not an edit anyone meant to make.
+           *
+           * A textarea accepts drag-and-drop natively, so dragging a browser
+           * tab, a bookmark, or a selected address into the note inserts the
+           * URL wherever it lands — which is where the app's own address kept
+           * appearing mid-sentence. Nothing in the app writes it.
+           *
+           * Dropped plain TEXT is still accepted, because that is a real way to
+           * move a phrase between notes. Only URLs are refused.
+           */
+          onDrop={(event) => {
+            const uri = event.dataTransfer.getData('text/uri-list');
+            if (uri) {
+              event.preventDefault();
+              console.warn('[editor] refused a dropped link');
+            }
+          }}
           onFocus={() => setFocused(true)}
           onBlur={() => {
             setFocused(false);
