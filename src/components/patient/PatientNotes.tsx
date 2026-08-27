@@ -1,4 +1,4 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useLayoutEffect, useRef, useState } from 'react';
 
 import { updatePatient } from '@/data/repositories/patients.repo';
 import { useTextSync, type TextSyncState } from '@/hooks/useTextSync';
@@ -44,6 +44,17 @@ export function usePatientNotes(patient: Patient | null): TextSyncState {
 }
 
 export function PatientNotes({ sync }: { sync: TextSyncState }): JSX.Element {
+  const ref = useRef<HTMLTextAreaElement>(null);
+
+  // Height follows the content. `overflow-hidden` on the element keeps the
+  // inner scrollbar from appearing for the instant before this runs.
+  useLayoutEffect(() => {
+    const node = ref.current;
+    if (!node) return;
+    node.style.height = 'auto';
+    node.style.height = `${node.scrollHeight}px`;
+  }, [sync.value]);
+
   const [open, setOpen] = useState(false);
   const preview = sync.value.trim().split('\n')[0] ?? '';
 
@@ -70,13 +81,22 @@ export function PatientNotes({ sync }: { sync: TextSyncState }): JSX.Element {
 
       {open ? (
         <div className="px-4 pb-3 xl:px-0">
+          {/*
+            Grows with its content instead of scrolling inside five rows.
+            
+            A standing note is read at a glance — allergies, family contact, a
+            DPJP's request — and a box that hides half of it behind an inner
+            scrollbar defeats that. Height is set from `scrollHeight` on every
+            change, the same way the SOAP editor does it.
+          */}
           <textarea
+            ref={ref}
             value={sync.value}
             onChange={(event) => sync.setValue(event.target.value)}
             onBlur={sync.flush}
-            rows={5}
+            rows={3}
             placeholder="Alergi, kontak keluarga, akses, permintaan DPJP…"
-            className="w-full resize-y break-words rounded-lg border border-border bg-surface p-2 text-sm leading-relaxed outline-none placeholder:text-fg-faint"
+            className="w-full resize-none overflow-hidden break-words rounded-lg border border-border bg-surface p-2 text-sm leading-relaxed outline-none placeholder:text-fg-faint"
           />
           <p className="mt-1 text-[11px] text-fg-faint">
             Berlaku untuk seluruh hari rawat dan tidak ikut tersalin ke laporan.

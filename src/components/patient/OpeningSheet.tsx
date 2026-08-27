@@ -2,6 +2,8 @@ import { Sheet } from '@/components/common/Sheet';
 import {
   findOpeningLine,
   replaceClosing,
+  useDokterForm,
+  useProfForm,
   replaceGreeting,
   replaceOpeningSentence,
   splitOpening,
@@ -103,6 +105,30 @@ export function OpeningSheet({
         <p className="mt-2 text-[11px] text-fg-faint">
           Ruang, kamar, bed, dan poli tetap diisi manual — daftar ini hanya kerangka
           kalimatnya. Tambah atau ubah di Pengaturan → Format catatan.
+        </p>
+      </section>
+
+      <section className="mt-5">
+        <h3 className="text-xs font-medium text-fg-muted">Sapaan</h3>
+        <div className="mt-1.5 flex gap-2">
+          <button
+            type="button"
+            onClick={() => onApply(useProfForm(body))}
+            className="min-h-tap flex-1 rounded-lg border border-border px-3 text-xs"
+          >
+            Ganti ke Prof
+          </button>
+          <button
+            type="button"
+            onClick={() => onApply(useDokterForm(body))}
+            className="min-h-tap flex-1 rounded-lg border border-border px-3 text-xs"
+          >
+            Ganti ke dokter
+          </button>
+        </div>
+        <p className="mt-1 text-[11px] text-fg-faint">
+          Mengganti sapaan di seluruh catatan sekaligus — salam, kalimat pembuka, dan penutup.
+          Nama DPJP (Dr./dr.) tidak ikut berubah.
         </p>
       </section>
 

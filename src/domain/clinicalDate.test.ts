@@ -231,7 +231,7 @@ describe('the admission entry is not a date', () => {
   });
 
   it('reads as the admission note in the day header', () => {
-    expect(formatDayHeader(IGD_ENTRY, '2026-08-20' as ClinicalDate)).toContain('SOAP IGD');
+    expect(formatDayHeader(IGD_ENTRY, '2026-08-20' as ClinicalDate)).toContain('SOAP Awal');
   });
 
   it('recognises a real date from an entry id', () => {
@@ -245,7 +245,7 @@ describe('labels survive an entry id that is not a date', () => {
     // date-fns throws on an invalid date, and these callers are all labels —
     // a page that cannot render a date should still render the page.
     expect(() => formatShortDate(IGD_ENTRY)).not.toThrow();
-    expect(formatShortDate(IGD_ENTRY)).toBe('IGD');
+    expect(formatShortDate(IGD_ENTRY)).toBe('Awal');
   });
 
   it('returns zero days rather than NaN', () => {

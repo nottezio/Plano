@@ -38,7 +38,7 @@ export function IdentityBar({
       // Tinted and taller. This is the line that answers "am I in the right
       // chart", and it was competing with the note for attention by looking
       // exactly like it.
-      className="sticky top-0 z-20 w-full border-b border-border px-4 py-1.5 text-left backdrop-blur"
+      className="sticky top-[var(--patient-header-h,44px)] z-20 w-full border-b border-border px-4 py-1.5 text-left backdrop-blur"
       style={{ backgroundColor: 'var(--sec-identitas)' }}
     >
       <span className="flex items-baseline gap-2">

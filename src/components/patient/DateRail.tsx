@@ -60,7 +60,7 @@ export function DateRail({
             : 'border-border text-fg-muted',
         ].join(' ')}
       >
-        <span className="flex-1">SOAP IGD</span>
+        <span className="flex-1">SOAP Awal</span>
         {datesWithContent.has(IGD_ENTRY) ? <span aria-hidden="true">·</span> : null}
       </button>
 

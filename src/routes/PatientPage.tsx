@@ -233,11 +233,23 @@ export default function PatientPage(): JSX.Element {
    */
   const setDpjpHint = useUI((state) => state.setDpjpHint);
   useEffect(() => {
-    if (dpjp && dpjpFormat) {
+    /**
+     * A recognised DPJP always gets the panel, configured format or not.
+     *
+     * It required `dpjpFormat`, so a consultant with no entry in Settings —
+     * Peter Kabo among them — got no panel at all, and with it no poli line and
+     * no format reminder. The format is the optional part; the consultant being
+     * recognised is not.
+     */
+    if (dpjp) {
       setDpjpHint({
         initials: dpjp.initials,
         name: dpjp.name,
-        description: describeConfig(dpjpFormat),
+        description: dpjpFormat
+          ? describeConfig(dpjpFormat)
+          : // Unset means the standard daily handover — say so rather than
+            // leaving a blank where a format should be.
+            'Laporan harian',
         ...(poli
           ? {
               poli: `${weekdayName(poli.weekday)}, ${poli.date} · ${poli.slot.clinic} · ${poli.slot.time}`,
@@ -393,7 +405,15 @@ export default function PatientPage(): JSX.Element {
           empty slot between them where the identity line used to be, so the
           header spent three rows and a gap saying what fits on one.
         */}
-        <header className="flex items-center gap-2 border-b border-border px-4 py-2">
+        {/*
+          Sticky, above the identity bar.
+          
+          The date says which day you are writing into and Salin is the thing
+          you reach for after reading to the bottom — both were scrolling out of
+          view exactly when they were needed. The identity bar sits below it, so
+          the two stack rather than overlap.
+        */}
+        <header className="sticky top-0 z-30 flex items-center gap-2 border-b border-border bg-bg/95 px-4 py-2 backdrop-blur">
           {/* Browser back exists, but on an installed PWA there is no chrome to
               show it, and on desktop the note fills the window. */}
           <button

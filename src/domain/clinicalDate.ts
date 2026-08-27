@@ -115,7 +115,7 @@ export function formatLongDate(date: ClinicalDate): string {
 export function formatShortDate(date: ClinicalDate): string {
   // `date-fns` throws on an invalid date, and every caller here is a label —
   // a page that cannot render a date should still render the page.
-  if (!isDateLike(date)) return date === IGD_ENTRY ? 'IGD' : date;
+  if (!isDateLike(date)) return date === IGD_ENTRY ? 'Awal' : date;
   return format(shiftUtcToLocalFields(date), 'd MMM', { locale: localeId });
 }
 
@@ -140,7 +140,7 @@ export function isIgdEntry(date: ClinicalDate): boolean {
 
 export function formatDayHeader(date: ClinicalDate, admittedAt: ClinicalDate): string {
   // No date and no hari rawat: it is the note from before the stay.
-  if (date === IGD_ENTRY) return 'SOAP IGD · sebelum masuk bangsal';
+  if (date === IGD_ENTRY) return 'SOAP Awal · sebelum masuk bangsal';
   return `${formatLongDate(date)} · Hari rawat ke-${hariRawat(date, admittedAt)}`;
 }
 

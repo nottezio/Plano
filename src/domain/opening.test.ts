@@ -8,6 +8,8 @@ import {
   replaceOpeningSentence,
   splitOpening,
   suggestGreetingIndex,
+  useDokterForm,
+  useProfForm,
 } from './opening';
 
 const OPENING =
@@ -147,3 +149,27 @@ describe('replaceClosing', () => {
     expect(replaceClosing('', 'Terima kasih dokter')).toBe('Terima kasih dokter');
   });
 });
+
+describe('Prof and dokter forms', () => {
+  it('swaps every address in one pass', () => {
+    // Getting one of the three wrong in a message to a professor reads as
+    // carelessness, and doing it by hand means remembering all three.
+    const note = 'Selamat pagi dokter. Tabe dokter, melaporkan…\n\nTerima kasih dokter';
+    const prof = useProfForm(note);
+    expect(prof).toBe('Selamat pagi prof. Tabe prof, melaporkan…\n\nTerima kasih prof');
+  });
+
+  it('preserves case', () => {
+    expect(useProfForm('Dokter yang terhormat')).toBe('Prof yang terhormat');
+  });
+
+  it('leaves dr. and Dr. alone — those are titles, not address', () => {
+    const dpjp = '_DPJP Utama : Dr. dr. Az Hafid Nashar, Sp.JP(K)_';
+    expect(useProfForm(dpjp)).toBe(dpjp);
+  });
+
+  it('goes back again', () => {
+    const note = 'Selamat pagi prof. Terima kasih prof';
+    expect(useDokterForm(note)).toBe('Selamat pagi dokter. Terima kasih dokter');
+  });
+})
