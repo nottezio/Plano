@@ -9,6 +9,7 @@ import { IdentitySheet } from '@/components/patient/IdentitySheet';
 import { PatientActionsSheet } from '@/components/patient/PatientActionsSheet';
 import { ReformatSheet } from '@/components/patient/ReformatSheet';
 import { IdentityBar } from '@/components/patient/IdentityBar';
+import { JumpBar } from '@/components/patient/JumpBar';
 import { LabSheet } from '@/components/patient/LabSheet';
 import { PatientNotes, usePatientNotes } from '@/components/patient/PatientNotes';
 import { PatientTodos } from '@/components/patient/PatientTodos';
@@ -545,6 +546,17 @@ export default function PatientPage(): JSX.Element {
             onEdit={() => setIdentityOpen(true)}
           />
         ) : null}
+
+        {/*
+          Row three, and the reason it is inside the sticky header rather than
+          above the note: an index you have to scroll back up to reach is not an
+          index. It is only useful at the moment you are lost in the middle of a
+          long note.
+
+          Below the identity row, not above it: identity answers "right chart",
+          which has to be readable without reading anything else first.
+        */}
+        <JumpBar body={editor.value} aliases={settings.sectionAliases} />
         </header>
 
         {/*

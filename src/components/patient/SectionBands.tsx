@@ -27,9 +27,20 @@ import { useDebouncedValue } from '@/hooks/useDebouncedValue';
 export function SectionBands({
   body,
   aliases,
+  paint,
 }: {
   body: string;
   aliases: readonly SectionAlias[];
+  /**
+   * Whether to actually PAINT the tints. The mirror is mounted either way.
+   *
+   * It has to be, because it is also what the jump bar measures against: the
+   * anchors are spans in this layer, and a layer that only exists when the
+   * tint setting is on would make "lompat ke O" work for some users only.
+   * Unpainted it is `text-transparent` with no backgrounds — invisible, and
+   * the same single extra text layout it always was for tint users.
+   */
+  paint: boolean;
 }): JSX.Element {
   /**
    * Parsed from a settled copy, not from every keystroke.
@@ -53,11 +64,14 @@ export function SectionBands({
      * a boundary again, which is what a scanning aid is.
      */
     const seen = new Set<string>();
+    const anchored = new Set<string>();
     const result: Array<{
       key: string;
       text: string;
       tint: string | null;
       block?: boolean;
+      /** Anchor id for the jump bar, on the first occurrence of each kind. */
+      anchor?: string;
     }> = [];
     let cursor = 0;
 
@@ -78,12 +92,25 @@ export function SectionBands({
 
       const kind = tintFor(section.sectionId, section.label);
       const tint = kind && !seen.has(kind) ? kind : null;
+      /**
+       * The anchor rides on the FIRST occurrence of each section id, which is
+       * the same rule the tint uses and for the same reason: a note carries
+       * three EKG blocks and five lab dates, and "jump to O" means the first
+       * one, not an arbitrary later one.
+       *
+       * Keyed on `sectionId` rather than `kind` because the tint palette maps
+       * several ids onto one colour, and two sections sharing a colour still
+       * need separate jump targets.
+       */
+      const anchor = anchored.has(section.sectionId) ? undefined : section.sectionId;
+      if (anchor) anchored.add(section.sectionId);
       if (kind) seen.add(kind);
       result.push({
         key: `head-${index}`,
         text: settled.slice(section.start, headerEnd),
         tint: tint ? TINT_VAR[tint] : null,
         block: true,
+        ...(anchor ? { anchor } : {}),
       });
       // The newline is consumed by the block above — a block element already
       // ends its line, so leaving the `\n` here would open a second one and
@@ -110,19 +137,26 @@ export function SectionBands({
       className={`${METRICS} pointer-events-none absolute inset-0 overflow-hidden text-transparent`}
     >
       {parts.map((part) =>
-        part.tint ? (
+        part.tint && paint ? (
           // Block, and stretched past the padding to both edges: a band that
           // stops at the last character reads as a highlight on those words.
           // Running border to border reads as the section it marks.
           <span
             key={part.key}
-            className="-mx-4 block px-4"
+            id={part.anchor ? `sec-${part.anchor}` : undefined}
+            // Clears the two-row sticky header, so a jumped-to heading lands
+            // below it instead of underneath it.
+            className="-mx-4 block scroll-mt-28 px-4"
             style={{ backgroundColor: part.tint }}
           >
             {part.text}
           </span>
         ) : part.block ? (
-          <span key={part.key} className="block">
+          <span
+            key={part.key}
+            id={part.anchor ? `sec-${part.anchor}` : undefined}
+            className="block scroll-mt-28"
+          >
             {part.text}
           </span>
         ) : (

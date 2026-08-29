@@ -155,7 +155,14 @@ export function BodyEditor({
         use it. Changing padding in one place now changes it in both.
       */}
       <div className="relative min-w-0 flex-1">
-        {tint ? <SectionBands body={value} aliases={aliases} /> : null}
+        {/*
+          Mounted unconditionally now, with `paint` deciding whether the tints
+          are drawn. It is also the jump bar's measurement layer — the section
+          anchors are spans inside it — and a layer that only existed when the
+          tint setting was on would have made section jumping work for some
+          users and silently not for others.
+        */}
+        <SectionBands body={value} aliases={aliases} paint={tint} />
         <textarea
           ref={ref}
           value={value}
