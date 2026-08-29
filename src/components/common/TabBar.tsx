@@ -1,5 +1,7 @@
-import { NavLink } from 'react-router-dom';
+import { useState } from 'react';
+import { NavLink, useLocation, useNavigate } from 'react-router-dom';
 
+import { Sheet } from './Sheet';
 import { SyncPill } from './SyncPill';
 import { APP_VERSION } from '@/version.js';
 import {
@@ -8,6 +10,7 @@ import {
   IconCalculator,
   IconChecklist,
   IconDocuments,
+  IconMore,
   IconNote,
   IconSettings,
 } from './Icons';
@@ -46,6 +49,13 @@ const TABS = [
 
 export function TabBar(): JSX.Element {
   const hint = useUI((state) => state.dpjpHint);
+  const [toolsOpen, setToolsOpen] = useState(false);
+  const { pathname } = useLocation();
+  const navigate = useNavigate();
+
+  // The disclosure has to show the accent when the open screen is one of the
+  // tools, or the phone bar says nothing is selected while a tool is on screen.
+  const toolActive = TOOL_TABS.some((tab) => tab.to === pathname);
 
   return (
     <nav
@@ -88,13 +98,38 @@ export function TabBar(): JSX.Element {
         </NavLink>
       ))}
 
-      {/* Desktop only: the sidebar has dead space at the bottom, and a footer
-          under the content pushed the empty state off-centre. On phone the tab
-          bar is 64 px of thumb target — nothing else belongs in it. */}
-      {/* Tools, one row on a phone and a compact block on the rail. */}
+      {/*
+        Tools. A disclosure on phone, an inline block on the rail.
+
+        This USED TO BE one `flex shrink-0` row of four labelled links inside
+        the phone bar, which is what the note above says it should not be. The
+        container refused to shrink and had no `min-w-0`, so its width was the
+        intrinsic width of "CatatanKalkulatorChecklistPengaturan" — four labels
+        that cannot truncate — and it overflowed the viewport. Seven targets in
+        a 360 px bar left about 51 px each: legal by the tap-target check, and
+        unreadable.
+
+        The rail (>=640 px) is a column with room for all four, so it keeps
+        them inline. Only the phone bar gets the extra tap the note describes.
+      */}
+      <button
+        type="button"
+        onClick={() => setToolsOpen(true)}
+        aria-label="Alat lainnya"
+        aria-expanded={toolsOpen}
+        className={[
+          'flex min-h-tap flex-1 flex-col items-center justify-center gap-1 px-1 py-2 text-[11px]',
+          'sm:hidden',
+          toolActive ? 'text-accent' : 'text-fg-faint',
+        ].join(' ')}
+      >
+        <IconMore strokeWidth={toolActive ? 2.1 : 1.75} />
+        <span className={toolActive ? 'font-medium' : undefined}>Lainnya</span>
+      </button>
+
       <div
         className={[
-          'flex shrink-0',
+          'hidden shrink-0 sm:flex',
           'sm:mt-1 sm:w-full sm:flex-col sm:gap-0.5 sm:border-t sm:border-border sm:pt-1',
         ].join(' ')}
       >
@@ -116,6 +151,43 @@ export function TabBar(): JSX.Element {
           </NavLink>
         ))}
       </div>
+
+      {/*
+        Full-width rows, not a grid of icons.
+
+        The sheet exists because four labels did not fit across a phone bar;
+        laying them out in a 2×2 grid inside it would reproduce the same
+        squeeze one level down.
+      */}
+      <Sheet
+        open={toolsOpen}
+        onOpenChange={setToolsOpen}
+        title="Alat"
+        description="Catatan lepas, kalkulator, checklist, dan pengaturan."
+      >
+        <div className="flex flex-col p-2">
+          {TOOL_TABS.map(({ to, label, Icon }) => {
+            const active = pathname === to;
+            return (
+              <button
+                key={to}
+                type="button"
+                onClick={() => {
+                  setToolsOpen(false);
+                  navigate(to);
+                }}
+                className={[
+                  'flex min-h-tap items-center gap-3 rounded-lg px-3 py-2 text-left text-sm',
+                  active ? 'bg-bg-subtle font-medium text-accent' : 'text-fg',
+                ].join(' ')}
+              >
+                <Icon className="h-5 w-5 shrink-0" />
+                <span className="min-w-0 flex-1 truncate">{label}</span>
+              </button>
+            );
+          })}
+        </div>
+      </Sheet>
 
       {/*
         Reporting format for the patient currently open.

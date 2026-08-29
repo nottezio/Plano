@@ -44,16 +44,43 @@ export function usePatientNotes(patient: Patient | null): TextSyncState {
 }
 
 export function PatientNotes({ sync }: { sync: TextSyncState }): JSX.Element {
-  const ref = useRef<HTMLTextAreaElement>(null);
+  const ref = useRef<HTMLTextAreaElement | null>(null);
 
-  // Height follows the content. `overflow-hidden` on the element keeps the
-  // inner scrollbar from appearing for the instant before this runs.
-  useLayoutEffect(() => {
-    const node = ref.current;
+  /**
+   * Height follows the content.
+   *
+   * `measure` is called from BOTH a callback ref and a value effect, and that
+   * is the whole fix. It used to be a `useLayoutEffect` keyed on `[sync.value]`
+   * alone, which never ran for the mount that mattered: the panel is collapsed
+   * by default, so on the first pass `ref.current` was `null` and the effect
+   * returned early — and when the panel opened, `sync.value` had not changed,
+   * so the effect did not re-run. The textarea mounted at `rows={3}` and stayed
+   * there until the next keystroke, no matter how long the stored note was.
+   *
+   * A callback ref fires whenever the node attaches, which is exactly the event
+   * "the element now exists and can be measured". Adding `open` to a dependency
+   * array would fix this one case; keying on the node fixes the class of it.
+   *
+   * `height = 'auto'` before reading `scrollHeight` is required — without it
+   * the box can only ever grow, never shrink back when text is deleted.
+   */
+  const measure = useCallback((node: HTMLTextAreaElement | null) => {
     if (!node) return;
     node.style.height = 'auto';
     node.style.height = `${node.scrollHeight}px`;
-  }, [sync.value]);
+  }, []);
+
+  const attach = useCallback(
+    (node: HTMLTextAreaElement | null) => {
+      ref.current = node;
+      measure(node);
+    },
+    [measure],
+  );
+
+  useLayoutEffect(() => {
+    measure(ref.current);
+  }, [measure, sync.value]);
 
   const [open, setOpen] = useState(false);
   const preview = sync.value.trim().split('\n')[0] ?? '';
@@ -90,13 +117,22 @@ export function PatientNotes({ sync }: { sync: TextSyncState }): JSX.Element {
             change, the same way the SOAP editor does it.
           */}
           <textarea
-            ref={ref}
+            ref={attach}
             value={sync.value}
             onChange={(event) => sync.setValue(event.target.value)}
             onBlur={sync.flush}
             rows={3}
             placeholder="Alergi, kontak keluarga, akses, permintaan DPJP…"
-            className="w-full resize-none overflow-hidden break-words rounded-lg border border-border bg-surface p-2 text-sm leading-relaxed outline-none placeholder:text-fg-faint"
+            // `[overflow-wrap:anywhere]` rather than `break-words`.
+            //
+            // `break-words` (overflow-wrap: break-word) will not break a token
+            // that is alone on its line, so a long unbroken string — a URL, a
+            // run-on note with no spaces — overflowed horizontally instead of
+            // wrapping. `scrollHeight` measures VERTICAL content, so the box
+            // never grew: the text was there, one line tall, running off the
+            // side under `overflow-hidden`. `anywhere` breaks it, the text
+            // wraps, and the measurement then has something to measure.
+            className="w-full resize-none overflow-hidden [overflow-wrap:anywhere] rounded-lg border border-border bg-surface p-2 text-sm leading-relaxed outline-none placeholder:text-fg-faint"
           />
           <p className="mt-1 text-[11px] text-fg-faint">
             Berlaku untuk seluruh hari rawat dan tidak ikut tersalin ke laporan.

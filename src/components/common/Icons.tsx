@@ -111,3 +111,17 @@ export const IconClose = (props: IconProps): JSX.Element => (
     <path d="M6 6l12 12M18 6 6 18" />
   </Base>
 );
+
+/**
+ * The tools disclosure in the phone tab bar.
+ *
+ * Three dots rather than a chevron: a chevron implies the row expands in
+ * place, and this opens a sheet.
+ */
+export const IconMore = (props: IconProps): JSX.Element => (
+  <Base {...props}>
+    <circle cx="5" cy="12" r="1.4" fill="currentColor" stroke="none" />
+    <circle cx="12" cy="12" r="1.4" fill="currentColor" stroke="none" />
+    <circle cx="19" cy="12" r="1.4" fill="currentColor" stroke="none" />
+  </Base>
+);
