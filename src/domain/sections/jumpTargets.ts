@@ -28,7 +28,9 @@ export interface JumpTarget {
 const ORDER: readonly SectionId[] = ['s', 'o', 'a', 'terapi', 'p'];
 
 /**
- * Fallback labels, used only when a header token cannot be recovered.
+ * Fallback labels, used when the note's own token is missing or too wide for a
+ * button. Keyed to the section, so the fallback is still the word the note
+ * would have used in its short form.
  */
 const SHORT: Record<string, string> = {
   s: 'S',
@@ -54,6 +56,8 @@ const SHORT: Record<string, string> = {
  * also self-maintaining: rename a section in settings, write the new word in a
  * note, and the button follows without this file knowing anything about it.
  */
+const MAX_LABEL = 10;
+
 export function headerToken(headerLine: string | null): string | null {
   if (!headerLine) return null;
   const token = headerLine
@@ -95,7 +99,24 @@ export function jumpTargets(
   for (const id of ORDER) {
     const section = present.get(id);
     if (!section) continue;
-    const label = headerToken(section.headerLine) ?? SHORT[id] ?? id.toUpperCase();
+    const token = headerToken(section.headerLine);
+    /**
+     * A long token falls back to the canonical short form.
+     *
+     * The corpus headers are not all short: `a` and `terapi` are routinely
+     * written "Mohon izin kami assess dengan" and "Mohon izin kami terapi
+     * dengan", and a 29-character button is not an index.
+     *
+     * This is NOT the arbitrary cutoff that was here before. That one compared
+     * ALIAS TABLE labels, where "Subjektif" (9) and "Objektif" (8) straddled
+     * the threshold and produced "S" beside "Objektif" for two headers written
+     * identically in the note. This compares the note's own token against a
+     * width the button can actually render, and every ordinary heading — "S",
+     * "O", "A", "Terapi", "Plan", "Subjektif" — sits comfortably under it, so
+     * the mixed-form result cannot recur.
+     */
+    const label =
+      token && token.length <= MAX_LABEL ? token : (SHORT[id] ?? id.toUpperCase());
     targets.push({ sectionId: id, label, anchorId: `sec-${id}` });
   }
 

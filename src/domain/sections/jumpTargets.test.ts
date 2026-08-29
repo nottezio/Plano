@@ -125,6 +125,20 @@ describe('jumpTargets', () => {
       expect(headerToken('***')).toBeNull();
     });
 
+    it('falls back to the short form for the corpus prose headers', () => {
+      // `a` and `terapi` are routinely written as a full sentence in the real
+      // notes. A 29-character button is not an index.
+      const prose = [
+        '*S :*', 'x',
+        '*Mohon izin kami assess dengan :*', '1. CHF',
+        '*Mohon izin kami terapi dengan :*', '- Furosemide',
+      ].join('\n');
+      const byId = new Map(jumpTargets(prose, ALIASES).map((t) => [t.sectionId, t.label]));
+      expect(byId.get('a')).toBe('A');
+      expect(byId.get('terapi')).toBe('Terapi');
+      expect(byId.get('s')).toBe('S');
+    });
+
     it('falls back to the canonical short form when there is no header token', () => {
       // `_intro` has a null headerLine; no known section should ever render
       // an empty button.
