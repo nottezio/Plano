@@ -1,8 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { DEFAULT_SECTION_ALIASES } from './aliases';
-import { jumpTargets } from './jumpTargets';
-import type { SectionAlias } from '../types';
+import { headerToken, jumpTargets } from './jumpTargets';
 
 const ALIASES = DEFAULT_SECTION_ALIASES;
 
@@ -90,19 +89,48 @@ describe('jumpTargets', () => {
     ).toBe(true);
   });
 
-  it('uses a short alias when the user renamed a section', () => {
-    const renamed: SectionAlias[] = ALIASES.map((alias) =>
-      alias.sectionId === 'p' ? { ...alias, label: 'Rencana' } : alias,
-    );
-    const p = jumpTargets(FULL, renamed).find((target) => target.sectionId === 'p');
-    expect(p?.label).toBe('Rencana');
-  });
+  /**
+   * Labels come from the NOTE, not the alias table.
+   *
+   * The first version used `labelFor` with an 8-character cutoff, and the
+   * default labels straddled it — "Subjektif" is 9, "Objektif" is 8 — so the
+   * bar rendered "S" beside "Objektif" for two headers written identically in
+   * the body. These pin the replacement rule.
+   */
+  describe('labels', () => {
+    it('uses the token the note itself writes', () => {
+      const labels = jumpTargets(FULL, ALIASES).map((target) => target.label);
+      expect(labels).toEqual(['Identitas', 'S', 'O', 'A', 'Terapi', 'Plan']);
+    });
 
-  it('falls back to the short form when the alias is too wide for a button', () => {
-    const renamed: SectionAlias[] = ALIASES.map((alias) =>
-      alias.sectionId === 'p' ? { ...alias, label: 'Plan & Monitoring' } : alias,
-    );
-    const p = jumpTargets(FULL, renamed).find((target) => target.sectionId === 'p');
-    expect(p?.label).toBe('Plan');
+    it('is consistent for S and O rather than mixing short and long forms', () => {
+      const byId = new Map(jumpTargets(FULL, ALIASES).map((t) => [t.sectionId, t.label]));
+      expect(byId.get('s')).toBe('S');
+      expect(byId.get('o')).toBe('O');
+    });
+
+    it('follows the note when a section is spelled out in full', () => {
+      const spelled = '*Subjektif:*\nx\n*Objektif:*\ny';
+      const labels = jumpTargets(spelled, ALIASES).map((target) => target.label);
+      expect(labels).toEqual(['Identitas', 'Subjektif', 'Objektif']);
+    });
+
+    it('strips decoration and the delimiter, inside or outside the emphasis', () => {
+      expect(headerToken('*S :*')).toBe('S');
+      expect(headerToken('*Terapi :*')).toBe('Terapi');
+      expect(headerToken('- Penunjang: ')).toBe('Penunjang');
+      expect(headerToken('_DPJP Utama: ')).toBe('DPJP Utama');
+      expect(headerToken('O/')).toBe('O');
+      expect(headerToken(null)).toBeNull();
+      expect(headerToken('***')).toBeNull();
+    });
+
+    it('falls back to the canonical short form when there is no header token', () => {
+      // `_intro` has a null headerLine; no known section should ever render
+      // an empty button.
+      for (const target of jumpTargets(FULL, ALIASES)) {
+        expect(target.label.trim().length).toBeGreaterThan(0);
+      }
+    });
   });
 });

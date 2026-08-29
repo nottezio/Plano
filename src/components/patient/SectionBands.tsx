@@ -146,7 +146,7 @@ export function SectionBands({
             id={part.anchor ? `sec-${part.anchor}` : undefined}
             // Clears the two-row sticky header, so a jumped-to heading lands
             // below it instead of underneath it.
-            className="-mx-4 block scroll-mt-28 px-4"
+            className="-mx-4 block px-4"
             style={{ backgroundColor: part.tint }}
           >
             {part.text}
@@ -155,7 +155,7 @@ export function SectionBands({
           <span
             key={part.key}
             id={part.anchor ? `sec-${part.anchor}` : undefined}
-            className="block scroll-mt-28"
+            className="block"
           >
             {part.text}
           </span>

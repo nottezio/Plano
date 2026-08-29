@@ -425,7 +425,7 @@ export default function PatientPage(): JSX.Element {
           also where it reads best: name and record number directly under the
           day they belong to.
         */}
-        <header className="sticky top-0 z-30 border-b border-border bg-bg/95 backdrop-blur">
+        <header id="patient-sticky-header" className="sticky top-0 z-30 border-b border-border bg-bg/95 backdrop-blur">
         <div className="flex items-center gap-2 px-4 py-1.5">
           {/* Browser back exists, but on an installed PWA there is no chrome to
               show it, and on desktop the note fills the window. */}
@@ -542,7 +542,6 @@ export default function PatientPage(): JSX.Element {
           <IdentityBar
             patient={patient}
             showInitialsOnly={settings.privacy.boardShowInitialsOnly}
-            hariRawat={hariRawat}
             onEdit={() => setIdentityOpen(true)}
           />
         ) : null}

@@ -1,5 +1,4 @@
-import { labelFor } from './aliases';
-import { parseSections } from './parseSections';
+import { parseSections, type ParsedSection } from './parseSections';
 import type { SectionAlias, SectionId } from '../types';
 
 export interface JumpTarget {
@@ -29,12 +28,7 @@ export interface JumpTarget {
 const ORDER: readonly SectionId[] = ['s', 'o', 'a', 'terapi', 'p'];
 
 /**
- * Short labels, because these are buttons in a scrolling row on a phone.
- *
- * Not taken from `labelFor` alone: a user's alias for `p` may be "Plan &
- * Monitoring", which is correct in the note and far too wide here. The alias
- * still wins when it is short enough, so someone who renamed a section still
- * recognises their own wording.
+ * Fallback labels, used only when a header token cannot be recovered.
  */
 const SHORT: Record<string, string> = {
   s: 'S',
@@ -44,7 +38,33 @@ const SHORT: Record<string, string> = {
   p: 'Plan',
 };
 
-const MAX_LABEL = 8;
+/**
+ * The token the NOTE uses for this header, stripped of decoration.
+ *
+ * `"*S :*"` -> `"S"`, `"*Terapi :*"` -> `"Terapi"`, `"- Penunjang: "` ->
+ * `"Penunjang"`.
+ *
+ * The label comes from the body rather than from the alias table on purpose.
+ * The first version used `labelFor` with a length cutoff, and the default
+ * labels straddled it — "Subjektif" is 9 characters and "Objektif" is 8 — so
+ * the bar rendered "S" next to "Objektif" for two sections written identically
+ * in the note. An arbitrary threshold was deciding a semantic question.
+ *
+ * Reading the token instead makes the button say what you will land on. It is
+ * also self-maintaining: rename a section in settings, write the new word in a
+ * note, and the button follows without this file knowing anything about it.
+ */
+export function headerToken(headerLine: string | null): string | null {
+  if (!headerLine) return null;
+  const token = headerLine
+    // Leading decoration and list markers.
+    .replace(/^[\s*_~-]+/, '')
+    // Trailing delimiter, decoration and spacing. The delimiter may sit inside
+    // the emphasis (`*S :*`) or outside it (`*S*:`), so both are stripped.
+    .replace(/[\s*_~:/]+$/, '')
+    .trim();
+  return token.length > 0 ? token : null;
+}
 
 /**
  * Which jump buttons to show for a given body.
@@ -61,9 +81,11 @@ export function jumpTargets(
   body: string,
   aliases: readonly SectionAlias[],
 ): JumpTarget[] {
-  const present = new Set<SectionId>();
+  // First occurrence wins, matching the anchor rule in SectionBands: a note
+  // carries three EKG blocks, and "jump to O" means the first one.
+  const present = new Map<SectionId, ParsedSection>();
   for (const section of parseSections(body, aliases)) {
-    present.add(section.sectionId);
+    if (!present.has(section.sectionId)) present.set(section.sectionId, section);
   }
 
   const targets: JumpTarget[] = [
@@ -71,10 +93,9 @@ export function jumpTargets(
   ];
 
   for (const id of ORDER) {
-    if (!present.has(id)) continue;
-    const alias = labelFor(id, aliases);
-    const label =
-      alias && alias.length <= MAX_LABEL ? alias : (SHORT[id] ?? id.toUpperCase());
+    const section = present.get(id);
+    if (!section) continue;
+    const label = headerToken(section.headerLine) ?? SHORT[id] ?? id.toUpperCase();
     targets.push({ sectionId: id, label, anchorId: `sec-${id}` });
   }
 

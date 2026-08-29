@@ -14,10 +14,17 @@ import type { SectionAlias } from '@/domain/types';
  * own idea of where a line wraps, and the two drifting apart is precisely the
  * bug that mirror's comments describe.
  *
- * Clearance for the sticky header is `scroll-mt-28` on the anchors themselves
- * rather than arithmetic here — a hard-coded offset in this file would go stale
- * the moment the header gains or loses a row, silently, and the symptom would
- * be a heading hidden under the bar rather than an error.
+ * Clearance for the sticky header is MEASURED, not encoded.
+ *
+ * The first version used `scroll-mt-28` — 112 px, matching a two-row header —
+ * and then this bar became the third row in the same change, so the constant
+ * was stale before it shipped. The heading landed behind the header, which
+ * reads as jumping too far.
+ *
+ * Any fixed number here is the header's height written down in a second place,
+ * and the two will disagree the next time a row is added or a font changes.
+ * Reading `getBoundingClientRect().height` off the header at jump time cannot
+ * drift, because there is only one copy of the fact.
  */
 export function JumpBar({
   body,
@@ -29,11 +36,13 @@ export function JumpBar({
   const targets = jumpTargets(body, aliases);
 
   const jump = useCallback((anchorId: string | null) => {
+    const scroller = document.querySelector('main');
+    if (!scroller) return;
+
     // Identity is the sticky header itself, so its target is the top of the
     // scroll container — there is no anchor for it in the body mirror.
-    const scroller = document.querySelector('main');
     if (!anchorId) {
-      scroller?.scrollTo({ top: 0, behavior: 'smooth' });
+      scroller.scrollTo({ top: 0, behavior: 'smooth' });
       return;
     }
 
@@ -48,7 +57,28 @@ export function JumpBar({
      * the user did not ask for, which is worse than not moving: they would
      * lose their place mid-note and have to find it again.
      */
-    node?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    if (!node) return;
+
+    const header = document.getElementById('patient-sticky-header');
+    const clearance = header?.getBoundingClientRect().height ?? 0;
+
+    /**
+     * Positioned so the header line sits immediately BELOW the sticky bar —
+     * "jump to O" should put `*O :*` at the top of what you can read, not one
+     * line above it and not hidden behind the bar.
+     *
+     * Computed from the current scroll position plus the node's offset from
+     * the scroller's own box, rather than `offsetTop`: the anchors live in an
+     * absolutely-positioned mirror, so their `offsetTop` is relative to that
+     * mirror, not to the scroll container.
+     */
+    const top =
+      scroller.scrollTop +
+      node.getBoundingClientRect().top -
+      scroller.getBoundingClientRect().top -
+      clearance;
+
+    scroller.scrollTo({ top: Math.max(0, top), behavior: 'smooth' });
   }, []);
 
   // One button is the identity button alone, which is just "scroll up" — not

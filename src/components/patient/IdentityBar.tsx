@@ -26,12 +26,10 @@ import type { Patient } from '@/domain/types';
 export function IdentityBar({
   patient,
   showInitialsOnly,
-  hariRawat,
   onEdit,
 }: {
   patient: Patient;
   showInitialsOnly: boolean;
-  hariRawat: number;
   onEdit: () => void;
 }): JSX.Element {
   const name = patient.name?.trim();
@@ -48,23 +46,32 @@ export function IdentityBar({
       // Tinted and taller. This is the line that answers "am I in the right
       // chart", and it was competing with the note for attention by looking
       // exactly like it.
-      className="w-full border-b border-border px-4 py-1 text-left"
+      className="w-full border-b border-border px-4 py-0.5 text-left"
       style={{ backgroundColor: 'var(--sec-identitas)' }}
     >
-      <span className="flex items-baseline gap-2">
-        <span className="min-w-0 flex-1 truncate text-sm font-semibold sm:text-base">{label}</span>
-        <span className="shrink-0 whitespace-nowrap text-[11px] text-fg-muted">
-          Hari ke-{hariRawat}
-        </span>
-      </span>
+      {/*
+        One line from `sm` up, two on a phone.
 
-      <span className="mt-0.5 flex flex-wrap items-baseline gap-x-3 text-xs text-fg-muted">
-        {patient.mrn ? (
-          <span className="whitespace-nowrap font-medium">RM {patient.mrn}</span>
-        ) : null}
-        {patient.age !== undefined ? <span>{patient.age} th</span> : null}
-        {patient.sex ? <span>{patient.sex}</span> : null}
-        {location ? <span className="min-w-0 truncate">{location}</span> : null}
+        `Hari ke-N` is GONE from here. The row above already ends with
+        "· Hari rawat ke-2" — the same number, forty pixels away, in a bar whose
+        whole problem is height. One fact, one place.
+
+        Below `sm` the name still gets its own line: a name plus RM plus bed
+        truncates to uselessness at 360 px, and the identity row exists
+        precisely so that none of it has to be guessed at.
+      */}
+      <span className="flex flex-col sm:flex-row sm:flex-wrap sm:items-baseline sm:gap-x-3">
+        <span className="min-w-0 truncate text-sm font-semibold sm:shrink-0 sm:text-[15px]">
+          {label}
+        </span>
+        <span className="flex min-w-0 flex-wrap items-baseline gap-x-3 text-xs text-fg-muted">
+          {patient.mrn ? (
+            <span className="whitespace-nowrap font-medium">RM {patient.mrn}</span>
+          ) : null}
+          {patient.age !== undefined ? <span>{patient.age} th</span> : null}
+          {patient.sex ? <span>{patient.sex}</span> : null}
+          {location ? <span className="min-w-0 truncate">{location}</span> : null}
+        </span>
       </span>
     </button>
   );
