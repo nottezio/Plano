@@ -344,10 +344,54 @@ export interface Patient {
 }
 
 /** ONE free-form page per clinical day. No section fields, ever (SPEC 1.2.5). */
+/**
+ * A shift note — a complaint reviewed during jaga hours, written against a day
+ * that already has a SOAP.
+ *
+ * A CHILD of the day's entry, stored beside the body rather than inside it.
+ *
+ * Not appended into `body`, deliberately. The section parser is flat: a
+ * heading runs until the next heading with no containment, so a `*S:*` written
+ * inside a shift block is a SECOND OCCURRENCE of the day's S, not a nested
+ * one. Jumping and tinting survive that — both take the first occurrence — but
+ * `composeCopy` gathers every occurrence, so the morning complaint and the
+ * 21.40 complaint would merge into one S on the way to the chief. Wrong, and
+ * invisible, because the note still reads as complete.
+ *
+ * A separate field also restores what a single free-form body gives up:
+ * Firestore merges field by field, so editing a shift note on the phone at the
+ * bedside cannot collide with the body being edited on the laptop.
+ */
+export interface ShiftNote {
+  /** Stable across edits; the array is never reordered. */
+  id: string;
+  /** `HH.MM` when it was added. Dots, not colons — a colon reads as a heading
+   *  delimiter to the parser if this text is ever pasted back into a body. */
+  time: string;
+  body: string;
+  /**
+   * Cleared rather than removed, matching entries (§5: nothing is hard
+   * deleted). An emptied shift note keeps its slot and its timestamp, so the
+   * revision trail still shows that something was written at 21.40 and later
+   * withdrawn.
+   */
+  clearedAt: Timestamp | null;
+  createdAt: Timestamp;
+}
+
 export interface DailyEntry {
   date: ClinicalDate;
   hariRawat: number;
   body: string;
+  /**
+   * Shift notes for this day, in the order added.
+   *
+   * Optional because every entry written before this field existed lacks it,
+   * and absence must read as "none" rather than as a reason to write a default
+   * back over the document (§4: `seedSettingsIfMissing` deep-merged defaults
+   * over real settings for exactly that reason).
+   */
+  shiftNotes?: ShiftNote[];
   /** Monotonic. increment() on every body write; never a device clock. */
   rev: number;
   bodyHash: string;

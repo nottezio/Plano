@@ -7,13 +7,6 @@ export interface JumpTarget {
   label: string;
   /** DOM id to scroll to, or null for the page top. */
   anchorId: string | null;
-  /**
-   * True when the alias table did not recognise this header.
-   *
-   * Rendered muted rather than hidden. See `jumpTargets` for why these are
-   * offered at all.
-   */
-  unrecognised: boolean;
 }
 
 /**
@@ -33,6 +26,28 @@ export interface JumpTarget {
  * there can be any number of them.
  */
 const ORDER: readonly SectionId[] = ['s', 'o', 'a', 'terapi', 'p'];
+
+/**
+ * Shorthand headers the alias table deliberately refuses, mapped back for
+ * NAVIGATION ONLY.
+ *
+ * `*A/*` and `*P/*` parse to `custom_a` and `custom_p` because a `*TS BTKV*`
+ * block writes its own assessment and plan the same way, and letting them
+ * match globally would fold a consulting service's assessment into this note's
+ * `a` section — wrong in the copy that goes to the DPJP, and invisible,
+ * because the note would still look complete.
+ *
+ * That reasoning is about MEANING. A jump only needs a position, and taking
+ * the first occurrence gives the right one: the note's own A/ is written above
+ * any TS block that answers it. So the mapping lives here and the alias table
+ * is left alone — copy and tinting keep the strict behaviour, navigation gets
+ * the useful one.
+ */
+const SHORTHAND: Partial<Record<SectionId, SectionId>> = {
+  a: 'custom_a',
+  p: 'custom_p',
+  terapi: 'custom_t',
+};
 
 /**
  * Fallback labels, used when the note's own token is missing or too wide for a
@@ -65,32 +80,6 @@ const SHORT: Record<string, string> = {
  */
 const MAX_LABEL = 10;
 
-/**
- * Does this header occupy its own line, or does it label a value on it?
- *
- * The parser recognises `Label : value` as a section start, which is correct
- * for its own purposes — it is how `Penunjang: Hb 12` gets grouped. But it
- * means every vitals line in O (`Tekanan Darah : 121/84 mmHg`, `Nadi : 73
- * x/menit`) is technically a section, and offering each one a jump chip buries
- * the five that matter under a row of them.
- *
- * A HEADING owns its line: the text after the delimiter is a newline, and the
- * content lives below. A FIELD shares its line with its value. That is the
- * real distinction, and it is structural rather than a list of vitals names
- * that would be one behind the next thing someone writes.
- */
-function ownsItsLine(body: string, start: number, headerLine: string | null): boolean {
-  if (!headerLine) return false;
-  const after = body.slice(start + headerLine.length);
-  return after.length === 0 || after.startsWith('\n');
-}
-
-/** Last resort for a custom id with an unusable header token. */
-function shorten(id: string): string {
-  const bare = id.replace(/^custom_/, '').replace(/_/g, ' ');
-  return bare.length <= MAX_LABEL ? bare : `${bare.slice(0, MAX_LABEL - 1)}…`;
-}
-
 export function headerToken(headerLine: string | null): string | null {
   if (!headerLine) return null;
   const token = headerLine
@@ -106,23 +95,20 @@ export function headerToken(headerLine: string | null): string | null {
 /**
  * Which jump buttons to show for a given body.
  *
- * EVERY header the parser found gets a button — including ones the alias table
- * could not classify.
+ * EXACTLY six, and only the ones this note actually has: identity, S, O, A,
+ * Terapi, Plan.
  *
- * The first version offered only the five known ids, which made navigation
- * depend on semantic recognition. Those are different jobs. The alias table
- * decides what a section MEANS, which is what tinting and copy grouping need.
- * A jump needs only where it IS, and a header the parser located has a
- * position whether or not anything can name it. Gating the second on the first
- * meant a note whose "Assessment" or "Terapi" heading is worded in some way
- * the table does not list — and the table cannot list them all, that is why
- * `custom_` exists — silently lost its buttons, with no way to tell that from
- * the section simply being absent.
+ * A previous version offered every heading the parser found, on the reasoning
+ * that navigation should not depend on the alias table classifying a heading.
+ * That produced a bar of `tn udis 0…`, `ekg pjt l…`, `ekg hcu p…` — the lab
+ * and EKG blocks — burying the five destinations that are used constantly. The
+ * principle was right and the conclusion was wrong: the fix for an
+ * unrecognised heading is to recognise it, not to widen the bar. See
+ * `SHORTHAND` above and the `T/` alias in defaults.ts.
  *
- * Known sections come first in fixed canonical order so the five you reach for
- * constantly do not move under your thumb. Unrecognised ones follow in
- * first-appearance order, muted, because there is no canonical position to
- * give them and inventing one would reorder against the note.
+ * A `*TS BTKV*` block's own S/O/A/P are never targets, because first
+ * occurrence wins and the note's own sections are written above the block that
+ * answers them.
  *
  * Identity is always present because it is not part of the body at all: it is
  * the sticky header, so its target is the top of the page.
@@ -139,12 +125,17 @@ export function jumpTargets(
   }
 
   const targets: JumpTarget[] = [
-    { sectionId: '_identity', label: 'Identitas', anchorId: null, unrecognised: false },
+    { sectionId: '_identity', label: 'Identitas', anchorId: null },
   ];
 
   for (const id of ORDER) {
-    const section = present.get(id);
+    const canonical = present.get(id);
+    const fallbackId = SHORTHAND[id];
+    const section = canonical ?? (fallbackId ? present.get(fallbackId) : undefined);
     if (!section) continue;
+    // The anchor has to name the id the MIRROR used, which is whatever the
+    // parser actually produced — `sec-custom_a`, not `sec-a`.
+    const anchorFor = canonical ? id : fallbackId!;
     const token = headerToken(section.headerLine);
     /**
      * A long token falls back to the canonical short form.
@@ -163,27 +154,10 @@ export function jumpTargets(
      */
     const label =
       token && token.length <= MAX_LABEL ? token : (SHORT[id] ?? id.toUpperCase());
-    targets.push({ sectionId: id, label, anchorId: `sec-${id}`, unrecognised: false });
-  }
-
-  /**
-   * Everything else the parser found, in the order it appears.
-   *
-   * `_intro` is skipped — it is the text before any heading, which is where
-   * "Identitas" already lands. `ttv` and `penunjang` are included here rather
-   * than in ORDER: they sit inside O in the corpus, so they do not deserve a
-   * fixed slot, but they are still real headings a long note may want to reach.
-   */
-  for (const [id, section] of present) {
-    if (id === '_intro') continue;
-    if (ORDER.includes(id)) continue;
-    if (!ownsItsLine(body, section.start, section.headerLine)) continue;
-    const token = headerToken(section.headerLine);
     targets.push({
       sectionId: id,
-      label: token && token.length <= MAX_LABEL ? token : (SHORT[id] ?? shorten(id)),
-      anchorId: `sec-${id}`,
-      unrecognised: true,
+      label,
+      anchorId: `sec-${anchorFor}`,
     });
   }
 

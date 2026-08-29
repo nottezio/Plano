@@ -10,6 +10,7 @@ import { PatientActionsSheet } from '@/components/patient/PatientActionsSheet';
 import { ReformatSheet } from '@/components/patient/ReformatSheet';
 import { IdentityBar } from '@/components/patient/IdentityBar';
 import { JumpBar } from '@/components/patient/JumpBar';
+import { ShiftNotePanel } from '@/components/patient/ShiftNotePanel';
 import { LabSheet } from '@/components/patient/LabSheet';
 import { PatientNotes, usePatientNotes } from '@/components/patient/PatientNotes';
 import { PatientTodos } from '@/components/patient/PatientTodos';
@@ -44,6 +45,7 @@ import {
 import { useBodyEditor } from '@/hooks/useBodyEditor';
 import { useClinicalToday } from '@/hooks/useClinicalToday';
 import { useChecklist } from '@/hooks/useChecklist';
+import { useShiftNotes } from '@/hooks/useShiftNotes';
 import { useEntry, useEntryDates } from '@/hooks/useEntry';
 import { usePatient } from '@/hooks/usePatient';
 import { otherDeviceEditing, usePresenceHeartbeat } from '@/hooks/usePresence';
@@ -366,6 +368,10 @@ export default function PatientPage(): JSX.Element {
   // vanished the moment the document was materialised — which happens on the
   // first keystroke, or when a template is inserted and then cleared.
   const canCarryForward = !locked && editor.value.trim().length === 0;
+
+  // Shift notes live on the same entry as the body but in their own field, so
+  // a bedside edit on the phone cannot collide with the body on the laptop.
+  const shiftNotes = useShiftNotes(patient.id, selected, entry, hariRawat, locked);
 
   return (
     <AppShell title={patient.name}>
@@ -790,6 +796,14 @@ export default function PatientPage(): JSX.Element {
           placeholder="Tulis SOAP hari ini…"
         />
 
+        {/*
+          Below the SOAP, as its own boxes — not appended into the body.
+
+          Renders nothing at all when the day has no shift notes, so the
+          ordinary round is unchanged.
+        */}
+        <ShiftNotePanel state={shiftNotes} readOnly={locked} />
+
         {/* SPEC F4 — microcopy only. There is no save button by design. */}
         <div className="flex items-center gap-3 px-4 py-2 text-[11px] text-fg-faint">
           <span className="flex-1">{editor.dirty ? 'Menyimpan…' : 'Tersimpan'}</span>
@@ -862,6 +876,7 @@ export default function PatientPage(): JSX.Element {
         open={actionsOpen}
         onOpenChange={setActionsOpen}
         patient={patient}
+        onAddShiftNote={locked ? undefined : shiftNotes.add}
       />
 
         </div>
@@ -990,6 +1005,7 @@ export default function PatientPage(): JSX.Element {
         presets={settings.copyPresets}
         dpjpFormats={settings.dpjpFormats}
         bullet={settings.whatsappBullet}
+        shiftNotes={shiftNotes.notes}
       />
 
       <RevisionTrail

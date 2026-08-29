@@ -18,7 +18,6 @@ export function FormatToolbar({
   onBullet,
   onNumbered,
   onInsertSection,
-  onShiftNote,
   value,
   onReplace,
 }: {
@@ -29,7 +28,6 @@ export function FormatToolbar({
   onBullet: () => void;
   onNumbered: () => void;
   onInsertSection: (label: string) => void;
-  onShiftNote: () => void;
   /** Current body, for the whole-note actions. */
   value: string;
   onReplace: (next: string) => void;
@@ -66,26 +64,6 @@ export function FormatToolbar({
           </option>
         ))}
       </select>
-      {/*
-        The shift note is NOT in the "Sisipkan bagian" list above.
-
-        That list inserts a header at the caret; this appends a timestamped
-        block at the end of the note, and it stamps the clock. Two different
-        actions with two different results should not share one control just
-        because both put a heading in the body — picking "SOAP Jaga" from a
-        dropdown of section names would reasonably be expected to behave like
-        picking "Terapi" from the same dropdown, and it does not.
-      */}
-      <button
-        type="button"
-        disabled={disabled}
-        onClick={onShiftNote}
-        title="Tambah SOAP jaga (blok terpisah di akhir catatan)"
-        className="min-h-tap shrink-0 rounded-lg px-2 text-xs text-fg-muted disabled:opacity-40"
-      >
-        + Jaga
-      </button>
-
       <span aria-hidden="true" className="mx-1 h-5 w-px bg-border" />
 
       {/* Both are actions, never automatic. Applying either on paste would edit

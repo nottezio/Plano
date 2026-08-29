@@ -20,7 +20,7 @@ import { touchEntryMeta } from './patients.repo';
 import { putMergeBase } from '../localBase';
 import { trackWrite } from '../syncStatus';
 import { bodyHash } from '@/domain/hash';
-import type { ClinicalDate, DailyEntry, EntryRevision } from '@/domain/types';
+import type { ClinicalDate, DailyEntry, EntryRevision, ShiftNote } from '@/domain/types';
 
 /** Cap from SPEC 7.4. Oldest pruned on append. */
 const REVISION_CAP = 30;
@@ -343,6 +343,47 @@ export function clearEntry(patientId: string, date: ClinicalDate): Promise<void>
       {
         body: '',
         deletedAt: serverTimestamp(),
+        updatedAt: serverTimestamp(),
+        updatedBy: getDeviceId(),
+      },
+      { merge: true },
+    ),
+  );
+}
+
+/**
+ * Write the whole `shiftNotes` array.
+ *
+ * Whole-array, not per-element. Firestore has no "update element 2 of an
+ * array" — `arrayUnion` matches on deep equality, so editing a note's text
+ * would append a second copy rather than replace it. Writing the array back
+ * whole is the only correct option, and the reason `ShiftNote.id` exists is so
+ * the caller can rebuild it without depending on position.
+ *
+ * `rev` is NOT incremented and `bodyHash` is NOT touched. Both describe the
+ * SOAP body, which three-way merge operates on; a shift note is a sibling
+ * field, and bumping the body's revision because a shift note changed would
+ * make the merge think the body moved when it did not. Firestore merges these
+ * fields independently, which is the whole reason this is a field rather than
+ * text appended to the body.
+ *
+ * `merge: true` because the day may not exist yet — a jaga complaint can be
+ * the first thing written against a date. `updateDoc` with a dotted path fails
+ * silently on a missing document (§4), which is exactly the trap this avoids.
+ */
+export function writeShiftNotes(
+  patientId: string,
+  date: ClinicalDate,
+  hariRawat: number,
+  shiftNotes: ShiftNote[],
+): Promise<void> {
+  return trackWrite(
+    setDoc(
+      entryDoc(patientId, date),
+      {
+        date,
+        hariRawat,
+        shiftNotes,
         updatedAt: serverTimestamp(),
         updatedBy: getDeviceId(),
       },

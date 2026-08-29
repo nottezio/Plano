@@ -10,7 +10,6 @@ import {
   type TextEdit,
 } from '@/domain/format/markdownLite';
 import type { SectionAlias } from '@/domain/types';
-import { appendShiftNote } from '@/domain/format/shiftNote';
 import { FormatToolbar } from './FormatToolbar';
 import { SectionBands } from './SectionBands';
 
@@ -244,15 +243,6 @@ export function BodyEditor({
           disabled={readOnly}
           value={value}
           onReplace={onChange}
-          onShiftNote={() =>
-            // `new Date()` at the moment of the tap, not at render: the stamp
-            // has to be when the shift note was written, not when the page was
-            // opened — on a jaga those can be hours apart.
-            //
-            // Through `withSelection` like every other toolbar action, so the
-            // caret restore and the change dispatch stay in one place.
-            withSelection((text) => appendShiftNote(text, new Date()))
-          }
           onBold={() => withSelection((text, start, end) => toggleWrap(text, start, end, BOLD))}
           onItalic={() =>
             withSelection((text, start, end) => toggleWrap(text, start, end, ITALIC))

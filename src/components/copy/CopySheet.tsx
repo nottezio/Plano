@@ -14,6 +14,7 @@ import {
   type BulletStyle,
 } from '@/domain/format/formatters';
 import { composePdfReport } from '@/domain/format/pdfReport';
+import { renderShiftNotes } from '@/domain/shiftNotes';
 import { describeConfig, primaryDpjp } from '@/domain/dpjp';
 import {
   COPY_GROUPS,
@@ -32,6 +33,7 @@ import type {
   DpjpReportConfig,
   Patient,
   SectionAlias,
+  ShiftNote,
 } from '@/domain/types';
 
 /**
@@ -77,6 +79,7 @@ export function CopySheet({
   presets,
   dpjpFormats,
   bullet,
+  shiftNotes,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -88,7 +91,19 @@ export function CopySheet({
   presets: readonly CopyPreset[];
   dpjpFormats: Record<string, DpjpReportConfig>;
   bullet: BulletStyle;
+  /** Shift notes on the day being copied. Empty on any day that has none. */
+  shiftNotes: readonly ShiftNote[];
 }): JSX.Element {
+  /**
+   * Ticked shift notes. Starts EMPTY, every time the sheet opens.
+   *
+   * Opt-in was the explicit requirement, and it is also the safe default: the
+   * note you send the chief every morning must not silently change shape
+   * because a jaga complaint was added to the same day at 21.40. A tick is one
+   * action; noticing that an extra block went out is not.
+   */
+  const [tickedShiftNotes, setTickedShiftNotes] = useState<string[]>([]);
+
   const [format, setFormat] = useState<OutputFormat>('whatsapp');
   const [range, setRange] = useState<CopyRange>('specific');
   const [groups, setGroups] = useState<CopyGroupId[] | 'all'>('all');
@@ -164,6 +179,10 @@ export function CopySheet({
   useEffect(() => {
     if (!open) return;
     setCopied(false);
+    // Ticks reset on every opening. A tick that persisted would mean the
+    // second copy of the day silently carries what the first one did — which
+    // is the exact behaviour opt-in exists to prevent.
+    setTickedShiftNotes([]);
     let cancelled = false;
     void fetchEntryBodies(patient.id)
       .then((days) => {
@@ -180,7 +199,7 @@ export function CopySheet({
     return resolveRange({ range, lastN: 3 }, pool, today, date);
   }, [allDays, range, today, date, body]);
 
-  const output = useMemo(
+  const composed = useMemo(
     () =>
       pdfMode
         ? composePdfReport(body, {
@@ -206,6 +225,26 @@ export function CopySheet({
           }),
     [pdfMode, body, days, format, selected, includeIdentity, includeDateHeader, aliases, patient],
   );
+
+  /**
+   * Shift notes are APPENDED to the composed output, not merged into it.
+   *
+   * Deliberately outside `composeCopy`: that function composes over the body's
+   * parsed sections, and a shift note is a sibling field with no position in
+   * that structure. Threading it through would mean giving it a fake section
+   * id, and every consumer of section ids — tinting, jump targets, the PDF
+   * report — would then have to know about a section that does not exist in
+   * the body.
+   *
+   * After everything else because it is chronologically after: the morning
+   * SOAP, then what happened on the shift.
+   */
+  const shiftBlock = renderShiftNotes(shiftNotes, tickedShiftNotes);
+  // Renamed from `output` so every consumer below — the leak check, the
+  // non-ASCII check, the preview and the clipboard — sees the same string.
+  // Leaving the old name on the composed value would have let one of them
+  // silently copy something different from what the preview showed.
+  const output = shiftBlock ? `${composed.trimEnd()}\n\n${shiftBlock}` : composed;
 
   const leaks = findMarkdownLeaks(format === 'whatsapp' ? output : '');
 
@@ -406,6 +445,58 @@ export function CopySheet({
           </button>
         ))}
       </div>
+
+      {/*
+        Shift notes, unticked.
+
+        Shown only when the day HAS one — nothing about the ordinary morning
+        copy changes for the days that do not, which is most of them.
+
+        Below the format controls and above the preview, so ticking one and
+        watching it appear in the preview is a single glance. The preview is
+        what makes opt-in safe rather than fiddly: you can see exactly what
+        will land in WhatsApp before you press Salin.
+      */}
+      {shiftNotes.length > 0 ? (
+        <div className="mt-3 rounded-lg border border-border p-2">
+          <p className="mb-1 text-[11px] font-medium text-fg-muted">
+            Sertakan SOAP jaga
+          </p>
+          {shiftNotes.map((note) => {
+            const ticked = tickedShiftNotes.includes(note.id);
+            const empty = note.body.trim().length === 0;
+            return (
+              <label
+                key={note.id}
+                className={[
+                  'flex min-h-tap items-center gap-2 px-1 text-xs',
+                  empty ? 'text-fg-faint' : 'text-fg',
+                ].join(' ')}
+              >
+                <input
+                  type="checkbox"
+                  checked={ticked}
+                  // An empty box has nothing to contribute; `renderShiftNotes`
+                  // skips it anyway, and an enabled tick that changes nothing
+                  // reads as a bug.
+                  disabled={empty}
+                  onChange={() =>
+                    setTickedShiftNotes((current) =>
+                      ticked
+                        ? current.filter((id) => id !== note.id)
+                        : [...current, note.id],
+                    )
+                  }
+                />
+                <span className="shrink-0 font-medium">Jam {note.time}</span>
+                <span className="min-w-0 flex-1 truncate">
+                  {empty ? '(kosong)' : note.body.trim()}
+                </span>
+              </label>
+            );
+          })}
+        </div>
+      ) : null}
 
       {preview === 'tampilan' ? (
         <>

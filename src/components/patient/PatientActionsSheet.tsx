@@ -29,10 +29,13 @@ export function PatientActionsSheet({
   open,
   onOpenChange,
   patient,
+  onAddShiftNote,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   patient: Patient;
+  /** Adds an empty shift note to the day on screen. Absent when the day is locked. */
+  onAddShiftNote?: (() => void) | undefined;
 }): JSX.Element {
   const today = useClinicalToday();
   const planned = migrateLegacyDischarge(patient, today);
@@ -66,6 +69,26 @@ export function PatientActionsSheet({
             close();
           }}
         />
+        {/*
+          The way a shift note gets created.
+          
+          Here rather than as a permanently visible "+ SOAP jaga" panel under
+          the note: the panel would cost a row on every patient on every round
+          to serve the few days that have a jaga complaint. Adding one is
+          occasional; reading one is not, so the BOXES are always visible once
+          they exist and only the button is behind a tap.
+        */}
+        {onAddShiftNote ? (
+          <Action
+            label="Tambah SOAP jaga"
+            detail="Kotak kosong di bawah SOAP hari ini, untuk keluhan saat jaga."
+            onClick={() => {
+              onAddShiftNote();
+              close();
+            }}
+          />
+        ) : null}
+
         <Action
           label={patient.pinned ? 'Lepas sematan' : 'Sematkan di papan'}
           onClick={() => {

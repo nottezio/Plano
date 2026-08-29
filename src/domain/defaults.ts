@@ -115,7 +115,13 @@ export const DEFAULT_SECTION_ALIASES: readonly SectionAlias[] = [
     label: 'Terapi',
     order: 7,
     aliases: [
-      'Terapi', 'Tx', 'Th/', 'Medikamentosa', 'Obat',
+      // `T/` sits alongside `Th/`: both are how the corpus actually writes
+      // this heading, and without it a note using `T/` had no terapi section
+      // at all — not a custom one, nothing, because a bare `T` is not an alias
+      // and the header was invisible to the parser.
+      //
+      // Unambiguous in practice: temperature is written `Suhu`, never `T/`.
+      'Terapi', 'Tx', 'Th/', 'T/', 'Medikamentosa', 'Obat',
       'Mohon izin kami terapi dengan', 'Mohon izin pasien kami terapi dengan',
       'Mohon ijin pasien kami terapi dengan', 'Mohon ijin kami terapi dengan',
       'Mohon izin kami inisial terapi dengan',
