@@ -147,8 +147,14 @@ export function replaceClosing(body: string, closing: string): string {
  * Case is preserved, so `Dokter` becomes `Prof` and `dokter` becomes `prof`.
  * `Dr.` and `dr.` are left alone: those are titles inside a DPJP name, not a
  * form of address.
+ *
+ * Named `toProfForm`, not `useProfForm`. These are pure string functions, but
+ * the `use` prefix is reserved by React's naming convention — the linter read
+ * them as hooks called inside an onClick and flagged two errors, and any human
+ * reading `onClick={() => onApply(useProfForm(body))}` would wonder the same
+ * thing. "Use the Prof form of address" is correct English and the wrong name.
  */
-export function useProfForm(body: string): string {
+export function toProfForm(body: string): string {
   return body
     .replace(/\bDokter\b/g, 'Prof')
     .replace(/\bdokter\b/g, 'prof')
@@ -156,6 +162,6 @@ export function useProfForm(body: string): string {
     .replace(/\bdok\b/g, 'prof');
 }
 
-export function useDokterForm(body: string): string {
+export function toDokterForm(body: string): string {
   return body.replace(/\bProf\b/g, 'dokter').replace(/\bprof\b/g, 'dokter');
 }

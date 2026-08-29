@@ -153,6 +153,24 @@ export default function PatientPage(): JSX.Element {
   });
 
   /**
+   * Shift notes live on the same entry as the body but in their own field, so
+   * a bedside edit on the phone cannot collide with the body on the laptop.
+   *
+   * HERE, beside the other entry hooks, and above the `loading` / `!patient`
+   * early returns further down. It was originally placed after them, next to
+   * the JSX that uses it, which reads naturally and crashes every time: the
+   * first render of a patient IS the loading render, so the hook was skipped,
+   * and the render after it was called — React counts hooks per render and
+   * throws when the count changes.
+   *
+   * `patientId ?? ''` rather than `patient.id`, for the same reason
+   * `useBodyEditor` above does it: `patient` is not narrowed to non-null until
+   * after those early returns, and reaching for it here is what pulled the
+   * call down past them in the first place.
+   */
+  const shiftNotes = useShiftNotes(patientId ?? '', selected, entry, hariRawat, locked);
+
+  /**
    * A settled copy of the note, for everything derived from it.
    *
    * `primaryDpjp` and `parsePatientFacts` each walk the whole body, and both
@@ -368,10 +386,6 @@ export default function PatientPage(): JSX.Element {
   // vanished the moment the document was materialised — which happens on the
   // first keystroke, or when a template is inserted and then cleared.
   const canCarryForward = !locked && editor.value.trim().length === 0;
-
-  // Shift notes live on the same entry as the body but in their own field, so
-  // a bedside edit on the phone cannot collide with the body on the laptop.
-  const shiftNotes = useShiftNotes(patient.id, selected, entry, hariRawat, locked);
 
   return (
     <AppShell title={patient.name}>

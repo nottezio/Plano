@@ -2,8 +2,8 @@ import { Sheet } from '@/components/common/Sheet';
 import {
   findOpeningLine,
   replaceClosing,
-  useDokterForm,
-  useProfForm,
+  toDokterForm,
+  toProfForm,
   replaceGreeting,
   replaceOpeningSentence,
   splitOpening,
@@ -113,14 +113,14 @@ export function OpeningSheet({
         <div className="mt-1.5 flex gap-2">
           <button
             type="button"
-            onClick={() => onApply(useProfForm(body))}
+            onClick={() => onApply(toProfForm(body))}
             className="min-h-tap flex-1 rounded-lg border border-border px-3 text-xs"
           >
             Ganti ke Prof
           </button>
           <button
             type="button"
-            onClick={() => onApply(useDokterForm(body))}
+            onClick={() => onApply(toDokterForm(body))}
             className="min-h-tap flex-1 rounded-lg border border-border px-3 text-xs"
           >
             Ganti ke dokter
