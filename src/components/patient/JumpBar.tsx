@@ -96,7 +96,20 @@ export function JumpBar({
           key={target.sectionId}
           type="button"
           onClick={() => jump(target.anchorId)}
-          className="min-h-tap shrink-0 rounded-lg px-2.5 text-xs font-medium text-fg-muted"
+          className={[
+            'min-h-tap shrink-0 rounded-lg px-2.5 text-xs',
+            // Muted and lighter-weight, not hidden. An unrecognised heading is
+            // still somewhere you may need to get to, and showing it is also
+            // what makes this bar readable as a report of what the parser
+            // actually found — which is the only way to tell "my Assessment
+            // heading is worded unusually" from "this note has no Assessment".
+            target.unrecognised ? 'text-fg-faint' : 'font-medium text-fg-muted',
+          ].join(' ')}
+          title={
+            target.unrecognised
+              ? `${target.label} — judul ini tidak dikenali daftar alias`
+              : undefined
+          }
         >
           {target.label}
         </button>
