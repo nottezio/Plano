@@ -528,6 +528,78 @@ describe('invisible characters pasted in from elsewhere', () => {
   it('leaves ordinary text alone', () => {
     expect(toPlain('- Alprazolam 0.5 mg')).toBe('- Alprazolam 0.5 mg');
   });
+
+  /**
+   * The `?` before "Compos mentis", 2026-08-28.
+   *
+   * A non-ASCII SPACE, not a format character. `\p{Cf}` never matched it and
+   * only `toPlain` folded it, so the same note copied as WhatsApp carried it
+   * into SIMGOS and printed `?`. Unfindable by eye: it renders as a space.
+   */
+  describe('non-ASCII whitespace reaches SIMGOS as `?`', () => {
+    const SPACES = [
+      ['U+00A0 no-break space', '\u00A0'],
+      ['U+2007 figure space', '\u2007'],
+      ['U+2009 thin space', '\u2009'],
+      ['U+200A hair space', '\u200A'],
+      ['U+2002 en space', '\u2002'],
+      ['U+2003 em space', '\u2003'],
+      ['U+202F narrow no-break space', '\u202F'],
+      ['U+205F medium math space', '\u205F'],
+      ['U+3000 ideographic space', '\u3000'],
+    ] as const;
+
+    it.each(SPACES)('%s survives no format', (_label, space) => {
+      // Verbatim shape of the reported note.
+      const body = `*O:*\n${space}Compos mentis\nNadi : 73 x/menit`;
+      expect(findNonAsciiChars(toWhatsApp(body))).toEqual([]);
+      expect(findNonAsciiChars(toMarkdown(body))).toEqual([]);
+      expect(findNonAsciiChars(toPlain(body))).toEqual([]);
+    });
+
+    it.each(SPACES)('%s becomes a space, never nothing', (_label, space) => {
+      // Removing would join the words: `Nadi73`. The character is invisible
+      // but it is still a separator.
+      expect(toPlain(`Nadi${space}73`)).toBe('Nadi 73');
+      expect(toWhatsApp(`Nadi${space}73`)).toBe('Nadi 73');
+      expect(toMarkdown(`Nadi${space}73`)).toBe('Nadi 73');
+    });
+
+    it('folds the reported note end to end in every format', () => {
+      const reported = [
+        '*O:*',
+        '\u00A0Compos mentis',
+        'Tensi : 96/69 mmHg',
+        'Nadi : 74kali/menit, reguler',
+        'Nafas : 20 x/menit',
+        'Suhu : 36.6 \u00B0C',
+        'SpO2 : 98% on room air',
+      ].join('\n');
+
+      for (const output of [toWhatsApp(reported), toMarkdown(reported), toPlain(reported)]) {
+        expect(output).not.toMatch(/\u00A0/);
+      }
+      // `°` is still folded for SIMGOS only — it is visible, and WhatsApp
+      // renders it correctly.
+      expect(findNonAsciiChars(toPlain(reported))).toEqual([]);
+      expect(toPlain(reported)).toContain('Compos mentis');
+      expect(toPlain(reported)).toContain('36.6  derajat C');
+    });
+
+    it('still lets the guarded bullet keep its deliberate NBSP', () => {
+      // The guard is inserted AFTER the fold, on purpose. If this breaks, the
+      // fold has been moved to the wrong end of the pipeline.
+      expect(toWhatsApp('- Aspilet', 'guarded')).toBe('\u200B-\u00A0Aspilet');
+    });
+
+    it('turns invisible line separators into real newlines', () => {
+      // U+2028 is invisible AND non-ASCII: left alone it joins two lines and
+      // prints `?` between them.
+      expect(toWhatsApp('Compos mentis\u2028Tensi : 96/69')).toBe(
+        'Compos mentis\nTensi : 96/69',
+      );
+    });
+  });
 });
 
 describe('plain text is ASCII, guaranteed rather than curated', () => {

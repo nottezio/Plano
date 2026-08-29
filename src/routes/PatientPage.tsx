@@ -424,7 +424,8 @@ export default function PatientPage(): JSX.Element {
           also where it reads best: name and record number directly under the
           day they belong to.
         */}
-        <header className="sticky top-0 z-30 flex items-center gap-2 border-b border-border bg-bg/95 px-4 py-1.5 backdrop-blur">
+        <header className="sticky top-0 z-30 border-b border-border bg-bg/95 backdrop-blur">
+        <div className="flex items-center gap-2 px-4 py-1.5">
           {/* Browser back exists, but on an installed PWA there is no chrome to
               show it, and on desktop the note fills the window. */}
           <button
@@ -449,40 +450,23 @@ export default function PatientPage(): JSX.Element {
               >
                 Tambah identitas pasien
               </button>
-            ) : dpjpFormat ? (
-              <p className="truncate text-[11px] text-fg-faint">
-                {dpjp?.initials} — {describeConfig(dpjpFormat)}
-              </p>
-            ) : patient.diagnoses.length > 0 ? (
-              <p className="truncate text-[11px] text-fg-faint">
-                {patient.diagnoses.join(', ')}
-              </p>
             ) : null}
             {/*
-              Its own line, not a branch of the identity chain.
-              
-              It used to sit inside that ternary after `!identity`, so the
-              moment a patient had a name it could never render — which is why
-              a recognised DPJP showed no clinic.
+              DPJP format, poli and diagnoses USED TO BE HERE, and identity did
+              not exist on screen at all once the note scrolled.
+
+              The previous pass removed `sticky` from `IdentityBar` — correctly,
+              two sticky bars covered a third of a phone screen — and recorded
+              that "the identity now lives inside this bar as its second line".
+              It never did. This slot went to optional metadata instead, so the
+              one fact that must never scroll away (which chart am I in) was the
+              one that did, while a consultant's report preference stayed
+              pinned.
+
+              Identity is now the second row of this header, below, and the
+              optional metadata has moved into the non-sticky column where
+              consult-once information belongs.
             */}
-            {/*
-              When a consultant is recognised but has no clinic, say so.
-              Rendering nothing made two different situations look identical —
-              "not on the roster" and "the line is broken again" — and I could
-              not tell them apart from a screenshot either.
-            */}
-            {dpjp && !poli ? (
-              <p className="truncate text-[11px] text-fg-faint">
-                {dpjp.initials} tidak ada di jadwal poli {SCHEDULE_PERIOD}
-              </p>
-            ) : null}
-            {poli ? (
-              <p className="truncate text-[11px] text-fg-faint">
-                Poli {dpjp?.initials} {weekdayName(poli.weekday)}
-                {poli.inDays === 0 ? ' (hari ini)' : poli.inDays === 1 ? ' (besok)' : ''} ·{' '}
-                {poli.slot.clinic} · {poli.slot.time}
-              </p>
-            ) : null}
           </div>
 
           {!locked ? (
@@ -537,6 +521,30 @@ export default function PatientPage(): JSX.Element {
           >
             ⋯
           </button>
+        </div>
+
+        {/*
+          Row two of the SAME sticky bar — not a second sticky element.
+
+          This is the line that answers "am I writing into the right chart",
+          which is the one mistake this app exists to make hard. It has to be
+          on screen at the moment the mistake would be made: mid-note, scrolled
+          past the opening block, tab-switching to SIMGOS. Until now it was in
+          a bar that scrolled away.
+
+          Rendered inside `<header>` rather than as its own `sticky` element
+          because two sticky bars stack — the earlier version of that cost a
+          third of a phone screen and hid the identity text behind the header
+          above it.
+        */}
+        {identity ? (
+          <IdentityBar
+            patient={patient}
+            showInitialsOnly={settings.privacy.boardShowInitialsOnly}
+            hariRawat={hariRawat}
+            onEdit={() => setIdentityOpen(true)}
+          />
+        ) : null}
         </header>
 
         {/*
@@ -576,12 +584,51 @@ export default function PatientPage(): JSX.Element {
           </div>
         ) : null}
 
-        <IdentityBar
-          patient={patient}
-          showInitialsOnly={settings.privacy.boardShowInitialsOnly}
-          hariRawat={hariRawat}
-          onEdit={() => setIdentityOpen(true)}
-        />
+        {/*
+          Consult-once metadata, demoted out of the sticky header.
+
+          Report preference, clinic day and diagnoses are things you read when
+          you arrive at the patient and act on once. They do not need to follow
+          the scroll, and while they did, they were occupying the slot identity
+          needed.
+
+          Each on its own line rather than chained in a ternary: the poli line
+          used to sit after `!identity` in that chain, so the moment a patient
+          had a name it could never render — which is why a recognised DPJP
+          showed no clinic. Separate conditions cannot shadow each other.
+        */}
+        {dpjpFormat || poli || (dpjp && !poli) || patient.diagnoses.length > 0 ? (
+          <div className="space-y-0.5 border-b border-border px-4 py-1.5">
+            {dpjpFormat ? (
+              <p className="truncate text-[11px] text-fg-faint">
+                {dpjp?.initials} — {describeConfig(dpjpFormat)}
+              </p>
+            ) : null}
+            {/*
+              When a consultant is recognised but has no clinic, say so.
+              Rendering nothing made two different situations look identical —
+              "not on the roster" and "the line is broken again" — and I could
+              not tell them apart from a screenshot either.
+            */}
+            {dpjp && !poli ? (
+              <p className="truncate text-[11px] text-fg-faint">
+                {dpjp.initials} tidak ada di jadwal poli {SCHEDULE_PERIOD}
+              </p>
+            ) : null}
+            {poli ? (
+              <p className="truncate text-[11px] text-fg-faint">
+                Poli {dpjp?.initials} {weekdayName(poli.weekday)}
+                {poli.inDays === 0 ? ' (hari ini)' : poli.inDays === 1 ? ' (besok)' : ''} ·{' '}
+                {poli.slot.clinic} · {poli.slot.time}
+              </p>
+            ) : null}
+            {patient.diagnoses.length > 0 ? (
+              <p className="truncate text-[11px] text-fg-faint">
+                {patient.diagnoses.join(', ')}
+              </p>
+            ) : null}
+          </div>
+        ) : null}
 
         <div className="xl:hidden">
           <PatientNotes sync={notesSync} />

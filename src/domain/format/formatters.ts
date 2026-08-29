@@ -121,8 +121,38 @@ export type BulletStyle = 'hyphen' | 'guarded' | 'bullet';
  * Visible non-ASCII — `é`, `°` — is left alone outside plain text, because
  * WhatsApp renders it correctly and folding it there would be a loss.
  */
+/**
+ * Non-ASCII whitespace, folded to a plain space in EVERY format.
+ *
+ * The second half of the same bug. `\p{Cf}` above covers characters that are
+ * invisible because they have no glyph. It does NOT cover characters that are
+ * invisible because they look *exactly like a space*: NBSP (U+00A0), narrow
+ * NBSP (U+202F), thin/hair/en/em space, ideographic space. Those are category
+ * `Zs`, not `Cf`, so `stripInvisible` passed them straight through — and a
+ * note copied as WhatsApp format carried them into SIMGOS, which rendered each
+ * one as `?`.
+ *
+ * That is why the `?` was unfindable by eye: there is nothing to see. The
+ * fold only ran in `toPlain`, so the identical note copied one way was clean
+ * and copied the other way was not.
+ *
+ * Category `\p{Zs}`, not a list of code points, for the reason recorded on
+ * `foldToAscii`: an explicit list is always one character behind the next
+ * source. It includes ordinary U+0020, where the replacement is a no-op.
+ *
+ * Replaced with a space, never removed — `Nadi 73` with a thin space must not
+ * become `Nadi73`.
+ *
+ * `\p{Zl}`/`\p{Zp}` (U+2028 line separator, U+2029 paragraph separator) become
+ * newlines for the same reason they do in `foldToAscii`: invisible, non-ASCII,
+ * and they silently join two lines into one if left alone.
+ */
 function stripInvisible(text: string): string {
-  return text.replace(/[\u00AD\u180E]/gu, '').replace(/\p{Cf}/gu, '');
+  return text
+    .replace(/[\u00AD\u180E]/gu, '')
+    .replace(/\p{Cf}/gu, '')
+    .replace(/[\p{Zl}\p{Zp}]/gu, '\n')
+    .replace(/\p{Zs}/gu, ' ');
 }
 
 export function toWhatsApp(body: string, bullet: BulletStyle = 'hyphen'): string {
@@ -163,7 +193,11 @@ const ASCII_FOLD: ReadonlyArray<readonly [RegExp, string]> = [
   [/[\u201C\u201D]/g, '"'],
   [/[\u2013\u2014\u2212]/g, '-'],
   [/\u2026/g, '...'],
-  [/[\u00A0\u2007\u202F]/g, ' '],
+  // Category, not a list. This used to name three code points (U+00A0,
+  // U+2007, U+202F) and missed the thin, hair, en, em and ideographic spaces
+  // entirely — they fell through to step 4 and were *removed*, joining the
+  // words either side. `\p{Zs}` covers every space separator Unicode defines.
+  [/\p{Zs}/gu, ' '],
   /**
    * Invisible formatting characters, removed rather than replaced.
    *

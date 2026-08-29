@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react';
+import { useEffect, type ReactNode } from 'react';
 
 import { usePrivacyGuard } from '@/hooks/usePrivacyGuard';
 import { useLock } from '@/store/useLock';
@@ -26,6 +26,31 @@ export function AppShell({
   // in styles/index.css since P0 precisely so this is one attribute, applied
   // above every route rather than remembered per screen.
   const obscured = useLock((state) => state.obscured);
+
+  /**
+   * The browser tab / window title.
+   *
+   * Every route already tells `AppShell` what it is — `PatientPage` passes the
+   * patient's name, `DocumentPage` the document's — and that string went to
+   * the top bar and the screen-reader announcer but never to `document.title`,
+   * so every tab said "Plano" and the only way to tell three open patients
+   * apart was to click each one.
+   *
+   * Set HERE, not per route: one effect over the prop the routes already pass
+   * cannot drift out of step with the header the way fourteen `useEffect`s
+   * would.
+   *
+   * It reverts to the bare app name while `obscured`, for the same reason
+   * SPEC 18 blurs the content: a patient's name sitting in a tab strip, a task
+   * switcher or a shared screen is the same disclosure as the note itself, and
+   * the title is the one part of the UI that a blur cannot cover.
+   */
+  useEffect(() => {
+    document.title = obscured || !title ? 'Plano' : `${title} · Plano`;
+    return () => {
+      document.title = 'Plano';
+    };
+  }, [title, obscured]);
 
   return (
     <div

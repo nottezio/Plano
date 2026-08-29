@@ -3,15 +3,25 @@ import { initials } from '@/domain/board';
 import type { Patient } from '@/domain/types';
 
 /**
- * Sticky identity strip.
+ * The identity strip.
  *
  * Once the note is scrolled past its opening block there is nothing on screen
  * saying which patient it belongs to — and the one mistake this app must not
- * make easy is writing today's findings into the wrong chart. It stays put.
+ * make easy is writing today's findings into the wrong chart.
  *
- * Deliberately minimal: name, bed, day of admission. The full identity line is
- * in the note itself and in the header form; repeating it here would take space
- * from the text.
+ * It carries NO `sticky` class of its own, deliberately. It is rendered as the
+ * second row of `PatientPage`'s sticky `<header>`, so it follows the scroll as
+ * part of that one bar. Two independently sticky bars stack, which previously
+ * cost a third of a phone screen and hid this text behind the header above it.
+ *
+ * This docblock used to say "Sticky identity strip … It stays put" while the
+ * class had no `sticky` on it and the component was rendered below the header
+ * in the scrolling column. If you are moving this component, the stickiness
+ * lives in the PARENT — check there before adding a class here.
+ *
+ * Deliberately minimal: name, RM, bed, day of admission. The full identity line
+ * is in the note itself and in the header form; repeating it here would take
+ * space from the text.
  */
 export function IdentityBar({
   patient,

@@ -54,7 +54,20 @@ export default defineConfig({
         start_url: base,
         scope: base,
         display: 'standalone',
-        orientation: 'any',
+        /**
+         * `orientation` is deliberately ABSENT.
+         *
+         * It used to say `'any'`, which reads like "no preference" and is not.
+         * In standalone display mode the manifest orientation is an explicit
+         * lock request, and `'any'` requests the *unlocked* state — so the
+         * installed app rotated even with the phone's rotation lock on, which
+         * is exactly the wrong behaviour one-handed on a ward round.
+         *
+         * Omitting the field leaves orientation unset, and the platform
+         * default applies: the device's own rotation lock is honoured. Do not
+         * replace this with `'portrait'` either — that would lock the iPad to
+         * portrait, and the note column is worth having in landscape there.
+         */
         background_color: '#ffffff',
         theme_color: '#ffffff',
         icons: [
