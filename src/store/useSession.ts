@@ -132,22 +132,15 @@ async function bootstrapAccount(user: User): Promise<void> {
   }
 }
 
-function isStandalonePwa(): boolean {
-  return (
-    window.matchMedia('(display-mode: standalone)').matches ||
-    (navigator as Navigator & { standalone?: boolean }).standalone === true
-  );
-}
-
-/**
- * Coarse on purpose: this decides between two working flows, so a wrong guess
- * costs a page load rather than a failure.
+/*
+ * `isStandalonePwa` and `isHandheld` were deleted here, not left unused.
+ *
+ * They existed to CHOOSE between popup and redirect by sniffing the device.
+ * The choice is gone: popup is attempted everywhere and redirect is the
+ * fallback when the popup itself fails, which is a fact the browser reports
+ * rather than one we have to guess from a user-agent string. Keeping a device
+ * sniff around invites the next person to route on it again.
  */
-function isHandheld(): boolean {
-  if (typeof navigator === 'undefined') return false;
-  const coarse = window.matchMedia?.('(pointer: coarse)').matches ?? false;
-  return coarse || /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
-}
 
 export async function signInWithGoogle(): Promise<void> {
   const { auth } = services();
@@ -156,24 +149,37 @@ export async function signInWithGoogle(): Promise<void> {
 
   try {
     /**
-     * Redirect on any handheld, not only an installed PWA.
+     * Popup FIRST, on every device, with redirect as the fallback.
      *
-     * A popup on mobile is throttled or silently blocked often enough that the
-     * common failure is not an error but a HANG — the window never appears and
-     * nothing rejects, so the app sits there looking broken. Redirect always
-     * works, at the cost of a page load, and a reliable slow path beats a fast
-     * one that sometimes never returns.
+     * This used to be the other way round — redirect on any handheld — because
+     * a popup on mobile can hang instead of erroring. That reasoning still
+     * holds; it is just outranked now, because redirect stopped working at all
+     * on mobile rather than working slowly.
      *
-     * Desktop keeps the popup: it is reliable there, and it does not throw away
-     * the page state.
+     * Why redirect breaks here specifically: Plano is served from
+     * `nottezio.github.io` while Firebase's auth handler lives on
+     * `plano-85e9e.firebaseapp.com`. `signInWithRedirect` hands the session
+     * between those two origins through cross-site storage, and browsers have
+     * been switching that off — Safari's ITP, and third-party cookie blocking
+     * now on by default in Chrome and Samsung Internet. Nothing in this repo
+     * changed; the platform did. Popup does not need that storage: it talks to
+     * its opener over `postMessage`.
+     *
+     * Second failure mode this also covers: from an INSTALLED standalone PWA a
+     * redirect can complete in the browser rather than in the app, so the app
+     * never sees the result and sits on the sign-in screen looking broken.
+     *
+     * The fix on the other side is a same-origin auth handler, which needs a
+     * custom domain or a reverse proxy — neither of which GitHub Pages can do.
+     * So this is the fix, not a workaround for one.
+     *
+     * Redirect is kept below rather than deleted: it is still the only thing
+     * that works when a popup is genuinely blocked, which is common on iOS.
      */
-    if (isStandalonePwa() || isHandheld()) {
-      await signInWithRedirect(auth, provider);
-      return;
-    }
     await signInWithPopup(auth, provider);
   } catch (error) {
-    // A blocked popup is common on iOS/Safari even outside standalone mode.
+    // A blocked or hung popup falls back to the old path. On iOS standalone
+    // this is still the normal outcome, not an exception.
     if (isPopupProblem(error)) {
       await signInWithRedirect(auth, provider);
       return;
@@ -269,6 +275,20 @@ function describeAuthError(error: unknown): string {
     case 'auth/unauthorized-domain':
       return 'Domain ini belum diizinkan di Firebase Authentication.';
     default:
-      return 'Gagal masuk. Coba lagi.';
+      /**
+       * The raw code goes on screen for anything unmapped.
+       *
+       * Every branch above is a code someone already hit and diagnosed. The
+       * default is by definition the ones nobody has — and it was returning
+       * "Gagal masuk. Coba lagi." for all of them, so the only failures that
+       * needed reporting were the only ones that could not be reported. A
+       * screenshot of the sign-in screen could not distinguish a blocked
+       * popup from a dead network from a misconfigured provider.
+       *
+       * `auth/...` codes name a condition, not a secret; showing one costs a
+       * little polish on a screen seen once and saves a round trip that
+       * happens while someone cannot get into the ward's notes.
+       */
+      return code ? `Gagal masuk (${code}).` : 'Gagal masuk. Coba lagi.';
   }
 }
