@@ -93,7 +93,25 @@ export async function fetchEntryBodies(
     // comparison discarded every one of those, which is why "salin dari hari
     // sebelumnya" reported that there was nothing to copy.
     .filter((entry) => !entry.deletedAt)
-    .map((entry) => ({ date: entry.date, body: entry.body }));
+    /**
+     * `body ?? ''`, and body-less days dropped.
+     *
+     * An entry document can legitimately exist with no `body` field at all:
+     * `writeShiftNotes` materialises one when a jaga note is added to a day
+     * that has no SOAP yet, and locking an untouched day does the same. This
+     * function used to hand those straight on as `{ date, body: undefined }`,
+     * and every consumer assumed a string — `composeCopy` called `body.trim()`
+     * and threw, so Salin rendered EMPTY for a day the editor was visibly
+     * showing text for.
+     *
+     * Dropping them also settles a disagreement. `subscribeEntryDates` already
+     * filters on a non-empty body, so the rail knew such a day had no note
+     * while `resolveRange` here matched it on date alone and returned it as
+     * the day to copy. Two code paths held different answers to "which days
+     * have a note", and the copy path had the wrong one.
+     */
+    .map((entry) => ({ date: entry.date, body: entry.body ?? '' }))
+    .filter((entry) => entry.body.trim().length > 0);
 }
 
 /**
@@ -410,6 +428,21 @@ export function writeShiftNotes(
         date,
         hariRawat,
         shiftNotes,
+        /**
+         * `body` is deliberately NOT written here.
+         *
+         * A first attempt at fixing the empty-Salin bug added `body: ''` to
+         * this payload so the document would never exist without the field.
+         * That would have wiped the day's SOAP on every shift-note write:
+         * `merge: true` merges FIELDS, so `body: ''` is not "leave it alone if
+         * present", it is "set it to empty". Adding a jaga note to a day that
+         * already had a note would have deleted the note.
+         *
+         * The document genuinely can exist without a body — adding a jaga note
+         * to an untouched day creates exactly that — so the fix belongs in the
+         * readers, which must not assume the field is present. See
+         * `fetchEntryBodies`.
+         */
         updatedAt: serverTimestamp(),
         updatedBy: getDeviceId(),
       },

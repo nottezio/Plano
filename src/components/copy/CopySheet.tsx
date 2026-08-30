@@ -212,7 +212,25 @@ export function CopySheet({
   }, [open, patient.id]);
 
   const days = useMemo(() => {
-    const pool = allDays.length > 0 ? allDays : [{ date, body }];
+    const fetched = allDays.length > 0 ? allDays : [{ date, body }];
+
+    /**
+     * The day on screen always copies what is ON SCREEN.
+     *
+     * `allDays` is a snapshot taken when the sheet opened, so anything typed
+     * since — or not yet flushed — is missing from it, and the day being
+     * looked at is the one most likely to have just been edited. Trusting the
+     * snapshot for that day meant Salin could produce something different from
+     * the note visible behind the sheet, which is the one discrepancy this
+     * sheet must never have.
+     *
+     * Other days keep their fetched bodies: they are not open in the editor,
+     * so the snapshot is the only truth available for them.
+     */
+    const pool = fetched.some((day) => day.date === date)
+      ? fetched.map((day) => (day.date === date ? { date, body } : day))
+      : [...fetched, { date, body }];
+
     return resolveRange({ range, lastN: 3 }, pool, today, date);
   }, [allDays, range, today, date, body]);
 
