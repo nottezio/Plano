@@ -1,6 +1,10 @@
 import { useEffect, useState } from 'react';
 
-import { subscribeEntry, subscribeEntryDates } from '@/data/repositories/entries.repo';
+import {
+  subscribeEntry,
+  subscribeEntryDates,
+  type EntryDatesSnapshot,
+} from '@/data/repositories/entries.repo';
 import type { ClinicalDate, DailyEntry } from '@/domain/types';
 
 export interface EntryResult {
@@ -42,18 +46,25 @@ export function useEntry(patientId: string | undefined, date: ClinicalDate): Ent
   return result;
 }
 
-/** Dates that already have a page — marks the date rail (SPEC F4). */
-export function useEntryDates(patientId: string | undefined): ClinicalDate[] {
-  const [dates, setDates] = useState<ClinicalDate[]>([]);
+/**
+ * Dates that already have a page, plus the shift notes on each.
+ *
+ * Both come from one subscription: the query already reads every entry
+ * document, so splitting them would mean a second listener over the same data.
+ */
+const EMPTY_DATES: EntryDatesSnapshot = { dates: [], shiftNotesByDate: {} };
+
+export function useEntryDates(patientId: string | undefined): EntryDatesSnapshot {
+  const [snapshot, setSnapshot] = useState<EntryDatesSnapshot>(EMPTY_DATES);
 
   useEffect(() => {
     if (!patientId) return;
     return subscribeEntryDates(
       patientId,
-      setDates,
+      setSnapshot,
       (error) => console.error('[entry] date list failed', error),
     );
   }, [patientId]);
 
-  return dates;
+  return snapshot;
 }

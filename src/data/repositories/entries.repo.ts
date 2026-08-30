@@ -104,22 +104,48 @@ export async function fetchEntryBodies(
  * document behind. Listing those put dates on the rail that lead to a blank
  * page, which is exactly what the rail is supposed to save you from.
  */
+export interface EntryDatesSnapshot {
+  /** Days with a non-empty body — what the rail marks as having content. */
+  dates: ClinicalDate[];
+  /**
+   * Shift notes per day, for the rail's half-height entries.
+   *
+   * Carried by this subscription rather than a second one: it already reads
+   * every entry document in the patient, so the notes are in hand and a
+   * parallel query would be a second live listener for data already on the
+   * wire.
+   *
+   * A day appears here whether or not its BODY has content — a jaga complaint
+   * can be the first thing written against a date, and a shift note that
+   * existed but did not show because nobody had written the day's SOAP yet
+   * would look exactly like a lost note.
+   */
+  shiftNotesByDate: Record<ClinicalDate, ShiftNote[]>;
+}
+
 export function subscribeEntryDates(
   patientId: string,
-  callback: (dates: ClinicalDate[]) => void,
+  callback: (snapshot: EntryDatesSnapshot) => void,
   onError: (error: Error) => void,
 ): Unsubscribe {
   return onSnapshot(
     query(entriesCol(patientId), orderBy('date', 'desc')),
-    (snapshot) =>
-      callback(
-        snapshot.docs
-          .filter((entry) => {
-            const data = entry.data() as DailyEntry;
-            return !data.deletedAt && (data.body ?? '').trim().length > 0;
-          })
-          .map((entry) => entry.id),
-      ),
+    (snapshot) => {
+      const dates: ClinicalDate[] = [];
+      const shiftNotesByDate: Record<ClinicalDate, ShiftNote[]> = {};
+
+      for (const entry of snapshot.docs) {
+        const data = entry.data() as DailyEntry;
+        if (data.deletedAt) continue;
+
+        if ((data.body ?? '').trim().length > 0) dates.push(entry.id);
+
+        const live = (data.shiftNotes ?? []).filter((note) => note.clearedAt === null);
+        if (live.length > 0) shiftNotesByDate[entry.id] = live;
+      }
+
+      callback({ dates, shiftNotesByDate });
+    },
     onError,
   );
 }

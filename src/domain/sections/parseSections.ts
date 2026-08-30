@@ -1,4 +1,5 @@
 import { aliasesOrDefault, customSectionId, labelFor, sectionSortIndex } from './aliases';
+import { classifyProseHeader } from './classifyProseHeader';
 import type { SectionAlias, SectionId } from '../types';
 
 /**
@@ -235,16 +236,32 @@ function detectHeader(
   if (wrapped) {
     // A wrapped label may still name a KNOWN section — `*Penunjang:*` should
     // land in `penunjang`, not a custom bucket that duplicates it.
-    const knownInside = matcher.pattern.exec(wrapped);
+    /**
+     * Exact first: a wrapped line whose ENTIRE content is an alias token is
+     * that section, with or without a delimiter.
+     *
+     * `matcher.pattern` requires a delimiter after the token, so `*Plan*` —
+     * the IGD format's plan heading, written with no colon — matched nothing
+     * and fell through to `custom_plan`. The wrapping is already the
+     * delimiter: the line is nothing but the label.
+     */
+    const exactInside = matcher.lookup.get(wrapped.trim().toLowerCase());
+
+    const knownInside = exactInside ? null : matcher.pattern.exec(wrapped);
     const insideId =
-      knownInside && knownInside.index === 0
+      exactInside ??
+      (knownInside && knownInside.index === 0
         ? matcher.lookup.get(tokenOf(knownInside[0]).toLowerCase())
-        : undefined;
+        : undefined);
 
     return {
       start: line.start,
       headerEnd: line.start + line.text.length,
-      sectionId: insideId ?? customSectionId(wrapped),
+      // Prose headings the exact-token table cannot match — the corpus writes
+      // assessment and therapy as sentences with inconsistent spelling. Only
+      // consulted when `insideId` already failed, so it can never override a
+      // heading the alias table resolves.
+      sectionId: insideId ?? classifyProseHeader(wrapped) ?? customSectionId(wrapped),
       label: insideId ? labelFor(insideId, aliases) : wrapped,
     };
   }
@@ -258,7 +275,7 @@ function detectHeader(
   // `https://…` at the start of a line is a URL, not a section called "https".
   if (line.text.slice(custom[0].length).startsWith('//')) return null;
 
-  const sectionId = customSectionId(token);
+  const sectionId = classifyProseHeader(token) ?? customSectionId(token);
   return {
     start: line.start,
     headerEnd: line.start + custom[0].length,

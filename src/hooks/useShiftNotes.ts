@@ -11,7 +11,8 @@ import type { ClinicalDate, DailyEntry, ShiftNote } from '@/domain/types';
 
 export interface ShiftNotesState {
   notes: ShiftNote[];
-  add: () => void;
+  /** Returns the new note's id, so the caller can open it immediately. */
+  add: () => string | null;
   setBody: (id: string, body: string) => void;
   clear: (id: string) => void;
   flush: () => void;
@@ -73,11 +74,17 @@ export function useShiftNotes(
   );
 
   const add = useCallback(() => {
+    if (!patientId || readOnly) return null;
     const at = new Date();
+    // Generated OUTSIDE `commit` so it can be returned. The caller needs it to
+    // open the note straight away — a new empty box added to a list and left
+    // unopened is one you have to go and find, and the reason for adding it
+    // was that you had something to write down right then.
+    const id = newShiftNoteId(at, stored);
     commit((current) => [
       ...current,
       {
-        id: newShiftNoteId(at, current),
+        id,
         // Stamped at the tap, not at render: on a jaga those are hours apart.
         time: formatShiftTime(at),
         body: '',
@@ -85,7 +92,8 @@ export function useShiftNotes(
         createdAt: Timestamp.now(),
       },
     ]);
-  }, [commit]);
+    return id;
+  }, [commit, patientId, readOnly, stored]);
 
   const setBody = useCallback((id: string, body: string) => {
     setDraft((current) => ({ ...current, [id]: body }));

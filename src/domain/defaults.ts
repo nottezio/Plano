@@ -173,6 +173,10 @@ export const SEED_OPENING_SENTENCES: readonly string[] = [
       'Tabe dokter, mohon izin melaporkan pasien baru di *(Ruang) Kamar (no) Bed (no)* atas nama :',
       'Tabe dokter izin melaporkan follow up pasien KJS *TS (Bagian) ((Nama DPJP))* di *(Ruang) Kamar (no) Bed (no)* atas nama :',
       'Tabe dokter mohon izin melaporkan follow up perpindahan pasien dari *(Ruang asal) Bed (no)* ke *(Ruang tujuan) Kamar (no) Bed (no)* pasien atas nama :',
+      // A KJS transfer: the consulting service and its DPJP are named in the
+      // same sentence as the move, because both change at once and reporting
+      // one without the other is what makes a handover ambiguous.
+      'Tabe dokter, mohon izin melapor perpindahan pasien *KJS TS (Bagian) ((Nama DPJP)) dari (Ruang asal) bed (no)* ke *(Ruang tujuan) Kamar (no) bed (no)* atas nama :',
 ];
 
 export const SEED_NOTE_TEMPLATES: readonly NoteTemplate[] = [

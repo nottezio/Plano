@@ -1,7 +1,7 @@
 import { useEffect, useRef } from 'react';
 
 import { formatShortDate, relativeDayLabel } from '@/domain/clinicalDate';
-import type { ClinicalDate } from '@/domain/types';
+import type { ClinicalDate, ShiftNote } from '@/domain/types';
 import { IGD_ENTRY } from '@/domain/clinicalDate';
 
 /**
@@ -16,6 +16,9 @@ export function DateRail({
   today,
   datesWithContent,
   onSelect,
+  shiftNotesByDate = {},
+  selectedShiftNoteId = null,
+  onSelectShiftNote,
   orientation = 'horizontal',
 }: {
   dates: ClinicalDate[];
@@ -25,6 +28,11 @@ export function DateRail({
   today: ClinicalDate;
   datesWithContent: ReadonlySet<ClinicalDate>;
   onSelect: (date: ClinicalDate) => void;
+  /** Shift notes per day, from the entry-dates subscription. */
+  shiftNotesByDate?: Record<ClinicalDate, ShiftNote[]>;
+  /** The shift note currently being edited, or null for the day's own SOAP. */
+  selectedShiftNoteId?: string | null;
+  onSelectShiftNote?: (date: ClinicalDate, id: string) => void;
   /** Horizontal strip on phone; a stacked list in the desktop sidebar. */
   orientation?: 'horizontal' | 'vertical';
 }): JSX.Element {
@@ -68,9 +76,14 @@ export function DateRail({
         const active = date === selected;
         const hasContent = datesWithContent.has(date);
 
+        const shiftNotes = shiftNotesByDate[date] ?? [];
+
         return (
           <div
             key={date}
+            className={orientation === 'vertical' ? 'w-full' : 'contents'}
+          >
+          <div
             className={[
               'flex shrink-0 items-center',
               orientation === 'vertical' ? 'w-full gap-1' : '',
@@ -115,6 +128,50 @@ export function DateRail({
               ×
             </button>
           ) : null}
+          </div>
+
+          {/*
+            Shift notes for this day, half height and indented.
+
+            Deliberately NOT the same size or shape as a day. A jaga note is
+            not a daily follow-up, and the two being visually interchangeable
+            in the one list you navigate by is how the wrong one gets sent to
+            the chief. Half the height, indented under its parent, and no date
+            of its own — only the clock time, because the date is the row above.
+
+            Vertical rail only. On the phone strip the days already scroll
+            horizontally and there is no "under" to indent into.
+          */}
+          {orientation === 'vertical' && shiftNotes.length > 0 && onSelectShiftNote
+            ? shiftNotes.map((note) => {
+                const noteActive = active && selectedShiftNoteId === note.id;
+                return (
+                  <button
+                    key={note.id}
+                    type="button"
+                    onClick={() => onSelectShiftNote(date, note.id)}
+                    aria-current={noteActive}
+                    className={[
+                      'ml-4 mt-0.5 flex w-[calc(100%-1rem)] items-center gap-2',
+                      // Half the height of a day row, and below the tap
+                      // minimum on purpose — see the note above about these
+                      // not being interchangeable. It is a secondary target
+                      // inside a list whose primary targets are full size.
+                      'rounded-md border-l-2 px-2 py-1 text-left text-[11px]',
+                      noteActive
+                        ? 'border-l-accent bg-bg-subtle font-medium text-accent'
+                        : 'border-l-border text-fg-faint',
+                    ].join(' ')}
+                  >
+                    <span className="shrink-0">Jaga</span>
+                    <span className="shrink-0 opacity-80">{note.time}</span>
+                    <span className="min-w-0 flex-1 truncate opacity-70">
+                      {note.body.trim() || '(kosong)'}
+                    </span>
+                  </button>
+                );
+              })
+            : null}
           </div>
         );
       })}

@@ -48,6 +48,8 @@ const INVESTIGATION =
 /** A bare `EKG` or `Laboratorium` line that only labels the block below it. */
 const BARE_LABEL = /^\s*(EKG|Lab|Laboratorium|Foto Thorax|Echo)\s*:?\s*$/i;
 
+import { orderInvestigations } from './orderInvestigations';
+
 export interface ReformatResult {
   body: string;
   summary: { vitals: number; exam: number; investigations: number; unmatched: number };
@@ -150,7 +152,19 @@ export function cvcuToBangsal(body: string): ReformatResult {
     ...vitalLines,
     ...(exam.length > 0 ? ['', ...joinExam(exam)] : []),
     ...(unmatched.length > 0 ? ['', 'Lain-lain:', ...unmatched.map((line) => `- ${line}`)] : []),
-    ...(investigations.length > 0 ? ['', ...trimBlanks(investigations)] : []),
+    /**
+     * Investigations in the ward's canonical order — EKG, laboratory, chest
+     * film, cross-sectional imaging, echo, lung ultrasound — rather than in
+     * the order a CVCU note happens to scatter them across its A–H sections.
+     *
+     * This is block-level, and that is what makes it safe. The reordering that
+     * broke notes and was reverted (HANDOFF §5) moved individual LINES, which
+     * meant judging each line's meaning from its wording. `orderInvestigations`
+     * reads headings only, moves each block whole, and never inspects content.
+     */
+    ...(investigations.length > 0
+      ? ['', ...orderInvestigations(trimBlanks(investigations))]
+      : []),
   ];
 
   return {

@@ -27,27 +27,20 @@ export interface JumpTarget {
  */
 const ORDER: readonly SectionId[] = ['s', 'o', 'a', 'terapi', 'p'];
 
-/**
- * Shorthand headers the alias table deliberately refuses, mapped back for
- * NAVIGATION ONLY.
+/*
+ * The `SHORTHAND` map that lived here — `a` -> `custom_a`, `p` -> `custom_p`
+ * — has been REMOVED.
  *
- * `*A/*` and `*P/*` parse to `custom_a` and `custom_p` because a `*TS BTKV*`
- * block writes its own assessment and plan the same way, and letting them
- * match globally would fold a consulting service's assessment into this note's
- * `a` section — wrong in the copy that goes to the DPJP, and invisible,
- * because the note would still look complete.
+ * It was added from one screenshot showing `*A/*` and `*P/*` in a note, on the
+ * reading that those were this note's own headings. They are not: `A/` and
+ * `P/` are the TS convention, written by a consulting service inside its own
+ * block. Mapping them made the A and Plan buttons jump to another service's
+ * assessment whenever this note's own sections were written in the usual prose
+ * form — which is always.
  *
- * That reasoning is about MEANING. A jump only needs a position, and taking
- * the first occurrence gives the right one: the note's own A/ is written above
- * any TS block that answers it. So the mapping lives here and the alias table
- * is left alone — copy and tinting keep the strict behaviour, navigation gets
- * the useful one.
+ * The prose headings are now recognised properly by `classifyProseHeader`, so
+ * `a`, `terapi` and `p` resolve on their own and need no fallback.
  */
-const SHORTHAND: Partial<Record<SectionId, SectionId>> = {
-  a: 'custom_a',
-  p: 'custom_p',
-  terapi: 'custom_t',
-};
 
 /**
  * Fallback labels, used when the note's own token is missing or too wide for a
@@ -129,13 +122,8 @@ export function jumpTargets(
   ];
 
   for (const id of ORDER) {
-    const canonical = present.get(id);
-    const fallbackId = SHORTHAND[id];
-    const section = canonical ?? (fallbackId ? present.get(fallbackId) : undefined);
+    const section = present.get(id);
     if (!section) continue;
-    // The anchor has to name the id the MIRROR used, which is whatever the
-    // parser actually produced — `sec-custom_a`, not `sec-a`.
-    const anchorFor = canonical ? id : fallbackId!;
     const token = headerToken(section.headerLine);
     /**
      * A long token falls back to the canonical short form.
@@ -157,7 +145,7 @@ export function jumpTargets(
     targets.push({
       sectionId: id,
       label,
-      anchorId: `sec-${anchorFor}`,
+      anchorId: `sec-${id}`,
     });
   }
 

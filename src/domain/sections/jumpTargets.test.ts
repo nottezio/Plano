@@ -85,41 +85,28 @@ describe('jumpTargets', () => {
     expect(ids).toEqual(['_identity', 'o']);
   });
 
-  describe('shorthand headers the alias table refuses', () => {
-    // Verbatim from a real note: slash delimiters throughout.
-    const SLASH = [
-      '*S/*', '- Sesak berkurang',
-      '*O/*', 'Compos mentis',
-      '*A/*', '- POD 9 MVR + TVr',
-      '', 'T/', '- Warfarin 2 mg/24 jam/oral',
-      '', '*P/*', '- Mobilisasi bertahap',
+  describe('the TS shorthand is not ours', () => {
+    /**
+     * `*A/*` and `*P/*` are the convention a consulting service uses inside
+     * its own block. An earlier version mapped them to the A and Plan
+     * buttons, read from a single screenshot — so on any note written the
+     * usual way, those buttons jumped to another service's assessment.
+     */
+    const tsBlock = [
+      '*Mohon izin kami assess dengan:*', '- milik kami',
+      '*TS BTKV*',
+      '*A/*', '- milik TS',
+      '*P/*', '- rencana TS',
     ].join('\n');
 
-    it('offers all six for a slash-delimited note', () => {
-      expect(jumpTargets(SLASH, ALIASES).map((t) => t.sectionId)).toEqual([
-        '_identity', 's', 'o', 'a', 'terapi', 'p',
-      ]);
-    });
-
-    it('anchors A and P at the id the parser actually produced', () => {
-      // `*A/*` parses to `custom_a`, so the mirror's anchor is `sec-custom_a`.
-      // Pointing at `sec-a` would scroll nowhere.
-      const byId = new Map(jumpTargets(SLASH, ALIASES).map((t) => [t.sectionId, t.anchorId]));
-      expect(byId.get('a')).toBe('sec-custom_a');
-      expect(byId.get('p')).toBe('sec-custom_p');
-    });
-
-    it('prefers a real heading over the shorthand when the note has both', () => {
-      const both = '*A/*\nTS punya\n*Assessment:*\nmilik kami';
-      const a = jumpTargets(both, ALIASES).find((t) => t.sectionId === 'a');
-      expect(a?.anchorId).toBe('sec-a');
-    });
-
-    it('ignores a TS block\u2019s own A/ because the note\u2019s comes first', () => {
-      const withTs = '*A/*\nmilik kami\n*TS BTKV*\n*A/*\nmilik TS';
-      const targets = jumpTargets(withTs, ALIASES);
+    it('does not offer a TS assessment as this note-s A', () => {
+      const targets = jumpTargets(tsBlock, ALIASES);
       expect(targets.filter((t) => t.sectionId === 'a')).toHaveLength(1);
-      expect(targets.map((t) => t.sectionId)).not.toContain('custom_ts_btkv');
+      expect(targets.find((t) => t.sectionId === 'a')?.anchorId).toBe('sec-a');
+    });
+
+    it('does not invent a Plan button from a TS plan', () => {
+      expect(jumpTargets(tsBlock, ALIASES).map((t) => t.sectionId)).not.toContain('p');
     });
   });
 

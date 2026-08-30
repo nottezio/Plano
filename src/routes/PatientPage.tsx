@@ -10,7 +10,7 @@ import { PatientActionsSheet } from '@/components/patient/PatientActionsSheet';
 import { ReformatSheet } from '@/components/patient/ReformatSheet';
 import { IdentityBar } from '@/components/patient/IdentityBar';
 import { JumpBar } from '@/components/patient/JumpBar';
-import { ShiftNotePanel } from '@/components/patient/ShiftNotePanel';
+import { ShiftNoteEditor } from '@/components/patient/ShiftNoteEditor';
 import { LabSheet } from '@/components/patient/LabSheet';
 import { PatientNotes, usePatientNotes } from '@/components/patient/PatientNotes';
 import { PatientTodos } from '@/components/patient/PatientTodos';
@@ -171,6 +171,19 @@ export default function PatientPage(): JSX.Element {
   const shiftNotes = useShiftNotes(patientId ?? '', selected, entry, hariRawat, locked);
 
   /**
+   * Which jaga note the main editor is showing, or null for the day's SOAP.
+   *
+   * Cleared whenever the day changes: a note id is only meaningful within its
+   * own day, and leaving it set across a date change would show an editor for
+   * a note that is not in the list any more.
+   */
+  const [selectedShiftNoteId, setSelectedShiftNoteId] = useState<string | null>(null);
+  const activeShiftNote =
+    selectedShiftNoteId === null
+      ? null
+      : (shiftNotes.notes.find((note) => note.id === selectedShiftNoteId) ?? null);
+
+  /**
    * A settled copy of the note, for everything derived from it.
    *
    * `primaryDpjp` and `parsePatientFacts` each walk the whole body, and both
@@ -289,14 +302,14 @@ export default function PatientPage(): JSX.Element {
       buildRail(
         patient?.admittedAt ?? today,
         today,
-        entryDates.filter((date) => !isIgdEntry(date)),
+        entryDates.dates.filter((date) => !isIgdEntry(date)),
       ),
-    [patient?.admittedAt, today, entryDates],
+    [patient?.admittedAt, today, entryDates.dates],
   );
   // The admission entry is rendered on its own above the rail, so it must not
   // also be sorted in among the days — it would land wherever `igd` falls
   // alphabetically, which is nowhere meaningful.
-  const datesWithContent = useMemo(() => new Set(entryDates), [entryDates]);
+  const datesWithContent = useMemo(() => new Set(entryDates.dates), [entryDates.dates]);
 
   const hint = useMemo(
     () =>
@@ -314,6 +327,12 @@ export default function PatientPage(): JSX.Element {
 
   const goToDate = (next: ClinicalDate): void => {
     editor.flush();
+    // Any unflushed jaga text goes with it. Switching days used to be the one
+    // navigation that could not lose work; a second editor on the page must
+    // not change that.
+    shiftNotes.flush();
+    // A note id means nothing outside its own day.
+    setSelectedShiftNoteId(null);
     navigate(`/p/${patientId}/${next}`);
   };
 
@@ -800,23 +819,39 @@ export default function PatientPage(): JSX.Element {
           />
         ) : null}
 
-        <BodyEditor
-          value={editor.value}
-          onChange={editor.setValue}
-          onBlur={editor.flush}
-          aliases={settings.sectionAliases}
-          tint={settings.sectionTint}
-          readOnly={locked}
-          placeholder="Tulis SOAP hari ini…"
-        />
-
         {/*
-          Below the SOAP, as its own boxes — not appended into the body.
+          One editor slot, two things it can hold.
 
-          Renders nothing at all when the day has no shift notes, so the
-          ordinary round is unchanged.
+          A jaga note selected in the rail replaces the day's SOAP here rather
+          than opening beside it. Two editors on screen at once would mean the
+          answer to "where am I typing" is a glance away instead of obvious,
+          and the whole reason the jaga note is a separate document is that its
+          text must not end up in the morning note.
         */}
-        <ShiftNotePanel state={shiftNotes} readOnly={locked} />
+        {activeShiftNote ? (
+          <ShiftNoteEditor
+            note={activeShiftNote}
+            readOnly={locked}
+            onChange={(body) => shiftNotes.setBody(activeShiftNote.id, body)}
+            onBlur={shiftNotes.flush}
+            onClear={() => {
+              shiftNotes.clear(activeShiftNote.id);
+              setSelectedShiftNoteId(null);
+            }}
+            onBack={() => setSelectedShiftNoteId(null)}
+          />
+        ) : (
+          <BodyEditor
+            value={editor.value}
+            onChange={editor.setValue}
+            onBlur={editor.flush}
+            aliases={settings.sectionAliases}
+            tint={settings.sectionTint}
+            readOnly={locked}
+            placeholder="Tulis SOAP hari ini…"
+          />
+        )}
+
 
         {/* SPEC F4 — microcopy only. There is no save button by design. */}
         <div className="flex items-center gap-3 px-4 py-2 text-[11px] text-fg-faint">
@@ -890,7 +925,14 @@ export default function PatientPage(): JSX.Element {
         open={actionsOpen}
         onOpenChange={setActionsOpen}
         patient={patient}
-        onAddShiftNote={locked ? undefined : shiftNotes.add}
+        onAddShiftNote={
+          locked
+            ? undefined
+            : () => {
+                const id = shiftNotes.add();
+                if (id) setSelectedShiftNoteId(id);
+              }
+        }
       />
 
         </div>
@@ -954,6 +996,16 @@ export default function PatientPage(): JSX.Element {
               today={today}
               datesWithContent={datesWithContent}
               onSelect={goToDate}
+              shiftNotesByDate={entryDates.shiftNotesByDate}
+              selectedShiftNoteId={selectedShiftNoteId}
+              onSelectShiftNote={(date, id) => {
+                // Selecting a jaga note also selects its DAY, so the editor
+                // below is always reading the entry the note belongs to. The
+                // two cannot drift apart and leave the note being edited
+                // against a different day's document.
+                if (date !== selected) goToDate(date);
+                setSelectedShiftNoteId(id);
+              }}
               orientation="vertical"
             />
           </section>
