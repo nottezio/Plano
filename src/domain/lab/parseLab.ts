@@ -40,9 +40,22 @@ const PANELS: ReadonlyArray<{ heading: string; keys: readonly string[] }> = [
   },
   {
     heading: 'Urinalisis :',
+    /**
+     * Full urinalysis panel, in printout order.
+     *
+     * The sediment and ratio rows were added after the first version only
+     * carried the automated-analyser fields (warna through leukosit) — the
+     * printout also runs a microscopy count and two nephrology ratios below
+     * that, and every one of them was falling to `unknown` (if the label and
+     * value shared a line) or being silently dropped (if they did not — see
+     * the lookahead in `parseLab`).
+     */
     keys: [
-      'Urin warna', 'Urin pH', 'Urin BJ', 'Protein', 'Glukosa', 'Bilirubin',
-      'Urobilinogen', 'Keton', 'Nitrit', 'Blood', 'Leukosit',
+      'Urin Warna', 'Urin pH', 'Urin BJ', 'Protein', 'Glukosa', 'Bilirubin',
+      'Urobilinogen', 'Keton', 'Nitrit', 'Blood', 'Leukosit', 'Urin Vit C',
+      'Sedimen Eritrosit', 'Sedimen Kristal', 'Sedimen Epitel', 'Sedimen Lain-lain',
+      'Sedimen Leukosit', 'Sedimen Torak', 'Rasio Albumin Kreatinin',
+      'Rasio Protein Kreatinin',
     ],
   },
 ];
@@ -98,6 +111,11 @@ const ALIASES: Record<string, readonly string[]> = {
   Kalsium: ['kalsium', 'calcium', 'ca'],
   LED: ['led', 'esr'],
   // Blood gas. These were falling into "Lain-lain", which buried a whole panel.
+  //
+  // `pH` is ambiguous on its own: a urinalysis panel also has a row called
+  // `Ph`, written identically. This alias only fires when SECTION context
+  // says blood gas — see `matchAnalyte`'s section argument — so the urine
+  // row is free to claim the same word under `Urin pH` without a collision.
   pH: ['ph'],
   PO2: ['po2', 'p o 2'],
   PCO2: ['pco2', 'p c o 2'],
@@ -108,8 +126,11 @@ const ALIASES: Record<string, readonly string[]> = {
   ctCO2: ['ctco2'],
   Laktat: ['laktat', 'lactate'],
   // Urinalysis, reported as its own block in every note that carries it.
-  'Urin warna': ['warna'],
-  'Urin pH': ['ph urin'],
+  'Urin Warna': ['warna'],
+  // Matches bare `Ph`/`pH` too, disambiguated from the blood-gas alias above
+  // by section context: this only fires while the current section is
+  // urinalysis.
+  'Urin pH': ['ph urin', 'ph'],
   'Urin BJ': ['bj', 'berat jenis'],
   Protein: ['protein'],
   Glukosa: ['glukose', 'glukosa urin'],
@@ -119,6 +140,24 @@ const ALIASES: Record<string, readonly string[]> = {
   Nitrit: ['nitrit'],
   Blood: ['blood'],
   Leukosit: ['lekosit', 'leukosit urin'],
+  // Written `Vit, C` on this printout (comma, not the expected period) and
+  // `Vit. C` / `Vitamin C` elsewhere. `normalise()` strips all punctuation
+  // before matching, so both collapse to `vit c` regardless — the alias only
+  // needs to be written once.
+  'Urin Vit C': ['vit c', 'vitamin c'],
+  // Microscopy / sediment count. `sedimen` is spelled with and without a
+  // capital across printouts; `normalise()` lowercases before matching, so one
+  // alias covers both.
+  'Sedimen Eritrosit': ['sedimen eritrosit'],
+  'Sedimen Kristal': ['sedimen kristal'],
+  'Sedimen Epitel': ['sedimen epitel sel', 'sedimen epitel'],
+  // `Sedimen Lain - lain` on the printout, `Sedimen Lain-lain` in the note —
+  // both normalise to `sedimen lain lain`.
+  'Sedimen Lain-lain': ['sedimen lain lain'],
+  'Sedimen Leukosit': ['sedimen lekosit', 'sedimen leukosit'],
+  'Sedimen Torak': ['sedimen torak'],
+  'Rasio Albumin Kreatinin': ['rasio albumin creatinin', 'rasio albumin kreatinin'],
+  'Rasio Protein Kreatinin': ['rasio protein creatinin', 'rasio protein kreatinin'],
   'Golongan darah': ['golongan darah', 'gol darah'],
 };
 
@@ -177,6 +216,16 @@ const LOOKUP: ReadonlyArray<readonly [string, string]> = Object.entries(ALIASES)
  * Non-numeric results (`Reactive`, `Non Reactive`, `Negatif`) are matched
  * separately and passed through as written.
  */
+/**
+ * Urinalysis grading (`1+`, `2+`, `3+`, `4+`) checked FIRST.
+ *
+ * Without this, `1+` matched the plain numeric pattern below, which returns
+ * only `1` — dropping the `+` silently turns a graded trace result into what
+ * reads as a plain count, on a panel where the difference between `1+` and
+ * `3+` protein is the clinical finding.
+ */
+const GRADED = /\b[0-4]\+/;
+
 const QUALITATIVE =
   /\b(non\s*reactive|reactive|negatif|negative|positif|positive|kuning\s*\w*|jernih|keruh)\b/i;
 
@@ -251,23 +300,88 @@ function extractValue(rest: string, key?: string): string | null {
     if (group?.[0]) return group[0].replace(/\s+/g, ' ').trim();
   }
 
+  const graded = GRADED.exec(rest);
+  if (graded?.[0]) return graded[0];
+
   const qualitative = QUALITATIVE.exec(rest);
   if (qualitative?.[0]) return qualitative[0].replace(/\s+/g, ' ').trim();
+
+  /**
+   * `>=300`, `BAC=2` — a comparison or a labelled count in front of the
+   * number, kept rather than stripped.
+   *
+   * The bare numeric pattern below would return `300` for `>=300`, and `>=300`
+   * is not the same clinical fact as `300` — one says "past the top of the
+   * scale", the other says a value. `BAC=2` names WHAT the 2 is (bacteria);
+   * dropping `BAC=` turns a labelled sediment count into an unlabelled one.
+   *
+   * ANCHORED to the start of the value region, which is the whole reason this
+   * is safe. Unanchored, it searched the entire line and found the reference
+   * range instead of the result: `eGFR 64 >= 90` returned `>= 90`, reporting
+   * the lower limit of normal as the patient's eGFR. That is precisely the
+   * mistake Rule 1 at the top of this file exists to prevent — a wrong number
+   * that reads as entirely plausible. A qualifier belongs to the result only
+   * when it is the first thing on the line.
+   */
+  const qualified = /^\s*(?:>=|<=|[<>=]|[A-Za-z]{2,5}=)\s*-?\d+(?:[.,]\d+)?/.exec(rest);
+  if (qualified?.[0]) return qualified[0].replace(/\s+/g, '').trim();
 
   const numeric = /-?\d+(?:[.,]\d+)?/.exec(rest);
   return numeric ? numeric[0] : null;
 }
 
-function matchAnalyte(line: string): { key: string; rest: string } | null {
+/**
+ * Section headings that disambiguate an alias shared by two panels.
+ *
+ * `Ph` alone is written by both the blood-gas panel and the urinalysis panel
+ * on real printouts, with no other distinguishing text on that line. The
+ * alias itself cannot resolve it — only which section the line falls under
+ * can, so this is tracked separately and passed into `matchAnalyte`.
+ */
+const SECTION_HEADINGS: ReadonlyArray<readonly [RegExp, string]> = [
+  [/analisa\s*gas\s*darah|blood\s*gas|\bagd\b/i, 'gas'],
+  [/urinalisis|urinalisa|urinalysa/i, 'urine'],
+];
+
+/** Aliases that resolve differently depending on which section they are in. */
+const SECTION_SCOPED: Readonly<Record<string, Partial<Record<string, string>>>> = {
+  ph: { gas: 'pH', urine: 'Urin pH' },
+};
+
+function matchAnalyte(line: string, section: string | null): { key: string; rest: string } | null {
   const flat = normalise(line);
   if (!flat) return null;
 
   for (const [alias, key] of LOOKUP) {
     // Anchored at the start: a reference range mentioning "kalium" must not
     // turn a potassium row into a second potassium row.
-    if (flat === alias || flat.startsWith(`${alias} `)) {
+    const exact = flat === alias;
+    if (exact || flat.startsWith(`${alias} `)) {
+      const scoped = SECTION_SCOPED[alias];
+      const resolvedKey = scoped ? (scoped[section ?? ''] ?? key) : key;
+
+      /**
+       * `rest` is what follows the analyte name on the same line.
+       *
+       * When the WHOLE line is the name, that is empty by definition — and it
+       * has to be computed that way rather than by arithmetic, because the
+       * arithmetic below is wrong whenever normalisation changed the length.
+       * `normalise` turns punctuation into spaces and collapses runs of them,
+       * so `Vit, C` (6 chars) becomes `vit c` (5) and `Sedimen Lain - lain`
+       * (19) becomes `sedimen lain lain` (17). Slicing the RAW line by the
+       * NORMALISED alias length then left `'C'` and `'in'` behind — non-empty,
+       * which suppressed the next-line lookahead, which meant the value was
+       * never read and the whole row disappeared from the panel.
+       *
+       * Every label containing punctuation was affected. It went unnoticed
+       * because the labels that happen to be plain words — `Sedimen
+       * Eritrosit`, `Leukosit` — compute correctly and looked like proof the
+       * logic worked.
+       */
+      if (exact) return { key: resolvedKey, rest: '' };
+
       const rest = line.slice(line.toLowerCase().indexOf(alias.split(' ')[0] ?? '') + alias.length);
-      return { key, rest };
+      return { key: resolvedKey, rest };
     }
   }
 
@@ -315,13 +429,55 @@ function resolveAlias(name: string): string | null {
   return null;
 }
 
+/**
+ * Does this line look like a reference range rather than a result?
+ *
+ * Deliberately narrow, because this is only ever used to decide whether to
+ * SKIP a line — a false positive here would swallow a real analyte's row.
+ * Matches the two shapes a printout actually uses: `4.5 - 8.0` (a numeric
+ * span) and a bare qualitative word standing alone (`Negatif`, `Normal`,
+ * `Kuning Muda`) with nothing else on the line, which is how a printout
+ * writes "the normal reading is X" for a qualitative test.
+ */
+function looksLikeRange(line: string): boolean {
+  if (/^-?\d+(?:[.,]\d+)?\s*-\s*-?\d+(?:[.,]\d+)?$/.test(line)) return true;
+  const flat = normalise(line);
+  return /^(negatif|negative|normal|kuning\s*muda|jernih)$/.test(flat);
+}
+
 export function parseLab(raw: string): LabParseResult {
   const found = new Map<string, string>();
   const unknown: LabValue[] = [];
 
-  for (const line of raw.split('\n')) {
-    const trimmed = line.trim();
+  /**
+   * Lines, kept as an array rather than iterated with `for..of`, because one
+   * layout needs to look at the NEXT line and a plain iterator cannot peek.
+   *
+   * That layout is this hospital's own PDF export. Its text layer puts each
+   * column on its own line — `Warna` \\n `Kuning` \\n `Kuning Muda`, not
+   * `Warna Kuning Kuning Muda` — because the PDF's underlying table has one
+   * cell per line and the text extraction reads cell by cell rather than row
+   * by row. `matchAnalyte` finds `Warna` and returns an EMPTY `rest`, since the
+   * value is not on that line to return. Every urinalysis row was silently
+   * dropped this way: recognised as an analyte, worth nothing without a value,
+   * and never appended to `unknown` either — a matched line only reaches the
+   * `unknown` branch when nothing matches it.
+   */
+  const rawLines = raw.split('\n').map((line) => line.trim());
+
+  /**
+   * Which panel the current line falls under, updated as section headings are
+   * seen. Needed only to resolve `Ph`, which both the blood-gas and urinalysis
+   * panels write bare with nothing else on the line to tell them apart.
+   */
+  let section: string | null = null;
+
+  for (let i = 0; i < rawLines.length; i++) {
+    const trimmed = rawLines[i]!;
     if (!trimmed) continue;
+
+    const headingMatch = SECTION_HEADINGS.find(([pattern]) => pattern.test(trimmed));
+    if (headingMatch) section = headingMatch[1];
 
     const grouped = splitGrouped(trimmed);
     if (grouped) {
@@ -331,9 +487,52 @@ export function parseLab(raw: string): LabParseResult {
       continue;
     }
 
-    const matched = matchAnalyte(trimmed);
+    const matched = matchAnalyte(trimmed, section);
     if (matched) {
-      const value = extractValue(matched.rest, matched.key);
+      let value = extractValue(matched.rest, matched.key);
+
+      /**
+       * The label matched and carried no value of its own — the one-cell-
+       * per-line layout. Read forward.
+       *
+       * At most two lines ahead, because that is the shape of every row in
+       * this printout: label, result, reference range. Reading further would
+       * start pulling in the NEXT analyte's label when a row has no result at
+       * all, which silently attaches this row's name to a different row's
+       * number — worse than the original bug, because it is wrong rather than
+       * missing.
+       */
+      if (!value && matched.rest.trim() === '') {
+        for (let ahead = 1; ahead <= 2 && i + ahead < rawLines.length; ahead++) {
+          const candidate = rawLines[i + ahead]!.trim();
+          if (!candidate) continue;
+          value = extractValue(candidate, matched.key);
+          if (value) {
+            i += ahead;
+            /**
+             * The line immediately after the value is very likely the
+             * reference range — `Kuning Muda` after `Kuning`, `4.5 - 8.0`
+             * after `6.0` — and consuming it here is what the comment on this
+             * function used to claim happened without actually making it
+             * happen.
+             *
+             * Without this, the outer loop resumes at the range line fresh,
+             * with no analyte attached to it. It then falls to the catch-all
+             * "unmatched line" branch below, and `QUALITATIVE` — which is
+             * meant to read a RESULT, not a range — matches `Kuning Muda` on
+             * its own and files the reference range into "Lain-lain" as if it
+             * were an unrecognised finding. A reference range is not a
+             * finding, recognised or not, and asserting on `unknown` in tests
+             * is how this was caught: it should never contain a line that is
+             * only a number's normal range.
+             */
+            const next = rawLines[i + 1]?.trim();
+            if (next && looksLikeRange(next)) i += 1;
+            break;
+          }
+        }
+      }
+
       // First occurrence wins: printouts repeat analyte names in section
       // headers and footers, and the first is the result row.
       if (value && !found.has(matched.key)) found.set(matched.key, value);

@@ -3,6 +3,16 @@ import { useCallback } from 'react';
 import type { ShiftNote } from '@/domain/types';
 
 /**
+ * Opening height, in pixels.
+ *
+ * A jaga note is short, but 160 px showed about three lines and made the box
+ * read as a single-line field on a laptop — it looked like somewhere to put a
+ * sentence, not a finding. Tall enough that the common case needs no growth at
+ * all, and it grows past this anyway.
+ */
+const MIN_HEIGHT = 260;
+
+/**
  * The editor for one jaga note, shown in place of the day's SOAP.
  *
  * Visibly not a SOAP editor. It has a header naming what it is and the time it
@@ -27,13 +37,24 @@ export function ShiftNoteEditor({
   onClear: () => void;
   onBack: () => void;
 }): JSX.Element {
+  /**
+   * Height follows the content.
+   *
+   * `auto` first, or the box can only grow and never shrink back when text is
+   * deleted.
+   *
+   * Called from BOTH the callback ref and `onChange`, and both are needed. The
+   * first version wired it to the ref alone, which measures when the element
+   * mounts and never again — so the box opened at its minimum and stayed
+   * there no matter how much was typed into it. That is the same mistake as
+   * the `Catatan pasien` textarea, which was keyed on value and so never ran
+   * on mount: one ran only at mount, the other only after it. A growing
+   * textarea needs measuring at both.
+   */
   const grow = useCallback((node: HTMLTextAreaElement | null) => {
     if (!node) return;
-    // `auto` first or the box can only grow, never shrink back. Measured from
-    // a callback ref so it runs on mount too, which a value-keyed effect does
-    // not — the bug that kept Catatan pasien stuck at three rows.
     node.style.height = 'auto';
-    node.style.height = `${Math.max(node.scrollHeight, 160)}px`;
+    node.style.height = `${Math.max(node.scrollHeight, MIN_HEIGHT)}px`;
   }, []);
 
   return (
@@ -65,7 +86,10 @@ export function ShiftNoteEditor({
         ref={grow}
         value={note.body}
         readOnly={readOnly}
-        onChange={(event) => onChange(event.target.value)}
+        onChange={(event) => {
+          onChange(event.target.value);
+          grow(event.currentTarget);
+        }}
         onBlur={onBlur}
         placeholder="Keluhan saat jaga…"
         className="w-full resize-none overflow-hidden [overflow-wrap:anywhere] rounded-b-lg border border-border bg-surface p-3 text-sm leading-relaxed outline-none placeholder:text-fg-faint"

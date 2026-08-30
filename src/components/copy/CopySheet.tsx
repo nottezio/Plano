@@ -13,6 +13,7 @@ import {
   findNonAsciiChars,
   type BulletStyle,
 } from '@/domain/format/formatters';
+import { composeKonsul } from '@/domain/format/composeKonsul';
 import { composePdfReport } from '@/domain/format/pdfReport';
 import { renderShiftNotes } from '@/domain/shiftNotes';
 import { describeConfig, primaryDpjp } from '@/domain/dpjp';
@@ -134,7 +135,23 @@ export function CopySheet({
    * rather than sitting beside it, because the shape is fixed — offering group
    * chips next to it would imply a choice that does not exist.
    */
-  const [pdfMode, setPdfMode] = useState(false);
+  /**
+   * Which SHAPE of document is being produced.
+   *
+   * A union rather than the `pdfMode` boolean this replaced. Adding the konsul
+   * as a second boolean would have made `!pdfMode && !konsulMode` the
+   * condition for "the ordinary daily note", and every future shape would add
+   * another term to that expression and another chance to leave one out — the
+   * two flags could also both be true, which is a state with no meaning.
+   */
+  const [shape, setShape] = useState<'harian' | 'ringkas' | 'konsul'>('harian');
+  const pdfMode = shape === 'ringkas';
+
+  /**
+   * What the konsul is for. Free text, because the list of things a patient
+   * gets referred for is not one this app should be deciding.
+   */
+  const [konsulPurpose, setKonsulPurpose] = useState('6MWT');
 
   /**
    * A reminder, not a switch.
@@ -201,7 +218,13 @@ export function CopySheet({
 
   const composed = useMemo(
     () =>
-      pdfMode
+      shape === 'konsul'
+        ? // Always the day on screen, never a range: a referral describes the
+          // patient now. Sections are not offered either — the konsul decides
+          // its own contents, and letting the section chips subtract from it
+          // would produce a referral missing its diagnosis.
+          composeKonsul(body, patient, aliases, { purpose: konsulPurpose })
+        : pdfMode
         ? composePdfReport(body, {
             aliases,
             // A consultant who reads the report somewhere that does not render
@@ -223,7 +246,19 @@ export function CopySheet({
             patient,
             bullet,
           }),
-    [pdfMode, body, days, format, selected, includeIdentity, includeDateHeader, aliases, patient],
+    [
+      shape,
+      pdfMode,
+      konsulPurpose,
+      body,
+      days,
+      format,
+      selected,
+      includeIdentity,
+      includeDateHeader,
+      aliases,
+      patient,
+    ],
   );
 
   /**
@@ -365,7 +400,10 @@ export function CopySheet({
             type="button"
             onClick={() => {
               setApplied(true);
-              setPdfMode(expected.format === 'ringkas');
+              // The consultant's preference only ever names `ringkas` or the
+              // daily report; a konsul is a decision for this note, not a
+              // standing preference, so it is never applied from here.
+              setShape(expected.format === 'ringkas' ? 'ringkas' : 'harian');
             }}
             disabled={applied}
             className="mt-1 min-h-tap text-xs font-medium text-accent underline disabled:text-fg-faint disabled:no-underline"
@@ -377,24 +415,52 @@ export function CopySheet({
 
       <Group label="Bentuk">
         <Chip
-          active={!pdfMode}
+          active={shape === 'harian'}
           onClick={() => {
-            setPdfMode(false);
+            setShape('harian');
             setApplied(false);
           }}
         >
           Laporan harian
         </Chip>
         <Chip
-          active={pdfMode}
+          active={shape === 'ringkas'}
           onClick={() => {
-            setPdfMode(true);
+            setShape('ringkas');
             setApplied(false);
           }}
         >
           Ringkas (PDF)
         </Chip>
+        <Chip
+          active={shape === 'konsul'}
+          onClick={() => {
+            setShape('konsul');
+            setApplied(false);
+          }}
+        >
+          Konsul
+        </Chip>
       </Group>
+
+      {shape === 'konsul' ? (
+        <div className="mb-4">
+          <label className="mb-1 block text-[11px] text-fg-muted" htmlFor="konsul-purpose">
+            Konsul untuk
+          </label>
+          <input
+            id="konsul-purpose"
+            value={konsulPurpose}
+            onChange={(event) => setKonsulPurpose(event.target.value)}
+            placeholder="6MWT"
+            className="min-h-tap w-full rounded-lg border border-border bg-surface px-3 text-sm outline-none"
+          />
+          <p className="mt-1 text-[11px] text-fg-faint">
+            Identitas, DPJP, diagnosis, TB dan BB diambil apa adanya dari catatan hari
+            ini. S, O, terapi, dan plan tidak disertakan.
+          </p>
+        </div>
+      ) : null}
 
       {pdfMode ? (
         <p className="mb-4 text-[11px] text-fg-faint">
@@ -403,7 +469,13 @@ export function CopySheet({
         </p>
       ) : null}
 
-      {!pdfMode ? (
+      {/*
+        Hidden for konsul as well as ringkas. Neither shape reads the section
+        chips, and a control that visibly does nothing is worse than no
+        control: it invites the belief that the referral was narrowed when it
+        was not.
+      */}
+      {shape === 'harian' ? (
       <Group label="Bagian">
         <Chip active={groups === 'all'} onClick={() => setGroups('all')}>
           Seluruh catatan
@@ -457,7 +529,7 @@ export function CopySheet({
         what makes opt-in safe rather than fiddly: you can see exactly what
         will land in WhatsApp before you press Salin.
       */}
-      {shiftNotes.length > 0 ? (
+      {shiftNotes.length > 0 && shape === 'harian' ? (
         <div className="mt-3 rounded-lg border border-border p-2">
           <p className="mb-1 text-[11px] font-medium text-fg-muted">
             Sertakan SOAP jaga

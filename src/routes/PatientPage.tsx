@@ -1006,6 +1006,18 @@ export default function PatientPage(): JSX.Element {
                 if (date !== selected) goToDate(date);
                 setSelectedShiftNoteId(id);
               }}
+              onClearShiftNote={(date, id) => {
+                // Only the day on screen can be edited — `useShiftNotes` is
+                // bound to `selected`. Switching first keeps the write going
+                // to the entry the note actually belongs to rather than
+                // silently clearing the same array index on today's document.
+                if (date !== selected) {
+                  goToDate(date);
+                  return;
+                }
+                shiftNotes.clear(id);
+                if (selectedShiftNoteId === id) setSelectedShiftNoteId(null);
+              }}
               orientation="vertical"
             />
           </section>

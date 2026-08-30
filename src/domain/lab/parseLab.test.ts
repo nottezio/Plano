@@ -431,3 +431,98 @@ describe('the panels in the real lab PDFs', () => {
     expect(out).not.toContain('Lain-lain');
   });
 });
+
+/**
+ * The urinalysis printout, verbatim from the hospital's own PDF text layer.
+ *
+ * Its table extracts one CELL per line — `Warna` \n `Kuning` \n `Kuning Muda`
+ * — not one row per line. Everything below was broken by that layout at once,
+ * and each failure was silent: the rows simply did not appear, which reads
+ * exactly like a lab that did not run the test.
+ */
+describe('urinalysis printout, one cell per line', () => {
+  const RAW = [
+    'HASIL PEMERIKSAAN LABORATORIUM',
+    'PEMERIKSAAN', 'HASIL', 'NILAI RUJUKAN', 'SATUAN',
+    'URINALISA', 'Urinalysa', 'URINALISIS (AUTOMATIK)',
+    'Warna', 'Kuning', 'Kuning Muda',
+    'Ph', '6.0', '4.5 - 8.0',
+    'Bj', '1.029', '1.005 - 1.035',
+    'Protein', '1+', 'Negatif', 'mg/dl',
+    'Glukose', '3+', 'Negatif', 'mg/dl',
+    'Bilirubine', 'Negatif', 'Negatif', 'mg/dl',
+    'Urobilinogen', '1+', 'Normal', 'mg/dl',
+    'Keton', 'Negatif', 'Negatif', 'mg/dl',
+    'Nitrit', 'Negatif', 'Negatif', 'mg/dl',
+    'Blood', 'Negatif', 'Negatif', 'RBC/ ul',
+    'Lekosit', 'Negatif', 'Negatif', 'WBC/ul',
+    'Vit, C', 'Negatif', 'Negatif', 'mg/dl',
+    'Sedimen Eritrosit', '2', '< 5', 'lpb',
+    'sedimen Kristal', '0', 'lpk',
+    'Sedimen Epitel Sel', '0', 'lpk',
+    'Sedimen Lain - lain', 'BAC=2', 'ul',
+    'Sedimen Lekosit', '1', '< 5', 'lpb',
+    'Sedimen Torak', '0', 'lpk',
+    'Rasio Albumin Creatinin', '>=300', '0 - 30', 'mg/gCr',
+    'Rasio Protein Creatinin', '>=0.50', '0 - 0.15', 'g/gCr',
+    'Kesan / Saran', ': Proteinuria, Glukosuria, Urobilinuria',
+  ].join('\n');
+
+  const result = parseLab(RAW);
+
+  it('reads a value that sits on the line below its label', () => {
+    expect(result.formatted).toContain('Warna Kuning');
+    expect(result.formatted).toContain('BJ 1.029');
+  });
+
+  it('reads labels whose punctuation is collapsed by normalisation', () => {
+    // `Vit, C` -> `vit c` and `Sedimen Lain - lain` -> `sedimen lain lain`.
+    // Slicing the raw line by the normalised alias length left `C` and `in`
+    // behind, which suppressed the next-line lookahead and lost both rows.
+    expect(result.formatted).toContain('Vit C Negatif');
+    expect(result.formatted).toContain('Sedimen Lain-lain BAC=2');
+  });
+
+  it('keeps the grading on a graded result', () => {
+    // `1+` is not `1`. The numeric pattern would return the digit alone, and
+    // the difference between 1+ and 3+ protein is the finding.
+    expect(result.formatted).toContain('Protein 1+');
+    expect(result.formatted).toContain('Glukosa 3+');
+    expect(result.formatted).toContain('Urobilinogen 1+');
+  });
+
+  it('keeps a comparison operator on a value', () => {
+    // `>=300` is not `300` — one says past the top of the scale.
+    expect(result.formatted).toContain('Rasio Albumin Kreatinin >=300');
+    expect(result.formatted).toContain('Rasio Protein Kreatinin >=0.50');
+  });
+
+  it('reads urine pH as urine, not blood gas', () => {
+    // Both panels write a bare `Ph`. Only the section heading tells them
+    // apart, so the urinalysis pH used to be filed under Analisa Gas Darah.
+    expect(result.formatted).toContain('Urinalisis :');
+    expect(result.formatted).toContain('pH 6.0');
+    expect(result.formatted).not.toContain('Analisa Gas Darah');
+  });
+
+  it('files no reference range as a finding', () => {
+    // `Kuning Muda` and the bare `Negatif` ranges are the NORMAL values, not
+    // results. They were landing in "Lain-lain" as unrecognised findings.
+    expect(result.unknown).toEqual([]);
+    // The heading, not the substring: `Sedimen Lain-lain` is a real analyte
+    // and contains the same text.
+    expect(result.formatted).not.toContain('\nLain-lain:');
+    expect(result.formatted).not.toContain('Kuning Muda');
+  });
+
+  it('reads every row on the sheet', () => {
+    for (const label of [
+      'Warna', 'pH', 'BJ', 'Protein', 'Glukosa', 'Bilirubin', 'Urobilinogen',
+      'Keton', 'Nitrit', 'Blood', 'Leukosit', 'Vit C', 'Sedimen Eritrosit',
+      'Sedimen Kristal', 'Sedimen Epitel', 'Sedimen Lain-lain', 'Sedimen Leukosit',
+      'Sedimen Torak', 'Rasio Albumin Kreatinin', 'Rasio Protein Kreatinin',
+    ]) {
+      expect(result.formatted).toContain(label);
+    }
+  });
+});

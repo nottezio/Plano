@@ -19,6 +19,7 @@ export function DateRail({
   shiftNotesByDate = {},
   selectedShiftNoteId = null,
   onSelectShiftNote,
+  onClearShiftNote,
   orientation = 'horizontal',
 }: {
   dates: ClinicalDate[];
@@ -33,6 +34,14 @@ export function DateRail({
   /** The shift note currently being edited, or null for the day's own SOAP. */
   selectedShiftNoteId?: string | null;
   onSelectShiftNote?: (date: ClinicalDate, id: string) => void;
+  /**
+   * Remove a jaga note from the rail.
+   *
+   * Present alongside `onClear` for days, and for the same reason: the list
+   * you navigate by is also where you tidy up. Requiring the note to be opened
+   * before it can be removed makes deleting an empty one a three-step job.
+   */
+  onClearShiftNote?: (date: ClinicalDate, id: string) => void;
   /** Horizontal strip on phone; a stacked list in the desktop sidebar. */
   orientation?: 'horizontal' | 'vertical';
 }): JSX.Element {
@@ -146,13 +155,13 @@ export function DateRail({
             ? shiftNotes.map((note) => {
                 const noteActive = active && selectedShiftNoteId === note.id;
                 return (
+                  <div key={note.id} className="flex w-full items-center gap-1">
                   <button
-                    key={note.id}
                     type="button"
                     onClick={() => onSelectShiftNote(date, note.id)}
                     aria-current={noteActive}
                     className={[
-                      'ml-4 mt-0.5 flex w-[calc(100%-1rem)] items-center gap-2',
+                      'ml-4 mt-0.5 flex min-w-0 flex-1 items-center gap-2',
                       // Half the height of a day row, and below the tap
                       // minimum on purpose — see the note above about these
                       // not being interchangeable. It is a secondary target
@@ -169,6 +178,18 @@ export function DateRail({
                       {note.body.trim() || '(kosong)'}
                     </span>
                   </button>
+                  {onClearShiftNote ? (
+                    <button
+                      type="button"
+                      onClick={() => onClearShiftNote(date, note.id)}
+                      aria-label={`Hapus SOAP jaga jam ${note.time}`}
+                      title="Hapus SOAP jaga"
+                      className="min-h-tap min-w-tap shrink-0 text-fg-faint"
+                    >
+                      <span aria-hidden="true">×</span>
+                    </button>
+                  ) : null}
+                  </div>
                 );
               })
             : null}
