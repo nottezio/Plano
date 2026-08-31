@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 
 import { Sheet } from '@/components/common/Sheet';
+import { useUI } from '@/store/useUI';
 import { fetchEntryBodies } from '@/data/repositories/entries.repo';
 import {
   composeCopy,
@@ -298,6 +299,20 @@ export function CopySheet({
   // Leaving the old name on the composed value would have let one of them
   // silently copy something different from what the preview showed.
   const output = shiftBlock ? `${composed.trimEnd()}\n\n${shiftBlock}` : composed;
+
+  /**
+   * Tell the copy sanitiser that what is on screen is bound for SIMGOS.
+   *
+   * Only while this sheet is OPEN and the plain format is selected. Leaving it
+   * set after the sheet closes would fold every later copy from the note
+   * editor to ASCII, quietly stripping `°` from text headed for WhatsApp — the
+   * fix for one surface breaking the other.
+   */
+  const setSimgosPreview = useUI((state) => state.setSimgosPreview);
+  useEffect(() => {
+    setSimgosPreview(open && format === 'plain');
+    return () => setSimgosPreview(false);
+  }, [open, format, setSimgosPreview]);
 
   const leaks = findMarkdownLeaks(format === 'whatsapp' ? output : '');
 

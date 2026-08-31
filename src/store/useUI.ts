@@ -25,6 +25,16 @@ interface UIState {
   registerFlush: (key: string, flush: () => void) => () => void;
   flushAll: () => void;
   /**
+   * True while a SIMGOS-targeted preview is the thing on screen.
+   *
+   * Read by the copy sanitiser to decide whether to fold to ASCII. Folding is
+   * right for SIMGOS, which prints every non-ASCII glyph as `?`, and wrong for
+   * WhatsApp, where `°C` renders correctly — so it cannot be a global rule and
+   * has to follow what is actually being looked at.
+   */
+  simgosPreview: boolean;
+  setSimgosPreview: (on: boolean) => void;
+  /**
    * The reporting format expected for the patient currently open.
    *
    * Lives in the store rather than being passed down because the sidebar and
@@ -100,6 +110,8 @@ function readStoredTheme(): ThemePreference {
 }
 
 export const useUI = create<UIState>((set, get) => ({
+  simgosPreview: false,
+  setSimgosPreview: (on) => set({ simgosPreview: on }),
   theme: readStoredTheme(),
   dpjpHint: null,
   setDpjpHint: (dpjpHint) => set({ dpjpHint }),

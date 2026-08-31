@@ -2,6 +2,8 @@ import { useEffect, type ReactNode } from 'react';
 
 import { usePrivacyGuard } from '@/hooks/usePrivacyGuard';
 import { useLock } from '@/store/useLock';
+import { useUI } from '@/store/useUI';
+import { useSanitizedCopy } from '@/hooks/useSanitizedCopy';
 import { useSession } from '@/store/useSession';
 import { initials } from '@/domain/board';
 import { ErrorBoundary } from './ErrorBoundary';
@@ -38,6 +40,16 @@ export function AppShell({
   // in styles/index.css since P0 precisely so this is one attribute, applied
   // above every route rather than remembered per screen.
   const obscured = useLock((state) => state.obscured);
+
+  /**
+   * Mounted once for the whole app rather than per surface.
+   *
+   * Selecting text and copying it is possible on every screen — the note, the
+   * preview, a document, the rail — and a sanitiser attached to only some of
+   * them would work in the places someone remembered to wire it and fail
+   * silently everywhere else, which is indistinguishable from it not working.
+   */
+  useSanitizedCopy(useUI((state) => state.simgosPreview));
   const initialsOnly = useSession((state) => state.settings().privacy.boardShowInitialsOnly);
 
   /**
