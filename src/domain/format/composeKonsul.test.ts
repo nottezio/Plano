@@ -117,3 +117,39 @@ describe('composeKonsul', () => {
     expect(result).not.toContain('*Diagnosis:*');
   });
 });
+
+/**
+ * The "list pasien" shape — the echo full-study request.
+ *
+ * One entry in a list several residents add to, not a letter about a single
+ * patient. Same body, different framing, which is why it is a flag on this
+ * composer rather than a second one that would drift from it.
+ */
+describe('composeKonsul list style', () => {
+  const out = composeKonsul(BODY, PATIENT, ALIASES, {
+    purpose: 'Echocardiography full study',
+    listStyle: true,
+    listFrom: 'PJT Lt. 4',
+    listDate: 'Senin, 31-08-2026',
+  });
+
+  it('opens with the list sentence, not the referral one', () => {
+    expect(out).toContain('mohon izin mengirimkan list pasien Echocardiography full study');
+    expect(out).toContain('dari PJT Lt. 4, Senin, 31-08-2026');
+    expect(out).not.toContain('konsul pasien rencana');
+  });
+
+  it('numbers the patient', () => {
+    expect(out).toContain('1. *Tn. Muh. Djasmani Djafar');
+  });
+
+  it('keeps the DPJP and diagnosis blocks identical to a referral', () => {
+    expect(out).toContain('_DPJP Kardio:');
+    expect(out).toContain('*Diagnosis:*');
+    expect(out).toContain('- Unstable Angina Pectoris (GRACE Score 53 points)');
+  });
+
+  it('uses the shorter closing', () => {
+    expect(out.trimEnd().endsWith('Tabe terima kasih dokter')).toBe(true);
+  });
+});

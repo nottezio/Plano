@@ -844,6 +844,7 @@ export default function PatientPage(): JSX.Element {
             note={activeShiftNote}
             readOnly={locked}
             aliases={settings.sectionAliases}
+            tint={settings.sectionTint}
             onChange={(body) => shiftNotes.setBody(activeShiftNote.id, body)}
             onBlur={shiftNotes.flush}
             onClear={() => {
@@ -928,8 +929,8 @@ export default function PatientPage(): JSX.Element {
         open={compareOpen}
         onOpenChange={setCompareOpen}
         patientId={patientId ?? ''}
-        today={selected}
         todayBody={activeShiftNote ? activeShiftNote.body : editor.value}
+        currentKey={activeShiftNote ? `${selected}#${activeShiftNote.id}` : selected}
         currentLabel={
           activeShiftNote
             ? `Jaga ${activeShiftNote.time} (dibuka)`
@@ -1106,7 +1107,6 @@ export default function PatientPage(): JSX.Element {
         presets={settings.copyPresets}
         dpjpFormats={settings.dpjpFormats}
         bullet={settings.whatsappBullet}
-        shiftNotes={shiftNotes.notes}
         activeShiftNote={activeShiftNote}
       />
 

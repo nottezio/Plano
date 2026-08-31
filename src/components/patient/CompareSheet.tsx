@@ -7,7 +7,6 @@ import {
 } from '@/data/repositories/entries.repo';
 import { formatShortDate } from '@/domain/clinicalDate';
 import { diffSegments } from '@/domain/merge/threeWayMerge';
-import type { ClinicalDate } from '@/domain/types';
 
 /**
  * Today beside an earlier day.
@@ -25,18 +24,22 @@ export function CompareSheet({
   open,
   onOpenChange,
   patientId,
-  today,
   todayBody,
   currentLabel,
+  currentKey,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   patientId: string;
-  today: ClinicalDate;
   /** The note open in the editor — a day's SOAP, or a jaga note. */
   todayBody: string;
   /** What that note is, e.g. `Hari ini` or `Jaga 23.42 · Sen, 31 Agt`. */
   currentLabel: string;
+  /**
+   * The key of the open note in the comparable list, so it is not offered
+   * twice — once as "dibuka" and once under its own date.
+   */
+  currentKey: string;
 }): JSX.Element {
   const [days, setDays] = useState<ComparableEntry[]>([]);
   const [against, setAgainst] = useState<string | null>(null);
@@ -62,17 +65,23 @@ export function CompareSheet({
       .then((entries) => {
         if (cancelled) return;
         /**
-         * A jaga note written TODAY is a valid comparison; the day's own SOAP
-         * is not, because it is already the other pane.
+         * Everything except the note already open, which is the first chip.
          *
-         * The old filter was `entry.date < today`, which was right when a date
-         * was the only thing that could be compared. Keeping it would have
-         * hidden exactly the note this change exists to show — the one written
-         * at 23.42 last night, against the morning note it followed.
+         * Two filters have been wrong here in turn. `entry.date < today` was
+         * right only while a date was the sole thing comparable. Replacing it
+         * with `date < today || kind === 'jaga'` then hid the DAY'S OWN SOAP —
+         * so with a jaga note open there was no way to compare it against the
+         * morning note it followed, which is the single most useful comparison
+         * a shift note has.
+         *
+         * Both were versions of the same mistake: deciding what could not be
+         * compared from what USED to occupy the other pane, back when that
+         * pane was fixed. Now that both sides are chosen, the only entry that
+         * cannot be picked is the one already offered as "dibuka" — and
+         * excluding it by key rather than by date or kind cannot go stale the
+         * next time something new becomes comparable.
          */
-        const earlier = entries.filter(
-          (entry) => entry.date < today || entry.kind === 'jaga',
-        );
+        const earlier = entries.filter((entry) => entry.key !== currentKey);
         setDays(earlier);
         // Default to the most recent, which is the comparison actually wanted
         // — not strictly yesterday, which may be empty.
@@ -86,7 +95,7 @@ export function CompareSheet({
     return () => {
       cancelled = true;
     };
-  }, [open, patientId, today]);
+  }, [open, patientId, currentKey]);
 
   /**
    * `null` means the note currently open in the editor.
@@ -174,22 +183,55 @@ export function CompareSheet({
           </div>
 
           {showDiff && segments ? (
-            <pre className="max-h-[60vh] overflow-auto whitespace-pre-wrap rounded-lg border border-border bg-bg-subtle p-3 text-xs leading-relaxed">
-              {segments.map((segment, index) => (
-                <span
-                  key={index}
-                  className={
-                    segment.type === 'insert'
-                      ? 'bg-[var(--card-step-12-bg)] text-[var(--card-step-12-fg)]'
-                      : segment.type === 'delete'
-                        ? 'bg-[var(--card-step-1-bg)] text-[var(--card-step-1-fg)] line-through'
-                        : undefined
-                  }
-                >
-                  {segment.text}
+            <>
+              {/*
+                Say which way round the comparison runs, in words, above the
+                colours.
+
+                A red/green diff with no stated direction is ambiguous by
+                construction: red can mean "deleted from the left" or "missing
+                on the right" depending on which side you think is the
+                baseline, and the reader has no way to tell which. Naming the
+                two notes and the direction between them makes the colours
+                readable without having to reason about them.
+              */}
+              <p className="mb-1 text-xs text-fg-muted">
+                Perubahan dari <strong className="text-fg">{leftPane?.label}</strong> ke{' '}
+                <strong className="text-fg">{rightPane?.label}</strong>
+              </p>
+
+              <div className="mb-2 flex flex-wrap items-center gap-3 text-[11px] text-fg-muted">
+                <span className="flex items-center gap-1">
+                  <span className="rounded bg-[var(--card-step-12-bg)] px-1 text-[var(--card-step-12-fg)]">
+                    hijau
+                  </span>
+                  baru di {rightPane?.label}
                 </span>
-              ))}
-            </pre>
+                <span className="flex items-center gap-1">
+                  <span className="rounded bg-[var(--card-step-1-bg)] px-1 text-[var(--card-step-1-fg)] line-through">
+                    merah
+                  </span>
+                  hilang dari {leftPane?.label}
+                </span>
+              </div>
+
+              <pre className="max-h-[60vh] overflow-auto whitespace-pre-wrap rounded-lg border border-border bg-bg-subtle p-3 text-xs leading-relaxed">
+                {segments.map((segment, index) => (
+                  <span
+                    key={index}
+                    className={
+                      segment.type === 'insert'
+                        ? 'bg-[var(--card-step-12-bg)] text-[var(--card-step-12-fg)]'
+                        : segment.type === 'delete'
+                          ? 'bg-[var(--card-step-1-bg)] text-[var(--card-step-1-fg)] line-through'
+                          : undefined
+                    }
+                  >
+                    {segment.text}
+                  </span>
+                ))}
+              </pre>
+            </>
           ) : (
             // Two columns from tablet up, stacked below — on a phone there is
             // no width for two readable columns, and a 40-character column is

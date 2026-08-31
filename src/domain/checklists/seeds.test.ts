@@ -5,6 +5,7 @@ import { SEED_CHECKLISTS } from './seeds';
 describe('the seeded checklists', () => {
   it('cover the situations from the sheets', () => {
     expect(SEED_CHECKLISTS.map((list) => list.id)).toEqual([
+      'terima-konsul',
       'poli-tindakan',
       'pindah-cvcu',
       'pindah-igd',

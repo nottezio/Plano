@@ -37,6 +37,7 @@ export function ShiftNoteEditor({
   note,
   readOnly,
   aliases,
+  tint,
   onChange,
   onBlur,
   onClear,
@@ -45,6 +46,7 @@ export function ShiftNoteEditor({
   note: ShiftNote;
   readOnly: boolean;
   aliases: readonly SectionAlias[];
+  tint: boolean;
   onChange: (body: string) => void;
   onBlur: () => void;
   onClear: () => void;
@@ -181,12 +183,13 @@ export function ShiftNoteEditor({
         carries `*S:*` and `*O:*` headings like any other, so it has the same
         need to be navigated.
 
-        `paint={false}`: the tints are a reading aid for a long daily note, and
-        a jaga note is short enough that colour bands would be decoration. The
-        anchors are the reason it is mounted.
+        Painted like the daily note. A jaga note carries the same `*S:*` and
+        `*O:*` headings and is read the same way, so a tint that appears in one
+        and not the other would make the two look like different KINDS of
+        document rather than the same document written at a different hour.
       */}
       <div className="relative">
-        <SectionBands body={note.body} aliases={aliases} paint={false} />
+        <SectionBands body={note.body} aliases={aliases} paint={tint} />
 
       <textarea
         ref={(node) => {

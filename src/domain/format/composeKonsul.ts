@@ -22,6 +22,20 @@ export interface KonsulOptions {
   purpose: string;
   greeting?: string;
   closing?: string;
+  /**
+   * The "list pasien" shape, used for the echo full-study request.
+   *
+   * A different sentence and a numbered patient — it is one line of a list
+   * several residents add to, not a letter about one patient. The body is
+   * identical, which is why it is a flag here rather than a second composer:
+   * two functions emitting the same identity, DPJP and diagnosis blocks would
+   * drift the moment one of them was corrected.
+   */
+  listStyle?: boolean;
+  /** Ward the list is sent from, e.g. `PJT Lt. 4`. */
+  listFrom?: string;
+  /** Clinical date of the list, already formatted. */
+  listDate?: string;
 }
 
 const DEFAULT_GREETING = 'Assalamualaikum dokter. Tabe dokter,';
@@ -103,18 +117,30 @@ export function composeKonsul(
   const location = formatLocation(patient);
   const lines: string[] = [];
 
-  lines.push(
-    `${options.greeting ?? DEFAULT_GREETING} Mohon izin mengirimkan konsul pasien rencana ${options.purpose}${
-      location ? ` di *${location}*` : ''
-    } atas nama:`,
-  );
-  lines.push('');
-
   const identity = identityLineFrom(body, patient);
-  if (identity) {
-    lines.push(identity);
+
+  if (options.listStyle) {
+    lines.push(
+      `Assalamualaikum dokter dan selamat pagi dokter. Tabe dokter, mohon izin mengirimkan list pasien ${
+        options.purpose
+      } dari ${options.listFrom ?? location}${options.listDate ? `, ${options.listDate}` : ''}`,
+    );
     lines.push('');
+    // Numbered, because this is one entry in a list several people add to.
+    if (identity) {
+      lines.push(`1. ${identity}`);
+    }
+  } else {
+    lines.push(
+      `${options.greeting ?? DEFAULT_GREETING} Mohon izin mengirimkan konsul pasien rencana ${options.purpose}${
+        location ? ` di *${location}*` : ''
+      } atas nama:`,
+    );
+    lines.push('');
+    if (identity) lines.push(identity);
   }
+
+  if (identity) lines.push('');
 
   const dpjp = dpjpLinesFrom(body);
   if (dpjp.length > 0) {
@@ -134,7 +160,9 @@ export function composeKonsul(
     lines.push('');
   }
 
-  lines.push(options.closing ?? DEFAULT_CLOSING);
+  lines.push(
+    options.closing ?? (options.listStyle ? 'Tabe terima kasih dokter' : DEFAULT_CLOSING),
+  );
 
   // Collapse the runs of blank lines left by any absent block, so a note with
   // no DPJP line does not produce a gap where one would have been.

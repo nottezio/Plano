@@ -170,7 +170,6 @@ export const SEED_GREETINGS: readonly string[] = [
 export const SEED_OPENING_SENTENCES: readonly string[] = [
       'Tabe dokter, mohon izin melaporkan follow up pasien di *(Ruang) Kamar (no) Bed (no)* atas nama :',
       'Tabe dokter, mohon izin melaporkan pasien baru rencana tindakan dari *(Poli)* di *(Ruang) Kamar (no) Bed (no)* atas nama :',
-      'Tabe dokter, mohon izin melaporkan pasien baru di *(Ruang) Kamar (no) Bed (no)* atas nama :',
       'Tabe dokter izin melaporkan follow up pasien KJS *TS (Bagian) ((Nama DPJP))* di *(Ruang) Kamar (no) Bed (no)* atas nama :',
       'Tabe dokter mohon izin melaporkan follow up perpindahan pasien dari *(Ruang asal) Bed (no)* ke *(Ruang tujuan) Kamar (no) Bed (no)* pasien atas nama :',
       // A KJS transfer: the consulting service and its DPJP are named in the

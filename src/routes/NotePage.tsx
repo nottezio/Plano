@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import { AppShell } from '@/components/common/AppShell';
+import { COLOR_SENTINEL, stripSentinelColor } from '@/domain/format/noteColor';
 import { updateScratchNotes } from '@/data/repositories/settings.repo';
 import { useTextSync } from '@/hooks/useTextSync';
 import { useSession } from '@/store/useSession';
@@ -41,10 +42,18 @@ const COLORS = [
   { label: 'Biru', token: '--note-blue' },
 ] as const;
 
-function resolveToken(token: string | null): string {
-  if (!token) return 'inherit';
+/**
+ * The concrete colour for a palette token.
+ *
+ * `--note-red` and friends are CSS variables, and `execCommand('foreColor')`
+ * takes a colour VALUE — it cannot read a variable — so the current computed
+ * value is looked up and passed instead.
+ */
+function resolveToken(token: string): string {
   const value = getComputedStyle(document.documentElement).getPropertyValue(token).trim();
-  return value || 'inherit';
+  // A missing variable would otherwise pass `''` to `foreColor`, which some
+  // browsers accept as black — wrong, and wrong in a way that looks deliberate.
+  return value || 'currentColor';
 }
 
 const SIZES = [
@@ -154,6 +163,28 @@ export default function NotePage(): JSX.Element {
     const node = ref.current;
     if (node && node.innerHTML !== sync.value) node.innerHTML = sync.value;
   }, [sync.value]);
+
+  /**
+   * Put the selection back to the theme's own text colour.
+   *
+   * The palette's "Biasa" entry used to pass the string `'inherit'` to
+   * `foreColor`. That is not a colour, the browser silently rejects it, and
+   * the button did nothing — text went red with no way back. The swatch was
+   * `transparent` too, so the one control that could have fixed it was also
+   * invisible.
+   *
+   * `removeFormat` would work but takes bold and italic with it, which is more
+   * than was asked for. Painting a sentinel and unwrapping it removes exactly
+   * the colour.
+   */
+  const clearColor = (): void => {
+    const node = ref.current;
+    if (!node) return;
+    node.focus();
+    document.execCommand('foreColor', false, COLOR_SENTINEL);
+    stripSentinelColor(node);
+    sync.setValue(node.innerHTML);
+  };
 
   const apply = (command: string, value?: string): void => {
     ref.current?.focus();
@@ -266,14 +297,19 @@ export default function NotePage(): JSX.Element {
               type="button"
               aria-label={`Warna ${color.label}`}
               title={color.label}
-              onClick={() => apply('foreColor', resolveToken(color.token))}
+              onClick={() =>
+                color.token ? apply('foreColor', resolveToken(color.token)) : clearColor()
+              }
               className="flex min-h-tap min-w-tap items-center justify-center"
             >
               <span
                 aria-hidden="true"
                 className="h-5 w-5 rounded-full border border-border-strong"
                 style={{
-                  backgroundColor: color.token ? `var(${color.token})` : 'transparent',
+                  // The reset swatch shows the body colour rather than
+                  // `transparent`, which rendered it invisible — an option
+                  // nobody could see was an option nobody used.
+                  backgroundColor: color.token ? `var(${color.token})` : 'var(--fg)',
                 }}
               />
             </button>

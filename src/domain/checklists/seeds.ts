@@ -42,6 +42,23 @@ function items(...labels: string[]): ChecklistTemplateItem[] {
 
 export const SEED_CHECKLISTS: readonly ChecklistTemplate[] = [
   {
+    id: 'terima-konsul',
+    title: 'Menerima dan menjawab konsul',
+    context: 'Dari permintaan konsul masuk sampai obat diorder ulang di episode PJT',
+    items: items(
+      'Buat nyanyian',
+      'Lapor chief PJT penanggung jawab hari tersebut',
+      'Terima konsul dari dashboard DPJP yang dituju',
+      'Tunggu SOAP fix',
+      'Jawab konsul di akun DPJP yang episode Spesialis Kardiologi dan CPPT tanpa order obat',
+      'CPPT kan dan order obat ulang di episode PJT',
+    ),
+    notes: [
+      'Jawab Konsul: S & O.',
+      'Anjuran: A & T/P.',
+    ],
+  },
+  {
     id: 'poli-tindakan',
     title: 'Pasien poli untuk CA standby + PPM + EP study',
     context: 'Termasuk advanced PCI, staging PCI, TPM',

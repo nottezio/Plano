@@ -14,10 +14,10 @@ import {
   findNonAsciiChars,
   type BulletStyle,
 } from '@/domain/format/formatters';
+import { formatDayNoWeekday } from '@/domain/clinicalDate';
 import { composeKonsul } from '@/domain/format/composeKonsul';
 import { composeShiftNote } from '@/domain/format/composeShiftNote';
 import { composePdfReport } from '@/domain/format/pdfReport';
-import { renderShiftNotes } from '@/domain/shiftNotes';
 import { describeConfig, primaryDpjp } from '@/domain/dpjp';
 import {
   COPY_GROUPS,
@@ -82,7 +82,6 @@ export function CopySheet({
   presets,
   dpjpFormats,
   bullet,
-  shiftNotes,
   activeShiftNote,
 }: {
   open: boolean;
@@ -95,8 +94,6 @@ export function CopySheet({
   presets: readonly CopyPreset[];
   dpjpFormats: Record<string, DpjpReportConfig>;
   bullet: BulletStyle;
-  /** Shift notes on the day being copied. Empty on any day that has none. */
-  shiftNotes: readonly ShiftNote[];
   /**
    * The jaga note open in the editor, if one is.
    *
@@ -106,16 +103,6 @@ export function CopySheet({
    */
   activeShiftNote?: ShiftNote | null | undefined;
 }): JSX.Element {
-  /**
-   * Ticked shift notes. Starts EMPTY, every time the sheet opens.
-   *
-   * Opt-in was the explicit requirement, and it is also the safe default: the
-   * note you send the chief every morning must not silently change shape
-   * because a jaga complaint was added to the same day at 21.40. A tick is one
-   * action; noticing that an extra block went out is not.
-   */
-  const [tickedShiftNotes, setTickedShiftNotes] = useState<string[]>([]);
-
   const [format, setFormat] = useState<OutputFormat>('whatsapp');
   const [range, setRange] = useState<CopyRange>('specific');
   const [groups, setGroups] = useState<CopyGroupId[] | 'all'>('all');
@@ -163,6 +150,14 @@ export function CopySheet({
    * gets referred for is not one this app should be deciding.
    */
   const [konsulPurpose, setKonsulPurpose] = useState('6MWT');
+  /**
+   * The list shape, for the echo full-study request.
+   *
+   * A checkbox on the konsul rather than a fourth chip: it is the same
+   * document with a different framing, and a separate shape would imply the
+   * body differs too.
+   */
+  const [konsulList, setKonsulList] = useState(false);
 
   /**
    * A reminder, not a switch.
@@ -207,10 +202,6 @@ export function CopySheet({
   useEffect(() => {
     if (!open) return;
     setCopied(false);
-    // Ticks reset on every opening. A tick that persisted would mean the
-    // second copy of the day silently carries what the first one did — which
-    // is the exact behaviour opt-in exists to prevent.
-    setTickedShiftNotes([]);
     /**
      * Opening Salin while a jaga note is on screen defaults to copying THAT
      * note.
@@ -273,7 +264,12 @@ export function CopySheet({
           // patient now. Sections are not offered either — the konsul decides
           // its own contents, and letting the section chips subtract from it
           // would produce a referral missing its diagnosis.
-          composeKonsul(body, patient, aliases, { purpose: konsulPurpose })
+          composeKonsul(body, patient, aliases, {
+            purpose: konsulPurpose,
+            listStyle: konsulList,
+            listFrom: patient.ward ?? '',
+            listDate: formatDayNoWeekday(date),
+          })
         : pdfMode
         ? composePdfReport(body, {
             aliases,
@@ -302,6 +298,8 @@ export function CopySheet({
       bullet,
       pdfMode,
       konsulPurpose,
+      konsulList,
+      date,
       body,
       days,
       format,
@@ -326,12 +324,11 @@ export function CopySheet({
    * After everything else because it is chronologically after: the morning
    * SOAP, then what happened on the shift.
    */
-  const shiftBlock = renderShiftNotes(shiftNotes, tickedShiftNotes);
   // Renamed from `output` so every consumer below — the leak check, the
   // non-ASCII check, the preview and the clipboard — sees the same string.
   // Leaving the old name on the composed value would have let one of them
   // silently copy something different from what the preview showed.
-  const output = shiftBlock ? `${composed.trimEnd()}\n\n${shiftBlock}` : composed;
+  const output = composed;
 
   /**
    * Tell the copy sanitiser that what is on screen is bound for SIMGOS.
@@ -532,6 +529,14 @@ export function CopySheet({
             placeholder="6MWT"
             className="min-h-tap w-full rounded-lg border border-border bg-surface px-3 text-sm outline-none"
           />
+          <label className="mt-2 flex min-h-tap items-center gap-2 text-xs text-fg">
+            <input
+              type="checkbox"
+              checked={konsulList}
+              onChange={(event) => setKonsulList(event.target.checked)}
+            />
+            Kirim sebagai list pasien (mis. Echocardiography full study)
+          </label>
           <p className="mt-1 text-[11px] text-fg-faint">
             Identitas, DPJP, diagnosis, TB dan BB diambil apa adanya dari catatan hari
             ini. S, O, terapi, dan plan tidak disertakan.
@@ -606,46 +611,16 @@ export function CopySheet({
         what makes opt-in safe rather than fiddly: you can see exactly what
         will land in WhatsApp before you press Salin.
       */}
-      {shiftNotes.length > 0 && shape === 'harian' ? (
-        <div className="mt-3 rounded-lg border border-border p-2">
-          <p className="mb-1 text-[11px] font-medium text-fg-muted">
-            Sertakan SOAP jaga
-          </p>
-          {shiftNotes.map((note) => {
-            const ticked = tickedShiftNotes.includes(note.id);
-            const empty = note.body.trim().length === 0;
-            return (
-              <label
-                key={note.id}
-                className={[
-                  'flex min-h-tap items-center gap-2 px-1 text-xs',
-                  empty ? 'text-fg-faint' : 'text-fg',
-                ].join(' ')}
-              >
-                <input
-                  type="checkbox"
-                  checked={ticked}
-                  // An empty box has nothing to contribute; `renderShiftNotes`
-                  // skips it anyway, and an enabled tick that changes nothing
-                  // reads as a bug.
-                  disabled={empty}
-                  onChange={() =>
-                    setTickedShiftNotes((current) =>
-                      ticked
-                        ? current.filter((id) => id !== note.id)
-                        : [...current, note.id],
-                    )
-                  }
-                />
-                <span className="shrink-0 font-medium">Jam {note.time}</span>
-                <span className="min-w-0 flex-1 truncate">
-                  {empty ? '(kosong)' : note.body.trim()}
-                </span>
-              </label>
-            );
-          })}
-        </div>
-      ) : null}
+      {/*
+        The "Sertakan SOAP jaga" tick list was REMOVED.
+
+        It existed to append shift notes underneath the day's report, which
+        modelled a jaga note as part of the daily note. That is not what it is:
+        it is its own note that happens to have been written on that day, and
+        it has its own entry in the rail, its own editor and its own Salin
+        shape. Offering to fold it into the morning report as well gave the
+        same note two identities and made "which one did I send" a question.
+      */}
 
       {preview === 'tampilan' ? (
         <>
