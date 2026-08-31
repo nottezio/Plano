@@ -27,7 +27,12 @@ export function FormatToolbar({
   onItalic: () => void;
   onBullet: () => void;
   onNumbered: () => void;
-  onInsertSection: (label: string) => void;
+  /**
+   * Absent for the jaga editor, which has no section structure — offering to
+   * insert `*O:*` headings into a shift note invites it to be written as a
+   * second daily note.
+   */
+  onInsertSection?: ((label: string) => void) | undefined;
   /** Current body, for the whole-note actions. */
   value: string;
   onReplace: (next: string) => void;
@@ -47,6 +52,12 @@ export function FormatToolbar({
       <label className="sr-only" htmlFor="insert-section">
         Sisipkan bagian
       </label>
+      {/*
+        Hidden, not disabled, when there is nothing to insert into.
+        The jaga editor has no sections; a greyed-out "Sisipkan bagian"
+        would still say the feature belongs there.
+      */}
+      {onInsertSection ? (
       <select
         id="insert-section"
         disabled={disabled}
@@ -64,6 +75,7 @@ export function FormatToolbar({
           </option>
         ))}
       </select>
+      ) : null}
       <span aria-hidden="true" className="mx-1 h-5 w-px bg-border" />
 
       {/* Both are actions, never automatic. Applying either on paste would edit

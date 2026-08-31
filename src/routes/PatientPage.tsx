@@ -832,6 +832,7 @@ export default function PatientPage(): JSX.Element {
           <ShiftNoteEditor
             note={activeShiftNote}
             readOnly={locked}
+            aliases={settings.sectionAliases}
             onChange={(body) => shiftNotes.setBody(activeShiftNote.id, body)}
             onBlur={shiftNotes.flush}
             onClear={() => {
@@ -1084,6 +1085,7 @@ export default function PatientPage(): JSX.Element {
         dpjpFormats={settings.dpjpFormats}
         bullet={settings.whatsappBullet}
         shiftNotes={shiftNotes.notes}
+        activeShiftNote={activeShiftNote}
       />
 
       <RevisionTrail

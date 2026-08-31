@@ -5,7 +5,7 @@ import { labHeading, parseLab } from '@/domain/lab/parseLab';
 import { copyText } from '@/lib/clipboard';
 import { preprocessForOcr } from '@/lib/ocrPreprocess';
 import { extractPdfText, isPdf } from '@/lib/pdfText';
-import { formatShortDate } from '@/domain/clinicalDate';
+import { formatShortDateNoWeekday } from '@/domain/clinicalDate';
 import type { ClinicalDate } from '@/domain/types';
 
 /**
@@ -40,7 +40,11 @@ export function LabSheet({
   const fileRef = useRef<HTMLInputElement>(null);
 
   const result = useMemo(() => parseLab(raw), [raw]);
-  const heading = labHeading(formatShortDate(date), source.trim() || 'Laboratorium');
+  // `formatShortDateNoWeekday`, not `formatShortDate`. This string goes INTO
+  // the note as `*Laboratorium (30 Agu)*`, and every lab heading in the corpus
+  // is a bare date — the weekday belongs to the rail, which is navigation, not
+  // to the note, which is the document.
+  const heading = labHeading(formatShortDateNoWeekday(date), source.trim() || 'Laboratorium');
   const block = result.formatted ? `${heading}\n${result.formatted}` : '';
 
   /**

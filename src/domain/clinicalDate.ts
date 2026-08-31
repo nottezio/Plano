@@ -111,10 +111,30 @@ export function formatLongDate(date: ClinicalDate): string {
   return format(shiftUtcToLocalFields(date), 'EEEE, d MMMM yyyy', { locale: localeId });
 }
 
-/** "6 Agu" — compact form for the date rail. */
+/**
+ * "Sab, 6 Agu" — compact form for the date rail.
+ *
+ * The weekday is here because a ward round is organised by it: "the echo is
+ * Wednesday" and "no MSCT on Sunday" are how the plan is actually held, and a
+ * rail of bare dates made working out which day a note belongs to a counting
+ * exercise. Abbreviated, because the rail is a column on a phone and the date
+ * is the part that has to stay readable.
+ */
 export function formatShortDate(date: ClinicalDate): string {
   // `date-fns` throws on an invalid date, and every caller here is a label —
   // a page that cannot render a date should still render the page.
+  if (!isDateLike(date)) return date === IGD_ENTRY ? 'Awal' : date;
+  return format(shiftUtcToLocalFields(date), 'EEEEEE, d MMM', { locale: localeId });
+}
+
+/**
+ * "6 Agu" — the date with no weekday.
+ *
+ * Kept for the places that already say which day it is in words. `Kemarin` and
+ * `Hari ini` sit beside this in the rail, and "Kemarin · Sab, 30 Agu" says the
+ * same thing twice in a row that is one line tall.
+ */
+export function formatShortDateNoWeekday(date: ClinicalDate): string {
   if (!isDateLike(date)) return date === IGD_ENTRY ? 'Awal' : date;
   return format(shiftUtcToLocalFields(date), 'd MMM', { locale: localeId });
 }

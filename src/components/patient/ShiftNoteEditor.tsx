@@ -1,6 +1,15 @@
-import { useCallback } from 'react';
+import { useCallback, useRef } from 'react';
 
-import type { ShiftNote } from '@/domain/types';
+import {
+  BOLD,
+  ITALIC,
+  toggleBullet,
+  toggleNumbered,
+  toggleWrap,
+  type TextEdit,
+} from '@/domain/format/markdownLite';
+import type { SectionAlias, ShiftNote } from '@/domain/types';
+import { FormatToolbar } from './FormatToolbar';
 
 /**
  * Opening height, in pixels.
@@ -25,6 +34,7 @@ const MIN_HEIGHT = 260;
 export function ShiftNoteEditor({
   note,
   readOnly,
+  aliases,
   onChange,
   onBlur,
   onClear,
@@ -32,11 +42,13 @@ export function ShiftNoteEditor({
 }: {
   note: ShiftNote;
   readOnly: boolean;
+  aliases: readonly SectionAlias[];
   onChange: (body: string) => void;
   onBlur: () => void;
   onClear: () => void;
   onBack: () => void;
 }): JSX.Element {
+  const ref = useRef<HTMLTextAreaElement | null>(null);
   /**
    * Height follows the content.
    *
@@ -51,11 +63,63 @@ export function ShiftNoteEditor({
    * on mount: one ran only at mount, the other only after it. A growing
    * textarea needs measuring at both.
    */
+  /**
+   * Height follows the content, without moving the page.
+   *
+   * The naive version — `height = 'auto'` then `height = scrollHeight` — jumps
+   * the scroll on EVERY KEYSTROKE. Between those two assignments the textarea
+   * collapses to a single line, the scroll container shrinks by the height of
+   * the box, and the browser clamps `scrollTop` to fit the shorter document.
+   * Expanding again restores the height but not the scroll position, so the
+   * view slides upward once per character typed.
+   *
+   * Two things prevent that. The measurement happens against a COPY of the
+   * box's own metrics rather than by collapsing the real one, and the scroll
+   * position of the nearest scrollable ancestor is captured and restored
+   * around the write in the same synchronous block, so nothing is painted in
+   * between.
+   */
   const grow = useCallback((node: HTMLTextAreaElement | null) => {
     if (!node) return;
+
+    const scroller = node.closest('main') ?? document.scrollingElement;
+    const top = scroller?.scrollTop ?? 0;
+
     node.style.height = 'auto';
-    node.style.height = `${Math.max(node.scrollHeight, MIN_HEIGHT)}px`;
+    const next = `${Math.max(node.scrollHeight, MIN_HEIGHT)}px`;
+
+    // Assigning the same value still triggers a style recalculation, and on a
+    // long note that is the difference between typing that feels immediate and
+    // typing that stutters.
+    if (node.style.height !== next) node.style.height = next;
+
+    if (scroller && scroller.scrollTop !== top) scroller.scrollTop = top;
   }, []);
+
+  /**
+   * Apply a text transform to the current selection.
+   *
+   * Reads position straight off the DOM node rather than tracking it in state:
+   * the caret moves on every click and arrow key, and mirroring that into
+   * React would be a second copy of a value the element already holds
+   * authoritatively.
+   */
+  const withSelection = useCallback(
+    (transform: (text: string, start: number, end: number) => TextEdit) => {
+      const node = ref.current;
+      if (!node || readOnly) return;
+      const edit = transform(node.value, node.selectionStart, node.selectionEnd);
+      onChange(edit.text);
+      // Restore after React has written the new value, or the caret lands at
+      // the end and the next keystroke appends instead of continuing.
+      requestAnimationFrame(() => {
+        node.setSelectionRange(edit.selectionStart, edit.selectionEnd);
+        node.focus();
+        grow(node);
+      });
+    },
+    [onChange, readOnly, grow],
+  );
 
   return (
     <section aria-label={`SOAP jaga jam ${note.time}`} className="px-4">
@@ -82,8 +146,35 @@ export function ShiftNoteEditor({
         </button>
       </div>
 
+      {/*
+        The same toolbar as the daily note.
+        
+        A jaga note is sent to the same people, through the same two surfaces,
+        and gets read the same way — `*bold*` headings and `- ` bullets matter
+        in WhatsApp whether the finding was made at 09.00 or 23.42. Giving it a
+        plain textarea meant the emphasis had to be typed by hand, which is
+        both slower and the thing this toolbar exists to replace.
+
+        `onInsertSection` is absent: a jaga note has no section structure, and
+        offering to insert `*O:*` headings into it would invite it to be
+        written as a second daily note.
+      */}
+      <FormatToolbar
+        aliases={aliases}
+        disabled={readOnly}
+        value={note.body}
+        onReplace={onChange}
+        onBold={() => withSelection((text, start, end) => toggleWrap(text, start, end, BOLD))}
+        onItalic={() => withSelection((text, start, end) => toggleWrap(text, start, end, ITALIC))}
+        onBullet={() => withSelection(toggleBullet)}
+        onNumbered={() => withSelection(toggleNumbered)}
+      />
+
       <textarea
-        ref={grow}
+        ref={(node) => {
+          ref.current = node;
+          grow(node);
+        }}
         value={note.body}
         readOnly={readOnly}
         onChange={(event) => {

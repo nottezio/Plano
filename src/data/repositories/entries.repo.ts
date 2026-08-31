@@ -450,3 +450,73 @@ export function writeShiftNotes(
     ),
   );
 }
+
+/**
+ * One comparable item — a day's SOAP, or a single jaga note.
+ *
+ * Flat, not nested. A jaga note is NOT modelled as a child of the day's note
+ * here: for the purpose of "what changed", it is simply another piece of
+ * writing with a time on it. Nesting it would force the compare sheet to
+ * decide what comparing a parent means when only a child differs, which is a
+ * question the user never asked.
+ */
+export interface ComparableEntry {
+  /** Unique across both kinds — a date alone is not, once jaga notes exist. */
+  key: string;
+  date: ClinicalDate;
+  /** `HH.MM` for a jaga note; absent for the day's own SOAP. */
+  time?: string;
+  kind: 'harian' | 'jaga';
+  body: string;
+}
+
+/**
+ * Everything on this patient that can be compared, newest first.
+ *
+ * Reads the same documents `fetchEntryBodies` does, and returns the jaga notes
+ * alongside the daily bodies rather than instead of them. Empty bodies are
+ * dropped on both kinds: an empty note has nothing to compare and would sit in
+ * the picker as a dead option.
+ */
+export async function fetchComparableEntries(
+  patientId: string,
+): Promise<ComparableEntry[]> {
+  const snapshot = await getDocs(query(entriesCol(patientId), orderBy('date', 'desc')));
+  const out: ComparableEntry[] = [];
+
+  for (const doc of snapshot.docs) {
+    const entry = doc.data() as DailyEntry;
+    if (entry.deletedAt) continue;
+
+    const body = entry.body ?? '';
+    if (body.trim().length > 0) {
+      out.push({ key: entry.date, date: entry.date, kind: 'harian', body });
+    }
+
+    for (const note of entry.shiftNotes ?? []) {
+      if (note.clearedAt !== null) continue;
+      if (note.body.trim().length === 0) continue;
+      out.push({
+        key: `${entry.date}#${note.id}`,
+        date: entry.date,
+        time: note.time,
+        kind: 'jaga',
+        body: note.body,
+      });
+    }
+  }
+
+  /**
+   * Newest first, with a jaga note sorting AFTER the day it was written on.
+   *
+   * The day's SOAP is the morning round and the jaga note came later, so
+   * within one date the jaga note is the more recent writing. Sorting by date
+   * alone would leave their order down to document iteration, which is not
+   * something a reader should have to know about.
+   */
+  return out.sort((a, b) => {
+    if (a.date !== b.date) return a.date < b.date ? 1 : -1;
+    if (a.kind === b.kind) return (b.time ?? '').localeCompare(a.time ?? '');
+    return a.kind === 'jaga' ? -1 : 1;
+  });
+}

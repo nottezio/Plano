@@ -9,6 +9,7 @@ import {
   formatDayHeader,
   formatLongDate,
   formatShortDate,
+  formatShortDateNoWeekday,
   hariRawat,
   isClinicalDate,
   isDateLike,
@@ -128,7 +129,9 @@ describe('formatting', () => {
     expect(relativeDayLabel('2026-08-05', '2026-08-06')).toBe('Kemarin');
     expect(relativeDayLabel('2026-08-07', '2026-08-06')).toBe('Besok');
     // date-fns' Indonesian locale abbreviates Agustus as "Agt" (KBBI form).
-    expect(relativeDayLabel('2026-08-01', '2026-08-06')).toBe('1 Agt');
+    // Beyond yesterday/today/tomorrow the rail shows the weekday too, which
+    // is the whole point of the change: "Sab" is how the round refers to it.
+    expect(relativeDayLabel('2026-08-01', '2026-08-06')).toBe('Sab, 1 Agt');
   });
 });
 
@@ -261,5 +264,25 @@ describe('sorting entry ids', () => {
     const ids = ['2026-08-25', 'igd', '2026-08-24'].sort().reverse();
     expect(ids[0]).toBe('igd');
     expect(ids.find((id) => !isIgdEntry(id as ClinicalDate))).toBe('2026-08-25');
+  });
+});
+
+describe('short date carries the weekday', () => {
+  it('names the day, because a round is organised by it', () => {
+    // "the echo is Wednesday" is how the plan is actually held; a rail of bare
+    // dates made working out which day a note belongs to a counting exercise.
+    expect(formatShortDate('2026-08-30')).toBe('Min, 30 Agt');
+    expect(formatShortDate('2026-08-31')).toBe('Sen, 31 Agt');
+  });
+
+  it('still degrades to a label rather than throwing', () => {
+    expect(formatShortDate(IGD_ENTRY)).toBe('Awal');
+  });
+
+  it('keeps a weekday-free form for text that goes into the note', () => {
+    // Lab headings in the corpus are a bare date: the weekday belongs to the
+    // rail, which is navigation, not to the document.
+    expect(formatShortDateNoWeekday('2026-08-30')).toBe('30 Agt');
+    expect(formatShortDateNoWeekday(IGD_ENTRY)).toBe('Awal');
   });
 });

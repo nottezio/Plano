@@ -15,6 +15,7 @@ import {
   type BulletStyle,
 } from '@/domain/format/formatters';
 import { composeKonsul } from '@/domain/format/composeKonsul';
+import { composeShiftNote } from '@/domain/format/composeShiftNote';
 import { composePdfReport } from '@/domain/format/pdfReport';
 import { renderShiftNotes } from '@/domain/shiftNotes';
 import { describeConfig, primaryDpjp } from '@/domain/dpjp';
@@ -82,6 +83,7 @@ export function CopySheet({
   dpjpFormats,
   bullet,
   shiftNotes,
+  activeShiftNote,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -95,6 +97,14 @@ export function CopySheet({
   bullet: BulletStyle;
   /** Shift notes on the day being copied. Empty on any day that has none. */
   shiftNotes: readonly ShiftNote[];
+  /**
+   * The jaga note open in the editor, if one is.
+   *
+   * Its presence is what makes the "SOAP jaga" shape available: a shift note
+   * is copied on its own only when it is the thing being looked at, which
+   * removes any question about WHICH note the button would send.
+   */
+  activeShiftNote?: ShiftNote | null | undefined;
 }): JSX.Element {
   /**
    * Ticked shift notes. Starts EMPTY, every time the sheet opens.
@@ -145,7 +155,7 @@ export function CopySheet({
    * another term to that expression and another chance to leave one out — the
    * two flags could also both be true, which is a state with no meaning.
    */
-  const [shape, setShape] = useState<'harian' | 'ringkas' | 'konsul'>('harian');
+  const [shape, setShape] = useState<'harian' | 'ringkas' | 'konsul' | 'jaga'>('harian');
   const pdfMode = shape === 'ringkas';
 
   /**
@@ -201,6 +211,15 @@ export function CopySheet({
     // second copy of the day silently carries what the first one did — which
     // is the exact behaviour opt-in exists to prevent.
     setTickedShiftNotes([]);
+    /**
+     * Opening Salin while a jaga note is on screen defaults to copying THAT
+     * note.
+     *
+     * The alternative — defaulting to the day's SOAP — means the button under
+     * your thumb sends something other than what fills the screen behind the
+     * sheet, which is the one thing this sheet must never do.
+     */
+    setShape(activeShiftNote ? 'jaga' : 'harian');
     let cancelled = false;
     void fetchEntryBodies(patient.id)
       .then((days) => {
@@ -210,7 +229,10 @@ export function CopySheet({
     return () => {
       cancelled = true;
     };
-  }, [open, patient.id]);
+    // `activeShiftNote?.id`, not the object: the note re-identifies on every
+    // keystroke while it is being edited, and depending on the object would
+    // reset the chosen shape mid-typing.
+  }, [open, patient.id, activeShiftNote?.id]);
 
   const days = useMemo(() => {
     const fetched = allDays.length > 0 ? allDays : [{ date, body }];
@@ -237,7 +259,16 @@ export function CopySheet({
 
   const composed = useMemo(
     () =>
-      shape === 'konsul'
+      shape === 'jaga' && activeShiftNote
+        ? // Stands alone. A jaga note is reported when it happens, to whoever
+          // is on, and attaching the morning SOAP to it would send a page of
+          // findings from hours earlier as though they were current.
+          composeShiftNote(activeShiftNote, patient, {
+            format,
+            bullet,
+            includeIdentity,
+          })
+        : shape === 'konsul'
         ? // Always the day on screen, never a range: a referral describes the
           // patient now. Sections are not offered either — the konsul decides
           // its own contents, and letting the section chips subtract from it
@@ -267,6 +298,8 @@ export function CopySheet({
           }),
     [
       shape,
+      activeShiftNote,
+      bullet,
       pdfMode,
       konsulPurpose,
       body,
@@ -465,6 +498,17 @@ export function CopySheet({
         >
           Ringkas (PDF)
         </Chip>
+        {activeShiftNote ? (
+          <Chip
+            active={shape === 'jaga'}
+            onClick={() => {
+              setShape('jaga');
+              setApplied(false);
+            }}
+          >
+            SOAP jaga {activeShiftNote.time}
+          </Chip>
+        ) : null}
         <Chip
           active={shape === 'konsul'}
           onClick={() => {
