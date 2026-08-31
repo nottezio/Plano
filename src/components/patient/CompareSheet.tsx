@@ -27,15 +27,31 @@ export function CompareSheet({
   patientId,
   today,
   todayBody,
+  currentLabel,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   patientId: string;
   today: ClinicalDate;
+  /** The note open in the editor — a day's SOAP, or a jaga note. */
   todayBody: string;
+  /** What that note is, e.g. `Hari ini` or `Jaga 23.42 · Sen, 31 Agt`. */
+  currentLabel: string;
 }): JSX.Element {
   const [days, setDays] = useState<ComparableEntry[]>([]);
   const [against, setAgainst] = useState<string | null>(null);
+  /**
+   * The RIGHT pane, which used to be hard-wired to the note in the editor.
+   *
+   * That was the source of the confusion: with a jaga note open, the right
+   * pane silently still held the day's SOAP, so "compare this jaga note with
+   * that day's SOAP" produced two panes neither of which was the thing on
+   * screen, and the header said "hari ini" over a note from another day.
+   *
+   * Both sides are now chosen the same way, from the same list, and the note
+   * in the editor is simply one more entry in it — `null` means that entry.
+   */
+  const [right, setRight] = useState<string | null>(null);
   const [showDiff, setShowDiff] = useState(false);
 
   useEffect(() => {
@@ -61,6 +77,9 @@ export function CompareSheet({
         // Default to the most recent, which is the comparison actually wanted
         // — not strictly yesterday, which may be empty.
         setAgainst(earlier[0]?.key ?? null);
+        // The right pane defaults to the note in the editor, which is what
+        // someone comparing has open in front of them.
+        setRight(null);
       })
       .catch((error: unknown) => console.error('[compare] could not read entries', error));
 
@@ -69,7 +88,19 @@ export function CompareSheet({
     };
   }, [open, patientId, today]);
 
-  const other = days.find((day) => day.key === against);
+  /**
+   * `null` means the note currently open in the editor.
+   *
+   * Kept as a sentinel rather than pushed into `days` as a synthetic entry,
+   * because the editor's text is LIVE — it changes as you type, and a copy
+   * captured into the list when the sheet opened would go stale mid-comparison
+   * while looking authoritative.
+   */
+  const resolve = (key: string | null): { label: string; body: string } | null => {
+    if (key === null) return { label: currentLabel, body: todayBody };
+    const found = days.find((day) => day.key === key);
+    return found ? { label: labelFor(found), body: found.body } : null;
+  };
 
   /**
    * A jaga note is labelled by its TIME and marked as jaga; a day by its date.
@@ -83,9 +114,13 @@ export function CompareSheet({
       ? `Jaga ${entry.time} · ${formatShortDate(entry.date)}`
       : formatShortDate(entry.date);
 
+  const leftPane = resolve(against);
+  const rightPane = resolve(right);
+
   const segments = useMemo(
-    () => (showDiff && other ? diffSegments(other.body, todayBody) : null),
-    [showDiff, other, todayBody],
+    () =>
+      showDiff && leftPane && rightPane ? diffSegments(leftPane.body, rightPane.body) : null,
+    [showDiff, leftPane?.body, rightPane?.body],
   );
 
   return (
@@ -101,28 +136,34 @@ export function CompareSheet({
         </p>
       ) : (
         <>
-          <div className="mb-3 flex flex-wrap items-center gap-2">
-            <span className="text-xs text-fg-muted">Bandingkan dengan</span>
-            {days.slice(0, 8).map((day) => (
-              <button
-                key={day.key}
-                type="button"
-                aria-pressed={against === day.key}
-                onClick={() => setAgainst(day.key)}
-                className={[
-                  'min-h-tap rounded-full border px-3 text-xs',
-                  // A jaga chip is dashed rather than a different colour: the
-                  // solid/accent pair already means selected, and a second
-                  // colour axis on the same control would collide with it.
-                  day.kind === 'jaga' ? 'border-dashed' : '',
-                  against === day.key
-                    ? 'border-accent bg-bg-subtle font-medium text-accent'
-                    : 'border-border text-fg-muted',
-                ].join(' ')}
-              >
-                {labelFor(day)}
-              </button>
-            ))}
+          {/*
+            One picker per pane, both drawing on the same list.
+
+            The right pane used to be fixed to the note in the editor and
+            labelled "hari ini". With a jaga note open that was wrong twice
+            over: the pane held the day's SOAP rather than the note on screen,
+            and the label claimed a date that might not be today's. Choosing
+            both sides the same way removes the special case rather than
+            renaming it.
+          */}
+          <PanePicker
+            legend="Bandingkan"
+            days={days}
+            selected={against}
+            currentLabel={currentLabel}
+            labelFor={labelFor}
+            onSelect={setAgainst}
+          />
+          <PanePicker
+            legend="dengan"
+            days={days}
+            selected={right}
+            currentLabel={currentLabel}
+            labelFor={labelFor}
+            onSelect={setRight}
+          />
+
+          <div className="mb-3">
             <button
               type="button"
               onClick={() => setShowDiff((current) => !current)}
@@ -154,8 +195,8 @@ export function CompareSheet({
             // no width for two readable columns, and a 40-character column is
             // worse than scrolling.
             <div className="grid gap-3 sm:grid-cols-2">
-              <Pane label={other ? labelFor(other) : '—'} body={other?.body ?? ''} />
-              <Pane label={`${formatShortDate(today)} (hari ini)`} body={todayBody} />
+              <Pane label={leftPane?.label ?? '—'} body={leftPane?.body ?? ''} />
+              <Pane label={rightPane?.label ?? '—'} body={rightPane?.body ?? ''} />
             </div>
           )}
         </>
@@ -172,5 +213,77 @@ function Pane({ label, body }: { label: string; body: string }): JSX.Element {
         {body.trim() || '(kosong)'}
       </pre>
     </div>
+  );
+}
+
+/**
+ * One row of chips for one pane.
+ *
+ * The note in the editor is the first option and is always present, because it
+ * is the only one guaranteed to exist and the one most comparisons involve.
+ */
+function PanePicker({
+  legend,
+  days,
+  selected,
+  currentLabel,
+  labelFor,
+  onSelect,
+}: {
+  legend: string;
+  days: readonly ComparableEntry[];
+  selected: string | null;
+  currentLabel: string;
+  labelFor: (entry: ComparableEntry) => string;
+  onSelect: (key: string | null) => void;
+}): JSX.Element {
+  return (
+    <div className="mb-2 flex flex-wrap items-center gap-2">
+      <span className="w-20 shrink-0 text-xs text-fg-muted">{legend}</span>
+      <Chip active={selected === null} onClick={() => onSelect(null)}>
+        {currentLabel}
+      </Chip>
+      {days.slice(0, 8).map((day) => (
+        <Chip
+          key={day.key}
+          active={selected === day.key}
+          dashed={day.kind === 'jaga'}
+          onClick={() => onSelect(day.key)}
+        >
+          {labelFor(day)}
+        </Chip>
+      ))}
+    </div>
+  );
+}
+
+function Chip({
+  active,
+  dashed,
+  onClick,
+  children,
+}: {
+  active: boolean;
+  dashed?: boolean;
+  onClick: () => void;
+  children: React.ReactNode;
+}): JSX.Element {
+  return (
+    <button
+      type="button"
+      aria-pressed={active}
+      onClick={onClick}
+      className={[
+        'min-h-tap rounded-full border px-3 text-xs',
+        // Dashed marks a jaga note. Not a second colour: solid-versus-accent
+        // already means selected, and two colour axes on one control collide.
+        dashed ? 'border-dashed' : '',
+        active
+          ? 'border-accent bg-bg-subtle font-medium text-accent'
+          : 'border-border text-fg-muted',
+      ].join(' ')}
+    >
+      {children}
+    </button>
   );
 }

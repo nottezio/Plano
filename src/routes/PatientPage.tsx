@@ -594,7 +594,18 @@ export default function PatientPage(): JSX.Element {
           Below the identity row, not above it: identity answers "right chart",
           which has to be readable without reading anything else first.
         */}
-        <JumpBar body={editor.value} aliases={settings.sectionAliases} />
+        {/*
+          The body the jump bar indexes is whichever editor is OPEN.
+          
+          It read `editor.value` unconditionally, so with a jaga note on screen
+          the bar listed the day's sections and every one of them scrolled to
+          an anchor in a mirror that was no longer rendered — buttons that
+          looked right and did nothing.
+        */}
+        <JumpBar
+          body={activeShiftNote ? activeShiftNote.body : editor.value}
+          aliases={settings.sectionAliases}
+        />
         </header>
 
         {/*
@@ -907,12 +918,23 @@ export default function PatientPage(): JSX.Element {
         onApply={editor.setValue}
       />
 
+      {/*
+        `todayBody` is the note ON SCREEN, which is the jaga note when one is
+        open. Passing the day's SOAP regardless was why comparing a jaga note
+        against its own day produced two panes neither of which was visible,
+        under a header that said "hari ini".
+      */}
       <CompareSheet
         open={compareOpen}
         onOpenChange={setCompareOpen}
         patientId={patientId ?? ''}
         today={selected}
-        todayBody={editor.value}
+        todayBody={activeShiftNote ? activeShiftNote.body : editor.value}
+        currentLabel={
+          activeShiftNote
+            ? `Jaga ${activeShiftNote.time} (dibuka)`
+            : `${formatShortDate(selected)} (dibuka)`
+        }
       />
 
       <IdentitySheet

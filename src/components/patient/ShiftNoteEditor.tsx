@@ -10,6 +10,8 @@ import {
 } from '@/domain/format/markdownLite';
 import type { SectionAlias, ShiftNote } from '@/domain/types';
 import { FormatToolbar } from './FormatToolbar';
+import { METRICS } from './BodyEditor';
+import { SectionBands } from './SectionBands';
 
 /**
  * Opening height, in pixels.
@@ -170,6 +172,22 @@ export function ShiftNoteEditor({
         onNumbered={() => withSelection(toggleNumbered)}
       />
 
+      {/*
+        The same mirror the daily note uses.
+
+        It is what the jump bar measures against — the section anchors are
+        spans inside it — so without one here the bar's buttons pointed at
+        elements that did not exist and silently scrolled nowhere. A jaga note
+        carries `*S:*` and `*O:*` headings like any other, so it has the same
+        need to be navigated.
+
+        `paint={false}`: the tints are a reading aid for a long daily note, and
+        a jaga note is short enough that colour bands would be decoration. The
+        anchors are the reason it is mounted.
+      */}
+      <div className="relative">
+        <SectionBands body={note.body} aliases={aliases} paint={false} />
+
       <textarea
         ref={(node) => {
           ref.current = node;
@@ -183,8 +201,12 @@ export function ShiftNoteEditor({
         }}
         onBlur={onBlur}
         placeholder="Keluhan saat jaga…"
-        className="w-full resize-none overflow-hidden [overflow-wrap:anywhere] rounded-b-lg border border-border bg-surface p-3 text-sm leading-relaxed outline-none placeholder:text-fg-faint"
+        // `METRICS` verbatim, shared with the mirror. If these two lay text
+        // out differently by even a pixel the anchors drift from the words
+        // they name, which is the failure the mirror's own comments describe.
+        className={`${METRICS} relative w-full resize-none overflow-hidden [overflow-wrap:anywhere] rounded-b-lg border border-border bg-transparent outline-none placeholder:text-fg-faint`}
       />
+      </div>
     </section>
   );
 }
