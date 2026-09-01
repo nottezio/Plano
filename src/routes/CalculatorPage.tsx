@@ -324,8 +324,10 @@ function PotassiumCard(): JSX.Element {
 
   return (
     <section className="rounded-xl border border-border bg-surface p-4">
-      <h2 className="text-sm font-semibold">Defisit kalium</h2>
-      <p className="mt-0.5 text-xs text-fg-muted">(Target − K) × BB × 0.4, ditambah maintenance.</p>
+      <h2 className="text-sm font-semibold">Koreksi kalium (IV)</h2>
+      <p className="mt-0.5 text-xs text-fg-muted">
+        Dosis awal KCl IV: 10 mEq menaikkan K serum ~0.1 mmol/L.
+      </p>
 
       <div className="mt-3 grid grid-cols-3 gap-2">
         <NumberField label="K saat ini" value={current} onChange={setCurrent} />
@@ -339,23 +341,36 @@ function PotassiumCard(): JSX.Element {
             {result.totalMeq} <span className="text-xs font-normal text-fg-muted">mEq</span>
           </p>
           <p className="mt-0.5 text-xs text-fg-muted">
-            Defisit {result.deficitMeq} + maintenance {result.maintenanceMeq} · ≈{' '}
-            {result.kclGrams} g KCl · {K_SEVERITY_LABELS[result.severity]}
+            ≈ {result.kclGrams} g KCl · maks {result.maxRatePerHour} mEq/jam (~{result.hours} jam)
+            · {K_SEVERITY_LABELS[result.severity]}
+          </p>
+          <p className="mt-0.5 text-xs text-fg-muted">
+            Maintenance harian terpisah: {result.maintenanceMeq} mEq — <strong>tidak</strong>{' '}
+            dijumlahkan ke dosis koreksi.
           </p>
 
           {/*
-            The warning travels with the number.
-            
-            Every source that publishes this formula also says it underestimates:
-            ~98% of body potassium is intracellular, so a 1 mmol/L fall in serum
-            often means a 200–400 mEq total-body deficit. A number shown alone is
-            a number that gets acted on.
+            The caveat travels with the number.
+
+            This is a STARTING dose, not a total. The previous card printed a
+            total-body deficit plus a day's maintenance and called it the amount
+            to give, which is how a correction becomes an overdose. Serum
+            potassium also does not rise linearly — the intracellular pool
+            refills as it climbs — so every source that publishes the
+            dose-response rule pairs it with a recheck.
           */}
           <p className="mt-2 text-[11px] leading-relaxed text-fg-faint">
-            Perkiraan <strong>minimal</strong>. Kalium tubuh 98% intraselular, sehingga
-            penurunan 1 mmol/L serum sering berarti defisit total 200–400 mEq. Periksa dan
-            koreksi magnesium lebih dulu; hipomagnesemia membuat koreksi kalium tidak berhasil.
+            <strong>Dosis awal</strong>, bukan total. Cek ulang K 1–2 jam setelah infus selesai
+            dan ulangi bila perlu. Kalium tubuh 98% intraselular, sehingga kenaikan serum tidak
+            linear. Periksa dan koreksi magnesium lebih dulu; hipomagnesemia membuat koreksi
+            kalium tidak berhasil.
           </p>
+          {result.cappedAtDailyMax ? (
+            <p className="mt-2 text-[11px] leading-relaxed text-fg-faint">
+              Dibatasi 200 mEq/24 jam. Dosis lebih tinggi hanya pada hipokalemia mengancam jiwa
+              dengan monitor EKG kontinu dan akses sentral.
+            </p>
+          ) : null}
 
           <p className="mt-2 break-words font-mono text-[11px] leading-relaxed">{result.line}</p>
           <CopyLine text={result.line} copied={copied} setCopied={setCopied} />

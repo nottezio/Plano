@@ -115,9 +115,12 @@ describe('per-consultant variants of the short form', () => {
 
   it('adds the verification time before the closing sentence', () => {
     const output = composePdfReport(BODY, { ...OPTIONS, verificationTime: '08.14' });
-    expect(output).toContain('_Jam verifikasi 08.14 WITA_');
-    expect(output.indexOf('Jam verifikasi')).toBeLessThan(output.indexOf('Terima kasih'));
-    expect(output.indexOf('Jam verifikasi')).toBeGreaterThan(output.indexOf('Diagnosis:'));
+    // Date AND time. A bare clock is ambiguous the moment the note is read on
+    // any day but the one it was written, and this line exists to record a
+    // moment.
+    expect(output).toContain('_Verifikasi 08.14_');
+    expect(output.indexOf('Verifikasi')).toBeLessThan(output.indexOf('Terima kasih'));
+    expect(output.indexOf('Verifikasi')).toBeGreaterThan(output.indexOf('Diagnosis:'));
   });
 
   it('combines both switches independently', () => {
@@ -127,7 +130,7 @@ describe('per-consultant variants of the short form', () => {
       verificationTime: '08.14',
     });
     expect(output).not.toContain('Chief :');
-    expect(output).toContain('Jam verifikasi 08.14');
+    expect(output).toContain('Verifikasi 08.14');
   });
 
   it('keeps staffing by default, so an unconfigured consultant is unaffected', () => {
@@ -160,7 +163,7 @@ describe('plain-text output for a destination that renders no markers', () => {
       verificationTime: '08.14',
     });
     expect(output).not.toContain('Chief :');
-    expect(output).toContain('Jam verifikasi 08.14 WITA');
+    expect(output).toContain('Verifikasi 08.14');
   });
 });
 

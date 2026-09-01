@@ -66,9 +66,18 @@ const RANGE_LABELS: Record<CopyRange, string> = {
  * resident pasting into a group chat cannot undo it.
  */
 /** Local clock, formatted the way the verification line is written. */
-function nowWita(): string {
-  const now = new Date();
-  return `${String(now.getHours()).padStart(2, '0')}.${String(now.getMinutes()).padStart(2, '0')}`;
+/**
+ * `31-08-2026 07.47` — the default verification stamp.
+ *
+ * Dots in the time, not a colon, for the reason the jaga stamp uses them: this
+ * text gets pasted back into bodies, and `07:47` at the start of a line reads
+ * as a section delimiter to the parser.
+ */
+function verificationStamp(at: Date): string {
+  const pad = (value: number): string => String(value).padStart(2, '0');
+  return `${pad(at.getDate())}-${pad(at.getMonth() + 1)}-${at.getFullYear()} ${pad(
+    at.getHours(),
+  )}.${pad(at.getMinutes())}`;
 }
 
 export function CopySheet({
@@ -158,6 +167,18 @@ export function CopySheet({
    * body differs too.
    */
   const [konsulList, setKonsulList] = useState(false);
+
+  /**
+   * The verification stamp, editable.
+   *
+   * It used to be `nowWita()` evaluated inside the compose memo — the moment
+   * the sheet happened to render, with no way to change it. A note verified at
+   * 07.47 and copied at 09.10 carried the wrong time, and the one consultant
+   * who asks for this line asks for it because the time matters.
+   */
+  const [verificationTime, setVerificationTime] = useState(() =>
+    verificationStamp(new Date()),
+  );
 
   /**
    * A reminder, not a switch.
@@ -281,7 +302,7 @@ export function CopySheet({
             // ZD produces a report with a verification time and for MZ one
             // without staffing lines, rather than one shape for everyone.
             staffing: active?.staffing ?? true,
-            ...(active?.verificationTime ? { verificationTime: nowWita() } : {}),
+            ...(active?.verificationTime ? { verificationTime } : {}),
           })
         : composeCopy(days, {
         format,
@@ -299,6 +320,7 @@ export function CopySheet({
       pdfMode,
       konsulPurpose,
       konsulList,
+      verificationTime,
       date,
       body,
       days,
@@ -516,6 +538,36 @@ export function CopySheet({
           Konsul
         </Chip>
       </Group>
+
+      {/*
+        Shown only for Ringkas, and only when this consultant asks for the
+        line. Everyone else gets no extra field to read past.
+      */}
+      {shape === 'ringkas' && active?.verificationTime ? (
+        <div className="mb-4">
+          <label className="mb-1 block text-[11px] text-fg-muted" htmlFor="verifikasi">
+            Jam verifikasi
+          </label>
+          <div className="flex items-center gap-2">
+            <input
+              id="verifikasi"
+              value={verificationTime}
+              onChange={(event) => setVerificationTime(event.target.value)}
+              className="min-h-tap flex-1 rounded-lg border border-border bg-surface px-3 font-mono text-sm outline-none"
+            />
+            <button
+              type="button"
+              onClick={() => setVerificationTime(verificationStamp(new Date()))}
+              className="min-h-tap shrink-0 rounded-lg border border-border px-3 text-xs text-fg-muted"
+            >
+              Sekarang
+            </button>
+          </div>
+          <p className="mt-1 text-[11px] text-fg-faint">
+            Muncul sebagai <span className="font-mono">_Verifikasi {verificationTime}_</span>
+          </p>
+        </div>
+      ) : null}
 
       {shape === 'konsul' ? (
         <div className="mb-4">

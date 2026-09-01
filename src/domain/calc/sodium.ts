@@ -137,35 +137,68 @@ export interface PotassiumDeficitInput {
 export interface PotassiumDeficitResult {
   /** Formula estimate, mEq. */
   deficitMeq: number;
-  /** Daily maintenance at 1 mmol/kg, which the deficit does not include. */
+  /**
+   * Daily maintenance at 1 mmol/kg, reported alongside and NEVER added to the
+   * correction dose — adding it was the bug this rewrite fixes.
+   */
   maintenanceMeq: number;
-  /** Deficit + maintenance, which is what actually has to be given. */
+  /**
+   * The correction dose. Equal to `deficitMeq`; kept as a field because
+   * callers render it, and because a "total" that silently differed from the
+   * dose is what went wrong before.
+   */
   totalMeq: number;
   /** Grams of KCl carrying the total — 1 g ≈ 13.4 mmol. */
   kclGrams: number;
   severity: 'ringan' | 'sedang' | 'berat';
+  /** True when the estimate exceeded the 200 mEq/24h ceiling and was clamped. */
+  cappedAtDailyMax: boolean;
+  /** Ceiling infusion rate for this severity, mEq/hour. */
+  maxRatePerHour: number;
+  /** Hours the dose takes at that rate. */
+  hours: number;
   line: string;
 }
 
 /**
- * Potassium deficit — a formula that is known to underestimate.
+ * Potassium replacement for IV correction.
  *
- * `(target − measured) × BB × 0.4`, where 0.4 L/kg is potassium's volume of
- * distribution. Every source that publishes it also warns that it is low:
- * about 98% of body potassium is intracellular, so a 1 mmol/L fall in serum
- * commonly reflects a **200–400 mEq** total-body deficit while the formula
- * returns a fraction of that.
+ * REWRITTEN. The previous version computed `(target − measured) × BB × 0.4`,
+ * a TOTAL BODY deficit, and then added a full day's maintenance at 1 mmol/kg
+ * on top — 78 mEq for a 78 kg patient — and presented the sum as the amount to
+ * give. Those are three different quantities and only one of them is a dose.
  *
- * That warning is carried in the output rather than left in a textbook,
- * because a number presented alone is a number that gets acted on. The result
- * says "perkiraan minimal" for exactly that reason.
+ * Total body deficit is genuinely large: references put it at 200–400 mEq for
+ * each 1 mEq/L the serum has fallen, because about 98% of body potassium is
+ * intracellular. But it is not what goes in the infusion. Giving a total-body
+ * figure as an IV order is how someone gets hyperkalaemic, and the maintenance
+ * addition made the printed number larger still.
  *
- * Maintenance is added separately at 1 mmol/kg/day: the deficit replaces what
- * is missing and does nothing about ongoing requirement, and giving only the
- * deficit is why a potassium that was corrected yesterday is low again today.
+ * What IV correction actually runs on is the observed dose-response:
+ * approximately **10 mEq raises serum potassium by about 0.1 mEq/L**, i.e.
+ * roughly 0.25 mEq/L per 20 mEq infused. That is the number this returns.
+ *
+ * It is explicitly a STARTING dose with a recheck, not a total. Serum
+ * potassium does not move linearly, the intracellular pool refills as it
+ * rises, and every source that publishes the rule pairs it with "recheck 1–2
+ * hours after the infusion".
+ *
+ * Sources: StatPearls (NBK539791); Medscape potassium chloride dosing;
+ * Vanderbilt electrolyte repletion guideline.
  */
-const K_VOLUME_OF_DISTRIBUTION = 0.4;
+
+/** mEq of KCl that raises serum potassium by roughly 0.1 mEq/L. */
+const MEQ_PER_0_1_RISE = 10;
 const MMOL_PER_GRAM_KCL = 13.4;
+
+/**
+ * Ceilings, so the suggested dose cannot exceed what may be given in a day.
+ *
+ * 200 mEq/24h at serum potassium above 2.5; 400 mEq/24h only in
+ * life-threatening hypokalaemia with continuous ECG and central access. The
+ * calculator suggests the lower one and says so — it cannot see the monitor.
+ */
+const MAX_DAILY_MEQ = 200;
 
 export function calculatePotassiumDeficit(
   input: PotassiumDeficitInput,
@@ -173,26 +206,49 @@ export function calculatePotassiumDeficit(
   const { current, target, weightKg } = input;
 
   if (!Number.isFinite(current) || !Number.isFinite(target)) return null;
+  // Weight is no longer used in the dose — the dose-response rule is not
+  // weight-based — but it is still required, because refusing to calculate
+  // without it is what stops a number appearing for a patient nobody weighed.
   if (!(weightKg > 0)) return null;
 
   const delta = target - current;
-  // Already at or above target: there is no deficit, and a negative one would
-  // print as a negative dose.
   if (delta <= 0) return null;
 
-  const deficitMeq = round(delta * weightKg * K_VOLUME_OF_DISTRIBUTION, 1);
-  const maintenanceMeq = round(weightKg, 0);
-  const totalMeq = round(deficitMeq + maintenanceMeq, 1);
+  /**
+   * The replacement dose, from the dose-response rule.
+   *
+   * Rounded DOWN to the nearest 10 mEq, because KCl is ordered in 10 and 20
+   * mEq units and rounding up would order more than the estimate supports.
+   */
+  const raw = (delta / 0.1) * MEQ_PER_0_1_RISE;
+  const capped = Math.min(raw, MAX_DAILY_MEQ);
+  const deficitMeq = Math.max(10, Math.floor(capped / 10) * 10);
 
   const severity = current < 2.5 ? 'berat' : current < 3.0 ? 'sedang' : 'ringan';
+
+  /**
+   * Maintenance is reported SEPARATELY and never added.
+   *
+   * Adding it was the bug. Ongoing requirement is a different order on a
+   * different schedule; folding it into a correction dose inflates the
+   * correction by roughly a whole day's intake.
+   */
+  const maintenanceMeq = round(weightKg, 0);
+
+  /** Hours at the ceiling rate for this severity, so the order is writable. */
+  const maxRatePerHour = severity === 'berat' ? 20 : 10;
+  const hours = Math.ceil(deficitMeq / maxRatePerHour);
 
   return {
     deficitMeq,
     maintenanceMeq,
-    totalMeq,
-    kclGrams: round(totalMeq / MMOL_PER_GRAM_KCL, 1),
+    totalMeq: deficitMeq,
+    kclGrams: round(deficitMeq / MMOL_PER_GRAM_KCL, 1),
     severity,
-    line: `Defisit kalium: (${target}-${current}) x ${round(weightKg, 1)} x 0.4 = ${deficitMeq} mEq + maintenance ${maintenanceMeq} mEq = ${totalMeq} mEq (~${round(totalMeq / MMOL_PER_GRAM_KCL, 1)} g KCl)`,
+    cappedAtDailyMax: raw > MAX_DAILY_MEQ,
+    maxRatePerHour,
+    hours,
+    line: `Koreksi kalium: target ${target} - K ${current} = ${round(delta, 2)} mmol/L, ~${deficitMeq} mEq KCl (10 mEq ~ 0.1 mmol/L), maks ${maxRatePerHour} mEq/jam, ~${hours} jam. Cek ulang K 1-2 jam setelah infus.`,
   };
 }
 

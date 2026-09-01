@@ -157,7 +157,17 @@ export function composePdfReport(body: string, options: PdfReportOptions): strin
   parts.push('');
 
   if (options.verificationTime) {
-    parts.push(`_Jam verifikasi ${options.verificationTime} WITA_`, '');
+    /**
+     * `_Verifikasi 31-08-2026 07.47_` — date AND time.
+     *
+     * Was `_Jam verifikasi 07.47 WITA_`. A bare clock time is ambiguous the
+     * moment the note is read on any day but the one it was written, and the
+     * consultant who asks for this line is asking when the note was verified,
+     * which is a moment, not an hour. The zone marker went with it: every
+     * reader of this note is in the same one, and it was the only part of the
+     * line carrying no information.
+     */
+    parts.push(`_Verifikasi ${options.verificationTime}_`, '');
   }
 
   parts.push(CLOSING);

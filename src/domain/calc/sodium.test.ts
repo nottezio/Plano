@@ -124,55 +124,84 @@ describe('calculateOsmolality', () => {
 });
 
 describe('calculatePotassiumDeficit', () => {
-  it('matches the worked example published with the formula', () => {
-    // 70 kg, K 3.0, target 3.5 → (3.5-3.0) × 70 × 0.4 = 14 mEq.
+  /**
+   * REWRITTEN with the calculator, 2026-08-31.
+   *
+   * The old block pinned `(target − K) × BB × 0.4` plus a day's maintenance,
+   * presented as the amount to give. That is a total-body deficit with an
+   * unrelated daily requirement added to it — neither is an IV dose, and the
+   * sum is larger than either.
+   *
+   * These pin the dose-response rule IV correction actually runs on:
+   * ~10 mEq raises serum potassium by ~0.1 mmol/L.
+   */
+  it('gives ~10 mEq for each 0.1 mmol/L to be made up', () => {
+    // 3.0 -> 3.5 is 0.5 mmol/L, so about 50 mEq.
     const result = calculatePotassiumDeficit({ current: 3.0, target: 3.5, weightKg: 70 });
-    expect(result?.deficitMeq).toBe(14);
+    expect(result?.deficitMeq).toBe(50);
   });
 
-  it('matches the other published example, target 4.0', () => {
-    // (4.0 - 3.0) × 70 × 0.4 = 28 mEq.
+  it('scales with the gap, not with body weight', () => {
+    // The published rule is not weight-based. Two patients with the same
+    // deficit get the same starting dose.
+    const light = calculatePotassiumDeficit({ current: 3.0, target: 4.0, weightKg: 45 });
+    const heavy = calculatePotassiumDeficit({ current: 3.0, target: 4.0, weightKg: 95 });
+    expect(light?.deficitMeq).toBe(100);
+    expect(heavy?.deficitMeq).toBe(100);
+  });
+
+  it('never adds maintenance to the correction dose', () => {
+    // Adding it inflated the order by roughly a whole day's intake — 78 mEq
+    // for a 78 kg patient — and was the reported bug.
+    const result = calculatePotassiumDeficit({ current: 3.0, target: 3.5, weightKg: 78 });
+    expect(result?.totalMeq).toBe(result?.deficitMeq);
+    expect(result?.maintenanceMeq).toBe(78);
+    expect(result?.totalMeq).not.toBe((result?.deficitMeq ?? 0) + 78);
+  });
+
+  it('rounds down to orderable units', () => {
+    // KCl is ordered in 10 and 20 mEq units; rounding up would order more than
+    // the estimate supports.
+    const result = calculatePotassiumDeficit({ current: 3.15, target: 3.5, weightKg: 70 });
+    expect(result?.deficitMeq).toBe(30);
+  });
+
+  it('caps at the 200 mEq daily ceiling and says so', () => {
+    // Above that needs continuous ECG and central access, which the
+    // calculator cannot see.
+    const result = calculatePotassiumDeficit({ current: 1.8, target: 4.0, weightKg: 70 });
+    expect(result?.deficitMeq).toBe(200);
+    expect(result?.cappedAtDailyMax).toBe(true);
+  });
+
+  it('raises the rate ceiling only for severe hypokalaemia', () => {
     expect(
-      calculatePotassiumDeficit({ current: 3.0, target: 4.0, weightKg: 70 })?.deficitMeq,
-    ).toBe(28);
-  });
-
-  it('adds daily maintenance at 1 mmol/kg, which the deficit excludes', () => {
-    // Giving only the deficit is why a potassium corrected yesterday is low
-    // again today.
-    const result = calculatePotassiumDeficit({ current: 3.0, target: 3.5, weightKg: 70 });
-    expect(result?.maintenanceMeq).toBe(70);
-    expect(result?.totalMeq).toBe(84);
+      calculatePotassiumDeficit({ current: 3.2, target: 4.0, weightKg: 70 })?.maxRatePerHour,
+    ).toBe(10);
+    expect(
+      calculatePotassiumDeficit({ current: 2.2, target: 4.0, weightKg: 70 })?.maxRatePerHour,
+    ).toBe(20);
   });
 
   it('converts to grams of KCl at 13.4 mmol per gram', () => {
     const result = calculatePotassiumDeficit({ current: 3.0, target: 3.5, weightKg: 70 });
-    expect(result?.kclGrams).toBeCloseTo(6.3, 1);
+    expect(result?.kclGrams).toBeCloseTo(3.7, 1);
   });
 
-  it('grades severity by the measured value', () => {
-    expect(calculatePotassiumDeficit({ current: 3.2, target: 3.5, weightKg: 60 })?.severity).toBe(
-      'ringan',
-    );
-    expect(calculatePotassiumDeficit({ current: 2.8, target: 3.5, weightKg: 60 })?.severity).toBe(
-      'sedang',
-    );
-    expect(calculatePotassiumDeficit({ current: 2.2, target: 3.5, weightKg: 60 })?.severity).toBe(
-      'berat',
-    );
-  });
-
-  it('returns nothing when potassium is already at target', () => {
-    expect(calculatePotassiumDeficit({ current: 4.0, target: 3.5, weightKg: 70 })).toBeNull();
-  });
-
-  it('returns nothing without a weight', () => {
+  it('refuses without a weight', () => {
+    // Not because the dose needs it, but because a card that calculates for a
+    // patient nobody weighed invites the rest of it to be trusted too.
     expect(calculatePotassiumDeficit({ current: 3.0, target: 3.5, weightKg: 0 })).toBeNull();
   });
 
-  it('shows its working', () => {
-    expect(calculatePotassiumDeficit({ current: 3.0, target: 3.5, weightKg: 70 })?.line).toContain(
-      '(3.5-3) x 70 x 0.4 = 14 mEq',
-    );
+  it('refuses when potassium is already at target', () => {
+    expect(calculatePotassiumDeficit({ current: 4.0, target: 3.5, weightKg: 70 })).toBeNull();
+  });
+
+  it('shows its working, and says to recheck', () => {
+    const result = calculatePotassiumDeficit({ current: 3.0, target: 3.5, weightKg: 70 });
+    expect(result?.line).toContain('50 mEq KCl');
+    expect(result?.line).toContain('10 mEq ~ 0.1 mmol/L');
+    expect(result?.line).toContain('Cek ulang K 1-2 jam');
   });
 });
