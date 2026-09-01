@@ -86,7 +86,14 @@ function renderDayBody(body: string, options: ComposeOptions): string {
       const header = section.blocks[0]?.headerLine?.replace(/[ \t]+$/, '');
       // `_intro` has no header; emitting one would invent a section the user
       // never wrote.
-      return header ? `${header} ${section.text}`.trim() : section.text;
+      //
+      // NEWLINE between header and body, not a space. `headerLine` is the
+      // header PREFIX only — `"*S :*"` — with its line break already stripped,
+      // so re-emitting has to put one back. Joining with a space produced
+      // `*S :* - Sesak nafas ada, ...` on one line: every section-subset copy
+      // ran the heading into the first finding. See `renderSelectedSections`
+      // below, which had it right, and this did not.
+      return header ? `${header}\n${section.text.trimStart()}`.trimEnd() : section.text;
     })
     .join('\n\n');
 }
@@ -143,7 +150,8 @@ export function composeDocument(
     merged
       .map((section) => {
         const header = section.blocks[0]?.headerLine?.replace(/[ \t]+$/, '');
-        return header ? `${header} ${section.text}`.trim() : section.text;
+        // Newline, not a space — see the note on the same join above.
+        return header ? `${header}\n${section.text.trimStart()}`.trimEnd() : section.text;
       })
       .join('\n\n'),
     format,

@@ -35,7 +35,7 @@ const BODY = [
   'O:',
   'TTV: TD 130/80, N 92',
   'Penunjang: Hb 10.2',
-  'A: Pneumonia komunitas',
+  'A:\nPneumonia komunitas',
   'P:',
   '- Lanjut O2 3 lpm',
   '- Cek DPL besok',
@@ -163,6 +163,14 @@ describe('composeCopy — all sections', () => {
   });
 });
 
+/**
+ * The header goes on its OWN LINE.
+ *
+ * These used to pin `A: Pneumonia komunitas` — header and body on one line —
+ * which was the bug, not the contract. `headerLine` is the header prefix with
+ * its line break stripped, and two of the three places that re-emit it joined
+ * with a space.
+ */
 describe('composeCopy — section subsets', () => {
   const days: CopyDay[] = [{ date: '2026-08-06', body: BODY }];
 
@@ -172,7 +180,7 @@ describe('composeCopy — section subsets', () => {
       format: 'plain',
       sections: ['a', 'p'] as SectionId[],
     });
-    expect(output).toContain('A: Pneumonia komunitas');
+    expect(output).toContain('A:\nPneumonia komunitas');
     expect(output).toContain('P:');
     expect(output).not.toContain('sesak');
     expect(output).not.toContain('Hb 10.2');
@@ -206,7 +214,7 @@ describe('composeCopy — section subsets', () => {
       format: 'plain',
       sections: ['o', 'a'] as SectionId[],
     });
-    expect(output).toBe('O:\n\nA: Pneumonia komunitas');
+    expect(output).toBe('O:\n\nA:\nPneumonia komunitas');
   });
 
   it('never invents a header for the intro block', () => {
@@ -224,7 +232,7 @@ describe('composeCopy — section subsets', () => {
       format: 'whatsapp',
       sections: ['s'] as SectionId[],
     });
-    expect(output).toBe('S: sesak *berkurang*, batuk _berdahak_');
+    expect(output).toBe('S:\nsesak *berkurang*, batuk _berdahak_');
     expect(findMarkdownLeaks(output)).toEqual([]);
   });
 });

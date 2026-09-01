@@ -395,12 +395,33 @@ export function CopySheet({
     setRange(preset.range);
   };
 
+  /**
+   * Picking a section STARTS a selection; it does not subtract from everything.
+   *
+   * This used to expand `'all'` into all five groups and then remove the one
+   * clicked, so pressing S from the default state meant "everything except S"
+   * — the precise opposite of what pressing S looks like it does. Adding a
+   * second chip then grew that set, so the more sections you pressed the fewer
+   * you got.
+   *
+   * From `'all'`, a press selects just that group. After that it toggles
+   * normally, so a second press adds and pressing the only selected one clears
+   * back to the whole note — there is no way to end up with nothing selected
+   * and a silently empty copy.
+   */
   const toggleGroup = (id: CopyGroupId): void => {
-    const current = groups === 'all' ? COPY_GROUPS.map((group) => group.id) : groups;
-    const next = current.includes(id)
-      ? current.filter((candidate) => candidate !== id)
-      : [...current, id];
-    setGroups(next.length === COPY_GROUPS.length ? 'all' : next);
+    if (groups === 'all') {
+      setGroups([id]);
+      return;
+    }
+
+    const next = groups.includes(id)
+      ? groups.filter((candidate) => candidate !== id)
+      : [...groups, id];
+
+    // Empty, or everything, both mean the whole note — and `'all'` is the
+    // state that says so on screen.
+    setGroups(next.length === 0 || next.length === COPY_GROUPS.length ? 'all' : next);
   };
 
   const onCopy = (): void => {

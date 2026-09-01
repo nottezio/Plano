@@ -14,9 +14,22 @@ import { STAGE_LABELS, STAGE_TOKEN } from '@/domain/discharge';
 export function PatientCard({
   card,
   onLongPress,
+  onDragHandleDown,
+  dragging,
 }: {
   card: BoardCard;
   onLongPress: (patientId: string) => void;
+  /**
+   * Present only while the board is in hand-made order.
+   *
+   * Drag lives on a HANDLE, not the card. The card is a link that opens the
+   * patient and a long-press target that opens the quick checklist; a third
+   * gesture on the same element would have to win a race against both, and
+   * losing that race either opens a chart you did not want or moves a card you
+   * did not mean to move.
+   */
+  onDragHandleDown?: ((event: React.PointerEvent, patientId: string) => void) | undefined;
+  dragging?: boolean;
 }): JSX.Element {
   const { patient, progress } = card;
   const lines = previewLines(card.preview);
@@ -33,6 +46,10 @@ export function PatientCard({
   return (
     <Link
       to={`/p/${patient.id}`}
+      // Read by the drag tracker's hit test to find which card is under the
+      // pointer. An id on the element is cheaper and steadier than measuring
+      // every card's rectangle on each move.
+      data-patient-id={patient.id}
       data-color-token={card.colorToken}
       onPointerDown={startPress}
       onPointerUp={cancelPress}
@@ -41,7 +58,13 @@ export function PatientCard({
         event.preventDefault();
         onLongPress(patient.id);
       }}
-      className="mb-3 block break-inside-avoid rounded-xl border border-black/5 bg-token p-3 text-token-fg shadow-sm transition-shadow hover:shadow-md dark:border-white/10"
+      className={[
+        'mb-3 block break-inside-avoid rounded-xl border border-black/5 bg-token p-3 text-token-fg shadow-sm transition-shadow hover:shadow-md dark:border-white/10',
+        // The card being dragged fades rather than moves. Moving it would mean
+        // owning a live preview of the whole list mid-gesture; fading says
+        // which one is in hand and lets the drop do the rearranging.
+        dragging ? 'opacity-40' : '',
+      ].join(' ')}
       style={
         // A left edge rather than a different card colour: the card colour
         // already means how far the round got, and one colour cannot carry two
@@ -56,6 +79,24 @@ export function PatientCard({
       }
     >
       <div className="flex items-start gap-2">
+        {onDragHandleDown ? (
+          <button
+            type="button"
+            aria-label={`Pindahkan ${card.title}`}
+            // The handle must not open the patient. `preventDefault` stops the
+            // link, and stopping propagation keeps the card's long-press timer
+            // from starting underneath the gesture.
+            onPointerDown={(event) => {
+              event.preventDefault();
+              event.stopPropagation();
+              onDragHandleDown(event, patient.id);
+            }}
+            onClick={(event) => event.preventDefault()}
+            className="-my-1 -ml-1 min-h-tap min-w-tap shrink-0 cursor-grab touch-none text-token-fg/50"
+          >
+            <span aria-hidden="true">⠿</span>
+          </button>
+        ) : null}
         <h3 className="min-w-0 flex-1 truncate text-sm font-semibold">{card.title}</h3>
         {/* Consultant initials, read from the note's DPJP line. Initials
             rather than a name because the card has one line for it and a

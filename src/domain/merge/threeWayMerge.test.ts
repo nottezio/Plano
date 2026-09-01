@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import {
   diffSegments,
+  diffSegmentsByLine,
   diffStats,
   isAutomatic,
   keepBoth,
@@ -255,5 +256,42 @@ describe('the empty-server race that wiped a note after sign-in', () => {
     expect(result.kind).toBe('conflict');
     if (result.kind !== 'conflict') return;
     expect(result.remote).toBe(real);
+  });
+});
+
+describe('diffSegmentsByLine', () => {
+  it('marks only the inserted line when one is added above others', () => {
+    // The reported complaint: a detail that is still present, pushed down by a
+    // new one above it, being shown as removed.
+    const before = ['- Furosemide 40mg', '- Candesartan 8mg'].join('\n');
+    const after = ['- Amiodarone 200mg', '- Furosemide 40mg', '- Candesartan 8mg'].join('\n');
+    const segments = diffSegmentsByLine(before, after);
+    expect(segments.filter((segment) => segment.type === 'delete')).toEqual([]);
+    expect(segments.filter((segment) => segment.type === 'insert')).toHaveLength(1);
+  });
+
+  it('never splits a line into part-changed fragments', () => {
+    // Character diffing finds coincidental matches between unrelated lines, so
+    // a therapy list edit came back shredded into inserts and deletes that read
+    // as changes nobody made. Whole lines are the unit a reader compares.
+    const before = '- Spironolakton 25 mg/24 jam/oral';
+    const after = '- Spironolakton 50 mg/24 jam/oral';
+    for (const segment of diffSegmentsByLine(before, after)) {
+      if (segment.type === 'equal') continue;
+      expect(segment.text).toContain('Spironolakton');
+    }
+  });
+
+  it('reports a removed line as removed', () => {
+    const before = ['- satu', '- dua', '- tiga'].join('\n');
+    const after = ['- satu', '- tiga'].join('\n');
+    const removed = diffSegmentsByLine(before, after).filter((s) => s.type === 'delete');
+    expect(removed).toHaveLength(1);
+    expect(removed[0]?.text).toContain('dua');
+  });
+
+  it('reports no change between identical notes', () => {
+    const note = ['*S:*', '- sesak berkurang'].join('\n');
+    expect(diffSegmentsByLine(note, note).every((s) => s.type === 'equal')).toBe(true);
   });
 });

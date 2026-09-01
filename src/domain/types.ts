@@ -170,9 +170,31 @@ export interface ScratchNote {
    * patients: nothing here is hard-deleted.
    */
   archived?: boolean;
+  /**
+   * Which shelf the note sits on.
+   *
+   * Optional, and absent means `umum`. Every note written before this field
+   * existed lacks it, and absence has to read as "the ordinary kind" rather
+   * than as a reason to write a default back over the document — the
+   * `seedSettingsIfMissing` failure recorded in the handoff.
+   *
+   * A field on the note rather than separate lists, because a note written on
+   * a jaga is sometimes still wanted afterwards, and moving it between shelves
+   * should not mean moving it between collections.
+   */
+  category?: ScratchNoteCategory;
   /** Rich text, like the original single note. */
   body: string;
 }
+
+/**
+ * `jaga` is a night-shift working list — things to do, things to hand over.
+ *
+ * Deliberately a small closed set rather than free-text tags. Two shelves can
+ * be a pair of buttons always on screen; arbitrary tags need a picker, a
+ * manager, and a decision about what happens to a tag nobody uses any more.
+ */
+export type ScratchNoteCategory = 'umum' | 'jaga';
 
 export interface SavedChecklist {
   id: string;

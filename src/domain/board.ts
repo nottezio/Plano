@@ -282,7 +282,60 @@ function compareLocation(a: Patient, b: Patient): number {
   return aBedText.localeCompare(bBedText, 'id');
 }
 
-export type BoardOrder = 'recent' | 'location' | 'dpjp';
+export type BoardOrder = 'recent' | 'location' | 'dpjp' | 'custom';
+
+/**
+ * Apply a hand-made order.
+ *
+ * The order is a list of patient IDS held in settings, not a rank field on
+ * each patient. Dragging one card would otherwise write to every patient
+ * between the old position and the new one — N documents for one gesture, on
+ * ward wifi, with a merge conflict available at each of them.
+ *
+ * Patients MISSING from the list come first, in whatever order they arrived.
+ * A patient admitted after the last reorder has no place in the list, and
+ * putting the unknown ones last would file every new admission at the bottom
+ * of a long board — out of sight, which for a ward list is the one failure
+ * that matters. Appearing at the top is noticeable and easily corrected; being
+ * hidden is neither.
+ */
+function applyCustomOrder(patients: readonly Patient[], ids: readonly string[]): Patient[] {
+  const rank = new Map(ids.map((id, index) => [id, index]));
+  const known: Patient[] = [];
+  const unknown: Patient[] = [];
+
+  for (const patient of patients) {
+    (rank.has(patient.id) ? known : unknown).push(patient);
+  }
+
+  known.sort((a, b) => (rank.get(a.id) ?? 0) - (rank.get(b.id) ?? 0));
+  return [...unknown, ...known];
+}
+
+/**
+ * Move one id to sit where another currently is.
+ *
+ * Returns the FULL list including ids that were not in the stored order yet,
+ * so the result is a complete order rather than a patch that has to be merged
+ * with the old one — the stored list can then be replaced outright.
+ */
+export function reorderBoard(
+  current: readonly Patient[],
+  draggedId: string,
+  targetId: string,
+): string[] {
+  const ids = current.map((patient) => patient.id);
+  const from = ids.indexOf(draggedId);
+  const to = ids.indexOf(targetId);
+  // A card dropped on itself, or on something no longer on the board, is not a
+  // move — returning the list unchanged avoids writing a no-op order.
+  if (from === -1 || to === -1 || from === to) return ids;
+
+  const next = [...ids];
+  const [moved] = next.splice(from, 1);
+  next.splice(to, 0, moved!);
+  return next;
+}
 
 /**
  * Patients with no location sort last, together.
@@ -291,11 +344,23 @@ export type BoardOrder = 'recent' | 'location' | 'dpjp';
  * the located patients means the card you are about to write in is somewhere
  * unpredictable. At the end they are exactly where you left them.
  */
-export function orderPatients(patients: readonly Patient[], order: BoardOrder): Patient[] {
+export function orderPatients(
+  patients: readonly Patient[],
+  order: BoardOrder,
+  customIds: readonly string[] = [],
+): Patient[] {
   const pinned = patients.filter((patient) => patient.pinned);
   const rest = patients.filter((patient) => !patient.pinned);
 
   if (order === 'recent') return [...pinned, ...rest];
+
+  /**
+   * Pinned cards stay above the hand-made order, as they do in every other
+   * order. Pinning says "this one first" regardless of how the rest is
+   * arranged, and having one mode where it stopped meaning that would make it
+   * untrustworthy in all of them.
+   */
+  if (order === 'custom') return [...pinned, ...applyCustomOrder(rest, customIds)];
 
   const sorted = [...rest].sort((a, b) => {
     if (order === 'dpjp') {

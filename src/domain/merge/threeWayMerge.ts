@@ -244,3 +244,40 @@ export function keepBoth(local: string, remote: string, otherDeviceLabel: string
     '',
   ].join('\n');
 }
+
+/**
+ * Line-level diff, for reading two notes side by side.
+ *
+ * `diffSegments` above is character-level with `diff_cleanupSemantic`, which
+ * is right for a merge conflict — the finer the granularity, the smaller the
+ * thing you have to adjudicate. It is wrong for a note.
+ *
+ * Two reasons. Character diffing finds coincidental matches between unrelated
+ * lines, so adding a bullet at the top of a plan leaves the lines below
+ * shredded into little inserts and deletes that read as edits nobody made. And
+ * `diff_cleanupSemantic` deliberately merges small equalities INTO the
+ * surrounding change to make the result more readable as prose, which turns a
+ * line that merely moved down into a delete on one side and an insert on the
+ * other.
+ *
+ * Line mode compares whole lines as indivisible units, so inserting a line
+ * above existing ones marks exactly that one line inserted and leaves the rest
+ * equal — which is what actually happened.
+ *
+ * `diff_cleanupSemantic` is deliberately NOT called: it would undo the line
+ * grouping this exists to produce.
+ */
+export function diffSegmentsByLine(before: string, after: string): DiffSegment[] {
+  const dmp = engine();
+
+  // `diff_linesToChars_` maps each distinct line to one character, so the
+  // character diff below is really a line diff.
+  const encoded = dmp.diff_linesToChars_(before, after);
+  const diffs = dmp.diff_main(encoded.chars1, encoded.chars2, false);
+  dmp.diff_charsToLines_(diffs, encoded.lineArray);
+
+  return diffs.map(([op, text]) => ({
+    type: op === DIFF_INSERT ? 'insert' : op === DIFF_DELETE ? 'delete' : 'equal',
+    text,
+  }));
+}

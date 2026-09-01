@@ -21,6 +21,7 @@ import {
   hasActiveFilters,
   groupLabel,
   orderPatients,
+  reorderBoard,
   sortPatients,
   EMPTY_FILTERS,
   type BoardFilters,
@@ -105,7 +106,9 @@ export default function BoardPage(): JSX.Element {
   const [order, setOrder] = useState<BoardOrder>(() => {
     try {
       const stored = localStorage.getItem('visite.boardOrder');
-      return stored === 'location' || stored === 'dpjp' ? stored : 'recent';
+      return stored === 'location' || stored === 'dpjp' || stored === 'custom'
+        ? stored
+        : 'recent';
     } catch {
       return 'recent';
     }
@@ -118,6 +121,88 @@ export default function BoardPage(): JSX.Element {
     } catch (error) {
       console.warn('[board] order preference not saved', error);
     }
+  };
+
+  /**
+   * The hand-made order, as a list of patient ids.
+   *
+   * Beside the order preference in localStorage, for the same reason and with
+   * the same tradeoff: it is a view arrangement, not a fact about the patient,
+   * and keeping it out of Firestore means dragging a card writes nothing to
+   * the server. The cost is that an order built on the phone is not the order
+   * on the laptop — say so if that turns out to be the wrong side of it.
+   */
+  const [customIds, setCustomIds] = useState<string[]>(() => {
+    try {
+      const stored = localStorage.getItem('visite.boardCustomOrder');
+      const parsed: unknown = stored ? JSON.parse(stored) : null;
+      return Array.isArray(parsed) ? parsed.filter((id): id is string => typeof id === 'string') : [];
+    } catch {
+      return [];
+    }
+  });
+
+  const saveCustomIds = (ids: string[]): void => {
+    setCustomIds(ids);
+    try {
+      localStorage.setItem('visite.boardCustomOrder', JSON.stringify(ids));
+    } catch (error) {
+      console.warn('[board] custom order not saved', error);
+    }
+  };
+
+  /**
+   * The card currently in hand, or null.
+   *
+   * Pointer events, not HTML5 drag-and-drop. The latter never fires on touch,
+   * and this board is used one-handed on a phone on a ward round — a
+   * reordering gesture that works only with a mouse is a reordering gesture
+   * that does not work.
+   */
+  const [draggingId, setDraggingId] = useState<string | null>(null);
+
+  const onDragHandleDown = (event: React.PointerEvent, patientId: string): void => {
+    const handle = event.currentTarget as HTMLElement;
+    // Capture, so the gesture keeps reporting even when the finger leaves the
+    // small handle — which it does immediately, because the point is to move
+    // away from it.
+    handle.setPointerCapture(event.pointerId);
+    setDraggingId(patientId);
+
+    const cardUnder = (clientX: number, clientY: number): string | null => {
+      // `elementFromPoint` rather than measuring every card: the board is a
+      // masonry column layout, so a card's position is not derivable from its
+      // index, and re-measuring the lot on every move is work per frame.
+      const element = document.elementFromPoint(clientX, clientY);
+      return element?.closest<HTMLElement>('[data-patient-id]')?.dataset.patientId ?? null;
+    };
+
+    const onMove = (move: PointerEvent): void => {
+      const targetId = cardUnder(move.clientX, move.clientY);
+      if (!targetId || targetId === patientId) return;
+      /**
+       * Reorder DURING the drag, not on drop.
+       *
+       * The list rearranging under the finger is the feedback that the gesture
+       * is working; without it the board sits still until release and the only
+       * way to find out where a card landed is to let go.
+       */
+      saveCustomIds(reorderBoard(cards.map((card) => card.patient), patientId, targetId));
+    };
+
+    const onUp = (): void => {
+      setDraggingId(null);
+      window.removeEventListener('pointermove', onMove);
+      window.removeEventListener('pointerup', onUp);
+      window.removeEventListener('pointercancel', onUp);
+    };
+
+    window.addEventListener('pointermove', onMove);
+    window.addEventListener('pointerup', onUp);
+    // `pointercancel` fires when the browser takes the gesture over — a scroll
+    // it decided was a scroll, a call arriving. Without it the listeners stay
+    // attached and the next tap anywhere moves a card.
+    window.addEventListener('pointercancel', onUp);
   };
 
   const debouncedQuery = useDebouncedValue(query, 150);
@@ -144,7 +229,7 @@ export default function BoardPage(): JSX.Element {
       items,
       today,
     );
-    return orderPatients(matched, order).map((patient) =>
+    return orderPatients(matched, order, customIds).map((patient) =>
       buildCard(patient, items, today, settings.privacy.boardShowInitialsOnly),
     );
   }, [
@@ -155,6 +240,7 @@ export default function BoardPage(): JSX.Element {
     items,
     today,
     order,
+    customIds,
     settings.privacy.boardShowInitialsOnly,
   ]);
 
@@ -172,7 +258,10 @@ export default function BoardPage(): JSX.Element {
    * ends up with Kamar 410 before Kamar 401.
    */
   const groups = useMemo(() => {
-    if (order === 'recent') return [{ label: '', cards }];
+    // `custom` is flat like `recent`: the user arranged these by hand, and
+    // inserting room or consultant headings would cut their arrangement into
+    // sections it does not have.
+    if (order === 'recent' || order === 'custom') return [{ label: '', cards }];
 
     const result: Array<{ label: string; cards: typeof cards }> = [];
     for (const card of cards) {
@@ -271,6 +360,7 @@ export default function BoardPage(): JSX.Element {
             ['recent', 'Terbaru'],
             ['location', 'Denah'],
             ['dpjp', 'Per DPJP'],
+            ['custom', 'Urutan sendiri'],
           ] as Array<[BoardOrder, string]>
         ).map(([value, label]) => (
           <button
@@ -300,6 +390,19 @@ export default function BoardPage(): JSX.Element {
           Format lab
         </button>
       </div>
+
+      {/*
+        Says the handle is there.
+
+        A gesture with no on-screen trace is one that gets forgotten between
+        shifts, and the grip is deliberately quiet so it does not compete with
+        the card. One line, only in the mode where it applies.
+      */}
+      {order === 'custom' ? (
+        <p className="mb-2 px-1 text-[11px] text-fg-faint">
+          Seret ⠿ untuk menyusun ulang. Urutan tersimpan di perangkat ini.
+        </p>
+      ) : null}
 
       {/* Filters hidden for now. The row of "Belum …" chips ate
           the top of the board and pushed the cards below the fold before there
@@ -351,6 +454,8 @@ export default function BoardPage(): JSX.Element {
                       key={card.patient.id}
                       card={card}
                       onLongPress={setQuickPatientId}
+                      onDragHandleDown={order === 'custom' ? onDragHandleDown : undefined}
+                      dragging={draggingId === card.patient.id}
                     />
                   ))}
                 </div>

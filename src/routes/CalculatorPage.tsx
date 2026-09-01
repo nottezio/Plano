@@ -17,6 +17,9 @@ import { copyText } from '@/lib/clipboard';
  */
 const ELECTROLYTE_CALCULATOR_URL = 'https://nottezio.github.io/elektrocalc/';
 
+/** Syringe pump rates — Avicenna's own tool, same reasoning as ElektroCalc. */
+const INFUSION_CALCULATOR_URL = 'https://nottezio.github.io/infucalc/';
+
 /**
  * Bedside calculations, starting with urine output.
  *
@@ -33,7 +36,18 @@ export default function CalculatorPage(): JSX.Element {
     <AppShell title="Kalkulator">
       <div className="mx-auto w-full max-w-2xl space-y-4 px-4 py-4">
         <UrineOutputCard />
-        <ElectrolyteCalculatorCard />
+        <ExternalCalculatorCard
+          title="Koreksi natrium & kalium"
+          subtitle="ElektroCalc — kalkulator elektrolit."
+          href={ELECTROLYTE_CALCULATOR_URL}
+          label="Buka ElektroCalc"
+        />
+        <ExternalCalculatorCard
+          title="Laju syringe pump"
+          subtitle="InfuCalc — kalkulator laju infus dan syringe pump."
+          href={INFUSION_CALCULATOR_URL}
+          label="Buka InfuCalc"
+        />
         <OsmolalityCard />
         <p className="px-1 text-[11px] text-fg-faint">
           Kalkulator lain menyusul. Hasil tidak disimpan — salin barisnya ke catatan.
@@ -118,18 +132,28 @@ function UrineOutputCard(): JSX.Element {
  * tool does. Embedding would mean this app owning the calculation again under
  * a different name.
  */
-function ElectrolyteCalculatorCard(): JSX.Element {
+function ExternalCalculatorCard({
+  title,
+  subtitle,
+  href,
+  label,
+}: {
+  title: string;
+  subtitle: string;
+  href: string;
+  label: string;
+}): JSX.Element {
   return (
     <section className="rounded-2xl border border-border bg-surface p-4">
-      <h2 className="text-sm font-semibold">Koreksi natrium & kalium</h2>
-      <p className="mt-0.5 text-xs text-fg-muted">ElektroCalc — kalkulator elektrolit Avicenna.</p>
+      <h2 className="text-sm font-semibold">{title}</h2>
+      <p className="mt-0.5 text-xs text-fg-muted">{subtitle}</p>
       <a
-        href={ELECTROLYTE_CALCULATOR_URL}
+        href={href}
         target="_blank"
         rel="noreferrer"
         className="mt-3 flex min-h-tap items-center justify-center rounded-lg border border-border bg-bg-subtle px-3 text-sm font-medium text-accent"
       >
-        Buka ElektroCalc ↗
+        {label} ↗
       </a>
     </section>
   );

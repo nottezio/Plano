@@ -136,33 +136,36 @@ export function SectionBands({
       aria-hidden="true"
       className={`${METRICS} pointer-events-none absolute inset-0 overflow-hidden text-transparent`}
     >
-      {parts.map((part) =>
-        part.tint && paint ? (
-          // Block, and stretched past the padding to both edges: a band that
-          // stops at the last character reads as a highlight on those words.
-          // Running border to border reads as the section it marks.
-          <span
-            key={part.key}
-            id={part.anchor ? `sec-${part.anchor}` : undefined}
-            // Clears the two-row sticky header, so a jumped-to heading lands
-            // below it instead of underneath it.
-            className="-mx-4 block px-4"
-            style={{ backgroundColor: part.tint }}
-          >
-            {part.text}
-          </span>
-        ) : part.block ? (
-          <span
-            key={part.key}
-            id={part.anchor ? `sec-${part.anchor}` : undefined}
-            className="block"
-          >
-            {part.text}
-          </span>
-        ) : (
-          <span key={part.key}>{part.text}</span>
-        ),
-      )}
+      {/*
+        INLINE spans only. Never `display: block`.
+
+        The bands used to be block-level and stretched past the padding, so a
+        tint ran border to border. That cannot stay aligned with the textarea,
+        and this is why: the textarea holds plain text with no boxes in it,
+        while the mirror put a block box around every heading. The text before
+        a heading already ends in `\n`, which breaks the line; the block span
+        then opened its own box and broke again. Each heading cost the mirror
+        one line box the textarea did not have, so every band sat progressively
+        further from the heading it marked — a band above the wrong line near
+        the top of a note, and further out with each section below it.
+
+        An inline background only paints behind the words, not to the edges.
+        That is a real loss in how the tint reads, and it is the price of the
+        mirror measuring the same as the thing it mirrors. A full-bleed band
+        needs a layer that does not participate in this text flow at all —
+        absolutely positioned rectangles measured from the line boxes — which
+        is a different mechanism, not a class change.
+      */}
+      {parts.map((part) => (
+        <span
+          key={part.key}
+          id={part.anchor ? `sec-${part.anchor}` : undefined}
+          className={part.block ? 'rounded-sm' : undefined}
+          style={part.tint && paint ? { backgroundColor: part.tint } : undefined}
+        >
+          {part.text}
+        </span>
+      ))}
     </div>
   );
 }

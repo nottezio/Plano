@@ -6,7 +6,7 @@ import {
   type ComparableEntry,
 } from '@/data/repositories/entries.repo';
 import { formatShortDate } from '@/domain/clinicalDate';
-import { diffSegments } from '@/domain/merge/threeWayMerge';
+import { diffSegmentsByLine } from '@/domain/merge/threeWayMerge';
 
 /**
  * Today beside an earlier day.
@@ -128,7 +128,7 @@ export function CompareSheet({
 
   const segments = useMemo(
     () =>
-      showDiff && leftPane && rightPane ? diffSegments(leftPane.body, rightPane.body) : null,
+      showDiff && leftPane && rightPane ? diffSegmentsByLine(leftPane.body, rightPane.body) : null,
     [showDiff, leftPane?.body, rightPane?.body],
   );
 

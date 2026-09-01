@@ -5,7 +5,7 @@ import { COLOR_SENTINEL, stripSentinelColor } from '@/domain/format/noteColor';
 import { updateScratchNotes } from '@/data/repositories/settings.repo';
 import { useTextSync } from '@/hooks/useTextSync';
 import { useSession } from '@/store/useSession';
-import type { ScratchNote } from '@/domain/types';
+import type { ScratchNote, ScratchNoteCategory } from '@/domain/types';
 
 /**
  * A single scratch note, for the user rather than for a patient.
@@ -84,18 +84,36 @@ export default function NotePage(): JSX.Element {
   }, [profile?.notes, profile?.scratchNote]);
 
   const [showArchived, setShowArchived] = useState(false);
+  const [category, setCategory] = useState<ScratchNoteCategory>('umum');
 
   const visible = useMemo(
-    () => notes.filter((note) => (showArchived ? note.archived : !note.archived)),
-    [notes, showArchived],
+    () =>
+      notes.filter(
+        (note) =>
+          // Absent category means `umum`. Notes written before the shelf
+          // existed must not vanish from the only shelf that used to exist.
+          (note.category ?? 'umum') === category &&
+          (showArchived ? note.archived : !note.archived),
+      ),
+    [notes, showArchived, category],
   );
   const archivedCount = useMemo(
-    () => notes.filter((note) => note.archived).length,
-    [notes],
+    () =>
+      notes.filter((note) => note.archived && (note.category ?? 'umum') === category).length,
+    [notes, category],
   );
 
   const [activeId, setActiveId] = useState<string>(() => notes[0]?.id ?? 'n1');
-  const active = visible.find((note) => note.id === activeId) ?? visible[0] ?? notes[0];
+  /**
+   * The note being edited, or nothing when this shelf is empty.
+   *
+   * The final fallback used to be `notes[0]`, which reaches ACROSS shelves: on
+   * an empty jaga shelf it selected the first Umum note, so the editor showed
+   * and saved a note from a shelf the user was not looking at, under a header
+   * that said otherwise. Falling back to nothing is the honest answer — an
+   * empty shelf is empty.
+   */
+  const active = visible.find((note) => note.id === activeId) ?? visible[0];
 
   const setArchived = (archived: boolean): void => {
     if (!uid || !active) return;
@@ -128,7 +146,17 @@ export default function NotePage(): JSX.Element {
   const addNote = (): void => {
     if (!uid) return;
     const id = `n${Date.now().toString(36)}`;
-    const next = [...notes, { id, title: `Catatan ${notes.length + 1}`, body: '' }];
+    // A new note lands on the shelf you are looking at. Adding one from the
+    // jaga list and finding it under Umum would be a small betrayal every time.
+    const next = [
+      ...notes,
+      {
+        id,
+        title: category === 'jaga' ? `Jaga ${notes.length + 1}` : `Catatan ${notes.length + 1}`,
+        body: '',
+        category,
+      },
+    ];
     void updateScratchNotes(uid, next).catch((error: unknown) =>
       console.error('[catatan] could not add', error),
     );
@@ -144,6 +172,8 @@ export default function NotePage(): JSX.Element {
   };
 
   const deleteNote = (): void => {
+    // The last note ON THIS SHELF may still be deleted when the other shelf
+    // has notes; the guard exists so the app is never left with none at all.
     if (!uid || !active || notes.length <= 1) return;
     const next = notes.filter((note) => note.id !== active.id);
     void updateScratchNotes(uid, next).catch((error: unknown) =>
@@ -198,6 +228,37 @@ export default function NotePage(): JSX.Element {
   return (
     <AppShell title="Catatan">
       <div className="mx-auto flex min-h-0 w-full max-w-3xl flex-1 flex-col px-4 pb-4 pt-4">
+        {/*
+          The two shelves, above the note tabs rather than mixed among them.
+
+          A jaga list is a different KIND of thing from a reference note — it
+          is written to be worked through and finished, not kept — and mixing
+          both into one scrolling row of tabs makes the row longer every shift
+          while hiding which are which.
+        */}
+        <div className="mb-2 flex items-center gap-1">
+          {(['umum', 'jaga'] as const).map((shelf) => (
+            <button
+              key={shelf}
+              type="button"
+              aria-pressed={category === shelf}
+              onClick={() => {
+                sync.flush();
+                setCategory(shelf);
+                setShowArchived(false);
+              }}
+              className={[
+                'min-h-tap flex-1 rounded-lg border px-3 text-xs',
+                category === shelf
+                  ? 'border-accent bg-bg-subtle font-medium text-accent'
+                  : 'border-border text-fg-muted',
+              ].join(' ')}
+            >
+              {shelf === 'umum' ? 'Catatan' : 'Catatan jaga'}
+            </button>
+          ))}
+        </div>
+
         <div className="mb-2 flex items-center gap-1 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
           {visible.map((note) => (
             <button
@@ -237,6 +298,34 @@ export default function NotePage(): JSX.Element {
           </button>
         </div>
 
+        {/*
+          An empty shelf says so and offers the one action that helps.
+
+          Rendering the editor anyway would show a titled, toolbarred, empty
+          box bound to no note — every keystroke discarded, with nothing on
+          screen saying why.
+        */}
+        {!active ? (
+          <div className="flex flex-1 flex-col items-center justify-center gap-3 py-12">
+            <p className="text-sm text-fg-muted">
+              {category === 'jaga'
+                ? 'Belum ada catatan jaga.'
+                : showArchived
+                  ? 'Tidak ada catatan terarsip.'
+                  : 'Belum ada catatan.'}
+            </p>
+            {!showArchived ? (
+              <button
+                type="button"
+                onClick={addNote}
+                className="min-h-tap rounded-lg border border-border px-4 text-sm font-medium text-accent"
+              >
+                {category === 'jaga' ? 'Buat catatan jaga' : 'Buat catatan'}
+              </button>
+            ) : null}
+          </div>
+        ) : (
+        <>
         <div className="mb-2 flex items-center gap-2">
           <input
             type="text"
@@ -333,6 +422,8 @@ export default function NotePage(): JSX.Element {
           {sync.dirty ? 'Menyimpan…' : 'Tersimpan'} · Hanya untuk Anda, tidak ikut tersalin
           ke laporan.
         </p>
+        </>
+        )}
       </div>
     </AppShell>
   );
