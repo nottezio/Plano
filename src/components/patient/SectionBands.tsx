@@ -32,13 +32,10 @@ export function SectionBands({
   body: string;
   aliases: readonly SectionAlias[];
   /**
-   * Whether to actually PAINT the tints. The mirror is mounted either way.
-   *
-   * It has to be, because it is also what the jump bar measures against: the
-   * anchors are spans in this layer, and a layer that only exists when the
-   * tint setting is on would make "lompat ke O" work for some users only.
-   * Unpainted it is `text-transparent` with no backgrounds — invisible, and
-   * the same single extra text layout it always was for tint users.
+   * Whether to PAINT the tints. The mirror is mounted either way, because it
+   * is also the jump bar's measurement layer — the section anchors are spans
+   * in here, and a layer that only existed when tinting was on would make
+   * "lompat ke O" work for some users and silently not for others.
    */
   paint: boolean;
 }): JSX.Element {
@@ -64,13 +61,14 @@ export function SectionBands({
      * a boundary again, which is what a scanning aid is.
      */
     const seen = new Set<string>();
+    // Anchors ride the FIRST occurrence of each id, like the tints: a note has
+    // three EKG blocks, and "jump to O" means the first one.
     const anchored = new Set<string>();
     const result: Array<{
       key: string;
       text: string;
       tint: string | null;
       block?: boolean;
-      /** Anchor id for the jump bar, on the first occurrence of each kind. */
       anchor?: string;
     }> = [];
     let cursor = 0;
@@ -91,42 +89,29 @@ export function SectionBands({
       }
 
       /**
-       * Only a heading that OWNS ITS LINE is decorated.
+       * Only a heading that OWNS ITS LINE is tinted.
        *
-       * The parser marks `LVSV : 41,8 mL` and `Hemithorax bilateral : pleural
-       * line` as sections, correctly — that is how `Penunjang: Hb 12` gets
-       * grouped for copying. But they are FIELDS, not headings, and painting
-       * every one of them striped a note across text nobody had marked up:
-       * an echo block came out with a colour band on half its measurements.
+       * The parser marks `LVSV : 41,8 mL` as a section, correctly — that is
+       * how `Penunjang: Hb 12` gets grouped for copying. But it is a FIELD,
+       * not a heading, and tinting every one striped an echo block across
+       * measurements nobody had marked up.
        *
-       * `section.ownsLine` is computed once in the parser precisely so this
-       * layer and the jump bar cannot answer the question differently — which
-       * they did, which is why the bar was clean while the tints were not.
+       * `section.ownsLine` is the parser's single answer to "is this a
+       * heading", shared with the jump bar so the two layers cannot drift
+       * apart — they did once, and the bar was clean while the tints were not.
        */
       const kind = section.ownsLine ? tintFor(section.sectionId, section.label) : null;
       const tint = kind && !seen.has(kind) ? kind : null;
-      /**
-       * The anchor rides on the FIRST occurrence of each section id, which is
-       * the same rule the tint uses and for the same reason: a note carries
-       * three EKG blocks and five lab dates, and "jump to O" means the first
-       * one, not an arbitrary later one.
-       *
-       * Keyed on `sectionId` rather than `kind` because the tint palette maps
-       * several ids onto one colour, and two sections sharing a colour still
-       * need separate jump targets.
-       */
-      const anchor =
-        !section.ownsLine || anchored.has(section.sectionId)
-          ? undefined
-          : section.sectionId;
-      if (anchor) anchored.add(section.sectionId);
       if (kind) seen.add(kind);
+      if (section.ownsLine) anchored.add(section.sectionId);
       result.push({
         key: `head-${index}`,
         text: settled.slice(section.start, headerEnd),
-        tint: tint ? TINT_VAR[tint] : null,
+        tint: tint && paint ? TINT_VAR[tint] : null,
         block: true,
-        ...(anchor ? { anchor } : {}),
+        ...(section.ownsLine && !anchored.has(section.sectionId)
+          ? { anchor: section.sectionId }
+          : {}),
       });
       // The newline is consumed by the block above — a block element already
       // ends its line, so leaving the `\n` here would open a second one and
@@ -152,36 +137,35 @@ export function SectionBands({
       aria-hidden="true"
       className={`${METRICS} pointer-events-none absolute inset-0 overflow-hidden text-transparent`}
     >
-      {/*
-        INLINE spans only. Never `display: block`.
-
-        The bands used to be block-level and stretched past the padding, so a
-        tint ran border to border. That cannot stay aligned with the textarea,
-        and this is why: the textarea holds plain text with no boxes in it,
-        while the mirror put a block box around every heading. The text before
-        a heading already ends in `\n`, which breaks the line; the block span
-        then opened its own box and broke again. Each heading cost the mirror
-        one line box the textarea did not have, so every band sat progressively
-        further from the heading it marked — a band above the wrong line near
-        the top of a note, and further out with each section below it.
-
-        An inline background only paints behind the words, not to the edges.
-        That is a real loss in how the tint reads, and it is the price of the
-        mirror measuring the same as the thing it mirrors. A full-bleed band
-        needs a layer that does not participate in this text flow at all —
-        absolutely positioned rectangles measured from the line boxes — which
-        is a different mechanism, not a class change.
-      */}
-      {parts.map((part) => (
-        <span
-          key={part.key}
-          id={part.anchor ? `sec-${part.anchor}` : undefined}
-          className={part.block ? 'rounded-sm' : undefined}
-          style={part.tint && paint ? { backgroundColor: part.tint } : undefined}
-        >
-          {part.text}
-        </span>
-      ))}
+      {parts.map((part) =>
+        part.tint ? (
+          // Block, and stretched past the padding to both edges: a band that
+          // stops at the last character reads as a highlight on those words.
+          // Running border to border reads as the section it marks.
+          <span
+            key={part.key}
+            id={part.anchor ? `sec-${part.anchor}` : undefined}
+            className="-mx-4 block px-4"
+            style={{ backgroundColor: part.tint }}
+          >
+            {part.text}
+          </span>
+        ) : part.block ? (
+          // The anchor rides here too. A heading is untinted whenever the tint
+          // setting is off, or when another section already claimed that
+          // colour — and in both cases it is still somewhere the jump bar has
+          // to be able to reach.
+          <span
+            key={part.key}
+            id={part.anchor ? `sec-${part.anchor}` : undefined}
+            className="block"
+          >
+            {part.text}
+          </span>
+        ) : (
+          <span key={part.key}>{part.text}</span>
+        ),
+      )}
     </div>
   );
 }
