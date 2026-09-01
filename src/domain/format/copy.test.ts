@@ -232,7 +232,10 @@ describe('composeCopy — section subsets', () => {
       format: 'whatsapp',
       sections: ['s'] as SectionId[],
     });
-    expect(output).toBe('S:\nsesak *berkurang*, batuk _berdahak_');
+    // One line, because the fixture writes `S: sesak …` with the content on
+    // the header's own line. That is a field, not a heading, and the
+    // separator now follows which of the two it is.
+    expect(output).toBe('S: sesak *berkurang*, batuk _berdahak_');
     expect(findMarkdownLeaks(output)).toEqual([]);
   });
 });

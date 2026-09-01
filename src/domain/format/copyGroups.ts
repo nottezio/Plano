@@ -102,14 +102,38 @@ export function groupForSection(
  * DPJP line, which the whole-note copy already carries and a section subset
  * should not duplicate.
  */
+/** The headings that mark the start of the clinical note proper. */
+const CLINICAL_IDS: readonly SectionId[] = ['s', 'o', 'ttv', 'penunjang', 'a', 'terapi', 'p'];
+
 export function sectionsForGroups(
   body: string,
   aliases: readonly SectionAlias[],
   groups: readonly CopyGroupId[],
 ): SectionId[] {
   const wanted = new Set(groups);
+  const merged = mergeSections(parseSections(body, aliases));
 
-  return mergeSections(parseSections(body, aliases))
+  /**
+   * Everything before the first clinical heading is the OPENING, and no
+   * section subset includes it.
+   *
+   * `_intro` covers the greeting only, because the identity line and the DPJP
+   * lines are themselves parsed as sections — `*Ny. Siati /…*` is a wrapped
+   * header and `_DPJP Kardio: …_` is a label with a value. Being unrecognised,
+   * they fell through `groupForSection`'s default into `o`, so copying
+   * "O + Penunjang" pasted the patient's name and three consultants above the
+   * vitals.
+   *
+   * Cut by POSITION rather than by keyword: an opening is whatever comes
+   * before the note starts, and a keyword list would need a new entry for
+   * every consultant title and every way an identity line gets written.
+   */
+  const firstClinical = merged.findIndex((section) =>
+    CLINICAL_IDS.includes(section.sectionId),
+  );
+  const afterOpening = firstClinical === -1 ? merged : merged.slice(firstClinical);
+
+  return afterOpening
     // Empty sections are kept for the same reason composeCopy keeps them: a
     // dated heading whose values parse as their own sections is empty, and its
     // date is the part that matters.

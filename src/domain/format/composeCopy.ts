@@ -81,21 +81,58 @@ function renderDayBody(body: string, options: ComposeOptions): string {
         sectionSortIndex(b.sectionId, options.aliases),
     );
 
-  return merged
+  const rendered = merged
     .map((section) => {
-      const header = section.blocks[0]?.headerLine?.replace(/[ \t]+$/, '');
+      const first = section.blocks[0];
+      const header = first?.headerLine?.replace(/[ \t]+$/, '');
       // `_intro` has no header; emitting one would invent a section the user
       // never wrote.
       //
-      // NEWLINE between header and body, not a space. `headerLine` is the
-      // header PREFIX only — `"*S :*"` — with its line break already stripped,
-      // so re-emitting has to put one back. Joining with a space produced
-      // `*S :* - Sesak nafas ada, ...` on one line: every section-subset copy
-      // ran the heading into the first finding. See `renderSelectedSections`
-      // below, which had it right, and this did not.
-      return header ? `${header}\n${section.text.trimStart()}`.trimEnd() : section.text;
-    })
-    .join('\n\n');
+      /**
+       * A HEADING gets its newline back; a FIELD keeps its own spacing.
+       *
+       * `headerLine` is the header prefix with its line break stripped, so a
+       * heading has to have one put back — without it, `*S :*` ran into the
+       * first finding. But the same slice is also produced for `Tensi : 100/70
+       * mmHg`, where the label and the value share a line ON PURPOSE, and
+       * inserting a newline there split every vital sign across two lines.
+       *
+       * `ownsLine` is the parser's answer to which kind this is. For a field
+       * the untouched `headerLine + text` reproduces the original exactly,
+       * which is what its docblock promises.
+       */
+      const ownsLine = first?.ownsLine ?? true;
+      if (!header) return { text: section.text, ownsLine };
+      return {
+        ownsLine,
+        text: ownsLine
+          ? `${header}\n${section.text.trimStart()}`.trimEnd()
+          : `${first?.headerLine ?? ''}${section.text}`.trimEnd(),
+      };
+    });
+
+  return joinSections(rendered);
+}
+
+/**
+ * Join rendered sections.
+ *
+ * A blank line between HEADINGS is right — it is how the note separates `*O :*`
+ * from `*EKG …*`. Between FIELDS it is wrong: `Tensi`, `Nadi`, `Nafas` and
+ * `Suhu` are consecutive lines in the note, and the parser only makes them
+ * separate sections because each has a `label : value` shape. Putting a blank
+ * line between each turned four lines of vitals into eight.
+ *
+ * So the separator follows what the SECOND piece is: a heading opens a new
+ * block, a field continues the one above it.
+ */
+function joinSections(
+  rendered: readonly { text: string; ownsLine: boolean }[],
+): string {
+  return rendered.reduce((out, piece, index) => {
+    if (index === 0) return piece.text;
+    return `${out}${piece.ownsLine ? '\n\n' : '\n'}${piece.text}`;
+  }, '');
 }
 
 export function composeCopy(days: readonly CopyDay[], options: ComposeOptions): string {
@@ -147,13 +184,21 @@ export function composeDocument(
     .sort((a, b) => sectionSortIndex(a.sectionId, aliases) - sectionSortIndex(b.sectionId, aliases));
 
   return formatBody(
-    merged
-      .map((section) => {
-        const header = section.blocks[0]?.headerLine?.replace(/[ \t]+$/, '');
-        // Newline, not a space — see the note on the same join above.
-        return header ? `${header}\n${section.text.trimStart()}`.trimEnd() : section.text;
-      })
-      .join('\n\n'),
+    joinSections(
+      merged.map((section) => {
+        const first = section.blocks[0];
+        const header = first?.headerLine?.replace(/[ \t]+$/, '');
+        const ownsLine = first?.ownsLine ?? true;
+        // Heading gets a newline, field keeps its spacing — see above.
+        if (!header) return { text: section.text, ownsLine };
+        return {
+          ownsLine,
+          text: ownsLine
+            ? `${header}\n${section.text.trimStart()}`.trimEnd()
+            : `${first?.headerLine ?? ''}${section.text}`.trimEnd(),
+        };
+      }),
+    ),
     format,
     bullet,
   );

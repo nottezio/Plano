@@ -253,6 +253,29 @@ export function writeBody(
     payload['createdAt'] = serverTimestamp();
     payload['locked'] = false;
     payload['editing'] = null;
+  }
+
+  /**
+   * A day with text in it is not a deleted day.
+   *
+   * `deletedAt` used to be cleared ONLY on `isNew`, so a day that had been
+   * cleared and then written into again stayed soft-deleted forever. The note
+   * was real and editable — `subscribeEntry` reads by id and does not filter —
+   * but every LIST filters `deletedAt`, so the day vanished from the rail
+   * while its note sat on screen. A real note reached rev 91 in that state.
+   *
+   * The original rule was that a keystroke flush must never resurrect a
+   * deleted entry, and the risk it guarded against is real: an autosave firing
+   * against a day someone just cleared would undo the clear. But it guarded
+   * with the wrong condition. What must not resurrect is an EMPTY write; a
+   * body with content in it is not an accident, it is someone typing a note
+   * into that day, and refusing to acknowledge the day they are typing into
+   * hides their work.
+   *
+   * So: content resurrects, emptiness does not. Clearing an entry writes
+   * `body: ''` together with `deletedAt`, and that path is untouched by this.
+   */
+  if (body.trim().length > 0) {
     payload['deletedAt'] = null;
   }
 
