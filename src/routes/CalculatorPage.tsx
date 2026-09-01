@@ -2,15 +2,20 @@ import { useMemo, useState } from 'react';
 
 import { AppShell } from '@/components/common/AppShell';
 import { BAND_LABELS, calculateUrineOutput } from '@/domain/calc/urineOutput';
-import {
-  K_SEVERITY_LABELS,
-  OSMOLALITY_BANDS,
-  calculateOsmolality,
-  calculatePotassiumDeficit,
-  calculateSodiumCorrection,
-  type Sex,
-} from '@/domain/calc/sodium';
+import { OSMOLALITY_BANDS, calculateOsmolality } from '@/domain/calc/sodium';
 import { copyText } from '@/lib/clipboard';
+
+/**
+ * External link, not a link card built from a domain helper.
+ *
+ * The sodium and potassium correction cards were removed here, not fixed a
+ * second time. The potassium rewrite in `sodium.ts` (2026-08-31) replaced one
+ * wrong formula with a different one built from web references rather than
+ * from a source Avicenna could check against RSWS protocol, and that is not a
+ * gap a better formula closes — it is a reason not to own the calculation.
+ * ElektroCalc is Avicenna's own tool and stays the source of truth for both.
+ */
+const ELECTROLYTE_CALCULATOR_URL = 'https://nottezio.github.io/elektrocalc/';
 
 /**
  * Bedside calculations, starting with urine output.
@@ -28,8 +33,7 @@ export default function CalculatorPage(): JSX.Element {
     <AppShell title="Kalkulator">
       <div className="mx-auto w-full max-w-2xl space-y-4 px-4 py-4">
         <UrineOutputCard />
-        <SodiumCard />
-        <PotassiumCard />
+        <ElectrolyteCalculatorCard />
         <OsmolalityCard />
         <p className="px-1 text-[11px] text-fg-faint">
           Kalkulator lain menyusul. Hasil tidak disimpan — salin barisnya ke catatan.
@@ -99,6 +103,38 @@ function UrineOutputCard(): JSX.Element {
   );
 }
 
+/**
+ * Sodium and potassium correction, out.
+ *
+ * They were domain helpers here twice, and wrong twice in different ways: the
+ * first sodium/potassium pass conflated a total-body deficit with an IV dose,
+ * and the potassium rewrite fixed that by building a new formula from web
+ * references — better-sourced, but still not something Avicenna could check
+ * against RSWS's own protocol, and still Claude's arithmetic standing behind a
+ * dosing number on a ward. That is the wrong place for a correction
+ * calculation to live regardless of which formula is in it.
+ *
+ * A link, not an embed, and not a domain module reimplementing what the linked
+ * tool does. Embedding would mean this app owning the calculation again under
+ * a different name.
+ */
+function ElectrolyteCalculatorCard(): JSX.Element {
+  return (
+    <section className="rounded-2xl border border-border bg-surface p-4">
+      <h2 className="text-sm font-semibold">Koreksi natrium & kalium</h2>
+      <p className="mt-0.5 text-xs text-fg-muted">ElektroCalc — kalkulator elektrolit Avicenna.</p>
+      <a
+        href={ELECTROLYTE_CALCULATOR_URL}
+        target="_blank"
+        rel="noreferrer"
+        className="mt-3 flex min-h-tap items-center justify-center rounded-lg border border-border bg-bg-subtle px-3 text-sm font-medium text-accent"
+      >
+        Buka ElektroCalc ↗
+      </a>
+    </section>
+  );
+}
+
 function NumberField({
   label,
   value,
@@ -125,110 +161,6 @@ function NumberField({
         className="min-h-tap w-full rounded-lg border border-border bg-surface px-2 text-center text-sm outline-none"
       />
     </label>
-  );
-}
-
-function SodiumCard(): JSX.Element {
-  const [current, setCurrent] = useState('');
-  const [target, setTarget] = useState('140');
-  const [weight, setWeight] = useState('');
-  const [sex, setSex] = useState<Sex>('L');
-  const [rate, setRate] = useState('0.5');
-  const [copied, setCopied] = useState(false);
-
-  const result = useMemo(
-    () =>
-      calculateSodiumCorrection({
-        current: Number(current),
-        target: Number(target),
-        weightKg: Number(weight),
-        sex,
-        ratePerHour: Number(rate),
-      }),
-    [current, target, weight, sex, rate],
-  );
-
-  return (
-    <section className="rounded-xl border border-border bg-surface p-4">
-      <h2 className="text-sm font-semibold">Koreksi natrium</h2>
-      <p className="mt-0.5 text-xs text-fg-muted">
-        (Target − Na) × {sex === 'L' ? '0.6' : '0.5'} × BB. Dikoreksi dengan NaCl 3%.
-      </p>
-
-      <div className="mt-3 grid grid-cols-3 gap-2">
-        <NumberField label="Na saat ini" value={current} onChange={setCurrent} />
-        <NumberField label="Target" value={target} onChange={setTarget} />
-        <NumberField label="Berat (kg)" value={weight} onChange={setWeight} />
-      </div>
-
-      <div className="mt-2 grid grid-cols-2 gap-2">
-        <div>
-          <span className="mb-1 block text-[11px] text-fg-muted">Jenis kelamin</span>
-          <div className="flex gap-1">
-            {(['L', 'P'] as Sex[]).map((value) => (
-              <button
-                key={value}
-                type="button"
-                aria-pressed={sex === value}
-                onClick={() => setSex(value)}
-                className={[
-                  'min-h-tap flex-1 rounded-lg border text-xs',
-                  sex === value
-                    ? 'border-accent bg-bg-subtle font-medium text-accent'
-                    : 'border-border text-fg-muted',
-                ].join(' ')}
-              >
-                {value === 'L' ? 'Laki-laki' : 'Perempuan'}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        <div>
-          <span className="mb-1 block text-[11px] text-fg-muted">Kecepatan</span>
-          <div className="flex gap-1">
-            {['0.5', '1'].map((value) => (
-              <button
-                key={value}
-                type="button"
-                aria-pressed={rate === value}
-                onClick={() => setRate(value)}
-                className={[
-                  'min-h-tap flex-1 rounded-lg border text-xs',
-                  rate === value
-                    ? 'border-accent bg-bg-subtle font-medium text-accent'
-                    : 'border-border text-fg-muted',
-                ].join(' ')}
-              >
-                {value} meq/jam
-              </button>
-            ))}
-          </div>
-        </div>
-      </div>
-
-      <p className="mt-1 text-[11px] text-fg-faint">
-        0.5 meq/jam bila sadar penuh; 1 meq/jam bila kesadaran menurun. Terlalu cepat berisiko
-        mielinolisis pontin.
-      </p>
-
-      {result ? (
-        <div className="mt-3 rounded-lg border border-border bg-bg-subtle p-3">
-          <p className="text-lg font-semibold">
-            {result.deficitMeq} <span className="text-xs font-normal text-fg-muted">meq</span>
-          </p>
-          <p className="mt-0.5 text-xs text-fg-muted">
-            Habis dalam {result.hours} jam · NaCl 3% ≈ {result.volume3PercentMl} cc
-          </p>
-          <p className="mt-2 break-words font-mono text-[11px] leading-relaxed">{result.line}</p>
-          <CopyLine text={result.line} copied={copied} setCopied={setCopied} />
-        </div>
-      ) : (
-        <p className="mt-3 text-xs text-fg-faint">
-          Isi Na, target, dan berat badan. Tidak dihitung bila Na sudah mencapai target.
-        </p>
-      )}
-    </section>
   );
 }
 
@@ -303,83 +235,5 @@ function CopyLine({
     >
       {copied ? 'Tersalin ✓' : 'Salin baris'}
     </button>
-  );
-}
-
-function PotassiumCard(): JSX.Element {
-  const [current, setCurrent] = useState('');
-  const [target, setTarget] = useState('3.5');
-  const [weight, setWeight] = useState('');
-  const [copied, setCopied] = useState(false);
-
-  const result = useMemo(
-    () =>
-      calculatePotassiumDeficit({
-        current: Number(current),
-        target: Number(target),
-        weightKg: Number(weight),
-      }),
-    [current, target, weight],
-  );
-
-  return (
-    <section className="rounded-xl border border-border bg-surface p-4">
-      <h2 className="text-sm font-semibold">Koreksi kalium (IV)</h2>
-      <p className="mt-0.5 text-xs text-fg-muted">
-        Dosis awal KCl IV: 10 mEq menaikkan K serum ~0.1 mmol/L.
-      </p>
-
-      <div className="mt-3 grid grid-cols-3 gap-2">
-        <NumberField label="K saat ini" value={current} onChange={setCurrent} />
-        <NumberField label="Target" value={target} onChange={setTarget} />
-        <NumberField label="Berat (kg)" value={weight} onChange={setWeight} />
-      </div>
-
-      {result ? (
-        <div className="mt-3 rounded-lg border border-border bg-bg-subtle p-3">
-          <p className="text-lg font-semibold">
-            {result.totalMeq} <span className="text-xs font-normal text-fg-muted">mEq</span>
-          </p>
-          <p className="mt-0.5 text-xs text-fg-muted">
-            ≈ {result.kclGrams} g KCl · maks {result.maxRatePerHour} mEq/jam (~{result.hours} jam)
-            · {K_SEVERITY_LABELS[result.severity]}
-          </p>
-          <p className="mt-0.5 text-xs text-fg-muted">
-            Maintenance harian terpisah: {result.maintenanceMeq} mEq — <strong>tidak</strong>{' '}
-            dijumlahkan ke dosis koreksi.
-          </p>
-
-          {/*
-            The caveat travels with the number.
-
-            This is a STARTING dose, not a total. The previous card printed a
-            total-body deficit plus a day's maintenance and called it the amount
-            to give, which is how a correction becomes an overdose. Serum
-            potassium also does not rise linearly — the intracellular pool
-            refills as it climbs — so every source that publishes the
-            dose-response rule pairs it with a recheck.
-          */}
-          <p className="mt-2 text-[11px] leading-relaxed text-fg-faint">
-            <strong>Dosis awal</strong>, bukan total. Cek ulang K 1–2 jam setelah infus selesai
-            dan ulangi bila perlu. Kalium tubuh 98% intraselular, sehingga kenaikan serum tidak
-            linear. Periksa dan koreksi magnesium lebih dulu; hipomagnesemia membuat koreksi
-            kalium tidak berhasil.
-          </p>
-          {result.cappedAtDailyMax ? (
-            <p className="mt-2 text-[11px] leading-relaxed text-fg-faint">
-              Dibatasi 200 mEq/24 jam. Dosis lebih tinggi hanya pada hipokalemia mengancam jiwa
-              dengan monitor EKG kontinu dan akses sentral.
-            </p>
-          ) : null}
-
-          <p className="mt-2 break-words font-mono text-[11px] leading-relaxed">{result.line}</p>
-          <CopyLine text={result.line} copied={copied} setCopied={setCopied} />
-        </div>
-      ) : (
-        <p className="mt-3 text-xs text-fg-faint">
-          Isi kalium, target, dan berat badan. Tidak dihitung bila kalium sudah mencapai target.
-        </p>
-      )}
-    </section>
   );
 }
