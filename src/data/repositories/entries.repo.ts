@@ -84,9 +84,22 @@ export function subscribeEntry(
 export async function fetchEntryBodies(
   patientId: string,
 ): Promise<Array<{ date: ClinicalDate; body: string }>> {
-  const snapshot = await getDocs(query(entriesCol(patientId), orderBy('date', 'desc')));
+  /**
+   * No `orderBy('date')`. Sorted below, on the document ID.
+   *
+   * Firestore does not return documents that lack the field being ordered on
+   * — they are absent from the result, not sorted last. Four writes in this
+   * file could create an entry without a `date` field (all fixed now), and any
+   * such document was permanently invisible to this query while remaining
+   * perfectly readable by id. Ordering on a field that is a copy of the ID is
+   * a dependency with nothing to gain: the ID sorts identically and always
+   * exists.
+   */
+  const snapshot = await getDocs(query(entriesCol(patientId)));
   return snapshot.docs
-    .map((entry) => entry.data() as DailyEntry)
+    // The ID, not `data().date`. They are the same string whenever the field
+    // exists, and the ID is the one that always does.
+    .map((entry) => ({ ...(entry.data() as DailyEntry), date: entry.id }))
     // `!entry.deletedAt`, not `=== null`. Only the creation path sets the field
     // explicitly; a document first materialised by a merge write — locking an
     // untouched day does exactly that — has it `undefined`. The strict
@@ -111,7 +124,10 @@ export async function fetchEntryBodies(
      * have a note", and the copy path had the wrong one.
      */
     .map((entry) => ({ date: entry.date, body: entry.body ?? '' }))
-    .filter((entry) => entry.body.trim().length > 0);
+    .filter((entry) => entry.body.trim().length > 0)
+    // Sorted here, now that the query does not order. Newest first, matching
+    // what `orderBy('date', 'desc')` used to return.
+    .sort((a, b) => (a.date < b.date ? 1 : -1));
 }
 
 /**
@@ -123,8 +139,27 @@ export async function fetchEntryBodies(
  * page, which is exactly what the rail is supposed to save you from.
  */
 export interface EntryDatesSnapshot {
-  /** Days with a non-empty body — what the rail marks as having content. */
+  /**
+   * Days the rail should OFFER: a non-empty body, or at least one jaga note.
+   *
+   * This used to be "days with a non-empty body" alone, and the rail is built
+   * from it — so a day whose only content was a jaga note did not appear at
+   * all. `writeShiftNotes` creates exactly that: adding a shift note to a day
+   * before its SOAP is written leaves an entry with notes and no body. The day
+   * was real, held the note, and was reachable through "Tanggal lain", but the
+   * rail never drew it, so the note looked as though it had moved to whichever
+   * day was drawn beside it.
+   */
   dates: ClinicalDate[];
+  /**
+   * Days with a non-empty BODY, for the dot that marks a written note.
+   *
+   * Separate from `dates` on purpose. "Offer this day" and "this day has a
+   * note in it" were the same question only while a body was the only thing a
+   * day could hold. Collapsing them again would either hide jaga-only days or
+   * put a written-note dot on a day with no note.
+   */
+  datesWithBody: ClinicalDate[];
   /**
    * Shift notes per day, for the rail's half-height entries.
    *
@@ -147,22 +182,29 @@ export function subscribeEntryDates(
   onError: (error: Error) => void,
 ): Unsubscribe {
   return onSnapshot(
-    query(entriesCol(patientId), orderBy('date', 'desc')),
+    // No `orderBy('date')` — see `fetchEntryBodies`. A document missing that
+    // field is excluded from the result entirely, which is how a real day
+    // vanished from the rail while still opening fine by id.
+    query(entriesCol(patientId)),
     (snapshot) => {
       const dates: ClinicalDate[] = [];
+      const datesWithBody: ClinicalDate[] = [];
       const shiftNotesByDate: Record<ClinicalDate, ShiftNote[]> = {};
 
       for (const entry of snapshot.docs) {
         const data = entry.data() as DailyEntry;
         if (data.deletedAt) continue;
 
-        if ((data.body ?? '').trim().length > 0) dates.push(entry.id);
-
+        const hasBody = (data.body ?? '').trim().length > 0;
         const live = (data.shiftNotes ?? []).filter((note) => note.clearedAt === null);
+
+        if (hasBody) datesWithBody.push(entry.id);
+        // Either kind of content makes the day worth offering.
+        if (hasBody || live.length > 0) dates.push(entry.id);
         if (live.length > 0) shiftNotesByDate[entry.id] = live;
       }
 
-      callback({ dates, shiftNotesByDate });
+      callback({ dates, datesWithBody, shiftNotesByDate });
     },
     onError,
   );
@@ -264,7 +306,11 @@ export function heartbeatEditing(patientId: string, date: ClinicalDate): Promise
   return trackWrite(
     setDoc(
       entryDoc(patientId, date),
-      { editing: { deviceId: getDeviceId(), at: serverTimestamp() } },
+      // `date` included for the reason given on `setEntryLocked`. This one is
+      // the likeliest offender of the four: a heartbeat fires just from having
+      // a day open, so simply LOOKING at an untouched day could create an
+      // entry the rail would never show again.
+      { date, editing: { deviceId: getDeviceId(), at: serverTimestamp() } },
       { merge: true },
     ),
   );
@@ -272,7 +318,9 @@ export function heartbeatEditing(patientId: string, date: ClinicalDate): Promise
 
 export function clearEditing(patientId: string, date: ClinicalDate): Promise<void> {
   return trackWrite(
-    setDoc(entryDoc(patientId, date), { editing: null }, { merge: true }),
+    // `date` included for the reason given on `setEntryLocked`: a merge write
+    // without it can create an entry the date rail cannot see.
+    setDoc(entryDoc(patientId, date), { date, editing: null }, { merge: true }),
   );
 }
 
@@ -297,6 +345,22 @@ export function setEntryLocked(
     setDoc(
       entryDoc(patientId, date),
       {
+        /**
+         * `date` on EVERY write that can create the document.
+         *
+         * `subscribeEntryDates` queries with `orderBy('date')`, and Firestore
+         * omits documents that lack the ordered field entirely — they are not
+         * sorted last, they are absent. A `setDoc(merge: true)` that leaves
+         * `date` out therefore creates an entry the date rail can never see,
+         * while `subscribeEntry` reads it perfectly well by id. That is the
+         * shape of the bug: a day missing from the rail whose note is right
+         * there when the day is opened directly.
+         *
+         * The doc id is already the date, so this is redundant data by
+         * definition. It is stored because a query cannot filter or sort on a
+         * document id the way it can on a field.
+         */
+        date,
         locked,
         updatedAt: serverTimestamp(),
         updatedBy: getDeviceId(),
@@ -385,6 +449,8 @@ export function clearEntry(patientId: string, date: ClinicalDate): Promise<void>
     setDoc(
       entryDoc(patientId, date),
       {
+        // See `setEntryLocked`.
+        date,
         body: '',
         deletedAt: serverTimestamp(),
         updatedAt: serverTimestamp(),
@@ -481,24 +547,39 @@ export interface ComparableEntry {
 export async function fetchComparableEntries(
   patientId: string,
 ): Promise<ComparableEntry[]> {
-  const snapshot = await getDocs(query(entriesCol(patientId), orderBy('date', 'desc')));
+  /**
+   * No `orderBy('date')`. Sorted below, on the document ID.
+   *
+   * Firestore does not return documents that lack the field being ordered on
+   * — they are absent from the result, not sorted last. Four writes in this
+   * file could create an entry without a `date` field (all fixed now), and any
+   * such document was permanently invisible to this query while remaining
+   * perfectly readable by id. Ordering on a field that is a copy of the ID is
+   * a dependency with nothing to gain: the ID sorts identically and always
+   * exists.
+   */
+  const snapshot = await getDocs(query(entriesCol(patientId)));
   const out: ComparableEntry[] = [];
 
   for (const doc of snapshot.docs) {
     const entry = doc.data() as DailyEntry;
     if (entry.deletedAt) continue;
 
+    // `doc.id`, not `entry.date` — the field can be absent on a document
+    // created by a merge write, and an entry with `date: undefined` would sort
+    // and key unpredictably.
+    const date = doc.id;
     const body = entry.body ?? '';
     if (body.trim().length > 0) {
-      out.push({ key: entry.date, date: entry.date, kind: 'harian', body });
+      out.push({ key: date, date, kind: 'harian', body });
     }
 
     for (const note of entry.shiftNotes ?? []) {
       if (note.clearedAt !== null) continue;
       if (note.body.trim().length === 0) continue;
       out.push({
-        key: `${entry.date}#${note.id}`,
-        date: entry.date,
+        key: `${date}#${note.id}`,
+        date,
         time: note.time,
         kind: 'jaga',
         body: note.body,

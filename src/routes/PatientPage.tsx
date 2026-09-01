@@ -309,7 +309,15 @@ export default function PatientPage(): JSX.Element {
   // The admission entry is rendered on its own above the rail, so it must not
   // also be sorted in among the days — it would land wherever `igd` falls
   // alphabetically, which is nowhere meaningful.
-  const datesWithContent = useMemo(() => new Set(entryDates.dates), [entryDates.dates]);
+  //
+  // `datesWithBody`, not `dates`: this drives the dot that means "a note is
+  // written here", and `dates` now also includes days whose only content is a
+  // jaga note. Using it here would put a written-note dot on a day with no
+  // note in it.
+  const datesWithContent = useMemo(
+    () => new Set(entryDates.datesWithBody),
+    [entryDates.datesWithBody],
+  );
 
   const hint = useMemo(
     () =>

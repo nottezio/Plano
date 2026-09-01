@@ -90,7 +90,20 @@ export function SectionBands({
         });
       }
 
-      const kind = tintFor(section.sectionId, section.label);
+      /**
+       * Only a heading that OWNS ITS LINE is decorated.
+       *
+       * The parser marks `LVSV : 41,8 mL` and `Hemithorax bilateral : pleural
+       * line` as sections, correctly — that is how `Penunjang: Hb 12` gets
+       * grouped for copying. But they are FIELDS, not headings, and painting
+       * every one of them striped a note across text nobody had marked up:
+       * an echo block came out with a colour band on half its measurements.
+       *
+       * `section.ownsLine` is computed once in the parser precisely so this
+       * layer and the jump bar cannot answer the question differently — which
+       * they did, which is why the bar was clean while the tints were not.
+       */
+      const kind = section.ownsLine ? tintFor(section.sectionId, section.label) : null;
       const tint = kind && !seen.has(kind) ? kind : null;
       /**
        * The anchor rides on the FIRST occurrence of each section id, which is
@@ -102,7 +115,10 @@ export function SectionBands({
        * several ids onto one colour, and two sections sharing a colour still
        * need separate jump targets.
        */
-      const anchor = anchored.has(section.sectionId) ? undefined : section.sectionId;
+      const anchor =
+        !section.ownsLine || anchored.has(section.sectionId)
+          ? undefined
+          : section.sectionId;
       if (anchor) anchored.add(section.sectionId);
       if (kind) seen.add(kind);
       result.push({

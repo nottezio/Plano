@@ -114,6 +114,11 @@ export function jumpTargets(
   // carries three EKG blocks, and "jump to O" means the first one.
   const present = new Map<SectionId, ParsedSection>();
   for (const section of parseSections(body, aliases)) {
+    // A field is not a jump target. `section.ownsLine` is the parser's single
+    // answer to "is this a heading", shared with the tint layer so the two
+    // cannot drift apart — they did once, and the bar was clean while the
+    // tints striped every measurement in the echo block.
+    if (!section.ownsLine) continue;
     if (!present.has(section.sectionId)) present.set(section.sectionId, section);
   }
 

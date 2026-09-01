@@ -43,6 +43,23 @@ export interface ParsedSection {
   textStart: number;
   /** Content without the header prefix. Untrimmed: this is a slice, not a copy. */
   text: string;
+  /**
+   * Does the header occupy its own line, or does it label a value on it?
+   *
+   * `*O :*` owns its line — the content is below. `LVSV : 41,8 mL` does not:
+   * the label and its value share the line, and it is a FIELD, not a heading.
+   *
+   * The parser is right to treat both as section starts; that is how
+   * `Penunjang: Hb 12` gets grouped. But a consumer that DECORATES headings —
+   * the tint bands, the jump bar — must not treat a measurement as one.
+   * Without this, every echo line and every vital sign got its own colour
+   * band, so a note came out striped across text nobody had marked up.
+   *
+   * Computed here rather than by each consumer, because two consumers deriving
+   * "is this a heading" separately is how they came to disagree: the jump bar
+   * filtered these out and the tint layer did not.
+   */
+  ownsLine: boolean;
 }
 
 interface HeaderHit {
@@ -313,6 +330,7 @@ export function parseSections(
         sectionId: '_intro',
         label: 'Catatan',
         headerLine: null,
+        ownsLine: false,
         start: 0,
         end: body.length,
         textStart: 0,
@@ -329,6 +347,8 @@ export function parseSections(
       sectionId: '_intro',
       label: 'Catatan',
       headerLine: null,
+      // `_intro` has no header at all, so there is no heading to decorate.
+      ownsLine: false,
       start: 0,
       end: firstStart,
       textStart: 0,
@@ -346,6 +366,9 @@ export function parseSections(
       end,
       textStart: hit.headerEnd,
       text: body.slice(hit.headerEnd, end),
+      // A heading owns its line when nothing but whitespace follows the header
+      // prefix before the newline. `*O :*` does; `LVSV : 41,8 mL` does not.
+      ownsLine: /^[ \t]*(\n|$)/.test(body.slice(hit.headerEnd)),
     });
   });
 

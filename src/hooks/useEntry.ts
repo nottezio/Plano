@@ -52,7 +52,11 @@ export function useEntry(patientId: string | undefined, date: ClinicalDate): Ent
  * Both come from one subscription: the query already reads every entry
  * document, so splitting them would mean a second listener over the same data.
  */
-const EMPTY_DATES: EntryDatesSnapshot = { dates: [], shiftNotesByDate: {} };
+const EMPTY_DATES: EntryDatesSnapshot = {
+  dates: [],
+  datesWithBody: [],
+  shiftNotesByDate: {},
+};
 
 export function useEntryDates(patientId: string | undefined): EntryDatesSnapshot {
   const [snapshot, setSnapshot] = useState<EntryDatesSnapshot>(EMPTY_DATES);
