@@ -219,7 +219,21 @@ export function BodyEditor({
           autoComplete="off"
           // `break-words` so a pasted lab line with no spaces wraps instead of
           // widening the column and dragging a scrollbar across the page.
-          className={`${METRICS} relative w-full resize-none border-0 bg-transparent outline-none placeholder:text-fg-faint read-only:opacity-70`}
+          /**
+           * `overflow-hidden`, so the textarea never scrolls itself.
+           *
+           * This box is autosized to its content and the PAGE does the
+           * scrolling. Without this, any moment where the measured height lags
+           * the content — pressing Enter, pasting a block, the debounced
+           * resize not having run yet — gives the textarea its own scrollbar,
+           * one whose travel is only the few pixels of difference. It reads as
+           * a scrollbar that is stuck, and dragging it fights the autosize.
+           *
+           * The jaga editor has had this since it was written; this one did
+           * not, and the two boxes behaved differently for no reason anybody
+           * chose.
+           */
+          className={`${METRICS} relative w-full resize-none overflow-hidden border-0 bg-transparent outline-none placeholder:text-fg-faint read-only:opacity-70`}
           lang=""
           rows={12}
         />

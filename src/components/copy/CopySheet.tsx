@@ -92,6 +92,7 @@ export function CopySheet({
   dpjpFormats,
   bullet,
   activeShiftNote,
+  closings,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -111,6 +112,8 @@ export function CopySheet({
    * removes any question about WHICH note the button would send.
    */
   activeShiftNote?: ShiftNote | null | undefined;
+  /** Configured closing sentences, so a section subset can drop a trailing one. */
+  closings: readonly string[];
 }): JSX.Element {
   const [format, setFormat] = useState<OutputFormat>('whatsapp');
   const [range, setRange] = useState<CopyRange>('specific');
@@ -312,6 +315,7 @@ export function CopySheet({
             aliases,
             patient,
             bullet,
+            closings,
           }),
     [
       shape,
@@ -320,6 +324,7 @@ export function CopySheet({
       pdfMode,
       konsulPurpose,
       konsulList,
+      closings,
       verificationTime,
       date,
       body,

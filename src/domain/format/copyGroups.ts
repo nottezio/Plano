@@ -133,13 +133,49 @@ export function sectionsForGroups(
   );
   const afterOpening = firstClinical === -1 ? merged : merged.slice(firstClinical);
 
-  return afterOpening
+  /**
+   * An unrecognised heading belongs to the section it sits UNDER.
+   *
+   * `groupForSection` ends in `return 'o'`, so any heading it cannot name
+   * lands in O no matter where it appears. `Selesai :` — the completed-therapy
+   * list that sits after the drugs and before `*Plan:*` — was therefore copied
+   * with the vitals. It is not an observation; it is the tail of the therapy
+   * block, and the note says so by putting it there.
+   *
+   * A keyword for `selesai` would fix this one heading and leave the next one
+   * broken. Position is the property that generalises: a heading with no
+   * recognised name continues whatever section it follows, which is exactly
+   * how it reads on the page.
+   *
+   * The opening cut above is the same principle applied to the other end.
+   */
+  let carried: CopyGroupId | null = null;
+  const grouped = afterOpening.map((section) => {
+    const named = CLINICAL_IDS.includes(section.sectionId)
+      ? groupForSection(section.sectionId, section.label)
+      : null;
+
+    if (named) {
+      carried = named;
+      return { section, group: named };
+    }
+
+    // A keyword match still wins over inheritance — `*EKG …*` under Terapi is
+    // an investigation wherever it was typed.
+    const byKeyword = groupForSection(section.sectionId, section.label);
+    const inherited: CopyGroupId = carried ?? byKeyword;
+    // `byKeyword === 'o'` is the default talking, not a match, so that is the
+    // only case where inheritance takes over.
+    return { section, group: byKeyword === 'o' ? inherited : byKeyword };
+  });
+
+  return grouped
     // Empty sections are kept for the same reason composeCopy keeps them: a
     // dated heading whose values parse as their own sections is empty, and its
     // date is the part that matters.
-    .filter((section) => section.sectionId !== '_intro')
-    .filter((section) => wanted.has(groupForSection(section.sectionId, section.label)))
-    .map((section) => section.sectionId);
+    .filter(({ section }) => section.sectionId !== '_intro')
+    .filter(({ group }) => wanted.has(group))
+    .map(({ section }) => section.sectionId);
 }
 
 /** Groups that have any content in this body, for disabling empty chips. */
@@ -155,4 +191,51 @@ export function availableGroups(
   }
 
   return present;
+}
+
+/**
+ * Strip a trailing closing sentence from a rendered section subset.
+ *
+ * The closing is not a section — it is loose text after the last heading, so
+ * the parser hands it to whichever section came before it, which is Plan.
+ * Copying Plan therefore ended with "Selanjutnya mohon arahan Prof. Terima
+ * kasih Prof.", a sign-off pasted into the middle of a message that has not
+ * finished yet.
+ *
+ * Matched against the user's OWN closing list rather than a pattern. These are
+ * already configured — they are what the opening composer offers — and every
+ * consultant is addressed differently enough ("dokter", "Prof", "dok") that a
+ * regex would either miss half of them or eat a real plan item.
+ *
+ * Compared with punctuation and case removed, because the stored sentence is
+ * the template and the note has whatever trailing full stop was typed.
+ */
+export function stripTrailingClosing(
+  text: string,
+  closings: readonly string[],
+): string {
+  const normalise = (value: string): string =>
+    value.toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
+
+  const lines = text.split('\n');
+
+  while (lines.length > 0) {
+    const last = lines[lines.length - 1] ?? '';
+    if (last.trim() === '') {
+      lines.pop();
+      continue;
+    }
+
+    const flat = normalise(last);
+    // `startsWith`, not equality: the stored sentence omits the final full
+    // stop that the note usually carries.
+    const isClosing = closings.some((closing) => {
+      const target = normalise(closing);
+      return target.length > 0 && (flat === target || flat.startsWith(target));
+    });
+    if (!isClosing) break;
+    lines.pop();
+  }
+
+  return lines.join('\n').trimEnd();
 }

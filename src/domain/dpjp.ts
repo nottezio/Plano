@@ -148,3 +148,22 @@ export const REPORT_OUTPUT: Record<ReportFormat, OutputFormat> = {
   diagnosis: 'whatsapp',
   ringkas: 'whatsapp',
 };
+
+/**
+ * The "trio" — the three consultants whose patients get a 6MWT.
+ *
+ * Ids, not initials or names. Initials are display text and names are written
+ * a dozen ways; the id is what `DPJPS` keys on and what
+ * `settings.dpjpFormats` already uses, so this list cannot fall out of step
+ * with either.
+ *
+ * A constant rather than a `trio: true` flag on the registry entries: this is
+ * a rule about a WARD PRACTICE, not a property of the person. If the practice
+ * changes, or a fourth consultant adopts it, this is the one line to edit and
+ * it is obvious from here who is on the list.
+ */
+export const TRIO_DPJP_IDS: readonly string[] = ['afm', 'afg', 'zd'];
+
+export function isTrioDpjp(dpjpId: string | null | undefined): boolean {
+  return dpjpId !== null && dpjpId !== undefined && TRIO_DPJP_IDS.includes(dpjpId);
+}

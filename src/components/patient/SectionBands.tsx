@@ -24,32 +24,27 @@ import { useDebouncedValue } from '@/hooks/useDebouncedValue';
  * EVERY metric here must match the textarea exactly — font, size, line height,
  * padding, wrapping. They are set together in BodyEditor for that reason.
  */
-export function SectionBands({
-  body,
-  aliases,
-  paint,
-}: {
-  body: string;
-  aliases: readonly SectionAlias[];
-  /**
-   * Whether to PAINT the tints. The mirror is mounted either way, because it
-   * is also the jump bar's measurement layer — the section anchors are spans
-   * in here, and a layer that only existed when tinting was on would make
-   * "lompat ke O" work for some users and silently not for others.
-   */
-  paint: boolean;
-}): JSX.Element {
-  /**
-   * Parsed from a settled copy, not from every keystroke.
-   *
-   * The bands are a scanning aid — being a fraction of a second behind the
-   * cursor costs nothing, and re-parsing a long note on every character is what
-   * made typing feel heavy. The text itself is drawn by the textarea above and
-   * is never delayed.
-   */
-  const settled = useDebouncedValue(body, 300);
-
-  const parts = useMemo(() => {
+/**
+ * Split a body into the spans the mirror renders.
+ *
+ * Exported and pure so its output can be inspected in a test. The anchor
+ * bug that made every jump button do nothing lived here and was invisible:
+ * `anchored.add()` ran one line BEFORE the `anchored.has()` that decided
+ * whether to emit an anchor, so the answer was always "already seen" and no
+ * anchor was ever produced. Nothing could see `parts`, so nothing could
+ * catch it.
+ */
+export function buildBands(
+  settled: string,
+  aliases: readonly SectionAlias[],
+  paint: boolean,
+): Array<{
+  key: string;
+  text: string;
+  tint: string | null;
+  block?: boolean;
+  anchor?: string;
+}> {
     const sections = parseSections(settled, aliases);
     /**
      * One band per section KIND, at its first appearance.
@@ -102,16 +97,31 @@ export function SectionBands({
        */
       const kind = section.ownsLine ? tintFor(section.sectionId, section.label) : null;
       const tint = kind && !seen.has(kind) ? kind : null;
+
+      /**
+       * Decided BEFORE it is recorded, exactly like `tint` above.
+       *
+       * This read `anchored.has(...)` on the line after `anchored.add(...)`,
+       * so the answer was always "already anchored" and NO anchor was ever
+       * emitted. The jump bar then looked up `sec-o` and found nothing, which
+       * is why every button did nothing at all — not scrolled to the wrong
+       * place, nothing.
+       *
+       * `seen`/`tint` two lines up is the same shape and is correct. Writing
+       * the second one by hand instead of following it is how they diverged.
+       */
+      const anchor =
+        section.ownsLine && !anchored.has(section.sectionId) ? section.sectionId : null;
+
       if (kind) seen.add(kind);
-      if (section.ownsLine) anchored.add(section.sectionId);
+      if (anchor) anchored.add(anchor);
+
       result.push({
         key: `head-${index}`,
         text: settled.slice(section.start, headerEnd),
         tint: tint && paint ? TINT_VAR[tint] : null,
         block: true,
-        ...(section.ownsLine && !anchored.has(section.sectionId)
-          ? { anchor: section.sectionId }
-          : {}),
+        ...(anchor ? { anchor } : {}),
       });
       // The newline is consumed by the block above — a block element already
       // ends its line, so leaving the `\n` here would open a second one and
@@ -130,7 +140,37 @@ export function SectionBands({
     }
 
     return result;
-  }, [settled, aliases]);
+}
+
+export function SectionBands({
+  body,
+  aliases,
+  paint,
+}: {
+  body: string;
+  aliases: readonly SectionAlias[];
+  /**
+   * Whether to PAINT the tints. The mirror is mounted either way, because it
+   * is also the jump bar's measurement layer — the section anchors are spans
+   * in here, and a layer that only existed when tinting was on would make
+   * "lompat ke O" work for some users and silently not for others.
+   */
+  paint: boolean;
+}): JSX.Element {
+  /**
+   * Parsed from a settled copy, not from every keystroke.
+   *
+   * The bands are a scanning aid — being a fraction of a second behind the
+   * cursor costs nothing, and re-parsing a long note on every character is what
+   * made typing feel heavy. The text itself is drawn by the textarea above and
+   * is never delayed.
+   */
+  const settled = useDebouncedValue(body, 300);
+
+  const parts = useMemo(
+    () => buildBands(settled, aliases, paint),
+    [settled, aliases, paint],
+  );
 
   return (
     <div

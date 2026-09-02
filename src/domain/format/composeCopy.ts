@@ -1,6 +1,7 @@
 import { formatBody, type BulletStyle } from './formatters';
 import { copyableSections, mergeSections, parseSections } from '../sections/parseSections';
 import { sectionSortIndex } from '../sections/aliases';
+import { stripTrailingClosing } from './copyGroups';
 import { formatLongDate, hariRawat } from '../clinicalDate';
 import type {
   ClinicalDate,
@@ -39,6 +40,15 @@ export interface ComposeOptions {
   includeDateHeader: boolean;
   aliases: readonly SectionAlias[];
   patient: Patient;
+  /**
+   * The user's own closing sentences, from settings.
+   *
+   * Used only to recognise and drop a closing at the end of a SECTION SUBSET.
+   * Passing the configured list rather than matching a pattern: every
+   * consultant is addressed differently — "dokter", "Prof", "dok" — and a
+   * regex loose enough to catch all of them would eventually eat a plan item.
+   */
+  closings?: readonly string[];
 }
 
 /** SPEC 12.4 — the identity line, built from what the patient record has. */
@@ -146,7 +156,19 @@ export function composeCopy(days: readonly CopyDay[], options: ComposeOptions): 
   const multiDay = days.length > 1;
 
   for (const day of days) {
-    const rendered = renderDayBody(day.body, options);
+    /**
+     * A section subset never carries the closing sentence.
+     *
+     * The closing is loose text after the last heading, so the parser gives it
+     * to whichever section precedes it — Plan. Copying Plan therefore ended
+     * with a sign-off, pasted into the middle of a message that has not
+     * finished yet. The whole-note copy keeps it, because there it is the end
+     * of the message and belongs.
+     */
+    const rendered =
+      options.sections === 'all'
+        ? renderDayBody(day.body, options)
+        : stripTrailingClosing(renderDayBody(day.body, options), options.closings ?? []);
     if (!rendered.trim() && !options.includeDateHeader) continue;
 
     const chunk: string[] = [];

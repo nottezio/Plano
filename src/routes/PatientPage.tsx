@@ -31,7 +31,7 @@ import { carryForward, carryForwardSummary } from '@/domain/carryForward';
 import { formatLocation } from '@/domain/identity';
 import { isIgdEntry } from '@/domain/clinicalDate';
 import { insertIntoObjective } from '@/domain/lab/parseLab';
-import { describeConfig, dpjpById, primaryDpjp } from '@/domain/dpjp';
+import { describeConfig, dpjpById, isTrioDpjp, primaryDpjp } from '@/domain/dpjp';
 import { SCHEDULE_PERIOD, nextPoli, weekdayName } from '@/domain/poli/schedule';
 import { parseSections } from '@/domain/sections/parseSections';
 import {
@@ -666,8 +666,26 @@ export default function PatientPage(): JSX.Element {
           had a name it could never render — which is why a recognised DPJP
           showed no clinic. Separate conditions cannot shadow each other.
         */}
-        {dpjpFormat || poli || (dpjp && !poli) || patient.diagnoses.length > 0 ? (
+        {dpjpFormat ||
+        poli ||
+        (dpjp && !poli) ||
+        isTrioDpjp(dpjp?.id) ||
+        patient.diagnoses.length > 0 ? (
           <div className="space-y-0.5 border-b border-border px-4 py-1.5">
+            {/*
+              A standing instruction, shown for the three consultants whose
+              patients get one — not a checklist item.
+              
+              A checklist item has to be ticked or it nags, and this is a thing
+              that is true of the patient rather than a task with a completion.
+              Sitting beside the report format is right: both are "what this
+              consultant expects", read once on arrival at the patient.
+            */}
+            {isTrioDpjp(dpjp?.id) ? (
+              <p className="truncate text-[11px] font-medium text-accent">
+                {dpjp?.initials} — rencanakan 6MWT (6 minute walk test)
+              </p>
+            ) : null}
             {dpjpFormat ? (
               <p className="truncate text-[11px] text-fg-faint">
                 {dpjp?.initials} — {describeConfig(dpjpFormat)}
@@ -1116,6 +1134,7 @@ export default function PatientPage(): JSX.Element {
         dpjpFormats={settings.dpjpFormats}
         bullet={settings.whatsappBullet}
         activeShiftNote={activeShiftNote}
+        closings={settings.closingSentences}
       />
 
       <RevisionTrail

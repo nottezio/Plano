@@ -104,3 +104,87 @@ describe('Salin bagian, against a real note', () => {
     expect(copyGroup('o')).not.toContain('Sesak nafas ada');
   });
 });
+
+/**
+ * Headings the alias table cannot name belong where they SIT.
+ *
+ * `groupForSection` ends in `return 'o'`, so every unnamed heading landed in
+ * O regardless of position. `Selesai :` — the completed-therapy list that sits
+ * after the drugs and before `*Plan:*` — was copied with the vitals.
+ */
+const WITH_TAIL = [
+  '*O :*',
+  'Compos mentis',
+  'Tensi : 100/70 mmHg',
+  '',
+  '*Mohon izin kami terapi dengan*',
+  '- Furosemide 40 mg/24jam/oral',
+  '',
+  'Selesai :',
+  '- Heparin 12 IU/Kgbb/jam/SP (H-3)',
+  '',
+  '*Plan:*',
+  '- Monitoring tanda vital',
+  '',
+  'Selanjutnya mohon arahan Prof. Terima kasih Prof.',
+].join('\n');
+
+const CLOSINGS = ['Selanjutnya mohon arahan Prof. Terima kasih Prof'];
+
+function copyTail(group: 'o' | 'terapi' | 'plan'): string {
+  return composeCopy([{ date: '2026-09-02', body: WITH_TAIL }], {
+    ...OPTIONS,
+    closings: CLOSINGS,
+    sections: sectionsForGroups(WITH_TAIL, ALIASES, [group]),
+  });
+}
+
+describe('unnamed headings follow the section they sit under', () => {
+  it('keeps Selesai out of O', () => {
+    const out = copyTail('o');
+    expect(out).not.toContain('Selesai');
+    expect(out).not.toContain('Heparin');
+    expect(out).toContain('Tensi : 100/70 mmHg');
+  });
+
+  it('copies Selesai WITH its drug, under Terapi', () => {
+    // The heading and the drug under it are one block; splitting them would
+    // leave an orphan heading in one copy and an unlabelled drug in another.
+    const out = copyTail('terapi');
+    expect(out).toContain('Selesai :\n- Heparin 12 IU/Kgbb/jam/SP (H-3)');
+    expect(out).toContain('- Furosemide 40 mg/24jam/oral');
+  });
+});
+
+describe('the closing is not part of Plan', () => {
+  it('drops a trailing closing from a section subset', () => {
+    // The closing is loose text after the last heading, so the parser hands it
+    // to Plan. Copying Plan ended with a sign-off in the middle of a message
+    // that had not finished.
+    const out = copyTail('plan');
+    expect(out).toContain('- Monitoring tanda vital');
+    expect(out).not.toContain('mohon arahan Prof');
+  });
+
+  it('keeps the closing in a whole-note copy', () => {
+    // There it is the end of the message and belongs.
+    const out = composeCopy([{ date: '2026-09-02', body: WITH_TAIL }], {
+      ...OPTIONS,
+      closings: CLOSINGS,
+      sections: 'all',
+    });
+    expect(out).toContain('mohon arahan Prof');
+  });
+
+  it('leaves a plan item that merely mentions the consultant', () => {
+    // The match is against the user's configured closings, not a pattern
+    // loose enough to eat a real item.
+    const body = '*Plan:*\n- Lapor Prof besok pagi';
+    const out = composeCopy([{ date: '2026-09-02', body }], {
+      ...OPTIONS,
+      closings: CLOSINGS,
+      sections: sectionsForGroups(body, ALIASES, ['plan']),
+    });
+    expect(out).toContain('- Lapor Prof besok pagi');
+  });
+});
