@@ -24,6 +24,60 @@ export interface LabValue {
   key: string;
   /** The value exactly as it appeared. */
   value: string;
+  /**
+   * Outside the reference range PRINTED ON THE SHEET, when one was printed.
+   *
+   * `undefined` means the question was not answerable — no range on the line,
+   * a value that is not a number, a qualitative result with no stated normal.
+   * That is deliberately different from `false`: nothing should be marked
+   * normal on the strength of the app failing to read a range.
+   *
+   * There is NO built-in table of reference ranges here and there must not be.
+   * Ranges differ by laboratory, by analyser and by patient age and sex, and a
+   * value flagged abnormal against a range this hospital does not use is worse
+   * than no flag at all. The printout states its own ranges; those are the
+   * only ones this can defend.
+   */
+  abnormal?: boolean;
+}
+
+/** A reference range as printed, once parsed. */
+interface Range {
+  min: number;
+  max: number;
+}
+
+/**
+ * `4.5 - 8.0`, `0 - 30`, `1.005 - 1.035` — the numeric reference range.
+ *
+ * Only a two-sided numeric span. One-sided forms like `< 5` and `>= 90` are
+ * deliberately not read: a value can be flagged against them, but the sheet
+ * writes them inconsistently enough (`<5`, `< 5`, `&lt;5`) that the first
+ * misparse would flag a normal result, and a wrong bold on a lab value is a
+ * clinician looking twice at nothing.
+ */
+function parseRange(text: string): Range | null {
+  const match = /^\s*(-?\d+(?:[.,]\d+)?)\s*-\s*(-?\d+(?:[.,]\d+)?)\s*$/.exec(text);
+  if (!match) return null;
+  const min = Number(match[1]!.replace(',', '.'));
+  const max = Number(match[2]!.replace(',', '.'));
+  if (!Number.isFinite(min) || !Number.isFinite(max) || min > max) return null;
+  return { min, max };
+}
+
+/**
+ * Is this value outside the printed range?
+ *
+ * Returns `undefined` rather than guessing whenever the comparison cannot be
+ * made — a graded result, a comparison operator, a word.
+ */
+function isOutsideRange(value: string, range: Range | null): boolean | undefined {
+  if (!range) return undefined;
+  // `1+`, `>=300`, `BAC=2`: real values, but not ones a numeric range answers.
+  if (!/^-?\d+(?:[.,]\d+)?$/.test(value.trim())) return undefined;
+  const numeric = Number(value.trim().replace(',', '.'));
+  if (!Number.isFinite(numeric)) return undefined;
+  return numeric < range.min || numeric > range.max;
 }
 
 /**
@@ -445,8 +499,22 @@ function looksLikeRange(line: string): boolean {
   return /^(negatif|negative|normal|kuning\s*muda|jernih)$/.test(flat);
 }
 
-export function parseLab(raw: string): LabParseResult {
+export interface LabParseOptions {
+  /**
+   * Wrap values outside their PRINTED reference range in `*…*`.
+   *
+   * Off by default. Bolding is a claim, and it is only defensible where the
+   * sheet stated a range — see `LabValue.abnormal`. A value with no printed
+   * range is never bolded, which is why this can be trusted: an unbolded value
+   * means "not flagged", never "checked and normal".
+   */
+  boldAbnormal?: boolean;
+}
+
+export function parseLab(raw: string, options: LabParseOptions = {}): LabParseResult {
   const found = new Map<string, string>();
+  /** Printed reference range per analyte, when the sheet stated one. */
+  const ranges = new Map<string, Range | null>();
   const unknown: LabValue[] = [];
 
   /**
@@ -527,7 +595,14 @@ export function parseLab(raw: string): LabParseResult {
              * only a number's normal range.
              */
             const next = rawLines[i + 1]?.trim();
-            if (next && looksLikeRange(next)) i += 1;
+            if (next && looksLikeRange(next)) {
+              // The line being skipped IS the reference range. Read it on the
+              // way past rather than discarding it — this is the only place
+              // the sheet states one, and inventing ranges later is exactly
+              // what must not happen.
+              if (!ranges.has(matched.key)) ranges.set(matched.key, parseRange(next));
+              i += 1;
+            }
             break;
           }
         }
@@ -535,7 +610,18 @@ export function parseLab(raw: string): LabParseResult {
 
       // First occurrence wins: printouts repeat analyte names in section
       // headers and footers, and the first is the result row.
-      if (value && !found.has(matched.key)) found.set(matched.key, value);
+      if (value && !found.has(matched.key)) {
+        found.set(matched.key, value);
+        if (!ranges.has(matched.key)) {
+          /**
+           * Same-line layout: `eGFR 64 >= 90` or `ureum 31 10 - 50 mg/dl`.
+           * Whatever follows the value on the line may hold the range.
+           */
+          const after = matched.rest.slice(matched.rest.indexOf(value) + value.length);
+          const span = /(-?\d+(?:[.,]\d+)?\s*-\s*-?\d+(?:[.,]\d+)?)/.exec(after);
+          ranges.set(matched.key, span ? parseRange(span[1]!) : null);
+        }
+      }
       continue;
     }
 
@@ -571,15 +657,34 @@ export function parseLab(raw: string): LabParseResult {
   const known: LabValue[] = [];
   const lines: string[] = [];
 
+  /**
+   * `*value*` when it is outside the printed range and the option is on.
+   *
+   * Only the VALUE is wrapped, never the label: `Hb *8.2*` survives a paste
+   * into SIMGOS as plain text with the asterisks visible, which is ugly but
+   * readable, whereas bolding the whole line would put an asterisk before an
+   * analyte name and read as a bullet.
+   */
+  const emphasise = (key: string, value: string): string => {
+    if (!options.boldAbnormal) return value;
+    return isOutsideRange(value, ranges.get(key) ?? null) === true ? `*${value}*` : value;
+  };
+
   for (const group of GROUPS) {
     const present = group.keys.filter((key) => found.has(key));
     if (present.length === 0) continue;
 
-    for (const key of present) known.push({ key, value: found.get(key) ?? '' });
+    for (const key of present) {
+      const value = found.get(key) ?? '';
+      const abnormal = isOutsideRange(value, ranges.get(key) ?? null);
+      known.push({ key, value, ...(abnormal === undefined ? {} : { abnormal }) });
+    }
 
     const label =
       present.length === group.keys.length ? group.label : present.join('/');
-    lines.push(`${label} ${present.map((key) => found.get(key)).join('/')}`);
+    lines.push(
+      `${label} ${present.map((key) => emphasise(key, found.get(key) ?? '')).join('/')}`,
+    );
   }
 
   // eGFR is written in parentheses after Ur/Cr, not on a line of its own.
@@ -597,8 +702,10 @@ export function parseLab(raw: string): LabParseResult {
     lines.push(panel.heading);
     for (const key of present) {
       const label = key.startsWith('Urin ') ? key.slice(5) : key;
-      lines.push(`${label} ${found.get(key)}`);
-      known.push({ key, value: found.get(key) ?? '' });
+      lines.push(`${label} ${emphasise(key, found.get(key) ?? '')}`);
+      const value = found.get(key) ?? '';
+      const abnormal = isOutsideRange(value, ranges.get(key) ?? null);
+      known.push({ key, value, ...(abnormal === undefined ? {} : { abnormal }) });
     }
   }
 

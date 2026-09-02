@@ -33,21 +33,34 @@ export interface Dpjp {
    * line, so `alkatiri` catches every spelling of the honorifics around it.
    */
   match: readonly string[];
+  /**
+   * How this consultant's report actually gets to them.
+   *
+   * A fact about WARD PRACTICE, not about the note, and the thing a resident
+   * most often has to ask someone about: whether to send it yourself or leave
+   * it for the chief, and to which group. Absent means nobody specified one —
+   * not "send it anywhere".
+   *
+   * On the registry rather than in `settings.dpjpFormats`, because it is not a
+   * preference anyone sets per install. `dpjpFormats` holds what the REPORT
+   * looks like; this holds where it goes.
+   */
+  delivery?: string;
 }
 
 export const DPJPS: readonly Dpjp[] = [
-  { id: 'pk', name: 'Prof. dr. Peter Kabo, Ph.D, Sp.FK, Sp.JP(K)', initials: 'PK', match: ['peter kabo', 'kabo'] },
-  { id: 'mz', name: 'Prof. Dr. dr. Muzakkir Amir, Sp.JP(K)', initials: 'MZ', match: ['muzakkir amir'] },
-  { id: 'im', name: 'Prof. Dr. dr. Idar Mappangara, Sp.PD, Sp.JP(K)', initials: 'IM', match: ['idar mappangara', 'mappangara'] },
-  { id: 'aha', name: 'Dr. dr. Abdul Hakim Alkatiri, Sp.JP(K)', initials: 'AHA', match: ['alkatiri'] },
-  { id: 'zd', name: 'dr. Zaenab Djafar, M.Kes, Sp.PD, Sp.JP, Subsp.PRKV(K)', initials: 'ZD', match: ['zaenab djafar', 'zaenab'] },
-  { id: 'afm', name: 'Dr. dr. Akhtar Fajar Muzakkir, SpJP, Subsp. IKKV(K), KI(K)', initials: 'AFM', match: ['akhtar fajar', 'akhtar'] },
-  { id: 'ahn', name: 'Dr. dr. Az Hafid Nashar, Sp.JP(K)', initials: 'AHN', match: ['az hafid', 'hafid nashar', 'nashar'] },
-  { id: 'afg', name: 'dr. Aussie Fitriani Ghaznawie, Sp.JP, Subsp.Eko (K)', initials: 'AFG', match: ['ghaznawie', 'aussie'] },
-  { id: 'pt', name: 'dr. Pendrik Tandean, Sp.PD-KKV', initials: 'PT', match: ['pendrik'] },
-  { id: 'ks', name: 'Dr. dr. Khalid Saleh, Sp.PD-KKV', initials: 'KS', match: ['khalid saleh', 'khalid'] },
+  { id: 'pk', name: 'Prof. dr. Peter Kabo, Ph.D, Sp.FK, Sp.JP(K)', initials: 'PK', match: ['peter kabo', 'kabo'], delivery: 'Kirim sendiri ke grup Prof PK' },
+  { id: 'mz', name: 'Prof. Dr. dr. Muzakkir Amir, Sp.JP(K)', initials: 'MZ', match: ['muzakkir amir'], delivery: 'Kirim sendiri ke grup Telegram Prof MZ' },
+  { id: 'im', name: 'Prof. Dr. dr. Idar Mappangara, Sp.PD, Sp.JP(K)', initials: 'IM', match: ['idar mappangara', 'mappangara'], delivery: 'Kirim sendiri ke WA pribadi' },
+  { id: 'aha', name: 'Dr. dr. Abdul Hakim Alkatiri, Sp.JP(K)', initials: 'AHA', match: ['alkatiri'], delivery: 'Dikirim oleh chief' },
+  { id: 'zd', name: 'dr. Zaenab Djafar, M.Kes, Sp.PD, Sp.JP, Subsp.PRKV(K)', initials: 'ZD', match: ['zaenab djafar', 'zaenab'], delivery: 'Dikirim oleh chief, PDF + jam verifikasi' },
+  { id: 'afm', name: 'Dr. dr. Akhtar Fajar Muzakkir, SpJP, Subsp. IKKV(K), KI(K)', initials: 'AFM', match: ['akhtar fajar', 'akhtar'], delivery: 'Dikirim oleh chief, dengan PDF' },
+  { id: 'ahn', name: 'Dr. dr. Az Hafid Nashar, Sp.JP(K)', initials: 'AHN', match: ['az hafid', 'hafid nashar', 'nashar'], delivery: 'Dikirim oleh chief' },
+  { id: 'afg', name: 'dr. Aussie Fitriani Ghaznawie, Sp.JP, Subsp.Eko (K)', initials: 'AFG', match: ['ghaznawie', 'aussie'], delivery: 'Dikirim oleh chief, dengan PDF' },
+  { id: 'pt', name: 'dr. Pendrik Tandean, Sp.PD-KKV', initials: 'PT', match: ['pendrik'], delivery: 'Kirim sendiri ke grup dr. PT' },
+  { id: 'ks', name: 'Dr. dr. Khalid Saleh, Sp.PD-KKV', initials: 'KS', match: ['khalid saleh', 'khalid'], delivery: 'Kirim sendiri ke grup dr. KS' },
   { id: 'sm', name: 'Dr. dr. Sumarni, Sp.JP, Subsp.Ar (K)', initials: 'SM', match: ['sumarni'] },
-  { id: 'maa', name: 'dr. Muhammad Asrul Apris, Sp.JP(K)', initials: 'MAA', match: ['asrul apris', 'apris'] },
+  { id: 'maa', name: 'dr. Muhammad Asrul Apris, Sp.JP(K)', initials: 'MAA', match: ['asrul apris', 'apris'], delivery: 'Kirim sendiri ke WA pribadi' },
   { id: 'yp', name: 'Dr. dr. Yulius Patimang, Sp.A, Sp.JP(K)', initials: 'YP', match: ['patimang'] },
   { id: 'aau', name: 'dr. Andi Alief Utama Armyn, M.Kes, Sp.JP, Subsp. KPPJB (K)', initials: 'AAU', match: ['alief utama', 'armyn'] },
   { id: 'fm', name: 'dr. Fadillah Maricar, Sp.JP (K), FIHA', initials: 'FM', match: ['maricar'] },
@@ -56,7 +69,7 @@ export const DPJPS: readonly Dpjp[] = [
   { id: 'aa', name: 'dr. Amelia Arindanie, Sp.JP', initials: 'AA', match: ['arindanie', 'amelia'] },
   { id: 'bpp', name: 'dr. Bogie Putra Palinggi, Sp.JP (K)', initials: 'BPP', match: ['palinggi', 'bogie'] },
   { id: 'fat', name: 'dr. Frizt Alfred Tandean, Sp.JP(K)', initials: 'FAT', match: ['frizt'] },
-  { id: 'arb', name: 'dr. Andi Renata Bastario, Sp.JP(K)', initials: 'ARB', match: ['bastario', 'renata'] },
+  { id: 'arb', name: 'dr. Andi Renata Bastario, Sp.JP(K)', initials: 'ARB', match: ['bastario', 'renata'], delivery: 'Kirim sendiri ke grup dr. Rio' },
   { id: 'np', name: 'dr. Nurminsyah P., Sp.JP', initials: 'NP', match: ['nurminsyah'] },
   { id: 'mnm', name: 'dr. Muhammad Nuralim Mallapasi, Sp.B, Sp.BTKV(K)VE', initials: 'MNM', match: ['mallapasi', 'nuralim'] },
   { id: 'jk', name: 'dr. Jayarasti Kusumanegara, Sp.BTKV(K)VE', initials: 'JK', match: ['kusumanegara', 'jayarasti'] },

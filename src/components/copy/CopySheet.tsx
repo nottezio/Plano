@@ -15,6 +15,7 @@ import {
   type BulletStyle,
 } from '@/domain/format/formatters';
 import { formatDayNoWeekday } from '@/domain/clinicalDate';
+import { composeInvasif } from '@/domain/format/composeInvasif';
 import { composeKonsul } from '@/domain/format/composeKonsul';
 import { composeShiftNote } from '@/domain/format/composeShiftNote';
 import { composePdfReport } from '@/domain/format/pdfReport';
@@ -154,7 +155,9 @@ export function CopySheet({
    * another term to that expression and another chance to leave one out — the
    * two flags could also both be true, which is a state with no meaning.
    */
-  const [shape, setShape] = useState<'harian' | 'ringkas' | 'konsul' | 'jaga'>('harian');
+  const [shape, setShape] = useState<
+    'harian' | 'ringkas' | 'konsul' | 'jaga' | 'invasif'
+  >('harian');
   const pdfMode = shape === 'ringkas';
 
   /**
@@ -170,6 +173,25 @@ export function CopySheet({
    * body differs too.
    */
   const [konsulList, setKonsulList] = useState(false);
+
+  /**
+   * Procedure, date and payer for the invasive group message.
+   *
+   * Asked for rather than read from the note, because none of the three is in
+   * it. Inventing a date would be worse than asking: a wrong one sent to the
+   * invasive group books a room.
+   */
+  const [invasifProcedure, setInvasifProcedure] = useState('');
+  const [invasifWhen, setInvasifWhen] = useState('');
+  const [invasifPayer, setInvasifPayer] = useState('');
+  /**
+   * The longer "laporan" form, carrying the investigations.
+   *
+   * A toggle rather than a sixth chip: it is the same message. The short form
+   * ends by asking permission to send the investigations and this is that
+   * follow-up, so they belong on one control.
+   */
+  const [invasifPenunjang, setInvasifPenunjang] = useState(false);
 
   /**
    * The verification stamp, editable.
@@ -274,7 +296,14 @@ export function CopySheet({
 
   const composed = useMemo(
     () =>
-      shape === 'jaga' && activeShiftNote
+      shape === 'invasif'
+        ? composeInvasif(body, patient, aliases, {
+            procedure: invasifProcedure,
+            scheduledFor: invasifWhen,
+            payer: invasifPayer,
+            includeInvestigations: invasifPenunjang,
+          })
+        : shape === 'jaga' && activeShiftNote
         ? // Stands alone. A jaga note is reported when it happens, to whoever
           // is on, and attaching the morning SOAP to it would send a page of
           // findings from hours earlier as though they were current.
@@ -324,6 +353,10 @@ export function CopySheet({
       pdfMode,
       konsulPurpose,
       konsulList,
+      invasifProcedure,
+      invasifWhen,
+      invasifPayer,
+      invasifPenunjang,
       closings,
       verificationTime,
       date,
@@ -555,6 +588,15 @@ export function CopySheet({
           </Chip>
         ) : null}
         <Chip
+          active={shape === 'invasif'}
+          onClick={() => {
+            setShape('invasif');
+            setApplied(false);
+          }}
+        >
+          Grup invasif
+        </Chip>
+        <Chip
           active={shape === 'konsul'}
           onClick={() => {
             setShape('konsul');
@@ -591,6 +633,50 @@ export function CopySheet({
           </div>
           <p className="mt-1 text-[11px] text-fg-faint">
             Muncul sebagai <span className="font-mono">_Verifikasi {verificationTime}_</span>
+          </p>
+        </div>
+      ) : null}
+
+      {shape === 'invasif' ? (
+        <div className="mb-4 space-y-2">
+          <div>
+            <label className="mb-1 block text-[11px] text-fg-muted" htmlFor="invasif-tindakan">
+              Rencana tindakan
+            </label>
+            <input
+              id="invasif-tindakan"
+              value={invasifProcedure}
+              onChange={(event) => setInvasifProcedure(event.target.value)}
+              placeholder="Advanced PCI"
+              className="min-h-tap w-full rounded-lg border border-border bg-surface px-3 text-sm outline-none"
+            />
+          </div>
+          <div className="flex gap-2">
+            <input
+              aria-label="Jadwal tindakan"
+              value={invasifWhen}
+              onChange={(event) => setInvasifWhen(event.target.value)}
+              placeholder="Minggu, 16-08-2026"
+              className="min-h-tap flex-1 rounded-lg border border-border bg-surface px-3 text-sm outline-none"
+            />
+            <input
+              aria-label="Penjamin"
+              value={invasifPayer}
+              onChange={(event) => setInvasifPayer(event.target.value)}
+              placeholder="BPJS Kelas I"
+              className="min-h-tap flex-1 rounded-lg border border-border bg-surface px-3 text-sm outline-none"
+            />
+          </div>
+          <label className="flex min-h-tap items-center gap-2 text-xs text-fg">
+            <input
+              type="checkbox"
+              checked={invasifPenunjang}
+              onChange={(event) => setInvasifPenunjang(event.target.checked)}
+            />
+            Sertakan pemeriksaan penunjang (laporan)
+          </label>
+          <p className="text-[11px] text-fg-faint">
+            Identitas, DPJP, diagnosis, TB dan BB diambil apa adanya dari catatan hari ini.
           </p>
         </div>
       ) : null}

@@ -49,7 +49,7 @@ const DEFAULT_CLOSING = 'Tabe terimakasih banyak dokter, mohon arahan ta dokter.
  * carries the date of birth — which the patient record does not always have,
  * and which a referral needs.
  */
-function identityLineFrom(body: string, patient: Patient): string {
+export function identityLineFrom(body: string, patient: Patient): string {
   const bold = /^\s*\*([^*\n]*\/[^*\n]*)\*\s*$/m.exec(body);
   if (bold?.[1]) return `*${bold[1].trim()}*`;
 
@@ -69,7 +69,7 @@ function identityLineFrom(body: string, patient: Patient): string {
  * formatting choice. Taking all of them and reordering none is the only safe
  * handling.
  */
-function dpjpLinesFrom(body: string): string[] {
+export function dpjpLinesFrom(body: string): string[] {
   return body
     .split('\n')
     .map((line) => line.trim())
@@ -83,7 +83,7 @@ function dpjpLinesFrom(body: string): string[] {
  * request back. Matched on the label rather than pulled from a fixed position:
  * they appear in different places in the three note formats.
  */
-function measurementsFrom(body: string): string[] {
+export function measurementsFrom(body: string): string[] {
   const out: string[] = [];
   for (const line of body.split('\n')) {
     const trimmed = line.trim();

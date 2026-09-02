@@ -669,6 +669,7 @@ export default function PatientPage(): JSX.Element {
         {dpjpFormat ||
         poli ||
         (dpjp && !poli) ||
+        dpjp?.delivery ||
         isTrioDpjp(dpjp?.id) ||
         patient.diagnoses.length > 0 ? (
           <div className="space-y-0.5 border-b border-border px-4 py-1.5">
@@ -681,6 +682,18 @@ export default function PatientPage(): JSX.Element {
               Sitting beside the report format is right: both are "what this
               consultant expects", read once on arrival at the patient.
             */}
+            {/*
+              Where the report goes, for the consultants who have a route.
+              
+              Above the format line on purpose: the format is what the note
+              looks like, this is whether you send it at all. A resident who
+              reads only one of the two is better served by this one.
+            */}
+            {dpjp?.delivery ? (
+              <p className="truncate text-[11px] text-fg-muted">
+                {dpjp.initials} — {dpjp.delivery}
+              </p>
+            ) : null}
             {isTrioDpjp(dpjp?.id) ? (
               <p className="truncate text-[11px] font-medium text-accent">
                 {dpjp?.initials} — rencanakan 6MWT (6 minute walk test)

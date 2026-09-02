@@ -39,7 +39,16 @@ export function LabSheet({
   const [readMode, setReadMode] = useState<'pdf' | 'image' | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
 
-  const result = useMemo(() => parseLab(raw), [raw]);
+  /**
+   * Off by default.
+   *
+   * Bolding is a claim about a value, and it is only made where the sheet
+   * printed a range — so an unbolded value means "not flagged", never
+   * "checked and normal". Defaulting it on would invite the second reading.
+   */
+  const [boldAbnormal, setBoldAbnormal] = useState(false);
+
+  const result = useMemo(() => parseLab(raw, { boldAbnormal }), [raw, boldAbnormal]);
   // `formatShortDateNoWeekday`, not `formatShortDate`. This string goes INTO
   // the note as `*Laboratorium (30 Agu)*`, and every lab heading in the corpus
   // is a bare date — the weekday belongs to the rail, which is navigation, not
@@ -204,6 +213,24 @@ export function LabSheet({
           className="w-full rounded-lg border border-border bg-surface p-2 font-mono text-xs leading-relaxed outline-none"
         />
       </label>
+
+      {/*
+        Only offered when the pasted sheet actually carries ranges.
+        
+        A checkbox that can do nothing is worse than no checkbox: it implies
+        the values were checked and found normal, when the truth is that this
+        printout stated no ranges to check them against.
+      */}
+      {result.known.some((value) => value.abnormal !== undefined) ? (
+        <label className="mt-3 flex min-h-tap items-center gap-2 text-xs text-fg">
+          <input
+            type="checkbox"
+            checked={boldAbnormal}
+            onChange={(event) => setBoldAbnormal(event.target.checked)}
+          />
+          Tebalkan nilai di luar rujukan
+        </label>
+      ) : null}
 
       <p className="mb-1 mt-4 text-xs font-medium text-fg-muted">Hasil</p>
       <pre className="max-h-56 overflow-auto whitespace-pre-wrap rounded-lg border border-border bg-bg-subtle p-3 text-xs leading-relaxed">

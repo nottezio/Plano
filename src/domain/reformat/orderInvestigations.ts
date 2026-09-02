@@ -53,6 +53,19 @@ const MODALITY_RANK: ReadonlyArray<readonly [RegExp, number]> = [
  */
 const UNRANKED = 99;
 
+/**
+ * Is this heading an investigation block?
+ *
+ * Exported so the invasive-group message can pick the same blocks this
+ * reorders, rather than carrying a second list of modality words that would
+ * fall out of step the first time one of them was corrected.
+ *
+ * `Conclusion` counts: it is the tail of an echo report and travels with it.
+ */
+export function isInvestigationHeading(heading: string): boolean {
+  return MODALITY_RANK.some(([pattern]) => pattern.test(heading));
+}
+
 function rankOf(heading: string): number {
   for (const [pattern, rank] of MODALITY_RANK) {
     if (pattern.test(heading)) return rank;
