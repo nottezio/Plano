@@ -31,6 +31,11 @@
       "collectionGroup": "revisions",
       "queryScope": "COLLECTION",
       "fields": [{ "fieldPath": "at", "order": "DESCENDING" }]
+    },
+    {
+      "collectionGroup": "revisions",
+      "queryScope": "COLLECTION_GROUP",
+      "fields": [{ "fieldPath": "at", "order": "DESCENDING" }]
     }
   ],
   "fieldOverrides": []
