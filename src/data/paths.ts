@@ -24,6 +24,8 @@ export const entryDoc = (patientId: string, date: ClinicalDate): DocumentReferen
 export const revisionsCol = (patientId: string, date: ClinicalDate): CollectionReference =>
   collection(db(), 'patients', patientId, 'entries', date, 'revisions');
 
+export const checklistCol = (patientId: string): CollectionReference =>
+  collection(db(), 'patients', patientId, 'checklist');
 export const checklistDoc = (patientId: string, date: ClinicalDate): DocumentReference =>
   doc(db(), 'patients', patientId, 'checklist', date);
 

@@ -16,6 +16,9 @@ export function PatientCard({
   onLongPress,
   onDragHandleDown,
   dragging,
+  selectable,
+  checked,
+  onToggleSelected,
 }: {
   card: BoardCard;
   onLongPress: (patientId: string) => void;
@@ -30,6 +33,10 @@ export function PatientCard({
    */
   onDragHandleDown?: ((event: React.PointerEvent, patientId: string) => void) | undefined;
   dragging?: boolean;
+  /** True while the board is in selection mode. */
+  selectable?: boolean;
+  checked?: boolean;
+  onToggleSelected?: ((patientId: string) => void) | undefined;
 }): JSX.Element {
   const { patient, progress } = card;
   const lines = previewLines(card.preview);
@@ -46,6 +53,21 @@ export function PatientCard({
   return (
     <Link
       to={`/p/${patient.id}`}
+      /**
+       * In selection mode the card SELECTS instead of opening.
+       *
+       * Not a checkbox in the corner: the whole card is the target you are
+       * already aiming at, and a small box beside a large link is a way to
+       * open a chart when you meant to tick it.
+       */
+      onClick={
+        selectable
+          ? (event) => {
+              event.preventDefault();
+              onToggleSelected?.(patient.id);
+            }
+          : undefined
+      }
       // Read by the drag tracker's hit test to find which card is under the
       // pointer. An id on the element is cheaper and steadier than measuring
       // every card's rectangle on each move.
@@ -79,6 +101,19 @@ export function PatientCard({
       }
     >
       <div className="flex items-start gap-2">
+        {selectable ? (
+          <span
+            aria-hidden="true"
+            className={[
+              'mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded border text-[11px]',
+              checked
+                ? 'border-transparent bg-accent text-white'
+                : 'border-current opacity-40',
+            ].join(' ')}
+          >
+            {checked ? '✓' : ''}
+          </span>
+        ) : null}
         {onDragHandleDown ? (
           <button
             type="button"

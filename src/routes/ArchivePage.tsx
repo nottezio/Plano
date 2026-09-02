@@ -8,6 +8,7 @@ import { cardTitle, matchesQuery } from '@/domain/board';
 import { formatShortDate } from '@/domain/clinicalDate';
 import { useDebouncedValue } from '@/hooks/useDebouncedValue';
 import { usePatients } from '@/hooks/usePatients';
+import { purgePatient, setPatientStatus } from '@/data/repositories/patients.repo';
 import { useSession } from '@/store/useSession';
 import type { Patient } from '@/domain/types';
 
@@ -19,6 +20,28 @@ export default function ArchivePage(): JSX.Element {
     (state) => state.settings().privacy.boardShowInitialsOnly,
   );
   const { patients, loading } = usePatients('archived');
+  const { patients: trashed } = usePatients('trashed');
+  const [emptying, setEmptying] = useState(false);
+  const [confirmEmpty, setConfirmEmpty] = useState(false);
+
+  /**
+   * Destroy every trashed patient, for real.
+   *
+   * Sequential rather than parallel: each purge is many batched deletes, and
+   * firing them all at once on ward wifi is how half of them fail and leave
+   * patients partly deleted. Slower and finishable beats fast and ragged.
+   */
+  const emptyTrash = async (): Promise<void> => {
+    setEmptying(true);
+    try {
+      for (const patient of trashed) await purgePatient(patient.id);
+    } catch (error) {
+      console.error('[trash] purge failed', error);
+    } finally {
+      setEmptying(false);
+      setConfirmEmpty(false);
+    }
+  };
 
   const filtered = useMemo(
     () => patients.filter((patient) => matchesQuery(patient, debouncedQuery)),
@@ -41,6 +64,80 @@ export default function ArchivePage(): JSX.Element {
           />
         </label>
       </div>
+
+      {/*
+        The trash, and only when something is in it.
+        
+        Below the archive rather than beside it: archive is where discharged
+        patients live and get searched, trash is a queue on its way out. An
+        empty trash shows nothing at all — a permanent "Sampah (0)" heading
+        would take space on every visit to serve the rare one.
+      */}
+      {trashed.length > 0 ? (
+        <div className="mx-4 mb-3 rounded-lg border border-border p-3">
+          <div className="flex items-center gap-2">
+            <span className="flex-1 text-xs font-medium text-fg-muted">
+              Sampah · {trashed.length} pasien
+            </span>
+            {confirmEmpty ? (
+              <>
+                <button
+                  type="button"
+                  onClick={() => setConfirmEmpty(false)}
+                  className="min-h-tap rounded-lg px-2 text-xs text-fg-muted"
+                >
+                  Batal
+                </button>
+                <button
+                  type="button"
+                  disabled={emptying}
+                  onClick={() => void emptyTrash()}
+                  className="min-h-tap rounded-lg px-2 text-xs font-medium text-danger disabled:opacity-40"
+                >
+                  {emptying ? 'Menghapus…' : 'Ya, hapus permanen'}
+                </button>
+              </>
+            ) : (
+              <button
+                type="button"
+                onClick={() => setConfirmEmpty(true)}
+                className="min-h-tap rounded-lg px-2 text-xs text-fg-muted"
+              >
+                Kosongkan
+              </button>
+            )}
+          </div>
+
+          {/*
+            The confirmation names what will be destroyed and says it cannot be
+            undone, because it cannot: this deletes the notes and their whole
+            revision history from Firestore, which is the point of it.
+          */}
+          {confirmEmpty ? (
+            <p className="mt-2 text-[11px] leading-relaxed text-fg-faint">
+              {trashed.length} pasien beserta seluruh SOAP dan riwayat perubahannya akan
+              dihapus permanen dari server. Tidak bisa dikembalikan.
+            </p>
+          ) : null}
+
+          <ul className="mt-2 space-y-1">
+            {trashed.map((patient) => (
+              <li key={patient.id} className="flex items-center gap-2 text-xs">
+                <span className="min-w-0 flex-1 truncate text-fg-muted">
+                  {cardTitle(patient, showInitialsOnly)}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => void setPatientStatus(patient.id, 'archived')}
+                  className="min-h-tap shrink-0 rounded-lg px-2 text-[11px] text-accent"
+                >
+                  Pulihkan
+                </button>
+              </li>
+            ))}
+          </ul>
+        </div>
+      ) : null}
 
       {loading ? (
         <p className="px-4 py-10 text-center text-sm text-fg-muted">Memuat…</p>

@@ -13,6 +13,7 @@ import { useClinicalToday } from '@/hooks/useClinicalToday';
 import { useDebouncedValue } from '@/hooks/useDebouncedValue';
 import { createBlankPatient } from '@/data/repositories/patients.repo';
 import { usePatients } from '@/hooks/usePatients';
+import { setPatientStatus } from '@/data/repositories/patients.repo';
 import {
   availableLabels,
   availableWards,
@@ -160,6 +161,37 @@ export default function BoardPage(): JSX.Element {
    * that does not work.
    */
   const [draggingId, setDraggingId] = useState<string | null>(null);
+
+  /**
+   * Multi-select, off by default.
+   *
+   * A mode rather than a checkbox on every card. The board's primary action is
+   * opening a patient, and a permanent checkbox on each card both crowds it
+   * and puts a destructive target next to the one you tap all day.
+   */
+  const [selecting, setSelecting] = useState(false);
+  const [selected, setSelected] = useState<ReadonlySet<string>>(new Set());
+
+  const toggleSelected = (patientId: string): void => {
+    setSelected((current) => {
+      const next = new Set(current);
+      if (next.has(patientId)) next.delete(patientId);
+      else next.add(patientId);
+      return next;
+    });
+  };
+
+  const leaveSelection = (): void => {
+    setSelecting(false);
+    setSelected(new Set());
+  };
+
+  const trashSelected = (): void => {
+    // Moving to the trash is reversible and needs no confirmation; emptying
+    // the trash is the step that asks.
+    for (const patientId of selected) void setPatientStatus(patientId, 'trashed');
+    leaveSelection();
+  };
 
   const onDragHandleDown = (event: React.PointerEvent, patientId: string): void => {
     const handle = event.currentTarget as HTMLElement;
@@ -389,7 +421,42 @@ export default function BoardPage(): JSX.Element {
         >
           Format lab
         </button>
+
+        {/*
+          Small, and beside the other board controls — the dashboard is
+          already crowded and this is an occasional action, not a mode anyone
+          spends time in.
+        */}
+        <button
+          type="button"
+          onClick={() => (selecting ? leaveSelection() : setSelecting(true))}
+          aria-pressed={selecting}
+          className={[
+            'min-h-tap rounded-full border px-3 text-xs',
+            selecting ? 'border-accent font-medium text-accent' : 'border-border text-fg-muted',
+          ].join(' ')}
+        >
+          {selecting ? 'Batal' : 'Pilih'}
+        </button>
       </div>
+
+      {selecting ? (
+        <div className="mb-2 flex items-center gap-2 rounded-lg border border-border px-3 py-2">
+          <span className="flex-1 text-xs text-fg-muted">
+            {selected.size === 0
+              ? 'Ketuk kartu untuk memilih.'
+              : `${selected.size} pasien dipilih`}
+          </span>
+          <button
+            type="button"
+            disabled={selected.size === 0}
+            onClick={trashSelected}
+            className="min-h-tap rounded-lg px-3 text-xs font-medium text-danger disabled:opacity-40"
+          >
+            Pindahkan ke sampah
+          </button>
+        </div>
+      ) : null}
 
       {/*
         Says the handle is there.
@@ -454,8 +521,13 @@ export default function BoardPage(): JSX.Element {
                       key={card.patient.id}
                       card={card}
                       onLongPress={setQuickPatientId}
-                      onDragHandleDown={order === 'custom' ? onDragHandleDown : undefined}
+                      onDragHandleDown={
+                        order === 'custom' && !selecting ? onDragHandleDown : undefined
+                      }
                       dragging={draggingId === card.patient.id}
+                      selectable={selecting}
+                      checked={selected.has(card.patient.id)}
+                      onToggleSelected={toggleSelected}
                     />
                   ))}
                 </div>

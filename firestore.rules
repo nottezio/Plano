@@ -51,11 +51,31 @@ service cloud.firestore {
         && request.resource.data.ownerId == resource.data.ownerId
         && request.auth.uid in request.resource.data.memberIds;
 
-      allow delete: if false;
+      /**
+       * Hard delete, for emptying the trash.
+       *
+       * This used to be `if false`, on the rule that nothing is ever destroyed
+       * and the revision trail is the only reason an accidental clear is
+       * recoverable. That still holds for CLEARING a note, which stays soft.
+       *
+       * Emptying the trash is a different act: it is explicit, it names what
+       * it will destroy, and its whole purpose is to stop paying to store a
+       * patient who was discharged months ago. A trash that only hides things
+       * is not a trash.
+       *
+       * Members only, and the client must delete the subcollections first —
+       * Firestore does not cascade, and `isMember` reads the PARENT document,
+       * so removing the patient first would lock its own children in place,
+       * unreadable and undeletable but still stored.
+       */
+      allow delete: if isMemberOf(resource.data);
 
       match /entries/{date} {
         allow read, create, update: if isMember(pid);
-        allow delete: if false;
+        // Allowed only so `purgePatient` can empty this collection before the
+        // patient itself goes. Clearing a single note remains soft — see
+        // `clearEntry`, which writes `deletedAt` and keeps the body's history.
+        allow delete: if isMember(pid);
 
         match /revisions/{revisionId} {
           allow read, create: if isMember(pid);
@@ -68,7 +88,8 @@ service cloud.firestore {
 
       match /checklist/{date} {
         allow read, create, update: if isMember(pid);
-        allow delete: if false;
+        // Same reason as entries: purge needs to empty it first.
+        allow delete: if isMember(pid);
       }
     }
 

@@ -1,6 +1,9 @@
 import {
   arrayUnion,
+  deleteDoc,
   deleteField,
+  getDocs,
+  writeBatch,
   onSnapshot,
   orderBy,
   query,
@@ -9,6 +12,7 @@ import {
   updateDoc,
   where,
   type DocumentData,
+  type DocumentReference,
   type QuerySnapshot,
   type Unsubscribe,
 } from 'firebase/firestore';
@@ -22,7 +26,14 @@ import { parsePatientFacts } from '@/domain/parsePatient';
 import { parseSections } from '@/domain/sections/parseSections';
 import { DEFAULT_SECTION_ALIASES } from '@/domain/sections/aliases';
 import type { SectionAlias } from '@/domain/types';
-import { patientDoc, patientsCol } from '../paths';
+import {
+  checklistCol,
+  entriesCol,
+  patientDoc,
+  patientsCol,
+  revisionsCol,
+} from '../paths';
+import { db } from '../firebase';
 import { trackWrite } from '../syncStatus';
 import type {
   ArchiveReason,
@@ -479,3 +490,63 @@ export function subscribePatients(
   );
 }
 
+
+/**
+ * Destroy a patient and everything under it, permanently.
+ *
+ * Firestore does NOT cascade. Deleting the patient document alone leaves its
+ * entries, their revisions and its checklists in place — still stored, still
+ * billed, and now unreadable, because the rules for those subcollections check
+ * membership by reading the PARENT document that no longer exists. Orphaned
+ * data you cannot see and cannot delete is the worst of both outcomes, so the
+ * order here is deepest-first and the patient goes last.
+ *
+ * Batched at 400 rather than Firestore's 500 limit, leaving room for the
+ * writes an open listener may add while this runs.
+ *
+ * Not resumable. A purge interrupted halfway leaves a patient whose notes are
+ * partly gone, which is why the caller confirms with a count first and why
+ * this is only ever reached from an explicit "empty trash".
+ */
+export async function purgePatient(patientId: string): Promise<void> {
+  const BATCH = 400;
+
+  const flush = async (refs: DocumentReference[]): Promise<void> => {
+    for (let i = 0; i < refs.length; i += BATCH) {
+      const batch = writeBatch(db());
+      for (const ref of refs.slice(i, i + BATCH)) batch.delete(ref);
+      await batch.commit();
+    }
+  };
+
+  const entries = await getDocs(entriesCol(patientId));
+
+  // Revisions first: they are the deepest, and each entry may have dozens.
+  for (const entry of entries.docs) {
+    const revisions = await getDocs(revisionsCol(patientId, entry.id));
+    await flush(revisions.docs.map((doc) => doc.ref));
+  }
+
+  await flush(entries.docs.map((doc) => doc.ref));
+
+  const checklists = await getDocs(checklistCol(patientId));
+  await flush(checklists.docs.map((doc) => doc.ref));
+
+  // The patient itself last. Until this line the rules still resolve, so an
+  // interrupted purge leaves something that can be retried.
+  await trackWrite(deleteDoc(patientDoc(patientId)));
+}
+
+/** Move patients to the trash, or back out of it. */
+export function setPatientStatus(
+  patientId: string,
+  status: PatientStatus,
+): Promise<void> {
+  return trackWrite(
+    updateDoc(patientDoc(patientId), {
+      status,
+      updatedAt: serverTimestamp(),
+      updatedBy: getDeviceId(),
+    }),
+  );
+}

@@ -55,7 +55,15 @@ export interface DpjpReportConfig {
 }
 
 export type Sex = 'L' | 'P';
-export type PatientStatus = 'active' | 'archived';
+/**
+ * `trashed` is a holding state before permanent destruction.
+ *
+ * Distinct from `archived`, which is where a discharged patient lives
+ * indefinitely and stays searchable. Trash is for records you intend to be
+ * gone: nothing lists them, and emptying the trash destroys them and their
+ * notes for real, so they stop occupying storage.
+ */
+export type PatientStatus = 'active' | 'archived' | 'trashed';
 export type ArchiveReason = 'pulang' | 'pindah' | 'meninggal' | 'lainnya';
 export type OutputFormat = 'whatsapp' | 'plain' | 'markdown';
 export type CopyRange = 'today' | 'specific' | 'lastN' | 'all';
