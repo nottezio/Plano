@@ -162,6 +162,16 @@ export interface UserSettings {
    * on once.
    */
   sectionTint: boolean;
+  /**
+   * "Hari rawat ke-N" in the patient page header.
+   *
+   * Off by default. Every admission day is already visible from the date rail
+   * — counting entries is not information the header needs to state, and it
+   * duplicated the identity row's own admission count until that duplicate was
+   * removed. Reported as something that should be optional rather than gone
+   * outright, since a few consultants do ask for the count in a report.
+   */
+  showHariRawat: boolean;
   copyPresets: CopyPreset[];
   privacy: PrivacySettings;
   theme: 'system' | 'light' | 'dark';

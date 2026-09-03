@@ -232,6 +232,18 @@ export default function SettingsPage(): JSX.Element {
         </SettingsSection>
 
         <SettingsSection
+          title="Hari rawat di judul catatan"
+          description="Angka hari rawat sudah terlihat di rel tanggal; ini menambahkannya di judul juga."
+        >
+          <Toggle
+            label="Tampilkan “Hari rawat ke-N”"
+            description="Mati secara default. Nyalakan bila dokter tertentu meminta angkanya di laporan."
+            checked={settings.showHariRawat}
+            onChange={(showHariRawat) => patch({ showHariRawat })}
+          />
+        </SettingsSection>
+
+        <SettingsSection
           title="Bullet di WhatsApp"
           description="WhatsApp mengubah baris yang diawali “- ” menjadi daftar bulatnya sendiri."
         >

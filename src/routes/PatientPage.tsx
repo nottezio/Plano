@@ -486,7 +486,7 @@ export default function PatientPage(): JSX.Element {
           </button>
           <div className="min-w-0 flex-1">
             <h2 className="truncate text-sm font-semibold">
-              {formatDayHeader(selected, patient.admittedAt)}
+              {formatDayHeader(selected, patient.admittedAt, settings.showHariRawat)}
             </h2>
             {!identity ? (
               // Identity is optional metadata, not a precondition. The note is
@@ -898,6 +898,7 @@ export default function PatientPage(): JSX.Element {
             onChange={editor.setValue}
             onBlur={editor.flush}
             aliases={settings.sectionAliases}
+            date={selected}
             tint={settings.sectionTint}
             readOnly={locked}
             placeholder="Tulis SOAP hari ini…"

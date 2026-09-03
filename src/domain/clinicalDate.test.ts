@@ -124,6 +124,20 @@ describe('formatting', () => {
     );
   });
 
+  it('omits the hari rawat suffix when the setting is off', () => {
+    // Off by default in settings; the date rail already shows the count, and
+    // this duplicated the identity row's own admission count until that
+    // duplicate was removed.
+    expect(formatDayHeader('2026-08-06', '2026-08-03', false)).toBe('Kamis, 6 Agustus 2026');
+  });
+
+  it('still shows nothing but "SOAP Awal" for the admission note regardless of the setting', () => {
+    // The admission note has no hari rawat to show or hide.
+    expect(formatDayHeader(IGD_ENTRY, '2026-08-03' as ClinicalDate, false)).toBe(
+      'SOAP Awal · sebelum masuk bangsal',
+    );
+  });
+
   it('labels relative days', () => {
     expect(relativeDayLabel('2026-08-06', '2026-08-06')).toBe('Hari ini');
     expect(relativeDayLabel('2026-08-05', '2026-08-06')).toBe('Kemarin');

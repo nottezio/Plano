@@ -3,15 +3,15 @@ import { useCallback, useLayoutEffect, useRef, useState } from 'react';
 import {
   BOLD,
   ITALIC,
-  insertSectionHeader,
   toggleBullet,
   toggleNumbered,
   toggleWrap,
   type TextEdit,
 } from '@/domain/format/markdownLite';
-import type { SectionAlias } from '@/domain/types';
+import type { ClinicalDate, SectionAlias } from '@/domain/types';
 import { FormatToolbar } from './FormatToolbar';
 import { SectionBands } from './SectionBands';
+import { SNIPPETS, insertSnippet } from '@/domain/format/snippets';
 
 /**
  * SPEC F4 — one free-form page per clinical day.
@@ -33,6 +33,7 @@ export function BodyEditor({
   onChange,
   onBlur,
   aliases,
+  date,
   tint = false,
   readOnly,
   placeholder,
@@ -41,6 +42,14 @@ export function BodyEditor({
   onChange: (next: string) => void;
   onBlur: () => void;
   aliases: readonly SectionAlias[];
+  /**
+   * The clinical day of the note being edited.
+   *
+   * Used only to date an inserted EKG heading. The note's day, never today's
+   * wall clock: a note written after midnight for the previous day has to
+   * carry that day's date, which is the rule the rest of the app follows.
+   */
+  date: ClinicalDate;
   /** Tint section headers; off unless the user turned it on. */
   tint?: boolean;
   readOnly: boolean;
@@ -253,7 +262,6 @@ export function BodyEditor({
         ].join(' ')}
       >
         <FormatToolbar
-          aliases={aliases}
           disabled={readOnly}
           value={value}
           onReplace={onChange}
@@ -263,9 +271,13 @@ export function BodyEditor({
           }
           onBullet={() => withSelection(toggleBullet)}
           onNumbered={() => withSelection(toggleNumbered)}
-          onInsertSection={(label) =>
-            withSelection((text, start) => insertSectionHeader(text, start, label))
-          }
+          onInsertSnippet={(snippetId) => {
+            const snippet = SNIPPETS.find((entry) => entry.id === snippetId);
+            if (!snippet) return;
+            // `date` is the note's clinical day, not today: a note written
+            // after midnight for the previous day carries that day's date.
+            withSelection((text, start) => insertSnippet(text, start, snippet.build(date)));
+          }}
         />
       </div>
     </div>

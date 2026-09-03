@@ -164,7 +164,6 @@ export function ShiftNoteEditor({
         written as a second daily note.
       */}
       <FormatToolbar
-        aliases={aliases}
         disabled={readOnly}
         value={note.body}
         onReplace={onChange}

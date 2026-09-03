@@ -7,6 +7,7 @@ import { BodyEditor } from '@/components/patient/BodyEditor';
 import { ConflictDialog } from '@/components/patient/ConflictDialog';
 import { softDeleteDocument, updateDocument } from '@/data/repositories/documents.repo';
 import { composeDocument } from '@/domain/format/composeCopy';
+import { useClinicalToday } from '@/hooks/useClinicalToday';
 import { FORMAT_LABELS } from '@/domain/format/formatters';
 import { copyText } from '@/lib/clipboard';
 import { useDocument, useDocumentEditor } from '@/hooks/useDocuments';
@@ -22,6 +23,7 @@ import type { OutputFormat } from '@/domain/types';
  * differently from a note.
  */
 export default function DocumentPage(): JSX.Element {
+  const today = useClinicalToday();
   const { documentId } = useParams<{ documentId: string }>();
   const navigate = useNavigate();
   const uid = useSession((state) => state.user?.uid ?? null);
@@ -138,6 +140,10 @@ export default function DocumentPage(): JSX.Element {
           onChange={editor.setValue}
           onBlur={editor.flush}
           aliases={settings.sectionAliases}
+          // A document is not a clinical day. Passing today keeps an inserted
+          // EKG heading dated sensibly without pretending the document has a
+          // day of its own.
+          date={today}
           readOnly={false}
           placeholder="Tulis isi dokumen…"
         />

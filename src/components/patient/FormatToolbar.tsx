@@ -1,38 +1,38 @@
-import { sortedAliases } from '@/domain/sections/aliases';
-import type { SectionAlias } from '@/domain/types';
 import { normaliseBullets, restoreEmphasis } from '@/domain/format/markdownLite';
+import { SNIPPETS } from '@/domain/format/snippets';
 
 /**
- * SPEC F4 — Bold, Italic, Bullet, and "Sisipkan bagian".
+ * SPEC F4 — Bold, Italic, Bullet, and an insert menu.
  *
- * The last button is the entire structure story: it inserts a recognised
- * header line at the caret, which is how the user opts INTO parseable
- * structure. There are no S/O/A/P input boxes and there never will be — the
- * spec rejects them explicitly, and this button is what replaces them.
+ * That menu used to insert a section header — `*O:*` at the caret — as the way
+ * to opt into parseable structure. In practice nobody needed help typing a
+ * five-character heading, and the menu was reported as redundant. It now
+ * inserts the blocks that ARE retyped every admission: the dated EKG heading,
+ * the long anamnesis, the cardiovascular risk factors.
+ *
+ * There are still no S/O/A/P input boxes and there never will be — the spec
+ * rejects them explicitly. Structure remains something typed into free text.
  */
 export function FormatToolbar({
-  aliases,
   disabled,
   onBold,
   onItalic,
   onBullet,
   onNumbered,
-  onInsertSection,
+  onInsertSnippet,
   value,
   onReplace,
 }: {
-  aliases: readonly SectionAlias[];
   disabled: boolean;
   onBold: () => void;
   onItalic: () => void;
   onBullet: () => void;
   onNumbered: () => void;
   /**
-   * Absent for the jaga editor, which has no section structure — offering to
-   * insert `*O:*` headings into a shift note invites it to be written as a
-   * second daily note.
+   * Absent for the jaga editor: a shift note is a short paragraph about one
+   * complaint, and an admission anamnesis block does not belong in it.
    */
-  onInsertSection?: ((label: string) => void) | undefined;
+  onInsertSnippet?: ((snippetId: string) => void) | undefined;
   /** Current body, for the whole-note actions. */
   value: string;
   onReplace: (next: string) => void;
@@ -53,28 +53,30 @@ export function FormatToolbar({
         Sisipkan bagian
       </label>
       {/*
-        Hidden, not disabled, when there is nothing to insert into.
-        The jaga editor has no sections; a greyed-out "Sisipkan bagian"
-        would still say the feature belongs there.
+        Clinical blocks, not section headings.
+
+        This dropdown used to insert `*O:*` — five characters anyone can type,
+        on a screen where the work is the paragraph underneath. These are the
+        blocks actually retyped on every admission.
       */}
-      {onInsertSection ? (
-      <select
-        id="insert-section"
-        disabled={disabled}
-        value=""
-        onChange={(event) => {
-          if (event.target.value) onInsertSection(event.target.value);
-          event.currentTarget.value = '';
-        }}
-        className="min-h-tap shrink-0 rounded-lg border border-border bg-surface px-2 text-xs text-fg-muted disabled:opacity-40"
-      >
-        <option value="">Sisipkan bagian…</option>
-        {sortedAliases([...aliases]).map((alias) => (
-          <option key={alias.sectionId} value={alias.label}>
-            {alias.label}
-          </option>
-        ))}
-      </select>
+      {onInsertSnippet ? (
+        <select
+          id="insert-snippet"
+          disabled={disabled}
+          value=""
+          onChange={(event) => {
+            if (event.target.value) onInsertSnippet(event.target.value);
+            event.currentTarget.value = '';
+          }}
+          className="min-h-tap shrink-0 rounded-lg border border-border bg-surface px-2 text-xs text-fg-muted disabled:opacity-40"
+        >
+          <option value="">Sisipkan…</option>
+          {SNIPPETS.map((snippet) => (
+            <option key={snippet.id} value={snippet.id}>
+              {snippet.label}
+            </option>
+          ))}
+        </select>
       ) : null}
       <span aria-hidden="true" className="mx-1 h-5 w-px bg-border" />
 

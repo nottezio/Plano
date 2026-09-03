@@ -260,6 +260,7 @@ export function defaultUserSettings(): UserSettings {
     },
     whatsappBullet: 'hyphen',
     sectionTint: false,
+    showHariRawat: false,
     copyPresets: DEFAULT_COPY_PRESETS.map((preset) => ({ ...preset })),
     privacy: {
       // Full names are stored, so the lock is ON by default (SPEC 18).

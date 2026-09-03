@@ -158,10 +158,15 @@ export function isIgdEntry(date: ClinicalDate): boolean {
   return date === IGD_ENTRY;
 }
 
-export function formatDayHeader(date: ClinicalDate, admittedAt: ClinicalDate): string {
+export function formatDayHeader(
+  date: ClinicalDate,
+  admittedAt: ClinicalDate,
+  showHariRawat = true,
+): string {
   // No date and no hari rawat: it is the note from before the stay.
   if (date === IGD_ENTRY) return 'SOAP Awal · sebelum masuk bangsal';
-  return `${formatLongDate(date)} · Hari rawat ke-${hariRawat(date, admittedAt)}`;
+  const day = formatLongDate(date);
+  return showHariRawat ? `${day} · Hari rawat ke-${hariRawat(date, admittedAt)}` : day;
 }
 
 export function relativeDayLabel(date: ClinicalDate, today: ClinicalDate): string {

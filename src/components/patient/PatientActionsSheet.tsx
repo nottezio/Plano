@@ -4,7 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import { Sheet } from '@/components/common/Sheet';
 import {
   archivePatient,
-  deletePatient,
+  setPatientStatus,
   reopenPatient,
   updatePatient,
 } from '@/data/repositories/patients.repo';
@@ -230,8 +230,9 @@ export function PatientActionsSheet({
         {confirmDelete ? (
           <>
             <p className="text-xs text-fg-muted">
-              Hapus {patient.name?.trim() || 'catatan ini'}? Catatan akan hilang dari papan
-              dan arsip. Gunakan Arsipkan bila hanya ingin menyelesaikan pasien.
+              Pindahkan {patient.name?.trim() || 'catatan ini'} ke sampah? Bisa dipulihkan
+              dari Arsip sampai sampah dikosongkan. Gunakan Arsipkan bila hanya ingin
+              menyelesaikan pasien.
             </p>
             <div className="mt-2 flex gap-2">
               <button
@@ -244,13 +245,22 @@ export function PatientActionsSheet({
               <button
                 type="button"
                 onClick={() => {
-                  void deletePatient(patient.id);
+                  /**
+                   * To the TRASH, not `deletePatient`.
+                   *
+                   * `deletePatient` sets `deletedAt`, which is a different
+                   * mechanism from the trash added for the board — so deleting
+                   * from inside a patient made it vanish without appearing in
+                   * the trash, and the only way back was an export. Two ways to
+                   * delete that land in different places is one too many.
+                   */
+                  void setPatientStatus(patient.id, 'trashed');
                   close();
                   navigate('/');
                 }}
                 className="min-h-tap flex-1 rounded-lg border border-danger text-sm font-medium text-danger"
               >
-                Hapus
+                Ke sampah
               </button>
             </div>
           </>

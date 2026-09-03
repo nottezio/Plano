@@ -166,7 +166,24 @@ export function sectionsForGroups(
     const inherited: CopyGroupId = carried ?? byKeyword;
     // `byKeyword === 'o'` is the default talking, not a match, so that is the
     // only case where inheritance takes over.
-    return { section, group: byKeyword === 'o' ? inherited : byKeyword };
+    const group = byKeyword === 'o' ? inherited : byKeyword;
+
+    /**
+     * A `*TS …*` heading RESETS what following headings inherit.
+     *
+     * Everything a consulting service writes under its own heading — its `A/`,
+     * `P/`, `I/` — is unnamed, so it inherited whatever our note was carrying.
+     * When the TS block sat after our `*Plan:*`, that meant copying Plan also
+     * pasted the orthopaedic team's plan and instructions as if they were ours.
+     *
+     * A TS block belongs with Terapi (see COPY_GROUPS: "Terapi + TS", a reply
+     * is an instruction about management). Carrying `terapi` forward from the
+     * heading keeps its whole block together and, more importantly, stops our
+     * Plan from absorbing it.
+     */
+    if (group === 'terapi') carried = 'terapi';
+
+    return { section, group };
   });
 
   return grouped
