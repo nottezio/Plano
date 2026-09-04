@@ -1,4 +1,4 @@
-import { useCallback, useRef } from 'react';
+import { useCallback, useEffect, useRef } from 'react';
 
 import {
   BOLD,
@@ -124,6 +124,29 @@ export function ShiftNoteEditor({
     },
     [onChange, readOnly, grow],
   );
+
+  /**
+   * Same width-change re-measure as the body editor.
+   *
+   * Height depends on wrapping and wrapping depends on width, so a panel
+   * opening or a font arriving after first paint left the box measured for a
+   * width it no longer had, with its last lines cut off.
+   */
+  useEffect(() => {
+    const node = ref.current;
+    if (!node || typeof ResizeObserver === 'undefined') return;
+
+    let lastWidth = node.clientWidth;
+    const observer = new ResizeObserver(() => {
+      const width = node.clientWidth;
+      if (width === lastWidth) return;
+      lastWidth = width;
+      grow(node);
+    });
+
+    observer.observe(node);
+    return () => observer.disconnect();
+  }, [grow]);
 
   return (
     <section aria-label={`SOAP jaga jam ${note.time}`} className="px-4">

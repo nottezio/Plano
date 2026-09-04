@@ -247,11 +247,20 @@ export default function NotePage(): JSX.Element {
                 setCategory(shelf);
                 setShowArchived(false);
               }}
+              /**
+               * A filled tab, not another outlined pill.
+               *
+               * These sat in a row of outlined buttons that all looked alike —
+               * the note tabs below, the archive toggle beside them — so the
+               * one control that changes WHICH LIST you are looking at read as
+               * just another button. Filling the selected shelf makes the
+               * choice visible without adding a fourth border weight.
+               */
               className={[
-                'min-h-tap flex-1 rounded-lg border px-3 text-xs',
+                'min-h-tap flex-1 rounded-lg px-3 text-xs transition-colors',
                 category === shelf
-                  ? 'border-accent bg-bg-subtle font-medium text-accent'
-                  : 'border-border text-fg-muted',
+                  ? 'bg-accent font-semibold text-white'
+                  : 'border border-border text-fg-muted hover:bg-bg-subtle',
               ].join(' ')}
             >
               {shelf === 'umum' ? 'Catatan' : 'Catatan jaga'}

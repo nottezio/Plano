@@ -67,7 +67,18 @@ const KEYWORDS: Record<CopyGroupId, readonly string[]> = {
     'tanda vital',
   ],
   a: ['assess', 'diagnos', 'problem', 'masalah'],
-  terapi: ['terapi', 'obat', 'medikament', 'ts ', 'konsul', 'balasan', 'anjuran', 'saran'],
+  /**
+   * `saran` and `anjuran` are NOT here.
+   *
+   * Both are ordinary words that appear above Terapi as readily as below it —
+   * an echo report ends with `Saran :`, and that is a suggestion about the
+   * imaging, not a drug. Keying on them copied it into the therapy list.
+   *
+   * They need no keyword now: a heading below Terapi is included by position,
+   * and one above it inherits the block it sits under. The words only ever
+   * mattered for headings the position rule already answers.
+   */
+  terapi: ['terapi', 'obat', 'medikament', 'ts ', 'konsul', 'balasan'],
   plan: ['plan', 'rencana', 'monitor', 'edukasi'],
 };
 
@@ -185,6 +196,41 @@ export function sectionsForGroups(
 
     return { section, group };
   });
+
+  /**
+   * "Terapi + TS" is everything from the Terapi heading DOWN, minus Plan.
+   *
+   * Positional, not keyword. `saran` is a therapy keyword, so a `Saran :`
+   * inside an echo report — a suggestion about the imaging, sitting in O —
+   * was copied into the therapy list. `anjuran`, `konsul` and `balasan` have
+   * the same exposure: they are ordinary words that appear above Terapi as
+   * easily as below it.
+   *
+   * Where a heading SITS answers this without guessing. Therapy is the last
+   * clinical block of the note, and everything after it — the TS replies, the
+   * completed-therapy list, the consulting services' own instructions —
+   * belongs with it. Plan is the one thing after Terapi that has its own chip,
+   * so it is the one thing excluded.
+   *
+   * Falls back to the keyword grouping when the note has no Terapi heading at
+   * all, which is the case for a note still being written.
+   */
+  if (wanted.has('terapi')) {
+    const start = grouped.findIndex(({ section }) => section.sectionId === 'terapi');
+    if (start !== -1) {
+      const tail = grouped
+        .slice(start)
+        .filter(({ section }) => section.sectionId !== 'p')
+        .map(({ section }) => section.sectionId);
+
+      // Other chips selected alongside Terapi keep their own grouping.
+      const others = grouped
+        .filter(({ group }) => wanted.has(group) && group !== 'terapi')
+        .map(({ section }) => section.sectionId);
+
+      return [...new Set([...others, ...tail])];
+    }
+  }
 
   return grouped
     // Empty sections are kept for the same reason composeCopy keeps them: a

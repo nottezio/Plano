@@ -1,4 +1,4 @@
-import { useCallback, useLayoutEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 
 import {
   BOLD,
@@ -117,6 +117,56 @@ export function BodyEditor({
   // Layout effect, not effect: the measurement must land before the browser
   // paints, or the collapse is visible as a flicker.
   useLayoutEffect(resize, [value, resize]);
+
+  /**
+   * Re-measure when the box's WIDTH changes, not just its text.
+   *
+   * Height depends on where lines wrap, and wrapping depends on width — but
+   * the effect above only runs when `value` changes. So opening the side
+   * panel, resizing the window, rotating the phone, or a web font arriving
+   * after first paint all changed the wrapping while the height stayed at its
+   * old measurement. The note came out with its last lines cut off, and it
+   * only came back when something forced a remount, which is exactly why
+   * switching tabs "fixed" it.
+   *
+   * A `ResizeObserver` on the element itself is the direct statement of that:
+   * whenever this box's geometry changes, measure it again.
+   */
+  useEffect(() => {
+    const node = ref.current;
+    if (!node || typeof ResizeObserver === 'undefined') return;
+
+    let lastWidth = node.clientWidth;
+    const observer = new ResizeObserver(() => {
+      // Width only. Observing height would fire on the resize this performs
+      // and loop.
+      const width = node.clientWidth;
+      if (width === lastWidth) return;
+      lastWidth = width;
+      resize();
+    });
+
+    observer.observe(node);
+    return () => observer.disconnect();
+  }, [resize]);
+
+  /**
+   * One more measurement once webfonts are in.
+   *
+   * A font that swaps in after first paint changes every line's height. The
+   * promise resolves immediately when fonts are already loaded, so this costs
+   * one no-op measurement in the common case.
+   */
+  useEffect(() => {
+    if (!('fonts' in document)) return;
+    let cancelled = false;
+    void document.fonts.ready.then(() => {
+      if (!cancelled) resize();
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [resize]);
 
   const applyEdit = useCallback(
     (edit: TextEdit) => {

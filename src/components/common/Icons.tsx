@@ -125,3 +125,12 @@ export const IconMore = (props: IconProps): JSX.Element => (
     <circle cx="19" cy="12" r="1.4" fill="currentColor" stroke="none" />
   </Base>
 );
+
+/** The trash, for the archive's bin. Lid and body, no fill. */
+export const IconTrash = (props: IconProps): JSX.Element => (
+  <Base {...props}>
+    <path d="M4 7h16" />
+    <path d="M9 7V5a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2" />
+    <path d="M6 7l1 12a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1l1-12" />
+  </Base>
+);

@@ -188,3 +188,70 @@ describe('the closing is not part of Plan', () => {
     expect(out).toContain('- Lapor Prof besok pagi');
   });
 });
+
+/**
+ * "Terapi + TS" is everything from Terapi DOWN, minus Plan.
+ *
+ * It used to be keyword-driven, and `saran` was one of the keywords — so a
+ * `Saran :` inside an echo report, which is a suggestion about the imaging,
+ * was copied into the therapy list.
+ */
+const WITH_SARAN = [
+  '*O :*',
+  'Compos mentis',
+  '',
+  '*Echocardiography (04-09-2026)*',
+  'EF 55%',
+  'Saran :',
+  '- Konfrens Bedah',
+  '- MRI Viability Test',
+  '',
+  '*Mohon izin kami terapi dengan*',
+  '- Furosemide 40 mg',
+  '',
+  'Selesai:',
+  '- Koreksi Hipokalemia',
+  '',
+  '*Plan :*',
+  '- Monitoring',
+  '',
+  '*TS Orthopedi*',
+  'P/',
+  '- MRI whole spine',
+].join('\n');
+
+function copySaran(group: 'o' | 'terapi' | 'plan'): string {
+  return composeCopy([{ date: '2026-09-04', body: WITH_SARAN }], {
+    ...OPTIONS,
+    sections: sectionsForGroups(WITH_SARAN, ALIASES, [group]),
+  });
+}
+
+describe('Terapi + TS by position', () => {
+  it("leaves an echo report's Saran in O, where it was written", () => {
+    expect(copySaran('o')).toContain('Saran :\n- Konfrens Bedah');
+    expect(copySaran('terapi')).not.toContain('Konfrens Bedah');
+  });
+
+  it('takes everything below Terapi, including the TS block', () => {
+    const out = copySaran('terapi');
+    expect(out).toContain('- Furosemide 40 mg');
+    expect(out).toContain('Selesai:');
+    expect(out).toContain('*TS Orthopedi*');
+  });
+
+  it('excludes Plan, which has its own chip', () => {
+    expect(copySaran('terapi')).not.toContain('- Monitoring');
+    expect(copySaran('plan')).toContain('- Monitoring');
+  });
+
+  it('falls back to keywords when the note has no Terapi heading yet', () => {
+    // A note still being written has no anchor to count down from.
+    const early = '*O :*\nCompos mentis\n\n*TS BTKV*\nA/\n- milik TS';
+    const out = composeCopy([{ date: '2026-09-04', body: early }], {
+      ...OPTIONS,
+      sections: sectionsForGroups(early, ALIASES, ['terapi']),
+    });
+    expect(out).toContain('*TS BTKV*');
+  });
+});

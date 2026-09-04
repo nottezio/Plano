@@ -372,6 +372,17 @@ export default function PatientPage(): JSX.Element {
           settings.sectionAliases,
         );
         editor.setValue(result.body);
+        /**
+         * Written immediately, not left to the 800 ms idle debounce.
+         *
+         * Carry-forward is a single deliberate action that produces a whole
+         * day's note at once, and the user's next move is usually to start
+         * editing or to leave. Waiting for an idle gap keeps a full note
+         * unsaved for the one moment it is most likely to be navigated away
+         * from — and any snapshot arriving in that window has an empty server
+         * body to offer against it.
+         */
+        editor.flush();
         setCarrySummary(`${carryForwardSummary(result)} (dari ${formatShortDate(source.date)})`);
       })
       .catch((error: unknown) => console.error('[patient] carry-forward failed', error));
@@ -412,7 +423,17 @@ export default function PatientPage(): JSX.Element {
   // Any empty day qualifies. The old `!exists` condition meant the offer
   // vanished the moment the document was materialised — which happens on the
   // first keystroke, or when a template is inserted and then cleared.
-  const canCarryForward = !locked && editor.value.trim().length === 0;
+  /**
+   * Not offered for an archived patient.
+   *
+   * The patient page stays fully editable after discharge — discharge
+   * summaries are written there, and the copy engine has to keep working. But
+   * "Hari ini masih kosong. Salin dari hari sebelumnya" is a prompt to start
+   * today's round on someone who has gone home, and every empty day from here
+   * on will be empty for the same good reason.
+   */
+  const canCarryForward =
+    !locked && patient?.status === 'active' && editor.value.trim().length === 0;
 
   return (
     <AppShell title={patient.name}>
