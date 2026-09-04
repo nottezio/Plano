@@ -17,7 +17,43 @@ import type { OutputFormat, SectionAlias } from '../types';
  * someone corrected a typo in one place and not the other.
  */
 
-const CLOSING = 'Selanjutnya mohon arahan dokter.  Terima kasih dokter';
+/**
+ * Used only when the note carries no closing of its own.
+ *
+ * The report used to end with this string unconditionally, which meant a note
+ * addressed to a Prof went out signed off to "dokter" — the file's own opening
+ * comment says a report that regenerates what the note already states will
+ * drift from it, and this was that drift.
+ */
+const FALLBACK_CLOSING = 'Selanjutnya mohon arahan dokter.  Terima kasih dokter';
+
+/**
+ * The note's own closing sentence, if it has one.
+ *
+ * Taken from the END of the body, matched against the closings the user has
+ * configured. Position matters as much as the wording: a plan item that says
+ * "lapor Prof" is not a sign-off, and only the last non-empty line can be.
+ */
+function closingFrom(body: string, closings: readonly string[]): string | null {
+  const normalise = (value: string): string =>
+    value.toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
+
+  const lines = body.split('\n');
+  for (let i = lines.length - 1; i >= 0; i--) {
+    const line = (lines[i] ?? '').trim();
+    if (line === '') continue;
+
+    const flat = normalise(line);
+    const matches = closings.some((closing) => {
+      const target = normalise(closing);
+      // `startsWith`: the stored sentence omits the final full stop the note
+      // usually carries.
+      return target.length > 0 && (flat === target || flat.startsWith(target));
+    });
+    return matches ? line : null;
+  }
+  return null;
+}
 
 /** Ids whose content is the diagnosis list. */
 const DIAGNOSIS_IDS = ['a'];
@@ -48,6 +84,11 @@ export interface PdfReportOptions {
   staffing?: boolean;
   /** `_Jam verifikasi HH.MM WITA_` before the closing sentence. */
   verificationTime?: string;
+  /**
+   * The user's configured closing sentences, used to recognise the note's own
+   * sign-off so the report can reuse it verbatim.
+   */
+  closings?: readonly string[];
 }
 
 /**
@@ -170,7 +211,9 @@ export function composePdfReport(body: string, options: PdfReportOptions): strin
     parts.push(`_Verifikasi ${options.verificationTime}_`, '');
   }
 
-  parts.push(CLOSING);
+  // The note's own words when it has them: this report is addressed to a
+  // specific consultant, and they are not all called "dokter".
+  parts.push(closingFrom(body, options.closings ?? []) ?? FALLBACK_CLOSING);
 
   return formatBody(
     parts.join('\n').replace(/\n{3,}/g, '\n\n').trim(),

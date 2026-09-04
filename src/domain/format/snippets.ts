@@ -1,5 +1,21 @@
 import type { ClinicalDate } from '../types';
-import { formatShortDateNoWeekday } from '../clinicalDate';
+
+/**
+ * `04-09-2026` — all numeric, zero padded.
+ *
+ * Not `formatShortDateNoWeekday`, which writes `4 Sep`. This string goes into
+ * the note as part of a heading the DPJP reads, and every dated heading in the
+ * corpus uses the numeric form.
+ *
+ * Built by splitting the id rather than through a Date, because the id is
+ * already `YYYY-MM-DD` and round-tripping it through a Date only introduces
+ * the timezone question this app spent a release getting rid of.
+ */
+function numericDate(date: ClinicalDate): string {
+  const [year, month, day] = date.split('-');
+  if (!year || !month || !day) return date;
+  return `${day}-${month}-${year}`;
+}
 
 /**
  * Blocks of boilerplate a resident retypes every admission.
@@ -31,7 +47,27 @@ export const SNIPPETS: readonly Snippet[] = [
      * note written after midnight for the previous day must carry that day's
      * date, which is the same rule the rest of the app follows.
      */
-    build: (date) => `*EKG di PJT (${formatShortDateNoWeekday(date)})*\n`,
+    /**
+     * The floor is left BLANK on purpose.
+     *
+     * A patient moves between Lantai 4, Lantai 5, CVCU and IGD during one
+     * stay, and the app knows the ward on the patient record but not which
+     * floor the tracing was actually taken on — those differ the day someone
+     * is moved. Prefilling it would be right most days and quietly wrong on
+     * exactly the day it matters.
+     */
+    build: (date) => `*EKG di PJT Lt. ... (${numericDate(date)})*\n`,
+  },
+  {
+    id: 'keluhan-pendek',
+    label: 'Keluhan pendek',
+    build: () =>
+      [
+        '- Sekarang nyeri dada tidak ada, berdebar tidak ada, sesak nafas tidak ada.',
+        '- Keluhan lain demam tidak ada, batuk beringus tidak ada, mual dan muntah tidak ada.',
+        '- BAB dan BAK kesan normal.',
+        '',
+      ].join('\n'),
   },
   {
     id: 'anamnesis',

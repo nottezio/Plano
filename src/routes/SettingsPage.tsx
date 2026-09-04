@@ -24,6 +24,7 @@ import {
 import { downloadJson, exportAll } from '@/data/exportData';
 import { FORMAT_LABELS } from '@/domain/format/formatters';
 import { signOutAndClear, useSession } from '@/store/useSession';
+import { resetSettings } from '@/data/repositories/settings.repo';
 import { useUI, type ThemePreference } from '@/store/useUI';
 import { APP_VERSION } from '@/version.js';
 import type { UserSettings } from '@/domain/types';
@@ -46,6 +47,8 @@ export default function SettingsPage(): JSX.Element {
   const lock = useLock((state) => state.lock);
   const [pinSetupOpen, setPinSetupOpen] = useState(false);
   const [restored, setRestored] = useState<string | null>(null);
+  const [confirmReset, setConfirmReset] = useState(false);
+  const [resetting, setResetting] = useState(false);
   const [exporting, setExporting] = useState(false);
 
   /**
@@ -500,6 +503,67 @@ export default function SettingsPage(): JSX.Element {
           <p className="mt-2 text-[11px] text-fg-faint">
             Keluar menghapus seluruh data offline di perangkat ini dan memuat ulang aplikasi.
           </p>
+        </SettingsSection>
+
+        {/*
+          Last, and behind a confirmation.
+          
+          Placed at the bottom because nothing above it is destructive and a
+          reset button among the ordinary toggles is one mis-tap from undoing
+          an afternoon of setup.
+        */}
+        <SettingsSection title="Setel ulang" collapsible={false}>
+          {confirmReset ? (
+            <>
+              <p className="text-xs leading-relaxed text-fg-muted">
+                Semua pengaturan kembali ke bawaan: kalimat pembuka dan penutup, format SOAP
+                dan laporan tiap DPJP, template, checklist, format dokumen, warna, dan
+                privasi.
+              </p>
+              <p className="mt-2 text-xs leading-relaxed text-fg-muted">
+                <strong>Tidak</strong> terpengaruh: pasien aktif, pasien di arsip, dan
+                Catatan.
+              </p>
+              <div className="mt-3 flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => setConfirmReset(false)}
+                  className="min-h-tap flex-1 rounded-lg border border-border text-sm"
+                >
+                  Batal
+                </button>
+                <button
+                  type="button"
+                  disabled={resetting}
+                  onClick={() => {
+                    if (!user) return;
+                    setResetting(true);
+                    void resetSettings(user.uid)
+                      .then(() => setRestored('Pengaturan dikembalikan ke bawaan.'))
+                      .catch((error: unknown) => {
+                        console.error('[settings] reset failed', error);
+                        setRestored('Gagal menyetel ulang. Coba lagi.');
+                      })
+                      .finally(() => {
+                        setResetting(false);
+                        setConfirmReset(false);
+                      });
+                  }}
+                  className="min-h-tap flex-1 rounded-lg border border-danger text-sm font-medium text-danger disabled:opacity-40"
+                >
+                  {resetting ? 'Menyetel ulang…' : 'Setel ulang'}
+                </button>
+              </div>
+            </>
+          ) : (
+            <button
+              type="button"
+              onClick={() => setConfirmReset(true)}
+              className="min-h-tap w-full rounded-lg border border-border px-3 text-sm text-danger"
+            >
+              Kembalikan semua pengaturan ke bawaan
+            </button>
+          )}
         </SettingsSection>
 
         <SettingsSection title="Tentang" collapsible={false}>

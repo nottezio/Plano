@@ -121,3 +121,48 @@ export function updateScratchNotes(uid: string, notes: ScratchNote[]): Promise<v
 export function updateChecklists(uid: string, checklists: SavedChecklist[]): Promise<void> {
   return trackWrite(setDoc(userDoc(uid), { checklists }, { merge: true }));
 }
+
+/**
+ * Restore every setting to its seeded default.
+ *
+ * Replaces `settings` WHOLESALE with `setDoc(..., { merge: true })` at the top
+ * level, so a field removed from the defaults since this profile was written
+ * does not survive as a leftover. `updateSettings` patches by dotted path,
+ * which is right for editing one preference and wrong here — a reset that left
+ * unknown keys behind is not a reset.
+ *
+ * What it deliberately does NOT touch:
+ *
+ *  - `notes` and `scratchNote` — Catatan. Written by hand, owned by nobody
+ *    else, and not settings at all. They live beside `settings` on the profile
+ *    rather than inside it, so replacing `settings` leaves them alone by
+ *    construction rather than by remembering to exclude them.
+ *  - Patients and their entries, active or archived. Those are in a different
+ *    collection entirely and no settings write can reach them.
+ *
+ * `checklists` IS reset, because the saved checklists are seeded from
+ * `SEED_CHECKLISTS` and are a setting in everything but storage location —
+ * that is the one place where "where it is stored" and "what it is" disagree,
+ * so it has to be named explicitly here.
+ */
+export function resetSettings(uid: string): Promise<void> {
+  return trackWrite(
+    setDoc(
+      userDoc(uid),
+      {
+        settings: defaultUserSettings(),
+        /**
+         * Emptied, not re-seeded.
+         *
+         * `PatientTodos` merges `SEED_CHECKLISTS` in at read time for any seed
+         * id that is not already saved, so clearing the saved list is what
+         * brings the seeds back — writing them in here would store a second
+         * copy that then shadows future seed updates, which is the exact
+         * problem "Perbarui ke versi terbaru" exists to undo.
+         */
+        checklists: [],
+      },
+      { merge: true },
+    ),
+  );
+}

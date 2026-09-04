@@ -335,6 +335,7 @@ export function CopySheet({
             // without staffing lines, rather than one shape for everyone.
             staffing: active?.staffing ?? true,
             ...(active?.verificationTime ? { verificationTime } : {}),
+            closings,
           })
         : composeCopy(days, {
         format,

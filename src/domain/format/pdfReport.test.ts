@@ -231,3 +231,49 @@ describe('the Ringkas bugs from real notes', () => {
     expect(out).not.toContain('Pro MVR');
   });
 });
+
+/**
+ * The report signs off in the NOTE's words.
+ *
+ * It used to end with a hardcoded "…arahan dokter. Terima kasih dokter", so a
+ * note addressed to a Prof went out addressed to "dokter". This file's own
+ * opening comment says a report that regenerates what the note already states
+ * will drift from it — this was that drift.
+ */
+describe('closing sentence', () => {
+  const CLOSINGS = [
+    'Selanjutnya mohon arahan dokter. Terima kasih dokter',
+    'Selanjutnya mohon arahan Prof. Terima kasih Prof',
+  ];
+
+  const withClosing = (last: string): string =>
+    ['*S:*', '- sesak', '', '*A:*', '- CHF', '', last].join('\n');
+
+  it("reuses the note's own sign-off verbatim", () => {
+    const output = composePdfReport(withClosing('Selanjutnya mohon arahan Prof. Terima kasih Prof.'), {
+      ...OPTIONS,
+      closings: CLOSINGS,
+    });
+    expect(output.trimEnd().endsWith('Selanjutnya mohon arahan Prof. Terima kasih Prof.')).toBe(true);
+    expect(output).not.toContain('Terima kasih dokter');
+  });
+
+  it('falls back when the note has no closing', () => {
+    const output = composePdfReport('*S:*\n- sesak', { ...OPTIONS, closings: CLOSINGS });
+    expect(output.trimEnd().endsWith('Terima kasih dokter')).toBe(true);
+  });
+
+  it('does not mistake a plan item for a sign-off', () => {
+    // Only the last non-empty line can be a closing, and it must match a
+    // configured one. "lapor Prof" is an instruction, not a farewell.
+    const output = composePdfReport(
+      ['*A:*', '- CHF', '', '*Plan:*', '- Lapor Prof besok pagi'].join('\n'),
+      { ...OPTIONS, closings: CLOSINGS },
+    );
+    // Falls back rather than treating the plan line as a farewell. (Ringkas
+    // does not carry the Plan section itself, which is why only the closing is
+    // asserted here.)
+    expect(output.trimEnd().endsWith('Terima kasih dokter')).toBe(true);
+    expect(output).not.toContain('Lapor Prof besok pagi. Terima kasih');
+  });
+});

@@ -124,8 +124,26 @@ export function BodyEditor({
       requestAnimationFrame(() => {
         const node = ref.current;
         if (!node) return;
+
+        /**
+         * The scroll position is captured and restored around this.
+         *
+         * `focus()` on a textarea whose caret is out of view makes the browser
+         * scroll to reveal it, and `setSelectionRange` does the same. For bold
+         * and italic the caret moves by a character and nothing is visible;
+         * inserting a snippet moves it by a paragraph, and the page jumped to
+         * the bottom of the note every time.
+         *
+         * Restoring afterwards keeps the note where the user left it. The
+         * caret is still correct — it is simply not chased.
+         */
+        const scroller = node.closest('main') ?? document.scrollingElement;
+        const scrollTop = scroller?.scrollTop ?? 0;
+
         node.focus();
         node.setSelectionRange(edit.selectionStart, edit.selectionEnd);
+
+        if (scroller && scroller.scrollTop !== scrollTop) scroller.scrollTop = scrollTop;
       });
     },
     [onChange],

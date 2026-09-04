@@ -5,10 +5,23 @@ import { SNIPPETS, insertSnippet } from './snippets';
 const byId = (id: string) => SNIPPETS.find((snippet) => snippet.id === id)!;
 
 describe('snippets', () => {
-  it('dates the EKG heading with the NOTE\u2019s clinical day', () => {
-    // Not today's wall clock: a note written after midnight for the previous
-    // day must carry that day's date.
-    expect(byId('ekg').build('2026-09-01')).toBe('*EKG di PJT (1 Sep)*\n');
+  it('dates the EKG heading numerically, from the NOTE\u2019s clinical day', () => {
+    // All-numeric and zero padded, matching every dated heading in the corpus.
+    // The note's day, not today's wall clock: a note written after midnight
+    // for the previous day must carry that day's date.
+    expect(byId('ekg').build('2026-09-04')).toBe('*EKG di PJT Lt. ... (04-09-2026)*\n');
+  });
+
+  it('leaves the EKG floor blank', () => {
+    // A patient moves between Lantai 4, Lantai 5, CVCU and IGD in one stay,
+    // and the tracing's floor is not something the record knows.
+    expect(byId('ekg').build('2026-09-04')).toContain('Lt. ...');
+  });
+
+  it('writes the short complaint block', () => {
+    const out = byId('keluhan-pendek').build('2026-09-04');
+    expect(out).toContain('- Sekarang nyeri dada tidak ada, berdebar tidak ada, sesak nafas tidak ada.');
+    expect(out).toContain('- BAB dan BAK kesan normal.');
   });
 
   it('leaves every blank as a visible hole', () => {

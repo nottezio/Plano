@@ -11,7 +11,7 @@
  *
  * Verify with: npm run check:version
  */
-export const APP_VERSION = '2026-09-03.2';
+export const APP_VERSION = '2026-09-04.1';
 
 /** Service-worker cache namespace. All caches derive from this prefix. */
 export const CACHE_NAME = `visite-${APP_VERSION}`;
