@@ -206,15 +206,53 @@ export function BodyEditor({
     const scroller = node.closest('main');
     if (!scroller) return;
 
-    const style = window.getComputedStyle(node);
-    const lineHeight = Number.parseFloat(style.lineHeight) || 28;
-    const linesBefore = node.value.slice(0, node.selectionStart).split('\n').length - 1;
+    /**
+     * The caret's height is MEASURED, not counted.
+     *
+     * The first version multiplied a line height by the number of `\n`
+     * characters before the caret. That counts logical lines, and this text
+     * wraps — a single bullet describing a complaint occupies four visual
+     * lines and one newline, so on a real note the estimate landed far short
+     * and the scroll went somewhere above the change.
+     *
+     * The mirror already lays this text out with the textarea's exact metrics,
+     * so a hidden element inserted at the caret offset reports the true
+     * position. It is built, read and thrown away inside one frame, which
+     * costs a layout on undo only — not on typing.
+     */
+    const probe = document.createElement('div');
+    const wrapper = node.parentElement;
+    if (!wrapper) return;
 
+    const style = window.getComputedStyle(node);
+    probe.style.cssText = [
+      'position:absolute',
+      'visibility:hidden',
+      'pointer-events:none',
+      'white-space:pre-wrap',
+      'overflow-wrap:anywhere',
+      `top:0`,
+      `left:0`,
+      `width:${node.clientWidth}px`,
+      `font:${style.font}`,
+      `line-height:${style.lineHeight}`,
+      `letter-spacing:${style.letterSpacing}`,
+      `padding:${style.padding}`,
+    ].join(';');
+
+    const before = document.createTextNode(node.value.slice(0, node.selectionStart));
+    const marker = document.createElement('span');
+    probe.append(before, marker);
+    wrapper.appendChild(probe);
+    const caretOffset = marker.offsetTop;
+    probe.remove();
+
+    const lineHeight = Number.parseFloat(style.lineHeight) || 28;
     const caretTop =
       node.getBoundingClientRect().top -
       scroller.getBoundingClientRect().top +
       scroller.scrollTop +
-      linesBefore * lineHeight;
+      caretOffset;
 
     const viewTop = scroller.scrollTop;
     const viewBottom = viewTop + scroller.clientHeight;

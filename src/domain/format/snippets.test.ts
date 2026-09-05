@@ -71,3 +71,25 @@ describe('insertSnippet', () => {
     expect(result.text).toBe('atas\nBLOK\nbawah');
   });
 });
+
+describe('pemeriksaan fisik snippet', () => {
+  const out = byId('pemeriksaan-fisik').build('2026-09-05');
+
+  it('leaves every measured number blank', () => {
+    // A prefilled vital sign nobody replaced is a fabricated observation in a
+    // clinical record.
+    expect(out).toContain('Tekanan Darah : ... mmHg');
+    expect(out).toContain('Nadi : ... kali/menit, reguler');
+    expect(out).toContain('Suhu : ... derajat Celcius');
+    expect(out).toContain('SpO2 : ... % on room air');
+    // No stray digits among the vitals block.
+    expect(out.split('\n\n')[0]).not.toMatch(/\d+\/\d+/);
+  });
+
+  it('keeps the examination findings prefilled', () => {
+    // These are the normal findings; the work is editing the abnormal few.
+    expect(out).toContain('JVP R+2 cmH20');
+    expect(out).toContain('BJ I/II murni reguler, murmur tidak terdengar');
+    expect(out).toContain('Edema ekstremitas tidak ada, akral hangat, CTR < 2 detik');
+  });
+});

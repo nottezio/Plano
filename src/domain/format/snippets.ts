@@ -81,6 +81,40 @@ export const SNIPPETS: readonly Snippet[] = [
       ].join('\n'),
   },
   {
+    id: 'pemeriksaan-fisik',
+    label: 'Pemeriksaan fisik + TTV',
+    /**
+     * Vital signs blank, examination findings prefilled.
+     *
+     * The split is deliberate. Every number here is measured on this patient
+     * this morning, and a prefilled `120/80` that nobody replaced is a
+     * fabricated observation in a clinical record — the one class of error
+     * this app must not make convenient.
+     *
+     * The examination lines are different: they are the NORMAL findings,
+     * written the way the corpus writes them, and the work is editing the few
+     * that are abnormal. Leaving those blank too would mean retyping six
+     * unchanged lines to record one changed one.
+     */
+    build: () =>
+      [
+        'Compos Mentis GCS (E4V5M6)',
+        'Tekanan Darah : ... mmHg',
+        'Nadi : ... kali/menit, reguler',
+        'Pernapasan : ... kali/menit',
+        'Suhu : ... derajat Celcius',
+        'SpO2 : ... % on room air',
+        '',
+        'Anemis tidak ada, ikterus tidak ada',
+        'JVP R+2 cmH20',
+        'BJ I/II murni reguler, murmur tidak terdengar',
+        'BP Vesikuler, ronkhi dan wheezing tidak ada',
+        'Abdomen peristaltik kesan normal',
+        'Edema ekstremitas tidak ada, akral hangat, CTR < 2 detik',
+        '',
+      ].join('\n'),
+  },
+  {
     id: 'faktor-risiko',
     label: 'Faktor risiko kardiovaskular',
     build: () =>

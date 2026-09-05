@@ -148,37 +148,58 @@ export function DateRail({
             the chief. Half the height, indented under its parent, and no date
             of its own — only the clock time, because the date is the row above.
 
-            Vertical rail only. On the phone strip the days already scroll
-            horizontally and there is no "under" to indent into.
+            On the vertical rail these indent under their day. On the phone
+            strip there is no "under", so they follow the day chip inline as
+            narrower pills — reachable, and still visibly not a day.
+
+            Gating them to the vertical rail meant a jaga note written on the
+            phone could not be opened again ON the phone: it existed, it synced,
+            and the only way back to it was a laptop.
           */}
-          {orientation === 'vertical' && shiftNotes.length > 0 && onSelectShiftNote
+          {shiftNotes.length > 0 && onSelectShiftNote
             ? shiftNotes.map((note) => {
                 const noteActive = active && selectedShiftNoteId === note.id;
                 return (
-                  <div key={note.id} className="flex w-full items-center gap-1">
+                  <div
+                    key={note.id}
+                    className={
+                      orientation === 'vertical'
+                        ? 'flex w-full items-center gap-1'
+                        : 'flex shrink-0 items-center'
+                    }
+                  >
                   <button
                     type="button"
                     onClick={() => onSelectShiftNote(date, note.id)}
                     aria-current={noteActive}
                     className={[
-                      'ml-4 mt-0.5 flex min-w-0 flex-1 items-center gap-2',
-                      // Half the height of a day row, and below the tap
-                      // minimum on purpose — see the note above about these
-                      // not being interchangeable. It is a secondary target
-                      // inside a list whose primary targets are full size.
-                      'rounded-md border-l-2 px-2 py-1 text-left text-[11px]',
+                      'flex min-w-0 items-center gap-1.5 text-left text-[11px]',
+                      orientation === 'vertical'
+                        ? 'ml-4 mt-0.5 flex-1 rounded-md border-l-2 px-2 py-1'
+                        : // On the strip: a short pill beside its day, not a
+                          // full-width row. Dashed so it reads as secondary to
+                          // the solid day chips it sits among.
+                          'ml-1 shrink-0 rounded-full border border-dashed px-2 py-1',
                       noteActive
-                        ? 'border-l-accent bg-bg-subtle font-medium text-accent'
-                        : 'border-l-border text-fg-faint',
+                        ? orientation === 'vertical'
+                          ? 'border-l-accent bg-bg-subtle font-medium text-accent'
+                          : 'border-accent bg-bg-subtle font-medium text-accent'
+                        : orientation === 'vertical'
+                          ? 'border-l-border text-fg-faint'
+                          : 'border-border text-fg-faint',
                     ].join(' ')}
                   >
                     <span className="shrink-0">Jaga</span>
                     <span className="shrink-0 opacity-80">{note.time}</span>
-                    <span className="min-w-0 flex-1 truncate opacity-70">
-                      {note.body.trim() || '(kosong)'}
-                    </span>
+                    {orientation === 'vertical' ? (
+                      <span className="min-w-0 flex-1 truncate opacity-70">
+                        {note.body.trim() || '(kosong)'}
+                      </span>
+                    ) : null}
                   </button>
-                  {onClearShiftNote ? (
+                  {/* Delete stays on the rail only: a strip pill has no room
+                      for it, and a mis-tap there would clear a note. */}
+                  {onClearShiftNote && orientation === 'vertical' ? (
                     <button
                       type="button"
                       onClick={() => onClearShiftNote(date, note.id)}

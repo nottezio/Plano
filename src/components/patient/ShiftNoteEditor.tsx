@@ -52,8 +52,22 @@ export function ShiftNoteEditor({
         exists to prevent. An accent rule down the left edge and a tinted strip
         across the top say "not the morning round" before anything is read.
       */}
-      <div className="mx-4 mt-2 overflow-hidden rounded-lg border border-accent/40 border-l-4 border-l-accent">
-        <div className="flex items-center gap-2 bg-accent/10 px-3 py-1.5">
+      {/*
+        No `overflow-hidden` on this frame.
+        
+        It was there to keep the header strip inside the rounded corners, and
+        it broke the editor: `position: sticky` cannot escape a clipping
+        ancestor, so the toolbar — which is `sticky bottom-0` inside
+        `BodyEditor` — stopped following the viewport and parked on the frame's
+        bottom edge, sitting on top of the last lines of the note. That is the
+        "cut off at the bottom" here; the text was never missing, it was
+        underneath the toolbar.
+        
+        The header keeps its own rounded top corners instead, which costs one
+        class and clips nothing.
+      */}
+      <div className="mx-4 mt-2 rounded-lg border border-accent/40 border-l-4 border-l-accent">
+        <div className="flex items-center gap-2 rounded-t-md bg-accent/10 px-3 py-1.5">
           <button
             type="button"
             onClick={onBack}

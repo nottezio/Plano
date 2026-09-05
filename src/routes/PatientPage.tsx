@@ -776,6 +776,19 @@ export default function PatientPage(): JSX.Element {
             today={today}
             datesWithContent={datesWithContent}
             onSelect={goToDate}
+            /**
+             * The phone strip gets jaga notes too.
+             *
+             * Without these it rendered days only, so a jaga note written on
+             * the phone could not be reopened on the phone — it existed and it
+             * synced, and the only way back to it was a laptop.
+             */
+            shiftNotesByDate={entryDates.shiftNotesByDate}
+            selectedShiftNoteId={selectedShiftNoteId}
+            onSelectShiftNote={(date, id) => {
+              if (date !== selected) goToDate(date);
+              setSelectedShiftNoteId(id);
+            }}
           />
         </div>
 
@@ -974,11 +987,20 @@ export default function PatientPage(): JSX.Element {
         />
       ) : null}
 
+      {/*
+        Same rule as the opening sheet: it rewrites the note on screen.
+        
+        Reformatting a jaga note while it wrote the morning SOAP would have
+        been the same silent cross-write.
+      */}
       <ReformatSheet
         open={reformatOpen}
         onOpenChange={setReformatOpen}
-        body={editor.value}
-        onApply={editor.setValue}
+        body={activeShiftNote ? activeShiftNote.body : editor.value}
+        onApply={(next) => {
+          if (activeShiftNote) shiftNotes.setBody(activeShiftNote.id, next);
+          else editor.setValue(next);
+        }}
       />
 
       {/*
@@ -1148,12 +1170,22 @@ export default function PatientPage(): JSX.Element {
       <OpeningSheet
         open={openingOpen}
         onOpenChange={setOpeningOpen}
-        body={editor.value}
+        /**
+         * Reads and writes whichever note is OPEN.
+         *
+         * It was wired to `editor` unconditionally, so changing the pembuka
+         * while a jaga note was on screen rewrote the morning SOAP instead —
+         * silently, against a note that was not even visible. Every toolbar
+         * action on this page has to ask the same question the editor does:
+         * which note am I looking at.
+         */
+        body={activeShiftNote ? activeShiftNote.body : editor.value}
         greetings={settings.greetings}
         openingSentences={settings.openingSentences}
         closingSentences={settings.closingSentences}
         onApply={(next) => {
-          editor.setValue(next);
+          if (activeShiftNote) shiftNotes.setBody(activeShiftNote.id, next);
+          else editor.setValue(next);
           setOpeningOpen(false);
         }}
       />
