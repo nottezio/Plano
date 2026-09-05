@@ -2,6 +2,7 @@ import { Link } from 'react-router-dom';
 
 import { previewLines, type BoardCard } from '@/domain/board';
 import { ProgressStrip } from './ProgressStrip';
+import { IconEye } from '@/components/common/Icons';
 import { formatLocation } from '@/domain/identity';
 import { STAGE_LABELS, STAGE_TOKEN } from '@/domain/discharge';
 
@@ -19,6 +20,7 @@ export function PatientCard({
   selectable,
   checked,
   onToggleSelected,
+  onPreview,
 }: {
   card: BoardCard;
   onLongPress: (patientId: string) => void;
@@ -37,6 +39,8 @@ export function PatientCard({
   selectable?: boolean;
   checked?: boolean;
   onToggleSelected?: ((patientId: string) => void) | undefined;
+  /** Opens the read-only note preview. Absent while selecting. */
+  onPreview?: ((patientId: string) => void) | undefined;
 }): JSX.Element {
   const { patient, progress } = card;
   const lines = previewLines(card.preview);
@@ -132,7 +136,46 @@ export function PatientCard({
             <span aria-hidden="true">⠿</span>
           </button>
         ) : null}
+        {/*
+          A dot, not a word.
+          
+          The card is scanned, not read, and a "Pemantauan" label would take a
+          line from the note preview — which is the part that tells you whether
+          the patient needs looking at at all. A filled marker beside the name
+          is visible in peripheral vision, which is what a watch flag is for.
+        */}
+        {card.pemantauan ? (
+          <span
+            aria-label="Dalam pemantauan"
+            title="Dalam pemantauan"
+            className="mt-1.5 h-2 w-2 shrink-0 rounded-full bg-current opacity-80"
+          />
+        ) : null}
         <h3 className="min-w-0 flex-1 truncate text-sm font-semibold">{card.title}</h3>
+
+        {/*
+          Its own small target, not a gesture on the card.
+          
+          The card is already a link, a long-press and — in custom order — a
+          drag handle. A fourth gesture would have to win a race against three
+          others, and losing that race opens a chart you did not ask for.
+        */}
+        {onPreview ? (
+          <button
+            type="button"
+            aria-label={`Pratinjau catatan ${card.title}`}
+            onClick={(event) => {
+              // The card is a `<Link>`; without this the preview opens and the
+              // route changes underneath it.
+              event.preventDefault();
+              event.stopPropagation();
+              onPreview(patient.id);
+            }}
+            className="-my-1 -mr-1 min-h-tap min-w-tap shrink-0 text-token-fg/50"
+          >
+            <IconEye className="mx-auto" width={16} height={16} />
+          </button>
+        ) : null}
         {/* Consultant initials, read from the note's DPJP line. Initials
             rather than a name because the card has one line for it and a
             resident reads these as a set. */}
@@ -179,10 +222,15 @@ export function PatientCard({
       <p className="mt-0.5 text-[11px] opacity-70">
         {formatLocation(patient) || 'Lokasi belum diisi'}
       </p>
-      <p className="text-[11px] opacity-60">
-        Hari rawat ke-{card.hariRawat}
-        {card.chief ? ` · Chief ${card.chief}` : ''}
-      </p>
+      {/*
+        Hari rawat removed from the card.
+        
+        It is the same count the header setting already made optional, and on a
+        board it earns even less: you are scanning for WHO and WHERE, and the
+        admission-day number is not something any decision on this screen turns
+        on. The chief stays, because that is who you hand the note to.
+      */}
+      {card.chief ? <p className="text-[11px] opacity-60">Chief {card.chief}</p> : null}
 
       {lines.length > 0 ? (
         <p className="mt-2 whitespace-pre-line text-xs leading-relaxed opacity-90">

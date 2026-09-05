@@ -134,3 +134,11 @@ export const IconTrash = (props: IconProps): JSX.Element => (
     <path d="M6 7l1 12a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1l1-12" />
   </Base>
 );
+
+/** Preview. An eye, for reading without opening. */
+export const IconEye = (props: IconProps): JSX.Element => (
+  <Base {...props}>
+    <path d="M2 12s3.5-6 10-6 10 6 10 6-3.5 6-10 6-10-6-10-6Z" />
+    <circle cx="12" cy="12" r="2.5" />
+  </Base>
+);

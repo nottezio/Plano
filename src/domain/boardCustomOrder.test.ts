@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { orderPatients, reorderBoard } from './board';
+import { buildCard, orderPatients, reorderBoard } from './board';
 import { makePatient } from './testFactories';
 
 const A = makePatient({ id: 'a', name: 'A' });
@@ -54,5 +54,27 @@ describe('reorderBoard', () => {
 
   it('ignores a card that is no longer on the board', () => {
     expect(reorderBoard([A, B, C], 'gone', 'a')).toEqual(['a', 'b', 'c']);
+  });
+});
+
+describe('pemantauan', () => {
+  it('reaches the card as a boolean', () => {
+    const watched = makePatient({ id: 'w', name: 'W', pemantauan: true });
+    expect(buildCard(watched, [], '2026-09-04', false).pemantauan).toBe(true);
+  });
+
+  it('is false when the field has never been set', () => {
+    // Optional on the type, so every patient written before it existed lacks
+    // it — absence must read as "not watched", not as undefined leaking into
+    // the card.
+    const plain = makePatient({ id: 'p', name: 'P' });
+    expect(buildCard(plain, [], '2026-09-04', false).pemantauan).toBe(false);
+  });
+
+  it('does not change where the card sits', () => {
+    // `pinned` decides position; this decides nothing but the marker.
+    const watched = makePatient({ id: 'w', name: 'W', pemantauan: true });
+    const plain = makePatient({ id: 'p', name: 'P' });
+    expect(orderPatients([plain, watched], 'recent').map((x) => x.id)).toEqual(['p', 'w']);
   });
 });

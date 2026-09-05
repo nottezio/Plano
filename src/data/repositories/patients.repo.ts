@@ -300,6 +300,7 @@ type PatientPatchKey = keyof Pick<
   | 'diagnoses'
   | 'labels'
   | 'pinned'
+  | 'pemantauan'
   | 'temporary'
   | 'chief'
   | 'discharge'

@@ -89,6 +89,19 @@ export function PatientActionsSheet({
           />
         ) : null}
 
+        {/*
+          Above pinning, because it says something about the PATIENT while
+          pinning only says where their card sits.
+        */}
+        <Action
+          label={patient.pemantauan ? 'Selesai pemantauan' : 'Tandai pemantauan'}
+          detail="Menandai kartu pasien di papan."
+          onClick={() => {
+            void updatePatient(patient.id, { pemantauan: !patient.pemantauan });
+            close();
+          }}
+        />
+
         <Action
           label={patient.pinned ? 'Lepas sematan' : 'Sematkan di papan'}
           onClick={() => {

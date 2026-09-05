@@ -168,6 +168,46 @@ export function BodyEditor({
     };
   }, [resize]);
 
+  /**
+   * Bring the caret into view, without moving the page when it already is.
+   *
+   * The caret's position is measured against the scroll container rather than
+   * the textarea, because the textarea does not scroll — it is autosized and
+   * the page scrolls around it, so `scrollIntoView` on the element would jump
+   * to the top of the whole note.
+   *
+   * A mirror is not needed for this: the selection is at a known offset, and
+   * scrolling to roughly the right line is enough for "show me what changed".
+   * Being a line out is unimportant; being on the wrong screen is not.
+   */
+  const revealCaret = useCallback((node: HTMLTextAreaElement) => {
+    const scroller = node.closest('main');
+    if (!scroller) return;
+
+    const style = window.getComputedStyle(node);
+    const lineHeight = Number.parseFloat(style.lineHeight) || 28;
+    const linesBefore = node.value.slice(0, node.selectionStart).split('\n').length - 1;
+
+    const caretTop =
+      node.getBoundingClientRect().top -
+      scroller.getBoundingClientRect().top +
+      scroller.scrollTop +
+      linesBefore * lineHeight;
+
+    const viewTop = scroller.scrollTop;
+    const viewBottom = viewTop + scroller.clientHeight;
+
+    // Already on screen, with a line of margin: leave the page alone.
+    if (caretTop > viewTop + lineHeight && caretTop < viewBottom - lineHeight * 2) return;
+
+    // A third of the way down, not at the very top: an edit with no context
+    // above it is hard to recognise as the thing you just undid.
+    scroller.scrollTo({
+      top: Math.max(0, caretTop - scroller.clientHeight / 3),
+      behavior: 'smooth',
+    });
+  }, []);
+
   const applyEdit = useCallback(
     (edit: TextEdit) => {
       onChange(edit.text);
@@ -243,7 +283,26 @@ export function BodyEditor({
         <textarea
           ref={ref}
           value={value}
-          onChange={(event) => onChange(event.target.value)}
+          onChange={(event) => {
+            onChange(event.target.value);
+
+            /**
+             * Scroll an undo or redo into view.
+             *
+             * Native textarea history moves the caret to the edit it reverted,
+             * but nothing scrolls there — so undoing a change made further up a
+             * long note silently altered text the user could not see, which is
+             * the one situation where you most need to check what happened.
+             *
+             * `inputType` is how the browser reports WHY the value changed, so
+             * this fires only for history and not for ordinary typing, where
+             * chasing the caret would fight the page.
+             */
+            const how = (event.nativeEvent as InputEvent).inputType;
+            if (how === 'historyUndo' || how === 'historyRedo') {
+              revealCaret(event.currentTarget);
+            }
+          }}
           /**
            * A dropped link is not an edit anyone meant to make.
            *

@@ -7,6 +7,7 @@ import { DenahView } from '@/components/board/DenahView';
 import { LabSheet } from '@/components/patient/LabSheet';
 import { copyText } from '@/lib/clipboard';
 import { PatientCard } from '@/components/board/PatientCard';
+import { PatientPreviewSheet } from '@/components/board/PatientPreviewSheet';
 import { QuickChecklistSheet } from '@/components/board/QuickChecklistSheet';
 import { IconSearch } from '@/components/common/Icons';
 import { useClinicalToday } from '@/hooks/useClinicalToday';
@@ -169,6 +170,9 @@ export default function BoardPage(): JSX.Element {
    * opening a patient, and a permanent checkbox on each card both crowds it
    * and puts a destructive target next to the one you tap all day.
    */
+  /** The patient whose note is being previewed, or null. */
+  const [previewId, setPreviewId] = useState<string | null>(null);
+
   const [selecting, setSelecting] = useState(false);
   const [selected, setSelected] = useState<ReadonlySet<string>>(new Set());
 
@@ -321,6 +325,7 @@ export default function BoardPage(): JSX.Element {
   ]);
 
   const quickPatient = patients.find((patient) => patient.id === quickPatientId) ?? null;
+  const previewPatient = patients.find((patient) => patient.id === previewId) ?? null;
   const filtering = hasActiveFilters({ ...filters, query: debouncedQuery });
 
   return (
@@ -528,6 +533,10 @@ export default function BoardPage(): JSX.Element {
                       selectable={selecting}
                       checked={selected.has(card.patient.id)}
                       onToggleSelected={toggleSelected}
+                      // Not offered while selecting: in that mode a tap means
+                      // "tick this", and a second meaning on the same card is
+                      // how the wrong one gets ticked.
+                      onPreview={selecting ? undefined : setPreviewId}
                     />
                   ))}
                 </div>
@@ -571,6 +580,14 @@ export default function BoardPage(): JSX.Element {
         onOpenChange={setLabOpen}
         date={today}
         onInsert={(text) => void copyText(text)}
+      />
+
+      <PatientPreviewSheet
+        patient={previewPatient}
+        today={today}
+        onOpenChange={(open) => {
+          if (!open) setPreviewId(null);
+        }}
       />
 
       <QuickChecklistSheet

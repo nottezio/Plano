@@ -163,12 +163,48 @@ export default function NotePage(): JSX.Element {
     setActiveId(id);
   };
 
+  /**
+   * The title, held locally while typing and written on a pause.
+   *
+   * Every keystroke used to write the WHOLE notes array to Firestore, and the
+   * input read its value back from that round trip — so each character waited
+   * on a network write before it appeared, and the caret jumped whenever a
+   * snapshot landed mid-word. On ward wifi that is the lag.
+   *
+   * `null` means "not being edited", so the input falls back to the stored
+   * title and a rename made on another device still shows up.
+   */
+  const [titleDraft, setTitleDraft] = useState<string | null>(null);
+  const titleTimer = useRef<number | undefined>(undefined);
+
+  const commitTitle = useCallback(
+    (title: string) => {
+      if (!uid || !active) return;
+      void updateScratchNotes(
+        uid,
+        notes.map((note) => (note.id === active.id ? { ...note, title } : note)),
+      ).catch((error: unknown) => console.error('[catatan] could not rename', error));
+    },
+    [uid, active, notes],
+  );
+
   const renameNote = (title: string): void => {
-    if (!uid || !active) return;
-    void updateScratchNotes(
-      uid,
-      notes.map((note) => (note.id === active.id ? { ...note, title } : note)),
-    ).catch((error: unknown) => console.error('[catatan] could not rename', error));
+    setTitleDraft(title);
+    window.clearTimeout(titleTimer.current);
+    titleTimer.current = window.setTimeout(() => {
+      commitTitle(title);
+      // Back to the stored value once the write is out, so a later remote
+      // rename is not masked by a stale draft.
+      setTitleDraft(null);
+    }, 400);
+  };
+
+  /** Blur writes immediately: leaving the field is a finished edit. */
+  const flushTitle = (): void => {
+    if (titleDraft === null) return;
+    window.clearTimeout(titleTimer.current);
+    commitTitle(titleDraft);
+    setTitleDraft(null);
   };
 
   const deleteNote = (): void => {
@@ -207,6 +243,30 @@ export default function NotePage(): JSX.Element {
    * than was asked for. Painting a sentinel and unwrapping it removes exactly
    * the colour.
    */
+  /**
+   * Insert one checklist row at the caret.
+   *
+   * `insertHTML` rather than building nodes by hand: it splits whatever the
+   * caret is inside and puts the markup at the right depth, which is the part
+   * that is genuinely awkward to do manually in a contentEditable.
+   *
+   * The input carries `contenteditable="false"` so the caret cannot land
+   * inside the box itself, and a trailing space so there is somewhere to type.
+   * One row per press — a list grows by pressing Enter, the same as any other
+   * list here.
+   */
+  const insertChecklistItem = (): void => {
+    const node = ref.current;
+    if (!node) return;
+    node.focus();
+    document.execCommand(
+      'insertHTML',
+      false,
+      '<ul class="cl"><li><input type="checkbox" contenteditable="false">&nbsp;</li></ul>',
+    );
+    sync.setValue(node.innerHTML);
+  };
+
   const clearColor = (): void => {
     const node = ref.current;
     if (!node) return;
@@ -338,8 +398,9 @@ export default function NotePage(): JSX.Element {
         <div className="mb-2 flex items-center gap-2">
           <input
             type="text"
-            value={active?.title ?? ''}
+            value={titleDraft ?? active?.title ?? ''}
             onChange={(event) => renameNote(event.target.value)}
+            onBlur={flushTitle}
             placeholder="Judul catatan"
             className="min-h-tap min-w-0 flex-1 rounded-lg border border-transparent bg-transparent px-2 text-sm font-medium outline-none focus:border-border"
           />
@@ -372,6 +433,9 @@ export default function NotePage(): JSX.Element {
           </ToolButton>
           <ToolButton label="Daftar" onClick={() => apply('insertUnorderedList')}>
             •
+          </ToolButton>
+          <ToolButton label="Checklist" onClick={insertChecklistItem}>
+            ☑
           </ToolButton>
 
           <span aria-hidden="true" className="mx-1 h-5 w-px bg-border" />
@@ -423,8 +487,32 @@ export default function NotePage(): JSX.Element {
           spellCheck
           lang=""
           onInput={(event) => sync.setValue(event.currentTarget.innerHTML)}
+          /**
+           * Ticking a checklist box.
+           *
+           * `change` is used rather than `click` so keyboard toggling works
+           * too, and it is caught on the container because the boxes come and
+           * go as the note is edited — binding to each one would mean
+           * rebinding on every keystroke.
+           *
+           * The ATTRIBUTE is written, not just the property. `innerHTML` — how
+           * this note is stored — serialises attributes and ignores properties,
+           * so a box ticked without this would appear ticked until the page
+           * reloaded and then be blank again.
+           */
+          onChange={(event) => {
+            const target = event.target as HTMLElement;
+            if (!(target instanceof HTMLInputElement) || target.type !== 'checkbox') return;
+            if (target.checked) target.setAttribute('checked', '');
+            else target.removeAttribute('checked');
+            sync.setValue(event.currentTarget.innerHTML);
+          }}
           onBlur={sync.flush}
-          className="min-h-[55vh] flex-1 rounded-lg border border-border bg-surface p-3 text-[15px] leading-7 outline-none [&_ul]:list-disc [&_ul]:pl-5"
+          /**
+           * `ul.cl` is the checklist list: no bullet, because each row already
+           * carries a box, and two markers per line reads as a mistake.
+           */
+          className="min-h-[55vh] flex-1 rounded-lg border border-border bg-surface p-3 text-[15px] leading-7 outline-none [&_ul.cl]:list-none [&_ul.cl]:pl-0 [&_ul.cl_input]:mr-2 [&_ul:not(.cl)]:list-disc [&_ul:not(.cl)]:pl-5"
         />
 
         <p className="pt-2 text-[11px] text-fg-faint">

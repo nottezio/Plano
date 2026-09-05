@@ -315,6 +315,18 @@ export interface Patient {
   labels: string[];
   pinned: boolean;
   /**
+   * Under closer watch than the rest of the round.
+   *
+   * A flag on the patient rather than a checklist item, because it is a state
+   * that persists across days — a checklist item is a task with a completion,
+   * and "pemantauan" is not finished at the end of a shift, it is simply true
+   * until it is not.
+   *
+   * Distinct from `pinned`, which is about where the card SITS. This is about
+   * the patient, and it survives whatever order the board is in.
+   */
+  pemantauan?: boolean;
+  /**
    * Held temporarily — someone else's patient, covered on a shift.
    *
    * A flag rather than a separate collection: they are ordinary patients with
