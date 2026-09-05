@@ -37,6 +37,8 @@ export function BodyEditor({
   tint = false,
   readOnly,
   placeholder,
+  snippets = true,
+  minHeightClass = 'min-h-[55vh]',
 }: {
   value: string;
   onChange: (next: string) => void;
@@ -53,6 +55,15 @@ export function BodyEditor({
   /** Tint section headers; off unless the user turned it on. */
   tint?: boolean;
   readOnly: boolean;
+  /**
+   * Offer the clinical snippet menu.
+   *
+   * Off for a jaga note: an admission anamnesis block does not belong in a
+   * short out-of-hours review.
+   */
+  snippets?: boolean;
+  /** Opening height. A jaga note is short and does not need half the screen. */
+  minHeightClass?: string;
   placeholder: string;
 }): JSX.Element {
   const ref = useRef<HTMLTextAreaElement>(null);
@@ -60,7 +71,6 @@ export function BodyEditor({
   // Auto-grow: the page scrolls, the textarea never does. A nested scroll
   // region on a phone is how you lose your place mid-round.
   // Length at the last measurement, to tell growth from deletion.
-  const lastLength = useRef(0);
   const [focused, setFocused] = useState(false);
 
   const resize = useCallback(() => {
@@ -97,15 +107,27 @@ export function BodyEditor({
      * first, so the measurement is one pass instead of two and no scroll
      * restoration is needed either.
      */
-    const grew = node.value.length >= lastLength.current;
-    lastLength.current = node.value.length;
-
-    if (grew) {
-      const needed = `${node.scrollHeight}px`;
-      if (node.style.height !== needed) node.style.height = needed;
-      return;
-    }
-
+    /**
+     * ALWAYS collapse before measuring.
+     *
+     * There used to be a fast path here: when the text had grown, read
+     * `scrollHeight` without collapsing first. That is wrong, and it is the
+     * cut-off note.
+     *
+     * `scrollHeight` reports the content height as laid out INSIDE the current
+     * box. With `overflow: hidden` and an explicit `height`, a browser has no
+     * obligation to report more than that — so a box 400 px tall handed 900 px
+     * of text reports something near 400, grows to 400, and the rest is simply
+     * gone. It looked fine while typing, because one more line at a time keeps
+     * the number honest; it broke on the operations that add a lot at once:
+     * carry-forward, a snippet, a paste.
+     *
+     * Collapsing to 0 first makes the measurement unconditional — the content
+     * is laid out with no height to be clamped by, so `scrollHeight` is the
+     * height it actually needs. That is two layout passes instead of one, and
+     * the scroll restoration below exists to keep it invisible. Correct and
+     * slightly slower beats fast and truncating a clinical note.
+     */
     const previous = node.style.height;
     node.style.height = '0px';
     const next = `${node.scrollHeight}px`;
@@ -369,7 +391,7 @@ export function BodyEditor({
            * not, and the two boxes behaved differently for no reason anybody
            * chose.
            */
-          className={`${METRICS} relative w-full resize-none overflow-hidden border-0 bg-transparent outline-none placeholder:text-fg-faint read-only:opacity-70`}
+          className={`${METRICS} ${minHeightClass} relative w-full resize-none overflow-hidden border-0 bg-transparent outline-none placeholder:text-fg-faint read-only:opacity-70`}
           lang=""
           rows={12}
         />
@@ -398,13 +420,19 @@ export function BodyEditor({
           }
           onBullet={() => withSelection(toggleBullet)}
           onNumbered={() => withSelection(toggleNumbered)}
-          onInsertSnippet={(snippetId) => {
+          onInsertSnippet={
+            snippets
+              ? (snippetId) => {
             const snippet = SNIPPETS.find((entry) => entry.id === snippetId);
             if (!snippet) return;
             // `date` is the note's clinical day, not today: a note written
             // after midnight for the previous day carries that day's date.
-            withSelection((text, start) => insertSnippet(text, start, snippet.build(date)));
-          }}
+                  withSelection((text, start) =>
+                    insertSnippet(text, start, snippet.build(date)),
+                  );
+                }
+              : undefined
+          }
         />
       </div>
     </div>

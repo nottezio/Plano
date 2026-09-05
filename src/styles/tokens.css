@@ -31,6 +31,15 @@
   --fg-faint: #8b95a1;
   --accent: #0d6efd;
   --danger: #dc2626;
+  /**
+   * Pemantauan — a patient under closer watch.
+   *
+   * Amber rather than the accent, which already means "selected" on the board,
+   * and rather than danger, which means an irreversible action. This is a
+   * standing state, not an alarm and not a control.
+   */
+  --warn-strong: #d97706;
+  --warn-soft: #fbbf2455;
   --focus-ring: #2563eb;
   --overlay: rgb(11 15 20 / 45%);
 
@@ -111,6 +120,9 @@
   --fg-faint: #6f7d8b;
   --accent: #5b9cff;
   --danger: #f87171;
+  /* Lifted for dark mode: amber at #d97706 disappears against a dark card. */
+  --warn-strong: #fbbf24;
+  --warn-soft: #f59e0b40;
   --focus-ring: #5b9cff;
   --overlay: rgb(0 0 0 / 62%);
 

@@ -904,6 +904,7 @@ export default function PatientPage(): JSX.Element {
             note={activeShiftNote}
             readOnly={locked}
             aliases={settings.sectionAliases}
+            date={selected}
             tint={settings.sectionTint}
             onChange={(body) => shiftNotes.setBody(activeShiftNote.id, body)}
             onBlur={shiftNotes.flush}

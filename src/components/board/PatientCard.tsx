@@ -90,6 +90,23 @@ export function PatientCard({
         // owning a live preview of the whole list mid-gesture; fading says
         // which one is in hand and lets the drop do the rearranging.
         dragging ? 'opacity-40' : '',
+        /**
+         * Pemantauan reads on the card's EDGE, not as a mark inside it.
+         *
+         * A dot beside the name was the first attempt and it disappeared into
+         * the card — the cards already carry a colour, a title, a location and
+         * a preview, and one more small thing among them is not something the
+         * eye catches while scanning. A striped left edge changes the card's
+         * silhouette, which is what actually registers at a glance down a
+         * column of twenty.
+         *
+         * Warning colours rather than the accent: the accent already means
+         * "selected" here, and a flag that shares a colour with a state is a
+         * flag you have to think about.
+         */
+        card.pemantauan
+          ? 'border-l-4 border-l-[var(--warn-strong)] ring-1 ring-inset ring-[var(--warn-soft)]'
+          : '',
       ].join(' ')}
       style={
         // A left edge rather than a different card colour: the card colour
@@ -135,21 +152,6 @@ export function PatientCard({
           >
             <span aria-hidden="true">⠿</span>
           </button>
-        ) : null}
-        {/*
-          A dot, not a word.
-          
-          The card is scanned, not read, and a "Pemantauan" label would take a
-          line from the note preview — which is the part that tells you whether
-          the patient needs looking at at all. A filled marker beside the name
-          is visible in peripheral vision, which is what a watch flag is for.
-        */}
-        {card.pemantauan ? (
-          <span
-            aria-label="Dalam pemantauan"
-            title="Dalam pemantauan"
-            className="mt-1.5 h-2 w-2 shrink-0 rounded-full bg-current opacity-80"
-          />
         ) : null}
         <h3 className="min-w-0 flex-1 truncate text-sm font-semibold">{card.title}</h3>
 
