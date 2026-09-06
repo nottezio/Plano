@@ -178,6 +178,39 @@ export const SEED_OPENING_SENTENCES: readonly string[] = [
       'Tabe dokter, mohon izin melapor perpindahan pasien *KJS TS (Bagian) ((Nama DPJP)) dari (Ruang asal) bed (no)* ke *(Ruang tujuan) Kamar (no) bed (no)* atas nama :',
 ];
 
+/**
+ * Exported like the other seed lists, rather than written inline in
+ * `defaultUserSettings`.
+ *
+ * Seed reconciliation needs to compare a profile against the seeds as a value,
+ * and a list that only exists inside the defaults factory cannot be compared
+ * to anything. It was the one seeded list still hidden there.
+ */
+export const SEED_CLOSING_SENTENCES: readonly string[] = [
+  'Selanjutnya mohon arahan dokter. Terima kasih dokter',
+  'Selanjutnya mohon arahannya dokter. Terima kasih dokter',
+  'Selanjutnya mohon arahan Prof. Terima kasih Prof',
+  'Mohon arahanta Prof, terima kasih Prof',
+  'Tabe dokter, selanjutnya mohon arahannya dok. Terima kasih dok.',
+  'Tabe terimakasih dokter',
+] as const;
+
+/** The seeds as this build ships them, for `reconcileSeeds`. */
+export const SEED_SNAPSHOT = {
+  get noteTemplates() {
+    return SEED_NOTE_TEMPLATES;
+  },
+  get greetings() {
+    return SEED_GREETINGS;
+  },
+  get openingSentences() {
+    return SEED_OPENING_SENTENCES;
+  },
+  get closingSentences() {
+    return SEED_CLOSING_SENTENCES;
+  },
+};
+
 export const SEED_NOTE_TEMPLATES: readonly NoteTemplate[] = [
       { id: 'followup', order: 1, name: 'Follow-up harian', body: FOLLOWUP_BODY },
       { id: 'followup-dx', order: 2, name: 'Follow-up (Dx primer/sekunder)', body: FOLLOWUP_DX_BODY },
@@ -228,14 +261,7 @@ export function defaultUserSettings(): UserSettings {
      * text — a leftover placeholder is obvious in a sent message, a leftover
      * blank is not.
      */
-    closingSentences: [
-      'Selanjutnya mohon arahan dokter. Terima kasih dokter',
-      'Selanjutnya mohon arahannya dokter. Terima kasih dokter',
-      'Selanjutnya mohon arahan Prof. Terima kasih Prof',
-      'Mohon arahanta Prof, terima kasih Prof',
-      'Tabe dokter, selanjutnya mohon arahannya dok. Terima kasih dok.',
-      'Tabe terimakasih dokter',
-    ],
+    closingSentences: [...SEED_CLOSING_SENTENCES],
     openingSentences: [...SEED_OPENING_SENTENCES],
     /**
      * Seeded with the one binding that is known: Az Hafid Nashar's handovers

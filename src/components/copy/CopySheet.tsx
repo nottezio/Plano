@@ -17,6 +17,11 @@ import {
 import { formatDayNoWeekday } from '@/domain/clinicalDate';
 import { composeInvasif } from '@/domain/format/composeInvasif';
 import { composeKonsul } from '@/domain/format/composeKonsul';
+import {
+  KONSUL_CUSTOM_ID,
+  KONSUL_PRESETS,
+  konsulPresetById,
+} from '@/domain/format/konsulPresets';
 import { composeShiftNote } from '@/domain/format/composeShiftNote';
 import { composePdfReport } from '@/domain/format/pdfReport';
 import { describeConfig, primaryDpjp } from '@/domain/dpjp';
@@ -161,8 +166,23 @@ export function CopySheet({
   const pdfMode = shape === 'ringkas';
 
   /**
+   * Which referral this is.
+   *
+   * The two presets carry their own message shape; `Lainnya` falls back to the
+   * free-text purpose and the manual checkbox, which is how this worked
+   * before. Defaulting to 6MWT rather than to `Lainnya` keeps the sheet
+   * opening on the same referral it always did.
+   */
+  const [konsulPresetId, setKonsulPresetId] = useState<string>('6mwt');
+  const konsulPreset = konsulPresetById(konsulPresetId);
+
+  /**
    * What the konsul is for. Free text, because the list of things a patient
    * gets referred for is not one this app should be deciding.
+   *
+   * Only read when no preset is selected — a preset supplies its own wording,
+   * and leaving this editable underneath one would show a value that is not
+   * the value being used.
    */
   const [konsulPurpose, setKonsulPurpose] = useState('6MWT');
   /**
@@ -171,8 +191,24 @@ export function CopySheet({
    * A checkbox on the konsul rather than a fourth chip: it is the same
    * document with a different framing, and a separate shape would imply the
    * body differs too.
+   *
+   * Still here, and still manual, for `Lainnya`. A referral we have not met
+   * yet may well be a list, and the preset table is not the place to guess at
+   * which ones.
    */
   const [konsulList, setKonsulList] = useState(false);
+
+  /**
+   * What actually reaches the composer.
+   *
+   * Derived rather than written into the two state variables when the dropdown
+   * changes. Writing them would leave the typed purpose overwritten the moment
+   * a preset was picked, so switching to `Lainnya` and back would have lost it
+   * — and the state would carry a value the user could no longer see.
+   */
+  const konsulEffective = konsulPreset
+    ? { purpose: konsulPreset.purpose, listStyle: konsulPreset.listStyle }
+    : { purpose: konsulPurpose, listStyle: konsulList };
 
   /**
    * Procedure, date and payer for the invasive group message.
@@ -318,8 +354,8 @@ export function CopySheet({
           // its own contents, and letting the section chips subtract from it
           // would produce a referral missing its diagnosis.
           composeKonsul(body, patient, aliases, {
-            purpose: konsulPurpose,
-            listStyle: konsulList,
+            purpose: konsulEffective.purpose,
+            listStyle: konsulEffective.listStyle,
             listFrom: patient.ward ?? '',
             listDate: formatDayNoWeekday(date),
           })
@@ -352,8 +388,8 @@ export function CopySheet({
       activeShiftNote,
       bullet,
       pdfMode,
-      konsulPurpose,
-      konsulList,
+      konsulEffective.purpose,
+      konsulEffective.listStyle,
       invasifProcedure,
       invasifWhen,
       invasifPayer,
@@ -684,24 +720,57 @@ export function CopySheet({
 
       {shape === 'konsul' ? (
         <div className="mb-4">
-          <label className="mb-1 block text-[11px] text-fg-muted" htmlFor="konsul-purpose">
+          <label className="mb-1 block text-[11px] text-fg-muted" htmlFor="konsul-preset">
             Konsul untuk
           </label>
-          <input
-            id="konsul-purpose"
-            value={konsulPurpose}
-            onChange={(event) => setKonsulPurpose(event.target.value)}
-            placeholder="6MWT"
+          <select
+            id="konsul-preset"
+            value={konsulPresetId}
+            onChange={(event) => setKonsulPresetId(event.target.value)}
             className="min-h-tap w-full rounded-lg border border-border bg-surface px-3 text-sm outline-none"
-          />
-          <label className="mt-2 flex min-h-tap items-center gap-2 text-xs text-fg">
-            <input
-              type="checkbox"
-              checked={konsulList}
-              onChange={(event) => setKonsulList(event.target.checked)}
-            />
-            Kirim sebagai list pasien (mis. Echocardiography full study)
-          </label>
+          >
+            {KONSUL_PRESETS.map((preset) => (
+              <option key={preset.id} value={preset.id}>
+                {preset.label}
+              </option>
+            ))}
+            <option value={KONSUL_CUSTOM_ID}>Lainnya…</option>
+          </select>
+
+          {/*
+            The preset's shape is stated, not implied.
+
+            Choosing the reason now also chooses whether this goes out as a
+            letter or as a numbered list entry. That is the point of the
+            preset, but a choice made on the user's behalf and left invisible
+            is one they cannot check — and the two shapes are not obviously
+            different until the message is already in the chat.
+          */}
+          {konsulPreset ? (
+            <p className="mt-1 text-[11px] text-fg-faint">{konsulPreset.note}</p>
+          ) : (
+            <>
+              <label className="mb-1 mt-2 block text-[11px] text-fg-muted" htmlFor="konsul-purpose">
+                Tulis tujuan konsul
+              </label>
+              <input
+                id="konsul-purpose"
+                value={konsulPurpose}
+                onChange={(event) => setKonsulPurpose(event.target.value)}
+                placeholder="mis. 6MWT"
+                className="min-h-tap w-full rounded-lg border border-border bg-surface px-3 text-sm outline-none"
+              />
+              <label className="mt-2 flex min-h-tap items-center gap-2 text-xs text-fg">
+                <input
+                  type="checkbox"
+                  checked={konsulList}
+                  onChange={(event) => setKonsulList(event.target.checked)}
+                />
+                Kirim sebagai list pasien bernomor
+              </label>
+            </>
+          )}
+
           <p className="mt-1 text-[11px] text-fg-faint">
             Identitas, DPJP, diagnosis, TB dan BB diambil apa adanya dari catatan hari
             ini. S, O, terapi, dan plan tidak disertakan.

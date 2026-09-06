@@ -108,10 +108,10 @@ ${VITALS}
 Diagnosis Primer : 
 - 
 
-*Diagnosis Sekunder :*
+Diagnosis Sekunder : 
 - 
 
-*Problem :*
+Problem : 
 - 
 
 ${THERAPY_AND_PLAN}

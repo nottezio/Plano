@@ -121,6 +121,14 @@ export interface UserSettings {
    * every time a consultant changes how they want a handover written.
    */
   noteTemplates: NoteTemplate[];
+  /**
+   * The seed snapshot these settings were last reconciled against.
+   *
+   * Optional because profiles written before seed reconciliation existed do
+   * not have one; `reconcileSeeds` records the current seeds on its first run
+   * for those, and merges properly from then on.
+   */
+  seedBaseline?: SeedBaseline;
   /** Salam presets — swapped on an existing note, per SPEC 14. */
   greetings: string[];
   /** Reporting-sentence presets ("mohon izin melaporkan …"). */
@@ -224,6 +232,8 @@ export interface SavedChecklist {
   /** Item ids currently ticked. */
   done: string[];
 }
+
+import type { SeedBaseline } from './seedSync';
 
 export interface NoteTemplate {
   id: string;

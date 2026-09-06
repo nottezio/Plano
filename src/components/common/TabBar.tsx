@@ -218,6 +218,16 @@ export function TabBar(): JSX.Element {
               <span className="ml-1 text-fg-faint">({hint.period})</span>
             </p>
           ) : null}
+          {/*
+            The clinic after next, dimmer and on its own line.
+
+            Knowing only the next one is not enough to plan a referral around:
+            when the next clinic is today or tomorrow, what decides whether a
+            patient can still be seen this week is the one after it.
+          */}
+          {hint.poliAfter ? (
+            <p className="leading-snug text-fg-faint">Lalu: {hint.poliAfter}</p>
+          ) : null}
         </div>
       ) : null}
 

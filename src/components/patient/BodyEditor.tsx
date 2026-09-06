@@ -81,6 +81,8 @@ export function BodyEditor({
   // region on a phone is how you lose your place mid-round.
   // Length at the last measurement, to tell growth from deletion.
   const [focused, setFocused] = useState(false);
+  /** Measured note height, driving how many watermark tiles are drawn. */
+  const [contentHeight, setContentHeight] = useState(0);
 
   const resize = useCallback(() => {
     const node = ref.current;
@@ -139,8 +141,20 @@ export function BodyEditor({
      */
     const previous = node.style.height;
     node.style.height = '0px';
-    const next = `${node.scrollHeight}px`;
+    const measured = node.scrollHeight;
+    const next = `${measured}px`;
     node.style.height = previous === next ? previous : next;
+
+    /**
+     * Published so the watermark can tile to the note's real height.
+     *
+     * Taken from the same measurement the autogrow already does, rather than a
+     * second one: counting newlines would have been the cheap way and it is
+     * the wrong way, because a wrapped line occupies two rows and contributes
+     * one newline. That undercount is what broke undo's scroll-into-view, and
+     * it would have left long paragraphs untiled here in exactly the same way.
+     */
+    setContentHeight((current) => (current === measured ? current : measured));
 
     if (scroller && scroller.scrollTop !== scrollTop) scroller.scrollTop = scrollTop;
   }, []);
@@ -354,17 +368,40 @@ export function BodyEditor({
         {watermark ? (
           <div
             aria-hidden="true"
-            className="pointer-events-none absolute inset-0 z-0 flex flex-col items-center justify-center overflow-hidden select-none"
+            className="pointer-events-none absolute inset-0 z-0 overflow-hidden select-none"
           >
-            <span className="max-w-full truncate px-4 text-center text-3xl font-bold uppercase tracking-wide text-fg opacity-[0.045]">
-              {watermark.name}
-            </span>
-            <span className="mt-1 text-xl font-semibold text-fg opacity-[0.045]">
-              {watermark.mrn}
-            </span>
-            <span className="mt-1 text-base font-medium text-fg opacity-[0.045]">
-              {watermark.date}
-            </span>
+            {/*
+              Tiled down the note, not centred once in it.
+
+              `justify-center` put a single block at the geometric middle of the
+              container. On anything longer than a screen that means the mark is
+              off-screen for almost all of the scroll — which is precisely when
+              it matters, because the risk this guards against is writing into
+              the wrong patient's note after scrolling away from the header.
+              A watermark you have to scroll to find is not a watermark.
+
+              Repeated elements rather than a repeating background image: the
+              colour has to come from `text-fg` so it tracks the theme, and an
+              inline SVG data URI would have to bake a literal colour in — which
+              `check:a11y` rejects, correctly.
+            */}
+            {Array.from({ length: watermarkTiles(contentHeight) }, (_, index) => (
+              <div
+                key={index}
+                className="flex flex-col items-center justify-center"
+                style={{ height: `${WATERMARK_PITCH}px` }}
+              >
+                <span className="max-w-full truncate px-4 text-center text-3xl font-bold uppercase tracking-wide text-fg opacity-[0.045]">
+                  {watermark.name}
+                </span>
+                <span className="mt-1 text-xl font-semibold text-fg opacity-[0.045]">
+                  {watermark.mrn}
+                </span>
+                <span className="mt-1 text-base font-medium text-fg opacity-[0.045]">
+                  {watermark.date}
+                </span>
+              </div>
+            ))}
           </div>
         ) : null}
         {/*
@@ -487,6 +524,7 @@ export function BodyEditor({
           disabled={readOnly}
           value={value}
           onReplace={onChange}
+          aliases={aliases}
           onBold={() => withSelection((text, start, end) => toggleWrap(text, start, end, BOLD))}
           onItalic={() =>
             withSelection((text, start, end) => toggleWrap(text, start, end, ITALIC))
@@ -510,4 +548,27 @@ export function BodyEditor({
       </div>
     </div>
   );
+}
+
+
+/**
+ * Vertical spacing between repeats.
+ *
+ * Wide enough that the mark reads as background rather than as ruled lines
+ * through the text, close enough that a tile is on screen at any scroll
+ * position on a phone — a phone viewport is roughly 600px of editor, so a
+ * pitch above that could leave a screenful with no mark on it at all.
+ */
+const WATERMARK_PITCH = 420;
+
+/**
+ * Always at least one, and one more than strictly fits.
+ *
+ * The extra tile covers the partial band at the bottom; without it the last
+ * screenful of a note is the one place the watermark is missing, which is the
+ * bug this replaced in miniature. Overflow is clipped by the parent, so a tile
+ * too many costs nothing.
+ */
+function watermarkTiles(height: number): number {
+  return Math.max(1, Math.ceil(height / WATERMARK_PITCH) + 1);
 }

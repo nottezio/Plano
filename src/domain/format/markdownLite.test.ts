@@ -205,3 +205,180 @@ describe('the iPhone asterisk bullet', () => {
     expect(normaliseBullets('Ceftriaxone 2*1 g')).toBe('Ceftriaxone 2*1 g');
   });
 });
+
+/**
+ * The emphasis rules, as Avi stated them against the real note format.
+ *
+ * Each block names the rule it locks down, because the previous version of
+ * this function held its own frozen list of heading regexes and drifted from
+ * the parser silently — the failure was invisible until a note came out with
+ * half its headings plain.
+ */
+describe('restoreEmphasis — confirmed rules', () => {
+  it('bolds the identity line', () => {
+    expect(restoreEmphasis('Tn. Basra / 12-03-1970 / 56 tahun / RM 1068190')).toBe(
+      '*Tn. Basra / 12-03-1970 / 56 tahun / RM 1068190*',
+    );
+  });
+
+  it('italicises the DPJP lines', () => {
+    expect(restoreEmphasis('DPJP Kardio: dr. Zaenab Djafar, Sp.JP(K)')).toBe(
+      '_DPJP Kardio: dr. Zaenab Djafar, Sp.JP(K)_',
+    );
+  });
+
+  it('italicises every line between the identity and the first clinical heading', () => {
+    /*
+     * A ZONE, not a vocabulary. The previous version matched sentences —
+     * `DPJP …`, `Pasien dikonsulkan untuk …`, `Rencana tindakan : …` — and was
+     * always going to be incomplete. `Post Tindakan`, `Pasien rujukan dari`
+     * and `Paska tindakan` are all in the corpus and none of them matched.
+     *
+     * Every seeded template puts the same kind of line here and nothing else:
+     * who is looking after this patient, and why they are in.
+     */
+    const body = [
+      'Assalamualaikum dokter.',
+      'Mohon izin melaporkan pasien di PJT Lantai 5 Kamar 517 Bed 3 atas nama:',
+      '',
+      'Tn. Basra / 12-03-1970 / 56 tahun / RM 1068190',
+      '',
+      'DPJP Utama dan Tindakan : dr. ZD',
+      'Post Tindakan : PCI (Senin, 10-08-2026)',
+      'Pasien rujukan dari RS Wahidin',
+      'Paska tindakan CABG hari ke-3',
+      'Rencana tindakan : PCI (Senin, 10-08-2026)',
+      '',
+      'S:',
+      '- Sesak berkurang',
+    ].join('\n');
+
+    const out = restoreEmphasis(body).split('\n');
+    // Above the identity line stays plain — the greeting and the reporting
+    // sentence are not context about the episode.
+    expect(out[0]).toBe('Assalamualaikum dokter.');
+    expect(out[1]).toBe(
+      'Mohon izin melaporkan pasien di PJT Lantai 5 Kamar 517 Bed 3 atas nama:',
+    );
+    expect(out[3]).toBe('*Tn. Basra / 12-03-1970 / 56 tahun / RM 1068190*');
+    for (const index of [5, 6, 7, 8, 9]) {
+      expect(out[index]).toMatch(/^_.+_$/);
+    }
+    expect(out[11]).toBe('*S:*');
+    expect(out[12]).toBe('- Sesak berkurang');
+  });
+
+  it('italicises the stock physical-exam sentence, which sits inside O', () => {
+    // Below the clinical boundary, so the zone rule cannot reach it.
+    expect(restoreEmphasis('*O:*\nPemeriksaan fisis dalam batas normal')).toBe(
+      '*O:*\n_Pemeriksaan fisis dalam batas normal_',
+    );
+  });
+
+  it('leaves the note alone when there is no clinical heading to bound the zone', () => {
+    // An unbounded zone would italicise everything below the identity line.
+    const body = 'Tn. Basra / 56 tahun / RM 1068190\nCatatan bebas tanpa judul apapun';
+    expect(restoreEmphasis(body).split('\n')[1]).toBe('Catatan bebas tanpa judul apapun');
+  });
+
+  it('bolds the header only, leaving content on the same line plain', () => {
+    // `*S: Sesak berkurang*` would bold the complaint along with the label,
+    // which is a different claim about the note.
+    expect(restoreEmphasis('S: Sesak berkurang')).toBe('*S:* Sesak berkurang');
+  });
+
+  it('bolds every heading the alias table names, not just S/O/A/P', () => {
+    for (const [input, expected] of [
+      ['Asesmen:', '*Asesmen:*'],
+      ['Terapi:', '*Terapi:*'],
+      ['Plan:', '*Plan:*'],
+      ['Penunjang:', '*Penunjang:*'],
+      ['O :', '*O :*'],
+      ['Mohon izin kami assess dengan:', '*Mohon izin kami assess dengan:*'],
+    ] as const) {
+      expect(restoreEmphasis(input)).toBe(expected);
+    }
+  });
+
+  it('leaves labels that are not headings of OUR note plain', () => {
+    // All four parse as custom sections. They are labels inside the note, not
+    // headings of it, and the seeded templates write them without markers.
+    for (const line of [
+      'Diagnosis Primer :',
+      'Diagnosis Sekunder :',
+      'Problem :',
+      'Faktor resiko koroner:',
+    ]) {
+      expect(restoreEmphasis(line)).toBe(line);
+    }
+  });
+
+  it('leaves measurements plain', () => {
+    // A note bolding every vital sign is the striping bug the tint layer had.
+    for (const line of ['Tekanan Darah : 120/80 mmHg', 'LVSV : 41,8 mL']) {
+      expect(restoreEmphasis(line)).toBe(line);
+    }
+  });
+
+  it('bolds a dated investigation heading, which carries no delimiter', () => {
+    expect(restoreEmphasis('Laboratorium PJT (04-08-2026)')).toBe(
+      '*Laboratorium PJT (04-08-2026)*',
+    );
+  });
+
+  it('bolds a bare TS heading whole, and a TS heading with content by its header', () => {
+    expect(restoreEmphasis('TS Neurologi')).toBe('*TS Neurologi*');
+    expect(restoreEmphasis('TS BTKV: rencana CABG')).toBe('*TS BTKV:* rencana CABG');
+  });
+
+  it('stops emphasising once a TS block starts, and stays stopped at the next TS', () => {
+    /*
+     * A TS writes its own Diagnosis / Terapi / Plan. Emphasising them would
+     * make another service's plan look like the one we are sending, in a
+     * document whose whole purpose is to state what WE think should happen.
+     */
+    const body = [
+      'Plan:',
+      '- Echo',
+      'TS Neurologi',
+      'Diagnosis:',
+      '- Stroke iskemik',
+      'Terapi:',
+      '- Aspilet',
+      'TS BTKV: rencana CABG',
+      'Plan:',
+      '- Konsul anestesi',
+    ].join('\n');
+
+    expect(restoreEmphasis(body)).toBe(
+      [
+        '*Plan:*',
+        '- Echo',
+        '*TS Neurologi*',
+        'Diagnosis:',
+        '- Stroke iskemik',
+        'Terapi:',
+        '- Aspilet',
+        '*TS BTKV:* rencana CABG',
+        'Plan:',
+        '- Konsul anestesi',
+      ].join('\n'),
+    );
+  });
+
+  it('is idempotent', () => {
+    const body = 'Tn. Basra / RM 1068190\nS: Sesak\nTS BTKV: CABG\nPlan:';
+    const once = restoreEmphasis(body);
+    expect(restoreEmphasis(once)).toBe(once);
+  });
+
+  it('follows an alias added in Settings', () => {
+    // The whole point of taking the vocabulary from the alias table: a heading
+    // the parser learns, this button learns too.
+    const aliases = [
+      { sectionId: 's' as const, label: 'Subjektif', order: 1, aliases: ['Keluhan Utama'] },
+    ];
+    expect(restoreEmphasis('Keluhan Utama:', aliases)).toBe('*Keluhan Utama:*');
+    expect(restoreEmphasis('Keluhan Utama:')).toBe('Keluhan Utama:');
+  });
+});

@@ -32,7 +32,7 @@ import { formatLocation } from '@/domain/identity';
 import { isIgdEntry } from '@/domain/clinicalDate';
 import { insertIntoObjective } from '@/domain/lab/parseLab';
 import { describeConfig, dpjpById, isTrioDpjp, primaryDpjp } from '@/domain/dpjp';
-import { SCHEDULE_PERIOD, nextPoli, weekdayName } from '@/domain/poli/schedule';
+import { SCHEDULE_PERIOD, upcomingPoli, weekdayName } from '@/domain/poli/schedule';
 import { parseSections } from '@/domain/sections/parseSections';
 import {
   daysBetween,
@@ -255,8 +255,21 @@ export default function PatientPage(): JSX.Element {
   );
   const dpjpFormat = dpjp ? settings.dpjpFormats[dpjp.id] : undefined;
 
-  /** The consultant's next outpatient clinic, from the signed roster. */
-  const poli = useMemo(() => (dpjp ? nextPoli(dpjp.id, today) : null), [dpjp, today]);
+  /**
+   * The consultant's next two outpatient clinics, from the signed roster.
+   *
+   * Two rather than one because the next clinic alone does not answer the
+   * question the line is read for. When it is today or tomorrow, what decides
+   * whether a referral that misses it can still be seen this week is the one
+   * after it — and looking that up meant opening the printed roster, which is
+   * the retyping this app exists to remove.
+   */
+  const poliUpcoming = useMemo(
+    () => (dpjp ? upcomingPoli(dpjp.id, today, 2) : []),
+    [dpjp, today],
+  );
+  const poli = poliUpcoming[0] ?? null;
+  const poliAfter = poliUpcoming[1] ?? null;
 
   /**
    * Publish the reporting format to the sidebar while this patient is open.
@@ -288,6 +301,11 @@ export default function PatientPage(): JSX.Element {
           ? {
               poli: `${weekdayName(poli.weekday)}, ${poli.date} · ${poli.slot.clinic} · ${poli.slot.time}`,
               period: SCHEDULE_PERIOD,
+              ...(poliAfter
+                ? {
+                    poliAfter: `${weekdayName(poliAfter.weekday)}, ${poliAfter.date} · ${poliAfter.slot.clinic} · ${poliAfter.slot.time}`,
+                  }
+                : {}),
             }
           : {}),
       });
@@ -295,7 +313,7 @@ export default function PatientPage(): JSX.Element {
       setDpjpHint(null);
     }
     return () => setDpjpHint(null);
-  }, [dpjp, dpjpFormat, poli, setDpjpHint]);
+  }, [dpjp, dpjpFormat, poli, poliAfter, setDpjpHint]);
 
   const railDates = useMemo(
     () =>
@@ -741,6 +759,20 @@ export default function PatientPage(): JSX.Element {
                 Poli {dpjp?.initials} {weekdayName(poli.weekday)}
                 {poli.inDays === 0 ? ' (hari ini)' : poli.inDays === 1 ? ' (besok)' : ''} ·{' '}
                 {poli.slot.clinic} · {poli.slot.time}
+              </p>
+            ) : null}
+            {/*
+              The clinic after next.
+
+              Prefixed `Lalu` rather than repeating `Poli <initials>`, so the
+              two lines cannot be misread as two different consultants — which
+              is the mistake that matters here, since a referral sent to the
+              wrong clinic comes back a week later.
+            */}
+            {poliAfter ? (
+              <p className="truncate text-[11px] text-fg-faint">
+                Lalu {weekdayName(poliAfter.weekday)}, {poliAfter.date} ·{' '}
+                {poliAfter.slot.clinic} · {poliAfter.slot.time}
               </p>
             ) : null}
             {patient.diagnoses.length > 0 ? (

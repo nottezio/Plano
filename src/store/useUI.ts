@@ -47,6 +47,15 @@ interface UIState {
     name: string;
     description: string;
     poli?: string;
+    /**
+     * The clinic AFTER the next one.
+     *
+     * A second field rather than a joined string, so the rail can render it
+     * dimmer and on its own line: the next clinic is the one being planned
+     * around, and the one after it is the fallback. Flattening both into
+     * `poli` would give them equal weight in a panel that is read in a glance.
+     */
+    poliAfter?: string;
     period?: string;
   } | null;
   setDpjpHint: (hint: UIState['dpjpHint']) => void;

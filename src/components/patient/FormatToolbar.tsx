@@ -1,4 +1,5 @@
 import { normaliseBullets, restoreEmphasis } from '@/domain/format/markdownLite';
+import type { SectionAlias } from '@/domain/types';
 import { SNIPPETS } from '@/domain/format/snippets';
 
 /**
@@ -22,6 +23,15 @@ export function FormatToolbar({
   onInsertSnippet,
   value,
   onReplace,
+  /**
+   * The user's section aliases.
+   *
+   * Threaded in rather than defaulted inside `restoreEmphasis`, so a heading
+   * added in Settings is emphasised by this button too. When the two had
+   * separate vocabularies, an alias the parser understood was one this button
+   * silently could not see.
+   */
+  aliases,
 }: {
   disabled: boolean;
   onBold: () => void;
@@ -36,6 +46,7 @@ export function FormatToolbar({
   /** Current body, for the whole-note actions. */
   value: string;
   onReplace: (next: string) => void;
+  aliases?: readonly SectionAlias[] | undefined;
 }): JSX.Element {
   return (
     // Sized to its contents rather than spanning the column. A full-width bar
@@ -85,7 +96,7 @@ export function FormatToolbar({
           would be no way to tell what the original said. */}
       <button
         type="button"
-        onClick={() => onReplace(restoreEmphasis(value))}
+        onClick={() => onReplace(restoreEmphasis(value, aliases))}
         title="Kembalikan tebal/miring pada judul"
         className="min-h-tap rounded-lg px-2 text-xs text-fg-muted"
       >

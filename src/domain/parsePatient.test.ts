@@ -213,3 +213,55 @@ describe('reading the wrong patient — what the parser must refuse', () => {
     expect(parseLocation(note)).toEqual({ ward: 'PJT Lt 5', room: '501', bed: '2' });
   });
 });
+
+/**
+ * The regression this file exists to prevent recurring.
+ *
+ * `openingBlock` used a local regex whose `Mohon i[zj]in` alternative matched
+ * the opening's own reporting sentence — the line directly ABOVE the identity
+ * line — as if it were the assessment heading. The boundary landed above the
+ * identity, so both parsers returned nothing.
+ *
+ * It looked intermittent because it depended on one keystroke: whether the
+ * greeting shared a line with the reporting sentence, or the resident pressed
+ * Enter after it. Both shapes are in real use, so both are asserted here.
+ */
+describe('the reporting sentence is part of the opening, not a clinical heading', () => {
+  const IDENTITY = '*Tn. Basra / 12-03-1970 / 56 tahun / RM 1068190*';
+  const REPORT = 'Mohon izin melaporkan pasien di *PJT Lantai 5 Kamar 517 Bed 3* atas nama:';
+
+  const SPLIT = `Assalamualaikum dokter, selamat pagi dokter.\n${REPORT}\n\n${IDENTITY}\n\n_DPJP Kardio: dr. Zaenab Djafar, Sp.JP(K)_\n\n*S:*\nSesak berkurang`;
+  const JOINED = `Assalamualaikum dokter, selamat pagi dokter. ${REPORT}\n\n${IDENTITY}\n\n*S:*\nSesak berkurang`;
+
+  it('reads the identity whether or not the greeting shares the line', () => {
+    for (const body of [SPLIT, JOINED]) {
+      const facts = parsePatientFacts(body);
+      expect(facts.mrn).toBe('1068190');
+      expect(facts.name).toBe('Tn. Basra');
+      expect(facts.birthDate).toBe('12-03-1970');
+    }
+  });
+
+  it('reads the ward, room and bed in both shapes', () => {
+    for (const body of [SPLIT, JOINED]) {
+      const facts = parsePatientFacts(body);
+      expect(facts.ward).toBe('PJT Lantai 5');
+      expect(facts.room).toBe('517');
+      expect(facts.bed).toBe('3');
+    }
+  });
+
+  it('still stops at the real assessment heading', () => {
+    // The boundary must not simply have been widened: a second patient named
+    // below the clinical content is the failure the boundary exists to stop.
+    const body = `${REPORT}\n\n${IDENTITY}\n\n*Mohon izin kami assess dengan:*\n- CHF\n\n*TS BTKV*\nPasien lain *Tn. Salah Orang / 01-01-1950 / 76 tahun / RM 9999999*`;
+    expect(parseIdentity(body).mrn).toBe('1068190');
+  });
+
+  it('does not treat the greeting itself as the assessment section', () => {
+    // `Assalamualaikum` contains the `as+e?s+` stem the prose classifier uses.
+    // If it were ever read as a heading the opening would collapse to nothing.
+    const body = `Assalamualaikum dokter.\n\n${IDENTITY}\n\n*S:*\n- Sesak`;
+    expect(parseIdentity(body).mrn).toBe('1068190');
+  });
+});

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { POLI_SCHEDULE, SCHEDULE_PERIOD, nextPoli, weekdayName } from './schedule';
+import { POLI_SCHEDULE, SCHEDULE_PERIOD, nextPoli, upcomingPoli, weekdayName } from './schedule';
 import { DPJPS } from '../dpjp';
 import type { ClinicalDate } from '../types';
 
@@ -75,5 +75,39 @@ describe('nextPoli', () => {
 
   it('reads the weekday in UTC, so it cannot shift with the device timezone', () => {
     expect(nextPoli('afm', '2026-01-07' as ClinicalDate)?.inDays).toBe(0);
+  });
+});
+
+describe('upcomingPoli', () => {
+  it('returns the next two clinics, in chronological order', () => {
+    const two = upcomingPoli('ks', MONDAY, 2);
+    expect(two).toHaveLength(2);
+    expect(two[0]!.inDays).toBeLessThan(two[1]!.inDays);
+  });
+
+  it('agrees with nextPoli about the first one', () => {
+    for (const dpjp of DPJPS) {
+      expect(upcomingPoli(dpjp.id, MONDAY, 2)[0] ?? null).toEqual(nextPoli(dpjp.id, MONDAY));
+    }
+  });
+
+  it('returns both of a consultant rostered twice in one week, not one twice', () => {
+    // The `.find()` this replaced took the first slot of a day and moved on,
+    // so a consultant with two clinics in a week could not have both surfaced.
+    for (const dpjp of DPJPS) {
+      const two = upcomingPoli(dpjp.id, MONDAY, 2);
+      if (two.length < 2) continue;
+      const [first, second] = two;
+      expect(first!.date === second!.date && first!.slot === second!.slot).toBe(false);
+    }
+  });
+
+  it('returns fewer than asked rather than padding, when the roster has fewer', () => {
+    // `jk` is not on the roster at all. An empty array is the honest answer.
+    expect(upcomingPoli('jk', MONDAY, 2)).toEqual([]);
+  });
+
+  it('returns nothing for a non-positive count', () => {
+    expect(upcomingPoli('ks', MONDAY, 0)).toEqual([]);
   });
 });

@@ -1,3 +1,9 @@
+import { looksLikeIdentityLine as isIdentityLine } from '../parsePatient';
+import { clinicalStart } from '../identity';
+import { aliasesOrDefault } from '../sections/aliases';
+import { parseSections } from '../sections/parseSections';
+import type { SectionAlias } from '../types';
+
 /**
  * SPEC 12.2 — the canonical inline format.
  *
@@ -181,8 +187,7 @@ export function insertSectionHeader(text: string, caret: number, label: string):
  * Restore the emphasis a plain-text paste lost.
  *
  * Copying a SOAP out of WhatsApp and back in strips the markers, so headings
- * arrive as bare text. This puts them back by recognising the lines that are
- * always emphasised in a report — the headings themselves — and nothing else.
+ * arrive as bare text. This puts them back.
  *
  * Deliberately NOT automatic. Applying it on paste would edit text the moment
  * it arrives, and the one time it guessed wrong there would be no way to tell
@@ -191,36 +196,252 @@ export function insertSectionHeader(text: string, caret: number, label: string):
  *
  * It never touches a line that already carries a marker, so running it twice
  * changes nothing.
+ *
+ * ---
+ *
+ * WHERE THE HEADING VOCABULARY COMES FROM, and why it moved.
+ *
+ * This used to hold its own list of heading regexes — `^(S|O|A|P)\s*[:/]\s*$`,
+ * `^Plan\s*:?\s*$`, the `Mohon izin …` sentence, and so on. That made it the
+ * THIRD consumer in the codebase deriving "is this a heading" for itself,
+ * alongside `parseSections` and the tint layer. `parseSections.ts` already
+ * records what happens next: "two consumers deriving 'is this a heading'
+ * separately is how they came to disagree."
+ *
+ * They had. `Asesmen:`, `Terapi:`, `Penunjang:` and `S: Sesak berkurang` were
+ * all resolved correctly by the parser and all missed by the private list. And
+ * because the alias table is EDITABLE in Settings, the private list could
+ * never have kept up: a user adding an alias would have taught the parser a
+ * heading that this function still could not see. Divergence was structural,
+ * not an oversight.
+ *
+ * So the vocabulary now comes from `parseSections`, which reads the same alias
+ * table Settings writes. Only the shapes the parser genuinely cannot see are
+ * still matched here, and they have one thing in common: they carry NO
+ * delimiter, so there is nothing for a header rule to key on.
  */
-const HEADING_PATTERNS: readonly RegExp[] = [
-  /^(S|O|A|P)\s*[:/]\s*$/i,
-  /^Mohon i[zj]in .*(assess|assessment|terapi|inisial terapi) dengan\s*:?\s*$/i,
-  /^Plan\s*:?\s*$/i,
-  /^Diagnosis( Primer| Sekunder)?\s*:?\s*$/i,
-  /^Problem\s*:?\s*$/i,
-  /^TS [A-Z].*$/,
-  /^(EKG|Laboratorium|Lab|Foto Thorax|Echo\w*|LUS|Laporan|USG|CT|MRI|Holter|AGD|Urinalisa)\b.*\(?\d{2}[-/]\d{2}[-/]\d{2,4}\)?\s*$/i,
-];
 
-/** Italic in a report: the DPJP lines and the referral sentence. */
+/**
+ * Investigation headings, which are a date rather than a label.
+ *
+ * `EKG PJT Lantai 5 06-08-2026`, `Laboratorium PJT (04-08-2026)`. No colon, so
+ * the parser's custom-header rule rejects them by design — a loose rule there
+ * invents sections out of prose.
+ */
+const DATED_INVESTIGATION =
+  /^(EKG|Laboratorium|Lab|Foto Thorax|Echo\w*|LUS|Laporan|USG|CT|MRI|Holter|AGD|Urinalisa)\b.*\(?\d{2}[-/]\d{2}[-/]\d{2,4}\)?\s*$/i;
+
+/**
+ * A consulting service's block heading: `TS BTKV`, `TS Neurologi`.
+ *
+ * Uppercase `TS` deliberately — this is how the corpus writes it, and a
+ * case-insensitive rule would claim ordinary words.
+ */
+const TS_HEADING = /^TS\b/;
+
+/**
+ * Italic lines that are NOT in the opening zone.
+ *
+ * `Pemeriksaan fisis dalam batas normal` sits inside O, below the clinical
+ * boundary, so the zone rule below cannot reach it. It is a fixed sentence
+ * rather than a shape, which is why it is safe to match literally.
+ *
+ * The DPJP pattern is a fallback for fragments — a section pasted on its own
+ * has no identity line, so the zone cannot be established, and a DPJP line
+ * should still come out italic.
+ */
 const ITALIC_PATTERNS: readonly RegExp[] = [
   /^_?DPJP\b.*$/i,
-  /^Pasien (dikonsul|dirujuk|rencana|datang|masuk)\b.*$/i,
-  /^Rencana tindakan\s*:.*$/i,
+  /^Pasien (dikonsul|dirujuk|rujukan|rencana|datang|masuk)\b.*$/i,
+  /^(Rencana|Post|Paska|Pasca) tindakan\b.*$/i,
+  /^Pemeriksaan fisis dalam batas normal\.?$/i,
 ];
 
-export function restoreEmphasis(body: string): string {
-  return body
-    .split('\n')
-    .map((line) => {
-      const trimmed = line.trim();
-      if (!trimmed || trimmed.includes('*') || trimmed.startsWith('_')) return line;
+/** Leading bullet or quote decoration, which stays OUTSIDE the emphasis. */
+const DECORATION = /^([\s>#-]*)(.*)$/;
 
-      if (HEADING_PATTERNS.some((pattern) => pattern.test(trimmed))) return `*${trimmed}*`;
-      if (ITALIC_PATTERNS.some((pattern) => pattern.test(trimmed))) return `_${trimmed}_`;
+/**
+ * Wraps the header, leaving decoration before it and content after it alone.
+ *
+ * `S: Sesak berkurang` becomes `*S:* Sesak berkurang`, not
+ * `*S: Sesak berkurang*`: the heading is the label, and bolding the subjective
+ * complaint along with it is a different claim about the note.
+ */
+function boldHeader(line: string, header: string): string {
+  const rest = line.slice(header.length);
+  const trimmed = header.trimEnd();
+  const gap = header.slice(trimmed.length);
+  const match = DECORATION.exec(trimmed);
+  const lead = match?.[1] ?? '';
+  const core = match?.[2] ?? trimmed;
+  if (!core) return line;
+  return `${lead}*${core}*${gap}${rest}`;
+}
+
+export function restoreEmphasis(body: string, aliases?: readonly SectionAlias[]): string {
+  const table = aliasesOrDefault(aliases);
+  /**
+   * Only sections the alias table NAMES are emphasised.
+   *
+   * `custom_*` and `_intro` are left exactly as typed, and that single rule is
+   * what keeps `Diagnosis Primer :`, `Diagnosis Sekunder :`, `Problem :` and
+   * `Faktor resiko koroner:` plain — all four parse as custom sections, which
+   * is what they are: labels inside our note, not headings of it. Confirmed
+   * against the seeded templates, which write all four without markers.
+   *
+   * It also keeps `LVSV : 41,8 mL` and `Tekanan Darah : 120/80 mmHg` plain
+   * without needing a rule of their own. They are measurements, they parse as
+   * custom, and a note bolding every vital sign is the striping bug the tint
+   * layer already had once.
+   */
+  const known = new Set(table.map((alias) => alias.sectionId));
+  const sections = parseSections(body, table);
+
+  const lines = body.split('\n');
+
+  // Header offsets are absolute; map them onto line numbers once rather than
+  // re-scanning the body for each line.
+  const headerByLine = new Map<number, string>();
+  {
+    const lineStarts: number[] = [];
+    let offset = 0;
+    for (const line of lines) {
+      lineStarts.push(offset);
+      offset += line.length + 1;
+    }
+    for (const section of sections) {
+      if (!section.headerLine || !known.has(section.sectionId)) continue;
+      const index = lineStarts.indexOf(section.start);
+      if (index >= 0) headerByLine.set(index, section.headerLine);
+    }
+  }
+
+  /**
+   * The opening zone: below the identity line, above the first clinical
+   * heading. Every non-empty line in it is italic.
+   *
+   * This replaced a growing list of sentence patterns — `DPJP …`,
+   * `Pasien dikonsulkan untuk …`, `Rencana tindakan : …` — which was always
+   * going to be incomplete, and was: `Post Tindakan : …`,
+   * `Pasien rujukan dari …` and `Paska tindakan …` are all in the corpus and
+   * none of them matched. Adding three more regexes would have fixed those
+   * three and missed the next one.
+   *
+   * The corpus says this is a ZONE, not a vocabulary. Every seeded template
+   * puts the same kind of line here and nothing else: who is looking after
+   * this patient, and why they are in. Checked against all nine seeds — the
+   * span between the identity line and the first clinical heading contains
+   * italic lines and blank lines, never anything plain.
+   *
+   * Bounded at BOTH ends deliberately. The greeting and the reporting sentence
+   * sit above the identity line and must stay plain, so the zone opens at the
+   * identity rather than at the top of the note.
+   */
+  const openingItalic = { from: -1, to: -1 };
+  {
+    const boundary = clinicalStart(sections);
+    // No recognised clinical heading means no lower bound, and an unbounded
+    // zone would italicise the entire note. Better to do nothing.
+    if (boundary > 0) {
+      let offset = 0;
+      let identity = -1;
+      let clinical = -1;
+      for (const [index, line] of lines.entries()) {
+        if (identity < 0 && isIdentityLine(line)) identity = index;
+        if (clinical < 0 && offset >= boundary) clinical = index;
+        offset += line.length + 1;
+      }
+      if (identity >= 0 && clinical > identity + 1) {
+        openingItalic.from = identity + 1;
+        openingItalic.to = clinical;
+      }
+    }
+  }
+
+  /**
+   * Everything from the first `TS` heading belongs to a consulting service.
+   *
+   * Their block writes its own `Diagnosis:`, `Terapi:` and `Plan:`, and the
+   * seeded templates leave all three plain — because they are the TS's, not
+   * ours. Emphasising them would make another service's plan look like the
+   * one we are sending, in a document whose whole purpose is to state what WE
+   * think should happen. `classifyProseHeader` already refuses to claim `A/`
+   * and `P/` for the same reason; this is that rule applied to emphasis.
+   *
+   * The TS heading line itself is still emphasised — it is the boundary, and
+   * an unmarked boundary is what makes the block ambiguous in the first place.
+   */
+  let inTsBlock = false;
+
+  return lines
+    .map((line, index) => {
+      const trimmed = line.trim();
+      if (!trimmed) return line;
+
+      /*
+       * Block state is tracked BEFORE the already-marked guard, not after.
+       *
+       * Tracking it after made the function non-idempotent, and in the worst
+       * direction. On a second run `*TS BTKV:* rencana CABG` carries a marker,
+       * so the guard skipped the line — and skipping it meant `inTsBlock` was
+       * never set, so every heading in the TS block below was then emphasised
+       * as if it were ours. Pressing the button twice turned another service's
+       * plan into ours, silently.
+       *
+       * The guard is about whether to WRITE, not about whether to READ. So the
+       * markers are stripped for the purpose of recognising the boundary, and
+       * the guard applies only to the edit.
+       */
+      const bare = trimmed.replace(/^[*_]+/, '');
+      const isTs = TS_HEADING.test(bare);
+      if (isTs) inTsBlock = true;
+
+      // A line already carrying a marker is left alone, which is what makes
+      // running this twice a no-op.
+      if (trimmed.includes('*') || trimmed.startsWith('_')) return line;
+
+      if (isTs) {
+        // `TS BTKV: rencana CABG` parses as a custom section, so the parser
+        // hands back `TS BTKV: ` as the header and the rest stays plain.
+        // A bare `TS Neurologi` has no delimiter and is a header entire.
+        const header = headerByLineOrSelf(sections, lines, index);
+        return header ? boldHeader(line, header) : line.replace(trimmed, `*${trimmed}*`);
+      }
+      if (inTsBlock) return line;
+
+      const header = headerByLine.get(index);
+      if (header) return boldHeader(line, header);
+
+      if (isIdentityLine(trimmed)) return line.replace(trimmed, `*${trimmed}*`);
+      if (index >= openingItalic.from && index < openingItalic.to) {
+        return line.replace(trimmed, `_${trimmed}_`);
+      }
+      if (DATED_INVESTIGATION.test(trimmed)) return line.replace(trimmed, `*${trimmed}*`);
+      if (ITALIC_PATTERNS.some((pattern) => pattern.test(trimmed))) {
+        return line.replace(trimmed, `_${trimmed}_`);
+      }
       return line;
     })
     .join('\n');
+}
+
+/**
+ * The header of a TS line, whatever section id the parser gave it.
+ *
+ * Separate from `headerByLine` because that map is filtered to KNOWN sections
+ * and a TS heading is always a custom one — but here the header prefix is
+ * exactly what should be emphasised, so the filter has to be bypassed rather
+ * than widened.
+ */
+function headerByLineOrSelf(
+  sections: readonly { headerLine: string | null; start: number }[],
+  lines: readonly string[],
+  index: number,
+): string | null {
+  let offset = 0;
+  for (let i = 0; i < index; i += 1) offset += (lines[i]?.length ?? 0) + 1;
+  const section = sections.find((candidate) => candidate.start === offset);
+  return section?.headerLine ?? null;
 }
 
 /**

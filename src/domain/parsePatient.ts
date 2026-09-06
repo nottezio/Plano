@@ -1,3 +1,8 @@
+import { clinicalStart } from './identity';
+import { aliasesOrDefault } from './sections/aliases';
+import { parseSections } from './sections/parseSections';
+import type { SectionAlias } from './types';
+
 /**
  * Reading identity and location out of the note.
  *
@@ -59,23 +64,71 @@ const PLACEHOLDER = /\((nama|tgl|umur|no|ruang|bagian)[^)]*\)/i;
  * parser could pick the wrong one and write it into this patient's record.
  * The identity line of THIS patient is in the opening, above the first clinical
  * heading, which is where it is written every time.
+ *
+ * WHERE that boundary is now comes from `parseSections`, not from a regex kept
+ * here. The regex this replaced read:
+ *
+ *     /^\s*\*?\s*(S|O|A|P)\s*[:/]|^\s*\*?\s*(Mohon i[zj]in|Plan|…)/im
+ *
+ * and its `Mohon i[zj]in` alternative was doing two incompatible jobs. It was
+ * meant to catch the assessment heading `*Mohon izin kami assess dengan:*`.
+ * It also matched the REPORTING SENTENCE of the opening itself —
+ * `Mohon izin melaporkan pasien di *PJT Lantai 5 Kamar 517 Bed 3* atas nama:` —
+ * which sits directly ABOVE the identity line in every template we ship.
+ *
+ * So the boundary landed above the identity line whenever that sentence began
+ * its own line, and `parseIdentity` and `parseLocation` both returned `{}`.
+ * Whether that happened came down to whether the greeting shared a line with
+ * it: one press of Enter after `Assalamualaikum dokter.` was the difference
+ * between a parsed patient and none. That is why this read as intermittent.
+ *
+ * It was not only a display fault. `checkIdentity` — the guard against copying
+ * one patient's report into another patient's chat — reads `parseIdentity`,
+ * and with no identity it degrades to `unknown` and renders nothing. The
+ * safeguard switched itself off, silently, on a line break.
+ *
+ * The parser already tells these two apart correctly and has been hardened
+ * against the corpus for it: the alias table matches the assessment heading by
+ * its exact tokens, and `classifyProseHeader` matches the `assess`/`terapi`
+ * stems only when the stem is what the heading is ABOUT. `Mohon izin
+ * melaporkan pasien … atas nama:` is neither, so it stays in the opening,
+ * where it belongs. Deriving the boundary from the parser rather than
+ * restating it here means there is one definition of where clinical content
+ * starts, and correcting it corrects every consumer at once.
  */
-const CLINICAL_START =
-  /^\s*\*?\s*(S|O|A|P)\s*[:/]|^\s*\*?\s*(Mohon i[zj]in|Plan|Diagnosis|Faktor risiko)/im;
-
-function openingBlock(body: string): string {
-  const match = CLINICAL_START.exec(body);
-  return match ? body.slice(0, match.index) : body;
+function openingBlock(body: string, aliases?: readonly SectionAlias[]): string {
+  const sections = parseSections(body, aliasesOrDefault(aliases));
+  const boundary = clinicalStart(sections);
+  // `clinicalStart` returns 0 when no recognised clinical heading exists — a
+  // free-form note is its own opening.
+  return boundary > 0 ? body.slice(0, boundary) : body;
 }
 
-export function parseIdentity(body: string): ParsedIdentity {
-  const line = openingBlock(body)
+/**
+ * Does this single line look like the identity line?
+ *
+ * Exported so the emphasis restorer can bold it without restating the test.
+ * The identity line is not a section — it parses as `_intro` content — so
+ * `parseSections` cannot point at it, and the alternative was a second
+ * definition of "this is the identity line" living in the formatter. That is
+ * exactly the duplication that made the clinical boundary in this file wrong
+ * for months; one copy, used by both, is the point.
+ */
+export function looksLikeIdentityLine(line: string): boolean {
+  const candidate = line.replace(/[*_]/g, '').trim();
+  return (
+    TITLE.test(candidate) && /\bRM\b/i.test(candidate) && !PLACEHOLDER.test(candidate)
+  );
+}
+
+export function parseIdentity(
+  body: string,
+  aliases?: readonly SectionAlias[],
+): ParsedIdentity {
+  const line = openingBlock(body, aliases)
     .split('\n')
     .map((candidate) => candidate.replace(/[*_]/g, '').trim())
-    .find(
-      (candidate) =>
-        TITLE.test(candidate) && /\bRM\b/i.test(candidate) && !PLACEHOLDER.test(candidate),
-    );
+    .find(looksLikeIdentityLine);
 
   if (!line) return {};
 
@@ -134,8 +187,11 @@ export function parseIdentity(body: string): ParsedIdentity {
  * room. Ward is whatever precedes the first `Kamar`/`Bed` keyword, so a ward
  * name nobody anticipated still comes through intact.
  */
-export function parseLocation(body: string): ParsedLocation {
-  const opening = openingBlock(body)
+export function parseLocation(
+  body: string,
+  aliases?: readonly SectionAlias[],
+): ParsedLocation {
+  const opening = openingBlock(body, aliases)
     .split('\n')
     .map((line) => line.trim())
     .find((line) => /\batas nama\b/i.test(line));
@@ -171,6 +227,9 @@ export function parseLocation(body: string): ParsedLocation {
  * Returned together because they are read from the same two lines and applied
  * under the same rule: fill what is blank, touch nothing that was typed.
  */
-export function parsePatientFacts(body: string): ParsedIdentity & ParsedLocation {
-  return { ...parseIdentity(body), ...parseLocation(body) };
+export function parsePatientFacts(
+  body: string,
+  aliases?: readonly SectionAlias[],
+): ParsedIdentity & ParsedLocation {
+  return { ...parseIdentity(body, aliases), ...parseLocation(body, aliases) };
 }

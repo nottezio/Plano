@@ -84,19 +84,51 @@ export function weekdayName(weekday: number): string {
  * search gave up early.
  */
 export function nextPoli(dpjpId: string, today: ClinicalDate): NextPoli | null {
-  for (let offset = 0; offset < 14; offset += 1) {
+  return upcomingPoli(dpjpId, today, 1)[0] ?? null;
+}
+
+/**
+ * The consultant's next `count` clinics, in chronological order.
+ *
+ * Knowing only the next one is not enough to plan around: if the next clinic
+ * is today or tomorrow, the resident needs the one after it to decide whether
+ * a referral that misses today's list can still be seen this week, or has to
+ * wait. So the caller asks for as many as it can show.
+ *
+ * Two changes from the single-slot version this replaced, both of which were
+ * latent bugs rather than new behaviour:
+ *
+ *  - `filter` instead of `find` WITHIN a day. A consultant rostered twice on
+ *    one weekday — a morning clinic and an afternoon one — had the second slot
+ *    silently dropped, and asking for "the next two" would then have skipped a
+ *    week to find a slot that was actually the same afternoon.
+ *  - The 14-day window is now a bound on the SEARCH, not on the result. Two
+ *    cycles is enough to find two slots for anyone rostered weekly; a
+ *    consultant rostered less often than that yields fewer than `count`
+ *    entries, which is the honest answer rather than a padded one.
+ */
+export function upcomingPoli(
+  dpjpId: string,
+  today: ClinicalDate,
+  count: number,
+): NextPoli[] {
+  const found: NextPoli[] = [];
+  if (count <= 0) return found;
+
+  for (let offset = 0; offset < 14 && found.length < count; offset += 1) {
     const date = addDays(today, offset);
     // Parsed as UTC, like every other clinical date, so the weekday cannot
     // shift with the device timezone.
     const weekday = new Date(`${date}T00:00:00Z`).getUTCDay();
 
-    const slot = POLI_SCHEDULE.find(
-      (candidate) => candidate.weekday === weekday && candidate.dpjpId === dpjpId,
-    );
-    if (slot) return { date, weekday, slot, inDays: offset };
+    for (const slot of POLI_SCHEDULE) {
+      if (slot.weekday !== weekday || slot.dpjpId !== dpjpId) continue;
+      found.push({ date, weekday, slot, inDays: offset });
+      if (found.length >= count) break;
+    }
   }
 
-  return null;
+  return found;
 }
 
 /** Consultants on the roster who are not in the DPJP registry. */

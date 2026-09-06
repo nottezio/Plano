@@ -19,9 +19,11 @@ import {
   ensureProfile,
   seedSettingsIfMissing,
   subscribeProfile,
+  updateSettings,
 } from '@/data/repositories/settings.repo';
 import type { UserProfile, UserSettings } from '@/domain/types';
-import { defaultUserSettings } from '@/domain/defaults';
+import { SEED_SNAPSHOT, defaultUserSettings } from '@/domain/defaults';
+import { reconcileSeeds } from '@/domain/seedSync';
 import {
   requestPersistentStorage,
   type StoragePersistence,
@@ -112,7 +114,10 @@ export function initSession(): () => void {
 
     unsubscribeProfile = subscribeProfile(
       user.uid,
-      (profile) => useSession.setState({ profile }),
+      (profile) => {
+        useSession.setState({ profile });
+        if (profile) void reconcileProfileSeeds(user.uid, profile);
+      },
       (error) => {
         console.error('[auth] profile subscription failed', error);
         useSession.setState({ error: 'Gagal memuat pengaturan.' });
@@ -290,5 +295,53 @@ function describeAuthError(error: unknown): string {
        * happens while someone cannot get into the ward's notes.
        */
       return code ? `Gagal masuk (${code}).` : 'Gagal masuk. Coba lagi.';
+  }
+}
+
+
+/**
+ * Guard against re-entry.
+ *
+ * Writing the reconciled settings fires the profile subscription again, which
+ * would call straight back into here. `reconcileSeeds` is idempotent, so the
+ * second pass is a no-op and the loop terminates on its own — but only after a
+ * wasted round trip, and only if nothing else is racing it. A flag makes that
+ * guaranteed rather than merely likely.
+ */
+let reconciling = false;
+
+/**
+ * Bring seeded settings up to date whenever the profile loads.
+ *
+ * On load rather than behind a button, because the whole point is that a
+ * corrected template should not need the user to know it exists, go looking
+ * for it, and then choose between the fix and their own wording. A button was
+ * the previous answer and it is what made this a problem.
+ *
+ * Failure is swallowed: settings that are one version behind are a small
+ * problem, and a sign-in that fails because the seed merge could not write is
+ * a large one. The next load tries again.
+ */
+async function reconcileProfileSeeds(uid: string, profile: UserProfile): Promise<void> {
+  if (reconciling) return;
+  const result = reconcileSeeds(profile.settings, SEED_SNAPSHOT);
+  // `dirty` is false only when the baseline already matches, which also means
+  // the baseline is present — so the narrowing below can never widen.
+  if (!result.dirty || !result.settings.seedBaseline) return;
+  const seedBaseline = result.settings.seedBaseline;
+
+  reconciling = true;
+  try {
+    await updateSettings(uid, {
+      noteTemplates: result.settings.noteTemplates,
+      greetings: result.settings.greetings,
+      openingSentences: result.settings.openingSentences,
+      closingSentences: result.settings.closingSentences,
+      seedBaseline,
+    });
+  } catch (error) {
+    console.warn('[settings] seed reconciliation failed', error);
+  } finally {
+    reconciling = false;
   }
 }

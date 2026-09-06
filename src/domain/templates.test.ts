@@ -62,8 +62,23 @@ describe('seed templates', () => {
     // The DX variant adds the primary/secondary split and a problem list.
     expect(FOLLOWUP_DX_BODY).toContain('Diagnosis Primer');
     expect(FOLLOWUP_DX_BODY).toContain('Diagnosis Sekunder');
-    expect(FOLLOWUP_DX_BODY).toContain('*Problem :*');
+    expect(FOLLOWUP_DX_BODY).toContain('Problem :');
     expect(FOLLOWUP_BODY).not.toContain('Diagnosis Primer');
+
+    /*
+     * All three are written WITHOUT emphasis, confirmed against the real note
+     * format. They are labels inside the assessment, not headings of the note,
+     * and the seed used to bold two of the three — an inconsistency carried
+     * over from transcription rather than something a note actually does.
+     *
+     * Asserted as an absence because the emphasis restorer derives the same
+     * rule independently (they parse as custom sections, which it leaves
+     * alone). If the seed drifts back to bold, the two disagree again and the
+     * button starts "correcting" a template we ship.
+     */
+    for (const label of ['Diagnosis Primer', 'Diagnosis Sekunder', 'Problem']) {
+      expect(FOLLOWUP_DX_BODY).not.toContain(`*${label}`);
+    }
   });
 
 
