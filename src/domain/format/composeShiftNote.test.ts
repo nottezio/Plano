@@ -23,10 +23,14 @@ const NOTE: ShiftNote = {
 const BASE = { format: 'whatsapp' as const, bullet: 'hyphen' as const, includeIdentity: true };
 
 describe('composeShiftNote', () => {
-  it('names it as a jaga note and carries the time', () => {
-    // A bare paragraph of findings reads as a second morning note, and the
-    // clock time is the load-bearing fact about a shift complaint.
-    expect(composeShiftNote(NOTE, PATIENT, BASE)).toContain('*SOAP Jaga 23.42*');
+  it('adds no "SOAP Jaga" heading', () => {
+    // The note states the hour in its own opening sentence, which is where the
+    // corpus puts it. The heading was a label nobody writes by hand.
+    expect(composeShiftNote(NOTE, PATIENT, BASE)).not.toContain('SOAP Jaga');
+  });
+
+  it('carries the note body verbatim', () => {
+    expect(composeShiftNote(NOTE, PATIENT, BASE)).toContain('- Nyeri dada tengah sejak 30 menit lalu.');
   });
 
   it('carries an identity line so the reader knows whose chart it is', () => {
@@ -39,7 +43,7 @@ describe('composeShiftNote', () => {
   it('omits identity when asked', () => {
     const out = composeShiftNote(NOTE, PATIENT, { ...BASE, includeIdentity: false });
     expect(out).not.toContain('RM 134048');
-    expect(out).toContain('*SOAP Jaga 23.42*');
+    expect(out).toContain('- Nyeri dada tengah sejak 30 menit lalu.');
   });
 
   it('guarantees ASCII for SIMGOS', () => {
@@ -59,10 +63,9 @@ describe('composeShiftNote', () => {
     expect(out).not.toContain('Mohon izin kami');
   });
 
-  it('does not leave a blank heading for an empty note', () => {
+  it('emits nothing but the identity block for an empty note', () => {
+    // No orphan heading left behind now that there is no heading at all.
     const empty = { ...NOTE, body: '   ' };
-    expect(composeShiftNote(empty, PATIENT, BASE).trimEnd().endsWith('*SOAP Jaga 23.42*')).toBe(
-      true,
-    );
+    expect(composeShiftNote(empty, PATIENT, BASE)).not.toContain('SOAP Jaga');
   });
 });

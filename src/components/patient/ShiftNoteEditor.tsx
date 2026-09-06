@@ -1,3 +1,5 @@
+import { useState } from 'react';
+
 import { BodyEditor } from './BodyEditor';
 import type { ClinicalDate, SectionAlias, ShiftNote } from '@/domain/types';
 
@@ -25,6 +27,7 @@ export function ShiftNoteEditor({
   aliases,
   date,
   tint,
+  watermark,
   onChange,
   onBlur,
   onClear,
@@ -35,11 +38,15 @@ export function ShiftNoteEditor({
   aliases: readonly SectionAlias[];
   date: ClinicalDate;
   tint: boolean;
+  /** Passed straight through; the jaga note needs the same guard. */
+  watermark?: { name: string; mrn: string; date: string } | undefined;
   onChange: (body: string) => void;
   onBlur: () => void;
   onClear: () => void;
   onBack: () => void;
 }): JSX.Element {
+  const [confirming, setConfirming] = useState(false);
+
   return (
     <section aria-label={`SOAP jaga jam ${note.time}`}>
       {/*
@@ -66,7 +73,17 @@ export function ShiftNoteEditor({
         The header keeps its own rounded top corners instead, which costs one
         class and clips nothing.
       */}
-      <div className="mx-4 mt-2 rounded-lg border border-accent/40 border-l-4 border-l-accent">
+      {/*
+        A FLEX COLUMN, because that is what `BodyEditor` expects to live in.
+        
+        Its root is `flex min-h-0 flex-1 flex-col`. Dropped into a plain block
+        this frame used to be, `min-h-0` applied with no flex parent to grow it
+        against — so the editor was confined to whatever height it happened to
+        get, the textarea overflowed inside it, and arrow keys scrolled the
+        text within the frame instead of moving the page. That is the note
+        being cut at both ends.
+      */}
+      <div className="mx-4 mt-2 flex flex-col rounded-lg border border-accent/40 border-l-4 border-l-accent">
         <div className="flex items-center gap-2 rounded-t-md bg-accent/10 px-3 py-1.5">
           <button
             type="button"
@@ -79,15 +96,45 @@ export function ShiftNoteEditor({
           <span className="min-w-0 flex-1 truncate text-right text-xs font-semibold text-accent">
             SOAP jaga · {note.time}
           </span>
-          <button
-            type="button"
-            disabled={readOnly}
-            onClick={onClear}
-            aria-label={`Hapus SOAP jaga jam ${note.time}`}
-            className="min-h-tap min-w-tap shrink-0 text-fg-faint disabled:opacity-40"
-          >
-            <span aria-hidden="true">×</span>
-          </button>
+          {/*
+            Two taps to delete.
+            
+            The × sits a few pixels from "← SOAP hari ini", on a header that is
+            tapped constantly, and it removes a note that was written at 03.00
+            about something that had just happened. Everything else in this app
+            that destroys work asks first; this was the one place that did not.
+          */}
+          {confirming ? (
+            <>
+              <button
+                type="button"
+                onClick={() => setConfirming(false)}
+                className="min-h-tap shrink-0 rounded px-2 text-xs text-fg-muted"
+              >
+                Batal
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setConfirming(false);
+                  onClear();
+                }}
+                className="min-h-tap shrink-0 rounded px-2 text-xs font-medium text-danger"
+              >
+                Hapus
+              </button>
+            </>
+          ) : (
+            <button
+              type="button"
+              disabled={readOnly}
+              onClick={() => setConfirming(true)}
+              aria-label={`Hapus SOAP jaga jam ${note.time}`}
+              className="min-h-tap min-w-tap shrink-0 text-fg-faint disabled:opacity-40"
+            >
+              <span aria-hidden="true">×</span>
+            </button>
+          )}
         </div>
 
         {/*
@@ -107,6 +154,7 @@ export function ShiftNoteEditor({
           tint={tint}
           readOnly={readOnly}
           snippets={false}
+          watermark={watermark}
           minHeightClass="min-h-[30vh]"
           placeholder="Keluhan saat jaga…"
         />

@@ -44,13 +44,18 @@ export function composeShiftNote(
   }
 
   /**
-   * The heading names it as a jaga note and carries the clock time.
+   * No `*SOAP Jaga …*` heading.
    *
-   * Without it the reader gets a bare paragraph of findings with no indication
-   * that it is an out-of-hours review rather than a second morning note, and
-   * the time is the single most load-bearing fact about a shift complaint.
+   * It was added on the reasoning that a reader needs to know this is an
+   * out-of-hours review rather than a second morning note. In practice the
+   * note says so itself — it opens with its own greeting and states the hour —
+   * and the heading arrived as a label nobody writes by hand, on a message
+   * that is otherwise indistinguishable from every other report sent to the
+   * same group.
+   *
+   * The identity block above still carries who and where; the time belongs to
+   * the note's own opening sentence, which is where the corpus puts it.
    */
-  lines.push(`*SOAP Jaga ${note.time}*`);
   lines.push(note.body.trim());
 
   // Through the same formatters as the daily note: WhatsApp emphasis survives,

@@ -255,3 +255,70 @@ describe('Terapi + TS by position', () => {
     expect(out).toContain('*TS BTKV*');
   });
 });
+
+/**
+ * A lab block keeps its values when only O is copied.
+ *
+ * Reported as the heading arriving with nothing under it. Both real shapes are
+ * pinned here because they parse completely differently and only one of them
+ * is obvious:
+ *
+ *  - `WBC 9.110` (no colon) leaves the values inside the heading's own text.
+ *  - `WBC : 5.650` makes every value its OWN section, so the heading's text is
+ *    empty and the values only survive if the group includes them too.
+ *
+ * The second is the one that breaks silently: the heading is a section with
+ * content, so it looks fine until you read what came out.
+ */
+describe('lab blocks keep their values', () => {
+  const withColons = [
+    '*O :*',
+    'Compos mentis',
+    '',
+    '*Laboratorium PJT (10-10-2026)*',
+    'WBC : 5.650',
+    'HB : 12.4',
+    'Ur/Cr : 23/0.48',
+  ].join('\n');
+
+  const withoutColons = [
+    '*O :*',
+    'Compos mentis',
+    '',
+    '*Laboratorium PJT (24-08-2026)*',
+    'WBC 9.110',
+    'HGB 16.1',
+    'PT/INR/APTT 12.1/1.18/27.0',
+    'Anti HCV NR',
+  ].join('\n');
+
+  const copyO = (body: string): string =>
+    composeCopy([{ date: '2026-10-10', body }], {
+      ...OPTIONS,
+      sections: sectionsForGroups(body, ALIASES, ['o']),
+    });
+
+  it('keeps colon-separated values, which parse as their own sections', () => {
+    const out = copyO(withColons);
+    expect(out).toContain('*Laboratorium PJT (10-10-2026)*');
+    expect(out).toContain('WBC : 5.650');
+    expect(out).toContain('Ur/Cr : 23/0.48');
+  });
+
+  it('keeps values written without a colon', () => {
+    const out = copyO(withoutColons);
+    expect(out).toContain('WBC 9.110');
+    expect(out).toContain('PT/INR/APTT 12.1/1.18/27.0');
+    expect(out).toContain('Anti HCV NR');
+  });
+
+  it('never emits a lab heading with nothing under it', () => {
+    for (const body of [withColons, withoutColons]) {
+      const out = copyO(body);
+      const heading = out.indexOf('*Laboratorium');
+      expect(heading).toBeGreaterThan(-1);
+      // Something other than whitespace follows the heading line.
+      expect(out.slice(out.indexOf('\n', heading)).trim().length).toBeGreaterThan(0);
+    }
+  });
+});

@@ -38,8 +38,21 @@ export function LockScreen(): JSX.Element {
     <div className="fixed inset-0 z-[100] flex flex-col bg-bg">
       <div className="flex flex-1 flex-col items-center justify-center px-6">
         <h1 className="text-lg font-semibold">Plano terkunci</h1>
-        <p className="mt-1 text-center text-xs text-fg-muted">
-          Masukkan PIN untuk melanjutkan.
+        {/*
+          Says you are still signed in.
+          
+          "Plano terkunci" with a "Keluar" button under it reads as having been
+          logged out, especially when the idle timer fires often enough to feel
+          random. Naming it as a timer, and saying the session is intact, makes
+          the difference between "the app dropped me" and "the app locked
+          itself, as configured".
+        */}
+        <p className="mt-1 max-w-xs text-center text-xs text-fg-muted">
+          Terkunci otomatis karena tidak ada aktivitas. Anda masih masuk —
+          masukkan PIN untuk melanjutkan.
+        </p>
+        <p className="mt-1 text-center text-[11px] text-fg-faint">
+          Ubah jedanya di Pengaturan → Privasi.
         </p>
 
         <input

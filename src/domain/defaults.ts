@@ -265,7 +265,22 @@ export function defaultUserSettings(): UserSettings {
     privacy: {
       // Full names are stored, so the lock is ON by default (SPEC 18).
       pinLockEnabled: true,
-      autoLockMinutes: 3,
+      /**
+       * 15 minutes, not 3.
+       *
+       * Three minutes reads as being logged out at random: setting the phone
+       * down between two patients, or writing a note on the laptop while the
+       * phone sits in a pocket, is enough. The lock screen carries a "Keluar"
+       * button, so hitting it repeatedly looks like the session dropped rather
+       * than like a privacy timer doing its job.
+       *
+       * The exposure this guards is a handset left unattended on a ward, and
+       * fifteen minutes still covers that — the phone locks itself long before
+       * then. Anyone wanting the stricter setting still has 1 and 3 in the
+       * list; the default should not make the app feel broken to earn a
+       * protection the device already provides.
+       */
+      autoLockMinutes: 15,
       blurOnBackground: true,
       // Full names by default. The initials mode still exists for anyone who wants
       // it, but defaulting to it made the board unreadable for its actual user —

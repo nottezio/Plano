@@ -433,7 +433,7 @@ export default function SettingsPage(): JSX.Element {
               }
               className="min-h-tap w-full rounded-lg border border-border bg-surface px-2 text-sm"
             >
-              {[1, 3, 5, 10, 30].map((minutes) => (
+              {[1, 3, 5, 10, 15, 30, 60].map((minutes) => (
                 <option key={minutes} value={minutes}>
                   {minutes} menit
                 </option>

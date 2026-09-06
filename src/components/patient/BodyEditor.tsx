@@ -39,6 +39,7 @@ export function BodyEditor({
   placeholder,
   snippets = true,
   minHeightClass = 'min-h-[55vh]',
+  watermark,
 }: {
   value: string;
   onChange: (next: string) => void;
@@ -64,6 +65,14 @@ export function BodyEditor({
   snippets?: boolean;
   /** Opening height. A jaga note is short and does not need half the screen. */
   minHeightClass?: string;
+  /**
+   * Faded identity drawn behind the text.
+   *
+   * There to be noticed in peripheral vision while typing — the failure it
+   * guards is writing into the wrong patient's note, which is invisible until
+   * it has been sent.
+   */
+  watermark?: { name: string; mrn: string; date: string } | undefined;
   placeholder: string;
 }): JSX.Element {
   const ref = useRef<HTMLTextAreaElement>(null);
@@ -332,6 +341,32 @@ export function BodyEditor({
         use it. Changing padding in one place now changes it in both.
       */}
       <div className="relative min-w-0 flex-1">
+        {/*
+          Behind the text, never in it.
+          
+          `aria-hidden` and `pointer-events-none`: this is not content, and a
+          screen reader announcing the patient's name between every paragraph
+          would be worse than no watermark. It sits under the mirror so a tint
+          band never lands on top of it, and it is deliberately weak enough not
+          to compete with the note — the point is that it registers when you
+          glance up, not that it is readable.
+        */}
+        {watermark ? (
+          <div
+            aria-hidden="true"
+            className="pointer-events-none absolute inset-0 z-0 flex flex-col items-center justify-center overflow-hidden select-none"
+          >
+            <span className="max-w-full truncate px-4 text-center text-3xl font-bold uppercase tracking-wide text-fg opacity-[0.045]">
+              {watermark.name}
+            </span>
+            <span className="mt-1 text-xl font-semibold text-fg opacity-[0.045]">
+              {watermark.mrn}
+            </span>
+            <span className="mt-1 text-base font-medium text-fg opacity-[0.045]">
+              {watermark.date}
+            </span>
+          </div>
+        ) : null}
         {/*
           Mounted unconditionally now, with `paint` deciding whether the tints
           are drawn. It is also the jump bar's measurement layer — the section

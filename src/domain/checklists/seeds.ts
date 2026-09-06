@@ -42,6 +42,19 @@ function items(...labels: string[]): ChecklistTemplateItem[] {
 
 export const SEED_CHECKLISTS: readonly ChecklistTemplate[] = [
   {
+    id: 'pasien-baru-pengkajian',
+    title: 'Pasien baru — pengkajian',
+    context: 'Urutan pengkajian pasien baru, dari anamnesis sampai verifikasi',
+    items: items(
+      'Anamnesis',
+      'Pemeriksaan',
+      'Upload EKG',
+      'Diagnosis',
+      'Perencanaan - Terapi',
+      'Verifikasi',
+    ),
+  },
+  {
     id: 'terima-konsul',
     title: 'Menerima dan menjawab konsul',
     context: 'Dari permintaan konsul masuk sampai obat diorder ulang di episode PJT',
