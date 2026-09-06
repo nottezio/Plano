@@ -265,3 +265,59 @@ describe('the reporting sentence is part of the opening, not a clinical heading'
     expect(parseIdentity(body).mrn).toBe('1068190');
   });
 });
+
+/**
+ * The identity line without the word `RM`.
+ *
+ * Real: `*Tn. Arfa Anugrah Dicky Putra/13-02-2003/23 tahun/ 01705916*`. The
+ * record number is written bare. Requiring the literal `RM` did not merely
+ * leave the MRN empty — `looksLikeIdentityLine` tested for it too, so the line
+ * was never selected and the name, birth date, age and sex went with it. The
+ * card read "Tanpa nama" over a note that names the patient in its second line.
+ */
+describe('an unlabelled record number', () => {
+  const NOTE = [
+    "Assalamu'alaikum Prof. Tabe Prof, mohon izin melaporkan pasien Rencana Tindakan dari Poli Aritmia di *PJT Lantai 4 Kamar 419 Bed 2* atas nama :",
+    '',
+    '*Tn. Arfa Anugrah Dicky Putra/13-02-2003/23 tahun/ 01705916*',
+    '',
+    '_DPJP utama dan tindakan : Prof. Dr. dr. Muzakkir Amir, Sp.JP, Subsp.Ar (K)_',
+    '',
+    '*S:*',
+  ].join('\n');
+
+  it('reads the whole line', () => {
+    expect(parsePatientFacts(NOTE)).toMatchObject({
+      mrn: '01705916',
+      name: 'Tn. Arfa Anugrah Dicky Putra',
+      birthDate: '13-02-2003',
+      age: 23,
+      sex: 'L',
+    });
+  });
+
+  it('does not mistake the birth date or the age for the record number', () => {
+    // Found by elimination, not by position: some notes write the date with
+    // slashes, which moves every field if you split on them.
+    expect(parseIdentity('*Tn. A / 01/02/1970 / 55 tahun / 1068190*').mrn).toBe('1068190');
+    expect(parseIdentity('*Tn. A / 13-02-2003 / 23 tahun / 01705916*').birthDate).toBe(
+      '13-02-2003',
+    );
+  });
+
+  it('needs six digits when there is no label to confirm it', () => {
+    // Without `RM` the number is the only evidence, so it has to be long
+    // enough that no year or room number can be taken for a record number.
+    expect(parseIdentity('*Tn. A / 55 tahun / kamar 419*').mrn).toBeUndefined();
+  });
+
+  it('still accepts the word RM even when the number will not parse', () => {
+    // The label is a declaration that this line identifies a patient. Losing
+    // the name over an illegible number would trade a lot for nothing.
+    expect(parseIdentity('*Tn. Budi / 52 tahun / RM 1*').name).toBe('Tn. Budi');
+  });
+
+  it('still ignores the template placeholder', () => {
+    expect(parseIdentity('*(Nama) / (tgl lahir) / (umur) / RM (no)*')).toEqual({});
+  });
+});

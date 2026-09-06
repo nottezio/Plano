@@ -951,11 +951,15 @@ export default function PatientPage(): JSX.Element {
             aliases={settings.sectionAliases}
             date={selected}
             tint={settings.sectionTint}
-            watermark={{
-              name: patient.name?.trim() || 'Tanpa nama',
-              mrn: patient.mrn ? `RM ${patient.mrn}` : 'RM —',
-              date: formatShortDate(selected),
-            }}
+            {...(settings.showWatermark
+              ? {
+                  watermark: {
+                    name: patient.name?.trim() || 'Tanpa nama',
+                    mrn: patient.mrn ? `RM ${patient.mrn}` : 'RM —',
+                    date: formatShortDate(selected),
+                  },
+                }
+              : {})}
             onChange={(body) => shiftNotes.setBody(activeShiftNote.id, body)}
             onBlur={shiftNotes.flush}
             onClear={() => {
@@ -973,11 +977,15 @@ export default function PatientPage(): JSX.Element {
             date={selected}
             tint={settings.sectionTint}
             readOnly={locked}
-            watermark={{
-              name: patient.name?.trim() || 'Tanpa nama',
-              mrn: patient.mrn ? `RM ${patient.mrn}` : 'RM —',
-              date: formatShortDate(selected),
-            }}
+            {...(settings.showWatermark
+              ? {
+                  watermark: {
+                    name: patient.name?.trim() || 'Tanpa nama',
+                    mrn: patient.mrn ? `RM ${patient.mrn}` : 'RM —',
+                    date: formatShortDate(selected),
+                  },
+                }
+              : {})}
             placeholder="Tulis SOAP hari ini…"
           />
         )}

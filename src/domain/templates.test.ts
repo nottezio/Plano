@@ -137,8 +137,14 @@ describe('carry-forward defaults', () => {
     expect(SETTINGS.carryForwardClearSections).not.toContain('penunjang');
   });
 
-  it('clears only the subjective section', () => {
-    expect(SETTINGS.carryForwardClearSections).toEqual(['s']);
+  it('clears the subjective section and the vital signs', () => {
+    /*
+     * `ttv` alongside `s`: yesterday's blood pressure and pulse are not
+     * today's, and of everything carried forward these are the numbers most
+     * likely to be sent on unchanged without anyone noticing — because unlike
+     * an emptied S they LOOK filled in.
+     */
+    expect(SETTINGS.carryForwardClearSections).toEqual(['s', 'ttv']);
   });
 });
 

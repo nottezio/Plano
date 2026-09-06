@@ -101,8 +101,8 @@ export function useTextSync({
   const firstDirtyAtRef = useRef(0);
   // Refs so window-level handlers always see current values without
   // re-subscribing on every keystroke.
-  const latest = useRef({ value, dirty, locked, key, write });
-  latest.current = { value, dirty, locked, key, write };
+  const latest = useRef({ value, dirty, locked, key, write, serverText });
+  latest.current = { value, dirty, locked, key, write, serverText };
 
   const flush = useCallback(() => {
     const current = latest.current;
@@ -141,6 +141,34 @@ export function useTextSync({
   const setValue = useCallback(
     (next: string) => {
       setDraft(key, next);
+
+      /**
+       * The ref is brought forward HERE, not left to the next render.
+       *
+       * `latest` is reassigned during render, and `setDraft` is a store write
+       * that does not render synchronously. So a caller doing
+       *
+       *     editor.setValue(body);
+       *     editor.flush();
+       *
+       * in one tick reached `flush` with the PREVIOUS value still in the ref —
+       * and, worse, with the previous `dirty`, which for an empty day is
+       * `false`. `flush` returns early on `!dirty`, so it wrote nothing at all
+       * AND cleared the debounce timer on its way out, cancelling the write
+       * that `setValue` had just scheduled.
+       *
+       * That is "Salin dari hari sebelumnya needs two clicks": the first click
+       * reported success, saved nothing, and left the draft only in local
+       * state; the second click found `dirty` true from the first and finally
+       * wrote. Every same-tick set-then-flush caller had the same hole, not
+       * just this one — which is why it is fixed here rather than at the call
+       * site.
+       */
+      latest.current = {
+        ...latest.current,
+        value: next,
+        dirty: next !== latest.current.serverText,
+      };
 
       if (firstDirtyAtRef.current === 0) firstDirtyAtRef.current = Date.now();
 

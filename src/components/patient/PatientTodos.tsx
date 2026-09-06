@@ -148,7 +148,13 @@ export function PatientTodos({ patient }: { patient: Patient }): JSX.Element {
                 type="button"
                 aria-label="Hapus"
                 onClick={() => save(todos.filter((candidate) => candidate.id !== todo.id))}
-                className="min-h-tap min-w-[28px] shrink-0 text-xs text-fg-faint"
+                /*
+                  `flex … justify-center`: the button was a block with a
+                  min-width, so the glyph sat wherever the inherited text
+                  alignment put it — left of centre, and visibly out of line
+                  with the row of them down the list.
+                */
+                className="flex min-h-tap min-w-[32px] shrink-0 items-center justify-center text-xs text-fg-faint"
               >
                 ×
               </button>

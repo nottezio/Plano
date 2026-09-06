@@ -171,6 +171,15 @@ export interface UserSettings {
    */
   sectionTint: boolean;
   /**
+   * The patient name, MRN and date faintly behind the note.
+   *
+   * On by default: it is a wrong-patient guard, and a guard nobody has heard
+   * of protects nobody. Optional because it is drawn behind live text, and on
+   * a small dense screen a reader may reasonably decide it is one layer too
+   * many.
+   */
+  showWatermark: boolean;
+  /**
    * "Hari rawat ke-N" in the patient page header.
    *
    * Off by default. Every admission day is already visible from the date rail

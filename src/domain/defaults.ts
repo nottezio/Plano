@@ -10,7 +10,7 @@ import {
   FOLLOWUP_TPM_BODY,
   BALASAN_KONSUL_BODY,
 } from './templates';
-import type { NoteTemplate } from './types';
+import type { NoteTemplate, SectionId } from './types';
 import type {
   ChecklistItemDef,
   CopyPreset,
@@ -195,6 +195,20 @@ export const SEED_CLOSING_SENTENCES: readonly string[] = [
   'Tabe terimakasih dokter',
 ] as const;
 
+/**
+ * Sections emptied when a day is carried forward.
+ *
+ * `ttv` joins `s`: yesterday's blood pressure and pulse are not today's, and
+ * a carried-forward note that keeps them reads as if the round has already
+ * happened. Of everything in the note these are the numbers most likely to be
+ * sent on unchanged without anyone noticing, because they LOOK filled in.
+ *
+ * Seeded rather than hardcoded, so it reaches profiles that already exist:
+ * `reconcileSeeds` sees `ttv` added to the seed and appends it, while leaving
+ * anything the user chose themselves alone.
+ */
+export const SEED_CARRY_FORWARD_CLEAR: readonly SectionId[] = ['s', 'ttv'] as const;
+
 /** The seeds as this build ships them, for `reconcileSeeds`. */
 export const SEED_SNAPSHOT = {
   get noteTemplates() {
@@ -208,6 +222,9 @@ export const SEED_SNAPSHOT = {
   },
   get closingSentences() {
     return SEED_CLOSING_SENTENCES;
+  },
+  get carryForwardClearSections() {
+    return SEED_CARRY_FORWARD_CLEAR;
   },
 };
 
@@ -250,7 +267,8 @@ export function defaultUserSettings(): UserSettings {
     // echo stack every morning — and that stack IS the value of carrying a note
     // forward. Investigations are removed by hand when they stop being
     // relevant, never on a schedule.
-    carryForwardClearSections: ['s'],
+    carryForwardClearSections: [...SEED_CARRY_FORWARD_CLEAR],
+    showWatermark: true,
     greetings: [...SEED_GREETINGS],
     /**
      * Placeholders are spelled out rather than left blank.

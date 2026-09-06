@@ -96,7 +96,26 @@ export function buildBands(
        * apart — they did once, and the bar was clean while the tints were not.
        */
       const kind = section.ownsLine ? tintFor(section.sectionId, section.label) : null;
-      const tint = kind && !seen.has(kind) ? kind : null;
+      /**
+       * Deduped per SECTION, not per colour.
+       *
+       * Six colours cover a dozen headings, so `terapi` and `p` share one —
+       * and keying the "first occurrence" rule on the colour meant they
+       * competed. Whichever came first took the band and the other was left
+       * plain, which is why `*Plan:*` was never tinted in a note that also had
+       * `*Mohon izin kami terapi dengan:*`, and why an unrelated custom
+       * heading that happened to map to the same colour could take it from
+       * both.
+       *
+       * `anchored` two lines down has always keyed on `sectionId`, and the
+       * comment there says these two must not drift. They had: the bar
+       * offered a Plan button pointing at an untinted heading.
+       *
+       * Repeats are still suppressed — three `EKG` headings are all
+       * `penunjang` and only the first is painted, which is the striping this
+       * rule was written for in the first place.
+       */
+      const tint = kind && !seen.has(section.sectionId) ? kind : null;
 
       /**
        * Decided BEFORE it is recorded, exactly like `tint` above.
@@ -113,7 +132,7 @@ export function buildBands(
       const anchor =
         section.ownsLine && !anchored.has(section.sectionId) ? section.sectionId : null;
 
-      if (kind) seen.add(kind);
+      if (kind) seen.add(section.sectionId);
       if (anchor) anchored.add(anchor);
 
       result.push({

@@ -1,5 +1,5 @@
 import { mergeThreeWay } from './merge/threeWayMerge';
-import type { NoteTemplate, UserSettings } from './types';
+import type { NoteTemplate, SectionId, UserSettings } from './types';
 
 /**
  * Letting a corrected seed reach a user who has edited their copy.
@@ -51,6 +51,12 @@ export interface SeedBaseline {
   greetings: string[];
   openingSentences: string[];
   closingSentences: string[];
+  /**
+   * Optional: baselines written before this list was seeded do not have it.
+   * Treated as empty, which makes every seeded entry look "new" and therefore
+   * appended — the right outcome, since the user has never been offered them.
+   */
+  carryForwardClearSections?: SectionId[];
 }
 
 /** The seeds as this build ships them. */
@@ -59,6 +65,7 @@ export interface SeedSnapshot {
   greetings: readonly string[];
   openingSentences: readonly string[];
   closingSentences: readonly string[];
+  carryForwardClearSections: readonly SectionId[];
 }
 
 export interface SeedSyncReport {
@@ -80,6 +87,7 @@ export function snapshotOf(seeds: SeedSnapshot): SeedBaseline {
     greetings: [...seeds.greetings],
     openingSentences: [...seeds.openingSentences],
     closingSentences: [...seeds.closingSentences],
+    carryForwardClearSections: [...seeds.carryForwardClearSections],
   };
 }
 
@@ -102,11 +110,11 @@ export function snapshotOf(seeds: SeedSnapshot): SeedBaseline {
  *  - in both -> unchanged by us. If the user deleted it, it stays deleted; if
  *    they edited it, their version stays. Neither is something to undo.
  */
-export function mergeStringList(
-  baseline: readonly string[],
-  local: readonly string[],
-  seed: readonly string[],
-): { next: string[]; changed: number } {
+export function mergeStringList<T extends string>(
+  baseline: readonly T[],
+  local: readonly T[],
+  seed: readonly T[],
+): { next: T[]; changed: number } {
   const inBaseline = new Set(baseline);
   const inSeed = new Set(seed);
   const inLocal = new Set(local);
@@ -238,7 +246,13 @@ export function reconcileSeeds(
     seeds.closingSentences,
   );
 
-  const phrases = greetings.changed + opening.changed + closing.changed;
+  const carry = mergeStringList(
+    baseline.carryForwardClearSections ?? [],
+    settings.carryForwardClearSections,
+    seeds.carryForwardClearSections,
+  );
+
+  const phrases = greetings.changed + opening.changed + closing.changed + carry.changed;
   const report: SeedSyncReport = {
     updated: templates.updated,
     conflicted: templates.conflicted,
@@ -269,6 +283,7 @@ export function reconcileSeeds(
       greetings: greetings.next,
       openingSentences: opening.next,
       closingSentences: closing.next,
+      carryForwardClearSections: carry.next,
       seedBaseline: current,
     },
     report,

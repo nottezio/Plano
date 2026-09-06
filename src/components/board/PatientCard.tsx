@@ -104,9 +104,21 @@ export function PatientCard({
          * "selected" here, and a flag that shares a colour with a state is a
          * flag you have to think about.
          */
-        card.pemantauan
-          ? 'border-l-4 border-l-[var(--warn-strong)] ring-1 ring-inset ring-[var(--warn-soft)]'
-          : '',
+        /*
+         * A ring around the WHOLE card, in the danger colour, plus a flag.
+         *
+         * The previous treatment was a left edge in `--warn-strong` with a
+         * faint ring — and it lost, twice over. It shared the left edge with
+         * the discharge stage, whose inline `borderLeftColor` overrides a
+         * class and silently erased it on any patient who had both; and even
+         * alone it read as one more amber accent on cards that already carry a
+         * stage colour, a title, a location and a preview.
+         *
+         * The ring cannot collide with the discharge edge because it is not on
+         * the same property, and the danger token is used nowhere else on a
+         * card, so it means one thing.
+         */
+        card.pemantauan ? 'relative ring-2 ring-[var(--danger)]' : '',
       ].join(' ')}
       style={
         // A left edge rather than a different card colour: the card colour
@@ -121,6 +133,19 @@ export function PatientCard({
           : undefined
       }
     >
+      {/*
+        Named, not just coloured. A red ring says "something", a flag says
+        which something — and a resident scanning twenty cards should not have
+        to remember what a colour meant.
+      */}
+      {card.pemantauan ? (
+        <span
+          className="absolute -top-2 left-3 rounded-full px-1.5 py-0.5 text-[10px] font-semibold leading-none text-white"
+          style={{ backgroundColor: 'var(--danger)' }}
+        >
+          Pemantauan
+        </span>
+      ) : null}
       <div className="flex items-start gap-2">
         {selectable ? (
           <span

@@ -235,6 +235,18 @@ export default function SettingsPage(): JSX.Element {
         </SettingsSection>
 
         <SettingsSection
+          title="Tanda air di catatan"
+          description="Nama, RM dan tanggal samar di belakang teks, berulang sepanjang catatan."
+        >
+          <Toggle
+            label="Tampilkan tanda air"
+            description="Menyala secara default. Gunanya menahan salah pasien saat sudah menggulir jauh dari judul."
+            checked={settings.showWatermark}
+            onChange={(showWatermark) => patch({ showWatermark })}
+          />
+        </SettingsSection>
+
+        <SettingsSection
           title="Hari rawat di judul catatan"
           description="Angka hari rawat sudah terlihat di rel tanggal; ini menambahkannya di judul juga."
         >

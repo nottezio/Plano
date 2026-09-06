@@ -89,14 +89,21 @@ export function JumpBar({
     <div
       // Horizontal scroll rather than wrap: a second row would push the note
       // itself further down every screen, and this is furniture.
-      className="flex gap-1 overflow-x-auto border-b border-border px-4 py-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+      /*
+        No vertical padding, and the buttons carry the whole row height.
+        The row was 44 px of button inside 8 px of padding inside a border —
+        two thirds furniture — on a screen whose entire purpose is the note
+        below it. The tap target is untouched at 44 px; what went is the empty
+        space around it.
+      */
+      className="flex gap-0.5 overflow-x-auto border-b border-border px-3 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
     >
       {targets.map((target) => (
         <button
           key={target.sectionId}
           type="button"
           onClick={() => jump(target.anchorId)}
-          className="min-h-tap shrink-0 rounded-lg px-2.5 text-xs font-medium text-fg-muted"
+          className="min-h-tap shrink-0 rounded-lg px-2 text-[11px] font-medium text-fg-muted"
         >
           {target.label}
         </button>

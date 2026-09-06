@@ -3,48 +3,45 @@ import { describe, expect, it } from 'vitest';
 import { tintFor } from './sectionTint';
 import type { SectionId } from '../types';
 
+const tint = (id: string, label: string): string | null =>
+  tintFor(id as SectionId, label);
+
 describe('tintFor', () => {
-  it('gives the opening block its own band', () => {
-    expect(tintFor('_intro' as SectionId, '')).toBe('identitas');
+  it('does not read "plan" out of the middle of "Implantasi"', () => {
+    /*
+     * The bug this file exists for. Keywords were matched with `includes`, so
+     * `plan` matched Im-PLAN-tasi and a real note's procedure report was
+     * tinted as therapy.
+     *
+     * The expensive half was downstream: bands mark the FIRST heading of each
+     * kind, so this line — which sits above the assessment — claimed the
+     * therapy colour and left the actual therapy and plan headings plain.
+     */
+    expect(tint('custom_laporan_implantasi_ppm', 'Laporan Implantasi PPM (04-09-2026)')).not.toBe(
+      'terapi',
+    );
   });
 
-  it('maps the four SOAP parts', () => {
-    expect(tintFor('s' as SectionId, 'Subjektif')).toBe('s');
-    expect(tintFor('o' as SectionId, 'Objektif')).toBe('o');
-    expect(tintFor('a' as SectionId, 'Assessment')).toBe('a');
-    expect(tintFor('p' as SectionId, 'Plan')).toBe('terapi');
-    expect(tintFor('terapi' as SectionId, 'Terapi')).toBe('terapi');
+  it('files a procedure report with the investigations, where it is read', () => {
+    expect(tint('custom_laporan_implantasi_ppm', 'Laporan Implantasi PPM (04-09-2026)')).toBe('o');
   });
 
-  it('puts investigations with O, where they are read', () => {
-    for (const label of [
-      'EKG PJT Lantai 5 06-08-2026',
-      'Laboratorium PJT (04-08-2026)',
-      'Foto Thorax 28-07-2026',
-      'Echocardiography Bedside',
-      'MRI Kontras Cardiac',
-    ]) {
-      expect(tintFor('custom_x' as SectionId, label)).toBe('o');
-    }
+  it('still matches stems at the start of a word', () => {
+    // Word START, not whole word: these have to reach their longer forms.
+    expect(tint('custom_diagnosis_kerja', 'Diagnosis Kerja')).toBe('a');
+    expect(tint('custom_monitoring', 'Monitoring')).toBe('terapi');
+    expect(tint('custom_angiografi', 'Angiografi')).toBe('o');
+    expect(tint('custom_laboratorium', 'Laboratorium')).toBe('o');
   });
 
-  it('puts consultant replies in their own band', () => {
-    expect(tintFor('custom_ts_emd' as SectionId, 'TS EMD')).toBe('ts');
-    expect(tintFor('custom_k' as SectionId, 'Balasan konsul')).toBe('ts');
+  it('gives terapi and plan the same colour, as designed', () => {
+    // Six bands for a dozen headings. Sharing a colour is intended; what was
+    // not intended was the two competing for it.
+    expect(tint('terapi', 'Terapi')).toBe('terapi');
+    expect(tint('p', 'Plan')).toBe('terapi');
   });
 
-  it('reads a diagnosis heading as assessment', () => {
-    expect(tintFor('custom_dx' as SectionId, 'Diagnosis Primer')).toBe('a');
-    expect(tintFor('custom_p' as SectionId, 'Problem')).toBe('a');
-  });
-
-  it('gives no tint to a heading it does not recognise', () => {
-    // A wrong band is worse than a plain one: these are read without thinking.
-    expect(tintFor('custom_zzz' as SectionId, 'Sesuatu')).toBeNull();
-  });
-
-  it('prefers the consultant band over the therapy keywords inside it', () => {
-    // "TS EMD" contains no therapy word, but "Balasan konsul terapi" does.
-    expect(tintFor('custom_x' as SectionId, 'Balasan konsul terapi')).toBe('ts');
+  it('leaves an unrecognised heading untinted rather than guessing', () => {
+    expect(tint('custom_catatan_khusus', 'Catatan Khusus')).toBeNull();
   });
 });

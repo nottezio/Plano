@@ -57,6 +57,47 @@ const TITLE = /\b(Tn|Ny|Nn|An|Sdr|Sdri)\.?\s/i;
 const PLACEHOLDER = /\((nama|tgl|umur|no|ruang|bagian)[^)]*\)/i;
 
 /**
+ * The record number, with or without the word `RM`.
+ *
+ * Real identity lines write it both ways:
+ *
+ *   Tn. Basra / 12-03-1970 / 56 tahun / RM 1068190
+ *   Tn. Arfa Anugrah Dicky Putra/13-02-2003/23 tahun/ 01705916
+ *
+ * Requiring the literal `RM` meant the second shape parsed to nothing at all —
+ * not a missing MRN, no patient. `looksLikeIdentityLine` tests for the same
+ * two things the extractor reads, so a line with no `RM` failed the test, was
+ * never selected, and the name, birth date, age and sex went with it. The card
+ * read "Tanpa nama" over a note that names the patient in its second line.
+ *
+ * The unlabelled form is found by ELIMINATION rather than by position: strip
+ * the birth date and the age first, then take what is left that looks like a
+ * record number. Taking "the last field after a slash" would have been shorter
+ * and wrong — some notes write the date as `13/02/2003`, which puts two more
+ * slashes in the line and moves every field.
+ *
+ * Six digits minimum when unlabelled, against four when the word `RM` is
+ * present. Without the label there is nothing to confirm the number IS a
+ * record number, so it has to be long enough that no year, room number or
+ * dosage can be mistaken for one. A wrong MRN is the worst thing this parser
+ * can produce — it is the field that identifies the patient to another system.
+ */
+const MRN_LABELLED = /\bRM\.?\s*:?\s*([0-9][0-9.\-\s]{2,})/i;
+const BIRTH_DATE = /\b(\d{1,2}[-/]\d{1,2}[-/]\d{4})\b/;
+const AGE = /(\d{1,3})\s*(?:tahun|thn|th)\b/i;
+
+function findMrn(line: string): string | undefined {
+  const labelled = MRN_LABELLED.exec(line);
+  const digits = labelled?.[1]?.replace(/[\s.\-]/g, '');
+  if (digits && digits.length >= 4 && digits.length <= 12) return digits;
+
+  const remainder = line
+    .replace(new RegExp(BIRTH_DATE.source, 'g'), ' ')
+    .replace(new RegExp(AGE.source, 'gi'), ' ');
+  return /\b(\d{6,12})\b/.exec(remainder)?.[1];
+}
+
+/**
  * Only the opening block is searched.
  *
  * A note can name more than one patient — a consult reply quotes another, a
@@ -116,8 +157,20 @@ function openingBlock(body: string, aliases?: readonly SectionAlias[]): string {
  */
 export function looksLikeIdentityLine(line: string): boolean {
   const candidate = line.replace(/[*_]/g, '').trim();
+  /*
+   * The word `RM` counts on its own, even when the number after it will not
+   * parse. It is a declaration that this line identifies a patient, and a line
+   * that says so is an identity line whether or not the record number is
+   * legible — dropping it would lose the name and birth date too, over a field
+   * that was already going to come back empty.
+   *
+   * The unlabelled branch is the one that needs a real number, because there
+   * the number is the ONLY evidence.
+   */
   return (
-    TITLE.test(candidate) && /\bRM\b/i.test(candidate) && !PLACEHOLDER.test(candidate)
+    TITLE.test(candidate) &&
+    (/\bRM\b/i.test(candidate) || findMrn(candidate) !== undefined) &&
+    !PLACEHOLDER.test(candidate)
   );
 }
 
@@ -142,14 +195,13 @@ export function parseIdentity(
    * wrong MRN is the single worst thing this parser can produce, because it is
    * the field used to identify the patient to another system.
    */
-  const mrn = /\bRM\.?\s*:?\s*([0-9][0-9.\-\s]{2,})/i.exec(line);
-  const digits = mrn?.[1]?.replace(/[\s.\-]/g, '');
-  if (digits && digits.length >= 4 && digits.length <= 12) result.mrn = digits;
+  const mrn = findMrn(line);
+  if (mrn) result.mrn = mrn;
 
-  const birth = /\b(\d{1,2}[-/]\d{1,2}[-/]\d{4})\b/.exec(line);
+  const birth = BIRTH_DATE.exec(line);
   if (birth?.[1]) result.birthDate = birth[1].replace(/\//g, '-');
 
-  const age = /(\d{1,3})\s*(?:tahun|thn|th)\b/i.exec(line);
+  const age = AGE.exec(line);
   if (age?.[1]) result.age = Number(age[1]);
 
   // The name runs from the title to the first separator that introduces

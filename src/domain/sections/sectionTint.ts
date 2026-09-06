@@ -23,8 +23,25 @@ export type SectionTint =
   | 'ts'
   | null;
 
+/**
+ * Matched at WORD START, never as a bare substring.
+ *
+ * `includes('plan')` matched `Im-plan-tasi`, so a real note's
+ * `*Laporan Implantasi PPM (04-09-2026)*` was tinted as therapy. That was two
+ * bugs in one, and the second was the expensive one: the bands mark only the
+ * FIRST heading of each kind, so the Laporan line — which sits above the
+ * assessment — CLAIMED the therapy colour, and the actual
+ * `*Mohon izin kami terapi dengan:*` and `*Plan:*` headings below it were
+ * left plain. A stray substring match upstream silently switched off the
+ * tint on the two sections that matter most.
+ *
+ * Word START rather than whole word, because these are stems: `diagnos` has
+ * to reach `diagnosis` and `diagnosa`, `monitor` has to reach `monitoring`,
+ * `angiograf` has to reach `angiografi`. What they must NOT do is match in
+ * the middle of an unrelated word, and that is exactly what `\b` prevents.
+ */
 const KEYWORDS: Array<[SectionTint, readonly string[]]> = [
-  ['ts', ['ts ', 'konsul', 'balasan']],
+  ['ts', ['ts', 'konsul', 'balasan']],
   ['a', ['assess', 'diagnos', 'problem', 'masalah']],
   ['terapi', ['terapi', 'obat', 'plan', 'rencana', 'monitor', 'edukasi']],
   [
@@ -52,12 +69,31 @@ export function tintFor(sectionId: SectionId, label: string): SectionTint {
 
   const haystack = `${sectionId} ${label}`.toLowerCase();
   for (const [tint, words] of KEYWORDS) {
-    if (words.some((word) => haystack.includes(word))) return tint;
+    if (words.some((word) => startsWord(haystack, word))) return tint;
   }
 
   // Unrecognised headings get no tint rather than a guessed one: a wrong band
   // is worse than a plain one, because the bands are read without thinking.
   return null;
+}
+
+/**
+ * Does `stem` begin a word anywhere in `haystack`?
+ *
+ * Built as a regex per call rather than precompiled: the list is a dozen short
+ * literals, this runs once per heading, and a lazily-built cache would be more
+ * code than the thing it saves. `_` is excluded from the boundary because
+ * section ids are snake_case — `custom_laporan_implantasi` has to let
+ * `laporan` match.
+ */
+function startsWord(haystack: string, stem: string): boolean {
+  const index = haystack.indexOf(stem);
+  if (index < 0) return false;
+  for (let at = index; at >= 0; at = haystack.indexOf(stem, at + 1)) {
+    const before = at === 0 ? '' : haystack[at - 1]!;
+    if (!/[a-z0-9]/.test(before)) return true;
+  }
+  return false;
 }
 
 export const TINT_VAR: Record<Exclude<SectionTint, null>, string> = {

@@ -10,6 +10,7 @@ const seeds = (over: Partial<SeedSnapshot> = {}): SeedSnapshot => ({
   greetings: ['Selamat pagi dokter.'],
   openingSentences: ['Mohon izin melaporkan'],
   closingSentences: ['Terima kasih dokter'],
+  carryForwardClearSections: ['s'],
   ...over,
 });
 
@@ -217,5 +218,32 @@ describe('reconcileSeeds', () => {
     expect(first.settings.noteTemplates).toHaveLength(fresh.noteTemplates.length);
     // Second pass settles: reconciliation must converge, not oscillate.
     expect(reconcileSeeds(first.settings, SEED_SNAPSHOT).dirty).toBe(false);
+  });
+});
+
+describe('carry-forward clearing reaches existing profiles', () => {
+  it('adds ttv to a profile that predates the seeded list', () => {
+    /*
+     * `carryForwardClearSections` was hardcoded in the defaults factory, so
+     * adding `ttv` would only ever have reached brand-new accounts. Seeding it
+     * makes the reconciler deliver it — which is the mechanism doing the job
+     * it was built for, on the first change shipped after it existed.
+     */
+    const before = seeds();
+    const local = settingsFrom(before);
+    // A baseline written before this list was seeded has no entry for it.
+    delete local.seedBaseline!.carryForwardClearSections;
+    local.carryForwardClearSections = ['s'];
+
+    const result = reconcileSeeds(local, seeds({ carryForwardClearSections: ['s', 'ttv'] }));
+    expect(result.settings.carryForwardClearSections).toEqual(['s', 'ttv']);
+  });
+
+  it('does not re-add a section the user turned off', () => {
+    const base = seeds({ carryForwardClearSections: ['s', 'ttv'] });
+    const local = settingsFrom(base);
+    local.carryForwardClearSections = ['s'];
+    const result = reconcileSeeds(local, base);
+    expect(result.settings.carryForwardClearSections).toEqual(['s']);
   });
 });
