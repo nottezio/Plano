@@ -1,10 +1,11 @@
 import { useMemo, useState } from 'react';
 import { nanoid } from 'nanoid';
 
-import { updatePatient } from '@/data/repositories/patients.repo';
+import { setTodoTicks, updatePatient } from '@/data/repositories/patients.repo';
 import { SEED_CHECKLISTS } from '@/domain/checklists/seeds';
 import { useSession } from '@/store/useSession';
-import type { Patient } from '@/domain/types';
+import { setRepeat, todoViews, toggleTodo } from '@/domain/patientTodos';
+import type { ClinicalDate, Patient } from '@/domain/types';
 
 /**
  * A checklist belonging to one patient.
@@ -19,11 +20,33 @@ import type { Patient } from '@/domain/types';
  * here are about this patient, and linking would mean ticking a step for one
  * patient marked it done for the next.
  */
-export function PatientTodos({ patient }: { patient: Patient }): JSX.Element {
+export function PatientTodos({
+  patient,
+  /**
+   * The day being viewed, not `today`.
+   *
+   * Opening yesterday must show yesterday's ticks. Reading the wall clock here
+   * would show today's answers under yesterday's note and invite ticking a step
+   * against the wrong day — the same class of mistake as the toolbar sheets
+   * that wrote to the day's SOAP while a jaga note was open.
+   */
+  date,
+}: {
+  patient: Patient;
+  date: ClinicalDate;
+}): JSX.Element {
   const [draft, setDraft] = useState('');
   const [importOpen, setImportOpen] = useState(false);
 
   const todos = patient.todos ?? [];
+  const views = todoViews(todos, patient.todoTicks, date);
+  const doneCount = views.filter((view) => view.done).length;
+
+  const writeTicks = (ids: string[]): void => {
+    void setTodoTicks(patient.id, date, ids).catch((error: unknown) =>
+      console.error('[todos] tick write rejected', error),
+    );
+  };
 
   /**
    * Import from the user's OWN checklists, falling back to the seeds.
@@ -80,7 +103,7 @@ export function PatientTodos({ patient }: { patient: Patient }): JSX.Element {
           Checklist pasien
           {todos.length > 0 ? (
             <span className="ml-1 font-normal text-fg-faint">
-              {todos.filter((todo) => todo.done).length}/{todos.length}
+              {doneCount}/{todos.length}
             </span>
           ) : null}
         </h3>
@@ -110,19 +133,15 @@ export function PatientTodos({ patient }: { patient: Patient }): JSX.Element {
 
       {todos.length > 0 ? (
         <ul className="mt-1.5 space-y-1">
-          {todos.map((todo) => (
+          {views.map((todo) => (
             <li key={todo.id} className="flex items-start gap-2">
               <button
                 type="button"
-                onClick={() =>
-                  save(
-                    todos.map((candidate) =>
-                      candidate.id === todo.id
-                        ? { ...candidate, done: !candidate.done }
-                        : candidate,
-                    ),
-                  )
-                }
+                onClick={() => {
+                  const change = toggleTodo(todos, patient.todoTicks, date, todo.id);
+                  if (change.todos) save(change.todos);
+                  if (change.ticks) writeTicks(change.ticks);
+                }}
                 aria-pressed={todo.done}
                 className="flex min-h-tap flex-1 items-start gap-2 text-left"
               >
@@ -142,19 +161,61 @@ export function PatientTodos({ patient }: { patient: Patient }): JSX.Element {
                   ].join(' ')}
                 >
                   {todo.label}
+                  {/*
+                    What you did yesterday, on the item rather than in a
+                    separate log. Only when it is NOT done today — once ticked,
+                    the tick says everything and the reminder is noise.
+                  */}
+                  {todo.doneYesterday ? (
+                    <span className="ml-1.5 whitespace-nowrap text-[10px] text-fg-faint">
+                      sudah kemarin
+                    </span>
+                  ) : null}
                 </span>
+              </button>
+              {/*
+                A toggle, not a second list. Shown always rather than on hover:
+                a control that appears only when pointed at is a control nobody
+                on a ward tablet finds.
+              */}
+              <button
+                type="button"
+                aria-label={todo.repeat ? 'Jadikan sekali saja' : 'Ulangi tiap hari'}
+                aria-pressed={todo.repeat ?? false}
+                title={todo.repeat ? 'Langkah harian' : 'Sekali saja'}
+                onClick={() => {
+                  const change = setRepeat(
+                    todos,
+                    patient.todoTicks,
+                    date,
+                    todo.id,
+                    !todo.repeat,
+                  );
+                  if (change.todos) save(change.todos);
+                  if (change.ticks) writeTicks(change.ticks);
+                }}
+                className={[
+                  'flex min-h-tap min-w-[28px] shrink-0 items-start justify-center pt-1 text-xs leading-snug',
+                  todo.repeat ? 'text-accent' : 'text-fg-faint opacity-40',
+                ].join(' ')}
+              >
+                <span aria-hidden="true">⟳</span>
               </button>
               <button
                 type="button"
                 aria-label="Hapus"
                 onClick={() => save(todos.filter((candidate) => candidate.id !== todo.id))}
                 /*
-                  `flex … justify-center`: the button was a block with a
-                  min-width, so the glyph sat wherever the inherited text
-                  alignment put it — left of centre, and visibly out of line
-                  with the row of them down the list.
+                  Aligned to the label's FIRST LINE, not to the row's centre.
+                  
+                  `items-center` inside a 44 px tap target put the glyph 22 px
+                  down, while the label — in a row that is `items-start` —
+                  begins at 4 px. On a one-line item that reads as the × having
+                  slipped below its own text, and on a wrapped one it drifts
+                  further still. Matching the label's `py-1` and line height
+                  puts the two on the same baseline whatever the item does.
                 */
-                className="flex min-h-tap min-w-[32px] shrink-0 items-center justify-center text-xs text-fg-faint"
+                className="flex min-h-tap min-w-[32px] shrink-0 items-start justify-center pt-1 text-xs leading-snug text-fg-faint"
               >
                 ×
               </button>

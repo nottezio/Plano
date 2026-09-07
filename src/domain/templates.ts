@@ -49,7 +49,7 @@ _Post Tindakan :  ()_`;
  * Height, weight and the physical examination sit BELOW the vitals with a blank
  * line between, which is how they are read.
  */
-const VITALS = `*O:*
+export const VITALS_BLOCK = `*O:*
 Compos Mentis GCS (E4V5M6)
 Tekanan Darah :  mmHg
 Nadi :  kali/menit, reguler
@@ -83,7 +83,7 @@ export const FOLLOWUP_BODY = `${OPENING}
 - Saat ini keluhan nyeri dada tidak ada, sesak napas tidak ada, berdebar tidak ada.
 - BAB dan BAK dalam batas normal.
 
-${VITALS}
+${VITALS_BLOCK}
 
 *Mohon izin kami assess dengan:*
 - 
@@ -102,7 +102,7 @@ export const FOLLOWUP_DX_BODY = `${OPENING}
 - Saat ini keluhan nyeri dada tidak ada, sesak napas tidak ada, berdebar tidak ada.
 - BAB dan BAK dalam batas normal.
 
-${VITALS}
+${VITALS_BLOCK}
 
 *Mohon izin kami assess dengan:*
 Diagnosis Primer : 
@@ -175,7 +175,7 @@ Faktor resiko koroner:
 - Riwayat Merokok tidak ada.
 - Riwayat Penyakit Jantung dalam keluarga tidak ada.
 
-${VITALS}
+${VITALS_BLOCK}
 
 *Mohon izin kami assess dengan:*
 - 
@@ -224,7 +224,7 @@ Faktor Risiko Kardiovaskular :
 - Riwayat merokok tidak ada
 - Riwayat keluarga menderita penyakit jantung tidak ada
 
-${VITALS}
+${VITALS_BLOCK}
 
 *Mohon izin kami assess dengan:*
 - 
@@ -257,7 +257,7 @@ _DPJP Utama: (Nama DPJP)_
 - Keluhan lain mual tidak ada, demam tidak ada, batuk dan beringus tidak ada.
 - BAB dan BAK kesan normal.
 
-${VITALS}
+${VITALS_BLOCK}
 
 *Mohon izin kami assess dengan:*
 - 
@@ -347,7 +347,7 @@ export const FOLLOWUP_TPM_BODY = `${OPENING}
 - Saat ini keluhan nyeri dada tidak ada, sesak napas tidak ada, berdebar tidak ada.
 - Keluhan pusing atau rasa mau pingsan tidak ada.
 
-${VITALS}
+${VITALS_BLOCK}
 
 *EKG (Ruang) ((tanggal)) On TPM*
 - 
@@ -395,3 +395,25 @@ Plan Terapi:
 Demikian, terima kasih dokter`;
 
 
+
+
+/**
+ * The blank form of each vital-sign line, taken from the seeded O block.
+ *
+ * Derived from `VITALS_BLOCK` rather than written out again, so "what an empty
+ * vital sign looks like" has one definition. The units and spacing here are
+ * load-bearing — `SpO2 : % on room air` has one space where the others have
+ * two — and a second hand-typed copy would drift from the template the first
+ * time either was touched.
+ *
+ * Keyed on the lower-cased label. TB and BB are deliberately absent: height and
+ * weight are not vitals, they do not change between rounds, and the konsul
+ * formats read them.
+ */
+const VITAL_LABELS = ['tekanan darah', 'nadi', 'pernapasan', 'suhu', 'spo2'];
+
+export const VITAL_BLANKS: ReadonlyMap<string, string> = new Map(
+  VITALS_BLOCK.split('\n')
+    .map((line) => [line.slice(0, line.indexOf(':')).trim().toLowerCase(), line] as const)
+    .filter(([label]) => VITAL_LABELS.includes(label)),
+);

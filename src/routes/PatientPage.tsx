@@ -788,7 +788,7 @@ export default function PatientPage(): JSX.Element {
         </div>
 
         <div className="xl:hidden">
-          <PatientTodos patient={patient} />
+          <PatientTodos patient={patient} date={selected} />
         </div>
 
         <div className="xl:hidden">
@@ -1143,7 +1143,7 @@ export default function PatientPage(): JSX.Element {
             <>
           <PatientNotes sync={notesSync} />
 
-          <PatientTodos patient={patient} />
+          <PatientTodos patient={patient} date={selected} />
 
           <section>
             <h3 className="mb-1.5 text-xs font-semibold text-fg-muted">Tanggal</h3>

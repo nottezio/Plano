@@ -2,6 +2,7 @@ import {
   arrayUnion,
   deleteDoc,
   deleteField,
+  FieldPath,
   getDocs,
   writeBatch,
   onSnapshot,
@@ -310,6 +311,37 @@ type PatientPatchKey = keyof Pick<
   | 'admittedAt'
   | 'lastEntryDate'
 >;
+
+/**
+ * Write one day's checklist ticks.
+ *
+ * A field PATH, not a `todoTicks` object in a patch. `updateDoc` replaces a
+ * top-level field wholesale, so sending the whole map would let a device that
+ * had not yet seen yesterday's write erase it. Addressing the single date
+ * leaves every other day untouched by the server.
+ *
+ * `FieldPath` rather than the dotted string form because a clinical date starts
+ * with a digit and contains hyphens, which the string form requires to be
+ * backtick-escaped — a rule that is easy to get right once and easy to forget
+ * the next time somebody edits this line.
+ */
+export function setTodoTicks(
+  patientId: string,
+  date: ClinicalDate,
+  ids: readonly string[],
+): Promise<void> {
+  return trackWrite(
+    updateDoc(
+      patientDoc(patientId),
+      new FieldPath('todoTicks', date),
+      [...ids],
+      'updatedAt',
+      serverTimestamp(),
+      'updatedBy',
+      getDeviceId(),
+    ),
+  );
+}
 
 export function updatePatient(
   patientId: string,

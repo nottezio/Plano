@@ -383,7 +383,34 @@ export interface Patient {
    * This is "things to remember for THIS admission" — and it persists across
    * days, because that is what makes it worth writing down.
    */
-  todos?: Array<{ id: string; label: string; done: boolean }>;
+  todos?: Array<{
+    id: string;
+    label: string;
+    done: boolean;
+    /**
+     * A step that comes round again — daily bloods, a drain check, updating a
+     * group chat — as opposed to a one-off like "confirm coding".
+     *
+     * Marked per item rather than per list, because an admission checklist is
+     * a mix of the two and splitting it into two lists would mean deciding, at
+     * the moment of writing something down, which list it belongs in. Ticking
+     * still records that it was done today; `repeat` only says the tick is
+     * expected to be cleared for tomorrow.
+     */
+    repeat?: boolean;
+  }>;
+  /**
+   * Ticks on repeating checklist items, keyed by clinical date.
+   *
+   * The date is the key, so nothing has to reset: a new day simply has no
+   * record yet, and every previous day is still there to answer "did I do that
+   * yesterday". Same rule as the daily checklist, which resets by having the
+   * date as its document id rather than by a timer.
+   *
+   * On the patient rather than on each daily entry so that today and yesterday
+   * are both readable from a document the page already subscribes to.
+   */
+  todoTicks?: Record<string, string[]>;
   colorOverride?: string | null;
   lastEntryDate?: ClinicalDate;
 

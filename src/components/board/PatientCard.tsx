@@ -118,7 +118,22 @@ export function PatientCard({
          * the same property, and the danger token is used nowhere else on a
          * card, so it means one thing.
          */
-        card.pemantauan ? 'relative ring-2 ring-[var(--danger)]' : '',
+        /*
+         * Ring only. NOTHING absolutely positioned inside a board card.
+         *
+         * The badge was `absolute -top-2 left-3` on a `relative` card, and the
+         * board is a CSS multi-column layout (`columns-2 … columns-5`). An
+         * absolutely-positioned box inside a relatively-positioned element in a
+         * multicol container has no reliably-resolved containing block: the
+         * browser fragments the flow into columns and the abspos child is laid
+         * out against the wrong fragment. So the red pill landed in open space
+         * between two other cards, several hundred pixels from the patient it
+         * belonged to.
+         *
+         * `ring` is safe because it paints on the border box and never leaves
+         * the flow. The label below is in normal flow for the same reason.
+         */
+        card.pemantauan ? 'ring-2 ring-[var(--danger)]' : '',
       ].join(' ')}
       style={
         // A left edge rather than a different card colour: the card colour
@@ -134,17 +149,20 @@ export function PatientCard({
       }
     >
       {/*
-        Named, not just coloured. A red ring says "something", a flag says
-        which something — and a resident scanning twenty cards should not have
-        to remember what a colour meant.
+        A strip across the top of the card, in normal flow.
+
+        Named as well as coloured: a red ring says "something", the word says
+        which something, and a resident scanning twenty cards should not have to
+        remember what a colour meant. Negative margins pull it out to the card's
+        padding edge so it reads as part of the frame rather than as content.
       */}
       {card.pemantauan ? (
-        <span
-          className="absolute -top-2 left-3 rounded-full px-1.5 py-0.5 text-[10px] font-semibold leading-none text-white"
+        <p
+          className="-mx-3 -mt-3 mb-2 rounded-t-xl px-3 py-1 text-[10px] font-semibold uppercase tracking-wide text-white"
           style={{ backgroundColor: 'var(--danger)' }}
         >
           Pemantauan
-        </span>
+        </p>
       ) : null}
       <div className="flex items-start gap-2">
         {selectable ? (

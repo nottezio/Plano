@@ -1,4 +1,5 @@
 import { aliasesOrDefault } from './sections/aliases';
+import { VITAL_BLANKS } from './templates';
 import { parseSections } from './sections/parseSections';
 import type { SectionAlias, SectionId } from './types';
 
@@ -53,13 +54,65 @@ export function carryForward(
       if (section.text.trim().length === 0) return original;
 
       if (!cleared.includes(section.label)) cleared.push(section.label);
-      // Header kept exactly as typed, minus its trailing spaces, then a single
-      // newline so the next header still starts its own line.
-      return `${section.headerLine.replace(/[ \t]+$/, '')}\n`;
+      /**
+       * Header, then a BLANK LINE.
+       *
+       * A single newline left `*S:*` sitting directly on top of `*O:*` with
+       * nothing between them — technically empty and unusable, because the
+       * first thing you do is press Enter to make room. Worse, typing on the
+       * line immediately below a header is how content ends up appearing to
+       * belong to the section after it.
+       *
+       * One blank line, not two: the section's own trailing blank lines were
+       * part of the text just removed, so this restores the spacing the note
+       * had rather than adding to it.
+       */
+      return `${section.headerLine.replace(/[ \t]+$/, '')}\n\n`;
     })
     .join('');
 
-  return { body, cleared, verbatim: false };
+  /**
+   * Vitals are cleared LINE BY LINE, not as a section.
+   *
+   * `ttv` in the cleared list did nothing, and the reason is structural: real
+   * notes have no `TTV:` heading. The vitals are bare labelled lines under
+   * `*O:*` — `Tekanan Darah : 160/83 mmHg` parses as its own custom section,
+   * not as part of a `ttv` one — so a rule that blanks sections had no section
+   * to blank. The setting promised something the note's shape could not
+   * deliver, and failed silently, which is the worst way for it to fail:
+   * yesterday's blood pressure carried into today's note looking filled in.
+   *
+   * Each line is replaced with its blank form from the seeded O block rather
+   * than having its digits stripped. Stripping would have to know that
+   * `reguler` after the pulse is not a number, that `on room air` after SpO2
+   * stays, and that `36.7` and `160/83` are shaped differently. Substituting
+   * the template line needs to know none of that, and it produces exactly what
+   * a fresh note looks like.
+   */
+  const clearVitals = clearable.has('ttv' as SectionId);
+  let vitalsCleared = false;
+  const finalBody = !clearVitals
+    ? body
+    : body
+        .split('\n')
+        .map((line) => {
+          const colon = line.indexOf(':');
+          if (colon < 0) return line;
+          const label = line.slice(0, colon).trim().toLowerCase();
+          const blank = VITAL_BLANKS.get(label);
+          // Already blank — nothing to report, and nothing to change.
+          if (!blank || line.trimEnd() === blank.trimEnd()) return line;
+          vitalsCleared = true;
+          // Leading whitespace or bullet is preserved: the line's place in the
+          // note is the user's, only its value is ours to reset.
+          const lead = /^[\s>#-]*/.exec(line)?.[0] ?? '';
+          return `${lead}${blank}`;
+        })
+        .join('\n');
+
+  if (vitalsCleared && !cleared.includes('Tanda vital')) cleared.push('Tanda vital');
+
+  return { body: finalBody, cleared, verbatim: false };
 }
 
 /** One-line summary shown under the editor after a carry-forward. */

@@ -47,8 +47,14 @@ describe('carryForward', () => {
     expect(carryForwardSummary(result)).toContain('Dikosongkan: Subjektif, Penunjang.');
   });
 
-  it('leaves the following header on its own line', () => {
-    expect(result.body).toContain('S:\nO:');
+  it('leaves a blank line under a cleared header, and the next header on its own', () => {
+    /*
+     * `S:\nO:` was technically correct and unusable — the first thing you do
+     * is press Enter to make room. Worse, typing on the line directly beneath
+     * a header is how text ends up looking like it belongs to the section
+     * after it.
+     */
+    expect(result.body).toContain('S:\n\nO:');
   });
 
   it('does not report a section that was already empty', () => {
@@ -94,5 +100,68 @@ describe('carryForward with no detected structure', () => {
 
   it('handles an empty previous body', () => {
     expect(carryForward('', CLEAR)).toEqual({ body: '', cleared: [], verbatim: true });
+  });
+});
+
+/**
+ * Vitals are not a section, and clearing them as one did nothing.
+ *
+ * Real notes have no `TTV:` heading — the vitals are bare labelled lines under
+ * `*O:*`, each parsing as its own custom section. So `ttv` in the cleared list
+ * had no section to blank and failed silently, which is the worst way for it
+ * to fail: yesterday's blood pressure carried into today's note, looking
+ * filled in.
+ */
+describe('clearing the vital signs', () => {
+  const BODY = [
+    '*O:*',
+    'Compos Mentis GCS (E4V5M6)',
+    'Tekanan Darah : 160/83 mmHg',
+    'Nadi : 60 kali/menit, reguler',
+    'Pernapasan : 18 kali/menit',
+    'Suhu : 36.7 derajat Celcius',
+    'SpO2 : 97 % on room air',
+    '',
+    'TB : 155 cm',
+    'BB : 60 kg',
+  ].join('\n');
+
+  const cleared = carryForward(BODY, ['ttv']).body;
+
+  it('empties the value but keeps the label and the unit', () => {
+    expect(cleared).toContain('Tekanan Darah :  mmHg');
+    expect(cleared).toContain('Suhu :  derajat Celcius');
+    // The words after the number are part of the blank form, not a value.
+    expect(cleared).toContain('Nadi :  kali/menit, reguler');
+    expect(cleared).toContain('SpO2 : % on room air');
+  });
+
+  it('drops every reading', () => {
+    for (const stale of ['160/83', '36.7', '97 %', '60 kali', '18 kali']) {
+      expect(cleared).not.toContain(stale);
+    }
+  });
+
+  it('leaves height and weight alone', () => {
+    // Not vitals, unchanged between rounds, and read by the konsul formats.
+    expect(cleared).toContain('TB : 155 cm');
+    expect(cleared).toContain('BB : 60 kg');
+  });
+
+  it('leaves the consciousness line alone', () => {
+    expect(cleared).toContain('Compos Mentis GCS (E4V5M6)');
+  });
+
+  it('reports what it did, so the summary is not silent', () => {
+    expect(carryForward(BODY, ['ttv']).cleared).toContain('Tanda vital');
+  });
+
+  it('says nothing when the vitals were already blank', () => {
+    const blank = carryForward(BODY, ['ttv']).body;
+    expect(carryForward(blank, ['ttv']).cleared).not.toContain('Tanda vital');
+  });
+
+  it('does not touch the vitals when ttv is not configured', () => {
+    expect(carryForward(BODY, ['s']).body).toContain('Tekanan Darah : 160/83 mmHg');
   });
 });
