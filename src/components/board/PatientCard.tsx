@@ -120,7 +120,21 @@ export function PatientCard({
         // Square right edge whenever a note is attached, so the two form one
         // continuous shape instead of two rounded boxes side by side.
         note ? 'rounded-l-xl rounded-r-none' : 'rounded-xl',
-        noteOpen ? 'shrink-0' : 'flex-1',
+        /*
+          Two of the cell's three tracks, stated exactly.
+
+          The cell is 3 tracks + 2 gaps; two tracks + one gap is
+          `(2W - g) / 3`, which with a 12px gap is `66.6667% - 4px`. Letting
+          flex divide it instead gave the card half the cell — wider than a
+          plain card, so opening a note nudged it out of line with its
+          neighbours.
+
+          On a phone the whole board is one card wide, so there is no third
+          track to take. The card stays `flex-1` there and the note takes its
+          share of the same width — `w-full` would have pushed the note clean
+          off the screen edge.
+        */
+        noteOpen ? 'min-w-0 flex-1 sm:w-[calc(66.6667%-4px)] sm:flex-none' : 'flex-1',
         // The card being dragged fades rather than moves. Moving it would mean
         // owning a live preview of the whole list mid-gesture; fading says
         // which one is in hand and lets the drop do the rearranging.
@@ -170,12 +184,7 @@ export function PatientCard({
          */
         card.pemantauan ? 'ring-2 ring-[var(--danger)]' : '',
       ].join(' ')}
-      style={{
-        // Exactly one grid column: the cell is two columns plus the 12px gap
-        // between them, so one column is half of what remains.
-        ...(noteOpen ? { width: 'calc((100% - 12px) / 2)' } : {}),
-        ...cardEdge(card),
-      }}
+      style={cardEdge(card)}
     >
       {/*
         A strip across the top of the card, in normal flow.
@@ -415,10 +424,13 @@ function CardNote({
       aria-expanded
       aria-label="Tutup catatan"
       onClick={onToggle}
-      // Half a card: the card is `(100% - 12px) / 2` of the two-column cell,
-      // so half of that is a quarter of the same figure.
-      style={{ maxWidth: 'calc((100% - 12px) / 4)' }}
-      className={`${paper} mt-3 px-2 py-1.5`}
+      /*
+        Grows with the text and stops at the third track — the leftover of the
+        cell once the card has taken its two, which is a shade under half a
+        card. Past half it stops being a margin note and starts competing with
+        what it annotates.
+      */
+      className={`${paper} mt-3 max-w-[45%] px-2 py-1.5 sm:max-w-[calc(33.3333%+4px)]`}
     >
       <span className="block whitespace-pre-line break-words text-[11px] leading-snug [overflow-wrap:anywhere]">
         {note}

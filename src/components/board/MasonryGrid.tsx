@@ -41,7 +41,20 @@ const GAP = 12;
 export function MasonryGrid({ children }: { children: ReactNode }): JSX.Element {
   return (
     <div
-      className="grid grid-cols-1 items-start gap-x-3 px-4 pt-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5"
+      /*
+        TWICE as many tracks as there are card columns, and a card spans two of
+        them.
+
+        A card with its note open needs about one and a half columns — one for
+        the card, half for the note. On a grid whose smallest unit is a whole
+        column that has to round up to two, and the leftover half column sat
+        empty beside every short note, pushing the next patient a full card
+        width away for the sake of one word.
+
+        Half-column tracks make the span fit what is actually needed: a plain
+        card takes two tracks, a card with an open note takes three.
+      */
+      className="grid grid-cols-2 items-start gap-x-3 px-4 pt-1 sm:grid-cols-4 lg:grid-cols-6 xl:grid-cols-8 2xl:grid-cols-10"
       style={{ gridAutoRows: `${ROW}px`, rowGap: `${GAP}px`, gridAutoFlow: 'row dense' }}
     >
       {children}
@@ -51,11 +64,11 @@ export function MasonryGrid({ children }: { children: ReactNode }): JSX.Element 
 
 export function MasonryItem({
   /**
-   * Span two columns instead of one.
+   * Take a third half-column track, for a card whose note is open.
    *
-   * Only from the `sm` breakpoint up. On a one-column phone there is no second
-   * column to grow into, and `col-span-2` on a single-column grid creates an
-   * implicit second column that every other card then sits inside half of.
+   * Only from `sm` up. A phone is two tracks wide in total — one card — so
+   * there is no half column to grow into and the note has to share the card's
+   * width there instead.
    */
   wide = false,
   children,
@@ -93,7 +106,7 @@ export function MasonryItem({
 
   return (
     <div
-      className={wide ? 'col-span-1 sm:col-span-2' : 'col-span-1'}
+      className={wide ? 'col-span-2 sm:col-span-3' : 'col-span-2'}
       style={{ gridRowEnd: `span ${String(span)}` }}
     >
       <div ref={ref}>{children}</div>
