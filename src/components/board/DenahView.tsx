@@ -1,6 +1,8 @@
 import { Link } from 'react-router-dom';
 
+import { DenahPlanView } from './DenahPlanView';
 import { buildDenah, denahLine, UNPLACED } from '@/domain/denah';
+import { wardPlan } from '@/domain/denahPlan';
 import type { ClinicalDate, Patient } from '@/domain/types';
 
 /**
@@ -12,10 +14,15 @@ import type { ClinicalDate, Patient } from '@/domain/types';
  * indistinguishable from a bed that does not exist, and on a floor plan that
  * difference is the whole point.
  *
- * Rooms flow in a responsive grid rather than being positioned to match the
- * physical building. Reproducing the real geometry would need a per-ward map
- * that someone has to draw and maintain, and it would be wrong the first time a
- * bed is added. Numeric order is what the printed sheet is read by anyway.
+ * A ward with a transcribed floor plan is drawn against it — see
+ * `denahPlan.ts`. This used to argue that reproducing the real geometry needed
+ * a per-ward map "that someone has to draw and maintain", which was true right
+ * up until the sheet for PJT Lantai 4 was handed over already drawn.
+ *
+ * Wards WITHOUT a plan still flow in a numeric grid, and that is the honest
+ * fallback rather than a lesser one: a ward is only laid out against the wall
+ * once somebody has checked it against the wall. Guessing a geometry would be
+ * worse than ordering by number, because it would look authoritative.
  */
 export function DenahView({
   patients,
@@ -30,7 +37,21 @@ export function DenahView({
 
   return (
     <div className="px-4 pb-4">
-      {wards.map((ward) => (
+      {wards.map((ward) => {
+        const plan = wardPlan(ward.ward);
+        if (plan) {
+          return (
+            <DenahPlanView
+              key={ward.ward}
+              plan={plan}
+              patients={ward.rooms.flatMap((room) => room.beds.map((bed) => bed.patient))}
+              today={today}
+              showInitialsOnly={showInitialsOnly}
+            />
+          );
+        }
+
+        return (
         <section key={ward.ward} className="mt-4 first:mt-1">
           <h2 className="mb-2 text-xs font-semibold uppercase tracking-wide text-fg-faint">
             {ward.ward}
@@ -71,7 +92,8 @@ export function DenahView({
             ))}
           </div>
         </section>
-      ))}
+        );
+      })}
     </div>
   );
 }

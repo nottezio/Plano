@@ -180,6 +180,15 @@ export interface UserSettings {
    */
   showWatermark: boolean;
   /**
+   * Watermark opacity, 0.01–0.20.
+   *
+   * Adjustable because the right value is a property of the screen, not of the
+   * app: the same 0.045 that is barely visible on a ward tablet in daylight is
+   * a distraction on an OLED laptop at night. Capped well below the point where
+   * it would compete with the text it sits behind.
+   */
+  watermarkOpacity: number;
+  /**
    * "Hari rawat ke-N" in the patient page header.
    *
    * Off by default. Every admission day is already visible from the date rail

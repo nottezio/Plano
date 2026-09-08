@@ -235,15 +235,33 @@ export default function SettingsPage(): JSX.Element {
         </SettingsSection>
 
         <SettingsSection
-          title="Tanda air di catatan"
+          title="Watermark di catatan"
           description="Nama, RM dan tanggal samar di belakang teks, berulang sepanjang catatan."
         >
           <Toggle
-            label="Tampilkan tanda air"
+            label="Tampilkan watermark"
             description="Menyala secara default. Gunanya menahan salah pasien saat sudah menggulir jauh dari judul."
             checked={settings.showWatermark}
             onChange={(showWatermark) => patch({ showWatermark })}
           />
+          {settings.showWatermark ? (
+            <label className="mt-2 block text-[11px] text-fg-muted">
+              Ketebalan watermark
+              <input
+                type="range"
+                min={1}
+                max={20}
+                value={Math.round(settings.watermarkOpacity * 100)}
+                onChange={(event) =>
+                  patch({ watermarkOpacity: Number(event.target.value) / 100 })
+                }
+                className="mt-1 w-full"
+              />
+              <span className="text-fg-faint">
+                {Math.round(settings.watermarkOpacity * 100)}%
+              </span>
+            </label>
+          ) : null}
         </SettingsSection>
 
         <SettingsSection

@@ -72,7 +72,7 @@ export function BodyEditor({
    * guards is writing into the wrong patient's note, which is invisible until
    * it has been sent.
    */
-  watermark?: { name: string; mrn: string; date: string } | undefined;
+  watermark?: { name: string; mrn: string; date: string; opacity?: number } | undefined;
   placeholder: string;
 }): JSX.Element {
   const ref = useRef<HTMLTextAreaElement>(null);
@@ -391,13 +391,27 @@ export function BodyEditor({
                 className="flex flex-col items-center justify-center"
                 style={{ height: `${WATERMARK_PITCH}px` }}
               >
-                <span className="max-w-full truncate px-4 text-center text-3xl font-bold uppercase tracking-wide text-fg opacity-[0.045]">
+                {/* Opacity is a setting, so it is inline rather than a class:
+                    Tailwind cannot emit an arbitrary value it does not see at
+                    build time, and rounding to the nearest shipped step would
+                    make the slider feel broken at the low end where it matters
+                    most. */}
+                <span
+                  className="max-w-full truncate px-4 text-center text-3xl font-bold uppercase tracking-wide text-fg"
+                  style={{ opacity: watermark.opacity ?? 0.045 }}
+                >
                   {watermark.name}
                 </span>
-                <span className="mt-1 text-xl font-semibold text-fg opacity-[0.045]">
+                <span
+                  className="mt-1 text-xl font-semibold text-fg"
+                  style={{ opacity: watermark.opacity ?? 0.045 }}
+                >
                   {watermark.mrn}
                 </span>
-                <span className="mt-1 text-base font-medium text-fg opacity-[0.045]">
+                <span
+                  className="mt-1 text-base font-medium text-fg"
+                  style={{ opacity: watermark.opacity ?? 0.045 }}
+                >
                   {watermark.date}
                 </span>
               </div>

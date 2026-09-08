@@ -105,3 +105,66 @@ function initialsOnly(name: string): string {
       .join('.') || '—'
   );
 }
+
+/**
+ * Patients placed into a transcribed floor plan.
+ *
+ * Keyed by room, then by bed NUMBER rather than by array position: the sheet
+ * numbers its slots, `patient.bed` holds that number, and matching them by
+ * order would put the first patient recorded into bed 1 regardless of what the
+ * record says. On a floor plan that is not a cosmetic error — it sends someone
+ * to the wrong bed.
+ */
+export interface PlacedRoom {
+  room: string;
+  subtitle: string | undefined;
+  /** One entry per numbered slot; `null` where the bed is empty. */
+  beds: Array<Patient | null>;
+  /**
+   * In this room, but not in a numbered slot — no bed recorded, or a bed
+   * number the sheet does not have.
+   *
+   * Shown rather than dropped. A patient the plan cannot place is exactly the
+   * patient somebody needs to notice, and silently omitting them would make the
+   * floor plan quietly wrong instead of visibly incomplete.
+   */
+  extra: Patient[];
+}
+
+export function placeInPlan(
+  patients: readonly Patient[],
+  rooms: readonly { room: string; subtitle?: string; beds: number }[],
+): { rooms: PlacedRoom[]; strays: Patient[] } {
+  const byRoom = new Map<string, Patient[]>();
+  for (const patient of patients) {
+    const room = patient.room?.trim() ?? '';
+    const list = byRoom.get(room) ?? [];
+    list.push(patient);
+    byRoom.set(room, list);
+  }
+
+  const placed = rooms.map<PlacedRoom>((slot) => {
+    const here = byRoom.get(slot.room) ?? [];
+    byRoom.delete(slot.room);
+
+    const beds = Array.from<Patient | null>({ length: slot.beds }).fill(null);
+    const extra: Patient[] = [];
+
+    for (const patient of here) {
+      const index = Number(patient.bed?.trim()) - 1;
+      // Taken beds do not get overwritten: two patients recorded in one bed is
+      // a data problem to surface, not one to resolve by discarding a patient.
+      if (Number.isInteger(index) && index >= 0 && index < beds.length && !beds[index]) {
+        beds[index] = patient;
+      } else {
+        extra.push(patient);
+      }
+    }
+
+    return { room: slot.room, subtitle: slot.subtitle, beds, extra };
+  });
+
+  // Anything left is in a room this ward's sheet does not list.
+  const strays = [...byRoom.values()].flat();
+  return { rooms: placed, strays };
+}

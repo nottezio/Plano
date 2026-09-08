@@ -28,6 +28,7 @@ import { archiveSummary } from '@/domain/archive';
 import { fillPatientFromNote } from '@/data/repositories/patients.repo';
 import { parsePatientFacts } from '@/domain/parsePatient';
 import { carryForward, carryForwardSummary } from '@/domain/carryForward';
+import { bumpDayMarkers, daysBetween as dayGap, findDayMarkers } from '@/domain/dayMarkers';
 import { formatLocation } from '@/domain/identity';
 import { isIgdEntry } from '@/domain/clinicalDate';
 import { insertIntoObjective } from '@/domain/lab/parseLab';
@@ -389,7 +390,30 @@ export default function PatientPage(): JSX.Element {
           settings.carryForwardClearSections,
           settings.sectionAliases,
         );
-        editor.setValue(result.body);
+
+        /**
+         * Day counters are advanced, not flagged.
+         *
+         * `post PPM H-2`, `Ceftriaxone (H-3)`, `hari ke-9` are the only part of
+         * a carried-forward note that is wrong the instant it is copied — and
+         * wrong in a way that reads as correct, because a stale `H-3` is a
+         * plausible number in a plausible place. A reminder would put the work
+         * back on the person who already forgot; here the exact gap is known,
+         * so the note can simply be right.
+         *
+         * By the real gap, not by one: copying Friday's note on Monday moves
+         * every counter three days, and every counter moves at the same rate
+         * whatever it counts from.
+         *
+         * Reported in the summary rather than done silently. This is the one
+         * thing carry-forward changes that is not just a blanking, and a
+         * clinical number altered without saying so is not a convenience.
+         */
+        const gap = dayGap(source.date, selected);
+        const bumped = gap === null ? result.body : bumpDayMarkers(result.body, gap);
+        const markers = gap === null || gap === 0 ? 0 : findDayMarkers(result.body).length;
+
+        editor.setValue(bumped);
         /**
          * Written immediately, not left to the 800 ms idle debounce.
          *
@@ -401,7 +425,17 @@ export default function PatientPage(): JSX.Element {
          * body to offer against it.
          */
         editor.flush();
-        setCarrySummary(`${carryForwardSummary(result)} (dari ${formatShortDate(source.date)})`);
+        setCarrySummary(
+          [
+            carryForwardSummary(result),
+            markers > 0
+              ? `H- dimajukan ${String(gap)} hari (${String(markers)}) — periksa kembali.`
+              : null,
+            `(dari ${formatShortDate(source.date)})`,
+          ]
+            .filter(Boolean)
+            .join(' '),
+        );
       })
       .catch((error: unknown) => console.error('[patient] carry-forward failed', error));
   };
@@ -957,6 +991,7 @@ export default function PatientPage(): JSX.Element {
                     name: patient.name?.trim() || 'Tanpa nama',
                     mrn: patient.mrn ? `RM ${patient.mrn}` : 'RM —',
                     date: formatShortDate(selected),
+                    opacity: settings.watermarkOpacity,
                   },
                 }
               : {})}
@@ -983,6 +1018,7 @@ export default function PatientPage(): JSX.Element {
                     name: patient.name?.trim() || 'Tanpa nama',
                     mrn: patient.mrn ? `RM ${patient.mrn}` : 'RM —',
                     date: formatShortDate(selected),
+                    opacity: settings.watermarkOpacity,
                   },
                 }
               : {})}

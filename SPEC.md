@@ -87,6 +87,17 @@ That loop is the checklist, and it **resets every clinical day**.
 
 **UI language:** Bahasa Indonesia. Code, comments, identifiers: English.
 
+**Loanwords stay English.** A technical term that the ward says in English is
+written in English, even where a Bahasa word exists. "Watermark", not "tanda
+air"; "checklist", not "daftar periksa"; "template", "preview", "sync",
+"backup", "export" likewise. The test is what a resident would say out loud to
+a colleague, not what a dictionary offers — a translated technical term reads as
+a different feature, and the person hunting for the watermark setting is looking
+for the word "watermark".
+
+This applies retroactively: any such translation already in the UI is a bug to
+fix when next touched.
+
 ---
 
 ## 3. NON-GOALS (v1)

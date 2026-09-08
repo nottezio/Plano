@@ -277,13 +277,38 @@ export function PatientCard({
       */}
       {card.chief ? <p className="text-[11px] opacity-60">Chief {card.chief}</p> : null}
 
-      {lines.length > 0 ? (
-        <p className="mt-2 whitespace-pre-line text-xs leading-relaxed opacity-90">
-          {lines.join('\n')}
-        </p>
-      ) : (
-        <p className="mt-2 text-xs italic opacity-60">Belum ada catatan hari ini.</p>
-      )}
+      {/*
+        The standing note beside the day's preview, not under it.
+
+        Side by side because they answer different questions and are read at
+        different moments: the preview is what the patient HAS, the note is what
+        to DO about them. Stacked, the note becomes a footer nobody reaches on a
+        card that already runs to eight lines of diagnoses.
+
+        Rendered only when there is something to render — an empty note box on
+        every card would be furniture on the one screen where density is the
+        whole point, and its absence is itself information.
+      */}
+      <div className="mt-2 flex items-start gap-2">
+        <div className="min-w-0 flex-1">
+          {lines.length > 0 ? (
+            <p className="whitespace-pre-line text-xs leading-relaxed opacity-90">
+              {lines.join('\n')}
+            </p>
+          ) : (
+            <p className="text-xs italic opacity-60">Belum ada catatan hari ini.</p>
+          )}
+        </div>
+
+        {patient.notes.trim() ? (
+          <p
+            className="w-[40%] shrink-0 whitespace-pre-line rounded-md border-l-2 border-[var(--warn-strong)] bg-black/5 px-2 py-1 text-[11px] leading-snug dark:bg-white/10"
+            title={patient.notes}
+          >
+            {patient.notes.trim()}
+          </p>
+        ) : null}
+      </div>
 
       {card.previewIsStale ? (
         <p className="mt-1 text-[10px] opacity-60">Catatan dari hari sebelumnya</p>

@@ -269,6 +269,7 @@ export function defaultUserSettings(): UserSettings {
     // relevant, never on a schedule.
     carryForwardClearSections: [...SEED_CARRY_FORWARD_CLEAR],
     showWatermark: true,
+    watermarkOpacity: 0.045,
     greetings: [...SEED_GREETINGS],
     /**
      * Placeholders are spelled out rather than left blank.
