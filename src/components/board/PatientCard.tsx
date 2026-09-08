@@ -21,6 +21,8 @@ export function PatientCard({
   checked,
   onToggleSelected,
   onPreview,
+  noteExpanded = false,
+  onToggleNote,
 }: {
   card: BoardCard;
   onLongPress: (patientId: string) => void;
@@ -41,6 +43,9 @@ export function PatientCard({
   onToggleSelected?: ((patientId: string) => void) | undefined;
   /** Opens the read-only note preview. Absent while selecting. */
   onPreview?: ((patientId: string) => void) | undefined;
+  /** The standing note is open, so the board has widened this cell. */
+  noteExpanded?: boolean;
+  onToggleNote?: ((patientId: string) => void) | undefined;
 }): JSX.Element {
   const { patient, progress } = card;
   const lines = previewLines(card.preview);
@@ -54,7 +59,26 @@ export function PatientCard({
   };
   const cancelPress = (): void => window.clearTimeout(timer);
 
+  const note = patient.notes.trim();
+  /**
+   * Held by the board, not here.
+   *
+   * Expanding the note makes the card's grid cell span two columns, and the
+   * cell is the board's to size. Keeping the flag local would mean the card
+   * knowing it was wide while its container did not.
+   */
+  const noteOpen = noteExpanded && note.length > 0;
+
   return (
+    /*
+      Card and note are siblings, so the note sits OUTSIDE the card's border.
+
+      When the note is open the board gives this row two columns, and the two
+      children split them evenly — so the card keeps the width it had and the
+      note occupies the space to its right. Collapsed, the row is one column and
+      the note is a spine on the edge.
+    */
+    <div className="flex items-stretch gap-1.5">
     <Link
       to={`/p/${patient.id}`}
       /**
@@ -85,7 +109,7 @@ export function PatientCard({
         onLongPress(patient.id);
       }}
       className={[
-        'mb-3 block break-inside-avoid rounded-xl border border-black/5 bg-token p-3 text-token-fg shadow-sm transition-shadow hover:shadow-md dark:border-white/10',
+        'block min-w-0 flex-1 rounded-xl border border-black/5 bg-token p-3 text-token-fg shadow-sm transition-shadow hover:shadow-md dark:border-white/10',
         // The card being dragged fades rather than moves. Moving it would mean
         // owning a live preview of the whole list mid-gesture; fading says
         // which one is in hand and lets the drop do the rearranging.
@@ -277,38 +301,13 @@ export function PatientCard({
       */}
       {card.chief ? <p className="text-[11px] opacity-60">Chief {card.chief}</p> : null}
 
-      {/*
-        The standing note beside the day's preview, not under it.
-
-        Side by side because they answer different questions and are read at
-        different moments: the preview is what the patient HAS, the note is what
-        to DO about them. Stacked, the note becomes a footer nobody reaches on a
-        card that already runs to eight lines of diagnoses.
-
-        Rendered only when there is something to render — an empty note box on
-        every card would be furniture on the one screen where density is the
-        whole point, and its absence is itself information.
-      */}
-      <div className="mt-2 flex items-start gap-2">
-        <div className="min-w-0 flex-1">
-          {lines.length > 0 ? (
-            <p className="whitespace-pre-line text-xs leading-relaxed opacity-90">
-              {lines.join('\n')}
-            </p>
-          ) : (
-            <p className="text-xs italic opacity-60">Belum ada catatan hari ini.</p>
-          )}
-        </div>
-
-        {patient.notes.trim() ? (
-          <p
-            className="w-[40%] shrink-0 whitespace-pre-line rounded-md border-l-2 border-[var(--warn-strong)] bg-black/5 px-2 py-1 text-[11px] leading-snug dark:bg-white/10"
-            title={patient.notes}
-          >
-            {patient.notes.trim()}
-          </p>
-        ) : null}
-      </div>
+      {lines.length > 0 ? (
+        <p className="mt-2 whitespace-pre-line text-xs leading-relaxed opacity-90">
+          {lines.join('\n')}
+        </p>
+      ) : (
+        <p className="mt-2 text-xs italic opacity-60">Belum ada catatan hari ini.</p>
+      )}
 
       {card.previewIsStale ? (
         <p className="mt-1 text-[10px] opacity-60">Catatan dari hari sebelumnya</p>
@@ -336,5 +335,73 @@ export function PatientCard({
         </p>
       </div>
     </Link>
+
+      {note ? (
+        <CardNote
+          note={note}
+          expanded={noteOpen}
+          onToggle={() => onToggleNote?.(patient.id)}
+        />
+      ) : null}
+    </div>
+  );
+}
+
+/**
+ * The standing note, clipped to the right of the card.
+ *
+ * Outside the card's border on purpose. Inside, it read as another field of the
+ * card — one more line among the diagnoses — and it is not: the card says what
+ * the patient HAS, the note says what to DO about them, and they are written
+ * and read at different moments.
+ *
+ * Collapsed to a spine by default it would be invisible, so it opens expanded
+ * and collapses to a tab. Absent entirely when there is no note: an empty box
+ * on every card is furniture on the one screen where density is the point, and
+ * its absence is itself information.
+ */
+function CardNote({
+  note,
+  expanded,
+  onToggle,
+}: {
+  note: string;
+  expanded: boolean;
+  onToggle: (next: boolean) => void;
+}): JSX.Element {
+  return (
+    <button
+      type="button"
+      aria-expanded={expanded}
+      aria-label={expanded ? 'Tutup catatan' : 'Buka catatan'}
+      onClick={() => onToggle(!expanded)}
+      className={[
+        'shrink-0 self-stretch rounded-lg border border-[var(--warn-strong)] bg-[var(--warn-soft)] text-left text-fg transition-[width]',
+        // `flex-1` against the card's `flex-1`, inside a row that is two
+        // columns wide: the card lands back on exactly one column and the note
+        // takes the other. Shrinking the card to make room was the previous
+        // behaviour and the thing being fixed.
+        expanded ? 'flex-1 p-2' : 'w-5 p-0',
+      ].join(' ')}
+    >
+      {expanded ? (
+        /*
+          `break-words` is not optional here. A note is free text and residents
+          paste identifiers into it — an unbroken 200-character string has no
+          space to wrap at, so it ran straight out of the card and across the
+          rest of the board.
+        */
+        <span className="block whitespace-pre-line break-words text-[11px] leading-snug [overflow-wrap:anywhere]">
+          {note}
+        </span>
+      ) : (
+        <span
+          aria-hidden="true"
+          className="flex h-full items-center justify-center text-[10px] font-bold"
+        >
+          ▸
+        </span>
+      )}
+    </button>
   );
 }

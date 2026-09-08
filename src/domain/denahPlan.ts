@@ -105,8 +105,28 @@ const PJT_LANTAI_4: WardPlan = {
 
 const PLANS: readonly WardPlan[] = [PJT_LANTAI_4];
 
+/**
+ * Ward names as RECORDED, not as printed.
+ *
+ * The sheet's title block says "PJT LANTAI 4"; the patient records say
+ * "PJT Lt. 4". Matching the sheet's spelling meant `wardPlan` returned null for
+ * every real patient, the floor plan never rendered, and the fallback numeric
+ * grid appeared instead — which looks like the feature was never built rather
+ * than like a name mismatch.
+ *
+ * `Lt.`, `Lt`, `LT.` and `Lantai` are the same word, and the space before the
+ * number is optional in practice. Normalising all of them to one form is the
+ * fix; adding "PJT Lt. 4" as a second literal would only have worked until
+ * somebody typed "PJT Lt.4".
+ */
 function normalise(ward: string): string {
-  return ward.trim().toLowerCase().replace(/\s+/g, ' ');
+  return ward
+    .toLowerCase()
+    .replace(/\./g, ' ')
+    .replace(/\blt\b/g, 'lantai')
+    .replace(/\blantai\s*(\d)/g, 'lantai $1')
+    .replace(/\s+/g, ' ')
+    .trim();
 }
 
 /**

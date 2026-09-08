@@ -28,7 +28,7 @@ import { archiveSummary } from '@/domain/archive';
 import { fillPatientFromNote } from '@/data/repositories/patients.repo';
 import { parsePatientFacts } from '@/domain/parsePatient';
 import { carryForward, carryForwardSummary } from '@/domain/carryForward';
-import { bumpDayMarkers, daysBetween as dayGap, findDayMarkers } from '@/domain/dayMarkers';
+import { daysBetween as dayGap, findDayMarkers } from '@/domain/dayMarkers';
 import { formatLocation } from '@/domain/identity';
 import { isIgdEntry } from '@/domain/clinicalDate';
 import { insertIntoObjective } from '@/domain/lab/parseLab';
@@ -85,6 +85,21 @@ export default function PatientPage(): JSX.Element {
 
   const [hintDismissed, setHintDismissed] = useState(false);
   const [carrySummary, setCarrySummary] = useState<string | null>(null);
+  /**
+   * Day counters carried in from an older note, listed for checking.
+   *
+   * Its own banner rather than a sentence appended to the copy summary. The
+   * summary is an acknowledgement — it says what happened and is read once;
+   * this is an outstanding task, and it stays until dismissed. Folding a task
+   * into an acknowledgement is how it gets skimmed past, which is the exact
+   * failure being addressed.
+   *
+   * Nothing here touches the note. The counters do not all measure the same
+   * thing — an antibiotic H- stops when the course does, a post-procedure one
+   * runs indefinitely — so which of them should move is a clinical judgement,
+   * not an arithmetic one.
+   */
+  const [staleMarkers, setStaleMarkers] = useState<string[] | null>(null);
   const [trailOpen, setTrailOpen] = useState(false);
   const [copyOpen, setCopyOpen] = useState(false);
   const [actionsOpen, setActionsOpen] = useState(false);
@@ -392,28 +407,30 @@ export default function PatientPage(): JSX.Element {
         );
 
         /**
-         * Day counters are advanced, not flagged.
+         * Day counters are REPORTED, never rewritten.
          *
-         * `post PPM H-2`, `Ceftriaxone (H-3)`, `hari ke-9` are the only part of
-         * a carried-forward note that is wrong the instant it is copied — and
-         * wrong in a way that reads as correct, because a stale `H-3` is a
-         * plausible number in a plausible place. A reminder would put the work
-         * back on the person who already forgot; here the exact gap is known,
-         * so the note can simply be right.
+         * An earlier version advanced them automatically by the gap between the
+         * two dates. It was wrong, and the reason is worth keeping: the counters
+         * in a note do not all measure the same thing. `H-3` on an antibiotic
+         * counts doses given and stops when the course does; `post PPM H-2`
+         * counts days since a procedure and runs forever; one written for a
+         * drug that was stopped yesterday should not move at all.
          *
-         * By the real gap, not by one: copying Friday's note on Monday moves
-         * every counter three days, and every counter moves at the same rate
-         * whatever it counts from.
+         * Advancing all of them uniformly is right only when every counter is
+         * still running, and nothing in the note says which are. Getting that
+         * wrong produces a number that is confidently, invisibly false — which
+         * is worse than the stale number it replaced, because a stale one is at
+         * least the number the author last checked.
          *
-         * Reported in the summary rather than done silently. This is the one
-         * thing carry-forward changes that is not just a blanking, and a
-         * clinical number altered without saying so is not a convenience.
+         * So this lists what it found and leaves the note alone. The list is
+         * the point: naming `H-2, H-3, hari ke-9` is a different act from
+         * saying "check your counters", because it says how many there are and
+         * where to look.
          */
         const gap = dayGap(source.date, selected);
-        const bumped = gap === null ? result.body : bumpDayMarkers(result.body, gap);
-        const markers = gap === null || gap === 0 ? 0 : findDayMarkers(result.body).length;
+        const markers = gap !== null && gap > 0 ? findDayMarkers(result.body) : [];
 
-        editor.setValue(bumped);
+        editor.setValue(result.body);
         /**
          * Written immediately, not left to the 800 ms idle debounce.
          *
@@ -426,15 +443,14 @@ export default function PatientPage(): JSX.Element {
          */
         editor.flush();
         setCarrySummary(
-          [
-            carryForwardSummary(result),
-            markers > 0
-              ? `H- dimajukan ${String(gap)} hari (${String(markers)}) — periksa kembali.`
-              : null,
-            `(dari ${formatShortDate(source.date)})`,
-          ]
-            .filter(Boolean)
-            .join(' '),
+          `${carryForwardSummary(result)} (dari ${formatShortDate(source.date)})`,
+        );
+        setStaleMarkers(
+          markers.length > 0
+            ? // Deduplicated: three lines all reading `H-3` is one thing to
+              // check, and listing it three times reads as three.
+              [...new Set(markers.map((marker) => marker.text.trim()))]
+            : null,
         );
       })
       .catch((error: unknown) => console.error('[patient] carry-forward failed', error));
@@ -927,6 +943,24 @@ export default function PatientPage(): JSX.Element {
         ) : null}
 
         {carrySummary ? <Banner tone="muted">{carrySummary}</Banner> : null}
+        {staleMarkers ? (
+          <Banner tone="warn">
+            <span className="flex-1">
+              Perbarui hitungan hari — disalin dari catatan yang lebih lama:{' '}
+              <b>{staleMarkers.join(', ')}</b>
+            </span>
+            {/* Dismissed by hand, never by a timer or by the next keystroke.
+                It is a task, and a task that clears itself is one you can
+                believe you did. */}
+            <button
+              type="button"
+              onClick={() => setStaleMarkers(null)}
+              className="min-h-tap shrink-0 underline"
+            >
+              Sudah
+            </button>
+          </Banner>
+        ) : null}
 
         {suggestion && !suggestionDismissed && !locked ? (
           <Banner tone="info">

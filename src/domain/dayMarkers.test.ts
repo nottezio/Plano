@@ -1,3 +1,5 @@
+import { readFileSync } from 'node:fs';
+
 import { describe, expect, it } from 'vitest';
 
 import { bumpDayMarkers, daysBetween, findDayMarkers } from './dayMarkers';
@@ -32,6 +34,23 @@ describe('findDayMarkers', () => {
 });
 
 describe('bumpDayMarkers', () => {
+  it('is not wired into carry-forward', () => {
+    /*
+     * Documented as a test because the opposite is the tempting mistake. The
+     * counters do not all measure the same thing: an antibiotic H- stops when
+     * the course does, a post-procedure H- runs indefinitely, and one for a
+     * drug stopped yesterday should not move. Nothing in the note says which
+     * are still running, so a uniform bump produces a confidently false number
+     * — worse than the stale one, which is at least what its author last
+     * checked.
+     */
+    const source = readFileSync(
+      new URL('../routes/PatientPage.tsx', import.meta.url),
+      'utf8',
+    );
+    expect(source).not.toContain('bumpDayMarkers');
+  });
+
   it('advances every counter by the same number of days', () => {
     // They measure from different starts but all advance at one day per day.
     const body = 'post PPM H-2, Ceftriaxone (H-3), CABG hari ke-9';
@@ -101,5 +120,28 @@ describe('markers inside italic lines', () => {
     expect(
       bumpDayMarkers('- Symptomatic Bradicardia ec Sinus Node Dysfunction post PPM H-2', 1),
     ).toBe('- Symptomatic Bradicardia ec Sinus Node Dysfunction post PPM H-3');
+  });
+});
+
+describe('what the reminder lists', () => {
+  it('finds every counter a carried-forward note brings in', () => {
+    const body = [
+      '- Symptomatic Bradicardia ec Sinus Node Dysfunction post PPM H-2',
+      '- Ceftriaxone 2gr/24 jam/IV (H-3)',
+      '_Paska tindakan CABG hari ke-9_',
+    ].join('\n');
+    expect(findDayMarkers(body).map((marker) => marker.text.trim())).toEqual([
+      'H-2',
+      'H-3',
+      'hari ke-9',
+    ]);
+  });
+
+  it('collapses repeats, because one counter is one thing to check', () => {
+    // Three lines all reading `H-3` is one thing to check; listing it three
+    // times reads as three.
+    const body = 'Ceftriaxone (H-3)\nMeropenem (H-3)\nLevofloxacin (H-3)';
+    const listed = [...new Set(findDayMarkers(body).map((marker) => marker.text.trim()))];
+    expect(listed).toEqual(['H-3']);
   });
 });

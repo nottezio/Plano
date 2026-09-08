@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import { AppShell } from '@/components/common/AppShell';
 import { FilterBar } from '@/components/board/FilterBar';
 import { DenahView } from '@/components/board/DenahView';
+import { MasonryGrid, MasonryItem } from '@/components/board/MasonryGrid';
 import { LabSheet } from '@/components/patient/LabSheet';
 import { copyText } from '@/lib/clipboard';
 import { PatientCard } from '@/components/board/PatientCard';
@@ -172,6 +173,36 @@ export default function BoardPage(): JSX.Element {
    */
   /** The patient whose note is being previewed, or null. */
   const [previewId, setPreviewId] = useState<string | null>(null);
+
+  /**
+   * Which cards have their standing note open.
+   *
+   * Held here rather than inside each card because an open note makes the
+   * card's grid cell span two columns, and the cell belongs to this grid. A
+   * card holding the flag privately would be wide while its container thought
+   * it was narrow.
+   *
+   * Tracked as which notes are CLOSED, so the default is open. A note exists
+   * because somebody wrote down what to do with this patient; one that has to
+   * be opened to be read is one nobody reads, and the empty set is the right
+   * starting point rather than a list built by scanning the cards.
+   *
+   * Not persisted. Collapsing is a "this note is crowding the board right now"
+   * action, not a preference worth a write.
+   */
+  const [notesClosed, setNotesClosed] = useState<ReadonlySet<string>>(new Set());
+  const toggleNote = useCallback((patientId: string) => {
+    setNotesClosed((current) => {
+      const next = new Set(current);
+      if (!next.delete(patientId)) next.add(patientId);
+      return next;
+    });
+  }, []);
+  const noteOpen = useCallback(
+    (patient: { id: string; notes: string }) =>
+      patient.notes.trim().length > 0 && !notesClosed.has(patient.id),
+    [notesClosed],
+  );
 
   const [selecting, setSelecting] = useState(false);
   const [selected, setSelected] = useState<ReadonlySet<string>>(new Set());
@@ -517,14 +548,20 @@ export default function BoardPage(): JSX.Element {
             groups.map((group) => (
               <section key={group.label || 'all'}>
                 {group.label ? <SectionHeading label={group.label} /> : null}
-                {/* CSS multi-column masonry: no measurement pass, no layout
-                    library, and it reflows correctly when a card grows as the
-                    note is typed. */}
-                <div className="columns-1 gap-3 px-4 pt-1 sm:columns-2 lg:columns-3 xl:columns-4 2xl:columns-5">
+                {/* Grid masonry rather than CSS multi-column, so a card with
+                    its note open can span two columns and grow to the RIGHT.
+                    Nothing inside a multicol column can be wider than the
+                    column — see MasonryGrid for why that ruled it out. */}
+                <MasonryGrid>
                   {group.cards.map((card) => (
-                    <PatientCard
+                    <MasonryItem
                       key={card.patient.id}
+                      wide={noteOpen(card.patient)}
+                    >
+                    <PatientCard
                       card={card}
+                      noteExpanded={noteOpen(card.patient)}
+                      onToggleNote={toggleNote}
                       onLongPress={setQuickPatientId}
                       onDragHandleDown={
                         order === 'custom' && !selecting ? onDragHandleDown : undefined
@@ -538,8 +575,9 @@ export default function BoardPage(): JSX.Element {
                       // how the wrong one gets ticked.
                       onPreview={selecting ? undefined : setPreviewId}
                     />
+                    </MasonryItem>
                   ))}
-                </div>
+                </MasonryGrid>
               </section>
             ))
           ) : searching ? (
@@ -551,15 +589,13 @@ export default function BoardPage(): JSX.Element {
           {searching && archivedCards.length > 0 ? (
             <>
               <SectionHeading label={`Arsip (${archivedCards.length})`} />
-              <div className="columns-1 gap-3 px-4 pt-1 sm:columns-2 lg:columns-3 xl:columns-4 2xl:columns-5">
+              <MasonryGrid>
                 {archivedCards.map((card) => (
-                  <PatientCard
-                    key={card.patient.id}
-                    card={card}
-                    onLongPress={setQuickPatientId}
-                  />
+                  <MasonryItem key={card.patient.id}>
+                    <PatientCard card={card} onLongPress={setQuickPatientId} />
+                  </MasonryItem>
                 ))}
-              </div>
+              </MasonryGrid>
             </>
           ) : null}
         </>

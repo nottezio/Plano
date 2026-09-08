@@ -49,10 +49,22 @@ export function findDayMarkers(body: string): DayMarker[] {
 /**
  * Advance every day counter by `days`.
  *
- * Applied uniformly rather than per-marker, because every counter in a note
- * measures from a different start but ALL of them advance at the same rate.
- * Three days since the last note moves `H-2` to `H-5` and `hari ke-9` to
- * `hari ke-12`, and no counter is exempt.
+ * NOT used by carry-forward, deliberately, and the reason is worth keeping
+ * here so it is not "fixed" back in.
+ *
+ * Advancing automatically looks obviously right and is not: the counters in a
+ * note do not all measure the same thing. `H-3` on an antibiotic counts doses
+ * given and stops when the course does; `post PPM H-2` counts days since a
+ * procedure and runs indefinitely; one written for a drug stopped yesterday
+ * should not move at all. Nothing in the note says which are still running.
+ *
+ * Bumping them uniformly produces a number that is confidently and invisibly
+ * false, which is worse than the stale one it replaced — a stale counter is at
+ * least the number its author last checked.
+ *
+ * Kept because the reminder is built on the same pattern, and because bumping
+ * is the right operation when a human has said which counters to bump. It is
+ * exported and tested; it is simply not called behind anyone's back.
  *
  * The surrounding text is preserved exactly — spacing, case and the separator
  * are the author's, and only the digits are a function of the date.

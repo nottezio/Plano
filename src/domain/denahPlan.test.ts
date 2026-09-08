@@ -84,3 +84,22 @@ describe('placeInPlan', () => {
     expect(strays.map((p) => p.id)).toEqual(['a']);
   });
 });
+
+describe('ward names as recorded, not as printed', () => {
+  it('matches every spelling of the floor that the records use', () => {
+    /*
+     * The sheet says "PJT LANTAI 4"; the patient records say "PJT Lt. 4".
+     * Matching the printed spelling meant the plan never resolved for a single
+     * real patient — which looks like the feature was never built.
+     */
+    for (const ward of ['PJT Lantai 4', 'PJT Lt. 4', 'PJT Lt 4', 'PJT LT. 4', 'pjt lt.4']) {
+      expect(wardPlan(ward)?.ward).toBe('PJT Lantai 4');
+    }
+  });
+
+  it('still does not match a different floor', () => {
+    for (const ward of ['PJT Lt. 5', 'PJT Lantai 5', 'CVCU']) {
+      expect(wardPlan(ward)).toBeNull();
+    }
+  });
+});
