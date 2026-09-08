@@ -10,6 +10,7 @@ const REASON_LABEL: Record<EntryRevision['reason'], string> = {
   'pre-conflict': 'Sebelum resolusi konflik',
   restore: 'Pemulihan',
   unlock: 'Buka kunci',
+  version: 'Versi tersimpan',
 };
 
 /**
@@ -32,6 +33,17 @@ export function RevisionTrail({
   onRestore: (body: string) => void;
 }): JSX.Element {
   const [selected, setSelected] = useState<EntryRevision | null>(null);
+  const saved = revisions.filter((revision) => revision.reason === 'version');
+  const auto = revisions.filter((revision) => revision.reason !== 'version');
+  /**
+   * Saved versions first, then the automatic trail.
+   *
+   * Both stay in one list rather than two sections: the thing being looked for
+   * is "the text as it was at some earlier point today", and which mechanism
+   * captured it is secondary. Ordering puts the deliberate ones where the eye
+   * lands and the label distinguishes them.
+   */
+  const ordered = [...saved, ...auto];
 
   return (
     <Sheet
@@ -41,13 +53,23 @@ export function RevisionTrail({
         onOpenChange(next);
       }}
       title="Riwayat perubahan"
-      description={`${revisions.length} versi tersimpan (maksimum 30).`}
+      /*
+        Two counts, because they behave differently. Saved versions are kept
+        indefinitely; automatic snapshots are capped and the oldest are dropped.
+        One number covering both would imply the morning SOAP is as disposable
+        as an autosave from ninety seconds ago.
+      */
+      description={
+        saved.length > 0
+          ? `${saved.length} versi disimpan sendiri (tidak pernah dihapus) · ${auto.length} cadangan otomatis (maksimum 30).`
+          : `${auto.length} cadangan otomatis (maksimum 30).`
+      }
     >
       {revisions.length === 0 ? (
         <p className="text-sm text-fg-muted">Belum ada versi tersimpan untuk hari ini.</p>
       ) : (
         <ul className="space-y-2">
-          {revisions.map((revision) => (
+          {ordered.map((revision) => (
             <li key={revision.id}>
               <button
                 type="button"
@@ -55,7 +77,17 @@ export function RevisionTrail({
                 className="w-full rounded-lg border border-border px-3 py-2 text-left"
               >
                 <span className="flex items-baseline gap-2">
-                  <span className="text-sm font-medium">{REASON_LABEL[revision.reason]}</span>
+                  <span className="text-sm font-medium">
+                    {revision.label ?? REASON_LABEL[revision.reason]}
+                  </span>
+                  {revision.reason === 'version' ? (
+                    // Named as well as ordered: a label the author typed is
+                    // indistinguishable from an automatic one at a glance
+                    // otherwise, and only one of the two is safe to ignore.
+                    <span className="rounded px-1 text-[10px] font-semibold text-[var(--warn-strong)]">
+                      disimpan
+                    </span>
+                  ) : null}
                   <span className="text-[11px] text-fg-faint">rev {revision.rev}</span>
                   <span className="ml-auto text-[11px] text-fg-faint">
                     {formatWhen(revision)}

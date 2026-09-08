@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 
 import { BodyEditor } from '@/components/patient/BodyEditor';
@@ -21,6 +21,7 @@ import { TemplatePicker } from '@/components/patient/TemplatePicker';
 import { ConflictDialog } from '@/components/patient/ConflictDialog';
 import { DateRail } from '@/components/patient/DateRail';
 import { RevisionTrail } from '@/components/patient/RevisionTrail';
+import { saveVersion } from '@/data/repositories/entries.repo';
 import { AppShell } from '@/components/common/AppShell';
 import { clearEntry, fetchEntryBodies, setEntryLocked } from '@/data/repositories/entries.repo';
 import { updateArchiveNote } from '@/data/repositories/patients.repo';
@@ -101,6 +102,16 @@ export default function PatientPage(): JSX.Element {
    */
   const [staleMarkers, setStaleMarkers] = useState<string[] | null>(null);
   const [trailOpen, setTrailOpen] = useState(false);
+  /**
+   * The label being typed for a version, or null when the field is closed.
+   *
+   * A label rather than a bare "save": `Pagi` and `Post op` are the whole
+   * point, and two entries reading only `rev 14` and `rev 19` would need
+   * opening to tell apart — at which point the version has not saved anybody
+   * anything.
+   */
+  const [versionLabel, setVersionLabel] = useState<string | null>(null);
+
   const [copyOpen, setCopyOpen] = useState(false);
   const [actionsOpen, setActionsOpen] = useState(false);
   const [identityOpen, setIdentityOpen] = useState(false);
@@ -285,6 +296,30 @@ export default function PatientPage(): JSX.Element {
     [dpjp, today],
   );
   const poli = poliUpcoming[0] ?? null;
+
+  const commitVersion = useCallback(async () => {
+    const body = editor.value;
+    if (!patient || !body.trim()) return;
+    const label = (versionLabel ?? '').trim() || defaultVersionLabel();
+    setVersionLabel(null);
+    try {
+      /*
+       * The version is written from `editor.value`, and `editor.value` is
+       * flushed FIRST.
+       *
+       * Freezing text that has not reached the server yet would produce a
+       * version the entry itself has never held — and `rev` on the snapshot
+       * would point at a revision that never existed, so the diff against
+       * "sekarang" would be nonsense.
+       */
+      editor.flush();
+      await saveVersion(patient.id, selected, body, entry?.rev ?? 0, label);
+      setCarrySummary(`Versi "${label}" disimpan. Catatan hari ini tetap bisa diedit.`);
+    } catch (error) {
+      console.error('[versions] save failed', error);
+    }
+  }, [patient, editor, versionLabel, selected, entry?.rev]);
+
   const poliAfter = poliUpcoming[1] ?? null;
 
   /**
@@ -1073,6 +1108,25 @@ export default function PatientPage(): JSX.Element {
               Format bangsal
             </button>
           ) : null}
+          {/*
+            Freeze the day's SOAP and keep editing.
+
+            Beside "Riwayat perubahan" because that is where the result lands —
+            a saved version is a revision that is never pruned and carries a
+            label. Hidden while a jaga note is open: `editor.value` is the
+            day's SOAP, and versioning it from a screen showing something else
+            is the recurring PatientPage bug (OpeningSheet and ReformatSheet
+            both had it) rather than a new one.
+          */}
+          {!activeShiftNote && editor.value.trim() ? (
+            <button
+              type="button"
+              onClick={() => setVersionLabel(defaultVersionLabel())}
+              className="min-h-tap px-1 underline"
+            >
+              Simpan versi
+            </button>
+          ) : null}
           <button
             type="button"
             onClick={() => setTrailOpen(true)}
@@ -1081,6 +1135,40 @@ export default function PatientPage(): JSX.Element {
             Riwayat perubahan
           </button>
         </div>
+
+        {versionLabel !== null ? (
+          <div className="mt-2 flex items-center gap-2 rounded-lg border border-border p-2">
+            <input
+              autoFocus
+              value={versionLabel}
+              onChange={(event) => setVersionLabel(event.target.value)}
+              onKeyDown={(event) => {
+                if (event.key === 'Enter') void commitVersion();
+                if (event.key === 'Escape') setVersionLabel(null);
+              }}
+              /* Pre-filled with the time, so pressing Enter is a complete
+                 answer. Most versions do not need a name beyond when they
+                 were taken, and the ones that do — "Post op" — are worth
+                 typing. */
+              placeholder="Pagi / Post op"
+              className="min-h-tap min-w-0 flex-1 rounded-lg border border-border bg-surface px-3 text-sm outline-none"
+            />
+            <button
+              type="button"
+              onClick={() => void commitVersion()}
+              className="min-h-tap shrink-0 rounded-lg border border-accent px-3 text-sm font-medium text-accent"
+            >
+              Simpan
+            </button>
+            <button
+              type="button"
+              onClick={() => setVersionLabel(null)}
+              className="min-h-tap shrink-0 px-2 text-sm text-fg-muted"
+            >
+              Batal
+            </button>
+          </div>
+        ) : null}
 
       {editor.conflict ? (
         <ConflictDialog
@@ -1378,4 +1466,17 @@ function buildRail(
   const dates = new Set<ClinicalDate>(entryDates);
   dates.add(today);
   return [...dates].sort();
+}
+
+
+/**
+ * The default label: the time it was frozen at.
+ *
+ * Dots rather than a colon, matching `ShiftNote.time` — a colon reads as a
+ * heading delimiter to the section parser if this text ever finds its way into
+ * a body, and it has before.
+ */
+function defaultVersionLabel(): string {
+  const now = new Date();
+  return `${String(now.getHours()).padStart(2, '0')}.${String(now.getMinutes()).padStart(2, '0')}`;
 }

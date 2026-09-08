@@ -15,6 +15,7 @@ import {
 } from 'firebase/firestore';
 
 import { getDeviceId } from '../deviceId';
+import { prunableRevisions, REVISION_CAP } from '@/domain/revisionPrune';
 import { entriesCol, entryDoc, revisionsCol } from '../paths';
 import { touchEntryMeta } from './patients.repo';
 import { putMergeBase } from '../localBase';
@@ -22,8 +23,6 @@ import { trackWrite } from '../syncStatus';
 import { bodyHash } from '@/domain/hash';
 import type { ClinicalDate, DailyEntry, EntryRevision, ShiftNote } from '@/domain/types';
 
-/** Cap from SPEC 7.4. Oldest pruned on append. */
-const REVISION_CAP = 30;
 
 export interface EntrySnapshot {
   entry: DailyEntry | null;
@@ -411,13 +410,17 @@ export function softDeleteEntry(patientId: string, date: ClinicalDate): Promise<
 export async function appendRevision(
   patientId: string,
   date: ClinicalDate,
-  revision: Pick<EntryRevision, 'body' | 'rev' | 'reason'>,
+  revision: Pick<EntryRevision, 'body' | 'rev' | 'reason'> & { label?: string },
 ): Promise<void> {
   await trackWrite(
     addDoc(revisionsCol(patientId, date), {
       body: revision.body,
       rev: revision.rev,
       reason: revision.reason,
+      // Written only when present: an `undefined` field is a write error in
+      // Firestore, and an empty string would render as a blank label rather
+      // than as no label.
+      ...(revision.label ? { label: revision.label } : {}),
       deviceId: getDeviceId(),
       at: serverTimestamp(),
     }),
@@ -425,15 +428,48 @@ export async function appendRevision(
   await pruneRevisions(patientId, date);
 }
 
+/**
+ * Freeze the day's SOAP as a labelled version, and keep editing.
+ *
+ * The morning follow-up and the post-op update are the same day's note at two
+ * times, and until now the second one overwrote the first. This keeps the
+ * first.
+ *
+ * A FROZEN copy, deliberately, rather than a second editable body. Every
+ * subsystem downstream — three-way merge, the section parser, the tint layer,
+ * every copy format, carry-forward — reads exactly one `body` per day. N
+ * editable versions means N bodies to reconcile across devices, which is the
+ * problem that forced `diff-match-patch` into this codebase in the first
+ * place. A frozen version never merges, so none of them change.
+ *
+ * It also settles what "the day's SOAP" means without anyone having to decide:
+ * `body` is always the newest, so "salin dari hari sebelumnya" picks up the
+ * post-op update rather than the stale morning text as a consequence of the
+ * shape rather than as a rule someone has to maintain.
+ */
+export async function saveVersion(
+  patientId: string,
+  date: ClinicalDate,
+  body: string,
+  rev: number,
+  label: string,
+): Promise<void> {
+  await appendRevision(patientId, date, { body, rev, reason: 'version', label });
+}
+
 async function pruneRevisions(patientId: string, date: ClinicalDate): Promise<void> {
   try {
     const snapshot = await getDocs(
       query(revisionsCol(patientId, date), orderBy('at', 'desc'), limit(REVISION_CAP + 10)),
     );
-    const excess = snapshot.docs.slice(REVISION_CAP);
     // Pruning the oldest snapshots past the cap is the one place a hard delete
     // is correct: these are derived safety copies, not user-authored notes,
     // and they are removed newest-last so the recent trail always survives.
+    // Saved versions ARE user-authored, so `prunableRevisions` holds them back
+    // — see there for why they are excluded before the cap rather than after.
+    const excess = prunableRevisions(
+      snapshot.docs.map((entry) => ({ ref: entry.ref, ...(entry.data() as EntryRevision) })),
+    );
     await Promise.all(excess.map((entry) => deleteDoc(entry.ref)));
   } catch (error) {
     console.error('[entries] revision prune failed', error);

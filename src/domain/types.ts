@@ -516,8 +516,23 @@ export interface EntryRevision {
   rev: number;
   deviceId: string;
   at: Timestamp;
-  /** Why the snapshot was taken — shown in "Riwayat perubahan". */
-  reason: 'autosave' | 'pre-merge' | 'pre-conflict' | 'restore' | 'unlock';
+  /**
+   * Why the snapshot was taken — shown in "Riwayat perubahan".
+   *
+   * `version` is the only one a person asks for. The rest are safety copies
+   * the app takes on its own, and the difference matters twice: a version is
+   * never pruned, and it carries a label the author chose.
+   */
+  reason: 'autosave' | 'pre-merge' | 'pre-conflict' | 'restore' | 'unlock' | 'version';
+  /**
+   * Set only on `version`. What this version of the day was — `Pagi`,
+   * `Post op`, or just the time it was frozen at.
+   *
+   * Optional rather than required because every revision written before
+   * versions existed has none, and absence has to read as "no label" rather
+   * than as a document to repair.
+   */
+  label?: string;
 }
 
 export interface ChecklistTickState {
