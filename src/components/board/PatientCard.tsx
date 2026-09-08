@@ -71,14 +71,21 @@ export function PatientCard({
 
   return (
     /*
-      Card and note are siblings, so the note sits OUTSIDE the card's border.
+      Card and note are siblings, so the note sits OUTSIDE the card's border —
+      and flush against it, with no gap. A gap made the note read as a third
+      card sitting between two patients rather than as something clipped to one
+      of them.
 
-      When the note is open the board gives this row two columns, and the two
-      children split them evenly — so the card keeps the width it had and the
-      note occupies the space to its right. Collapsed, the row is one column and
-      the note is a spine on the edge.
+      `items-start`: the note is the height of its own text. Stretching it to
+      the card gave three words the footprint of a full patient card, which is
+      what made it shout.
+
+      The card's width is stated exactly rather than left to `flex-1`. In a
+      two-column cell, `flex-1` on both children splits the cell evenly and each
+      half is one column PLUS half the column gap — so opening a note nudged the
+      card wider, which is visible when the card beside it does not move.
     */
-    <div className="flex items-stretch gap-1.5">
+    <div className="flex items-start">
     <Link
       to={`/p/${patient.id}`}
       /**
@@ -109,7 +116,11 @@ export function PatientCard({
         onLongPress(patient.id);
       }}
       className={[
-        'block min-w-0 flex-1 rounded-xl border border-black/5 bg-token p-3 text-token-fg shadow-sm transition-shadow hover:shadow-md dark:border-white/10',
+        'block min-w-0 border border-black/5 bg-token p-3 text-token-fg shadow-sm transition-shadow hover:shadow-md dark:border-white/10',
+        // Square right edge whenever a note is attached, so the two form one
+        // continuous shape instead of two rounded boxes side by side.
+        note ? 'rounded-l-xl rounded-r-none' : 'rounded-xl',
+        noteOpen ? 'shrink-0' : 'flex-1',
         // The card being dragged fades rather than moves. Moving it would mean
         // owning a live preview of the whole list mid-gesture; fading says
         // which one is in hand and lets the drop do the rearranging.
@@ -159,18 +170,12 @@ export function PatientCard({
          */
         card.pemantauan ? 'ring-2 ring-[var(--danger)]' : '',
       ].join(' ')}
-      style={
-        // A left edge rather than a different card colour: the card colour
-        // already means how far the round got, and one colour cannot carry two
-        // unrelated facts without making both unreadable. An edge reads as a
-        // marker on the card instead of a change to it.
-        card.discharge
-          ? {
-              borderLeftWidth: '4px',
-              borderLeftColor: STAGE_TOKEN[card.discharge],
-            }
-          : undefined
-      }
+      style={{
+        // Exactly one grid column: the cell is two columns plus the 12px gap
+        // between them, so one column is half of what remains.
+        ...(noteOpen ? { width: 'calc((100% - 12px) / 2)' } : {}),
+        ...cardEdge(card),
+      }}
     >
       {/*
         A strip across the top of the card, in normal flow.
@@ -348,17 +353,34 @@ export function PatientCard({
 }
 
 /**
- * The standing note, clipped to the right of the card.
+ * The standing note, clipped to the right edge of the card.
  *
- * Outside the card's border on purpose. Inside, it read as another field of the
- * card — one more line among the diagnoses — and it is not: the card says what
- * the patient HAS, the note says what to DO about them, and they are written
- * and read at different moments.
+ * SHAPE
  *
- * Collapsed to a spine by default it would be invisible, so it opens expanded
- * and collapses to a tab. Absent entirely when there is no note: an empty box
- * on every card is furniture on the one screen where density is the point, and
- * its absence is itself information.
+ * Flush against the card with no gap, square on its left, rounded on its right
+ * — and the card goes square on ITS right whenever a note is attached, so the
+ * two read as one continuous shape with a seam rather than as two boxes near
+ * each other. With a gap it looked like a third card parked between two
+ * patients.
+ *
+ * SIZE
+ *
+ * Content-sized, both ways. Height comes from the text, so three words take
+ * three words of space instead of a full card's worth — stretching it to the
+ * card's height is what made a scribble as loud as a diagnosis list. Width
+ * grows with the text up to half a card and no further: past that it stops
+ * being a margin note and starts competing with the thing it annotates.
+ *
+ * `break-words` plus `overflow-wrap: anywhere` because notes are free text and
+ * people paste identifiers into them. An unbroken 200-character string has no
+ * space to wrap at and ran straight across the board.
+ *
+ * CONTROL
+ *
+ * The note IS the control — the whole panel toggles, so there is no button
+ * sitting on top of it. Collapsed it becomes a small tab at the top of the
+ * card's edge, like the corner of a page showing from behind. A full-height
+ * spine was the previous attempt and read as a scrollbar.
  */
 function CardNote({
   note,
@@ -367,41 +389,51 @@ function CardNote({
 }: {
   note: string;
   expanded: boolean;
-  onToggle: (next: boolean) => void;
+  onToggle: () => void;
 }): JSX.Element {
+  const paper =
+    'shrink-0 self-start rounded-l-none rounded-r-xl border border-l-0 border-[var(--warn-strong)]/40 bg-[var(--warn-soft)] text-left text-fg';
+
+  if (!expanded) {
+    return (
+      <button
+        type="button"
+        aria-expanded={false}
+        aria-label="Buka catatan"
+        title={note}
+        onClick={onToggle}
+        // 44 px tall so it is still a real target, 16 px wide so it is a tab
+        // and not a column.
+        className={`${paper} mt-3 h-11 w-4`}
+      />
+    );
+  }
+
   return (
     <button
       type="button"
-      aria-expanded={expanded}
-      aria-label={expanded ? 'Tutup catatan' : 'Buka catatan'}
-      onClick={() => onToggle(!expanded)}
-      className={[
-        'shrink-0 self-stretch rounded-lg border border-[var(--warn-strong)] bg-[var(--warn-soft)] text-left text-fg transition-[width]',
-        // `flex-1` against the card's `flex-1`, inside a row that is two
-        // columns wide: the card lands back on exactly one column and the note
-        // takes the other. Shrinking the card to make room was the previous
-        // behaviour and the thing being fixed.
-        expanded ? 'flex-1 p-2' : 'w-5 p-0',
-      ].join(' ')}
+      aria-expanded
+      aria-label="Tutup catatan"
+      onClick={onToggle}
+      // Half a card: the card is `(100% - 12px) / 2` of the two-column cell,
+      // so half of that is a quarter of the same figure.
+      style={{ maxWidth: 'calc((100% - 12px) / 4)' }}
+      className={`${paper} mt-3 px-2 py-1.5`}
     >
-      {expanded ? (
-        /*
-          `break-words` is not optional here. A note is free text and residents
-          paste identifiers into it — an unbroken 200-character string has no
-          space to wrap at, so it ran straight out of the card and across the
-          rest of the board.
-        */
-        <span className="block whitespace-pre-line break-words text-[11px] leading-snug [overflow-wrap:anywhere]">
-          {note}
-        </span>
-      ) : (
-        <span
-          aria-hidden="true"
-          className="flex h-full items-center justify-center text-[10px] font-bold"
-        >
-          ▸
-        </span>
-      )}
+      <span className="block whitespace-pre-line break-words text-[11px] leading-snug [overflow-wrap:anywhere]">
+        {note}
+      </span>
     </button>
   );
+}
+
+/**
+ * A left edge rather than a different card colour: the card colour already
+ * means how far the round got, and one colour cannot carry two unrelated facts
+ * without making both unreadable. An edge reads as a marker on the card instead
+ * of a change to it.
+ */
+function cardEdge(card: BoardCard): React.CSSProperties {
+  if (!card.discharge) return {};
+  return { borderLeftWidth: '4px', borderLeftColor: STAGE_TOKEN[card.discharge] };
 }
