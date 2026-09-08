@@ -554,10 +554,7 @@ export default function BoardPage(): JSX.Element {
                     column — see MasonryGrid for why that ruled it out. */}
                 <MasonryGrid>
                   {group.cards.map((card) => (
-                    <MasonryItem
-                      key={card.patient.id}
-                      wide={noteOpen(card.patient)}
-                    >
+                    <MasonryItem key={card.patient.id}>
                     <PatientCard
                       card={card}
                       noteExpanded={noteOpen(card.patient)}

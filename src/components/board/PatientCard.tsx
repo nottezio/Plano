@@ -71,21 +71,26 @@ export function PatientCard({
 
   return (
     /*
-      Card and note are siblings, so the note sits OUTSIDE the card's border —
-      and flush against it, with no gap. A gap made the note read as a third
-      card sitting between two patients rather than as something clipped to one
-      of them.
+      THE NOTE GOES UNDER THE CARD, not beside it.
 
-      `items-start`: the note is the height of its own text. Stretching it to
-      the card gave three words the footprint of a full patient card, which is
-      what made it shout.
+      Two attempts put it to the right, and both failed on the same constraint
+      rather than on styling. A note can be to the RIGHT, sized to its CONTENT,
+      and not OVERLAP its neighbour — any two of those, never all three. The
+      board reserves whole columns, so a right-hand note that does not overlap
+      has to reserve a whole column too, and a three-word note then leaves most
+      of one empty. Splitting the columns in half halved the gap and left it
+      obviously there.
 
-      The card's width is stated exactly rather than left to `flex-1`. In a
-      two-column cell, `flex-1` on both children splits the cell evenly and each
-      half is one column PLUS half the column gap — so opening a note nudged the
-      card wider, which is visible when the card beside it does not move.
+      Underneath, all three hold. The note is as wide as the card and as tall as
+      its text, masonry closes up beneath it exactly as it does for a card with
+      one more line of diagnoses, and nothing is reserved or covered.
+
+      It is still outside the card's border — square top corners against the
+      card's squared-off bottom, its own fill and outline — so it reads as paper
+      stuck to the card rather than as another field inside it, which was the
+      actual objection to keeping it inside.
     */
-    <div className="flex items-start">
+    <div>
     <Link
       to={`/p/${patient.id}`}
       /**
@@ -117,24 +122,10 @@ export function PatientCard({
       }}
       className={[
         'block min-w-0 border border-black/5 bg-token p-3 text-token-fg shadow-sm transition-shadow hover:shadow-md dark:border-white/10',
-        // Square right edge whenever a note is attached, so the two form one
-        // continuous shape instead of two rounded boxes side by side.
-        note ? 'rounded-l-xl rounded-r-none' : 'rounded-xl',
-        /*
-          Two of the cell's three tracks, stated exactly.
-
-          The cell is 3 tracks + 2 gaps; two tracks + one gap is
-          `(2W - g) / 3`, which with a 12px gap is `66.6667% - 4px`. Letting
-          flex divide it instead gave the card half the cell — wider than a
-          plain card, so opening a note nudged it out of line with its
-          neighbours.
-
-          On a phone the whole board is one card wide, so there is no third
-          track to take. The card stays `flex-1` there and the note takes its
-          share of the same width — `w-full` would have pushed the note clean
-          off the screen edge.
-        */
-        noteOpen ? 'min-w-0 flex-1 sm:w-[calc(66.6667%-4px)] sm:flex-none' : 'flex-1',
+        // Square bottom edge whenever a note is attached, so the card and the
+        // note form one continuous shape with a seam rather than two rounded
+        // boxes stacked with a hairline between them.
+        note ? 'rounded-t-xl rounded-b-none' : 'rounded-xl',
         // The card being dragged fades rather than moves. Moving it would mean
         // owning a live preview of the whole list mid-gesture; fading says
         // which one is in hand and lets the drop do the rearranging.
@@ -362,34 +353,35 @@ export function PatientCard({
 }
 
 /**
- * The standing note, clipped to the right edge of the card.
+ * The standing note, as paper stuck to the bottom of the card.
  *
- * SHAPE
+ * WHY NOT TO THE RIGHT
  *
- * Flush against the card with no gap, square on its left, rounded on its right
- * — and the card goes square on ITS right whenever a note is attached, so the
- * two read as one continuous shape with a seam rather than as two boxes near
- * each other. With a gap it looked like a third card parked between two
- * patients.
+ * Two attempts put it there and both failed on the same constraint. A note can
+ * be to the RIGHT, sized to its CONTENT, and not OVERLAP its neighbour — any
+ * two of those, never all three. The board reserves whole columns, so a
+ * right-hand note that does not overlap reserves a whole column too, and a
+ * three-word note leaves most of one empty. Half-width tracks halved that gap
+ * and left it plainly visible.
  *
- * SIZE
+ * Underneath, all three hold at once: full card width, height from the text,
+ * and masonry closing up beneath it exactly as it does for a card carrying one
+ * more line of diagnoses. Nothing is reserved and nothing is covered.
  *
- * Content-sized, both ways. Height comes from the text, so three words take
- * three words of space instead of a full card's worth — stretching it to the
- * card's height is what made a scribble as loud as a diagnosis list. Width
- * grows with the text up to half a card and no further: past that it stops
- * being a margin note and starts competing with the thing it annotates.
+ * WHY IT STILL READS AS SEPARATE
  *
- * `break-words` plus `overflow-wrap: anywhere` because notes are free text and
- * people paste identifiers into them. An unbroken 200-character string has no
- * space to wrap at and ran straight across the board.
+ * The objection to keeping it inside the card was that it looked like another
+ * field — one more line among the diagnoses. So it keeps its own fill and
+ * outline and sits below the card's border with square top corners against the
+ * card's squared-off bottom: one continuous shape with a visible seam, which is
+ * what a note taped to a chart looks like.
  *
- * CONTROL
+ * COLLAPSED IS STILL USEFUL
  *
- * The note IS the control — the whole panel toggles, so there is no button
- * sitting on top of it. Collapsed it becomes a small tab at the top of the
- * card's edge, like the corner of a page showing from behind. A full-height
- * spine was the previous attempt and read as a scrollbar.
+ * Collapsed shows the first line, truncated, rather than hiding the note behind
+ * a tab. A tab says "something is written here" and makes you click to find out
+ * what; one line usually IS what — most of these are short — and it costs a
+ * single row.
  */
 function CardNote({
   note,
@@ -400,40 +392,33 @@ function CardNote({
   expanded: boolean;
   onToggle: () => void;
 }): JSX.Element {
-  const paper =
-    'shrink-0 self-start rounded-l-none rounded-r-xl border border-l-0 border-[var(--warn-strong)]/40 bg-[var(--warn-soft)] text-left text-fg';
-
-  if (!expanded) {
-    return (
-      <button
-        type="button"
-        aria-expanded={false}
-        aria-label="Buka catatan"
-        title={note}
-        onClick={onToggle}
-        // 44 px tall so it is still a real target, 16 px wide so it is a tab
-        // and not a column.
-        className={`${paper} mt-3 h-11 w-4`}
-      />
-    );
-  }
-
   return (
     <button
       type="button"
-      aria-expanded
-      aria-label="Tutup catatan"
+      aria-expanded={expanded}
+      aria-label={expanded ? 'Ringkas catatan' : 'Selengkapnya'}
       onClick={onToggle}
-      /*
-        Grows with the text and stops at the third track — the leftover of the
-        cell once the card has taken its two, which is a shade under half a
-        card. Past half it stops being a margin note and starts competing with
-        what it annotates.
-      */
-      className={`${paper} mt-3 max-w-[45%] px-2 py-1.5 sm:max-w-[calc(33.3333%+4px)]`}
+      className="flex w-full items-start gap-1.5 rounded-b-xl rounded-t-none border border-t-0 border-[var(--warn-strong)]/40 bg-[var(--warn-soft)] px-3 py-1.5 text-left text-fg"
     >
-      <span className="block whitespace-pre-line break-words text-[11px] leading-snug [overflow-wrap:anywhere]">
-        {note}
+      <span
+        aria-hidden="true"
+        className="mt-px shrink-0 text-[9px] leading-snug text-[var(--warn-strong)]"
+      >
+        {expanded ? '▾' : '▸'}
+      </span>
+      <span
+        className={[
+          'min-w-0 flex-1 text-[11px] leading-snug',
+          // `break-words` plus `overflow-wrap: anywhere` because notes are free
+          // text and people paste identifiers into them. An unbroken
+          // 200-character string has no space to wrap at, and ran across the
+          // whole board before this.
+          expanded
+            ? 'whitespace-pre-line break-words [overflow-wrap:anywhere]'
+            : 'truncate',
+        ].join(' ')}
+      >
+        {expanded ? note : note.split('\n')[0]}
       </span>
     </button>
   );
