@@ -15,7 +15,9 @@ import {
   SEED_GREETINGS,
   SEED_NOTE_TEMPLATES,
   SEED_OPENING_SENTENCES,
+  SEED_SNAPSHOT,
 } from '@/domain/defaults';
+import { outdatedTemplates, resetTemplateToSeed } from '@/domain/seedSync';
 import {
   restoreMissing,
   restoreMissingStrings,
@@ -26,6 +28,7 @@ import { FORMAT_LABELS } from '@/domain/format/formatters';
 import { signOutAndClear, useSession } from '@/store/useSession';
 import { resetSettings } from '@/data/repositories/settings.repo';
 import { useUI, type ThemePreference } from '@/store/useUI';
+import type { NoteTemplate } from '@/domain/types';
 import { APP_VERSION } from '@/version.js';
 import type { UserSettings } from '@/domain/types';
 
@@ -41,6 +44,17 @@ export default function SettingsPage(): JSX.Element {
   const user = useSession((state) => state.user);
   const persistence = useSession((state) => state.storagePersistence);
   const settings = useSession((state) => state.settings());
+  /** Templates whose body no longer matches what this build ships. */
+  const staleTemplates = outdatedTemplates(settings, SEED_SNAPSHOT);
+  /**
+   * Two-step confirm, in the button itself.
+   *
+   * This discards work, and unlike the checklist equivalent there is no
+   * recovery path — a template is not versioned. One tap arms, the second
+   * acts, and the armed label names the template so it cannot be mistaken for
+   * a different one.
+   */
+  const [resetTemplateId, setResetTemplateId] = useState<string | null>(null);
 
   const pinEnabled = useLock((state) => state.pinEnabled);
   const removePin = useLock((state) => state.removePin);
@@ -156,6 +170,57 @@ export default function SettingsPage(): JSX.Element {
             templates={settings.noteTemplates}
             onChange={(noteTemplates) => patch({ noteTemplates })}
           />
+          {/*
+            Parity with the checklist button, but NOT the same operation.
+
+            Checklists have no reconciler, so their button is the only way an
+            updated list ever arrives. Templates are merged into on every load
+            by `reconcileSeeds`, so updates have already arrived — this is the
+            escape hatch for the case the merge could not resolve: it hit a
+            conflict, kept your copy, and nothing on screen said so.
+
+            That makes it a RESET. It discards local edits to that template,
+            which is why it names the template and asks first, where the
+            checklist version simply acts.
+          */}
+          {staleTemplates.length > 0 ? (
+            <div className="mt-2 rounded-xl border border-accent bg-bg-subtle p-3">
+              <p className="text-xs text-fg">
+                {staleTemplates.length} format berbeda dari versi bawaan aplikasi.
+              </p>
+              <div className="mt-2 flex flex-wrap gap-2">
+                {staleTemplates.map((template: NoteTemplate) => (
+                  <button
+                    key={template.id}
+                    type="button"
+                    onClick={() => {
+                      if (resetTemplateId !== template.id) {
+                        setResetTemplateId(template.id);
+                        return;
+                      }
+                      patch({
+                        noteTemplates: resetTemplateToSeed(settings, SEED_SNAPSHOT, template.id),
+                      });
+                      setResetTemplateId(null);
+                    }}
+                    className={[
+                      'min-h-tap rounded-lg border px-3 text-xs font-medium',
+                      resetTemplateId === template.id
+                        ? 'border-[var(--danger)] text-[var(--danger)]'
+                        : 'border-accent text-accent',
+                    ].join(' ')}
+                  >
+                    {resetTemplateId === template.id
+                      ? `Ganti "${template.name}" dengan bawaan?`
+                      : template.name}
+                  </button>
+                ))}
+              </div>
+              <p className="mt-1 text-[11px] text-fg-faint">
+                Perubahanmu pada format itu akan hilang. Format lain tidak tersentuh.
+              </p>
+            </div>
+          ) : null}
           <RestoreButton
             onClick={() => {
               const { next, restored: count } = restoreMissing(

@@ -290,3 +290,64 @@ export function reconcileSeeds(
     dirty: true,
   };
 }
+
+
+/**
+ * Templates whose body no longer matches the one this build ships.
+ *
+ * PARITY WITH CHECKLISTS, and why it is not the same mechanism.
+ *
+ * Checklists have no reconciler: a saved list simply shadows its seed, so
+ * "Perbarui ke versi terbaru" is the ONLY way an updated one ever arrives, and
+ * it replaces the list wholesale.
+ *
+ * Templates do have one — `reconcileSeeds` merges every seed change into the
+ * user's copy on load, keeping their edits. So this button is not how updates
+ * arrive; they have already arrived. It is the escape hatch for the two cases
+ * the merge cannot resolve on its own:
+ *
+ *  - the merge hit a CONFLICT and kept the user's copy, so the fix never
+ *    landed and nothing on screen says so
+ *  - the user wants the shipped version back and does not want to reconstruct
+ *    it by hand
+ *
+ * Which makes this a RESET, not a refresh — it discards local edits to that
+ * template. The wording and the confirmation have to say so, because for
+ * checklists the same button label means something much cheaper.
+ *
+ * Compared by body and name against the CURRENT seed rather than against the
+ * baseline: the question is "does mine differ from what ships today", and the
+ * baseline may already have advanced past a conflict that was never applied.
+ */
+export function outdatedTemplates(
+  settings: UserSettings,
+  seeds: SeedSnapshot,
+): NoteTemplate[] {
+  return settings.noteTemplates.filter((template) => {
+    const seed = seeds.noteTemplates.find((candidate) => candidate.id === template.id);
+    if (!seed) return false;
+    return seed.body !== template.body || seed.name !== template.name;
+  });
+}
+
+/**
+ * Replace one template with the shipped version.
+ *
+ * Order is preserved from the user's copy, not taken from the seed — where a
+ * template sits in their list is their arrangement, and resetting its CONTENT
+ * is not a request to move it.
+ */
+export function resetTemplateToSeed(
+  settings: UserSettings,
+  seeds: SeedSnapshot,
+  templateId: string,
+): NoteTemplate[] {
+  const seed = seeds.noteTemplates.find((candidate) => candidate.id === templateId);
+  if (!seed) return settings.noteTemplates;
+
+  return settings.noteTemplates.map((template) =>
+    template.id === templateId
+      ? { ...seed, order: template.order }
+      : template,
+  );
+}

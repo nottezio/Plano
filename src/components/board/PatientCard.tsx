@@ -175,7 +175,6 @@ export function PatientCard({
          */
         card.pemantauan ? 'ring-2 ring-[var(--danger)]' : '',
       ].join(' ')}
-      style={cardEdge(card)}
     >
       {/*
         A strip across the top of the card, in normal flow.
@@ -269,9 +268,22 @@ export function PatientCard({
             KJS
           </span>
         ) : null}
+        {/*
+          The badge carries this on its own — the coloured left edge that used
+          to sit beside it has gone.
+          
+          Two marks for one fact, and the weaker of the two was a bare stripe:
+          colour with no label, in a column of cards that already vary in
+          colour by checklist progress. It said "something about this patient"
+          and left the reader to remember which something, while the badge two
+          inches away said it in words. Removing it also ends a real collision
+          — the strip shared the left border with the pemantauan treatment, and
+          an inline `borderLeftColor` silently won over the class, so a patient
+          who was both lost one of the two marks entirely.
+        */}
         {card.discharge ? (
           <span
-            className="shrink-0 rounded px-1 text-[10px] font-semibold"
+            className="shrink-0 rounded px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide"
             style={{
               backgroundColor: STAGE_TOKEN[card.discharge],
               // Dark text on both badge colours in both themes: the badges are
@@ -424,13 +436,3 @@ function CardNote({
   );
 }
 
-/**
- * A left edge rather than a different card colour: the card colour already
- * means how far the round got, and one colour cannot carry two unrelated facts
- * without making both unreadable. An edge reads as a marker on the card instead
- * of a change to it.
- */
-function cardEdge(card: BoardCard): React.CSSProperties {
-  if (!card.discharge) return {};
-  return { borderLeftWidth: '4px', borderLeftColor: STAGE_TOKEN[card.discharge] };
-}

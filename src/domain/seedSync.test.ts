@@ -1,7 +1,13 @@
 import { describe, expect, it } from 'vitest';
 
 import { defaultUserSettings, SEED_SNAPSHOT } from './defaults';
-import { mergeStringList, reconcileSeeds, snapshotOf } from './seedSync';
+import {
+  mergeStringList,
+  outdatedTemplates,
+  reconcileSeeds,
+  resetTemplateToSeed,
+  snapshotOf,
+} from './seedSync';
 import type { SeedSnapshot } from './seedSync';
 import type { UserSettings } from './types';
 
@@ -245,5 +251,48 @@ describe('carry-forward clearing reaches existing profiles', () => {
     local.carryForwardClearSections = ['s'];
     const result = reconcileSeeds(local, base);
     expect(result.settings.carryForwardClearSections).toEqual(['s']);
+  });
+});
+
+describe('outdatedTemplates / resetTemplateToSeed', () => {
+  const base = seeds({
+    noteTemplates: [{ id: 'followup', name: 'Follow-up', body: 'A\nB\nC', order: 1 }],
+  });
+
+  it('reports a template that differs from what ships today', () => {
+    const local = settingsFrom(base);
+    local.noteTemplates[0]!.body = 'my own wording';
+    expect(outdatedTemplates(local, base).map((t) => t.id)).toEqual(['followup']);
+  });
+
+  it('reports nothing when the copy already matches', () => {
+    expect(outdatedTemplates(settingsFrom(base), base)).toEqual([]);
+  });
+
+  it('ignores a template the user made themselves', () => {
+    // No seed to be outdated against.
+    const local = settingsFrom(base);
+    local.noteTemplates.push({ id: 'mine', name: 'Punyaku', body: 'Z', order: 9 });
+    expect(outdatedTemplates(local, base).map((t) => t.id)).toEqual([]);
+  });
+
+  it('resets one template and leaves the others alone', () => {
+    const local = settingsFrom(base);
+    local.noteTemplates[0]!.body = 'my own wording';
+    local.noteTemplates.push({ id: 'mine', name: 'Punyaku', body: 'Z', order: 9 });
+
+    const next = resetTemplateToSeed(local, base, 'followup');
+    expect(next.find((t) => t.id === 'followup')?.body).toBe('A\nB\nC');
+    expect(next.find((t) => t.id === 'mine')?.body).toBe('Z');
+  });
+
+  it('keeps the user position in the list', () => {
+    /*
+     * Resetting the CONTENT of a template is not a request to move it. Where
+     * it sits is the user's arrangement.
+     */
+    const local = settingsFrom(base);
+    local.noteTemplates[0] = { ...local.noteTemplates[0]!, body: 'edited', order: 7 };
+    expect(resetTemplateToSeed(local, base, 'followup')[0]?.order).toBe(7);
   });
 });
