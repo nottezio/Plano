@@ -103,7 +103,19 @@ export function JumpBar({
           key={target.sectionId}
           type="button"
           onClick={() => jump(target.anchorId)}
-          className="min-h-tap shrink-0 rounded-lg px-2 text-[11px] font-medium text-fg-muted"
+          /*
+            32px, below the 44px floor the rest of the app holds to, and that is
+            deliberate rather than an oversight.
+
+            This is a shortcut, not a destination: every section it jumps to is
+            reachable by scrolling the note that is already on screen, so a miss
+            costs a scroll rather than an action. Against that, a 44px strip
+            across the top of the editor was taking a line and a half of the
+            note itself on a phone — permanently, on the one screen where the
+            content is the point. The targets are also wide, which is the axis a
+            thumb actually misses on.
+          */
+          className="h-8 shrink-0 rounded-lg px-2 text-[11px] font-medium text-fg-muted"
         >
           {target.label}
         </button>

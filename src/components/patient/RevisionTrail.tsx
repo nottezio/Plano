@@ -25,14 +25,25 @@ export function RevisionTrail({
   revisions,
   currentBody,
   onRestore,
+  /**
+   * Open with this revision already expanded.
+   *
+   * Set when the sheet is reached from a version chip on the page: the chip
+   * names one version, so landing on a list and having to find it again would
+   * undo the point of the chip.
+   */
+  focusId = null,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   revisions: EntryRevision[];
   currentBody: string;
   onRestore: (body: string) => void;
+  focusId?: string | null;
 }): JSX.Element {
   const [selected, setSelected] = useState<EntryRevision | null>(null);
+  const focused = focusId ? (revisions.find((r) => r.id === focusId) ?? null) : null;
+  const shown = selected ?? focused;
   const saved = revisions.filter((revision) => revision.reason === 'version');
   const auto = revisions.filter((revision) => revision.reason !== 'version');
   /**
@@ -73,7 +84,7 @@ export function RevisionTrail({
             <li key={revision.id}>
               <button
                 type="button"
-                onClick={() => setSelected(selected?.id === revision.id ? null : revision)}
+                onClick={() => setSelected(shown?.id === revision.id ? null : revision)}
                 className="w-full rounded-lg border border-border px-3 py-2 text-left"
               >
                 <span className="flex items-baseline gap-2">
@@ -98,7 +109,7 @@ export function RevisionTrail({
                 </span>
               </button>
 
-              {selected?.id === revision.id ? (
+              {shown?.id === revision.id ? (
                 <div className="mt-2 space-y-2">
                   <DiffView before={revision.body} after={currentBody} />
                   <p className="text-[11px] text-fg-faint">

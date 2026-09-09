@@ -85,6 +85,13 @@ That loop is the checklist, and it **resets every clinical day**.
 
 **Tenancy:** each account sees only its own patients. Sharing is **not** built in v1 but the schema must make it a config change, not a migration (§6.1).
 
+**Delimiters after a one-letter alias:** `:`, `)` and `/` only — never `.`.
+12.1 lists `.` generally, and the corpus overrules it here: `A.` is arteria,
+`V.` is vena, `S.` and `P.` open bacterial genus names. `A. femoralis: +/-` in a
+vascular exam was opening an assessment section, which put pulse findings under
+Diagnosis in the Ringkas PDF and made "femoralis: +/-" the board card summary.
+Longer aliases keep `.` — `Lab.` is not an abbreviation of anything else.
+
 **UI language:** Bahasa Indonesia. Code, comments, identifiers: English.
 
 **Loanwords stay English.** A technical term that the ward says in English is

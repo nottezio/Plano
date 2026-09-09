@@ -102,6 +102,8 @@ export default function PatientPage(): JSX.Element {
    */
   const [staleMarkers, setStaleMarkers] = useState<string[] | null>(null);
   const [trailOpen, setTrailOpen] = useState(false);
+  /** Which revision the trail should open expanded, when reached from a chip. */
+  const [trailFocus, setTrailFocus] = useState<string | null>(null);
   /**
    * The label being typed for a version, or null when the field is closed.
    *
@@ -259,7 +261,15 @@ export default function PatientPage(): JSX.Element {
   // SPEC 7.5 — announce presence only while the day is actually editable.
   usePresenceHeartbeat(patientId, selected, !locked);
   const otherDevice = otherDeviceEditing(entry);
-  const revisions = useRevisions(patientId, selected, trailOpen);
+  /**
+   * Subscribed always, not only while the trail sheet is open.
+   *
+   * Saved versions are surfaced on the page itself, so they have to be known
+   * before anybody opens anything — a version you must go looking for through
+   * a history sheet is no easier to reach than the history sheet was.
+   */
+  const revisions = useRevisions(patientId, selected, true);
+  const savedVersions = revisions.filter((revision) => revision.reason === 'version');
   const checklist = useChecklist(patientId, selected, settings.checklistItems);
   const notesSync = usePatientNotes(patient ?? null);
 
@@ -1136,6 +1146,34 @@ export default function PatientPage(): JSX.Element {
           </button>
         </div>
 
+        {/*
+          Saved versions, on the page rather than behind the history sheet.
+
+          Chips because they are read as a set — "what states does today have"
+          — and the answer is usually one or two. Newest first, matching the
+          trail. Tapping opens that version's diff against the note as it
+          stands now, which is the question actually being asked: what changed
+          since the morning.
+        */}
+        {savedVersions.length > 0 && !activeShiftNote ? (
+          <div className="mt-2 flex flex-wrap items-center gap-1.5">
+            <span className="text-[11px] text-fg-faint">Versi:</span>
+            {savedVersions.map((revision) => (
+              <button
+                key={revision.id}
+                type="button"
+                onClick={() => {
+                  setTrailFocus(revision.id);
+                  setTrailOpen(true);
+                }}
+                className="min-h-tap rounded-full border border-[var(--warn-strong)]/40 bg-[var(--warn-soft)] px-2.5 text-[11px] text-fg"
+              >
+                {revision.label ?? `rev ${String(revision.rev)}`}
+              </button>
+            ))}
+          </div>
+        ) : null}
+
         {versionLabel !== null ? (
           <div className="mt-2 flex items-center gap-2 rounded-lg border border-border p-2">
             <input
@@ -1414,8 +1452,12 @@ export default function PatientPage(): JSX.Element {
       />
 
       <RevisionTrail
+        focusId={trailFocus}
         open={trailOpen}
-        onOpenChange={setTrailOpen}
+        onOpenChange={(next) => {
+          if (!next) setTrailFocus(null);
+          setTrailOpen(next);
+        }}
         revisions={revisions}
         currentBody={editor.value}
         onRestore={editor.restoreRevision}

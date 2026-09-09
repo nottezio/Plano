@@ -174,7 +174,15 @@ describe('yesterdayHint — night shift', () => {
     const hint = yesterdayHint({ ...base, now: jakarta('2026-08-07T01:30:00') });
     expect(hint).not.toBeNull();
     expect(hint?.yesterday).toBe('2026-08-06');
-    expect(hint?.message).toBe('Sekarang sudah tanggal 7. Menulis untuk 6 Agustus?');
+    /*
+     * An offer, not a statement. The previous wording read as the app telling
+     * the user they were writing for the 6th when in fact they were on the
+     * 7th and this offers the 6th — and it never said why it had appeared, so
+     * at 01:30 it looked like the app had chosen the date itself.
+     */
+    expect(hint?.message).toBe(
+      'Lewat tengah malam — hari ini sudah tanggal 7. Lanjut di catatan 6 Agustus?',
+    );
   });
 
   it('is silent at 06:00 and after', () => {

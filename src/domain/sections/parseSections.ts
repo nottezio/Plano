@@ -77,6 +77,27 @@ interface Line {
 /** Characters allowed to decorate a header, per the SPEC 12.1 pattern. */
 const DECORATION = '[\\s>*_#-]{0,4}';
 const DELIMITERS = '[:.)]';
+/**
+ * What a ONE-LETTER alias may be followed by. No full stop.
+ *
+ * `A`, `S`, `O` and `P` are aliases, and a full stop was an accepted delimiter,
+ * so every `A. femoralis: +/-` in a vascular examination opened an assessment
+ * section. In a real note that put the pulse findings under Diagnosis in the
+ * Ringkas PDF and made `femoralis: +/-` the summary line on the board card —
+ * the app confidently reporting a leg pulse as the patient's diagnosis.
+ *
+ * It is not a one-off. `A.` is arteria, `V.` is vena, `N.` is nervus, and in a
+ * lab result `S.` and `P.` open bacterial genus names. A single letter followed
+ * by a full stop is an abbreviation far more often than it is a heading, and
+ * the shorter the token the weaker the evidence it carries.
+ *
+ * `:` and `)` stay, because `A:` and `A)` are unambiguous headings, and `A/`
+ * keeps working through the self-delimited branch below.
+ */
+const SHORT_DELIMITERS = '[:)]';
+/** An alias short enough that a full stop after it is more likely an
+ *  abbreviation than a heading. */
+const SHORT_TOKEN = 1;
 
 /**
  * Inline-format markers that may trail the alias token.
@@ -166,6 +187,7 @@ function buildMatcher(aliases: readonly SectionAlias[]): AliasMatcher {
   const lookup = new Map<string, SectionId>();
   const delimited: string[] = [];
   const selfDelimited: string[] = [];
+  const shortDelimited: string[] = [];
 
   const tokens = aliases.flatMap((alias) =>
     alias.aliases
@@ -180,13 +202,20 @@ function buildMatcher(aliases: readonly SectionAlias[]): AliasMatcher {
   for (const { token, sectionId } of tokens) {
     const key = token.toLowerCase();
     if (!lookup.has(key)) lookup.set(key, sectionId);
-    (token.endsWith('/') ? selfDelimited : delimited).push(escapeRegExp(token));
+    if (token.endsWith('/')) selfDelimited.push(escapeRegExp(token));
+    else if (token.length <= SHORT_TOKEN) shortDelimited.push(escapeRegExp(token));
+    else delimited.push(escapeRegExp(token));
   }
 
   const branches: string[] = [];
   if (delimited.length > 0) {
     branches.push(
       `(?:${delimited.join('|')})${TRAILING_MARKERS}[ \\t]*${DELIMITERS}${TRAILING_MARKERS}`,
+    );
+  }
+  if (shortDelimited.length > 0) {
+    branches.push(
+      `(?:${shortDelimited.join('|')})${TRAILING_MARKERS}[ \\t]*${SHORT_DELIMITERS}${TRAILING_MARKERS}`,
     );
   }
   if (selfDelimited.length > 0) {

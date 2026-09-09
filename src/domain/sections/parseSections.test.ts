@@ -113,10 +113,41 @@ describe('header detection', () => {
     expect(ids).toEqual(['s', 'o', 'ttv', 'penunjang', 'a', 'p', 'terapi']);
   });
 
-  it('accepts the delimiters the spec allows', () => {
+  it('accepts the delimiters the spec allows, except a full stop after one letter', () => {
     expect(parseSections('S: a').map((s) => s.sectionId)).toEqual(['s']);
-    expect(parseSections('S. a').map((s) => s.sectionId)).toEqual(['s']);
     expect(parseSections('S) a').map((s) => s.sectionId)).toEqual(['s']);
+    expect(parseSections('S/ a').map((s) => s.sectionId)).toEqual(['s']);
+
+    /*
+     * SPEC 12.1 lists `.` as a delimiter and the corpus overrules it for
+     * single-letter tokens.
+     *
+     * A real note's vascular examination reads:
+     *
+     *     A. femoralis: +/-
+     *     A. poplitea: -/-
+     *
+     * With `.` accepted, each of those opened an assessment section — so the
+     * Ringkas PDF filed the pulse findings under Diagnosis and the board card
+     * summarised the patient as "femoralis: +/-". The app was reporting a leg
+     * pulse as the diagnosis.
+     *
+     * It generalises: `A.` is arteria, `V.` is vena, `N.` is nervus, and `S.`
+     * and `P.` open bacterial genus names in a culture result. One letter and a
+     * full stop is an abbreviation far more often than a heading.
+     */
+    expect(parseSections('S. aureus tumbuh pada kultur').map((s) => s.sectionId)).toEqual([
+      '_intro',
+    ]);
+    // Not a custom section either: the custom-header label charset excludes a
+    // full stop, so the line stays ordinary prose, which is what it is.
+    expect(parseSections('A. femoralis: +/-').map((s) => s.sectionId)).toEqual(['_intro']);
+  });
+
+  it('still accepts a full stop after a longer alias', () => {
+    // The evidence a token carries scales with its length; `Lab.` is not an
+    // abbreviation of anything else in a clinical note.
+    expect(parseSections('Lab. WBC 9.110')[0]?.sectionId).toBe('penunjang');
   });
 
   it('tolerates decoration: bullets, markdown bold, hashes, quotes', () => {

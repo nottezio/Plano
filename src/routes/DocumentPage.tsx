@@ -10,7 +10,7 @@ import { composeDocument } from '@/domain/format/composeCopy';
 import { useClinicalToday } from '@/hooks/useClinicalToday';
 import { FORMAT_LABELS } from '@/domain/format/formatters';
 import { copyText } from '@/lib/clipboard';
-import { useDocument, useDocumentEditor } from '@/hooks/useDocuments';
+import { useDocument, useDocumentEditor, useDocumentList } from '@/hooks/useDocuments';
 import { useSession } from '@/store/useSession';
 import type { OutputFormat } from '@/domain/types';
 
@@ -37,9 +37,18 @@ export default function DocumentPage(): JSX.Element {
   useEffect(() => {
     if (document) setTitleDraft(document.title);
   }, [document?.id, document?.title]);
+  useEffect(() => {
+    if (document) setCategoryDraft(document.category);
+  }, [document?.id, document?.category]);
   const editor = useDocumentEditor(documentId, document);
 
   const [menuOpen, setMenuOpen] = useState(false);
+  const { documents: allDocuments } = useDocumentList();
+  /** Existing categories, offered so the list does not fragment by typing. */
+  const categories = [
+    ...new Set(allDocuments.map((entry) => entry.category).filter(Boolean)),
+  ].sort();
+  const [categoryDraft, setCategoryDraft] = useState('');
   const [titleDraft, setTitleDraft] = useState('');
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [shared, setShared] = useState(false);
@@ -109,6 +118,46 @@ export default function DocumentPage(): JSX.Element {
             aria-label="Judul dokumen"
             className="min-h-tap min-w-0 flex-1 rounded-lg border border-transparent bg-transparent px-2 text-sm font-semibold outline-none focus:border-border"
           />
+
+          {/*
+            Category, editable in place, for the same reason the title is: one
+            set at creation and never again is how everything ends up in
+            whichever folder was open when it was written.
+
+            A datalist rather than a closed dropdown — existing categories are
+            offered so the list does not fragment into `Protokol`, `protokol`
+            and `Protokol ` by typing, but a new one can still be created
+            without a separate "manage categories" screen.
+          */}
+          <input
+            type="text"
+            list="document-categories"
+            value={categoryDraft}
+            onChange={(event) => setCategoryDraft(event.target.value)}
+            onBlur={() => {
+              const next = categoryDraft.trim();
+              // An empty category would drop the document out of every group
+              // in the list, so a cleared field reverts rather than saving.
+              if (!next) {
+                setCategoryDraft(document.category);
+                return;
+              }
+              if (uid && next !== document.category) {
+                void updateDocument(uid, document.id, { category: next });
+              }
+            }}
+            onKeyDown={(event) => {
+              if (event.key === 'Enter') event.currentTarget.blur();
+            }}
+            aria-label="Kategori dokumen"
+            className="min-h-tap w-32 shrink-0 rounded-lg border border-border bg-transparent px-2 text-xs text-fg-muted outline-none"
+          />
+          <datalist id="document-categories">
+            {categories.map((name) => (
+              <option key={name} value={name} />
+            ))}
+          </datalist>
+
           {/* A second window, not an in-app tab.
               
               The browser already does tabs, and it does them better than a

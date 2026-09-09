@@ -228,7 +228,20 @@ export function yesterdayHint(input: YesterdayHintInput): YesterdayHint | null {
   return {
     yesterday,
     today,
-    message: `Sekarang sudah tanggal ${todayDayOfMonth}. Menulis untuk ${formatDayNoWeekday(yesterday)}?`,
+    /*
+     * Phrased as an OFFER, not as a statement about what you are doing.
+     *
+     * The old wording — "Sekarang sudah tanggal 9. Menulis untuk 8 September?"
+     * — reads as the app telling you that you are writing for the 8th, which
+     * is the opposite of the truth: you are on the 9th and this is offering
+     * the 8th. It also never said WHY it had appeared, so at 01:30 it looked
+     * like the app had picked the wrong date on its own.
+     *
+     * The reason is now first, because the reason is the whole content: the
+     * clinical day rolled over at midnight while you were still working the
+     * same shift.
+     */
+    message: `Lewat tengah malam — hari ini sudah tanggal ${todayDayOfMonth}. Lanjut di catatan ${formatDayNoWeekday(yesterday)}?`,
   };
 }
 

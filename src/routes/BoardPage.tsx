@@ -447,13 +447,21 @@ export default function BoardPage(): JSX.Element {
           </button>
         ))}
 
-        {/* Sits with the order chips rather than on a row of its own — it is
-            the same kind of control, and a whole row for one occasional button
-            pushed the cards down the screen. */}
+        {/*
+          Squared, filled, and separated by a rule — because these two are NOT
+          the same kind of control as the chips to their left.
+
+          The chips are a single choice of how the board is ordered: exactly one
+          is on, and pressing another turns this one off. `Format lab` opens a
+          sheet and `Pilih` enters a mode. Sharing the chips' pill outline made
+          them read as two more sort options that happened never to be
+          selected, which is why they were invisible as actions.
+        */}
+        <span aria-hidden="true" className="ml-auto h-5 w-px shrink-0 bg-border" />
         <button
           type="button"
           onClick={() => setLabOpen(true)}
-          className="ml-auto min-h-tap rounded-full border border-border px-3 text-xs text-fg-muted"
+          className="min-h-tap shrink-0 rounded-lg bg-bg-subtle px-3 text-xs font-medium text-fg"
         >
           Format lab
         </button>
@@ -468,8 +476,8 @@ export default function BoardPage(): JSX.Element {
           onClick={() => (selecting ? leaveSelection() : setSelecting(true))}
           aria-pressed={selecting}
           className={[
-            'min-h-tap rounded-full border px-3 text-xs',
-            selecting ? 'border-accent font-medium text-accent' : 'border-border text-fg-muted',
+            'min-h-tap shrink-0 rounded-lg px-3 text-xs font-medium',
+            selecting ? 'bg-accent text-white' : 'bg-bg-subtle text-fg',
           ].join(' ')}
         >
           {selecting ? 'Batal' : 'Pilih'}
