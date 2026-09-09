@@ -136,3 +136,43 @@ describe('PRUNABLE_REASONS', () => {
     expect(prunableRevisions(fetched)).toHaveLength(10);
   });
 });
+
+describe('PRUNABLE_REASONS', () => {
+  it('covers every reason except a saved version', () => {
+    /*
+     * The `satisfies` clause on the constant makes a missing reason a compile
+     * error; this asserts the other direction — that `version` never sneaks
+     * in, which no type can catch because `version` would satisfy the element
+     * type of a looser list.
+     */
+    expect(PRUNABLE_REASONS).not.toContain('version');
+    expect([...PRUNABLE_REASONS].sort()).toEqual(
+      ['autosave', 'pre-conflict', 'pre-merge', 'restore', 'unlock'].sort(),
+    );
+  });
+
+  it('is what stops versions eating the prune window', () => {
+    /*
+     * The prune fetches the newest CAP + 10 revisions and deletes what is
+     * past the cap. Before this list was sent to Firestore as a filter, saved
+     * versions occupied slots in that window: with ten of them the window
+     * held fewer than thirty prunable revisions, nothing was ever past the
+     * cap, and pruning stopped permanently.
+     *
+     * Modelled here on the client to pin the arithmetic, since the query
+     * itself cannot be tested without Firestore.
+     */
+    const windowSize = REVISION_CAP + 10;
+    const versionsInWindow = 10;
+    const unfiltered = [
+      ...Array.from({ length: versionsInWindow }, (_, i) => version(`v${String(i)}`)),
+      ...Array.from({ length: windowSize - versionsInWindow }, (_, i) => auto(`a${String(i)}`)),
+    ];
+    expect(prunableRevisions(unfiltered)).toEqual([]);
+
+    // Filtered server-side, the same window is all prunable and the excess
+    // beyond the cap is found.
+    const filtered = Array.from({ length: windowSize }, (_, i) => auto(`a${String(i)}`));
+    expect(prunableRevisions(filtered)).toHaveLength(10);
+  });
+});

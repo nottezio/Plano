@@ -532,14 +532,61 @@ export function subscribeRevisions(
   callback: (revisions: EntryRevision[]) => void,
   onError: (error: Error) => void,
 ): Unsubscribe {
-  return onSnapshot(
-    query(revisionsCol(patientId, date), orderBy('at', 'desc'), limit(REVISION_CAP)),
-    (snapshot) =>
-      callback(
-        snapshot.docs.map((entry) => ({ id: entry.id, ...entry.data() }) as EntryRevision),
-      ),
+  /**
+   * TWO subscriptions, because the two populations have different lifetimes.
+   *
+   * This was one query — the newest `REVISION_CAP` revisions by time — and it
+   * had a hole that made "saved versions are never pruned" untrue in the only
+   * sense the user can check. The version was never DELETED, but after thirty
+   * automatic snapshots it fell outside the newest-thirty window and stopped
+   * being fetched. It vanished from the trail and from the version chips on
+   * the SOAP page while still sitting in Firestore.
+   *
+   * A busy morning reaches thirty autosaves easily, so the "Pagi" version
+   * saved at 08:10 would routinely be gone from view by the afternoon — which
+   * is exactly the moment somebody wants to compare against it. Data that is
+   * present but unreachable is indistinguishable from data that was deleted.
+   *
+   * One time-ordered window cannot express "every version, plus the newest
+   * thirty snapshots", so it is not asked to. Versions are fetched by
+   * `reason` with no limit — there are only ever a handful — and sorted on the
+   * client, which needs no composite index.
+   */
+  let versions: EntryRevision[] = [];
+  let recent: EntryRevision[] = [];
+
+  const emit = (): void => {
+    const merged = new Map<string, EntryRevision>();
+    for (const revision of [...versions, ...recent]) merged.set(revision.id, revision);
+    callback(
+      [...merged.values()].sort((a, b) => (b.at?.toMillis() ?? 0) - (a.at?.toMillis() ?? 0)),
+    );
+  };
+
+  const stopVersions = onSnapshot(
+    query(revisionsCol(patientId, date), where('reason', '==', 'version')),
+    (snapshot) => {
+      versions = snapshot.docs.map(
+        (entry) => ({ id: entry.id, ...entry.data() }) as EntryRevision,
+      );
+      emit();
+    },
     onError,
   );
+
+  const stopRecent = onSnapshot(
+    query(revisionsCol(patientId, date), orderBy('at', 'desc'), limit(REVISION_CAP)),
+    (snapshot) => {
+      recent = snapshot.docs.map((entry) => ({ id: entry.id, ...entry.data() }) as EntryRevision);
+      emit();
+    },
+    onError,
+  );
+
+  return () => {
+    stopVersions();
+    stopRecent();
+  };
 }
 
 /**
