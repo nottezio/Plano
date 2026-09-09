@@ -526,3 +526,44 @@ describe('urinalysis printout, one cell per line', () => {
     }
   });
 });
+
+/**
+ * Values read out of the reference range instead of the result column.
+ *
+ * The file's Rule 1 is that a wrong number which reads as plausible is the
+ * worst thing this parser can produce. These are the two ways it did.
+ */
+describe('never reads a number from the reference range', () => {
+  it('does not report an unresulted analyte using its own normal limit', () => {
+    /*
+     * Real printout:
+     *
+     *     LED    -    (L <10, P <20 )    mm
+     *
+     * The dash is the result column saying there is no result. `10` is the
+     * upper limit of normal for men. It was reported as this patient's ESR.
+     */
+    const parsed = parseLab('WBC 7.42 4.00 - 10.0 10^3/ul\nLED - (L <10, P <20 ) mm');
+    expect(parsed.formatted).toContain('WBC 7.42');
+    expect(parsed.formatted).not.toContain('LED 10');
+    expect(parsed.known.find((entry) => entry.key === 'LED')).toBeUndefined();
+  });
+
+  it('takes the result, not the upper limit, when both are on the line', () => {
+    // The value is the FIRST thing after the name; everything later belongs
+    // to the reference range or the units.
+    const parsed = parseLab('HGB 11.0 12.0 - 16.0 gr/dl');
+    expect(parsed.known.find((entry) => entry.key === 'HGB')?.value).toBe('11.0');
+  });
+
+  it('still reads an unrecognised analyte that has a real result', () => {
+    // The fix must not cost the "Lain-lain" path, which passes a differently
+    // shaped string and is why the fallback stayed unanchored.
+    expect(parseLab('WBC 6.01\nProkalsitonin 0.12').formatted).toContain('Prokalsitonin 0.12');
+  });
+
+  it('does not mistake a negative result for an absent one', () => {
+    // `-` means not resulted only when nothing follows it. `-2.5` is a value.
+    expect(parseLab('Base excess -2.5').known[0]?.value).toBe('-2.5');
+  });
+});

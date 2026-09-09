@@ -277,3 +277,55 @@ describe('closing sentence', () => {
     expect(output).not.toContain('Lapor Prof besok pagi. Terima kasih');
   });
 });
+
+describe('the closing addresses whoever the note addresses', () => {
+  const NOTE = (greeting: string): string =>
+    [greeting, '', '*Tn. Irwan / 04-10-1984 / 41 tahun / RM 1661366*', '', '*A:*', '- CLTI'].join(
+      '\n',
+    );
+
+  it('signs off to Prof when the note opens to a Prof', () => {
+    /*
+     * A note opening "Tabe prof" and closing "Terima kasih dokter" addresses
+     * two different people in one message. The fallback was a fixed string, so
+     * every report for a Prof read that way whenever the note's own closing
+     * was not one of the configured sentences.
+     */
+    const output = composePdfReport(
+      NOTE('Assalamualaikum wr wb. Tabe prof, mohon izin melaporkan follow up pasien'),
+      { ...OPTIONS, closings: [] },
+    );
+    expect(output.trimEnd().endsWith('Terima kasih Prof')).toBe(true);
+  });
+
+  it('signs off to dokter otherwise', () => {
+    const output = composePdfReport(
+      NOTE('Assalamualaikum dokter, mohon izin melaporkan pasien'),
+      { ...OPTIONS, closings: [] },
+    );
+    expect(output.trimEnd().endsWith('Terima kasih dokter')).toBe(true);
+  });
+
+  it('reads only the opening, never a plan item', () => {
+    // `- Lapor Prof besok pagi` is an instruction. A note with no greeting
+    // would otherwise have had it read as one.
+    const output = composePdfReport(
+      ['*A:*', '- CHF', '', '*Plan:*', '- Lapor Prof besok pagi'].join('\n'),
+      { ...OPTIONS, closings: [] },
+    );
+    expect(output.trimEnd().endsWith('Terima kasih dokter')).toBe(true);
+  });
+
+  it('still prefers the note own closing over any fallback', () => {
+    // Taking it from the end of the long SOAP, which is the more faithful
+    // answer whenever the note actually carries one.
+    const body = [NOTE('Tabe prof'), '', 'Selanjutnya mohon arahan Prof. Terima kasih Prof'].join(
+      '\n',
+    );
+    const output = composePdfReport(body, {
+      ...OPTIONS,
+      closings: ['Selanjutnya mohon arahan Prof. Terima kasih Prof'],
+    });
+    expect(output.trimEnd().endsWith('Terima kasih Prof')).toBe(true);
+  });
+});

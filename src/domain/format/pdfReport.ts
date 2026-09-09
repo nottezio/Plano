@@ -28,6 +28,39 @@ import type { OutputFormat, SectionAlias } from '../types';
 const FALLBACK_CLOSING = 'Selanjutnya mohon arahan dokter.  Terima kasih dokter';
 
 /**
+ * The honorific the note itself addresses, for the fallback closing.
+ *
+ * A note that opens `Assalamualaikum wr wb. Tabe prof …` and is signed off
+ * `Terima kasih dokter` is addressing two different people in one message. The
+ * fallback was a fixed string, so every report for a Prof ended that way
+ * whenever the note's own closing was not one of the configured sentences.
+ *
+ * Read from the OPENING BLOCK — the text above the first clinical heading,
+ * via the same `openingBlock` this file already uses for the report header.
+ *
+ * Not "the first few lines". `- Lapor Prof besok pagi` is a plan item, and a
+ * note with no greeting at all would have had that read as its salutation and
+ * signed the report off to a Prof who was never being addressed. Below the
+ * first heading, "Prof" is as likely to be a consultant mentioned in passing
+ * as the person being written to; the opening is the one place the note says
+ * who it is for.
+ *
+ * Two forms rather than a general title parser. `Prof` and `dokter` are what
+ * the corpus uses, and inventing a rule for titles nobody writes would be
+ * guessing at text that goes out under the resident's name.
+ */
+function honorificFrom(body: string, aliases: readonly SectionAlias[]): string {
+  return /\bprof\b/i.test(openingBlock(body, aliases)) ? 'Prof' : 'dokter';
+}
+
+function fallbackClosing(body: string, aliases: readonly SectionAlias[]): string {
+  const honorific = honorificFrom(body, aliases);
+  return honorific === 'dokter'
+    ? FALLBACK_CLOSING
+    : `Selanjutnya mohon arahan ${honorific}.  Terima kasih ${honorific}`;
+}
+
+/**
  * The note's own closing sentence, if it has one.
  *
  * Taken from the END of the body, matched against the closings the user has
@@ -213,7 +246,7 @@ export function composePdfReport(body: string, options: PdfReportOptions): strin
 
   // The note's own words when it has them: this report is addressed to a
   // specific consultant, and they are not all called "dokter".
-  parts.push(closingFrom(body, options.closings ?? []) ?? FALLBACK_CLOSING);
+  parts.push(closingFrom(body, options.closings ?? []) ?? fallbackClosing(body, options.aliases));
 
   return formatBody(
     parts.join('\n').replace(/\n{3,}/g, '\n\n').trim(),

@@ -380,8 +380,35 @@ function extractValue(rest: string, key?: string): string | null {
   const qualified = /^\s*(?:>=|<=|[<>=]|[A-Za-z]{2,5}=)\s*-?\d+(?:[.,]\d+)?/.exec(rest);
   if (qualified?.[0]) return qualified[0].replace(/\s+/g, '').trim();
 
-  const numeric = /-?\d+(?:[.,]\d+)?/.exec(rest);
-  return numeric ? numeric[0] : null;
+  /**
+   * An analyte that was NOT RESULTED. `LED  -  (L <10, P <20 )  mm`.
+   *
+   * The dash is the result column saying there is no result. Checked before
+   * the numeric pattern because the reference range that follows is full of
+   * numbers, and one of them will otherwise be reported as the patient's.
+   */
+  if (/^[\s:=]*-(?=[\s)]|$)/.test(rest)) return null;
+
+  /**
+   * ANCHORED, for exactly the reason the qualified pattern above is.
+   *
+   * That comment describes finding the reference range instead of the result,
+   * and the fix was applied there and not here — one line further down, in the
+   * fallback that handles the overwhelming majority of lines. So the bug it
+   * describes was still live for every plain numeric result:
+   *
+   *     LED  -  (L <10, P <20 )  mm      ->  LED 10
+   *
+   * The dash means not resulted; `10` is the upper limit of normal for men,
+   * read out of the reference range and reported as this patient's ESR. A
+   * fabricated value that looks entirely ordinary, which is the failure this
+   * file's Rule 1 exists to prevent.
+   *
+   * A result is the FIRST thing in the value region. Anything found later on
+   * the line belongs to the reference range or the units.
+   */
+  const numeric = /^[\s:=]*(-?\d+(?:[.,]\d+)?)/.exec(rest);
+  return numeric?.[1] ?? null;
 }
 
 /**
@@ -631,8 +658,20 @@ export function parseLab(raw: string, options: LabParseOptions = {}): LabParseRe
     // treating a whole sentence as an analyte. Page furniture is excluded by
     // name: a printout header carries a registration number, a date and a page
     // count, and every one of them is "a word followed by a number".
-    const value = extractValue(trimmed);
+    /**
+     * Label first, then the value region — never the whole line.
+     *
+     * `extractValue` expects the text AFTER the analyte name, which is what
+     * the known-analyte path passes it. This call used to hand it the entire
+     * line instead, so the two callers had different contracts for the same
+     * argument. That is what allowed the numeric fallback to stay unanchored
+     * for years: anchoring it would have broken this caller, so it scanned the
+     * whole line for the known path too and found reference ranges.
+     *
+     * One contract now: the argument is always the value region.
+     */
     const label = trimmed.slice(0, trimmed.search(/-?\d/)).replace(/[:\s]+$/, '').trim();
+    const value = extractValue(trimmed.slice(label.length));
 
     // Analyte names are one to three words. That single constraint is what
     // separates a real unrecognised result from OCR noise: garbled text arrives
