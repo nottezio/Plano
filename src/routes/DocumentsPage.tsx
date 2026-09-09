@@ -5,6 +5,10 @@ import { AppShell } from '@/components/common/AppShell';
 import { Sheet } from '@/components/common/Sheet';
 import { createDocument } from '@/data/repositories/documents.repo';
 import { SEED_DOCUMENTS } from '@/domain/seedDocuments';
+import {
+  DOCUMENT_CATEGORIES,
+  documentCategoryLabel,
+} from '@/domain/documentCategories';
 import { useDocumentList } from '@/hooks/useDocuments';
 import { useSession } from '@/store/useSession';
 import type { AppDocument } from '@/domain/types';
@@ -16,12 +20,7 @@ import type { AppDocument } from '@/domain/types';
  * to a patient or a day. Same editor, same parser, same copy engine — a
  * document is a body without a clinical date, and nothing more.
  */
-const CATEGORY_LABELS: Record<string, string> = {
-  jadwal_poli: 'Jadwal poli',
-  format: 'Format',
-  pasien: 'Terkait pasien',
-  lainnya: 'Lainnya',
-};
+
 
 export default function DocumentsPage(): JSX.Element {
   const { documents, loading } = useDocumentList();
@@ -144,7 +143,7 @@ export default function DocumentsPage(): JSX.Element {
                   : 'border-border text-fg-muted',
               ].join(' ')}
             >
-              {value === 'all' ? 'Semua' : (CATEGORY_LABELS[value] ?? value)}
+              {value === 'all' ? 'Semua' : documentCategoryLabel(value)}
             </button>
           ))}
         </div>
@@ -206,7 +205,7 @@ export default function DocumentsPage(): JSX.Element {
           {grouped.map(([category, list]) => (
             <section key={category} className="mt-4 first:mt-0">
               <h2 className="text-xs font-semibold text-fg-muted">
-                {CATEGORY_LABELS[category] ?? category}
+                {documentCategoryLabel(category)}
               </h2>
               <ul className="mt-1 space-y-2">
                 {list.map((document) => (
@@ -302,7 +301,7 @@ function CreateDocumentSheet({
       <div className="mt-3">
         <span className="mb-1 block text-xs text-fg-muted">Kategori</span>
         <div className="flex flex-wrap gap-2">
-          {Object.entries(CATEGORY_LABELS).map(([value, label]) => (
+          {DOCUMENT_CATEGORIES.map(({ id: value, label }) => (
             <button
               key={value}
               type="button"

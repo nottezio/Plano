@@ -178,7 +178,7 @@ describe('composeCopy — section subsets', () => {
     const output = composeCopy(days, {
       ...OPTIONS,
       format: 'plain',
-      sections: ['a', 'p'] as SectionId[],
+      sections: ['a', 'plan'],
     });
     expect(output).toContain('A:\nPneumonia komunitas');
     expect(output).toContain('P:');
@@ -186,11 +186,20 @@ describe('composeCopy — section subsets', () => {
     expect(output).not.toContain('Hb 10.2');
   });
 
-  it('emits sections in configured order, not note order', () => {
+  it('emits sections in NOTE order, not in the order they were selected', () => {
+    /*
+     * Reversed from what this asserted before, deliberately.
+     *
+     * A subset is now a slice of the original rather than a reassembly, and
+     * the note's own order is the author's. Sorting it into a canonical
+     * sequence silently asserts the note was written wrong, in a message they
+     * are about to send — and it was that reassembly step that also dropped
+     * headings it could not name.
+     */
     const output = composeCopy(days, {
       ...OPTIONS,
       format: 'plain',
-      sections: ['terapi', 's'] as SectionId[],
+      sections: ['terapi', 's'],
     });
     expect(output.indexOf('sesak')).toBeLessThan(output.indexOf('Ceftriaxone'));
   });
@@ -199,38 +208,53 @@ describe('composeCopy — section subsets', () => {
     const output = composeCopy(days, {
       ...OPTIONS,
       format: 'plain',
-      sections: ['s', 'a'] as SectionId[],
+      sections: ['s', 'a'],
     });
     expect(output).not.toMatch(/\n{3,}/);
     expect(output.split('\n\n')).toHaveLength(2);
   });
 
-  it('keeps a requested heading even when nothing sits directly under it', () => {
-    // `O:` here is a bare label whose values are their own sections. Emitting
-    // the heading is right: a dated `*Laboratorium PJT (04-08-2026)*` parses
-    // the same way, and dropping it would keep the values and lose the date.
+  it('carries everything under a heading, including sub-headings', () => {
+    /*
+     * `TTV:` and `Penunjang:` are their own sections to the parser, and under
+     * the old reassembly they had to be named to be included. Now they are
+     * simply inside the O block, which is where the author put them — the
+     * whole point of slicing by boundary is that an unfamiliar sub-heading
+     * needs no rule at all.
+     */
     const output = composeCopy(days, {
       ...OPTIONS,
       format: 'plain',
-      sections: ['o', 'a'] as SectionId[],
+      sections: ['o', 'a'],
     });
-    expect(output).toBe('O:\n\nA:\nPneumonia komunitas');
+    expect(output).toContain('O:');
+    expect(output).toContain('TTV: TD 130/80, N 92');
+    expect(output).toContain('A:\nPneumonia komunitas');
+    // Still nothing from S: a boundary ends the block above it.
+    expect(output).not.toContain('sesak');
   });
 
-  it('never invents a header for the intro block', () => {
+  it('never includes the opening in a subset', () => {
+    /*
+     * The greeting, reporting sentence, identity line and DPJP lines all sit
+     * before the first boundary, so they belong to no group. That falls out of
+     * the shape rather than needing a rule — an opening is whatever comes
+     * before the note starts.
+     */
     const output = composeCopy([{ date: '2026-08-06', body: 'Tn. B, 52th\nA: pneumonia' }], {
       ...OPTIONS,
       format: 'plain',
-      sections: ['_intro'] as SectionId[],
+      sections: ['a'],
     });
-    expect(output).toBe('Tn. B, 52th');
+    expect(output).toContain('pneumonia');
+    expect(output).not.toContain('Tn. B, 52th');
   });
 
   it('applies the WhatsApp formatter to a subset too', () => {
     const output = composeCopy(days, {
       ...OPTIONS,
       format: 'whatsapp',
-      sections: ['s'] as SectionId[],
+      sections: ['s'],
     });
     // One line, because the fixture writes `S: sesak …` with the content on
     // the header's own line. That is a field, not a heading, and the

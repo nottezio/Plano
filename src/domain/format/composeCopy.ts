@@ -1,5 +1,7 @@
 import { formatBody, type BulletStyle } from './formatters';
 import { copyableSections, mergeSections, parseSections } from '../sections/parseSections';
+import type { CopyGroupId } from './copyGroups';
+import { sliceGroups } from './sectionSlices';
 import { sectionSortIndex } from '../sections/aliases';
 import { stripTrailingClosing } from './copyGroups';
 import { formatLongDate, hariRawat } from '../clinicalDate';
@@ -35,7 +37,14 @@ export interface ComposeOptions {
   format: OutputFormat;
   /** How bullets are written for WhatsApp; see formatters.ts. */
   bullet?: BulletStyle;
-  sections: SectionId[] | 'all';
+  /**
+   * `'all'`, or the chosen "Salin bagian" groups.
+   *
+   * Groups rather than section ids: a subset is cut from the note by boundary
+   * now, so the ids inside a block never have to be enumerated — which is what
+   * made an unfamiliar heading a problem.
+   */
+  sections: CopyGroupId[] | 'all';
   includeIdentity: boolean;
   includeDateHeader: boolean;
   aliases: readonly SectionAlias[];
@@ -78,50 +87,20 @@ export function dayHeading(date: ClinicalDate, admittedAt: ClinicalDate): string
 function renderDayBody(body: string, options: ComposeOptions): string {
   if (options.sections === 'all') return body.trim();
 
-  const wanted = new Set(options.sections);
-  const merged = mergeSections(parseSections(body, options.aliases))
-    // NOT filtered by `empty`. A dated heading like
-    // `*Laboratorium PJT (04-08-2026)*` parses as empty whenever its own values
-    // are themselves headings (`GDS : 222`). Dropping it would keep the number
-    // and lose the date it belongs to, which is worse than an unused heading.
-    .filter((section) => wanted.has(section.sectionId))
-    .sort(
-      (a, b) =>
-        sectionSortIndex(a.sectionId, options.aliases) -
-        sectionSortIndex(b.sectionId, options.aliases),
-    );
-
-  const rendered = merged
-    .map((section) => {
-      const first = section.blocks[0];
-      const header = first?.headerLine?.replace(/[ \t]+$/, '');
-      // `_intro` has no header; emitting one would invent a section the user
-      // never wrote.
-      //
-      /**
-       * A HEADING gets its newline back; a FIELD keeps its own spacing.
-       *
-       * `headerLine` is the header prefix with its line break stripped, so a
-       * heading has to have one put back — without it, `*S :*` ran into the
-       * first finding. But the same slice is also produced for `Tensi : 100/70
-       * mmHg`, where the label and the value share a line ON PURPOSE, and
-       * inserting a newline there split every vital sign across two lines.
-       *
-       * `ownsLine` is the parser's answer to which kind this is. For a field
-       * the untouched `headerLine + text` reproduces the original exactly,
-       * which is what its docblock promises.
-       */
-      const ownsLine = first?.ownsLine ?? true;
-      if (!header) return { text: section.text, ownsLine };
-      return {
-        ownsLine,
-        text: ownsLine
-          ? `${header}\n${section.text.trimStart()}`.trimEnd()
-          : `${first?.headerLine ?? ''}${section.text}`.trimEnd(),
-      };
-    });
-
-  return joinSections(rendered);
+  /**
+   * A subset is a contiguous slice of the ORIGINAL text.
+   *
+   * What stood here reassembled the note from parsed sections, sorted them into
+   * a canonical order and dropped whatever did not match a known id. That is
+   * how an unrecognised heading — `Pulsasi:`, `6P:`, `Laporan Arteriografi
+   * (02-09-2026)` — ended up in the wrong block or absent, and how the order of
+   * a note could change on its way into a message.
+   *
+   * Slicing between boundaries needs to recognise only the boundaries, so
+   * everything else is carried along inside whichever block contains it —
+   * exactly as a reader takes it.
+   */
+  return sliceGroups(body, options.aliases, options.sections);
 }
 
 /**

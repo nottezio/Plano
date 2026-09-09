@@ -1,7 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
 import { composeCopy } from './composeCopy';
-import { sectionsForGroups } from './copyGroups';
 import { DEFAULT_SECTION_ALIASES as ALIASES } from '../defaults';
 import { makePatient } from '../testFactories';
 
@@ -56,7 +55,7 @@ const OPTIONS = {
 function copyGroup(group: 's' | 'o' | 'a' | 'terapi' | 'plan'): string {
   return composeCopy([{ date: '2026-09-01', body: REAL_NOTE }], {
     ...OPTIONS,
-    sections: sectionsForGroups(REAL_NOTE, ALIASES, [group]),
+    sections: [group],
   });
 }
 
@@ -135,7 +134,7 @@ function copyTail(group: 'o' | 'terapi' | 'plan'): string {
   return composeCopy([{ date: '2026-09-02', body: WITH_TAIL }], {
     ...OPTIONS,
     closings: CLOSINGS,
-    sections: sectionsForGroups(WITH_TAIL, ALIASES, [group]),
+    sections: [group],
   });
 }
 
@@ -183,7 +182,7 @@ describe('the closing is not part of Plan', () => {
     const out = composeCopy([{ date: '2026-09-02', body }], {
       ...OPTIONS,
       closings: CLOSINGS,
-      sections: sectionsForGroups(body, ALIASES, ['plan']),
+      sections: ['plan'],
     });
     expect(out).toContain('- Lapor Prof besok pagi');
   });
@@ -223,7 +222,7 @@ const WITH_SARAN = [
 function copySaran(group: 'o' | 'terapi' | 'plan'): string {
   return composeCopy([{ date: '2026-09-04', body: WITH_SARAN }], {
     ...OPTIONS,
-    sections: sectionsForGroups(WITH_SARAN, ALIASES, [group]),
+    sections: [group],
   });
 }
 
@@ -250,7 +249,7 @@ describe('Terapi + TS by position', () => {
     const early = '*O :*\nCompos mentis\n\n*TS BTKV*\nA/\n- milik TS';
     const out = composeCopy([{ date: '2026-09-04', body: early }], {
       ...OPTIONS,
-      sections: sectionsForGroups(early, ALIASES, ['terapi']),
+      sections: ['terapi'],
     });
     expect(out).toContain('*TS BTKV*');
   });
@@ -295,7 +294,7 @@ describe('lab blocks keep their values', () => {
   const copyO = (body: string): string =>
     composeCopy([{ date: '2026-10-10', body }], {
       ...OPTIONS,
-      sections: sectionsForGroups(body, ALIASES, ['o']),
+      sections: ['o'],
     });
 
   it('keeps colon-separated values, which parse as their own sections', () => {

@@ -28,7 +28,7 @@ import { describeConfig, primaryDpjp } from '@/domain/dpjp';
 import {
   COPY_GROUPS,
   availableGroups,
-  sectionsForGroups,
+
   type CopyGroupId,
 } from '@/domain/format/copyGroups';
 import { copyText } from '@/lib/clipboard';
@@ -276,7 +276,12 @@ export function CopySheet({
    * identity and closing live outside the five groups entirely.
    */
   const selected = useMemo(
-    () => (groups === 'all' ? ('all' as const) : sectionsForGroups(body, aliases, groups)),
+    /*
+      Groups, not section ids. The subset is cut from the note by boundary now,
+      so which ids happen to sit inside a block never has to be enumerated —
+      which is what made an unfamiliar heading a problem.
+    */
+    () => (groups === 'all' ? ('all' as const) : [...groups]),
     [groups, body, aliases],
   );
 

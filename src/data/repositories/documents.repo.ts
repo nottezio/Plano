@@ -14,10 +14,17 @@ import { nanoid } from 'nanoid';
 import { documentDoc, documentsCol } from '../paths';
 import { trackWrite } from '../syncStatus';
 import { bodyHash } from '@/domain/hash';
+import { DOCUMENT_CATEGORIES } from '@/domain/documentCategories';
 import type { AppDocument } from '@/domain/types';
 
-/** SPEC 14 — same editor, same parser, same copy engine as a SOAP page. */
-export const DEFAULT_DOCUMENT_CATEGORIES = ['jadwal_poli', 'format', 'lainnya'] as const;
+/**
+ * SPEC 14 — same editor, same parser, same copy engine as a SOAP page.
+ *
+ * Derived from `DOCUMENT_CATEGORIES` rather than listed again. The hand-written
+ * copy that stood here was missing `pasien`, and nothing pointed that out
+ * because the only other list lived inside a route file.
+ */
+export const DEFAULT_DOCUMENT_CATEGORIES = DOCUMENT_CATEGORIES.map((c) => c.id);
 
 export function createDocument(
   uid: string,

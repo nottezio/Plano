@@ -10,6 +10,10 @@ import { composeDocument } from '@/domain/format/composeCopy';
 import { useClinicalToday } from '@/hooks/useClinicalToday';
 import { FORMAT_LABELS } from '@/domain/format/formatters';
 import { copyText } from '@/lib/clipboard';
+import {
+  DOCUMENT_CATEGORIES,
+  documentCategoryLabel,
+} from '@/domain/documentCategories';
 import { useDocument, useDocumentEditor, useDocumentList } from '@/hooks/useDocuments';
 import { useSession } from '@/store/useSession';
 import type { OutputFormat } from '@/domain/types';
@@ -37,9 +41,7 @@ export default function DocumentPage(): JSX.Element {
   useEffect(() => {
     if (document) setTitleDraft(document.title);
   }, [document?.id, document?.title]);
-  useEffect(() => {
-    if (document) setCategoryDraft(document.category);
-  }, [document?.id, document?.category]);
+
   const editor = useDocumentEditor(documentId, document);
 
   const [menuOpen, setMenuOpen] = useState(false);
@@ -49,6 +51,7 @@ export default function DocumentPage(): JSX.Element {
     ...new Set(allDocuments.map((entry) => entry.category).filter(Boolean)),
   ].sort();
   const [categoryDraft, setCategoryDraft] = useState('');
+  const [creatingCategory, setCreatingCategory] = useState(false);
   const [titleDraft, setTitleDraft] = useState('');
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [shared, setShared] = useState(false);
@@ -120,43 +123,81 @@ export default function DocumentPage(): JSX.Element {
           />
 
           {/*
-            Category, editable in place, for the same reason the title is: one
-            set at creation and never again is how everything ends up in
-            whichever folder was open when it was written.
+            A select, not a text input with a datalist.
 
-            A datalist rather than a closed dropdown — existing categories are
-            offered so the list does not fragment into `Protokol`, `protokol`
-            and `Protokol ` by typing, but a new one can still be created
-            without a separate "manage categories" screen.
+            The datalist version showed only one option — the category already
+            in the field. A browser FILTERS datalist suggestions by what is
+            typed, and the input was pre-filled with the current value, so the
+            list could never offer anything else. It looked like the feature
+            was broken, and functionally it was.
+
+            A select always shows every option. "Kategori baru…" keeps the
+            escape hatch, so a new category still needs no separate management
+            screen.
           */}
-          <input
-            type="text"
-            list="document-categories"
-            value={categoryDraft}
-            onChange={(event) => setCategoryDraft(event.target.value)}
-            onBlur={() => {
-              const next = categoryDraft.trim();
-              // An empty category would drop the document out of every group
-              // in the list, so a cleared field reverts rather than saving.
-              if (!next) {
-                setCategoryDraft(document.category);
+          <select
+            value={creatingCategory ? '__new__' : document.category}
+            onChange={(event) => {
+              const next = event.target.value;
+              if (next === '__new__') {
+                setCreatingCategory(true);
+                setCategoryDraft('');
                 return;
               }
               if (uid && next !== document.category) {
                 void updateDocument(uid, document.id, { category: next });
               }
             }}
-            onKeyDown={(event) => {
-              if (event.key === 'Enter') event.currentTarget.blur();
-            }}
             aria-label="Kategori dokumen"
-            className="min-h-tap w-32 shrink-0 rounded-lg border border-border bg-transparent px-2 text-xs text-fg-muted outline-none"
-          />
-          <datalist id="document-categories">
-            {categories.map((name) => (
-              <option key={name} value={name} />
-            ))}
-          </datalist>
+            className="min-h-tap w-32 shrink-0 rounded-lg border border-border bg-surface px-2 text-xs text-fg-muted outline-none"
+          >
+            {/*
+              The four defined categories, always — plus anything a user has
+              typed themselves, plus this document's own even if nothing else
+              uses it. Listing only categories in USE was the bug: every seeded
+              document is `lainnya`, so `lainnya` was the only option there
+              could ever be.
+            */}
+            {[
+              ...new Set([
+                ...DOCUMENT_CATEGORIES.map((entry) => entry.id),
+                ...categories,
+                document.category,
+              ]),
+            ]
+              .filter(Boolean)
+              .map((name) => (
+                <option key={name} value={name}>
+                  {documentCategoryLabel(name)}
+                </option>
+              ))}
+            <option value="__new__">Kategori baru…</option>
+          </select>
+
+          {creatingCategory ? (
+            <input
+              autoFocus
+              value={categoryDraft}
+              onChange={(event) => setCategoryDraft(event.target.value)}
+              onBlur={() => {
+                const next = categoryDraft.trim();
+                setCreatingCategory(false);
+                // An empty category would drop the document out of every group
+                // in the list, so an abandoned field changes nothing.
+                if (uid && next && next !== document.category) {
+                  void updateDocument(uid, document.id, { category: next });
+                }
+              }}
+              onKeyDown={(event) => {
+                if (event.key === 'Enter') event.currentTarget.blur();
+                if (event.key === 'Escape') setCreatingCategory(false);
+              }}
+              placeholder="Nama kategori"
+              aria-label="Kategori baru"
+              className="min-h-tap w-32 shrink-0 rounded-lg border border-accent bg-transparent px-2 text-xs outline-none"
+            />
+          ) : null}
+
 
           {/* A second window, not an in-app tab.
               
