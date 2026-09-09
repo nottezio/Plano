@@ -1,6 +1,7 @@
 import {
   addDoc,
   deleteDoc,
+  doc,
   getDocs,
   increment,
   limit,
@@ -10,12 +11,13 @@ import {
   serverTimestamp,
   setDoc,
   updateDoc,
+  where,
   type DocumentData,
   type Unsubscribe,
 } from 'firebase/firestore';
 
 import { getDeviceId } from '../deviceId';
-import { prunableRevisions, REVISION_CAP } from '@/domain/revisionPrune';
+import { PRUNABLE_REASONS, prunableRevisions, REVISION_CAP } from '@/domain/revisionPrune';
 import { entriesCol, entryDoc, revisionsCol } from '../paths';
 import { touchEntryMeta } from './patients.repo';
 import { putMergeBase } from '../localBase';
@@ -457,10 +459,58 @@ export async function saveVersion(
   await appendRevision(patientId, date, { body, rev, reason: 'version', label });
 }
 
+/**
+ * Delete a saved version.
+ *
+ * A hard delete, and the only one in this file a person can ask for.
+ *
+ * The prune above hard-deletes too, and its justification does not extend to
+ * here: those are derived safety copies the app took on its own, while this is
+ * a note somebody wrote and labelled. What justifies it instead is that the
+ * request is explicit and specific — a named version, chosen from a list,
+ * deleted on purpose. There is no ambiguity to protect the user from, and a
+ * soft-deleted version would sit in a trash nothing surfaces and nothing
+ * purges, which is a leak dressed up as caution.
+ *
+ * The day's `body` is untouched. Deleting the frozen copy of the morning SOAP
+ * cannot affect the note as it stands now — that is the whole reason freezing
+ * was the right shape for versions.
+ */
+export async function deleteVersion(
+  patientId: string,
+  date: ClinicalDate,
+  revisionId: string,
+): Promise<void> {
+  await trackWrite(deleteDoc(doc(revisionsCol(patientId, date), revisionId)));
+}
+
 async function pruneRevisions(patientId: string, date: ClinicalDate): Promise<void> {
   try {
+    /**
+     * Query the population being capped, not a mixed window filtered after.
+     *
+     * This used to fetch the newest `CAP + 10` revisions of ANY kind and drop
+     * saved versions from the result. The window sized itself for the cap
+     * while the cap counted only automatic snapshots — two different
+     * populations — so every saved version displaced an autosave out of the
+     * window. With fifteen versions on a day, the window held twenty-five
+     * autosaves, `slice(30)` returned nothing, and forty autosaves sat
+     * unpruned: the cap stopped working entirely, silently, and it got worse
+     * the more versions were saved.
+     *
+     * Asking only for the prunable reasons makes the window and the cap count
+     * the same thing, so the cap holds no matter how many versions exist.
+     * `in` rather than `!=` because Firestore's inequality would force the
+     * ordering to start with `reason` and lose the `at` ordering the prune
+     * depends on to remove the OLDEST.
+     */
     const snapshot = await getDocs(
-      query(revisionsCol(patientId, date), orderBy('at', 'desc'), limit(REVISION_CAP + 10)),
+      query(
+        revisionsCol(patientId, date),
+        where('reason', 'in', PRUNABLE_REASONS),
+        orderBy('at', 'desc'),
+        limit(REVISION_CAP + 10),
+      ),
     );
     // Pruning the oldest snapshots past the cap is the one place a hard delete
     // is correct: these are derived safety copies, not user-authored notes,

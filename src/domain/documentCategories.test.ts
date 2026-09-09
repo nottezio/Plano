@@ -1,42 +1,55 @@
+import { Timestamp } from 'firebase/firestore';
 import { describe, expect, it } from 'vitest';
 
-import { DEFAULT_DOCUMENT_CATEGORIES } from '@/data/repositories/documents.repo';
-import { DOCUMENT_CATEGORIES, documentCategoryLabel } from './documentCategories';
-import { SEED_DOCUMENTS } from './seedDocuments';
+import { documentCategories, documentsInCategory } from './documentCategories';
+import type { AppDocument } from './types';
 
-describe('document categories', () => {
-  it('includes every category the app offers', () => {
-    expect(DOCUMENT_CATEGORIES.map((category) => category.id)).toEqual([
-      'jadwal_poli',
-      'format',
-      'pasien',
-      'lainnya',
-    ]);
+const NOW = Timestamp.now();
+
+function doc(id: string, category: string): AppDocument {
+  return {
+    id,
+    title: id,
+    category,
+    body: '',
+    pinned: false,
+    order: 0,
+    labels: [],
+    createdAt: NOW,
+    updatedAt: NOW,
+    deletedAt: null,
+  };
+}
+
+describe('documentCategories', () => {
+  it('lists each category once, sorted', () => {
+    const docs = [doc('a', 'Format'), doc('b', 'Lainnya'), doc('c', 'Format')];
+    expect(documentCategories(docs)).toEqual(['Format', 'Lainnya']);
   });
 
-  it('is the only list — the repository derives from it', () => {
+  it('is empty when there are no documents', () => {
+    expect(documentCategories([])).toEqual([]);
+  });
+
+  it('drops an empty-string category rather than showing a blank tab', () => {
+    const docs = [doc('a', ''), doc('b', 'Lainnya')];
+    expect(documentCategories(docs)).toEqual(['Lainnya']);
+  });
+});
+
+describe('documentsInCategory', () => {
+  it('matches exactly, case-sensitively', () => {
     /*
-     * There were two hand-written lists and they disagreed: the repository's
-     * was missing `pasien`, and nothing caught it because the other lived
-     * inside a route file where only that file could reach it.
+     * A category is whatever the user typed. Folding "Format" and "format"
+     * together would surprise someone who deliberately kept them apart — the
+     * same reasoning `mergeStringList` uses elsewhere for value-based
+     * matching: act on exactly what is there, not a guessed equivalence.
      */
-    expect([...DEFAULT_DOCUMENT_CATEGORIES]).toEqual(
-      DOCUMENT_CATEGORIES.map((category) => category.id),
-    );
+    const docs = [doc('a', 'Format'), doc('b', 'format')];
+    expect(documentsInCategory(docs, 'Format').map((d) => d.id)).toEqual(['a']);
   });
 
-  it('shows a label, never a raw id', () => {
-    expect(documentCategoryLabel('jadwal_poli')).toBe('Jadwal poli');
-    expect(documentCategoryLabel('pasien')).toBe('Terkait pasien');
-  });
-
-  it('falls back to the id for a category the user invented', () => {
-    // It has to render as what they typed rather than as blank.
-    expect(documentCategoryLabel('protokol saya')).toBe('protokol saya');
-  });
-
-  it('every seeded document uses a category that exists', () => {
-    const known = new Set(DOCUMENT_CATEGORIES.map((category) => category.id));
-    for (const seed of SEED_DOCUMENTS) expect(known.has(seed.category)).toBe(true);
+  it('returns nothing for a category no document has', () => {
+    expect(documentsInCategory([doc('a', 'Format')], 'Lainnya')).toEqual([]);
   });
 });

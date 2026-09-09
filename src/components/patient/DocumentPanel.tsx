@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react';
 
+import { documentCategories } from '@/domain/documentCategories';
 import { useDocumentList } from '@/hooks/useDocuments';
 import { formatBody } from '@/domain/format/formatters';
 import { copyText } from '@/lib/clipboard';
@@ -25,11 +26,39 @@ export function DocumentPanel(): JSX.Element {
 
   const open = documents.find((document) => document.id === openId);
 
+  const categories = useMemo(() => documentCategories(documents), [documents]);
+
+  /**
+   * Which category this panel shows, chosen rather than hardcoded.
+   *
+   * It used to filter on the literal `'pasien'`. That was fine while
+   * categories were a fixed set, and became a trap the moment they became
+   * editable: renaming or deleting "Terkait pasien" from the Dokumen tab would
+   * empty this panel silently, on a different screen, with nothing to connect
+   * cause to effect.
+   *
+   * A category name is the user's text. Nothing in the app may depend on a
+   * particular one existing — so the panel asks which one it should show and
+   * remembers the answer, and falls back to showing everything if that
+   * category is gone. Defaulting to `pasien` keeps the behaviour that was
+   * there for anyone who never opens the picker.
+   */
+  const [shownCategory, setShownCategory] = useState<string>(() => {
+    try {
+      return localStorage.getItem('visite.panelDocCategory') ?? 'pasien';
+    } catch {
+      return 'pasien';
+    }
+  });
+
   const listed = useMemo(() => {
     // Patient-related documents only. The rest — JARKOM notices, shift
     // confirmations, iuran — have nothing to do with writing a SOAP, and a
     // list you have to filter by eye every time is one you stop opening.
-    const relevant = documents.filter((document) => document.category === 'pasien');
+    const relevant =
+      shownCategory === 'all' || !categories.includes(shownCategory)
+        ? documents
+        : documents.filter((document) => document.category === shownCategory);
 
     const needle = query.trim().toLowerCase();
     if (!needle) return relevant;
@@ -38,7 +67,7 @@ export function DocumentPanel(): JSX.Element {
         document.title.toLowerCase().includes(needle) ||
         document.body.toLowerCase().includes(needle),
     );
-  }, [documents, query]);
+  }, [documents, query, shownCategory, categories]);
 
   if (loading) return <p className="text-xs text-fg-muted">Memuat…</p>;
 
@@ -86,6 +115,35 @@ export function DocumentPanel(): JSX.Element {
         placeholder="Cari dokumen…"
         className="min-h-tap w-full rounded-lg border border-border bg-surface px-2 text-xs outline-none"
       />
+
+      {/*
+        Shown only when there is a choice to make. With one category, or none,
+        a picker offering the single option the panel already shows is a
+        control that cannot do anything.
+      */}
+      {categories.length > 1 ? (
+        <select
+          value={categories.includes(shownCategory) ? shownCategory : 'all'}
+          onChange={(event) => {
+            const next = event.target.value;
+            setShownCategory(next);
+            try {
+              localStorage.setItem('visite.panelDocCategory', next);
+            } catch (error) {
+              console.warn('[documents] panel filter not saved', error);
+            }
+          }}
+          aria-label="Kategori dokumen di panel"
+          className="mt-1.5 min-h-tap w-full rounded-lg border border-border bg-surface px-2 text-xs text-fg-muted outline-none"
+        >
+          <option value="all">Semua kategori</option>
+          {categories.map((name) => (
+            <option key={name} value={name}>
+              {name}
+            </option>
+          ))}
+        </select>
+      ) : null}
 
       {listed.length === 0 ? (
         <p className="mt-2 text-xs text-fg-faint">Tidak ada dokumen yang cocok.</p>

@@ -1,38 +1,49 @@
+import type { AppDocument } from './types';
+
 /**
- * The document categories, in one place.
+ * Categories are free text, exactly like a document's title.
  *
- * There were two lists and they disagreed. `DEFAULT_DOCUMENT_CATEGORIES` in the
- * repository held three ids; `CATEGORY_LABELS` in `DocumentsPage` held four,
- * adding `pasien` — and it was a UI-local constant, so nothing outside that one
- * file could see the labels at all.
+ * This file used to define a fixed set of four ids with labels — `jadwal_poli`,
+ * `format`, `pasien`, `lainnya` — and treated them as an enum the app
+ * understood specially. Nothing reads `category === 'jadwal_poli'` to change
+ * behaviour anywhere; a category is a label the user writes on a document to
+ * group it with others. The filter tabs on the Dokumen list ("Semua" /
+ * "Lainnya" / "Terkait pasien") are already just whatever strings the user's
+ * documents currently carry, sorted — there was never a fixed list backing
+ * them, only this file pretending there was.
  *
- * That is why the category control on a document offered `lainnya` and nothing
- * else: unable to reach either list, it fell back to the categories existing
- * documents happened to use, and every seeded document is `lainnya`. It also
- * showed the raw `jadwal_poli` rather than "Jadwal poli", for the same reason.
- *
- * Ids are stored, labels are shown. They are separate because the id is written
- * into every document and renaming a label must not rewrite them — and because
- * an id like `jadwal_poli` is a key, not something to put in front of a reader.
+ * Treating them as an enum actively worked against the thing being asked for:
+ * renaming "Lainnya" to something meaningful, or deleting an empty tab, is an
+ * edit to text the user wrote, not a choice from a list the app ships.
  */
-export interface DocumentCategory {
-  id: string;
-  label: string;
+
+/**
+ * The categories present across a set of documents, sorted.
+ *
+ * Mirrors what `DocumentsPage` already computed inline for its filter tabs —
+ * pulled out here so the category-management sheet and the tab row read the
+ * same set rather than deriving it twice and risking the two disagreeing,
+ * which is exactly the failure that happened when the fixed list and the
+ * route-local label map fell out of step with each other.
+ */
+export function documentCategories(
+  documents: readonly Pick<AppDocument, 'category'>[],
+): string[] {
+  return [...new Set(documents.map((doc) => doc.category).filter(Boolean))].sort();
 }
 
-export const DOCUMENT_CATEGORIES: readonly DocumentCategory[] = [
-  { id: 'jadwal_poli', label: 'Jadwal poli' },
-  { id: 'format', label: 'Format' },
-  { id: 'pasien', label: 'Terkait pasien' },
-  { id: 'lainnya', label: 'Lainnya' },
-];
-
 /**
- * The label for a category id.
+ * Which documents a category rename or deletion touches.
  *
- * Falls back to the id itself, because a user can type a category we have never
- * heard of and it has to render as what they typed rather than as blank.
+ * Exact string match, case-sensitive. A category is whatever the user typed,
+ * and quietly folding "Format" and "format" together would surprise someone
+ * who deliberately kept them apart — the same reasoning `mergeStringList`
+ * elsewhere in this codebase uses for value-based matching: act on exactly
+ * what is there, not on a guessed equivalence.
  */
-export function documentCategoryLabel(id: string): string {
-  return DOCUMENT_CATEGORIES.find((category) => category.id === id)?.label ?? id;
+export function documentsInCategory(
+  documents: readonly AppDocument[],
+  category: string,
+): AppDocument[] {
+  return documents.filter((doc) => doc.category === category);
 }

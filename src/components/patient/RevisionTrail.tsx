@@ -25,6 +25,7 @@ export function RevisionTrail({
   revisions,
   currentBody,
   onRestore,
+  onDelete,
   /**
    * Open with this revision already expanded.
    *
@@ -39,9 +40,19 @@ export function RevisionTrail({
   revisions: EntryRevision[];
   currentBody: string;
   onRestore: (body: string) => void;
+  /** Absent when the trail is read-only. Saved versions only. */
+  onDelete?: ((revisionId: string) => void) | undefined;
   focusId?: string | null;
 }): JSX.Element {
   const [selected, setSelected] = useState<EntryRevision | null>(null);
+  /**
+   * Confirmed in place, not through a dialog.
+   *
+   * The diff is on screen directly above this button — the user is looking at
+   * exactly what they are about to remove, which is better evidence than any
+   * modal restating it in words could give them.
+   */
+  const [confirmingDelete, setConfirmingDelete] = useState<string | null>(null);
   const focused = focusId ? (revisions.find((r) => r.id === focusId) ?? null) : null;
   const shown = selected ?? focused;
   const saved = revisions.filter((revision) => revision.reason === 'version');
@@ -72,7 +83,7 @@ export function RevisionTrail({
       */
       description={
         saved.length > 0
-          ? `${saved.length} versi disimpan sendiri (tidak pernah dihapus) · ${auto.length} cadangan otomatis (maksimum 30).`
+          ? `${saved.length} versi disimpan sendiri (tidak ikut terhapus otomatis) · ${auto.length} cadangan otomatis (maksimum 30).`
           : `${auto.length} cadangan otomatis (maksimum 30).`
       }
     >
@@ -126,6 +137,49 @@ export function RevisionTrail({
                   >
                     Pulihkan versi ini
                   </button>
+
+                  {/*
+                    Delete is offered for SAVED versions only.
+
+                    An automatic snapshot is not the user's to delete — it is
+                    the recovery trail, it prunes itself at thirty, and
+                    removing one by hand only ever makes a bad day worse. A
+                    saved version is a note somebody wrote and labelled, so
+                    deleting it is an ordinary edit to their own work.
+                  */}
+                  {revision.reason === 'version' && onDelete ? (
+                    confirmingDelete === revision.id ? (
+                      <div className="flex gap-2">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            onDelete(revision.id);
+                            setConfirmingDelete(null);
+                            setSelected(null);
+                          }}
+                          className="min-h-tap flex-1 rounded-lg px-3 text-sm font-medium text-white"
+                          style={{ backgroundColor: 'var(--danger)' }}
+                        >
+                          Hapus "{revision.label ?? `rev ${String(revision.rev)}`}"
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setConfirmingDelete(null)}
+                          className="min-h-tap shrink-0 px-3 text-sm text-fg-muted"
+                        >
+                          Batal
+                        </button>
+                      </div>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => setConfirmingDelete(revision.id)}
+                        className="min-h-tap w-full text-xs text-[var(--danger)] underline"
+                      >
+                        Hapus versi ini
+                      </button>
+                    )
+                  ) : null}
                 </div>
               ) : null}
             </li>

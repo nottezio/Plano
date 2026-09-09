@@ -10,10 +10,7 @@ import { composeDocument } from '@/domain/format/composeCopy';
 import { useClinicalToday } from '@/hooks/useClinicalToday';
 import { FORMAT_LABELS } from '@/domain/format/formatters';
 import { copyText } from '@/lib/clipboard';
-import {
-  DOCUMENT_CATEGORIES,
-  documentCategoryLabel,
-} from '@/domain/documentCategories';
+import { documentCategories } from '@/domain/documentCategories';
 import { useDocument, useDocumentEditor, useDocumentList } from '@/hooks/useDocuments';
 import { useSession } from '@/store/useSession';
 import type { OutputFormat } from '@/domain/types';
@@ -47,9 +44,7 @@ export default function DocumentPage(): JSX.Element {
   const [menuOpen, setMenuOpen] = useState(false);
   const { documents: allDocuments } = useDocumentList();
   /** Existing categories, offered so the list does not fragment by typing. */
-  const categories = [
-    ...new Set(allDocuments.map((entry) => entry.category).filter(Boolean)),
-  ].sort();
+  const categories = documentCategories(allDocuments);
   const [categoryDraft, setCategoryDraft] = useState('');
   const [creatingCategory, setCreatingCategory] = useState(false);
   const [titleDraft, setTitleDraft] = useState('');
@@ -151,24 +146,11 @@ export default function DocumentPage(): JSX.Element {
             aria-label="Kategori dokumen"
             className="min-h-tap w-32 shrink-0 rounded-lg border border-border bg-surface px-2 text-xs text-fg-muted outline-none"
           >
-            {/*
-              The four defined categories, always — plus anything a user has
-              typed themselves, plus this document's own even if nothing else
-              uses it. Listing only categories in USE was the bug: every seeded
-              document is `lainnya`, so `lainnya` was the only option there
-              could ever be.
-            */}
-            {[
-              ...new Set([
-                ...DOCUMENT_CATEGORIES.map((entry) => entry.id),
-                ...categories,
-                document.category,
-              ]),
-            ]
+            {[...new Set([...categories, document.category])]
               .filter(Boolean)
               .map((name) => (
                 <option key={name} value={name}>
-                  {documentCategoryLabel(name)}
+                  {name}
                 </option>
               ))}
             <option value="__new__">Kategori baru…</option>

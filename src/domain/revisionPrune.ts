@@ -4,6 +4,26 @@ import type { EntryRevision } from './types';
 export const REVISION_CAP = 30;
 
 /**
+ * The reasons a revision may be pruned — everything except a saved version.
+ *
+ * Listed explicitly rather than derived as "not version", because the prune
+ * QUERIES on it: Firestore needs the set enumerated, and an inequality would
+ * force the ordering to start with `reason` and lose the `at` ordering the
+ * prune depends on to remove the oldest.
+ *
+ * A new reason added to `EntryRevision` must be added here too, or it will
+ * never be pruned. The type below makes that a compile error rather than a
+ * collection that quietly grows forever.
+ */
+export const PRUNABLE_REASONS = [
+  'autosave',
+  'pre-merge',
+  'pre-conflict',
+  'restore',
+  'unlock',
+] as const satisfies readonly Exclude<EntryRevision['reason'], 'version'>[];
+
+/**
  * Which revisions may be deleted when the trail is trimmed.
  *
  * Extracted from the repository so it can be tested without Firestore, because

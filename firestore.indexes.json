@@ -53,6 +53,20 @@
           "order": "DESCENDING"
         }
       ]
+    },
+    {
+      "collectionGroup": "revisions",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "reason",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "at",
+          "order": "DESCENDING"
+        }
+      ]
     }
   ],
   "fieldOverrides": []

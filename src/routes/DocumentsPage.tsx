@@ -3,12 +3,14 @@ import { Link, useNavigate } from 'react-router-dom';
 
 import { AppShell } from '@/components/common/AppShell';
 import { Sheet } from '@/components/common/Sheet';
-import { createDocument } from '@/data/repositories/documents.repo';
-import { SEED_DOCUMENTS } from '@/domain/seedDocuments';
 import {
-  DOCUMENT_CATEGORIES,
-  documentCategoryLabel,
-} from '@/domain/documentCategories';
+  createDocument,
+  DEFAULT_DOCUMENT_CATEGORIES,
+  deleteDocumentCategory,
+  renameDocumentCategory,
+} from '@/data/repositories/documents.repo';
+import { SEED_DOCUMENTS } from '@/domain/seedDocuments';
+import { documentCategories } from '@/domain/documentCategories';
 import { useDocumentList } from '@/hooks/useDocuments';
 import { useSession } from '@/store/useSession';
 import type { AppDocument } from '@/domain/types';
@@ -26,6 +28,7 @@ export default function DocumentsPage(): JSX.Element {
   const { documents, loading } = useDocumentList();
   const [createOpen, setCreateOpen] = useState(false);
   const [seeding, setSeeding] = useState(false);
+  const [managingCategory, setManagingCategory] = useState<string | null>(null);
 
   /**
    * Category filter, remembered per device.
@@ -42,10 +45,15 @@ export default function DocumentsPage(): JSX.Element {
     }
   });
 
-  const categories = useMemo(() => {
-    const present = new Set(documents.map((document) => document.category));
-    return ['all', ...[...present].sort()];
-  }, [documents]);
+  /**
+   * Derived from `documentCategories`, the same function the create-sheet and
+   * `DocumentPage`'s picker use — one definition of "what categories exist",
+   * rather than three places computing it separately and risking disagreement.
+   */
+  const categories = useMemo(
+    () => ['all', ...documentCategories(documents)],
+    [documents],
+  );
 
   const shown = useMemo(
     () => (category === 'all' ? documents : documents.filter((d) => d.category === category)),
@@ -143,7 +151,7 @@ export default function DocumentsPage(): JSX.Element {
                   : 'border-border text-fg-muted',
               ].join(' ')}
             >
-              {value === 'all' ? 'Semua' : documentCategoryLabel(value)}
+              {value === 'all' ? 'Semua' : value}
             </button>
           ))}
         </div>
@@ -151,11 +159,32 @@ export default function DocumentsPage(): JSX.Element {
 
       {documents.length > 0 ? (
         <div className="px-4 pb-1 pt-1">
+          {/*
+            Renaming or deleting a category is an edit to text scattered across
+            documents, not a settings screen — so it lives beside the tabs
+            that display that text, opened from whichever tab is currently
+            selected. "Semua" has nothing to rename, so the control is absent
+            there rather than disabled: a category-management action that
+            cannot act on anything is not a smaller version of the feature,
+            it is a different screen state.
+          */}
+          {category !== 'all' ? (
+            <button
+              type="button"
+              onClick={() => setManagingCategory(category)}
+              className="text-xs text-fg-muted underline"
+            >
+              Kelola kategori "{category}"
+            </button>
+          ) : null}
           <button
             type="button"
             onClick={addSeeds}
             disabled={seeding}
-            className="text-xs text-fg-muted underline disabled:opacity-50"
+            className={[
+              'text-xs text-fg-muted underline disabled:opacity-50',
+              category !== 'all' ? 'ml-3' : '',
+            ].join(' ')}
           >
             {seeding ? 'Menambahkan…' : 'Tambahkan format bawaan yang belum ada'}
           </button>
@@ -205,7 +234,7 @@ export default function DocumentsPage(): JSX.Element {
           {grouped.map(([category, list]) => (
             <section key={category} className="mt-4 first:mt-0">
               <h2 className="text-xs font-semibold text-fg-muted">
-                {documentCategoryLabel(category)}
+                {category}
               </h2>
               <ul className="mt-1 space-y-2">
                 {list.map((document) => (
@@ -243,7 +272,20 @@ export default function DocumentsPage(): JSX.Element {
 
       </div>
 
-      <CreateDocumentSheet open={createOpen} onOpenChange={setCreateOpen} />
+      <CreateDocumentSheet
+        open={createOpen}
+        onOpenChange={setCreateOpen}
+        existingCategories={documentCategories(documents)}
+      />
+      {managingCategory ? (
+        <ManageCategorySheet
+          category={managingCategory}
+          documents={documents}
+          onOpenChange={(open) => {
+            if (!open) setManagingCategory(null);
+          }}
+        />
+      ) : null}
     </AppShell>
   );
 }
@@ -251,14 +293,26 @@ export default function DocumentsPage(): JSX.Element {
 function CreateDocumentSheet({
   open,
   onOpenChange,
+  existingCategories,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  existingCategories: readonly string[];
 }): JSX.Element {
   const uid = useSession((state) => state.user?.uid ?? null);
   const navigate = useNavigate();
   const [title, setTitle] = useState('');
-  const [category, setCategory] = useState('jadwal_poli');
+  /**
+   * Existing categories first, falling back to the starter set only when the
+   * user has none yet — there is no fixed list of categories any more, so on
+   * an empty account the three suggested by "Tambahkan format bawaan" are the
+   * only sensible default.
+   */
+  const chipOptions =
+    existingCategories.length > 0 ? existingCategories : DEFAULT_DOCUMENT_CATEGORIES;
+  const [category, setCategory] = useState(chipOptions[0] ?? 'lainnya');
+  const [creatingNew, setCreatingNew] = useState(false);
+  const [newCategory, setNewCategory] = useState('');
 
   const submit = (): void => {
     if (!uid || !title.trim()) return;
@@ -301,23 +355,171 @@ function CreateDocumentSheet({
       <div className="mt-3">
         <span className="mb-1 block text-xs text-fg-muted">Kategori</span>
         <div className="flex flex-wrap gap-2">
-          {DOCUMENT_CATEGORIES.map(({ id: value, label }) => (
+          {chipOptions.map((value) => (
             <button
               key={value}
               type="button"
-              onClick={() => setCategory(value)}
-              aria-pressed={category === value}
+              onClick={() => {
+                setCategory(value);
+                setCreatingNew(false);
+              }}
+              aria-pressed={!creatingNew && category === value}
               className={[
                 'min-h-tap rounded-full border px-3 text-xs',
-                category === value
+                !creatingNew && category === value
                   ? 'border-accent bg-bg-subtle font-medium text-accent'
                   : 'border-border text-fg-muted',
               ].join(' ')}
             >
-              {label}
+              {value}
             </button>
           ))}
+          <button
+            type="button"
+            onClick={() => setCreatingNew(true)}
+            aria-pressed={creatingNew}
+            className={[
+              'min-h-tap rounded-full border px-3 text-xs',
+              creatingNew
+                ? 'border-accent bg-bg-subtle font-medium text-accent'
+                : 'border-border text-fg-muted',
+            ].join(' ')}
+          >
+            Kategori baru…
+          </button>
         </div>
+        {creatingNew ? (
+          <input
+            type="text"
+            autoFocus
+            value={newCategory}
+            onChange={(event) => {
+              setNewCategory(event.target.value);
+              setCategory(event.target.value);
+            }}
+            placeholder="Nama kategori"
+            className="mt-2 min-h-tap w-full rounded-lg border border-border bg-surface px-3 text-sm outline-none"
+          />
+        ) : null}
+      </div>
+    </Sheet>
+  );
+}
+
+/**
+ * Rename or delete a category, from the tab that shows it.
+ *
+ * Rename rewrites every document currently in the category in one batch (see
+ * `renameDocumentCategory` for why it must be one write, not one per
+ * document). Delete asks where those documents should go rather than
+ * offering an unconditional delete, because removing a category is not the
+ * same action as removing the documents in it — the label goes away, the
+ * documents do not.
+ */
+function ManageCategorySheet({
+  category,
+  documents,
+  onOpenChange,
+}: {
+  category: string;
+  documents: readonly AppDocument[];
+  onOpenChange: (open: boolean) => void;
+}): JSX.Element {
+  const uid = useSession((state) => state.user?.uid ?? null);
+  const [name, setName] = useState(category);
+  const [confirmDelete, setConfirmDelete] = useState(false);
+  const [moveTo, setMoveTo] = useState('lainnya');
+  const count = documents.filter((doc) => doc.category === category).length;
+  const otherCategories = documentCategories(documents).filter((c) => c !== category);
+
+  const rename = (): void => {
+    if (!uid) return;
+    void renameDocumentCategory(uid, documents, category, name).catch((error: unknown) =>
+      console.error('[documents] category rename rejected', error),
+    );
+    onOpenChange(false);
+  };
+
+  const remove = (): void => {
+    if (!uid) return;
+    void deleteDocumentCategory(uid, documents, category, moveTo).catch((error: unknown) =>
+      console.error('[documents] category delete rejected', error),
+    );
+    onOpenChange(false);
+  };
+
+  return (
+    <Sheet open onOpenChange={onOpenChange} title={`Kelola kategori "${category}"`}>
+      <p className="mb-3 text-xs text-fg-muted">
+        {count} dokumen memakai kategori ini.
+      </p>
+
+      <label className="block">
+        <span className="mb-1 block text-xs text-fg-muted">Ganti nama menjadi</span>
+        <div className="flex gap-2">
+          <input
+            type="text"
+            value={name}
+            onChange={(event) => setName(event.target.value)}
+            className="min-h-tap min-w-0 flex-1 rounded-lg border border-border bg-surface px-3 text-sm outline-none"
+          />
+          <button
+            type="button"
+            onClick={rename}
+            disabled={!name.trim() || name.trim() === category}
+            className="min-h-tap shrink-0 rounded-lg border border-accent px-3 text-sm font-medium text-accent disabled:opacity-40"
+          >
+            Simpan
+          </button>
+        </div>
+      </label>
+
+      <div className="mt-4 border-t border-border pt-3">
+        {!confirmDelete ? (
+          <button
+            type="button"
+            onClick={() => setConfirmDelete(true)}
+            className="min-h-tap text-xs text-[var(--danger)] underline"
+          >
+            Hapus kategori ini
+          </button>
+        ) : (
+          <div>
+            <p className="mb-2 text-xs text-fg-muted">
+              {/*
+                Deleting a category means moving its documents somewhere, not
+                deleting the documents — those two are different actions and
+                this asks which one before doing either.
+              */}
+              Pindahkan {count} dokumen ke kategori:
+            </p>
+            <div className="flex flex-wrap gap-2">
+              {[...otherCategories, 'lainnya'].filter((value, index, arr) => arr.indexOf(value) === index).map((value) => (
+                <button
+                  key={value}
+                  type="button"
+                  onClick={() => setMoveTo(value)}
+                  aria-pressed={moveTo === value}
+                  className={[
+                    'min-h-tap rounded-full border px-3 text-xs',
+                    moveTo === value
+                      ? 'border-accent bg-bg-subtle font-medium text-accent'
+                      : 'border-border text-fg-muted',
+                  ].join(' ')}
+                >
+                  {value}
+                </button>
+              ))}
+            </div>
+            <button
+              type="button"
+              onClick={remove}
+              className="mt-3 min-h-tap w-full rounded-lg bg-[var(--danger)] px-4 text-sm font-medium text-white"
+            >
+              Hapus dan pindahkan
+            </button>
+          </div>
+        )}
       </div>
     </Sheet>
   );

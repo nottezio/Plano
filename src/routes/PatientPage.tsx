@@ -21,7 +21,7 @@ import { TemplatePicker } from '@/components/patient/TemplatePicker';
 import { ConflictDialog } from '@/components/patient/ConflictDialog';
 import { DateRail } from '@/components/patient/DateRail';
 import { RevisionTrail } from '@/components/patient/RevisionTrail';
-import { saveVersion } from '@/data/repositories/entries.repo';
+import { deleteVersion, saveVersion } from '@/data/repositories/entries.repo';
 import { AppShell } from '@/components/common/AppShell';
 import { clearEntry, fetchEntryBodies, setEntryLocked } from '@/data/repositories/entries.repo';
 import { updateArchiveNote } from '@/data/repositories/patients.repo';
@@ -1461,6 +1461,15 @@ export default function PatientPage(): JSX.Element {
         revisions={revisions}
         currentBody={editor.value}
         onRestore={editor.restoreRevision}
+        onDelete={
+          patient
+            ? (revisionId) => {
+                void deleteVersion(patient.id, selected, revisionId).catch((error: unknown) =>
+                  console.error('[versions] delete rejected', error),
+                );
+              }
+            : undefined
+        }
       />
     </AppShell>
   );
