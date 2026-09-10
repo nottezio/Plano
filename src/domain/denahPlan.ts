@@ -119,6 +119,19 @@ const PLANS: readonly WardPlan[] = [PJT_LANTAI_4];
  * fix; adding "PJT Lt. 4" as a second literal would only have worked until
  * somebody typed "PJT Lt.4".
  */
+/**
+ * The ward name in its canonical spelling, for grouping and display.
+ *
+ * Returns the plan's own spelling when one matches, so every variant collapses
+ * to a single group; otherwise the trimmed original, because a ward with no
+ * transcribed plan still has a name worth showing as written.
+ */
+export function canonicalWard(ward: string): string {
+  const key = normalise(ward);
+  const plan = PLANS.find((candidate) => normalise(candidate.ward) === key);
+  return plan?.ward ?? ward.trim();
+}
+
 function normalise(ward: string): string {
   return ward
     .toLowerCase()

@@ -175,6 +175,29 @@ export function PatientCard({
          */
         card.pemantauan ? 'ring-2 ring-[var(--danger)]' : '',
       ].join(' ')}
+      /*
+        The discharge edge, redesigned rather than removed: a WASH that fades
+        out, not a stripe stuck to the border.
+
+        The 4px solid left border it replaces had two problems. It shared the
+        left border with the pemantauan treatment, and an inline
+        `borderLeftColor` silently beats a class — so a patient who was both
+        for discharge and under pemantauan lost one mark entirely. And a hard
+        bar of saturated colour against a rounded card is the shape that reads
+        as stuck on.
+
+        A gradient starts at the same edge, in the same token, and dissolves
+        into the card within a third of its width. It cannot collide with the
+        top strip or the bottom note because it is a background, not a border,
+        and at this weight it tints rather than competes with the name.
+      */
+      style={
+        card.discharge
+          ? {
+              backgroundImage: `linear-gradient(to right, color-mix(in srgb, ${STAGE_TOKEN[card.discharge]} 30%, transparent), transparent 40%)`,
+            }
+          : undefined
+      }
     >
       {/*
         A strip across the top of the card, in normal flow.
@@ -282,16 +305,12 @@ export function PatientCard({
           who was both lost one of the two marks entirely.
         */}
         {card.discharge ? (
-          <span
-            className="shrink-0 rounded px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide"
-            style={{
-              backgroundColor: STAGE_TOKEN[card.discharge],
-              // Dark text on both badge colours in both themes: the badges are
-              // deliberately bright, so the foreground does not flip with the
-              // theme the way the rest of the card does.
-              color: 'var(--discharge-fg)',
-            }}
-          >
+          <span className="flex shrink-0 items-center gap-1 rounded border border-current/30 px-1.5 text-[10px] font-semibold">
+            <span
+              aria-hidden="true"
+              className="h-1.5 w-1.5 shrink-0 rounded-full"
+              style={{ backgroundColor: STAGE_TOKEN[card.discharge] }}
+            />
             {STAGE_LABELS[card.discharge]}
           </span>
         ) : null}

@@ -987,6 +987,32 @@ export default function PatientPage(): JSX.Element {
           </Banner>
         ) : null}
 
+        {/*
+          Which day is being written to, whenever it is not today.
+
+          The date is in the header already, but a date is something you read
+          and a warning is something you notice — and the failure it guards
+          against is not misreading the header, it is never looking at it. You
+          arrive from the rail or from a link, start typing, and the note lands
+          on a day that has already been reported.
+          
+          Absent on today, deliberately. A banner that is always there is
+          furniture, and furniture is invisible by the second day.
+        */}
+        {selected !== today ? (
+          <Banner tone="warn">
+            <span className="flex-1">
+              Menulis catatan <b>{formatShortDate(selected)}</b>, bukan hari ini.
+            </span>
+            <button
+              type="button"
+              onClick={() => goToDate(today)}
+              className="min-h-tap shrink-0 underline"
+            >
+              Ke hari ini
+            </button>
+          </Banner>
+        ) : null}
         {carrySummary ? <Banner tone="muted">{carrySummary}</Banner> : null}
         {staleMarkers ? (
           <Banner tone="warn">

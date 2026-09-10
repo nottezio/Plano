@@ -1,4 +1,5 @@
 import { dpjpById } from './dpjp';
+import { canonicalWard } from './denahPlan';
 import type { Patient } from './types';
 
 /**
@@ -41,7 +42,21 @@ export function buildDenah(patients: readonly Patient[]): DenahWard[] {
   const wards = new Map<string, Map<string, DenahBed[]>>();
 
   for (const patient of patients) {
-    const ward = patient.ward?.trim() || UNPLACED;
+    /**
+     * Grouped by the CANONICAL ward name, not the string as typed.
+     *
+     * `PJT Lt. 4`, `PJT Lantai 4`, `PJT LT. 4` and `PJT Lt 4` are one floor
+     * written four ways, and every one of them appears in real records.
+     * Keying on the raw text split them into separate denah blocks, each
+     * rendering its own copy of the same floor plan with a few patients in it
+     * — so a bed that was occupied looked empty on the block you happened to
+     * be reading.
+     *
+     * `canonicalWard` is the same normalisation `wardPlan` already used to
+     * match a plan; it just was not applied to the grouping, so the two
+     * disagreed about how many wards existed.
+     */
+    const ward = canonicalWard(patient.ward ?? '') || UNPLACED;
     // A patient with a ward but no room still belongs somewhere visible: an
     // unnumbered room in that ward, rather than dropped from the floor plan.
     const room = patient.room?.trim() || (ward === UNPLACED ? UNPLACED : '—');

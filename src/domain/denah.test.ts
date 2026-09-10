@@ -31,7 +31,9 @@ describe('buildDenah', () => {
 
   it('separates wards', () => {
     const denah = buildDenah([at('a', 'PJT Lt 4', '401'), at('b', 'PJT Lt 5', '517')]);
-    expect(denah.map((ward) => ward.ward)).toEqual(['PJT Lt 4', 'PJT Lt 5']);
+    // `PJT Lt 4` canonicalises to the plan's own spelling; Lantai 5 has no
+    // transcribed plan, so it keeps the name as written.
+    expect(denah.map((ward) => ward.ward)).toEqual(['PJT Lantai 4', 'PJT Lt 5']);
   });
 
   it('puts non-numeric rooms after the numbered ones', () => {
@@ -41,7 +43,7 @@ describe('buildDenah', () => {
 
   it('keeps a patient with a ward but no room visible in that ward', () => {
     const denah = buildDenah([at('x', 'PJT Lt 4')]);
-    expect(denah[0]?.ward).toBe('PJT Lt 4');
+    expect(denah[0]?.ward).toBe('PJT Lantai 4');
     expect(denah[0]?.rooms[0]?.beds).toHaveLength(1);
   });
 
@@ -91,5 +93,37 @@ describe('denahLine', () => {
 
   it('names an unnamed patient rather than showing nothing', () => {
     expect(denahLine(makePatient({ name: '' }), false)).toBe('Tanpa nama');
+  });
+});
+
+
+describe('one floor written four ways is one floor', () => {
+  it('merges every spelling into a single ward block', () => {
+    /*
+     * `PJT Lt. 4`, `PJT Lantai 4`, `PJT LT. 4` and `PJT Lt 4` all appear in
+     * real records. Grouping on the raw string split them into separate denah
+     * blocks, each rendering its own copy of the same floor plan with a few
+     * patients in it — so an occupied bed looked empty on whichever block you
+     * happened to be reading.
+     */
+    const denah = buildDenah([
+      at('a', 'PJT Lt. 4', '420'),
+      at('b', 'PJT Lantai 4', '419'),
+      at('c', 'PJT LT. 4', '418'),
+      at('d', 'PJT Lt 4', '417'),
+    ]);
+    expect(denah).toHaveLength(1);
+    expect(denah[0]?.ward).toBe('PJT Lantai 4');
+    expect(denah[0]?.rooms.map((room) => room.room).sort()).toEqual([
+      '417',
+      '418',
+      '419',
+      '420',
+    ]);
+  });
+
+  it('leaves a ward with no transcribed plan named as written', () => {
+    const denah = buildDenah([at('a', 'CVCU', '1')]);
+    expect(denah[0]?.ward).toBe('CVCU');
   });
 });
