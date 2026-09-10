@@ -1,6 +1,13 @@
 import { describe, expect, it } from 'vitest';
 
-import { dateForStage, dischargeStage, migrateLegacyDischarge } from './discharge';
+import {
+  STAGE_LABELS,
+  STAGE_SHORT,
+  dateForStage,
+  dischargeStage,
+  migrateLegacyDischarge,
+  type DischargeStage,
+} from './discharge';
 import type { ClinicalDate } from './types';
 
 const TODAY = '2026-08-19' as ClinicalDate;
@@ -56,5 +63,30 @@ describe('migrateLegacyDischarge', () => {
 
   it('returns nothing when the patient was never marked', () => {
     expect(migrateLegacyDischarge({}, TODAY)).toBeUndefined();
+  });
+});
+
+describe('stage wording', () => {
+  const STAGES: DischargeStage[] = ['planned', 'h1', 'today', 'overdue'];
+
+  it('has both a full phrase and a chip-sized form for every stage', () => {
+    // The two maps are read in different places — a stage added to one and
+    // forgotten in the other renders an empty chip rather than failing loudly.
+    for (const stage of STAGES) {
+      expect(STAGE_LABELS[stage]).toBeTruthy();
+      expect(STAGE_SHORT[stage]).toBeTruthy();
+      expect(STAGE_SHORT[stage].length).toBeLessThanOrEqual(STAGE_LABELS[stage].length);
+    }
+  });
+
+  it('never repeats "pulang" in the short form — the car glyph already says it', () => {
+    for (const stage of STAGES) {
+      expect(STAGE_SHORT[stage].toLowerCase()).not.toContain('pulang');
+    }
+  });
+
+  it('says "pulang" in full in the phrase a screen reader gets', () => {
+    expect(STAGE_LABELS.today.toLowerCase()).toContain('pulang');
+    expect(STAGE_LABELS.h1.toLowerCase()).toContain('pulang');
   });
 });

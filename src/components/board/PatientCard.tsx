@@ -2,9 +2,14 @@ import { Link } from 'react-router-dom';
 
 import { previewLines, type BoardCard } from '@/domain/board';
 import { ProgressStrip } from './ProgressStrip';
-import { IconEye } from '@/components/common/Icons';
+import { IconCar, IconEye } from '@/components/common/Icons';
 import { formatLocation } from '@/domain/identity';
-import { STAGE_LABELS, STAGE_TOKEN } from '@/domain/discharge';
+import {
+  STAGE_LABELS,
+  STAGE_SHORT,
+  STAGE_TOKEN,
+  type DischargeStage,
+} from '@/domain/discharge';
 
 /**
  * SPEC F2 — a Google-Keep-style card.
@@ -176,28 +181,21 @@ export function PatientCard({
         card.pemantauan ? 'ring-2 ring-[var(--danger)]' : '',
       ].join(' ')}
       /*
-        The discharge edge, redesigned rather than removed: a WASH that fades
-        out, not a stripe stuck to the border.
+        NO discharge treatment on the card's own background. See DischargeChip.
 
-        The 4px solid left border it replaces had two problems. It shared the
-        left border with the pemantauan treatment, and an inline
-        `borderLeftColor` silently beats a class — so a patient who was both
-        for discharge and under pemantauan lost one mark entirely. And a hard
-        bar of saturated colour against a rounded card is the shape that reads
-        as stuck on.
+        The wash removed here was a gradient in the stage token laid over
+        `bg-token`, and it failed for a structural reason rather than a
+        stylistic one: the card's background is ALREADY carrying domain data.
+        `colorToken` encodes how far the checklist got, and every pixel of the
+        card is that signal. Tinting it with a second, unrelated fact means the
+        colour answers neither question — worst on a finished patient, where a
+        green "done" background under a green "pulang hari ini" wash reads as
+        one flat green block and the checklist colour is simply gone.
 
-        A gradient starts at the same edge, in the same token, and dissolves
-        into the card within a third of its width. It cannot collide with the
-        top strip or the bottom note because it is a background, not a border,
-        and at this weight it tints rather than competes with the name.
+        This is the same failure as the 4px `borderLeftColor` before it and the
+        left edge before that: a mark placed on a channel something else owns.
+        The fix is a channel nothing else uses — the top-right corner.
       */
-      style={
-        card.discharge
-          ? {
-              backgroundImage: `linear-gradient(to right, color-mix(in srgb, ${STAGE_TOKEN[card.discharge]} 30%, transparent), transparent 40%)`,
-            }
-          : undefined
-      }
     >
       {/*
         A strip across the top of the card, in normal flow.
@@ -247,11 +245,33 @@ export function PatientCard({
             <span aria-hidden="true">⠿</span>
           </button>
         ) : null}
-        <h3 className="min-w-0 flex-1 truncate text-sm font-semibold">{card.title}</h3>
+        {/*
+          THE NAME WRAPS. It is never truncated.
+
+          `truncate` is `white-space: nowrap` + `overflow: hidden` + an
+          ellipsis, and this row was a single flex line in which every other
+          child was `shrink-0`. So the name was the only thing that could give,
+          and the width it had left was the card minus however many badges the
+          patient happened to carry — DPJP, KJS, discharge, pin. That put the
+          rule exactly backwards: the patients with the most going on were the
+          ones whose names you could not read. "Tn. Petrus Da…" was not a long
+          name, it was a name standing next to two badges.
+
+          Wrapping costs a second line only on the cards that need one, and the
+          board is masonry — a taller card closes the gap beneath it. Truncation
+          cost a name on every card that carried badges, permanently.
+
+          `overflow-wrap: anywhere` is for the ones with no space to break at:
+          a single 30-character name would otherwise push the row wider than the
+          card and reintroduce the overflow it just fixed.
+        */}
+        <h3 className="min-w-0 flex-1 text-sm font-semibold leading-snug break-words [overflow-wrap:anywhere]">
+          {card.title}
+        </h3>
 
         {/*
           Its own small target, not a gesture on the card.
-          
+
           The card is already a link, a long-press and — in custom order — a
           drag handle. A fourth gesture would have to win a race against three
           others, and losing that race opens a chart you did not ask for.
@@ -267,18 +287,44 @@ export function PatientCard({
               event.stopPropagation();
               onPreview(patient.id);
             }}
-            className="-my-1 -mr-1 min-h-tap min-w-tap shrink-0 text-token-fg/50"
+            className="-my-1 min-h-tap min-w-tap shrink-0 text-token-fg/50"
           >
             <IconEye className="mx-auto" width={16} height={16} />
           </button>
         ) : null}
-        {/* Consultant initials, read from the note's DPJP line. Initials
-            rather than a name because the card has one line for it and a
-            resident reads these as a set. */}
+
+        {/*
+          The corner. Nothing else on the card may sit to the right of this.
+
+          The board is a measured-span CSS grid now (`MasonryGrid` /
+          `MasonryItem`), not the multi-column layout the comment above was
+          written against — but this is still in normal flow, not `absolute`.
+          A flex row that ends here IS the top-right corner, and it stays the
+          corner when the name below it wraps to two lines.
+        */}
+        {card.discharge ? <DischargeChip stage={card.discharge} /> : null}
+      </div>
+
+      {/*
+        WHERE, and WHOSE. One row.
+
+        The DPJP initials, the KJS mark and the pin used to sit on the title
+        row, where they were `shrink-0` and the name was not — so each of them
+        was, in effect, spending the patient's name to show itself. They are
+        reference marks, not controls: you read them after you have found the
+        card, never in order to find it. Down here they cost nothing that
+        matters and the row wraps on its own if a location line is long.
+
+        Location stays spelled out to the bed: on a round the room and bed are
+        what you are walking to, and a card showing only "PJT Lt 4" still has
+        to be opened to find out where.
+      */}
+      <div className="mt-0.5 flex flex-wrap items-center gap-x-1.5 gap-y-1 text-[11px] opacity-70">
+        <span>{formatLocation(patient) || 'Lokasi belum diisi'}</span>
         {card.dpjp ? (
           <span
             title={card.dpjp.name}
-            className="shrink-0 rounded border border-current/30 px-1 text-[10px] font-semibold opacity-80"
+            className="rounded border border-current/30 px-1 text-[10px] font-semibold"
           >
             {card.dpjp.initials}
           </span>
@@ -286,32 +332,9 @@ export function PatientCard({
         {card.kjs ? (
           <span
             title="Kelola Jantung Sinergi — pasien rawat bersama"
-            className="shrink-0 rounded border border-current/40 px-1 text-[10px] font-semibold opacity-80"
+            className="rounded border border-current/40 px-1 text-[10px] font-semibold"
           >
             KJS
-          </span>
-        ) : null}
-        {/*
-          The badge carries this on its own — the coloured left edge that used
-          to sit beside it has gone.
-          
-          Two marks for one fact, and the weaker of the two was a bare stripe:
-          colour with no label, in a column of cards that already vary in
-          colour by checklist progress. It said "something about this patient"
-          and left the reader to remember which something, while the badge two
-          inches away said it in words. Removing it also ends a real collision
-          — the strip shared the left border with the pemantauan treatment, and
-          an inline `borderLeftColor` silently won over the class, so a patient
-          who was both lost one of the two marks entirely.
-        */}
-        {card.discharge ? (
-          <span className="flex shrink-0 items-center gap-1 rounded border border-current/30 px-1.5 text-[10px] font-semibold">
-            <span
-              aria-hidden="true"
-              className="h-1.5 w-1.5 shrink-0 rounded-full"
-              style={{ backgroundColor: STAGE_TOKEN[card.discharge] }}
-            />
-            {STAGE_LABELS[card.discharge]}
           </span>
         ) : null}
         {patient.pinned ? (
@@ -320,13 +343,6 @@ export function PatientCard({
           </span>
         ) : null}
       </div>
-
-      {/* Location spelled out, not just the ward: on a round the room and bed
-          are what you are walking to, and a card that shows only "PJT Lt 4"
-          still needs opening to find out where. */}
-      <p className="mt-0.5 text-[11px] opacity-70">
-        {formatLocation(patient) || 'Lokasi belum diisi'}
-      </p>
       {/*
         Hari rawat removed from the card.
         
@@ -380,6 +396,76 @@ export function PatientCard({
         />
       ) : null}
     </div>
+  );
+}
+
+/**
+ * How strongly the chip is tinted, by stage.
+ *
+ * Graded rather than uniform because the four stages are not equally urgent —
+ * a discharge four days out is a note to self, one happening today changes
+ * what you do on this round. Grading the FILL and not the text keeps the
+ * contrast of the label fixed at the card's own foreground, so the loudest
+ * chip is still no harder to read than the quietest.
+ *
+ * The ceiling is 32%. A solid fill was tried and rejected: at full saturation
+ * the chip out-shouted the patient's name, which is the one thing on a card
+ * that must win.
+ */
+const STAGE_TINT: Record<DischargeStage, number> = {
+  planned: 12,
+  h1: 24,
+  today: 32,
+  overdue: 32,
+};
+
+/**
+ * Discharge, as a car in the card's top-right corner.
+ *
+ * WHY A CORNER CHIP AND NOT A CARD-WIDE MARK
+ *
+ * Every card-level treatment tried so far has collided with something that was
+ * already there: a 4px left border lost to the pemantauan edge (an inline
+ * `borderLeftColor` silently beats a class); a bare coloured stripe read as
+ * noise among cards that are already coloured by checklist progress; and the
+ * background wash it replaced tinted `colorToken` itself, which is domain data
+ * — a finished patient going home today showed a green wash over a green
+ * "selesai" background and lost both facts at once.
+ *
+ * The corner is free. Nothing else claims it, so a mark placed there cannot be
+ * overridden, cannot be mistaken for a checklist colour, and does not have to
+ * shout to be found — the eye lands on a card's corners on its own.
+ *
+ * WHY A CAR
+ *
+ * A glyph is a silhouette, and silhouettes survive peripheral vision in a way
+ * that a coloured dot does not. It also lets the word shrink: "Pulang hari
+ * ini" becomes "Hari ini" because the picture already said pulang, and the
+ * width that frees goes to the patient's name.
+ *
+ * Colour is never the only signal — the label is always rendered, and the full
+ * phrase is on `title` and in the accessible name for anyone who cannot see
+ * either.
+ */
+function DischargeChip({ stage }: { stage: DischargeStage }): JSX.Element {
+  const token = STAGE_TOKEN[stage];
+  return (
+    <span
+      title={STAGE_LABELS[stage]}
+      className="mt-0.5 flex shrink-0 items-center gap-1 rounded-full px-1.5 py-0.5 text-[10px] font-semibold leading-none"
+      style={{
+        backgroundColor: `color-mix(in srgb, ${token} ${STAGE_TINT[stage]}%, transparent)`,
+        // A ring drawn as an inset shadow rather than a border: a border would
+        // add a pixel to the chip's box and nudge the row it sits in.
+        boxShadow: `inset 0 0 0 1px color-mix(in srgb, ${token} 55%, transparent)`,
+      }}
+    >
+      <IconCar width={12} height={12} className="shrink-0" style={{ color: token }} />
+      {/* The short form is for the eye; the full phrase is for the reader who
+          is not using one. */}
+      <span className="sr-only">{STAGE_LABELS[stage]}</span>
+      <span aria-hidden="true">{STAGE_SHORT[stage]}</span>
+    </span>
   );
 }
 

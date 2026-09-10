@@ -37,13 +37,31 @@ export function dischargeStage(
   return 'planned';
 }
 
+/**
+ * The full phrase, for tooltips and screen readers — anywhere there is room to
+ * say the whole thing.
+ *
+ * Split from `STAGE_SHORT` because the two are read in different conditions.
+ * On a board card the word sits next to a car glyph, so "pulang" is already
+ * said by the picture and repeating it wastes the width the patient's name
+ * needs. A tooltip has no glyph and no width limit, so it says it in full.
+ */
 export const STAGE_LABELS: Record<DischargeStage, string> = {
   planned: 'Rencana pulang',
-  h1: 'H-1',
-  today: 'PULANG',
+  h1: 'Pulang besok (H-1)',
+  today: 'Pulang hari ini',
   // Named as a question rather than an accusation: the usual cause is that the
   // date moved, not that anyone forgot.
-  overdue: 'Pulang?',
+  overdue: 'Tanggal pulang sudah lewat',
+};
+
+/** Chip-sized form for the board card corner, where the car glyph carries the
+ *  "pulang" half of the meaning. Never used without that glyph beside it. */
+export const STAGE_SHORT: Record<DischargeStage, string> = {
+  planned: 'Rencana',
+  h1: 'H-1',
+  today: 'Hari ini',
+  overdue: 'Lewat?',
 };
 
 /** Token driving the card edge and badge colour. */

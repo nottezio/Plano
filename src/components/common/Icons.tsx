@@ -142,3 +142,21 @@ export const IconEye = (props: IconProps): JSX.Element => (
     <circle cx="12" cy="12" r="2.5" />
   </Base>
 );
+
+/**
+ * Discharge. A car, for the patient who is going home.
+ *
+ * An SVG rather than the 🚗 emoji: the emoji renders as a different picture on
+ * every OS (and as a monochrome outline on some ward machines), it cannot take
+ * the discharge-stage colour because emoji fonts ignore `currentColor`, and its
+ * metrics vary enough that it shifts the chip's baseline. This one is one shape
+ * everywhere and tints with whatever colour the chip sets.
+ */
+export const IconCar = (props: IconProps): JSX.Element => (
+  <Base {...props}>
+    <path d="M4 12l1.7-4.4a2 2 0 0 1 1.9-1.3h8.8a2 2 0 0 1 1.9 1.3L20 12" />
+    <path d="M3 12h18a1 1 0 0 1 1 1v3a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1v-3a1 1 0 0 1 1-1Z" />
+    <circle cx="7.5" cy="17" r="1.5" />
+    <circle cx="16.5" cy="17" r="1.5" />
+  </Base>
+);

@@ -1,5 +1,79 @@
 # Plano — CHANGES
 
+## `2026-09-10.2`
+
+**Discharge marker moved to the card corner as a car chip; patient names no
+longer truncated.**
+
+### The name was being spent on badges
+
+`PatientCard`'s title row was one flex line in which every child except the
+`<h3>` was `shrink-0`, and the `<h3>` carried `truncate` — `white-space:
+nowrap` plus an ellipsis. So the width available to a patient's name was the
+card minus however many badges that patient happened to carry: DPJP initials,
+KJS, the discharge badge, the pin star. The rule that produced was exactly
+backwards — the patients with the most going on were the ones whose names you
+could not read. "Tn. Petrus Da…" was never a long name; it was a name standing
+next to two badges.
+
+Raising the truncation width would have moved the threshold, not removed it.
+The fix is structural, in two parts:
+
+- The name **wraps** (`break-words` + `overflow-wrap: anywhere`) instead of
+  truncating. A second line costs one row on the cards that need it, and the
+  board is masonry — the gap closes underneath. Truncation cost a name on
+  every badged card, permanently.
+- DPJP, KJS and the pin **moved off the title row** onto the location line.
+  They are reference marks, read after you have found the card, never in order
+  to find it. Only the preview button and the discharge chip stay on the title
+  row, because both must sit in the corner.
+
+### The discharge wash was painted on a channel that was already taken
+
+The full-card gradient introduced in `2026-09-10.1` is gone. It failed for a
+structural reason, not a stylistic one: the card's background is already
+domain data. `colorToken` encodes how far the checklist got, and the wash
+tinted it with a second, unrelated fact — worst on a finished patient going
+home today, where a green "selesai" background under a green "pulang hari ini"
+wash read as one flat green block and neither signal survived.
+
+That is the same failure as the 4px `borderLeftColor` before it (silently beat
+by the pemantauan edge) and the bare colour stripe before that: a mark placed
+on a channel something else owns. The corner is the one place on a card that
+nothing else claims, so that is where it now lives:
+
+- `DischargeChip` — car glyph + short label, tinted by stage (12% for
+  `planned` up to 32% for `today`/`overdue`, fill only; the label keeps the
+  card's own foreground colour, so the loudest chip is no harder to read than
+  the quietest). A solid fill was tried before and rejected for out-shouting
+  the patient's name.
+- `IconCar` added to `Icons.tsx` as an SVG rather than the 🚗 emoji: emoji
+  render as a different picture per OS, ignore `currentColor`, and vary enough
+  in metrics to shift the chip's baseline.
+- `STAGE_LABELS` now holds the full phrase ("Pulang hari ini") for `title` and
+  the accessible name; new `STAGE_SHORT` holds the chip form ("Hari ini"). The
+  word can shrink because the car already says *pulang*, and the width that
+  frees goes to the name.
+
+Colour is still never the only signal: the label always renders, and the full
+phrase is on `title` and in an `sr-only` span.
+
+**Not done, deliberately:** no card-wide discharge signal of any kind now
+exists — the chip is the whole treatment. If the corner turns out to be too
+quiet when scanning twenty cards from the end of the bed, the next thing to
+try is a tint on the card's *bottom* edge, below the progress strip, which is
+the only other unclaimed channel. Not built on a guess.
+
+```
+1022 tests passed
+check:version   OK
+check:contrast  OK
+check:a11y      OK
+build           clean
+```
+
+---
+
 ## `2026-08-28.2`
 
 **Repo cleanup — no app behavior changed.**
