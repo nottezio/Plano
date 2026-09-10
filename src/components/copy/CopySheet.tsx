@@ -433,18 +433,22 @@ export function CopySheet({
   const output = composed;
 
   /**
-   * Tell the copy sanitiser that what is on screen is bound for SIMGOS.
+   * Tell the copy sanitiser to STAND DOWN, because what is on screen is a
+   * WhatsApp or markdown preview and its non-ASCII characters are correct
+   * there.
    *
-   * Only while this sheet is OPEN and the plain format is selected. Leaving it
-   * set after the sheet closes would fold every later copy from the note
-   * editor to ASCII, quietly stripping `°` from text headed for WhatsApp — the
-   * fix for one surface breaking the other.
+   * The inverse of what this did before, for the reason recorded on
+   * `nonAsciiPreview`: ASCII folding is now the default everywhere, and this
+   * is the only place in the app that suspends it. Only while the sheet is
+   * OPEN and a non-plain format is selected — leaving it set after the sheet
+   * closes would let a `°` reach SIMGOS from the note editor, which is the
+   * failure this whole path exists to prevent.
    */
-  const setSimgosPreview = useUI((state) => state.setSimgosPreview);
+  const setNonAsciiPreview = useUI((state) => state.setNonAsciiPreview);
   useEffect(() => {
-    setSimgosPreview(open && format === 'plain');
-    return () => setSimgosPreview(false);
-  }, [open, format, setSimgosPreview]);
+    setNonAsciiPreview(open && format !== 'plain');
+    return () => setNonAsciiPreview(false);
+  }, [open, format, setNonAsciiPreview]);
 
   const leaks = findMarkdownLeaks(format === 'whatsapp' ? output : '');
 

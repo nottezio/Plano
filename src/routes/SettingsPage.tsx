@@ -8,6 +8,7 @@ import { SettingsGroup, SettingsSection, Toggle } from '@/components/settings/Se
 import { StringListEditor } from '@/components/settings/StringListEditor';
 import { DpjpFormatEditor } from '@/components/settings/DpjpFormatEditor';
 import { TemplateEditor } from '@/components/settings/TemplateEditor';
+import { PasteInspector } from '@/components/settings/PasteInspector';
 import { PinSetupSheet } from '@/components/privacy/PinSetupSheet';
 import { useLock } from '@/store/useLock';
 import { updateSettings } from '@/data/repositories/settings.repo';
@@ -673,6 +674,18 @@ export default function SettingsPage(): JSX.Element {
             </div>
           </dl>
         </SettingsSection>
+        {/*
+          Diagnostic, not a setting — and it lives here because Settings is
+          where a tool you reach for twice a year belongs. It reads only what is
+          typed into it and writes nothing anywhere.
+        */}
+        <SettingsSection
+          title="Periksa hasil salin"
+          description="Cari karakter yang berubah jadi ? di SIMGOS."
+        >
+          <PasteInspector />
+        </SettingsSection>
+
         {restored ? (
           <p
             role="status"

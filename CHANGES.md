@@ -1,5 +1,315 @@
 # Plano — CHANGES
 
+## `2026-09-10.7`
+
+**Free canvas, stage 3: Rapikan, with undo. The canvas feature is complete.**
+
+### Why the gap needed a button rather than a rule
+
+A free canvas cannot close its own gaps. Discharge a patient from the middle of
+an arranged board and the hole stays — and the alternative, cards sliding up on
+their own, is the board rearranging itself after a deliberate act, which is the
+exact behaviour `Urutan sendiri` exists to escape. So the hole is real by
+design, and the answer is a press at a moment the user chose.
+
+### It closes gaps in your arrangement rather than replacing it
+
+`tidy` sorts by **reading order** — top to bottom, left to right within a band
+— not by the underlying board order. Tidying by list order would throw the
+arrangement away and call it cleaning. The band tolerance (half a row step)
+exists because two cards side by side are never at exactly the same `y`, and
+sorting on raw `y` would interleave columns the eye reads as one row.
+
+Widths and height caps carry through untouched. They were set deliberately and
+are not what "tidy" means. A card too wide for the remaining space wraps to the
+next row before it is placed, not after, so nothing is left hanging off the
+right edge.
+
+### Undo, because there is no other copy
+
+Rapikan overwrites every position at once, and those positions are the only
+record of work done by hand — nothing reconstructs them. **Urungkan** restores
+the layout as it was before the press.
+
+Held in memory, not storage, and cleared on use: undo is for the ten seconds
+after the press. An "Urungkan" still sitting there tomorrow would be offering
+to revert an arrangement that has since been worked on.
+
+```
+1055 tests passed (was 1050 — 5 added on tidy)
+typecheck / lint / check:version / check:contrast / check:a11y / build — clean
+```
+
+### Canvas, as shipped
+
+| Stage | |
+|---|---|
+| 1 (`.5`) | Drag anywhere; fractional x/w so a layout survives a resize; localStorage; auto-placement that never buries a new patient |
+| 2 (`.6`) | Width grip and height cap; over-drag removes the cap rather than setting a large one; fade only when actually clipped |
+| 3 (`.7`) | Rapikan + Urungkan |
+
+**Deliberately not done:** phones render the masonry board, not the canvas. A
+360 px canvas is one column, which makes "where you put it" a list with your
+desktop gaps preserved as dead space. Layouts remain per-device; swapping
+`readLayouts`/`writeLayouts` for Firestore is the only change if that turns out
+to be wrong.
+
+---
+
+## `2026-09-10.6`
+
+**Free canvas, stage 2: card width and height cap.**
+
+Two grips on every card in **Urutan sendiri**, visible on hover: a vertical
+strip on the right edge for width, a horizontal one on the bottom for the
+height cap. Double-click either to reset that axis.
+
+**Two grips, not one corner.** A corner handle changes both dimensions in one
+gesture, so setting a width you like also nudges a cap you had already set —
+and in a horizontal drag most of the vertical movement is unintentional. One
+axis per grip means the gesture cannot do something you did not ask for.
+
+**Dragging the bottom edge past the end of the content removes the cap** rather
+than setting a large one. `hMax: 900` on a card whose content is 400 tall
+behaves exactly like no cap — until the note grows past 900 and it silently
+starts clipping something you believed you had uncapped. The two states look
+identical the day they are set and differ a week later, so the ambiguity is
+resolved at the moment of the gesture instead of being left in the data.
+
+**The fade is drawn only when the card is actually clipped.** Natural height is
+measured with `scrollHeight` (a bounding rect reports the *clamped* height —
+the number being compared against). A permanent fade under every capped card
+would claim there is more below on cards where there is not, and a signal that
+is sometimes false stops being read. Tapping the fade expands that card
+temporarily; the expansion is **not** persisted, because "show me the rest of
+this now" is a different act from "this card should be this tall".
+
+**Minimum cap is 120 px** — roughly the header plus one line. Below that a card
+no longer says which patient it is, which is worse than no card, because it
+still occupies the place you expect to find them.
+
+**Gesture arithmetic moved to the domain** as `applyGesture`, and is now
+tested: the clamp that keeps a card on the canvas, the minimum width, the
+uncap threshold. None of that is visible in a screenshot — a card that ends up
+one pixel off-canvas looks fine until it is the card you needed.
+
+```
+1050 tests passed (was 1042 — 8 added on the gesture arithmetic)
+typecheck / lint / check:version / check:contrast / check:a11y / build — clean
+```
+
+**Still not done:** no "Rapikan" — discharging a patient from the middle leaves
+a permanent hole, and closing it automatically would be the board rearranging
+itself after a deliberate act. That is stage 3. Phones still render masonry.
+
+---
+
+## `2026-09-10.5`
+
+**"Periksa hasil salin" diagnostic added; free canvas board, stage 1.**
+
+### The `?`: a second clean capture, so the guessing stops
+
+The text captured this session — copied from the SIMGOS preview box — was
+checked byte by byte: **5560 bytes, zero non-ASCII characters, zero `?`.** It
+also shows ` derajat ` where a `°` would have been, which proves `foldToAscii`
+ran on it. That is the second clean capture. Whatever introduces the `?` is
+downstream of Plano's clipboard output, and a fifth reasoned fix in here would
+be a fifth guess.
+
+So this ships an instrument instead: **Pengaturan → Periksa hasil salin.**
+
+- Box 1 audits what Plano produced: every non-ASCII character with its code
+  point and line:column, plus any literal `?`.
+- Box 2 takes the text pasted into SIMGOS *and copied back out*, and diffs the
+  two — newline conversion normalised, because Windows turns every `\n` into
+  `\r\n` and a diff that flagged that would flag every line.
+
+The `?` count is reported **separately** from the non-ASCII count, and that
+distinction is the diagnostic. A non-ASCII character is something Plano put on
+the clipboard and could fix. A `?` is already ASCII — nothing downstream turns
+it back — so finding one in box 1 means the substitution happened before the
+text arrived, and finding one only in box 2 means SIMGOS did it.
+
+### Free canvas, stage 1 — drag a card anywhere
+
+New: `canvasLayout.ts` (model + storage) and `CanvasBoard.tsx` (surface +
+gesture). Active only under **Urutan sendiri**, and only at `lg` and above.
+
+**Coordinates.** `x` and `w` are fractions of canvas width; `y` is pixels. A
+card remembered at `x: 640px` is in a different place on every screen — a
+fraction means "40% across", which is what the arrangement actually means and
+survives a window resize with nothing re-running. The vertical axis is not like
+that: the canvas scrolls, so there is no height to be a fraction of, and the
+distance between two stacked cards is a real distance rather than a proportion.
+
+**Storage is localStorage**, keyed by patient id — a change from what was
+proposed last session, and matching what `customIds` already does. An
+arrangement is a view preference, not a fact about the patient; keeping it out
+of Firestore means dragging writes nothing to the server and cannot conflict
+mid-round. The cost is that a layout built on one machine is not the layout on
+another — already true of `Urutan sendiri` today, so not a regression. Only
+`readLayouts`/`writeLayouts` change if that turns out to be the wrong trade.
+
+**Auto-placement, not persisted.** A card nobody has dragged flows into the
+default grid, skipping any slot that overlaps a hand-placed card — because an
+unplaced card is a patient admitted since the board was arranged, and landing
+underneath an existing card makes them invisible and reads as never having been
+created. Overlap between two cards the *user* placed is left alone: that is
+what a free canvas is.
+
+**Only handle-dragging.** The card is a `<Link>`; a drag starting anywhere on
+it races the navigation on every tap. A strip above the card means tapping
+still opens the patient.
+
+**Not done, and why:**
+- **Resize (width + height cap) is stage 2.** `hMax` is already in the stored
+  shape so that arriving does not migrate a layout somebody arranged by hand.
+- **Phones keep the masonry.** A canvas scaled to 360 px renders every card as
+  an unreadable thumbnail, and one column makes "where you put it" a list with
+  your desktop gaps preserved as dead space. This is where option B cannot be
+  honoured literally.
+- **No "Rapikan".** Discharging a patient from the middle leaves a permanent
+  hole; that is stage 3.
+- Canvas height is assumed from `ROW_STEP` rather than measured per card.
+  Generous padding covers it; measuring means every card reporting its height
+  on every content change.
+
+```
+1042 tests passed (was 1027 — 15 added across the inspector and the layout model)
+typecheck / lint / check:version / check:contrast / check:a11y / build — clean
+```
+
+---
+
+## `2026-09-10.4`
+
+**Mobile header and board toolbar no longer overflow the right edge.**
+
+### Root cause: a row whose fixed cost grew with every feature
+
+Both rows had the same shape — one non-wrapping flex line, one flexible child,
+everything else `shrink-0`.
+
+*Patient header:* back, a `flex-1` title, then Lab + Pembuka + Salin + ⇄ + ⋯.
+On a 360 px phone those buttons and their gaps exceed 360 px **on their own**,
+before the title is given a pixel. The title had already shrunk to nothing, so
+there was nothing left to give and the row ran off the edge. Every feature
+added to this header made it worse, and nothing in the layout could ever push
+back.
+
+Fix: the header's action cost is now **fixed**, not a function of how many
+features exist. Below `sm` it keeps only what is irreducible — where am I
+(back, title), what this screen is for (Salin), and everything else (⋯). Lab,
+Pembuka and Bandingkan hari now appear in the ⋯ sheet **at every width**, not
+only on mobile: a control that exists at one screen size and not another is a
+control nobody learns. Nothing became unreachable.
+
+*Board toolbar:* four order chips, a rule, then Format lab + Pilih. The chips
+alone are wider than a phone, and because the actions sat last and were
+`shrink-0`, **the actions were what got pushed off** — the two controls that
+are always needed, while the chips (one of which is selected and already
+visible) kept their space.
+
+Fix: two boxes, because the halves overflow differently. The order chips are a
+list and can scroll; the actions are fixed and must not. The chip strip takes
+the leftover width with `overflow-x-auto`, the actions keep theirs at every
+size. `min-w-0` on the scroller is load-bearing — a flex child's default
+`min-width: auto` refuses to shrink below its content, which is how a nested
+scroller ends up never scrolling and widening the page instead.
+
+```
+1027 tests passed
+typecheck / lint / check:version / check:contrast / check:a11y / build — clean
+```
+
+**Not done:** the `?` fix shipped in `2026-09-10.3` does not cover the workflow
+described this session (selecting text inside the Salin preview box). See the
+notes for that release — the polarity change is still correct for every copy
+made outside the sheet, but it is not the cause of the reported `?`. No further
+guess has been made without the raw clipboard text.
+
+---
+
+## `2026-09-10.3`
+
+**Day-counter banner now points at the counters; ASCII folding no longer
+depends on which screen is open.**
+
+### The banner named the counters and hid where they were
+
+`findDayMarkers` returned `{ text, value }` and threw away `match.index`. With
+no position, the banner could only list what it found — `H-2, H-3, hari ke-9`
+— so it answered *how many* and left *where* to a manual scan of a forty-line
+carried-forward note, with the counters scattered through the italic opening
+and the therapy list and two of them reading the same.
+
+- `DayMarker` now carries `start`/`end`, plus `findDayMarker(body, text, n)`
+  and `countDayMarker(body, text)`.
+- Each counter in the banner is a **button**. Pressing it selects that counter
+  in the editor and scrolls it into view, so the number is highlighted and one
+  keystroke from being replaced.
+- Repeats cycle: a counter appearing three times shows `×3` and walks the
+  occurrences on repeated presses, wrapping rather than stopping at the last.
+- A counter that no longer appears in the note is struck through and inert. It
+  does **not** dismiss the banner — editing a number proves the user looked at
+  it, not that the new number is right. "Sudah" is still by hand.
+
+Positions are **not stored**. The stale list is captured at carry-forward and
+the note is edited afterwards, so every character typed above a counter moves
+it; a remembered offset points at the wrong text by the time anyone presses.
+The search runs against the live body at press time instead.
+
+`BodyEditor` gained one imperative method, `selectRange`, through an opt-in
+`handleRef`. It reuses the existing `revealCaret` — which measures the true
+wrapped position through the section mirror — rather than computing its own,
+because two opinions about where a line is disagree on exactly the long notes
+this is for.
+
+### The `?` in SIMGOS: folding was opt-in, so it was off almost everywhere
+
+Confirmed this session that the `?` appears **only after pasting into SIMGOS**,
+never in Plano's own preview. That rules out the formatters — `toPlain` cannot
+emit a `?`; it deletes non-ASCII — and points at the one copy path with no
+formatter on it.
+
+Root cause: `useSanitizedCopy` folds to ASCII only when `simgosPreview` is
+true, and the *only* thing that ever set that flag was the Salin sheet, open,
+on the plain tab. Every other copy in the app — selecting text in the note
+editor, in a document, on the board — reached the clipboard unfolded. So the
+guarantee held on one screen and silently did not hold anywhere else. The
+decision was bound to **which sheet was open**, not to where the text was
+going.
+
+The polarity is now inverted:
+
+| | Before | Now |
+|---|---|---|
+| Default for any manual copy | no fold | **fold to ASCII** |
+| Exception | folding, on the plain tab | not folding, while a WhatsApp/markdown preview is open |
+
+`simgosPreview` → `nonAsciiPreview`. The two mistakes are not symmetrical:
+folding text that did not need it costs `°C` becoming ` derajat C` in a
+WhatsApp message; not folding text that did costs a `?` in the medical record,
+invisible until someone else reads it. The safe direction is the default, and
+the exception has to be declared.
+
+**If a `?` still appears after this**, the remaining path is outside Plano: a
+copy taken from WhatsApp Web or Telegram Desktop on the ward PC and pasted from
+there, where the clipboard is theirs, not ours. That is distinguishable — it
+would happen only on notes that went through a chat app first.
+
+**Not done:** no toast or visible warning when a copy still contains non-ASCII.
+The app has no toast system and adding one for this is a bigger change than the
+fix. The `findNonAsciiChars` warning inside the Salin sheet is unchanged.
+
+```
+1027 tests passed (was 1022 — 5 added on the jump targets)
+typecheck / lint / check:version / check:contrast / check:a11y / build — clean
+```
+
+---
+
 ## `2026-09-10.2`
 
 **Discharge marker moved to the card corner as a car chip; patient names no

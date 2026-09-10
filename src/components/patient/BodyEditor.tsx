@@ -1,4 +1,12 @@
-import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
+import {
+  useCallback,
+  useEffect,
+  useImperativeHandle,
+  useLayoutEffect,
+  useRef,
+  useState,
+} from 'react';
+import type { MutableRefObject } from 'react';
 
 import {
   BOLD,
@@ -25,6 +33,24 @@ import { SNIPPETS, insertSnippet } from '@/domain/format/snippets';
 /**
  * Everything that decides where a line wraps. Shared verbatim with SectionBands.
  */
+/**
+ * What the page outside the editor is allowed to do to it.
+ *
+ * One method, and it is the one nothing outside a textarea can do for itself:
+ * put the caret on a specific range of the stored text and bring it on screen.
+ * Anything expressible as a prop stays a prop — an imperative surface is a
+ * second way to drive the same component, and two ways to drive one thing is
+ * how they drift apart.
+ */
+export interface BodyEditorHandle {
+  /**
+   * Select `[start, end)` of the body, focus the editor and scroll it into
+   * view. Offsets are into the CURRENT value; the caller is responsible for
+   * having computed them against that string and not an older one.
+   */
+  selectRange: (start: number, end: number) => void;
+}
+
 export const METRICS =
   'whitespace-pre-wrap break-words px-4 py-3 text-[15px] leading-7 font-sans tracking-normal';
 
@@ -40,6 +66,7 @@ export function BodyEditor({
   snippets = true,
   minHeightClass = 'min-h-[55vh]',
   watermark,
+  handleRef,
 }: {
   value: string;
   onChange: (next: string) => void;
@@ -74,6 +101,11 @@ export function BodyEditor({
    */
   watermark?: { name: string; mrn: string; date: string; opacity?: number } | undefined;
   placeholder: string;
+  /**
+   * Imperative escape hatch, opt-in. Absent for every editor that has no
+   * reason to be driven from outside — the jaga note, the read-only views.
+   */
+  handleRef?: MutableRefObject<BodyEditorHandle | null> | undefined;
 }): JSX.Element {
   const ref = useRef<HTMLTextAreaElement>(null);
 
@@ -290,6 +322,46 @@ export function BodyEditor({
       behavior: 'smooth',
     });
   }, []);
+
+  /**
+   * Put the caret on a range of the body and bring it on screen.
+   *
+   * `revealCaret` rather than a bespoke scroll: it already measures the true
+   * wrapped position through the mirror, and it already leaves the page alone
+   * when the target is on screen. Reimplementing either would give this path
+   * its own opinion about where a line is, and the two would disagree on long
+   * notes — which is exactly the bug the measured version was written to fix.
+   *
+   * The range is SELECTED, not just scrolled to. The reason to jump to a day
+   * counter is to change the number, and a selected number is one keystroke
+   * from being replaced. Scrolling to it and leaving the caret elsewhere would
+   * have arrived at the destination and then asked the user to tap again.
+   *
+   * Read-only editors get the selection and the scroll but nothing to type
+   * into, which is correct: on a locked note this is still the fastest way to
+   * see where a counter is.
+   */
+  const selectRange = useCallback(
+    (start: number, end: number) => {
+      const node = ref.current;
+      if (!node) return;
+
+      // Clamped, never trusted. The offsets are computed elsewhere against a
+      // string this component cannot prove is the one it currently holds, and
+      // `setSelectionRange` past the end silently collapses to the end — a
+      // caret parked at the bottom of the note with no explanation.
+      const max = node.value.length;
+      const from = Math.max(0, Math.min(start, max));
+      const to = Math.max(from, Math.min(end, max));
+
+      node.focus({ preventScroll: true });
+      node.setSelectionRange(from, to);
+      revealCaret(node);
+    },
+    [revealCaret],
+  );
+
+  useImperativeHandle(handleRef, () => ({ selectRange }), [selectRange]);
 
   const applyEdit = useCallback(
     (edit: TextEdit) => {

@@ -4,6 +4,8 @@ import { useNavigate } from 'react-router-dom';
 import { AppShell } from '@/components/common/AppShell';
 import { FilterBar } from '@/components/board/FilterBar';
 import { DenahView } from '@/components/board/DenahView';
+import { CanvasBoard } from '@/components/board/CanvasBoard';
+import { useMediaQuery } from '@/hooks/useMediaQuery';
 import { MasonryGrid, MasonryItem } from '@/components/board/MasonryGrid';
 import { LabSheet } from '@/components/patient/LabSheet';
 import { copyText } from '@/lib/clipboard';
@@ -272,6 +274,15 @@ export default function BoardPage(): JSX.Element {
     window.addEventListener('pointercancel', onUp);
   };
 
+  /**
+   * Is there room for a canvas at all?
+   *
+   * `lg` is where the masonry itself goes to three columns, which is the point
+   * at which arranging cards side by side becomes a thing you can do rather
+   * than a thing you can describe.
+   */
+  const canvasWidth = useMediaQuery('(min-width: 1024px)');
+
   const debouncedQuery = useDebouncedValue(query, 150);
 
   /**
@@ -422,30 +433,53 @@ export default function BoardPage(): JSX.Element {
 
       {/* Walking order. Labels say what the order IS, not what it sorts by:
           "Sesuai denah" is the thing a resident recognises. */}
-      <div className="flex gap-2 px-4 pb-2">
-        {(
-          [
-            ['recent', 'Terbaru'],
-            ['location', 'Denah'],
-            ['dpjp', 'Per DPJP'],
-            ['custom', 'Urutan sendiri'],
-          ] as Array<[BoardOrder, string]>
-        ).map(([value, label]) => (
-          <button
-            key={value}
-            type="button"
-            aria-pressed={order === value}
-            onClick={() => changeOrder(value)}
-            className={[
-              'min-h-tap rounded-full border px-3 text-xs',
-              order === value
-                ? 'border-accent bg-bg-subtle font-medium text-accent'
-                : 'border-border text-fg-muted',
-            ].join(' ')}
-          >
-            {label}
-          </button>
-        ))}
+      {/*
+        TWO BOXES, because the two halves of this row overflow differently.
+
+        It used to be one non-wrapping flex row: four order chips, then a rule,
+        then Format lab and Pilih. On a 360 px phone the four chips alone are
+        wider than the screen, and since the actions sat last and were
+        `shrink-0`, they were the first thing pushed off the right edge — so
+        the only two controls in the row that are always needed were the two
+        that disappeared, while the chips (one of which is already selected and
+        visible) kept their space.
+
+        The order chips are a LIST and can scroll; the actions are FIXED and
+        must not. Splitting them says exactly that: the chip strip takes the
+        leftover width and scrolls inside it, and the actions keep their own
+        width at every screen size.
+
+        `min-w-0` on the scroller is load-bearing — a flex child's default
+        `min-width: auto` refuses to shrink below its content, which is how a
+        nested `overflow-x-auto` ends up never scrolling and widening the page
+        instead.
+      */}
+      <div className="flex items-center gap-2 px-4 pb-2">
+        <div className="flex min-w-0 flex-1 gap-2 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+          {(
+            [
+              ['recent', 'Terbaru'],
+              ['location', 'Denah'],
+              ['dpjp', 'Per DPJP'],
+              ['custom', 'Urutan sendiri'],
+            ] as Array<[BoardOrder, string]>
+          ).map(([value, label]) => (
+            <button
+              key={value}
+              type="button"
+              aria-pressed={order === value}
+              onClick={() => changeOrder(value)}
+              className={[
+                'min-h-tap shrink-0 rounded-full border px-3 text-xs',
+                order === value
+                  ? 'border-accent bg-bg-subtle font-medium text-accent'
+                  : 'border-border text-fg-muted',
+              ].join(' ')}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
 
         {/*
           Squared, filled, and separated by a rule — because these two are NOT
@@ -457,7 +491,7 @@ export default function BoardPage(): JSX.Element {
           them read as two more sort options that happened never to be
           selected, which is why they were invisible as actions.
         */}
-        <span aria-hidden="true" className="ml-auto h-5 w-px shrink-0 bg-border" />
+        <span aria-hidden="true" className="h-5 w-px shrink-0 bg-border" />
         <button
           type="button"
           onClick={() => setLabOpen(true)}
@@ -551,6 +585,41 @@ export default function BoardPage(): JSX.Element {
               patients={cards.map((card) => card.patient)}
               today={today}
               showInitialsOnly={settings.privacy.boardShowInitialsOnly}
+            />
+          ) : cards.length > 0 && order === 'custom' && canvasWidth ? (
+            /*
+              THE FREE CANVAS, and why it is only here.
+
+              `custom` is the one order that means "I decided where these go",
+              so it is the only one where a hand position is not immediately
+              contradicted by a sort. On `Terbaru` or `Denah` a dragged card
+              would move back the moment anything changed, which teaches the
+              user the drag does not work.
+
+              Below `lg` the masonry renders instead. A canvas needs room for
+              cards to be beside each other, and a phone has room for one
+              column — where "where you put it" degenerates into a list, and a
+              worse one, because the gaps arranged on a desktop survive as dead
+              space you scroll through.
+            */
+            <CanvasBoard
+              enabled
+              ids={cards.map((card) => card.patient.id)}
+              // Note strips are forced open in canvas mode by the same rule as
+              // masonry; the card is the same component either way.
+              items={cards.map((card) => (
+                <PatientCard
+                  key={card.patient.id}
+                  card={card}
+                  noteExpanded={noteOpen(card.patient)}
+                  onToggleNote={toggleNote}
+                  onLongPress={setQuickPatientId}
+                  selectable={selecting}
+                  checked={selected.has(card.patient.id)}
+                  onToggleSelected={toggleSelected}
+                  onPreview={selecting ? undefined : setPreviewId}
+                />
+              ))}
             />
           ) : cards.length > 0 ? (
             groups.map((group) => (

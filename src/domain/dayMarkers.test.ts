@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs';
 
 import { describe, expect, it } from 'vitest';
 
-import { bumpDayMarkers, daysBetween, findDayMarkers } from './dayMarkers';
+import { bumpDayMarkers, countDayMarker, daysBetween, findDayMarker, findDayMarkers } from './dayMarkers';
 import type { ClinicalDate } from './types';
 
 describe('findDayMarkers', () => {
@@ -143,5 +143,41 @@ describe('what the reminder lists', () => {
     const body = 'Ceftriaxone (H-3)\nMeropenem (H-3)\nLevofloxacin (H-3)';
     const listed = [...new Set(findDayMarkers(body).map((marker) => marker.text.trim()))];
     expect(listed).toEqual(['H-3']);
+  });
+});
+
+describe('findDayMarker — jump targets', () => {
+  it('reports the offsets of the text it matched', () => {
+    const body = 'A: post PPM H-2\nP: Ceftriaxone (H-3)';
+    const [first] = findDayMarkers(body);
+    expect(body.slice(first!.start, first!.end)).toBe(first!.text);
+  });
+
+  it('finds a counter inside italics, where the underscore is hard against it', () => {
+    const body = '_Paska tindakan CABG hari ke-9_';
+    const hit = findDayMarker(body, 'hari ke-9');
+    expect(hit).not.toBeNull();
+    expect(body.slice(hit!.start, hit!.end)).toBe('hari ke-9');
+  });
+
+  it('matches across the spacing the corpus actually writes', () => {
+    // The list is built from one note and pressed against another after edits;
+    // a space typed into `H-3` must not make the chip inert.
+    expect(findDayMarker('post PPM H - 3', 'H-3')).not.toBeNull();
+    expect(findDayMarker('post PPM h-3', 'H-3')).not.toBeNull();
+  });
+
+  it('cycles through repeats and wraps, rather than stopping at the last', () => {
+    const body = 'H-3 di sini\ndan H-3 di sana';
+    const first = findDayMarker(body, 'H-3', 0);
+    const second = findDayMarker(body, 'H-3', 1);
+    const wrapped = findDayMarker(body, 'H-3', 2);
+    expect(second!.start).toBeGreaterThan(first!.start);
+    expect(wrapped!.start).toBe(first!.start);
+  });
+
+  it('returns null once the counter has been edited away', () => {
+    expect(findDayMarker('post PPM H-4', 'H-3')).toBeNull();
+    expect(countDayMarker('post PPM H-4', 'H-3')).toBe(0);
   });
 });

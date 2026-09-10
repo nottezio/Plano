@@ -49,7 +49,9 @@ export function AppShell({
    * them would work in the places someone remembered to wire it and fail
    * silently everywhere else, which is indistinguishable from it not working.
    */
-  useSanitizedCopy(useUI((state) => state.simgosPreview));
+  // Folded UNLESS a non-ASCII-tolerant preview is on screen. See
+  // `nonAsciiPreview` for why the default sits on this side.
+  useSanitizedCopy(!useUI((state) => state.nonAsciiPreview));
   const initialsOnly = useSession((state) => state.settings().privacy.boardShowInitialsOnly);
 
   /**

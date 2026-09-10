@@ -25,15 +25,24 @@ interface UIState {
   registerFlush: (key: string, flush: () => void) => () => void;
   flushAll: () => void;
   /**
-   * True while a SIMGOS-targeted preview is the thing on screen.
+   * True while a preview that is ALLOWED to carry non-ASCII is on screen —
+   * WhatsApp or markdown, never SIMGOS.
    *
-   * Read by the copy sanitiser to decide whether to fold to ASCII. Folding is
-   * right for SIMGOS, which prints every non-ASCII glyph as `?`, and wrong for
-   * WhatsApp, where `°C` renders correctly — so it cannot be a global rule and
-   * has to follow what is actually being looked at.
+   * INVERTED from the flag it replaces (`simgosPreview`), and the polarity is
+   * the whole point. Folding used to be opt-in, switched on only while the
+   * Salin sheet was open on the plain tab, so ASCII was guaranteed on exactly
+   * one screen out of the app. Text selected anywhere else — the note editor,
+   * a document, the board — went to the clipboard unfolded, and pasting that
+   * into SIMGOS is the `?` that has been reported for three releases.
+   *
+   * The two mistakes are not symmetrical. Folding text that did not need it
+   * costs `°C` becoming ` derajat C` in a WhatsApp message. Not folding text
+   * that did costs a `?` in the medical record, invisible until someone else
+   * reads it. So the safe direction is the default and the exception is what
+   * has to be declared.
    */
-  simgosPreview: boolean;
-  setSimgosPreview: (on: boolean) => void;
+  nonAsciiPreview: boolean;
+  setNonAsciiPreview: (on: boolean) => void;
   /**
    * The reporting format expected for the patient currently open.
    *
@@ -119,8 +128,8 @@ function readStoredTheme(): ThemePreference {
 }
 
 export const useUI = create<UIState>((set, get) => ({
-  simgosPreview: false,
-  setSimgosPreview: (on) => set({ simgosPreview: on }),
+  nonAsciiPreview: false,
+  setNonAsciiPreview: (on) => set({ nonAsciiPreview: on }),
   theme: readStoredTheme(),
   dpjpHint: null,
   setDpjpHint: (dpjpHint) => set({ dpjpHint }),

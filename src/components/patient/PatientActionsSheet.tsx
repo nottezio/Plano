@@ -30,12 +30,30 @@ export function PatientActionsSheet({
   onOpenChange,
   patient,
   onAddShiftNote,
+  onLab,
+  onOpening,
+  onCompare,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   patient: Patient;
   /** Adds an empty shift note to the day on screen. Absent when the day is locked. */
   onAddShiftNote?: (() => void) | undefined;
+  /*
+   * The three header actions that no longer fit on a phone.
+   *
+   * Listed here ALWAYS, not only below the breakpoint. A control that exists
+   * on one screen width and not another is a control nobody learns, and this
+   * sheet is where "everything else you can do to this patient" already
+   * lives — the header buttons are the shortcut, not the home.
+   *
+   * Each is optional for the same reason `onAddShiftNote` is: on a locked day
+   * there is nothing to open a lab sheet or an opening block for, and an
+   * inert row is worse than an absent one.
+   */
+  onLab?: (() => void) | undefined;
+  onOpening?: (() => void) | undefined;
+  onCompare?: (() => void) | undefined;
 }): JSX.Element {
   const today = useClinicalToday();
   const planned = migrateLegacyDischarge(patient, today);
@@ -78,6 +96,39 @@ export function PatientActionsSheet({
           occasional; reading one is not, so the BOXES are always visible once
           they exist and only the button is behind a tap.
         */}
+        {onLab ? (
+          <Action
+            label="Format lab"
+            detail="Susun hasil lab jadi satu baris."
+            onClick={() => {
+              close();
+              onLab();
+            }}
+          />
+        ) : null}
+
+        {onOpening ? (
+          <Action
+            label="Pembuka"
+            detail="Sisipkan blok pembuka di awal catatan."
+            onClick={() => {
+              close();
+              onOpening();
+            }}
+          />
+        ) : null}
+
+        {onCompare ? (
+          <Action
+            label="Bandingkan hari"
+            detail="Lihat catatan hari ini berdampingan dengan hari sebelumnya."
+            onClick={() => {
+              close();
+              onCompare();
+            }}
+          />
+        ) : null}
+
         {onAddShiftNote ? (
           <Action
             label="Tambah SOAP jaga"

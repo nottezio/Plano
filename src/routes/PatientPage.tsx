@@ -1,7 +1,7 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState, useRef } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 
-import { BodyEditor } from '@/components/patient/BodyEditor';
+import { BodyEditor, type BodyEditorHandle } from '@/components/patient/BodyEditor';
 import { CopySheet } from '@/components/copy/CopySheet';
 import { ChecklistPills } from '@/components/patient/ChecklistPills';
 import { CompareSheet } from '@/components/patient/CompareSheet';
@@ -29,7 +29,7 @@ import { archiveSummary } from '@/domain/archive';
 import { fillPatientFromNote } from '@/data/repositories/patients.repo';
 import { parsePatientFacts } from '@/domain/parsePatient';
 import { carryForward, carryForwardSummary } from '@/domain/carryForward';
-import { daysBetween as dayGap, findDayMarkers } from '@/domain/dayMarkers';
+import { countDayMarker, daysBetween as dayGap, findDayMarker, findDayMarkers } from '@/domain/dayMarkers';
 import { formatLocation } from '@/domain/identity';
 import { isIgdEntry } from '@/domain/clinicalDate';
 import { insertIntoObjective } from '@/domain/lab/parseLab';
@@ -101,6 +101,22 @@ export default function PatientPage(): JSX.Element {
    * not an arithmetic one.
    */
   const [staleMarkers, setStaleMarkers] = useState<string[] | null>(null);
+
+  /**
+   * The editor, for the one thing the banner cannot do through props: put the
+   * caret on a counter and scroll it into view.
+   */
+  const editorHandle = useRef<BodyEditorHandle | null>(null);
+
+  /**
+   * Which occurrence of each counter the next press should go to.
+   *
+   * A ref, not state: pressing the chip must not re-render the page it is
+   * scrolling, and nothing on screen reads this — the chip shows how many
+   * there are, never which one you are on. Numbering them would ask the user
+   * to track a position they did not choose.
+   */
+  const markerCursor = useRef<Record<string, number>>({});
   const [trailOpen, setTrailOpen] = useState(false);
   /** Which revision the trail should open expanded, when reached from a chip. */
   const [trailFocus, setTrailFocus] = useState<string | null>(null);
@@ -431,6 +447,40 @@ export default function PatientPage(): JSX.Element {
    * days in between, and "yesterday was empty so there is nothing to copy" is
    * wrong in exactly the situation where retyping hurts most.
    */
+  /**
+   * How many times each listed counter still appears, in the note as it is now.
+   *
+   * Computed from the DEBOUNCED body, not `editor.value`: this runs a regex
+   * over the whole note, and running it on every keystroke is the mobile lag
+   * this app has fought before. Four hundred milliseconds late is invisible
+   * for a badge that only has to be right by the time you look at it.
+   */
+  const markerCounts = useMemo<Record<string, number>>(() => {
+    if (!staleMarkers) return {};
+    return Object.fromEntries(
+      staleMarkers.map((text) => [text, countDayMarker(settledBody, text)]),
+    );
+  }, [staleMarkers, settledBody]);
+
+  /**
+   * Go to a counter, searching the LIVE body rather than a stored position.
+   *
+   * The stale list is made at carry-forward and the note is edited afterwards,
+   * so any offset captured then points somewhere else by now — every character
+   * typed above a counter moves it. Searching by text at press time cannot go
+   * stale, and costs one regex pass on a deliberate tap.
+   */
+  const jumpToMarker = (text: string): void => {
+    const cursor = markerCursor.current[text] ?? 0;
+    const hit = findDayMarker(editor.value, text, cursor);
+    // Gone since the list was made. The chip for it is already struck through;
+    // doing nothing is right, and doing something would mean guessing which
+    // other counter was meant.
+    if (!hit) return;
+    markerCursor.current[text] = cursor + 1;
+    editorHandle.current?.selectRange(hit.start, hit.end);
+  };
+
   const applyCarryForward = (): void => {
     if (!patientId) return;
 
@@ -651,11 +701,28 @@ export default function PatientPage(): JSX.Element {
             */}
           </div>
 
+          {/*
+            THE HEADER'S ACTION COST IS NOW FIXED, and that is the whole fix.
+
+            This row is: back button, a `flex-1` title, then N buttons that are
+            all `shrink-0`. On a 360 px phone those buttons — Lab, Pembuka,
+            Salin, ⇄, ⋯ — plus their gaps came to more than 360 px on their
+            own, before the title was given a single pixel. The title had
+            already shrunk to nothing, so there was nothing left to give and
+            the row ran off the right edge.
+
+            Widening nothing fixes that; the row's fixed cost has to stop
+            growing with the number of features. Below `sm` the header keeps
+            only what is irreducible — where am I (back, title), the thing this
+            screen is for (Salin), and everything else (⋯) — and the three
+            hidden actions are listed in the ⋯ sheet, where they are also
+            listed on desktop. Nothing becomes unreachable at any width.
+          */}
           {!locked ? (
             <button
               type="button"
               onClick={() => setLabOpen(true)}
-              className="min-h-tap shrink-0 rounded-lg border border-border px-3 text-xs font-medium"
+              className="hidden min-h-tap shrink-0 rounded-lg border border-border px-3 text-xs font-medium sm:block"
             >
               Lab
             </button>
@@ -665,7 +732,7 @@ export default function PatientPage(): JSX.Element {
               type="button"
               onClick={() => setOpeningOpen(true)}
               disabled={editor.value.trim().length === 0}
-              className="min-h-tap shrink-0 rounded-lg border border-border px-3 text-xs font-medium disabled:opacity-40"
+              className="hidden min-h-tap shrink-0 rounded-lg border border-border px-3 text-xs font-medium disabled:opacity-40 sm:block"
             >
               Pembuka
             </button>
@@ -691,7 +758,7 @@ export default function PatientPage(): JSX.Element {
             onClick={() => setCompareOpen(true)}
             aria-label="Bandingkan dengan hari sebelumnya"
             title="Bandingkan hari"
-            className="min-h-tap min-w-tap shrink-0 text-fg-faint"
+            className="hidden min-h-tap min-w-tap shrink-0 text-fg-faint sm:block"
           >
             <span aria-hidden="true">⇄</span>
           </button>
@@ -1016,9 +1083,60 @@ export default function PatientPage(): JSX.Element {
         {carrySummary ? <Banner tone="muted">{carrySummary}</Banner> : null}
         {staleMarkers ? (
           <Banner tone="warn">
-            <span className="flex-1">
-              Perbarui hitungan hari — disalin dari catatan yang lebih lama:{' '}
-              <b>{staleMarkers.join(', ')}</b>
+            {/*
+              Each counter is a BUTTON that takes you to it, not a word in a
+              sentence.
+
+              Naming them (`H-2, H-3, hari ke-9`) answered how many and left
+              where — and where is the expensive half. A carried-forward note
+              runs to forty lines, the counters are scattered through the
+              italic opening and the therapy list, and two of them read the
+              same. Every press of "Sudah" was preceded by a manual scan.
+
+              The press SELECTS the counter rather than scrolling near it, so
+              the number is already highlighted and the correction is one
+              keystroke. Repeated presses walk the occurrences when a counter
+              appears more than once — the chip says how many, and cycling is
+              why the count is worth showing.
+
+              A chip whose counter no longer appears in the note is struck
+              through and inert: it has been edited since the list was made.
+              That is shown, not removed, and it does not dismiss the banner —
+              editing a number is evidence the user looked at it, not proof the
+              number is now right, and only the user can say that.
+            */}
+            <span className="flex flex-1 flex-wrap items-center gap-x-1 gap-y-1">
+              <span>Perbarui hitungan hari — disalin dari catatan yang lebih lama:</span>
+              {staleMarkers.map((text) => {
+                const remaining = markerCounts[text] ?? 0;
+                if (remaining === 0) {
+                  return (
+                    <span
+                      key={text}
+                      title="Sudah diubah sejak daftar ini dibuat"
+                      className="rounded px-1 font-semibold line-through opacity-60"
+                    >
+                      {text}
+                    </span>
+                  );
+                }
+                return (
+                  <button
+                    key={text}
+                    type="button"
+                    onClick={() => jumpToMarker(text)}
+                    title={
+                      remaining > 1
+                        ? `Tampilkan ${text} di catatan (${remaining} tempat)`
+                        : `Tampilkan ${text} di catatan`
+                    }
+                    className="rounded border border-current/40 px-1.5 py-0.5 font-semibold underline decoration-dotted"
+                  >
+                    {text}
+                    {remaining > 1 ? ` ×${remaining}` : ''}
+                  </button>
+                );
+              })}
             </span>
             {/* Dismissed by hand, never by a timer or by the next keystroke.
                 It is a task, and a task that clears itself is one you can
@@ -1110,6 +1228,7 @@ export default function PatientPage(): JSX.Element {
           />
         ) : (
           <BodyEditor
+            handleRef={editorHandle}
             value={editor.value}
             onChange={editor.setValue}
             onBlur={editor.flush}
@@ -1313,6 +1432,13 @@ export default function PatientPage(): JSX.Element {
                 if (id) setSelectedShiftNoteId(id);
               }
         }
+        onLab={locked ? undefined : () => setLabOpen(true)}
+        onOpening={
+          locked || editor.value.trim().length === 0
+            ? undefined
+            : () => setOpeningOpen(true)
+        }
+        onCompare={() => setCompareOpen(true)}
       />
 
         </div>

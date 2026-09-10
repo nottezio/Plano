@@ -37,13 +37,67 @@ export interface DayMarker {
   /** The whole matched text, e.g. `H-3`. */
   text: string;
   value: number;
+  /**
+   * Where it is in the body, as character offsets into the string passed in.
+   *
+   * Carried because the caller's job is to point AT the counter, not to
+   * describe it. The banner previously listed `H-2, H-3, hari ke-9` and left
+   * the user to find three needles by eye in a note that is often forty lines
+   * long — the list said how many there were and nothing about where, which is
+   * the harder half of the question.
+   *
+   * These offsets are valid ONLY against the exact string they were found in.
+   * They go stale on the next keystroke, so a consumer that stores them across
+   * an edit is storing a lie: re-run the search against the current body
+   * instead. `findDayMarker` below exists so that is the easy path.
+   */
+  start: number;
+  end: number;
 }
 
 export function findDayMarkers(body: string): DayMarker[] {
   return [...body.matchAll(MARKER)].map((match) => ({
     text: match[0],
     value: Number(match[2]),
+    start: match.index ?? 0,
+    end: (match.index ?? 0) + match[0].length,
   }));
+}
+
+/**
+ * Find the `occurrence`-th counter whose text matches `text`, in the body as it
+ * is RIGHT NOW.
+ *
+ * Deliberately searches by text rather than by a remembered offset. The stale
+ * list is captured at carry-forward and the note is edited afterwards — every
+ * character typed above a counter moves it, so a stored offset points at the
+ * wrong place by the time anyone clicks. Text survives editing; a position does
+ * not.
+ *
+ * Comparison is case-insensitive and whitespace-collapsed for the same reason
+ * the matcher is: the corpus writes `H-3`, `H - 3` and `hari ke 3` for the same
+ * thing, and a jump button that silently does nothing because of a space is
+ * worse than no jump button.
+ *
+ * `occurrence` wraps. Three lines reading `H-3` are one item in the list and
+ * three places in the note; pressing it repeatedly walks them and returns to
+ * the first, rather than stopping at the last and appearing broken.
+ */
+export function findDayMarker(
+  body: string,
+  text: string,
+  occurrence = 0,
+): DayMarker | null {
+  const key = (value: string): string => value.replace(/\s+/g, '').toLowerCase();
+  const matches = findDayMarkers(body).filter((marker) => key(marker.text) === key(text));
+  if (matches.length === 0) return null;
+  return matches[occurrence % matches.length] ?? null;
+}
+
+/** How many times a counter appears in the body as it is right now. */
+export function countDayMarker(body: string, text: string): number {
+  const key = (value: string): string => value.replace(/\s+/g, '').toLowerCase();
+  return findDayMarkers(body).filter((marker) => key(marker.text) === key(text)).length;
 }
 
 /**
