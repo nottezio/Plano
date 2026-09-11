@@ -1,5 +1,59 @@
 # Plano — CHANGES
 
+## `2026-09-11.3`
+
+**Today-only ECG mark that expires by itself; the card header no longer eats
+the patient's name.**
+
+### `EKG hari ini` — a date, not a boolean
+
+New `patient.ekgFor`, set from the ⋯ sheet, shown as an `EKG hari ini` badge.
+
+**Stored as the clinical date it applies to**, because the mark has to expire
+on its own. A boolean would need something to clear it, and the only thing that
+reliably runs in this app is the user — a flag nobody reset says "EKG today" on
+a Thursday because it was set on Monday, which is how a marker stops being read
+at all. A date makes expiry a comparison rather than a chore: nothing runs at
+midnight, the card simply stops matching.
+
+Separate from `ekgHarian` because they answer different questions — "this
+patient always needs one" versus "this patient needs one today". One toggle for
+both would mean marking a one-off tracing quietly promises a daily one. Where
+both are set the standing order wins the label; "hari ini" on a daily patient
+understates it.
+
+### The wrapped name on Tn. Arfa's card
+
+Two causes, and the first is the one that did the damage.
+
+**`overflow-wrap: anywhere` was collapsing the name's min-content width.** Both
+`anywhere` and `break-word` allow a break inside a word, but `anywhere` also
+lets those break points count toward the element's **min-content** size — which
+takes it to roughly one character. In a flex row that is a licence for every
+`shrink-0` badge beside it to take what it likes, and the name is left with a
+five-letter column: *Tn. Arfa / Anugra / h Dicky*. Changed to `break-words`,
+whose min-content width is the longest word, so a name breaks mid-word only
+when a single word genuinely cannot fit.
+
+It was added in `2026-09-10.4` for the pathological single-long-token name and
+went unnoticed until a card had enough badges to make the row tight. The new
+`EKG/hari` badge was the third — it exposed this, it did not cause it.
+
+**And the header row now wraps.** Its fixed cost grows every time a badge is
+added (eye, EKG, discharge) and the name was the only flexible member, so each
+new badge was paid for out of the patient's name — the same failure as the
+truncation this row replaced, arriving through a different door. The name now
+has a `min-w-[55%]` floor and the row is `flex-wrap`: the badge cluster drops
+to its own line before it squeezes the name, and stays in the top-right corner
+whenever there is room, which on a full-width card is always.
+
+```
+1072 tests passed (was 1067 — 5 added on the ECG marks, including the expiry)
+typecheck / lint / check:version / check:contrast / check:a11y / build — clean
+```
+
+---
+
 ## `2026-09-11.2`
 
 **Daily-ECG marker; DPJP delivery restructured into routes; new patients land

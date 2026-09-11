@@ -231,7 +231,21 @@ export function PatientCard({
           Pemantauan
         </p>
       ) : null}
-      <div className="flex items-start gap-2">
+      {/*
+        WRAPS. The badge cluster drops to its own line before it squeezes the
+        name.
+
+        This row's fixed cost grows every time a badge is added — eye, EKG,
+        discharge — and the name was the only flexible member, so each new
+        badge was paid for out of the patient's name. That is the same failure
+        as the truncation this row replaced, arriving through a different door.
+
+        With `flex-wrap` and a floor on the name, the row cannot take the name
+        below a readable column: the badges wrap under it instead. They stay in
+        the top-right corner whenever there is room, which on a full-width card
+        is always.
+      */}
+      <div className="flex flex-wrap items-start gap-x-2 gap-y-1">
         {selectable ? (
           <span
             aria-hidden="true"
@@ -283,7 +297,25 @@ export function PatientCard({
           a single 30-character name would otherwise push the row wider than the
           card and reintroduce the overflow it just fixed.
         */}
-        <h3 className="min-w-0 flex-1 text-sm font-semibold leading-snug break-words [overflow-wrap:anywhere]">
+        {/*
+          `break-words`, NOT `overflow-wrap: anywhere`. The difference is not
+          cosmetic and it is what broke this card.
+
+          Both allow a break inside a word, but `anywhere` also lets those
+          break points count toward the element's MIN-CONTENT width, which
+          collapses it to roughly one character. In a flex row that is a
+          licence for every `shrink-0` badge beside it to take what it likes,
+          and the name is left with a column five letters wide — "Tn. Arfa /
+          Anugra / h Dicky". `break-word` keeps the min-content width at the
+          longest word, so the name holds a readable column and breaks inside a
+          word only when a single word genuinely cannot fit.
+
+          The `min-w-` floor below is the second half: it stops the badges from
+          taking the column down to the longest word either. Together they mean
+          the name can only lose width down to a point, and past that the
+          badges wrap instead.
+        */}
+        <h3 className="min-w-[55%] flex-1 break-words text-sm font-semibold leading-snug">
           {card.title}
         </h3>
 
@@ -331,12 +363,16 @@ export function PatientCard({
           Word, not icon. A tracing symbol at 10px is a squiggle, and the
           reader of this badge is deciding whether to walk back with a machine.
         */}
-        {card.ekgHarian ? (
+        {card.ekg ? (
           <span
-            title="EKG harian — pasien aritmia, rekam tiap hari"
+            title={
+              card.ekg === 'harian'
+                ? 'EKG harian — pasien aritmia, rekam tiap hari'
+                : 'EKG hari ini — ditandai manual, hilang sendiri besok'
+            }
             className="shrink-0 rounded-full px-1.5 py-0.5 text-[10px] font-semibold ring-1 ring-current/40"
           >
-            EKG/hari
+            {card.ekg === 'harian' ? 'EKG/hari' : 'EKG hari ini'}
           </span>
         ) : null}
 

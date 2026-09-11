@@ -153,6 +153,30 @@ export function PatientActionsSheet({
           }}
         />
 
+        {/*
+          Today only, and it clears itself.
+
+          Separate from the standing order above because they answer different
+          questions: "this patient always needs one" versus "this patient needs
+          one today". Folding them into one toggle would mean marking a
+          one-off tracing quietly promises a tracing every day afterwards.
+        */}
+        <Action
+          label={
+            patient.ekgFor === today ? 'Batalkan EKG hari ini' : 'Tandai EKG hari ini'
+          }
+          detail="Hanya untuk hari ini — penanda hilang sendiri besok."
+          onClick={() => {
+            close();
+            void updatePatient(patient.id, {
+              // `deleteField` is not used: an empty date is simply a date that
+              // no longer matches today, which is the same rule the mark
+              // already expires by. One rule, not two.
+              ekgFor: patient.ekgFor === today ? '' : today,
+            });
+          }}
+        />
+
         <Action
           label={patient.ekgHarian ? 'Tidak perlu EKG harian' : 'Tandai perlu EKG harian'}
           detail="Untuk pasien aritmia — kartu menampilkan penanda EKG/hari."

@@ -79,8 +79,18 @@ export interface BoardCard {
   hariRawat: number;
   /** Under closer watch; drawn as a marker on the card. */
   pemantauan: boolean;
-  /** Needs a tracing every day; drawn as a badge on the card. */
-  ekgHarian: boolean;
+  /**
+   * Whether this patient needs a tracing today, and why.
+   *
+   * `'harian'` — standing order, every day.
+   * `'hari-ini'` — marked for today only; the mark stops matching tomorrow.
+   * `null` — no tracing due.
+   *
+   * Resolved here rather than on the card so the expiry rule lives with the
+   * clinical date that decides it, and so the card cannot accidentally render
+   * yesterday's mark by comparing the wrong day.
+   */
+  ekg: 'harian' | 'hari-ini' | null;
   progress: ReturnType<typeof checklistProgress>;
   /** Consultant detected from the note, for the card badge. */
   dpjp: Dpjp | null;
@@ -118,7 +128,10 @@ export function buildCard(
     colorToken: resolveCardColor(items, states, patient.colorOverride),
     hariRawat: hariRawat(today, patient.admittedAt),
     pemantauan: patient.pemantauan === true,
-    ekgHarian: patient.ekgHarian === true,
+    // Standing order wins the label when both are set: it is the stronger
+    // statement, and showing "hari ini" on a patient who needs one daily would
+    // understate it.
+    ekg: patient.ekgHarian === true ? 'harian' : patient.ekgFor === today ? 'hari-ini' : null,
     progress: checklistProgress(items, states),
     // Redacted when the board is in initials-only mode. Reducing the title to
     // initials while the preview under it spells the name out in full is not

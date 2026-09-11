@@ -309,6 +309,7 @@ type PatientPatchKey = keyof Pick<
   | 'pinned'
   | 'pemantauan'
   | 'ekgHarian'
+  | 'ekgFor'
   | 'temporary'
   | 'chief'
   | 'discharge'

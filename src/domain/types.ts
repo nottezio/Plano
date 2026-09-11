@@ -371,6 +371,23 @@ export interface Patient {
    */
   ekgHarian?: boolean;
   /**
+   * A tracing is needed on THIS day — the clinical date it applies to, not a
+   * boolean.
+   *
+   * A date because the mark has to expire on its own. A boolean would need
+   * something to come along and clear it, and the only thing that reliably
+   * runs on this app is the user: a flag nobody reset is a flag that says
+   * "EKG today" on a Thursday because someone set it on Monday, which is how
+   * a marker stops being read at all.
+   *
+   * Storing the day it was set for makes expiry a comparison rather than a
+   * chore. Nothing has to run at midnight; the card simply stops matching.
+   *
+   * Distinct from `ekgHarian`, which is a standing fact about an arrhythmia
+   * patient. This is one day's decision about anybody.
+   */
+  ekgFor?: ClinicalDate;
+  /**
    * Held temporarily — someone else's patient, covered on a shift.
    *
    * A flag rather than a separate collection: they are ordinary patients with

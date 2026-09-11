@@ -508,3 +508,46 @@ describe('kjsRole', () => {
     expect(kjsRole('rawat bersama KJS, DPJP utama dr. X')).toBe('ts');
   });
 });
+
+describe('ECG marks', () => {
+  const ITEMS = [] as const;
+  const base = {
+    id: 'p1',
+    name: 'Tn. A',
+    diagnoses: [],
+    labels: [],
+    admittedAt: '2026-09-11',
+    status: 'active' as const,
+  };
+
+  it('shows nothing when no tracing is due', () => {
+    expect(buildCard({ ...base } as never, ITEMS, '2026-09-11', false).ekg).toBeNull();
+  });
+
+  it('shows the standing order every day', () => {
+    const card = buildCard({ ...base, ekgHarian: true } as never, ITEMS, '2026-09-20', false);
+    expect(card.ekg).toBe('harian');
+  });
+
+  it('shows a manual mark on the day it was set for', () => {
+    const card = buildCard({ ...base, ekgFor: '2026-09-11' } as never, ITEMS, '2026-09-11', false);
+    expect(card.ekg).toBe('hari-ini');
+  });
+
+  it('EXPIRES the manual mark the next day, with nothing having to clear it', () => {
+    // The whole reason the field is a date. A boolean nobody reset would still
+    // read "EKG today" on Thursday because it was set on Monday.
+    const card = buildCard({ ...base, ekgFor: '2026-09-11' } as never, ITEMS, '2026-09-12', false);
+    expect(card.ekg).toBeNull();
+  });
+
+  it('lets the standing order outrank a same-day mark', () => {
+    const card = buildCard(
+      { ...base, ekgHarian: true, ekgFor: '2026-09-11' } as never,
+      ITEMS,
+      '2026-09-11',
+      false,
+    );
+    expect(card.ekg).toBe('harian');
+  });
+});
