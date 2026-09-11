@@ -165,3 +165,62 @@ export function toProfForm(body: string): string {
 export function toDokterForm(body: string): string {
   return body.replace(/\bProf\b/g, 'dokter').replace(/\bprof\b/g, 'dokter');
 }
+
+/**
+ * Tokens in a stored greeting or opening sentence that resolve to the clock
+ * and the calendar at the moment the line is offered.
+ *
+ * WHY TOKENS RATHER THAN MORE SEED STRINGS
+ *
+ * The alternative is one stored sentence per time of day — four copies of the
+ * same line differing by one word, which have to be edited four times and go
+ * out of step the first time one of them is not. And the date cannot be a seed
+ * string at all: it is different every day, and a list message headed with
+ * yesterday's date is the specific error this replaces.
+ *
+ * WHY THEY EXPAND FOR DISPLAY TOO, NOT ONLY ON APPLY
+ *
+ * The sheet shows the options as text and the user picks one by reading it.
+ * An option reading `selamat (waktu) dokter` asks them to imagine the result;
+ * worse, `suggestGreetingIndex` matches on the words `pagi`/`siang`/`sore`/
+ * `malam`, so an unexpanded token would make the time-appropriate greeting
+ * unfindable by the very function that exists to find it. Expanding first
+ * means what is shown is what is inserted.
+ *
+ *   (waktu)   → pagi | siang | sore | malam, by the same thresholds as
+ *               `suggestGreetingIndex`, so a greeting built from the token and
+ *               one written out longhand never disagree
+ *   (hari)    → Senin … Minggu
+ *   (tanggal) → DD-MM-YYYY
+ *
+ * Placeholders like `(Ruang)` and `(no)` are deliberately NOT expanded. They
+ * mark something only the person writing can supply, and filling them with a
+ * guess would turn a visible blank into an invisible wrong answer.
+ */
+const DAY_NAMES = [
+  'Minggu',
+  'Senin',
+  'Selasa',
+  'Rabu',
+  'Kamis',
+  'Jumat',
+  'Sabtu',
+] as const;
+
+export function timeOfDayWord(hour: number): string {
+  return hour < 11 ? 'pagi' : hour < 15 ? 'siang' : hour < 18 ? 'sore' : 'malam';
+}
+
+export function expandOpeningTokens(text: string, at: Date): string {
+  const day = DAY_NAMES[at.getDay()] ?? '';
+  const date = [
+    String(at.getDate()).padStart(2, '0'),
+    String(at.getMonth() + 1).padStart(2, '0'),
+    String(at.getFullYear()),
+  ].join('-');
+
+  return text
+    .replace(/\(waktu\)/gi, timeOfDayWord(at.getHours()))
+    .replace(/\(hari\)/gi, day)
+    .replace(/\(tanggal\)/gi, date);
+}

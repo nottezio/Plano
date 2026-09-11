@@ -1,5 +1,90 @@
 # Plano — CHANGES
 
+## `2026-09-10.8`
+
+**Canvas reclaims its vertical space; a capped card stays readable; echo
+full-study opening with a live date.**
+
+### The handle was costing 44 px on every card
+
+A drag strip in normal flow has to be tall enough to press, and 44 px times
+twelve cards is most of a screen spent on an affordance used a few times a
+week. Rapikan cost another full row above the board on top of that, and both
+pushed the cards down past space that was sitting empty.
+
+- The handle is now **overlaid in the gap above the card**, appearing on hover.
+  Zero layout cost — it sits in a gap that already exists.
+- **Rapikan and Urungkan portal into the board toolbar**, beside Format lab,
+  and their own row is gone. Portalled rather than lifted: the layout they act
+  on lives in `CanvasBoard`, and lifting the state to reach the toolbar would
+  give two components the ability to write the same arrangement.
+
+It stays a handle rather than the whole card. The card is a `<Link>` and a
+long-press target; a drag starting anywhere on it has to win a race against
+both, and losing it either opens a chart you did not ask for or moves a card
+you did not mean to move.
+
+### A short card now gives up its middle, not its bottom
+
+Previously a cap clipped whatever fell past it — usually the progress strip,
+so a shortened card lost the two things that make it useful on a board: which
+patient it is, and what is left to do. It became an anonymous card still
+sitting where you expect to find that patient.
+
+`PatientCard` gained `fitHeight`. Under it the card is a flex column:
+
+| Zone | Under a cap |
+|---|---|
+| Header — name, bed, discharge chip | always visible |
+| Middle — chief, diagnosis list, labels | **clipped from the bottom, with a fade** |
+| Progress strip + "Belum:" line | always visible |
+
+The container is given `height`, not `maxHeight` — a flex column can only
+distribute a height it has been given; under `maxHeight` it sizes to content
+and the browser clips the overflow, which is the old behaviour. `min-h-0` on
+the middle is what lets it shrink at all: a flex child defaults to
+`min-height: auto` and refuses to go below its content. The expand chevron
+moved to the corner, since a bar across the bottom would cover the strip that
+is now deliberately kept.
+
+### Echocardiography full-study opening
+
+Added to the openings list:
+
+> Tabe dokter, mohon izin mengirimkan list pasien echocardiography full study
+> dari *(Ruang), (hari), (tanggal)*
+
+and a combined greeting, `Assalamu'alaikum dokter dan selamat (waktu) dokter.`
+
+Tokens resolve when the sheet opens: `(waktu)` → pagi/siang/sore/malam,
+`(hari)` → the day name, `(tanggal)` → DD-MM-YYYY. So at 13:30 on a Friday the
+options read exactly as they will be inserted.
+
+**Tokens rather than more seed strings**, because the alternative is four
+copies of one greeting differing by a single word, which go out of step the
+first time one is edited alone — and a date cannot be a seed string at all.
+**Expanded for display, not only on apply**, because `suggestGreetingIndex`
+matches on the words *pagi/siang/sore/malam*: an unexpanded token would make
+the time-appropriate greeting invisible to the function whose only job is to
+surface it. Resolved **once per open** against a single timestamp, so a sheet
+left open across midnight cannot offer "selamat malam" beside tomorrow's date.
+
+`(Ruang)`, `(no)` and the rest are deliberately left alone. They mark something
+only the sender knows, and filling them with a guess turns a visible blank into
+an invisible wrong answer.
+
+```
+1060 tests passed (was 1055 — 5 added on token expansion)
+typecheck / lint / check:version / check:contrast / check:a11y / build — clean
+```
+
+**Not done:** the greeting is resolved from the clock, not from the note's
+clinical day — these lines are the message being sent, and a back-dated note
+still goes out today. If a list should ever carry the date of the *study* and
+not the date of sending, that is a different token and needs saying.
+
+---
+
 ## `2026-09-10.7`
 
 **Free canvas, stage 3: Rapikan, with undo. The canvas feature is complete.**

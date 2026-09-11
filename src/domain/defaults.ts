@@ -165,6 +165,11 @@ export const SEED_GREETINGS: readonly string[] = [
       'Selamat siang dokter.',
       'Selamat sore dokter.',
       'Selamat malam dokter.',
+      // The combined form, for a message that opens with both the salam and
+      // the time of day. `(waktu)` resolves when the sheet is opened — see
+      // `expandOpeningTokens` — so this is one line rather than four that go
+      // out of step the first time one of them is edited alone.
+      "Assalamu'alaikum dokter dan selamat (waktu) dokter.",
 ];
 
 export const SEED_OPENING_SENTENCES: readonly string[] = [
@@ -176,6 +181,14 @@ export const SEED_OPENING_SENTENCES: readonly string[] = [
       // same sentence as the move, because both change at once and reporting
       // one without the other is what makes a handover ambiguous.
       'Tabe dokter, mohon izin melapor perpindahan pasien *KJS TS (Bagian) ((Nama DPJP)) dari (Ruang asal) bed (no)* ke *(Ruang tujuan) Kamar (no) bed (no)* atas nama :',
+      // A LIST, not a patient — the only opening here that heads a message
+      // about several people at once, which is why it ends with the ward and
+      // the date rather than "atas nama :".
+      //
+      // The date is a token because it is different every day and a list headed
+      // with yesterday's date is exactly the error this replaces; the ward is
+      // not, because only the person sending it knows which one.
+      'Tabe dokter, mohon izin mengirimkan list pasien echocardiography full study dari *(Ruang), (hari), (tanggal)*',
 ];
 
 /**

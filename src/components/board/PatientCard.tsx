@@ -21,6 +21,7 @@ export function PatientCard({
   card,
   onLongPress,
   onDragHandleDown,
+  fitHeight = false,
   dragging,
   selectable,
   checked,
@@ -41,6 +42,18 @@ export function PatientCard({
    * did not mean to move.
    */
   onDragHandleDown?: ((event: React.PointerEvent, patientId: string) => void) | undefined;
+  /**
+   * Fill the container's height instead of growing to content, and give up the
+   * MIDDLE first when there is not enough room.
+   *
+   * Only the canvas passes this, and only for a card the user has capped. The
+   * point is what stays readable when a card is made short: the header says
+   * which patient this is, the progress strip says what is left to do, and a
+   * card that has lost either is not a smaller card — it is an anonymous one,
+   * still sitting where you expect to find that patient. The diagnosis list is
+   * what can be cut, because it is what you open the card to read anyway.
+   */
+  fitHeight?: boolean;
   dragging?: boolean;
   /** True while the board is in selection mode. */
   selectable?: boolean;
@@ -95,7 +108,7 @@ export function PatientCard({
       stuck to the card rather than as another field inside it, which was the
       actual objection to keeping it inside.
     */
-    <div>
+    <div className={fitHeight ? 'flex h-full flex-col' : undefined}>
     <Link
       to={`/p/${patient.id}`}
       /**
@@ -127,6 +140,11 @@ export function PatientCard({
       }}
       className={[
         'block min-w-0 border border-black/5 bg-token p-3 text-token-fg shadow-sm transition-shadow hover:shadow-md dark:border-white/10',
+        // `min-h-0` is what lets the middle actually shrink: a flex child
+        // defaults to `min-height: auto`, which refuses to go below its content
+        // and would push the progress strip out of the bottom of the card
+        // instead of clipping the diagnosis list.
+        fitHeight ? 'flex min-h-0 flex-1 flex-col' : '',
         // Square bottom edge whenever a note is attached, so the card and the
         // note form one continuous shape with a seam rather than two rounded
         // boxes stacked with a hairline between them.
@@ -351,6 +369,20 @@ export function PatientCard({
         admission-day number is not something any decision on this screen turns
         on. The chief stays, because that is who you hand the note to.
       */}
+      {/*
+        The part that gives way when the card is short.
+
+        Everything in here is detail you open the card to read properly; the
+        header above it and the progress strip below are what the card is FOR
+        while it sits on the board. So when there is not enough height, this is
+        what loses it — clipped from the bottom, with a fade, rather than the
+        whole card being cut off mid-line at whatever height it happened to
+        reach.
+
+        Outside `fitHeight` this div contributes nothing: no classes, so the
+        block flows exactly as it did when these four were siblings.
+      */}
+      <div className={fitHeight ? 'relative min-h-0 flex-1 overflow-hidden' : undefined}>
       {card.chief ? <p className="text-[11px] opacity-60">Chief {card.chief}</p> : null}
 
       {lines.length > 0 ? (
@@ -378,7 +410,21 @@ export function PatientCard({
         </div>
       ) : null}
 
-      <div className="mt-3">
+      {fitHeight ? (
+        <div
+          aria-hidden="true"
+          className="pointer-events-none absolute inset-x-0 bottom-0 h-6"
+          style={{
+            // A fade rather than a clean edge: a straight cut through a line of
+            // text reads as a rendering fault, and the first response to a
+            // rendering fault is to distrust the rest of the card.
+            backgroundImage: 'linear-gradient(to bottom, transparent, var(--token-bg))',
+          }}
+        />
+      ) : null}
+      </div>
+
+      <div className={fitHeight ? 'mt-3 shrink-0' : 'mt-3'}>
         <ProgressStrip progress={progress} />
         <p className="mt-1.5 text-[11px] font-medium opacity-80">
           {progress.complete

@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import type { ReactNode } from 'react';
 
 import {
@@ -36,15 +37,30 @@ import {
  */
 export function CanvasBoard({
   ids,
-  items,
+  renderItem,
   enabled,
+  actionsSlot,
 }: {
   /** Every card on the board, in board order. Drives auto-placement. */
   ids: readonly string[];
-  /** One item per id, same order. Rendered inside a positioned wrapper. */
-  items: readonly ReactNode[];
+  /**
+   * Renders one card. A function rather than a ready-made list because the
+   * canvas is what knows whether a card has been capped, and a capped card has
+   * to be told to fit its height — which is a prop on the card, decided here.
+   */
+  renderItem: (id: string, options: { fitHeight: boolean }) => ReactNode;
   /** False while another order is selected; the canvas then renders nothing. */
   enabled: boolean;
+  /**
+   * Where to put Rapikan / Urungkan — a node in the board's own toolbar.
+   *
+   * Portalled rather than rendered in place. Its own row cost a full line of
+   * vertical space above every card on the board, and the layout it acts on
+   * lives here, so lifting the state up to reach the toolbar would give two
+   * components the ability to write the same arrangement. A portal keeps one
+   * owner and puts the buttons where there is already a row for them.
+   */
+  actionsSlot?: HTMLElement | null;
 }): JSX.Element {
   const surfaceRef = useRef<HTMLDivElement>(null);
   const [stored, setStored] = useState<CanvasLayouts>(() => readLayouts());
@@ -222,40 +238,39 @@ export function CanvasBoard({
 
   return (
     <>
-      {/*
-        Rapikan lives here rather than in the board toolbar because the layout
-        it rewrites lives here. Lifting the state up to put the button in a
-        tidier place would mean two components able to write the same
-        arrangement, which is how they end up disagreeing about it.
-      */}
-      <div className="flex items-center justify-end gap-2 px-4 pb-1 text-xs">
-        {undo ? (
-          <button
-            type="button"
-            onClick={() => {
-              applyLayouts(undo);
-              setUndo(null);
-            }}
-            className="min-h-tap rounded-lg border border-border px-3 font-medium text-accent"
-          >
-            Urungkan
-          </button>
-        ) : null}
-        <button
-          type="button"
-          onClick={() => {
-            setUndo(layouts);
-            applyLayouts(tidy(ids, layouts, columns));
-          }}
-          title="Rapatkan kartu, tanpa mengubah urutan yang sudah diatur"
-          className="min-h-tap rounded-lg border border-border px-3 font-medium text-fg-muted"
-        >
-          Rapikan
-        </button>
-      </div>
+      {actionsSlot
+        ? createPortal(
+            <>
+              {undo ? (
+                <button
+                  type="button"
+                  onClick={() => {
+                    applyLayouts(undo);
+                    setUndo(null);
+                  }}
+                  className="min-h-tap shrink-0 rounded-lg border border-border px-3 text-xs font-medium text-accent"
+                >
+                  Urungkan
+                </button>
+              ) : null}
+              <button
+                type="button"
+                onClick={() => {
+                  setUndo(layouts);
+                  applyLayouts(tidy(ids, layouts, columns));
+                }}
+                title="Rapatkan kartu, tanpa mengubah urutan yang sudah diatur"
+                className="min-h-tap shrink-0 rounded-lg border border-border px-3 text-xs font-medium text-fg-muted"
+              >
+                Rapikan
+              </button>
+            </>,
+            actionsSlot,
+          )
+        : null}
 
     <div ref={surfaceRef} className="relative px-4 pt-1" style={{ height }}>
-      {ids.map((id, index) => {
+      {ids.map((id) => {
         const base = layouts[id];
         if (!base) return null;
         const layout = live?.id === id ? live.layout : base;
@@ -294,7 +309,7 @@ export function CanvasBoard({
               onNaturalHeight={recordHeight}
               onToggle={() => toggleExpanded(id)}
             >
-              {items[index]}
+              {renderItem(id, { fitHeight: !open && layout.hMax > 0 })}
             </ClampedCard>
 
             <Grip
@@ -365,21 +380,33 @@ function ClampedCard({
     <div
       ref={ref}
       className="relative"
-      style={cap > 0 ? { maxHeight: cap, overflow: 'hidden' } : undefined}
+      /*
+        `height`, not `maxHeight`, when capped.
+
+        The card inside is a flex column that gives up its middle first, and a
+        flex column can only distribute a height it has been given. Under
+        `maxHeight` the column sizes to its content and the browser then clips
+        the overflow — which cuts the progress strip off the bottom, the one
+        part of a short card that still has to be readable.
+      */
+      style={cap > 0 ? { height: cap, overflow: 'hidden' } : undefined}
     >
       {children}
+      {/*
+        The expand affordance, in the corner rather than as a bar across the
+        bottom.
+
+        The bar used to sit over the progress strip — which, now that a capped
+        card keeps its strip readable, is precisely the thing it would hide.
+        The fade over the clipped text is drawn by the card itself, where the
+        card knows its own background colour.
+      */}
       {clipped ? (
         <button
           type="button"
           onClick={onToggle}
           aria-label="Tampilkan sisa kartu"
-          className="absolute inset-x-0 bottom-0 flex h-8 items-end justify-center rounded-b-xl text-[10px] font-medium text-fg-faint"
-          style={{
-            // A fade rather than a hard cut: a clean edge through a line of
-            // text reads as a rendering fault, and the first response to a
-            // rendering fault is to distrust the rest of the card.
-            backgroundImage: 'linear-gradient(to bottom, transparent, var(--bg) 85%)',
-          }}
+          className="absolute bottom-0 right-0 min-h-tap min-w-tap text-xs text-token-fg/60"
         >
           <span aria-hidden="true">▾</span>
         </button>
@@ -442,12 +469,24 @@ function Grip({
 }
 
 /**
- * The grab strip, above the card rather than inside it.
+ * The grab handle, OVERLAID in the gap above the card rather than stacked on
+ * top of it.
  *
- * Outside `PatientCard` on purpose: the card is a `<Link>`, and a drag gesture
- * starting anywhere on it races the navigation on every tap. A dedicated strip
- * means tapping the card still opens the patient — the thing done with this
- * board all day — and only this bar moves it.
+ * It used to be a full-width strip in normal flow, and a strip in flow has to
+ * be tall enough to press — 44 px — which it then took from every card on the
+ * board, whether or not anyone was dragging. Forty-four pixels times twelve
+ * cards is most of a screen spent on an affordance used a few times a week.
+ *
+ * Absolutely positioned above the card's top edge, it costs nothing: it sits
+ * in the gap that already exists between rows, and appears on hover. That is
+ * safe here in a way it is not inside `PatientCard` — the warning there is
+ * about abspos inside a multi-column fragment; this wrapper is a plain
+ * positioned box on the canvas.
+ *
+ * Still a handle rather than the whole card. The card is a `<Link>` and a
+ * long-press target, and a drag starting anywhere on it would have to win a
+ * race against both — losing it either opens a chart you did not ask for or
+ * moves a card you did not mean to move.
  */
 function CanvasHandle({
   onPointerDown,
@@ -460,7 +499,7 @@ function CanvasHandle({
       aria-label="Geser kartu"
       onPointerDown={onPointerDown}
       onClick={(event) => event.preventDefault()}
-      className="min-h-tap w-full cursor-grab touch-none rounded-t-xl text-center text-xs leading-none text-fg-faint"
+      className="absolute -top-4 left-2 z-10 flex h-4 w-12 cursor-grab touch-none items-center justify-center rounded bg-border text-[10px] leading-none text-fg-faint opacity-0 transition-opacity group-hover:opacity-100 focus-visible:opacity-100"
     >
       <span aria-hidden="true">⠿</span>
     </button>

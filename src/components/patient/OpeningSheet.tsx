@@ -1,5 +1,8 @@
+import { useEffect, useMemo, useState } from 'react';
+
 import { Sheet } from '@/components/common/Sheet';
 import {
+  expandOpeningTokens,
   findOpeningLine,
   replaceClosing,
   toDokterForm,
@@ -40,9 +43,34 @@ export function OpeningSheet({
   closingSentences: readonly string[];
   onApply: (nextBody: string) => void;
 }): JSX.Element {
+  /*
+    Tokens are resolved ONCE per open, against one timestamp.
+
+    Once, so that the greeting and the date in the sentence below it cannot
+    come from two different readings of the clock — a sheet left open across
+    midnight would otherwise offer "selamat malam" beside tomorrow's date.
+
+    `now` is the moment the sheet opened rather than the note's clinical day.
+    These lines are the message being sent, and the message is being sent now;
+    a back-dated note still goes out today.
+  */
+  const [now, setNow] = useState(() => new Date());
+  useEffect(() => {
+    if (open) setNow(new Date());
+  }, [open]);
+  const resolvedGreetings = useMemo(
+    () => greetings.map((greeting) => expandOpeningTokens(greeting, now)),
+    [greetings, now],
+  );
+  const resolvedSentences = useMemo(
+    () => openingSentences.map((sentence) => expandOpeningTokens(sentence, now)),
+    [openingSentences, now],
+  );
+
   const line = findOpeningLine(body);
   const current = line ? splitOpening(line.text) : { greeting: '', rest: '' };
-  const suggested = greetings[suggestGreetingIndex(greetings, new Date().getHours())];
+  const suggested =
+    resolvedGreetings[suggestGreetingIndex(resolvedGreetings, now.getHours())];
 
   return (
     <Sheet
@@ -54,7 +82,7 @@ export function OpeningSheet({
       <section>
         <h3 className="text-xs font-medium text-fg-muted">Salam</h3>
         <div className="mt-1.5 space-y-1.5">
-          {greetings.map((greeting) => {
+          {resolvedGreetings.map((greeting) => {
             const active = current.greeting === greeting;
             return (
               <button
@@ -82,7 +110,7 @@ export function OpeningSheet({
       <section className="mt-5">
         <h3 className="text-xs font-medium text-fg-muted">Kalimat pembuka</h3>
         <div className="mt-1.5 space-y-1.5">
-          {openingSentences.map((sentence) => {
+          {resolvedSentences.map((sentence) => {
             const active = current.rest === sentence;
             return (
               <button

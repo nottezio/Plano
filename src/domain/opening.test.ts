@@ -1,16 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import {
-  findOpeningLine,
-  replaceClosing,
-  replaceGreeting,
-  replaceOpeningLine,
-  replaceOpeningSentence,
-  splitOpening,
-  suggestGreetingIndex,
-  toDokterForm,
-  toProfForm,
-} from './opening';
+import { expandOpeningTokens, findOpeningLine, replaceClosing, replaceGreeting, replaceOpeningLine, replaceOpeningSentence, splitOpening, suggestGreetingIndex, toDokterForm, toProfForm } from './opening';
 
 const OPENING =
   "Assalamu'alaikum dokter. Tabe dokter, mohon izin melaporkan follow up pasien di *PJT Lantai 5 Kamar 516 Bed 2*  atas nama :";
@@ -173,3 +163,44 @@ describe('Prof and dokter forms', () => {
     expect(toDokterForm(note)).toBe('Selamat pagi dokter. Terima kasih dokter');
   });
 })
+
+describe('expandOpeningTokens', () => {
+  const at = new Date(2026, 7, 25, 13, 30); // Tuesday 25-08-2026, 13:30
+
+  it('fills the day name and the date from the note being written', () => {
+    const line = 'list pasien echocardiography full study dari *CVCU, (hari), (tanggal)*';
+    expect(expandOpeningTokens(line, at)).toBe(
+      'list pasien echocardiography full study dari *CVCU, Selasa, 25-08-2026*',
+    );
+  });
+
+  it('picks the greeting word from the clock', () => {
+    expect(expandOpeningTokens('selamat (waktu) dokter', new Date(2026, 7, 25, 8))).toContain(
+      'pagi',
+    );
+    expect(expandOpeningTokens('selamat (waktu) dokter', at)).toContain('siang');
+    expect(expandOpeningTokens('selamat (waktu) dokter', new Date(2026, 7, 25, 20))).toContain(
+      'malam',
+    );
+  });
+
+  it('agrees with suggestGreetingIndex, which matches on those same words', () => {
+    // If these two ever disagreed, the greeting built from a token would be
+    // invisible to the function whose whole job is to surface it.
+    const greetings = [
+      "Assalamu'alaikum dokter.",
+      expandOpeningTokens('Selamat (waktu) dokter.', at),
+    ];
+    expect(suggestGreetingIndex(greetings, at.getHours())).toBe(1);
+  });
+
+  it('leaves the placeholders a person has to fill in alone', () => {
+    // A blank you can see beats a guess you cannot.
+    const line = 'pasien di *(Ruang) Kamar (no) Bed (no)*';
+    expect(expandOpeningTokens(line, at)).toBe(line);
+  });
+
+  it('pads single-digit days and months', () => {
+    expect(expandOpeningTokens('(tanggal)', new Date(2026, 0, 5, 9))).toBe('05-01-2026');
+  });
+});

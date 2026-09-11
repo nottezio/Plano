@@ -283,6 +283,14 @@ export default function BoardPage(): JSX.Element {
    */
   const canvasWidth = useMediaQuery('(min-width: 1024px)');
 
+  /**
+   * A callback ref, not `useRef`: the canvas needs to RE-RENDER once the slot
+   * exists, and a ref object mutating does not cause that — the portal would
+   * be told about a node that was null on the render it was decided in and
+   * never look again.
+   */
+  const [canvasActions, setCanvasActions] = useState<HTMLElement | null>(null);
+
   const debouncedQuery = useDebouncedValue(query, 150);
 
   /**
@@ -491,6 +499,15 @@ export default function BoardPage(): JSX.Element {
           them read as two more sort options that happened never to be
           selected, which is why they were invisible as actions.
         */}
+        {/*
+          Where the canvas puts Rapikan / Urungkan.
+
+          An empty span with `contents` so it adds no box of its own — the
+          portalled buttons become direct flex children of this row and sit
+          beside Format lab exactly as if they had been written here.
+        */}
+        <span ref={setCanvasActions} className="contents" />
+
         <span aria-hidden="true" className="h-5 w-px shrink-0 bg-border" />
         <button
           type="button"
@@ -605,21 +622,24 @@ export default function BoardPage(): JSX.Element {
             <CanvasBoard
               enabled
               ids={cards.map((card) => card.patient.id)}
-              // Note strips are forced open in canvas mode by the same rule as
-              // masonry; the card is the same component either way.
-              items={cards.map((card) => (
-                <PatientCard
-                  key={card.patient.id}
-                  card={card}
-                  noteExpanded={noteOpen(card.patient)}
-                  onToggleNote={toggleNote}
-                  onLongPress={setQuickPatientId}
-                  selectable={selecting}
-                  checked={selected.has(card.patient.id)}
-                  onToggleSelected={toggleSelected}
-                  onPreview={selecting ? undefined : setPreviewId}
-                />
-              ))}
+              actionsSlot={canvasActions}
+              renderItem={(id, { fitHeight }) => {
+                const card = cards.find((entry) => entry.patient.id === id);
+                if (!card) return null;
+                return (
+                  <PatientCard
+                    card={card}
+                    fitHeight={fitHeight}
+                    noteExpanded={noteOpen(card.patient)}
+                    onToggleNote={toggleNote}
+                    onLongPress={setQuickPatientId}
+                    selectable={selecting}
+                    checked={selected.has(card.patient.id)}
+                    onToggleSelected={toggleSelected}
+                    onPreview={selecting ? undefined : setPreviewId}
+                  />
+                );
+              }}
             />
           ) : cards.length > 0 ? (
             groups.map((group) => (
