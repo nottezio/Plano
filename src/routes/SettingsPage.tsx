@@ -9,6 +9,7 @@ import { StringListEditor } from '@/components/settings/StringListEditor';
 import { DpjpFormatEditor } from '@/components/settings/DpjpFormatEditor';
 import { TemplateEditor } from '@/components/settings/TemplateEditor';
 import { PasteInspector } from '@/components/settings/PasteInspector';
+import { SessionLogPanel } from '@/components/settings/SessionLogPanel';
 import { PinSetupSheet } from '@/components/privacy/PinSetupSheet';
 import { useLock } from '@/store/useLock';
 import { updateSettings } from '@/data/repositories/settings.repo';
@@ -679,6 +680,13 @@ export default function SettingsPage(): JSX.Element {
           where a tool you reach for twice a year belongs. It reads only what is
           typed into it and writes nothing anywhere.
         */}
+        <SettingsSection
+          title="Riwayat sesi"
+          description="Catatan masuk/keluar aplikasi, untuk menelusuri logout mendadak."
+        >
+          <SessionLogPanel />
+        </SettingsSection>
+
         <SettingsSection
           title="Periksa hasil salin"
           description="Cari karakter yang berubah jadi ? di SIMGOS."

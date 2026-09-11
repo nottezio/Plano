@@ -1,21 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import {
-  EMPTY_FILTERS,
-  availableLabels,
-  availableWards,
-  boardTickStates,
-  buildCard,
-  cardTitle,
-  filterPatients,
-  groupLabel,
-  hasActiveFilters,
-  initials,
-  matchesQuery,
-  orderPatients,
-  previewLines,
-  sortPatients,
-} from './board';
+import { EMPTY_FILTERS, availableLabels, availableWards, boardTickStates, buildCard, cardTitle, filterPatients, groupLabel, hasActiveFilters, initials, kjsRole, matchesQuery, orderPatients, previewLines, sortPatients } from './board';
 import { DEFAULT_CHECKLIST } from './defaults';
 import { buildSearchBlobFor, makePatient } from './testFactories';
 import { buildPreview } from '@/data/repositories/patients.repo';
@@ -490,5 +475,36 @@ describe('what the card leads with', () => {
     // A fresh admission still being written should not show a blank card.
     const body = '*S:*\n- sesak sejak 3 hari';
     expect(buildPreview(body)).toContain('sesak sejak 3 hari');
+  });
+});
+
+describe('kjsRole', () => {
+  it('is null for a note that never mentions KJS', () => {
+    expect(kjsRole('Tn. A, STEMI anterior, post PCI')).toBeNull();
+  });
+
+  it('reads a consult note as kardio — the patient is another service\u2019s', () => {
+    // The `DPJP Kardio` line only exists where the note has to name BOTH the
+    // primary DPJP and ours, which is the referred-to-us case.
+    const note = [
+      'mohon izin melaporkan pasien baru KJS *TS Bedah (dr. X)*',
+      '_DPJP Bedah (Utama): dr. X_',
+      '_DPJP Kardio : dr. Y_',
+    ].join('\n');
+    expect(kjsRole(note)).toBe('kardio');
+  });
+
+  it('reads our own joint-care patient as ts', () => {
+    expect(kjsRole('melapor perpindahan pasien *KJS TS Bedah* ke PJT Lt. 4')).toBe('ts');
+  });
+
+  it('tolerates the spacing and markdown the corpus actually uses', () => {
+    expect(kjsRole('KJS\n_DPJP  Kardiologi: dr. Y_')).toBe('kardio');
+  });
+
+  it('falls back to ts rather than claiming a patient is not ours', () => {
+    // The safe direction: understating our distance from the patient is a
+    // smaller error than overstating our authority over one.
+    expect(kjsRole('rawat bersama KJS, DPJP utama dr. X')).toBe('ts');
   });
 });

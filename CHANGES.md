@@ -1,5 +1,92 @@
 # Plano — CHANGES
 
+## `2026-09-11.1`
+
+**KJS badge now says which side we are on; auth persistence race fixed and the
+spontaneous sign-out instrumented.**
+
+### KJS: the fact was there, the direction was not
+
+The badge said a second service is involved and left out the half that changes
+what you do. On a patient referred TO cardiology the primary DPJP is not ours,
+the plan is a recommendation rather than an order, and the discharge is someone
+else's call. Two patients on one board can both be "KJS" and need opposite
+handling.
+
+`BoardCard.kjs` is now `'kardio' | 'ts' | null`:
+
+| Badge | Meaning |
+|---|---|
+| `KJS · Kardio` | Another service's patient, we are the cardiology consultant |
+| `KJS · TS` | Our patient, co-managed with another service |
+
+**The discriminator is the `DPJP Kardio` line.** It appears in the consult
+template because that note has to name both the primary DPJP *and* ours; a note
+where we are primary has no reason to name a separate cardiology DPJP, so its
+absence is meaningful rather than merely unobserved. Read from the note rather
+than a new field, for the reason already recorded for the KJS flag: it is
+stated in the opening, and a second place to record it is a second place for it
+to be wrong.
+
+Anything mentioning KJS without that line falls back to `ts` — the safer
+direction, because understating our distance from a patient is a smaller error
+than overstating our authority over one.
+
+**No `\b` before `DPJP` in the matcher.** The line is written inside italics in
+every one of these notes (`_DPJP Kardio : dr. Y_`), `_` is a word character, so
+the boundary does not exist there and the match fails silently. Same trap that
+hid `hari ke-9` from the day-marker matcher.
+
+### The spontaneous sign-out
+
+**Fixed, a real race.** `setPersistence` was fire-and-forget while `initSession`
+subscribed to `onAuthStateChanged` on the next line. `setPersistence` swaps the
+store the SDK reads credentials from, and any auth state emitted mid-swap
+describes a store that is being replaced — which arrives at the listener as
+`null`, indistinguishable from a real sign-out. The subscription now waits for
+persistence to settle.
+
+**Persistence order changed to IndexedDB first**, localStorage only as
+fallback. localStorage was the weaker store in three ways: first evicted under
+pressure, targeted by "clear browsing data" and cleanup extensions, and watched
+for cross-tab changes by POLLING — so with several Plano tabs open, a read that
+comes back empty for a moment looks exactly like another tab signing out.
+IndexedDB is what the SDK prefers when left alone.
+
+**The stale error is cleared on every auth transition.** "Gagal memuat
+pengaturan." described the *previous* session; a sign-in page still showing it
+reads as a failure of the sign-in happening now, which is the screen that gets
+reported as the bug.
+
+**And it is now instrumented rather than guessed at further.** Pengaturan →
+**Riwayat sesi** keeps the last 20 session events — boot, sign-in, sign-out,
+profile error, redirect error — each with a timestamp, whether the browser was
+online, and the SDK's error code where there was one.
+
+The `?` in SIMGOS is the standing lesson: four releases of plausible causes,
+each shipped, each followed by another report. The candidates here — a token
+the server rejected, a network failure treated as a rejection, a credential
+read that came back empty for a moment — are indistinguishable afterwards
+unless something wrote it down at the time. The panel leads with the one
+reading that changes what to do: a sign-out **while offline** is a dropped
+token refresh on ward wifi; **while online** is the case worth chasing.
+
+No uid, no email, no token, no patient data in the log — it is meant to be
+screenshot-able without thinking about it.
+
+```
+1065 tests passed (was 1060 — 5 added on the KJS direction)
+typecheck / lint / check:version / check:contrast / check:a11y / build — clean
+```
+
+**Not claimed:** the race above is a real defect and was worth fixing on its
+own, but I cannot say it is the cause of what you saw — a sign-out that undoes
+itself on a hard reload has several explanations and I have no recording of
+which one fired. The log is there so the next occurrence answers that instead
+of me.
+
+---
+
 ## `2026-09-10.8`
 
 **Canvas reclaims its vertical space; a capped card stays readable; echo

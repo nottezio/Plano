@@ -82,8 +82,21 @@ export interface BoardCard {
   progress: ReturnType<typeof checklistProgress>;
   /** Consultant detected from the note, for the card badge. */
   dpjp: Dpjp | null;
-  /** Joint-care patient — `KJS` in the note, or two DPJP services named. */
-  kjs: boolean;
+  /**
+   * Joint care, and WHICH SIDE of it we are on.
+   *
+   * `null`      — not a KJS patient.
+   * `'kardio'`  — the patient belongs to another service and we are the
+   *               cardiology consultant on them.
+   * `'ts'`      — the patient is ours, co-managed with another service.
+   *
+   * The direction matters more than the fact on a board: on a `kardio` patient
+   * the plan is a recommendation someone else decides to follow, and the
+   * discharge, the orders and the primary DPJP are not ours. Reading a card
+   * without knowing which of those two you are looking at is the difference
+   * between writing an instruction and writing an opinion.
+   */
+  kjs: KjsRole | null;
   /** Chief on duty, shown on the card. */
   chief: string | null;
   preview: string;
@@ -119,7 +132,7 @@ export function buildCard(
     // Read from the preview rather than a field: KJS is stated in the note's
     // opening line, and a second place to record it is a second place for it
     // to be wrong.
-    kjs: /\bKJS\b/i.test(patient.preview ?? '') || /\bKJS\b/i.test(patient.searchBlob ?? ''),
+    kjs: kjsRole(`${patient.preview ?? ''}\n${patient.searchBlob ?? ''}`),
     preview: showInitialsOnly
       ? redactName(patient.preview ?? '', patient.name ?? '')
       : (patient.preview ?? ''),
@@ -404,4 +417,42 @@ export function groupLabel(patient: Patient, order: BoardOrder): string {
   }
 
   return '';
+}
+
+
+export type KjsRole = 'kardio' | 'ts';
+
+/**
+ * Which side of a joint-care arrangement this note is written from.
+ *
+ * Read from the note rather than stored in a field, for the reason already
+ * recorded for the KJS flag itself: it is stated in the note's opening, and a
+ * second place to record it is a second place for it to be wrong.
+ *
+ * The discriminator is the `DPJP Kardio` line. It appears in the consult
+ * template — the one used when another service's patient is referred to
+ * cardiology — and it is there precisely because the note has to name BOTH the
+ * primary DPJP and ours. A note where we are the primary has no reason to name
+ * a separate cardiology DPJP, so its absence is meaningful rather than merely
+ * unobserved.
+ *
+ * Anything mentioning KJS without that line falls back to `ts`, the safer of
+ * the two: it says "this patient is ours and someone else is involved", which
+ * is true of both cases; the mistake it can make is understating our distance
+ * from the patient, never overstating our authority over one.
+ */
+export function kjsRole(text: string): KjsRole | null {
+  if (!/\bKJS\b/i.test(text)) return null;
+  /*
+    No `\b` before DPJP, and that is not laziness.
+
+    The line is written inside italics in every one of these notes —
+    `_DPJP Kardio : dr. Y_` — and `_` is a word character, so `\b` between it
+    and the `D` does not exist and the match silently fails. This is the same
+    trap that hid `hari ke-9` from the day-marker matcher until 2026-09-10.
+    A leading space is not required for correctness here: `DPJP Kardio` is
+    specific enough that a false positive inside a longer word is not a thing
+    this corpus can produce.
+  */
+  return /DPJP\s+Kardio/i.test(text) ? 'kardio' : 'ts';
 }

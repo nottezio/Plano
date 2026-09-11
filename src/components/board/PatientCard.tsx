@@ -347,12 +347,32 @@ export function PatientCard({
             {card.dpjp.initials}
           </span>
         ) : null}
-        {card.kjs ? (
+        {/*
+          KJS, with the direction on it.
+
+          "KJS" alone said a second service is involved and left out the half
+          that changes what you do: on a `kardio` patient the primary DPJP is
+          not ours, the plan is a recommendation rather than an order, and the
+          discharge is someone else's call. Two patients on the same board can
+          both be "KJS" and need opposite handling, so the badge names which.
+
+          The direction word carries it, not the colour — `kardio` also gets a
+          filled badge because it is the rarer and more easily mis-read of the
+          two, but the badge is readable with the fill ignored.
+        */}
+        {card.kjs === 'kardio' ? (
           <span
-            title="Kelola Jantung Sinergi — pasien rawat bersama"
+            title="KJS — pasien TS lain, kita konsulen kardiologi. DPJP utama bukan kita."
+            className="rounded bg-current/15 px-1 text-[10px] font-semibold ring-1 ring-current/40"
+          >
+            KJS · Kardio
+          </span>
+        ) : card.kjs === 'ts' ? (
+          <span
+            title="KJS — pasien kita, rawat bersama TS lain"
             className="rounded border border-current/40 px-1 text-[10px] font-semibold"
           >
-            KJS
+            KJS · TS
           </span>
         ) : null}
         {patient.pinned ? (

@@ -8,10 +8,12 @@ import {
   signInWithRedirect,
   signOut,
   updateProfile,
+  type Auth,
   type User,
 } from 'firebase/auth';
 import { clearIndexedDbPersistence, terminate } from 'firebase/firestore';
 import { create } from 'zustand';
+import { logSessionEvent } from '@/lib/sessionLog';
 
 import { initFirebase, services } from '@/data/firebase';
 import { clearLocalBase } from '@/data/localBase';
@@ -75,25 +77,72 @@ export function initSession(): () => void {
     return () => undefined;
   }
 
-  const { auth } = init.services;
+  const { auth, persistenceReady } = init.services;
+  logSessionEvent('boot');
 
   // Completes signInWithRedirect, which is the only flow that works inside an
   // iOS standalone PWA (popups are blocked there).
   void getRedirectResult(auth).catch((error: unknown) => {
     console.error('[auth] redirect result failed', error);
+    logSessionEvent('redirect-error', errorCode(error));
     useSession.setState({ error: describeAuthError(error) });
   });
 
+  /**
+   * Subscribe only once the credential store has settled.
+   *
+   * `setPersistence` swaps the store the SDK reads credentials from, and any
+   * auth state emitted mid-swap describes a store that is being replaced —
+   * which arrives at this listener as `null`, indistinguishable from a real
+   * sign-out. Waiting costs a few milliseconds of `status: 'loading'`, which
+   * the gate already renders.
+   *
+   * The unsubscribe has to survive that wait: `initSession` returns
+   * synchronously, so a caller that tears down before the promise resolves
+   * would otherwise leak a listener that attaches afterwards.
+   */
+  let unsubscribeAuth: (() => void) | null = null;
+  let disposed = false;
+
+  void persistenceReady.then(() => {
+    if (disposed) return;
+    unsubscribeAuth = subscribe(auth);
+  });
+
+  return () => {
+    disposed = true;
+    unsubscribeAuth?.();
+    unsubscribeProfile?.();
+    unsubscribeProfile = null;
+  };
+}
+
+/** Extracts an `auth/...` or `permission-denied` code, where the SDK gave one. */
+function errorCode(error: unknown): string | undefined {
+  if (typeof error === 'object' && error !== null && 'code' in error) {
+    const code = (error as { code: unknown }).code;
+    if (typeof code === 'string') return code;
+  }
+  return undefined;
+}
+
+function subscribe(auth: Auth): () => void {
   return onAuthStateChanged(auth, (user) => {
     unsubscribeProfile?.();
     unsubscribeProfile = null;
 
     if (!user) {
+      logSessionEvent('signed-out');
       useSession.setState({ status: 'signed-out', user: null, profile: null });
       return;
     }
 
-    useSession.setState({ status: 'signed-in', user });
+    logSessionEvent('signed-in');
+    // The error is cleared on every transition. It described the PREVIOUS
+    // session, and a sign-in page showing "Gagal memuat pengaturan." from a
+    // session that ended minutes ago reads as a failure of the sign-in
+    // happening now — which is the screen that gets reported as the bug.
+    useSession.setState({ status: 'signed-in', user, error: null });
 
     /**
      * Ask for persistent storage once we have a session to protect.
@@ -120,6 +169,7 @@ export function initSession(): () => void {
       },
       (error) => {
         console.error('[auth] profile subscription failed', error);
+        logSessionEvent('profile-error', errorCode(error));
         useSession.setState({ error: 'Gagal memuat pengaturan.' });
       },
     );
