@@ -355,6 +355,22 @@ export interface Patient {
    */
   pemantauan?: boolean;
   /**
+   * Needs an ECG every day.
+   *
+   * A per-patient flag, not a checklist item and not a rule about everybody.
+   * The daily checklist item reads "EKG sesuai kebutuhan" precisely because
+   * most patients do not need one daily — an arrhythmia patient does, and the
+   * two are indistinguishable on a board unless the patient carries the fact.
+   *
+   * Not derived from the diagnosis text. "Arrhythmic" is a judgement rather
+   * than a keyword: `VES lown grade II` in a diagnosis list does not by itself
+   * mean daily tracing, and `AF` in a past-history line means nothing at all
+   * for today. Guessing it wrong in the safe direction spams the board with
+   * marks that get ignored, and in the unsafe direction quietly drops a
+   * tracing somebody was relying on. So it is set by hand, once.
+   */
+  ekgHarian?: boolean;
+  /**
    * Held temporarily — someone else's patient, covered on a shift.
    *
    * A flag rather than a separate collection: they are ordinary patients with

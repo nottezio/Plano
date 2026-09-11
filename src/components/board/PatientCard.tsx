@@ -320,6 +320,26 @@ export function PatientCard({
           A flex row that ends here IS the top-right corner, and it stays the
           corner when the name below it wraps to two lines.
         */}
+        {/*
+          Daily ECG, beside the discharge chip and in the same corner.
+
+          A badge rather than a checklist item: the checklist asks "EKG sesuai
+          kebutuhan", and this is the patient for whom the answer is always
+          yes. A task you tick is finished; this is true until somebody says
+          otherwise.
+
+          Word, not icon. A tracing symbol at 10px is a squiggle, and the
+          reader of this badge is deciding whether to walk back with a machine.
+        */}
+        {card.ekgHarian ? (
+          <span
+            title="EKG harian — pasien aritmia, rekam tiap hari"
+            className="shrink-0 rounded-full px-1.5 py-0.5 text-[10px] font-semibold ring-1 ring-current/40"
+          >
+            EKG/hari
+          </span>
+        ) : null}
+
         {card.discharge ? <DischargeChip stage={card.discharge} /> : null}
       </div>
 

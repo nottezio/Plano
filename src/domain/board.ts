@@ -79,6 +79,8 @@ export interface BoardCard {
   hariRawat: number;
   /** Under closer watch; drawn as a marker on the card. */
   pemantauan: boolean;
+  /** Needs a tracing every day; drawn as a badge on the card. */
+  ekgHarian: boolean;
   progress: ReturnType<typeof checklistProgress>;
   /** Consultant detected from the note, for the card badge. */
   dpjp: Dpjp | null;
@@ -116,6 +118,7 @@ export function buildCard(
     colorToken: resolveCardColor(items, states, patient.colorOverride),
     hariRawat: hariRawat(today, patient.admittedAt),
     pemantauan: patient.pemantauan === true,
+    ekgHarian: patient.ekgHarian === true,
     progress: checklistProgress(items, states),
     // Redacted when the board is in initials-only mode. Reducing the title to
     // initials while the preview under it spells the name out in full is not

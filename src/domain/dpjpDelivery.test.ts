@@ -1,50 +1,85 @@
 import { describe, expect, it } from 'vitest';
 
-import { DPJPS, dpjpById } from './dpjp';
+import { DPJPS, describeDelivery, dpjpById } from './dpjp';
 
 /**
  * Where each consultant's report actually goes.
  *
- * The list Avicenna supplied on 2026-09-02, verbatim in intent: who sends it,
- * and to which group. It is the thing a resident most often has to ask
- * somebody about, and getting it wrong means a report sitting unread in the
- * wrong place.
+ * The list Avicenna supplied, updated 2026-09-11. It is the thing a resident
+ * most often has to ask somebody about, and getting it wrong means a report
+ * sitting unread in the wrong place.
+ *
+ * Asserted on the ROUTE, not on the sentence. The sentence is generated and
+ * may be reworded; the route is the fact, and a test that breaks on a comma is
+ * a test people learn to update without reading.
  */
-describe('DPJP delivery notes', () => {
-  it.each([
-    ['pk', 'Kirim sendiri ke grup Prof PK'],
-    ['mz', 'Kirim sendiri ke grup Telegram Prof MZ'],
-    ['im', 'Kirim sendiri ke WA pribadi'],
-    ['aha', 'Dikirim oleh chief'],
-    ['zd', 'Dikirim oleh chief, PDF + jam verifikasi'],
-    ['afm', 'Dikirim oleh chief, dengan PDF'],
-    ['ahn', 'Dikirim oleh chief'],
-    ['afg', 'Dikirim oleh chief, dengan PDF'],
-    ['pt', 'Kirim sendiri ke grup dr. PT'],
-    ['ks', 'Kirim sendiri ke grup dr. KS'],
-    ['maa', 'Kirim sendiri ke WA pribadi'],
-    ['arb', 'Kirim sendiri ke grup dr. Rio'],
-  ])('%s', (id, expected) => {
-    expect(dpjpById(id)?.delivery).toBe(expected);
+describe('DPJP delivery routes', () => {
+  describe('via chief — chief forwards to the DPJP and to grup prodi', () => {
+    it.each([
+      ['afm', true],
+      ['zd', true],
+      ['afg', true],
+    ])('%s expects a PDF', (id, pdf) => {
+      expect(dpjpById(id)?.delivery).toMatchObject({ route: 'chief', pdf });
+    });
+
+    it('Az Hafid goes through the chief but WITHOUT a PDF', () => {
+      // The one exception in this group, and the reason `pdf` is a field
+      // rather than being implied by the route.
+      expect(dpjpById('ahn')?.delivery).toMatchObject({ route: 'chief', pdf: false });
+    });
   });
 
-  it('leaves the rest without one', () => {
-    // Absent means nobody specified a route, which is not the same as "send it
-    // anywhere" — the UI shows nothing rather than inventing a default.
-    for (const id of ['sm', 'yp', 'aau', 'fm', 'alm', 'is', 'aa', 'bpp', 'fat', 'np']) {
-      expect(dpjpById(id)?.delivery).toBeUndefined();
-    }
+  describe('sent by the resident, to the consultant’s group', () => {
+    it.each([
+      ['ks', 'grup dr. Khalid'],
+      ['pt', 'grup dr. Pendrik'],
+      ['pk', 'grup Prof PK'],
+      ['arb', 'grup dr. Rio'],
+      ['mz', 'grup Prof MZ'],
+    ])('%s goes to %s', (id, channel) => {
+      expect(dpjpById(id)?.delivery).toMatchObject({ route: 'group', channel });
+    });
+
+    it('Prof MZ carries the slide note, because it changes what you prepare', () => {
+      expect(dpjpById('mz')?.delivery?.note).toContain('slide');
+    });
   });
 
-  it('never attaches a route to a consultant who is not in the registry', () => {
-    expect(dpjpById('nobody')).toBeUndefined();
+  describe('personal WhatsApp only — never a group', () => {
+    it.each([['im'], ['maa']])('%s is wapri', (id) => {
+      expect(dpjpById(id)?.delivery).toMatchObject({ route: 'dm' });
+    });
   });
 
-  it('gives every delivery note to a real registry entry', () => {
-    // A typo in an id would silently drop the note and nothing else would fail.
+  it('never claims a PDF for a personal-WhatsApp route', () => {
+    // `pdf` is meaningless there; setting it would imply a step that does not
+    // exist and cost somebody the time to build one.
     for (const dpjp of DPJPS) {
-      if (dpjp.delivery === undefined) continue;
-      expect(dpjp.delivery.trim().length).toBeGreaterThan(0);
+      if (dpjp.delivery?.route === 'dm') expect(dpjp.delivery.pdf).toBeUndefined();
     }
+  });
+
+  it('names a channel for every group route', () => {
+    for (const dpjp of DPJPS) {
+      if (dpjp.delivery?.route === 'group') expect(dpjp.delivery.channel).toBeTruthy();
+    }
+  });
+});
+
+describe('describeDelivery', () => {
+  it('says whether to build a PDF, which is the expensive half of the answer', () => {
+    expect(describeDelivery({ route: 'chief', pdf: true })).toContain('PDF ke chief');
+    expect(describeDelivery({ route: 'chief', pdf: false })).toContain('tanpa PDF');
+  });
+
+  it('says wapri explicitly, so it is not read as "the usual group"', () => {
+    expect(describeDelivery({ route: 'dm' })).toContain('bukan ke grup');
+  });
+
+  it('appends a consultant-specific note rather than hiding it', () => {
+    expect(
+      describeDelivery({ route: 'group', channel: 'grup Prof MZ', note: 'ada slide tersendiri' }),
+    ).toBe('Kirim sendiri ke grup Prof MZ — ada slide tersendiri');
   });
 });

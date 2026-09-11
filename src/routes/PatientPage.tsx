@@ -24,7 +24,7 @@ import { RevisionTrail } from '@/components/patient/RevisionTrail';
 import { deleteVersion, saveVersion } from '@/data/repositories/entries.repo';
 import { AppShell } from '@/components/common/AppShell';
 import { clearEntry, fetchEntryBodies, setEntryLocked } from '@/data/repositories/entries.repo';
-import { updateArchiveNote } from '@/data/repositories/patients.repo';
+import { updateArchiveNote, updatePatient } from '@/data/repositories/patients.repo';
 import { archiveSummary } from '@/domain/archive';
 import { fillPatientFromNote } from '@/data/repositories/patients.repo';
 import { parsePatientFacts } from '@/domain/parsePatient';
@@ -33,7 +33,7 @@ import { countDayMarker, daysBetween as dayGap, findDayMarker, findDayMarkers } 
 import { formatLocation } from '@/domain/identity';
 import { isIgdEntry } from '@/domain/clinicalDate';
 import { insertIntoObjective } from '@/domain/lab/parseLab';
-import { describeConfig, dpjpById, isTrioDpjp, primaryDpjp } from '@/domain/dpjp';
+import { describeConfig, dpjpById, isTrioDpjp, primaryDpjp, describeDelivery } from '@/domain/dpjp';
 import { SCHEDULE_PERIOD, upcomingPoli, weekdayName } from '@/domain/poli/schedule';
 import { parseSections } from '@/domain/sections/parseSections';
 import {
@@ -891,8 +891,8 @@ export default function PatientPage(): JSX.Element {
               reads only one of the two is better served by this one.
             */}
             {dpjp?.delivery ? (
-              <p className="truncate text-[11px] text-fg-muted">
-                {dpjp.initials} — {dpjp.delivery}
+              <p className="text-[11px] text-fg-muted">
+                {dpjp.initials} — {describeDelivery(dpjp.delivery)}
               </p>
             ) : null}
             {isTrioDpjp(dpjp?.id) ? (
@@ -1081,6 +1081,49 @@ export default function PatientPage(): JSX.Element {
           </Banner>
         ) : null}
         {carrySummary ? <Banner tone="muted">{carrySummary}</Banner> : null}
+        {/*
+          Which list this patient belongs to — offered only while the note is
+          still blank.
+
+          The board creates a patient into whatever list you were looking at,
+          which is right almost every time and silent when it is. This is the
+          correction, placed where the consequence is: one tap, on the screen
+          you are already on, before you have typed anything.
+
+          It disappears once there is a note, deliberately. After that the
+          patient has a history and moving them between lists is a decision
+          rather than a correction — that lives in the ⋯ sheet, where it is
+          harder to do by accident.
+        */}
+        {patient.status === 'active' &&
+        !patient.name?.trim() &&
+        editor.value.trim().length === 0 ? (
+          <div className="flex items-center gap-2 border-b border-border px-4 py-1.5 text-[11px]">
+            <span className="text-fg-muted">Masuk daftar:</span>
+            {(
+              [
+                [false, 'Pasien saya'],
+                [true, 'Titipan'],
+              ] as Array<[boolean, string]>
+            ).map(([value, label]) => (
+              <button
+                key={label}
+                type="button"
+                aria-pressed={(patient.temporary === true) === value}
+                onClick={() => void updatePatient(patient.id, { temporary: value })}
+                className={[
+                  'min-h-tap rounded-full border px-3 font-medium',
+                  (patient.temporary === true) === value
+                    ? 'border-accent text-accent'
+                    : 'border-border text-fg-muted',
+                ].join(' ')}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+        ) : null}
+
         {staleMarkers ? (
           <Banner tone="warn">
             {/*

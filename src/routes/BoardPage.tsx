@@ -1,9 +1,12 @@
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 
 import { AppShell } from '@/components/common/AppShell';
 import { FilterBar } from '@/components/board/FilterBar';
 import { DenahView } from '@/components/board/DenahView';
+import { ARCHIVE_REASON_LABELS } from '@/domain/archive';
+import type { ArchiveReason } from '@/domain/types';
+
 import { CanvasBoard } from '@/components/board/CanvasBoard';
 import { useMediaQuery } from '@/hooks/useMediaQuery';
 import { MasonryGrid, MasonryItem } from '@/components/board/MasonryGrid';
@@ -15,7 +18,7 @@ import { QuickChecklistSheet } from '@/components/board/QuickChecklistSheet';
 import { IconSearch } from '@/components/common/Icons';
 import { useClinicalToday } from '@/hooks/useClinicalToday';
 import { useDebouncedValue } from '@/hooks/useDebouncedValue';
-import { createBlankPatient } from '@/data/repositories/patients.repo';
+import { archivePatient, createBlankPatient } from '@/data/repositories/patients.repo';
 import { usePatients } from '@/hooks/usePatients';
 import { setPatientStatus } from '@/data/repositories/patients.repo';
 import {
@@ -45,9 +48,23 @@ export default function BoardPage(): JSX.Element {
    * The record is created locally and navigated to immediately; the write is
    * never awaited, so this works with no signal.
    */
+  /**
+   * New patients land in the list you are LOOKING AT.
+   *
+   * Not a prompt on every admission. The choice is real but lopsided — almost
+   * every new patient is an ordinary one — and a modal on the most-pressed
+   * button of the day charges every admission for the rare case. Inheriting
+   * the scope gets it right without a tap: you are on Titipan because you are
+   * dealing with a titipan patient.
+   *
+   * The choice is not hidden, it is MOVED: the new patient's page offers both
+   * lists as a segmented control for as long as the note is still blank, where
+   * it costs nothing to ignore and one tap to correct. A wrong guess here is
+   * visible immediately and reversible from the same screen.
+   */
   const createAndOpen = useCallback(() => {
     if (!uid) return;
-    const { id, written } = createBlankPatient(uid, today);
+    const { id, written } = createBlankPatient(uid, today, scopeRef.current === 'temporary');
     void written.catch((error: unknown) => console.error('[board] create rejected', error));
     navigate(`/p/${id}/${today}`);
   }, [uid, today, navigate]);
@@ -83,6 +100,15 @@ export default function BoardPage(): JSX.Element {
    * indistinguishable from the flag not having saved. That is almost certainly
    * the "selalu kembali ke pasien utama": the write was fine, the tab was not.
    */
+  /**
+   * The scope, readable from a callback that must not change identity.
+   *
+   * `createAndOpen` is memoised and passed to a button; adding `scope` to its
+   * dependency list would rebuild it on every tab switch for the sake of one
+   * boolean read at press time.
+   */
+  const scopeRef = useRef<'mine' | 'temporary'>('mine');
+
   const [scope, setScope] = useState<'mine' | 'temporary'>(() => {
     try {
       return localStorage.getItem('visite.boardScope') === 'temporary' ? 'temporary' : 'mine';
@@ -90,6 +116,8 @@ export default function BoardPage(): JSX.Element {
       return 'mine';
     }
   });
+
+  scopeRef.current = scope;
 
   const changeScope = (next: 'mine' | 'temporary'): void => {
     setScope(next);
@@ -221,6 +249,32 @@ export default function BoardPage(): JSX.Element {
   const leaveSelection = (): void => {
     setSelecting(false);
     setSelected(new Set());
+  };
+
+  /**
+   * Archive every selected patient, with one reason for the batch.
+   *
+   * A reason is asked for rather than defaulted. `ARCHIVE_REASON_LABELS` is
+   * what the archive is later browsed and filtered by, and a batch filed under
+   * a guessed reason is worse than an unfiled one — it is wrong in a way
+   * nobody will re-check. Batching is honest here: the case this exists for is
+   * the end of a round where several patients went home the same day, which is
+   * one reason by construction.
+   *
+   * Archiving is not deletion — every entry, checklist day and revision
+   * survives and the patient stays copyable. That is why it needs no
+   * confirmation step beyond naming the reason.
+   */
+  const [archiveReason, setArchiveReason] = useState<ArchiveReason | null>(null);
+
+  const archiveSelected = (reason: ArchiveReason): void => {
+    for (const patientId of selected) {
+      void archivePatient(patientId, reason).catch((error: unknown) =>
+        console.error('[board] archive rejected', error),
+      );
+    }
+    setArchiveReason(null);
+    leaveSelection();
   };
 
   const trashSelected = (): void => {
@@ -536,20 +590,54 @@ export default function BoardPage(): JSX.Element {
       </div>
 
       {selecting ? (
-        <div className="mb-2 flex items-center gap-2 rounded-lg border border-border px-3 py-2">
-          <span className="flex-1 text-xs text-fg-muted">
-            {selected.size === 0
-              ? 'Ketuk kartu untuk memilih.'
-              : `${selected.size} pasien dipilih`}
-          </span>
-          <button
-            type="button"
-            disabled={selected.size === 0}
-            onClick={trashSelected}
-            className="min-h-tap rounded-lg px-3 text-xs font-medium text-danger disabled:opacity-40"
-          >
-            Pindahkan ke sampah
-          </button>
+        <div className="mb-2 space-y-2 rounded-lg border border-border px-3 py-2">
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="flex-1 text-xs text-fg-muted">
+              {selected.size === 0
+                ? 'Ketuk kartu untuk memilih.'
+                : `${selected.size} pasien dipilih`}
+            </span>
+            <button
+              type="button"
+              disabled={selected.size === 0}
+              onClick={() => setArchiveReason((current) => (current ? null : 'pulang'))}
+              aria-expanded={archiveReason !== null}
+              className="min-h-tap rounded-lg px-3 text-xs font-medium text-fg disabled:opacity-40"
+            >
+              Arsipkan
+            </button>
+            <button
+              type="button"
+              disabled={selected.size === 0}
+              onClick={trashSelected}
+              className="min-h-tap rounded-lg px-3 text-xs font-medium text-danger disabled:opacity-40"
+            >
+              Pindahkan ke sampah
+            </button>
+          </div>
+
+          {/*
+            The reason, asked before anything is written.
+
+            Opening a second row rather than a dialog: the selection is on
+            screen behind it and staying able to see WHAT is about to be
+            archived is most of the safety here.
+          */}
+          {archiveReason !== null && selected.size > 0 ? (
+            <div className="flex flex-wrap items-center gap-2 border-t border-border pt-2">
+              <span className="text-xs text-fg-muted">Alasan:</span>
+              {(Object.keys(ARCHIVE_REASON_LABELS) as ArchiveReason[]).map((reason) => (
+                <button
+                  key={reason}
+                  type="button"
+                  onClick={() => archiveSelected(reason)}
+                  className="min-h-tap rounded-lg border border-border px-3 text-xs font-medium"
+                >
+                  {ARCHIVE_REASON_LABELS[reason]}
+                </button>
+              ))}
+            </div>
+          ) : null}
         </div>
       ) : null}
 

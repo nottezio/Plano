@@ -45,22 +45,68 @@ export interface Dpjp {
    * preference anyone sets per install. `dpjpFormats` holds what the REPORT
    * looks like; this holds where it goes.
    */
-  delivery?: string;
+  delivery?: DpjpDelivery;
+}
+
+/**
+ * How a consultant's report reaches them.
+ *
+ * Structured rather than a sentence, because the three routes are not three
+ * phrasings of one idea — they are three different things a resident does, and
+ * only one of them ends with the report in the resident's own hands. Free text
+ * could say "dikirim oleh chief, dengan PDF" and "Dikirim oleh chief" and
+ * leave it to the reader to notice that the difference is whether to build a
+ * PDF at all.
+ *
+ *   chief — send it to the chief; the chief forwards to the DPJP and to the
+ *           grup prodi. `pdf` says whether the chief expects a PDF.
+ *   group — send it yourself, to that consultant's group.
+ *   dm    — send it yourself, to their personal WhatsApp. No group involved.
+ */
+export type DeliveryRoute = 'chief' | 'group' | 'dm';
+
+export interface DpjpDelivery {
+  route: DeliveryRoute;
+  /** A PDF is expected. Meaningless for `dm`, and omitted there. */
+  pdf?: boolean;
+  /** Which group, for `group`. Named as the resident would say it. */
+  channel?: string;
+  /** Anything true of this consultant alone. */
+  note?: string;
+}
+
+/**
+ * One sentence describing a route, for the patient page.
+ *
+ * A formatter rather than a stored string: the routes are a small closed set,
+ * and writing the sentence per consultant is how "dengan PDF" ends up on four
+ * of the five who need it.
+ */
+export function describeDelivery(delivery: DpjpDelivery): string {
+  const base =
+    delivery.route === 'chief'
+      ? delivery.pdf
+        ? 'Kirim PDF ke chief; chief teruskan ke DPJP dan grup prodi'
+        : 'Kirim ke chief tanpa PDF; chief teruskan ke DPJP dan grup prodi'
+      : delivery.route === 'group'
+        ? `Kirim sendiri ke ${delivery.channel ?? 'grup DPJP'}`
+        : 'Kirim sendiri ke WA pribadi (wapri), bukan ke grup';
+  return delivery.note ? `${base} — ${delivery.note}` : base;
 }
 
 export const DPJPS: readonly Dpjp[] = [
-  { id: 'pk', name: 'Prof. dr. Peter Kabo, Ph.D, Sp.FK, Sp.JP(K)', initials: 'PK', match: ['peter kabo', 'kabo'], delivery: 'Kirim sendiri ke grup Prof PK' },
-  { id: 'mz', name: 'Prof. Dr. dr. Muzakkir Amir, Sp.JP(K)', initials: 'MZ', match: ['muzakkir amir'], delivery: 'Kirim sendiri ke grup Telegram Prof MZ' },
-  { id: 'im', name: 'Prof. Dr. dr. Idar Mappangara, Sp.PD, Sp.JP(K)', initials: 'IM', match: ['idar mappangara', 'mappangara'], delivery: 'Kirim sendiri ke WA pribadi' },
-  { id: 'aha', name: 'Dr. dr. Abdul Hakim Alkatiri, Sp.JP(K)', initials: 'AHA', match: ['alkatiri'], delivery: 'Dikirim oleh chief' },
-  { id: 'zd', name: 'dr. Zaenab Djafar, M.Kes, Sp.PD, Sp.JP, Subsp.PRKV(K)', initials: 'ZD', match: ['zaenab djafar', 'zaenab'], delivery: 'Dikirim oleh chief, PDF + jam verifikasi' },
-  { id: 'afm', name: 'Dr. dr. Akhtar Fajar Muzakkir, SpJP, Subsp. IKKV(K), KI(K)', initials: 'AFM', match: ['akhtar fajar', 'akhtar'], delivery: 'Dikirim oleh chief, dengan PDF' },
-  { id: 'ahn', name: 'Dr. dr. Az Hafid Nashar, Sp.JP(K)', initials: 'AHN', match: ['az hafid', 'hafid nashar', 'nashar'], delivery: 'Dikirim oleh chief' },
-  { id: 'afg', name: 'dr. Aussie Fitriani Ghaznawie, Sp.JP, Subsp.Eko (K)', initials: 'AFG', match: ['ghaznawie', 'aussie'], delivery: 'Dikirim oleh chief, dengan PDF' },
-  { id: 'pt', name: 'dr. Pendrik Tandean, Sp.PD-KKV', initials: 'PT', match: ['pendrik'], delivery: 'Kirim sendiri ke grup dr. PT' },
-  { id: 'ks', name: 'Dr. dr. Khalid Saleh, Sp.PD-KKV', initials: 'KS', match: ['khalid saleh', 'khalid'], delivery: 'Kirim sendiri ke grup dr. KS' },
+  { id: 'pk', name: 'Prof. dr. Peter Kabo, Ph.D, Sp.FK, Sp.JP(K)', initials: 'PK', match: ['peter kabo', 'kabo'], delivery: { route: 'group', channel: 'grup Prof PK' } },
+  { id: 'mz', name: 'Prof. Dr. dr. Muzakkir Amir, Sp.JP(K)', initials: 'MZ', match: ['muzakkir amir'], delivery: { route: 'group', channel: 'grup Prof MZ', note: 'ada slide tersendiri' } },
+  { id: 'im', name: 'Prof. Dr. dr. Idar Mappangara, Sp.PD, Sp.JP(K)', initials: 'IM', match: ['idar mappangara', 'mappangara'], delivery: { route: 'dm' } },
+  { id: 'aha', name: 'Dr. dr. Abdul Hakim Alkatiri, Sp.JP(K)', initials: 'AHA', match: ['alkatiri'], delivery: { route: 'chief' } },
+  { id: 'zd', name: 'dr. Zaenab Djafar, M.Kes, Sp.PD, Sp.JP, Subsp.PRKV(K)', initials: 'ZD', match: ['zaenab djafar', 'zaenab'], delivery: { route: 'chief', pdf: true, note: 'sertakan jam verifikasi' } },
+  { id: 'afm', name: 'Dr. dr. Akhtar Fajar Muzakkir, SpJP, Subsp. IKKV(K), KI(K)', initials: 'AFM', match: ['akhtar fajar', 'akhtar'], delivery: { route: 'chief', pdf: true } },
+  { id: 'ahn', name: 'Dr. dr. Az Hafid Nashar, Sp.JP(K)', initials: 'AHN', match: ['az hafid', 'hafid nashar', 'nashar'], delivery: { route: 'chief', pdf: false } },
+  { id: 'afg', name: 'dr. Aussie Fitriani Ghaznawie, Sp.JP, Subsp.Eko (K)', initials: 'AFG', match: ['ghaznawie', 'aussie'], delivery: { route: 'chief', pdf: true } },
+  { id: 'pt', name: 'dr. Pendrik Tandean, Sp.PD-KKV', initials: 'PT', match: ['pendrik'], delivery: { route: 'group', channel: 'grup dr. Pendrik' } },
+  { id: 'ks', name: 'Dr. dr. Khalid Saleh, Sp.PD-KKV', initials: 'KS', match: ['khalid saleh', 'khalid'], delivery: { route: 'group', channel: 'grup dr. Khalid' } },
   { id: 'sm', name: 'Dr. dr. Sumarni, Sp.JP, Subsp.Ar (K)', initials: 'SM', match: ['sumarni'] },
-  { id: 'maa', name: 'dr. Muhammad Asrul Apris, Sp.JP(K)', initials: 'MAA', match: ['asrul apris', 'apris'], delivery: 'Kirim sendiri ke WA pribadi' },
+  { id: 'maa', name: 'dr. Muhammad Asrul Apris, Sp.JP(K)', initials: 'MAA', match: ['asrul apris', 'apris'], delivery: { route: 'dm' } },
   { id: 'yp', name: 'Dr. dr. Yulius Patimang, Sp.A, Sp.JP(K)', initials: 'YP', match: ['patimang'] },
   { id: 'aau', name: 'dr. Andi Alief Utama Armyn, M.Kes, Sp.JP, Subsp. KPPJB (K)', initials: 'AAU', match: ['alief utama', 'armyn'] },
   { id: 'fm', name: 'dr. Fadillah Maricar, Sp.JP (K), FIHA', initials: 'FM', match: ['maricar'] },
@@ -69,7 +115,7 @@ export const DPJPS: readonly Dpjp[] = [
   { id: 'aa', name: 'dr. Amelia Arindanie, Sp.JP', initials: 'AA', match: ['arindanie', 'amelia'] },
   { id: 'bpp', name: 'dr. Bogie Putra Palinggi, Sp.JP (K)', initials: 'BPP', match: ['palinggi', 'bogie'] },
   { id: 'fat', name: 'dr. Frizt Alfred Tandean, Sp.JP(K)', initials: 'FAT', match: ['frizt'] },
-  { id: 'arb', name: 'dr. Andi Renata Bastario, Sp.JP(K)', initials: 'ARB', match: ['bastario', 'renata'], delivery: 'Kirim sendiri ke grup dr. Rio' },
+  { id: 'arb', name: 'dr. Andi Renata Bastario, Sp.JP(K)', initials: 'ARB', match: ['bastario', 'renata'], delivery: { route: 'group', channel: 'grup dr. Rio' } },
   { id: 'np', name: 'dr. Nurminsyah P., Sp.JP', initials: 'NP', match: ['nurminsyah'] },
   { id: 'mnm', name: 'dr. Muhammad Nuralim Mallapasi, Sp.B, Sp.BTKV(K)VE', initials: 'MNM', match: ['mallapasi', 'nuralim'] },
   { id: 'jk', name: 'dr. Jayarasti Kusumanegara, Sp.BTKV(K)VE', initials: 'JK', match: ['kusumanegara', 'jayarasti'] },

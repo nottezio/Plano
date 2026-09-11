@@ -154,6 +154,15 @@ export function PatientActionsSheet({
         />
 
         <Action
+          label={patient.ekgHarian ? 'Tidak perlu EKG harian' : 'Tandai perlu EKG harian'}
+          detail="Untuk pasien aritmia — kartu menampilkan penanda EKG/hari."
+          onClick={() => {
+            close();
+            void updatePatient(patient.id, { ekgHarian: !patient.ekgHarian });
+          }}
+        />
+
+        <Action
           label={patient.pinned ? 'Lepas sematan' : 'Sematkan di papan'}
           onClick={() => {
             void updatePatient(patient.id, { pinned: !patient.pinned });

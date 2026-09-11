@@ -1,5 +1,84 @@
 # Plano — CHANGES
 
+## `2026-09-11.2`
+
+**Daily-ECG marker; DPJP delivery restructured into routes; new patients land
+in the list you are on; bulk archive.**
+
+### EKG/hari marker
+
+`patient.ekgHarian`, a flag like `pemantauan`, shown as an `EKG/hari` badge in
+the card corner and toggled from the ⋯ sheet.
+
+**A flag, not a checklist item.** The daily checklist asks "EKG sesuai
+kebutuhan" precisely because most patients do not need one — a task you tick is
+finished, and this is true until somebody says otherwise.
+
+**Not derived from the diagnosis text.** "Arrhythmic" is a judgement, not a
+keyword: `VES lown grade II` in a diagnosis list does not by itself mean daily
+tracing, and `AF` in a past-history line means nothing for today. Guessing it
+in the safe direction spams the board with marks that get ignored; in the
+unsafe direction it quietly drops a tracing someone was relying on. Set by
+hand, once.
+
+### DPJP delivery is now a route, not a sentence
+
+`Dpjp.delivery` was free text, which let `Dikirim oleh chief, dengan PDF` and
+`Dikirim oleh chief` sit side by side and left the reader to notice that the
+difference is whether to build a PDF at all. It is now `{ route, pdf, channel,
+note }` with one formatter.
+
+| Route | Who | |
+|---|---|---|
+| `chief` + PDF | AFM, ZD, AFG | send PDF to chief; chief forwards to DPJP and grup prodi |
+| `chief`, no PDF | AHN (Az Hafid) | same route, **no PDF** — the exception that makes `pdf` a field |
+| `group` | KS (Khalid), PT (Pendrik), PK (Prof Peter), ARB (dr Rio), MZ (Prof MZ) | send yourself to their group |
+| `dm` | IM (Prof IM), MAA (dr Asrul) | wapri only, never a group |
+
+Prof MZ carries `note: 'ada slide tersendiri'`, because it changes what you
+prepare, not just where you send it. ZD keeps the verification-hour note from
+the earlier list.
+
+Tests assert the **route**, not the sentence — a test that breaks on a comma is
+one people learn to update without reading.
+
+**AHA (Alkatiri) was not in this list** and is left as `chief` with no PDF
+claim. Say if he belongs in the PDF group.
+
+### New patients land in the list you are looking at
+
+`createBlankPatient` takes `temporary`, and the board passes the current scope.
+No prompt: the choice is real but lopsided, and a modal on the most-pressed
+button of the day charges every admission for the rare case. You are on Titipan
+because you are dealing with a titipan patient.
+
+The choice is moved rather than hidden — the new patient's page shows **Masuk
+daftar: Pasien saya / Titipan** for as long as the note is blank, where it
+costs nothing to ignore and one tap to correct. It disappears once there is a
+note: after that the patient has a history, and moving them is a decision
+rather than a correction, which stays in the ⋯ sheet where it is harder to do
+by accident.
+
+### Bulk archive
+
+**Arsipkan** in the Pilih bar, beside Pindahkan ke sampah. It opens a reason
+row — Pulang / Pindah / Meninggal / Lainnya — and applies one reason to the
+batch.
+
+**The reason is asked, never defaulted.** It is what the archive is later
+browsed and filtered by, so a batch filed under a guess is worse than an
+unfiled one: wrong in a way nobody re-checks. Batching is honest here — the
+case this exists for is the end of a round where several patients went home the
+same day, which is one reason by construction. A row rather than a dialog, so
+the selection stays visible behind it.
+
+```
+1067 tests passed (was 1065)
+typecheck / lint / check:version / check:contrast / check:a11y / build — clean
+```
+
+---
+
 ## `2026-09-11.1`
 
 **KJS badge now says which side we are on; auth persistence race fixed and the

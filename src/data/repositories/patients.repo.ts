@@ -67,6 +67,8 @@ export interface CreatePatientInput {
   dpjp?: string;
   diagnoses?: string[];
   labels?: string[];
+  /** Lands in the Titipan list rather than the main one. */
+  temporary?: boolean;
 }
 
 /** F10 — lowercase haystack for instant offline search. */
@@ -111,6 +113,10 @@ export function createPatient(uid: string, input: CreatePatientInput): {
     updatedBy: getDeviceId(),
     deletedAt: null,
   };
+
+  // Only written when true. `temporary: false` on every patient would be a
+  // field that means nothing on the 95% and has to be filtered around forever.
+  if (input.temporary) record['temporary'] = true;
 
   // Firestore rejects `undefined`; omit rather than write nulls that would
   // then have to be distinguished from "explicitly cleared" later.
@@ -302,6 +308,7 @@ type PatientPatchKey = keyof Pick<
   | 'labels'
   | 'pinned'
   | 'pemantauan'
+  | 'ekgHarian'
   | 'temporary'
   | 'chief'
   | 'discharge'
@@ -441,8 +448,17 @@ export function deletePatient(patientId: string): Promise<void> {
 export function createBlankPatient(
   uid: string,
   today: ClinicalDate,
+  /**
+   * Which list the patient lands in.
+   *
+   * Passed rather than assumed, because the caller knows which list the user
+   * was looking at when they pressed the button and this function does not.
+   * Defaulting to `false` keeps every existing call creating an ordinary
+   * patient, which is what they meant.
+   */
+  temporary = false,
 ): { id: string; written: Promise<void> } {
-  return createPatient(uid, { admittedAt: today });
+  return createPatient(uid, temporary ? { admittedAt: today, temporary: true } : { admittedAt: today });
 }
 
 /**
