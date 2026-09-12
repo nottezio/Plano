@@ -1,3 +1,4 @@
+import { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 
 import { previewLines, type BoardCard } from '@/domain/board';
@@ -475,7 +476,7 @@ export function PatientCard({
         Outside `fitHeight` this div contributes nothing: no classes, so the
         block flows exactly as it did when these four were siblings.
       */}
-      <div className={fitHeight ? 'relative min-h-0 flex-1 overflow-hidden' : undefined}>
+      <ClampedBody enabled={fitHeight}>
       {card.chief ? <p className="text-[11px] opacity-60">Chief {card.chief}</p> : null}
 
       {lines.length > 0 ? (
@@ -503,19 +504,7 @@ export function PatientCard({
         </div>
       ) : null}
 
-      {fitHeight ? (
-        <div
-          aria-hidden="true"
-          className="pointer-events-none absolute inset-x-0 bottom-0 h-6"
-          style={{
-            // A fade rather than a clean edge: a straight cut through a line of
-            // text reads as a rendering fault, and the first response to a
-            // rendering fault is to distrust the rest of the card.
-            backgroundImage: 'linear-gradient(to bottom, transparent, var(--token-bg))',
-          }}
-        />
-      ) : null}
-      </div>
+      </ClampedBody>
 
       <div className={fitHeight ? 'mt-3 shrink-0' : 'mt-3'}>
         <ProgressStrip progress={progress} />
@@ -680,3 +669,68 @@ function CardNote({
   );
 }
 
+
+
+/**
+ * The part of a card that gives way when the card is short.
+ *
+ * Two jobs, and the second is why it is a component rather than a `div`.
+ *
+ * It SHRINKS but never GROWS. `flex-1` was wrong: it stretched the middle to
+ * fill whatever height the card was given, so a card dragged taller than its
+ * content spread the diagnosis list out and pushed the progress strip to the
+ * bottom of a field of nothing. Shrink-only means the content keeps its shape
+ * and a cap larger than the content simply leaves empty space below it —
+ * visible, self-explanatory, and one drag from being taken back.
+ *
+ * And it knows whether it is ACTUALLY clipping, which nothing outside it can:
+ * the card is rendered at a fixed height, so its `scrollHeight` is always that
+ * height and tells you nothing. Here, inside an `overflow-hidden` box whose
+ * content is unconstrained, `scrollHeight > clientHeight` is the real answer.
+ * The fade is drawn only then — a fade over text that is not cut off says
+ * "there is more below" where there is not, and a signal that is sometimes
+ * false stops being read.
+ */
+function ClampedBody({
+  enabled,
+  children,
+}: {
+  enabled: boolean;
+  children: React.ReactNode;
+}): JSX.Element {
+  const ref = useRef<HTMLDivElement>(null);
+  const [clipped, setClipped] = useState(false);
+
+  useEffect(() => {
+    const node = ref.current;
+    if (!node || !enabled) {
+      setClipped(false);
+      return;
+    }
+    const measure = (): void => setClipped(node.scrollHeight > node.clientHeight + 1);
+    const observer = new ResizeObserver(measure);
+    observer.observe(node);
+    measure();
+    return () => observer.disconnect();
+  }, [enabled]);
+
+  if (!enabled) return <div>{children}</div>;
+
+  return (
+    <div ref={ref} className="relative min-h-0 shrink overflow-hidden">
+      {children}
+      {clipped ? (
+        <div
+          aria-hidden="true"
+          className="pointer-events-none absolute inset-x-0 bottom-0 h-6"
+          style={{
+            // A fade rather than a clean edge: a straight cut through a line of
+            // text reads as a rendering fault, and the first response to a
+            // rendering fault is to distrust the rest of the card.
+            backgroundImage: 'linear-gradient(to bottom, transparent, var(--token-bg))',
+          }}
+        />
+      ) : null}
+    </div>
+  );
+}

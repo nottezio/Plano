@@ -228,20 +228,35 @@ export function applyGesture(
     };
   }
 
-  const target = (origin.hMax || natural || MIN_CARD_H) + dy;
+  /*
+    THE HEIGHT FOLLOWS THE POINTER. There is no threshold and nothing snaps.
+
+    What was here before tried to be clever: drag past the end of the content
+    and the cap was REMOVED rather than set to a large number, on the reasoning
+    that `hMax: 900` on a 400-tall card behaves like no cap until the note
+    grows. The reasoning is sound and the implementation could not work,
+    because the number it compared against was unmeasurable.
+
+    `natural` came from the card's `scrollHeight`. But a capped card is
+    rendered with `fitHeight`, which makes it a flex column that COMPRESSES to
+    the height it is given — so it never overflows, and its `scrollHeight` is
+    always exactly the cap. `natural === origin.hMax`, every time. The test
+    `target >= natural - 8` therefore reduced to `dy >= -8`: any downward
+    movement uncapped the card and it jumped to full height, and eight pixels
+    back up re-capped it. That is the flicker in the recording — not a snap to
+    a grid, a binary flipping under the finger.
+
+    A rule whose input is determined by its own output cannot be fixed by
+    tuning the threshold. It is removed. The cap is now exactly where the
+    pointer left it, and "no cap" is an explicit act: double-click the grip.
+  */
   return {
     ...origin,
-    /*
-      Dragged past the end of the content means NO CAP, not a very tall one.
-
-      `hMax: 900` on a card whose content is 400 tall behaves exactly like no
-      cap — until the note grows past 900, at which point it silently starts
-      clipping something the user believes they uncapped. The two states are
-      indistinguishable on the day it is set and different a week later, which
-      is the kind of difference that has to be resolved at the moment of the
-      gesture rather than left in the data.
-    */
-    hMax: natural > 0 && target >= natural - 8 ? 0 : Math.max(MIN_CARD_H, target),
+    // `natural` is still the honest starting point when the card has no cap
+    // yet — there `fitHeight` is off, nothing is compressed, and
+    // `scrollHeight` really is the content height. So the first drag begins
+    // from where the card currently ends rather than from a guess.
+    hMax: Math.max(MIN_CARD_H, (origin.hMax || natural || MIN_CARD_H) + dy),
   };
 }
 

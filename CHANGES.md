@@ -1,5 +1,67 @@
 # Plano — CHANGES
 
+## `2026-09-12.1`
+
+**Card height now follows the pointer. The snap is gone because the rule that
+caused it is gone.**
+
+### Root cause: a rule whose input was determined by its own output
+
+The height grip used to remove the cap entirely when you dragged past the end
+of the content, rather than setting a very large one. The reasoning was sound —
+`hMax: 900` on a 400-tall card behaves like no cap until the note grows past
+900, and then silently clips something you believed you had uncapped.
+
+The implementation could not work. The number it compared against, `natural`,
+came from the card's `scrollHeight` — but a capped card is rendered with
+`fitHeight`, which makes it a flex column that **compresses to the height it is
+given**. It never overflows, so its `scrollHeight` is always exactly the cap.
+`natural === origin.hMax`, every time, and the test
+
+```
+target >= natural - 8      with target = origin.hMax + dy
+```
+
+reduced to `dy >= -8`. **Any downward movement uncapped the card** and it
+jumped to full height; eight pixels back up re-capped it. That is the flicker
+in the recording — not a snap to a grid, a binary flipping under the finger.
+
+No threshold tuning fixes a rule that measures its own effect. It is removed:
+
+```
+hMax = max(MIN_CARD_H, (origin.hMax || natural) + dy)
+```
+
+The cap is exactly where the pointer left it. Dragging taller than the content
+is a legitimate thing to ask for and the only consequence is empty space you
+can see and drag back. **"No cap" is now an explicit act — double-click the
+grip**, which already did exactly that.
+
+`natural` still seeds the first drag on an uncapped card, where `fitHeight` is
+off, nothing is compressed, and `scrollHeight` really is the content height.
+
+### Two consequences of that, fixed in the same pass
+
+**The middle of the card shrinks but no longer grows.** It was `flex-1`, which
+stretched it to fill whatever height the card was given — so a card dragged
+taller than its content spread the diagnosis list out and pushed the progress
+strip to the bottom of a field of nothing. Shrink-only keeps the content's
+shape; a cap larger than the content simply leaves space below it.
+
+**The fade is drawn only when the card is really clipping.** Nothing outside
+the middle block can tell: the card is rendered at a fixed height, so its
+`scrollHeight` is always that height and says nothing. Inside an
+`overflow-hidden` box whose content is unconstrained, `scrollHeight >
+clientHeight` is the real answer — so the check moved in there. A fade over
+text that is not cut off claims there is more below where there is not.
+
+```
+1076 tests passed (was 1075)
+typecheck / lint / check:version / check:contrast / check:a11y / build — clean
+```
+
+---
+
 ## `2026-09-11.4`
 
 **KJS detection rewritten against the real export; canvas stops rearranging

@@ -92,12 +92,26 @@ describe('applyGesture', () => {
     expect(next.hMax).toBe(400);
   });
 
-  it('REMOVES the cap when dragged back past the end of the content', () => {
-    // Not "a very tall cap": that behaves identically today and starts
-    // clipping silently once the note grows past it.
+  it('follows the pointer one-for-one, with nothing snapping', () => {
+    // The bug in the 2026-09-12 recording: the old rule compared against a
+    // height that the cap itself determined, so any downward movement flipped
+    // the card to full height and eight pixels back up flipped it again.
     const capped = { ...origin, hMax: 400 };
-    const next = applyGesture('height', capped, { dx: 0, dy: 300, canvasWidth, natural: 600 });
-    expect(next.hMax).toBe(0);
+    expect(applyGesture('height', capped, { dx: 0, dy: 60, canvasWidth, natural: 400 }).hMax).toBe(
+      460,
+    );
+    expect(applyGesture('height', capped, { dx: 0, dy: -60, canvasWidth, natural: 400 }).hMax).toBe(
+      340,
+    );
+  });
+
+  it('keeps the cap when dragged past the end of the content', () => {
+    // Taller than the content is a legitimate thing to ask for, and the only
+    // consequence is empty space the user can see and drag back.
+    const capped = { ...origin, hMax: 400 };
+    expect(
+      applyGesture('height', capped, { dx: 0, dy: 500, canvasWidth, natural: 420 }).hMax,
+    ).toBe(900);
   });
 
   it('will not cap a card shorter than its own header', () => {
