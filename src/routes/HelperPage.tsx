@@ -4,6 +4,7 @@ import { copyText } from '@/lib/clipboard';
 import { extractPdfItems } from '@/lib/pdfItems';
 import { buildFormasi, buildKonfirmasi, longDate, resolveShift } from '@/domain/jaga/formasi';
 import type { JagaPostId } from '@/domain/jaga/types';
+import { describeMismatch, identifyJagaPdf } from '@/domain/jaga/identify';
 import { parseDpjpRoster } from '@/domain/jaga/parseDpjp';
 import { parseJagaRoster } from '@/domain/jaga/parseRoster';
 import { parseJarkom } from '@/domain/jaga/parseJarkom';
@@ -119,6 +120,21 @@ export function HelperPage(): JSX.Element {
     setError(null);
     try {
       const items = await extractPdfItems(file);
+
+      /*
+        Identify the document BEFORE parsing it, and refuse on a mismatch.
+
+        The alternative is that the wrong file parses to nothing and the user
+        is told their PDF is broken — when the file was fine and the slot was
+        wrong. Refusing also protects what is already stored: a good roster is
+        not replaced by a parse of a different document.
+      */
+      const found = identifyJagaPdf(items);
+      if (found !== kind) {
+        setError(describeMismatch(kind, found));
+        return;
+      }
+
       if (kind === 'roster') {
         const parsed = parseJagaRoster(items);
         if (parsed.shifts.length === 0) throw new Error('Tidak ada baris jaga terbaca.');

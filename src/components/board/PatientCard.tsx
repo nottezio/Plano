@@ -336,6 +336,22 @@ export function PatientCard({
         weight, which is a separation the eye reads without having to be told.
       */}
       <div className="-mx-3 -mt-3 mb-2 border-b border-token-fg/10 bg-black/10 px-3 py-2 dark:bg-white/[0.04]">
+      {/*
+        TWO COLUMNS: everything that wraps on the left, the eye fixed on the
+        right. It is not decoration — it is what stops the blank row.
+
+        The eye used to be the last child of the wrapping row with `ml-auto`.
+        On a narrow card the name and its badges fill that row, so the eye
+        wrapped onto a line of its own — and being a 44 px tap target, that
+        line was 44 px of nothing between the name and the location. The card
+        looked broken at exactly the widths where space matters most.
+
+        A control cannot share a wrapping row with content. Here it sits
+        outside the wrap entirely: the left column wraps as much as it likes
+        and the eye stays where it was, top-right, at every width.
+      */}
+      <div className="flex items-start gap-2">
+      <div className="min-w-0 flex-1">
       <div className="flex flex-wrap items-center gap-x-1.5 gap-y-1">
         {selectable ? (
           <span
@@ -436,40 +452,6 @@ export function PatientCard({
 
         {card.discharge ? <DischargeChip stage={card.discharge} /> : null}
 
-        {/*
-          Its own small target, not a gesture on the card.
-
-          The card is already a link, a long-press and — in custom order — a
-          drag handle. A fourth gesture would have to win a race against three
-          others, and losing that race opens a chart you did not ask for.
-        */}
-        {onPreview ? (
-          <button
-            type="button"
-            aria-label={`Pratinjau catatan ${card.title}`}
-            onClick={(event) => {
-              // The card is a `<Link>`; without this the preview opens and the
-              // route changes underneath it.
-              event.preventDefault();
-              event.stopPropagation();
-              onPreview(patient.id);
-            }}
-            className="-my-1 ml-auto min-h-tap min-w-tap shrink-0 text-token-fg/50"
-          >
-            <IconEye className="mx-auto" width={16} height={16} />
-          </button>
-        ) : null}
-
-        {/*
-          The corner. Nothing else on the card may sit to the right of this.
-
-          The board is a measured-span CSS grid now (`MasonryGrid` /
-          `MasonryItem`), not the multi-column layout the comment above was
-          written against — but this is still in normal flow, not `absolute`.
-          A flex row that ends here IS the top-right corner, and it stays the
-          corner when the name below it wraps to two lines.
-        */}
-
       </div>
 
       {/*
@@ -529,6 +511,42 @@ export function PatientCard({
             ★
           </span>
         ) : null}
+      </div>
+      </div>
+
+        {/*
+          Its own small target, not a gesture on the card.
+
+          The card is already a link, a long-press and — in custom order — a
+          drag handle. A fourth gesture would have to win a race against three
+          others, and losing that race opens a chart you did not ask for.
+        */}
+        {onPreview ? (
+          <button
+            type="button"
+            aria-label={`Pratinjau catatan ${card.title}`}
+            onClick={(event) => {
+              // The card is a `<Link>`; without this the preview opens and the
+              // route changes underneath it.
+              event.preventDefault();
+              event.stopPropagation();
+              onPreview(patient.id);
+            }}
+            className="-my-1 min-h-tap min-w-tap shrink-0 text-token-fg/50"
+          >
+            <IconEye className="mx-auto" width={16} height={16} />
+          </button>
+        ) : null}
+
+        {/*
+          The corner. Nothing else on the card may sit to the right of this.
+
+          The board is a measured-span CSS grid now (`MasonryGrid` /
+          `MasonryItem`), not the multi-column layout the comment above was
+          written against — but this is still in normal flow, not `absolute`.
+          A flex row that ends here IS the top-right corner, and it stays the
+          corner when the name below it wraps to two lines.
+        */}
       </div>
       </div>
       {/*

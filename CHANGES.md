@@ -1,5 +1,60 @@
 # Plano — CHANGES
 
+## `2026-09-12.7`
+
+**Wrong-PDF contingency for the Helper import; the identity band's blank row
+fixed.**
+
+### The 44 px of nothing between the name and the location
+
+The eye button was the last child of the wrapping header row with `ml-auto`.
+On a narrow card the name and its badges fill that row, so the eye **wrapped
+onto a line of its own** — and being a 44 px tap target, that line was 44 px of
+nothing, at exactly the widths where space matters most.
+
+A control cannot share a wrapping row with content. The band is now two
+columns: everything that wraps on the left, the eye fixed on the right, outside
+the wrap entirely. The left column wraps as much as it likes and the eye stays
+top-right at every width.
+
+### Uploading the wrong PDF
+
+There are three file pickers side by side, which is three chances to drop the
+right file in the wrong slot — and the failure was quiet. The DPJP roster fed
+to the jaga parser finds no `HARI` column and produces zero shifts, which the
+UI reported as "tidak ada baris jaga terbaca": a message describing the FILE as
+broken when it was the SLOT that was wrong. On the evening before a jaga that
+is somebody re-downloading a PDF that was never the problem.
+
+`identifyJagaPdf` now runs **before** parsing, from marks only each document
+carries, and a mismatch names both sides:
+
+> Ini sepertinya Jadwal DPJP, bukan Jadwal Jaga PPDS. Impor di kotak Jadwal
+> DPJP.
+
+Refusing rather than trying anyway is the point: the alternative replaces a
+good roster with a parse of a different document.
+
+Two details that matter:
+
+**Order of tests.** The DPJP file is titled "JADWAL JAGA DPJP UTAMA DAN PRIMARY
+PCI", so checking for "jadwal jaga" first reads every DPJP file as a resident
+roster. Its own marker is tested first.
+
+**Identified by content, not filename.** These arrive over WhatsApp where names
+are mangled, and a renamed file is not a different document.
+
+An unrecognised file says so plainly rather than being guessed at — including
+the likely cause, a scanned PDF with no text layer, which nothing here can
+parse.
+
+```
+1106 tests passed (was 1100 — 6 added on document identification)
+typecheck / lint / check:version / check:contrast / check:a11y / build — clean
+```
+
+---
+
 ## `2026-09-12.6`
 
 **One resolved name per post, shared by the Formasi and the confirmation list,
