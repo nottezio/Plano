@@ -48,7 +48,15 @@ export function CanvasBoard({
    * canvas is what knows whether a card has been capped, and a capped card has
    * to be told to fit its height — which is a prop on the card, decided here.
    */
-  renderItem: (id: string, options: { fitHeight: boolean }) => ReactNode;
+  renderItem: (
+    id: string,
+    options: {
+      fitHeight: boolean;
+      /** Reported by the card; clamps the height grip. */
+      onHeightBounds: (bounds: { min: number; max: number }) => void;
+      maxPreviewLines: number;
+    },
+  ) => ReactNode;
   /** False while another order is selected; the canvas then renders nothing. */
   enabled: boolean;
   /**
@@ -115,6 +123,29 @@ export function CanvasBoard({
   const naturalHeights = useRef(new Map<string, number>());
   const recordHeight = useCallback((id: string, value: number) => {
     naturalHeights.current.set(id, value);
+  }, []);
+
+  /**
+   * Each card's measured height range, reported by the card itself.
+   *
+   * A ref, not state: these arrive from a ResizeObserver on every card and are
+   * read only at the moment a drag starts. Holding them in state would
+   * re-render the whole board every time any card reflowed, to store a number
+   * nothing on screen displays.
+   */
+  const heightBounds = useRef(new Map<string, { min: number; max: number }>());
+  const boundsSetters = useRef(new Map<string, (bounds: { min: number; max: number }) => void>());
+  const boundsSetter = useCallback((id: string) => {
+    const existing = boundsSetters.current.get(id);
+    if (existing) return existing;
+    // Memoised per id so the card is not handed a new callback on every
+    // render — the card uses it as an effect dependency, and a fresh identity
+    // each time would tear down and rebuild its observer continuously.
+    const setter = (bounds: { min: number; max: number }): void => {
+      heightBounds.current.set(id, bounds);
+    };
+    boundsSetters.current.set(id, setter);
+    return setter;
   }, []);
 
   /**
@@ -199,6 +230,7 @@ export function CanvasBoard({
       const measured = surface.getBoundingClientRect().width || 1;
       const origin: CardLayout = layouts[id] ?? { x: 0, y: 0, w: DEFAULT_W, hMax: 0 };
       const natural = naturalHeights.current.get(id) ?? 0;
+      const bounds = heightBounds.current.get(id);
       const startX = event.clientX;
       const startY = event.clientY;
       let latest = origin;
@@ -211,6 +243,7 @@ export function CanvasBoard({
           dy: movement.clientY - startY,
           canvasWidth: measured,
           natural,
+          ...(bounds ? { minH: bounds.min, maxH: bounds.max } : {}),
         });
 
         setLive({ id, layout: latest });
@@ -328,7 +361,14 @@ export function CanvasBoard({
               onNaturalHeight={recordHeight}
               onToggle={() => toggleExpanded(id)}
             >
-              {renderItem(id, { fitHeight: !open && layout.hMax > 0 })}
+              {renderItem(id, {
+                fitHeight: !open && layout.hMax > 0,
+                onHeightBounds: boundsSetter(id),
+                // The canvas card is the size the user made it; a `…` inside
+                // one with visible empty space beneath is the app refusing to
+                // use the room it was given.
+                maxPreviewLines: 60,
+              })}
             </ClampedCard>
 
             <Grip

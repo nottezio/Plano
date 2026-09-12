@@ -129,8 +129,20 @@ export function createPatient(uid: string, input: CreatePatientInput): {
   return { id, written: trackWrite(setDoc(patientDoc(id), record)) };
 }
 
-/** Longest preview the board can show: 4 lines at a comfortable card width. */
-const PREVIEW_LIMIT = 240;
+/**
+ * How much of the note the board caches.
+ *
+ * Raised from 240 on 2026-09-12. 240 characters was sized for a fixed card
+ * showing four lines — the truncation was applied at WRITE time, where the
+ * card's size is unknowable, and the `…` was baked into the stored string. So
+ * a card the user had dragged twice as tall still ended at
+ * "- Hypertensive Heart Di…", because the missing text had never been saved.
+ *
+ * Cutting belongs at render time, where the box knows its own height. This
+ * limit exists now only to stop a pathological note from bloating the patient
+ * document, and is set well past any real assessment block.
+ */
+const PREVIEW_LIMIT = 1600;
 
 /**
  * What the card shows: the assessment, falling back to the note's opening.

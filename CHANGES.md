@@ -1,5 +1,60 @@
 # Plano — CHANGES
 
+## `2026-09-12.2`
+
+**Resize now has measured ends, and the diagnosis text uses the room it is
+given.**
+
+### The two ends of the drag are measured, not guessed
+
+`MIN_CARD_H` was a flat 120 px and there was no maximum at all. Both numbers
+were wrong for the same reason: the useful range of a card depends on what is
+inside it, and a constant cannot know that.
+
+| | Was | Now |
+|---|---|---|
+| Minimum | 120 px, fixed | the card with its diagnosis list fully collapsed |
+| Maximum | none | the card with every line of the note shown |
+
+`minH` is the chrome the card cannot give up — name, bed, badges, progress
+strip, note. Below it those parts start overlapping each other, which is the
+first screenshot. `maxH` is chrome plus the full content height, so dragging
+further buys empty space and nothing else, which is the second.
+
+Both are measured by the card and reported up, because the canvas knows the box
+it drew and not what is in it. The middle block's `scrollHeight` is the full
+content height **whatever the card has been clamped to** — that independence is
+exactly what the removed uncap rule lacked, and it is why these can be measured
+while the card is already capped.
+
+The cap is still **not** dropped automatically at the top. Uncapping switches
+the card out of its fixed-height layout mid-gesture, which changes the very
+measurements the drag is clamped by — the shape of the flicker bug. Uncapping
+stays a double-click on the grip, where nothing is moving.
+
+### `- Hypertensive Heart Di…` on a card with room to spare
+
+The `…` was **baked into the stored string**. `buildPreview` truncated at 240
+characters at WRITE time, where the card's size is unknowable, so no amount of
+dragging could reveal text that had never been saved.
+
+- `PREVIEW_LIMIT` raised 240 → 1600. It now exists only to stop a pathological
+  note from bloating the patient document.
+- `previewLines`' four-line cap is a prop. Four on the masonry board, where a
+  card grows to fit and a long note pushes everything below it off screen; 60
+  on the canvas, where the user set the height themselves.
+
+**Existing patients keep their 240-character preview until their note is next
+saved** — the cache is only rebuilt on write. Opening a patient and touching
+the note refreshes it.
+
+```
+1080 tests passed (was 1076 — 4 added on the measured bounds)
+typecheck / lint / check:version / check:contrast / check:a11y / build — clean
+```
+
+---
+
 ## `2026-09-12.1`
 
 **Card height now follows the pointer. The snap is gone because the rule that

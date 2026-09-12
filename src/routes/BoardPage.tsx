@@ -711,13 +711,15 @@ export default function BoardPage(): JSX.Element {
               enabled
               ids={cards.map((card) => card.patient.id)}
               actionsSlot={canvasActions}
-              renderItem={(id, { fitHeight }) => {
+              renderItem={(id, { fitHeight, onHeightBounds, maxPreviewLines }) => {
                 const card = cards.find((entry) => entry.patient.id === id);
                 if (!card) return null;
                 return (
                   <PatientCard
                     card={card}
                     fitHeight={fitHeight}
+                    onHeightBounds={onHeightBounds}
+                    maxPreviewLines={maxPreviewLines}
                     noteExpanded={noteOpen(card.patient)}
                     onToggleNote={toggleNote}
                     onLongPress={setQuickPatientId}

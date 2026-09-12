@@ -23,6 +23,8 @@ export function PatientCard({
   onLongPress,
   onDragHandleDown,
   fitHeight = false,
+  onHeightBounds,
+  maxPreviewLines = 4,
   dragging,
   selectable,
   checked,
@@ -55,6 +57,23 @@ export function PatientCard({
    * what can be cut, because it is what you open the card to read anyway.
    */
   fitHeight?: boolean;
+  /**
+   * Reports the shortest and tallest useful height of THIS card, measured.
+   *
+   * The canvas cannot work these out: it knows the box it drew, not what is
+   * inside it. The card knows both — the chrome it cannot give up, and the
+   * full height of the block that can be clipped — and they change with the
+   * note, the width and the font. Measured and reported, never assumed.
+   */
+  onHeightBounds?: ((bounds: { min: number; max: number }) => void) | undefined;
+  /**
+   * How many lines of the note to show. Four on the masonry board, where the
+   * card grows to fit and a long note would push everything below it off the
+   * screen; effectively unlimited on the canvas, where the user set the height
+   * themselves and a `…` in a card with visible empty space under it is just
+   * the app refusing to use the room it was given.
+   */
+  maxPreviewLines?: number;
   dragging?: boolean;
   /** True while the board is in selection mode. */
   selectable?: boolean;
@@ -67,7 +86,47 @@ export function PatientCard({
   onToggleNote?: ((patientId: string) => void) | undefined;
 }): JSX.Element {
   const { patient, progress } = card;
-  const lines = previewLines(card.preview);
+  const lines = previewLines(card.preview, maxPreviewLines);
+
+  const rootRef = useRef<HTMLDivElement>(null);
+  const bodyRef = useRef<HTMLDivElement>(null);
+
+  /**
+   * Measure the two ends of this card's useful height range and report them.
+   *
+   * `min` is the card with the middle collapsed to nothing — everything that
+   * identifies the patient, and none of what can be cut. `max` is the card
+   * with the whole note shown.
+   *
+   * The middle's `scrollHeight` is the full content height whatever the card
+   * has been clamped to, which is why this can be measured while the card is
+   * already capped. The card's own `scrollHeight` cannot: under `fitHeight` it
+   * is a flex column that compresses to the height it is given and therefore
+   * always reports exactly that.
+   *
+   * Observed rather than measured once: the note changes, the card is resized,
+   * the window reflows, and a stale bound would either block a legitimate drag
+   * or let one go somewhere useless.
+   */
+  useEffect(() => {
+    const root = rootRef.current;
+    const body = bodyRef.current;
+    if (!fitHeight || !onHeightBounds || !root || !body) return;
+
+    const measure = (): void => {
+      const chrome = root.offsetHeight - body.clientHeight;
+      onHeightBounds({
+        min: Math.round(chrome),
+        max: Math.round(chrome + body.scrollHeight),
+      });
+    };
+
+    const observer = new ResizeObserver(measure);
+    observer.observe(root);
+    observer.observe(body);
+    measure();
+    return () => observer.disconnect();
+  }, [fitHeight, onHeightBounds]);
 
   // Long-press opens the quick checklist (SPEC 11.3) so ticking during rounds
   // never requires opening the note. Implemented with pointer events + a timer
@@ -109,7 +168,7 @@ export function PatientCard({
       stuck to the card rather than as another field inside it, which was the
       actual objection to keeping it inside.
     */
-    <div className={fitHeight ? 'flex h-full flex-col' : undefined}>
+    <div ref={rootRef} className={fitHeight ? 'flex h-full flex-col' : undefined}>
     <Link
       to={`/p/${patient.id}`}
       /**
@@ -476,7 +535,7 @@ export function PatientCard({
         Outside `fitHeight` this div contributes nothing: no classes, so the
         block flows exactly as it did when these four were siblings.
       */}
-      <ClampedBody enabled={fitHeight}>
+      <ClampedBody enabled={fitHeight} bodyRef={bodyRef}>
       {card.chief ? <p className="text-[11px] opacity-60">Chief {card.chief}</p> : null}
 
       {lines.length > 0 ? (
@@ -693,12 +752,14 @@ function CardNote({
  */
 function ClampedBody({
   enabled,
+  bodyRef,
   children,
 }: {
   enabled: boolean;
+  bodyRef: React.RefObject<HTMLDivElement>;
   children: React.ReactNode;
 }): JSX.Element {
-  const ref = useRef<HTMLDivElement>(null);
+  const ref = bodyRef;
   const [clipped, setClipped] = useState(false);
 
   useEffect(() => {
@@ -712,7 +773,10 @@ function ClampedBody({
     observer.observe(node);
     measure();
     return () => observer.disconnect();
-  }, [enabled]);
+    // `ref` is the caller's ref object and its identity is stable for the life
+    // of the card; listing it only re-runs this on renders where nothing it
+    // depends on changed.
+  }, [enabled, ref]);
 
   if (!enabled) return <div>{children}</div>;
 

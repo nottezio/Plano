@@ -176,3 +176,59 @@ describe('tidy', () => {
     expect(result.also!.x).toBe(0);
   });
 });
+
+describe('applyGesture height bounds', () => {
+  const capped = { x: 0.25, y: 200, w: 0.25, hMax: 400 };
+  const canvasWidth = 1200;
+
+  it('will not shrink past the height that still shows who the patient is', () => {
+    // The 2026-09-12 report: at the old fixed floor the header, progress strip
+    // and note overlapped each other.
+    const next = applyGesture('height', capped, {
+      dx: 0,
+      dy: -9000,
+      canvasWidth,
+      natural: 400,
+      minH: 190,
+      maxH: 700,
+    });
+    expect(next.hMax).toBe(190);
+  });
+
+  it('stops at the height where the whole note is visible', () => {
+    // Past that the drag buys empty space and nothing else.
+    const next = applyGesture('height', capped, {
+      dx: 0,
+      dy: 9000,
+      canvasWidth,
+      natural: 400,
+      minH: 190,
+      maxH: 700,
+    });
+    expect(next.hMax).toBe(700);
+  });
+
+  it('still tracks the pointer one-for-one between the two ends', () => {
+    const next = applyGesture('height', capped, {
+      dx: 0,
+      dy: 80,
+      canvasWidth,
+      natural: 400,
+      minH: 190,
+      maxH: 700,
+    });
+    expect(next.hMax).toBe(480);
+  });
+
+  it('never lets a measured minimum fall below the absolute floor', () => {
+    const next = applyGesture('height', capped, {
+      dx: 0,
+      dy: -9000,
+      canvasWidth,
+      natural: 400,
+      minH: 10,
+      maxH: 700,
+    });
+    expect(next.hMax).toBe(MIN_CARD_H);
+  });
+});

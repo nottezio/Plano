@@ -206,9 +206,35 @@ export type GestureMode = 'move' | 'width' | 'height';
 export function applyGesture(
   mode: GestureMode,
   origin: CardLayout,
-  input: { dx: number; dy: number; canvasWidth: number; natural: number },
+  input: {
+    dx: number;
+    dy: number;
+    canvasWidth: number;
+    natural: number;
+    /**
+     * The shortest and tallest heights this card can usefully be, MEASURED
+     * from the rendered card rather than guessed.
+     *
+     * `minH` is the card with its diagnosis list fully collapsed — name, bed,
+     * badges, progress strip and note, and nothing else. Below that the parts
+     * that identify the patient start overlapping each other, which is what a
+     * fixed 120 px floor produced.
+     *
+     * `maxH` is the card with every line of the note shown. Past it the drag
+     * buys nothing but empty space, so it stops.
+     *
+     * Both come from the card's own layout — the chrome it cannot give up, and
+     * the middle block's `scrollHeight`, which is the full content height and
+     * is NOT affected by the cap. That independence is what the removed uncap
+     * rule lacked.
+     */
+    minH?: number;
+    maxH?: number;
+  },
 ): CardLayout {
   const { dx, dy, canvasWidth, natural } = input;
+  const minH = Math.max(MIN_CARD_H, input.minH ?? MIN_CARD_H);
+  const maxH = Math.max(minH, input.maxH ?? Number.POSITIVE_INFINITY);
 
   if (mode === 'move') {
     return {
@@ -256,7 +282,12 @@ export function applyGesture(
     // yet — there `fitHeight` is off, nothing is compressed, and
     // `scrollHeight` really is the content height. So the first drag begins
     // from where the card currently ends rather than from a guess.
-    hMax: Math.max(MIN_CARD_H, (origin.hMax || natural || MIN_CARD_H) + dy),
+    // Clamped between the two measured ends. Not auto-uncapped at the top:
+    // dropping the cap would switch the card out of its fixed-height layout
+    // mid-gesture, which changes the very measurements this is clamped by —
+    // the shape of the bug that made it flicker. Uncapping stays a
+    // double-click, where nothing is moving.
+    hMax: clamp((origin.hMax || natural || minH) + dy, minH, maxH),
   };
 }
 
