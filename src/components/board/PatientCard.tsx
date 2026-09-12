@@ -320,6 +320,22 @@ export function PatientCard({
         that moves depending on the length of a name is one you have to look
         for every time.
       */}
+      {/*
+        THE IDENTITY BAND — who and where, set apart from the clinical text.
+
+        It used to be four stacked paragraphs in the same colour and weight as
+        the diagnosis list below it, which meant finding a patient on a board
+        of twelve cards was reading rather than glancing: the name had no edge,
+        and the bed sat in the same visual layer as a sentence about their
+        coronaries.
+
+        A tinted band with a hairline under it is enough. Not a heavier border
+        or a different hue — the card background already carries checklist
+        progress, and a second colour on the same surface is the collision
+        recorded on the discharge wash. This is the same colour at a different
+        weight, which is a separation the eye reads without having to be told.
+      */}
+      <div className="-mx-3 -mt-3 mb-2 border-b border-token-fg/10 bg-black/10 px-3 py-2 dark:bg-white/[0.04]">
       <div className="flex flex-wrap items-center gap-x-1.5 gap-y-1">
         {selectable ? (
           <span
@@ -513,6 +529,7 @@ export function PatientCard({
             ★
           </span>
         ) : null}
+      </div>
       </div>
       {/*
         Hari rawat removed from the card.

@@ -200,19 +200,31 @@ export function TabBar(): JSX.Element {
       */}
       {hint ? (
         <div
-          title={hint.name}
-          className="mx-3 mb-2 mt-auto hidden rounded-lg border border-border bg-bg-subtle px-2 py-1.5 text-[11px] lg:block"
+          title={`${hint.name}${hint.poli ? ` · Poli ${hint.poli}` : ''}${hint.poliAfter ? ` · lalu ${hint.poliAfter}` : ''}`}
+          className="mx-3 mb-2 mt-auto hidden rounded-lg border border-border bg-bg-subtle px-2 py-1.5 text-[11px] leading-tight lg:block"
         >
-          {/* One line per fact instead of a labelled block. The panel was
-              taller than the nav it sat under, which is what made the rail feel
-              crammed. */}
-          <p className="font-medium">
+          {/*
+            ONE LINE PER FACT, AND EVERY LINE CLIPPED TO ONE LINE.
+
+            The block kept growing taller than the nav above it — the reason is
+            that nothing in it had a height limit, so a long description, a
+            two-clinic week and a ward name that wrapped could between them
+            make four or five rendered lines out of three facts, in a rail
+            180 px wide. It is ambient furniture; it cannot be allowed to
+            out-size the navigation it sits under.
+
+            `truncate` on each line rather than a shorter string: the full text
+            is on the panel's `title`, so nothing is lost — it is one hover
+            away, and the rail keeps a predictable height whatever the roster
+            says.
+          */}
+          <p className="truncate font-medium">
             {hint.initials}
             <span className="ml-1 font-normal text-fg-muted">{hint.description}</span>
           </p>
           {hint.poli ? (
-            <p className="mt-1 leading-snug text-fg-muted">
-              Poli: {hint.poli}
+            <p className="mt-0.5 truncate text-fg-muted">
+              {hint.poli}
               {/* The roster is a dated document — say which one, so nobody
                   reads last month's by accident. */}
               <span className="ml-1 text-fg-faint">({hint.period})</span>
@@ -226,7 +238,7 @@ export function TabBar(): JSX.Element {
             patient can still be seen this week is the one after it.
           */}
           {hint.poliAfter ? (
-            <p className="leading-snug text-fg-faint">Lalu: {hint.poliAfter}</p>
+            <p className="truncate text-fg-faint">Lalu: {hint.poliAfter}</p>
           ) : null}
         </div>
       ) : null}

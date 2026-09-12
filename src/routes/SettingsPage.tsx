@@ -9,6 +9,7 @@ import { StringListEditor } from '@/components/settings/StringListEditor';
 import { DpjpFormatEditor } from '@/components/settings/DpjpFormatEditor';
 import { TemplateEditor } from '@/components/settings/TemplateEditor';
 import { PasteInspector } from '@/components/settings/PasteInspector';
+import { RebuildCards } from '@/components/settings/RebuildCards';
 import { SessionLogPanel } from '@/components/settings/SessionLogPanel';
 import { PinSetupSheet } from '@/components/privacy/PinSetupSheet';
 import { useLock } from '@/store/useLock';
@@ -680,6 +681,13 @@ export default function SettingsPage(): JSX.Element {
           where a tool you reach for twice a year belongs. It reads only what is
           typed into it and writes nothing anywhere.
         */}
+        <SettingsSection
+          title="Perbarui kartu pasien"
+          description="Jalankan setelah aturan kartu berubah — mis. penanda KJS tidak muncul."
+        >
+          <RebuildCards />
+        </SettingsSection>
+
         <SettingsSection
           title="Riwayat sesi"
           description="Catatan masuk/keluar aplikasi, untuk menelusuri logout mendadak."

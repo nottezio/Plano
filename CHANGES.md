@@ -1,5 +1,64 @@
 # Plano — CHANGES
 
+## `2026-09-12.3`
+
+**Identity band on the card; sidebar hint capped; the KJS badge finally
+appears — via a rebuild, because the cache was the problem.**
+
+### Why the KJS badge still did not show
+
+The rule was fixed in `2026-09-11.4`; the DATA was not. `kjs` is denormalised —
+computed from the note body and stored on the patient, so the board can render
+twelve cards without reading twelve bodies. That is the right trade, and its
+cost is that the cache is only ever rebuilt by a WRITE. Every existing patient
+still carries no role at all, and will until somebody types into their note.
+
+Same for `preview`: the limit went 240 → 1600, but the `…` was **saved**, not
+rendered, so no amount of resizing reveals text that was never stored.
+
+Waiting for each patient to be edited is, on an archive of a hundred, never. So
+**Pengaturan → Perbarui kartu pasien**: reads the latest entry of every
+active and archived patient, recomputes `preview` and `kjs`, writes them back.
+Note bodies are not touched.
+
+It reads only the latest entry per patient — the card shows one day, and
+reading every day of every patient would be hundreds of documents to rebuild a
+field that describes one. And it follows the write path's rule that **absence
+is not a correction**: a note naming nobody does not erase a role set from a
+note that did.
+
+Run it once after installing this build.
+
+### Identity band on the card
+
+Name, bed, location and badges were four stacked paragraphs in the same colour
+and weight as the diagnosis list under them, so finding a patient on a board of
+twelve was reading rather than glancing — the name had no edge, and the bed sat
+in the same visual layer as a sentence about their coronaries.
+
+They now sit in a tinted band with a hairline under it. Not a heavier border or
+a different hue: the card background already carries checklist progress, and a
+second colour on that surface is the collision recorded on the discharge wash.
+Same colour, different weight.
+
+### The sidebar hint was growing taller than the nav
+
+Nothing in that block had a height limit, so a long description, a two-clinic
+week and a wrapping ward name could make five rendered lines out of three
+facts, in a rail 180 px wide. It is ambient furniture and cannot out-size the
+navigation it sits under.
+
+Each line is now clipped to one line, with the full text on the panel's
+`title` — one hover away, and the rail keeps a predictable height whatever the
+roster says.
+
+```
+1080 tests passed
+typecheck / lint / check:version / check:contrast / check:a11y / build — clean
+```
+
+---
+
 ## `2026-09-12.2`
 
 **Resize now has measured ends, and the diagnosis text uses the room it is
