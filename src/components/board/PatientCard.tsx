@@ -245,7 +245,22 @@ export function PatientCard({
         the top-right corner whenever there is room, which on a full-width card
         is always.
       */}
-      <div className="flex flex-wrap items-start gap-x-2 gap-y-1">
+      {/*
+        The badges SIT NEXT TO the name, not at the far edge.
+
+        The name used to be `flex-1` with a `min-w-[55%]` floor, which did two
+        things wrong at once: it took every spare pixel, so the eye button was
+        pushed to the far right and left a hand's width of nothing between it
+        and a short name; and the floor meant a badge that would not fit in the
+        remainder wrapped to its own line, even on a card with room to spare.
+
+        Sizing the name to its content instead lets the badges follow it
+        immediately and wrap with it, as words in a sentence do. Only the eye
+        keeps `ml-auto` — it is a control rather than a label, and a control
+        that moves depending on the length of a name is one you have to look
+        for every time.
+      */}
+      <div className="flex flex-wrap items-center gap-x-1.5 gap-y-1">
         {selectable ? (
           <span
             aria-hidden="true"
@@ -315,43 +330,10 @@ export function PatientCard({
           the name can only lose width down to a point, and past that the
           badges wrap instead.
         */}
-        <h3 className="min-w-[55%] flex-1 break-words text-sm font-semibold leading-snug">
+        <h3 className="max-w-full break-words text-sm font-semibold leading-snug">
           {card.title}
         </h3>
 
-        {/*
-          Its own small target, not a gesture on the card.
-
-          The card is already a link, a long-press and — in custom order — a
-          drag handle. A fourth gesture would have to win a race against three
-          others, and losing that race opens a chart you did not ask for.
-        */}
-        {onPreview ? (
-          <button
-            type="button"
-            aria-label={`Pratinjau catatan ${card.title}`}
-            onClick={(event) => {
-              // The card is a `<Link>`; without this the preview opens and the
-              // route changes underneath it.
-              event.preventDefault();
-              event.stopPropagation();
-              onPreview(patient.id);
-            }}
-            className="-my-1 min-h-tap min-w-tap shrink-0 text-token-fg/50"
-          >
-            <IconEye className="mx-auto" width={16} height={16} />
-          </button>
-        ) : null}
-
-        {/*
-          The corner. Nothing else on the card may sit to the right of this.
-
-          The board is a measured-span CSS grid now (`MasonryGrid` /
-          `MasonryItem`), not the multi-column layout the comment above was
-          written against — but this is still in normal flow, not `absolute`.
-          A flex row that ends here IS the top-right corner, and it stays the
-          corner when the name below it wraps to two lines.
-        */}
         {/*
           Daily ECG, beside the discharge chip and in the same corner.
 
@@ -377,6 +359,41 @@ export function PatientCard({
         ) : null}
 
         {card.discharge ? <DischargeChip stage={card.discharge} /> : null}
+
+        {/*
+          Its own small target, not a gesture on the card.
+
+          The card is already a link, a long-press and — in custom order — a
+          drag handle. A fourth gesture would have to win a race against three
+          others, and losing that race opens a chart you did not ask for.
+        */}
+        {onPreview ? (
+          <button
+            type="button"
+            aria-label={`Pratinjau catatan ${card.title}`}
+            onClick={(event) => {
+              // The card is a `<Link>`; without this the preview opens and the
+              // route changes underneath it.
+              event.preventDefault();
+              event.stopPropagation();
+              onPreview(patient.id);
+            }}
+            className="-my-1 ml-auto min-h-tap min-w-tap shrink-0 text-token-fg/50"
+          >
+            <IconEye className="mx-auto" width={16} height={16} />
+          </button>
+        ) : null}
+
+        {/*
+          The corner. Nothing else on the card may sit to the right of this.
+
+          The board is a measured-span CSS grid now (`MasonryGrid` /
+          `MasonryItem`), not the multi-column layout the comment above was
+          written against — but this is still in normal flow, not `absolute`.
+          A flex row that ends here IS the top-right corner, and it stays the
+          corner when the name below it wraps to two lines.
+        */}
+
       </div>
 
       {/*
@@ -574,7 +591,7 @@ function DischargeChip({ stage }: { stage: DischargeStage }): JSX.Element {
   return (
     <span
       title={STAGE_LABELS[stage]}
-      className="mt-0.5 flex shrink-0 items-center gap-1 rounded-full px-1.5 py-0.5 text-[10px] font-semibold leading-none"
+      className="flex shrink-0 items-center gap-1 rounded-full px-1.5 py-0.5 text-[10px] font-semibold leading-none"
       style={{
         backgroundColor: `color-mix(in srgb, ${token} ${STAGE_TINT[stage]}%, transparent)`,
         // A ring drawn as an inset shadow rather than a border: a border would

@@ -152,13 +152,31 @@ export function CanvasBoard({
     writeLayouts(next);
   }, []);
 
-  const commit = useCallback((id: string, layout: CardLayout) => {
-    setStored((previous) => {
-      const next: CanvasLayouts = { ...previous, [id]: layout };
+  /**
+   * Commit one card — and FREEZE every other card where it currently sits.
+   *
+   * This is the fix for resizing feeling like the board snaps out from under
+   * you. `placeAll` auto-places cards that have no stored position, and it
+   * skips slots occupied by cards that DO. So the moment one card was
+   * committed it joined the occupancy map, the auto-placement of every other
+   * card was recomputed against a map that had changed, and cards that had
+   * never been touched moved. Resizing one card rearranged its neighbours;
+   * doing it a second time "worked" only because by then everything was
+   * placed.
+   *
+   * Writing the resolved layout of the whole board makes the arrangement on
+   * screen the arrangement on disk. Nothing can move because of something the
+   * user did to a different card, and auto-placement is left to do the one job
+   * it is good at: finding a slot for a patient who has just arrived.
+   */
+  const commit = useCallback(
+    (id: string, layout: CardLayout, resolved: CanvasLayouts) => {
+      const next: CanvasLayouts = { ...resolved, [id]: layout };
+      setStored(next);
       writeLayouts(next);
-      return next;
-    });
-  }, []);
+    },
+    [],
+  );
 
   /**
    * One gesture handler for all three grips.
@@ -200,7 +218,7 @@ export function CanvasBoard({
 
       const onUp = (): void => {
         setLive(null);
-        commit(id, latest);
+        commit(id, latest, layouts);
         window.removeEventListener('pointermove', onMove);
         window.removeEventListener('pointerup', onUp);
         window.removeEventListener('pointercancel', onUp);
@@ -281,6 +299,7 @@ export function CanvasBoard({
         return (
           <div
             key={id}
+            data-active={active ? 'true' : undefined}
             className="group absolute"
             style={{
               left: layout.x * canvasWidth,
@@ -315,12 +334,12 @@ export function CanvasBoard({
             <Grip
               axis="width"
               onPointerDown={(event) => beginGesture(event, id, 'width')}
-              onReset={() => commit(id, { ...layout, w: DEFAULT_W })}
+              onReset={() => commit(id, { ...layout, w: DEFAULT_W }, layouts)}
             />
             <Grip
               axis="height"
               onPointerDown={(event) => beginGesture(event, id, 'height')}
-              onReset={() => commit(id, { ...layout, hMax: 0 })}
+              onReset={() => commit(id, { ...layout, hMax: 0 }, layouts)}
             />
           </div>
         );
@@ -458,8 +477,12 @@ function Grip({
       onDoubleClick={onReset}
       onClick={(event) => event.preventDefault()}
       className={[
+        // Visible while the gesture runs, not only while hovered. The pointer
+        // leaves the card the instant a resize starts — it is being captured,
+        // not tracked — so a hover-only grip vanishes mid-drag and the gesture
+        // reads as having been dropped.
         'absolute touch-none rounded bg-border opacity-0 transition-opacity',
-        'group-hover:opacity-100 focus-visible:opacity-100',
+        'group-hover:opacity-100 group-data-[active=true]:opacity-100 focus-visible:opacity-100',
         horizontal
           ? 'inset-y-6 -right-1 w-1.5 cursor-ew-resize'
           : 'inset-x-6 -bottom-1 h-1.5 cursor-ns-resize',
@@ -499,7 +522,7 @@ function CanvasHandle({
       aria-label="Geser kartu"
       onPointerDown={onPointerDown}
       onClick={(event) => event.preventDefault()}
-      className="absolute -top-4 left-2 z-10 flex h-4 w-12 cursor-grab touch-none items-center justify-center rounded bg-border text-[10px] leading-none text-fg-faint opacity-0 transition-opacity group-hover:opacity-100 focus-visible:opacity-100"
+      className="absolute -top-4 left-2 z-10 flex h-4 w-12 cursor-grab touch-none items-center justify-center rounded bg-border text-[10px] leading-none text-fg-faint opacity-0 transition-opacity group-hover:opacity-100 group-data-[active=true]:opacity-100 focus-visible:opacity-100"
     >
       <span aria-hidden="true">⠿</span>
     </button>

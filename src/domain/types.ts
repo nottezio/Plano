@@ -369,6 +369,14 @@ export interface Patient {
    * marks that get ignored, and in the unsafe direction quietly drops a
    * tracing somebody was relying on. So it is set by hand, once.
    */
+  /**
+   * Joint-care role, derived from the note body when it is written.
+   *
+   * Stored rather than recomputed on the board because the board only has the
+   * preview, and the lines that decide this live in the note header — see
+   * `kjsRole`.
+   */
+  kjs?: 'kardio' | 'ts';
   ekgHarian?: boolean;
   /**
    * A tracing is needed on THIS day — the clinical date it applies to, not a

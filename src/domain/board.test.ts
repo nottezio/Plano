@@ -478,34 +478,66 @@ describe('what the card leads with', () => {
   });
 });
 
-describe('kjsRole', () => {
-  it('is null for a note that never mentions KJS', () => {
-    expect(kjsRole('Tn. A, STEMI anterior, post PCI')).toBeNull();
+describe('kjsRole — cases taken from the 2026-09-11 export', () => {
+  it('is null for a note that never mentions KJS and names one service', () => {
+    expect(kjsRole('_DPJP Utama dan Tindakan: Dr. dr. Akhtar Fajar M_')).toBeNull();
   });
 
-  it('reads a consult note as kardio — the patient is another service\u2019s', () => {
-    // The `DPJP Kardio` line only exists where the note has to name BOTH the
-    // primary DPJP and ours, which is the referred-to-us case.
+  it('reads a consult note as kardio when the Utama is another service', () => {
     const note = [
-      'mohon izin melaporkan pasien baru KJS *TS Bedah (dr. X)*',
-      '_DPJP Bedah (Utama): dr. X_',
-      '_DPJP Kardio : dr. Y_',
+      '_DPJP Kardio : dr. Andi Renata Bastario, SpJP(K)_',
+      '_DPJP BTKV (Utama) : Dr. dr. Jayarasti Kusumanegara_',
     ].join('\n');
     expect(kjsRole(note)).toBe('kardio');
   });
 
-  it('reads our own joint-care patient as ts', () => {
-    expect(kjsRole('melapor perpindahan pasien *KJS TS Bedah* ke PJT Lt. 4')).toBe('ts');
+  it('does NOT call a cardiology-primary patient a consult, even with a Kardio line', () => {
+    // Ny. Siati: `DPJP Kardio (Utama)` — the cardiologist IS the primary. The
+    // first version of this rule got her wrong, which said the plan was only a
+    // recommendation on a patient who is entirely ours.
+    const note = [
+      '_DPJP Kardio (Utama): dr. Zaenab Djafar, Sp.JP, Subsp.PRKV(K)_',
+      '_DPJP Orthopedi: dr. Ira Nong, Sp.O.T_',
+    ].join('\n');
+    expect(kjsRole(note)).toBeNull();
   });
 
-  it('tolerates the spacing and markdown the corpus actually uses', () => {
-    expect(kjsRole('KJS\n_DPJP  Kardiologi: dr. Y_')).toBe('kardio');
+  it('does not promote an ordinary patient with one Kardio line', () => {
+    // Tn. Muh Iqbal: a solitary `_DPJP Kardio : …_` and nothing else.
+    expect(kjsRole('_DPJP Kardio : Dr. dr. Abdul Hakim Alkatiri, Sp.JP(K)_')).toBeNull();
   });
 
-  it('falls back to ts rather than claiming a patient is not ours', () => {
-    // The safe direction: understating our distance from the patient is a
-    // smaller error than overstating our authority over one.
-    expect(kjsRole('rawat bersama KJS, DPJP utama dr. X')).toBe('ts');
+  it('reads DPJP KJS <bagian> on our own patient as ts', () => {
+    // Tn. Irwan: Utama is a cardiologist, anaesthesia is the KJS side.
+    const note = [
+      '_DPJP Utama : Dr. dr. Akhtar Fajar Muzakkir, Sp.JP_',
+      '_DPJP KJS Anestesi: dr. Nur Surya Wirawan, Sp.AnTI_',
+    ].join('\n');
+    expect(kjsRole(note)).toBe('ts');
+  });
+
+  it('handles the unfilled consult template, where the Utama is a placeholder', () => {
+    const note = [
+      '_DPJP Kardio : (Nama DPJP Kardio)_',
+      '_DPJP (Bagian) (utama) : (Nama DPJP TS)_',
+    ].join('\n');
+    expect(kjsRole(note)).toBe('kardio');
+  });
+
+  it('reads a KJS opening with no Kardio line as ts', () => {
+    // Ny. St. Salmah: the KJS template opening, cardiology Utama, no separate
+    // cardiology line.
+    const note = [
+      'melaporkan follow up pasien KJS *TS (Bagian) ((Nama DPJP))*',
+      '_DPJP Utama : dr. Zaenab Djafar, Sp.PD , Sp.JP(K)_',
+    ].join('\n');
+    expect(kjsRole(note)).toBe('ts');
+  });
+
+  it('matches inside italics, where a word boundary before DPJP does not exist', () => {
+    expect(
+      kjsRole('_DPJP Kardio : dr. X_\n_DPJP Bedah Vaskuler (Utama) : dr. Y_'),
+    ).toBe('kardio');
   });
 });
 

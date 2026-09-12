@@ -21,6 +21,7 @@ import { nanoid } from 'nanoid';
 
 import { getDeviceId } from '../deviceId';
 import { clinicalStart } from '@/domain/identity';
+import { kjsRole } from '@/domain/board';
 import { primaryDpjp } from '@/domain/dpjp';
 import { isIgdEntry } from '@/domain/clinicalDate';
 import { parsePatientFacts } from '@/domain/parsePatient';
@@ -191,6 +192,12 @@ function derivedPatientFields(body: string): DocumentData {
   const dpjp = primaryDpjp(body);
   if (dpjp) fields['dpjpId'] = dpjp.id;
 
+  // Joint-care role. Derived HERE because this is the only place with the
+  // whole body — the board has the preview, which is the diagnosis block on
+  // almost every patient and never contains the DPJP lines this depends on.
+  const kjs = kjsRole(body);
+  if (kjs) fields['kjs'] = kjs;
+
   return fields;
 }
 
@@ -303,6 +310,7 @@ type PatientPatchKey = keyof Pick<
   | 'bed'
   | 'dpjp'
   | 'dpjpId'
+  | 'kjs'
   | 'notes'
   | 'diagnoses'
   | 'labels'

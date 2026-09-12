@@ -1,5 +1,112 @@
 # Plano — CHANGES
 
+## `2026-09-11.4`
+
+**KJS detection rewritten against the real export; canvas stops rearranging
+itself on resize; header badges hug the name; Salin bagian verified on 190
+real notes.**
+
+### KJS — the old rule was wrong in both directions, and looking at the wrong text
+
+Two separate defects, found by running the 2026-09-11 export through the
+parser.
+
+**1. It read `preview`, which does not contain the DPJP lines.** `preview` is
+the card's display excerpt, and on almost every patient that is the diagnosis
+block. `searchBlob` is worse — built from name, MRN, bed, ward and diagnoses,
+it never holds a word of the note body. So the badge fired only on the handful
+of patients whose preview happened to begin at the note header, and Ny.
+Nuraeni — a KJS patient in every note she has — showed nothing at all.
+
+`kjs` is now derived at WRITE time from the whole body, beside `dpjpId`, and
+stored on the patient. The preview remains a fallback for patients not re-saved
+since.
+
+**2. "Has a `DPJP Kardio` line" was not the discriminator.** 19 entries in the
+export carry that line while cardiology is the PRIMARY service —
+`_DPJP Kardio (Utama): dr. Zaenab Djafar_`, or a solitary `_DPJP Kardio : …_`
+on an ordinary patient. Calling those "another service's patient" is the
+expensive mistake: it says the plan is only a recommendation and the discharge
+is not ours, about a patient who is entirely ours.
+
+What actually separates them is **who is marked `Utama`**:
+
+| Note | Role |
+|---|---|
+| `_DPJP BTKV (Utama)_` + `_DPJP Kardio_` | `kardio` — we are consulted |
+| `_DPJP Kardio (Utama)_` + `_DPJP Orthopedi_` | ours — no consult badge |
+| `_DPJP Utama: <cardiologist>_` + `_DPJP KJS Anestesi_` | `ts` — ours, joint care |
+| several DPJP lines, no KJS anywhere | `null` |
+
+A patient with several DPJP lines and no KJS is not promoted to joint care:
+multi-service is ordinary here, and inventing a badge for it would mark half
+the board. Tests now use the actual notes — Ny. Siati, Tn. Muh Iqbal, Tn.
+Irwan, Ny. St. Salmah, Ny. Nuraeni — rather than invented ones.
+
+### Resizing made the other cards jump
+
+`placeAll` auto-places cards with no stored position and skips slots occupied
+by cards that have one. So the moment one card was committed it joined the
+occupancy map, every other card's auto-placement was recomputed against a map
+that had changed, and cards nobody had touched moved. Resizing one card
+rearranged its neighbours; a second attempt "worked" only because by then
+everything was placed.
+
+A commit now writes the **resolved layout of the whole board**, so the
+arrangement on screen is the arrangement on disk. Nothing moves because of
+something done to a different card, and auto-placement is left to the one job
+it is good at — finding a slot for a patient who has just arrived.
+
+The grips also stay visible while a gesture runs, not only while hovered: the
+pointer leaves the card the instant a resize starts (it is captured, not
+tracked), so a hover-only grip vanished mid-drag and the gesture read as
+dropped.
+
+### The gap between the name and the H-1 badge
+
+The name was `flex-1` with a `min-w-[55%]` floor, which did two things wrong at
+once: it took every spare pixel, so the eye button sat at the far edge with a
+hand's width of nothing between it and a short name; and the floor pushed any
+badge that would not fit in the remainder onto its own line, even with room to
+spare.
+
+The name now sizes to its content and the badges follow it immediately,
+wrapping with it as words in a sentence do. Only the eye keeps `ml-auto` — it
+is a control, not a label, and a control that moves with the length of a name
+is one you have to look for every time.
+
+### Salin bagian — verified, not assumed
+
+Ran the section parser over all **190 entries with a body** in the export:
+
+```
+lossless (regions rebuild the note from the first boundary)   PASS
+no gaps, no overlaps, no backwards regions                    PASS
+every slice is a verbatim substring of the note               PASS
+a single-group copy contains nothing from another group       PASS
+
+182/190 notes had at least one boundary
+boundaries found: S 180 · O 180 · A 194 · Terapi 318 · Plan 222
+```
+
+Terapi outnumbers the notes because each `TS …` consult heading opens its own
+Terapi region — that is the behaviour that stops copying Plan from pasting the
+anaesthetist's plan as if it were ours.
+
+The 8 notes with no boundary are the ones with no S/O/A/P headings at all
+(unfilled templates and one-line IGD entries); Salin bagian correctly offers
+nothing there rather than guessing.
+
+The verification harness read a file of real patient data and was **deleted
+after the run** — it is not in the repo and no fixture from it was committed.
+
+```
+1075 tests passed (was 1072)
+typecheck / lint / check:version / check:contrast / check:a11y / build — clean
+```
+
+---
+
 ## `2026-09-11.3`
 
 **Today-only ECG mark that expires by itself; the card header no longer eats

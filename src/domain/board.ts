@@ -148,7 +148,22 @@ export function buildCard(
     // Read from the preview rather than a field: KJS is stated in the note's
     // opening line, and a second place to record it is a second place for it
     // to be wrong.
-    kjs: kjsRole(`${patient.preview ?? ''}\n${patient.searchBlob ?? ''}`),
+    /*
+      The STORED role first, and the preview only as a fallback for patients
+      whose note has not been re-saved since this field existed.
+
+      Deriving it from `preview` was the bug: `preview` is the card's display
+      excerpt, which on almost every patient is the diagnosis block — the DPJP
+      lines that decide this are nowhere in it. `searchBlob` is worse: it is
+      built from name, MRN, bed, ward and diagnoses, and never contains a word
+      of the note body. So the badge fired only on the handful of patients
+      whose preview happened to start at the note header, and Ny. Nuraeni — a
+      KJS patient in every note she has — showed nothing at all.
+
+      It is computed once, at write time, from the WHOLE body, next to where
+      `dpjpId` is derived.
+    */
+    kjs: patient.kjs ?? kjsRole(patient.preview ?? ''),
     preview: showInitialsOnly
       ? redactName(patient.preview ?? '', patient.name ?? '')
       : (patient.preview ?? ''),
@@ -439,36 +454,44 @@ export function groupLabel(patient: Patient, order: BoardOrder): string {
 export type KjsRole = 'kardio' | 'ts';
 
 /**
- * Which side of a joint-care arrangement this note is written from.
+ * Which side of a joint-care arrangement a note is written from.
  *
- * Read from the note rather than stored in a field, for the reason already
- * recorded for the KJS flag itself: it is stated in the note's opening, and a
- * second place to record it is a second place for it to be wrong.
+ * REWRITTEN 2026-09-11 against 190 real entries from the export, after the
+ * first version got it wrong in both directions.
  *
- * The discriminator is the `DPJP Kardio` line. It appears in the consult
- * template — the one used when another service's patient is referred to
- * cardiology — and it is there precisely because the note has to name BOTH the
- * primary DPJP and ours. A note where we are the primary has no reason to name
- * a separate cardiology DPJP, so its absence is meaningful rather than merely
- * unobserved.
+ * The first rule was "a `DPJP Kardio` line means we are the consultant". The
+ * corpus says otherwise: 19 notes carry that line while cardiology is the
+ * PRIMARY service — `_DPJP Kardio (Utama): dr. Zaenab Djafar_`, or a solitary
+ * `_DPJP Kardio : ..._` on an ordinary cardiology patient. Calling those
+ * "another service's patient" is the expensive mistake: it says the plan is
+ * only a recommendation and the discharge is not ours, on a patient who is
+ * entirely ours.
  *
- * Anything mentioning KJS without that line falls back to `ts`, the safer of
- * the two: it says "this patient is ours and someone else is involved", which
- * is true of both cases; the mistake it can make is understating our distance
- * from the patient, never overstating our authority over one.
+ * What actually distinguishes the two is WHO IS MARKED `Utama`:
+ *
+ *   `_DPJP BTKV (Utama) : …_`  +  `_DPJP Kardio : …_`   → we are consulted
+ *   `_DPJP Kardio (Utama): …_` +  `_DPJP Orthopedi: …_` → the patient is ours
+ *
+ * So `kardio` requires a cardiology line AND a primary line that is not it.
+ * Absent that, the literal word `KJS` still marks joint care from our side —
+ * which is how `_DPJP KJS Anestesi: …_` on a patient whose Utama is a
+ * cardiologist reads correctly as ours.
+ *
+ * Everything else is `null`. A patient with several DPJP lines and no KJS
+ * anywhere is not silently promoted to joint care: multi-service is ordinary,
+ * and inventing a KJS badge for it would put a mark on half the board.
  */
 export function kjsRole(text: string): KjsRole | null {
-  if (!/\bKJS\b/i.test(text)) return null;
-  /*
-    No `\b` before DPJP, and that is not laziness.
+  const lines = text.split('\n').filter((line) => /DPJP/i.test(line));
 
-    The line is written inside italics in every one of these notes —
-    `_DPJP Kardio : dr. Y_` — and `_` is a word character, so `\b` between it
-    and the `D` does not exist and the match silently fails. This is the same
-    trap that hid `hari ke-9` from the day-marker matcher until 2026-09-10.
-    A leading space is not required for correctness here: `DPJP Kardio` is
-    specific enough that a false positive inside a longer word is not a thing
-    this corpus can produce.
-  */
-  return /DPJP\s+Kardio/i.test(text) ? 'kardio' : 'ts';
+  // `DPJP Kardio`, `DPJP Kardiologi`, `DPJP Kardio (Utama)`, `DPJP (Bagian)
+  // Kardio` — and never `\b` before DPJP, because these lines are written
+  // inside `_…_` and `_` is a word character, which is the trap that hid
+  // `hari ke-9` from the day-marker matcher.
+  const kardio = lines.findIndex((line) => /DPJP\s*(?:\([^)]*\)\s*)?Kardio/i.test(line));
+  const utama = lines.findIndex((line) => /utama/i.test(line));
+
+  if (kardio !== -1 && utama !== -1 && utama !== kardio) return 'kardio';
+  if (/\bKJS\b/i.test(text)) return 'ts';
+  return null;
 }
