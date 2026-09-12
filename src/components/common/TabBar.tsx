@@ -38,6 +38,11 @@ const TOOL_TABS = [
   { to: '/catatan', label: 'Catatan', Icon: IconNote },
   { to: '/kalkulator', label: 'Kalkulator', Icon: IconCalculator },
   { to: '/checklist', label: 'Checklist', Icon: IconChecklist },
+  // A tool, not a primary tab: it is opened once a day at most, on the evening
+  // before a jaga, and the four primary tabs are the ones touched on every
+  // round. `wip` marks it in the rail until Avicenna says it is finished —
+  // a half-built feature that looks finished is one that gets relied on.
+  { to: '/helper', label: 'Helper', Icon: IconChecklist, wip: true },
   { to: '/pengaturan', label: 'Pengaturan', Icon: IconSettings },
 ] as const;
 
@@ -133,7 +138,7 @@ export function TabBar(): JSX.Element {
           'sm:mt-1 sm:w-full sm:flex-col sm:gap-0.5 sm:border-t sm:border-border sm:pt-1',
         ].join(' ')}
       >
-        {TOOL_TABS.map(({ to, label, Icon }) => (
+        {TOOL_TABS.map(({ to, label, Icon, ...rest }) => (
           <NavLink
             key={to}
             to={to}
@@ -147,7 +152,12 @@ export function TabBar(): JSX.Element {
             }
           >
             <Icon className="h-5 w-5" />
-            <span className="text-[10px] sm:hidden lg:inline lg:text-xs">{label}</span>
+            <span className="text-[10px] sm:hidden lg:inline lg:text-xs">
+              {label}
+              {'wip' in rest && rest.wip ? (
+                <span className="ml-1 align-top text-[8px] text-danger">WIP</span>
+              ) : null}
+            </span>
           </NavLink>
         ))}
       </div>
@@ -166,7 +176,7 @@ export function TabBar(): JSX.Element {
         description="Catatan lepas, kalkulator, checklist, dan pengaturan."
       >
         <div className="flex flex-col p-2">
-          {TOOL_TABS.map(({ to, label, Icon }) => {
+          {TOOL_TABS.map(({ to, label, Icon, ...rest }) => {
             const active = pathname === to;
             return (
               <button
@@ -182,7 +192,12 @@ export function TabBar(): JSX.Element {
                 ].join(' ')}
               >
                 <Icon className="h-5 w-5 shrink-0" />
-                <span className="min-w-0 flex-1 truncate">{label}</span>
+                <span className="min-w-0 flex-1 truncate">
+                  {label}
+                  {'wip' in rest && rest.wip ? (
+                    <span className="ml-1 text-[9px] text-danger">WIP</span>
+                  ) : null}
+                </span>
               </button>
             );
           })}

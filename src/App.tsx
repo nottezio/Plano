@@ -6,6 +6,7 @@ import DocumentPage from '@/routes/DocumentPage';
 import NotePage from '@/routes/NotePage';
 import CalculatorPage from '@/routes/CalculatorPage';
 import ChecklistsPage from '@/routes/ChecklistsPage';
+import { HelperPage } from '@/routes/HelperPage';
 import SettingsPage from '@/routes/SettingsPage';
 import PatientPage from '@/routes/PatientPage';
 import NotFoundPage from '@/routes/NotFoundPage';
@@ -25,6 +26,7 @@ export default function App(): JSX.Element {
       <Route path="/catatan" element={<NotePage />} />
       <Route path="/kalkulator" element={<CalculatorPage />} />
       <Route path="/checklist" element={<ChecklistsPage />} />
+      <Route path="/helper" element={<HelperPage />} />
       <Route path="/pengaturan" element={<SettingsPage />} />
       <Route path="/p/:patientId" element={<PatientPage />} />
       <Route path="/p/:patientId/:date" element={<PatientPage />} />

@@ -1,5 +1,212 @@
 # Plano — CHANGES
 
+## `2026-09-12.6`
+
+**One resolved name per post, shared by the Formasi and the confirmation list,
+and correctable.** Still WIP.
+
+### The Formasi names exactly who you confirmed
+
+`ResolvedPost.display` is computed once, in `resolveShift`, and both the
+Formasi and the confirmation row render that same string. They previously
+derived it with the same expression in two places — which is one refactor away
+from drifting, and the failure that produces is a report naming somebody the
+user never messaged.
+
+Order of preference, every step deliberate:
+
+1. **what the user typed** — the only deliberate source in this feature
+2. the **Jarkom nickname** — how the person is actually addressed
+3. the **roster's full name** — never Jarkom's spelling of it
+4. the **initials as printed** — honest, and readable by anyone on the rota
+
+There is no step that produces nothing. A post with a person on it always names
+them somehow, because a blank in a Formasi reads as "unstaffed" and that one is
+not.
+
+### The name is editable, and the correction sticks to the person
+
+Matching the roster legend to the Jarkom sheet is fuzzy by necessity — two
+documents, two typists, disagreeing by a letter on real colleagues — and 14 of
+the 104 legend names have no Jarkom row at all. That residue does not go away
+by tuning the matcher, and the cost of one wrong name is a report to a
+consultant naming the wrong colleague.
+
+So the name in the confirmation list is an input. Type over it and it is
+remembered **against the INITIALS, not the date**: `AV` is the same person in
+every shift they appear in, so fixing them once fixes every Formasi they will
+ever be in. An override always wins over both documents — it is the only value
+here a person entered deliberately, and a parser has no standing to overrule
+it. Clearing the field removes the override rather than storing a blank.
+
+The roster's full name still shows underneath whenever it differs from what is
+being printed, so a bad match stays visible.
+
+```
+1100 tests passed (was 1096 — 4 added on the resolved display name)
+typecheck / lint / check:version / check:contrast / check:a11y / build — clean
+```
+
+---
+
+## `2026-09-12.5`
+
+**Konfirmasi Jaga: tick-off state, and the name sources made explicit.**
+Still WIP.
+
+### `(belum konfirmasi)`
+
+A checkbox per senior in the confirmation list, persisted per **date AND
+shift** — a weekend has two teams, and confirming the Pagi chief says nothing
+about the Malam one, so a single per-date set would mark half the board done as
+soon as the first shift was.
+
+The Formasi prints the mark on every staffed post that has not been ticked:
+
+```
+Chief PJT : Ellen
+Chief Konsul : Jauhar (belum konfirmasi)
+Pediatri : 
+```
+
+Two decisions worth stating:
+
+**The set holds the CONFIRMED, not the outstanding.** The default state of a
+name nobody has ticked is "not yet confirmed" — a store that has to be seeded
+with every post before it means anything is one that reports a full team the
+day somebody forgets to seed it.
+
+**An unstaffed post is never marked outstanding.** Paediatrics keeps its own
+roster, so its column is empty in every row and there is nobody to confirm.
+Marking it would put a permanent false alarm in every Formasi, and a warning
+that is always there stops being read — taking the real ones with it.
+
+Counts in the header: `3 belum konfirmasi`, or `9 dari 9 terkonfirmasi`.
+
+### Where each name comes from
+
+Made explicit, because the two documents disagree on spelling and only one of
+them decides who is on:
+
+| Field | Source |
+|---|---|
+| Full name | **Roster legend** — always |
+| Nickname (panggilan) | Jarkom |
+| Agama (greeting) | Jarkom |
+
+Jarkom's spelling of a name is used nowhere. `dr. Grafiek Fogar Filen` is what
+the roster prints and what Plano shows; `dr. Greafiek Fogar Filen Nando` is
+only ever matched against, to reach that row's `Ve` and `Muslim`.
+
+The confirmation list now shows the roster name in small text under the
+nickname, so a wrong match is visible — if the nickname above it does not
+belong to that person, that line is where you see it.
+
+```
+1096 tests passed (was 1092 — 4 added on the confirmation mark)
+typecheck / lint / check:version / check:contrast / check:a11y / build — clean
+```
+
+**Still not done:** no editing a parsed roster after import; confirmation state
+is per device; no reminder for the ones still outstanding.
+
+---
+
+## `2026-09-12.4`
+
+**Helper tab — Konfirmasi Jaga. Marked WORK IN PROGRESS in the rail.**
+
+A new tool tab that imports the three rosters from PDF and builds the Formasi
+Jaga and the per-senior confirmation messages from them. Kept entirely
+separate from the patient side: nothing in `domain/jaga/` imports from
+`patients/` or `entries/`, and nothing there imports from here. The only shared
+code is the greeting/time expander and the clipboard helper — if this ever
+becomes its own app, that boundary is where it cuts.
+
+### PDF import works because of positions, not text
+
+Read as prose, these PDFs are unusable — pdf.js emits fragments in draw order,
+so the jaga roster comes out with the shift table interleaved with the legend
+beside it and no way to tell which column a two-letter initial came from. Each
+fragment also carries an x/y, and with those the tables reconstruct exactly.
+`lib/pdfItems.ts` exposes that; `lib/pdfText.ts` is unchanged.
+
+Measured against the real files:
+
+```
+Jadwal Jaga PPDS   61 shifts, 16 Aug – 30 Sep, 104 initials in the legend
+Jadwal DPJP        30 days, both columns
+Daftar Jarkom      90 residents with agama and panggilan
+name matching      90 of 104 legend names resolved to a Jarkom row
+```
+
+Three things that had to be got right:
+
+**Weekend shifts are four points apart.** `Minggu Pagi` and `Minggu Malam` are
+different teams entirely, and a generous row tolerance merges them into one row
+of pairs. Two points, with the row anchored on its first fragment rather than a
+running average — an average drifts as fragments are added and swallows the
+next row.
+
+**The TANGGAL cell is merged across both weekend shifts** and pdf.js attaches
+it to the first. The `Malam` row inherits it; that is not a guess, it is
+literally the same cell.
+
+**The roster prints day numbers only** and spans a month boundary. The month
+comes from the title, and a day number smaller than the last one is the
+rollover — the only signal there is.
+
+### Name matching, and where it gives up
+
+The two documents are typed by different people: `dr. Grafiek Fogar Filen` in
+the roster is `dr. Greafiek Fogar Filen Nando` in Jarkom. Matching scores whole
+shared WORDS, allowing one edit on words of five letters or more — enough for
+*Marylin/Marilyn*, *Montong/Mantong*, *Siti/Sitti*, and too narrow to reach a
+different given name. Edit distance on the whole string was rejected: it treats
+`Muhammad Asrul` and `Muhammad Abdul` as near-identical, which is the exact
+confusion to avoid in a list of ninety colleagues who share given names.
+
+The 14 unmatched are mostly the PJ-Jarkom seniors, who appear in that sheet
+only as the PJ column and have no row of their own. They degrade to the full
+name and the neutral greeting, and the list **says so** — "agama tidak
+diketahui" — because silently sending the fallback is fine but silently hiding
+that it happened is what stops the sheet ever being updated.
+
+### The message
+
+- Greeting follows the hour it is written (`selamat pagi/siang/sore/malam`).
+- **Post-midnight DPJP is the NEXT CALENDAR DAY's row.** The consultant on call
+  changes at 00.00 WITA, which is a date boundary, not a second column of the
+  same row. Omitted entirely when tomorrow is not in the imported roster rather
+  than repeating today's pair — a wrong name there sends the night's reports to
+  someone who is not on.
+- **Pediatri prints as a blank line.** They keep their own roster that only
+  they see, so the column is empty in every row; a missing line reads as an
+  oversight, a blank one reads as "not ours to report".
+- Per-senior confirmation greets by **agama**, with the neutral form where it
+  is unknown — never the commoner one, which is wrong for a quarter of the
+  list.
+
+No WhatsApp integration, per instruction. Copy buttons only.
+
+Rosters are stored in localStorage, per device: they are published documents,
+replaced wholesale every month, and re-importable in ten seconds. Firestore
+would mean a schema, a sync path and a merge question for data that is already
+shared elsewhere.
+
+```
+1092 tests passed (was 1080 — 12 added on the message builders)
+typecheck / lint / check:version / check:contrast / check:a11y / build — clean
+```
+
+**Not done:** no tick-off state for who has replied; no editing of a parsed
+roster after import (a wrong cell means re-importing); the parsers are tuned to
+these three layouts and a redesigned PDF will need the column table adjusted.
+The verification harness that ran against the real PDFs was deleted after the
+run — no roster data is in the repo.
+
+---
+
 ## `2026-09-12.3`
 
 **Identity band on the card; sidebar hint capped; the KJS badge finally
