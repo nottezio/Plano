@@ -1,6 +1,7 @@
 import { useState } from 'react';
 
 import {
+  looksLikeApiKey,
   readAiFlags,
   readApiKey,
   writeAiFlags,
@@ -35,9 +36,27 @@ export function AiSettings(): JSX.Element {
         perangkat ini — tidak disinkronkan, tidak ikut dalam ekspor.
       </p>
 
+      {/*
+        NEVER `type="password"`.
+
+        A password manager targets that type regardless of `autocomplete`,
+        which every browser vendor documents and none of them honour for this
+        purpose — the field looks like a login to the manager, so it offers
+        its own saved credential. Because this input is controlled, accepting
+        that offer fires `onChange` and this component would silently write
+        someone's unrelated saved password into storage as their Anthropic
+        key — no typing, no Save button, nothing to notice until a call fails
+        with a 401 that makes no sense.
+
+        Masking is done with CSS instead (`-webkit-text-security`), which
+        gives the same dotted appearance without the type that password
+        managers watch for. The `data-*` attributes are the documented
+        opt-outs for the three managers that ignore `autocomplete="off"`
+        outright: 1Password, LastPass, Bitwarden.
+      */}
       <div className="flex flex-wrap gap-2">
         <input
-          type={reveal ? 'text' : 'password'}
+          type="text"
           value={key}
           onChange={(event) => {
             setKey(event.target.value);
@@ -46,6 +65,11 @@ export function AiSettings(): JSX.Element {
           placeholder="sk-ant-…"
           autoComplete="off"
           spellCheck={false}
+          data-1p-ignore="true"
+          data-lpignore="true"
+          data-bwignore="true"
+          data-form-type="other"
+          style={reveal ? undefined : ({ WebkitTextSecurity: 'disc' } as React.CSSProperties)}
           className="min-h-tap min-w-0 flex-1 rounded-lg border border-border bg-surface px-3 font-mono text-xs"
         />
         <button
@@ -56,6 +80,19 @@ export function AiSettings(): JSX.Element {
           {reveal ? 'Sembunyikan' : 'Lihat'}
         </button>
       </div>
+
+      {/*
+        The safety net for the exact failure this replaces: if a manager (or
+        anything else) already wrote something here before this fix shipped,
+        say so rather than staying silent about a key that is not a key.
+      */}
+      {key.length > 0 && !looksLikeApiKey(key) ? (
+        <p className="text-danger">
+          Teks ini tidak seperti API key Anthropic (harusnya diawali "sk-ant-"). Jika Anda
+          tidak menempelkannya sendiri, kemungkinan terisi otomatis oleh aplikasi pengelola
+          kata sandi — periksa dengan "Lihat", lalu hapus jika bukan milik Anda.
+        </p>
+      ) : null}
 
       <div className="space-y-2">
         <Toggle

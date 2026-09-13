@@ -1,5 +1,49 @@
 # Plano — CHANGES
 
+## `2026-09-12.11`
+
+**The API key field could be silently overwritten by a password manager.
+Fixed.**
+
+### What the dots in the field actually were
+
+The field was `type="password"`. That type is exactly what a password
+manager watches for, and `autocomplete="off"` does not stop it — every major
+manager documents that they ignore it for this purpose, because the whole
+point of a manager is to fill logins the page would rather it not touch.
+
+The dangerous part is that the field is CONTROLLED: `value={key}`, updated
+`onChange`. A manager offering (or auto-filling) an unrelated saved password
+into this field fires that same `onChange`, and the component wrote whatever
+arrived straight to storage as the Anthropic key — no typing, no Save button,
+nothing to notice until a call failed with a 401 that made no sense. If dots
+were showing without anyone having pasted a key, this is almost certainly
+what happened, and the value is somebody's unrelated saved password, not a
+key at all.
+
+### The fix
+
+- `type="text"`, never `"password"`. Masking is done with CSS
+  (`-webkit-text-security`) instead, which gives the same dotted look without
+  the type managers watch for.
+- `data-1p-ignore`, `data-lpignore`, `data-bwignore` — the documented opt-outs
+  for 1Password, LastPass and Bitwarden, the three that ignore
+  `autocomplete="off"` outright.
+- A format check: Anthropic keys start `sk-ant-`. Anything stored that
+  doesn't is now flagged in place — "tidak seperti API key Anthropic … periksa
+  dengan Lihat, lalu hapus jika bukan milik Anda" — as the safety net for
+  whatever a manager may have already written before this shipped.
+
+**Anyone who saw dots in this field before today should open it, press
+"Lihat", and check the value is actually their key.**
+
+```
+1141 tests passed (was 1139 — 2 added on the format check)
+typecheck / lint / check:version / check:contrast / check:a11y / build — clean
+```
+
+---
+
 ## `2026-09-12.10`
 
 **Settings grouped; ⋯ sheet stops repeating the header; sodium-for-glucose

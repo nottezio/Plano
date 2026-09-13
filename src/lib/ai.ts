@@ -46,6 +46,19 @@ export interface AiFlags {
 
 const OFF: AiFlags = { lab: false, soap: false, check: false };
 
+/**
+ * Does this look like an Anthropic key, at a glance?
+ *
+ * Not a validity check — only the API can say that. This exists for one
+ * narrow purpose: to warn when the stored value almost certainly is NOT a
+ * key at all, which happens when a password manager fills its own saved
+ * credential into the field instead. `sk-ant-` is Anthropic's own prefix and
+ * has been stable across every key format they have issued.
+ */
+export function looksLikeApiKey(value: string): boolean {
+  return value.startsWith('sk-ant-');
+}
+
 export function readApiKey(): string {
   try {
     return localStorage.getItem(KEY) ?? '';

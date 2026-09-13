@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { aiEnabled, readAiFlags, readApiKey, writeAiFlags, writeApiKey } from './ai';
+import { aiEnabled, looksLikeApiKey, readAiFlags, readApiKey, writeAiFlags, writeApiKey } from './ai';
 
 const store = new Map<string, string>();
 
@@ -66,5 +66,18 @@ describe('aiEnabled', () => {
     writeAiFlags({ lab: false, soap: true, check: false });
     expect(aiEnabled('lab')).toBe(false);
     expect(aiEnabled('soap')).toBe(true);
+  });
+});
+
+describe('looksLikeApiKey', () => {
+  it('accepts the real prefix', () => {
+    expect(looksLikeApiKey('sk-ant-abc123')).toBe(true);
+  });
+
+  it('rejects anything else, including a plausible-looking password', () => {
+    // This is the exact failure it exists to catch: a password manager
+    // filling a saved credential into a field it mistook for a login.
+    expect(looksLikeApiKey('Hunter2!2026')).toBe(false);
+    expect(looksLikeApiKey('')).toBe(false);
   });
 });
