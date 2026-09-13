@@ -34,6 +34,7 @@ export function PatientActionsSheet({
   onOpening,
   onCompare,
   onTidy,
+  onReformat,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -61,6 +62,8 @@ export function PatientActionsSheet({
    * advertises sending a patient's note off the device.
    */
   onTidy?: (() => void) | undefined;
+  /** CVCU → bangsal. Present only where the header has dropped the button. */
+  onReformat?: (() => void) | undefined;
 }): JSX.Element {
   const today = useClinicalToday();
   const planned = migrateLegacyDischarge(patient, today);
@@ -121,6 +124,17 @@ export function PatientActionsSheet({
             onClick={() => {
               close();
               onOpening();
+            }}
+          />
+        ) : null}
+
+        {onReformat ? (
+          <Action
+            label="Ubah ke format bangsal"
+            detail="Menghapus header Airway/Breathing/Circulation dst."
+            onClick={() => {
+              close();
+              onReformat();
             }}
           />
         ) : null}

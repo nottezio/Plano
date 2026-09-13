@@ -567,3 +567,36 @@ describe('never reads a number from the reference range', () => {
     expect(parseLab('Base excess -2.5').known[0]?.value).toBe('-2.5');
   });
 });
+
+describe('grouped rows without a colon — the app’s own output format', () => {
+  const out = (raw: string): string => parseLab(raw, { boldAbnormal: false }).formatted;
+
+  it('reads a block it formatted itself', () => {
+    // Verified against 200 lab blocks from the 2026-09-11 export: before this,
+    // re-parsing the app's own output dropped every grouped row and 0 of 200
+    // blocks round-tripped. Now all 200 do.
+    const block = 'WBC 9.110\nHGB 16.1\nNa/K/Cl 134/3.4/103\nUr/Cr 44/0.98\nGOT/GPT 70/29';
+    expect(out(block)).toContain('Na/K/Cl 134/3.4/103');
+    expect(out(block)).toContain('Ur/Cr 44/0.98');
+    expect(out(block)).toContain('GOT/GPT 70/29');
+  });
+
+  it('is idempotent — parsing its own output changes nothing', () => {
+    const once = out('WBC 9.110\nNa/K/Cl 134/3.4/103\nMCV/MCH/MCHC 92.8/30.3/32.4');
+    expect(out(once)).toBe(once);
+  });
+
+  it('still reads the colonned form from a pasted hospital sheet', () => {
+    expect(out('Na/K/Cl : 129/4.3/103')).toContain('Na/K/Cl 129/4.3/103');
+  });
+
+  it('keeps a trailing note attached to the last value', () => {
+    expect(out('Ur/Cr 34/0.99 (eGFR 54)')).toContain('eGFR 54');
+  });
+
+  it('does not mistake a multi-word name for a grouped row', () => {
+    // `Anti HCV Non Reactive` has no slash and no numeric run; treating it as
+    // grouped would split a result into nonsense.
+    expect(out('Anti HCV Non Reactive')).toContain('Anti HCV');
+  });
+});

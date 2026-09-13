@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import { AppShell } from '@/components/common/AppShell';
+import { reorderWithinVisible } from '@/domain/reorder';
 import { COLOR_SENTINEL, stripSentinelColor } from '@/domain/format/noteColor';
 import { updateScratchNotes } from '@/data/repositories/settings.repo';
 import { useTextSync } from '@/hooks/useTextSync';
@@ -114,6 +115,31 @@ export default function NotePage(): JSX.Element {
    * empty shelf is empty.
    */
   const active = visible.find((note) => note.id === activeId) ?? visible[0];
+
+  /**
+   * Drag a note tab to reorder the shelf.
+   *
+   * Order is the stored array order, so a move rewrites `notes` — and it has
+   * to be rewritten in terms of the FULL list, not the visible one. `visible`
+   * is filtered by shelf and by archived state, so splicing within it and
+   * writing that back would drop every note the current filter hides.
+   *
+   * HTML drag-and-drop rather than the pointer-based drag the board uses: this
+   * is a row of small tabs on a desktop, not cards on a canvas, and the native
+   * API gives the drop target and the reorder for free. The board needed
+   * pointer events because it needed positions.
+   */
+  const [dragId, setDragId] = useState<string | null>(null);
+
+  const reorder = (fromId: string, toId: string): void => {
+    if (!uid || fromId === toId) return;
+
+    const next = reorderWithinVisible(notes, visible, (note) => note.id, fromId, toId);
+
+    void updateScratchNotes(uid, next).catch((error: unknown) =>
+      console.error('[catatan] reorder rejected', error),
+    );
+  };
 
   const setArchived = (archived: boolean): void => {
     if (!uid || !active) return;
@@ -258,7 +284,7 @@ export default function NotePage(): JSX.Element {
   const insertChecklistItem = (): void => {
     const node = ref.current;
     if (!node) return;
-    node.focus();
+    restoreSelection();
     document.execCommand(
       'insertHTML',
       false,
@@ -270,14 +296,66 @@ export default function NotePage(): JSX.Element {
   const clearColor = (): void => {
     const node = ref.current;
     if (!node) return;
-    node.focus();
+    restoreSelection();
     document.execCommand('foreColor', false, COLOR_SENTINEL);
     stripSentinelColor(node);
     sync.setValue(node.innerHTML);
   };
 
+  /**
+   * The last selection made INSIDE the note, kept so a toolbar control can put
+   * it back.
+   *
+   * This is the fix for "ukuran teks kadang tidak jalan". The size control is
+   * a native `<select>`, and opening one MUST move focus away from the
+   * contenteditable — at which point the browser is free to drop the document
+   * selection. `apply` then called `focus()` and `execCommand('fontSize')`
+   * against a caret, not a range, and the size was applied to nothing.
+   *
+   * It looked intermittent because it depends on whether the browser happened
+   * to preserve the range across the focus change, and on a LONG note it
+   * almost never does: `focus()` scrolls the caret into view, and on a
+   * document that scrolls, that is a different position from the one the user
+   * had selected.
+   *
+   * Recorded from `selectionchange` rather than from a click handler, because
+   * a selection can also be made with the keyboard, or extended after the
+   * mouse is released.
+   */
+  const lastRange = useRef<Range | null>(null);
+
+  useEffect(() => {
+    const onSelectionChange = (): void => {
+      const node = ref.current;
+      const selection = window.getSelection();
+      if (!node || !selection || selection.rangeCount === 0) return;
+      const range = selection.getRangeAt(0);
+      // Only ranges inside this editor. A selection in the sidebar or in
+      // another note must not be restored into this one.
+      if (!node.contains(range.commonAncestorContainer)) return;
+      lastRange.current = range.cloneRange();
+    };
+    document.addEventListener('selectionchange', onSelectionChange);
+    return () => document.removeEventListener('selectionchange', onSelectionChange);
+  }, []);
+
+  /** Put the caret back where the user left it, before any `execCommand`. */
+  const restoreSelection = (): void => {
+    const node = ref.current;
+    const range = lastRange.current;
+    if (!node) return;
+    // `preventScroll`, so restoring focus on a long note does not jump the
+    // page away from what the user is looking at.
+    node.focus({ preventScroll: true });
+    if (!range || !node.contains(range.commonAncestorContainer)) return;
+    const selection = window.getSelection();
+    if (!selection) return;
+    selection.removeAllRanges();
+    selection.addRange(range);
+  };
+
   const apply = (command: string, value?: string): void => {
-    ref.current?.focus();
+    restoreSelection();
     // `execCommand` is deprecated and has no replacement for this. Every
     // alternative means owning a document model, which for one personal note is
     // far more machinery than the feature is worth.
@@ -334,15 +412,33 @@ export default function NotePage(): JSX.Element {
               key={note.id}
               type="button"
               aria-pressed={note.id === active?.id}
+              draggable
+              onDragStart={(event) => {
+                setDragId(note.id);
+                // Required by Firefox, which refuses to start a drag without
+                // something on the transfer object.
+                event.dataTransfer.setData('text/plain', note.id);
+                event.dataTransfer.effectAllowed = 'move';
+              }}
+              onDragOver={(event) => {
+                if (dragId && dragId !== note.id) event.preventDefault();
+              }}
+              onDrop={(event) => {
+                event.preventDefault();
+                if (dragId) reorder(dragId, note.id);
+                setDragId(null);
+              }}
+              onDragEnd={() => setDragId(null)}
               onClick={() => {
                 sync.flush();
                 setActiveId(note.id);
               }}
               className={[
-                'min-h-tap shrink-0 rounded-lg border px-3 text-xs',
+                'min-h-tap shrink-0 cursor-grab rounded-lg border px-3 text-xs',
                 note.id === active?.id
                   ? 'border-accent bg-bg-subtle font-medium text-accent'
                   : 'border-border text-fg-muted',
+                dragId === note.id ? 'opacity-50' : '',
               ].join(' ')}
             >
               {note.title || 'Tanpa judul'}
@@ -421,7 +517,24 @@ export default function NotePage(): JSX.Element {
             </button>
           ) : null}
         </div>
-        <div className="mb-2 flex flex-wrap items-center gap-1 rounded-lg border border-border bg-surface p-1">
+      {/*
+        THE TOOLBAR FOLLOWS THE PAGE.
+
+        A reference note runs to several screens, and the formatting controls
+        sat at the top of it — so applying bold to something two screens down
+        meant selecting the text, scrolling back up, and losing the selection
+        on the way. Sticky keeps them where the text is.
+
+        `z-10` and an opaque background, not a translucent one: this sits over
+        body text as it scrolls under, and a translucent bar makes both
+        unreadable at exactly the moment you are aiming at a small button.
+
+        `top-0` relative to the page's own scroller rather than the viewport —
+        the shelf tabs and note tabs above scroll away, which is right. They
+        are navigation and you have already used them by the time you are
+        formatting.
+      */}
+      <div className="sticky top-0 z-10 mb-2 flex flex-wrap items-center gap-1 rounded-lg border border-border bg-surface p-1">
           <ToolButton label="Tebal" onClick={() => apply('bold')}>
             <strong>B</strong>
           </ToolButton>
@@ -440,12 +553,27 @@ export default function NotePage(): JSX.Element {
 
           <span aria-hidden="true" className="mx-1 h-5 w-px bg-border" />
 
+          {/*
+            `value`, not `defaultValue`, with the choice reset after applying.
+
+            A `<select>` left showing "Besar" after the size was applied makes
+            the next press of the same option a no-op — `onChange` does not
+            fire when the value has not changed — so applying the same size to
+            a second paragraph silently did nothing. Resetting to the neutral
+            label turns it into a command rather than a state.
+          */}
           <select
             aria-label="Ukuran teks"
-            defaultValue="3"
-            onChange={(event) => apply('fontSize', event.target.value)}
+            value="label"
+            onChange={(event) => {
+              apply('fontSize', event.target.value);
+              event.target.value = 'label';
+            }}
             className="min-h-tap rounded-lg border border-border bg-surface px-2 text-xs"
           >
+            <option value="label" disabled>
+              Ukuran
+            </option>
             {SIZES.map((size) => (
               <option key={size.value} value={size.value}>
                 {size.label}

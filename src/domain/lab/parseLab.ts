@@ -482,7 +482,33 @@ function matchAnalyte(line: string, section: string | null): { key: string; rest
  * which is exactly the failure that reads as plausible.
  */
 function splitGrouped(line: string): Array<[string, string]> | null {
-  const match = /^\s*([A-Za-z][A-Za-z0-9\s]*(?:\/[A-Za-z0-9\s]+)+)\s*[:=]\s*(.+)$/.exec(line);
+  /*
+    THE SEPARATOR IS OPTIONAL, and that is the fix for a parser that could not
+    read its own output.
+
+    This was written for pasted hospital sheets, which write
+    `Na/K/Cl : 136/3.6/103`, and required the colon. Plano's own canonical
+    format uses a space — `Na/K/Cl 136/3.6/103` — so every grouped row in a
+    note this app had already formatted was silently dropped on the way back
+    in: Na/K/Cl, Ur/Cr, GOT/GPT, MCV/MCH/MCHC, NEUT/LYMPH, APTT/INR/PT. Across
+    200 lab blocks from the export that is roughly 300 lines, and the failure
+    was invisible because the remaining rows still parsed and the result still
+    looked like a lab block.
+
+    Dropping the colon is not enough on its own, and the first attempt was
+    wrong in a way worth recording: with `[A-Za-z0-9\s]+` in the name, the
+    greedy match ate the start of the value — `Na/K/Cl 134/3.4/103` split as
+    name `Na/K/Cl 13` and value `4/3.4/103`, which then failed the alias check
+    and dropped the row exactly as before. The name segments must therefore
+    exclude spaces and the value must be a slash-joined run beginning with a
+    digit. Every grouped label in this corpus is single-word per segment
+    (`Na`, `MCV`, `APTT`), and the multi-word ones — `Anti HCV` — are never
+    grouped, so nothing is lost by the restriction.
+  */
+  const match =
+    /^\s*([A-Za-z][A-Za-z0-9]*(?:\s*\/\s*[A-Za-z0-9]+)+)\s*[:=]?\s+(\d[^\s/]*(?:\s*\/\s*[^\s/]+)+.*)$/.exec(
+      line,
+    );
   if (!match?.[1] || !match[2]) return null;
 
   const names = match[1].split('/').map((name) => name.trim());

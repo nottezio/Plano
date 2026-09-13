@@ -128,3 +128,118 @@ describe('an empty note', () => {
     expect(checkSoap({ body: '   ' })).toEqual([]);
   });
 });
+
+describe('a second value on the diagnosis line', () => {
+  const body = [
+    'Tekanan Darah : 121/82',
+    'Nadi : 86',
+    'Suhu : 36.6',
+    'Na/K/Cl 136/3.6/103',
+    '*Mohon izin kami assess dengan:*',
+    '- Moderate Hyponatremia (131 -> 129 -> 136) Hipoosmolal (265)',
+  ].join('\n');
+
+  it('does not mistake the osmolality for the sodium', () => {
+    // Reported 12 September: the checker announced "diagnosis menyebut Na 265,
+    // lab terbaru 136" about a note that was entirely correct. Reading the
+    // last number on the LINE picks up whatever value happens to follow.
+    expect(checkSoap({ body }).map((f) => f.kind)).not.toContain('diagnosis-value-stale');
+  });
+
+  it('still reads the analyte’s own arrow chain', () => {
+    const stale = body.replace('131 -> 129 -> 136', '131 -> 129');
+    expect(checkSoap({ body: stale }).map((f) => f.kind)).toContain('diagnosis-value-stale');
+  });
+
+  it('is not confused by a trailing note in its own brackets', () => {
+    const withNote = 'Na/K/Cl 136/3.6/103\n- Hyponatremia (136) e.c. SIADH (suspek)';
+    expect(checkSoap({ body: `Nadi : 80\nSuhu : 36.5\nTekanan Darah : 120/80\n${withNote}` })
+      .map((f) => f.kind)).not.toContain('diagnosis-value-stale');
+  });
+});
+
+describe('a consult that answered but is not in the DPJP list', () => {
+  const base = 'Tekanan Darah : 120/80\nNadi : 80\nSuhu : 36.5';
+
+  it('flags a TS block whose service is missing from the header', () => {
+    // 49 entries in the 2026-09-11 export are in this state. The DPJP header
+    // is who the report is addressed from; a co-managing service missing from
+    // it simply does not get the note.
+    const body = `${base}\n_DPJP Utama : dr. Aussie_\n\n*TS Pulmo*\nA/ Pneumonia\nP/ Levofloxacin`;
+    expect(kinds(body)).toContain('consult-not-in-dpjp');
+  });
+
+  it('accepts a header that spells the service differently', () => {
+    // `TS Pulmo` in the block, `DPJP Pulmonologi` in the header — the same
+    // service, and the two lines rarely agree on the spelling.
+    const body = `${base}\n_DPJP Pulmonologi : dr. X_\n\n*TS Pulmo*\nA/ Pneumonia`;
+    expect(kinds(body)).not.toContain('consult-not-in-dpjp');
+  });
+
+  it('says nothing when there is no consult at all', () => {
+    expect(kinds(`${base}\n_DPJP Utama : dr. Aussie_`)).not.toContain('consult-not-in-dpjp');
+  });
+});
+
+describe('an electrolyte back in range', () => {
+  const body = [
+    'Tekanan Darah : 120/80',
+    'Nadi : 80',
+    'Suhu : 36.5',
+    'Na/K/Cl 136/4.1/103',
+    '- Hypokalemia (2.9 --> 4.1)',
+  ].join('\n');
+
+  const RANGES = { K: { low: 3.5, high: 5.1 } };
+
+  it('suggests marking it as perbaikan', () => {
+    const findings = checkSoap({ body, ranges: RANGES });
+    expect(findings.map((f) => f.kind)).toContain('electrolyte-corrected');
+  });
+
+  it('is SILENT with no range supplied', () => {
+    // Plano ships no reference ranges. Without one there is no honest way to
+    // call a number normal, and guessing would be hardcoding a range by
+    // another route.
+    expect(checkSoap({ body }).map((f) => f.kind)).not.toContain('electrolyte-corrected');
+  });
+
+  it('stops once the line already says perbaikan', () => {
+    const done = body.replace('(2.9 --> 4.1)', '(2.9 --> 4.1) perbaikan');
+    expect(checkSoap({ body: done, ranges: RANGES }).map((f) => f.kind)).not.toContain(
+      'electrolyte-corrected',
+    );
+  });
+
+  it('stays quiet while the value is still outside the range', () => {
+    const low = body.replace('136/4.1/103', '136/3.1/103').replace('--> 4.1', '--> 3.1');
+    expect(checkSoap({ body: low, ranges: RANGES }).map((f) => f.kind)).not.toContain(
+      'electrolyte-corrected',
+    );
+  });
+});
+
+describe('the day-marker rule’s default state', () => {
+  // Guards the wiring bug found on 13 September: the caller was passing
+  // `staleMarkers === null` as "dismissed", which is true on essentially every
+  // note, so this rule never fired at all. A check that finds nothing looks
+  // exactly like a check that is switched off — hence an explicit test that
+  // the DEFAULT is "not dismissed".
+  const note = 'Tekanan Darah : 120/80\nNadi : 80\nSuhu : 36.5\nA:\n- post PPM H-2';
+
+  it('fires when the flag is simply absent', () => {
+    expect(checkSoap({ body: note, previous: note }).map((f) => f.kind)).toContain('day-marker');
+  });
+
+  it('fires when the flag is explicitly false', () => {
+    expect(
+      checkSoap({ body: note, previous: note, dayMarkersDismissed: false }).map((f) => f.kind),
+    ).toContain('day-marker');
+  });
+
+  it('is suppressed only by an explicit true', () => {
+    expect(
+      checkSoap({ body: note, previous: note, dayMarkersDismissed: true }).map((f) => f.kind),
+    ).not.toContain('day-marker');
+  });
+});

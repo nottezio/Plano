@@ -9,6 +9,7 @@ import { StringListEditor } from '@/components/settings/StringListEditor';
 import { DpjpFormatEditor } from '@/components/settings/DpjpFormatEditor';
 import { TemplateEditor } from '@/components/settings/TemplateEditor';
 import { AiSettings } from '@/components/settings/AiSettings';
+import { ReferenceRangeSettings } from '@/components/settings/ReferenceRanges';
 import { PasteInspector } from '@/components/settings/PasteInspector';
 import { RebuildCards } from '@/components/settings/RebuildCards';
 import { SessionLogPanel } from '@/components/settings/SessionLogPanel';
@@ -479,6 +480,13 @@ export default function SettingsPage(): JSX.Element {
           where a tool you reach for twice a year belongs. It reads only what is
           typed into it and writes nothing anywhere.
         */}
+        <SettingsSection
+          title="Rentang rujukan lab"
+          description="Opsional. Kosong secara bawaan — Plano tidak membawa angka rujukan."
+        >
+          <ReferenceRangeSettings />
+        </SettingsSection>
+
         <SettingsSection
           title="Fitur AI (opsional)"
           description="Pakai API key sendiri. Mati secara bawaan."

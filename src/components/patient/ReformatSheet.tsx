@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react';
 
 import { Sheet } from '@/components/common/Sheet';
 import { cvcuToBangsal } from '@/domain/reformat/cvcuToBangsal';
+import { AiError, aiEnabled, askClaude } from '@/lib/ai';
 import { diffSegments } from '@/domain/merge/threeWayMerge';
 
 /**
@@ -30,7 +31,59 @@ export function ReformatSheet({
   body: string;
   onApply: (next: string) => void;
 }): JSX.Element {
-  const result = useMemo(() => cvcuToBangsal(body), [body]);
+  const deterministic = useMemo(() => cvcuToBangsal(body), [body]);
+
+  /**
+   * The AI second pass — a FALLBACK, offered only after the real transform ran.
+   *
+   * `cvcuToBangsal` stays the default and stays first. It moves blocks whole,
+   * never looks inside one, and produces the same output every time, which is
+   * what makes it safe to apply to a note without reading every line. The
+   * model has none of those properties.
+   *
+   * It earns a place only where the deterministic pass leaves something wrong:
+   * a CVCU note with headings it has never seen, or a layout nobody has taught
+   * it. Offering it BEFORE that would replace a transform that is right by
+   * construction with one that is usually right, which is a bad trade on a
+   * medical record.
+   *
+   * It is given the deterministic result, not the original: fixing what is
+   * left is a smaller and more checkable job than redoing the whole
+   * conversion.
+   */
+  const [aiBody, setAiBody] = useState<string | null>(null);
+  const [aiState, setAiState] = useState<'idle' | 'running'>('idle');
+  const [aiError, setAiError] = useState<string | null>(null);
+
+  const result = aiBody !== null ? { ...deterministic, body: aiBody } : deterministic;
+
+  const runAi = async (): Promise<void> => {
+    setAiState('running');
+    setAiError(null);
+    try {
+      const text = await askClaude(deterministic.body, {
+        system: [
+          'Catatan ini sudah diubah otomatis dari format CVCU ke format bangsal,',
+          'tapi mungkin masih ada sisa header CVCU atau blok yang salah tempat.',
+          'Perbaiki SUSUNANNYA saja.',
+          '',
+          'ATURAN KERAS:',
+          '- JANGAN mengubah kata, angka, dosis, satuan, atau tanggal apa pun.',
+          '- JANGAN menambah atau menghapus isi. Semua temuan harus tetap ada.',
+          '- Yang boleh: menghapus sisa header A-H (Airway/Breathing/dst),',
+          '  memindahkan blok utuh ke bawah S/O/A/P yang tepat, merapikan baris kosong.',
+          '- JANGAN memindahkan baris satu per satu; pindahkan blok beserta judulnya.',
+          '- Keluarkan HANYA catatannya, tanpa pengantar.',
+        ].join('\n'),
+        maxTokens: 3000,
+      });
+      setAiBody(text);
+    } catch (error) {
+      setAiError(error instanceof AiError ? error.message : 'Gagal memanggil AI.');
+    } finally {
+      setAiState('idle');
+    }
+  };
   /**
    * Two views, the same pair the day comparison offers.
    *
@@ -44,6 +97,7 @@ export function ReformatSheet({
     [view, body, result.body],
   );
   const changed = result.body !== body;
+  const delta = aiBody !== null ? aiBody.length - deterministic.body.length : 0;
 
   return (
     <Sheet
@@ -65,6 +119,42 @@ export function ReformatSheet({
         </button>
       }
     >
+      {/*
+        Offered after the transform, not instead of it — and only with a key
+        and the switch on.
+      */}
+      {aiEnabled('soap') && changed ? (
+        <div className="mb-3 flex flex-wrap items-center gap-2 border-b border-border pb-3">
+          <span className="text-xs text-fg-muted">Hasilnya masih belum rapi?</span>
+          <button
+            type="button"
+            onClick={() => void runAi()}
+            disabled={aiState === 'running'}
+            className="min-h-tap rounded-lg border border-border px-3 text-xs font-medium disabled:opacity-50"
+          >
+            {aiState === 'running' ? 'Memperbaiki…' : 'Perbaiki dengan AI'}
+          </button>
+          {aiBody !== null ? (
+            <>
+              <button
+                type="button"
+                onClick={() => setAiBody(null)}
+                className="min-h-tap rounded-lg border border-border px-3 text-xs font-medium"
+              >
+                Kembali ke hasil otomatis
+              </button>
+              {/* Length delta, computed without a model: a big change is the
+                  signal that content was dropped or invented, which is the
+                  failure a reader skims past. */}
+              <span className="text-[11px] text-fg-muted">
+                {delta === 0 ? 'Panjang sama.' : `${delta > 0 ? '+' : ''}${delta} karakter`}
+              </span>
+            </>
+          ) : null}
+          {aiError ? <span className="text-[11px] text-danger">{aiError}</span> : null}
+        </div>
+      ) : null}
+
       {!changed ? (
         <p className="text-sm text-fg-muted">
           Tidak ada header Airway/Breathing/Circulation di bagian O — catatan ini sudah dalam

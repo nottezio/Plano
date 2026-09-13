@@ -1,5 +1,288 @@
 # Plano — CHANGES
 
+## `2026-09-13.5`
+
+**The H- rule in the SOAP checker has never fired. Fixed.**
+
+Not the AI — a wiring bug of mine, present since the checker shipped in
+`2026-09-12.8`.
+
+`PatientPage` passed `dayMarkersDismissed: staleMarkers === null`. That reads
+null as "the user has dealt with the counters", but `staleMarkers` is null in
+three situations and only one is a dismissal:
+
+1. nothing has happened yet — the ordinary case, every note you open
+2. carry-forward ran and found no counters
+3. the user pressed "Sudah"
+
+So the rule was suppressed on essentially every note. The only window where it
+could fire was the moment right after a carry-forward — when the dedicated
+banner is already showing the same thing. It therefore contributed nothing,
+ever.
+
+**And it did so quietly, which is the part worth recording.** A check that
+finds nothing looks exactly like a check that is switched off. Five of the
+checker's rules were working, so the panel appeared, behaved, and gave every
+impression of being on.
+
+Dismissal is now its own state, set only by pressing "Sudah", and cleared when
+the day or the patient changes — a dismissal means "these counters, on this
+note, are dealt with", not a preference. Carrying it forward would suppress the
+check on the note where the counters are newly a day stale, which is exactly
+the note it exists for.
+
+Three tests added asserting the DEFAULT is "not dismissed" — absent flag and
+explicit `false` both fire, only an explicit `true` suppresses. The domain rule
+was always correct and tested; what was untested was that anyone called it with
+the right arguments.
+
+```
+1164 tests passed (was 1161)
+typecheck / lint / check:version / check:contrast / check:a11y / build — clean
+```
+
+---
+
+## `2026-09-13.4`
+
+**Catatan: the toolbar follows the page, and note tabs reorder by dragging.**
+
+### Sticky toolbar
+
+A reference note runs to several screens and the formatting controls sat at the
+top of it — so bolding something two screens down meant selecting the text,
+scrolling back up, and losing the selection on the way. That is the same
+selection loss fixed in `2026-09-13.2`, arriving through the scroll instead of
+through the `<select>`.
+
+Sticky to the page's own scroller, so the shelf tabs and note tabs above still
+scroll away: they are navigation, and you have finished with them by the time
+you are formatting.
+
+Opaque background and `z-10`, not a translucent bar. Body text scrolls
+underneath this, and a translucent toolbar makes both unreadable at exactly the
+moment you are aiming at a small button.
+
+### Note tabs reorder by dragging
+
+Drag a tab onto another and the shelf reorders. Order is the stored array
+order, so a move rewrites `notes`.
+
+**The dangerous part is not the splice.** The tabs show one shelf at a time
+with archived notes hidden, so the order the user sees is a SUBSET — and
+rebuilding the stored array from that subset drops everything the filter hides.
+That failure is silent and total: a shelf of archived notes disappears and the
+only feedback is a successful save.
+
+`reorderWithinVisible` therefore walks the FULL list and hands each visible slot
+its new occupant in turn; every hidden item keeps its exact index. Extracted to
+`domain/reorder.ts` and tested for precisely that — a test asserts the two
+hidden jaga notes are still at indices 1 and 3 after a move among the umum
+notes.
+
+Native HTML drag rather than the pointer-based drag the board uses: this is a
+row of small tabs, and the native API gives the drop target for free. The board
+needed pointer events because it needed positions; this needs an order.
+
+```
+1161 tests passed (was 1156 — 5 added on the filtered reorder)
+typecheck / lint / check:version / check:contrast / check:a11y / build — clean
+```
+
+---
+
+## `2026-09-13.3`
+
+**Two new checker rules; "Format bangsal" moved where it can be found, with an
+AI fallback behind it.**
+
+### A consult has answered but is not in the DPJP list
+
+**49 entries** in the 2026-09-11 export are in exactly this state: a `TS Pulmo`
+block with an answer in it, and a DPJP header that never names Pulmo.
+
+It matters because the header is who the report is addressed FROM. A service
+co-managing the patient and missing from that list does not get the note, and
+nobody finds out until they ask why they were not told.
+
+Matched on the first few letters of the service, because the two lines rarely
+spell it the same — `TS Pulmo` in the block, `DPJP Pulmonologi` in the header.
+
+### An electrolyte back in range, still written as the deficit
+
+> K sudah 4.1 (dalam rentang) — tambahkan "perbaikan" di diagnosisnya?
+
+**It runs only where you have supplied a range**, and that is the whole design.
+Plano ships no reference ranges; a range belongs to the laboratory that printed
+the result, and a number baked into an app is one nobody can correct when the
+lab changes its assay. So there is a new **Pengaturan → Rentang rujukan lab**
+(Na, K, Cl), empty by default, and this check is simply silent until it is
+filled in. Guessing a normal range to make the reminder work would be
+hardcoding one by another route.
+
+It also stops once the line already says `perbaikan` — the reminder is for a
+line nobody has revisited, not a nag about one that has been.
+
+### "Format bangsal" was hiding in the status row
+
+It was a small underlined link among the faint grey microcopy that says whether
+the note is saved — text you read once and then stop seeing. A transform that
+rewrites the whole note is not a footnote.
+
+It now sits beside Lab and Pembuka in the header, which are the other things
+you do TO a note, and drops into the ⋯ sheet on a phone with them.
+
+### AI fallback for the reformatter
+
+`cvcuToBangsal` stays the default and stays first. It moves blocks whole, never
+looks inside one, and produces the same output every time — which is what makes
+it safe to apply without reading every line. The model has none of those
+properties, so it is offered only **after** the real transform has run, under
+"Hasilnya masih belum rapi?", for the case it exists to serve: a CVCU note with
+headings the transform has never seen.
+
+It is handed the **deterministic result, not the original**. Fixing what is
+left is a smaller and far more checkable job than redoing the conversion. A
+character delta is shown beside it, computed without a model, because a large
+change in length is the signal that content was dropped or invented — the
+failure a reader skims past. "Kembali ke hasil otomatis" is always one press
+away.
+
+```
+1156 tests passed (was 1149 — 7 added on the two new rules)
+typecheck / lint / check:version / check:contrast / check:a11y / build — clean
+```
+
+**Still open:** the floating toolbar in Catatan and drag-reordering of notes.
+
+---
+
+## `2026-09-13.2`
+
+**Text size in Catatan fixed; the AI button is back in the checker panel and
+still never fires by itself.**
+
+### Why the text size "sometimes didn't apply"
+
+Two separate causes, both real, and the second explains why it looked
+intermittent rather than broken.
+
+**1. The selection was gone by the time the command ran.** The size control is
+a native `<select>`, and opening one MUST take focus away from the
+contenteditable — at which point the browser is free to drop the document
+selection. `apply()` then called `focus()` and `execCommand('fontSize')`
+against a caret rather than a range, and the size was applied to nothing.
+
+The last range made inside the note is now recorded from `selectionchange` and
+restored before any `execCommand`. Recorded from that event rather than from a
+click, because a selection can be made with the keyboard too, or extended after
+the mouse is released. Restored with `focus({ preventScroll: true })`, so a
+long note does not jump away from what is being read.
+
+**This is exactly why it got worse as the note grew.** `focus()` scrolls the
+caret into view; on a document that scrolls, that is a different position from
+the one the user had selected, so the odds of the range surviving fall as the
+note gets longer. On a short note it usually survived — which is why it
+"sometimes" worked.
+
+**2. The same size twice did nothing.** The `<select>` kept its value, and
+`onChange` does not fire when the value has not changed — so applying "Besar"
+to a second paragraph was silently a no-op. It now shows a neutral `Ukuran`
+label and resets after each use: a command, not a state.
+
+### The AI button is back in the panel
+
+Where it sits was never the point — what happens without it is. Enabling the
+feature in Settings says the app MAY call the API; it does not say now. The
+button is back inside "Periksa lagi", and nothing reaches the network until it
+is pressed. The duplicate entry in the ⋯ sheet is gone; one trigger, not two.
+
+```
+1149 tests passed
+typecheck / lint / check:version / check:contrast / check:a11y / build — clean
+```
+
+---
+
+## `2026-09-13.1`
+
+**Three real defects, all found by testing against the export: the checker read
+the wrong number, the lab parser could not read its own output, and the AI
+button sat where nobody asked for it.**
+
+### The checker called an osmolality a sodium
+
+```
+- Moderate Hyponatremia (131 -> 129 -> 136) Hipoosmolal (265)
+```
+
+It reported *"diagnosis menyebut Na 265, lab terbaru 136"* about a note that
+was entirely correct. `quotedValue` took the last number on the LINE, which
+works until the line carries a second value — and this format, diagnosis then
+osmolality, is everywhere in the corpus.
+
+Now scoped to the analyte's OWN bracket: `[^\n(]*` before the group stops at
+the first `(`, so `Hipoosmolal (265)` is a different group and invisible to it.
+The arrow chain inside the right bracket still resolves to `136`.
+
+This was wrong in the most damaging way a checker can be — plausibly. A rule
+that fires confidently on a correct note costs more than the five it gets
+right.
+
+### The lab parser could not read the format it writes
+
+`splitGrouped` required a colon: `Na/K/Cl : 136/3.6/103`. Plano's own output
+uses a space. So re-parsing a lab block this app had already formatted dropped
+**every grouped row** — Na/K/Cl, Ur/Cr, GOT/GPT, MCV/MCH/MCHC, NEUT/LYMPH,
+APTT/INR/PT — and the failure was invisible, because the remaining rows still
+parsed and the result still looked like a lab block.
+
+Measured on 200 lab blocks from the export:
+
+```
+before   0 / 200 round-tripped     769 / 1407 lines recognised
+after  200 / 200 round-tripped    1022 / 1407 lines recognised
+```
+
+The first attempt at the fix was itself wrong and is worth recording: simply
+making the colon optional left `[A-Za-z0-9\s]+` in the name, which greedily
+ate the start of the value — `Na/K/Cl 134/3.4/103` split as name `Na/K/Cl 13`,
+value `4/3.4/103`, failed the alias check, and dropped the row exactly as
+before. Name segments now exclude spaces and the value must be a slash-joined
+run beginning with a digit. Every grouped label in this corpus is one word per
+segment; the multi-word ones (`Anti HCV`) are never grouped.
+
+**The canonical format is confirmed unchanged** and matches the export exactly:
+`WBC · RBC · HGB · HCT · MCV/MCH/MCHC · PLT · NEUT/LYMPH · LED · APTT/INR/PT ·
+GDS · Ur/Cr · Albumin · GOT/GPT · Na/K/Cl · Ca/Mg · CRP · Troponin · D-Dimer ·
+HBsAg · Anti HCV · Anti HIV`, each group printed only if something in it was
+found.
+
+### The AI never runs on its own
+
+The "Periksa dengan AI" button was inside the checker panel — and that panel
+appears **by itself**. A button that appears by itself, spends the user's quota
+and sends the note off the device is not the same thing as a feature the user
+enabled. Enabling it in Settings says the app MAY do that; it does not say
+"now".
+
+The trigger moved to the ⋯ sheet, where every other deliberate act on a note
+already lives. The panel is back to appearing only when a rule actually fires —
+or when AI findings exist, since they have to land somewhere — and the AI
+results still sit below the rules, tagged `(AI)`.
+
+```
+1149 tests passed (was 1141 — 8 added across the two parsers)
+typecheck / lint / check:version / check:contrast / check:a11y / build — clean
+```
+
+**Not in this release:** the floating toolbar and font-size bug in Catatan,
+drag-reordering of notes, and the CVCU → Bangsal reformatter. The last one is
+not a rename of the existing "Rapikan SOAP" — it is a different feature and
+needs both formats pinned down first.
+
+---
+
 ## `2026-09-12.11`
 
 **The API key field could be silently overwritten by a password manager.

@@ -31,6 +31,7 @@ import { fillPatientFromNote } from '@/data/repositories/patients.repo';
 import { parsePatientFacts } from '@/domain/parsePatient';
 import { carryForward, carryForwardSummary } from '@/domain/carryForward';
 import { checkSoap } from '@/domain/format/soapCheck';
+import { readReferenceRanges } from '@/components/settings/ReferenceRanges';
 import { AiError, aiEnabled, askClaude } from '@/lib/ai';
 import { useMediaQuery } from '@/hooks/useMediaQuery';
 import { countDayMarker, daysBetween as dayGap, findDayMarker, findDayMarkers } from '@/domain/dayMarkers';
@@ -105,6 +106,39 @@ export default function PatientPage(): JSX.Element {
    * not an arithmetic one.
    */
   const [staleMarkers, setStaleMarkers] = useState<string[] | null>(null);
+
+  /**
+   * Has the user actually said the day counters are dealt with?
+   *
+   * Tracked separately from `staleMarkers`, and that separation is the fix for
+   * a bug that silently disabled the H- rule from the day the checker shipped.
+   *
+   * `staleMarkers === null` was being read as "dismissed". It is null in three
+   * situations and only one of them is a dismissal:
+   *
+   *   1. nothing has happened yet — the ordinary case, every note you open
+   *   2. carry-forward ran and found no counters
+   *   3. the user pressed "Sudah"
+   *
+   * So the rule was suppressed on essentially every note, and the only window
+   * where it could fire was the moment right after a carry-forward — when the
+   * dedicated banner is already showing the same thing. It therefore never
+   * contributed anything at all, and did so quietly, because a check that
+   * finds nothing looks exactly like a check that is switched off.
+   */
+  const [dayMarkersDismissed, setDayMarkersDismissed] = useState(false);
+
+  /*
+    Cleared when the day or the patient changes.
+
+    A dismissal means "these counters, on this note, are dealt with" — it is
+    not a preference. Carrying it to the next day would suppress the check on
+    the note where the counters are newly a day stale, which is precisely the
+    note it exists for.
+  */
+  useEffect(() => {
+    setDayMarkersDismissed(false);
+  }, [patientId, selected]);
 
   /**
    * The editor, for the one thing the banner cannot do through props: put the
@@ -487,9 +521,13 @@ export default function PatientPage(): JSX.Element {
       checkSoap({
         body: settledBody,
         previous: previous.entry?.body,
-        dayMarkersDismissed: staleMarkers === null,
+        dayMarkersDismissed,
+        // Read per run rather than held in state: it changes in Settings, on
+        // another screen, and a stale copy would silence a check the user just
+        // enabled.
+        ranges: readReferenceRanges(),
       }),
-    [settledBody, previous.entry?.body, staleMarkers],
+    [settledBody, previous.entry?.body, dayMarkersDismissed],
   );
 
   /**
@@ -816,6 +854,25 @@ export default function PatientPage(): JSX.Element {
               className="hidden min-h-tap shrink-0 rounded-lg border border-border px-3 text-xs font-medium sm:block"
             >
               Lab
+            </button>
+          ) : null}
+
+          {/*
+            MOVED UP from the "Tersimpan" status row.
+            
+            It had been a small underlined link among faint grey microcopy —
+            the row that says whether the note is saved, which is text you read
+            once and then stop seeing. A transform that rewrites the whole note
+            is not a footnote; it belongs with Lab and Pembuka, which are the
+            other things you do TO a note.
+          */}
+          {!locked ? (
+            <button
+              type="button"
+              onClick={() => setReformatOpen(true)}
+              className="hidden min-h-tap shrink-0 rounded-lg border border-border px-3 text-xs font-medium sm:block"
+            >
+              Format bangsal
             </button>
           ) : null}
           {!locked ? (
@@ -1262,10 +1319,19 @@ export default function PatientPage(): JSX.Element {
             </ul>
 
             {/*
-              The AI pass sits below the rules and says so. Its findings are a
+              The AI trigger lives here, and it is a PRESS — never automatic.
+
+              The distinction that matters is not where the button sits but
+              what happens without it: enabling the feature in Settings says
+              the app MAY call the API, and nothing calls it until this is
+              pressed. Each press spends the user's quota and sends the note
+              off the device, so the app deciding on its own that now is a good
+              moment is the one behaviour that must not exist.
+
+              Findings land below the rules and are tagged, because they are a
               different kind of claim — the rules found a mismatch between two
-              numbers written in the note; this one has an opinion — and
-              mixing them would let the weaker sort borrow the stronger sort's
+              numbers written in the note; this one has an opinion — and mixing
+              them would let the weaker sort borrow the stronger sort's
               credibility.
             */}
             {aiEnabled('check') ? (
@@ -1359,7 +1425,10 @@ export default function PatientPage(): JSX.Element {
                 believe you did. */}
             <button
               type="button"
-              onClick={() => setStaleMarkers(null)}
+              onClick={() => {
+                setStaleMarkers(null);
+                setDayMarkersDismissed(true);
+              }}
               className="min-h-tap shrink-0 underline"
             >
               Sudah
@@ -1470,15 +1539,7 @@ export default function PatientPage(): JSX.Element {
         {/* SPEC F4 — microcopy only. There is no save button by design. */}
         <div className="flex items-center gap-3 px-4 py-2 text-[11px] text-fg-faint">
           <span className="flex-1">{editor.dirty ? 'Menyimpan…' : 'Tersimpan'}</span>
-          {!locked ? (
-            <button
-              type="button"
-              onClick={() => setReformatOpen(true)}
-              className="min-h-tap px-1 underline"
-            >
-              Format bangsal
-            </button>
-          ) : null}
+
           {/*
             Freeze the day's SOAP and keep editing.
 
@@ -1656,9 +1717,11 @@ export default function PatientPage(): JSX.Element {
               }
         }
         onLab={locked || headerHasTools ? undefined : () => setLabOpen(true)}
+        {...(locked || headerHasTools ? {} : { onReformat: () => setReformatOpen(true) })}
         {...(!locked && aiEnabled('soap') && editor.value.trim().length > 0
           ? { onTidy: () => setTidyOpen(true) }
           : {})}
+
         onOpening={
           locked || headerHasTools || editor.value.trim().length === 0
             ? undefined
