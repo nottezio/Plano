@@ -1,6 +1,7 @@
 import { useMemo, useRef, useState } from 'react';
 
 import { Sheet } from '@/components/common/Sheet';
+import { AiError, aiEnabled, askClaude } from '@/lib/ai';
 import { labHeading, parseLab } from '@/domain/lab/parseLab';
 import { copyText } from '@/lib/clipboard';
 import { preprocessForOcr } from '@/lib/ocrPreprocess';
@@ -47,6 +48,50 @@ export function LabSheet({
    * "checked and normal". Defaulting it on would invite the second reading.
    */
   const [boldAbnormal, setBoldAbnormal] = useState(false);
+
+  /**
+   * AI assist on the RAW text, before the deterministic parser sees it.
+   *
+   * Placed here rather than after `parseLab` on purpose. `parseLab` is the
+   * thing that produces the line that goes into the record, and it stays the
+   * only thing that does — the model's job is to make messy input legible to
+   * it, not to write the output. So the suggestion lands back in the RAW box,
+   * the parser runs over it as it always does, and the preview underneath is
+   * still the parser's work.
+   *
+   * That also means the assist can be wrong without being dangerous: a bad
+   * rewrite is visible in the raw box, editable, and one undo away.
+   */
+  const [aiState, setAiState] = useState<'idle' | 'running'>('idle');
+  const [aiError, setAiError] = useState<string | null>(null);
+  const [aiUndo, setAiUndo] = useState<string | null>(null);
+
+  const runAssist = async (): Promise<void> => {
+    setAiState('running');
+    setAiError(null);
+    try {
+      const text = await askClaude(raw, {
+        system: [
+          'Kamu merapikan teks hasil laboratorium rumah sakit Indonesia yang berantakan',
+          '(hasil OCR atau salinan PDF) menjadi daftar baris "Nama: nilai".',
+          '',
+          'ATURAN KERAS:',
+          '- JANGAN mengubah angka apa pun. Salin persis seperti aslinya.',
+          '- JANGAN menambah pemeriksaan yang tidak ada di teks.',
+          '- JANGAN menghitung, menyimpulkan, atau memberi interpretasi klinis.',
+          '- Jika sebuah nilai tidak terbaca jelas, tulis apa adanya, jangan menebak.',
+          '- Keluarkan HANYA daftar barisnya, tanpa pengantar dan tanpa penutup.',
+        ].join('\n'),
+        maxTokens: 1200,
+      });
+      setAiUndo(raw);
+      setRaw(text);
+    } catch (error) {
+      setAiError(error instanceof AiError ? error.message : 'Gagal memanggil AI.');
+    } finally {
+      setAiState('idle');
+    }
+  };
 
   const result = useMemo(() => parseLab(raw, { boldAbnormal }), [raw, boldAbnormal]);
   // `formatShortDateNoWeekday`, not `formatShortDate`. This string goes INTO
@@ -146,6 +191,8 @@ export function LabSheet({
         </button>
       }
     >
+      {aiError ? <p className="mb-2 text-xs text-danger">{aiError}</p> : null}
+
       <label className="block">
         <span className="mb-1 block text-xs text-fg-muted">Judul blok</span>
         <input
@@ -166,6 +213,34 @@ export function LabSheet({
         >
           {ocrState === 'running' ? 'Membaca…' : 'Ambil dari PDF / gambar'}
         </button>
+        {/*
+          Only with a key AND the switch on. Absent otherwise — a disabled
+          button for a feature somebody has not enabled is an advertisement,
+          and this one would be an advertisement for sending a lab result off
+          the device.
+        */}
+        {aiEnabled('lab') ? (
+          <button
+            type="button"
+            onClick={() => void runAssist()}
+            disabled={aiState === 'running' || raw.trim().length === 0}
+            className="min-h-tap rounded-lg border border-border px-3 text-xs disabled:opacity-50"
+          >
+            {aiState === 'running' ? 'Merapikan…' : 'Rapikan dengan AI'}
+          </button>
+        ) : null}
+        {aiUndo !== null ? (
+          <button
+            type="button"
+            onClick={() => {
+              setRaw(aiUndo);
+              setAiUndo(null);
+            }}
+            className="min-h-tap rounded-lg border border-border px-3 text-xs"
+          >
+            Urungkan AI
+          </button>
+        ) : null}
         <span className="text-[11px] text-fg-faint">
           PDF lab dibaca persis. Gambar dikenali dan wajib diperiksa.
         </span>

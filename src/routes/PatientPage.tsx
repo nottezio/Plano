@@ -17,6 +17,7 @@ import { PatientTodos } from '@/components/patient/PatientTodos';
 import { DocumentPanel } from '@/components/patient/DocumentPanel';
 import { ScrollToTop } from '@/components/patient/ScrollToTop';
 import { OpeningSheet } from '@/components/patient/OpeningSheet';
+import { SoapTidySheet } from '@/components/patient/SoapTidySheet';
 import { TemplatePicker } from '@/components/patient/TemplatePicker';
 import { ConflictDialog } from '@/components/patient/ConflictDialog';
 import { DateRail } from '@/components/patient/DateRail';
@@ -29,6 +30,8 @@ import { archiveSummary } from '@/domain/archive';
 import { fillPatientFromNote } from '@/data/repositories/patients.repo';
 import { parsePatientFacts } from '@/domain/parsePatient';
 import { carryForward, carryForwardSummary } from '@/domain/carryForward';
+import { checkSoap } from '@/domain/format/soapCheck';
+import { aiEnabled } from '@/lib/ai';
 import { countDayMarker, daysBetween as dayGap, findDayMarker, findDayMarkers } from '@/domain/dayMarkers';
 import { formatLocation } from '@/domain/identity';
 import { isIgdEntry } from '@/domain/clinicalDate';
@@ -134,6 +137,7 @@ export default function PatientPage(): JSX.Element {
   const [actionsOpen, setActionsOpen] = useState(false);
   const [identityOpen, setIdentityOpen] = useState(false);
   const [openingOpen, setOpeningOpen] = useState(false);
+  const [tidyOpen, setTidyOpen] = useState(false);
   const [labOpen, setLabOpen] = useState(false);
   const [compareOpen, setCompareOpen] = useState(false);
   const [reformatOpen, setReformatOpen] = useState(false);
@@ -455,6 +459,23 @@ export default function PatientPage(): JSX.Element {
    * this app has fought before. Four hundred milliseconds late is invisible
    * for a badge that only has to be right by the time you look at it.
    */
+  /**
+   * Findings for the note on screen.
+   *
+   * `staleMarkers` already carries its own banner for day counters, so the
+   * checker's version is suppressed once that has been dismissed — one
+   * dismissal, not two, for the same fact.
+   */
+  const soapFindings = useMemo(
+    () =>
+      checkSoap({
+        body: settledBody,
+        previous: previous.entry?.body,
+        dayMarkersDismissed: staleMarkers === null,
+      }),
+    [settledBody, previous.entry?.body, staleMarkers],
+  );
+
   const markerCounts = useMemo<Record<string, number>>(() => {
     if (!staleMarkers) return {};
     return Object.fromEntries(
@@ -1124,6 +1145,51 @@ export default function PatientPage(): JSX.Element {
           </div>
         ) : null}
 
+        {/*
+          THE CHECKER — what the note looks like it forgot.
+
+          Runs on the DEBOUNCED body, never on every keystroke: it compares
+          against yesterday's note and re-reads several regexes over the whole
+          thing, and doing that while someone is typing is the mobile lag this
+          app has fought before.
+
+          Every finding names a place and stops there. None of them edits,
+          because each has a legitimate reason to be exactly as it is — vitals
+          that really were identical, a diagnosis deliberately quoting the
+          admission value, a lab ordered again the same day. A checker that
+          corrected would be wrong about a patient roughly once a week; one
+          that asks is only ever ignorable.
+
+          Suppressed entirely on a locked day: nothing there can be changed, so
+          a list of things to change is noise on a page you are reading.
+        */}
+        {!locked && soapFindings.length > 0 ? (
+          <div className="mx-4 mt-2 rounded-lg border border-border px-3 py-2 text-xs">
+            <p className="font-medium">Periksa lagi:</p>
+            <ul className="mt-1 space-y-1">
+              {soapFindings.map((finding) => (
+                <li key={finding.kind + finding.message} className="flex flex-wrap gap-2">
+                  <span className="text-fg-muted">{finding.message}</span>
+                  {finding.anchor ? (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const at = editor.value.toLowerCase().indexOf(finding.anchor!.toLowerCase());
+                        if (at >= 0) {
+                          editorHandle.current?.selectRange(at, at + finding.anchor!.length);
+                        }
+                      }}
+                      className="underline decoration-dotted"
+                    >
+                      Tampilkan
+                    </button>
+                  ) : null}
+                </li>
+              ))}
+            </ul>
+          </div>
+        ) : null}
+
         {staleMarkers ? (
           <Banner tone="warn">
             {/*
@@ -1463,6 +1529,13 @@ export default function PatientPage(): JSX.Element {
         patient={patient}
       />
 
+      <SoapTidySheet
+        open={tidyOpen}
+        onOpenChange={setTidyOpen}
+        body={editor.value}
+        onApply={(next) => editor.setValue(next)}
+      />
+
       <PatientActionsSheet
         open={actionsOpen}
         onOpenChange={setActionsOpen}
@@ -1476,6 +1549,9 @@ export default function PatientPage(): JSX.Element {
               }
         }
         onLab={locked ? undefined : () => setLabOpen(true)}
+        {...(!locked && aiEnabled('soap') && editor.value.trim().length > 0
+          ? { onTidy: () => setTidyOpen(true) }
+          : {})}
         onOpening={
           locked || editor.value.trim().length === 0
             ? undefined

@@ -1,5 +1,145 @@
 # Plano — CHANGES
 
+## `2026-09-12.9`
+
+**The two AI features, both optional, both on the user's own key.**
+
+### Lab assist — before the parser, not instead of it
+
+A "Rapikan dengan AI" button in the lab sheet, visible only when a key exists
+AND the lab switch is on.
+
+It rewrites the **raw** box, not the output. `parseLab` is the thing that
+produces the line that goes into the record, and it stays the only thing that
+does — the model's job is to make messy OCR legible to the parser, not to write
+the result. The preview underneath is still the parser's work, and the assist
+can be wrong without being dangerous: a bad rewrite is visible in the raw box,
+editable, and one "Urungkan AI" away.
+
+The prompt forbids changing any number, adding any test, calculating anything,
+or guessing at an unreadable value.
+
+### Rapikan SOAP — a suggestion, side by side
+
+In the ⋯ sheet, again only with a key and the switch on. It shows the current
+note and the suggestion beside each other and **changes nothing** until
+"Terapkan usulan" is pressed; applying goes through the normal revision trail,
+so it can be rolled back.
+
+**Why this is the only shape this feature may take.** The dangerous failure is
+not a bad suggestion — that is obvious on sight. It is a good-looking one: a
+sentence quietly improved into something the author did not write, in a record
+somebody else acts on. Nothing but the author reading it prevents that, so the
+reading is built into the flow rather than offered as an option.
+
+Two things are computed **without** a model to make that reading faster:
+
+- **Character delta.** A large change in length is the signal that something
+  was dropped or invented — the one failure a reader skims past, because a
+  shorter note still reads correctly.
+- **Non-ASCII count.** For the reason recorded on `toPlain`: those reach SIMGOS
+  as `?`.
+
+Shown side by side rather than as a diff. A diff of a reordered note is almost
+entirely red and green, which hides the one line that changed meaning — the
+thing being looked for.
+
+The prompt permits reordering, numbering and whitespace only, and forbids
+changing any word, number, dose or unit. That is a request, not a guarantee,
+which is exactly why the human step above it is not optional.
+
+### Both are absent, not greyed out, when off
+
+A disabled button for a feature nobody enabled is an advertisement — and this
+one would be an advertisement for sending a patient's note off the device.
+
+```
+1133 tests passed (was 1126 — 7 added on the key store and the fail-closed switches)
+typecheck / lint / check:version / check:contrast / check:a11y / build — clean
+```
+
+The switches fail closed by construction: anything in storage that is not
+exactly `true` reads as off, including a half-written or hand-edited value, and
+a corrupt flags blob reads as both off rather than throwing. The key is stored
+under its own localStorage entry and reaches nothing that syncs.
+
+---
+
+## `2026-09-12.8`
+
+**SOAP checker; bring-your-own-key AI settings (features wired next).**
+
+### "Periksa lagi" — what the note looks like it forgot
+
+A panel above the editor, from six rules read out of the 2026-09-11 export:
+
+| Finding | Rule |
+|---|---|
+| TTV sama persis | The whole vitals block matches yesterday's, ≥3 values |
+| Tidak ada TTV | No vitals anywhere in the note |
+| Hitungan hari belum berubah | A `H-`/`hari ke-` counter identical to yesterday's |
+| Lab sudah ada hasilnya tapi masih di Plan | A lab both planned and resulted in one note |
+| Diagnosis menyebut K 2.9, lab terbaru 3.7 | A quoted electrolyte value the lab has moved past |
+| Anemia tanpa Hb | `anemia` in the note with no haemoglobin anywhere |
+
+**Deterministic, not a model.** Every finding is a comparison of two numbers
+both written in the note. A model could do it and would also occasionally
+invent a discrepancy or miss an obvious one — and a checker stops being read
+the first time it is wrong twice. These fire on an exact mismatch and are
+silent otherwise.
+
+**It never edits.** Each of these has a legitimate reason to be exactly as it
+is: vitals that really were identical, a diagnosis deliberately quoting the
+admission value, a lab ordered again the same day. A checker that corrected
+would be wrong about a patient roughly once a week; one that asks is only ever
+ignorable.
+
+Calibrated against the real corpus:
+
+- **The whole block, not one vital.** 5 of 94 consecutive-day pairs in the
+  export have an identical vitals block — a rare, real signal. Flagging a
+  single repeated temperature would fire constantly.
+- **The arrow form is current.** `Hypokalemia (2.9 --> 3.7)` is how a
+  correction in progress is written; the value that counts is the right-hand
+  one. Comparing the admission number would flag every improving patient every
+  day.
+- **0.05 tolerance**, so `3.60` and `3.6` are the same result.
+- Runs on the debounced body, suppressed on a locked day, and silent on an
+  empty one — a blank day is a day not started, not a day with five problems.
+
+### AI: bring your own key
+
+**Pengaturan → Fitur AI (opsional).** Off by default, per device.
+
+Plano is shared, so a key in the build is a key every user spends — and a key
+in a GitHub Pages bundle is one anybody can read out of it, since a static site
+has no server to hide a secret behind. Each user brings their own or the
+features are simply not there for them.
+
+The key lives in localStorage and **nowhere else**: not Firestore, not the
+profile, not the export. Those sync, and a credential that syncs is a
+credential on every device that ever signed in. It is lost when browser data is
+cleared, which is correct for a secret.
+
+**Two conditions, not one**, before a byte of a note leaves the device: a key
+is present, and that feature's switch is on. They answer different questions —
+"can this app call the API" and "should it call it with my patient's note".
+The panel says plainly that the text goes to Anthropic and that this is a
+hospital-policy question.
+
+```
+1126 tests passed (was 1106 — 20 added on the checker)
+typecheck / lint / check:version / check:contrast / check:a11y / build — clean
+```
+
+**Not done this release:** the two AI features themselves. `lib/ai.ts` has the
+client, the key store and the flags, and Settings has the switches, but nothing
+calls `askClaude` yet — the lab assist and the SOAP tidy are the next build.
+Shipping the switches first means the policy decision can be made before any
+patient text is anywhere near the network.
+
+---
+
 ## `2026-09-12.7`
 
 **Wrong-PDF contingency for the Helper import; the identity band's blank row

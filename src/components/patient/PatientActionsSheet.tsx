@@ -33,6 +33,7 @@ export function PatientActionsSheet({
   onLab,
   onOpening,
   onCompare,
+  onTidy,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -54,6 +55,12 @@ export function PatientActionsSheet({
   onLab?: (() => void) | undefined;
   onOpening?: (() => void) | undefined;
   onCompare?: (() => void) | undefined;
+  /**
+   * Present only when the AI switch is on AND a key exists AND there is a note
+   * to tidy. Absent otherwise: a greyed-out row for a feature nobody enabled
+   * advertises sending a patient's note off the device.
+   */
+  onTidy?: (() => void) | undefined;
 }): JSX.Element {
   const today = useClinicalToday();
   const planned = migrateLegacyDischarge(patient, today);
@@ -114,6 +121,17 @@ export function PatientActionsSheet({
             onClick={() => {
               close();
               onOpening();
+            }}
+          />
+        ) : null}
+
+        {onTidy ? (
+          <Action
+            label="Rapikan SOAP (AI)"
+            detail="Usulan susunan, ditampilkan berdampingan. Catatan tidak berubah otomatis."
+            onClick={() => {
+              close();
+              onTidy();
             }}
           />
         ) : null}
