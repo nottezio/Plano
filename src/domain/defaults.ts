@@ -81,6 +81,11 @@ export const DEFAULT_SECTION_ALIASES: readonly SectionAlias[] = [
       'Echo',
       'Hasil Confrence',
       'Hasil Conference',
+      // Added 2026-09-12 after scanning the export: both head their own block
+      // in the corpus, and without an alias they rode along inside whatever
+      // came before them — so "O + Penunjang" could miss an entire study.
+      'Lung Ultrasound',
+      'Echo Hemodinamik',
     ],
   },
   {
@@ -108,7 +113,12 @@ export const DEFAULT_SECTION_ALIASES: readonly SectionAlias[] = [
     label: 'Plan',
     order: 6,
     // `P/` omitted for the same reason as `A/`.
-    aliases: ['P', 'Plan', 'Planning', 'Rencana', 'Plan Monitoring', 'Plan Diagnostik'],
+    aliases: [
+      'P', 'Plan', 'Planning', 'Rencana',
+      // The three `Plan X` forms travel together; `Plan Terapi` was the one
+      // missing, so a note using it had its plan split across two sections.
+      'Plan Monitoring', 'Plan Diagnostik', 'Plan Terapi',
+    ],
   },
   {
     sectionId: 'terapi',

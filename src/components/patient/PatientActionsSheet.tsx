@@ -205,7 +205,7 @@ export function PatientActionsSheet({
         />
 
         <Action
-          label={patient.pinned ? 'Lepas sematan' : 'Sematkan di papan'}
+          label={patient.pinned ? 'Unpin dari dashboard' : 'Pin di dashboard'}
           onClick={() => {
             void updatePatient(patient.id, { pinned: !patient.pinned });
             close();

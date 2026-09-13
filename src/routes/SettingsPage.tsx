@@ -132,6 +132,11 @@ export default function SettingsPage(): JSX.Element {
       <div className="mx-auto w-full max-w-3xl space-y-4 px-4 py-4">
         <SettingsGroup label="Sehari-hari" />
 
+
+        <h2 className="px-1 pt-2 text-[11px] font-semibold uppercase tracking-wide text-fg-faint">
+          Tampilan & catatan
+        </h2>
+
         <SettingsSection title="Tampilan" description="Mode gelap untuk jaga malam." defaultOpen>
           <div className="flex gap-2">
             {THEME_OPTIONS.map((option) => (
@@ -468,6 +473,23 @@ export default function SettingsPage(): JSX.Element {
           </ul>
         </SettingsSection>
 
+
+        {/*
+          Diagnostic, not a setting — and it lives here because Settings is
+          where a tool you reach for twice a year belongs. It reads only what is
+          typed into it and writes nothing anywhere.
+        */}
+        <SettingsSection
+          title="Fitur AI (opsional)"
+          description="Pakai API key sendiri. Mati secara bawaan."
+        >
+          <AiSettings />
+        </SettingsSection>
+
+        <h2 className="px-1 pt-2 text-[11px] font-semibold uppercase tracking-wide text-fg-faint">
+          Privasi & data
+        </h2>
+
         <SettingsSection
           title="Privasi"
           description="Aplikasi ini menyimpan nama lengkap pasien."
@@ -583,6 +605,11 @@ export default function SettingsPage(): JSX.Element {
 
         <SettingsGroup label="Akun & data" />
 
+
+        <h2 className="px-1 pt-2 text-[11px] font-semibold uppercase tracking-wide text-fg-faint">
+          Akun
+        </h2>
+
         <SettingsSection title="Akun" defaultOpen>
           {persistence !== 'persisted' ? (
             <p className="mb-3 rounded-lg border border-border bg-bg-subtle p-3 text-[11px] leading-relaxed text-fg-muted">
@@ -611,6 +638,32 @@ export default function SettingsPage(): JSX.Element {
           reset button among the ordinary toggles is one mis-tap from undoing
           an afternoon of setup.
         */}
+
+        <h2 className="px-1 pt-2 text-[11px] font-semibold uppercase tracking-wide text-fg-faint">
+          Pemeliharaan
+        </h2>
+
+        <SettingsSection
+          title="Perbarui kartu pasien"
+          description="Jalankan setelah aturan kartu berubah — mis. penanda KJS tidak muncul."
+        >
+          <RebuildCards />
+        </SettingsSection>
+
+        <SettingsSection
+          title="Periksa hasil salin"
+          description="Cari karakter yang berubah jadi ? di SIMGOS."
+        >
+          <PasteInspector />
+        </SettingsSection>
+
+        <SettingsSection
+          title="Riwayat sesi"
+          description="Catatan masuk/keluar aplikasi, untuk menelusuri logout mendadak."
+        >
+          <SessionLogPanel />
+        </SettingsSection>
+
         <SettingsSection title="Setel ulang" collapsible={false}>
           {confirmReset ? (
             <>
@@ -665,6 +718,11 @@ export default function SettingsPage(): JSX.Element {
           )}
         </SettingsSection>
 
+
+        <h2 className="px-1 pt-2 text-[11px] font-semibold uppercase tracking-wide text-fg-faint">
+          Tentang
+        </h2>
+
         <SettingsSection title="Tentang" collapsible={false}>
           <dl className="space-y-1 text-xs text-fg-muted">
             <div className="flex justify-between gap-4">
@@ -677,38 +735,9 @@ export default function SettingsPage(): JSX.Element {
             </div>
           </dl>
         </SettingsSection>
-        {/*
-          Diagnostic, not a setting — and it lives here because Settings is
-          where a tool you reach for twice a year belongs. It reads only what is
-          typed into it and writes nothing anywhere.
-        */}
-        <SettingsSection
-          title="Fitur AI (opsional)"
-          description="Pakai API key sendiri. Mati secara bawaan."
-        >
-          <AiSettings />
-        </SettingsSection>
 
-        <SettingsSection
-          title="Perbarui kartu pasien"
-          description="Jalankan setelah aturan kartu berubah — mis. penanda KJS tidak muncul."
-        >
-          <RebuildCards />
-        </SettingsSection>
 
-        <SettingsSection
-          title="Riwayat sesi"
-          description="Catatan masuk/keluar aplikasi, untuk menelusuri logout mendadak."
-        >
-          <SessionLogPanel />
-        </SettingsSection>
 
-        <SettingsSection
-          title="Periksa hasil salin"
-          description="Cari karakter yang berubah jadi ? di SIMGOS."
-        >
-          <PasteInspector />
-        </SettingsSection>
 
         {restored ? (
           <p

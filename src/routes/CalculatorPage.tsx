@@ -3,6 +3,7 @@ import { useMemo, useState } from 'react';
 import { AppShell } from '@/components/common/AppShell';
 import { BAND_LABELS, calculateUrineOutput } from '@/domain/calc/urineOutput';
 import { OSMOLALITY_BANDS, calculateOsmolality } from '@/domain/calc/sodium';
+import { correctSodium, formatSodiumCorrection } from '@/domain/calc/sodiumGlucose';
 import { copyText } from '@/lib/clipboard';
 
 /**
@@ -48,6 +49,7 @@ export default function CalculatorPage(): JSX.Element {
           href={INFUSION_CALCULATOR_URL}
           label="Buka InfuCalc"
         />
+        <SodiumGlucoseCard />
         <OsmolalityCard />
         <p className="px-1 text-[11px] text-fg-faint">
           Kalkulator lain menyusul. Hasil tidak disimpan — salin barisnya ke catatan.
@@ -259,5 +261,89 @@ function CopyLine({
     >
       {copied ? 'Tersalin ✓' : 'Salin baris'}
     </button>
+  );
+}
+
+
+/**
+ * Corrected sodium in hyperglycaemia.
+ *
+ * A card here rather than a link to ElektroCalc, and the distinction matters:
+ * the replacement calculators were removed from this app because they produce
+ * a DOSE, which has to match a protocol only the ward owns. This produces a
+ * reading — what the sodium would be at a normal glucose — and prescribes
+ * nothing.
+ *
+ * Both published factors are shown, never one. They disagree, and at a glucose
+ * of 600 they differ by about 4 mmol/L — the gap between calling the same
+ * sample hyponatraemic and calling it normal. Showing one would present a
+ * contested number as a settled one.
+ */
+function SodiumGlucoseCard(): JSX.Element {
+  const [sodium, setSodium] = useState('');
+  const [glucose, setGlucose] = useState('');
+  const [copied, setCopied] = useState(false);
+
+  const result = useMemo(
+    () => correctSodium(Number(sodium), Number(glucose)),
+    [sodium, glucose],
+  );
+  const ready = sodium.trim() !== '' && glucose.trim() !== '' && result !== null;
+
+  return (
+    <section className="rounded-2xl border border-border bg-surface p-4">
+      <h2 className="text-sm font-semibold">Koreksi natrium pada hiperglikemia</h2>
+      <p className="mt-0.5 text-xs text-fg-muted">
+        Natrium terukur dikoreksi terhadap glukosa. Bukan dosis koreksi.
+      </p>
+
+      <div className="mt-3 grid grid-cols-2 gap-2">
+        <NumberField label="Na terukur (mmol/L)" value={sodium} onChange={setSodium} />
+        <NumberField label="GDS (mg/dL)" value={glucose} onChange={setGlucose} />
+      </div>
+
+      {ready && result ? (
+        <>
+          <div className="mt-3 grid grid-cols-2 gap-2 text-center">
+            <div className="rounded-lg bg-bg-subtle px-3 py-2">
+              <p className="text-lg font-semibold">{result.katz}</p>
+              <p className="text-[11px] text-fg-muted">Katz (1.6)</p>
+            </div>
+            <div className="rounded-lg bg-bg-subtle px-3 py-2">
+              <p className="text-lg font-semibold">{result.hillier}</p>
+              <p className="text-[11px] text-fg-muted">Hillier (2.4)</p>
+            </div>
+          </div>
+
+          {/*
+            Said only when it is true. At a mild hyperglycaemia the two agree
+            to within rounding, and a permanent warning about a disagreement
+            that is not there is the kind nobody reads by the third time.
+          */}
+          {result.factorsDiverge ? (
+            <p className="mt-2 text-[11px] text-fg-muted">
+              Kedua faktor berbeda {Math.round((result.hillier - result.katz) * 10) / 10} mmol/L
+              pada GDS ini. Hillier lebih sesuai pada hiperglikemia berat.
+            </p>
+          ) : null}
+
+          <button
+            type="button"
+            onClick={() => {
+              void copyText(formatSodiumCorrection(Number(sodium), Number(glucose), result));
+              setCopied(true);
+              window.setTimeout(() => setCopied(false), 1500);
+            }}
+            className="mt-3 min-h-tap w-full rounded-lg border border-border px-3 text-sm font-medium"
+          >
+            {copied ? 'Tersalin' : 'Salin baris'}
+          </button>
+        </>
+      ) : null}
+
+      <p className="mt-2 text-[11px] text-fg-faint">
+        Katz NEJM 1973 · Hillier Am J Med 1999. Glukosa dalam mg/dL.
+      </p>
+    </section>
   );
 }

@@ -66,6 +66,13 @@ export function AiSettings(): JSX.Element {
           onChange={(value) => update({ lab: value })}
         />
         <Toggle
+          label="Periksa SOAP dengan AI"
+          detail="Tambahan untuk panel 'Periksa lagi'. Aturan biasa tetap jalan."
+          checked={flags.check}
+          disabled={!key}
+          onChange={(value) => update({ check: value })}
+        />
+        <Toggle
           label="Bantu rapikan SOAP"
           detail="Usulan susunan SOAP, ditampilkan berdampingan. Tidak pernah menimpa catatan."
           checked={flags.soap}

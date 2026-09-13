@@ -31,7 +31,8 @@ import { fillPatientFromNote } from '@/data/repositories/patients.repo';
 import { parsePatientFacts } from '@/domain/parsePatient';
 import { carryForward, carryForwardSummary } from '@/domain/carryForward';
 import { checkSoap } from '@/domain/format/soapCheck';
-import { aiEnabled } from '@/lib/ai';
+import { AiError, aiEnabled, askClaude } from '@/lib/ai';
+import { useMediaQuery } from '@/hooks/useMediaQuery';
 import { countDayMarker, daysBetween as dayGap, findDayMarker, findDayMarkers } from '@/domain/dayMarkers';
 import { formatLocation } from '@/domain/identity';
 import { isIgdEntry } from '@/domain/clinicalDate';
@@ -138,6 +139,21 @@ export default function PatientPage(): JSX.Element {
   const [identityOpen, setIdentityOpen] = useState(false);
   const [openingOpen, setOpeningOpen] = useState(false);
   const [tidyOpen, setTidyOpen] = useState(false);
+
+  /**
+   * Is the header showing Lab / Pembuka / Bandingkan hari already?
+   *
+   * They were added to the ⋯ sheet at every width on 10 September, on the
+   * reasoning that a control which exists at one screen size and not another
+   * is one nobody learns. In practice it read as clutter: on a desktop the
+   * sheet repeated three buttons sitting two centimetres above it, which makes
+   * the list longer to scan for the things that are ONLY in there.
+   *
+   * So they appear in the sheet only where the header has dropped them. Same
+   * `sm` breakpoint as the header itself, read once here rather than guessed
+   * at — two sources for one breakpoint is how they drift.
+   */
+  const headerHasTools = useMediaQuery('(min-width: 640px)');
   const [labOpen, setLabOpen] = useState(false);
   const [compareOpen, setCompareOpen] = useState(false);
   const [reformatOpen, setReformatOpen] = useState(false);
@@ -475,6 +491,60 @@ export default function PatientPage(): JSX.Element {
       }),
     [settledBody, previous.entry?.body, staleMarkers],
   );
+
+  /**
+   * The optional AI pass, ON DEMAND.
+   *
+   * A button, never automatic. The deterministic rules cost nothing and run as
+   * you type; this costs a network call, the user's quota, and sends the note
+   * off the device — none of which may happen because somebody opened a chart.
+   *
+   * Its findings are listed AFTER the rules and labelled, because they are a
+   * different kind of claim: the rules found a mismatch between two numbers in
+   * the note, this one has an opinion.
+   */
+  const [aiFindings, setAiFindings] = useState<string[]>([]);
+  const [aiCheckState, setAiCheckState] = useState<'idle' | 'running'>('idle');
+  const [aiCheckError, setAiCheckError] = useState<string | null>(null);
+
+  const runAiCheck = async (): Promise<void> => {
+    setAiCheckState('running');
+    setAiCheckError(null);
+    try {
+      const text = await askClaude(
+        [
+          previous.entry?.body ? `CATATAN KEMARIN:\n${previous.entry.body}\n\n` : '',
+          `CATATAN HARI INI:\n${editor.value}`,
+        ].join(''),
+        {
+          system: [
+            'Kamu memeriksa catatan SOAP kardiologi berbahasa Indonesia untuk hal yang',
+            'TERLUPA DIPERBARUI dari hari sebelumnya. Contoh: TTV disalin tanpa diubah,',
+            'hitungan hari (H-, hari ke-) tidak maju, diagnosis menyebut nilai lab lama,',
+            'rencana yang sudah dikerjakan masih tertulis di Plan, terapi yang sudah',
+            'selesai masih di daftar aktif.',
+            '',
+            'ATURAN KERAS:',
+            '- JANGAN memberi saran klinis, dosis, atau diagnosis baru.',
+            '- JANGAN mengarang temuan. Jika tidak yakin, jangan sebutkan.',
+            '- Setiap poin maksimal satu kalimat pendek, sebutkan bagian mana.',
+            '- Maksimal 5 poin. Jika tidak ada yang terlewat, keluarkan tepat: TIDAK ADA',
+            '- Keluarkan HANYA daftar berawalan "- ", tanpa pengantar.',
+          ].join('\n'),
+          maxTokens: 600,
+        },
+      );
+      const lines = text
+        .split('\n')
+        .map((line) => line.replace(/^[-*\s]+/, '').trim())
+        .filter((line) => line.length > 0 && !/^tidak ada$/i.test(line));
+      setAiFindings(lines.slice(0, 5));
+    } catch (error) {
+      setAiCheckError(error instanceof AiError ? error.message : 'Gagal memanggil AI.');
+    } finally {
+      setAiCheckState('idle');
+    }
+  };
 
   const markerCounts = useMemo<Record<string, number>>(() => {
     if (!staleMarkers) return {};
@@ -1163,9 +1233,12 @@ export default function PatientPage(): JSX.Element {
           Suppressed entirely on a locked day: nothing there can be changed, so
           a list of things to change is noise on a page you are reading.
         */}
-        {!locked && soapFindings.length > 0 ? (
+        {!locked && (soapFindings.length > 0 || aiEnabled('check')) ? (
           <div className="mx-4 mt-2 rounded-lg border border-border px-3 py-2 text-xs">
             <p className="font-medium">Periksa lagi:</p>
+            {soapFindings.length === 0 ? (
+              <p className="mt-1 text-fg-muted">Tidak ada yang janggal dari aturan biasa.</p>
+            ) : null}
             <ul className="mt-1 space-y-1">
               {soapFindings.map((finding) => (
                 <li key={finding.kind + finding.message} className="flex flex-wrap gap-2">
@@ -1187,6 +1260,40 @@ export default function PatientPage(): JSX.Element {
                 </li>
               ))}
             </ul>
+
+            {/*
+              The AI pass sits below the rules and says so. Its findings are a
+              different kind of claim — the rules found a mismatch between two
+              numbers written in the note; this one has an opinion — and
+              mixing them would let the weaker sort borrow the stronger sort's
+              credibility.
+            */}
+            {aiEnabled('check') ? (
+              <div className="mt-2 border-t border-border pt-2">
+                {aiFindings.length > 0 ? (
+                  <ul className="mb-2 space-y-1">
+                    {aiFindings.map((finding) => (
+                      <li key={finding} className="text-fg-muted">
+                        {finding} <span className="text-fg-faint">(AI)</span>
+                      </li>
+                    ))}
+                  </ul>
+                ) : null}
+                {aiCheckError ? <p className="mb-1 text-danger">{aiCheckError}</p> : null}
+                <button
+                  type="button"
+                  onClick={() => void runAiCheck()}
+                  disabled={aiCheckState === 'running' || editor.value.trim().length === 0}
+                  className="min-h-tap rounded-lg border border-border px-3 text-xs font-medium disabled:opacity-50"
+                >
+                  {aiCheckState === 'running'
+                    ? 'Memeriksa…'
+                    : aiFindings.length > 0
+                      ? 'Periksa ulang dengan AI'
+                      : 'Periksa dengan AI'}
+                </button>
+              </div>
+            ) : null}
           </div>
         ) : null}
 
@@ -1548,16 +1655,16 @@ export default function PatientPage(): JSX.Element {
                 if (id) setSelectedShiftNoteId(id);
               }
         }
-        onLab={locked ? undefined : () => setLabOpen(true)}
+        onLab={locked || headerHasTools ? undefined : () => setLabOpen(true)}
         {...(!locked && aiEnabled('soap') && editor.value.trim().length > 0
           ? { onTidy: () => setTidyOpen(true) }
           : {})}
         onOpening={
-          locked || editor.value.trim().length === 0
+          locked || headerHasTools || editor.value.trim().length === 0
             ? undefined
             : () => setOpeningOpen(true)
         }
-        onCompare={() => setCompareOpen(true)}
+        {...(headerHasTools ? {} : { onCompare: () => setCompareOpen(true) })}
       />
 
         </div>

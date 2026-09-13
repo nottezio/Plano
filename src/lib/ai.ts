@@ -33,9 +33,18 @@ export interface AiFlags {
   lab: boolean;
   /** Suggest a tidied SOAP body. Never applied automatically. */
   soap: boolean;
+  /**
+   * A second pass over the note, looking for what the six deterministic rules
+   * cannot express.
+   *
+   * Additive only. The rules keep running and their findings are listed
+   * first — this never replaces them, because a checker whose findings vary
+   * between identical runs is one that stops being trusted.
+   */
+  check: boolean;
 }
 
-const OFF: AiFlags = { lab: false, soap: false };
+const OFF: AiFlags = { lab: false, soap: false, check: false };
 
 export function readApiKey(): string {
   try {
@@ -59,7 +68,7 @@ export function readAiFlags(): AiFlags {
     const raw = localStorage.getItem(FLAGS);
     if (!raw) return OFF;
     const parsed = JSON.parse(raw) as Partial<AiFlags>;
-    return { lab: parsed.lab === true, soap: parsed.soap === true };
+    return { lab: parsed.lab === true, soap: parsed.soap === true, check: parsed.check === true };
   } catch {
     return OFF;
   }

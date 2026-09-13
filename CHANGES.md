@@ -1,5 +1,96 @@
 # Plano — CHANGES
 
+## `2026-09-12.10`
+
+**Settings grouped; ⋯ sheet stops repeating the header; sodium-for-glucose
+calculator; optional AI pass on the SOAP checker.**
+
+### Section aliases — checked, and two were missing
+
+Scanned every heading-shaped line in the export against the alias list. The
+list is current for the headings that define BOUNDARIES; what came back
+unmatched was almost entirely sub-headings *inside* a block — `Conclusion`,
+`Cardiac Valves`, `Kesan`, `Saran` — which is the boundary-based design working
+as intended: they ride along inside the study they belong to, and aliasing them
+would split one echo report into five sections.
+
+Two were genuine top-level headings and are now aliases:
+
+- **`Lung Ultrasound`** (75 uses) and **`Echo Hemodinamik`** → Penunjang. They
+  head their own block, so without an alias they rode along inside whatever
+  came before — and "O + Penunjang" could miss an entire study.
+- **`Plan Terapi`** → Plan. `Plan Monitoring` and `Plan Diagnostik` were
+  already there; this one travels with them, and a note using it had its plan
+  split across two sections.
+
+`Selesai:` was left alone deliberately. It rides inside Terapi, which is where
+a reader wants discontinued drugs — beside the active ones, not in a section of
+their own.
+
+### Settings, grouped
+
+Twenty-three sections in one flat list, with the four newest stranded below
+"Tentang". Now under six headings: **Tampilan & catatan · Privasi & data ·
+Akun · Pemeliharaan · Tentang**, with the maintenance tools (Perbarui kartu,
+Periksa hasil salin, Riwayat sesi, Setel ulang) collected rather than scattered.
+
+### The ⋯ sheet stops repeating the header
+
+Format lab, Pembuka and Bandingkan hari were added to the sheet at every width
+on 10 September, reasoning that a control existing at one screen size and not
+another is one nobody learns. In practice it read as clutter: on a desktop the
+sheet repeated three buttons sitting two centimetres above it, which makes the
+list longer to scan for the things that are ONLY in there.
+
+They now appear only where the header has dropped them — same `sm` breakpoint,
+read once rather than guessed at, since two sources for one breakpoint is how
+they drift.
+
+`Sematkan di papan` → **`Pin di dashboard`**.
+
+### Koreksi natrium pada hiperglikemia
+
+A real card, not a link out — and the distinction is why it is allowed here
+when the sodium and potassium REPLACEMENT calculators were removed. Those
+produce a dose, which has to match a protocol only the ward owns. This produces
+a reading: what the sodium would be at a normal glucose. It prescribes nothing.
+
+**Both published factors, never one.** Katz 1.6 (NEJM 1973, theoretical) and
+Hillier 2.4 (Am J Med 1999, experimental) disagree, and at glucose 600 they
+differ by 4 mmol/L — the gap between calling the same sample hyponatraemic and
+calling it normal. Showing one would present a contested number as settled. The
+divergence note appears only when it is real.
+
+**No downward correction below glucose 100.** The formula is linear and would
+happily return a sodium lower than the lab measured at a glucose of 70 — which
+is meaningless, since the dilution being corrected for is caused by the excess
+glucose and there is none.
+
+### Where the SOAP checker lives, and the optional AI pass
+
+It is **not a button** — it is the "Periksa lagi" panel above the editor, which
+appears by itself when a rule fires and is silent otherwise. That is deliberate
+for the deterministic rules: they cost nothing and run as you type.
+
+The new AI pass is the opposite and is therefore **on demand**. A network call,
+the user's quota, and the note leaving the device may not happen because
+somebody opened a chart. So: a third switch (`Periksa SOAP dengan AI`), and a
+button inside the panel.
+
+Its findings are listed **after** the rules and tagged `(AI)`. They are a
+different kind of claim — the rules found a mismatch between two numbers
+written in the note; this one has an opinion — and mixing them would let the
+weaker sort borrow the stronger sort's credibility. The rules always run; the
+AI never replaces them, because a checker whose findings vary between identical
+runs stops being trusted.
+
+```
+1139 tests passed (was 1133 — 6 added on the sodium correction)
+typecheck / lint / check:version / check:contrast / check:a11y / build — clean
+```
+
+---
+
 ## `2026-09-12.9`
 
 **The two AI features, both optional, both on the user's own key.**
