@@ -2,7 +2,7 @@ import { expandOpeningTokens, timeOfDayWord } from '@/domain/opening';
 
 import { matchJarkom } from './match';
 import { JAGA_POSTS, type JagaPostId } from './types';
-import type { DpjpRoster, JagaRoster, JagaShift, JarkomDirectory } from './types';
+import type { DpjpDay, DpjpRoster, JagaRoster, JagaShift, JarkomDirectory } from './types';
 
 const DAY_NAMES = ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'];
 const MONTH_NAMES = [
@@ -46,6 +46,8 @@ export interface ResolvedPost {
   /** Nickname from Jarkom — what the Formasi prints. */
   panggilan: string | null;
   muslim: boolean | null;
+  /** Set by hand for this date — a tukar jaga, or a post no roster covers. */
+  swapped: boolean;
 }
 
 /**
@@ -66,6 +68,13 @@ export function resolveShift(
   jarkom: JarkomDirectory | null,
   /** Manual corrections by initials; see `store.setNameOverride`. */
   overrides: Readonly<Record<string, string>> = {},
+  /**
+   * Who is on this post on THIS DATE — a tukar jaga, or the paediatrics name
+   * that no roster carries. Wins over everything, including the roster itself,
+   * because it is the only value here that describes the day rather than the
+   * schedule.
+   */
+  posts: Readonly<Record<string, string>> = {},
 ): ResolvedPost[] {
   return JAGA_POSTS.map((post) => {
     const initials = shift.posts[post.id] ?? '';
@@ -94,7 +103,9 @@ export function resolveShift(
         always names them somehow, because a blank in a Formasi reads as
         "unstaffed" and this one is not.
       */
-      display: override ?? entry?.panggilan ?? name ?? initials,
+      display: posts[post.id] ?? override ?? entry?.panggilan ?? name ?? initials,
+      /** True when this date's name came from a swap rather than the roster. */
+      swapped: posts[post.id] !== undefined,
     };
   });
 }
@@ -123,9 +134,35 @@ export function buildFormasi(
    * a full team the day somebody forgets to seed it.
    */
   confirmed: ReadonlySet<JagaPostId> = new Set(),
+  /** Consultant swaps, by date. See `store.setDpjpEdit`. */
+  edits?: Readonly<Record<string, { utama?: string; tindakan?: string }>>,
 ): string {
-  const today = dpjp?.days.find((day) => day.date === shift.date) ?? null;
-  const tomorrow = dpjp?.days.find((day) => day.date === nextDate(shift.date)) ?? null;
+  /*
+    Consultants swap too, and the published roster is a month old by the time
+    it is used. An edit for a date replaces whichever field it names and leaves
+    the other alone — a swapped DPJP Utama does not imply a swapped Tindakan.
+
+    Applied by date rather than by position, so an edit made tonight against
+    "tomorrow" is the same edit read tomorrow as "today".
+  */
+  const apply = (day: DpjpDay | null, date: string): DpjpDay | null => {
+    const edit = edits?.[date];
+    if (!edit) return day;
+    const base = day ?? { date, utama: '', tindakan: '' };
+    const merged = {
+      ...base,
+      ...(edit.utama ? { utama: edit.utama } : {}),
+      ...(edit.tindakan ? { tindakan: edit.tindakan } : {}),
+    };
+    // A pair with neither side filled is still nothing to print.
+    return merged.utama || merged.tindakan ? merged : null;
+  };
+
+  const today = apply(dpjp?.days.find((day) => day.date === shift.date) ?? null, shift.date);
+  const tomorrow = apply(
+    dpjp?.days.find((day) => day.date === nextDate(shift.date)) ?? null,
+    nextDate(shift.date),
+  );
 
   const lines: string[] = [
     expandOpeningTokens('Assalamualaikum dokter, selamat (waktu) dokter', at),
@@ -149,7 +186,13 @@ export function buildFormasi(
       there is one that stops being read, taking the real ones with it.
     */
     const who = post.display;
-    const pending = post.initials && !confirmed.has(post.id) ? ' (belum konfirmasi)' : '';
+    /*
+      A post filled in by hand is a real post and is confirmed like any other.
+      Keying this on `initials` alone would leave the paediatrics resident —
+      who can only ever be entered by hand — permanently unconfirmable.
+    */
+    const staffed = Boolean(post.initials || post.swapped);
+    const pending = staffed && !confirmed.has(post.id) ? ' (belum konfirmasi)' : '';
     lines.push(`${post.label} : ${who}${pending}`);
   }
 

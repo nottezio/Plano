@@ -2,7 +2,13 @@ import { useMemo, useState } from 'react';
 
 import { copyText } from '@/lib/clipboard';
 import { extractPdfItems } from '@/lib/pdfItems';
-import { buildFormasi, buildKonfirmasi, longDate, resolveShift } from '@/domain/jaga/formasi';
+import {
+  buildFormasi,
+  buildKonfirmasi,
+  longDate,
+  nextDate,
+  resolveShift,
+} from '@/domain/jaga/formasi';
 import type { JagaPostId } from '@/domain/jaga/types';
 import { describeMismatch, identifyJagaPdf } from '@/domain/jaga/identify';
 import { parseDpjpRoster } from '@/domain/jaga/parseDpjp';
@@ -13,11 +19,15 @@ import {
   readDpjp,
   readJarkom,
   readRoster,
+  readDpjpEdit,
   readNameOverrides,
+  readPostOverrides,
   readSender,
   writeConfirmed,
   writeDpjp,
+  setDpjpEdit,
   setNameOverride,
+  setPostOverride,
   writeJarkom,
   writeRoster,
   writeSender,
@@ -72,9 +82,23 @@ export function HelperPage(): JSX.Element {
 
   const [overrides, setOverrides] = useState(() => readNameOverrides());
 
+  /**
+   * Per-date edits: who swapped onto a post, and which consultants swapped.
+   *
+   * Re-read whenever the date or shift changes, for the same reason the
+   * confirmation set is: these are small, the read is synchronous, and holding
+   * every date in state would re-render a page carrying three parsed PDFs on
+   * every keystroke.
+   */
+  const [postEdits, setPostEdits] = useState<Record<string, string>>({});
+  const [dpjpEdits, setDpjpEdits] = useState<
+    Record<string, { utama?: string; tindakan?: string }>
+  >({});
+  const [editKey, setEditKey] = useState('');
+
   const posts = useMemo(
-    () => (shift && roster ? resolveShift(shift, roster, jarkom, overrides) : []),
-    [shift, roster, jarkom, overrides],
+    () => (shift && roster ? resolveShift(shift, roster, jarkom, overrides, postEdits) : []),
+    [shift, roster, jarkom, overrides, postEdits],
   );
 
   /**
@@ -92,6 +116,14 @@ export function HelperPage(): JSX.Element {
     setConfirmKey(currentKey);
     setConfirmed(readConfirmed(shift.date, shift.shift));
   }
+  if (shift && currentKey !== editKey) {
+    setEditKey(currentKey);
+    setPostEdits(readPostOverrides(shift.date, shift.shift));
+    setDpjpEdits({
+      [shift.date]: readDpjpEdit(shift.date),
+      [nextDate(shift.date)]: readDpjpEdit(nextDate(shift.date)),
+    });
+  }
 
   const toggleConfirmed = (postId: string): void => {
     if (!shift) return;
@@ -104,12 +136,19 @@ export function HelperPage(): JSX.Element {
   const formasi = useMemo(
     () =>
       shift
-        ? buildFormasi(shift, posts, dpjp, new Date(), confirmed as ReadonlySet<JagaPostId>)
+        ? buildFormasi(
+            shift,
+            posts,
+            dpjp,
+            new Date(),
+            confirmed as ReadonlySet<JagaPostId>,
+            dpjpEdits,
+          )
         : '',
-    [shift, posts, dpjp, confirmed],
+    [shift, posts, dpjp, confirmed, dpjpEdits],
   );
 
-  const staffed = posts.filter((post) => post.initials);
+  const staffed = posts.filter((post) => post.initials || post.swapped);
   const outstanding = staffed.filter((post) => !confirmed.has(post.id)).length;
 
   async function importPdf(
@@ -271,6 +310,53 @@ export function HelperPage(): JSX.Element {
                 Blok DPJP kosong — impor Jadwal DPJP untuk mengisinya.
               </p>
             ) : null}
+
+            {/*
+              Consultants swap too, and the published roster is a month old by
+              the time it is used. Edited BY DATE, not by position: an edit
+              made tonight against "setelah 00.00" is the same edit read
+              tomorrow as "hari ini", so keying it any other way would need it
+              entered twice.
+            */}
+            <details className="text-xs">
+              <summary className="min-h-tap cursor-pointer text-fg-muted">
+                Ubah DPJP (tukar jaga)
+              </summary>
+              <div className="mt-2 space-y-2">
+                {[
+                  { date: shift.date, label: longDate(shift.date) },
+                  { date: nextDate(shift.date), label: `setelah 00.00 — ${longDate(nextDate(shift.date))}` },
+                ].map(({ date, label }) => (
+                  <div key={date} className="space-y-1">
+                    <p className="text-fg-faint">{label}</p>
+                    {(['utama', 'tindakan'] as const).map((field) => (
+                      <input
+                        key={field}
+                        value={dpjpEdits[date]?.[field] ?? ''}
+                        onChange={(event) => {
+                          const next = setDpjpEdit(date, {
+                            ...dpjpEdits[date],
+                            [field]: event.target.value,
+                          });
+                          setDpjpEdits((current) => ({ ...current, [date]: next }));
+                        }}
+                        placeholder={
+                          field === 'utama'
+                            ? (dpjp?.days.find((day) => day.date === date)?.utama ??
+                              'DPJP Utama')
+                            : (dpjp?.days.find((day) => day.date === date)?.tindakan ??
+                              'DPJP Tindakan')
+                        }
+                        className="min-h-tap w-full rounded-lg border border-border bg-surface px-3 text-xs"
+                      />
+                    ))}
+                  </div>
+                ))}
+                <p className="text-fg-faint">
+                  Kosongkan untuk memakai jadwal yang diimpor.
+                </p>
+              </div>
+            </details>
           </section>
 
           <section className="space-y-2">
@@ -308,7 +394,6 @@ export function HelperPage(): JSX.Element {
 
             <ul className="space-y-2">
               {posts.map((post) => {
-                if (!post.initials) return null;
                 const message = buildKonfirmasi(
                   post,
                   {
@@ -344,11 +429,34 @@ export function HelperPage(): JSX.Element {
                           is the same person in every shift, so fixing them once
                           fixes every Formasi they appear in.
                         */}
+                        {/*
+                          Edits THIS DATE, not the person.
+
+                          A tukar jaga is a fact about one day: the roster is
+                          right about who that initial is and wrong about who
+                          is on the post tonight. Writing it to the by-initials
+                          map would rename that resident in every other shift
+                          on the board — a worse error than the one being
+                          fixed. "Selalu" below promotes it when the roster is
+                          the thing that is wrong.
+
+                          Empty posts are editable for the same reason:
+                          paediatrics keeps its own roster, so its name can
+                          only ever arrive here.
+                        */}
                         <input
                           value={post.display}
                           onChange={(event) =>
-                            setOverrides(setNameOverride(post.initials, event.target.value))
+                            setPostEdits(
+                              setPostOverride(
+                                shift.date,
+                                shift.shift,
+                                post.id,
+                                event.target.value,
+                              ),
+                            )
                           }
+                          placeholder={post.label}
                           aria-label={`Nama untuk ${post.label}`}
                           className="min-w-0 max-w-[10rem] rounded border border-transparent bg-transparent px-1 text-sm font-medium hover:border-border focus:border-border"
                         />
@@ -365,6 +473,26 @@ export function HelperPage(): JSX.Element {
                       */}
                       {post.muslim === null ? (
                         <span className="text-[10px] text-danger">agama tidak diketahui</span>
+                      ) : null}
+                      {post.swapped ? (
+                        <>
+                          <span className="text-[10px] text-fg-faint">tukar jaga</span>
+                          {post.initials ? (
+                            <button
+                              type="button"
+                              title="Simpan sebagai koreksi tetap untuk inisial ini"
+                              onClick={() => {
+                                setOverrides(setNameOverride(post.initials, post.display));
+                                setPostEdits(
+                                  setPostOverride(shift.date, shift.shift, post.id, ''),
+                                );
+                              }}
+                              className="text-[10px] underline decoration-dotted"
+                            >
+                              Selalu
+                            </button>
+                          ) : null}
+                        </>
                       ) : null}
                       {!confirmed.has(post.id) ? (
                         <span className="text-[10px] text-fg-faint">belum konfirmasi</span>

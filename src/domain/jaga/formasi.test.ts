@@ -195,3 +195,65 @@ describe('display name', () => {
     expect(posts.find((post) => post.id === 'chiefPjt')?.display).toBe('HM');
   });
 });
+
+
+describe('tukar jaga', () => {
+  it('replaces who is on a post for this date only', () => {
+    const posts = resolveShift(SHIFT, ROSTER, JARKOM, {}, { chiefPjt: 'Ellen' });
+    expect(posts.find((post) => post.id === 'chiefPjt')).toMatchObject({
+      display: 'Ellen',
+      swapped: true,
+      // The roster is still right about who HM is — only the day changed.
+      name: 'dr. Siti Hajar Malika',
+    });
+  });
+
+  it('fills a post no roster covers, and makes it confirmable', () => {
+    // Paediatrics keeps its own roster, so its column is blank in every row.
+    // Keying "staffed" on initials alone would leave that resident
+    // permanently unconfirmable.
+    const posts = resolveShift(SHIFT, ROSTER, JARKOM, {}, { pedi: 'Gaby' });
+    const text = buildFormasi(SHIFT, posts, DPJP, new Date(), new Set());
+    expect(text).toContain('Pediatri : Gaby (belum konfirmasi)');
+  });
+
+  it('leaves the by-initials correction alone', () => {
+    // The two mean different things: one fixes who an initial refers to
+    // everywhere, the other says who is on a post tonight.
+    const posts = resolveShift(SHIFT, ROSTER, JARKOM, { HM: 'Malika' }, { chiefPjt: 'Ellen' });
+    expect(posts.find((post) => post.id === 'chiefPjt')?.display).toBe('Ellen');
+    expect(resolveShift(SHIFT, ROSTER, JARKOM, { HM: 'Malika' })
+      .find((post) => post.id === 'chiefPjt')?.display).toBe('Malika');
+  });
+});
+
+describe('DPJP swaps', () => {
+  const posts = resolveShift(SHIFT, ROSTER, JARKOM);
+  const at = new Date(2026, 8, 16, 13, 0);
+
+  it('replaces only the field that was edited', () => {
+    // A swapped DPJP Utama does not imply a swapped Tindakan.
+    const text = buildFormasi(SHIFT, posts, DPJP, at, new Set(), {
+      '2026-09-17': { utama: 'dr. Pengganti' },
+    });
+    expect(text).toContain('_DPJP Utama : dr. Pengganti_');
+    expect(text).toContain('_DPJP Tindakan : dr. Asrul_');
+  });
+
+  it('edits the after-midnight pair by ITS date', () => {
+    // Keyed by date, so an edit made tonight against "setelah 00.00" is the
+    // same edit read tomorrow as "hari ini" — entered once, not twice.
+    const text = buildFormasi(SHIFT, posts, DPJP, at, new Set(), {
+      '2026-09-18': { tindakan: 'dr. Malam' },
+    });
+    expect(text).toContain('*DPJP Utama dan Tindakan setelah Pk. 00.00 WITA*');
+    expect(text).toContain('_DPJP Tindakan : dr. Malam_');
+  });
+
+  it('can supply a pair the imported roster does not have at all', () => {
+    const text = buildFormasi(SHIFT, posts, null, at, new Set(), {
+      '2026-09-17': { utama: 'dr. Sendiri', tindakan: 'dr. Sendiri' },
+    });
+    expect(text).toContain('_DPJP Utama : dr. Sendiri_');
+  });
+});

@@ -1,5 +1,63 @@
 # Plano — CHANGES
 
+## `2026-09-13.7`
+
+**Konfirmasi Jaga: tukar jaga, the paediatrics name, and DPJP swaps — all
+editable.** Still WIP.
+
+### Two kinds of "wrong name", kept apart
+
+This is the decision the rest of it hangs on.
+
+| | Keyed by | Means | Applies to |
+|---|---|---|---|
+| **Koreksi nama** (existing) | initials | the roster is right about the day, the MATCH is wrong | every shift that person appears in |
+| **Tukar jaga** (new) | date + shift + post | the roster is right about the person, and wrong about TONIGHT | that one shift |
+
+Writing a swap into the by-initials map would rename that resident in every
+other shift on the board — a worse error than the one being fixed, and one
+nobody would connect back to a swap entered days earlier. So the inline name
+field now edits the DATE, which is what a tukar jaga is, and a **"Selalu"**
+link beside a swapped name promotes it to the permanent correction when the
+roster is the thing that is wrong. Two presses for the rare case, none for the
+common one.
+
+### The paediatrics row
+
+Every post now renders, including the ones with no initials. Paediatrics keeps
+its own roster that only they see, so its column is blank in every row — its
+name can only ever arrive by hand, and until now there was no hand to arrive
+by.
+
+A post filled in this way is a **real** post: it prints in the Formasi, it
+carries `(belum konfirmasi)` until ticked, and it counts in the outstanding
+total. Keying "staffed" on initials alone had left that resident permanently
+unconfirmable.
+
+### DPJP swaps
+
+Under the Formasi, "Ubah DPJP (tukar jaga)". Each field replaces only itself —
+a swapped Utama does not imply a swapped Tindakan — and an empty field falls
+back to the imported roster rather than printing blank.
+
+**Edited by DATE, not by position.** The pair after 00.00 is the next calendar
+day's row, so an edit made tonight against "setelah 00.00" is the same edit
+read tomorrow as "hari ini". Keying it by position would need it entered twice
+and would drift the moment one of them was.
+
+It also works with no DPJP roster imported at all: filling both fields by hand
+produces the block.
+
+```
+1174 tests passed (was 1168 — 6 added on the swaps)
+typecheck / lint / check:version / check:contrast / check:a11y / build — clean
+```
+
+All three edits are per device, like the rosters themselves, and clearing a
+field restores what the schedule said rather than erasing the line.
+
+---
+
 ## `2026-09-13.6`
 
 **Catatan pasien opens when it has something in it; a new checker rule and a

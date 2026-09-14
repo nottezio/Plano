@@ -18,6 +18,8 @@ const KEYS = {
   sender: 'visite.jaga.sender',
   confirmed: 'visite.jaga.confirmed',
   names: 'visite.jaga.names',
+  posts: 'visite.jaga.posts',
+  dpjpEdits: 'visite.jaga.dpjpEdits',
 } as const;
 
 function read<T>(key: string): T | null {
@@ -109,4 +111,73 @@ export function setNameOverride(initials: string, name: string): NameOverrides {
   else delete all[initials];
   write(KEYS.names, all);
   return all;
+}
+
+/**
+ * Who is ACTUALLY on a post, for one date and one shift.
+ *
+ * Deliberately separate from `NameOverrides`, which is keyed by initials and
+ * fixes who an initial REFERS TO — a permanent correction to a bad match,
+ * right in every shift that person appears in.
+ *
+ * A tukar jaga is the opposite kind of fact: the roster is correct about the
+ * person, and wrong about this one day. Storing it by initials would rewrite
+ * that resident's name in every other shift on the board, which is a worse
+ * error than the one being fixed.
+ *
+ * Also how an empty post gets filled. Paediatrics keeps its own roster and its
+ * column is blank in every row, so its name can only ever come from here.
+ */
+type PostMap = Record<string, Record<string, string>>;
+
+const postKey = (date: string, shift: string): string => `${date}:${shift}`;
+
+export function readPostOverrides(date: string, shift: string): Record<string, string> {
+  return (read<PostMap>(KEYS.posts) ?? {})[postKey(date, shift)] ?? {};
+}
+
+export function setPostOverride(
+  date: string,
+  shift: string,
+  postId: string,
+  name: string,
+): Record<string, string> {
+  const all = read<PostMap>(KEYS.posts) ?? {};
+  const key = postKey(date, shift);
+  const day = { ...(all[key] ?? {}) };
+  // An emptied field falls back to the roster rather than printing blank —
+  // clearing a swap should restore what the schedule said, not erase the post.
+  if (name.trim()) day[postId] = name.trim();
+  else delete day[postId];
+  all[key] = day;
+  write(KEYS.posts, all);
+  return day;
+}
+
+/**
+ * A consultant swap, by date.
+ *
+ * By date and not by shift: the DPJP roster is published per calendar day, and
+ * the pair after 00.00 is the next day's row — so an edit to "tomorrow's DPJP"
+ * made tonight is the same edit as "today's DPJP" made tomorrow, and keying it
+ * any other way would need it entered twice.
+ */
+export interface DpjpEdit {
+  utama?: string;
+  tindakan?: string;
+}
+
+export function readDpjpEdit(date: string): DpjpEdit {
+  return (read<Record<string, DpjpEdit>>(KEYS.dpjpEdits) ?? {})[date] ?? {};
+}
+
+export function setDpjpEdit(date: string, edit: DpjpEdit): DpjpEdit {
+  const all = read<Record<string, DpjpEdit>>(KEYS.dpjpEdits) ?? {};
+  const next: DpjpEdit = {};
+  if (edit.utama?.trim()) next.utama = edit.utama.trim();
+  if (edit.tindakan?.trim()) next.tindakan = edit.tindakan.trim();
+  if (Object.keys(next).length > 0) all[date] = next;
+  else delete all[date];
+  write(KEYS.dpjpEdits, all);
+  return next;
 }
