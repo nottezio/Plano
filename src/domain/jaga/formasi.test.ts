@@ -294,3 +294,46 @@ describe('a swap carries the person, not just a name', () => {
     expect(posts.find((post) => post.id === 'chiefPjt')?.muslim).toBe(true);
   });
 });
+
+describe('the paediatrics post', () => {
+  it('prints the BTKV companion in the form the group uses', () => {
+    const posts = resolveShift(SHIFT, ROSTER, JARKOM, {}, {}, {}, {
+      name: 'Ken',
+      btkv: 'Raden',
+    });
+    const text = buildFormasi(SHIFT, posts, DPJP, new Date(), new Set());
+    expect(text).toContain('Pediatri : Raden (BTKV)/ Ken');
+  });
+
+  it('confirms the cardiology resident, not the BTKV one', () => {
+    // A BTKV resident cannot answer whether somebody is on a cardiology post,
+    // and their own confirmation goes through Kardio.
+    const posts = resolveShift(SHIFT, ROSTER, JARKOM, {}, {}, {}, {
+      name: 'Ken',
+      btkv: 'Raden',
+    });
+    const pedi = posts.find((post) => post.id === 'pedi')!;
+    const message = buildKonfirmasi(
+      pedi,
+      { senderName: 'Avi', senderPlace: 'Bangsal PJT A', date: '2026-09-17' },
+      new Date(2026, 8, 16, 13, 0),
+    );
+    expect(message).toContain('*Jaga Pediatri*');
+    expect(message).not.toContain('Raden');
+  });
+
+  it('is still marked outstanding until ticked', () => {
+    const posts = resolveShift(SHIFT, ROSTER, JARKOM, {}, {}, {}, { name: 'Ken' });
+    expect(buildFormasi(SHIFT, posts, DPJP, new Date(), new Set())).toContain(
+      'Pediatri : Ken (belum konfirmasi)',
+    );
+  });
+
+  it('yields to a manual swap', () => {
+    // The roster is right about the schedule; a swap is right about tonight.
+    const posts = resolveShift(SHIFT, ROSTER, JARKOM, {}, { pedi: { name: 'Gaby' } }, {}, {
+      name: 'Ken',
+    });
+    expect(posts.find((post) => post.id === 'pedi')?.display).toBe('Gaby');
+  });
+});

@@ -1,5 +1,162 @@
 # Plano — CHANGES
 
+## `2026-09-13.10`
+
+**Jadwal Jaga Pediatri is the fourth import.**
+
+### What the brackets meant
+
+Confirmed from the group message, and it changes who gets contacted: a
+bracketed name is a **PPDS BTKV**, not a cardiology resident. Taking it as the
+person on call would have sent the confirmation to somebody who cannot answer
+for a cardiology post — and whose own confirmation goes through Kardio anyway.
+
+So the pair prints as the group writes it, `Raden (BTKV)/ Ken`, and only the
+cardiology name gets a confirmation row.
+
+### A comma is a shift, not a second person
+
+`Rizki, Ken` is Rizki on pagi and Ken on malam. `(Kifli) - Galih, Dira` is
+Galih with Kifli on pagi, Dira on malam — the BTKV name attaches to the half it
+is written on, so `Fatur, (Kifli) - Suci` puts Kifli on the malam side.
+
+One name covers the whole day, **including Saturdays**: paediatrics still
+counts as dinas, so the sheet prints a single name where the cardiology roster
+splits the day. Asking for the "pagi" of a one-name Saturday returns that
+person rather than nothing.
+
+### The year comes from the date you are viewing
+
+The sheet spells out the month and never the year, so there is nothing in the
+document to read. Taken from the selected date rather than from `new Date()`:
+importing December's sheet in January still dates it to December, as long as
+you are looking at the month you are importing.
+
+### Where it sits in the chain
+
+```
+manual swap  >  paediatrics roster  >  nothing
+```
+
+Paediatrics is the one post the main roster leaves blank, so this is the only
+place its name can come from other than by hand — but a swap still wins,
+because the roster is right about the schedule and a swap is right about
+tonight.
+
+The import is identified by its `PPDS Jaga` / `Petugas Jaga` column header, and
+tested **last** of the four: its title is just `Jadwal Jaga <bulan>`, which any
+of these documents could claim.
+
+```
+1209 tests passed (was 1195 — 14 added on the parser and the paediatrics post)
+typecheck / lint / check:version / check:contrast / check:a11y / build — clean
+```
+
+---
+
+## `2026-09-13.9`
+
+**Confirmation wording matches the sent messages; investigation order
+corrected to spec; two transforms the reformatter was missing.**
+
+### The post names in the confirmation message
+
+Taken verbatim from the message file:
+
+| Formasi prints | Message asks |
+|---|---|
+| IGD A | `*Jaga IGD A*` |
+| CVCU | `*Jaga CVCU PJT*` |
+| RSWS/UH | `*Jaga RSWS/UH*` |
+| Bangsal B | `*Jaga Bangsal PJT B*` |
+| Chief Non PJT | `*Chief Jaga Non-PJT*` |
+| Chief Konsul | `*Chief Konsul*` |
+
+Its inconsistencies are kept, not tidied: `Chief Konsul` and `Chief Jaga
+Non-PJT` carry no `Jaga` prefix while every other post does, and `Non-PJT` is
+hyphenated where the roster column is not. This string is read by a senior
+checking it against their own roster line, and a version that is neater than
+the one everybody else sends is a version that reads as a different post.
+
+### The swap tag moved onto the message box
+
+It was a small grey word on the row above. The box is what gets copied and
+sent, and a swap is the one thing about that message not in the roster anybody
+else is reading — so it is marked where the text is, seen by the person about
+to press Salin rather than before they have decided to.
+
+### Import cadence
+
+Jarkom is labelled **per semester**. New residents arrive twice a year, and a
+monthly prompt for a document that changes every six months is a prompt people
+learn to ignore. The two rosters stay monthly.
+
+### Investigation order — the specified one, not an inferred one
+
+```
+EKG · Laboratorium · Urinalisa · ADT · Foto Thorax · CT · USG · Echo ·
+LUS · Laporan Tindakan
+```
+
+Three corrections against the version inferred from note samples:
+
+- **Urinalisa and ADT had no rank at all** and therefore sorted to the end,
+  below the imaging.
+- **USG now comes before echo**, rather than being lumped in with lung
+  ultrasound after it. LUS is matched first in the table precisely because
+  both contain "ultrasound" — reversed, `Lung Ultrasound` would take the
+  generic USG rank and land two places early.
+- **`Laporan …` blocks** — the TPM and PPM implantation reports — were
+  unranked and stayed wherever they started. They now close the run.
+
+Inferring the order from two samples was the mistake. Two notes agreeing says
+they were written by one person on two days, not that the order is the ward's.
+
+### Two transforms the reformatter never did
+
+Both visible in the worked CVCU → bangsal pair, neither implemented before.
+
+**Finished drugs move out of the active list.** A CVCU note marks them inline —
+`• CA Gluconas … (selesai)` — because there the list is a running record of
+everything given. A bangsal note separates them: the active list is what the
+nurse is still giving today, and a finished drug sitting in it is an
+instruction to continue something that has stopped. The marker is dropped on
+the way, since repeating it under a `Selesai:` heading is how a heading stops
+being read.
+
+Only lines that SAY so are moved. A drug that finished in real life but is not
+marked stays where it is — the note is the only evidence there is. And a blank
+line does not end the block: these lists are written with gaps between groups,
+and stopping at the first would leave half the list unexamined.
+
+**`•` becomes `- `.** Not cosmetic: `•` is not ASCII, so every one of them
+reaches SIMGOS as a `?` — the bug chased through four releases this month. A
+note that has been through this transform can no longer carry them onward, and
+this pass runs even on a note the rest of the transform cannot restructure.
+
+### The AI fallback was returning a different document
+
+Asked to tidy, it produced `# CATATAN PERKEMBANGAN TERINTEGRASI` with markdown
+headings and regrouped sections — a rewrite, not a repair. Asking for a
+tidy-up without saying what the target looks like invites exactly that.
+
+The prompt now states the target shape explicitly: a WhatsApp note, no
+markdown, `*tebal*` and `_miring_` preserved, the section order, the
+investigation order above, and newest date first within a modality.
+
+```
+1195 tests passed (was 1185 — 10 added on the therapy split and bullets)
+typecheck / lint / check:version / check:contrast / check:a11y / build — clean
+```
+
+**Not in this release:** the paediatrics roster PDF. Its shape is different
+from the other three — dates against nicknames, two month sections, and
+parenthesised names whose meaning I do not know yet (`(Kifli)`, `(Raden)`).
+Parsing it on a guess about what the brackets mean would put the wrong person
+in a report.
+
+---
+
 ## `2026-09-13.8`
 
 **Tukar jaga picks a PERSON; religion is correctable; the local-edit rule is

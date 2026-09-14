@@ -49,6 +49,7 @@ const INVESTIGATION =
 const BARE_LABEL = /^\s*(EKG|Lab|Laboratorium|Foto Thorax|Echo)\s*:?\s*$/i;
 
 import { orderInvestigations } from './orderInvestigations';
+import { normaliseBullets, splitFinishedTherapy } from './therapyDone';
 
 export interface ReformatResult {
   body: string;
@@ -82,10 +83,25 @@ function objectiveBounds(lines: readonly string[]): { start: number; end: number
   return { start, end: end === -1 ? lines.length : end };
 }
 
-export function cvcuToBangsal(body: string): ReformatResult {
+export function cvcuToBangsal(input: string): ReformatResult {
+  /*
+    Two whole-note passes BEFORE the section work, both taken from the worked
+    pair of 13 September and both things the earlier version did not do.
+
+    Bullets first, because `•` is not ASCII and every one of them reaches
+    SIMGOS as a `?` — so a note that has been through this transform must not
+    be able to carry them onward. Finished therapy second, because it reads the
+    list the bullets have just normalised.
+  */
+  const body = splitFinishedTherapy(normaliseBullets(input)).body;
   const lines = body.split('\n');
   const bounds = objectiveBounds(lines);
-  if (!bounds) return { body, summary: { vitals: 0, exam: 0, investigations: 0, unmatched: 0 } };
+  if (!bounds) {
+    // Still returns the bullet and therapy passes: a note with no `O:` heading
+    // is not a note this transform can restructure, but it is one whose
+    // bullets still become question marks in SIMGOS.
+    return { body, summary: { vitals: 0, exam: 0, investigations: 0, unmatched: 0 } };
+  }
 
   const head = lines.slice(0, bounds.start);
   const middle = lines.slice(bounds.start + 1, bounds.end);

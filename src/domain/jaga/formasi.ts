@@ -50,6 +50,8 @@ export interface ResolvedPost {
   swapped: boolean;
   /** Whoever is actually on, for keying a religion correction. May be empty. */
   personInitials: string;
+  /** A PPDS BTKV on alongside them. Printed, never confirmed. */
+  companion?: string;
 }
 
 /**
@@ -79,6 +81,14 @@ export function resolveShift(
   posts: Readonly<Record<string, { name: string; initials?: string; muslim?: boolean }>> = {},
   /** Religion corrected by hand, by initials. See `store.setReligion`. */
   religion: Readonly<Record<string, boolean>> = {},
+  /**
+   * The paediatrics entry for this date and shift, from its own roster.
+   *
+   * Paediatrics is the one post the main roster leaves blank, and this is the
+   * only place its name can come from other than by hand — so it slots in
+   * BELOW a manual swap and ABOVE everything else.
+   */
+  pediatri?: { name: string; btkv?: string } | null,
 ): ResolvedPost[] {
   return JAGA_POSTS.map((post) => {
     const initials = shift.posts[post.id] ?? '';
@@ -86,6 +96,7 @@ export function resolveShift(
     const entry = name && jarkom ? matchJarkom(name, jarkom) : null;
     const override = initials ? overrides[initials] : undefined;
     const swap = posts[post.id];
+    const pedi = post.id === 'pedi' && !swap ? (pediatri ?? null) : null;
 
     /*
       Religion follows the person who is actually on, not the post.
@@ -121,7 +132,16 @@ export function resolveShift(
         always names them somehow, because a blank in a Formasi reads as
         "unstaffed" and this one is not.
       */
-      display: swap?.name ?? override ?? entry?.panggilan ?? name ?? initials,
+      display: swap?.name ?? pedi?.name ?? override ?? entry?.panggilan ?? name ?? initials,
+      /*
+        The BTKV resident on with them, printed and never confirmed.
+
+        The message asks whether somebody is on a cardiology post; a BTKV
+        resident cannot answer that, and confirmation for them goes through
+        Kardio anyway. So they appear in the Formasi line and get no row of
+        their own.
+      */
+      ...(pedi?.btkv ? { companion: pedi.btkv } : {}),
       /** True when this date's name came from a swap rather than the roster. */
       swapped: swap !== undefined,
       /** Initials of whoever is actually on, for keying a religion fix. */
@@ -205,13 +225,14 @@ export function buildFormasi(
       permanent false alarm in every Formasi — and a warning that is always
       there is one that stops being read, taking the real ones with it.
     */
-    const who = post.display;
+    // `Raden (BTKV)/ Ken`, the form the paediatrics group uses.
+    const who = post.companion ? `${post.companion} (BTKV)/ ${post.display}` : post.display;
     /*
       A post filled in by hand is a real post and is confirmed like any other.
       Keying this on `initials` alone would leave the paediatrics resident —
       who can only ever be entered by hand — permanently unconfirmable.
     */
-    const staffed = Boolean(post.initials || post.swapped);
+    const staffed = Boolean(post.initials || post.swapped || post.companion || post.display);
     const pending = staffed && !confirmed.has(post.id) ? ' (belum konfirmasi)' : '';
     lines.push(`${post.label} : ${who}${pending}`);
   }

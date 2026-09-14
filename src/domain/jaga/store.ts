@@ -1,4 +1,4 @@
-import type { DpjpRoster, JagaRoster, JarkomDirectory } from './types';
+import type { DpjpRoster, JagaRoster, JarkomDirectory, PediatriRoster } from './types';
 
 /**
  * Imported rosters live in localStorage, per device.
@@ -21,6 +21,7 @@ const KEYS = {
   posts: 'visite.jaga.posts',
   dpjpEdits: 'visite.jaga.dpjpEdits',
   religion: 'visite.jaga.religion',
+  pediatri: 'visite.jaga.pediatri',
 } as const;
 
 function read<T>(key: string): T | null {
@@ -44,6 +45,8 @@ export const readRoster = (): JagaRoster | null => read<JagaRoster>(KEYS.roster)
 export const writeRoster = (value: JagaRoster): void => write(KEYS.roster, value);
 export const readDpjp = (): DpjpRoster | null => read<DpjpRoster>(KEYS.dpjp);
 export const writeDpjp = (value: DpjpRoster): void => write(KEYS.dpjp, value);
+export const readPediatri = (): PediatriRoster | null => read<PediatriRoster>(KEYS.pediatri);
+export const writePediatri = (value: PediatriRoster): void => write(KEYS.pediatri, value);
 export const readJarkom = (): JarkomDirectory | null => read<JarkomDirectory>(KEYS.jarkom);
 export const writeJarkom = (value: JarkomDirectory): void => write(KEYS.jarkom, value);
 

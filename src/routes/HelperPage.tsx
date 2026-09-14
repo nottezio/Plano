@@ -16,6 +16,7 @@ import { describeMismatch, identifyJagaPdf } from '@/domain/jaga/identify';
 import { parseDpjpRoster } from '@/domain/jaga/parseDpjp';
 import { parseJagaRoster } from '@/domain/jaga/parseRoster';
 import { parseJarkom } from '@/domain/jaga/parseJarkom';
+import { parsePediatri, pediatriFor } from '@/domain/jaga/parsePediatri';
 import {
   readConfirmed,
   readDpjp,
@@ -24,6 +25,7 @@ import {
   readDpjpEdit,
   readNameOverrides,
   readReligion,
+  readPediatri,
   readPostOverrides,
   readSender,
   writeConfirmed,
@@ -33,6 +35,7 @@ import {
   setReligion,
   setPostOverride,
   writeJarkom,
+  writePediatri,
   writeRoster,
   writeSender,
 } from '@/domain/jaga/store';
@@ -61,6 +64,7 @@ export function HelperPage(): JSX.Element {
   const [roster, setRoster] = useState(() => readRoster());
   const [dpjp, setDpjp] = useState(() => readDpjp());
   const [jarkom, setJarkom] = useState(() => readJarkom());
+  const [pediatri, setPediatri] = useState(() => readPediatri());
   const [sender, setSender] = useState(() => readSender());
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -107,9 +111,17 @@ export function HelperPage(): JSX.Element {
   const posts = useMemo(
     () =>
       shift && roster
-        ? resolveShift(shift, roster, jarkom, overrides, postEdits, religion)
+        ? resolveShift(
+            shift,
+            roster,
+            jarkom,
+            overrides,
+            postEdits,
+            religion,
+            pediatriFor(pediatri, shift.date, shift.shift),
+          )
         : [],
-    [shift, roster, jarkom, overrides, postEdits, religion],
+    [shift, roster, jarkom, overrides, postEdits, religion, pediatri],
   );
 
   /**
@@ -164,7 +176,7 @@ export function HelperPage(): JSX.Element {
 
   async function importPdf(
     file: File,
-    kind: 'roster' | 'dpjp' | 'jarkom',
+    kind: 'roster' | 'dpjp' | 'jarkom' | 'pediatri',
   ): Promise<void> {
     setBusy(kind);
     setError(null);
@@ -195,6 +207,20 @@ export function HelperPage(): JSX.Element {
         if (parsed.days.length === 0) throw new Error('Tidak ada tanggal DPJP terbaca.');
         writeDpjp(parsed);
         setDpjp(parsed);
+      } else if (kind === 'pediatri') {
+        /*
+          The year comes from the date being viewed, not from the sheet.
+
+          The paediatrics roster spells out the month and never the year, so
+          there is nothing in the document to read. Taking it from the selected
+          date rather than from `new Date()` means importing December's sheet
+          in January still dates it to December, as long as the user is looking
+          at the month they are importing.
+        */
+        const parsed = parsePediatri(items, Number(date.slice(0, 4)));
+        if (parsed.shifts.length === 0) throw new Error('Tidak ada baris jaga pediatri terbaca.');
+        writePediatri(parsed);
+        setPediatri(parsed);
       } else {
         const parsed = parseJarkom(items);
         if (parsed.entries.length === 0) throw new Error('Tidak ada nama terbaca.');
@@ -221,7 +247,7 @@ export function HelperPage(): JSX.Element {
           </span>
         </div>
         <p className="text-xs text-fg-muted">
-          Impor tiga PDF sekali sebulan, lalu pilih tanggal. Formasi dan pesan konfirmasi
+          Impor jadwalnya, lalu pilih tanggal. Formasi dan pesan konfirmasi
           disusun dari situ.
         </p>
         {/*
@@ -243,22 +269,35 @@ export function HelperPage(): JSX.Element {
 
       <section className="space-y-2">
         <h2 className="text-sm font-medium">1. Impor jadwal</h2>
-        <div className="grid gap-2 sm:grid-cols-3">
+        <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
           <ImportCard
             label="Jadwal Jaga PPDS"
-            detail={roster ? `${roster.shifts.length} shift · ${roster.title}` : 'Belum diimpor'}
+            detail={
+              roster ? `${roster.shifts.length} shift · ${roster.title}` : 'Belum diimpor · tiap bulan'
+            }
             busy={busy === 'roster'}
             onFile={(file) => void importPdf(file, 'roster')}
           />
           <ImportCard
             label="Jadwal DPJP"
-            detail={dpjp ? `${dpjp.days.length} hari` : 'Belum diimpor'}
+            detail={dpjp ? `${dpjp.days.length} hari` : 'Belum diimpor · tiap bulan'}
             busy={busy === 'dpjp'}
             onFile={(file) => void importPdf(file, 'dpjp')}
           />
           <ImportCard
+            label="Jadwal Jaga Pediatri"
+            detail={
+              pediatri ? `${pediatri.shifts.length} shift · ${pediatri.title}` : 'Belum diimpor · tiap bulan'
+            }
+            busy={busy === 'pediatri'}
+            onFile={(file) => void importPdf(file, 'pediatri')}
+          />
+          <ImportCard
             label="Daftar Jarkom"
-            detail={jarkom ? `${jarkom.entries.length} residen` : 'Belum diimpor'}
+            // Per SEMESTER, not per month: new residents arrive twice a year,
+            // and a monthly prompt for a document that changes every six
+            // months is a prompt people learn to ignore.
+            detail={jarkom ? `${jarkom.entries.length} residen · per semester` : 'Belum diimpor'}
             busy={busy === 'jarkom'}
             onFile={(file) => void importPdf(file, 'jarkom')}
           />
@@ -535,7 +574,7 @@ export function HelperPage(): JSX.Element {
                       ) : null}
                       {post.swapped ? (
                         <>
-                          <span className="text-[10px] text-fg-faint">tukar jaga</span>
+
                           {post.initials ? (
                             <button
                               type="button"
@@ -579,9 +618,27 @@ export function HelperPage(): JSX.Element {
                       <p className="mt-0.5 text-[10px] text-fg-faint">{post.name}</p>
                     ) : null}
 
-                    <p className="mt-1 whitespace-pre-wrap text-[11px] leading-relaxed text-fg-muted">
-                      {message}
-                    </p>
+                    {/*
+                      The tag sits ON the message box, not only on the row
+                      above it.
+
+                      The box is what gets copied and sent, and a swap is the
+                      one thing about it that is not in the roster anybody else
+                      is reading. Marking it where the text is means the
+                      person about to press Salin sees it; marking it only on
+                      the row means they see it before they have decided to
+                      send, which is the wrong moment.
+                    */}
+                    <div className="relative mt-1">
+                      {post.swapped ? (
+                        <span className="absolute right-1 top-1 rounded bg-bg-subtle px-1 text-[10px] font-medium text-fg-muted">
+                          tukar jaga
+                        </span>
+                      ) : null}
+                      <p className="whitespace-pre-wrap rounded-lg border border-border px-2 py-1.5 text-[11px] leading-relaxed text-fg-muted">
+                        {message}
+                      </p>
+                    </div>
                   </li>
                 );
               })}

@@ -11,10 +11,22 @@
  * `*Laboratorium PJT (27-08-2026)*` is a laboratory block because it says so.
  * Nothing inside a block is inspected, split, or re-ordered.
  *
- * The order is taken from two of the real note formats, which agree
- * independently — the IGD admission note and the bangsal transfer note both
- * run EKG, laboratory, chest film, cross-sectional imaging, echo, lung
- * ultrasound, conclusion.
+ * The order is the one Avicenna specified on 13 September, and it is not the
+ * one the earlier version inferred from two note samples:
+ *
+ *   EKG · Laboratorium · Urinalisa · ADT · Foto Thorax · CT · USG · Echo ·
+ *   LUS · Laporan Tindakan
+ *
+ * Three corrections against the inferred version. Urinalisa and ADT had no
+ * rank at all and therefore sorted to the end, below the imaging. USG now
+ * comes BEFORE echo rather than being lumped in with lung ultrasound after
+ * it. And `Laporan …` blocks — the TPM and PPM implantation reports — were
+ * unranked and landed wherever they started; they now close the run, which is
+ * where the worked example puts them.
+ *
+ * Inferring an order from samples was the mistake. Two notes agreeing says
+ * they were written by one person on two days, not that the order is the
+ * ward's.
  */
 
 interface Block {
@@ -35,11 +47,21 @@ interface Block {
 const MODALITY_RANK: ReadonlyArray<readonly [RegExp, number]> = [
   [/\bEKG\b|elektrokardio/i, 1],
   [/\bLab(oratorium)?\b|\bDL\b|\bAGD\b|analisa gas/i, 2],
-  [/foto\s*thorax|rontgen|\bCXR\b|\bX-?ray\b/i, 3],
-  [/\bMSCT\b|\bCT\b|\bMRI\b|angiograf|calcium\s*scor/i, 4],
-  [/echo|\bTTE\b|\bTEE\b/i, 5],
-  [/lung\s*ultrasound|\bLUS\b|\bUSG\b/i, 6],
-  [/conclusion|kesimpulan/i, 7],
+  [/urinalis|\burine\s*lengkap\b/i, 3],
+  [/\bADT\b|apusan\s*darah/i, 4],
+  [/foto\s*thorax|rontgen|\bCXR\b|\bX-?ray\b/i, 5],
+  [/\bMSCT\b|\bCT\b|\bMRI\b|angiograf|calcium\s*scor/i, 6],
+  /*
+    LUNG ultrasound is tested BEFORE plain USG and ranks after echo, while
+    every other USG ranks before it. Both contain "ultrasound", so order in
+    this list is what separates them — reversed, `Lung Ultrasound` would match
+    the generic USG pattern first and land two places early.
+  */
+  [/lung\s*ultrasound|\bLUS\b/i, 9],
+  [/\bUSG\b|ultraso/i, 7],
+  [/echo|\bTTE\b|\bTEE\b/i, 8],
+  [/laporan\s|\bPCI\b|\bPTCA\b|pemasangan|tindakan/i, 10],
+  [/conclusion|kesimpulan/i, 11],
 ];
 
 /**

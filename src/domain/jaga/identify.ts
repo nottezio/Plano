@@ -1,6 +1,6 @@
 import type { PdfTextItem } from '@/lib/pdfItems';
 
-export type JagaDocumentKind = 'roster' | 'dpjp' | 'jarkom';
+export type JagaDocumentKind = 'roster' | 'dpjp' | 'jarkom' | 'pediatri';
 
 /**
  * Which of the three documents this PDF actually is.
@@ -36,12 +36,17 @@ export function identifyJagaPdf(items: readonly PdfTextItem[]): JagaDocumentKind
     return 'jarkom';
   }
   if (text.includes('chief pjt') || text.includes('jadwal jaga ppds')) return 'roster';
+  // Tested last: its title is just `Jadwal Jaga <bulan>`, which every one of
+  // these documents could claim. What only it has is a `PPDS Jaga` or
+  // `Petugas Jaga` column header.
+  if (text.includes('ppds jaga') || text.includes('petugas jaga')) return 'pediatri';
 
   return null;
 }
 
 const LABELS: Record<JagaDocumentKind, string> = {
   roster: 'Jadwal Jaga PPDS',
+  pediatri: 'Jadwal Jaga Pediatri',
   dpjp: 'Jadwal DPJP',
   jarkom: 'Daftar Jarkom',
 };

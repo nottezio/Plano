@@ -10,21 +10,29 @@ import type { ClinicalDate } from '@/domain/types';
  * off a report.
  *
  * `label` is what the Formasi prints. `place` is how the post is named TO the
- * person holding it in the confirmation message, which is not always the same
- * string — you report "Bangsal A" and you ask someone whether they are on
- * "Bangsal PJT A".
+ * person holding it in the confirmation message, and the two are different
+ * strings on purpose — you REPORT "Bangsal B" and you ASK somebody whether
+ * they are on "*Jaga Bangsal PJT B*".
+ *
+ * The `place` values are copied verbatim from the message file Avicenna sends,
+ * including its inconsistencies: `Chief Konsul` and `Chief Jaga Non-PJT` carry
+ * no `Jaga` prefix while every other post does, and `Non-PJT` is hyphenated
+ * where the roster column is not. They are not tidied. This string is read by
+ * a senior who is checking whether it matches their own roster line, and a
+ * version that is neater than the one everybody else sends is a version that
+ * reads as a different post.
  */
 export const JAGA_POSTS = [
   { id: 'chiefPjt', label: 'Chief PJT', place: 'Chief Jaga PJT' },
-  { id: 'chiefKonsul', label: 'Chief Konsul', place: 'Chief Jaga Konsul' },
-  { id: 'chiefNonPjt', label: 'Chief Non PJT', place: 'Chief Jaga Non PJT' },
-  { id: 'igdA', label: 'IGD A', place: 'IGD A' },
-  { id: 'igdB', label: 'IGD B', place: 'IGD B' },
-  { id: 'cvcu', label: 'CVCU', place: 'CVCU' },
-  { id: 'pedi', label: 'Pediatri', place: 'Pediatri' },
-  { id: 'rsws', label: 'RSWS/UH', place: 'RSWS/UH' },
-  { id: 'bangsalA', label: 'Bangsal A', place: 'Bangsal PJT A' },
-  { id: 'bangsalB', label: 'Bangsal B', place: 'Bangsal PJT B' },
+  { id: 'chiefKonsul', label: 'Chief Konsul', place: 'Chief Konsul' },
+  { id: 'chiefNonPjt', label: 'Chief Non PJT', place: 'Chief Jaga Non-PJT' },
+  { id: 'igdA', label: 'IGD A', place: 'Jaga IGD A' },
+  { id: 'igdB', label: 'IGD B', place: 'Jaga IGD B' },
+  { id: 'cvcu', label: 'CVCU', place: 'Jaga CVCU PJT' },
+  { id: 'pedi', label: 'Pediatri', place: 'Jaga Pediatri' },
+  { id: 'rsws', label: 'RSWS/UH', place: 'Jaga RSWS/UH' },
+  { id: 'bangsalA', label: 'Bangsal A', place: 'Jaga Bangsal PJT A' },
+  { id: 'bangsalB', label: 'Bangsal B', place: 'Jaga Bangsal PJT B' },
 ] as const;
 
 export type JagaPostId = (typeof JAGA_POSTS)[number]['id'];
@@ -87,5 +95,27 @@ export interface JarkomEntry {
 
 export interface JarkomDirectory {
   entries: JarkomEntry[];
+  importedAt: string;
+}
+
+
+/**
+ * One paediatrics shift.
+ *
+ * `btkv` is a PPDS BTKV who is on alongside the cardiology resident. Printed
+ * in the Formasi as `Raden (BTKV)/ Ken`, but never confirmed — the message
+ * asks about the cardiology post, and that is who answers for it.
+ */
+export interface PediatriShift {
+  date: ClinicalDate;
+  shift: 'penuh' | 'pagi' | 'malam';
+  /** The cardiology resident, by nickname as the sheet writes it. */
+  name: string;
+  btkv?: string;
+}
+
+export interface PediatriRoster {
+  title: string;
+  shifts: PediatriShift[];
   importedAt: string;
 }

@@ -67,11 +67,26 @@ export function ReformatSheet({
           'tapi mungkin masih ada sisa header CVCU atau blok yang salah tempat.',
           'Perbaiki SUSUNANNYA saja.',
           '',
+          // The shape is stated explicitly because the first attempt at this
+          // returned a different document entirely — markdown headings,
+          // regrouped sections, "CATATAN PERKEMBANGAN TERINTEGRASI" at the
+          // top. Asking for a tidy-up without saying what the target looks
+          // like invites a rewrite.
+          'BENTUK AKHIR yang benar (jangan ganti jadi bentuk lain):',
+          '- Tetap catatan WhatsApp biasa. JANGAN pakai markdown (#, ##, **).',
+          '- Penanda tetap *tebal* dan _miring_ seperti aslinya, bullet "- ".',
+          '- Urutan: pembuka, identitas, DPJP, S, O, penunjang, assessment,',
+          '  terapi, Selesai, Plan, blok TS, penutup.',
+          '- Urutan pemeriksaan penunjang: EKG, Laboratorium, Urinalisa, ADT,',
+          '  Foto Thorax, CT, USG, Echo, LUS, Laporan Tindakan.',
+          '- Dalam satu modalitas, tanggal terbaru di atas.',
+          '',
           'ATURAN KERAS:',
           '- JANGAN mengubah kata, angka, dosis, satuan, atau tanggal apa pun.',
           '- JANGAN menambah atau menghapus isi. Semua temuan harus tetap ada.',
+          '- JANGAN mengganti judul jadi bahasa Inggris atau format lain.',
           '- Yang boleh: menghapus sisa header A-H (Airway/Breathing/dst),',
-          '  memindahkan blok utuh ke bawah S/O/A/P yang tepat, merapikan baris kosong.',
+          '  memindahkan blok utuh ke tempat yang tepat, merapikan baris kosong.',
           '- JANGAN memindahkan baris satu per satu; pindahkan blok beserta judulnya.',
           '- Keluarkan HANYA catatannya, tanpa pengantar.',
         ].join('\n'),
