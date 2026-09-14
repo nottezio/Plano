@@ -10,6 +10,8 @@ import {
   resolveShift,
 } from '@/domain/jaga/formasi';
 import type { JagaPostId } from '@/domain/jaga/types';
+import type { PostSwap } from '@/domain/jaga/store';
+import { buildDirectory, searchResidents, type Resident } from '@/domain/jaga/directory';
 import { describeMismatch, identifyJagaPdf } from '@/domain/jaga/identify';
 import { parseDpjpRoster } from '@/domain/jaga/parseDpjp';
 import { parseJagaRoster } from '@/domain/jaga/parseRoster';
@@ -21,12 +23,14 @@ import {
   readRoster,
   readDpjpEdit,
   readNameOverrides,
+  readReligion,
   readPostOverrides,
   readSender,
   writeConfirmed,
   writeDpjp,
   setDpjpEdit,
   setNameOverride,
+  setReligion,
   setPostOverride,
   writeJarkom,
   writeRoster,
@@ -90,15 +94,22 @@ export function HelperPage(): JSX.Element {
    * every date in state would re-render a page carrying three parsed PDFs on
    * every keystroke.
    */
-  const [postEdits, setPostEdits] = useState<Record<string, string>>({});
+  const [postEdits, setPostEdits] = useState<Record<string, PostSwap>>({});
+  const [religion, setReligionMap] = useState(() => readReligion());
+
+  /** Everyone on this month's rota, for the swap picker. */
+  const directory = useMemo(() => buildDirectory(roster, jarkom), [roster, jarkom]);
   const [dpjpEdits, setDpjpEdits] = useState<
     Record<string, { utama?: string; tindakan?: string }>
   >({});
   const [editKey, setEditKey] = useState('');
 
   const posts = useMemo(
-    () => (shift && roster ? resolveShift(shift, roster, jarkom, overrides, postEdits) : []),
-    [shift, roster, jarkom, overrides, postEdits],
+    () =>
+      shift && roster
+        ? resolveShift(shift, roster, jarkom, overrides, postEdits, religion)
+        : [],
+    [shift, roster, jarkom, overrides, postEdits, religion],
   );
 
   /**
@@ -212,6 +223,21 @@ export function HelperPage(): JSX.Element {
         <p className="text-xs text-fg-muted">
           Impor tiga PDF sekali sebulan, lalu pilih tanggal. Formasi dan pesan konfirmasi
           disusun dari situ.
+        </p>
+        {/*
+          Said where the edits are made, not in a help page.
+
+          Every change on this screen is local to this device and to the date
+          it was made for. The PDFs remain the source of truth: re-importing a
+          new month replaces the schedule wholesale, and a swap entered against
+          a date in the old one simply stops applying. That is the intended
+          behaviour rather than a limitation — a tukar jaga is a fact about one
+          night, and carrying it into a schedule nobody has checked it against
+          would be worse than losing it.
+        */}
+        <p className="text-[11px] text-fg-faint">
+          Perubahan di layar ini (tukar jaga, nama, agama, DPJP) tersimpan di perangkat ini
+          saja dan hanya untuk tanggalnya. Sumber utamanya tetap PDF jadwal.
         </p>
       </header>
 
@@ -430,35 +456,32 @@ export function HelperPage(): JSX.Element {
                           fixes every Formasi they appear in.
                         */}
                         {/*
-                          Edits THIS DATE, not the person.
+                          A PERSON, picked — not a name, typed.
 
-                          A tukar jaga is a fact about one day: the roster is
-                          right about who that initial is and wrong about who
-                          is on the post tonight. Writing it to the by-initials
-                          map would rename that resident in every other shift
-                          on the board — a worse error than the one being
-                          fixed. "Selalu" below promotes it when the roster is
-                          the thing that is wrong.
+                          A tukar jaga names somebody: "Rheza is on for
+                          Jordy". Typing that as free text loses everything
+                          else about them, and the thing lost is the one that
+                          matters — their agama, and therefore the greeting the
+                          confirmation opens with. Picking from the rota
+                          carries it.
 
-                          Empty posts are editable for the same reason:
-                          paediatrics keeps its own roster, so its name can
-                          only ever arrive here.
+                          Searched by NICKNAME first, because that is what a
+                          resident is called and therefore what gets typed:
+                          "Rheza" has to find `dr. M. Rheza Rivaldi Salam`.
+
+                          Free text still works for the case the rota cannot
+                          cover — paediatrics keeps its own roster, so that
+                          name can only ever be typed.
                         */}
-                        <input
+                        <ResidentPicker
                           value={post.display}
-                          onChange={(event) =>
+                          directory={directory}
+                          onPick={(next) =>
                             setPostEdits(
-                              setPostOverride(
-                                shift.date,
-                                shift.shift,
-                                post.id,
-                                event.target.value,
-                              ),
+                              setPostOverride(shift.date, shift.shift, post.id, next),
                             )
                           }
-                          placeholder={post.label}
-                          aria-label={`Nama untuk ${post.label}`}
-                          className="min-w-0 max-w-[10rem] rounded border border-transparent bg-transparent px-1 text-sm font-medium hover:border-border focus:border-border"
+                          label={post.label}
                         />
                       </label>
                       <span className="text-xs text-fg-muted">{post.label}</span>
@@ -471,8 +494,44 @@ export function HelperPage(): JSX.Element {
                         hiding that it happened is what stops the sheet ever
                         being updated.
                       */}
-                      {post.muslim === null ? (
-                        <span className="text-[10px] text-danger">agama tidak diketahui</span>
+                      {/*
+                        Three states, not a toggle. "Otomatis" is what Jarkom
+                        said, which is different from an explicit answer — a
+                        two-state control would commit a guess for everybody
+                        the first time anyone touched it.
+                      */}
+                      {post.personInitials ? (
+                        <select
+                          aria-label={`Agama untuk ${post.label}`}
+                          value={
+                            religion[post.personInitials] === undefined
+                              ? 'auto'
+                              : religion[post.personInitials]
+                                ? 'muslim'
+                                : 'non'
+                          }
+                          onChange={(event) =>
+                            setReligionMap(
+                              setReligion(
+                                post.personInitials,
+                                event.target.value === 'auto'
+                                  ? null
+                                  : event.target.value === 'muslim',
+                              ),
+                            )
+                          }
+                          className="min-h-tap rounded border border-border bg-surface px-1 text-[10px]"
+                        >
+                          <option value="auto">
+                            {post.muslim === null
+                              ? 'Agama?'
+                              : post.muslim
+                                ? 'Muslim (otomatis)'
+                                : 'Non (otomatis)'}
+                          </option>
+                          <option value="muslim">Muslim</option>
+                          <option value="non">Non-Muslim</option>
+                        </select>
                       ) : null}
                       {post.swapped ? (
                         <>
@@ -484,7 +543,7 @@ export function HelperPage(): JSX.Element {
                               onClick={() => {
                                 setOverrides(setNameOverride(post.initials, post.display));
                                 setPostEdits(
-                                  setPostOverride(shift.date, shift.shift, post.id, ''),
+                                  setPostOverride(shift.date, shift.shift, post.id, null),
                                 );
                               }}
                               className="text-[10px] underline decoration-dotted"
@@ -562,5 +621,79 @@ function ImportCard({
         }}
       />
     </label>
+  );
+}
+
+/**
+ * Pick who is on a post: type a nickname, choose from the rota.
+ *
+ * Free text is kept as the fallback rather than removed. Paediatrics keeps its
+ * own roster and never appears in the legend, so that name can only ever be
+ * typed — a picker that refused anything off-list would make the one post that
+ * needs hand entry the one post it cannot do.
+ *
+ * The list appears only while typing and closes on pick or blur. It is not a
+ * permanent dropdown: nine of ten rows are already correct, and a control that
+ * demands attention on all ten to fix one is a worse trade than a field that
+ * looks like text until you use it.
+ */
+function ResidentPicker({
+  value,
+  directory,
+  label,
+  onPick,
+}: {
+  value: string;
+  directory: readonly Resident[];
+  label: string;
+  onPick: (swap: PostSwap | null) => void;
+}): JSX.Element {
+  const [query, setQuery] = useState<string | null>(null);
+  const matches = query === null ? [] : searchResidents(directory, query);
+
+  return (
+    <span className="relative">
+      <input
+        value={query ?? value}
+        onChange={(event) => setQuery(event.target.value)}
+        onFocus={(event) => event.currentTarget.select()}
+        onBlur={() => {
+          // A typed name that matched nobody is still a name. Committed on
+          // blur so paediatrics — which can never match — is not lost.
+          if (query !== null && query !== value) onPick(query.trim() ? { name: query } : null);
+          setQuery(null);
+        }}
+        placeholder={label}
+        aria-label={`Nama untuk ${label}`}
+        className="min-w-0 max-w-[10rem] rounded border border-transparent bg-transparent px-1 text-sm font-medium hover:border-border focus:border-border"
+      />
+      {matches.length > 0 ? (
+        <ul className="absolute left-0 top-full z-20 mt-1 w-56 overflow-hidden rounded-lg border border-border bg-surface shadow-lg">
+          {matches.map((resident) => (
+            <li key={resident.initials}>
+              <button
+                type="button"
+                // `onMouseDown`, not `onClick`: blur fires first on a click and
+                // would commit the half-typed query before the pick landed.
+                onMouseDown={(event) => {
+                  event.preventDefault();
+                  onPick({
+                    name: resident.panggilan ?? resident.name,
+                    initials: resident.initials,
+                    ...(resident.muslim === null ? {} : { muslim: resident.muslim }),
+                  });
+                  setQuery(null);
+                }}
+                className="block w-full px-2 py-1.5 text-left text-xs hover:bg-bg-subtle"
+              >
+                <span className="font-medium">{resident.panggilan ?? resident.name}</span>
+                <span className="ml-1 text-fg-faint">{resident.initials}</span>
+                <span className="block truncate text-[10px] text-fg-muted">{resident.name}</span>
+              </button>
+            </li>
+          ))}
+        </ul>
+      ) : null}
+    </span>
   );
 }

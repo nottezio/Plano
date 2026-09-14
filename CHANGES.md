@@ -1,5 +1,70 @@
 # Plano — CHANGES
 
+## `2026-09-13.8`
+
+**Tukar jaga picks a PERSON; religion is correctable; the local-edit rule is
+stated on screen.** Still WIP.
+
+### Swapping names a person, not a string
+
+A tukar jaga is "Rheza is on for Jordy". Typing that as free text loses
+everything else about them — and the thing lost is the one that matters: their
+agama, and therefore the greeting the confirmation message opens with. A swap
+entered as bare text silently kept the PREVIOUS occupant's religion.
+
+So a swap now stores `{ name, initials, muslim }`, picked from this month's
+rota. `buildDirectory` joins the roster legend to Jarkom once; the legend is
+the spine, because it is who is actually on the rota — a resident in Jarkom who
+is not rostered cannot be swapped in, which is correct.
+
+**Searched by nickname first**, because that is what a resident is called and
+therefore what gets typed: "Rheza" has to reach `dr. M. Rheza Rivaldi Salam`.
+Exact initials outrank everything (`AV` means that person), then nickname,
+then any part of the full name.
+
+**Free text still works**, and deliberately. Paediatrics keeps its own roster
+and never appears in the legend, so that name can only ever be typed — a picker
+that refused anything off-list would make the one post needing hand entry the
+one post it could not do. A typed name commits on blur.
+
+The list appears only while typing. Nine of ten rows are already correct, and a
+control demanding attention on all ten to fix one is a worse trade than a field
+that looks like text until you use it.
+
+### Religion, three states
+
+Jarkom is a semester old and the rota is not, so a resident who joined since
+has no row, no agama, and the neutral greeting forever. Each row now carries
+`Otomatis / Muslim / Non-Muslim`, keyed by **initials** — a person's religion
+is not a property of a shift.
+
+Three states rather than a toggle: "Otomatis" is what Jarkom said, which is a
+different thing from an explicit answer. A two-state control would commit a
+guess for everybody the first time anyone touched it.
+
+It applies to **whoever is actually on**: a correction follows the swapped-in
+resident, not the post.
+
+### The edits are local, and that is the design
+
+Now said on the screen where they are made rather than in a help page nobody
+opens:
+
+> Perubahan di layar ini (tukar jaga, nama, agama, DPJP) tersimpan di perangkat
+> ini saja dan hanya untuk tanggalnya. Sumber utamanya tetap PDF jadwal.
+
+Re-importing a new month replaces the schedule wholesale and a swap entered
+against an old date stops applying. That is intended, not a limitation: a tukar
+jaga is a fact about one night, and carrying it into a schedule nobody has
+checked it against would be worse than losing it.
+
+```
+1185 tests passed (was 1174 — 11 added on the directory, search and swaps)
+typecheck / lint / check:version / check:contrast / check:a11y / build — clean
+```
+
+---
+
 ## `2026-09-13.7`
 
 **Konfirmasi Jaga: tukar jaga, the paediatrics name, and DPJP swaps — all

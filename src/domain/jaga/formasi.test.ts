@@ -199,7 +199,7 @@ describe('display name', () => {
 
 describe('tukar jaga', () => {
   it('replaces who is on a post for this date only', () => {
-    const posts = resolveShift(SHIFT, ROSTER, JARKOM, {}, { chiefPjt: 'Ellen' });
+    const posts = resolveShift(SHIFT, ROSTER, JARKOM, {}, { chiefPjt: { name: 'Ellen' } });
     expect(posts.find((post) => post.id === 'chiefPjt')).toMatchObject({
       display: 'Ellen',
       swapped: true,
@@ -212,7 +212,7 @@ describe('tukar jaga', () => {
     // Paediatrics keeps its own roster, so its column is blank in every row.
     // Keying "staffed" on initials alone would leave that resident
     // permanently unconfirmable.
-    const posts = resolveShift(SHIFT, ROSTER, JARKOM, {}, { pedi: 'Gaby' });
+    const posts = resolveShift(SHIFT, ROSTER, JARKOM, {}, { pedi: { name: 'Gaby' } });
     const text = buildFormasi(SHIFT, posts, DPJP, new Date(), new Set());
     expect(text).toContain('Pediatri : Gaby (belum konfirmasi)');
   });
@@ -220,7 +220,7 @@ describe('tukar jaga', () => {
   it('leaves the by-initials correction alone', () => {
     // The two mean different things: one fixes who an initial refers to
     // everywhere, the other says who is on a post tonight.
-    const posts = resolveShift(SHIFT, ROSTER, JARKOM, { HM: 'Malika' }, { chiefPjt: 'Ellen' });
+    const posts = resolveShift(SHIFT, ROSTER, JARKOM, { HM: 'Malika' }, { chiefPjt: { name: 'Ellen' } });
     expect(posts.find((post) => post.id === 'chiefPjt')?.display).toBe('Ellen');
     expect(resolveShift(SHIFT, ROSTER, JARKOM, { HM: 'Malika' })
       .find((post) => post.id === 'chiefPjt')?.display).toBe('Malika');
@@ -255,5 +255,42 @@ describe('DPJP swaps', () => {
       '2026-09-17': { utama: 'dr. Sendiri', tindakan: 'dr. Sendiri' },
     });
     expect(text).toContain('_DPJP Utama : dr. Sendiri_');
+  });
+});
+
+
+describe('a swap carries the person, not just a name', () => {
+  it('greets the swapped resident by THEIR agama', () => {
+    // The whole reason a swap stores a person: the confirmation opens with a
+    // greeting chosen by religion, and a name typed as bare text would get the
+    // previous occupant's.
+    const posts = resolveShift(SHIFT, ROSTER, JARKOM, {}, {
+      chiefPjt: { name: 'Jordy', initials: 'JL', muslim: false },
+    });
+    const text = buildKonfirmasi(
+      posts.find((post) => post.id === 'chiefPjt')!,
+      { senderName: 'Avi', senderPlace: 'Bangsal PJT A', date: '2026-09-17' },
+      new Date(2026, 8, 16, 13, 0),
+    );
+    expect(text.startsWith('Selamat siang dokter, tabe dok,')).toBe(true);
+  });
+
+  it('lets a hand correction override the agama', () => {
+    // Jarkom is a semester old; a resident who joined since has no row and no
+    // agama, and would otherwise get the neutral greeting forever.
+    const posts = resolveShift(SHIFT, ROSTER, JARKOM, {}, {}, { HM: false });
+    expect(posts.find((post) => post.id === 'chiefPjt')?.muslim).toBe(false);
+  });
+
+  it('applies the correction to whoever is actually on, not the post', () => {
+    const posts = resolveShift(
+      SHIFT,
+      ROSTER,
+      JARKOM,
+      {},
+      { chiefPjt: { name: 'Jordy', initials: 'JL' } },
+      { JL: true, HM: false },
+    );
+    expect(posts.find((post) => post.id === 'chiefPjt')?.muslim).toBe(true);
   });
 });

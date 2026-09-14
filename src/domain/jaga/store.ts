@@ -20,6 +20,7 @@ const KEYS = {
   names: 'visite.jaga.names',
   posts: 'visite.jaga.posts',
   dpjpEdits: 'visite.jaga.dpjpEdits',
+  religion: 'visite.jaga.religion',
 } as const;
 
 function read<T>(key: string): T | null {
@@ -128,11 +129,27 @@ export function setNameOverride(initials: string, name: string): NameOverrides {
  * Also how an empty post gets filled. Paediatrics keeps its own roster and its
  * column is blank in every row, so its name can only ever come from here.
  */
-type PostMap = Record<string, Record<string, string>>;
+export interface PostSwap {
+  /** What the Formasi prints. */
+  name: string;
+  /** Set when the person was picked from the directory rather than typed. */
+  initials?: string;
+  /**
+   * Their agama, carried with them.
+   *
+   * The whole reason a swap stores a person rather than a string: the
+   * confirmation message opens with a greeting chosen by religion, and a
+   * swapped-in resident who arrives as bare text would silently get the
+   * neutral greeting — or worse, the previous occupant's.
+   */
+  muslim?: boolean;
+}
+
+type PostMap = Record<string, Record<string, PostSwap>>;
 
 const postKey = (date: string, shift: string): string => `${date}:${shift}`;
 
-export function readPostOverrides(date: string, shift: string): Record<string, string> {
+export function readPostOverrides(date: string, shift: string): Record<string, PostSwap> {
   return (read<PostMap>(KEYS.posts) ?? {})[postKey(date, shift)] ?? {};
 }
 
@@ -140,18 +157,42 @@ export function setPostOverride(
   date: string,
   shift: string,
   postId: string,
-  name: string,
-): Record<string, string> {
+  swap: PostSwap | null,
+): Record<string, PostSwap> {
   const all = read<PostMap>(KEYS.posts) ?? {};
   const key = postKey(date, shift);
   const day = { ...(all[key] ?? {}) };
-  // An emptied field falls back to the roster rather than printing blank —
-  // clearing a swap should restore what the schedule said, not erase the post.
-  if (name.trim()) day[postId] = name.trim();
+  // A cleared swap falls back to the roster rather than printing blank —
+  // undoing a swap should restore what the schedule said, not erase the post.
+  if (swap && swap.name.trim()) day[postId] = { ...swap, name: swap.name.trim() };
   else delete day[postId];
   all[key] = day;
   write(KEYS.posts, all);
   return day;
+}
+
+/**
+ * Religion, corrected by hand, keyed by initials.
+ *
+ * Jarkom is a semester old and the rota is not, so a resident who joined since
+ * has no row and no agama — and the greeting falls back to the neutral form
+ * for them forever. This is the way to fix that, and it is by INITIALS rather
+ * than by date: a person's religion is not a property of a shift.
+ *
+ * Three states, not two. `undefined` means "whatever Jarkom says", which is
+ * different from an explicit answer — otherwise the first time anyone opened
+ * this control it would commit a guess for everybody.
+ */
+export function readReligion(): Record<string, boolean> {
+  return read<Record<string, boolean>>(KEYS.religion) ?? {};
+}
+
+export function setReligion(initials: string, muslim: boolean | null): Record<string, boolean> {
+  const all = readReligion();
+  if (muslim === null) delete all[initials];
+  else all[initials] = muslim;
+  write(KEYS.religion, all);
+  return all;
 }
 
 /**

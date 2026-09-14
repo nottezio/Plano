@@ -48,6 +48,8 @@ export interface ResolvedPost {
   muslim: boolean | null;
   /** Set by hand for this date — a tukar jaga, or a post no roster covers. */
   swapped: boolean;
+  /** Whoever is actually on, for keying a religion correction. May be empty. */
+  personInitials: string;
 }
 
 /**
@@ -74,13 +76,29 @@ export function resolveShift(
    * because it is the only value here that describes the day rather than the
    * schedule.
    */
-  posts: Readonly<Record<string, string>> = {},
+  posts: Readonly<Record<string, { name: string; initials?: string; muslim?: boolean }>> = {},
+  /** Religion corrected by hand, by initials. See `store.setReligion`. */
+  religion: Readonly<Record<string, boolean>> = {},
 ): ResolvedPost[] {
   return JAGA_POSTS.map((post) => {
     const initials = shift.posts[post.id] ?? '';
     const name = initials ? (roster.initials[initials] ?? null) : null;
     const entry = name && jarkom ? matchJarkom(name, jarkom) : null;
     const override = initials ? overrides[initials] : undefined;
+    const swap = posts[post.id];
+
+    /*
+      Religion follows the person who is actually on, not the post.
+
+      Order: a hand correction for whoever is on > the swapped resident's own
+      agama > the rostered resident's. Getting this wrong sends a colleague the
+      wrong greeting, which is the single thing the Jarkom import exists to
+      prevent.
+    */
+    const who = swap?.initials ?? initials;
+    const corrected = who ? religion[who] : undefined;
+    const muslim =
+      corrected ?? swap?.muslim ?? (swap ? null : entry ? entry.muslim : null) ?? null;
 
     return {
       id: post.id,
@@ -89,7 +107,7 @@ export function resolveShift(
       initials,
       name,
       panggilan: entry?.panggilan ?? null,
-      muslim: entry ? entry.muslim : null,
+      muslim,
       /*
         Order of preference, and every step of it is deliberate:
 
@@ -103,9 +121,11 @@ export function resolveShift(
         always names them somehow, because a blank in a Formasi reads as
         "unstaffed" and this one is not.
       */
-      display: posts[post.id] ?? override ?? entry?.panggilan ?? name ?? initials,
+      display: swap?.name ?? override ?? entry?.panggilan ?? name ?? initials,
       /** True when this date's name came from a swap rather than the roster. */
-      swapped: posts[post.id] !== undefined,
+      swapped: swap !== undefined,
+      /** Initials of whoever is actually on, for keying a religion fix. */
+      personInitials: swap?.initials ?? initials,
     };
   });
 }
