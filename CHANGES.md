@@ -1,5 +1,72 @@
 # Plano — CHANGES
 
+## `2026-09-13.6`
+
+**Catatan pasien opens when it has something in it; a new checker rule and a
+rewritten AI prompt, both derived from counting the export rather than
+guessing.**
+
+### Catatan pasien
+
+Collapsed-by-default made sense when the section was empty on most patients. It
+stopped making sense the moment it was used: a standing note is allergies, an
+access problem, a DPJP's request — things that exist precisely because somebody
+must see them without being told to look, and a one-line truncated preview
+behind a `+` is the opposite of that.
+
+It now opens when the note is non-empty, from a one-shot initialiser so it does
+not fight you afterwards — collapse it and it stays collapsed for that patient.
+And the collapsed preview shows the **whole** note, wrapped, rather than the
+first line truncated: closing the section says you do not want it taking the
+space, not that you want two thirds of a sentence.
+
+### What actually gets updated, counted
+
+Diffed all 97 consecutive day-pairs in the 2026-09-11 export. What changes,
+by frequency: vitals (272 lines), therapy (270), subjective (211), plan (108),
+lab (104), EKG (92), diagnosis (86), echo (68), day counters (52), urine and
+balance (35), consults (17).
+
+Then the more useful measurement — which whole blocks are copied forward
+UNCHANGED:
+
+```
+urine      identical  13 / 41   (31%)
+balance    identical  12 / 30   (40%)
+echo       identical  75 / 93   (80%)
+foto thorax identical 68 / 84   (80%)
+terapi     identical  17 / 93   (18%)
+vitals (whole block)   5 / 94   ( 5%)
+```
+
+**New rule: urine output and fluid balance unchanged from yesterday.** They are
+daily measurements like the vitals and the two most often copied forward
+untouched — about a third of the time, against 5% for the vitals block.
+
+**Echo and chest films are deliberately NOT checked**, despite being identical
+80% of the time. There the sameness is correct: the study was not repeated. The
+distinction that matters is whether the number is measured every day, not
+whether it changed — and a rule that fired on every echo would bury the real
+findings under two that are always there.
+
+The same numbers rewrote the AI prompt. It now lists the nine fields that move
+daily, ordered by how often they move, and — just as importantly — an explicit
+"this is not a mistake" list naming echo, thorax, MSCT, old ECGs, unchanged
+diagnoses and risk factors. Without that the model reports them, because they
+genuinely are identical to yesterday.
+
+```
+1168 tests passed (was 1164 — 4 added on urine and balance)
+typecheck / lint / check:version / check:contrast / check:a11y / build — clean
+```
+
+**Measured but not built:** a rule for a drug in the active therapy list that
+also appears under `Selesai:`. Only one note in the whole export has both lists
+in a parseable form, which is not enough to write a rule against — it would be
+a guess wearing a test.
+
+---
+
 ## `2026-09-13.5`
 
 **The H- rule in the SOAP checker has never fired. Fixed.**

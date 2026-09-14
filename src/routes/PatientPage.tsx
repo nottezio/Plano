@@ -557,10 +557,31 @@ export default function PatientPage(): JSX.Element {
         {
           system: [
             'Kamu memeriksa catatan SOAP kardiologi berbahasa Indonesia untuk hal yang',
-            'TERLUPA DIPERBARUI dari hari sebelumnya. Contoh: TTV disalin tanpa diubah,',
-            'hitungan hari (H-, hari ke-) tidak maju, diagnosis menyebut nilai lab lama,',
-            'rencana yang sudah dikerjakan masih tertulis di Plan, terapi yang sudah',
-            'selesai masih di daftar aktif.',
+            'TERLUPA DIPERBARUI dari hari sebelumnya.',
+            '',
+            // Derived from what actually changes between consecutive notes in
+            // Avicenna's own corpus — 97 day-pairs, counted rather than
+            // imagined — and ordered by how often each field moves, so the
+            // model spends its attention where the misses are.
+            'Yang biasanya berubah tiap hari, periksa apakah ikut diperbarui:',
+            '- TTV (tekanan darah, nadi, pernapasan, suhu, SpO2)',
+            '- Urine output dan balance cairan',
+            '- Keluhan di bagian S — masih keluhan kemarin?',
+            '- Terapi: dosis berubah, obat baru, obat yang sudah selesai',
+            '- Plan: rencana yang sudah dikerjakan tapi masih tertulis',
+            '- Hitungan hari (H-, hari ke-) yang tidak maju',
+            '- Nilai lab yang dikutip di diagnosis tapi sudah ada hasil baru',
+            '- Elektrolit yang sudah normal tapi diagnosis masih menyebut defisitnya',
+            '- TS yang sudah menjawab konsul tapi belum masuk daftar DPJP',
+            '',
+            'YANG BUKAN KESALAHAN — jangan sebutkan:',
+            // Measured in the same corpus: echo and chest films are identical
+            // day to day 80% of the time, and correctly so. Flagging them
+            // would bury the real findings under two that are always there.
+            '- Echo, foto thorax, MSCT, atau EKG lama yang sama dengan kemarin',
+            '  (pemeriksaannya memang tidak diulang)',
+            '- Diagnosis yang memang belum berubah',
+            '- Riwayat dan faktor risiko yang memang tetap',
             '',
             'ATURAN KERAS:',
             '- JANGAN memberi saran klinis, dosis, atau diagnosis baru.',

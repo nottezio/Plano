@@ -24,6 +24,7 @@ import { findDayMarkers } from '@/domain/dayMarkers';
 export type SoapFindingKind =
   | 'vitals-unchanged'
   | 'vitals-missing'
+  | 'flow-unchanged'
   | 'day-marker'
   | 'lab-planned-but-resulted'
   | 'diagnosis-value-stale'
@@ -52,6 +53,31 @@ export function readVitals(body: string): Record<string, string> {
   for (const [label, pattern] of VITALS) {
     const match = pattern.exec(body);
     if (match?.[1]) out[label] = match[1].replace(',', '.');
+  }
+  return out;
+}
+
+/**
+ * Urine output and fluid balance, as one string each.
+ *
+ * These are DAILY measurements like the vitals, and they are the two most
+ * often copied forward untouched: in the 2026-09-11 export, urine is identical
+ * to the previous day in 13 of 41 consecutive pairs and balance in 12 of 30 —
+ * roughly a third of the time, against 5 of 94 for the whole vitals block.
+ *
+ * Echocardiography and chest films are identical 80% of the time in the same
+ * corpus and are NOT checked, because there the sameness is correct: the study
+ * was not repeated. The distinction is whether the number is measured every
+ * day, not whether it changed.
+ */
+export function readFlows(body: string): Record<string, string> {
+  const out: Record<string, string> = {};
+  for (const [label, pattern] of [
+    ['Urine', /urine[^\n]*?([\d.,]+\s*cc[^\n]*)/i],
+    ['Balance', /balance[^\n]*?([+-]?\s*[\d.,]+\s*(?:cc|ml)[^\n]*)/i],
+  ] as const) {
+    const match = pattern.exec(body);
+    if (match?.[1]) out[label] = match[1].replace(/\s+/g, ' ').trim();
   }
   return out;
 }
@@ -176,6 +202,19 @@ export function checkSoap(input: SoapCheckInput): SoapFinding[] {
         kind: 'vitals-unchanged',
         message: `TTV sama persis dengan catatan sebelumnya (${shared.join(', ')}).`,
         anchor: 'Tekanan Darah',
+      });
+    }
+  }
+
+  if (previous) {
+    const flows = readFlows(body);
+    const before = readFlows(previous);
+    for (const [label, value] of Object.entries(flows)) {
+      if (before[label] === undefined || before[label] !== value) continue;
+      findings.push({
+        kind: 'flow-unchanged',
+        message: `${label} sama persis dengan kemarin (${value}).`,
+        anchor: label,
       });
     }
   }

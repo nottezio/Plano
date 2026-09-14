@@ -243,3 +243,32 @@ describe('the day-marker rule’s default state', () => {
     ).not.toContain('day-marker');
   });
 });
+
+describe('urine and balance', () => {
+  const base = 'Tekanan Darah : 120/80\nNadi : 80\nSuhu : 36.5';
+  const yesterday = `${base}\nUrine 1900 cc/24 jam/60 kg=1,3 cc/kgBB/jam\nBalance cairan +250 cc`;
+
+  it('flags a urine line copied forward unchanged', () => {
+    // Measured on the 2026-09-11 export: urine repeats in 13 of 41 consecutive
+    // pairs, balance in 12 of 30 — roughly a third of the time, against 5 of
+    // 94 for the whole vitals block.
+    expect(kinds(yesterday, yesterday)).toContain('flow-unchanged');
+  });
+
+  it('says nothing once the number changed', () => {
+    const today = yesterday.replace('1900 cc', '2100 cc').replace('+250 cc', '+180 cc');
+    expect(kinds(today, yesterday)).not.toContain('flow-unchanged');
+  });
+
+  it('says nothing when yesterday had none to compare against', () => {
+    expect(kinds(yesterday, base)).not.toContain('flow-unchanged');
+  });
+
+  it('does not flag an echo or a chest film repeated from yesterday', () => {
+    // Identical 80% of the time in the same corpus, and correctly so: the
+    // study was not repeated. The test is whether the number is measured
+    // every day, not whether it changed.
+    const withEcho = `${base}\nEchocardiography (08-09-2026)\n- EF 48.3% (TEICH)`;
+    expect(kinds(withEcho, withEcho)).not.toContain('flow-unchanged');
+  });
+});

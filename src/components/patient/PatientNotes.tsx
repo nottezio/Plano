@@ -82,8 +82,27 @@ export function PatientNotes({ sync }: { sync: TextSyncState }): JSX.Element {
     measure(ref.current);
   }, [measure, sync.value]);
 
-  const [open, setOpen] = useState(false);
-  const preview = sync.value.trim().split('\n')[0] ?? '';
+  /**
+   * Open when there is something to read.
+   *
+   * Collapsed-by-default made sense when the section was empty on most
+   * patients; it stopped making sense the moment it was used. A standing note
+   * is allergies, an access problem, a DPJP's request — things that exist
+   * precisely because somebody must see them without being told to look, and
+   * a one-line truncated preview behind a `+` is the opposite of that.
+   *
+   * The initialiser runs once, so it follows the note the page opened with and
+   * does not fight the user afterwards: collapse it and it stays collapsed
+   * while you are on that patient.
+   */
+  const [open, setOpen] = useState(() => sync.value.trim().length > 0);
+
+  /*
+    The collapsed preview shows the WHOLE note, wrapped, not the first line
+    truncated. Somebody who has closed the section has said they do not want it
+    taking the space — they have not said they want two thirds of a sentence.
+  */
+  const preview = sync.value.trim();
 
   return (
     <section className="border-b border-border xl:border-0">
@@ -96,7 +115,7 @@ export function PatientNotes({ sync }: { sync: TextSyncState }): JSX.Element {
         <span className="min-w-0 flex-1">
           <span className="block text-xs font-semibold text-fg-muted">Catatan pasien</span>
           {!open ? (
-            <span className="mt-0.5 block truncate text-[11px] text-fg-faint">
+            <span className="mt-0.5 block whitespace-pre-line text-[11px] text-fg-faint">
               {preview || 'Tidak hilang saat ganti hari.'}
             </span>
           ) : null}
