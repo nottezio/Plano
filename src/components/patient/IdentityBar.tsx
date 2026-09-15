@@ -1,3 +1,6 @@
+import { useState } from 'react';
+
+import { copyText } from '@/lib/clipboard';
 import { formatLocation } from '@/domain/identity';
 import { initials } from '@/domain/board';
 import type { Patient } from '@/domain/types';
@@ -37,6 +40,10 @@ export function IdentityBar({
   const location = formatLocation(patient);
 
   return (
+    <div
+      className="flex w-full items-center border-b border-border"
+      style={{ backgroundColor: 'var(--sec-identitas)' }}
+    >
     <button
       type="button"
       onClick={onEdit}
@@ -46,8 +53,7 @@ export function IdentityBar({
       // Tinted and taller. This is the line that answers "am I in the right
       // chart", and it was competing with the note for attention by looking
       // exactly like it.
-      className="w-full border-b border-border px-4 py-0.5 text-left"
-      style={{ backgroundColor: 'var(--sec-identitas)' }}
+      className="min-w-0 flex-1 px-4 py-0.5 text-left"
     >
       {/*
         One line from `sm` up, two on a phone.
@@ -73,6 +79,44 @@ export function IdentityBar({
           {location ? <span className="min-w-0 truncate">{location}</span> : null}
         </span>
       </span>
+    </button>
+
+    {/*
+      Copying the RM number is its own control, outside the edit button.
+
+      It is the single most retyped thing in this app: every SIMGOS search,
+      every radiology request, every consult starts with it, and it is eight
+      digits that are wrong if one is. It used to be readable and not copyable,
+      which meant reading it off the screen and typing it back in — the exact
+      transcription this app exists to remove.
+
+      A sibling rather than a nested button, because the identity row is
+      already a button and a button inside a button is invalid HTML that
+      browsers resolve by dropping one of them.
+    */}
+    {patient.mrn ? <CopyMrn mrn={patient.mrn} /> : null}
+    </div>
+  );
+}
+
+function CopyMrn({ mrn }: { mrn: string }): JSX.Element {
+  const [copied, setCopied] = useState(false);
+
+  return (
+    <button
+      type="button"
+      // The number alone, with no `RM ` prefix: it is going into a search box
+      // that wants the digits.
+      onClick={() => {
+        void copyText(mrn);
+        setCopied(true);
+        window.setTimeout(() => setCopied(false), 1200);
+      }}
+      title={`Salin nomor RM ${mrn}`}
+      aria-label={`Salin nomor RM ${mrn}`}
+      className="mr-2 min-h-tap shrink-0 rounded-lg border border-border px-2 text-[11px] font-medium text-fg-muted"
+    >
+      {copied ? 'Tersalin' : 'Salin RM'}
     </button>
   );
 }

@@ -1767,8 +1767,11 @@ export default function PatientPage(): JSX.Element {
         }
         onLab={locked || headerHasTools ? undefined : () => setLabOpen(true)}
         {...(locked || headerHasTools ? {} : { onReformat: () => setReformatOpen(true) })}
-        {...(!locked && aiEnabled('soap') && editor.value.trim().length > 0
-          ? { onTidy: () => setTidyOpen(true) }
+        {...(!locked && editor.value.trim().length > 0
+          ? // No key needed: the tidy itself is deterministic now, and the AI
+            // pass inside the sheet appears only when a key and the switch are
+            // both there.
+            { onTidy: () => setTidyOpen(true) }
           : {})}
         {...(aiEnabled('summary') ? { onSummarise: () => setSummaryOpen(true) } : {})}
 

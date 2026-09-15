@@ -1,5 +1,85 @@
 # Plano — CHANGES
 
+## `2026-09-14.4`
+
+**Salin RM; the Catatan checklist that vanished on a tab switch; Rapikan SOAP
+without AI.**
+
+### The checklist was not removed, it was overwritten
+
+A lost update, and the mechanism is worth stating because it will recur
+wherever a list lives in one document.
+
+The Catatan notes are ONE Firestore document holding an array, so saving any
+note rewrites all of them. Each save built that array from the `notes` value
+its own render closed over — and a tab switch fires two saves in quick
+succession: a flush for the note being left, then a save for the note being
+entered.
+
+The second save's array came from a render that had **not yet seen the first
+echo back**. It carried the old body for the note just left, and overwrote the
+checklist added seconds earlier. Read-modify-write, with the read too old.
+
+It was intermittent because it depends on whether the subscription echoed
+between the two writes, which on a fast connection it usually does.
+
+Bodies now sent and unconfirmed are kept and replayed over every subsequent
+array — including the archive toggle and the drag-reorder, which rewrite the
+same array and would revert an in-flight body the same way. Entries are dropped
+by **value**, not when the write resolves: a resolved promise says the request
+was accepted, not that this is what the document holds. Another device may have
+written in between, and then the pending value is genuinely stale and must stop
+being replayed.
+
+### Salin RM
+
+Beside the identity row. It is the single most retyped thing in the app — every
+SIMGOS search, radiology request and consult starts with it, eight digits that
+are wrong if one is — and it was readable but not copyable, which meant reading
+it off the screen and typing it back in. The exact transcription this app
+exists to remove.
+
+It copies the digits alone, with no `RM ` prefix, because it is going into a
+search box that wants the number. A sibling of the identity button rather than
+nested inside it: a button within a button is invalid HTML that browsers
+resolve by dropping one.
+
+### Rapikan SOAP, now deterministic first
+
+The sheet no longer needs an API key. Two passes run with no model and no
+network, both read off the worked bangsal note:
+
+**`autoEmphasis`** puts the markers where that format has them — identity bold
+(matched on the RM number, not the slashes, since a therapy line is full of
+slashes too), every `DPJP` line italic, the referral sentence italic, `S :` /
+`O :` bold, the request lines and `Plan :` bold, `TS <Bagian>` and `A/` bold,
+and every investigation heading bold.
+
+An investigation heading is recognised by **modality + a date on the same
+line**. That is what keeps it off the findings underneath: `EKG di PJT
+(02-09-2026)` is a heading, `Ventricular pacing rhythm, HR 60 bpm` is not.
+
+`Selesai:` is left plain, because it is plain in the worked note. The point is
+to reproduce that format, not improve on it.
+
+Idempotent by construction — every rule skips a line already carrying a marker,
+so running it twice cannot produce `**S :**`, and a line somebody formatted by
+hand is never touched, **including where they chose differently**.
+
+**`orderInvestigations`** then sorts the blocks into ward order, run after the
+markers so the heading it sorts by is the one the note ends up with.
+
+The AI pass stays, moved behind them as "Perbaiki lagi dengan AI" and handed
+the deterministic result rather than the original — the same relationship the
+CVCU reformatter already has. "Kembali ke hasil otomatis" is one press away.
+
+```
+1246 tests passed (was 1227 — 19 added on emphasis and pending writes)
+typecheck / lint / check:version / check:contrast / check:a11y / build — clean
+```
+
+---
+
 ## `2026-09-14.3`
 
 **Arranging a Titipan card erased every position in Pasien saya.**

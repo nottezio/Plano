@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import { AppShell } from '@/components/common/AppShell';
 import { reorderWithinVisible } from '@/domain/reorder';
+import { applyPending, settlePending } from '@/domain/pendingBodies';
 import { COLOR_SENTINEL, stripSentinelColor } from '@/domain/format/noteColor';
 import { updateScratchNotes } from '@/data/repositories/settings.repo';
 import { useTextSync } from '@/hooks/useTextSync';
@@ -131,10 +132,35 @@ export default function NotePage(): JSX.Element {
    */
   const [dragId, setDragId] = useState<string | null>(null);
 
+  /**
+   * Bodies sent and not yet echoed back by Firestore.
+   *
+   * These notes live in ONE document as an array, so saving any note rewrites
+   * all of them — and on a tab switch two saves happen in quick succession: a
+   * flush for the note being left, then a save for the note being entered. The
+   * second used to build its array from a render that had not yet seen the
+   * first echo back, so it carried the OLD body for the note just left and
+   * overwrote a checklist added seconds earlier.
+   *
+   * Replaying what is in flight makes the second write carry the first.
+   */
+  const pendingBodies = useRef(new Map<string, string>());
+  const notesRef = useRef(notes);
+  notesRef.current = notes;
+
+  useEffect(() => {
+    settlePending(notes, pendingBodies.current);
+  }, [notes]);
+
   const reorder = (fromId: string, toId: string): void => {
     if (!uid || fromId === toId) return;
 
-    const next = reorderWithinVisible(notes, visible, (note) => note.id, fromId, toId);
+    const next = applyPending(
+      reorderWithinVisible(notes, visible, (note) => note.id, fromId, toId),
+      // Reordering rewrites the same array, so an unsaved body in flight would
+      // be reverted by it exactly as the tab-switch save was.
+      pendingBodies.current,
+    );
 
     void updateScratchNotes(uid, next).catch((error: unknown) =>
       console.error('[catatan] reorder rejected', error),
@@ -145,19 +171,22 @@ export default function NotePage(): JSX.Element {
     if (!uid || !active) return;
     void updateScratchNotes(
       uid,
-      notes.map((note) => (note.id === active.id ? { ...note, archived } : note)),
+      applyPending(
+        notes.map((note) => (note.id === active.id ? { ...note, archived } : note)),
+        pendingBodies.current,
+      ),
     ).catch((error: unknown) => console.error('[catatan] archive rejected', error));
   };
 
   const write = useCallback(
     (body: string) => {
       if (!uid || !active) return Promise.resolve();
-      return updateScratchNotes(
-        uid,
-        notes.map((note) => (note.id === active.id ? { ...note, body } : note)),
-      );
+      pendingBodies.current.set(active.id, body);
+      // `notesRef`, not the closed-over `notes`: this callback is memoised and
+      // a save can fire from a render older than the one that created it.
+      return updateScratchNotes(uid, applyPending(notesRef.current, pendingBodies.current));
     },
-    [uid, notes, active],
+    [uid, active],
   );
 
   const sync = useTextSync({

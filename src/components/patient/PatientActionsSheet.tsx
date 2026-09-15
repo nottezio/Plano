@@ -159,8 +159,8 @@ export function PatientActionsSheet({
 
         {onTidy ? (
           <Action
-            label="Rapikan SOAP (AI)"
-            detail="Usulan susunan, ditampilkan berdampingan. Catatan tidak berubah otomatis."
+            label="Rapikan SOAP"
+            detail="Tandai tebal/miring dan urutkan penunjang. Ditampilkan berdampingan dulu."
             onClick={() => {
               close();
               onTidy();

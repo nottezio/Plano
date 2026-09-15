@@ -1,8 +1,11 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 
 import { Sheet } from '@/components/common/Sheet';
 import { AiError, askClaude } from '@/lib/ai';
 import { findNonAsciiChars } from '@/domain/format/formatters';
+import { autoEmphasis } from '@/domain/reformat/autoEmphasis';
+import { orderInvestigations } from '@/domain/reformat/orderInvestigations';
+import { aiEnabled } from '@/lib/ai';
 
 /**
  * "Rapikan SOAP" — a SUGGESTION, shown beside the original.
@@ -37,6 +40,20 @@ export function SoapTidySheet({
   body: string;
   onApply: (next: string) => void;
 }): JSX.Element {
+  /**
+   * The DETERMINISTIC tidy, computed with no model and no network.
+   *
+   * Two passes, both read off the worked bangsal note: put the `*bold*` and
+   * `_italic_` markers where that format has them, and sort the investigation
+   * blocks into ward order. Neither invents, reorders words, or touches a
+   * finding — `autoEmphasis` only wraps whole lines it can identify, and
+   * `orderInvestigations` moves blocks whole.
+   *
+   * This runs first and is offered without a key. The AI pass below is for
+   * what it cannot reach, in the same relationship the reformatter already
+   * has: a transform that is right by construction, then an optional repair
+   * for the residue.
+   */
   const [state, setState] = useState<'idle' | 'running'>('idle');
   const [suggestion, setSuggestion] = useState('');
   const [error, setError] = useState<string | null>(null);
@@ -54,7 +71,7 @@ export function SoapTidySheet({
     setState('running');
     setError(null);
     try {
-      const text = await askClaude(body, {
+      const text = await askClaude(tidied.body, {
         system: [
           'Kamu merapikan SUSUNAN catatan SOAP klinis berbahasa Indonesia.',
           '',
@@ -85,8 +102,18 @@ export function SoapTidySheet({
     still reads correctly. And non-ASCII characters matter here for the reason
     recorded on `toPlain`: they reach SIMGOS as `?`.
   */
-  const delta = suggestion ? suggestion.length - body.length : 0;
-  const nonAscii = suggestion ? findNonAsciiChars(suggestion).length : 0;
+  const tidied = useMemo(() => {
+    const marked = autoEmphasis(body);
+    // `orderInvestigations` works on lines and moves whole blocks; running it
+    // AFTER the markers means a heading it sorts by is the marked one, which
+    // is the same string the note will end up with.
+    const ordered = orderInvestigations(marked.body.split('\n')).join('\n');
+    return { body: ordered, changed: marked.changed };
+  }, [body]);
+
+  const shown = suggestion || (tidied.body !== body ? tidied.body : '');
+  const delta = shown ? shown.length - body.length : 0;
+  const nonAscii = shown ? findNonAsciiChars(shown).length : 0;
 
   return (
     <Sheet
@@ -97,9 +124,9 @@ export function SoapTidySheet({
       footer={
         <button
           type="button"
-          disabled={!suggestion}
+          disabled={!shown}
           onClick={() => {
-            onApply(suggestion);
+            onApply(shown);
             setSuggestion('');
             onOpenChange(false);
           }}
@@ -110,14 +137,36 @@ export function SoapTidySheet({
       }
     >
       <div className="flex flex-wrap items-center gap-2">
+        {tidied.body !== body && !suggestion ? (
+          <span className="text-[11px] text-fg-muted">
+            {tidied.changed > 0
+              ? `${tidied.changed} baris ditandai, penunjang diurutkan.`
+              : 'Penunjang diurutkan.'}
+          </span>
+        ) : null}
+        {aiEnabled('soap') ? (
         <button
           type="button"
           onClick={() => void run()}
           disabled={state === 'running' || body.trim().length === 0}
           className="min-h-tap rounded-lg border border-border px-3 text-xs font-medium disabled:opacity-50"
         >
-          {state === 'running' ? 'Menyusun…' : suggestion ? 'Coba lagi' : 'Buat usulan'}
+          {state === 'running'
+            ? 'Menyusun…'
+            : suggestion
+              ? 'Coba lagi'
+              : 'Perbaiki lagi dengan AI'}
         </button>
+        ) : null}
+        {suggestion ? (
+          <button
+            type="button"
+            onClick={() => setSuggestion('')}
+            className="min-h-tap rounded-lg border border-border px-3 text-xs font-medium"
+          >
+            Kembali ke hasil otomatis
+          </button>
+        ) : null}
         {suggestion ? (
           <span className="text-[11px] text-fg-muted">
             {delta === 0
@@ -149,7 +198,7 @@ export function SoapTidySheet({
         <div>
           <p className="mb-1 text-xs font-medium text-fg-muted">Usulan</p>
           <pre className="max-h-80 overflow-auto whitespace-pre-wrap rounded-lg border border-border bg-surface px-3 py-2 text-[11px] leading-relaxed">
-            {suggestion || '—'}
+            {shown || '—'}
           </pre>
         </div>
       </div>
