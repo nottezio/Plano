@@ -1,5 +1,74 @@
 # Plano — CHANGES
 
+## `2026-09-14.1`
+
+**A false KJS badge that no rebuild could clear; an AI checker that reported
+work already done; the 2026 Jarkom sheet.**
+
+### The rebuild could not fix a false positive
+
+Ny. Rukiah's note names four consultants — Kardio, Tindakan, Aritmia, EMD —
+and no `Utama` line. Under the current rule that is `null`, correctly. She was
+still badged `KJS · Kardio`, because the value was written by the PRE-13-
+SEPTEMBER rule, which fired on any `DPJP Kardio` line at all.
+
+And "Perbarui kartu pasien" could not clear it. The rebuild copied the write
+path's rule that **absence is not a correction** — `if (kjs) fields.kjs = kjs`
+— so a recomputed `null` was quietly skipped and the wrong badge survived every
+rebuild.
+
+The two are not the same act. On a write, a note that names nobody must not
+erase a role set from a note that did: the user is mid-edit and the old answer
+is still the best one. A rebuild exists BECAUSE the rule changed, and its whole
+job is to replace old answers with what the rule now says — including
+"nothing". It now clears the field.
+
+**Run Pengaturan → Perbarui kartu pasien once after installing this.**
+
+### The AI checker reported things that were already updated
+
+It announced that a lab planned yesterday had no result, and that a urinalysis
+was not in the assessment, when both were written in the note it was reading.
+A checker that reports work already done gets ignored — and takes its true
+findings with it.
+
+Three changes to how it is asked:
+
+- **Both dates are now given to it.** It had been dating findings by guesswork,
+  which is how a result headed with today's date got reported as yesterday's.
+- **A verification step, stated as a procedure:** for anything it intends to
+  report, search TODAY's note first; if the result is there, say nothing —
+  even if the plan line is still written. If unsure, say nothing.
+- **`H-2` means HARI KE-2**, not two days before something, and tomorrow is
+  `H-3`. The count runs forward. The one exception is discharge planning,
+  where `H-1` does mean tomorrow, and that is stated too.
+
+The deterministic rules are untouched. They never had this failure, because
+they compare two numbers rather than forming an opinion.
+
+### The 2026 Jarkom sheet
+
+Parses: **91 residents**, and the identifier recognises it unchanged.
+
+It also carries a second table on the right — `list NIM Semnol` — which is
+read now. Those are the PJ-Jarkom seniors, and they are exactly the 14 names
+that previously had no row of their own and fell back to the neutral greeting
+forever. They arrive with **no agama**, because that side of the sheet has no
+such column; the confirmation row shows "Agama?" and takes a correction rather
+than guessing.
+
+**Paediatrics nicknames now resolve for the greeting.** That sheet gives a
+short name and nothing else — `Suci`, `Ken`, `Dira` — so the agama is looked up
+by nickname, tolerantly: `Fatur` on the roster is `Fathur` in Jarkom, and
+`Auri` is `Aurea`. The same one-edit rule the full-name matcher uses.
+
+```
+1209 tests passed
+typecheck / lint / check:version / check:contrast / check:a11y / build — clean
+```
+
+---
+
 ## `2026-09-13.10`
 
 **Jadwal Jaga Pediatri is the fourth import.**

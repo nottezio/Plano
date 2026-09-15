@@ -90,7 +90,12 @@ export interface DpjpRoster {
 export interface JarkomEntry {
   name: string;
   panggilan: string;
-  muslim: boolean;
+  /**
+   * `null` for the PJ-Jarkom seniors in the second table, which has no agama
+   * column. Honest rather than guessed — the confirmation row shows "Agama?"
+   * and takes a correction.
+   */
+  muslim: boolean | null;
 }
 
 export interface JarkomDirectory {

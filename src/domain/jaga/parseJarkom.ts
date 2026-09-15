@@ -41,6 +41,33 @@ export function parseJarkom(items: readonly PdfTextItem[]): JarkomDirectory {
       panggilan: (panggilan?.text ?? '').trim(),
       muslim,
     });
+
+    /*
+      THE SECOND TABLE, on the right of the same rows.
+
+      The 2026 sheet carries a `list NIM Semnol` block beside the main one —
+      `dr. Mevlana Muhammad Avicenna Pasiak | Avi | C165261003`. Those are the
+      PJ-Jarkom seniors, and they are precisely the 14 names that had no row
+      of their own and so fell back to the neutral greeting forever.
+
+      Read here rather than in a separate pass because they share a row with
+      the main table and the row grouping has already been done. There is no
+      agama column on that side, so they arrive with `muslim: null` — which is
+      honest, and correctable by hand on the confirmation row.
+    */
+    const second = row.items.find(
+      (item) => item.x > (panggilan?.x ?? name.x) + 40 && /^dr\.?\s*[A-Z]/i.test(item.text),
+    );
+    if (!second) continue;
+    const secondNick = row.items
+      .filter((item) => item.x > second.x && /^[A-Za-z][A-Za-z' .-]{1,14}$/.test(item.text))
+      .sort((a, b) => a.x - b.x)[0];
+    if (!secondNick) continue;
+    entries.push({
+      name: second.text.trim(),
+      panggilan: secondNick.text.trim(),
+      muslim: null,
+    });
   }
 
   return { entries, importedAt: new Date().toISOString() };

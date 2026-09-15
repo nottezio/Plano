@@ -4,6 +4,43 @@ import { matchJarkom } from './match';
 import { JAGA_POSTS, type JagaPostId } from './types';
 import type { DpjpDay, DpjpRoster, JagaRoster, JagaShift, JarkomDirectory } from './types';
 
+/**
+ * Do two nicknames refer to the same person, allowing one typo?
+ *
+ * The paediatrics sheet and the Jarkom sheet are typed by different people and
+ * disagree by a letter on real colleagues — `Fatur` against `Fathur`, `Auri`
+ * against `Aurea`. The same one-edit rule the full-name matcher uses, applied
+ * to the short name, which is the only string the paediatrics sheet carries.
+ */
+function sameNickname(left: string, right: string): boolean {
+  const a = left.trim().toLowerCase();
+  const b = right.trim().toLowerCase();
+  if (!a || !b) return false;
+  if (a === b) return true;
+  if (Math.abs(a.length - b.length) > 1) return false;
+  if (a.length < 4 || b.length < 4) return false;
+  // One insertion or one substitution, walked in a single pass.
+  let i = 0;
+  let j = 0;
+  let edits = 0;
+  while (i < a.length && j < b.length) {
+    if (a[i] === b[j]) {
+      i += 1;
+      j += 1;
+      continue;
+    }
+    edits += 1;
+    if (edits > 1) return false;
+    if (a.length > b.length) i += 1;
+    else if (b.length > a.length) j += 1;
+    else {
+      i += 1;
+      j += 1;
+    }
+  }
+  return edits + (a.length - i) + (b.length - j) <= 1;
+}
+
 const DAY_NAMES = ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'];
 const MONTH_NAMES = [
   'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni',
@@ -99,6 +136,19 @@ export function resolveShift(
     const pedi = post.id === 'pedi' && !swap ? (pediatri ?? null) : null;
 
     /*
+      The paediatrics sheet gives a nickname and nothing else, so the agama has
+      to be looked up by that nickname — `Suci`, `Ken`, `Dira`. Matched
+      tolerantly because the two documents disagree by a letter on real people
+      (`Fatur` on the roster, `Fathur` in Jarkom), which is the same one-edit
+      rule the name matcher already uses.
+    */
+    const pediEntry =
+      pedi && jarkom
+        ? (jarkom.entries.find((candidate) => sameNickname(candidate.panggilan, pedi.name)) ??
+          null)
+        : null;
+
+    /*
       Religion follows the person who is actually on, not the post.
 
       Order: a hand correction for whoever is on > the swapped resident's own
@@ -109,7 +159,10 @@ export function resolveShift(
     const who = swap?.initials ?? initials;
     const corrected = who ? religion[who] : undefined;
     const muslim =
-      corrected ?? swap?.muslim ?? (swap ? null : entry ? entry.muslim : null) ?? null;
+      corrected ??
+      swap?.muslim ??
+      (swap ? null : (pediEntry?.muslim ?? (pedi ? null : entry ? entry.muslim : null))) ??
+      null;
 
     return {
       id: post.id,

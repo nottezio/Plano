@@ -559,29 +559,46 @@ export default function PatientPage(): JSX.Element {
             'Kamu memeriksa catatan SOAP kardiologi berbahasa Indonesia untuk hal yang',
             'TERLUPA DIPERBARUI dari hari sebelumnya.',
             '',
-            // Derived from what actually changes between consecutive notes in
-            // Avicenna's own corpus — 97 day-pairs, counted rather than
-            // imagined — and ordered by how often each field moves, so the
-            // model spends its attention where the misses are.
+            // Given explicitly. Without them the model dated findings by
+            // guesswork — reporting a result as "from yesterday" when its
+            // heading carried today's date.
+            `Tanggal catatan hari ini: ${selected}.`,
+            previous.entry?.body ? `Tanggal catatan sebelumnya: ${previousDay(selected)}.` : '',
+            '',
+            // The reported failure of 14 September: it announced that a lab
+            // planned yesterday had no result and that a urinalysis was not in
+            // the assessment, when both were already written in today's note.
+            // A checker that reports work already done is one that gets
+            // ignored, and it takes the true findings with it.
+            'CARA MEMERIKSA — wajib:',
+            '1. Untuk setiap hal yang mau dilaporkan, CARI DULU di CATATAN HARI INI.',
+            '2. Kalau hasilnya sudah ada di catatan hari ini, JANGAN dilaporkan,',
+            '   walaupun rencananya masih tertulis di Plan.',
+            '3. Kalau ragu apakah sudah diperbarui, JANGAN dilaporkan.',
+            '',
+            // Stated because the notation is not what it looks like.
+            'ARTI PENANDA HARI:',
+            '- H-2 berarti HARI KE-2, bukan 2 hari sebelum sesuatu.',
+            '- Besoknya jadi H-3. Hitungannya maju, bukan mundur.',
+            '- Kecuali di konteks rencana pulang, di mana H-1 berarti besok pulang.',
+            '',
             'Yang biasanya berubah tiap hari, periksa apakah ikut diperbarui:',
             '- TTV (tekanan darah, nadi, pernapasan, suhu, SpO2)',
             '- Urine output dan balance cairan',
             '- Keluhan di bagian S — masih keluhan kemarin?',
             '- Terapi: dosis berubah, obat baru, obat yang sudah selesai',
-            '- Plan: rencana yang sudah dikerjakan tapi masih tertulis',
+            '- Plan: rencana yang sudah dikerjakan DAN hasilnya belum ada di catatan',
             '- Hitungan hari (H-, hari ke-) yang tidak maju',
             '- Nilai lab yang dikutip di diagnosis tapi sudah ada hasil baru',
             '- Elektrolit yang sudah normal tapi diagnosis masih menyebut defisitnya',
             '- TS yang sudah menjawab konsul tapi belum masuk daftar DPJP',
             '',
             'YANG BUKAN KESALAHAN — jangan sebutkan:',
-            // Measured in the same corpus: echo and chest films are identical
-            // day to day 80% of the time, and correctly so. Flagging them
-            // would bury the real findings under two that are always there.
             '- Echo, foto thorax, MSCT, atau EKG lama yang sama dengan kemarin',
             '  (pemeriksaannya memang tidak diulang)',
             '- Diagnosis yang memang belum berubah',
             '- Riwayat dan faktor risiko yang memang tetap',
+            '- Pemeriksaan yang hasilnya SUDAH tertulis di catatan hari ini',
             '',
             'ATURAN KERAS:',
             '- JANGAN memberi saran klinis, dosis, atau diagnosis baru.',

@@ -55,11 +55,22 @@ export function RebuildCards(): JSX.Element {
         if (latest?.body?.trim()) {
           const preview = buildPreview(latest.body);
           const kjs = kjsRole(latest.body);
-          const fields: Record<string, unknown> = { preview };
-          // Absence is not a correction — the same rule the write path
-          // follows. A note that names nobody must not erase a role that was
-          // set from a note that did.
-          if (kjs) fields['kjs'] = kjs;
+          /*
+            HERE, absence IS a correction — and that is the difference between
+            this and the write path.
+
+            On a write, a note that names nobody must not erase a role set from
+            a note that did: the user is mid-edit and the old answer is still
+            the best one. A rebuild is the opposite act. It exists because the
+            RULE changed, and its whole job is to replace old answers with what
+            the current rule says — including "nothing".
+
+            Without this a false positive was uncorrectable. A patient marked
+            `kjs: 'kardio'` by the pre-13-September rule, which fired on any
+            `DPJP Kardio` line, kept that badge through every rebuild, because
+            the recomputed `null` was quietly skipped.
+          */
+          const fields: Record<string, unknown> = { preview, kjs: kjs ?? undefined };
           await updatePatient(patient.id, fields as never);
           changed += 1;
         }
