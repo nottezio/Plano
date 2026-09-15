@@ -110,6 +110,13 @@ export function AiSettings(): JSX.Element {
           onChange={(value) => update({ check: value })}
         />
         <Toggle
+          label="Ringkas perjalanan pasien"
+          detail="Rangkum seluruh catatan jadi presentasi untuk DPJP. Tidak masuk ke catatan."
+          checked={flags.summary}
+          disabled={!key}
+          onChange={(value) => update({ summary: value })}
+        />
+        <Toggle
           label="Bantu rapikan SOAP"
           detail="Usulan susunan SOAP, ditampilkan berdampingan. Tidak pernah menimpa catatan."
           checked={flags.soap}

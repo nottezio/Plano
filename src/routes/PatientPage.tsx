@@ -17,6 +17,7 @@ import { PatientTodos } from '@/components/patient/PatientTodos';
 import { DocumentPanel } from '@/components/patient/DocumentPanel';
 import { ScrollToTop } from '@/components/patient/ScrollToTop';
 import { OpeningSheet } from '@/components/patient/OpeningSheet';
+import { HistorySummarySheet } from '@/components/patient/HistorySummarySheet';
 import { SoapTidySheet } from '@/components/patient/SoapTidySheet';
 import { TemplatePicker } from '@/components/patient/TemplatePicker';
 import { ConflictDialog } from '@/components/patient/ConflictDialog';
@@ -173,6 +174,7 @@ export default function PatientPage(): JSX.Element {
   const [identityOpen, setIdentityOpen] = useState(false);
   const [openingOpen, setOpeningOpen] = useState(false);
   const [tidyOpen, setTidyOpen] = useState(false);
+  const [summaryOpen, setSummaryOpen] = useState(false);
 
   /**
    * Is the header showing Lab / Pembuka / Bandingkan hari already?
@@ -1735,6 +1737,15 @@ export default function PatientPage(): JSX.Element {
         patient={patient}
       />
 
+      <HistorySummarySheet
+        open={summaryOpen}
+        onOpenChange={setSummaryOpen}
+        patientId={patient.id}
+        identity={[patient.name, patient.mrn ? `RM ${patient.mrn}` : '', formatLocation(patient)]
+          .filter(Boolean)
+          .join(' · ')}
+      />
+
       <SoapTidySheet
         open={tidyOpen}
         onOpenChange={setTidyOpen}
@@ -1759,6 +1770,7 @@ export default function PatientPage(): JSX.Element {
         {...(!locked && aiEnabled('soap') && editor.value.trim().length > 0
           ? { onTidy: () => setTidyOpen(true) }
           : {})}
+        {...(aiEnabled('summary') ? { onSummarise: () => setSummaryOpen(true) } : {})}
 
         onOpening={
           locked || headerHasTools || editor.value.trim().length === 0

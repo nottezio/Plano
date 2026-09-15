@@ -35,6 +35,7 @@ export function PatientActionsSheet({
   onCompare,
   onTidy,
   onReformat,
+  onSummarise,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -64,6 +65,12 @@ export function PatientActionsSheet({
   onTidy?: (() => void) | undefined;
   /** CVCU → bangsal. Present only where the header has dropped the button. */
   onReformat?: (() => void) | undefined;
+  /**
+   * Summarise the whole admission for a consultant. Available on a LOCKED day
+   * too, unlike the other AI actions — a locked note is one you are reading
+   * out rather than editing, which is exactly when this is wanted.
+   */
+  onSummarise?: (() => void) | undefined;
 }): JSX.Element {
   const today = useClinicalToday();
   const planned = migrateLegacyDischarge(patient, today);
@@ -124,6 +131,17 @@ export function PatientActionsSheet({
             onClick={() => {
               close();
               onOpening();
+            }}
+          />
+        ) : null}
+
+        {onSummarise ? (
+          <Action
+            label="Ringkas perjalanan pasien (AI)"
+            detail="Untuk dibacakan ke DPJP. Tidak masuk ke catatan."
+            onClick={() => {
+              close();
+              onSummarise();
             }}
           />
         ) : null}

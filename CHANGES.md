@@ -1,5 +1,71 @@
 # Plano — CHANGES
 
+## `2026-09-14.2`
+
+**"Ringkas perjalanan pasien" — the summary you read out when a consultant
+asks who this patient is.**
+
+In the ⋯ sheet, behind its own switch in Pengaturan → Fitur AI. Off by default
+like the others.
+
+```
+Identitas · DPJP · Diagnosis · Perjalanan singkat ·
+Keluhan sekarang · Terapi saat ini · Plan / KJS
+```
+
+### Why a model belongs here and not in the other four
+
+Every other AI feature in Plano competes with deterministic code that does the
+job better: the section parser is lossless, the lab parser is exact, the
+checker compares two numbers. This one has no deterministic equivalent, because
+the task is not transformation — it is deciding which three weeks of daily
+notes matter and which do not, and saying it in the order a DPJP expects to
+hear it.
+
+It also cannot damage anything. **Nothing is written back to the note**, and
+there is deliberately no "insert into note": a summary is a retelling,
+retellings lose things, and that is fine when you are standing next to the
+patient and terrible when it is filed.
+
+### Which days get sent
+
+A three-week admission is more text than one request can carry, so something
+has to be dropped and WHICH is the whole decision.
+
+| Kept | Why |
+|---|---|
+| The admission note, always | Identity, referral, presenting problem, first assessment. Without it the summary has to infer why the patient is in hospital from a mid-stay note that assumes everyone knows |
+| The most recent days | "Keluhan sekarang" and the current plan exist nowhere else |
+| **The middle is what goes** | Its content is largely carried forward into the days either side. A gap there costs a detail; a gap at either end costs the shape of the story |
+
+The dropped dates are reported twice — to the user, above the summary, and to
+the model inside the transcript. A gap the model does not know about is a gap
+it will narrate straight through, and a summary that silently skipped a week is
+one nobody can trust.
+
+### What it is told not to do
+
+The failure mode of a summary is not a wrong word. It is a confident number
+that was never measured — so everything here is a quotation rather than a
+calculation: no changed figures, doses, units or dates; nothing concluded that
+is not written; no clinical advice; "terapi saat ini" excludes anything marked
+finished; "keluhan sekarang" comes from the last day only.
+
+The identity line is shown from the patient record, beside the summary, and
+labelled as not coming from the model — the one field where a plausible
+invention would be hardest to notice and worst to read aloud.
+
+Available on a **locked** day too, unlike the other AI actions: a locked note
+is one you are reading out rather than editing, which is exactly when this is
+wanted.
+
+```
+1223 tests passed (was 1215 — 8 added on which days get selected)
+typecheck / lint / check:version / check:contrast / check:a11y / build — clean
+```
+
+---
+
 ## `2026-09-14.1`
 
 **A false KJS badge that no rebuild could clear; an AI checker that reported

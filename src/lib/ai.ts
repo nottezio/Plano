@@ -42,9 +42,18 @@ export interface AiFlags {
    * between identical runs is one that stops being trusted.
    */
   check: boolean;
+  /**
+   * Summarise a whole admission for presenting to a consultant.
+   *
+   * The one AI feature here with no deterministic equivalent: the task is
+   * deciding which three weeks of daily notes matter, not transforming text.
+   * It also writes nothing back, so its worst outcome is a summary somebody
+   * reads and corrects.
+   */
+  summary: boolean;
 }
 
-const OFF: AiFlags = { lab: false, soap: false, check: false };
+const OFF: AiFlags = { lab: false, soap: false, check: false, summary: false };
 
 /**
  * Does this look like an Anthropic key, at a glance?
@@ -81,7 +90,12 @@ export function readAiFlags(): AiFlags {
     const raw = localStorage.getItem(FLAGS);
     if (!raw) return OFF;
     const parsed = JSON.parse(raw) as Partial<AiFlags>;
-    return { lab: parsed.lab === true, soap: parsed.soap === true, check: parsed.check === true };
+    return {
+      lab: parsed.lab === true,
+      soap: parsed.soap === true,
+      check: parsed.check === true,
+      summary: parsed.summary === true,
+    };
   } catch {
     return OFF;
   }
