@@ -1,12 +1,13 @@
 import { describe, expect, it } from 'vitest';
 
 import {
-  applyGesture,
-  columnsFor,
-  placeAll,
   MIN_CARD_H,
   MIN_CARD_PX,
   ROW_STEP,
+  applyGesture,
+  columnsFor,
+  mergeLayouts,
+  placeAll,
   tidy,
 } from './canvasLayout';
 
@@ -230,5 +231,39 @@ describe('applyGesture height bounds', () => {
       maxH: 700,
     });
     expect(next.hMax).toBe(MIN_CARD_H);
+  });
+});
+
+describe('mergeLayouts', () => {
+  const MINE = { a: { x: 0.1, y: 10, w: 0.25, hMax: 0 } };
+  const TITIPAN = { t1: { x: 0.5, y: 20, w: 0.25, hMax: 0 } };
+
+  it('KEEPS layouts for cards the current scope cannot see', () => {
+    // The 14 September report: dragging a card in Titipan wiped every position
+    // in Pasien saya, because the resolved map only ever covers the scope on
+    // screen while the store holds every patient.
+    const stored = { ...MINE, ...TITIPAN };
+    const next = mergeLayouts(stored, TITIPAN, 't1', { x: 0.7, y: 40, w: 0.3, hMax: 0 });
+    expect(next.a).toEqual(MINE.a);
+    expect(next.t1).toMatchObject({ x: 0.7, y: 40 });
+  });
+
+  it('lets the resolved view win for the ids it does cover', () => {
+    // This is what freezes the visible board so a commit does not move its
+    // neighbours.
+    const resolved = { a: { x: 0.4, y: 80, w: 0.25, hMax: 0 } };
+    expect(mergeLayouts(MINE, resolved).a).toMatchObject({ x: 0.4, y: 80 });
+  });
+
+  it('works with no single card named — a Rapikan or an undo', () => {
+    const stored = { ...MINE, ...TITIPAN };
+    const next = mergeLayouts(stored, { a: { x: 0, y: 0, w: 0.25, hMax: 0 } });
+    expect(next.t1).toEqual(TITIPAN.t1);
+    expect(next.a).toMatchObject({ x: 0, y: 0 });
+  });
+
+  it('adds a card that was not stored before', () => {
+    const next = mergeLayouts({}, {}, 'baru', { x: 0.2, y: 5, w: 0.25, hMax: 0 });
+    expect(next.baru).toMatchObject({ x: 0.2 });
   });
 });

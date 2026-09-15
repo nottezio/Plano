@@ -357,3 +357,36 @@ export function tidy(
 
   return next;
 }
+
+
+/**
+ * Merge a freshly resolved view over what is already stored.
+ *
+ * THE BUG THIS FIXES
+ *
+ * `commit` used to write the resolved layout as the WHOLE stored map. That was
+ * deliberate — it is what stopped the board rearranging itself on every resize
+ * — but "the whole board" is only ever the scope on screen. The store is a
+ * single map for every patient; the ids handed to `placeAll` are just the ones
+ * the current filter admits.
+ *
+ * So dragging a card in Titipan wrote back a map containing only the Titipan
+ * cards, and every position in Pasien saya was erased. Reported 14 September as
+ * the Aktif canvas breaking after reordering a titipan patient. It is the same
+ * failure as rebuilding a stored list from a filtered view — the one guarded
+ * against in `reorderWithinVisible` for the Catatan tabs, and not guarded
+ * against here.
+ *
+ * Merging keeps every id the current view cannot see. The resolved entries
+ * still win for the ids it can, which is what freezes the visible board.
+ */
+export function mergeLayouts(
+  previous: CanvasLayouts,
+  resolved: CanvasLayouts,
+  id?: string,
+  layout?: CardLayout,
+): CanvasLayouts {
+  const next: CanvasLayouts = { ...previous, ...resolved };
+  if (id && layout) next[id] = layout;
+  return next;
+}

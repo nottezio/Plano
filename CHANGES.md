@@ -1,5 +1,42 @@
 # Plano — CHANGES
 
+## `2026-09-14.3`
+
+**Arranging a Titipan card erased every position in Pasien saya.**
+
+### Root cause: a stored map rebuilt from a filtered view
+
+`commit` wrote the resolved layout as the WHOLE stored map. That was
+deliberate — it is what stopped the board rearranging itself on every resize,
+fixed on 11 September — but "the whole board" is only ever the scope on screen.
+
+The store is a single map covering every patient. The ids handed to `placeAll`
+are just the ones the current filter admits. So dragging a card in Titipan
+wrote back a map containing only the Titipan cards, and every position in
+Pasien saya was gone. The reverse held too.
+
+**This is the same failure as rebuilding a stored list from a filtered view** —
+the one guarded against in `reorderWithinVisible` when the Catatan tabs got
+drag-reordering, and not guarded against here, because the canvas was written
+first and the filter arrived later.
+
+`mergeLayouts` now merges rather than replaces: every id the current view
+cannot see is kept, and the resolved entries still win for the ids it can —
+which is what freezes the visible board so a commit does not move its
+neighbours. Applied to all three write paths: drag, resize, and
+Rapikan/Urungkan.
+
+**Positions already lost cannot be recovered** — they were overwritten in
+localStorage, not soft-deleted. The affected scope will auto-place its cards
+into the default grid on next load, and can be rearranged from there.
+
+```
+1227 tests passed (was 1223 — 4 added on the merge, including the reported case)
+typecheck / lint / check:version / check:contrast / check:a11y / build — clean
+```
+
+---
+
 ## `2026-09-14.2`
 
 **"Ringkas perjalanan pasien" — the summary you read out when a consultant

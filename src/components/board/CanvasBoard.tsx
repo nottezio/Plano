@@ -8,6 +8,7 @@ import {
   ROW_STEP,
   applyGesture,
   columnsFor,
+  mergeLayouts,
   placeAll,
   readLayouts,
   tidy,
@@ -178,9 +179,14 @@ export function CanvasBoard({
    */
   const [undo, setUndo] = useState<CanvasLayouts | null>(null);
 
-  const applyLayouts = useCallback((next: CanvasLayouts) => {
-    setStored(next);
-    writeLayouts(next);
+  const applyLayouts = useCallback((resolved: CanvasLayouts) => {
+    // Merged, never replaced: `resolved` only covers the scope on screen, and
+    // the store holds every patient. See `mergeLayouts`.
+    setStored((previous) => {
+      const next = mergeLayouts(previous, resolved);
+      writeLayouts(next);
+      return next;
+    });
   }, []);
 
   /**
@@ -202,9 +208,11 @@ export function CanvasBoard({
    */
   const commit = useCallback(
     (id: string, layout: CardLayout, resolved: CanvasLayouts) => {
-      const next: CanvasLayouts = { ...resolved, [id]: layout };
-      setStored(next);
-      writeLayouts(next);
+      setStored((previous) => {
+        const next = mergeLayouts(previous, resolved, id, layout);
+        writeLayouts(next);
+        return next;
+      });
     },
     [],
   );
