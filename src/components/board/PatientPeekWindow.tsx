@@ -3,6 +3,11 @@ import { Link } from 'react-router-dom';
 
 import { fetchEntryBodies } from '@/data/repositories/entries.repo';
 import { formatShortDate } from '@/domain/clinicalDate';
+import { toPlain, toWhatsApp } from '@/domain/format/formatters';
+import { useChecklist } from '@/hooks/useChecklist';
+import { usePatientNotes } from '@/components/patient/PatientNotes';
+import { useSession } from '@/store/useSession';
+import { copyText } from '@/lib/clipboard';
 import type { ClinicalDate, Patient } from '@/domain/types';
 
 /**
@@ -27,12 +32,19 @@ import type { ClinicalDate, Patient } from '@/domain/types';
 export function PatientPeekWindow({
   patient,
   today,
+  index,
+  z,
+  onFocus,
   onClose,
 }: {
-  patient: Patient | null;
+  patient: Patient;
   today: ClinicalDate;
+  /** Position in the open stack, used to cascade the first placement. */
+  index: number;
+  z: number;
+  onFocus: () => void;
   onClose: () => void;
-}): JSX.Element | null {
+}): JSX.Element {
   const [body, setBody] = useState<string | null>(null);
   const [date, setDate] = useState<ClinicalDate | null>(null);
   const [loading, setLoading] = useState(false);
@@ -50,18 +62,29 @@ export function PatientPeekWindow({
   const [size, setSize] = useState({ w: 420, h: 380 });
   const dragged = useRef(false);
 
-  useEffect(() => {
-    if (!patient) return;
-    // Placed once per patient, offset from the top-right, unless the user has
-    // already moved it — a window that jumps back on every peek is one you
-    // have to reposition every time.
-    if (!dragged.current) {
-      setPos({ x: Math.max(16, window.innerWidth - 460), y: 96 });
-    }
-  }, [patient]);
+  const settings = useSession((state) => state.settings());
+  /*
+    The checklist and the standing note are read for the day ON SCREEN, which
+    is not always today — a window opened on an older note must show that day's
+    ticks, not this morning's.
+  */
+  const checklist = useChecklist(patient.id, date ?? today, settings.checklistItems, date !== null);
+  const notes = usePatientNotes(patient);
 
   useEffect(() => {
-    if (!patient) return;
+    // Placed once, offset from the top-right and CASCADED by how many are
+    // already open — two windows landing on the same pixel look like one, and
+    // the second appears not to have opened at all.
+    if (!dragged.current) {
+      const step = index * 28;
+      setPos({
+        x: Math.max(16, window.innerWidth - 460 - step),
+        y: 96 + step,
+      });
+    }
+  }, [patient.id, index]);
+
+  useEffect(() => {
     let cancelled = false;
     setLoading(true);
     setBody(null);
@@ -87,20 +110,17 @@ export function PatientPeekWindow({
     return () => {
       cancelled = true;
     };
-  }, [patient, today]);
+  }, [patient.id, today]);
 
   // Escape closes it. A floating window with no keyboard exit is one people
   // lose track of behind other things.
   useEffect(() => {
-    if (!patient) return;
     const onKey = (event: KeyboardEvent): void => {
       if (event.key === 'Escape') onClose();
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [patient, onClose]);
-
-  if (!patient) return null;
+  }, [onClose]);
 
   const beginDrag = (event: React.PointerEvent, mode: 'move' | 'resize'): void => {
     /*
@@ -167,8 +187,9 @@ export function PatientPeekWindow({
     <div
       role="dialog"
       aria-label={`Pratinjau ${patient.name?.trim() || 'pasien'}`}
-      className="fixed z-40 flex flex-col overflow-hidden rounded-xl border border-border bg-surface shadow-2xl"
-      style={{ left: pos.x, top: pos.y, width: size.w, height: size.h }}
+      onPointerDownCapture={onFocus}
+      className="fixed flex flex-col overflow-hidden rounded-xl border border-border bg-surface shadow-2xl"
+      style={{ left: pos.x, top: pos.y, width: size.w, height: size.h, zIndex: z }}
     >
       {/*
         The title bar is the drag handle and carries the whole identity.
@@ -185,14 +206,46 @@ export function PatientPeekWindow({
           <p className="truncate text-xs font-semibold">
             {patient.name?.trim() || 'Tanpa nama'}
           </p>
-          <p className="truncate text-[10px] text-fg-muted">
-            {date
-              ? date === today
-                ? 'Catatan hari ini · hanya dibaca'
-                : `Catatan ${formatShortDate(date)} · hanya dibaca`
-              : 'Hanya dibaca'}
+          {/*
+            The date is a chip, not a sentence.
+
+            With several of these open at once, "hanya dibaca" is the same on
+            every one and the date is the only thing that differs — and a note
+            from three days ago read as today's is the mistake this exists to
+            prevent.
+          */}
+          <p className="flex items-center gap-1 text-[10px] text-fg-muted">
+            <span
+              className={[
+                'rounded px-1 font-medium',
+                date === today ? 'bg-accent/15 text-accent' : 'bg-danger/15 text-danger',
+              ].join(' ')}
+            >
+              {date ? (date === today ? 'Hari ini' : formatShortDate(date)) : '—'}
+            </span>
+            <span className="truncate">hanya dibaca</span>
           </p>
         </div>
+        {/*
+          Salin, in the two formats that actually leave this app.
+
+          Not the full Salin sheet: that offers sections, presets, a preview
+          and an identity line, and a 420 px window is not where any of that is
+          chosen. What is wanted from a peek is the whole note, now, in the
+          form it is about to be pasted into — so the two destinations are two
+          buttons and there is nothing to configure.
+
+          `toPlain` guarantees ASCII for SIMGOS; `toWhatsApp` keeps the
+          markers. Both are the same functions the main sheet uses, so a note
+          copied from here and one copied from there are identical.
+        */}
+        {body && body.trim() ? (
+          <>
+            <CopyButton label="SIMGOS" text={() => toPlain(body)} />
+            <CopyButton label="WA" text={() => toWhatsApp(body, settings.whatsappBullet)} />
+          </>
+        ) : null}
+
         <Link
           to={`/p/${patient.id}`}
           className="flex min-h-tap shrink-0 items-center rounded-lg border border-border px-2 text-[10px] font-medium text-accent"
@@ -227,15 +280,127 @@ export function PatientPeekWindow({
         )}
       </div>
 
+      {/*
+        Checklist and standing note, collapsed by default.
+
+        Both are the reason somebody peeks at a patient they are not opening —
+        "did anyone do the EKG" and "what was the access problem" — and both
+        are short. Collapsed because the note is what the window is for and
+        these two would push it below the fold on a small window; remembered
+        per window, not persisted, because a window is a moment.
+      */}
+      <Collapsible label={`Checklist · ${checklist.progress.doneCount}/${checklist.progress.total}`}>
+        <ul className="space-y-1">
+          {settings.checklistItems.map((item) => (
+            <li key={item.id}>
+              <label className="flex items-start gap-2">
+                <input
+                  type="checkbox"
+                  checked={checklist.states[item.id]?.done === true}
+                  onChange={() => checklist.toggle(item.id)}
+                  className="mt-0.5 h-3.5 w-3.5"
+                />
+                <span
+                  className={
+                    checklist.states[item.id]?.done ? 'text-fg-faint line-through' : undefined
+                  }
+                >
+                  {item.label}
+                </span>
+              </label>
+            </li>
+          ))}
+        </ul>
+      </Collapsible>
+
+      <Collapsible label="Catatan pasien">
+        {notes.value.trim() ? (
+          <p className="whitespace-pre-line">{notes.value}</p>
+        ) : (
+          <p className="text-fg-faint">Belum ada catatan tetap.</p>
+        )}
+      </Collapsible>
+
       {/* Corner grip. Both axes at once here, unlike the board cards: a window
           has no neighbours to disturb, so there is nothing for a stray pixel
           of the other dimension to break. */}
       <button
         type="button"
         aria-label="Ubah ukuran jendela"
+        title="Tarik untuk ubah ukuran"
         onPointerDown={(event) => beginDrag(event, 'resize')}
-        className="absolute bottom-0 right-0 h-4 w-4 cursor-nwse-resize touch-none"
-      />
+        className="absolute bottom-0 right-0 h-5 w-5 cursor-nwse-resize touch-none"
+      >
+        {/*
+          A visible grip, because an invisible one is a feature nobody finds.
+
+          Two short strokes in the corner — the convention every desktop window
+          uses — drawn in the border colour so it reads as part of the frame
+          rather than as a control competing with the buttons above.
+        */}
+        <svg viewBox="0 0 16 16" aria-hidden="true" className="h-full w-full text-border">
+          <path
+            d="M15 6 L6 15 M15 11 L11 15"
+            stroke="currentColor"
+            strokeWidth="1.5"
+            strokeLinecap="round"
+            fill="none"
+          />
+        </svg>
+      </button>
+    </div>
+  );
+}
+
+
+/** One copy target. Keeps its own "Tersalin" so two buttons cannot confuse it. */
+function CopyButton({ label, text }: { label: string; text: () => string }): JSX.Element {
+  const [copied, setCopied] = useState(false);
+  return (
+    <button
+      type="button"
+      onClick={() => {
+        void copyText(text());
+        setCopied(true);
+        window.setTimeout(() => setCopied(false), 1200);
+      }}
+      title={`Salin catatan untuk ${label}`}
+      className="min-h-tap shrink-0 rounded-lg border border-border px-2 text-[10px] font-medium"
+    >
+      {copied ? '✓' : label}
+    </button>
+  );
+}
+
+/**
+ * A strip that opens. Closed by default and not remembered.
+ *
+ * A window is a moment — it is opened to answer one question and closed again
+ * — so persisting which strips were open would restore the state of a question
+ * somebody already finished asking.
+ */
+function Collapsible({
+  label,
+  children,
+}: {
+  label: string;
+  children: React.ReactNode;
+}): JSX.Element {
+  const [open, setOpen] = useState(false);
+  return (
+    <div className="shrink-0 border-t border-border">
+      <button
+        type="button"
+        onClick={() => setOpen((current) => !current)}
+        aria-expanded={open}
+        className="flex min-h-tap w-full items-center gap-1 px-3 text-left text-[11px] font-medium text-fg-muted"
+      >
+        <span aria-hidden="true" className="w-3">
+          {open ? '▾' : '▸'}
+        </span>
+        {label}
+      </button>
+      {open ? <div className="max-h-40 overflow-auto px-3 pb-2 text-[11px]">{children}</div> : null}
     </div>
   );
 }

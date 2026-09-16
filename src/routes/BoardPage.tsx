@@ -202,7 +202,14 @@ export default function BoardPage(): JSX.Element {
    * and puts a destructive target next to the one you tap all day.
    */
   /** The patient whose note is being previewed, or null. */
-  const [previewId, setPreviewId] = useState<string | null>(null);
+  /**
+   * Every peek window currently open, oldest first.
+   *
+   * An array rather than one id: the array IS the z-order, so bringing a
+   * window forward is moving its id to the end and nothing has to track a
+   * separate stacking number that can drift out of step with the list.
+   */
+  const [previewIds, setPreviewIds] = useState<string[]>([]);
 
   /**
    * Which cards have their standing note open.
@@ -429,7 +436,6 @@ export default function BoardPage(): JSX.Element {
   ]);
 
   const quickPatient = patients.find((patient) => patient.id === quickPatientId) ?? null;
-  const previewPatient = patients.find((patient) => patient.id === previewId) ?? null;
   const filtering = hasActiveFilters({ ...filters, query: debouncedQuery });
 
   return (
@@ -726,7 +732,18 @@ export default function BoardPage(): JSX.Element {
                     selectable={selecting}
                     checked={selected.has(card.patient.id)}
                     onToggleSelected={toggleSelected}
-                    onPreview={selecting ? undefined : setPreviewId}
+                    onPreview={
+                      selecting
+                        ? undefined
+                        : (id: string) =>
+                            setPreviewIds((current) =>
+                              // Re-peeking an open window brings it forward
+                              // rather than opening a second copy of it.
+                              current.includes(id)
+                                ? [...current.filter((x) => x !== id), id]
+                                : [...current, id]
+                            )
+                    }
                   />
                 );
               }}
@@ -757,7 +774,18 @@ export default function BoardPage(): JSX.Element {
                       // Not offered while selecting: in that mode a tap means
                       // "tick this", and a second meaning on the same card is
                       // how the wrong one gets ticked.
-                      onPreview={selecting ? undefined : setPreviewId}
+                      onPreview={
+                      selecting
+                        ? undefined
+                        : (id: string) =>
+                            setPreviewIds((current) =>
+                              // Re-peeking an open window brings it forward
+                              // rather than opening a second copy of it.
+                              current.includes(id)
+                                ? [...current.filter((x) => x !== id), id]
+                                : [...current, id]
+                            )
+                    }
                     />
                     </MasonryItem>
                   ))}
@@ -810,11 +838,39 @@ export default function BoardPage(): JSX.Element {
         covers the board, so those two things alternate instead of being
         visible together.
       */}
-      <PatientPeekWindow
-        patient={previewPatient}
-        today={today}
-        onClose={() => setPreviewId(null)}
-      />
+      {/*
+        Several at once, and that is the point of a window.
+
+        One peek at a time is a sheet with extra steps. The case this exists
+        for is comparing two patients, or keeping one open while working
+        through the others — both need more than one.
+
+        Focus order is the array order, so pressing a window moves it to the
+        end and therefore to the front. Last-touched-on-top is the rule every
+        window manager uses and the only one nobody has to be told.
+      */}
+      {previewIds.map((id, index) => {
+        // Looked up in the full patient list, not in `cards`: a window must
+        // not vanish because a filter or a search stopped matching the patient
+        // it is showing.
+        const peeked = patients.find((candidate) => candidate.id === id) ?? null;
+        if (!peeked) return null;
+        return (
+          <PatientPeekWindow
+            key={id}
+            patient={peeked}
+            today={today}
+            index={index}
+            z={40 + index}
+            onFocus={() =>
+              setPreviewIds((current) =>
+                current.at(-1) === id ? current : [...current.filter((x) => x !== id), id],
+              )
+            }
+            onClose={() => setPreviewIds((current) => current.filter((x) => x !== id))}
+          />
+        );
+      })}
 
       <QuickChecklistSheet
         patient={quickPatient}

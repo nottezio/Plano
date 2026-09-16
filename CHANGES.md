@@ -1,5 +1,80 @@
 # Plano — CHANGES
 
+## `2026-09-16.2`
+
+**Several peek windows at once, a visible resize grip, Salin, a date chip, and
+collapsible checklist and standing note.**
+
+### More than one window
+
+One peek at a time is a sheet with extra steps. The case this exists for —
+comparing two patients, or keeping one open while working through the others —
+needs more than one.
+
+`previewIds` is an array, and **the array IS the z-order**. Bringing a window
+forward is moving its id to the end; nothing tracks a separate stacking number
+that could drift out of step with the list. Pressing anywhere in a window
+focuses it, which is last-touched-on-top — the rule every window manager uses
+and the only one nobody has to be told.
+
+Two details that only show up with several open:
+
+- **First placement cascades** by 28 px per open window. Two landing on the
+  same pixel look like one, and the second appears not to have opened.
+- **A window survives a filter change.** The patient is looked up in the full
+  list, not in the filtered cards, so searching does not close the window you
+  were reading.
+
+Re-peeking a patient already open brings that window forward rather than
+opening a second copy of it.
+
+### A visible resize grip
+
+Two short strokes in the corner, the convention every desktop window uses,
+drawn in the border colour so it reads as part of the frame rather than as a
+control competing with the buttons above. It was a transparent 16 px square —
+a feature nobody could find.
+
+### Salin, in the two formats that leave the app
+
+Not the full Salin sheet: that offers sections, presets, a preview and an
+identity line, and a 420 px window is not where any of that gets chosen. What
+is wanted from a peek is the whole note, now, in the form it is about to be
+pasted into — so the two destinations are two buttons and there is nothing to
+configure.
+
+`toPlain` for SIMGOS, `toWhatsApp` with the user's bullet setting for WhatsApp
+— the same functions the main sheet calls, so a note copied from here and one
+copied from there are identical.
+
+### The date is a chip
+
+With several windows open, "hanya dibaca" is the same on every one and the date
+is the only thing that differs. It is now a chip, tinted differently when the
+note is not today's — a note from three days ago read as today's is the mistake
+this window makes easiest.
+
+### Checklist and Catatan pasien
+
+Two strips that open, closed by default. They are the reason somebody peeks at
+a patient they are not going to open — "did anyone do the EKG", "what was the
+access problem" — and both are short.
+
+The checklist is **live**: ticking here writes through the same controller the
+patient page uses. It reads the day ON SCREEN, not today, so a window opened on
+an older note shows that day's ticks.
+
+Neither strip's open state is remembered. A window is a moment — opened to
+answer one question and closed again — so restoring it would restore the state
+of a question somebody already finished asking.
+
+```
+1246 tests passed
+typecheck / lint / check:version / check:contrast / check:a11y / build — clean
+```
+
+---
+
 ## `2026-09-16.1`
 
 **Buka and ✕ on the peek window did nothing.**
