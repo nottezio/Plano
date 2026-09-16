@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useId, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 
 import { fetchEntryBodies } from '@/data/repositories/entries.repo';
@@ -61,6 +61,11 @@ export function PatientPeekWindow({
    * of every inspector that is not also a layout.
    */
   const [pos, setPos] = useState({ x: 0, y: 0 });
+  const [tab, setTab] = useState<PeekTab | null>(null);
+  const panelId = useId();
+  // Pressing the open tab closes it; pressing another switches straight to it.
+  const toggleTab = (next: PeekTab): void =>
+    setTab((current) => (current === next ? null : next));
   const [size, setSize] = useState({ w: 420, h: 380 });
   const dragged = useRef(false);
 
@@ -295,55 +300,95 @@ export function PatientPeekWindow({
       </div>
 
       {/*
-        Checklist and standing note, collapsed by default.
+        Checklist, Custom Checklist and the standing note: ONE row of tabs,
+        one panel open at a time.
 
-        Both are the reason somebody peeks at a patient they are not opening —
-        "did anyone do the EKG" and "what was the access problem" — and both
-        are short. Collapsed because the note is what the window is for and
-        these two would push it below the fold on a small window; remembered
-        per window, not persisted, because a window is a moment.
+        They were three stacked strips, each a full-width 44 px row. Closed,
+        that was ~135 px of a 380 px window spent on labels, leaving the note
+        (the reason the window exists) a third of the height. Open, each strip
+        added its own 160 px panel and nothing stopped all three being open at
+        once, so the note could be squeezed to nothing. Stacked accordions SUM;
+        a tab row costs one row whatever it holds, and a single panel slot
+        caps what opening can take.
+
+        The panel opens ABOVE the row, so the tabs never move: switching from
+        Checklist to Catatan is two presses on the same spot, not a hunt for
+        where the row went.
+
+        What is open is not remembered. A window is a moment — opened to answer
+        one question and closed again — so restoring it would restore the
+        state of a question somebody already finished asking.
       */}
-      <Collapsible label={`Checklist · ${checklist.progress.doneCount}/${checklist.progress.total}`}>
-        <ul className="space-y-1">
-          {settings.checklistItems.map((item) => (
-            <li key={item.id}>
-              <label className="flex items-start gap-2">
-                <input
-                  type="checkbox"
-                  checked={checklist.states[item.id]?.done === true}
-                  onChange={() => checklist.toggle(item.id)}
-                  className="mt-0.5 h-3.5 w-3.5"
-                />
-                <span
-                  className={
-                    checklist.states[item.id]?.done ? 'text-fg-faint line-through' : undefined
-                  }
-                >
-                  {item.label}
-                </span>
-              </label>
-            </li>
-          ))}
-        </ul>
-      </Collapsible>
+      {tab ? (
+        <div
+          id={panelId}
+          className="max-h-[45%] shrink-0 overflow-auto border-t border-border px-3 py-2 text-[11px]"
+        >
+          {tab === 'checklist' ? (
+            <ul className="space-y-1">
+              {settings.checklistItems.map((item) => (
+                <li key={item.id}>
+                  <label className="flex items-start gap-2">
+                    <input
+                      type="checkbox"
+                      checked={checklist.states[item.id]?.done === true}
+                      onChange={() => checklist.toggle(item.id)}
+                      className="mt-0.5 h-3.5 w-3.5"
+                    />
+                    <span
+                      className={
+                        checklist.states[item.id]?.done ? 'text-fg-faint line-through' : undefined
+                      }
+                    >
+                      {item.label}
+                    </span>
+                  </label>
+                </li>
+              ))}
+            </ul>
+          ) : tab === 'todos' ? (
+            <PatientTodos patient={patient} date={date ?? today} compact />
+          ) : notes.value.trim() ? (
+            <p className="whitespace-pre-line">{notes.value}</p>
+          ) : (
+            <p className="text-fg-faint">Belum ada catatan tetap.</p>
+          )}
+        </div>
+      ) : null}
 
-      <Collapsible
-        label={
-          todoCounts.total > 0
-            ? `Custom Checklist · ${todoCounts.done}/${todoCounts.total}`
-            : 'Custom Checklist'
-        }
-      >
-        <PatientTodos patient={patient} date={date ?? today} compact />
-      </Collapsible>
-
-      <Collapsible label="Catatan pasien">
-        {notes.value.trim() ? (
-          <p className="whitespace-pre-line">{notes.value}</p>
-        ) : (
-          <p className="text-fg-faint">Belum ada catatan tetap.</p>
-        )}
-      </Collapsible>
+      {/*
+        `pr-6` keeps the last tab clear of the resize grip, which sits over
+        this row's corner. No wrapping: a tab that wrapped would become a 44 px
+        blank line (CHANGES, recurring pattern 7). Labels truncate instead,
+        and the count — the part actually read at a glance — never does.
+      */}
+      <div className="flex shrink-0 items-stretch gap-1 border-t border-border bg-bg-subtle px-1 pr-6">
+        <DockTab
+          label="Checklist"
+          count={
+            checklist.progress.total > 0
+              ? { done: checklist.progress.doneCount, total: checklist.progress.total }
+              : null
+          }
+          open={tab === 'checklist'}
+          panelId={panelId}
+          onToggle={() => toggleTab('checklist')}
+        />
+        <DockTab
+          label="Custom Checklist"
+          count={todoCounts.total > 0 ? todoCounts : null}
+          open={tab === 'todos'}
+          panelId={panelId}
+          onToggle={() => toggleTab('todos')}
+        />
+        <DockTab
+          label="Catatan pasien"
+          hasContent={notes.value.trim().length > 0}
+          open={tab === 'catatan'}
+          panelId={panelId}
+          onToggle={() => toggleTab('catatan')}
+        />
+      </div>
 
       {/* Corner grip. Both axes at once here, unlike the board cards: a window
           has no neighbours to disturb, so there is nothing for a stray pixel
@@ -396,35 +441,67 @@ function CopyButton({ label, text }: { label: string; text: () => string }): JSX
   );
 }
 
+type PeekTab = 'checklist' | 'todos' | 'catatan';
+
 /**
- * A strip that opens. Closed by default and not remembered.
+ * One tab in the peek window's bottom row.
  *
- * A window is a moment — it is opened to answer one question and closed again
- * — so persisting which strips were open would restore the state of a question
- * somebody already finished asking.
+ * A disclosure button (`aria-expanded`), not an ARIA tab: pressing the open one
+ * closes it, and a tablist always has one tab selected.
+ *
+ * The count is a badge that stays whole while the label truncates, tinted when
+ * everything is done — "7/7" and "0/1" are the whole answer to "did anyone do
+ * it", and a narrow window should lose the word before the number.
  */
-function Collapsible({
+function DockTab({
   label,
-  children,
+  count,
+  hasContent,
+  open,
+  panelId,
+  onToggle,
 }: {
   label: string;
-  children: React.ReactNode;
+  /** Omitted for a tab with nothing to count; `null` when the list is empty. */
+  count?: { done: number; total: number } | null;
+  /** For the standing note: a dot when there is something to read. */
+  hasContent?: boolean;
+  open: boolean;
+  panelId: string;
+  onToggle: () => void;
 }): JSX.Element {
-  const [open, setOpen] = useState(false);
+  const complete = count ? count.done === count.total : false;
+  const summary = count ? `${count.done}/${count.total}` : null;
+  const empty = count === null || hasContent === false;
+
   return (
-    <div className="shrink-0 border-t border-border">
-      <button
-        type="button"
-        onClick={() => setOpen((current) => !current)}
-        aria-expanded={open}
-        className="flex min-h-tap w-full items-center gap-1 px-3 text-left text-[11px] font-medium text-fg-muted"
-      >
-        <span aria-hidden="true" className="w-3">
-          {open ? '▾' : '▸'}
+    <button
+      type="button"
+      onClick={onToggle}
+      aria-expanded={open}
+      aria-controls={open ? panelId : undefined}
+      aria-label={summary ? `${label}, ${summary} selesai` : label}
+      title={label}
+      className={[
+        'flex min-h-tap min-w-0 flex-auto items-center justify-center gap-1 rounded-md px-1.5 text-[11px] font-medium',
+        open ? 'bg-surface text-fg shadow-sm' : empty ? 'text-fg-faint' : 'text-fg-muted',
+      ].join(' ')}
+    >
+      <span className="truncate">{label}</span>
+      {summary ? (
+        <span
+          aria-hidden="true"
+          className={[
+            'shrink-0 rounded px-1 tabular-nums',
+            complete ? 'bg-accent/15 text-accent' : 'border border-border text-fg',
+          ].join(' ')}
+        >
+          {summary}
         </span>
-        {label}
-      </button>
-      {open ? <div className="max-h-40 overflow-auto px-3 pb-2 text-[11px]">{children}</div> : null}
-    </div>
+      ) : null}
+      {hasContent ? (
+        <span aria-hidden="true" className="h-1.5 w-1.5 shrink-0 rounded-full bg-accent" />
+      ) : null}
+    </button>
   );
 }

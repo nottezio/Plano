@@ -1,5 +1,72 @@
 # Plano — CHANGES
 
+## `2026-09-16.5`
+
+**The peek window's Checklist, Custom Checklist and Catatan pasien are one row
+of tabs now.**
+
+### Root cause
+
+These were three stacked collapsible strips, each a full-width row with a
+44 px tap target and its own border. The problem was the structure, not the
+padding:
+
+- **Closed**, the three strips cost about 135 px of a 380 px window, and the
+  note (what the window is for) got roughly a third of the height. Your
+  screenshot shows this: four windows, each mostly labels.
+- **Open**, each strip added its own panel of up to 160 px, and nothing
+  stopped all three being open at once. Stacked accordions add up, so the note
+  body could be squeezed to zero.
+
+Shrinking the padding would only have made the same stack smaller. It would
+still grow with every strip added.
+
+### The fix
+
+- **One bottom row, three tabs.** Closed, it costs one 44 px row instead of
+  three.
+- **One panel slot.** Only one tab is open at a time. Pressing the open tab
+  closes it, and pressing another switches straight to it. The panel is capped
+  at 45 % of the window height and scrolls inside itself, so the note always
+  keeps the rest.
+- **The panel opens above the tabs,** so the row never moves. Switching from
+  Checklist to Catatan is two presses on the same spot.
+- **Counts are badges** that never truncate. When space is tight the label
+  shortens ("Custom Chec…") but "0/1" stays whole. A badge is tinted when
+  everything is done. Catatan pasien shows a dot when it has content, and a
+  tab with nothing in it is dimmed.
+- Tabs size to their label (`flex-auto`), so the short "Checklist" does not
+  take the space "Custom Checklist" needs.
+- The row keeps `pr-6` so the last tab stays clear of the resize grip.
+- The tabs are disclosure buttons (`aria-expanded`/`aria-controls`) rather
+  than ARIA tabs, because a tablist must always have one tab selected and this
+  row can have none. The full label and count are in `aria-label`.
+- The content is unchanged. The panel shows the same live checklist, the real
+  `PatientTodos` in compact mode, and the same standing note. What is open is
+  still not remembered.
+
+### Not done, and why
+
+- **Tabs stay 44 px tall.** That is the project-wide tap-target rule
+  (`check:a11y`), and peek windows are not limited to mouse screens. A
+  fine-pointer variant at around 32 px would save another 12 px on ward PCs,
+  but it would be the first `pointer: fine` rule in the codebase. That is a
+  decision for you, not something to slip into this release.
+- **The title bar was not touched.** It is the other large block in the
+  window, since the SIMGOS / WA / Buka / ✕ buttons are 44 px each.
+  Compressing it is the next win if the note is still too short.
+- **Not rendered here.** The sandbox has no headless browser, and the browser
+  download host is not allowed. Typecheck, lint and tests pass, but the layout
+  has not been seen. Please check on a ward PC with 3–4 windows open,
+  including one resized to its 280 px minimum width.
+
+```
+1253 tests passed
+typecheck / lint (0 warnings) / check:version / check:contrast / check:a11y / build — clean
+```
+
+---
+
 ## `2026-09-16.4`
 
 **"Pakai format ini" changed the button and not the text. Lint now fails on
