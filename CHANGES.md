@@ -1,5 +1,37 @@
 # Plano — CHANGES
 
+## `2026-09-16.1`
+
+**Buka and ✕ on the peek window did nothing.**
+
+The title bar is the drag handle and also carries both controls, and the drag
+handler called `setPointerCapture` on every `pointerdown` inside it — including
+presses that landed on a button.
+
+Capture retargets every subsequent pointer event to the capturing element, so
+the `pointerup` never reached the button underneath and no click was ever
+generated. The bar dragged perfectly while both controls were dead, which is
+why it looked like a styling problem rather than a gesture one.
+
+A press that starts on a `button` or an `a` is no longer a drag. Checked on the
+event TARGET rather than by moving the handler somewhere narrower, because the
+whole bar should stay draggable — the space around the title is the obvious
+place to grab a window from, and putting the handler on the title text alone
+would trade two broken buttons for a handle nobody can find.
+
+The resize grip is itself a button, so the check only applies to the move
+gesture; its own press must still start a drag.
+
+Both controls also got proper tap targets now that they are actually
+pressable — they had been sized as decoration.
+
+```
+1246 tests passed
+typecheck / lint / check:version / check:contrast / check:a11y / build — clean
+```
+
+---
+
 ## `2026-09-14.5`
 
 **The checklist tick was never being saved. And the peek is a window now.**

@@ -103,6 +103,26 @@ export function PatientPeekWindow({
   if (!patient) return null;
 
   const beginDrag = (event: React.PointerEvent, mode: 'move' | 'resize'): void => {
+    /*
+      A press that started on a control is not a drag.
+
+      The title bar is the drag handle AND carries Buka and ✕, and this handler
+      called `setPointerCapture` on every pointerdown in it. Capture retargets
+      every subsequent pointer event to the capturing element, so the pointerup
+      never reached the button underneath and no click was ever generated —
+      both controls were dead, while the bar itself dragged perfectly.
+
+      Checked on the TARGET rather than by putting the handler elsewhere,
+      because the whole bar should stay draggable: the gap around the title is
+      the obvious place to grab a window from, and moving the handler to the
+      title text alone would trade two broken buttons for a handle nobody can
+      find.
+
+      `mode` guards the resize grip, which is itself a button and whose own
+      press must start a drag.
+    */
+    if (mode === 'move' && (event.target as HTMLElement).closest('button, a')) return;
+
     const handle = event.currentTarget as HTMLElement;
     handle.setPointerCapture(event.pointerId);
     dragged.current = true;
@@ -175,7 +195,7 @@ export function PatientPeekWindow({
         </div>
         <Link
           to={`/p/${patient.id}`}
-          className="shrink-0 rounded-lg border border-border px-2 py-1 text-[10px] font-medium text-accent"
+          className="flex min-h-tap shrink-0 items-center rounded-lg border border-border px-2 text-[10px] font-medium text-accent"
         >
           Buka
         </Link>
@@ -183,7 +203,7 @@ export function PatientPeekWindow({
           type="button"
           onClick={onClose}
           aria-label="Tutup pratinjau"
-          className="shrink-0 rounded-lg px-2 py-1 text-xs text-fg-muted"
+          className="min-h-tap min-w-tap shrink-0 rounded-lg text-xs text-fg-muted"
         >
           ✕
         </button>
