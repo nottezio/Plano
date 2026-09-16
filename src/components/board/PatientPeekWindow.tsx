@@ -6,6 +6,8 @@ import { formatShortDate } from '@/domain/clinicalDate';
 import { toPlain, toWhatsApp } from '@/domain/format/formatters';
 import { useChecklist } from '@/hooks/useChecklist';
 import { usePatientNotes } from '@/components/patient/PatientNotes';
+import { PatientTodos } from '@/components/patient/PatientTodos';
+import { todoViews } from '@/domain/patientTodos';
 import { useSession } from '@/store/useSession';
 import { copyText } from '@/lib/clipboard';
 import type { ClinicalDate, Patient } from '@/domain/types';
@@ -70,6 +72,18 @@ export function PatientPeekWindow({
   */
   const checklist = useChecklist(patient.id, date ?? today, settings.checklistItems, date !== null);
   const notes = usePatientNotes(patient);
+
+  /*
+    The custom checklist's counts are computed here only for the strip's label.
+    The strip itself renders the real `PatientTodos`, so ticking, adding and
+    importing behave exactly as they do on the patient page — a second,
+    read-only copy would be a second thing to keep in step, and the first time
+    they disagreed nobody would know which was right.
+  */
+  const todoCounts = (() => {
+    const views = todoViews(patient.todos ?? [], patient.todoTicks, date ?? today);
+    return { done: views.filter((view) => view.done).length, total: views.length };
+  })();
 
   useEffect(() => {
     // Placed once, offset from the top-right and CASCADED by how many are
@@ -311,6 +325,16 @@ export function PatientPeekWindow({
             </li>
           ))}
         </ul>
+      </Collapsible>
+
+      <Collapsible
+        label={
+          todoCounts.total > 0
+            ? `Custom Checklist · ${todoCounts.done}/${todoCounts.total}`
+            : 'Custom Checklist'
+        }
+      >
+        <PatientTodos patient={patient} date={date ?? today} compact />
       </Collapsible>
 
       <Collapsible label="Catatan pasien">

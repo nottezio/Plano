@@ -31,9 +31,18 @@ export function PatientTodos({
    * that wrote to the day's SOAP while a jaga note was open.
    */
   date,
+  compact = false,
 }: {
   patient: Patient;
   date: ClinicalDate;
+  /**
+   * Drop the section's own heading, for a caller that already names it.
+   *
+   * The peek window puts this inside a strip labelled "Custom Checklist", and
+   * two headings one line apart reading the same words is how a small window
+   * runs out of room for the thing it is showing.
+   */
+  compact?: boolean;
 }): JSX.Element {
   const [draft, setDraft] = useState('');
   const [importOpen, setImportOpen] = useState(false);
@@ -97,22 +106,30 @@ export function PatientTodos({
   };
 
   return (
-    <section className="border-b border-border px-4 py-2 xl:border-0 xl:px-0">
+    <section
+      className={
+        compact ? 'px-0 py-0' : 'border-b border-border px-4 py-2 xl:border-0 xl:px-0'
+      }
+    >
       <div className="flex items-center gap-2">
-        <h3 className="flex-1 text-xs font-semibold text-fg-muted">
-          Checklist pasien
-          {todos.length > 0 ? (
-            <span className="ml-1 font-normal text-fg-faint">
-              {doneCount}/{todos.length}
-            </span>
-          ) : null}
-        </h3>
+        {compact ? (
+          <span className="flex-1" />
+        ) : (
+          <h3 className="flex-1 text-xs font-semibold text-fg-muted">
+            Custom Checklist
+            {todos.length > 0 ? (
+              <span className="ml-1 font-normal text-fg-faint">
+                {doneCount}/{todos.length}
+              </span>
+            ) : null}
+          </h3>
+        )}
         <button
           type="button"
           onClick={() => setImportOpen((open) => !open)}
           className="min-h-tap text-[11px] text-accent underline"
         >
-          Ambil dari checklist
+          Ambil dari checklist harian
         </button>
       </div>
 

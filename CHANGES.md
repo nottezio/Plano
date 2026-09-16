@@ -1,5 +1,45 @@
 # Plano — CHANGES
 
+## `2026-09-16.3`
+
+**Custom Checklist in the peek window, and one name for it everywhere.**
+
+### The name
+
+`Checklist pasien` → **`Custom Checklist`**. One instance in the codebase, and
+that is the point of changing it now: the daily checklist, the per-patient one
+and the note strip were close enough in name to be confused, and the peek
+window was about to show two of them one line apart.
+
+The import link inside it now reads **"Ambil dari checklist harian"** rather
+than "Ambil dari checklist", which named neither of the two things it sits
+between.
+
+### In the peek window
+
+A third strip, between the daily checklist and the standing note.
+
+It renders the **real `PatientTodos`**, not a read-only copy — so ticking,
+adding and importing behave exactly as they do on the patient page. A second
+implementation would be a second thing to keep in step, and the first time they
+disagreed nobody would know which was right.
+
+It reads the day ON SCREEN, like everything else in this window: a peek at an
+older note shows that day's ticks, not this morning's.
+
+`PatientTodos` gained a `compact` flag that drops its own heading, because the
+strip already names it and two headings one line apart reading the same words
+is how a 420 px window runs out of room for the thing it is showing. The counts
+move to the strip label, so they are visible while it is closed — which is
+usually all anybody wants from it.
+
+```
+1246 tests passed
+typecheck / lint / check:version / check:contrast / check:a11y / build — clean
+```
+
+---
+
 ## `2026-09-16.2`
 
 **Several peek windows at once, a visible resize grip, Salin, a date chip, and
