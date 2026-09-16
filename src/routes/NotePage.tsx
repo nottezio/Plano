@@ -152,6 +152,7 @@ export default function NotePage(): JSX.Element {
     settlePending(notes, pendingBodies.current);
   }, [notes]);
 
+
   const reorder = (fromId: string, toId: string): void => {
     if (!uid || fromId === toId) return;
 
@@ -197,6 +198,51 @@ export default function NotePage(): JSX.Element {
     locked: uid === null,
     write,
   });
+
+  /**
+   * Ticking a checklist box — on a NATIVE listener, not React's `onChange`.
+   *
+   * This is why the ticks kept disappearing, and it was never the sync race
+   * fixed on 14 September: the tick was never saved in the first place.
+   *
+   * React's change plugin handles checkboxes through `click`, and only for
+   * inputs React itself rendered. These boxes are inserted by `execCommand`
+   * into a contenteditable, so they have no fiber. React walks up to the
+   * nearest element it does know — this `div` — sees that a `div` is not a
+   * checkbox, and dispatches nothing. The `onChange` prop on the container
+   * looked correct and had simply never run.
+   *
+   * The ATTRIBUTE is written rather than the property, because `innerHTML` is
+   * how this note is stored and it serialises attributes and ignores
+   * properties. A box ticked without this looks ticked until the value is
+   * reloaded, and is then blank again.
+   *
+   * `click` as well as `change`: the two are redundant here, and redundancy is
+   * cheap because the handler is idempotent — it reads the box's own state
+   * rather than toggling anything.
+   */
+  const syncRef = useRef(sync);
+  syncRef.current = sync;
+
+  useEffect(() => {
+    const node = ref.current;
+    if (!node) return;
+
+    const onToggle = (event: Event): void => {
+      const target = event.target;
+      if (!(target instanceof HTMLInputElement) || target.type !== 'checkbox') return;
+      if (target.checked) target.setAttribute('checked', '');
+      else target.removeAttribute('checked');
+      syncRef.current.setValue(node.innerHTML);
+    };
+
+    node.addEventListener('change', onToggle);
+    node.addEventListener('click', onToggle);
+    return () => {
+      node.removeEventListener('change', onToggle);
+      node.removeEventListener('click', onToggle);
+    };
+  }, []);
 
   const addNote = (): void => {
     if (!uid) return;
@@ -644,26 +690,6 @@ export default function NotePage(): JSX.Element {
           spellCheck
           lang=""
           onInput={(event) => sync.setValue(event.currentTarget.innerHTML)}
-          /**
-           * Ticking a checklist box.
-           *
-           * `change` is used rather than `click` so keyboard toggling works
-           * too, and it is caught on the container because the boxes come and
-           * go as the note is edited — binding to each one would mean
-           * rebinding on every keystroke.
-           *
-           * The ATTRIBUTE is written, not just the property. `innerHTML` — how
-           * this note is stored — serialises attributes and ignores properties,
-           * so a box ticked without this would appear ticked until the page
-           * reloaded and then be blank again.
-           */
-          onChange={(event) => {
-            const target = event.target as HTMLElement;
-            if (!(target instanceof HTMLInputElement) || target.type !== 'checkbox') return;
-            if (target.checked) target.setAttribute('checked', '');
-            else target.removeAttribute('checked');
-            sync.setValue(event.currentTarget.innerHTML);
-          }}
           onBlur={sync.flush}
           /**
            * `ul.cl` is the checklist list: no bullet, because each row already

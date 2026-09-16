@@ -13,7 +13,7 @@ import { MasonryGrid, MasonryItem } from '@/components/board/MasonryGrid';
 import { LabSheet } from '@/components/patient/LabSheet';
 import { copyText } from '@/lib/clipboard';
 import { PatientCard } from '@/components/board/PatientCard';
-import { PatientPreviewSheet } from '@/components/board/PatientPreviewSheet';
+import { PatientPeekWindow } from '@/components/board/PatientPeekWindow';
 import { QuickChecklistSheet } from '@/components/board/QuickChecklistSheet';
 import { IconSearch } from '@/components/common/Icons';
 import { useClinicalToday } from '@/hooks/useClinicalToday';
@@ -802,12 +802,18 @@ export default function BoardPage(): JSX.Element {
         onInsert={(text) => void copyText(text)}
       />
 
-      <PatientPreviewSheet
+      {/*
+        A window, not a sheet.
+
+        The peek is used WHILE looking at the board — comparing a plan against
+        the card beside it, keeping a note open while writing a report. A sheet
+        covers the board, so those two things alternate instead of being
+        visible together.
+      */}
+      <PatientPeekWindow
         patient={previewPatient}
         today={today}
-        onOpenChange={(open) => {
-          if (!open) setPreviewId(null);
-        }}
+        onClose={() => setPreviewId(null)}
       />
 
       <QuickChecklistSheet

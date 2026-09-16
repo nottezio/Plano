@@ -1,5 +1,71 @@
 # Plano — CHANGES
 
+## `2026-09-14.5`
+
+**The checklist tick was never being saved. And the peek is a window now.**
+
+### Why the ticks kept disappearing — and why yesterday's fix did not help
+
+Not the sync race fixed in `2026-09-14.4`. The tick was **never saved in the
+first place**, so there was nothing for any sync to lose.
+
+The handler was React's `onChange` on the contenteditable container. React's
+change plugin handles checkboxes through `click`, and only for inputs React
+itself rendered. These boxes are inserted by `execCommand` into a
+contenteditable, so they have no fiber. React walks up to the nearest element
+it does know — the `div` — sees that a `div` is not a checkbox, and dispatches
+nothing.
+
+The `onChange` prop looked correct, had a comment explaining exactly the right
+thing about attributes versus properties, and had simply never run. The box
+ticked on screen because the browser ticked it; nothing wrote it down, and it
+came back blank the next time the note was read from storage.
+
+Bound natively now, on both `change` and `click`. The redundancy is cheap
+because the handler is idempotent — it reads the box's own state rather than
+toggling anything — and it is worth having because whether a given browser
+fires `change` for a synthetic checkbox inside a contenteditable is not
+something to rely on.
+
+The attribute is still what gets written, for the reason the old comment gave:
+`innerHTML` serialises attributes and ignores properties.
+
+### The peek is a floating window
+
+A sheet is modal — it covers the board, and closing it is the only way to see
+the board again. That is the wrong shape for what this is used for: reading one
+patient's note WHILE looking at the others, comparing a plan against the card
+beside it, keeping a note open while writing a report. Every one of those needs
+both things visible at once, and a sheet makes them alternate.
+
+It is now a panel dragged by its title bar, resized from the corner, closed
+with Escape or ✕.
+
+- **Position is not persisted.** A card's position on the canvas is saved and
+  has to survive a different screen; this window lives for as long as it is
+  open. It is placed once per patient, offset from the top right — unless you
+  have already moved it, because a window that jumps back on every peek is one
+  you reposition every time.
+- **The title bar can never leave the viewport.** A window dragged past the
+  edge has no handle left to drag it back by.
+- **The header carries the full identity**, not "Pratinjau". On a board of
+  twelve this is often one of several things being read at once, and a panel
+  you have to click into to identify is not much of a peek.
+- **Still read-only.** Nothing typed here could be saved anywhere, so there is
+  nothing to type into — a read-only window cannot leave a half-written note in
+  a chart nobody is looking at.
+
+Both axes resize from one corner grip, unlike the board cards where they are
+deliberately separate: a window has no neighbours to disturb, so there is
+nothing for a stray pixel of the other dimension to break.
+
+```
+1246 tests passed
+typecheck / lint / check:version / check:contrast / check:a11y / build — clean
+```
+
+---
+
 ## `2026-09-14.4`
 
 **Salin RM; the Catatan checklist that vanished on a tab switch; Rapikan SOAP
