@@ -126,10 +126,23 @@ export function CompareSheet({
   const leftPane = resolve(against);
   const rightPane = resolve(right);
 
+  /**
+   * The diff reads the two BODIES, taken out as strings first.
+   *
+   * `resolve` builds a fresh pane object every render, so depending on the
+   * panes would re-diff on every keystroke anywhere on the page. Listing
+   * `leftPane?.body` while reading `leftPane` inside was correct but left the
+   * dependency list incomplete as written — the shape a later edit turns
+   * into a stale diff. Strings make it complete and stable at once.
+   */
+  const leftBody = leftPane?.body;
+  const rightBody = rightPane?.body;
   const segments = useMemo(
     () =>
-      showDiff && leftPane && rightPane ? diffSegmentsByLine(leftPane.body, rightPane.body) : null,
-    [showDiff, leftPane?.body, rightPane?.body],
+      showDiff && leftBody !== undefined && rightBody !== undefined
+        ? diffSegmentsByLine(leftBody, rightBody)
+        : null,
+    [showDiff, leftBody, rightBody],
   );
 
   return (

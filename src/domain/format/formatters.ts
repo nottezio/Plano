@@ -256,7 +256,6 @@ export function foldToAscii(text: string): string {
 
 /** Anything left that SIMGOS would render as `?`. */
 export function findNonAsciiChars(text: string): string[] {
-  // eslint-disable-next-line no-control-regex
   return [...new Set(text.match(/[^\x00-\x7F]/g) ?? [])];
 }
 

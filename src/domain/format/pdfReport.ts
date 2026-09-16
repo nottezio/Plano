@@ -1,7 +1,7 @@
 import { mergeSections, parseSections } from '../sections/parseSections';
 import { formatBody, type BulletStyle } from './formatters';
 import { findOpeningLine } from '../opening';
-import type { OutputFormat, SectionAlias } from '../types';
+import type { DpjpReportConfig, OutputFormat, SectionAlias } from '../types';
 
 /**
  * SPEC 12.6 — the short report some DPJPs want as a PDF.
@@ -210,6 +210,47 @@ function diagnosisBlock(body: string, aliases: readonly SectionAlias[]): string 
     })
     .filter(Boolean)
     .join('\n');
+}
+
+/**
+ * The consultant's report format, but only while it is applied FOR THAT
+ * consultant.
+ *
+ * Applying used to be a boolean. A boolean remembers that something was
+ * applied, not what — so if the note's DPJP changed while the sheet held
+ * `true`, the next consultant's switches took effect without anyone pressing
+ * anything. That is the silent shape change the Copy sheet exists to avoid.
+ * Keyed by DPJP id, a stale application simply stops matching.
+ */
+export function appliedReportConfig(
+  appliedFor: string | null,
+  dpjpId: string | undefined,
+  expected: DpjpReportConfig | undefined,
+): DpjpReportConfig | undefined {
+  return appliedFor !== null && appliedFor === dpjpId ? expected : undefined;
+}
+
+/**
+ * The three report options a consultant's config can override, resolved to
+ * plain values.
+ *
+ * Returned as primitives on purpose: a memo that reads the config OBJECT has
+ * to list the object — and when it listed neither the object nor the flag that
+ * selected it, applying a format changed the button label but not the text
+ * (see CHANGES.md). Primitives make the dependency list complete by
+ * construction and keep it stable across renders.
+ */
+export function consultantReportOptions(
+  config: DpjpReportConfig | undefined,
+  chosen: { format: OutputFormat; verificationTime: string },
+): { format: OutputFormat; staffing: boolean; verificationTime: string | undefined } {
+  return {
+    // Telegram does not render WhatsApp markers, whatever chip is selected.
+    format: config?.plainText ? 'plain' : chosen.format,
+    // An unconfigured consultant keeps the staffing lines.
+    staffing: config?.staffing ?? true,
+    verificationTime: config?.verificationTime ? chosen.verificationTime : undefined,
+  };
 }
 
 export function composePdfReport(body: string, options: PdfReportOptions): string {

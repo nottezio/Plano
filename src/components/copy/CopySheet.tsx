@@ -23,7 +23,11 @@ import {
   konsulPresetById,
 } from '@/domain/format/konsulPresets';
 import { composeShiftNote } from '@/domain/format/composeShiftNote';
-import { composePdfReport } from '@/domain/format/pdfReport';
+import {
+  appliedReportConfig,
+  composePdfReport,
+  consultantReportOptions,
+} from '@/domain/format/pdfReport';
 import { describeConfig, primaryDpjp } from '@/domain/dpjp';
 import {
   COPY_GROUPS,
@@ -263,8 +267,21 @@ export function CopySheet({
    * Applying is one tap and it is visible: the switches move, so what you get
    * is always what the sheet shows.
    */
-  const [applied, setApplied] = useState(false);
-  const active = applied ? expected : undefined;
+  const [appliedFor, setAppliedFor] = useState<string | null>(null);
+  const active = appliedReportConfig(appliedFor, dpjp?.id, expected);
+  const applied = active !== undefined;
+
+  /**
+   * What the Ringkas report is composed with, resolved to primitives BEFORE
+   * the memo below. The memo used to read `active?.…` inline and list none of
+   * it, so applying a consultant's format while Ringkas was already selected
+   * changed nothing that the memo watched: the button said "sedang dipakai"
+   * and the text was the old one.
+   */
+  const report = consultantReportOptions(active, { format, verificationTime });
+  const reportFormat = report.format;
+  const reportStaffing = report.staffing;
+  const reportVerificationTime = report.verificationTime;
 
   const present = useMemo(() => availableGroups(body, aliases), [body, aliases]);
 
@@ -282,13 +299,28 @@ export function CopySheet({
       which is what made an unfamiliar heading a problem.
     */
     () => (groups === 'all' ? ('all' as const) : [...groups]),
-    [groups, body, aliases],
+    [groups],
   );
+
+  /**
+   * The id, not the object: the note re-identifies on every keystroke while it
+   * is being edited, and an effect depending on the object would reset the
+   * chosen shape mid-typing. Read through this const — not `activeShiftNote`
+   * — inside the effect, so the dependency list is complete as written.
+   */
+  const shiftNoteId = activeShiftNote?.id;
 
   // Loaded once per opening: ranges beyond the current day need other bodies.
   useEffect(() => {
     if (!open) return;
     setCopied(false);
+    /**
+     * A reopened sheet starts unapplied. The shape is reset just below, so a
+     * surviving application would leave the button disabled and reading
+     * "sedang dipakai" over a shape the consultant never asked for — with no
+     * way to press it again.
+     */
+    setAppliedFor(null);
     /**
      * Opening Salin while a jaga note is on screen defaults to copying THAT
      * note.
@@ -297,7 +329,7 @@ export function CopySheet({
      * your thumb sends something other than what fills the screen behind the
      * sheet, which is the one thing this sheet must never do.
      */
-    setShape(activeShiftNote ? 'jaga' : 'harian');
+    setShape(shiftNoteId ? 'jaga' : 'harian');
     let cancelled = false;
     void fetchEntryBodies(patient.id)
       .then((days) => {
@@ -307,10 +339,7 @@ export function CopySheet({
     return () => {
       cancelled = true;
     };
-    // `activeShiftNote?.id`, not the object: the note re-identifies on every
-    // keystroke while it is being edited, and depending on the object would
-    // reset the chosen shape mid-typing.
-  }, [open, patient.id, activeShiftNote?.id]);
+  }, [open, patient.id, shiftNoteId]);
 
   const days = useMemo(() => {
     const fetched = allDays.length > 0 ? allDays : [{ date, body }];
@@ -367,15 +396,13 @@ export function CopySheet({
         : pdfMode
         ? composePdfReport(body, {
             aliases,
-            // A consultant who reads the report somewhere that does not render
-            // WhatsApp markers gets plain text, whatever chip is selected.
-            format: active?.plainText ? 'plain' : format,
-            bullet,
             // The consultant's own switches, so choosing "Ringkas (PDF)" for
             // ZD produces a report with a verification time and for MZ one
             // without staffing lines, rather than one shape for everyone.
-            staffing: active?.staffing ?? true,
-            ...(active?.verificationTime ? { verificationTime } : {}),
+            format: reportFormat,
+            bullet,
+            staffing: reportStaffing,
+            ...(reportVerificationTime ? { verificationTime: reportVerificationTime } : {}),
             closings,
           })
         : composeCopy(days, {
@@ -400,7 +427,9 @@ export function CopySheet({
       invasifPayer,
       invasifPenunjang,
       closings,
-      verificationTime,
+      reportFormat,
+      reportStaffing,
+      reportVerificationTime,
       date,
       body,
       days,
@@ -565,7 +594,7 @@ export function CopySheet({
             active={format === value}
             onClick={() => {
               setFormat(value);
-              setApplied(false);
+              setAppliedFor(null);
             }}
           >
             {FORMAT_LABELS[value]}
@@ -589,7 +618,7 @@ export function CopySheet({
           <button
             type="button"
             onClick={() => {
-              setApplied(true);
+              if (dpjp) setAppliedFor(dpjp.id);
               // The consultant's preference only ever names `ringkas` or the
               // daily report; a konsul is a decision for this note, not a
               // standing preference, so it is never applied from here.
@@ -608,7 +637,7 @@ export function CopySheet({
           active={shape === 'harian'}
           onClick={() => {
             setShape('harian');
-            setApplied(false);
+            setAppliedFor(null);
           }}
         >
           Laporan harian
@@ -617,7 +646,7 @@ export function CopySheet({
           active={shape === 'ringkas'}
           onClick={() => {
             setShape('ringkas');
-            setApplied(false);
+            setAppliedFor(null);
           }}
         >
           Ringkas (PDF)
@@ -627,7 +656,7 @@ export function CopySheet({
             active={shape === 'jaga'}
             onClick={() => {
               setShape('jaga');
-              setApplied(false);
+              setAppliedFor(null);
             }}
           >
             SOAP jaga {activeShiftNote.time}
@@ -637,7 +666,7 @@ export function CopySheet({
           active={shape === 'invasif'}
           onClick={() => {
             setShape('invasif');
-            setApplied(false);
+            setAppliedFor(null);
           }}
         >
           Grup invasif
@@ -646,7 +675,7 @@ export function CopySheet({
           active={shape === 'konsul'}
           onClick={() => {
             setShape('konsul');
-            setApplied(false);
+            setAppliedFor(null);
           }}
         >
           Konsul
@@ -939,7 +968,7 @@ export function CopySheet({
             type="button"
             onClick={() => {
               setFormat('plain');
-              setApplied(false);
+              setAppliedFor(null);
             }}
             className="font-medium text-accent underline"
           >

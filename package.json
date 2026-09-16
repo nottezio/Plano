@@ -12,7 +12,7 @@
     "typecheck": "tsc --noEmit -p tsconfig.json && tsc --noEmit -p tsconfig.sw.json",
     "check:version": "bash scripts/check-version.sh",
     "check:contrast": "node scripts/check-contrast.mjs",
-    "lint": "eslint .",
+    "lint": "eslint . --max-warnings 0",
     "verify": "npm run typecheck && npm run lint && npm run test && npm run check:version && npm run check:contrast && npm run check:a11y && npm run build",
     "check:a11y": "node scripts/check-a11y.mjs"
   },

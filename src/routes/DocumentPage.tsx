@@ -35,9 +35,14 @@ export default function DocumentPage(): JSX.Element {
   // Follows the stored title until the field is touched — same reason the
   // identity fields keep a local draft: a value bound straight to Firestore is
   // erased by the re-render before the echo returns.
+  //
+  // Keyed on the id as well as the title: switching to another document with
+  // the same title must still discard an uncommitted draft from the first.
+  const documentKey = document?.id;
+  const storedTitle = document?.title;
   useEffect(() => {
-    if (document) setTitleDraft(document.title);
-  }, [document?.id, document?.title]);
+    if (documentKey !== undefined && storedTitle !== undefined) setTitleDraft(storedTitle);
+  }, [documentKey, storedTitle]);
 
   const editor = useDocumentEditor(documentId, document);
 

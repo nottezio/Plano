@@ -1,5 +1,108 @@
 # Plano — CHANGES
 
+## `2026-09-16.4`
+
+**"Pakai format ini" changed the button and not the text. Lint now fails on
+any warning.**
+
+### Root cause
+
+The six lint warnings had been sitting in `verify` output while every entry
+here said "lint — clean". That was true only of errors. `exhaustive-deps` was
+set to warn, and a warning that does not fail the pipeline is a list that
+grows quietly.
+
+One of the six was a real bug. In Salin, the Ringkas report read the
+consultant's switches (`active?.plainText`, `?.staffing`,
+`?.verificationTime`) inside a `useMemo` that listed none of them. It also did
+not list `applied`, the flag that selects them. So the memo only recomputed
+when something *else* changed.
+
+**How it showed on the ward:**
+
+1. Ringkas (PDF) is already selected.
+2. You press **Pakai format ini** for ZD.
+3. The button turns to *Format ini sedang dipakai*.
+4. `setShape('ringkas')` is a no-op, so nothing the memo watched had moved.
+5. The copied text has no *Jam verifikasi* line. For MZ, the staffing lines
+   and markers stay in.
+
+The output kept the old shape until you typed a character or touched a chip.
+That is the exact failure the comment above `applied` warns against: a control
+that says one thing while the output is another.
+
+Reading the state around it turned up two more faults in the same family:
+
+- **`applied` did not reset on reopen.** The sheet stays mounted with the
+  patient page, and opening it resets the shape. The flag survived, though, so
+  a reopened sheet could show a disabled "sedang dipakai" over a shape the
+  consultant never asked for, with no way to press it again.
+- **`applied` was a boolean.** It remembered *that* a format was applied, not
+  *whose*. If the note's DPJP Utama line was edited while it was `true`, the
+  new consultant's switches took effect without anyone pressing anything.
+
+### The fix
+
+- **`appliedFor: string | null`** holds the DPJP id instead of a boolean.
+  `appliedReportConfig()` returns the config only while that id matches the
+  note's consultant, so a stale application stops matching on its own. The
+  flag also resets whenever the sheet opens.
+- **`consultantReportOptions()`** resolves the three switches to plain values
+  *before* the memo, and the memo depends on those values. This makes the
+  dependency list complete by construction. It also stays stable across
+  renders, which the config object would not guarantee.
+- Both helpers are pure, live in `pdfReport.ts`, and have 7 tests.
+
+**The structural guard:** `exhaustive-deps` is now an **error**, and `npm run
+lint` runs with `--max-warnings 0`. From now on there are only two states,
+clean or red. I confirmed the guard actually fails by appending an unused
+disable directive and watching lint exit 1.
+
+### The other five warnings, individually
+
+| Where | Verdict | Change |
+|---|---|---|
+| `CopySheet` open effect (`activeShiftNote`) | Deliberate: it depends on the id so the shape does not reset mid-typing | The id is read into `shiftNoteId` before the effect and used inside it. Same behaviour, and the list is complete as written |
+| `CopySheet` `selected` memo (`body`, `aliases`) | Unnecessary deps left behind by the switch from section ids to groups | Removed |
+| `CompareSheet` diff memo (`leftPane`, `rightPane`) | Safe: it listed `.body` while reading the pane objects | The bodies are taken out as strings first. Still no re-diff on unrelated renders |
+| `DocumentPage` title effect (`document`) | Safe: it listed `id` and `title` | The same fields are read into consts first |
+| `formatters.ts` unused `eslint-disable no-control-regex` | Stale | Removed |
+
+None of the "deliberate" omissions needed a suppression comment. Each one was
+really "depend on a field, not the object", and the way to say that is a
+const declared before the hook. The comment in `eslint.config.js` that
+justified `warn` is rewritten to say so. It also names the escape hatch: a
+line-level disable with its reason, visible and greppable.
+
+### Wrong turn
+
+My first draft of this change cited this release's version in two code
+comments. `check:version` rejected both, correctly. They now point at
+`CHANGES.md` without naming a version.
+
+### Not done, and why
+
+- **No component test for the memo itself.** The suite does not render
+  components (there is no `@testing-library`), and adding a DOM test harness
+  for one regression is a bigger decision than this fix. The lint rule is now
+  the regression test for this class of bug. The tests cover the resolution
+  logic.
+- **The `DocumentPage` title draft does not stop following the stored title
+  once the field is touched**, although the comment above it says it does. If
+  another device renames the document while you are typing, your draft is
+  overwritten. This predates this change and was not touched here. It needs
+  its own decision, whether to add a `touched` flag or to commit on blur only.
+- **Nothing was run on a device.** Worth checking on the ward: open Salin →
+  Ringkas (PDF) → Pakai format ini on a ZD patient. The *Jam verifikasi* line
+  should appear immediately.
+
+```
+1253 tests passed
+typecheck / lint (0 warnings, enforced) / check:version / check:contrast / check:a11y / build — clean
+```
+
+---
+
 ## `2026-09-16.3`
 
 **Custom Checklist in the peek window, and one name for it everywhere.**

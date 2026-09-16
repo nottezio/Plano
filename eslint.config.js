@@ -21,10 +21,23 @@ import tseslint from 'typescript-eslint';
  * which is the thing actually keeping this app safe — would rot. Every rule
  * here must be one that catches a real defect.
  *
- * `exhaustive-deps` is a WARNING, not an error. Several hooks in this codebase
- * omit dependencies on purpose, with comments explaining why; making it fatal
- * would force either noise-suppression comments everywhere or wrong changes to
- * working code.
+ * `exhaustive-deps` is an ERROR, and `npm run lint` runs with
+ * `--max-warnings 0`.
+ *
+ * It was a warning, on the reasoning that several hooks omitted dependencies
+ * on purpose. What that produced was six warnings nobody read while every
+ * changelog said "lint — clean" — and one of them was a real bug: applying a
+ * consultant's format in Salin changed the button, not the text
+ * (see CHANGES.md). A warning that does not fail `verify` is not a
+ * guardrail; it is a list that grows.
+ *
+ * The deliberate omissions turned out not to need suppressing. Each one was
+ * "depend on a field, not the object" — which is expressed by reading the
+ * field into a const BEFORE the hook and using that const inside it. The list
+ * is then complete as written. If a hook ever genuinely must omit something,
+ * the escape hatch is a line-level
+ * `// eslint-disable-next-line react-hooks/exhaustive-deps` with the reason
+ * beside it: visible, greppable, and one at a time.
  */
 export default tseslint.config(
   {
@@ -42,7 +55,7 @@ export default tseslint.config(
     plugins: { 'react-hooks': reactHooks },
     rules: {
       'react-hooks/rules-of-hooks': 'error',
-      'react-hooks/exhaustive-deps': 'warn',
+      'react-hooks/exhaustive-deps': 'error',
     },
   },
 );

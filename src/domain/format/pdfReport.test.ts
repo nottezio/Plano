@@ -1,6 +1,10 @@
 import { describe, expect, it } from 'vitest';
 
-import { composePdfReport } from './pdfReport';
+import {
+  appliedReportConfig,
+  composePdfReport,
+  consultantReportOptions,
+} from './pdfReport';
 import { DEFAULT_SECTION_ALIASES as ALIASES } from '../sections/aliases';
 
 const BODY = [
@@ -327,5 +331,56 @@ describe('the closing addresses whoever the note addresses', () => {
       closings: ['Selanjutnya mohon arahan Prof. Terima kasih Prof'],
     });
     expect(output.trimEnd().endsWith('Terima kasih Prof')).toBe(true);
+  });
+});
+
+describe('appliedReportConfig', () => {
+  const config = { format: 'ringkas' as const, verificationTime: true };
+
+  it('is the config while applied for the note\'s consultant', () => {
+    expect(appliedReportConfig('zd', 'zd', config)).toBe(config);
+  });
+
+  it('is nothing when nothing was applied', () => {
+    expect(appliedReportConfig(null, 'zd', config)).toBeUndefined();
+  });
+
+  it('does not carry to a different consultant', () => {
+    // The note's DPJP changed after applying: the new consultant's switches
+    // must not take effect without a press.
+    expect(appliedReportConfig('zd', 'mz', config)).toBeUndefined();
+  });
+
+  it('is nothing when the note names no consultant', () => {
+    expect(appliedReportConfig('zd', undefined, config)).toBeUndefined();
+  });
+});
+
+describe('consultantReportOptions', () => {
+  const chosen = { format: 'whatsapp' as const, verificationTime: '08.14' };
+
+  it('keeps the chosen format, staffing on, no verification time when unconfigured', () => {
+    expect(consultantReportOptions(undefined, chosen)).toEqual({
+      format: 'whatsapp',
+      staffing: true,
+      verificationTime: undefined,
+    });
+  });
+
+  it('applies every switch the consultant has set', () => {
+    expect(
+      consultantReportOptions(
+        { format: 'ringkas', plainText: true, staffing: false, verificationTime: true },
+        chosen,
+      ),
+    ).toEqual({ format: 'plain', staffing: false, verificationTime: '08.14' });
+  });
+
+  it('leaves unset switches at their defaults', () => {
+    expect(consultantReportOptions({ format: 'ringkas', verificationTime: true }, chosen)).toEqual({
+      format: 'whatsapp',
+      staffing: true,
+      verificationTime: '08.14',
+    });
   });
 });
