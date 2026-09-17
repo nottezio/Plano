@@ -3,6 +3,7 @@ import { useSession } from '@/store/useSession';
 import { Footer } from '@/components/common/Footer';
 import { LockScreen } from '@/components/privacy/LockScreen';
 import { useLock } from '@/store/useLock';
+import { AccessGate } from './AccessGate';
 import { SignInPage } from './SignInPage';
 
 /**
@@ -55,5 +56,6 @@ export function AuthGate({ children }: { children: ReactNode }): JSX.Element {
   // which lives in the draft store and was flushed on backgrounding.
   if (locked) return <LockScreen />;
 
-  return <>{children}</>;
+  // Signed in is not the same as allowed: see AccessGate.
+  return <AccessGate>{children}</AccessGate>;
 }

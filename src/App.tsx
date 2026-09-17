@@ -10,6 +10,7 @@ import { HelperPage } from '@/routes/HelperPage';
 import SettingsPage from '@/routes/SettingsPage';
 import PatientPage from '@/routes/PatientPage';
 import NotFoundPage from '@/routes/NotFoundPage';
+import AdminPage from '@/routes/AdminPage';
 
 /**
  * Route table (SPEC 4 / 5). Paths are user-visible Bahasa Indonesia; the
@@ -30,6 +31,8 @@ export default function App(): JSX.Element {
       <Route path="/pengaturan" element={<SettingsPage />} />
       <Route path="/p/:patientId" element={<PatientPage />} />
       <Route path="/p/:patientId/:date" element={<PatientPage />} />
+      {/* Unlinked for everyone but the admin; see AdminPage. */}
+      <Route path="/admin" element={<AdminPage />} />
       <Route path="*" element={<NotFoundPage />} />
     </Routes>
   );

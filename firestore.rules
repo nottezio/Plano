@@ -20,16 +20,70 @@ service cloud.firestore {
       return request.auth != null;
     }
 
+    function isSelf(uid) {
+      return authed() && request.auth.uid == uid;
+    }
+
+    /*
+     * ACCESS CONTROL (see src/domain/access.ts for the whole model).
+     *
+     * The one admin, by UID. Written here rather than stored in a document,
+     * so there is no data anyone could write to become admin. A client test
+     * checks this literal matches `ADMIN_UID`.
+     */
+    function isAdmin() {
+      return authed() && request.auth.uid == 'Wh7oXHHQfadqM8UWQubBi2iyj0i2';
+    }
+
+    // The switch. Absent or false: every signed-in account is allowed, as
+    // before this existed. `get('enforce', false)` so a document without the
+    // field reads as off rather than erroring.
+    function accessEnforced() {
+      return exists(/databases/$(database)/documents/config/access)
+        && get(/databases/$(database)/documents/config/access).data.get('enforce', false) == true;
+    }
+
+    function isApproved() {
+      return exists(/databases/$(database)/documents/access/$(request.auth.uid))
+        && get(/databases/$(database)/documents/access/$(request.auth.uid)).data.get('status', '') == 'approved';
+    }
+
+    // Every data path goes through this. Ordered so the admin costs no extra
+    // read, and an unenforced project costs one `exists`.
+    function allowed() {
+      return authed() && (isAdmin() || !accessEnforced() || isApproved());
+    }
+
     function isMemberOf(data) {
-      return authed() && request.auth.uid in data.memberIds;
+      return allowed() && request.auth.uid in data.memberIds;
     }
 
     // Costs one document read per subcollection rule evaluation. Acceptable at
     // ward scale (tens of patients, one user); documented rather than hidden.
     function isMember(pid) {
-      return authed() &&
+      return allowed() &&
              request.auth.uid in
                get(/databases/$(database)/documents/patients/$(pid)).data.memberIds;
+    }
+
+    // What a user's own app may write to its access record: never `status`.
+    // Mirrored by REGISTRY_KEYS in src/domain/access.ts, checked by a test.
+    function registryKeys() {
+      return ['uid', 'email', 'displayName', 'firstSeenAt', 'lastSeenAt', 'device', 'appVersion', 'stats'];
+    }
+
+    // The record may not claim another account's uid or email: the admin
+    // decides by what it shows. The email is the one Google signed.
+    function honestRegistry(uid) {
+      return (!('uid' in request.resource.data) || request.resource.data.uid == uid)
+        && (!('email' in request.resource.data)
+            || request.resource.data.email == request.auth.token.email);
+    }
+
+    // What sign-in writes to the profile before access is decided, so the
+    // waiting screen can load. Nothing else is writable until approved.
+    function bootstrapKeys() {
+      return ['uid', 'displayName', 'email', 'schemaVersion', 'settings', 'createdAt'];
     }
 
     match /patients/{pid} {
@@ -39,9 +93,9 @@ service cloud.firestore {
       // patient created offline was opened before its write had landed.
       // Allowing reads of non-existent documents reveals nothing: the snapshot
       // simply comes back empty.
-      allow read: if resource == null || isMemberOf(resource.data);
+      allow read: if allowed() && (resource == null || isMemberOf(resource.data));
 
-      allow create: if authed()
+      allow create: if allowed()
         && request.resource.data.ownerId == request.auth.uid
         && request.resource.data.memberIds == [request.auth.uid]
         && request.resource.data.deletedAt == null;
@@ -94,11 +148,19 @@ service cloud.firestore {
     }
 
     match /users/{uid} {
-      allow read, create, update: if authed() && request.auth.uid == uid;
+      // Readable by its owner even before approval: it carries the settings
+      // the app needs to render at all, including the waiting screen.
+      // Deliberately NOT readable by the admin: it also holds Catatan notes.
+      allow read: if isSelf(uid);
+      allow create: if isSelf(uid)
+        && (allowed() || request.resource.data.keys().hasOnly(bootstrapKeys()));
+      allow update: if isSelf(uid)
+        && (allowed()
+            || request.resource.data.diff(resource.data).affectedKeys().hasOnly(bootstrapKeys()));
       allow delete: if false;
 
       match /documents/{documentId} {
-        allow read, create, update: if authed() && request.auth.uid == uid;
+        allow read, create, update: if isSelf(uid) && allowed();
         allow delete: if false;
       }
 
@@ -108,15 +170,44 @@ service cloud.firestore {
       // replaced by the next import, and state keys are removed field by
       // field, never by deleting the document.
       match /jaga/{docId} {
-        allow read: if authed() && request.auth.uid == uid;
-        allow create, update: if authed() && request.auth.uid == uid
+        allow read: if isSelf(uid) && allowed();
+        allow create, update: if isSelf(uid) && allowed()
           && docId in ['roster', 'dpjp', 'jarkom', 'pediatri', 'state'];
         allow delete: if false;
       }
 
       match /templates/{templateId} {
-        allow read, create, update, delete: if authed() && request.auth.uid == uid;
+        allow read, create, update, delete: if isSelf(uid) && allowed();
       }
+    }
+
+    /*
+     * One record per account: registration details and the admin's decision.
+     * Created by the user's own app as `pending`. Only the admin can change
+     * `status`. Never deleted: revoking is `status: 'revoked'`, which keeps
+     * who decided and when.
+     */
+    match /access/{uid} {
+      allow get: if isAdmin() || isSelf(uid);
+      allow list: if isAdmin();
+      allow create: if isAdmin()
+        || (isSelf(uid)
+            && request.resource.data.status == 'pending'
+            && request.resource.data.keys().hasOnly(registryKeys().concat(['status']))
+            && honestRegistry(uid));
+      allow update: if isAdmin()
+        || (isSelf(uid)
+            && request.resource.data.diff(resource.data).affectedKeys().hasOnly(registryKeys())
+            && honestRegistry(uid));
+      allow delete: if false;
+    }
+
+    // The enforcement switch. Every signed-in app reads it to know whether to
+    // show the waiting screen; only the admin sets it.
+    match /config/{docId} {
+      allow get: if authed() && docId == 'access';
+      allow create, update: if isAdmin() && docId == 'access';
+      allow delete: if false;
     }
 
     // Anything not matched above is denied.

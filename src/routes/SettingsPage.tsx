@@ -35,6 +35,8 @@ import { resetSettings } from '@/data/repositories/settings.repo';
 import { useUI, type ThemePreference } from '@/store/useUI';
 import type { NoteTemplate } from '@/domain/types';
 import { APP_VERSION } from '@/version.js';
+import { Link } from 'react-router-dom';
+import { isAdmin } from '@/domain/access';
 import type { UserSettings } from '@/domain/types';
 
 const THEME_OPTIONS: Array<{ value: ThemePreference; label: string }> = [
@@ -742,6 +744,13 @@ export default function SettingsPage(): JSX.Element {
               <dd>Avicenna</dd>
             </div>
           </dl>
+          {/* Shown to the admin only. The page itself is protected by the
+              Firestore rules, not by this link being absent. */}
+          {isAdmin(user?.uid) ? (
+            <Link to="/admin" className="mt-2 inline-flex min-h-tap items-center text-xs text-accent underline">
+              Admin
+            </Link>
+          ) : null}
         </SettingsSection>
 
 

@@ -44,3 +44,9 @@ export const jagaCol = (uid: string): CollectionReference =>
   collection(db(), 'users', uid, 'jaga');
 export const jagaDoc = (uid: string, id: string): DocumentReference =>
   doc(db(), 'users', uid, 'jaga', id);
+
+/** Access records, one per account (see `src/domain/access.ts`). */
+export const accessCol = (): CollectionReference => collection(db(), 'access');
+export const accessDoc = (uid: string): DocumentReference => doc(db(), 'access', uid);
+/** The enforcement switch. */
+export const accessConfigDoc = (): DocumentReference => doc(db(), 'config', 'access');

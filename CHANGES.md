@@ -1,5 +1,118 @@
 # Plano — CHANGES
 
+## `2026-09-17.5`
+
+**Access control and a hidden admin page (`/admin`).**
+
+### Root cause
+
+The rules checked only `request.auth != null`. Any Google account, or any
+email/password sign-up, that found the URL could store data in this Firebase
+project. Isolation held, since members-only rules kept accounts from reading
+each other, but nothing decided who may be here at all. Five accounts exist;
+nobody chose that number.
+
+### The model (`src/domain/access.ts`)
+
+- **One admin, fixed by UID**, written into `firestore.rules`, not stored as
+  data, so there is no document anyone could write to become admin. A test
+  checks that the rules and the client name the same UID, and that there is
+  exactly one.
+- **`access/{uid}`** is created by each account's own app at first sign-in
+  with `status: 'pending'`. The admin approves once and the approval stands
+  until revoked. **Revoke = `status: 'revoked'`**, never a delete, so the
+  record of who decided and when survives, and re-approving is one tap.
+- **`config/access.enforce`** is the switch. It is **off by default**, so
+  deploying this changes nothing. The admin approves the existing accounts
+  first and then turns it on, so nobody is locked out in between.
+- **Every data path** (patients and their subcollections, documents,
+  templates, jaga) now requires `allowed()` = signed in AND (admin OR switch
+  off OR approved).
+- The user's own profile stays readable, and writable for sign-in's
+  bootstrap fields only, so the waiting screen can load. Everything else
+  waits for approval.
+
+### What the admin can and cannot see
+
+The admin reads `access/*` only: email, name, first and last seen, device,
+app version, and counts each app reports about itself (patients, daily
+notes, approximate KB of that device's copy, measured from the local cache
+at no read cost).
+
+**Not `users/{uid}`, because it also holds Catatan notes.** Rules cannot hide
+one field of a document, so the only way to keep those notes out of the
+admin's browser is never to grant the read. Clinical data stays unreadable
+to the admin.
+
+### Hardening inside the access record
+
+- A user may write only the registry fields, **never `status`** (enforced by
+  the rules through `registryKeys()`, which a test keeps identical to the
+  client's `REGISTRY_KEYS`).
+- The record may not claim another uid, and **its email must equal the
+  email in the signed Google token.** Otherwise anyone could label their
+  pending record `nottezio@gmail.com`, and the admin decides by what the list
+  shows.
+
+### Client
+
+- **`AccessGate`** sits after the lock screen. It shows *Menunggu
+  persetujuan* or *Akses dicabut* with a sign-out button, and it is **live**:
+  approving opens the app without a reload, and revoking closes it.
+- **Never refuses before the answer is known.** A cache miss before the
+  server responds shows *Memeriksa akses…*, not a rejection, so an approved
+  resident on a new phone is not told they were refused.
+- **Registration is throttled** per device: last-seen at most hourly, stats
+  at most every six hours.
+- **`/admin`** shows the switch, *Setujui semua yang menunggu*, and one card
+  per account with Setujui / Tolak / Cabut / Setujui lagi. Destructive
+  actions are two-step. For anyone else the route renders the ordinary *not
+  found* page. That is courtesy, not security: the data comes from documents
+  only the admin can read.
+- A Settings → Tentang → **Admin** link, shown to the admin only.
+
+### Rollout, in this order
+
+1. Push. Wait for **both** workflows (Pages and `firestore-deploy`) to go
+   green.
+2. Open **Pengaturan → Tentang → Admin**.
+3. Each existing account appears, as *Menunggu*, once it has opened this
+   version. Compare against Firebase Console → Authentication.
+4. **Setujui semua yang menunggu.**
+5. When all four are approved, **Aktifkan pembatasan.**
+
+### Not done, and why
+
+- **Rules not run in the emulator** (the sandbox cannot download it). They
+  are reviewed line by line, and the client/rules agreement is tested. A
+  syntax error fails the deploy workflow and leaves the previous rules in
+  place, which is safe. The next step worth taking is a rules test job in
+  GitHub Actions against the emulator.
+- **Already-open live listeners.** New reads and all writes are refused the
+  moment access is revoked, and the app's own gate closes the screen at once.
+  Firestore does not promise to cut a listener that was already open at that
+  instant, so a revoked device may receive updates until it reconnects.
+- **A revoked device keeps what it had already downloaded.** Rules cannot
+  erase another device's offline cache. *Keluar* on the waiting screen clears
+  it; nothing does that automatically, so a mistaken revoke cannot destroy
+  someone's unsynced notes.
+- **Sign-up itself cannot be blocked** without a paid Firebase feature.
+  Strangers can still create an Auth account; they land on the waiting
+  screen and read nothing. Turning off the Email/Password provider in the
+  console (all five accounts use Google) removes the open sign-up form's
+  purpose.
+- **Accounts that never open this version never appear in the list.** The
+  Auth user list is not readable from a web page without a server.
+- **Cost:** each request from a non-admin account adds one or two small
+  document reads for the checks. That is negligible at ward scale.
+
+```
+1350 tests passed (+9)
+typecheck / lint (0 warnings) / check:version / check:contrast / check:a11y / build — clean
+```
+
+---
+
 ## `2026-09-17.4`
 
 **Helper keeps only the latest document for each import, and Formasi gets
