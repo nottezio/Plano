@@ -70,7 +70,7 @@ export function todoViews(
    */
   const yesterday = previous === date ? undefined : ticksOn(ticks, previous);
 
-  return todos.map((todo) => {
+  return activeTodos(todos).map((todo) => {
     const repeat = todo.repeat ?? false;
     /**
      * A repeating item with NO tick record for this date falls back to its own
@@ -184,14 +184,14 @@ function withDone(todo: PatientTodo, done: boolean, date: ClinicalDate): Patient
 
 export interface TodoHistoryDay {
   date: ClinicalDate;
-  items: Array<{ id: string; label: string; repeat: boolean }>;
+  items: Array<{ id: string; label: string; repeat: boolean; removed: boolean }>;
 }
 
 export interface TodoHistory {
   /** Newest first. Only days with at least one ticked item. */
   days: TodoHistoryDay[];
   /** One-off items marked done before their date was recorded. */
-  undated: Array<{ id: string; label: string }>;
+  undated: Array<{ id: string; label: string; removed: boolean }>;
 }
 
 /**
@@ -201,8 +201,10 @@ export interface TodoHistory {
  * `todoTicks`, and one-off items carry `doneOn`. A stored log would be a
  * second record of the same facts that could disagree with the first.
  *
- * Ticks on an id that is no longer in the list are skipped. The label went
- * with the item, and a history entry that says only "an item" answers nothing.
+ * Deleted items that had been checked are still in the array (`removedOn`),
+ * so they appear here, marked. Ticks on an id that is no longer in the array
+ * at all are skipped. That item was deleted before this rule existed, its
+ * label went with it, and an entry that says only "an item" answers nothing.
  * Past ticks on an item that has since become one-off are kept, because they
  * record days it really was done.
  */
@@ -226,7 +228,7 @@ export function todoHistory(
   for (const todo of todos) {
     if (todo.repeat || !todo.done) continue;
     if (todo.doneOn) mark(todo.doneOn, todo.id);
-    else undated.push({ id: todo.id, label: todo.label });
+    else undated.push({ id: todo.id, label: todo.label, removed: todo.removedOn !== undefined });
   }
 
   const days = [...byDate.entries()]
@@ -235,10 +237,68 @@ export function todoHistory(
       // List order, not tick order: the list is how the items are known.
       items: todos
         .filter((todo) => ids.has(todo.id))
-        .map((todo) => ({ id: todo.id, label: todo.label, repeat: todo.repeat ?? false })),
+        .map((todo) => ({
+          id: todo.id,
+          label: todo.label,
+          repeat: todo.repeat ?? false,
+          removed: todo.removedOn !== undefined,
+        })),
     }))
     .filter((day) => day.items.length > 0)
     .sort((a, b) => b.date.localeCompare(a.date));
 
   return { days, undated };
+}
+
+/**
+ * The items shown on the list: everything not deleted.
+ *
+ * Every write must still send the FULL array. Rebuilding the stored list from
+ * this filtered one would erase the deleted-but-checked items and their
+ * history with them (recurring pattern 1 in the handoff).
+ */
+export function activeTodos(todos: readonly PatientTodo[]): PatientTodo[] {
+  return todos.filter((todo) => todo.removedOn === undefined);
+}
+
+/** Has this item ever been checked, on any day? */
+function wasChecked(todo: PatientTodo, ticks: TodoTicks | undefined): boolean {
+  if (todo.done) return true;
+  return Object.values(ticks ?? {}).some((ids) => ids.includes(todo.id));
+}
+
+/**
+ * Delete an item from the list, keeping it for the history if it was ever
+ * checked.
+ *
+ * "Ever", not "today": a repeating item ticked yesterday and not yet today has
+ * real days of history, and those days would otherwise lose their entry. An
+ * item never checked on any day is removed outright, as it always was.
+ */
+export function removeTodo(
+  todos: readonly PatientTodo[],
+  ticks: TodoTicks | undefined,
+  date: ClinicalDate,
+  id: string,
+): PatientTodo[] {
+  const target = todos.find((todo) => todo.id === id);
+  if (!target) return [...todos];
+  if (!wasChecked(target, ticks)) return todos.filter((todo) => todo.id !== id);
+  return todos.map((todo) => (todo.id === id ? { ...todo, removedOn: date } : todo));
+}
+
+/**
+ * Which checklist items an import adds: those not already ON THE LIST.
+ *
+ * Visible items only. Checked-and-deleted items stay in the array for the
+ * history, so matching against the whole array would make a checklist
+ * imported again tomorrow silently skip every step deleted today — the exact
+ * daily cycle the delete exists for.
+ */
+export function labelsToImport(
+  todos: readonly PatientTodo[],
+  labels: readonly string[],
+): string[] {
+  const existing = new Set(activeTodos(todos).map((todo) => todo.label));
+  return labels.filter((label) => !existing.has(label));
 }

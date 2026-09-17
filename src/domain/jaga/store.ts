@@ -1,15 +1,20 @@
 import type { DpjpRoster, JagaRoster, JarkomDirectory, PediatriRoster } from './types';
+import type { JagaRosterKind, JagaState, JagaStateField } from './sync';
+import { JAGA_MAP_FIELDS } from './sync';
 
 /**
- * Imported rosters live in localStorage, per device.
+ * Konfirmasi Jaga data: localStorage on this device, synced to the account.
  *
- * They are reference documents, not clinical records: the same three PDFs are
- * on the programme's WhatsApp group and can be re-imported in ten seconds.
- * Putting them in Firestore would mean a schema, a sync path and a merge
- * question ("two devices imported different months") for data that is already
- * published elsewhere and replaced wholesale every month.
+ * localStorage stays the place the page reads from. Reads are synchronous,
+ * work with no signal, and the page was built around them. What changed is
+ * that every write here ALSO goes to the account through `JagaRemote`, and
+ * changes from other devices are written back into localStorage by the sync
+ * hook (`useJagaSync`). The merge rules live in `sync.ts`.
  *
- * If a shared copy is ever wanted, only these four functions change.
+ * This used to be deliberately per-device, on the reasoning that the PDFs are
+ * on the WhatsApp group and re-importing takes ten seconds. That held for the
+ * rosters and not for the working state: a confirmation ticked on a phone was
+ * invisible on the ward PC, and the evening round is done on both.
  */
 const KEYS = {
   roster: 'visite.jaga.roster',
@@ -22,6 +27,7 @@ const KEYS = {
   dpjpEdits: 'visite.jaga.dpjpEdits',
   religion: 'visite.jaga.religion',
   pediatri: 'visite.jaga.pediatri',
+  owner: 'visite.jaga.owner',
 } as const;
 
 function read<T>(key: string): T | null {
@@ -33,6 +39,26 @@ function read<T>(key: string): T | null {
   }
 }
 
+/**
+ * Where writes go besides localStorage. Set by the sync hook while signed in;
+ * `null` otherwise, and then this module is exactly as local as it was.
+ *
+ * Module state rather than a parameter on every function, because the
+ * callers are event handlers on one page and threading a uid through each of
+ * them would change every call site for no gain in safety.
+ */
+export interface JagaRemote {
+  putRoster(kind: JagaRosterKind, value: unknown): void;
+  /** `key === null` writes the whole field; `value === null` deletes the key. */
+  putState(field: JagaStateField, key: string | null, value: unknown): void;
+}
+
+let remote: JagaRemote | null = null;
+
+export function setJagaRemote(next: JagaRemote | null): void {
+  remote = next;
+}
+
 function write(key: string, value: unknown): void {
   try {
     localStorage.setItem(key, JSON.stringify(value));
@@ -42,13 +68,19 @@ function write(key: string, value: unknown): void {
 }
 
 export const readRoster = (): JagaRoster | null => read<JagaRoster>(KEYS.roster);
-export const writeRoster = (value: JagaRoster): void => write(KEYS.roster, value);
 export const readDpjp = (): DpjpRoster | null => read<DpjpRoster>(KEYS.dpjp);
-export const writeDpjp = (value: DpjpRoster): void => write(KEYS.dpjp, value);
 export const readPediatri = (): PediatriRoster | null => read<PediatriRoster>(KEYS.pediatri);
-export const writePediatri = (value: PediatriRoster): void => write(KEYS.pediatri, value);
 export const readJarkom = (): JarkomDirectory | null => read<JarkomDirectory>(KEYS.jarkom);
-export const writeJarkom = (value: JarkomDirectory): void => write(KEYS.jarkom, value);
+
+function writeRosterKind(kind: JagaRosterKind, value: unknown): void {
+  write(KEYS[kind], value);
+  remote?.putRoster(kind, value);
+}
+
+export const writeRoster = (value: JagaRoster): void => writeRosterKind('roster', value);
+export const writeDpjp = (value: DpjpRoster): void => writeRosterKind('dpjp', value);
+export const writePediatri = (value: PediatriRoster): void => writeRosterKind('pediatri', value);
+export const writeJarkom = (value: JarkomDirectory): void => writeRosterKind('jarkom', value);
 
 export interface SenderIdentity {
   name: string;
@@ -57,7 +89,10 @@ export interface SenderIdentity {
 
 export const readSender = (): SenderIdentity =>
   read<SenderIdentity>(KEYS.sender) ?? { name: '', place: '' };
-export const writeSender = (value: SenderIdentity): void => write(KEYS.sender, value);
+export const writeSender = (value: SenderIdentity): void => {
+  write(KEYS.sender, value);
+  remote?.putState('sender', null, value);
+};
 
 /**
  * Who has replied, per date and shift.
@@ -82,8 +117,10 @@ export function readConfirmed(date: string, shift: string): Set<string> {
 
 export function writeConfirmed(date: string, shift: string, posts: ReadonlySet<string>): void {
   const all = read<ConfirmedMap>(KEYS.confirmed) ?? {};
-  all[confirmKey(date, shift)] = [...posts];
+  const key = confirmKey(date, shift);
+  all[key] = [...posts];
   write(KEYS.confirmed, all);
+  remote?.putState('confirmed', key, all[key]);
 }
 
 /**
@@ -114,6 +151,7 @@ export function setNameOverride(initials: string, name: string): NameOverrides {
   if (name.trim()) all[initials] = name.trim();
   else delete all[initials];
   write(KEYS.names, all);
+  remote?.putState('names', initials, all[initials] ?? null);
   return all;
 }
 
@@ -171,6 +209,7 @@ export function setPostOverride(
   else delete day[postId];
   all[key] = day;
   write(KEYS.posts, all);
+  remote?.putState('posts', key, Object.keys(day).length > 0 ? day : null);
   return day;
 }
 
@@ -195,6 +234,7 @@ export function setReligion(initials: string, muslim: boolean | null): Record<st
   if (muslim === null) delete all[initials];
   else all[initials] = muslim;
   write(KEYS.religion, all);
+  remote?.putState('religion', initials, muslim);
   return all;
 }
 
@@ -223,5 +263,138 @@ export function setDpjpEdit(date: string, edit: DpjpEdit): DpjpEdit {
   if (Object.keys(next).length > 0) all[date] = next;
   else delete all[date];
   write(KEYS.dpjpEdits, all);
+  remote?.putState('dpjpEdits', date, all[date] ?? null);
   return next;
+}
+
+/* ------------------------------------------------------------------------ */
+/* Whole-state access, for the sync hook only.                              */
+/* ------------------------------------------------------------------------ */
+
+const STATE_KEYS: Record<JagaStateField, string> = {
+  sender: KEYS.sender,
+  names: KEYS.names,
+  religion: KEYS.religion,
+  confirmed: KEYS.confirmed,
+  posts: KEYS.posts,
+  dpjpEdits: KEYS.dpjpEdits,
+};
+
+export function readRosterKind(kind: JagaRosterKind): unknown {
+  return read<unknown>(KEYS[kind]);
+}
+
+/**
+ * Store a roster that came FROM the account. localStorage only: sending it
+ * back would be an echo. Returns whether anything changed, so the page
+ * re-reads only when it has to.
+ */
+export function applyRosterKind(kind: JagaRosterKind, value: unknown): boolean {
+  const before = localStorage.getItem(KEYS[kind]);
+  const after = JSON.stringify(value);
+  if (before === after) return false;
+  write(KEYS[kind], value);
+  return true;
+}
+
+export function readJagaState(): JagaState {
+  const state: JagaState = {};
+  const sender = read<unknown>(KEYS.sender);
+  if (sender !== null) state.sender = sender;
+  for (const field of JAGA_MAP_FIELDS) {
+    const value = read<Record<string, unknown>>(STATE_KEYS[field]);
+    if (value) state[field] = value;
+  }
+  return state;
+}
+
+/** Store state that came from the account. localStorage only, like above. */
+export function applyJagaState(state: JagaState): boolean {
+  let changed = false;
+  const fields: JagaStateField[] = ['sender', ...JAGA_MAP_FIELDS];
+  for (const field of fields) {
+    const value = state[field];
+    if (value === undefined) continue;
+    const after = JSON.stringify(value);
+    if (localStorage.getItem(STATE_KEYS[field]) === after) continue;
+    write(STATE_KEYS[field], value);
+    changed = true;
+  }
+  return changed;
+}
+
+/**
+ * Which account this device's local copy belongs to.
+ *
+ * localStorage belongs to the browser, not to a person. On a shared ward PC,
+ * the next resident to sign in would otherwise have the previous one's ticks,
+ * swaps and sender name uploaded into THEIR account at the first sync. So the
+ * copy is claimed by the account that syncs it. A different account starts
+ * from its own data, and the local copy is cleared first.
+ *
+ * Unclaimed data (from before sync existed) goes to the first account that
+ * syncs on this device. Before this release there was only one user per
+ * device in practice, so that is its owner.
+ */
+export function claimJagaLocal(uid: string): boolean {
+  const owner = read<string>(KEYS.owner);
+  if (owner === uid) return false;
+  let cleared = false;
+  if (owner !== null) {
+    for (const [name, key] of Object.entries(KEYS)) {
+      if (name === 'owner') continue;
+      try {
+        localStorage.removeItem(key);
+      } catch {
+        // Storage unavailable: nothing to clear, and nothing will be read.
+      }
+    }
+    cleared = true;
+  }
+  write(KEYS.owner, uid);
+  return cleared;
+}
+
+/**
+ * Put one shift's Formasi back to the imported schedule.
+ *
+ * Clears exactly what makes it differ from the PDFs:
+ *   - the tukar jaga on this date and shift;
+ *   - the DPJP swaps for the dates this Formasi prints (the shift's date and
+ *     the one after 00.00). Those are keyed by date, so the other shift on
+ *     the same date loses them too. The button says so.
+ *   - the confirmation ticks of posts that HAD a swap: a tick recorded that
+ *     the swapped-in resident replied, and after the reset that post names
+ *     somebody else.
+ *
+ * Kept: name corrections ("Selalu") and religion, which are facts about a
+ * person rather than about this shift, and ticks on posts nobody swapped.
+ */
+export function resetShiftEdits(
+  date: string,
+  shift: string,
+  dpjpDates: readonly string[],
+): void {
+  const swapped = Object.keys(readPostOverrides(date, shift));
+  for (const postId of swapped) setPostOverride(date, shift, postId, null);
+  for (const day of dpjpDates) {
+    if (Object.keys(readDpjpEdit(day)).length > 0) setDpjpEdit(day, {});
+  }
+  if (swapped.length > 0) {
+    const ticks = readConfirmed(date, shift);
+    const kept = new Set([...ticks].filter((postId) => !swapped.includes(postId)));
+    if (kept.size !== ticks.size) writeConfirmed(date, shift, kept);
+  }
+}
+
+/** How many edits a reset would clear, so the button can say it, or hide. */
+export function countShiftEdits(
+  date: string,
+  shift: string,
+  dpjpDates: readonly string[],
+): { swaps: number; dpjp: number } {
+  return {
+    swaps: Object.keys(readPostOverrides(date, shift)).length,
+    dpjp: dpjpDates.filter((day) => Object.keys(readDpjpEdit(day)).length > 0).length,
+  };
 }

@@ -1,5 +1,251 @@
 # Plano — CHANGES
 
+## `2026-09-17.4`
+
+**Helper keeps only the latest document for each import, and Formasi gets
+"Kembalikan ke jadwal".**
+
+### 1. Latest document, not latest import
+
+**Root cause.** Both the import and the sync (17.3) treated "imported last"
+as "newest". Those differ exactly when it matters. Say the phone imported
+September, and the PC, before syncing, imported August's file from an old
+WhatsApp message. The PC's import was the more recent act, so August would
+have become the schedule on every device.
+
+**The rule** (`recency.ts`, `compareRosters`). A document is later by, in
+order:
+
+1. the last date it covers, then the first, read from the parsed schedule;
+2. the PDF's own modification/creation date, now read at import. A corrected
+   re-issue of the same month counts as newer. The date on disk is not used,
+   because that is the download time;
+3. import time, as the last resort.
+
+A key missing on either side is skipped, not treated as oldest, so rosters
+stored before this release still compare correctly. Jarkom has no dates in
+its content, so for it only 2 and 3 apply.
+
+**At import**, an older document is **refused** with both versions named:
+
+> PDF ini lebih lama dari yang tersimpan, jadi tidak dipakai. PDF: 1 Agu 2026
+> – 31 Agu 2026. Tersimpan: 1 Sep 2026 – 30 Sep 2026.
+
+It is refused rather than asked, because a roster is replaced whole and
+synced everywhere: one mistaken tap would change every device. Re-importing
+the same document is still allowed.
+
+**In the sync**, `pickRoster` uses the same ordering. After the first sync, a
+device holding a later document than the account now uploads it, which heals
+an account that received an older copy from a device that had not synced yet.
+The comparison is antisymmetric (tested), so two devices can never both
+upload, and every device converges on the latest document.
+
+**Import cards** now show what is stored, e.g. `62 shift · 1 Sep 2026 –
+31 Okt 2026 · dokumen 28 Agu 2026`, so you can see which version you have
+without opening anything.
+
+**Fixed alongside, because the new rule would have exposed it.** The
+Pediatri sheet names its month but not its year, and the year was taken from
+the date being viewed. A January sheet imported while looking at December
+2026 was dated January 2026, which the new rule would have refused as eleven
+months old. The year is now the one nearest the viewed date (`nearestYear`).
+
+### 2. Kembalikan ke jadwal
+
+A two-step button in the Formasi Jaga header. It is hidden when there is
+nothing to reset. The first tap arms it and lists what will be cleared; the
+second clears. It disarms after 5 s or on changing shift.
+
+| Cleared | Kept |
+|---|---|
+| Tukar jaga for this date + shift | Name corrections ("Selalu") and religion, which are facts about a person, not a shift |
+| DPJP swaps for the two dates this Formasi prints | Tukar jaga on the other shift |
+| Confirmation ticks **on posts that had a swap**, since the tick was the swapped-in resident's reply | Ticks on posts nobody swapped |
+
+DPJP swaps are stored per date, so on a Pagi/Malam day the reset also clears
+them for the other shift. The armed text says so. Every cleared key syncs as
+a deletion (tested).
+
+### Not done, and why
+
+- **No "import anyway" for an older PDF.** An override would need its own
+  rule to survive sync against newer copies on other devices, and nothing
+  here has shown a real need for one. If a case appears, it is a deliberate
+  addition.
+- **A PDF with no metadata and the same dates as the stored one** is decided
+  by import time, since nothing else distinguishes them.
+- **Not tested with the real PDFs' metadata.** Whether the programme's
+  exports carry ModDate/CreationDate is unknown until an import shows
+  `dokumen …` on the card.
+
+```
+1341 tests passed (+22)
+typecheck / lint (0 warnings) / check:version / check:contrast / check:a11y / build — clean
+```
+
+---
+
+## `2026-09-17.3`
+
+**Konfirmasi Jaga syncs between devices through your account.**
+
+### Why this changed
+
+Helper kept everything in `localStorage`, on the reasoning that the PDFs are
+on the WhatsApp group and re-importing takes ten seconds. That held for the
+rosters. It did not hold for the working state: a confirmation ticked on the
+phone was invisible on the ward PC, and the evening round is done on both.
+
+### What is synced, and how
+
+**The parsed rosters, not the PDFs.** That means a few kilobytes instead of
+megabytes, no Firebase Storage, and nothing to re-parse on the other device.
+
+| Data | Firestore document | Rule |
+|---|---|---|
+| Jadwal Jaga, DPJP, Pediatri, Jarkom | `users/{uid}/jaga/{roster,dpjp,pediatri,jarkom}` | Stored as a JSON string, replaced whole. The later `importedAt` wins. |
+| Confirmation ticks, tukar jaga, name and religion corrections, DPJP swaps, sender | `users/{uid}/jaga/state` | Written **one key at a time** |
+
+**Why per key.** A device writes only the date+shift or the initials it
+changed, using `setDoc` with `mergeFields`, so two devices ticking different
+shifts cannot overwrite each other. Two alternatives were rejected:
+
+- `merge: true` deep-merges. A tukar jaga replaced with one that has no
+  `initials` would have kept the old initials.
+- Rewriting the whole map from one device's copy is recurring patterns 1
+  and 5.
+
+**Why rosters are a JSON string.** A string accepts whatever the parser
+produces with no Firestore type rules applying. `undefined` fields in state
+values are stripped before writing (`toStorable`), because Firestore rejects
+them.
+
+**localStorage is still what the page reads.** Reads stay synchronous and
+offline. Every store write also goes to the account through a `JagaRemote`
+sink. `useJagaSync`, mounted on the Helper page, writes changes from other
+devices back into localStorage and bumps a revision, and the page re-reads.
+Changes made while the page is closed arrive the next time it opens.
+
+### The first sync, where most of the risk is
+
+- **Waits for the server's answer.** On a device's first sync Firestore's
+  first snapshot comes from an EMPTY cache. Read as "the account has nothing",
+  it would upload this device's old rosters over newer ones. Initial
+  reconciliation therefore waits for a server-confirmed snapshot. Before that,
+  cached data is applied, but nothing is uploaded or removed.
+- **Merges without losing anything.** Nothing local is thrown away. Keys the
+  account lacks are uploaded; where both sides have a key, the account wins.
+  After that the account leads field by field, so a deletion on one device
+  reaches the others.
+- **Shared ward PC.** localStorage belongs to the browser, not to a person. A
+  colleague signing in on a PC you used would have had your ticks, swaps and
+  sender name uploaded into their account. The local copy is now claimed by
+  the account that syncs it (`claimJagaLocal`). A different account clears it
+  first, while unclaimed data from before this release goes to the first
+  account that syncs.
+
+### UI
+
+- The note under the title no longer says changes stay on this device. A
+  status line shows *Sinkron dengan akun* / *Menunggu koneksi…* /
+  *Sinkron gagal…*.
+- The WIP badge stays.
+
+### Rules
+
+`firestore.rules` gains `users/{uid}/jaga/{docId}`:
+
+- owner only;
+- create and update only for the five ids the app writes;
+- no delete.
+
+**This deploys through `firestore-deploy.yml` on push.** Until that workflow
+has run, the sync fails with *Sinkron gagal* and the page keeps working
+locally.
+
+### Tests
+
+- `sync.test.ts` (12): roster pick, first-sync merge, following the account,
+  undefined stripping.
+- `store.sync.test.ts` (12): each local write sends exactly one key, cleared
+  values delete, nothing is sent when signed out, remote data is applied
+  without an echo, and the shared-PC claim.
+
+### Not done, and why
+
+- **Rules not run in the emulator.** The sandbox cannot download it, so the
+  rules are reviewed but not executed. Check the Actions run after pushing.
+- **The hook's orchestration has no test.** The decisions it makes are in
+  `sync.ts` and tested; the hook only sequences them, and testing it would
+  need a Firestore mock.
+- **State history is never trimmed.** Confirmations and swaps are kept
+  forever, as before. That is a few hundred bytes per jaga, about 150 KB a
+  year, well under Firestore's 1 MiB document limit for several years. It
+  needs a trim rule before then.
+- **Jarkom holds colleagues' phone numbers** and now lives in your account,
+  readable by you only.
+- **Nothing was run on two real devices.** The test is: tick a confirmation
+  on the phone, then open Helper on the PC.
+
+```
+1319 tests passed (+24)
+typecheck / lint (0 warnings) / check:version / check:contrast / check:a11y / build — clean
+```
+
+---
+
+## `2026-09-17.2`
+
+**Riwayat keeps Custom Checklist items that were checked and then deleted.**
+
+### Root cause
+
+The ward workflow is: tick a step, then delete it so the list stays short.
+Delete removed the item from the array, and `todoHistory` skips ticks whose
+id is no longer there, because the label left with the item. So the step
+most certainly done was the one the history could not show. The history was
+built on the assumption that deleting means "never mind", and here it means
+"done".
+
+### The fix
+
+- **New optional field `removedOn: ClinicalDate`.** Deleting an item that was
+  ever checked hides it instead of removing it. It keeps its label, stays in
+  the history marked *(dihapus)*, and disappears from the list and its counts.
+- **An item never checked on any day is still removed outright,** as before.
+  That matches the request: checked-and-deleted is kept,
+  unchecked-and-deleted is not.
+- **"Ever checked", not "checked today".** A repeating item ticked yesterday
+  and not yet today has real days of history, so deleting it keeps it.
+- `removeTodo()` and `activeTodos()` are pure, in `patientTodos.ts`.
+  `todoViews` shows only visible items.
+
+**Trap caught before shipping (recurring pattern 1).** Import skipped labels
+already present, checked against the **whole** array. With deleted items now
+kept in that array, importing a checklist again the next morning would have
+silently skipped every step deleted the day before. That is exactly the daily
+cycle this feature is for. The check now uses visible items only
+(`labelsToImport`, tested). Every write still sends the full array, so the
+hidden items and their history are never rebuilt away.
+
+### Not done, and why
+
+- **Items deleted before this release are gone.** Their records were removed
+  at the time, and nothing can recover them.
+- **Hidden items stay in the patient document for the admission.** They are
+  tens of bytes each, so a long stay adds a few KB. There is no purge,
+  following the rule of no hard deletes without an explicit action.
+- **Riwayat does not offer "restore".** Nothing asked for it, and re-importing
+  or re-adding a step does the same job.
+
+```
+1295 tests passed (+8)
+typecheck / lint (0 warnings) / check:version / check:contrast / check:a11y / build — clean
+```
+
+---
+
 ## `2026-09-17.1`
 
 **Two copy paths that bypassed the formatter are fixed. Also new: peek

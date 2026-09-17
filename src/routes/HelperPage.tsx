@@ -1,7 +1,10 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
+
+import { useJagaSync } from '@/hooks/useJagaSync';
 
 import { copyText } from '@/lib/clipboard';
-import { extractPdfItems } from '@/lib/pdfItems';
+import { extractPdf } from '@/lib/pdfItems';
+import { describeVersion, nearestYear, refuseOlder } from '@/domain/jaga/recency';
 import {
   buildFormasi,
   buildKonfirmasi,
@@ -31,6 +34,8 @@ import {
   writeConfirmed,
   writeDpjp,
   setDpjpEdit,
+  countShiftEdits,
+  resetShiftEdits,
   setNameOverride,
   setReligion,
   setPostOverride,
@@ -67,6 +72,7 @@ export function HelperPage(): JSX.Element {
   const [pediatri, setPediatri] = useState(() => readPediatri());
   const [sender, setSender] = useState(() => readSender());
   const [busy, setBusy] = useState<string | null>(null);
+  const sync = useJagaSync();
   const [error, setError] = useState<string | null>(null);
 
   /**
@@ -148,6 +154,45 @@ export function HelperPage(): JSX.Element {
     });
   }
 
+  /**
+   * Something arrived from another device: re-read everything from
+   * localStorage, where the sync hook put it.
+   *
+   * Clearing the two keys makes the render-phase blocks above re-read the
+   * per-date sets on the next render. That is the same path a date change
+   * takes, so there is no second way for this page to load state.
+   */
+  useEffect(() => {
+    if (sync.revision === 0) return;
+    setRoster(readRoster());
+    setDpjp(readDpjp());
+    setJarkom(readJarkom());
+    setPediatri(readPediatri());
+    setSender(readSender());
+    setOverrides(readNameOverrides());
+    setReligionMap(readReligion());
+    setConfirmKey('');
+    setEditKey('');
+  }, [sync.revision]);
+
+  /*
+    The dates whose DPJP block this Formasi prints. Read fresh each render
+    (a synchronous localStorage read of two small maps), and after a reset
+    the state setters below bring the page in line.
+  */
+  const formasiDates = shift ? [shift.date, nextDate(shift.date)] : [];
+  const shiftEditCounts = shift
+    ? countShiftEdits(shift.date, shift.shift, formasiDates)
+    : { swaps: 0, dpjp: 0 };
+
+  const resetFormasi = (): void => {
+    if (!shift) return;
+    resetShiftEdits(shift.date, shift.shift, formasiDates);
+    // The same re-read path a date change takes.
+    setConfirmKey('');
+    setEditKey('');
+  };
+
   const toggleConfirmed = (postId: string): void => {
     if (!shift) return;
     const next = new Set(confirmed);
@@ -181,7 +226,30 @@ export function HelperPage(): JSX.Element {
     setBusy(kind);
     setError(null);
     try {
-      const items = await extractPdfItems(file);
+      const { items, source } = await extractPdf(file);
+      const stamp = {
+        fileName: source.fileName,
+        ...(source.documentDate ? { documentDate: source.documentDate } : {}),
+      };
+
+      /*
+        Only a LATER document replaces the stored one.
+
+        By what it covers first, then by the PDF's own date (see
+        `recency.ts`). Refused rather than asked: a roster is replaced
+        wholesale and synced to every device, so an older month accepted by
+        one tap on one phone would be the schedule everywhere. Re-importing
+        the same document is allowed, since it is not older.
+      */
+      const guard = (parsed: unknown, stored: unknown): boolean => {
+        const refusal = refuseOlder(kind, parsed, stored);
+        if (!refusal) return true;
+        setError(
+          `PDF ini lebih lama dari yang tersimpan, jadi tidak dipakai. ` +
+            `PDF: ${refusal.incoming}. Tersimpan: ${refusal.stored}.`,
+        );
+        return false;
+      };
 
       /*
         Identify the document BEFORE parsing it, and refuse on a mismatch.
@@ -198,13 +266,15 @@ export function HelperPage(): JSX.Element {
       }
 
       if (kind === 'roster') {
-        const parsed = parseJagaRoster(items);
+        const parsed = { ...parseJagaRoster(items), source: stamp };
         if (parsed.shifts.length === 0) throw new Error('Tidak ada baris jaga terbaca.');
+        if (!guard(parsed, roster)) return;
         writeRoster(parsed);
         setRoster(parsed);
       } else if (kind === 'dpjp') {
-        const parsed = parseDpjpRoster(items);
+        const parsed = { ...parseDpjpRoster(items), source: stamp };
         if (parsed.days.length === 0) throw new Error('Tidak ada tanggal DPJP terbaca.');
+        if (!guard(parsed, dpjp)) return;
         writeDpjp(parsed);
         setDpjp(parsed);
       } else if (kind === 'pediatri') {
@@ -217,13 +287,28 @@ export function HelperPage(): JSX.Element {
           in January still dates it to December, as long as the user is looking
           at the month they are importing.
         */
-        const parsed = parsePediatri(items, Number(date.slice(0, 4)));
+        /*
+          The sheet names its month and never its year. The year nearest the
+          date being viewed is used, so a January sheet imported while looking
+          at December is dated to the next year. Taking the viewed year as it
+          stood would date it eleven months back, and the latest-document rule
+          above would then refuse the latest document.
+        */
+        const firstPass = parsePediatri(items, Number(date.slice(0, 4)));
+        const month = Number(firstPass.shifts[0]?.date.slice(5, 7));
+        const year = month ? nearestYear(month, date) : Number(date.slice(0, 4));
+        const parsed = {
+          ...(year === Number(date.slice(0, 4)) ? firstPass : parsePediatri(items, year)),
+          source: stamp,
+        };
         if (parsed.shifts.length === 0) throw new Error('Tidak ada baris jaga pediatri terbaca.');
+        if (!guard(parsed, pediatri)) return;
         writePediatri(parsed);
         setPediatri(parsed);
       } else {
-        const parsed = parseJarkom(items);
+        const parsed = { ...parseJarkom(items), source: stamp };
         if (parsed.entries.length === 0) throw new Error('Tidak ada nama terbaca.');
+        if (!guard(parsed, jarkom)) return;
         writeJarkom(parsed);
         setJarkom(parsed);
       }
@@ -253,8 +338,8 @@ export function HelperPage(): JSX.Element {
         {/*
           Said where the edits are made, not in a help page.
 
-          Every change on this screen is local to this device and to the date
-          it was made for. The PDFs remain the source of truth: re-importing a
+          Every change on this screen is synced to the account (see
+          `useJagaSync`) and applies only to the date it was made for. The PDFs remain the source of truth: re-importing a
           new month replaces the schedule wholesale, and a swap entered against
           a date in the old one simply stops applying. That is the intended
           behaviour rather than a limitation — a tukar jaga is a fact about one
@@ -262,8 +347,24 @@ export function HelperPage(): JSX.Element {
           would be worse than losing it.
         */}
         <p className="text-[11px] text-fg-faint">
-          Perubahan di layar ini (tukar jaga, nama, agama, DPJP) tersimpan di perangkat ini
-          saja dan hanya untuk tanggalnya. Sumber utamanya tetap PDF jadwal.
+          Jadwal yang diimpor dan perubahan di layar ini (konfirmasi, tukar jaga, nama, agama,
+          DPJP) disinkronkan ke akun Anda dan berlaku hanya untuk tanggalnya. Sumber utamanya
+          tetap PDF jadwal.
+        </p>
+        <p
+          role="status"
+          className={[
+            'text-[11px]',
+            sync.status === 'error' ? 'text-danger' : 'text-fg-muted',
+          ].join(' ')}
+        >
+          {sync.status === 'synced'
+            ? 'Sinkron dengan akun.'
+            : sync.status === 'waiting'
+              ? 'Menunggu koneksi untuk sinkron. Perubahan tetap tersimpan di perangkat ini.'
+              : sync.status === 'error'
+                ? 'Sinkron gagal. Perubahan tetap tersimpan di perangkat ini.'
+                : 'Belum masuk akun: tersimpan di perangkat ini saja.'}
         </p>
       </header>
 
@@ -273,21 +374,29 @@ export function HelperPage(): JSX.Element {
           <ImportCard
             label="Jadwal Jaga PPDS"
             detail={
-              roster ? `${roster.shifts.length} shift · ${roster.title}` : 'Belum diimpor · tiap bulan'
+              roster
+                ? `${roster.shifts.length} shift · ${describeVersion('roster', roster)}`
+                : 'Belum diimpor · tiap bulan'
             }
             busy={busy === 'roster'}
             onFile={(file) => void importPdf(file, 'roster')}
           />
           <ImportCard
             label="Jadwal DPJP"
-            detail={dpjp ? `${dpjp.days.length} hari` : 'Belum diimpor · tiap bulan'}
+            detail={
+              dpjp
+                ? `${dpjp.days.length} hari · ${describeVersion('dpjp', dpjp)}`
+                : 'Belum diimpor · tiap bulan'
+            }
             busy={busy === 'dpjp'}
             onFile={(file) => void importPdf(file, 'dpjp')}
           />
           <ImportCard
             label="Jadwal Jaga Pediatri"
             detail={
-              pediatri ? `${pediatri.shifts.length} shift · ${pediatri.title}` : 'Belum diimpor · tiap bulan'
+              pediatri
+                ? `${pediatri.shifts.length} shift · ${describeVersion('pediatri', pediatri)}`
+                : 'Belum diimpor · tiap bulan'
             }
             busy={busy === 'pediatri'}
             onFile={(file) => void importPdf(file, 'pediatri')}
@@ -297,7 +406,11 @@ export function HelperPage(): JSX.Element {
             // Per SEMESTER, not per month: new residents arrive twice a year,
             // and a monthly prompt for a document that changes every six
             // months is a prompt people learn to ignore.
-            detail={jarkom ? `${jarkom.entries.length} residen · per semester` : 'Belum diimpor'}
+            detail={
+              jarkom
+                ? `${jarkom.entries.length} residen · ${describeVersion('jarkom', jarkom)}`
+                : 'Belum diimpor · per semester'
+            }
             busy={busy === 'jarkom'}
             onFile={(file) => void importPdf(file, 'jarkom')}
           />
@@ -357,8 +470,16 @@ export function HelperPage(): JSX.Element {
       {shift ? (
         <>
           <section className="space-y-2">
-            <div className="flex items-center gap-2">
+            {/* Wraps only for the reset's explanation line, which is
+                `basis-full` text; the controls stay on the title row. */}
+            <div className="flex flex-wrap items-center gap-2">
               <h2 className="flex-1 text-sm font-medium">3. Formasi Jaga</h2>
+              <ResetFormasi
+                key={currentKey}
+                counts={shiftEditCounts}
+                sharedDpjp={shift.shift !== 'penuh'}
+                onReset={resetFormasi}
+              />
               <button
                 type="button"
                 onClick={() => void copyText(formasi)}
@@ -752,5 +873,71 @@ function ResidentPicker({
         </ul>
       ) : null}
     </span>
+  );
+}
+
+/**
+ * "Kembalikan ke jadwal": a two-step button, the same pattern Settings uses
+ * for discarding a template. The first tap arms and says exactly what will be
+ * cleared; the second clears. Keyed by date and shift at the call site, so
+ * moving to another shift disarms it.
+ *
+ * Hidden when there is nothing to reset. A button that does nothing is one
+ * people stop trusting.
+ */
+function ResetFormasi({
+  counts,
+  sharedDpjp,
+  onReset,
+}: {
+  counts: { swaps: number; dpjp: number };
+  /** Pagi/Malam: the DPJP swaps are per date, so the other shift shares them. */
+  sharedDpjp: boolean;
+  onReset: () => void;
+}): JSX.Element | null {
+  const [armed, setArmed] = useState(false);
+
+  useEffect(() => {
+    if (!armed) return undefined;
+    const timer = window.setTimeout(() => setArmed(false), 5000);
+    return () => window.clearTimeout(timer);
+  }, [armed]);
+
+  if (counts.swaps + counts.dpjp === 0) return null;
+
+  const parts = [
+    counts.swaps > 0 ? `${counts.swaps} tukar jaga` : null,
+    counts.dpjp > 0
+      ? `DPJP ${counts.dpjp} tanggal${sharedDpjp ? ' (juga untuk shift lain di tanggal itu)' : ''}`
+      : null,
+  ].filter(Boolean);
+
+  return (
+    <>
+      <button
+        type="button"
+        onClick={() => {
+          if (!armed) {
+            setArmed(true);
+            return;
+          }
+          setArmed(false);
+          onReset();
+        }}
+        aria-describedby={armed ? 'reset-formasi-detail' : undefined}
+        className={[
+          'min-h-tap shrink-0 rounded-lg border px-3 text-xs font-medium',
+          armed ? 'border-danger text-danger' : 'border-border text-fg-muted',
+        ].join(' ')}
+      >
+        {armed ? 'Ketuk lagi untuk reset' : 'Kembalikan ke jadwal'}
+      </button>
+      {armed ? (
+        <p id="reset-formasi-detail" role="status" className="order-last basis-full text-[11px] text-danger">
+          Akan dihapus: {parts.join(' & ')}. Konfirmasi untuk pos yang ditukar ikut dihapus;
+          koreksi nama dan agama tetap.
+        </p>
+      ) : null}
+    </>
   );
 }

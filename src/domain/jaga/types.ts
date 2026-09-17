@@ -22,6 +22,16 @@ import type { ClinicalDate } from '@/domain/types';
  * version that is neater than the one everybody else sends is a version that
  * reads as a different post.
  */
+/**
+ * Which PDF a stored roster came from. Optional: rosters imported before this
+ * existed have none, and the ordering rules skip what is missing.
+ */
+export interface JagaSource {
+  fileName?: string;
+  /** The PDF's own modification/creation date (ISO), when it has one. */
+  documentDate?: string;
+}
+
 export const JAGA_POSTS = [
   { id: 'chiefPjt', label: 'Chief PJT', place: 'Chief Jaga PJT' },
   { id: 'chiefKonsul', label: 'Chief Konsul', place: 'Chief Konsul' },
@@ -66,6 +76,7 @@ export interface JagaRoster {
   shifts: JagaShift[];
   initials: InitialsIndex;
   importedAt: string;
+  source?: JagaSource;
 }
 
 /** One consultant pair for one date. */
@@ -79,6 +90,7 @@ export interface DpjpRoster {
   title: string;
   days: DpjpDay[];
   importedAt: string;
+  source?: JagaSource;
 }
 
 /**
@@ -101,6 +113,7 @@ export interface JarkomEntry {
 export interface JarkomDirectory {
   entries: JarkomEntry[];
   importedAt: string;
+  source?: JagaSource;
 }
 
 
@@ -123,4 +136,5 @@ export interface PediatriRoster {
   title: string;
   shifts: PediatriShift[];
   importedAt: string;
+  source?: JagaSource;
 }

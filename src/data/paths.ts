@@ -34,3 +34,13 @@ export const documentsCol = (uid: string): CollectionReference =>
   collection(db(), 'users', uid, 'documents');
 export const documentDoc = (uid: string, documentId: string): DocumentReference =>
   doc(db(), 'users', uid, 'documents', documentId);
+
+/**
+ * Konfirmasi Jaga, synced per account: one document per parsed roster
+ * (`roster`, `dpjp`, `jarkom`, `pediatri`) and one `state` document for the
+ * working edits. A subcollection so that one listener covers all five.
+ */
+export const jagaCol = (uid: string): CollectionReference =>
+  collection(db(), 'users', uid, 'jaga');
+export const jagaDoc = (uid: string, id: string): DocumentReference =>
+  doc(db(), 'users', uid, 'jaga', id);

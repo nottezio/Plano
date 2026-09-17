@@ -458,6 +458,17 @@ export interface Patient {
      * them as such rather than guessing a day.
      */
     doneOn?: ClinicalDate;
+    /**
+     * The clinical day an item that HAD BEEN CHECKED was deleted.
+     *
+     * The ward workflow is: tick a step, then delete it so the list stays
+     * short. Removing the record lost the tick from the history, and with it
+     * the only record that the step was done. So a checked item is hidden
+     * rather than removed, and keeps its label for the history. An item
+     * that was never checked has no history to keep and is still removed
+     * outright.
+     */
+    removedOn?: ClinicalDate;
   }>;
   /**
    * Ticks on repeating checklist items, keyed by clinical date.

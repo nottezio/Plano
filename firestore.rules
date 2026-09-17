@@ -102,6 +102,18 @@ service cloud.firestore {
         allow delete: if false;
       }
 
+      // Konfirmasi Jaga: parsed rosters and working state, owner only.
+      // The id is limited to the five documents the app writes, so this
+      // path cannot become a general-purpose store. No delete: a roster is
+      // replaced by the next import, and state keys are removed field by
+      // field, never by deleting the document.
+      match /jaga/{docId} {
+        allow read: if authed() && request.auth.uid == uid;
+        allow create, update: if authed() && request.auth.uid == uid
+          && docId in ['roster', 'dpjp', 'jarkom', 'pediatri', 'state'];
+        allow delete: if false;
+      }
+
       match /templates/{templateId} {
         allow read, create, update, delete: if authed() && request.auth.uid == uid;
       }

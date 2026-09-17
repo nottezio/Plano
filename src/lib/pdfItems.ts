@@ -27,7 +27,47 @@ export interface PdfTextItem {
   page: number;
 }
 
+/**
+ * A PDF date (`D:20260901103000+07'00'`) as an ISO string, or null.
+ *
+ * Written here rather than using pdf.js's helper, so it can be tested without
+ * loading the PDF engine. Only the date and time digits are read; the zone is
+ * applied when present, and a string without one is taken as UTC. The value
+ * is used only to order two versions of a document, so the exact zone of a
+ * producer that omits it does not matter.
+ */
+export function parsePdfDate(raw: unknown): string | null {
+  if (typeof raw !== 'string') return null;
+  const match =
+    /^(?:D:)?(\d{4})(\d{2})?(\d{2})?(\d{2})?(\d{2})?(\d{2})?(?:([Zz+-])(\d{2})?'?(\d{2})?'?)?/.exec(
+      raw.trim(),
+    );
+  if (!match) return null;
+  const [, y, mo = '01', d = '01', h = '00', mi = '00', se = '00', sign, zh = '00', zm = '00'] = match;
+  const base = Date.UTC(Number(y), Number(mo) - 1, Number(d), Number(h), Number(mi), Number(se));
+  if (Number.isNaN(base)) return null;
+  const offset = sign === '+' || sign === '-' ? (Number(zh) * 60 + Number(zm)) * 60_000 : 0;
+  const utc = sign === '+' ? base - offset : sign === '-' ? base + offset : base;
+  return new Date(utc).toISOString();
+}
+
+export interface PdfSource {
+  fileName: string;
+  /**
+   * When the DOCUMENT was last produced: its modification date, else its
+   * creation date. Not the file's date on disk, which is when it was
+   * downloaded from WhatsApp and says nothing about which version it is.
+   */
+  documentDate: string | null;
+}
+
 export async function extractPdfItems(file: File): Promise<PdfTextItem[]> {
+  return (await extractPdf(file)).items;
+}
+
+export async function extractPdf(
+  file: File,
+): Promise<{ items: PdfTextItem[]; source: PdfSource }> {
   // Loaded on demand: the PDF engine is around a megabyte and most sessions
   // never import a roster.
   const pdfjs = await import('pdfjs-dist');
@@ -52,8 +92,17 @@ export async function extractPdfItems(file: File): Promise<PdfTextItem[]> {
     }
   }
 
+  let documentDate: string | null = null;
+  try {
+    const meta = await document.getMetadata();
+    const info = (meta.info ?? {}) as { ModDate?: unknown; CreationDate?: unknown };
+    documentDate = parsePdfDate(info.ModDate) ?? parsePdfDate(info.CreationDate);
+  } catch {
+    // No readable metadata: the document date is simply unknown.
+  }
+
   await document.cleanup();
-  return items;
+  return { items, source: { fileName: file.name, documentDate } };
 }
 
 export interface PdfRow {

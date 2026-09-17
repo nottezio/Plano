@@ -4,7 +4,14 @@ import { nanoid } from 'nanoid';
 import { setTodoTicks, updatePatient } from '@/data/repositories/patients.repo';
 import { SEED_CHECKLISTS } from '@/domain/checklists/seeds';
 import { useSession } from '@/store/useSession';
-import { setRepeat, todoHistory, todoViews, toggleTodo } from '@/domain/patientTodos';
+import {
+  labelsToImport,
+  removeTodo,
+  setRepeat,
+  todoHistory,
+  todoViews,
+  toggleTodo,
+} from '@/domain/patientTodos';
 import { formatShortDate } from '@/domain/clinicalDate';
 import type { ClinicalDate, Patient } from '@/domain/types';
 
@@ -97,11 +104,12 @@ export function PatientTodos({
     const seed = available.find((list) => list.id === id);
     if (!seed) return;
 
-    // Skip labels already present, so importing twice does not double the list.
-    const existing = new Set(todos.map((todo) => todo.label));
-    const added = seed.items
-      .filter((item) => !existing.has(item.label))
-      .map((item) => ({ id: nanoid(6), label: item.label, done: false }));
+    // Importing twice does not double the list; see `labelsToImport` for
+    // why a deleted step still comes back.
+    const added = labelsToImport(
+      todos,
+      seed.items.map((item) => item.label),
+    ).map((label) => ({ id: nanoid(6), label, done: false }));
 
     save([...todos, ...added]);
     setImportOpen(false);
@@ -119,9 +127,9 @@ export function PatientTodos({
         ) : (
           <h3 className="flex-1 text-xs font-semibold text-fg-muted">
             Custom Checklist
-            {todos.length > 0 ? (
+            {views.length > 0 ? (
               <span className="ml-1 font-normal text-fg-faint">
-                {doneCount}/{todos.length}
+                {doneCount}/{views.length}
               </span>
             ) : null}
           </h3>
@@ -160,7 +168,7 @@ export function PatientTodos({
         </div>
       ) : null}
 
-      {todos.length > 0 ? (
+      {views.length > 0 ? (
         <ul className="mt-1.5 space-y-1">
           {views.map((todo) => (
             <li key={todo.id} className="flex items-start gap-2">
@@ -233,7 +241,7 @@ export function PatientTodos({
               <button
                 type="button"
                 aria-label="Hapus"
-                onClick={() => save(todos.filter((candidate) => candidate.id !== todo.id))}
+                onClick={() => save(removeTodo(todos, patient.todoTicks, date, todo.id))}
                 /*
                   Aligned to the label's FIRST LINE, not to the row's centre.
                   
@@ -305,6 +313,7 @@ function TodoHistoryList({
                   ✓
                 </span>
                 <span className="min-w-0 break-words">{item.label}</span>
+                {item.removed ? <RemovedMark /> : null}
                 {item.repeat ? (
                   <span className="shrink-0 text-fg-faint" title="Langkah harian">
                     ⟳
@@ -326,6 +335,7 @@ function TodoHistoryList({
                   ✓
                 </span>
                 <span className="min-w-0 break-words">{item.label}</span>
+                {item.removed ? <RemovedMark /> : null}
               </li>
             ))}
           </ul>
@@ -333,4 +343,9 @@ function TodoHistoryList({
       ) : null}
     </div>
   );
+}
+
+/** A deleted item in the history: still listed, visibly no longer on the list. */
+function RemovedMark(): JSX.Element {
+  return <span className="shrink-0 text-fg-faint">(dihapus)</span>;
 }

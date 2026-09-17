@@ -1,6 +1,14 @@
 import { describe, expect, it } from 'vitest';
 
-import { setRepeat, todoHistory, todoViews, toggleTodo } from './patientTodos';
+import {
+  activeTodos,
+  labelsToImport,
+  removeTodo,
+  setRepeat,
+  todoHistory,
+  todoViews,
+  toggleTodo,
+} from './patientTodos';
 import type { PatientTodo, TodoTicks } from './patientTodos';
 import type { ClinicalDate } from './types';
 
@@ -166,13 +174,18 @@ describe('todoHistory', () => {
   });
 
   it('lists a done one-off item without a date as undated, never guessed', () => {
-    expect(todoHistory(todos, undefined).undated).toEqual([{ id: 'old', label: 'Ambil darah' }]);
+    expect(todoHistory(todos, undefined).undated).toEqual([
+      { id: 'old', label: 'Ambil darah', removed: false },
+    ]);
   });
 
   it('leaves out open items and ticks on deleted items (`gone`)', () => {
     const history = todoHistory(todos, { [TODAY]: ['gone'] });
     expect(history.days).toEqual([
-      { date: YESTERDAY, items: [{ id: 'once', label: 'Konfirmasi koding', repeat: false }] },
+      {
+        date: YESTERDAY,
+        items: [{ id: 'once', label: 'Konfirmasi koding', repeat: false, removed: false }],
+      },
     ]);
   });
 
@@ -184,5 +197,66 @@ describe('todoHistory', () => {
   it('does not list the same item twice on one day', () => {
     const both: PatientTodo[] = [{ id: 'x', label: 'X', done: true, doneOn: TODAY }];
     expect(todoHistory(both, { [TODAY]: ['x'] }).days[0]?.items).toHaveLength(1);
+  });
+});
+
+describe('removeTodo — check, then delete to keep the list short', () => {
+  it('keeps a checked one-off item, hidden, for the history', () => {
+    const todos: PatientTodo[] = [{ id: 'x', label: 'Koding', done: true, doneOn: YESTERDAY }];
+    const next = removeTodo(todos, undefined, TODAY, 'x');
+    expect(next).toEqual([{ id: 'x', label: 'Koding', done: true, doneOn: YESTERDAY, removedOn: TODAY }]);
+    expect(activeTodos(next)).toEqual([]);
+    expect(todoHistory(next, undefined).days[0]?.items).toEqual([
+      { id: 'x', label: 'Koding', repeat: false, removed: true },
+    ]);
+  });
+
+  it('removes an item that was never checked, outright', () => {
+    const todos: PatientTodo[] = [{ id: 'x', label: 'Belum', done: false }];
+    expect(removeTodo(todos, undefined, TODAY, 'x')).toEqual([]);
+  });
+
+  it('keeps a repeating item ticked on an earlier day, even if not ticked today', () => {
+    const todos: PatientTodo[] = [{ id: 'd', label: 'Update grup', done: false, repeat: true }];
+    const ticks: TodoTicks = { [YESTERDAY]: ['d'], [TODAY]: [] };
+    const next = removeTodo(todos, ticks, TODAY, 'd');
+    expect(next[0]?.removedOn).toBe(TODAY);
+    expect(todoHistory(next, ticks).days.map((day) => day.date)).toEqual([YESTERDAY]);
+  });
+
+  it('keeps an undated checked item and marks it deleted', () => {
+    const todos: PatientTodo[] = [{ id: 'o', label: 'Lama', done: true }];
+    const next = removeTodo(todos, undefined, TODAY, 'o');
+    expect(todoHistory(next, undefined).undated).toEqual([
+      { id: 'o', label: 'Lama', removed: true },
+    ]);
+  });
+
+  it('hides deleted items from the list and its counts', () => {
+    const todos: PatientTodo[] = [
+      { id: 'a', label: 'A', done: true, removedOn: TODAY },
+      { id: 'b', label: 'B', done: false },
+    ];
+    expect(todoViews(todos, undefined, TODAY).map((view) => view.id)).toEqual(['b']);
+  });
+
+  it('leaves the other items untouched', () => {
+    const todos: PatientTodo[] = [
+      { id: 'a', label: 'A', done: true },
+      { id: 'b', label: 'B', done: false },
+    ];
+    expect(removeTodo(todos, undefined, TODAY, 'a')[1]).toBe(todos[1]);
+  });
+});
+
+describe('labelsToImport', () => {
+  it('skips steps already on the list', () => {
+    const todos: PatientTodo[] = [{ id: 'a', label: 'EKG', done: false }];
+    expect(labelsToImport(todos, ['EKG', 'Lab'])).toEqual(['Lab']);
+  });
+
+  it('brings back a step that was checked and deleted', () => {
+    const todos: PatientTodo[] = [{ id: 'a', label: 'EKG', done: true, removedOn: YESTERDAY }];
+    expect(labelsToImport(todos, ['EKG', 'Lab'])).toEqual(['EKG', 'Lab']);
   });
 });
