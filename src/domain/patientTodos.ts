@@ -121,7 +121,7 @@ export function toggleTodo(
 
   if (!target.repeat) {
     return {
-      todos: todos.map((todo) => (todo.id === id ? { ...todo, done: !todo.done } : todo)),
+      todos: todos.map((todo) => (todo.id === id ? withDone(todo, !todo.done, date) : todo)),
     };
   }
 
@@ -152,9 +152,12 @@ export function setRepeat(
   const view = todoViews(todos, ticks, date).find((candidate) => candidate.id === id);
   const done = view?.done ?? false;
 
-  const nextTodos = todos.map((todo) =>
-    todo.id === id ? { ...todo, repeat, done: repeat ? false : done } : todo,
-  );
+  const nextTodos = todos.map((todo) => {
+    if (todo.id !== id) return todo;
+    // Becoming repeating: the day's tick below carries the history. Becoming
+    // one-off: the item keeps its state, and records the day if it is done.
+    return repeat ? { ...todo, repeat, done: false } : withDone({ ...todo, repeat }, done, date);
+  });
 
   const current = ticksOn(ticks, date) ?? [];
   const nextTicks = repeat
@@ -164,4 +167,78 @@ export function setRepeat(
     : current.filter((candidate) => candidate !== id);
 
   return { todos: nextTodos, ticks: [...nextTicks] };
+}
+
+/**
+ * A one-off item with its done state and the day it was done.
+ *
+ * `doneOn` is REMOVED on untick rather than set to `undefined`: Firestore
+ * rejects `undefined` field values, and a stale date on an open item would put
+ * it in the history for a day it was not done.
+ */
+function withDone(todo: PatientTodo, done: boolean, date: ClinicalDate): PatientTodo {
+  if (done) return { ...todo, done, doneOn: date };
+  const { doneOn: _dropped, ...rest } = todo;
+  return { ...rest, done };
+}
+
+export interface TodoHistoryDay {
+  date: ClinicalDate;
+  items: Array<{ id: string; label: string; repeat: boolean }>;
+}
+
+export interface TodoHistory {
+  /** Newest first. Only days with at least one ticked item. */
+  days: TodoHistoryDay[];
+  /** One-off items marked done before their date was recorded. */
+  undated: Array<{ id: string; label: string }>;
+}
+
+/**
+ * What was ticked, and on which day.
+ *
+ * Derived, never stored: repeating ticks already live under their date in
+ * `todoTicks`, and one-off items carry `doneOn`. A stored log would be a
+ * second record of the same facts that could disagree with the first.
+ *
+ * Ticks on an id that is no longer in the list are skipped. The label went
+ * with the item, and a history entry that says only "an item" answers nothing.
+ * Past ticks on an item that has since become one-off are kept, because they
+ * record days it really was done.
+ */
+export function todoHistory(
+  todos: readonly PatientTodo[],
+  ticks: TodoTicks | undefined,
+): TodoHistory {
+  const byDate = new Map<ClinicalDate, Set<string>>();
+  const mark = (date: ClinicalDate, id: string): void => {
+    const set = byDate.get(date) ?? new Set<string>();
+    set.add(id);
+    byDate.set(date, set);
+  };
+
+  const known = new Set(todos.map((todo) => todo.id));
+  for (const [date, ids] of Object.entries(ticks ?? {})) {
+    for (const id of ids) if (known.has(id)) mark(date, id);
+  }
+
+  const undated: TodoHistory['undated'] = [];
+  for (const todo of todos) {
+    if (todo.repeat || !todo.done) continue;
+    if (todo.doneOn) mark(todo.doneOn, todo.id);
+    else undated.push({ id: todo.id, label: todo.label });
+  }
+
+  const days = [...byDate.entries()]
+    .map(([date, ids]) => ({
+      date,
+      // List order, not tick order: the list is how the items are known.
+      items: todos
+        .filter((todo) => ids.has(todo.id))
+        .map((todo) => ({ id: todo.id, label: todo.label, repeat: todo.repeat ?? false })),
+    }))
+    .filter((day) => day.items.length > 0)
+    .sort((a, b) => b.date.localeCompare(a.date));
+
+  return { days, undated };
 }

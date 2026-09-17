@@ -147,7 +147,7 @@ export type BulletStyle = 'hyphen' | 'guarded' | 'bullet';
  * newlines for the same reason they do in `foldToAscii`: invisible, non-ASCII,
  * and they silently join two lines into one if left alone.
  */
-function stripInvisible(text: string): string {
+export function stripInvisible(text: string): string {
   return text
     .replace(/[\u00AD\u180E]/gu, '')
     .replace(/\p{Cf}/gu, '')

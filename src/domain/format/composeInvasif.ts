@@ -5,7 +5,8 @@ import {
   isInvestigationHeading,
   orderInvestigations,
 } from '../reformat/orderInvestigations';
-import type { Patient, SectionAlias } from '../types';
+import { formatBody, type BulletStyle } from './formatters';
+import type { OutputFormat, Patient, SectionAlias } from '../types';
 
 /**
  * "Nyanyian Grup Invasif" — announcing a planned procedure to the invasive
@@ -39,6 +40,9 @@ export interface InvasifOptions {
   includeInvestigations?: boolean;
   greeting?: string;
   closing?: string;
+  /** Destination format; see `KonsulOptions.format` for why this exists. */
+  format?: OutputFormat;
+  bullet?: BulletStyle;
 }
 
 const DEFAULT_GREETING = 'Assalamualaikum Wr. Wb. Tabe dokter,';
@@ -185,8 +189,12 @@ export function composeInvasif(
       (options.includeInvestigations ? LAPORAN_CLOSING : DEFAULT_CLOSING),
   );
 
-  return lines
-    .join('\n')
-    .replace(/\n{3,}/g, '\n\n')
-    .trim();
+  return formatBody(
+    lines
+      .join('\n')
+      .replace(/\n{3,}/g, '\n\n')
+      .trim(),
+    options.format ?? 'whatsapp',
+    options.bullet,
+  );
 }

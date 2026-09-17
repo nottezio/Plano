@@ -167,6 +167,7 @@ function Verdict({
               <li key={`${hit.code}-${hit.line}-${hit.column}-${index}`} className="text-[11px]">
                 baris {hit.line}:{hit.column} — <span className="font-mono">{hit.code}</span>
                 {hit.note ? ` · ${hit.note}` : ''}
+                <span className="block break-words font-mono text-fg-faint">…{hit.context}…</span>
               </li>
             ))}
           </ul>

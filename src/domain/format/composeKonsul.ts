@@ -1,6 +1,7 @@
 import { parseSections } from '../sections/parseSections';
 import { formatLocation } from '../identity';
-import type { Patient, SectionAlias } from '../types';
+import { formatBody, type BulletStyle } from './formatters';
+import type { OutputFormat, Patient, SectionAlias } from '../types';
 
 /**
  * A konsul — a referral to another service, composed from the day's note.
@@ -36,6 +37,18 @@ export interface KonsulOptions {
   listFrom?: string;
   /** Clinical date of the list, already formatted. */
   listDate?: string;
+  /**
+   * The destination format. Defaults to WhatsApp, where these messages are
+   * sent.
+   *
+   * This composer used to return its joined lines as they were. It was the
+   * only path to the clipboard, along with `composeInvasif`, that never went
+   * through `formatBody`. So the Format chip did nothing here, and a
+   * zero-width space or NBSP in the note reached the clipboard even with
+   * "Teks polos" selected (see CHANGES.md).
+   */
+  format?: OutputFormat;
+  bullet?: BulletStyle;
 }
 
 const DEFAULT_GREETING = 'Assalamualaikum dokter. Tabe dokter,';
@@ -166,8 +179,12 @@ export function composeKonsul(
 
   // Collapse the runs of blank lines left by any absent block, so a note with
   // no DPJP line does not produce a gap where one would have been.
-  return lines
-    .join('\n')
-    .replace(/\n{3,}/g, '\n\n')
-    .trim();
+  return formatBody(
+    lines
+      .join('\n')
+      .replace(/\n{3,}/g, '\n\n')
+      .trim(),
+    options.format ?? 'whatsapp',
+    options.bullet,
+  );
 }

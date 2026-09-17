@@ -448,6 +448,16 @@ export interface Patient {
      * expected to be cleared for tomorrow.
      */
     repeat?: boolean;
+    /**
+     * The clinical day a ONE-OFF item was ticked. Absent while it is open.
+     *
+     * Repeating items already have their history in `todoTicks`, keyed by
+     * date. One-off items stored only `done: true`, which says that something
+     * happened but not when, so the history had nothing to show for them.
+     * Items ticked before this field existed stay undated. The history lists
+     * them as such rather than guessing a day.
+     */
+    doneOn?: ClinicalDate;
   }>;
   /**
    * Ticks on repeating checklist items, keyed by clinical date.

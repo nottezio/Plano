@@ -58,3 +58,15 @@ describe('comparePaste', () => {
     expect(comparePaste(sent, received).changedLines).toHaveLength(20);
   });
 });
+
+describe('auditText context', () => {
+  it('shows an invisible character by code point, between its neighbours', () => {
+    const [hit] = auditText('\u200BAssalamualaikum prof.\nTabe');
+    expect(hit?.context).toBe('[U+200B]Assalamualaikum ');
+  });
+
+  it('marks line breaks in the context', () => {
+    const [hit] = auditText('baris satu\n- IVFD\u00A0NaCl');
+    expect(hit?.context).toBe('aris satu⏎- IVFD[U+00A0]NaCl');
+  });
+});

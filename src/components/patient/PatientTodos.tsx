@@ -4,7 +4,8 @@ import { nanoid } from 'nanoid';
 import { setTodoTicks, updatePatient } from '@/data/repositories/patients.repo';
 import { SEED_CHECKLISTS } from '@/domain/checklists/seeds';
 import { useSession } from '@/store/useSession';
-import { setRepeat, todoViews, toggleTodo } from '@/domain/patientTodos';
+import { setRepeat, todoHistory, todoViews, toggleTodo } from '@/domain/patientTodos';
+import { formatShortDate } from '@/domain/clinicalDate';
 import type { ClinicalDate, Patient } from '@/domain/types';
 
 /**
@@ -46,6 +47,7 @@ export function PatientTodos({
 }): JSX.Element {
   const [draft, setDraft] = useState('');
   const [importOpen, setImportOpen] = useState(false);
+  const [historyOpen, setHistoryOpen] = useState(false);
 
   const todos = patient.todos ?? [];
   const views = todoViews(todos, patient.todoTicks, date);
@@ -131,7 +133,17 @@ export function PatientTodos({
         >
           Ambil dari checklist harian
         </button>
+        <button
+          type="button"
+          onClick={() => setHistoryOpen((open) => !open)}
+          aria-expanded={historyOpen}
+          className="min-h-tap shrink-0 text-[11px] text-accent underline"
+        >
+          {historyOpen ? 'Tutup riwayat' : 'Riwayat'}
+        </button>
       </div>
+
+      {historyOpen ? <TodoHistoryList history={todoHistory(todos, patient.todoTicks)} /> : null}
 
       {importOpen ? (
         <div className="mt-1 space-y-1">
@@ -262,5 +274,63 @@ export function PatientTodos({
         </button>
       </div>
     </section>
+  );
+}
+
+/**
+ * What was ticked, grouped by day, newest first.
+ *
+ * Read-only and inline, under the header. A tick is changed on the list
+ * itself for the day being viewed, and a history that could also tick would
+ * be a second way to write to a day that is not on screen.
+ */
+function TodoHistoryList({
+  history,
+}: {
+  history: ReturnType<typeof todoHistory>;
+}): JSX.Element {
+  if (history.days.length === 0 && history.undated.length === 0) {
+    return <p className="mt-1 text-[11px] text-fg-faint">Belum ada yang dicentang.</p>;
+  }
+
+  return (
+    <div className="mt-1 max-h-60 space-y-2 overflow-auto rounded-lg border border-border bg-bg-subtle px-2 py-1.5 text-[11px]">
+      {history.days.map((day) => (
+        <div key={day.date}>
+          <p className="font-medium text-fg-muted">{formatShortDate(day.date)}</p>
+          <ul className="mt-0.5 space-y-0.5">
+            {day.items.map((item) => (
+              <li key={item.id} className="flex gap-1.5">
+                <span aria-hidden="true" className="text-accent">
+                  ✓
+                </span>
+                <span className="min-w-0 break-words">{item.label}</span>
+                {item.repeat ? (
+                  <span className="shrink-0 text-fg-faint" title="Langkah harian">
+                    ⟳
+                  </span>
+                ) : null}
+              </li>
+            ))}
+          </ul>
+        </div>
+      ))}
+      {history.undated.length > 0 ? (
+        <div>
+          {/* Ticked before the date was recorded. Said plainly, not guessed. */}
+          <p className="font-medium text-fg-muted">Tanggal tidak tercatat</p>
+          <ul className="mt-0.5 space-y-0.5">
+            {history.undated.map((item) => (
+              <li key={item.id} className="flex gap-1.5">
+                <span aria-hidden="true" className="text-fg-faint">
+                  ✓
+                </span>
+                <span className="min-w-0 break-words">{item.label}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      ) : null}
+    </div>
   );
 }

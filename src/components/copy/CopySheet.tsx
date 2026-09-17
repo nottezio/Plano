@@ -372,6 +372,8 @@ export function CopySheet({
             scheduledFor: invasifWhen,
             payer: invasifPayer,
             includeInvestigations: invasifPenunjang,
+            format,
+            bullet,
           })
         : shape === 'jaga' && activeShiftNote
         ? // Stands alone. A jaga note is reported when it happens, to whoever
@@ -392,6 +394,8 @@ export function CopySheet({
             listStyle: konsulEffective.listStyle,
             listFrom: patient.ward ?? '',
             listDate: formatDayNoWeekday(date),
+            format,
+            bullet,
           })
         : pdfMode
         ? composePdfReport(body, {
@@ -960,10 +964,26 @@ export function CopySheet({
         </div>
       ) : null}
 
+      {/*
+        Keyed on the OUTPUT, not on the format chip.
+
+        This used to be hidden whenever "Teks polos" was selected, on the
+        assumption that plain text is ASCII by construction. It was not: Konsul
+        and Grup invasif never ran the formatter, so their plain output could
+        carry a zero-width space while this stayed silent. With plain selected,
+        a non-ASCII character is Plano's fault, and the sheet says so.
+      */}
+      {nonAscii.length > 0 && format === 'plain' ? (
+        <p role="alert" className="mt-2 text-xs text-danger">
+          Hasil teks polos masih memuat karakter non-ASCII (
+          <span className="font-mono">{nonAscii.map(visibleChar).join(' ')}</span>) — ini bug
+          Plano, mohon laporkan.
+        </p>
+      ) : null}
       {nonAscii.length > 0 && format !== 'plain' ? (
         <p className="mt-2 rounded-lg border border-border bg-bg-subtle p-2 text-[11px] leading-relaxed text-fg-muted">
           Teks ini memuat karakter yang muncul sebagai “?” di SIMGOS:{' '}
-          <span className="font-mono">{nonAscii.join(' ')}</span>. Untuk SIMGOS, pilih format{' '}
+          <span className="font-mono">{nonAscii.map(visibleChar).join(' ')}</span>. Untuk SIMGOS, pilih format{' '}
           <button
             type="button"
             onClick={() => {
@@ -985,6 +1005,19 @@ export function CopySheet({
       ) : null}
     </Sheet>
   );
+}
+
+/**
+ * An offending character as something a person can see.
+ *
+ * The list used to print the characters themselves, and the ones that matter
+ * most are invisible: a zero-width space printed between two spaces is a
+ * double space. Invisible and space-like characters are shown by code point.
+ */
+function visibleChar(char: string): string {
+  return /[\p{Cf}\p{Zs}\p{Zl}\p{Zp}\u00AD\u180E]/u.test(char)
+    ? `U+${char.codePointAt(0)?.toString(16).toUpperCase().padStart(4, '0') ?? '?'}`
+    : char;
 }
 
 function Group({

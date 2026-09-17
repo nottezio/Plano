@@ -944,8 +944,8 @@ export default function PatientPage(): JSX.Element {
           <button
             type="button"
             onClick={() => setCompareOpen(true)}
-            aria-label="Bandingkan dengan hari sebelumnya"
-            title="Bandingkan hari"
+            aria-label="Bandingkan catatan atau revisi"
+            title="Bandingkan catatan atau revisi"
             className="hidden min-h-tap min-w-tap shrink-0 text-fg-faint sm:block"
           >
             <span aria-hidden="true">⇄</span>

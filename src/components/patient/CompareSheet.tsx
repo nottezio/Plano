@@ -7,6 +7,7 @@ import {
 } from '@/data/repositories/entries.repo';
 import { formatShortDate } from '@/domain/clinicalDate';
 import { diffSegmentsByLine } from '@/domain/merge/threeWayMerge';
+import { diffRevision, type RevisionRow } from '@/domain/format/revisionDiff';
 
 /**
  * Today beside an earlier day.
@@ -56,6 +57,11 @@ export function CompareSheet({
    */
   const [right, setRight] = useState<string | null>(null);
   const [showDiff, setShowDiff] = useState(false);
+  /**
+   * Between two notes Plano holds, or between the open note and a revision
+   * pasted in from outside.
+   */
+  const [mode, setMode] = useState<'antar' | 'revisi'>('antar');
 
   useEffect(() => {
     if (!open) return;
@@ -152,7 +158,18 @@ export function CompareSheet({
       title="Bandingkan catatan"
       description="Hanya untuk dibaca. Perubahan tetap dilakukan di catatan hari itu."
     >
-      {days.length === 0 ? (
+      <div role="group" aria-label="Jenis perbandingan" className="mb-3 flex flex-wrap gap-2">
+        <Chip active={mode === 'antar'} onClick={() => setMode('antar')}>
+          Antar catatan
+        </Chip>
+        <Chip active={mode === 'revisi'} onClick={() => setMode('revisi')}>
+          Dengan revisi tempelan
+        </Chip>
+      </div>
+
+      {mode === 'revisi' ? (
+        <RevisionCompare mine={todayBody} mineLabel={currentLabel} />
+      ) : days.length === 0 ? (
         <p className="text-sm text-fg-muted">
           Belum ada catatan lain untuk dibandingkan.
         </p>
@@ -340,5 +357,173 @@ function Chip({
     >
       {children}
     </button>
+  );
+}
+
+/**
+ * The open note against a revised copy pasted in (usually the chief's).
+ *
+ * The pasted text lives in this component's state only. It is not saved,
+ * not synced, and is gone when the sheet closes: it is someone else's version
+ * of a clinical note, and the decision about what to take from it is made
+ * in the editor, by hand.
+ *
+ * "Abaikan format" is on by default. A revision comes back through WhatsApp
+ * or SIMGOS, and both change markers and spacing that nobody edited.
+ */
+function RevisionCompare({ mine, mineLabel }: { mine: string; mineLabel: string }): JSX.Element {
+  const [pasted, setPasted] = useState('');
+  const [ignoreFormatting, setIgnoreFormatting] = useState(true);
+  const [onlyChanges, setOnlyChanges] = useState(false);
+
+  const diff = useMemo(
+    () => (pasted.trim() ? diffRevision(mine, pasted, { ignoreFormatting }) : null),
+    [mine, pasted, ignoreFormatting],
+  );
+
+  const rows = diff
+    ? onlyChanges
+      ? withContext(diff.rows)
+      : diff.rows.map((row) => ({ row, gap: false }))
+    : [];
+
+  return (
+    <div className="space-y-3">
+      <div>
+        <label htmlFor="revision-paste" className="block text-xs font-medium text-fg-muted">
+          Tempel SOAP yang sudah direvisi. Dibandingkan dengan{' '}
+          <strong className="text-fg">{mineLabel}</strong>; teks ini tidak disimpan.
+        </label>
+        <textarea
+          id="revision-paste"
+          value={pasted}
+          onChange={(event) => setPasted(event.target.value)}
+          rows={6}
+          placeholder="Tempel di sini…"
+          className="mt-1 w-full rounded-lg border border-border bg-surface px-3 py-2 text-xs"
+        />
+      </div>
+
+      <div className="flex flex-wrap gap-x-4">
+        <label className="flex min-h-tap items-center gap-2 text-xs text-fg-muted">
+          <input
+            type="checkbox"
+            checked={ignoreFormatting}
+            onChange={(event) => setIgnoreFormatting(event.target.checked)}
+          />
+          Abaikan format (tebal, miring, spasi, baris kosong)
+        </label>
+        <label className="flex min-h-tap items-center gap-2 text-xs text-fg-muted">
+          <input
+            type="checkbox"
+            checked={onlyChanges}
+            onChange={(event) => setOnlyChanges(event.target.checked)}
+          />
+          Hanya yang berubah
+        </label>
+      </div>
+
+      {diff ? (
+        diff.identical ? (
+          <p className="text-xs font-medium text-accent">
+            Tidak ada perubahan isi{ignoreFormatting ? ' (format diabaikan)' : ''}.
+          </p>
+        ) : (
+          <>
+            <p className="text-xs text-fg-muted">
+              <strong className="text-fg">{diff.changed}</strong> baris diubah ·{' '}
+              <strong className="text-fg">{diff.added}</strong> ditambah ·{' '}
+              <strong className="text-fg">{diff.removed}</strong> dihapus, dari{' '}
+              <strong className="text-fg">{mineLabel}</strong> ke revisi.
+            </p>
+            <div className="flex flex-wrap items-center gap-3 text-[11px] text-fg-muted">
+              <span className="flex items-center gap-1">
+                <span className="rounded bg-[var(--card-step-12-bg)] px-1 text-[var(--card-step-12-fg)]">
+                  hijau
+                </span>
+                ada di revisi
+              </span>
+              <span className="flex items-center gap-1">
+                <span className="rounded bg-[var(--card-step-1-bg)] px-1 text-[var(--card-step-1-fg)] line-through">
+                  merah
+                </span>
+                hanya di catatan saya
+              </span>
+            </div>
+            <div className="max-h-[55vh] overflow-auto rounded-lg border border-border bg-bg-subtle p-3 font-mono text-xs leading-relaxed">
+              {rows.map(({ row, gap }, index) => (
+                <div key={index}>
+                  {gap ? (
+                    <p aria-hidden="true" className="text-fg-faint">
+                      ⋯
+                    </p>
+                  ) : null}
+                  <RevisionLine row={row} />
+                </div>
+              ))}
+            </div>
+          </>
+        )
+      ) : null}
+    </div>
+  );
+}
+
+/**
+ * Changed rows with one unchanged line either side, and a gap mark where lines
+ * were skipped. A change without its neighbours often cannot be placed:
+ * "- 40 mg" means nothing until you see which drug is above it.
+ */
+function withContext(rows: readonly RevisionRow[]): Array<{ row: RevisionRow; gap: boolean }> {
+  const keep = new Set<number>();
+  rows.forEach((row, index) => {
+    if (row.kind === 'same') return;
+    keep.add(index - 1);
+    keep.add(index);
+    keep.add(index + 1);
+  });
+  const out: Array<{ row: RevisionRow; gap: boolean }> = [];
+  let last = -1;
+  rows.forEach((row, index) => {
+    if (!keep.has(index)) return;
+    out.push({ row, gap: last !== -1 && index !== last + 1 });
+    last = index;
+  });
+  return out;
+}
+
+const ADDED = 'bg-[var(--card-step-12-bg)] text-[var(--card-step-12-fg)]';
+const REMOVED = 'bg-[var(--card-step-1-bg)] text-[var(--card-step-1-fg)] line-through';
+
+/**
+ * One row. The sign in the gutter carries the meaning as well as the colour,
+ * so the diff still reads for someone who cannot tell red from green.
+ */
+function RevisionLine({ row }: { row: RevisionRow }): JSX.Element {
+  const sign = row.kind === 'added' ? '+' : row.kind === 'removed' ? '−' : row.kind === 'changed' ? '~' : ' ';
+  return (
+    <p className="flex gap-2 whitespace-pre-wrap break-words">
+      <span aria-hidden="true" className="w-3 shrink-0 text-fg-faint">
+        {sign}
+      </span>
+      <span className="min-w-0 flex-1">
+        {row.kind === 'changed' ? (
+          row.parts.map((part, index) => (
+            <span
+              key={index}
+              className={part.type === 'insert' ? ADDED : part.type === 'delete' ? REMOVED : undefined}
+            >
+              {part.text}
+            </span>
+          ))
+        ) : (
+          <span
+            className={row.kind === 'added' ? ADDED : row.kind === 'removed' ? REMOVED : 'text-fg-muted'}
+          >
+            {row.text || ' '}
+          </span>
+        )}
+      </span>
+    </p>
   );
 }

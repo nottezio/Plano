@@ -62,6 +62,16 @@ export function PatientPeekWindow({
    */
   const [pos, setPos] = useState({ x: 0, y: 0 });
   const [tab, setTab] = useState<PeekTab | null>(null);
+  /**
+   * How the note is SHOWN: as written, or as SIMGOS or WhatsApp would receive
+   * it. Changing the view writes nothing to the clipboard.
+   *
+   * The buttons used to copy the whole note. Here the window is the staging
+   * area instead: pick the destination, see exactly what it will get, then
+   * select the part that is needed. That is a different job from the Salin
+   * sheet on the patient page, which copies and changes nothing on screen.
+   */
+  const [view, setView] = useState<PeekView>('asli');
   const panelId = useId();
   // Pressing the open tab closes it; pressing another switches straight to it.
   const toggleTab = (next: PeekTab): void =>
@@ -185,7 +195,11 @@ export function PatientPeekWindow({
         });
       } else {
         setSize({
-          w: Math.max(280, originSize.w + dx),
+          // 360, not 280: the title bar now carries Salin RM beside the two
+          // view switches, Buka and ✕, all fixed-width. Below this the
+          // patient's name — the one thing that identifies the window — was
+          // the only part left to shrink, and it shrank to nothing.
+          w: Math.max(360, originSize.w + dx),
           h: Math.max(180, originSize.h + dy),
         });
       }
@@ -201,6 +215,15 @@ export function PatientPeekWindow({
     window.addEventListener('pointerup', onUp);
     window.addEventListener('pointercancel', onUp);
   };
+
+  const shown =
+    body === null
+      ? ''
+      : view === 'simgos'
+        ? toPlain(body)
+        : view === 'wa'
+          ? toWhatsApp(body, settings.whatsappBullet)
+          : body;
 
   return (
     <div
@@ -242,27 +265,28 @@ export function PatientPeekWindow({
             >
               {date ? (date === today ? 'Hari ini' : formatShortDate(date)) : '—'}
             </span>
-            <span className="truncate">hanya dibaca</span>
+            {patient.mrn ? (
+              <span className="shrink-0 font-mono">RM {patient.mrn}</span>
+            ) : null}
+            <span className="truncate">
+              {view === 'asli' ? 'hanya dibaca' : `tampilan ${view === 'simgos' ? 'SIMGOS' : 'WA'}`}
+            </span>
           </p>
         </div>
-        {/*
-          Salin, in the two formats that actually leave this app.
-
-          Not the full Salin sheet: that offers sections, presets, a preview
-          and an identity line, and a 420 px window is not where any of that is
-          chosen. What is wanted from a peek is the whole note, now, in the
-          form it is about to be pasted into — so the two destinations are two
-          buttons and there is nothing to configure.
-
-          `toPlain` guarantees ASCII for SIMGOS; `toWhatsApp` keeps the
-          markers. Both are the same functions the main sheet uses, so a note
-          copied from here and one copied from there are identical.
-        */}
+        {patient.mrn ? <CopyMrnButton mrn={patient.mrn} /> : null}
         {body && body.trim() ? (
-          <>
-            <CopyButton label="SIMGOS" text={() => toPlain(body)} />
-            <CopyButton label="WA" text={() => toWhatsApp(body, settings.whatsappBullet)} />
-          </>
+          <div role="group" aria-label="Tampilan catatan" className="flex shrink-0 gap-1">
+            <ViewToggle
+              label="SIMGOS"
+              pressed={view === 'simgos'}
+              onPress={() => setView((current) => (current === 'simgos' ? 'asli' : 'simgos'))}
+            />
+            <ViewToggle
+              label="WA"
+              pressed={view === 'wa'}
+              onPress={() => setView((current) => (current === 'wa' ? 'asli' : 'wa'))}
+            />
+          </div>
         ) : null}
 
         <Link
@@ -291,7 +315,18 @@ export function PatientPeekWindow({
             machinery with nothing to align to, and plain preformatted text
             cannot drift from the note the way a re-rendered version could.
           */
-          <pre className="whitespace-pre-wrap text-[11px] leading-relaxed">{body}</pre>
+          <pre
+            // Tells the copy sanitiser what is on screen, so selecting from
+            // the WA view keeps `°` and selecting from the SIMGOS view folds
+            // it. Per window, because each window can show a different view.
+            // As written: no declaration, so the app-wide default applies.
+            data-copy-format={
+              view === 'wa' ? 'whatsapp' : view === 'simgos' ? 'plain' : undefined
+            }
+            className="whitespace-pre-wrap text-[11px] leading-relaxed"
+          >
+            {shown}
+          </pre>
         ) : (
           <p className="py-6 text-center text-xs text-fg-muted">
             {date ? 'Catatan hari ini masih kosong.' : 'Belum ada catatan.'}
@@ -422,21 +457,60 @@ export function PatientPeekWindow({
 }
 
 
-/** One copy target. Keeps its own "Tersalin" so two buttons cannot confuse it. */
-function CopyButton({ label, text }: { label: string; text: () => string }): JSX.Element {
+type PeekView = 'asli' | 'simgos' | 'wa';
+
+/**
+ * A view switch. Pressed shows that format; pressing it again returns to the
+ * note as written.
+ */
+function ViewToggle({
+  label,
+  pressed,
+  onPress,
+}: {
+  label: string;
+  pressed: boolean;
+  onPress: () => void;
+}): JSX.Element {
+  return (
+    <button
+      type="button"
+      onClick={onPress}
+      aria-pressed={pressed}
+      title={pressed ? 'Kembali ke catatan asli' : `Tampilkan versi ${label}`}
+      className={[
+        'min-h-tap shrink-0 rounded-lg border px-2 text-[10px] font-medium',
+        pressed ? 'border-accent bg-accent/15 text-accent' : 'border-border',
+      ].join(' ')}
+    >
+      {label}
+    </button>
+  );
+}
+
+/**
+ * The medical record number, the one thing here that IS copied.
+ *
+ * Digits only, no `RM ` prefix, matching the patient page: it goes into a
+ * search box that wants the number. The number itself is shown in the
+ * subtitle, so the button can stay short.
+ */
+function CopyMrnButton({ mrn }: { mrn: string }): JSX.Element {
   const [copied, setCopied] = useState(false);
   return (
     <button
       type="button"
       onClick={() => {
-        void copyText(text());
-        setCopied(true);
-        window.setTimeout(() => setCopied(false), 1200);
+        void copyText(mrn).then((ok) => {
+          setCopied(ok);
+          if (ok) window.setTimeout(() => setCopied(false), 1200);
+        });
       }}
-      title={`Salin catatan untuk ${label}`}
-      className="min-h-tap shrink-0 rounded-lg border border-border px-2 text-[10px] font-medium"
+      title={`Salin nomor RM ${mrn}`}
+      aria-label={`Salin nomor RM ${mrn}`}
+      className="min-h-tap shrink-0 rounded-lg border border-border px-2 text-[10px] font-medium text-fg-muted"
     >
-      {copied ? '✓' : label}
+      {copied ? '✓' : 'Salin RM'}
     </button>
   );
 }

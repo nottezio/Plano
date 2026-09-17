@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { setRepeat, todoViews, toggleTodo } from './patientTodos';
+import { setRepeat, todoHistory, todoViews, toggleTodo } from './patientTodos';
 import type { PatientTodo, TodoTicks } from './patientTodos';
 import type { ClinicalDate } from './types';
 
@@ -121,5 +121,68 @@ describe('setRepeat', () => {
       const change = setRepeat(todos, {}, TODAY, 'x', repeat);
       expect(todoViews(change.todos!, { [TODAY]: change.ticks! }, TODAY)[0]!.done).toBe(false);
     }
+  });
+});
+
+describe('doneOn on one-off items', () => {
+  it('records the viewed day when ticked', () => {
+    const change = toggleTodo(TODOS, undefined, TODAY, 'once');
+    expect(change.todos?.find((todo) => todo.id === 'once')).toMatchObject({
+      done: true,
+      doneOn: TODAY,
+    });
+  });
+
+  it('removes the field, rather than setting it undefined, when unticked', () => {
+    const ticked: PatientTodo[] = [{ id: 'once', label: 'x', done: true, doneOn: YESTERDAY }];
+    const next = toggleTodo(ticked, undefined, TODAY, 'once').todos?.[0];
+    expect(next?.done).toBe(false);
+    // Firestore rejects undefined values; the key must be gone.
+    expect(next && 'doneOn' in next).toBe(false);
+  });
+
+  it('dates an item that is done when it stops repeating', () => {
+    const ticks: TodoTicks = { [TODAY]: ['daily'] };
+    const next = setRepeat(TODOS, ticks, TODAY, 'daily', false).todos?.find(
+      (todo) => todo.id === 'daily',
+    );
+    expect(next).toMatchObject({ repeat: false, done: true, doneOn: TODAY });
+  });
+});
+
+describe('todoHistory', () => {
+  const todos: PatientTodo[] = [
+    { id: 'daily', label: 'Update grup', done: false, repeat: true },
+    { id: 'once', label: 'Konfirmasi koding', done: true, doneOn: YESTERDAY },
+    { id: 'old', label: 'Ambil darah', done: true },
+    { id: 'open', label: 'Belum', done: false },
+  ];
+
+  it('groups by day, newest first, in list order', () => {
+    const ticks: TodoTicks = { [YESTERDAY]: ['daily'], [TODAY]: ['daily'] };
+    const history = todoHistory(todos, ticks);
+    expect(history.days.map((day) => day.date)).toEqual([TODAY, YESTERDAY]);
+    expect(history.days[1]?.items.map((item) => item.id)).toEqual(['daily', 'once']);
+  });
+
+  it('lists a done one-off item without a date as undated, never guessed', () => {
+    expect(todoHistory(todos, undefined).undated).toEqual([{ id: 'old', label: 'Ambil darah' }]);
+  });
+
+  it('leaves out open items and ticks on deleted items (`gone`)', () => {
+    const history = todoHistory(todos, { [TODAY]: ['gone'] });
+    expect(history.days).toEqual([
+      { date: YESTERDAY, items: [{ id: 'once', label: 'Konfirmasi koding', repeat: false }] },
+    ]);
+  });
+
+  it('keeps past ticks of an item that has since become one-off', () => {
+    const converted: PatientTodo[] = [{ id: 'daily', label: 'Update grup', done: false }];
+    expect(todoHistory(converted, { [YESTERDAY]: ['daily'] }).days).toHaveLength(1);
+  });
+
+  it('does not list the same item twice on one day', () => {
+    const both: PatientTodo[] = [{ id: 'x', label: 'X', done: true, doneOn: TODAY }];
+    expect(todoHistory(both, { [TODAY]: ['x'] }).days[0]?.items).toHaveLength(1);
   });
 });

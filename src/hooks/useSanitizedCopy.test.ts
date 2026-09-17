@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { sanitizeCopiedText } from './useSanitizedCopy';
+import { resolveAsciiOnly, sanitizeCopiedText } from './useSanitizedCopy';
 
 /**
  * Text copied by SELECTING it never went through a formatter.
@@ -42,5 +42,21 @@ describe('sanitizeCopiedText', () => {
     const plain = '- Congestive Heart Failure NYHA II (HFpEF)';
     expect(sanitizeCopiedText(plain, false)).toBe(plain);
     expect(sanitizeCopiedText(plain, true)).toBe(plain);
+  });
+});
+
+describe('resolveAsciiOnly', () => {
+  it('folds where the element says the view is plain, whatever the default', () => {
+    expect(resolveAsciiOnly('plain', false)).toBe(true);
+  });
+
+  it('keeps non-ASCII where the element says the view is WhatsApp', () => {
+    expect(resolveAsciiOnly('whatsapp', true)).toBe(false);
+  });
+
+  it('falls back to the app-wide default without a declaration', () => {
+    expect(resolveAsciiOnly(null, true)).toBe(true);
+    expect(resolveAsciiOnly(undefined, false)).toBe(false);
+    expect(resolveAsciiOnly('something-else', true)).toBe(true);
   });
 });

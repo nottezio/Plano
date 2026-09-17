@@ -1,5 +1,163 @@
 # Plano — CHANGES
 
+## `2026-09-17.1`
+
+**Two copy paths that bypassed the formatter are fixed. Also new: peek
+SIMGOS/WA as view switches, Salin RM in the peek, Custom Checklist history,
+and comparing against a pasted revision.**
+
+### 1. The `?` in SIMGOS: two paths that never formatted
+
+**Evidence.** Two captures in **Periksa hasil salin** each showed exactly one
+character, U+200B (zero-width space), at `baris 1:1`.
+
+**Measurement, not reasoning.** I ran a note seeded with U+200B, U+00A0 and
+friends through every composer in plain format:
+
+| Path | Result |
+|---|---|
+| Laporan harian, per-section, document, Ringkas PDF, SOAP jaga, peek | clean |
+| **Konsul** | U+200B and U+00A0 passed straight through |
+| **Grup invasif** | U+200B and U+00A0 passed straight through |
+
+**Root cause.** `composeKonsul` and `composeInvasif` returned their joined
+lines as they were. They were the only composers that never called
+`formatBody`, so for those two shapes:
+
+- the Format chip did nothing, and "Teks polos" produced WhatsApp text with
+  `*` markers still in it;
+- invisible characters and NBSPs from the note reached the clipboard
+  unchanged.
+
+**Why nobody saw it.** The Salin sheet's non-ASCII warning was hidden whenever
+"Teks polos" was selected. It trusted the format flag instead of looking at
+the output, so the one case where plain output was *not* ASCII was also the
+one case the warning could not show.
+
+**Fix.**
+
+- Both composers take `format` / `bullet` and end in `formatBody`. The
+  default is WhatsApp, and the existing Konsul/invasif tests pass unchanged,
+  so the formatter is idempotent on these messages.
+- The warning is keyed on the output. With plain selected and non-ASCII
+  present, it now says plainly that this is a Plano bug.
+- Invisible characters in that warning are shown by code point. The old list
+  printed a zero-width space as, effectively, nothing.
+- **New invariant test** (`plainOutputAscii.test.ts`): every composer, listed
+  by name, must produce pure ASCII in plain format from a note seeded with
+  every character class seen in the corpus. With the fix stashed, 5 of its 12
+  tests fail.
+
+**Also hardened: the select-and-Ctrl+C sanitiser.**
+
+- It read `document.getSelection()`, which does not reliably include text
+  selected *inside a textarea*; Firefox returns an empty string. The note
+  editor is a textarea, so in that case the sanitiser bailed out and the
+  browser copied the raw text.
+- It now reads the focused control's own selection range.
+- Whether to fold to ASCII is now declared per element via
+  `data-copy-format`, with the global flag as fallback. Several peek windows
+  can show different views at once, and one global boolean cannot be right
+  for all of them (recurring pattern 1).
+
+**Not established.** Which path produced *your* capture. Both captures show
+the character at 1:1, while Konsul and Grup invasif both open with a fixed
+greeting, so the zero-width space should not be first in their output. The
+checker now shows about 16 characters either side of every finding. The next
+capture will say what the character sits next to, and which button produced
+the text will settle it.
+
+### 2. Peek: SIMGOS and WA switch the VIEW and do not copy
+
+- Pressing **SIMGOS** shows `toPlain(body)` in the window; pressing **WA**
+  shows `toWhatsApp(body)`. Pressing the active one returns to the note as
+  written. Nothing is written to the clipboard.
+- The window becomes the staging area: pick the destination, see exactly what
+  it will receive, then select the part you need.
+- The Salin sheet on the patient page is unchanged. It still copies and still
+  does not change the screen. The two are deliberately different tools.
+- The subtitle says which view is showing (`tampilan SIMGOS` instead of
+  `hanya dibaca`).
+- The `<pre>` carries `data-copy-format`, so a selection copied from the WA
+  view keeps `°` and one from the SIMGOS view is folded.
+
+### 3. Peek: Salin RM
+
+- The number is shown in the subtitle (`RM 00452347`), and **Salin RM** in the
+  title bar copies the digits only, matching the patient page.
+- The minimum window width is now 360 px (was 280). With five fixed-width
+  controls in the title bar, the patient's name was the only thing left to
+  shrink, and at 280 px it shrank to nothing (recurring patterns 6/7).
+
+### 4. Custom Checklist: Riwayat
+
+- **Data model.** Repeating items already kept ticks per date in `todoTicks`.
+  One-off items stored only `done: true`, which records *that* something was
+  done but not *when*.
+- **New optional field `doneOn: ClinicalDate`** on one-off items. It is set
+  on tick and on switching a done item to one-off. On untick the key is
+  *removed*, not set to `undefined`, because Firestore rejects undefined
+  values.
+- **`todoHistory()`** is derived, never stored, so a second record cannot
+  disagree with the first. It groups by day, newest first, in list order.
+  - Items ticked before this release are listed under *Tanggal tidak
+    tercatat*. No date is guessed.
+  - Ticks on deleted items are skipped, since their label is gone.
+  - Past ticks of an item that has since become one-off are kept.
+- **Riwayat** button in the Custom Checklist header, on the patient page and
+  in the peek. It is read-only: ticking happens only on the list for the day
+  on screen.
+
+### 5. Bandingkan → Dengan revisi tempelan
+
+- A second mode in the compare sheet (⇄): paste the revised SOAP and it is
+  compared with the note on screen.
+- **Abaikan format**, on by default, compares content only. A revision comes
+  back through WhatsApp or SIMGOS, and both change markers, blank lines and
+  spaces that nobody edited. Tested: a full SIMGOS round trip (no markers,
+  CRLF, no blank lines, NBSP) reads as *no changes*.
+- **Word-level edits.** A line that was edited rather than replaced shows as
+  one row with only the changed words marked (`Atorvastatin ~~20~~ 40 mg`).
+  A line is treated as edited when at least half its words survive; below
+  that it shows as removed + added, because pairing unrelated lines reads
+  worse.
+- **Summary** (`n diubah · n ditambah · n dihapus`) and a **Hanya yang
+  berubah** option that keeps one line of context either side.
+- A `+ − ~` gutter carries the meaning as well as the colour.
+- The pasted text is never saved. It lives in the sheet's content, which
+  Radix unmounts on close.
+
+### Wrong turns
+
+- One `todoHistory` test fixture gave an open one-off item a tick *today*.
+  The real write path cannot produce that, because `setRepeat` removes
+  today's tick. I corrected the fixture, not the function.
+- The first version of the revision rows placed all edits before unpaired
+  removals, which could move an edit above a line that preceded it. Rows now
+  keep their position.
+
+### Not done, and why
+
+- **No "Pakai versi revisi" button.** Adopting someone else's text into the
+  note is an edit, and it should be a deliberate step of its own.
+- **The WA view with the "guarded" bullet style.** The copy sanitiser strips
+  zero-width characters from every manual copy, so guards shown in the WA
+  view do not survive select-and-copy. That was already the sanitiser's
+  behaviour and is unchanged.
+- **Riwayat shows the clinical day, not the time.** Neither kind of tick has
+  ever stored a time, and inventing one would be worse than leaving it out.
+- **Not rendered.** The sandbox has no browser. Worth checking:
+  - the peek title bar at 360 px wide;
+  - a Konsul copied as Teks polos (it should have no `*`);
+  - a real chief revision pasted into Bandingkan.
+
+```
+1287 tests passed (+34)
+typecheck / lint (0 warnings) / check:version / check:contrast / check:a11y / build — clean
+```
+
+---
+
 ## `2026-09-16.5`
 
 **The peek window's Checklist, Custom Checklist and Catatan pasien are one row

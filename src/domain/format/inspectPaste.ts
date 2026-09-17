@@ -37,6 +37,13 @@ export interface OffendingChar {
   column: number;
   /** What it would become in a SIMGOS-bound copy, for the obvious ones. */
   note?: string;
+  /**
+   * The text around it, with the character itself shown as `[U+XXXX]` and
+   * line breaks as `⏎`. A position alone (`baris 1:1`) cannot say what the
+   * character sits next to, and an invisible character is only findable by
+   * its neighbours.
+   */
+  context: string;
 }
 
 /**
@@ -91,11 +98,19 @@ export function auditText(text: string): OffendingChar[] {
     if (char === '\r') continue;
 
     if (char.charCodeAt(0) > 127) {
+      const code = `U+${char.charCodeAt(0).toString(16).toUpperCase().padStart(4, '0')}`;
       const entry: OffendingChar = {
         char,
-        code: `U+${char.charCodeAt(0).toString(16).toUpperCase().padStart(4, '0')}`,
+        code,
         line,
         column,
+        context: [
+          text.slice(Math.max(0, index - 16), index),
+          `[${code}]`,
+          text.slice(index + 1, index + 17),
+        ]
+          .join('')
+          .replace(/\r?\n/g, '⏎'),
       };
       const note = noteFor(char);
       found.push(note ? { ...entry, note } : entry);
