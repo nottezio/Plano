@@ -125,7 +125,36 @@ service cloud.firestore {
       allow delete: if isMemberOf(resource.data);
 
       match /entries/{date} {
-        allow read, create, update: if isMember(pid);
+        allow read, create: if isMember(pid);
+
+        /*
+         * COMPARE-AND-SET on the body, which is what stops a note reverting.
+         *
+         * A body write carries `baseHash`: the hash of the body its writer
+         * had last seen CONFIRMED. This accepts it only if that is still what
+         * the entry holds. A write built on an older version — typically one
+         * that sat in a device's offline queue for hours and is only now
+         * being delivered — is refused instead of replacing the newer note.
+         *
+         * Refusing is only safe because the client keeps its own outbox: a
+         * refused write is merged against the current body and written again
+         * (`reconcileOutbox`), so the edit is not lost, it is late.
+         *
+         * Writes WITHOUT `baseHash` are unaffected: locking, presence,
+         * shift notes, the preview and the explicit clear, none of which
+         * replace a body behind someone's back. Older app versions also have
+         * none, so they keep working as before until they update.
+         */
+        allow update: if isMember(pid) && (
+          !('baseHash' in request.resource.data)
+          // `get` with the incoming value as the default: an entry stored
+          // before `bodyHash` existed cannot be checked, and a rule that
+          // denied it would refuse that write forever, with the client
+          // retrying it forever.
+          || request.resource.data.baseHash
+             == resource.data.get('bodyHash', request.resource.data.baseHash)
+          || request.resource.data.body == resource.data.body
+        );
         // Allowed only so `purgePatient` can empty this collection before the
         // patient itself goes. Clearing a single note remains soft — see
         // `clearEntry`, which writes `deletedAt` and keeps the body's history.

@@ -20,7 +20,16 @@ import { getDeviceId } from '../deviceId';
 import { PRUNABLE_REASONS, prunableRevisions, REVISION_CAP } from '@/domain/revisionPrune';
 import { entriesCol, entryDoc, revisionsCol } from '../paths';
 import { touchEntryMeta } from './patients.repo';
-import { putMergeBase } from '../localBase';
+import {
+  clearOutbox,
+  forgetSentBody,
+  getMergeBase,
+  noteSentBody,
+  peekMergeBase,
+  peekSentBody,
+  putMergeBase,
+  putOutbox,
+} from '../localBase';
 import { trackWrite } from '../syncStatus';
 import { bodyHash } from '@/domain/hash';
 import type { ClinicalDate, DailyEntry, EntryRevision, ShiftNote } from '@/domain/types';
@@ -48,6 +57,14 @@ export function subscribeEntry(
   callback: (snapshot: EntrySnapshot) => void,
   onError: (error: Error) => void,
 ): Unsubscribe {
+  /*
+    Warm the in-memory base from IndexedDB as the day opens, so the first
+    write after a reload already knows what the server last confirmed. Without
+    it, that write carries no base and cannot be checked — which is precisely
+    the write most likely to be made offline.
+  */
+  void getMergeBase(patientId, date);
+
   return onSnapshot(
     entryDoc(patientId, date),
     { includeMetadataChanges: true },
@@ -231,6 +248,16 @@ export interface WriteBodyOptions {
    * silently unlock a locked one.
    */
   isNew: boolean;
+  /**
+   * The last CONFIRMED server body this writer had seen. Sent as `baseHash`,
+   * which the rules compare against the stored `bodyHash`: a write built on a
+   * version the server has since moved past is REFUSED rather than applied.
+   *
+   * Omitted only by writers that do not carry a body (lock, presence, shift
+   * notes) and by the explicit clear, which is a deliberate act on the note in
+   * front of the user.
+   */
+  base?: string;
 }
 
 export function writeBody(
@@ -245,6 +272,7 @@ export function writeBody(
     hariRawat,
     body,
     bodyHash: bodyHash(body),
+    ...(options.base === undefined ? {} : { baseHash: bodyHash(options.base) }),
     rev: increment(1),
     updatedAt: serverTimestamp(),
     updatedBy: getDeviceId(),
@@ -289,39 +317,57 @@ export function writeBody(
 }
 
 /**
- * Materialises an empty day (used by carry-forward and templates).
+ * The body write every editor uses: recorded before it is sent, cleared when
+ * the server confirms it.
  *
- * Firestore has no offline-safe "create if absent" — a transaction needs the
- * network, which SPEC 1.2 forbids depending on. So existence is decided from
- * the caller's live snapshot instead. The worst case when two devices create
- * the same day offline is a duplicated `createdAt`, which is diagnostic only:
- * the clinical date is the document id, so the two writes converge on one
- * document rather than forking.
+ * `writeBody` above still exists for the replay itself, which supplies its own
+ * base and must not re-record what it is already reconciling.
+ *
+ * The base comes from `localBase`, which is written ONLY on confirmed
+ * snapshots. The live entry cannot be used: offline, Firestore's optimistic
+ * copy already contains this device's own unsent text, so the "base" would be
+ * our own edit and a later merge would decide we had changed nothing.
  */
-export function createEntry(
+export function writeBodyTracked(
   patientId: string,
   date: ClinicalDate,
+  body: string,
   hariRawat: number,
-  initialBody = '',
+  options: { isNew: boolean },
 ): Promise<void> {
-  return trackWrite(
-    setDoc(
-      entryDoc(patientId, date),
-      {
-        date,
-        hariRawat,
-        body: initialBody,
-        bodyHash: bodyHash(initialBody),
-        rev: 0,
-        locked: false,
-        editing: null,
-        createdAt: serverTimestamp(),
-        updatedAt: serverTimestamp(),
-        updatedBy: getDeviceId(),
-        deletedAt: null,
-      },
-      { merge: true },
-    ),
+  /*
+    Read synchronously and send FIRST. A flush on `pagehide` has one tick
+    before the tab is gone; awaiting IndexedDB there would mean the write was
+    never handed to Firestore at all, losing the edit this path exists to
+    save. Recording it in the outbox is the safety net and can land late.
+
+    An unknown base (nothing confirmed on this device yet — a first write after
+    a reload while offline) sends no `baseHash`, so the write behaves exactly
+    as it did before this release rather than being refused.
+  */
+  const confirmed = peekMergeBase(patientId, date);
+  // What the server should hold when this arrives (see `peekSentBody`).
+  const expected = peekSentBody(patientId, date) ?? confirmed;
+
+  const written = writeBody(patientId, date, body, hariRawat, {
+    isNew: options.isNew,
+    ...(expected === undefined ? {} : { base: expected }),
+  });
+  noteSentBody(patientId, date, body);
+
+  // Recorded against the CONFIRMED body, which is the only thing a later
+  // merge may treat as the common ancestor.
+  void putOutbox({ patientId, date, body, base: confirmed ?? '', at: Date.now() });
+
+  return written.then(
+    () => clearOutbox(patientId, date, body),
+    (error: unknown) => {
+      // Kept in the outbox on purpose, a refusal by the rules included: the
+      // reconciler merges it against whatever the note has become.
+      forgetSentBody(patientId, date);
+      console.error('[entries] body write not confirmed', error);
+      throw error;
+    },
   );
 }
 

@@ -1,5 +1,128 @@
 # Plano — CHANGES
 
+## `2026-09-18.1`
+
+**The revert is fixed: a late write is now merged instead of replacing a newer
+note. Plus "Pakai versi revisi ini" in Bandingkan.**
+
+### 1. Why a note reverted hours later
+
+`writeBody` sent the whole text with no statement of what it was replacing,
+and Firestore is last-write-wins. Firestore's queue is persistent, so a write
+made with no signal is delivered whenever that device next reconnects — hours
+later, after the note has been edited somewhere else. The late write then
+replaced the newer text.
+
+The three-way merge could not help: it runs inside a live editor holding both
+versions, and a queued write left the app long ago. **The merge guarded the
+front door; these writes came through the back.**
+
+### The fix, in three parts, none of which works alone
+
+**1. Every body write says what it was built on.** It carries `baseHash`: the
+hash of the body this device last saw **confirmed** by the server.
+
+The base comes from `localBase`, which was already written on every confirmed
+snapshot and — this is the part that made the bug possible — **was never read
+by anything**. The machinery existed and was inert. The live entry cannot be
+used instead: offline, Firestore's optimistic copy already contains this
+device's own unsent text, so the "base" would be our own edit, and a later
+merge would conclude we had changed nothing.
+
+**2. The rules refuse a stale write.** `allow update` on an entry accepts a
+body only if `baseHash` still matches the stored `bodyHash`. A write built on
+a version the server has moved past is rejected rather than applied.
+
+Untouched: writes with no body (lock, presence, shift notes, preview), the
+explicit clear, and older app versions, which send no `baseHash` and behave
+exactly as before until they update. An entry stored before `bodyHash` existed
+cannot be checked, and is allowed rather than refused forever.
+
+**3. A rejected write is merged, not dropped.** This is what makes 2 safe.
+Every body write is recorded in an outbox (a second store in the same
+IndexedDB) with the text and its confirmed base, and cleared when the server
+confirms it. At startup and on reconnect, `reconcileOutbox` reads what the
+note holds now and decides:
+
+| Situation | What happens |
+|---|---|
+| The server already has this text | Record dropped, silently |
+| The server is still on the base | Written again: the write was simply lost |
+| The server moved, **different lines** changed | Merged; the replaced version goes to Riwayat perubahan first |
+| The server moved, **same line** changed | The offline version is saved to Riwayat perubahan and you are told |
+
+**Stricter than the live merge, deliberately.** `mergeThreeWay` is
+character-level: asked to combine "Aspilet 160 mg" with "Aspilet 80 mg + CPG"
+it produces a merged line, and in the editor that is fine because the result
+is on screen before it is kept. The reconciler runs at startup with nobody
+watching, on a drug line. **A dose neither doctor wrote must never be written
+by a background task**, so a late write is merged only when the two sides
+changed different lines. Two drugs appended at the same spot are also handed
+back rather than ordered by guesswork.
+
+**Ordering matters in the write path.** The write is handed to Firestore
+FIRST, from a synchronous in-memory base, and recorded afterwards. My first
+version awaited IndexedDB before sending, which on a `pagehide` flush would
+have meant the write never reached Firestore at all — losing the edit the
+flush exists to save.
+
+**Two writes in a row from one device** are handled separately from merging.
+What a write expects the server to hold is the last body this device *sent*
+(Firestore preserves write order per document); what a merge treats as the
+common ancestor is the last body *confirmed*. Using the sent body as a merge
+base would silently drop every change it carried if it turned out to be
+refused; using the confirmed body as the write's expectation would have the
+rules refuse the user's own newer text on a slow connection.
+
+**You are told what happened.** A banner names each settled note, links to it,
+and says whether it was merged or needs review. Notes that simply landed say
+nothing.
+
+### 2. "Pakai versi revisi ini"
+
+In Bandingkan → Dengan revisi tempelan, the pasted revision can now replace the
+note on screen. Two-step. It applies the text **exactly as pasted**, not the
+normalised form the diff compares, since that form has bold markers and blank
+lines stripped and would silently reformat a note nobody edited. The current
+version goes to Riwayat perubahan first, so it is undoable. Not offered for a
+jaga note or a locked day.
+
+**A bug this exposed:** `restoreTo` set the draft without bringing the
+editor's ref forward, so `restoreTo(body); flush();` in one tick would have
+flushed the text being *replaced*, or seen `dirty` false and written nothing —
+the same trap `setValue` documents. Fixed in `useTextSync`, which also makes
+restoring from Riwayat perubahan safe to flush immediately.
+
+### Also
+
+`createEntry` is deleted. It wrote `body: ''` with `merge: true`, had no
+callers, and wired to an existing day would have blanked that day's note.
+
+### Not done, and why
+
+- **Rules not run in the emulator** (the sandbox cannot download it). The
+  compare-and-set is reviewed line by line and the decision logic it depends
+  on is tested. A syntax error fails the deploy and leaves the old rules in
+  place.
+- **The reconciler has no end-to-end test**, since it needs Firestore.
+  `planLateWrite` and the base/in-flight bookkeeping are tested (16 new tests).
+- **The board preview can lag after a refused write.** The preview write
+  carries no body check by design, so a refused body still updates the card
+  until the next successful write.
+- **Devices still on an older version keep the old behaviour** until they
+  update, since their writes carry no base. The reverting device is the one to
+  update first.
+- **Nothing was tested on two real devices.** The test is: edit a note on the
+  phone in airplane mode, edit the same note on the PC, then bring the phone
+  back online and open Plano.
+
+```
+1366 tests passed (+16)
+typecheck / lint (0 warnings) / check:version / check:contrast / check:a11y / build — clean
+```
+
+---
+
 ## `2026-09-17.5`
 
 **Access control and a hidden admin page (`/admin`).**

@@ -235,12 +235,26 @@ export function useTextSync({
     [serverText, setDraft, setBase, snapshot],
   );
 
-  /** Restoring is itself undoable: the current text is snapshotted first. */
+  /**
+   * Restoring is itself undoable: the current text is snapshotted first.
+   *
+   * The ref is brought forward here for the same reason `setValue` does it —
+   * a caller doing `restoreTo(body); flush();` in one tick would otherwise
+   * flush the text being REPLACED, or see `dirty` false and write nothing at
+   * all. Restoring a revision and applying a pasted revision both do exactly
+   * that, and the second is the one that saves without waiting for the idle
+   * debounce.
+   */
   const restoreTo = useCallback(
     (text: string) => {
       const current = latest.current;
       snapshot?.(current.value, 'restore');
       setDraft(current.key, text);
+      latest.current = {
+        ...latest.current,
+        value: text,
+        dirty: text !== latest.current.serverText,
+      };
     },
     [setDraft, snapshot],
   );

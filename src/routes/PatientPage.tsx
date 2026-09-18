@@ -1728,6 +1728,17 @@ export default function PatientPage(): JSX.Element {
             ? `Jaga ${activeShiftNote.time} (dibuka)`
             : `${formatShortDate(selected)} (dibuka)`
         }
+        {...(activeShiftNote || locked
+          ? {}
+          : {
+              // Same path as restoring from Riwayat perubahan: snapshot what
+              // is on screen, replace it, then save at once rather than
+              // waiting for the idle debounce on a note the user did not type.
+              onApplyRevision: (body: string) => {
+                editor.restoreRevision(body);
+                editor.flush();
+              },
+            })}
       />
 
       <IdentitySheet

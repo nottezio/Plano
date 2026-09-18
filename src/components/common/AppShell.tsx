@@ -1,7 +1,10 @@
 import { useEffect, type ReactNode } from 'react';
 
 import { usePrivacyGuard } from '@/hooks/usePrivacyGuard';
+import { Link } from 'react-router-dom';
 import { useLock } from '@/store/useLock';
+import { useOutboxReconcile } from '@/hooks/useOutboxReconcile';
+import { formatShortDate } from '@/domain/clinicalDate';
 import { useUI } from '@/store/useUI';
 import { useSanitizedCopy } from '@/hooks/useSanitizedCopy';
 import { useSession } from '@/store/useSession';
@@ -96,6 +99,7 @@ export function AppShell({
       ].join(' ')}
     >
       <RouteAnnouncer title={title} />
+      <OutboxNotice />
 
       {/* SPEC 20 — keyboard users should not tab through the whole nav rail
           to reach the note they opened. */}
@@ -129,6 +133,49 @@ export function AppShell({
         </main>
       </div>
       <UpdateBanner />
+    </div>
+  );
+}
+
+/**
+ * What happened to writes that had not reached the server.
+ *
+ * Shown because the alternative is a note changing on its own. A merge is
+ * reported so it can be checked against Riwayat perubahan; a version left for
+ * review is reported because only the person can decide which one is right.
+ * Writes that simply landed say nothing.
+ */
+function OutboxNotice(): JSX.Element | null {
+  const { results, dismiss } = useOutboxReconcile();
+  if (results.length === 0) return null;
+
+  return (
+    <div
+      role="status"
+      className="fixed inset-x-3 top-3 z-50 mx-auto max-w-md rounded-xl border border-border bg-surface p-3 text-xs shadow-lg"
+    >
+      <p className="font-medium">Catatan luring diselesaikan</p>
+      <ul className="mt-1 space-y-1">
+        {results.map((result) => (
+          <li key={`${result.patientId}|${result.date}|${result.outcome}`}>
+            <Link
+              to={`/p/${result.patientId}/${result.date}`}
+              onClick={dismiss}
+              className="text-accent underline"
+            >
+              {formatShortDate(result.date)}
+            </Link>{' '}
+            {result.outcome === 'merged'
+              ? '— digabung dengan versi terbaru. Cek Riwayat perubahan.'
+              : result.outcome === 'rewritten'
+                ? '— tersimpan sekarang.'
+                : '— tidak bisa digabung otomatis; versi luring disimpan di Riwayat perubahan.'}
+          </li>
+        ))}
+      </ul>
+      <button type="button" onClick={dismiss} className="mt-2 min-h-tap text-fg-muted underline">
+        Tutup
+      </button>
     </div>
   );
 }

@@ -28,6 +28,7 @@ export function CompareSheet({
   todayBody,
   currentLabel,
   currentKey,
+  onApplyRevision,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -41,6 +42,17 @@ export function CompareSheet({
    * twice — once as "dibuka" and once under its own date.
    */
   currentKey: string;
+  /**
+   * Replace the note on screen with a pasted revision.
+   *
+   * The ONE write this sheet can cause, and only from the revision mode, where
+   * the user pasted the text themselves. Everything else here stays read-only:
+   * the panes are notes from other days, and editing them from a comparison
+   * view is how you end up editing the wrong day.
+   *
+   * Absent when the open note is a jaga note, which has its own editor.
+   */
+  onApplyRevision?: (body: string) => void;
 }): JSX.Element {
   const [days, setDays] = useState<ComparableEntry[]>([]);
   const [against, setAgainst] = useState<string | null>(null);
@@ -168,7 +180,18 @@ export function CompareSheet({
       </div>
 
       {mode === 'revisi' ? (
-        <RevisionCompare mine={todayBody} mineLabel={currentLabel} />
+        <RevisionCompare
+          mine={todayBody}
+          mineLabel={currentLabel}
+          {...(onApplyRevision
+            ? {
+                onApply: (body: string) => {
+                  onApplyRevision(body);
+                  onOpenChange(false);
+                },
+              }
+            : {})}
+        />
       ) : days.length === 0 ? (
         <p className="text-sm text-fg-muted">
           Belum ada catatan lain untuk dibandingkan.
@@ -371,7 +394,15 @@ function Chip({
  * "Abaikan format" is on by default. A revision comes back through WhatsApp
  * or SIMGOS, and both change markers and spacing that nobody edited.
  */
-function RevisionCompare({ mine, mineLabel }: { mine: string; mineLabel: string }): JSX.Element {
+function RevisionCompare({
+  mine,
+  mineLabel,
+  onApply,
+}: {
+  mine: string;
+  mineLabel: string;
+  onApply?: (body: string) => void;
+}): JSX.Element {
   const [pasted, setPasted] = useState('');
   const [ignoreFormatting, setIgnoreFormatting] = useState(true);
   const [onlyChanges, setOnlyChanges] = useState(false);
@@ -450,6 +481,7 @@ function RevisionCompare({ mine, mineLabel }: { mine: string; mineLabel: string 
                 hanya di catatan saya
               </span>
             </div>
+            {onApply ? <ApplyRevision pasted={pasted} onApply={onApply} /> : null}
             <div className="max-h-[55vh] overflow-auto rounded-lg border border-border bg-bg-subtle p-3 font-mono text-xs leading-relaxed">
               {rows.map(({ row, gap }, index) => (
                 <div key={index}>
@@ -525,5 +557,59 @@ function RevisionLine({ row }: { row: RevisionRow }): JSX.Element {
         )}
       </span>
     </p>
+  );
+}
+
+/**
+ * Take the chief's version as the note for this day.
+ *
+ * Applies the text EXACTLY as pasted, not the normalised form the diff above
+ * compares. Normalisation drops bold markers and blank lines so that a round
+ * trip through WhatsApp does not read as a change; writing that stripped text
+ * back would silently reformat a note nobody edited.
+ *
+ * Two steps, because it replaces a whole day's note. What is on screen now
+ * goes into Riwayat perubahan first (the editor's restore path snapshots
+ * before it writes), so this is undoable.
+ */
+function ApplyRevision({
+  pasted,
+  onApply,
+}: {
+  pasted: string;
+  onApply: (body: string) => void;
+}): JSX.Element {
+  const [armed, setArmed] = useState(false);
+
+  useEffect(() => {
+    if (!armed) return undefined;
+    const timer = window.setTimeout(() => setArmed(false), 5000);
+    return () => window.clearTimeout(timer);
+  }, [armed]);
+
+  return (
+    <div className="flex flex-wrap items-center gap-2">
+      <button
+        type="button"
+        onClick={() => {
+          if (!armed) {
+            setArmed(true);
+            return;
+          }
+          setArmed(false);
+          onApply(pasted);
+        }}
+        className={[
+          'min-h-tap rounded-lg border px-3 text-xs font-medium',
+          armed ? 'border-danger text-danger' : 'border-accent text-accent',
+        ].join(' ')}
+      >
+        {armed ? 'Ketuk lagi: ganti catatan hari ini' : 'Pakai versi revisi ini'}
+      </button>
+      <p className="text-[11px] text-fg-muted">
+        Teks tempelan menggantikan catatan yang terbuka, persis seperti yang ditempel. Versi
+        sekarang tersimpan di Riwayat perubahan.
+      </p>
+    </div>
   );
 }

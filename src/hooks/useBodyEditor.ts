@@ -1,6 +1,6 @@
 import { useCallback, useMemo, useRef } from 'react';
 
-import { appendRevision, writeBody } from '@/data/repositories/entries.repo';
+import { appendRevision, writeBodyTracked } from '@/data/repositories/entries.repo';
 import { draftKey } from '@/store/useDrafts';
 import { useTextSync, type SnapshotReason, type TextSyncState } from './useTextSync';
 import type { ClinicalDate, DailyEntry } from '@/domain/types';
@@ -91,7 +91,7 @@ export function useBodyEditor({
         return Promise.resolve();
       }
 
-      return writeBody(patientId, date, body, hariRawat, { isNew: !exists });
+      return writeBodyTracked(patientId, date, body, hariRawat, { isNew: !exists });
     },
     [patientId, date, hariRawat, exists, entry?.body, entry?.rev],
   );
