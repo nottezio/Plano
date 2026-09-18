@@ -122,9 +122,7 @@ export function PatientTodos({
       }
     >
       <div className="flex items-center gap-2">
-        {compact ? (
-          <span className="flex-1" />
-        ) : (
+        {compact ? null : (
           <h3 className="flex-1 text-xs font-semibold text-fg-muted">
             Custom Checklist
             {views.length > 0 ? (

@@ -50,7 +50,17 @@ export function SidePanel({
   const [open, setOpen] = useState(defaultOpen);
 
   return (
-    <section className="overflow-hidden rounded-xl border border-border bg-surface">
+    /*
+      `shrink-0` is load-bearing.
+
+      The sidebar is a fixed-height flex column so that it scrolls on its own.
+      Flex children shrink by default, so without this each card was squeezed
+      to fit the column instead of the column scrolling — and because the card
+      clips its corners, what got squeezed got CUT: the Tanggal panel lost its
+      header, Custom Checklist lost its buttons. A panel is its natural height;
+      the column scrolls.
+    */
+    <section className="shrink-0 overflow-hidden rounded-xl border border-border bg-surface">
       <button
         type="button"
         onClick={() => setOpen((current) => !current)}

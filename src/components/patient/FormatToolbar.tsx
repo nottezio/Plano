@@ -32,8 +32,16 @@ export function FormatToolbar({
    * silently could not see.
    */
   aliases,
+  history,
 }: {
   disabled: boolean;
+  /**
+   * Undo/redo for the note. Optional: the read-only views and the jaga note
+   * editor do not carry one, and a pair of dead buttons is worse than none.
+   */
+  history?:
+    | { undo: () => void; redo: () => void; canUndo: boolean; canRedo: boolean }
+    | undefined;
   onBold: () => void;
   onItalic: () => void;
   onBullet: () => void;
@@ -53,6 +61,25 @@ export function FormatToolbar({
     // of four small buttons reads as a section of the page; a compact one reads
     // as a tool attached to the text above it.
     <div className="flex w-fit max-w-full items-center gap-0.5 overflow-x-auto rounded-lg border border-border bg-surface px-1 py-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+      {history ? (
+        <>
+          {/* First in the row: the two most-reached-for controls, and the pair
+              people look for at the left of a toolbar. */}
+          <Button
+            label="↶"
+            title="Urungkan (Ctrl+Z)"
+            disabled={disabled || !history.canUndo}
+            onClick={history.undo}
+          />
+          <Button
+            label="↷"
+            title="Ulangi (Ctrl+Shift+Z)"
+            disabled={disabled || !history.canRedo}
+            onClick={history.redo}
+          />
+          <span className="mx-1 h-5 w-px shrink-0 bg-border" aria-hidden="true" />
+        </>
+      ) : null}
       <Button label="B" title="Tebal" bold disabled={disabled} onClick={onBold} />
       <Button label="I" title="Miring" italic disabled={disabled} onClick={onItalic} />
       <Button label="•" title="Poin" disabled={disabled} onClick={onBullet} />

@@ -1,5 +1,79 @@
 # Plano — CHANGES
 
+## `2026-09-19.2`
+
+**Real undo/redo for the note, and the panel sidebar was clipping its own
+content.**
+
+### 1. Undo and redo that can be relied on
+
+The editor had no history of its own; Ctrl+Z was the browser's. That works for
+plain typing and for nothing else this editor does. A template, Rapikan SOAP,
+carry-forward, an AI rewrite, restoring a revision, a merge arriving from
+another device — every one of those sets the value from React, which drops out
+of the native stack. So Ctrl+Z after Rapikan either did nothing or jumped past
+the reformat to some older state.
+
+`domain/textHistory` is now the history, and it is the app's:
+
+| | |
+|---|---|
+| **Typing** | Coalesces into one step per burst (900 ms), so undo goes back a phrase at a time, not a character |
+| **A transform** | Always its own step. Undo after Rapikan gives exactly the note before Rapikan |
+| **A change that arrived** | A merge or an adopted remote version is a step too: that is the change people reach for Ctrl+Z after |
+| **Redo** | Survives until the next real edit, then is dropped — keeping a future that no longer follows from the present is how redo resurrects text nobody expected |
+| **The caret** | Stored with each step and restored with it, so an undo puts you back where the edit was |
+| **Saving** | An undo saves like any other change. An undo left unsaved is one that comes back on the next device |
+
+Two buttons at the left of the format toolbar (↶ ↷, disabled when there is
+nothing to do), plus Ctrl/Cmd+Z, Ctrl/Cmd+Shift+Z and Ctrl+Y. The native
+behaviour is refused when the app's history answers, so the two cannot
+disagree. 12 tests, including the cases that broke before: a transform between
+two bursts of typing, redo dropped by a new edit, and a keystroke after an undo
+not merging into the step it just restored.
+
+### 2. The sidebar was cutting its own headers off
+
+Not a missing header: a clipped one. In the screenshots the Tanggal panel had
+no header and Custom Checklist had no buttons, both cut at the card edge.
+
+**Root cause.** `2026-09-19.1` made the panel sidebar a fixed-height flex
+column so it would scroll on its own. Flex children shrink by default, and the
+panel cards clip their corners with `overflow-hidden` — so instead of the
+column scrolling, every card was squeezed to fit and cut off whatever no
+longer fitted. The fix is `shrink-0` on the card: a panel is its natural
+height, and the column scrolls, which is what was asked for in the first place.
+
+**Also in the sidebar:**
+
+- **Catatan pasien had two headers** — the panel's and the component's own, one
+  line apart, reading the same words. `PatientNotes` gained a `bare` mode for a
+  caller that already provides the heading. Its `startOpen` prop, added for the
+  panel one release ago and now unused, is deleted rather than left behind.
+- **Custom Checklist's actions** sat right-aligned against an empty spacer in
+  compact mode. They start at the left now.
+
+### Not done, and why
+
+- **Undo is per open note.** Switching day or patient starts a new history
+  rather than carrying one across, because an undo that reaches back into a
+  note you are no longer looking at is worse than no undo.
+- **The history is not persisted.** A reload starts fresh; Riwayat perubahan is
+  the record that survives, and it already holds every transform.
+- **The jaga note editor has no buttons yet.** It shares the machinery, so it
+  is a small addition, but it was not asked for and an untested control in a
+  second editor is not a free win.
+- **Not rendered here.** Worth checking: apply a template, type a sentence,
+  press Ctrl+Z twice — the first should undo the sentence, the second the whole
+  template.
+
+```
+1380 tests passed (+12)
+typecheck / lint (0 warnings) / check:version / check:contrast / check:a11y / build — clean
+```
+
+---
+
 ## `2026-09-19.1`
 
 **Notes could not be written on a cleared day. That is fixed, and it was my

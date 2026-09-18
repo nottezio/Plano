@@ -67,6 +67,7 @@ export function BodyEditor({
   minHeightClass = 'min-h-[55vh]',
   watermark,
   handleRef,
+  history,
 }: {
   value: string;
   onChange: (next: string) => void;
@@ -115,8 +116,21 @@ export function BodyEditor({
    * reason to be driven from outside — the jaga note, the read-only views.
    */
   handleRef?: MutableRefObject<BodyEditorHandle | null> | undefined;
+  /**
+   * Undo/redo for this note, from `useTextSync`. Also registers the textarea,
+   * so a restored step can put the caret back where the edit was.
+   */
+  history?:
+    | {
+        undo: () => void;
+        redo: () => void;
+        canUndo: boolean;
+        canRedo: boolean;
+        registerEditor: (node: HTMLTextAreaElement | null) => void;
+      }
+    | undefined;
 }): JSX.Element {
-  const ref = useRef<HTMLTextAreaElement>(null);
+  const ref = useRef<HTMLTextAreaElement | null>(null);
 
   // Auto-grow: the page scrolls, the textarea never does. A nested scroll
   // region on a phone is how you lose your place mid-round.
@@ -544,7 +558,10 @@ export function BodyEditor({
         */}
         <SectionBands body={value} aliases={aliases} paint={tint} />
         <textarea
-          ref={ref}
+          ref={(node) => {
+            ref.current = node;
+            history?.registerEditor(node);
+          }}
           value={value}
           onChange={(event) => {
             onChange(event.target.value);
@@ -589,7 +606,34 @@ export function BodyEditor({
             setFocused(false);
             onBlur();
           }}
-          onKeyDown={onKeyDown}
+          onKeyDown={(event) => {
+            /*
+              The app's history, not the browser's.
+
+              A controlled textarea whose value is also set programmatically —
+              templates, Rapikan, carry-forward, AI, a merge from another
+              device — has a native stack that never saw those steps, so Ctrl+Z
+              either did nothing or jumped somewhere unrelated. The native
+              behaviour is refused and the app's stack answers instead.
+
+              The editor's own handler still runs afterwards, unless this took
+              the key.
+            */
+            if (history && (event.ctrlKey || event.metaKey)) {
+              const pressed = event.key.toLowerCase();
+              if (pressed === 'z' && !event.shiftKey) {
+                event.preventDefault();
+                history.undo();
+                return;
+              }
+              if ((pressed === 'z' && event.shiftKey) || pressed === 'y') {
+                event.preventDefault();
+                history.redo();
+                return;
+              }
+            }
+            onKeyDown(event);
+          }}
           readOnly={readOnly}
           placeholder={placeholder}
           spellCheck
@@ -653,6 +697,7 @@ export function BodyEditor({
       >
         <FormatToolbar
           disabled={readOnly}
+          {...(history ? { history } : {})}
           value={value}
           onReplace={onChange}
           aliases={aliases}

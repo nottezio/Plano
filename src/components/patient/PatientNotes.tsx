@@ -45,17 +45,15 @@ export function usePatientNotes(patient: Patient | null): TextSyncState {
 
 export function PatientNotes({
   sync,
-  startOpen,
+  bare = false,
 }: {
   sync: TextSyncState;
   /**
-   * Override the default, which is "open when there is something to read".
-   *
-   * The panel layout starts every section closed, including this one: with
-   * four sections stacked, opening the one that happens to have content moves
-   * the three below it to a different place on every patient.
+   * Drop this component's own collapsing header, for a caller that already
+   * provides one. Two headers one line apart reading "Catatan pasien" is how
+   * the panel layout looked before.
    */
-  startOpen?: boolean;
+  bare?: boolean;
 }): JSX.Element {
   const ref = useRef<HTMLTextAreaElement | null>(null);
 
@@ -108,7 +106,7 @@ export function PatientNotes({
    * does not fight the user afterwards: collapse it and it stays collapsed
    * while you are on that patient.
    */
-  const [open, setOpen] = useState(() => startOpen ?? sync.value.trim().length > 0);
+  const [open, setOpen] = useState(() => sync.value.trim().length > 0);
 
   /*
     The collapsed preview shows the WHOLE note, wrapped, not the first line
@@ -118,7 +116,8 @@ export function PatientNotes({
   const preview = sync.value.trim();
 
   return (
-    <section className="border-b border-border xl:border-0">
+    <section className={bare ? '' : 'border-b border-border xl:border-0'}>
+      {bare ? null : (
       <button
         type="button"
         onClick={() => setOpen((current) => !current)}
@@ -137,9 +136,10 @@ export function PatientNotes({
           {open ? '−' : '+'}
         </span>
       </button>
+      )}
 
-      {open ? (
-        <div className="px-4 pb-3 xl:px-0">
+      {open || bare ? (
+        <div className={bare ? '' : 'px-4 pb-3 xl:px-0'}>
           {/*
             Grows with its content instead of scrolling inside five rows.
             

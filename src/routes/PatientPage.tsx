@@ -697,6 +697,8 @@ export default function PatientPage(): JSX.Element {
         const gap = dayGap(source.date, selected);
         const markers = gap !== null && gap > 0 ? findDayMarkers(result.body) : [];
 
+        // One undo step, not one per line the carry-forward produced.
+        editor.markNextChange('transform');
         editor.setValue(result.body);
         /**
          * Written immediately, not left to the 800 ms idle debounce.
@@ -1570,7 +1572,10 @@ export default function PatientPage(): JSX.Element {
         {!locked && editor.value.trim().length === 0 ? (
           <TemplatePicker
             templates={settings.noteTemplates}
-            onPick={(body) => editor.setValue(body)}
+            onPick={(body) => {
+              editor.markNextChange('transform');
+              editor.setValue(body);
+            }}
           />
         ) : null}
 
@@ -1612,6 +1617,13 @@ export default function PatientPage(): JSX.Element {
         ) : (
           <BodyEditor
             handleRef={editorHandle}
+            history={{
+              undo: editor.undo,
+              redo: editor.redo,
+              canUndo: editor.canUndo,
+              canRedo: editor.canRedo,
+              registerEditor: editor.registerEditor,
+            }}
             value={editor.value}
             onChange={editor.setValue}
             onBlur={editor.flush}
@@ -1766,7 +1778,10 @@ export default function PatientPage(): JSX.Element {
         body={activeShiftNote ? activeShiftNote.body : editor.value}
         onApply={(next) => {
           if (activeShiftNote) shiftNotes.setBody(activeShiftNote.id, next);
-          else editor.setValue(next);
+          else {
+            editor.markNextChange('transform');
+            editor.setValue(next);
+          }
         }}
       />
 
@@ -1820,7 +1835,10 @@ export default function PatientPage(): JSX.Element {
         open={tidyOpen}
         onOpenChange={setTidyOpen}
         body={editor.value}
-        onApply={(next) => editor.setValue(next)}
+        onApply={(next) => {
+          editor.markNextChange('transform');
+          editor.setValue(next);
+        }}
       />
 
       <PatientActionsSheet
@@ -1924,7 +1942,7 @@ export default function PatientPage(): JSX.Element {
                   </p>
                 }
               >
-                <PatientNotes sync={notesSync} startOpen />
+                <PatientNotes sync={notesSync} bare />
               </SidePanel>
 
               <SidePanel
@@ -2087,6 +2105,7 @@ export default function PatientPage(): JSX.Element {
               end: section.end,
             }),
           );
+          editor.markNextChange('transform');
           editor.setValue(insertIntoObjective(editor.value, text, boundaries));
         }}
       />
@@ -2111,7 +2130,10 @@ export default function PatientPage(): JSX.Element {
         closingSentences={settings.closingSentences}
         onApply={(next) => {
           if (activeShiftNote) shiftNotes.setBody(activeShiftNote.id, next);
-          else editor.setValue(next);
+          else {
+            editor.markNextChange('transform');
+            editor.setValue(next);
+          }
           setOpeningOpen(false);
         }}
       />

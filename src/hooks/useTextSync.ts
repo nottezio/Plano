@@ -1,6 +1,16 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 
 import { mergeThreeWay, type MergeOutcome } from '@/domain/merge/threeWayMerge';
+import {
+  canRedo,
+  canUndo,
+  initHistory,
+  record,
+  redo as redoHistory,
+  undo as undoHistory,
+  type ChangeKind,
+  type TextHistory,
+} from '@/domain/textHistory';
 import { useDrafts } from '@/store/useDrafts';
 import { useUI } from '@/store/useUI';
 
@@ -30,6 +40,24 @@ export interface TextSyncOptions {
 export interface TextSyncState {
   value: string;
   setValue: (next: string) => void;
+  /**
+   * Undo/redo over THIS note, kept by the app.
+   *
+   * See `domain/textHistory`: the browser's own history does not survive the
+   * programmatic changes this editor makes, which is every interesting one.
+   */
+  undo: () => void;
+  redo: () => void;
+  canUndo: boolean;
+  canRedo: boolean;
+  /** The editor hands over its textarea, so undo can put the caret back. */
+  registerEditor: (node: HTMLTextAreaElement | null) => void;
+  /**
+   * Classify the change about to be made. A transform (Rapikan, a template,
+   * carry-forward, an AI rewrite) is always its own undo step instead of
+   * merging into the typing around it.
+   */
+  markNextChange: (kind: ChangeKind) => void;
   flush: () => void;
   dirty: boolean;
   remoteChangedWhileDirty: boolean;
@@ -88,6 +116,21 @@ export function useTextSync({
   const isOwnEcho = pending.current.has(serverText);
 
   const value = draft ?? serverText;
+
+  /*
+    History of this note, per key. A ref because a keystroke must not re-render
+    for the sake of the stack; `historyVersion` exists only so the two buttons
+    can enable and disable themselves.
+  */
+  const history = useRef<TextHistory>(initHistory(value));
+  const historyKey = useRef(key);
+  const [historyVersion, setHistoryVersion] = useState(0);
+  /** Set while applying an undo, so the change is not recorded as a new step. */
+  const applyingStep = useRef(false);
+  /** How to classify the next change; reset to typing after every record. */
+  const nextKind = useRef<ChangeKind>('type');
+  /** The editor's textarea, registered by the editor, for caret restoration. */
+  const editorNode = useRef<HTMLTextAreaElement | null>(null);
   const dirty = draft !== undefined && draft !== serverText;
   const remoteChangedWhileDirty =
     dirty && !isOwnEcho && base !== undefined && base !== serverText;
@@ -183,7 +226,87 @@ export function useTextSync({
     [key, setDraft, flush],
   );
 
+  /*
+    Record every change to the note: typed, transformed, or arrived from
+    another device. Reading the caret from the live textarea is what lets undo
+    put it back where the edit was, without every call site passing it.
+  */
+  useEffect(() => {
+    if (historyKey.current !== key) {
+      historyKey.current = key;
+      history.current = initHistory(value);
+      setHistoryVersion((current) => current + 1);
+      return;
+    }
+    if (applyingStep.current) {
+      applyingStep.current = false;
+      return;
+    }
+    const node = editorNode.current;
+    const selection =
+      node && document.activeElement === node
+        ? { start: node.selectionStart, end: node.selectionEnd }
+        : null;
+    const next = record(
+      history.current,
+      { value, selection },
+      nextKind.current,
+      Date.now(),
+    );
+    nextKind.current = 'type';
+    if (next === history.current) return;
+    history.current = next;
+    setHistoryVersion((current) => current + 1);
+  }, [value, key]);
+
+  const applyStep = useCallback(
+    (step: { value: string; selection: { start: number; end: number } | null }) => {
+      applyingStep.current = true;
+      setDraft(key, step.value);
+      latest.current = {
+        ...latest.current,
+        value: step.value,
+        dirty: step.value !== latest.current.serverText,
+      };
+      setHistoryVersion((current) => current + 1);
+      // Saved like any other change: an undo left unsaved is an undo that
+      // comes back on the next device.
+      window.clearTimeout(timerRef.current);
+      timerRef.current = window.setTimeout(flush, IDLE_DEBOUNCE_MS);
+
+      const node = editorNode.current;
+      if (!node) return;
+      // After React has painted the restored value, or the offsets would be
+      // applied to the text being replaced.
+      window.requestAnimationFrame(() => {
+        node.focus();
+        const at = step.selection ?? { start: step.value.length, end: step.value.length };
+        node.setSelectionRange(at.start, at.end);
+      });
+    },
+    [key, setDraft, flush],
+  );
+
+  const undoStep = useCallback(() => {
+    if (latest.current.locked) return;
+    const result = undoHistory(history.current);
+    if (!result) return;
+    history.current = result.history;
+    applyStep(result.step);
+  }, [applyStep]);
+
+  const redoStep = useCallback(() => {
+    if (latest.current.locked) return;
+    const result = redoHistory(history.current);
+    if (!result) return;
+    history.current = result.history;
+    applyStep(result.step);
+  }, [applyStep]);
+
   const adoptRemote = useCallback(() => {
+    // Its own undo step: text replaced by another device's is exactly the
+    // change someone reaches for Ctrl+Z after.
+    nextKind.current = 'external';
     setDraft(key, serverText);
     setBase(key, serverText);
   }, [key, serverText, setDraft, setBase]);
@@ -213,7 +336,10 @@ export function useTextSync({
     }
 
     setConflict(null);
-    if (outcome.body !== value) setDraft(key, outcome.body);
+    if (outcome.body !== value) {
+      nextKind.current = 'external';
+      setDraft(key, outcome.body);
+    }
     setBase(key, serverText);
   }, [remoteChangedWhileDirty, serverText, base, key, setDraft, setBase, value]);
 
@@ -303,6 +429,10 @@ export function useTextSync({
     };
   }, [flush]);
 
+  // `historyVersion` is read so the memo below recomputes when the stack
+  // moves; the number itself means nothing.
+  void historyVersion;
+
   return {
     value,
     setValue,
@@ -313,5 +443,15 @@ export function useTextSync({
     resolveConflict,
     restoreTo,
     adoptRemote,
+    undo: undoStep,
+    redo: redoStep,
+    canUndo: canUndo(history.current),
+    canRedo: canRedo(history.current),
+    registerEditor: (node: HTMLTextAreaElement | null) => {
+      editorNode.current = node;
+    },
+    markNextChange: (kind: ChangeKind) => {
+      nextKind.current = kind;
+    },
   };
 }
