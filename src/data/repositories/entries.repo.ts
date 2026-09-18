@@ -26,12 +26,14 @@ import {
   getMergeBase,
   noteSentBody,
   peekMergeBase,
+  peekMergeHash,
   peekSentBody,
   putMergeBase,
   putOutbox,
 } from '../localBase';
 import { trackWrite } from '../syncStatus';
 import { bodyHash } from '@/domain/hash';
+import { expectedBaseHash } from '@/domain/merge/lateWrite';
 import type { ClinicalDate, DailyEntry, EntryRevision, ShiftNote } from '@/domain/types';
 
 
@@ -78,6 +80,8 @@ export function subscribeEntry(
           date,
           body: entry.body,
           rev: entry.rev,
+          // The server's own field, which is what a later write sends back.
+          ...(typeof entry.bodyHash === 'string' ? { bodyHash: entry.bodyHash } : {}),
         });
       }
 
@@ -249,15 +253,21 @@ export interface WriteBodyOptions {
    */
   isNew: boolean;
   /**
-   * The last CONFIRMED server body this writer had seen. Sent as `baseHash`,
-   * which the rules compare against the stored `bodyHash`: a write built on a
-   * version the server has since moved past is REFUSED rather than applied.
+   * The server's own `bodyHash` for the version this writer built on, sent
+   * back so the rules can compare it against the stored `bodyHash`: a write
+   * built on a version the server has since moved past is REFUSED rather than
+   * applied.
+   *
+   * The server's FIELD, never a hash computed here. Hashing the body locally
+   * assumes `bodyHash` still describes `body`, and one writer broke that
+   * assumption (`clearEntry`), which refused every later write on a cleared
+   * day — no note could be typed and carry-forward silently reverted.
    *
    * Omitted only by writers that do not carry a body (lock, presence, shift
    * notes) and by the explicit clear, which is a deliberate act on the note in
    * front of the user.
    */
-  base?: string;
+  baseHash?: string;
 }
 
 export function writeBody(
@@ -272,7 +282,7 @@ export function writeBody(
     hariRawat,
     body,
     bodyHash: bodyHash(body),
-    ...(options.base === undefined ? {} : { baseHash: bodyHash(options.base) }),
+    ...(options.baseHash === undefined ? {} : { baseHash: options.baseHash }),
     rev: increment(1),
     updatedAt: serverTimestamp(),
     updatedBy: getDeviceId(),
@@ -346,12 +356,26 @@ export function writeBodyTracked(
     as it did before this release rather than being refused.
   */
   const confirmed = peekMergeBase(patientId, date);
-  // What the server should hold when this arrives (see `peekSentBody`).
-  const expected = peekSentBody(patientId, date) ?? confirmed;
+
+  /*
+    What the server should hold when this arrives.
+
+    A body we sent ourselves but have not seen confirmed: its hash is one WE
+    computed and wrote, so hashing it here matches by construction. Otherwise
+    the server's own `bodyHash` field from the last confirmed snapshot —
+    never a hash of its body, which may not describe it.
+
+    Unknown either way: no `baseHash`, so the write is not checked rather than
+    refused. A day this device cannot verify must still be writable.
+  */
+  const expectedHash = expectedBaseHash({
+    sentBody: peekSentBody(patientId, date),
+    confirmedHash: peekMergeHash(patientId, date),
+  });
 
   const written = writeBody(patientId, date, body, hariRawat, {
     isNew: options.isNew,
-    ...(expected === undefined ? {} : { base: expected }),
+    ...(expectedHash === undefined ? {} : { baseHash: expectedHash }),
   });
   noteSentBody(patientId, date, body);
 
@@ -366,6 +390,16 @@ export function writeBodyTracked(
       // reconciler merges it against whatever the note has become.
       forgetSentBody(patientId, date);
       console.error('[entries] body write not confirmed', error);
+      /*
+        Ask for a reconcile NOW rather than at the next startup.
+
+        Without this, a refused write left the note looking unsaved until the
+        app was next opened — indistinguishable, at the keyboard, from the app
+        refusing to take the note at all. An event rather than a direct call:
+        the reconciler imports this module, and importing it back would be a
+        cycle.
+      */
+      window.dispatchEvent(new CustomEvent('plano:write-refused'));
       throw error;
     },
   );
@@ -654,6 +688,13 @@ export function clearEntry(patientId: string, date: ClinicalDate): Promise<void>
         // See `setEntryLocked`.
         date,
         body: '',
+        /*
+          The hash goes with the body. It did not, and that left the day
+          storing a hash of text it no longer held — which the compare-and-set
+          on writes reads as "somebody else has changed this", refusing every
+          later write on a cleared day (see CHANGES.md).
+        */
+        bodyHash: bodyHash(''),
         deletedAt: serverTimestamp(),
         updatedAt: serverTimestamp(),
         updatedBy: getDeviceId(),

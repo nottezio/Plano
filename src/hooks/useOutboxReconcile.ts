@@ -33,11 +33,25 @@ export function useOutboxReconcile(): {
         .catch((error: unknown) => console.error('[outbox] reconcile failed', error));
     };
 
+    /*
+      A refused write is reconciled within seconds, not at the next startup.
+      Debounced: a burst of refusals (a whole carry-forward, say) is one
+      reconcile, and the delay lets Firestore settle its local state first.
+    */
+    let timer = 0;
+    const soon = (): void => {
+      window.clearTimeout(timer);
+      timer = window.setTimeout(run, 2000);
+    };
+
     run();
     window.addEventListener('online', run);
+    window.addEventListener('plano:write-refused', soon);
     return () => {
       cancelled = true;
+      window.clearTimeout(timer);
       window.removeEventListener('online', run);
+      window.removeEventListener('plano:write-refused', soon);
     };
   }, [signedIn]);
 

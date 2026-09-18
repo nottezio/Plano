@@ -116,6 +116,15 @@ export interface PrivacySettings {
  */
 export type SoapLayout = 'klasik' | 'panel';
 
+/**
+ * How the patient watermark is drawn.
+ *
+ * `ulang` tiles it down the note, so it is present wherever you scroll.
+ * `mengambang` keeps ONE mark in view, floating with the scroll: the same
+ * guarantee with a quarter of the ink.
+ */
+export type WatermarkMode = 'ulang' | 'mengambang';
+
 export interface UserSettings {
   timezone: string;
   /** DEFAULT `klasik`. Absent on profiles written before this existed. */
@@ -199,6 +208,8 @@ export interface UserSettings {
    * it would compete with the text it sits behind.
    */
   watermarkOpacity: number;
+  /** DEFAULT `ulang`. Absent on profiles written before this existed. */
+  watermarkMode?: WatermarkMode;
   /**
    * "Hari rawat ke-N" in the patient page header.
    *

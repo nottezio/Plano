@@ -16,7 +16,7 @@ import { SessionLogPanel } from '@/components/settings/SessionLogPanel';
 import { PinSetupSheet } from '@/components/privacy/PinSetupSheet';
 import { useLock } from '@/store/useLock';
 import { updateSettings } from '@/data/repositories/settings.repo';
-import type { SoapLayout } from '@/domain/types';
+import type { SoapLayout, WatermarkMode } from '@/domain/types';
 import {
   SEED_GREETINGS,
   SEED_NOTE_TEMPLATES,
@@ -345,7 +345,7 @@ export default function SettingsPage(): JSX.Element {
 
         <SettingsSection
           title="Watermark di catatan"
-          description="Nama, RM dan tanggal samar di belakang teks, berulang sepanjang catatan."
+          description="Nama, RM dan tanggal samar di belakang teks."
         >
           <Toggle
             label="Tampilkan watermark"
@@ -354,6 +354,31 @@ export default function SettingsPage(): JSX.Element {
             onChange={(showWatermark) => patch({ showWatermark })}
           />
           {settings.showWatermark ? (
+            <>
+            <div className="mb-3 flex gap-2">
+              {(
+                [
+                  ['ulang', 'Berulang', 'Terlihat di sepanjang catatan.'],
+                  ['mengambang', 'Mengambang', 'Satu tanda yang ikut bergulir.'],
+                ] as Array<[WatermarkMode, string, string]>
+              ).map(([value, label, note]) => (
+                <button
+                  key={value}
+                  type="button"
+                  onClick={() => patch({ watermarkMode: value })}
+                  aria-pressed={(settings.watermarkMode ?? 'ulang') === value}
+                  className={[
+                    'min-h-tap flex-1 rounded-lg border p-2 text-left text-sm',
+                    (settings.watermarkMode ?? 'ulang') === value
+                      ? 'border-accent bg-bg-subtle text-accent'
+                      : 'border-border text-fg-muted',
+                  ].join(' ')}
+                >
+                  <span className="block font-medium">{label}</span>
+                  <span className="mt-0.5 block text-[11px] text-fg-faint">{note}</span>
+                </button>
+              ))}
+            </div>
             <label className="mt-2 block text-[11px] text-fg-muted">
               Ketebalan watermark
               <input
@@ -370,6 +395,7 @@ export default function SettingsPage(): JSX.Element {
                 {Math.round(settings.watermarkOpacity * 100)}%
               </span>
             </label>
+            </>
           ) : null}
         </SettingsSection>
 

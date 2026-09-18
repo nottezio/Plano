@@ -39,6 +39,16 @@ export interface MergeBaseRecord {
   body: string;
   /** The `rev` the server had when this base was confirmed. */
   rev: number;
+  /**
+   * The server's OWN `bodyHash` field at that moment.
+   *
+   * Kept rather than hashing `body` here, and this is the whole point: a
+   * write's compare-and-set must compare field to field. Hashing the body
+   * ourselves assumes the stored `bodyHash` describes the stored `body`, and
+   * `clearEntry` wrote `body: ''` without touching `bodyHash` — so on a
+   * cleared day every later write was refused forever (see CHANGES.md).
+   */
+  bodyHash?: string;
   /** Local epoch ms — diagnostics only, never used for ordering (SPEC 7.4). */
   at: number;
 }
@@ -57,10 +67,21 @@ export function baseKey(patientId: string, date: ClinicalDate): string {
  * IndexedDB is the copy that survives a reload.
  */
 const confirmedBases = new Map<string, string>();
+/** The server's `bodyHash` field for the same confirmed snapshot. */
+const confirmedHashes = new Map<string, string>();
 
 /** The confirmed base if this session already knows it. Never blocks. */
 export function peekMergeBase(patientId: string, date: ClinicalDate): string | undefined {
   return confirmedBases.get(baseKey(patientId, date));
+}
+
+/**
+ * The hash the SERVER has for that confirmed body, to be sent back as a
+ * compare-and-set. `undefined` when the entry has none, which is a day this
+ * device cannot check and must not block: the write then goes without one.
+ */
+export function peekMergeHash(patientId: string, date: ClinicalDate): string | undefined {
+  return confirmedHashes.get(baseKey(patientId, date));
 }
 
 /**
@@ -153,7 +174,10 @@ export async function getMergeBase(
     const record = await run<MergeBaseRecord | undefined>('readonly', (store) =>
       store.get(baseKey(patientId, date)) as IDBRequest<MergeBaseRecord | undefined>,
     );
-    if (record) confirmedBases.set(record.key, record.body);
+    if (record) {
+      confirmedBases.set(record.key, record.body);
+      if (record.bodyHash !== undefined) confirmedHashes.set(record.key, record.bodyHash);
+    }
     return record ?? null;
   } catch (error) {
     // No base means the merge falls back to "treat remote as authoritative and
@@ -170,6 +194,8 @@ export async function putMergeBase(record: Omit<MergeBaseRecord, 'key' | 'at'>):
     at: Date.now(),
   };
   confirmedBases.set(full.key, full.body);
+  if (full.bodyHash === undefined) confirmedHashes.delete(full.key);
+  else confirmedHashes.set(full.key, full.bodyHash);
   // Confirmed: there is nothing in flight to compare against any more.
   if (sentBodies.get(full.key) === full.body) sentBodies.delete(full.key);
   try {
@@ -184,6 +210,7 @@ export async function deleteMergeBase(
   date: ClinicalDate,
 ): Promise<void> {
   confirmedBases.delete(baseKey(patientId, date));
+  confirmedHashes.delete(baseKey(patientId, date));
   try {
     await run('readwrite', (store) => store.delete(baseKey(patientId, date)) as IDBRequest<undefined>);
   } catch (error) {
@@ -198,6 +225,7 @@ export async function deleteMergeBase(
  */
 export async function clearLocalBase(): Promise<void> {
   confirmedBases.clear();
+  confirmedHashes.clear();
   sentBodies.clear();
   try {
     await run('readwrite', (store) => store.clear() as IDBRequest<undefined>);

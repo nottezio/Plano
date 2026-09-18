@@ -39,7 +39,9 @@ export function ShiftNoteEditor({
   date: ClinicalDate;
   tint: boolean;
   /** Passed straight through; the jaga note needs the same guard. */
-  watermark?: { name: string; mrn: string; date: string; opacity?: number } | undefined;
+  watermark?:
+    | { name: string; mrn: string; date: string; opacity?: number; mode?: 'ulang' | 'mengambang' }
+    | undefined;
   onChange: (body: string) => void;
   onBlur: () => void;
   onClear: () => void;

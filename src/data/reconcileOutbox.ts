@@ -71,7 +71,7 @@ async function settle(record: OutboxRecord): Promise<ReconcileResult | null> {
     case 'rewrite':
       await writeBody(patientId, date, plan.body, entry?.hariRawat ?? 0, {
         isNew: entry === null,
-        base: plan.base,
+        ...(typeof entry?.bodyHash === 'string' ? { baseHash: entry.bodyHash } : {}),
       });
       await clearOutbox(patientId, date, body);
       return { patientId, date, outcome: 'rewritten', age };
@@ -87,7 +87,7 @@ async function settle(record: OutboxRecord): Promise<ReconcileResult | null> {
       });
       await writeBody(patientId, date, plan.body, entry?.hariRawat ?? 0, {
         isNew: false,
-        base: plan.base,
+        ...(typeof entry?.bodyHash === 'string' ? { baseHash: entry.bodyHash } : {}),
       });
       await clearOutbox(patientId, date, body);
       return { patientId, date, outcome: 'merged', age };

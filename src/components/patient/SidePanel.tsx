@@ -9,10 +9,16 @@ import { useState, type ReactNode } from 'react';
  * the thing you tick while reading — was off screen, and the flat rhythm gave
  * no way to see at a glance which block was which.
  *
- * So each section is a card with its own edge, and each starts CLOSED with a
- * summary on the header: `7/7`, `0/1`, `12 hari`. Closed, the whole sidebar is
- * four rows and every answer is on those rows; open, one section at a time
- * takes the space it needs.
+ * So each section is a card with its own edge, and each starts SMALL rather
+ * than shut: the header carries the count, and under it a condensed view of
+ * the content itself — the note's first lines, the checklist as ticks, the
+ * next dates. Closed is still readable; opening it makes it editable and
+ * complete.
+ *
+ * A header-only accordion was the first attempt and it was the wrong one.
+ * "Minimised" has to mean less of the thing, not none of it: a sidebar of four
+ * closed bars answers nothing without four taps, which is slower than the flat
+ * list it replaced.
  *
  * Closed on mount, deliberately not remembered. A sidebar that reopens
  * whichever sections were open on the last patient puts different things in
@@ -24,6 +30,7 @@ export function SidePanel({
   summary,
   tone = 'plain',
   defaultOpen = false,
+  preview,
   children,
 }: {
   title: string;
@@ -32,6 +39,12 @@ export function SidePanel({
   /** `done` tints the summary: a finished checklist reads at a glance. */
   tone?: 'plain' | 'done';
   defaultOpen?: boolean;
+  /**
+   * The condensed view, shown while closed. Readable, not interactive: a
+   * control that works in a preview and a different one that works when open
+   * is two places to fix a behaviour.
+   */
+  preview?: ReactNode;
   children: ReactNode;
 }): JSX.Element {
   const [open, setOpen] = useState(defaultOpen);
@@ -61,7 +74,18 @@ export function SidePanel({
           {open ? '−' : '+'}
         </span>
       </button>
-      {open ? <div className="border-t border-border px-3 py-2">{children}</div> : null}
+      {open ? (
+        <div className="border-t border-border px-3 py-2">{children}</div>
+      ) : preview ? (
+        <button
+          type="button"
+          onClick={() => setOpen(true)}
+          aria-label={`Buka ${title}`}
+          className="w-full cursor-pointer border-t border-border px-3 py-2 text-left"
+        >
+          {preview}
+        </button>
+      ) : null}
     </section>
   );
 }

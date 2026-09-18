@@ -47,6 +47,7 @@ import { parseSections } from '@/domain/sections/parseSections';
 import {
   daysBetween,
   formatShortDate,
+  formatShortDateNoWeekday,
   formatDayHeader,
   previousDay,
   shouldAutoLock,
@@ -1596,6 +1597,7 @@ export default function PatientPage(): JSX.Element {
                     mrn: patient.mrn ? `RM ${patient.mrn}` : 'RM —',
                     date: formatShortDate(selected),
                     opacity: settings.watermarkOpacity,
+                    mode: settings.watermarkMode ?? 'ulang',
                   },
                 }
               : {})}
@@ -1624,6 +1626,7 @@ export default function PatientPage(): JSX.Element {
                     mrn: patient.mrn ? `RM ${patient.mrn}` : 'RM —',
                     date: formatShortDate(selected),
                     opacity: settings.watermarkOpacity,
+                    mode: settings.watermarkMode ?? 'ulang',
                   },
                 }
               : {})}
@@ -1865,8 +1868,14 @@ export default function PatientPage(): JSX.Element {
         */}
         <aside
           className={[
-            'sticky top-0 max-h-[100dvh] w-[300px] shrink-0 flex-col gap-4',
-            'overflow-y-auto overflow-x-hidden py-4',
+            'sticky top-0 w-[300px] shrink-0 flex-col gap-4',
+            // Panel layout: a FIXED-height column, so it is always its own
+            // scroll container. `max-h` alone leaves the column as tall as its
+            // content until that content exceeds the viewport, and an expanded
+            // panel in the middle of a long stack could then run past the
+            // bottom with the scroll belonging to the page instead.
+            layout === 'panel' ? 'h-[100dvh] gap-3' : 'max-h-[100dvh]',
+            'overflow-y-auto overscroll-contain overflow-x-hidden py-4',
             paneOpen ? 'hidden xl:flex' : 'hidden',
           ].join(' ')}
         >
@@ -1906,7 +1915,15 @@ export default function PatientPage(): JSX.Element {
                 and only then which day you are on — the list that grows
                 without limit and had been sitting above the checklists.
               */}
-              <SidePanel title="Catatan pasien" summary={notesSummary}>
+              <SidePanel
+                title="Catatan pasien"
+                summary={notesSummary}
+                preview={
+                  <p className="line-clamp-3 whitespace-pre-line text-[11px] text-fg-muted">
+                    {notesSync.value.trim() || 'Belum ada catatan tetap.'}
+                  </p>
+                }
+              >
                 <PatientNotes sync={notesSync} startOpen />
               </SidePanel>
 
@@ -1919,6 +1936,31 @@ export default function PatientPage(): JSX.Element {
                     ? 'done'
                     : 'plain'
                 }
+                preview={
+                  <ul className="space-y-0.5 text-[11px]">
+                    {settings.checklistItems
+                      .filter((item) => item.active)
+                      .slice(0, 4)
+                      .map((item) => {
+                        const done = checklist.states[item.id]?.done === true;
+                        return (
+                          <li key={item.id} className="flex gap-1.5">
+                            <span aria-hidden="true" className={done ? 'text-accent' : 'text-fg-faint'}>
+                              {done ? '✓' : '○'}
+                            </span>
+                            <span className={done ? 'truncate text-fg-faint line-through' : 'truncate'}>
+                              {item.label}
+                            </span>
+                          </li>
+                        );
+                      })}
+                    {settings.checklistItems.filter((item) => item.active).length > 4 ? (
+                      <li className="text-fg-faint">
+                        +{settings.checklistItems.filter((item) => item.active).length - 4} lagi
+                      </li>
+                    ) : null}
+                  </ul>
+                }
               >
                 <ChecklistPills
                   items={settings.checklistItems}
@@ -1930,7 +1972,32 @@ export default function PatientPage(): JSX.Element {
                 />
               </SidePanel>
 
-              <SidePanel title="Custom Checklist" summary={todoSummary.text} tone={todoSummary.tone}>
+              <SidePanel
+                title="Custom Checklist"
+                summary={todoSummary.text}
+                tone={todoSummary.tone}
+                preview={
+                  todoViewsForSummary.length === 0 ? (
+                    <p className="text-[11px] text-fg-faint">Belum ada langkah khusus.</p>
+                  ) : (
+                    <ul className="space-y-0.5 text-[11px]">
+                      {todoViewsForSummary.slice(0, 4).map((view) => (
+                        <li key={view.id} className="flex gap-1.5">
+                          <span aria-hidden="true" className={view.done ? 'text-accent' : 'text-fg-faint'}>
+                            {view.done ? '✓' : '○'}
+                          </span>
+                          <span className={view.done ? 'truncate text-fg-faint line-through' : 'truncate'}>
+                            {view.label}
+                          </span>
+                        </li>
+                      ))}
+                      {todoViewsForSummary.length > 4 ? (
+                        <li className="text-fg-faint">+{todoViewsForSummary.length - 4} lagi</li>
+                      ) : null}
+                    </ul>
+                  )
+                }
+              >
                 <PatientTodos patient={patient} date={selected} compact />
               </SidePanel>
 
@@ -1938,7 +2005,41 @@ export default function PatientPage(): JSX.Element {
                 Capped and scrolling inside itself. On a three-week stay this
                 list is the reason the sidebar had no room for anything else.
               */}
-              <SidePanel title="Tanggal" summary={`${railDates.length} hari`}>
+              {/*
+                The preview is the last few days, newest first, which is the
+                part anyone actually reaches for. Opening gives the whole rail,
+                capped and scrolling inside itself so a three-week stay cannot
+                push the sections above it off the screen.
+              */}
+              <SidePanel
+                title="Tanggal"
+                summary={`${railDates.length} hari`}
+                preview={
+                  <div className="flex flex-wrap gap-1">
+                    {[...railDates]
+                      .slice(-4)
+                      .reverse()
+                      .map((date) => (
+                        <span
+                          key={date}
+                          className={[
+                            'rounded px-1.5 py-0.5 text-[11px]',
+                            date === selected
+                              ? 'bg-accent/15 font-medium text-accent'
+                              : 'bg-bg-subtle text-fg-muted',
+                          ].join(' ')}
+                        >
+                          {formatShortDateNoWeekday(date)}
+                        </span>
+                      ))}
+                    {railDates.length > 4 ? (
+                      <span className="px-1 py-0.5 text-[11px] text-fg-faint">
+                        +{railDates.length - 4}
+                      </span>
+                    ) : null}
+                  </div>
+                }
+              >
                 <div className="max-h-72 overflow-y-auto">{dateRail}</div>
               </SidePanel>
             </>

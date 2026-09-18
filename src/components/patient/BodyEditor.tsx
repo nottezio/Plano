@@ -99,7 +99,16 @@ export function BodyEditor({
    * guards is writing into the wrong patient's note, which is invisible until
    * it has been sent.
    */
-  watermark?: { name: string; mrn: string; date: string; opacity?: number } | undefined;
+  watermark?:
+    | {
+        name: string;
+        mrn: string;
+        date: string;
+        opacity?: number;
+        /** `mengambang` keeps one mark in view instead of tiling. */
+        mode?: 'ulang' | 'mengambang';
+      }
+    | undefined;
   placeholder: string;
   /**
    * Imperative escape hatch, opt-in. Absent for every editor that has no
@@ -437,7 +446,43 @@ export function BodyEditor({
           to compete with the note — the point is that it registers when you
           glance up, not that it is readable.
         */}
-        {watermark ? (
+        {watermark && watermark.mode === 'mengambang' ? (
+          /*
+            One mark, floating with the scroll.
+
+            `sticky` inside the overlay, and the overlay has NO `overflow`
+            here: an `overflow: hidden` ancestor turns a sticky child into an
+            ordinary one, which would have parked the mark at the top of a
+            long note and left the rest of the scroll unmarked — the very
+            failure tiling was introduced to fix.
+          */
+          <div
+            aria-hidden="true"
+            className="pointer-events-none absolute inset-0 z-0 select-none"
+          >
+            <div className="sticky top-1/3 flex flex-col items-center justify-center">
+                <span
+                  className="max-w-full truncate px-4 text-center text-3xl font-bold uppercase tracking-wide text-fg"
+                  style={{ opacity: watermark.opacity ?? 0.045 }}
+                >
+                  {watermark.name}
+                </span>
+                <span
+                  className="mt-1 text-xl font-semibold text-fg"
+                  style={{ opacity: watermark.opacity ?? 0.045 }}
+                >
+                  {watermark.mrn}
+                </span>
+                <span
+                  className="mt-1 text-base font-medium text-fg"
+                  style={{ opacity: watermark.opacity ?? 0.045 }}
+                >
+                  {watermark.date}
+                </span>
+            </div>
+          </div>
+        ) : null}
+        {watermark && watermark.mode !== 'mengambang' ? (
           <div
             aria-hidden="true"
             className="pointer-events-none absolute inset-0 z-0 overflow-hidden select-none"

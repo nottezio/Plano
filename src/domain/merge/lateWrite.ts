@@ -1,3 +1,4 @@
+import { bodyHash } from '@/domain/hash';
 import { mergeThreeWay } from './threeWayMerge';
 
 /**
@@ -105,4 +106,29 @@ function sameLineTouched(base: string, local: string, remote: string): boolean {
     if (mine.has(line)) return true;
   }
   return false;
+}
+
+/**
+ * The `baseHash` a write should carry: what the server is expected to hold
+ * when it arrives.
+ *
+ * Three cases, and the middle one is the bug this release fixed.
+ *
+ *   sent      a body this device sent and has not seen confirmed. Its hash was
+ *             computed and written by us, so hashing it here matches by
+ *             construction.
+ *   confirmed the server's OWN `bodyHash` field. Never a hash of its body: one
+ *             writer (`clearEntry`) changed `body` without touching
+ *             `bodyHash`, so a locally computed hash disagreed with the stored
+ *             one forever and every write on a cleared day was refused.
+ *   neither   nothing is sent. An unverifiable day must stay writable; a
+ *             missed check costs a possible revert, a wrong check costs the
+ *             note.
+ */
+export function expectedBaseHash(input: {
+  sentBody?: string | undefined;
+  confirmedHash?: string | undefined;
+}): string | undefined {
+  if (input.sentBody !== undefined) return bodyHash(input.sentBody);
+  return input.confirmedHash;
 }

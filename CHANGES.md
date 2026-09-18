@@ -1,5 +1,104 @@
 # Plano — CHANGES
 
+## `2026-09-19.1`
+
+**Notes could not be written on a cleared day. That is fixed, and it was my
+bug from `2026-09-18.1`.**
+
+### 1. Why the note would not save
+
+From the recording: *"Disalin dari hari sebelumnya"* appeared, the editor went
+back to empty, and the day still offered "Mulai dari format". The app accepted
+the write and the SERVER refused it.
+
+**Root cause.** `clearEntry` writes `body: ''` but never updated `bodyHash`, so
+a cleared day stored a hash of text it no longer held. The compare-and-set I
+added in `2026-09-18.1` hashed the body MYSELF and compared that with the
+stored `bodyHash`. On a cleared day those two can never agree, so every write
+to that day was refused — for ever. Typing, carry-forward, everything.
+
+I picked the wrong thing to compare. A compare-and-set must compare a field
+with the same field, not with a value recomputed from another one. Hashing
+locally silently assumed `bodyHash` always describes `body`, and one writer in
+this codebase already broke that assumption.
+
+**The fix, three parts:**
+
+- **The write sends back the server's OWN `bodyHash`**, kept in `localBase`
+  alongside the confirmed body (`expectedBaseHash`, tested). A write this
+  device sent but has not seen confirmed still hashes its own text, which
+  matches by construction because we wrote that hash too.
+- **`clearEntry` writes `bodyHash` with the body.** The two now move together,
+  which is what made the day unwritable.
+- **A refused write reconciles within seconds**, not at the next startup. It
+  used to wait, which at the keyboard is indistinguishable from the app
+  refusing to take the note at all.
+
+Existing broken days heal themselves on the first write after this ships: the
+hash sent is the stored one, so it matches, and the write that lands stores a
+consistent pair.
+
+**Not blocked, and deliberately so:** a day whose hash this device cannot
+verify is written WITHOUT a check rather than refused. A missed check costs a
+possible revert; a wrong check costs the note. The note wins.
+
+### 2. Watermark: `Mengambang`
+
+`Pengaturan → Watermark di catatan` now chooses between **Berulang** (tiled,
+what it does today) and **Mengambang** — one mark that floats with the scroll.
+It is a setting, so it is remembered per account and applies on every device.
+
+The floating overlay carries no `overflow`, because an `overflow: hidden`
+ancestor turns a sticky child into an ordinary one — which would park the mark
+at the top of a long note and leave the rest of the scroll unmarked, the exact
+failure tiling was introduced to fix.
+
+### 3. The panel sidebar, again
+
+**"Minimised" now means less of the thing, not none of it.** The first version
+collapsed each section to a bar, and four closed bars answer nothing without
+four taps — slower than the flat list it replaced. Each section now shows a
+condensed view of its own content:
+
+| Section | Closed shows |
+|---|---|
+| Catatan pasien | The first three lines of the note |
+| Checklist | The first four steps with their ticks, `+N lagi` |
+| Custom Checklist | Same, or "Belum ada langkah khusus" |
+| Tanggal | The last four dates as chips, today highlighted, `+N` |
+
+Tapping the preview opens the section, which is where anything can be changed.
+The preview is deliberately read-only: a control that works in a preview and a
+different one that works when open is two places to fix one behaviour.
+
+**Scrolling.** In the panel layout the sidebar is now a fixed-height column, so
+it is always its own scroll container. `max-h` alone left the column as tall as
+its content until that content passed the viewport, and an expanded panel could
+then run past the bottom with the scroll belonging to the page.
+
+### Not done, and why
+
+- **Rules unchanged, so nothing needs deploying for the fix** beyond the app
+  itself. Push and reload.
+- **No test reproduces the refusal end to end**, which needs Firestore. The
+  decision that was wrong is now a pure function with four tests, including the
+  cleared-day case.
+- **The floating watermark sits at one third of the note's height.** That is a
+  fixed choice, not a setting; a slider for it is more knobs than the problem
+  has.
+- **`clearEntry` still leaves `deletedAt` set**, which is correct: a day with
+  text in it is revived by the write itself (fixed earlier), and an empty write
+  must not resurrect a day someone deliberately cleared.
+- **Not rendered here.** Worth checking first: open a day you previously
+  cleared, type a line, reload. It should still be there.
+
+```
+1368 tests passed (+4)
+typecheck / lint (0 warnings) / check:version / check:contrast / check:a11y / build — clean
+```
+
+---
+
 ## `2026-09-18.2`
 
 **6MWT consults check for TB/BB, Salin always copies the open note, and the

@@ -275,6 +275,7 @@ export function defaultUserSettings(): UserSettings {
   return {
     timezone: 'Asia/Jakarta',
     soapLayout: 'klasik',
+    watermarkMode: 'ulang',
     // Plain midnight, per the user's decision. Parameterised, never hardcoded
     // downstream (SPEC 9.1).
     dayRolloverHour: 0,

@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
-import { planLateWrite } from './lateWrite';
+import { expectedBaseHash, planLateWrite } from './lateWrite';
+import { bodyHash } from '@/domain/hash';
 
 const BASE = ['S: nyeri dada', 'O: TD 120/80', 'A: CAD', 'P: Aspilet 80 mg'].join('\n');
 
@@ -76,5 +77,31 @@ describe('the same-line guard, which is what keeps a dose safe', () => {
     expect(plan(`${spaced}\nP: CPG 75 mg`, BASE.replace('O: TD 120/80', 'O: TD 130/80')).kind).toBe(
       'merge',
     );
+  });
+});
+
+describe('expectedBaseHash', () => {
+  it('hashes a body this device sent but has not seen confirmed', () => {
+    expect(expectedBaseHash({ sentBody: 'teks terkirim' })).toBe(bodyHash('teks terkirim'));
+  });
+
+  it("uses the server's own field, not a hash of the server's body", () => {
+    // The day was cleared: the stored body is empty while the stored hash
+    // still describes the old text. Sending a hash of the body would never
+    // match, and every write on that day would be refused.
+    const stale = bodyHash('teks lama sebelum dihapus');
+    expect(expectedBaseHash({ confirmedHash: stale })).toBe(stale);
+    expect(expectedBaseHash({ confirmedHash: stale })).not.toBe(bodyHash(''));
+  });
+
+  it('prefers the in-flight body over the confirmed hash', () => {
+    expect(expectedBaseHash({ sentBody: 'baru', confirmedHash: bodyHash('lama') })).toBe(
+      bodyHash('baru'),
+    );
+  });
+
+  it('sends nothing when the day cannot be verified, so it stays writable', () => {
+    expect(expectedBaseHash({})).toBeUndefined();
+    expect(expectedBaseHash({ sentBody: undefined, confirmedHash: undefined })).toBeUndefined();
   });
 });
