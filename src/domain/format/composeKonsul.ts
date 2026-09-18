@@ -105,6 +105,28 @@ export function measurementsFrom(body: string): string[] {
   return out;
 }
 
+/**
+ * What a consult asks for that the note does not have yet.
+ *
+ * 6MWT is the case that keeps coming back: the walk test is reported per
+ * metre and interpreted against the patient's size, so the request is sent
+ * back when height and weight are missing. The note usually has them — they
+ * are simply on a day the consult was not composed from.
+ *
+ * A reminder, never a block: a consult sent without them is still a consult,
+ * and a copy button that refused would be worked around within a day.
+ */
+export function missingKonsulMeasurements(purpose: string, body: string): Array<'TB' | 'BB'> {
+  // Only for purposes that actually need them. `6 MWT`, `6mwt`, `Tes 6MWT`.
+  if (!/6\s*-?\s*mwt|six\s*minute/i.test(purpose)) return [];
+
+  const present = measurementsFrom(body);
+  const has = (label: 'TB' | 'BB'): boolean =>
+    present.some((line) => new RegExp(`^${label}\\s*[:=]\\s*\\S`, 'i').test(line));
+
+  return (['TB', 'BB'] as const).filter((label) => !has(label));
+}
+
 export function composeKonsul(
   body: string,
   patient: Patient,

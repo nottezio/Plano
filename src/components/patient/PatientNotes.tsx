@@ -43,7 +43,20 @@ export function usePatientNotes(patient: Patient | null): TextSyncState {
   });
 }
 
-export function PatientNotes({ sync }: { sync: TextSyncState }): JSX.Element {
+export function PatientNotes({
+  sync,
+  startOpen,
+}: {
+  sync: TextSyncState;
+  /**
+   * Override the default, which is "open when there is something to read".
+   *
+   * The panel layout starts every section closed, including this one: with
+   * four sections stacked, opening the one that happens to have content moves
+   * the three below it to a different place on every patient.
+   */
+  startOpen?: boolean;
+}): JSX.Element {
   const ref = useRef<HTMLTextAreaElement | null>(null);
 
   /**
@@ -95,7 +108,7 @@ export function PatientNotes({ sync }: { sync: TextSyncState }): JSX.Element {
    * does not fight the user afterwards: collapse it and it stays collapsed
    * while you are on that patient.
    */
-  const [open, setOpen] = useState(() => sync.value.trim().length > 0);
+  const [open, setOpen] = useState(() => startOpen ?? sync.value.trim().length > 0);
 
   /*
     The collapsed preview shows the WHOLE note, wrapped, not the first line

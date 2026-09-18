@@ -7,7 +7,6 @@ import { stripTrailingClosing } from './copyGroups';
 import { formatLongDate, hariRawat } from '../clinicalDate';
 import type {
   ClinicalDate,
-  CopyPreset,
   OutputFormat,
   Patient,
   SectionAlias,
@@ -227,35 +226,17 @@ export function composeSection(
   return formatBody(text, format, bullet);
 }
 
-/**
- * SPEC 12.5 — resolves a preset's range into the days to include.
+/*
+ * `resolveRange` was deleted here.
  *
- * `available` must be newest-first, which is the order the entries query
- * returns. Ranges are resolved here rather than in the UI so a preset behaves
- * identically from the copy sheet, a chip, or a keyboard shortcut.
+ * It turned a preset's range — today, this day, the last three, all of them —
+ * into a list of days. Every shape Salin actually sends describes ONE day, and
+ * the range chooser sat above the copy button offering four ways to send
+ * something other than the note on screen. The sheet now always composes the
+ * open note, so there is no range to resolve and no preset field to carry one.
+ *
+ * `composeCopy` still takes a list: a day header per day is what makes it
+ * readable if a multi-day export is ever wanted again, and the parameter costs
+ * nothing.
  */
-export function resolveRange(
-  preset: Pick<CopyPreset, 'range' | 'lastN'>,
-  available: readonly CopyDay[],
-  today: ClinicalDate,
-  specificDate?: ClinicalDate,
-): CopyDay[] {
-  const newestFirst = [...available].sort((a, b) => (a.date < b.date ? 1 : -1));
 
-  switch (preset.range) {
-    case 'today': {
-      const match = newestFirst.find((day) => day.date === today);
-      return match ? [match] : [];
-    }
-    case 'specific': {
-      const match = newestFirst.find((day) => day.date === specificDate);
-      return match ? [match] : [];
-    }
-    case 'lastN': {
-      const count = Math.max(1, preset.lastN ?? 3);
-      return newestFirst.slice(0, count).reverse();
-    }
-    case 'all':
-      return [...newestFirst].reverse();
-  }
-}

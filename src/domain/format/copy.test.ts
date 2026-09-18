@@ -13,7 +13,6 @@ import {
   composeCopy,
   composeSection,
   identityLine,
-  resolveRange,
   type CopyDay,
 } from './composeCopy';
 import { makePatient } from '../testFactories';
@@ -300,46 +299,6 @@ describe('composeSection', () => {
     expect(composeSection(BODY, 'custom_konsul' as SectionId, 'plain', DEFAULT_SECTION_ALIASES)).toBe(
       '',
     );
-  });
-});
-
-describe('resolveRange', () => {
-  const available: CopyDay[] = [
-    { date: '2026-08-03', body: 'a' },
-    { date: '2026-08-04', body: 'b' },
-    { date: '2026-08-05', body: 'c' },
-    { date: '2026-08-06', body: 'd' },
-  ];
-
-  it('today picks exactly the current clinical day', () => {
-    expect(resolveRange({ range: 'today' }, available, '2026-08-06')).toEqual([
-      { date: '2026-08-06', body: 'd' },
-    ]);
-  });
-
-  it('today yields nothing when the day has no entry yet', () => {
-    expect(resolveRange({ range: 'today' }, available, '2026-08-09')).toEqual([]);
-  });
-
-  it('lastN returns the newest N in chronological order', () => {
-    const result = resolveRange({ range: 'lastN', lastN: 2 }, available, '2026-08-06');
-    expect(result.map((day) => day.date)).toEqual(['2026-08-05', '2026-08-06']);
-  });
-
-  it('lastN clamps to at least one day', () => {
-    expect(resolveRange({ range: 'lastN', lastN: 0 }, available, '2026-08-06')).toHaveLength(1);
-  });
-
-  it('all returns every day chronologically', () => {
-    expect(
-      resolveRange({ range: 'all' }, available, '2026-08-06').map((day) => day.date),
-    ).toEqual(['2026-08-03', '2026-08-04', '2026-08-05', '2026-08-06']);
-  });
-
-  it('specific picks the requested day', () => {
-    expect(
-      resolveRange({ range: 'specific' }, available, '2026-08-06', '2026-08-04'),
-    ).toEqual([{ date: '2026-08-04', body: 'b' }]);
   });
 });
 

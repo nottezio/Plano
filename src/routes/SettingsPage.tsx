@@ -16,6 +16,7 @@ import { SessionLogPanel } from '@/components/settings/SessionLogPanel';
 import { PinSetupSheet } from '@/components/privacy/PinSetupSheet';
 import { useLock } from '@/store/useLock';
 import { updateSettings } from '@/data/repositories/settings.repo';
+import type { SoapLayout } from '@/domain/types';
 import {
   SEED_GREETINGS,
   SEED_NOTE_TEMPLATES,
@@ -156,6 +157,37 @@ export default function SettingsPage(): JSX.Element {
                 ].join(' ')}
               >
                 {option.label}
+              </button>
+            ))}
+          </div>
+        </SettingsSection>
+
+        <SettingsSection
+          title="Tata letak halaman SOAP"
+          description="Susunan panel di samping catatan."
+          defaultOpen
+        >
+          <div className="flex gap-2">
+            {(
+              [
+                ['klasik', 'Klasik', 'Semua panel terbuka, urutan lama.'],
+                ['panel', 'Panel', 'Catatan · Checklist · Custom Checklist · Tanggal, semua mulai tertutup dengan ringkasan di judulnya.'],
+              ] as Array<[SoapLayout, string, string]>
+            ).map(([value, label, note]) => (
+              <button
+                key={value}
+                type="button"
+                onClick={() => patch({ soapLayout: value })}
+                aria-pressed={(settings.soapLayout ?? 'klasik') === value}
+                className={[
+                  'min-h-tap flex-1 rounded-lg border p-2 text-left text-sm',
+                  (settings.soapLayout ?? 'klasik') === value
+                    ? 'border-accent bg-bg-subtle text-accent'
+                    : 'border-border text-fg-muted',
+                ].join(' ')}
+              >
+                <span className="block font-medium">{label}</span>
+                <span className="mt-0.5 block text-[11px] text-fg-faint">{note}</span>
               </button>
             ))}
           </div>

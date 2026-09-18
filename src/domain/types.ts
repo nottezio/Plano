@@ -66,8 +66,6 @@ export type Sex = 'L' | 'P';
 export type PatientStatus = 'active' | 'archived' | 'trashed';
 export type ArchiveReason = 'pulang' | 'pindah' | 'meninggal' | 'lainnya';
 export type OutputFormat = 'whatsapp' | 'plain' | 'markdown';
-export type CopyRange = 'today' | 'specific' | 'lastN' | 'all';
-
 export interface ChecklistItemDef {
   /** nanoid — STABLE FOREVER. Never reuse an id; history is keyed by it. */
   id: string;
@@ -94,8 +92,6 @@ export interface CopyPreset {
   sections: SectionId[] | 'all';
   includeIdentity: boolean;
   includeDateHeader: boolean;
-  range: CopyRange;
-  lastN?: number;
 }
 
 export interface PrivacySettings {
@@ -107,8 +103,23 @@ export interface PrivacySettings {
   boardShowInitialsOnly: boolean;
 }
 
+/**
+ * How the patient page arranges itself.
+ *
+ * `klasik` is what the page has always looked like: the sidebar's four blocks
+ * stacked open, the note beside them. `panel` puts the same four in cards that
+ * start closed, in the order they are actually reached for.
+ *
+ * A setting rather than a replacement: the classic layout suits a short stay
+ * where everything fits, and changing where someone's checklist lives without
+ * asking is not an improvement to them.
+ */
+export type SoapLayout = 'klasik' | 'panel';
+
 export interface UserSettings {
   timezone: string;
+  /** DEFAULT `klasik`. Absent on profiles written before this existed. */
+  soapLayout?: SoapLayout;
   /** DEFAULT 0 (midnight). Configurable — nothing may hardcode it (SPEC 9.1). */
   dayRolloverHour: number;
   checklistItems: ChecklistItemDef[];

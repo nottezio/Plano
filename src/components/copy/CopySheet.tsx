@@ -2,12 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 
 import { Sheet } from '@/components/common/Sheet';
 import { useUI } from '@/store/useUI';
-import { fetchEntryBodies } from '@/data/repositories/entries.repo';
-import {
-  composeCopy,
-  resolveRange,
-  type CopyDay,
-} from '@/domain/format/composeCopy';
+import { composeCopy } from '@/domain/format/composeCopy';
 import {
   FORMAT_LABELS,
   findMarkdownLeaks,
@@ -16,7 +11,7 @@ import {
 } from '@/domain/format/formatters';
 import { formatDayNoWeekday } from '@/domain/clinicalDate';
 import { composeInvasif } from '@/domain/format/composeInvasif';
-import { composeKonsul } from '@/domain/format/composeKonsul';
+import { composeKonsul, missingKonsulMeasurements } from '@/domain/format/composeKonsul';
 import {
   KONSUL_CUSTOM_ID,
   KONSUL_PRESETS,
@@ -41,7 +36,6 @@ import { RenderedPreview } from './RenderedPreview';
 import type {
   ClinicalDate,
   CopyPreset,
-  CopyRange,
   OutputFormat,
   DpjpReportConfig,
   Patient,
@@ -57,17 +51,10 @@ import type {
  * helping. The second one now names what it actually copies: the note on
  * screen.
  */
-const RANGE_LABELS: Record<CopyRange, string> = {
-  today: 'Hari ini',
-  specific: 'SOAP yang dibuka',
-  lastN: '3 hari terakhir',
-  all: 'Semua hari',
-};
-
 /**
  * SPEC F6 — the copy sheet.
  *
- * Four independent axes: format, section subset, range, and whether to include
+ * Three independent axes: format, section subset, and whether to include
  * the identity line. They are independent because the real requests are
  * combinations — "terapi saja, plain, hari ini, tanpa nama" for SIMGOS;
  * "semua, WhatsApp, dengan identitas" for the chief.
@@ -96,7 +83,6 @@ export function CopySheet({
   patient,
   body,
   date,
-  today,
   aliases,
   presets,
   dpjpFormats,
@@ -109,7 +95,6 @@ export function CopySheet({
   patient: Patient;
   body: string;
   date: ClinicalDate;
-  today: ClinicalDate;
   aliases: readonly SectionAlias[];
   presets: readonly CopyPreset[];
   dpjpFormats: Record<string, DpjpReportConfig>;
@@ -126,7 +111,6 @@ export function CopySheet({
   closings: readonly string[];
 }): JSX.Element {
   const [format, setFormat] = useState<OutputFormat>('whatsapp');
-  const [range, setRange] = useState<CopyRange>('specific');
   const [groups, setGroups] = useState<CopyGroupId[] | 'all'>('all');
   /**
    * Identity and date header are no longer options.
@@ -138,7 +122,6 @@ export function CopySheet({
    */
   const includeIdentity = false;
   const includeDateHeader = false;
-  const [allDays, setAllDays] = useState<CopyDay[]>([]);
   const [copied, setCopied] = useState(false);
   /**
    * Text you can select and copy, or a rendering of how it will look.
@@ -310,7 +293,6 @@ export function CopySheet({
    */
   const shiftNoteId = activeShiftNote?.id;
 
-  // Loaded once per opening: ranges beyond the current day need other bodies.
   useEffect(() => {
     if (!open) return;
     setCopied(false);
@@ -330,39 +312,24 @@ export function CopySheet({
      * sheet, which is the one thing this sheet must never do.
      */
     setShape(shiftNoteId ? 'jaga' : 'harian');
-    let cancelled = false;
-    void fetchEntryBodies(patient.id)
-      .then((days) => {
-        if (!cancelled) setAllDays(days);
-      })
-      .catch((error: unknown) => console.error('[copy] could not read entries', error));
-    return () => {
-      cancelled = true;
-    };
-  }, [open, patient.id, shiftNoteId]);
+  }, [open, shiftNoteId]);
 
-  const days = useMemo(() => {
-    const fetched = allDays.length > 0 ? allDays : [{ date, body }];
-
-    /**
-     * The day on screen always copies what is ON SCREEN.
-     *
-     * `allDays` is a snapshot taken when the sheet opened, so anything typed
-     * since — or not yet flushed — is missing from it, and the day being
-     * looked at is the one most likely to have just been edited. Trusting the
-     * snapshot for that day meant Salin could produce something different from
-     * the note visible behind the sheet, which is the one discrepancy this
-     * sheet must never have.
-     *
-     * Other days keep their fetched bodies: they are not open in the editor,
-     * so the snapshot is the only truth available for them.
-     */
-    const pool = fetched.some((day) => day.date === date)
-      ? fetched.map((day) => (day.date === date ? { date, body } : day))
-      : [...fetched, { date, body }];
-
-    return resolveRange({ range, lastN: 3 }, pool, today, date);
-  }, [allDays, range, today, date, body]);
+  /**
+   * Always the note on screen, and only that note.
+   *
+   * There used to be a date range here — today, this day, the last three days,
+   * every day — and every shape that is actually sent describes ONE day: a
+   * daily handover, a consult, an invasive-group message, a jaga note. The
+   * multi-day options existed because the composer can take a list, not
+   * because anything asked for one, and they sat above the copy button as
+   * four ways to send something other than what fills the screen behind the
+   * sheet.
+   *
+   * The body comes from the editor rather than from a fetch, so anything typed
+   * and not yet flushed is included. That was already true for this day; now
+   * there is no other day to be inconsistent with.
+   */
+  const days = useMemo(() => [{ date, body }], [date, body]);
 
   const composed = useMemo(
     () =>
@@ -507,9 +474,18 @@ export function CopySheet({
    */
   const identityCheck = useMemo(() => checkIdentity(patient, body), [patient, body]);
 
+  /**
+   * TB/BB for a 6MWT consult. Checked against the note being sent, not the
+   * patient record, because that is what the consultant will read.
+   */
+  const missingMeasurements = useMemo(
+    () =>
+      shape === 'konsul' ? missingKonsulMeasurements(konsulEffective.purpose, body) : [],
+    [shape, konsulEffective.purpose, body],
+  );
+
   const applyPreset = (preset: CopyPreset): void => {
     setFormat(preset.format);
-    setRange(preset.range);
   };
 
   /**
@@ -550,7 +526,7 @@ export function CopySheet({
       open={open}
       onOpenChange={onOpenChange}
       title="Salin catatan"
-      description="Pilih format, bagian, dan rentang tanggal."
+      description="Menyalin catatan yang sedang dibuka. Pilih format dan bagian."
       footer={
         /*
          * The button names the patient.
@@ -602,14 +578,6 @@ export function CopySheet({
             }}
           >
             {FORMAT_LABELS[value]}
-          </Chip>
-        ))}
-      </Group>
-
-      <Group label="Rentang">
-        {(Object.keys(RANGE_LABELS) as CopyRange[]).map((value) => (
-          <Chip key={value} active={range === value} onClick={() => setRange(value)}>
-            {RANGE_LABELS[value]}
           </Chip>
         ))}
       </Group>
@@ -788,6 +756,18 @@ export function CopySheet({
             is one they cannot check — and the two shapes are not obviously
             different until the message is already in the chat.
           */}
+          {missingMeasurements.length > 0 ? (
+            <p
+              role="alert"
+              className="mt-2 rounded-lg border border-[var(--warn-strong)] px-2 py-1.5 text-[11px] text-[var(--warn-strong)]"
+            >
+              {missingMeasurements.join(' dan ')} belum ada di catatan ini. 6MWT dilaporkan per
+              meter dan dibaca terhadap ukuran pasien, jadi permintaan tanpa {' '}
+              {missingMeasurements.join('/')} biasanya dikembalikan. Tambahkan di bagian O
+              sebelum mengirim.
+            </p>
+          ) : null}
+
           {konsulPreset ? (
             <p className="mt-1 text-[11px] text-fg-faint">{konsulPreset.note}</p>
           ) : (

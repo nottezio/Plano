@@ -1,5 +1,94 @@
 # Plano — CHANGES
 
+## `2026-09-18.2`
+
+**6MWT consults check for TB/BB, Salin always copies the open note, and the
+patient page has a second layout.**
+
+### 1. TB/BB for a 6MWT consult
+
+The walk test is reported per metre and read against the patient's size, so a
+request without height and weight comes back. The note usually has them — just
+on a different day from the one the consult was composed from.
+
+`missingKonsulMeasurements` checks the body being sent, not the patient
+record, because the body is what the consultant reads. It fires only for
+purposes that need them (`6MWT`, `6 MWT`, `six minute walk test`), names which
+one is missing, and treats a label with no value (`TB :`) as missing.
+
+**A reminder, not a block.** A consult sent without them is still a consult,
+and a copy button that refused would be worked around within a day.
+
+### 2. Salin always copies the note on screen
+
+The range chooser offered today, this day, the last three days and all days.
+Every shape Salin actually sends describes ONE day — a daily handover, a
+consult, an invasive-group message, a jaga note — so those options were four
+ways to send something other than what fills the screen behind the sheet. The
+multi-day list existed because the composer accepts one, not because anything
+asked for it.
+
+Removed properly rather than hidden:
+
+- the Rentang chips, the range state, and the fetch of every other day that
+  only the range needed;
+- `range` and `lastN` from `CopyPreset`, and from the two seeded presets;
+- `resolveRange` and the `CopyRange` type, with their tests.
+
+`composeCopy` still takes a list of days, since a day header per day is what
+would make a multi-day export readable if one is ever wanted.
+
+### 3. A second layout for the patient page
+
+`Pengaturan → Tata letak halaman SOAP`, **defaulting to Klasik**, which is
+exactly what the page is today. Changing where someone's checklist lives
+without asking is not an improvement to them.
+
+**Panel** rebuilds the sidebar:
+
+| | |
+|---|---|
+| **Order** | Catatan pasien · Checklist · Custom Checklist · Tanggal |
+| **State** | Every section starts closed |
+| **Header** | Carries the answer: `ada`/`kosong`, `7/7`, `0/1`, `12 hari`. A finished checklist is tinted |
+| **Shape** | Each section is a card with its own edge, instead of four blocks separated by a gap |
+| **Dates** | Capped and scrolling inside their own panel |
+
+**Why that order.** Read top to bottom it is what the round asks, in the order
+it asks: what carries over, what must be done every day, what must be done for
+this patient, and only then which day you are on. The date list was above both
+checklists and grows without limit, so on a three-week stay it pushed the
+thing you tick while reading off the screen.
+
+**Why closed and not remembered.** A sidebar that reopens whichever sections
+were open on the last patient puts different things in front of you depending
+on where you have been. The summaries are there so that a closed section is
+not a hidden one.
+
+`PatientNotes` gained `startOpen` so the panel can own the open/closed
+decision; its own default (open when there is something to read) is unchanged
+for the classic layout. The date rail is now built once and rendered by
+whichever layout is on, rather than written twice.
+
+### Not done, and why
+
+- **Phones are unchanged.** The sidebar is an `xl` screen feature; the phone
+  arrangement is a separate surface and was not part of this.
+- **The layout setting does not change the note column**, only the sidebar.
+  The header tools, the section jump bar and the editor are the same in both.
+- **6MWT is the only consult with a measurement rule.** Others would need the
+  same evidence this one has: a request that actually came back.
+- **Not rendered here.** Worth checking on the ward PC: switch to Panel on a
+  long-stay patient and confirm the four headers answer their questions
+  without opening anything.
+
+```
+1364 tests passed
+typecheck / lint (0 warnings) / check:version / check:contrast / check:a11y / build — clean
+```
+
+---
+
 ## `2026-09-18.1`
 
 **The revert is fixed: a late write is now merged instead of replacing a newer

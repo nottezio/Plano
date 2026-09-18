@@ -148,7 +148,6 @@ export const DEFAULT_COPY_PRESETS: readonly CopyPreset[] = [
     sections: 'all',
     includeIdentity: false,
     includeDateHeader: false,
-    range: 'today',
   },
   {
     id: 'preset-simgos',
@@ -157,7 +156,6 @@ export const DEFAULT_COPY_PRESETS: readonly CopyPreset[] = [
     sections: 'all',
     includeIdentity: false,
     includeDateHeader: false,
-    range: 'today',
   },
 ] as const;
 
@@ -276,6 +274,7 @@ export const SEED_NOTE_TEMPLATES: readonly NoteTemplate[] = [
 export function defaultUserSettings(): UserSettings {
   return {
     timezone: 'Asia/Jakarta',
+    soapLayout: 'klasik',
     // Plain midnight, per the user's decision. Parameterised, never hardcoded
     // downstream (SPEC 9.1).
     dayRolloverHour: 0,

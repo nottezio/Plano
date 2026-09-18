@@ -14,6 +14,8 @@ import { ShiftNoteEditor } from '@/components/patient/ShiftNoteEditor';
 import { LabSheet } from '@/components/patient/LabSheet';
 import { PatientNotes, usePatientNotes } from '@/components/patient/PatientNotes';
 import { PatientTodos } from '@/components/patient/PatientTodos';
+import { SidePanel } from '@/components/patient/SidePanel';
+import { todoViews } from '@/domain/patientTodos';
 import { DocumentPanel } from '@/components/patient/DocumentPanel';
 import { ScrollToTop } from '@/components/patient/ScrollToTop';
 import { OpeningSheet } from '@/components/patient/OpeningSheet';
@@ -766,6 +768,60 @@ export default function PatientPage(): JSX.Element {
    */
   const canCarryForward =
     !locked && patient?.status === 'active' && editor.value.trim().length === 0;
+
+  /**
+   * The date list, built once and rendered by whichever layout is on.
+   *
+   * Extracted rather than written twice: two copies of a component with
+   * fourteen props is two places for a fix to be applied to one of them.
+   */
+  const dateRail = (
+    <DateRail
+      dates={railDates}
+      onClear={setClearDate}
+      selected={selected}
+      today={today}
+      datesWithContent={datesWithContent}
+      onSelect={goToDate}
+      shiftNotesByDate={entryDates.shiftNotesByDate}
+      selectedShiftNoteId={selectedShiftNoteId}
+      onSelectShiftNote={(date, id) => {
+        // Selecting a jaga note also selects its DAY, so the editor
+        // below is always reading the entry the note belongs to. The
+        // two cannot drift apart and leave the note being edited
+        // against a different day's document.
+        if (date !== selected) goToDate(date);
+        setSelectedShiftNoteId(id);
+      }}
+      onClearShiftNote={(date, id) => {
+        // Only the day on screen can be edited — `useShiftNotes` is
+        // bound to `selected`. Switching first keeps the write going
+        // to the entry the note actually belongs to rather than
+        // silently clearing the same array index on today's document.
+        if (date !== selected) {
+          goToDate(date);
+          return;
+        }
+        shiftNotes.clear(id);
+        if (selectedShiftNoteId === id) setSelectedShiftNoteId(null);
+      }}
+      orientation="vertical"
+    />
+  );
+
+  const layout = settings.soapLayout ?? 'klasik';
+
+  /** Header summaries for the panel layout: the answer, not a label. */
+  const notesSummary = notesSync.value.trim().length > 0 ? 'ada' : 'kosong';
+  const todoViewsForSummary = todoViews(patient?.todos ?? [], patient?.todoTicks, selected);
+  const todoDone = todoViewsForSummary.filter((view) => view.done).length;
+  const todoSummary = {
+    text: `${todoDone}/${todoViewsForSummary.length}`,
+    tone:
+      todoViewsForSummary.length > 0 && todoDone === todoViewsForSummary.length
+        ? ('done' as const)
+        : ('plain' as const),
+  };
 
   return (
     <AppShell title={patient.name}>
@@ -1840,7 +1896,55 @@ export default function PatientPage(): JSX.Element {
 
           {paneView === 'dokumen' ? <DocumentPanel /> : null}
 
-          {paneView === 'pasien' ? (
+          {paneView === 'pasien' && layout === 'panel' ? (
+            <>
+              {/*
+                Order: the standing note, then the daily checklist, then the
+                per-patient one, then the dates. Read top to bottom it is what
+                the round asks in the order it asks: what carries over, what
+                must be done every day, what must be done for this patient,
+                and only then which day you are on — the list that grows
+                without limit and had been sitting above the checklists.
+              */}
+              <SidePanel title="Catatan pasien" summary={notesSummary}>
+                <PatientNotes sync={notesSync} startOpen />
+              </SidePanel>
+
+              <SidePanel
+                title="Checklist"
+                summary={`${checklist.progress.doneCount}/${checklist.progress.total}`}
+                tone={
+                  checklist.progress.total > 0 &&
+                  checklist.progress.doneCount === checklist.progress.total
+                    ? 'done'
+                    : 'plain'
+                }
+              >
+                <ChecklistPills
+                  items={settings.checklistItems}
+                  states={checklist.states}
+                  progress={checklist.progress}
+                  onToggle={checklist.toggle}
+                  disabled={locked}
+                  orientation="vertical"
+                />
+              </SidePanel>
+
+              <SidePanel title="Custom Checklist" summary={todoSummary.text} tone={todoSummary.tone}>
+                <PatientTodos patient={patient} date={selected} compact />
+              </SidePanel>
+
+              {/*
+                Capped and scrolling inside itself. On a three-week stay this
+                list is the reason the sidebar had no room for anything else.
+              */}
+              <SidePanel title="Tanggal" summary={`${railDates.length} hari`}>
+                <div className="max-h-72 overflow-y-auto">{dateRail}</div>
+              </SidePanel>
+            </>
+          ) : null}
+
+          {paneView === 'pasien' && layout !== 'panel' ? (
             <>
           <PatientNotes sync={notesSync} />
 
@@ -1848,37 +1952,7 @@ export default function PatientPage(): JSX.Element {
 
           <section>
             <h3 className="mb-1.5 text-xs font-semibold text-fg-muted">Tanggal</h3>
-            <DateRail
-              dates={railDates}
-              onClear={setClearDate}
-              selected={selected}
-              today={today}
-              datesWithContent={datesWithContent}
-              onSelect={goToDate}
-              shiftNotesByDate={entryDates.shiftNotesByDate}
-              selectedShiftNoteId={selectedShiftNoteId}
-              onSelectShiftNote={(date, id) => {
-                // Selecting a jaga note also selects its DAY, so the editor
-                // below is always reading the entry the note belongs to. The
-                // two cannot drift apart and leave the note being edited
-                // against a different day's document.
-                if (date !== selected) goToDate(date);
-                setSelectedShiftNoteId(id);
-              }}
-              onClearShiftNote={(date, id) => {
-                // Only the day on screen can be edited — `useShiftNotes` is
-                // bound to `selected`. Switching first keeps the write going
-                // to the entry the note actually belongs to rather than
-                // silently clearing the same array index on today's document.
-                if (date !== selected) {
-                  goToDate(date);
-                  return;
-                }
-                shiftNotes.clear(id);
-                if (selectedShiftNoteId === id) setSelectedShiftNoteId(null);
-              }}
-              orientation="vertical"
-            />
+            {dateRail}
           </section>
 
           <section>
@@ -1947,7 +2021,6 @@ export default function PatientPage(): JSX.Element {
         patient={patient}
         body={editor.value}
         date={selected}
-        today={today}
         aliases={settings.sectionAliases}
         presets={settings.copyPresets}
         dpjpFormats={settings.dpjpFormats}

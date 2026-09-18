@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { composeKonsul } from './composeKonsul';
+import { composeKonsul, missingKonsulMeasurements } from './composeKonsul';
 import { DEFAULT_SECTION_ALIASES as ALIASES } from '../defaults';
 import { makePatient } from '../testFactories';
 
@@ -151,5 +151,34 @@ describe('composeKonsul list style', () => {
 
   it('uses the shorter closing', () => {
     expect(out.trimEnd().endsWith('Tabe terima kasih dokter')).toBe(true);
+  });
+});
+
+describe('missingKonsulMeasurements', () => {
+  const withBoth = ['*A :*', '- CAD', 'TB : 160 cm', 'BB : 60 kg'].join('\n');
+
+  it('says nothing when both are in the note', () => {
+    expect(missingKonsulMeasurements('6MWT', withBoth)).toEqual([]);
+  });
+
+  it('names what is missing', () => {
+    expect(missingKonsulMeasurements('6MWT', 'TB : 160 cm')).toEqual(['BB']);
+    expect(missingKonsulMeasurements('6MWT', 'BB : 60 kg')).toEqual(['TB']);
+    expect(missingKonsulMeasurements('6MWT', '*A :*\n- CAD')).toEqual(['TB', 'BB']);
+  });
+
+  it('treats a label with no value as missing', () => {
+    expect(missingKonsulMeasurements('6MWT', 'TB :\nBB : 60 kg')).toEqual(['TB']);
+  });
+
+  it('matches the ways the purpose is written', () => {
+    for (const purpose of ['6MWT', '6 MWT', 'Tes 6mwt', 'six minute walk test']) {
+      expect(missingKonsulMeasurements(purpose, '')).toEqual(['TB', 'BB']);
+    }
+  });
+
+  it('stays quiet for consults that do not need them', () => {
+    expect(missingKonsulMeasurements('Echo', '')).toEqual([]);
+    expect(missingKonsulMeasurements('Rehab jantung', '')).toEqual([]);
   });
 });
