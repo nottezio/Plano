@@ -11,6 +11,15 @@ import type { ScratchNote } from '@/domain/types';
  * Masonry through CSS columns rather than a grid: notes are different lengths,
  * and a grid pads every card to the tallest in its row. `break-inside` keeps a
  * card whole.
+ *
+ * A card shows a FEW lines, not the note. At ten lines a long reference note
+ * filled a whole column and the board became the notes themselves, stacked —
+ * which is the wall of text the tabs were replacing. Four lines is enough to
+ * recognise a note and not enough to read it instead of opening it.
+ *
+ * Cards do not drag. Dragging one card onto another to reorder was a gesture
+ * with no visible target and no indication that the drop had moved anything;
+ * ordering lives in the open note now, on two buttons that say what they do.
  */
 
 /**
@@ -59,16 +68,10 @@ export function NoteCards({
   notes,
   activeId,
   onOpen,
-  onReorder,
-  dragId,
-  setDragId,
 }: {
   notes: readonly ScratchNote[];
   activeId: string | null;
   onOpen: (id: string) => void;
-  onReorder: (fromId: string, toId: string) => void;
-  dragId: string | null;
-  setDragId: (id: string | null) => void;
 }): JSX.Element {
   return (
     <div className="columns-1 gap-3 sm:columns-2 lg:columns-3">
@@ -79,36 +82,19 @@ export function NoteCards({
           <button
             key={note.id}
             type="button"
-            draggable
-            onDragStart={(event) => {
-              setDragId(note.id);
-              // Firefox refuses to start a drag with an empty transfer object.
-              event.dataTransfer.setData('text/plain', note.id);
-              event.dataTransfer.effectAllowed = 'move';
-            }}
-            onDragOver={(event) => {
-              if (dragId && dragId !== note.id) event.preventDefault();
-            }}
-            onDrop={(event) => {
-              event.preventDefault();
-              if (dragId) onReorder(dragId, note.id);
-              setDragId(null);
-            }}
-            onDragEnd={() => setDragId(null)}
             onClick={() => onOpen(note.id)}
             style={{ backgroundColor: tone.bg, color: tone.fg }}
             className={[
               'mb-3 block w-full break-inside-avoid rounded-xl border p-3 text-left shadow-sm',
               note.id === activeId ? 'border-accent' : 'border-transparent',
-              dragId === note.id ? 'opacity-50' : '',
             ].join(' ')}
           >
             <span className="block truncate text-sm font-semibold">
               {note.title || 'Tanpa judul'}
             </span>
             {preview ? (
-              // Capped at ten lines: a card is a way in, not the note itself.
-              <span className="mt-1 line-clamp-[10] block whitespace-pre-line text-xs leading-snug opacity-80">
+              // A way in, not the note itself.
+              <span className="mt-1 line-clamp-4 block whitespace-pre-line text-xs leading-snug opacity-80">
                 {preview}
               </span>
             ) : (

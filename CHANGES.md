@@ -1,5 +1,46 @@
 # Plano — CHANGES
 
+## `2026-09-19.4`
+
+**Catatan cards show four lines, and ordering moved off the drag gesture.**
+
+### The preview was the note
+
+Ten lines filled a whole column with a long reference note, so the board
+became the notes themselves, stacked — the wall of text the tabs were meant to
+replace. Four lines is enough to recognise a note and not enough to read it
+instead of opening it.
+
+### Dragging a card onto a card is not a gesture anyone can see
+
+There was no drop indicator, no gap opening, and no sign afterwards that
+anything had moved: the only feedback was the card fading while dragged. That
+is a gesture you have to be told about.
+
+Ordering is now **↑ / ↓ in the open note**, one step per press, disabled at the
+ends. Pressing one is either a move you can see when you go back to the board,
+or a button that is plainly unavailable.
+
+The rewrite still goes through `reorderWithinVisible`, so a move made while a
+shelf or the archive filter is hiding notes cannot drop the hidden ones — the
+guard that mattered is unchanged; only the way it is triggered is.
+
+### Not done, and why
+
+- **No drag anywhere on the board.** A drag worth keeping needs a drop
+  indicator and a gap that opens as you move, which is the canvas machinery on
+  the patient board. That is a real piece of work and this is a shelf of notes.
+- **The card colours are unchanged.** They come from the theme's card tokens.
+  If they read as too heavy in dark mode, that is a palette choice worth making
+  deliberately rather than while fixing something else.
+
+```
+1389 tests passed
+typecheck / lint (0 warnings) / check:version / check:contrast / check:a11y / build — clean
+```
+
+---
+
 ## `2026-09-19.3`
 
 **The sidebar stops resizing itself, the checklist fits in its minimised box,

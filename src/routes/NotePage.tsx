@@ -126,20 +126,6 @@ export default function NotePage(): JSX.Element {
    */
   const active = visible.find((note) => note.id === activeId) ?? visible[0];
 
-  /**
-   * Drag a note tab to reorder the shelf.
-   *
-   * Order is the stored array order, so a move rewrites `notes` — and it has
-   * to be rewritten in terms of the FULL list, not the visible one. `visible`
-   * is filtered by shelf and by archived state, so splicing within it and
-   * writing that back would drop every note the current filter hides.
-   *
-   * HTML drag-and-drop rather than the pointer-based drag the board uses: this
-   * is a row of small tabs on a desktop, not cards on a canvas, and the native
-   * API gives the drop target and the reorder for free. The board needed
-   * pointer events because it needed positions.
-   */
-  const [dragId, setDragId] = useState<string | null>(null);
 
   /**
    * Bodies sent and not yet echoed back by Firestore.
@@ -162,6 +148,19 @@ export default function NotePage(): JSX.Element {
   }, [notes]);
 
 
+  /**
+   * Move the open note one place earlier or later on its shelf.
+   *
+   * This replaced dragging a card onto another card, which had no visible drop
+   * target and no sign that anything had moved. Two buttons in the open note
+   * say which direction they go and move one step at a time.
+   *
+   * Order is the stored array order, so a move rewrites `notes` — and it has
+   * to be rewritten in terms of the FULL list, not the visible one. `visible`
+   * is filtered by shelf and by archived state, so splicing within it and
+   * writing that back would drop every note the current filter hides. That is
+   * what `reorderWithinVisible` is for.
+   */
   const reorder = (fromId: string, toId: string): void => {
     if (!uid || fromId === toId) return;
 
@@ -252,6 +251,15 @@ export default function NotePage(): JSX.Element {
       node.removeEventListener('click', onToggle);
     };
   }, []);
+
+  /** The neighbours on the visible shelf, which is what a move swaps with. */
+  const moveTargets = useMemo(() => {
+    const index = visible.findIndex((note) => note.id === activeId);
+    return {
+      earlier: index > 0 ? (visible[index - 1]?.id ?? null) : null,
+      later: index >= 0 && index < visible.length - 1 ? (visible[index + 1]?.id ?? null) : null,
+    };
+  }, [visible, activeId]);
 
   const addNote = (): void => {
     if (!uid) return;
@@ -530,9 +538,6 @@ export default function NotePage(): JSX.Element {
                   setActiveId(id);
                   setOpenNote(true);
                 }}
-                onReorder={reorder}
-                dragId={dragId}
-                setDragId={setDragId}
               />
             </div>
           ) : (
@@ -578,6 +583,35 @@ export default function NotePage(): JSX.Element {
             placeholder="Judul catatan"
             className="min-h-tap min-w-0 flex-1 rounded-lg border border-transparent bg-transparent px-2 text-sm font-medium outline-none focus:border-border"
           />
+          {/*
+            Ordering, where the note is. One step per press, disabled at the
+            ends, so pressing it is either a move you can see on the board when
+            you go back or a button that is plainly unavailable.
+          */}
+          <button
+            type="button"
+            aria-label="Pindahkan lebih awal"
+            title="Pindahkan lebih awal"
+            disabled={moveTargets.earlier === null}
+            onClick={() => {
+              if (active && moveTargets.earlier) reorder(active.id, moveTargets.earlier);
+            }}
+            className="min-h-tap shrink-0 px-2 text-sm text-fg-muted disabled:opacity-30"
+          >
+            ↑
+          </button>
+          <button
+            type="button"
+            aria-label="Pindahkan lebih akhir"
+            title="Pindahkan lebih akhir"
+            disabled={moveTargets.later === null}
+            onClick={() => {
+              if (active && moveTargets.later) reorder(active.id, moveTargets.later);
+            }}
+            className="min-h-tap shrink-0 px-2 text-sm text-fg-muted disabled:opacity-30"
+          >
+            ↓
+          </button>
           <button
             type="button"
             onClick={() => setArchived(!active?.archived)}
