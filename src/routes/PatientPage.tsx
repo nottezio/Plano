@@ -814,6 +814,10 @@ export default function PatientPage(): JSX.Element {
 
   const layout = settings.soapLayout ?? 'klasik';
 
+  const activeChecklistItems = settings.checklistItems.filter((item) => item.active);
+  const checklistDone =
+    checklist.progress.total > 0 && checklist.progress.doneCount === checklist.progress.total;
+
   /** Header summaries for the panel layout: the answer, not a label. */
   const notesSummary = notesSync.value.trim().length > 0 ? 'ada' : 'kosong';
   const todoViewsForSummary = todoViews(patient?.todos ?? [], patient?.todoTicks, selected);
@@ -1893,7 +1897,11 @@ export default function PatientPage(): JSX.Element {
             // panel in the middle of a long stack could then run past the
             // bottom with the scroll belonging to the page instead.
             layout === 'panel' ? 'h-[100dvh] gap-3' : 'max-h-[100dvh]',
-            'overflow-y-auto overscroll-contain overflow-x-hidden py-4',
+            // The scrollbar's space is reserved whether or not it is showing.
+            // Without this the column lost ~15px the moment a panel was
+            // expanded enough to overflow, so every card reflowed and the
+            // sidebar appeared to resize itself on each expand.
+            'overflow-y-auto overscroll-contain overflow-x-hidden py-4 [scrollbar-gutter:stable]',
             paneOpen ? 'hidden xl:flex' : 'hidden',
           ].join(' ')}
         >
@@ -1948,36 +1956,48 @@ export default function PatientPage(): JSX.Element {
               <SidePanel
                 title="Checklist"
                 summary={`${checklist.progress.doneCount}/${checklist.progress.total}`}
-                tone={
-                  checklist.progress.total > 0 &&
-                  checklist.progress.doneCount === checklist.progress.total
-                    ? 'done'
-                    : 'plain'
-                }
+                tone={checklistDone ? 'done' : 'plain'}
                 preview={
-                  <ul className="space-y-0.5 text-[11px]">
-                    {settings.checklistItems
-                      .filter((item) => item.active)
-                      .slice(0, 4)
-                      .map((item) => {
+                  checklistDone ? (
+                    /*
+                      Nothing to read when everything is ticked. The list only
+                      answers "what is left", and when the answer is "nothing"
+                      seven struck-through lines say it slower than one word.
+                    */
+                    <p className="flex items-center gap-1.5 text-[11px] font-medium text-accent">
+                      <span aria-hidden="true">✓</span> Semua selesai
+                    </p>
+                  ) : (
+                    /*
+                      Two columns, every item, no "+N lagi". The whole point of
+                      the minimised view is to answer the question without
+                      opening anything, and a list that stops at four hides the
+                      three that might be the unticked ones.
+                    */
+                    <ul className="grid grid-cols-2 gap-x-2 gap-y-0.5 text-[11px]">
+                      {activeChecklistItems.map((item) => {
                         const done = checklist.states[item.id]?.done === true;
                         return (
-                          <li key={item.id} className="flex gap-1.5">
-                            <span aria-hidden="true" className={done ? 'text-accent' : 'text-fg-faint'}>
+                          <li key={item.id} className="flex min-w-0 gap-1">
+                            <span
+                              aria-hidden="true"
+                              className={done ? 'text-accent' : 'text-fg-faint'}
+                            >
                               {done ? '✓' : '○'}
                             </span>
-                            <span className={done ? 'truncate text-fg-faint line-through' : 'truncate'}>
+                            <span
+                              className={[
+                                'min-w-0 flex-1 leading-snug',
+                                done ? 'text-fg-faint line-through' : '',
+                              ].join(' ')}
+                            >
                               {item.label}
                             </span>
                           </li>
                         );
                       })}
-                    {settings.checklistItems.filter((item) => item.active).length > 4 ? (
-                      <li className="text-fg-faint">
-                        +{settings.checklistItems.filter((item) => item.active).length - 4} lagi
-                      </li>
-                    ) : null}
-                  </ul>
+                    </ul>
+                  )
                 }
               >
                 <ChecklistPills
@@ -1997,6 +2017,12 @@ export default function PatientPage(): JSX.Element {
                 preview={
                   todoViewsForSummary.length === 0 ? (
                     <p className="text-[11px] text-fg-faint">Belum ada langkah khusus.</p>
+                  ) : todoSummary.tone === 'done' ? (
+                    // Same rule as the daily checklist: when nothing is left,
+                    // say so instead of listing what is already done.
+                    <p className="flex items-center gap-1.5 text-[11px] font-medium text-accent">
+                      <span aria-hidden="true">✓</span> Semua selesai
+                    </p>
                   ) : (
                     <ul className="space-y-0.5 text-[11px]">
                       {todoViewsForSummary.slice(0, 4).map((view) => (

@@ -3,6 +3,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { AppShell } from '@/components/common/AppShell';
 import { reorderWithinVisible } from '@/domain/reorder';
 import { applyPending, settlePending } from '@/domain/pendingBodies';
+import { NoteCards } from '@/components/notes/NoteCards';
 import { COLOR_SENTINEL, stripSentinelColor } from '@/domain/format/noteColor';
 import { updateScratchNotes } from '@/data/repositories/settings.repo';
 import { useTextSync } from '@/hooks/useTextSync';
@@ -106,6 +107,14 @@ export default function NotePage(): JSX.Element {
   );
 
   const [activeId, setActiveId] = useState<string>(() => notes[0]?.id ?? 'n1');
+  /**
+   * The board is the page; a note is opened FROM it.
+   *
+   * Opening rather than expanding in place, because the editor carries a
+   * toolbar, a title field and archive/delete — none of which belongs on a
+   * card being scanned.
+   */
+  const [openNote, setOpenNote] = useState(false);
   /**
    * The note being edited, or nothing when this shelf is empty.
    *
@@ -262,6 +271,7 @@ export default function NotePage(): JSX.Element {
       console.error('[catatan] could not add', error),
     );
     setActiveId(id);
+    setOpenNote(true);
   };
 
   /**
@@ -481,62 +491,27 @@ export default function NotePage(): JSX.Element {
           ))}
         </div>
 
-        <div className="mb-2 flex items-center gap-1 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-          {visible.map((note) => (
-            <button
-              key={note.id}
-              type="button"
-              aria-pressed={note.id === active?.id}
-              draggable
-              onDragStart={(event) => {
-                setDragId(note.id);
-                // Required by Firefox, which refuses to start a drag without
-                // something on the transfer object.
-                event.dataTransfer.setData('text/plain', note.id);
-                event.dataTransfer.effectAllowed = 'move';
-              }}
-              onDragOver={(event) => {
-                if (dragId && dragId !== note.id) event.preventDefault();
-              }}
-              onDrop={(event) => {
-                event.preventDefault();
-                if (dragId) reorder(dragId, note.id);
-                setDragId(null);
-              }}
-              onDragEnd={() => setDragId(null)}
-              onClick={() => {
-                sync.flush();
-                setActiveId(note.id);
-              }}
-              className={[
-                'min-h-tap shrink-0 cursor-grab rounded-lg border px-3 text-xs',
-                note.id === active?.id
-                  ? 'border-accent bg-bg-subtle font-medium text-accent'
-                  : 'border-border text-fg-muted',
-                dragId === note.id ? 'opacity-50' : '',
-              ].join(' ')}
-            >
-              {note.title || 'Tanpa judul'}
-            </button>
-          ))}
-          {archivedCount > 0 || showArchived ? (
+        {!openNote ? (
+          <div className="mb-2 flex items-center gap-2">
+            {archivedCount > 0 || showArchived ? (
+              <button
+                type="button"
+                onClick={() => setShowArchived((current) => !current)}
+                className="min-h-tap shrink-0 rounded-lg border border-border px-2 text-[11px] text-fg-muted"
+              >
+                {showArchived ? 'Aktif' : `Arsip (${archivedCount})`}
+              </button>
+            ) : null}
+            <span className="flex-1" />
             <button
               type="button"
-              onClick={() => setShowArchived((current) => !current)}
-              className="min-h-tap shrink-0 rounded-lg border border-border px-2 text-[11px] text-fg-muted"
+              onClick={addNote}
+              className="min-h-tap shrink-0 rounded-lg border border-dashed border-border-strong px-3 text-xs text-fg-muted"
             >
-              {showArchived ? 'Aktif' : `Arsip (${archivedCount})`}
+              + Catatan baru
             </button>
-          ) : null}
-          <button
-            type="button"
-            onClick={addNote}
-            aria-label="Catatan baru"
-            className="min-h-tap min-w-tap shrink-0 rounded-lg border border-dashed border-border-strong text-sm text-fg-muted"
-          >
-            +
-          </button>
-        </div>
+          </div>
+        ) : null}
 
         {/*
           An empty shelf says so and offers the one action that helps.
@@ -545,7 +520,22 @@ export default function NotePage(): JSX.Element {
           box bound to no note — every keystroke discarded, with nothing on
           screen saying why.
         */}
-        {!active ? (
+        {!openNote || !active ? (
+          visible.length > 0 ? (
+            <div className="flex-1 overflow-y-auto">
+              <NoteCards
+                notes={visible}
+                activeId={active?.id ?? null}
+                onOpen={(id) => {
+                  setActiveId(id);
+                  setOpenNote(true);
+                }}
+                onReorder={reorder}
+                dragId={dragId}
+                setDragId={setDragId}
+              />
+            </div>
+          ) : (
           <div className="flex flex-1 flex-col items-center justify-center gap-3 py-12">
             <p className="text-sm text-fg-muted">
               {category === 'jaga'
@@ -564,9 +554,22 @@ export default function NotePage(): JSX.Element {
               </button>
             ) : null}
           </div>
+          )
         ) : (
         <>
         <div className="mb-2 flex items-center gap-2">
+          {/* Back to the board. The card you came from keeps its place. */}
+          <button
+            type="button"
+            onClick={() => {
+              sync.flush();
+              flushTitle();
+              setOpenNote(false);
+            }}
+            className="min-h-tap shrink-0 rounded-lg border border-border px-2 text-xs text-fg-muted"
+          >
+            ← Semua
+          </button>
           <input
             type="text"
             value={titleDraft ?? active?.title ?? ''}

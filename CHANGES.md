@@ -1,5 +1,72 @@
 # Plano — CHANGES
 
+## `2026-09-19.3`
+
+**The sidebar stops resizing itself, the checklist fits in its minimised box,
+and Catatan is a board of sticky notes.**
+
+### 1. The sidebar resized on every expand
+
+Expanding a panel pushed the column past the viewport, the scrollbar appeared,
+and it took ~15px of width from the cards — so every panel reflowed and the bar
+appeared to jump. `scrollbar-gutter: stable` reserves that space whether the
+scrollbar is showing or not, so the width never changes.
+
+### 2. The whole checklist, minimised
+
+It showed four items and `+3 lagi`, which hides exactly the ones that might be
+unticked — the only question the minimised view exists to answer. It is now two
+columns with every item and no "+N".
+
+### 3. A finished checklist says so
+
+When everything is ticked the minimised box reads **✓ Semua selesai** instead of
+seven struck-through lines. The list only answers "what is left", and when the
+answer is "nothing" a word says it faster than a list. Custom Checklist follows
+the same rule.
+
+### 4. Catatan as sticky notes
+
+The shelf was a row of tabs: it scrolls sideways, shows one title at a time,
+and says nothing about what is IN a note, so finding one meant opening several.
+It is now a board.
+
+| | |
+|---|---|
+| **Layout** | Masonry through CSS columns, one to three by width. A grid would pad every card to the tallest in its row, and notes are not the same length |
+| **Preview** | The first ten lines, with the markup stripped and list items marked, so a checklist still reads as one |
+| **Colour** | Derived from the note's id, so it never changes for a given note and the note stays findable. Not a stored field: that needs a picker, a migration and a default, for a job that is only "tell these apart" |
+| **Opening** | A card opens the editor, with **← Semua** to come back. The editor's toolbar, title field and archive/delete belong to a note being written, not to a card being scanned |
+| **Order** | Still drag and drop, now by dragging cards |
+
+The preview strips tags rather than rendering them: bodies are HTML from a
+contenteditable, and rendering that in a card would bring its headings and
+font sizes into a space sized for plain lines — along with whatever a pasted
+fragment carried. 9 tests cover the stripping, including that no tag survives.
+
+The colours are the shared card tokens, so they follow the theme and pass
+`check:contrast`. A literal hex would have failed it, correctly.
+
+### Not done, and why
+
+- **No per-note colour picker.** The palette is derived; choosing colours is a
+  feature with its own storage and UI, and nothing has asked for it yet.
+- **No pinning and no search on the board.** Both are real Keep features and
+  both are their own work; the shelves (Catatan / Catatan jaga) and Arsip
+  already divide the board.
+- **The editor itself is unchanged.** Same toolbar, same contenteditable, same
+  saving. Only the way in changed.
+- **Not rendered here.** Worth checking: the board at three columns on the ward
+  PC, and that a long note's card stops at ten lines rather than filling the
+  column.
+
+```
+1389 tests passed (+9)
+typecheck / lint (0 warnings) / check:version / check:contrast / check:a11y / build — clean
+```
+
+---
+
 ## `2026-09-19.2`
 
 **Real undo/redo for the note, and the panel sidebar was clipping its own
