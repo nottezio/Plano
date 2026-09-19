@@ -35,3 +35,44 @@ export function reorderWithinVisible<T>(
     isVisible.has(idOf(item)) ? (byId.get(order[slot++]!) ?? item) : item,
   );
 }
+
+/**
+ * Move one item to sit immediately BEFORE or AFTER another, within the same
+ * filtered view.
+ *
+ * Separate from `reorderWithinVisible` because a drop has a side. "Move to
+ * where that one is" cannot express "put it under the last card", and a drag
+ * whose result does not match the line the user was shown is the reason the
+ * first attempt at this was confusing.
+ *
+ * The destination index is computed AFTER the dragged item is removed, so the
+ * result is always "it ends up on the side of the target you were shown",
+ * whichever direction the drag went. Computing it before removal is the
+ * classic off-by-one that makes a downward drag land one place short.
+ */
+export function moveBeside<T>(
+  all: readonly T[],
+  visible: readonly T[],
+  idOf: (item: T) => string,
+  fromId: string,
+  targetId: string,
+  place: 'before' | 'after',
+): T[] {
+  if (fromId === targetId) return [...all];
+
+  const order = visible.map(idOf);
+  const from = order.indexOf(fromId);
+  if (from === -1 || !order.includes(targetId)) return [...all];
+
+  order.splice(from, 1);
+  const target = order.indexOf(targetId);
+  order.splice(place === 'before' ? target : target + 1, 0, fromId);
+
+  const byId = new Map(all.map((item) => [idOf(item), item]));
+  const isVisible = new Set(visible.map(idOf));
+  let slot = 0;
+
+  return all.map((item) =>
+    isVisible.has(idOf(item)) ? (byId.get(order[slot++]!) ?? item) : item,
+  );
+}

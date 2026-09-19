@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import { AppShell } from '@/components/common/AppShell';
-import { reorderWithinVisible } from '@/domain/reorder';
+import { moveBeside } from '@/domain/reorder';
 import { applyPending, settlePending } from '@/domain/pendingBodies';
 import { NoteCards } from '@/components/notes/NoteCards';
 import { COLOR_SENTINEL, stripSentinelColor } from '@/domain/format/noteColor';
@@ -149,23 +149,19 @@ export default function NotePage(): JSX.Element {
 
 
   /**
-   * Move the open note one place earlier or later on its shelf.
-   *
-   * This replaced dragging a card onto another card, which had no visible drop
-   * target and no sign that anything had moved. Two buttons in the open note
-   * say which direction they go and move one step at a time.
+   * Drop a card next to another one, from the board.
    *
    * Order is the stored array order, so a move rewrites `notes` — and it has
    * to be rewritten in terms of the FULL list, not the visible one. `visible`
    * is filtered by shelf and by archived state, so splicing within it and
    * writing that back would drop every note the current filter hides. That is
-   * what `reorderWithinVisible` is for.
+   * what `moveBeside` is for.
    */
-  const reorder = (fromId: string, toId: string): void => {
-    if (!uid || fromId === toId) return;
+  const moveNote = (fromId: string, targetId: string, place: 'before' | 'after'): void => {
+    if (!uid || fromId === targetId) return;
 
     const next = applyPending(
-      reorderWithinVisible(notes, visible, (note) => note.id, fromId, toId),
+      moveBeside(notes, visible, (note) => note.id, fromId, targetId, place),
       // Reordering rewrites the same array, so an unsaved body in flight would
       // be reverted by it exactly as the tab-switch save was.
       pendingBodies.current,
@@ -251,15 +247,6 @@ export default function NotePage(): JSX.Element {
       node.removeEventListener('click', onToggle);
     };
   }, []);
-
-  /** The neighbours on the visible shelf, which is what a move swaps with. */
-  const moveTargets = useMemo(() => {
-    const index = visible.findIndex((note) => note.id === activeId);
-    return {
-      earlier: index > 0 ? (visible[index - 1]?.id ?? null) : null,
-      later: index >= 0 && index < visible.length - 1 ? (visible[index + 1]?.id ?? null) : null,
-    };
-  }, [visible, activeId]);
 
   const addNote = (): void => {
     if (!uid) return;
@@ -538,6 +525,7 @@ export default function NotePage(): JSX.Element {
                   setActiveId(id);
                   setOpenNote(true);
                 }}
+                onMove={moveNote}
               />
             </div>
           ) : (
@@ -583,35 +571,6 @@ export default function NotePage(): JSX.Element {
             placeholder="Judul catatan"
             className="min-h-tap min-w-0 flex-1 rounded-lg border border-transparent bg-transparent px-2 text-sm font-medium outline-none focus:border-border"
           />
-          {/*
-            Ordering, where the note is. One step per press, disabled at the
-            ends, so pressing it is either a move you can see on the board when
-            you go back or a button that is plainly unavailable.
-          */}
-          <button
-            type="button"
-            aria-label="Pindahkan lebih awal"
-            title="Pindahkan lebih awal"
-            disabled={moveTargets.earlier === null}
-            onClick={() => {
-              if (active && moveTargets.earlier) reorder(active.id, moveTargets.earlier);
-            }}
-            className="min-h-tap shrink-0 px-2 text-sm text-fg-muted disabled:opacity-30"
-          >
-            ↑
-          </button>
-          <button
-            type="button"
-            aria-label="Pindahkan lebih akhir"
-            title="Pindahkan lebih akhir"
-            disabled={moveTargets.later === null}
-            onClick={() => {
-              if (active && moveTargets.later) reorder(active.id, moveTargets.later);
-            }}
-            className="min-h-tap shrink-0 px-2 text-sm text-fg-muted disabled:opacity-30"
-          >
-            ↓
-          </button>
           <button
             type="button"
             onClick={() => setArchived(!active?.archived)}

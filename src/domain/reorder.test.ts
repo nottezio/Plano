@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { reorderWithinVisible } from './reorder';
+import { moveBeside, reorderWithinVisible } from './reorder';
 
 interface Note {
   id: string;
@@ -43,5 +43,35 @@ describe('reorderWithinVisible', () => {
 
   it('is a no-op when either id is not in the visible list', () => {
     expect(move('a', 'x')).toEqual(['a', 'x', 'b', 'y', 'c']);
+  });
+});
+
+describe('moveBeside', () => {
+  const idOf = (item: string): string => item;
+  const all = ['a', 'b', 'c', 'd'];
+
+  it('drops before the target, dragging downwards', () => {
+    expect(moveBeside(all, all, idOf, 'a', 'd', 'before')).toEqual(['b', 'c', 'a', 'd']);
+  });
+
+  it('drops after the target, dragging downwards', () => {
+    expect(moveBeside(all, all, idOf, 'a', 'd', 'after')).toEqual(['b', 'c', 'd', 'a']);
+  });
+
+  it('drops before and after the target, dragging upwards', () => {
+    expect(moveBeside(all, all, idOf, 'd', 'a', 'before')).toEqual(['d', 'a', 'b', 'c']);
+    expect(moveBeside(all, all, idOf, 'd', 'a', 'after')).toEqual(['a', 'd', 'b', 'c']);
+  });
+
+  it('is a no-op onto itself, or onto something not visible', () => {
+    expect(moveBeside(all, all, idOf, 'b', 'b', 'before')).toEqual(all);
+    expect(moveBeside(all, ['a', 'b'], idOf, 'a', 'd', 'after')).toEqual(all);
+  });
+
+  it('never moves what the filter hides', () => {
+    // `x` and `y` are archived: they keep their exact slots in the stored list.
+    const stored = ['a', 'x', 'b', 'y', 'c'];
+    const shown = ['a', 'b', 'c'];
+    expect(moveBeside(stored, shown, idOf, 'c', 'a', 'before')).toEqual(['c', 'x', 'a', 'y', 'b']);
   });
 });

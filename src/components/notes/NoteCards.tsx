@@ -1,3 +1,5 @@
+import { useState } from 'react';
+
 import type { ScratchNote } from '@/domain/types';
 
 /**
@@ -14,13 +16,21 @@ import type { ScratchNote } from '@/domain/types';
  *
  * A card shows a FEW lines, not the note. At ten lines a long reference note
  * filled a whole column and the board became the notes themselves, stacked —
- * which is the wall of text the tabs were replacing. Four lines is enough to
- * recognise a note and not enough to read it instead of opening it.
+ * the wall of text the tabs were replacing.
  *
- * Cards do not drag. Dragging one card onto another to reorder was a gesture
- * with no visible target and no indication that the drop had moved anything;
- * ordering lives in the open note now, on two buttons that say what they do.
+ * Dragging orders the board, and the drop is SHOWN before it happens: an
+ * accent line appears on the edge of the card the note will land next to,
+ * above or below it depending on which half the pointer is over. The first
+ * attempt had no indicator — a card faded, something moved, and you found out
+ * afterwards. The second moved ordering into the open note, which is a
+ * different screen from the one whose order you are changing.
+ *
+ * The line is the promise and `moveBeside` keeps it: the note ends up on the
+ * side of the target the line was drawn on, whichever direction the drag came
+ * from.
  */
+
+type Place = 'before' | 'after';
 
 /**
  * A stable colour per note, derived from its id.
@@ -68,44 +78,111 @@ export function NoteCards({
   notes,
   activeId,
   onOpen,
+  onMove,
 }: {
   notes: readonly ScratchNote[];
   activeId: string | null;
   onOpen: (id: string) => void;
+  /** Put `fromId` immediately before or after `targetId`. */
+  onMove: (fromId: string, targetId: string, place: Place) => void;
 }): JSX.Element {
+  const [dragId, setDragId] = useState<string | null>(null);
+  const [over, setOver] = useState<{ id: string; place: Place } | null>(null);
+
+  const end = (): void => {
+    setDragId(null);
+    setOver(null);
+  };
+
   return (
     <div className="columns-1 gap-3 sm:columns-2 lg:columns-3">
       {notes.map((note) => {
         const tone = noteTone(note.id);
         const preview = notePreview(note.body);
+        const marker = over?.id === note.id ? over.place : null;
         return (
-          <button
-            key={note.id}
-            type="button"
-            onClick={() => onOpen(note.id)}
-            style={{ backgroundColor: tone.bg, color: tone.fg }}
-            className={[
-              'mb-3 block w-full break-inside-avoid rounded-xl border p-3 text-left shadow-sm',
-              note.id === activeId ? 'border-accent' : 'border-transparent',
-            ].join(' ')}
-          >
-            <span className="block truncate text-sm font-semibold">
-              {note.title || 'Tanpa judul'}
-            </span>
-            {preview ? (
-              // A way in, not the note itself.
-              <span className="mt-1 line-clamp-4 block whitespace-pre-line text-xs leading-snug opacity-80">
-                {preview}
+          <div key={note.id} className="mb-3 break-inside-avoid">
+            {/* The promise: this is where it lands. */}
+            <div
+              aria-hidden="true"
+              className={[
+                'mb-1 h-1 rounded-full',
+                marker === 'before' ? 'bg-accent' : 'bg-transparent',
+              ].join(' ')}
+            />
+            <button
+              type="button"
+              draggable
+              onDragStart={(event) => {
+                setDragId(note.id);
+                // Firefox refuses to start a drag with an empty transfer object.
+                event.dataTransfer.setData('text/plain', note.id);
+                event.dataTransfer.effectAllowed = 'move';
+              }}
+              onDragOver={(event) => {
+                if (!dragId || dragId === note.id) return;
+                event.preventDefault();
+                // Which half of the card the pointer is over decides the side,
+                // so a drop near the top goes above and near the bottom below.
+                const box = event.currentTarget.getBoundingClientRect();
+                const place: Place = event.clientY < box.top + box.height / 2 ? 'before' : 'after';
+                setOver((current) =>
+                  current?.id === note.id && current.place === place
+                    ? current
+                    : { id: note.id, place },
+                );
+              }}
+              onDragLeave={() => {
+                setOver((current) => (current?.id === note.id ? null : current));
+              }}
+              onDrop={(event) => {
+                event.preventDefault();
+                if (dragId && over?.id === note.id) onMove(dragId, note.id, over.place);
+                end();
+              }}
+              onDragEnd={end}
+              onClick={() => onOpen(note.id)}
+              style={{ backgroundColor: tone.bg, color: tone.fg }}
+              className={[
+                'block w-full cursor-grab rounded-xl border p-3 text-left shadow-sm',
+                note.id === activeId ? 'border-accent' : 'border-transparent',
+                dragId === note.id ? 'opacity-40' : '',
+              ].join(' ')}
+            >
+              <span className="block truncate text-sm font-semibold">
+                {note.title || 'Tanpa judul'}
               </span>
-            ) : (
-              <span className="mt-1 block text-xs italic opacity-60">Kosong</span>
-            )}
-            {note.archived ? (
-              <span className="mt-2 inline-block rounded bg-black/10 px-1.5 py-0.5 text-[10px] font-medium">
-                Arsip
-              </span>
-            ) : null}
-          </button>
+              {preview ? (
+                /*
+                  A way in, not the note itself.
+
+                  NO `block` on this span. `line-clamp-4` sets
+                  `display:-webkit-box`, and Tailwind emits `.block` AFTER the
+                  line-clamp utilities — so a span carrying both got
+                  `display:block`, the clamp did nothing, and every card printed
+                  its whole note. It shipped twice looking correct in review.
+                  `clampClasses.test.ts` fails the build if it comes back.
+                */
+                <span className="mt-1 line-clamp-4 whitespace-pre-line text-xs leading-snug opacity-80">
+                  {preview}
+                </span>
+              ) : (
+                <span className="mt-1 block text-xs italic opacity-60">Kosong</span>
+              )}
+              {note.archived ? (
+                <span className="mt-2 inline-block rounded bg-black/10 px-1.5 py-0.5 text-[10px] font-medium">
+                  Arsip
+                </span>
+              ) : null}
+            </button>
+            <div
+              aria-hidden="true"
+              className={[
+                'mt-1 h-1 rounded-full',
+                marker === 'after' ? 'bg-accent' : 'bg-transparent',
+              ].join(' ')}
+            />
+          </div>
         );
       })}
     </div>

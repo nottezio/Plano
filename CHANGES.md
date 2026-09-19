@@ -1,5 +1,64 @@
 # Plano — CHANGES
 
+## `2026-09-19.5`
+
+**The card preview really is four lines now, and ordering is a drag that shows
+where the card will land.**
+
+### 1. Why the preview never shortened
+
+Not a wrong number. `line-clamp-4` sets `display:-webkit-box`, and the span
+also carried `block`. Tailwind emits `.block{display:block}` AFTER the
+line-clamp utilities, so the later rule won, the clamp did nothing, and every
+card printed its whole note.
+
+That is why it survived two releases: the class list reads correctly, and
+nothing on screen says which of two display utilities won. Removing `block`
+fixes it — the clamp sets its own display.
+
+**`clampClasses.test.ts` now fails the build** if any `className` in the app
+pairs `line-clamp-*` with `block`, `flex`, `grid` or `inline-block`. Confirmed
+by putting the bug back and watching the test fail.
+
+### 2. Ordering: drag, with the drop shown first
+
+Both previous attempts were wrong for the same reason — you could not see what
+the drop would do. The first had no indicator at all. The second moved the
+controls into the open note, a different screen from the one whose order was
+being changed.
+
+Now: drag a card, and an **accent line appears on the edge of the card it will
+land next to** — above it or below it, following which half of that card the
+pointer is over. The dragged card dims. Release, and it lands exactly where
+the line was.
+
+`moveBeside` in the domain makes the line a promise rather than a guess. It
+computes the destination AFTER removing the dragged note, so "the side you
+were shown" holds whichever direction the drag came from — computing it before
+removal is the off-by-one that makes a downward drag land one place short. Six
+tests, including that a move never disturbs notes the shelf or archive filter
+is hiding.
+
+The ↑ / ↓ buttons in the open note are gone: one way to order, on the screen
+that shows the order.
+
+### Not done, and why
+
+- **Touch dragging is not supported.** This is the HTML drag-and-drop API,
+  which phones do not fire. Reordering on a phone now has no control at all —
+  if that matters, say so and it becomes a pointer-event drag, which is a
+  bigger piece of work than it sounds because it has to own the scrolling too.
+- **The insertion line reserves 4px above and below every card**, so the board
+  does not jump when the line appears. It costs a little space on a dense
+  board and it is what stops every card shifting mid-drag.
+
+```
+1395 tests passed (+6)
+typecheck / lint (0 warnings) / check:version / check:contrast / check:a11y / build — clean
+```
+
+---
+
 ## `2026-09-19.4`
 
 **Catatan cards show four lines, and ordering moved off the drag gesture.**
