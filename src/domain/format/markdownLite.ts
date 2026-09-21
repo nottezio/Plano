@@ -228,8 +228,76 @@ export function insertSectionHeader(text: string, caret: number, label: string):
  * the parser's custom-header rule rejects them by design — a loose rule there
  * invents sections out of prose.
  */
-const DATED_INVESTIGATION =
-  /^(EKG|Laboratorium|Lab|Foto Thorax|Echo\w*|LUS|Laporan|USG|CT|MRI|Holter|AGD|Urinalisa)\b.*\(?\d{2}[-/]\d{2}[-/]\d{2,4}\)?\s*$/i;
+/**
+ * The modalities whose heading the corpus writes in bold.
+ *
+ * Measured over 237 real notes: USG and Laporan Tindakan 100%, Laboratorium
+ * 92%, EKG 88%, Foto thorax 86%, Echo 72%, CT 69%.
+ *
+ * `LUS` / `Lung Ultrasound` is NOT here, and that is the correction this
+ * release makes: its heading is plain in 124 of 141 lines (87%). It was being
+ * bolded because the alias table names the section, and the alias table is
+ * about what a heading MEANS, not how it is written.
+ */
+const INVESTIGATION_MODALITY =
+  /^((Hasil\s+)?X-?ray|EKG|Laboratorium|Lab|Foto\s*Thora(x|ks?)|Echo\w*|Laporan|USG|CT|MRI|Holter|AGD|Biakan)\b/i;
+
+/**
+ * The narrower list for headings with NO date.
+ *
+ * `Laporan` is dated-only on purpose. With a date, `Laporan Arteriografi
+ * (02-09-2026)` is unambiguously a heading; without one, "Laporan sudah
+ * dikirim ke chief" is a sentence of five words with no punctuation, and the
+ * undated rule would bold it. The date is what makes the line a heading.
+ */
+const UNDATED_MODALITY = /^(EKG|Laboratorium|Lab|Foto\s*Thora(x|ks?)|Echo\w*|USG|CT)\b/i;
+
+/**
+ * A date in any shape the corpus writes one.
+ *
+ * `06-09-2026`, `2-9-2026`, `06/9/2026`, `31/8/26`, `4 Agu 2026` — all of them
+ * appear, with and without brackets, with and without a trailing colon. The
+ * previous rule demanded two digits for both day and month and no month name,
+ * so a third of the dated headings in the corpus did not match and stayed
+ * plain: `Foto thorax RS Batara Siang 2-9-2026`, `EKG Poli Aritmia 31/8/26`,
+ * `USG Vascular Doppler Extremity Inferior (4 Agu 2026)`.
+ */
+const DATE_TAIL =
+  /(\(?\d{1,2}[-/]\d{1,2}[-/]\d{2,4}\)?|\(?\d{1,2}\s+(Jan|Feb|Mar|Apr|Mei|Jun|Jul|Agu|Sep|Okt|Nov|Des)\w*\.?\s*\d{2,4}\)?)\s*:?\s*$/i;
+
+const DATED_INVESTIGATION = (line: string): boolean =>
+  INVESTIGATION_MODALITY.test(line) && DATE_TAIL.test(line);
+
+/**
+ * An investigation heading with a PLACE and no date: `Echo Hemodinamik IGD`,
+ * `Echocardiography bedside`. 17 of these in the corpus, all bold.
+ *
+ * Bounded hard: the modality list above, then at most four more words, and no
+ * sentence punctuation. Without the bound this would claim the first line of
+ * any paragraph that happens to start with a modality name — `Echo ulang bila
+ * klinis memburuk` is a plan, not a heading.
+ */
+const UNDATED_INVESTIGATION = (line: string): boolean =>
+  UNDATED_MODALITY.test(line) &&
+  /^[\w\s().\/-]{0,60}$/.test(line) &&
+  line.trim().split(/\s+/).length <= 5 &&
+  !/[,;:]$/.test(line.trim());
+
+/**
+ * Prose headings the corpus bolds, written with or without a closing colon.
+ *
+ * `Mohon izin kami terapi dengan` and its variants are bold in 90% of the
+ * 116 lines that omit the colon, and the alias table only recognises the
+ * colon form — so exactly those 100 lines came back plain. `assesst` is in
+ * the list because it is in the notes: a rule that only matches the correct
+ * spelling leaves the typed ones unmarked.
+ *
+ * Bare `Plan` (no colon) is bold in 62 of 74 lines.
+ */
+const PROSE_HEADINGS: readonly RegExp[] = [
+  /^Mohon izin (kami|pasien kami)\s+(assess?t?|terapi)\s+dengan\s*:?\s*$/i,
+  /^Plan\s*$/i,
+];
 
 /**
  * A consulting service's block heading: `TS BTKV`, `TS Neurologi`.
@@ -410,13 +478,23 @@ export function restoreEmphasis(body: string, aliases?: readonly SectionAlias[])
       if (inTsBlock) return line;
 
       const header = headerByLine.get(index);
-      if (header) return boldHeader(line, header);
+      // The one named section the corpus leaves plain; see
+      // `INVESTIGATION_MODALITY`.
+      if (header && !/^\s*(LUS|Lung\s+Ultrasound)\b/i.test(trimmed)) {
+        return boldHeader(line, header);
+      }
 
       if (isIdentityLine(trimmed)) return line.replace(trimmed, `*${trimmed}*`);
       if (index >= openingItalic.from && index < openingItalic.to) {
         return line.replace(trimmed, `_${trimmed}_`);
       }
-      if (DATED_INVESTIGATION.test(trimmed)) return line.replace(trimmed, `*${trimmed}*`);
+      if (
+        DATED_INVESTIGATION(trimmed) ||
+        UNDATED_INVESTIGATION(trimmed) ||
+        PROSE_HEADINGS.some((pattern) => pattern.test(trimmed))
+      ) {
+        return line.replace(trimmed, `*${trimmed}*`);
+      }
       if (ITALIC_PATTERNS.some((pattern) => pattern.test(trimmed))) {
         return line.replace(trimmed, `_${trimmed}_`);
       }

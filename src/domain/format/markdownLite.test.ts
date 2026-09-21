@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { toPlain, toWhatsApp } from './formatters';
+import { DEFAULT_SECTION_ALIASES } from '../defaults';
 import {
   BOLD,
   normaliseBullets,
@@ -380,5 +381,83 @@ describe('restoreEmphasis — confirmed rules', () => {
     ];
     expect(restoreEmphasis('Keluhan Utama:', aliases)).toBe('*Keluhan Utama:*');
     expect(restoreEmphasis('Keluhan Utama:')).toBe('Keluhan Utama:');
+  });
+});
+
+/**
+ * Rules measured against 237 real notes (export of 2026-09-20), written here
+ * as synthetic lines.
+ *
+ * The corpus itself never enters the repository — it is patient data. What is
+ * kept is the conclusion and the percentage behind it, so a later change that
+ * contradicts the notes fails here instead of in a ward.
+ */
+describe('restoreEmphasis — conventions measured in the corpus', () => {
+  const run = (body: string): string => restoreEmphasis(body, DEFAULT_SECTION_ALIASES);
+
+  describe('investigation headings are bold (69–100% in the corpus)', () => {
+    for (const line of [
+      'Laboratorium PJT (09-09-2026)',
+      'Laboratorium RSWS 06-09-2026:',
+      'Foto thorax RS Batara Siang 2-9-2026',
+      'Foto Thoraks (05-09-2026)',
+      'EKG PJT LT 4 (06/9/2026)',
+      'EKG Poli Aritmia 31/8/26',
+      'USG Vascular Doppler Extremity Inferior (4 Agu 2026)',
+      'Laporan Arteriografi (02-09-2026)',
+      'Hasil X-ray Thorax AP RS Nene Mallomo (22/07/2026)',
+    ]) {
+      it(`bolds ${line}`, () => {
+        expect(run(line)).toBe(`*${line}*`);
+      });
+    }
+
+    it('bolds a modality heading with a place and no date', () => {
+      expect(run('Echo Hemodinamik IGD')).toBe('*Echo Hemodinamik IGD*');
+    });
+
+    it('leaves a sentence that merely starts with a modality alone', () => {
+      expect(run('Echo ulang bila klinis memburuk, konsul ke DPJP.')).toBe(
+        'Echo ulang bila klinis memburuk, konsul ke DPJP.',
+      );
+      // `Laporan` without a date is prose, not a heading.
+      expect(run('Laporan sudah dikirim ke chief')).toBe('Laporan sudah dikirim ke chief');
+    });
+  });
+
+  describe('prose headings, with or without the colon', () => {
+    for (const line of [
+      'Mohon izin kami terapi dengan',
+      'Mohon izin kami assess dengan',
+      // The typed spelling, 25 lines in the corpus.
+      'Mohon izin kami assesst dengan',
+      'Mohon izin pasien kami terapi dengan :',
+      'Plan',
+    ]) {
+      it(`bolds ${line}`, () => {
+        expect(run(line)).toBe(`*${line}*`);
+      });
+    }
+  });
+
+  describe('what the corpus leaves plain', () => {
+    it('leaves LUS plain (124 of 141 lines)', () => {
+      expect(run('LUS (08-09-2026)')).toBe('LUS (08-09-2026)');
+      expect(run('Lung Ultrasound :')).toBe('Lung Ultrasound :');
+    });
+
+    it('leaves A/ and P/ plain (267 of 289 lines)', () => {
+      expect(run('A/ CAD 2VD')).toBe('A/ CAD 2VD');
+      expect(run('P/ lanjut terapi')).toBe('P/ lanjut terapi');
+    });
+
+    it('leaves a lab value plain (GDS: 225 of 238 lines)', () => {
+      expect(run('GDS : 219')).toBe('GDS : 219');
+    });
+  });
+
+  it('is still a no-op on a note that is already marked', () => {
+    const marked = ['*Laboratorium PJT (09-09-2026)*', '*Plan*', 'LUS (08-09-2026)'].join('\n');
+    expect(run(marked)).toBe(marked);
   });
 });

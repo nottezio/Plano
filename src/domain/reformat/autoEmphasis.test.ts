@@ -43,7 +43,60 @@ describe('autoEmphasis', () => {
   it('bolds the request lines and the consult headings', () => {
     expect(out('Mohon izin kami terapi dengan:')).toBe('*Mohon izin kami terapi dengan:*');
     expect(out('TS Interna GH')).toBe('*TS Interna GH*');
-    expect(out('A/')).toBe('*A/*');
+  });
+
+  /**
+   * `A/` and `P/` stay plain — a reversal, made on evidence.
+   *
+   * The old rule came from one worked bangsal note, where the consult block
+   * reads `*TS Interna GH*  *A/*  *Plan:*`. Across 237 notes those lines are
+   * plain 267 times and bold 22, and every one of the 289 sits inside a TS
+   * block — so "inside a consult block" does not explain the bold ones
+   * either. The worked note is the minority style.
+   *
+   * It matters beyond tidiness: bolding another service's assessment makes it
+   * read as ours, in a document whose purpose is to say what WE think.
+   */
+  it('leaves a consulting service\'s own headings plain', () => {
+    expect(out('A/')).toBe('A/');
+    expect(out('P/')).toBe('P/');
+    expect(out('S/')).toBe('S/');
+  });
+
+  it('leaves the closing sentence plain', () => {
+    // Bolded 118 lines the corpus writes plain.
+    expect(out('Selanjutnya mohon arahan dokter. Terima kasih')).toBe(
+      'Selanjutnya mohon arahan dokter. Terima kasih',
+    );
+  });
+
+  describe('measured against the corpus (export of 2026-09-20)', () => {
+    it('bolds an identity line written without the letters RM', () => {
+      expect(out('Ny. Nuraeni / 3 Juli 1958 / 68 tahun / 1715410')).toBe(
+        '*Ny. Nuraeni / 3 Juli 1958 / 68 tahun / 1715410*',
+      );
+    });
+
+    it('italicises the commonest referral opening', () => {
+      expect(out('Pasien dikonsulkan untuk evaluasi dan tatalaksana')).toBe(
+        '_Pasien dikonsulkan untuk evaluasi dan tatalaksana_',
+      );
+    });
+
+    it('bolds investigation headings in the date shapes the ward writes', () => {
+      expect(out('Foto thorax RS Batara Siang 2-9-2026')).toBe(
+        '*Foto thorax RS Batara Siang 2-9-2026*',
+      );
+      expect(out('USG Doppler (4 Agu 2026)')).toBe('*USG Doppler (4 Agu 2026)*');
+      expect(out('Echo Hemodinamik IGD')).toBe('*Echo Hemodinamik IGD*');
+    });
+
+    it('leaves Lung Ultrasound and a plan sentence alone', () => {
+      expect(out('Lung Ultrasound (08-09-2026)')).toBe('Lung Ultrasound (08-09-2026)');
+      expect(out('Echo ulang bila klinis memburuk, lapor DPJP.')).toBe(
+        'Echo ulang bila klinis memburuk, lapor DPJP.',
+      );
+    });
   });
 
   it('leaves Selesai plain, as the worked note has it', () => {

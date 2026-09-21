@@ -139,66 +139,64 @@ export function BodyEditor({
   /** Measured note height, driving how many watermark tiles are drawn. */
   const [contentHeight, setContentHeight] = useState(0);
 
+  const measureRef = useRef<HTMLDivElement | null>(null);
+
   const resize = useCallback(() => {
     const node = ref.current;
     if (!node) return;
 
     /**
-     * Autosize without letting the page jump to the top on every keystroke.
+     * Autosize by measuring a COPY, never the box being typed in.
      *
-     * The naive version sets `height = 'auto'` to measure, which momentarily
-     * collapses the textarea to one row. The scroll container's scrollHeight
-     * collapses with it, the browser clamps scrollTop to the new (much
-     * smaller) maximum, and when the real height is restored the scroll
-     * position is gone — so a long note scrolled itself to the top on every
-     * character typed.
+     * The previous version collapsed the textarea to `height: 0`, read
+     * `scrollHeight`, and put the height back — on every keystroke. On a
+     * desktop that is invisible. On a phone it is the jump: the textarea is
+     * FOCUSED, and collapsing a focused element to nothing makes the browser
+     * scroll the caret back into view against the new layout. The scroll was
+     * then restored from here, so the view snapped away and came back, once
+     * per character.
      *
-     * Fix has three parts: measure against a shrink-only step rather than a
-     * full collapse, capture and restore the ancestor's scrollTop around the
-     * measurement, and run it in a layout effect so it happens before paint —
-     * otherwise the jump is visible even when it is corrected.
+     * Restoring the scroll afterwards could never fix that, because the
+     * browser's correction and ours are two different scrolls fighting inside
+     * one frame. The fix is not to disturb the real element at all.
+     *
+     * The copy carries `METRICS`, the same class string the textarea and the
+     * tint layer share, so it wraps identically — the constant exists exactly
+     * so these layers cannot drift apart.
      */
-    const scroller = node.closest('main') ?? document.scrollingElement;
-    const scrollTop = scroller?.scrollTop ?? 0;
+    const mirror = measureRef.current;
+    let measured = 0;
+
+    if (mirror) {
+      // A trailing newline produces no line box on its own; the zero-width
+      // space gives it one, so an empty last line is still counted.
+      mirror.textContent = `${node.value}\u200b`;
+      measured = mirror.offsetHeight;
+      node.style.height = `${measured}px`;
+    }
 
     /**
-     * The shrink-measure runs only when the text got SHORTER.
+     * The fallback, and why it stays.
      *
-     * Setting `height` to 0 and reading `scrollHeight` forces two full layout
-     * passes, and it was happening on every keystroke — on a note carrying
-     * three days of EKG that is the mobile lag.
+     * If the copy ever under-measures — a font that has not loaded in one
+     * layer, a style that drifts — the note would be CUT, which is the one
+     * failure this component must never have. So after setting the height,
+     * ask the real box whether its content still overflows; if it does, fall
+     * back to the old collapse-and-measure, which cannot under-report.
      *
-     * It is only necessary when the box may now be too tall. When text is added,
-     * `scrollHeight` already reports the height needed without collapsing
-     * first, so the measurement is one pass instead of two and no scroll
-     * restoration is needed either.
+     * The scroll capture belongs to that path only: it is the path that
+     * disturbs a focused element.
      */
-    /**
-     * ALWAYS collapse before measuring.
-     *
-     * There used to be a fast path here: when the text had grown, read
-     * `scrollHeight` without collapsing first. That is wrong, and it is the
-     * cut-off note.
-     *
-     * `scrollHeight` reports the content height as laid out INSIDE the current
-     * box. With `overflow: hidden` and an explicit `height`, a browser has no
-     * obligation to report more than that — so a box 400 px tall handed 900 px
-     * of text reports something near 400, grows to 400, and the rest is simply
-     * gone. It looked fine while typing, because one more line at a time keeps
-     * the number honest; it broke on the operations that add a lot at once:
-     * carry-forward, a snippet, a paste.
-     *
-     * Collapsing to 0 first makes the measurement unconditional — the content
-     * is laid out with no height to be clamped by, so `scrollHeight` is the
-     * height it actually needs. That is two layout passes instead of one, and
-     * the scroll restoration below exists to keep it invisible. Correct and
-     * slightly slower beats fast and truncating a clinical note.
-     */
-    const previous = node.style.height;
-    node.style.height = '0px';
-    const measured = node.scrollHeight;
-    const next = `${measured}px`;
-    node.style.height = previous === next ? previous : next;
+    if (!mirror || node.scrollHeight > node.clientHeight + 1) {
+      const scroller = node.closest('main') ?? document.scrollingElement;
+      const scrollTop = scroller?.scrollTop ?? 0;
+      const previous = node.style.height;
+      node.style.height = '0px';
+      measured = node.scrollHeight;
+      const next = `${measured}px`;
+      node.style.height = previous === next ? previous : next;
+      if (scroller && scroller.scrollTop !== scrollTop) scroller.scrollTop = scrollTop;
+    }
 
     /**
      * Published so the watermark can tile to the note's real height.
@@ -206,12 +204,9 @@ export function BodyEditor({
      * Taken from the same measurement the autogrow already does, rather than a
      * second one: counting newlines would have been the cheap way and it is
      * the wrong way, because a wrapped line occupies two rows and contributes
-     * one newline. That undercount is what broke undo's scroll-into-view, and
-     * it would have left long paragraphs untiled here in exactly the same way.
+     * one newline.
      */
     setContentHeight((current) => (current === measured ? current : measured));
-
-    if (scroller && scroller.scrollTop !== scrollTop) scroller.scrollTop = scrollTop;
   }, []);
 
   // Layout effect, not effect: the measurement must land before the browser
@@ -557,6 +552,17 @@ export function BodyEditor({
           users and silently not for others.
         */}
         <SectionBands body={value} aliases={aliases} paint={tint} />
+        {/*
+          The measuring copy. Invisible, not `display:none`: a hidden element
+          has no layout and cannot report a height. `absolute` keeps it out of
+          the flow, `w-full` gives it the textarea's width, and `METRICS` gives
+          it the textarea's wrapping.
+        */}
+        <div
+          ref={measureRef}
+          aria-hidden="true"
+          className={`${METRICS} pointer-events-none invisible absolute left-0 top-0 w-full`}
+        />
         <textarea
           ref={(node) => {
             ref.current = node;

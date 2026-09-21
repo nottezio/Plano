@@ -79,12 +79,22 @@ export function NoteCards({
   activeId,
   onOpen,
   onMove,
+  view = 'kartu',
 }: {
   notes: readonly ScratchNote[];
   activeId: string | null;
   onOpen: (id: string) => void;
   /** Put `fromId` immediately before or after `targetId`. */
   onMove: (fromId: string, targetId: string, place: Place) => void;
+  /**
+   * `kartu` is the board. `daftar` is one note per row, full width, with a
+   * single line of preview — for a shelf of twenty where the question is
+   * "which one was it" and the titles answer it faster than the colours.
+   *
+   * Same cards, same drag, same drop line: a list that behaved differently
+   * would be a second component to keep in step.
+   */
+  view?: 'kartu' | 'daftar';
 }): JSX.Element {
   const [dragId, setDragId] = useState<string | null>(null);
   const [over, setOver] = useState<{ id: string; place: Place } | null>(null);
@@ -95,7 +105,7 @@ export function NoteCards({
   };
 
   return (
-    <div className="columns-1 gap-3 sm:columns-2 lg:columns-3">
+    <div className={view === 'daftar' ? '' : 'columns-1 gap-3 sm:columns-2 lg:columns-3'}>
       {notes.map((note) => {
         const tone = noteTone(note.id);
         const preview = notePreview(note.body);
@@ -163,7 +173,14 @@ export function NoteCards({
                   its whole note. It shipped twice looking correct in review.
                   `clampClasses.test.ts` fails the build if it comes back.
                 */
-                <span className="mt-1 line-clamp-4 whitespace-pre-line text-xs leading-snug opacity-80">
+                <span
+                  className={[
+                    'mt-1 whitespace-pre-line text-xs leading-snug opacity-80',
+                    // One line in the list, four on a card. No `block` here:
+                    // see the note above.
+                    view === 'daftar' ? 'line-clamp-1' : 'line-clamp-4',
+                  ].join(' ')}
+                >
                   {preview}
                 </span>
               ) : (

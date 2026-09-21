@@ -116,6 +116,27 @@ export default function NotePage(): JSX.Element {
    */
   const [openNote, setOpenNote] = useState(false);
   /**
+   * Board or list. Per device, not per account: it follows the screen you are
+   * on — the list suits a phone and a long shelf, the board a wide monitor —
+   * and syncing it would make one device's choice change the other's.
+   */
+  const [noteView, setNoteView] = useState<'kartu' | 'daftar'>(() => {
+    try {
+      return localStorage.getItem('visite.catatan.view') === 'daftar' ? 'daftar' : 'kartu';
+    } catch {
+      return 'kartu';
+    }
+  });
+
+  const chooseView = (next: 'kartu' | 'daftar'): void => {
+    setNoteView(next);
+    try {
+      localStorage.setItem('visite.catatan.view', next);
+    } catch {
+      // No storage: the choice lasts for this session, which is enough.
+    }
+  };
+  /**
    * The note being edited, or nothing when this shelf is empty.
    *
    * The final fallback used to be `notes[0]`, which reaches ACROSS shelves: on
@@ -498,6 +519,27 @@ export default function NotePage(): JSX.Element {
               </button>
             ) : null}
             <span className="flex-1" />
+            <div role="group" aria-label="Tampilan catatan" className="flex shrink-0 gap-1">
+              {([
+                ['kartu', 'Kartu'],
+                ['daftar', 'Daftar'],
+              ] as const).map(([value, label]) => (
+                <button
+                  key={value}
+                  type="button"
+                  onClick={() => chooseView(value)}
+                  aria-pressed={noteView === value}
+                  className={[
+                    'min-h-tap rounded-lg border px-2 text-[11px]',
+                    noteView === value
+                      ? 'border-accent bg-accent/15 text-accent'
+                      : 'border-border text-fg-muted',
+                  ].join(' ')}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
             <button
               type="button"
               onClick={addNote}
@@ -526,6 +568,7 @@ export default function NotePage(): JSX.Element {
                   setOpenNote(true);
                 }}
                 onMove={moveNote}
+                view={noteView}
               />
             </div>
           ) : (

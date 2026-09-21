@@ -1,5 +1,164 @@
 # Plano — CHANGES
 
+## `2026-09-20.2`
+
+**Both emphasis engines rewritten against the real corpus. `Aa*` and Format
+bangsal now agree with the notes, and with each other.**
+
+### How this was decided
+
+Every rule below was measured, not chosen. The method: take the 237 real notes
+from the export, strip every `*` and `_`, run the function, and compare line by
+line with what was actually written.
+
+| | before | after |
+|---|---|---|
+| `restoreEmphasis` (the `Aa*` button) | 95.2% | **96.9%** |
+| `autoEmphasis` (Format bangsal) | 95.9% | **97.3%** |
+
+**The corpus is not in the repository and never will be** — it is patient data.
+What is kept is the conclusion and the count behind it, in the tests, so a
+later change that contradicts the notes fails there instead of on a ward.
+
+### What changed in the `Aa*` button
+
+- **Investigation headings in every date shape the ward writes.** The rule
+  demanded two digits for day and month and no month names, so a third of them
+  stayed plain: `Foto thorax RS Batara Siang 2-9-2026`, `EKG Poli Aritmia
+  31/8/26`, `USG Vascular Doppler (4 Agu 2026)`, `Laboratorium RSWS
+  06-09-2026:`. Also `Thoraks`, `X-ray`, `Biakan`, `Laporan Arteriografi`.
+- **A heading with a place and no date** — `Echo Hemodinamik IGD`, 17 lines,
+  all bold. Bounded to five words with no sentence punctuation, so `Echo ulang
+  bila klinis memburuk` stays a plan.
+- **`Mohon izin kami … dengan` without the closing colon** (90% bold over 116
+  lines), including the spelling `assesst`, which is in the notes 25 times. A
+  rule that only matches the correct spelling leaves the typed ones unmarked.
+- **Bare `Plan`** (83% bold over 74 lines).
+- **`LUS` / `Lung Ultrasound` is no longer bolded**: plain in 124 of 141
+  lines. It was being bolded because the alias table names the section — and
+  the alias table is about what a heading MEANS, not how it is written.
+
+### What changed in Format bangsal
+
+Same evidence, and it had the opposite problem: it was over-marking.
+
+- **`A/`, `P/`, `S/`, `O/` stay plain.** This is a reversal. The old rule came
+  from one worked note where a consult block reads `*TS Interna GH* *A/*
+  *Plan:*`; across the corpus those lines are plain 267 times and bold 22 —
+  and all 289 sit inside a TS block, so "inside a consult block" does not
+  explain the bold ones either. It matters beyond tidiness: bolding another
+  service's assessment makes it read as ours, in a document whose purpose is
+  to say what we think.
+- **`Selanjutnya mohon arahan …` stays plain.** It was bolding 118 lines; it
+  is the closing sentence of the note, not a request heading.
+- **An identity line written without the letters `RM`** —
+  `Ny. X / 3 Juli 1958 / 68 tahun / 1715410` — is now bold, as the corpus and
+  the seeded templates have it.
+- **`Pasien dikonsulkan …`** is italic; the rule listed `dirujuk`, `rujukan`,
+  `datang` and `masuk` but not the commonest of them.
+- The same date shapes and the same undated-heading rule as above.
+
+### Not done, and why
+
+- **There are still two emphasis engines.** They now agree on the measured
+  cases, but they are separate code with separate rules, and this release is
+  the second time both needed the same fix. Merging them is the right next
+  move and is a refactor with its own risk, not a rider on a data-driven
+  rule change.
+- **Dose spacing is untouched.** `/24 jam/oral` (503) against `/24jam/oral`
+  (197) is a real inconsistency, but normalising it edits clinical text rather
+  than its markup. Its own release.
+- **The day-counter check is untouched.** Counters go backwards in 5 of 49
+  consecutive pairs, which is a genuine error the SOAP checker could catch —
+  also its own change.
+- **The minority styles are now actively overruled.** `Plan:` is bolded even
+  though 13 lines write it plain, because 108 write it bold. That is what
+  following a convention means, and `Aa*` is a button somebody presses, not an
+  automatic rewrite.
+
+```
+1421 tests passed (+26)
+typecheck / lint (0 warnings) / check:version / check:contrast / check:a11y / build — clean
+```
+
+---
+
+## `2026-09-20.1`
+
+**The mobile typing jump, and Catatan as a list as well as a board.**
+
+### 1. Why the screen jumped while typing on a phone
+
+The textarea grows with its text, and it measured itself by collapsing to
+`height: 0`, reading the height the content needed, then putting it back — on
+every keystroke.
+
+On a desktop that is invisible. On a phone the textarea is FOCUSED, and
+collapsing a focused element to nothing makes the browser scroll the caret
+back into view against the collapsed layout. The old code then restored the
+scroll from here, so the view snapped away and came back, once per character.
+
+**Restoring the scroll afterwards could never fix it**: the browser's
+correction and ours are two scrolls fighting inside one frame. The fix is not
+to disturb the element being typed in.
+
+It now measures a hidden COPY that carries `METRICS` — the same class string
+the textarea and the tint layer already share, which exists so these layers
+cannot drift apart. The real box is set to the height that copy reports and is
+never collapsed.
+
+**The fallback stays.** If the copy ever under-measures — a font not loaded in
+one layer, a style that drifts — the note would be CUT, and that is the one
+failure this component must not have. So after setting the height it asks the
+real box whether its content still overflows, and only then falls back to the
+old collapse-and-measure, scroll capture included. Correct beats fast; the
+slow path now runs approximately never instead of on every key.
+
+### 2. Catatan: Kartu or Daftar
+
+A toggle above the board. **Kartu** is the masonry board. **Daftar** is one
+note per row, full width, with a single line of preview — for a long shelf
+where the titles answer "which one was it" faster than the colours do.
+
+Same component, same drag, same drop line: a list that behaved differently
+would be a second thing to keep in step. The choice is remembered per device,
+not per account — it follows the screen you are on, and syncing it would let
+one device change the other's.
+
+### 3. The guard I added last release was broken, twice
+
+`clampClasses.test.ts` was supposed to fail the build if `line-clamp` ever
+shared an element with `block`. While using it:
+
+- It **fired on a comment** — the words "no `block` here", written to explain
+  the bug, counted as a `block` class. A guard that trips on the text warning
+  about the thing it guards is a guard that gets deleted.
+- Fixing that, it then **matched nothing at all**: the pattern expected
+  `className={[...]}`, and every array in this codebase ends `].join(' ')}`.
+  It passed because it looked nowhere.
+
+It now strips comments, reads only the quoted class strings, and matches the
+real array shape. Verified both ways: put the bug back, it fails; take it out,
+it passes.
+
+### Not done, and why
+
+- **Nothing was changed from the export analysis yet.** The conventions it
+  shows (bold for section and investigation headings, italic for DPJP lines)
+  are worth encoding in Rapikan, and dose spacing is inconsistent enough in
+  the real corpus to be worth normalising — but both rewrite the text of a
+  clinical note, so they are their own release with their own tests, not a
+  rider on a layout fix.
+- **The phone still cannot reorder Catatan** (drag is the HTML API). Unchanged
+  from the last release.
+
+```
+1395 tests passed
+typecheck / lint (0 warnings) / check:version / check:contrast / check:a11y / build — clean
+```
+
+---
+
 ## `2026-09-19.5`
 
 **The card preview really is four lines now, and ordering is a drag that shows
