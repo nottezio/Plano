@@ -105,21 +105,28 @@ export function NoteCards({
   };
 
   return (
-    <div className={view === 'daftar' ? '' : 'columns-1 gap-3 sm:columns-2 lg:columns-3'}>
+    <div className={view === 'daftar' ? '' : 'columns-1 gap-2 sm:columns-2 lg:columns-3'}>
       {notes.map((note) => {
         const tone = noteTone(note.id);
         const preview = notePreview(note.body);
         const marker = over?.id === note.id ? over.place : null;
         return (
-          <div key={note.id} className="mb-3 break-inside-avoid">
+          /*
+            8px between cards. It was ~24px: a 12px margin PLUS two 4px strips
+            reserved above and below every card for the drop line, which
+            existed so the board would not jump when a line appeared. The
+            lines now OVERLAY the gap (absolutely positioned inside it), so
+            they still cost no layout when they appear — and nothing when
+            they do not.
+          */
+          <div key={note.id} className="relative mb-2 break-inside-avoid">
             {/* The promise: this is where it lands. */}
-            <div
-              aria-hidden="true"
-              className={[
-                'mb-1 h-1 rounded-full',
-                marker === 'before' ? 'bg-accent' : 'bg-transparent',
-              ].join(' ')}
-            />
+            {marker === 'before' ? (
+              <div
+                aria-hidden="true"
+                className="pointer-events-none absolute inset-x-0 -top-1.5 h-1 rounded-full bg-accent"
+              />
+            ) : null}
             <button
               type="button"
               draggable
@@ -192,13 +199,12 @@ export function NoteCards({
                 </span>
               ) : null}
             </button>
-            <div
-              aria-hidden="true"
-              className={[
-                'mt-1 h-1 rounded-full',
-                marker === 'after' ? 'bg-accent' : 'bg-transparent',
-              ].join(' ')}
-            />
+            {marker === 'after' ? (
+              <div
+                aria-hidden="true"
+                className="pointer-events-none absolute inset-x-0 -bottom-1.5 h-1 rounded-full bg-accent"
+              />
+            ) : null}
           </div>
         );
       })}

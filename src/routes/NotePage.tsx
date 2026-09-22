@@ -68,7 +68,7 @@ const SIZES = [
 export default function NotePage(): JSX.Element {
   const uid = useSession((state) => state.user?.uid ?? null);
   const profile = useSession((state) => state.profile);
-  const ref = useRef<HTMLDivElement>(null);
+  const ref = useRef<HTMLDivElement | null>(null);
 
   /**
    * The stored list, with the original single note folded in.
@@ -356,6 +356,25 @@ export default function NotePage(): JSX.Element {
     const node = ref.current;
     if (node && node.innerHTML !== sync.value) node.innerHTML = sync.value;
   }, [sync.value]);
+
+  /**
+   * And written when the editor MOUNTS, which the effect above cannot do.
+   *
+   * That effect runs when the text changes. Since the board, the editor only
+   * exists once a card is opened — so opening the card that was ALREADY the
+   * active note (the first one, or the last one opened) mounted an empty
+   * editor with text that had not changed, the effect never ran, and the note
+   * looked blank until switching tabs changed the text and made it run.
+   *
+   * A callback ref runs exactly when the node attaches, so the write is tied
+   * to the thing that was missing — the element's lifetime — rather than to
+   * the value. It reads through `syncRef` so it never holds a stale note.
+   */
+  const attachEditor = useCallback((node: HTMLDivElement | null) => {
+    ref.current = node;
+    const value = syncRef.current.value;
+    if (node && node.innerHTML !== value) node.innerHTML = value;
+  }, []);
 
   /**
    * Put the selection back to the theme's own text colour.
@@ -721,7 +740,7 @@ export default function NotePage(): JSX.Element {
         </div>
 
         <div
-          ref={ref}
+          ref={attachEditor}
           contentEditable
           role="textbox"
           aria-multiline="true"

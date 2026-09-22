@@ -258,7 +258,14 @@ export function PatientCard({
               tell apart from the next. */}
           <span className="min-w-0 flex-1 break-words text-sm leading-snug">
             <span className="font-semibold">{card.title}</span>
-            {card.dpjp ? <span className="opacity-70"> · {card.dpjp.name}</span> : null}
+            {/* Initials, as on the full card's badge. The full name is on the
+                title attribute for the one time it is needed. */}
+            {card.dpjp ? (
+              <span className="opacity-70" title={card.dpjp.name}>
+                {' '}
+                · {card.dpjp.initials}
+              </span>
+            ) : null}
           </span>
           {onToggleCollapsed ? (
             <button

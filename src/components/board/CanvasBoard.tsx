@@ -169,6 +169,24 @@ export function CanvasBoard({
    * content needs less than its cap — a folded card above all — renders at
    * what it needs instead of sitting at the top of a tall empty slot.
    */
+  /**
+   * The card last touched, drawn in front of every card at rest.
+   *
+   * Stacking was fixed: the card being dragged on top, expanded cards next,
+   * everything else level. So a card that ended up partly under another stayed
+   * there — its drag tab and its grips under the other card, unreachable, with
+   * no way to bring it forward. Now pressing any visible part of it raises it,
+   * and its tab and grips are reachable again.
+   *
+   * On pointer DOWN, in the capture phase, so the card rises before the drag
+   * or resize that the same press may start — and so nothing inside the card
+   * can swallow the event first.
+   *
+   * Not remembered. It is "what I am working on now", and a stacking order
+   * restored from yesterday would put yesterday's card on top.
+   */
+  const [frontId, setFrontId] = useState<string | null>(null);
+
   const [renderBounds, setRenderBounds] = useState<
     Readonly<Record<string, { min: number; max: number }>>
   >({});
@@ -386,6 +404,9 @@ export function CanvasBoard({
           <div
             key={id}
             data-active={active ? 'true' : undefined}
+            onPointerDownCapture={() => {
+              if (frontId !== id) setFrontId(id);
+            }}
             className="group absolute"
             style={{
               left: layout.x * canvasWidth,
@@ -396,7 +417,7 @@ export function CanvasBoard({
               // like it stopped working. An expanded card outranks a resting
               // one for the same reason: it is deliberately overflowing its
               // own footprint.
-              zIndex: active ? 40 : open ? 20 : 1,
+              zIndex: active ? 40 : id === frontId ? 30 : open ? 20 : 1,
               // No transition while a gesture is running: a card that eases
               // toward the pointer lags behind it, and the lag reads as the
               // app being slow rather than as an animation.

@@ -1,5 +1,65 @@
 # Plano — CHANGES
 
+## `2026-09-22.1`
+
+**A note opened blank, the canvas could not bring a card forward, tighter
+Catatan spacing, and initials on a folded card.**
+
+### 1. A Catatan note sometimes opened empty
+
+**Root cause.** The editor's text is written into the page by an effect that
+runs when the TEXT changes (it has to: writing `innerHTML` on every render
+moves the caret to the start). Since the board redesign, the editor only
+exists once a card is opened. Opening the card that was already the active
+note — the first one, or the last one you opened — mounted a fresh, empty
+editor while the text had not changed, so the effect never ran. Switching tabs
+changed the text, the effect ran, and the note "appeared".
+
+The write depended on the value when what had changed was the element. It is
+now also done by a callback ref, which runs exactly when the editor attaches,
+reading the current note through the existing `syncRef` so it cannot hold a
+stale one. The value effect stays for edits that arrive while it is open.
+
+Recurring shape worth naming: **anything that writes into a DOM node must run
+when the node appears, not only when its input changes** — the textarea
+autosize had the same blind spot the other way round.
+
+### 2. Bring a card to the front on the canvas
+
+Stacking was fixed: the card in hand on top, expanded cards next, everything
+else level. A card that ended up partly under another stayed there, with its
+drag tab and grips under the other card and no way to reach them.
+
+Now **pressing any visible part of a card raises it** above every card at rest,
+and its tab and grips are reachable again. On pointer-down in the capture
+phase, so it rises before the drag or resize the same press may start. Not
+remembered: it means "what I am working on now".
+
+### 3. Catatan spacing
+
+~24px between cards → 8px. The old gap was a 12px margin plus two 4px strips
+reserved above and below every card for the drag line. The drop lines now
+overlay the gap instead of reserving space for it, so they still cause no jump
+when they appear and cost nothing when they do not.
+
+### 4. A folded card shows the DPJP's initials
+
+As on the full card's badge. The full name is on hover.
+
+### Not done
+
+- **A card completely hidden behind another cannot be pressed**, so it cannot
+  be raised this way. Rapikan still lays everything out without overlap.
+- **Not rendered here.** Worth checking: open the first Catatan card straight
+  after loading the page — it should not be blank.
+
+```
+1431 tests passed
+typecheck / lint (0 warnings) / check:version / check:contrast / check:a11y / build — clean
+```
+
+---
+
 ## `2026-09-21.4`
 
 **The width grip is usable on a folded card; the drag tab is back to its old
