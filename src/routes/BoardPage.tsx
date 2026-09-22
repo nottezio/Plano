@@ -12,6 +12,7 @@ import { StickyNoteCard } from '@/components/board/StickyNoteCard';
 import { createBoardNote } from '@/data/repositories/boardNotes.repo';
 import { activeBoardNotes, noteIdFromCanvasId, stickyCanvasId } from '@/domain/boardNotes';
 import { useMediaQuery } from '@/hooks/useMediaQuery';
+import { usePersistentIdSet } from '@/hooks/usePersistentIdSet';
 import { MasonryGrid, MasonryItem } from '@/components/board/MasonryGrid';
 import { LabSheet } from '@/components/patient/LabSheet';
 import { copyText } from '@/lib/clipboard';
@@ -227,17 +228,15 @@ export default function BoardPage(): JSX.Element {
    * be opened to be read is one nobody reads, and the empty set is the right
    * starting point rather than a list built by scanning the cards.
    *
-   * Not persisted. Collapsing is a "this note is crowding the board right now"
-   * action, not a preference worth a write.
+   * Remembered per device. It used not to be, on the reasoning that closing
+   * a note is a "crowding the board right now" act; in use it is a standing
+   * choice about that patient, and having to close the same note again after
+   * every reload is the app forgetting something you told it.
    */
-  const [notesClosed, setNotesClosed] = useState<ReadonlySet<string>>(new Set());
-  const toggleNote = useCallback((patientId: string) => {
-    setNotesClosed((current) => {
-      const next = new Set(current);
-      if (!next.delete(patientId)) next.add(patientId);
-      return next;
-    });
-  }, []);
+  const [notesClosed, toggleNote] = usePersistentIdSet('visite.board.notesClosed');
+
+  /** Cards folded to name and DPJP. Remembered the same way. */
+  const [cardsFolded, toggleFolded] = usePersistentIdSet('visite.board.cardsFolded');
   const noteOpen = useCallback(
     (patient: { id: string; notes: string }) =>
       patient.notes.trim().length > 0 && !notesClosed.has(patient.id),
@@ -775,6 +774,8 @@ export default function BoardPage(): JSX.Element {
                     maxPreviewLines={maxPreviewLines}
                     noteExpanded={noteOpen(card.patient)}
                     onToggleNote={toggleNote}
+                    collapsed={cardsFolded.has(card.patient.id)}
+                    onToggleCollapsed={toggleFolded}
                     onLongPress={setQuickPatientId}
                     selectable={selecting}
                     checked={selected.has(card.patient.id)}
@@ -826,6 +827,8 @@ export default function BoardPage(): JSX.Element {
                       card={card}
                       noteExpanded={noteOpen(card.patient)}
                       onToggleNote={toggleNote}
+                      collapsed={cardsFolded.has(card.patient.id)}
+                      onToggleCollapsed={toggleFolded}
                       onLongPress={setQuickPatientId}
                       onDragHandleDown={
                         order === 'custom' && !selecting ? onDragHandleDown : undefined

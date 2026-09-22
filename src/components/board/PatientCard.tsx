@@ -20,6 +20,8 @@ import {
  */
 export function PatientCard({
   card,
+  collapsed = false,
+  onToggleCollapsed,
   onLongPress,
   onDragHandleDown,
   fitHeight = false,
@@ -81,6 +83,12 @@ export function PatientCard({
   onToggleSelected?: ((patientId: string) => void) | undefined;
   /** Opens the read-only note preview. Absent while selecting. */
   onPreview?: ((patientId: string) => void) | undefined;
+  /**
+   * Folded to its name and DPJP. Held by the board (and remembered there),
+   * like the note's open state, because the board is what lays cards out.
+   */
+  collapsed?: boolean;
+  onToggleCollapsed?: ((patientId: string) => void) | undefined;
   /** The standing note is open, so the board has widened this cell. */
   noteExpanded?: boolean;
   onToggleNote?: ((patientId: string) => void) | undefined;
@@ -90,6 +98,8 @@ export function PatientCard({
 
   const rootRef = useRef<HTMLDivElement>(null);
   const bodyRef = useRef<HTMLDivElement>(null);
+  const linkRef = useRef<HTMLAnchorElement>(null);
+  const noteRef = useRef<HTMLDivElement>(null);
 
   /**
    * Measure the two ends of this card's useful height range and report them.
@@ -111,22 +121,53 @@ export function PatientCard({
   useEffect(() => {
     const root = rootRef.current;
     const body = bodyRef.current;
-    if (!fitHeight || !onHeightBounds || !root || !body) return;
+    if (!fitHeight || !onHeightBounds || !root) return;
 
+    /*
+      Folded, there is no body to measure: the card is its header and nothing
+      else. It still reports, because the canvas holds a FLOOR per card and a
+      stale one from before the fold would keep the slot tall and empty.
+    */
+    if (collapsed || !body) {
+      const measureFolded = (): void => {
+        const height = Math.round(root.scrollHeight);
+        onHeightBounds({ min: height, max: height });
+      };
+      const folded = new ResizeObserver(measureFolded);
+      folded.observe(root);
+      measureFolded();
+      return () => folded.disconnect();
+    }
+
+    /*
+      Measured from what the parts NEED, not from the box they are in.
+
+      This was `root.offsetHeight - body.clientHeight`. Under a cap the root is
+      pinned to exactly the cap (`h-full`), so once the body had shrunk to
+      nothing the formula returned the cap itself — it could not see the header
+      and progress strip overflowing the box, and reported a minimum smaller
+      than the parts that cannot shrink. The grip then allowed a height that
+      did not fit them, and the "Belum:" line printed over the note.
+
+      `link.scrollHeight` is the card's content height whatever its box is
+      clamped to, so minus the body's current share it is the fixed part; the
+      note strip is measured on its own because it sits outside the link.
+    */
     const measure = (): void => {
-      const chrome = root.offsetHeight - body.clientHeight;
-      onHeightBounds({
-        min: Math.round(chrome),
-        max: Math.round(chrome + body.scrollHeight),
-      });
+      const link = linkRef.current;
+      const fixed = (link ? link.scrollHeight : root.offsetHeight) - body.clientHeight;
+      const note = noteRef.current?.offsetHeight ?? 0;
+      const min = Math.round(fixed + note);
+      onHeightBounds({ min, max: Math.round(min + body.scrollHeight) });
     };
 
     const observer = new ResizeObserver(measure);
     observer.observe(root);
     observer.observe(body);
+    if (noteRef.current) observer.observe(noteRef.current);
     measure();
     return () => observer.disconnect();
-  }, [fitHeight, onHeightBounds]);
+  }, [fitHeight, onHeightBounds, collapsed]);
 
   // Long-press opens the quick checklist (SPEC 11.3) so ticking during rounds
   // never requires opening the note. Implemented with pointer events + a timer
@@ -168,8 +209,9 @@ export function PatientCard({
       stuck to the card rather than as another field inside it, which was the
       actual objection to keeping it inside.
     */
-    <div ref={rootRef} className={fitHeight ? 'flex h-full flex-col' : undefined}>
+    <div ref={rootRef} className={fitHeight && !collapsed ? 'flex h-full flex-col' : undefined}>
     <Link
+      ref={linkRef}
       to={`/p/${patient.id}`}
       /**
        * In selection mode the card SELECTS instead of opening.
@@ -468,6 +510,26 @@ export function PatientCard({
         what you are walking to, and a card showing only "PJT Lt 4" still has
         to be opened to find out where.
       */}
+      {collapsed ? (
+        /*
+          Folded: the name above, the DPJP here, and nothing else.
+
+          The DPJP is the one fact kept beside the name because it is what a
+          folded card is still being scanned for — whose patient this is. The
+          location, badges, note, body and progress all come back with one tap.
+        */
+        card.dpjp ? (
+          <div className="mt-0.5 text-[11px] opacity-70">
+            <span
+              title={card.dpjp.name}
+              className="rounded border border-current/30 px-1 text-[10px] font-semibold"
+            >
+              {card.dpjp.initials}
+            </span>{' '}
+            <span className="opacity-80">{card.dpjp.name}</span>
+          </div>
+        ) : null
+      ) : (
       <div className="mt-0.5 flex flex-wrap items-center gap-x-1.5 gap-y-1 text-[11px] opacity-70">
         <span>{formatLocation(patient) || 'Lokasi belum diisi'}</span>
         {card.dpjp ? (
@@ -512,6 +574,7 @@ export function PatientCard({
           </span>
         ) : null}
       </div>
+      )}
       </div>
 
         {/*
@@ -521,6 +584,27 @@ export function PatientCard({
           drag handle. A fourth gesture would have to win a race against three
           others, and losing that race opens a chart you did not ask for.
         */}
+        {/*
+          Fold. Beside the eye rather than anywhere on the card, for the reason
+          the eye has its own target: the card is already a link, a long-press
+          and a drag handle, and a fifth gesture would lose the race to them.
+        */}
+        {onToggleCollapsed ? (
+          <button
+            type="button"
+            aria-label={collapsed ? `Buka kartu ${card.title}` : `Lipat kartu ${card.title}`}
+            aria-expanded={!collapsed}
+            title={collapsed ? 'Tampilkan kartu' : 'Lipat kartu'}
+            onClick={(event) => {
+              event.preventDefault();
+              event.stopPropagation();
+              onToggleCollapsed(patient.id);
+            }}
+            className="-my-1 min-h-tap min-w-tap shrink-0 text-base font-semibold leading-none text-token-fg/50"
+          >
+            {collapsed ? '+' : '−'}
+          </button>
+        ) : null}
         {onPreview ? (
           <button
             type="button"
@@ -570,6 +654,8 @@ export function PatientCard({
         Outside `fitHeight` this div contributes nothing: no classes, so the
         block flows exactly as it did when these four were siblings.
       */}
+      {collapsed ? null : (
+      <>
       <ClampedBody enabled={fitHeight} bodyRef={bodyRef}>
       {card.chief ? <p className="text-[11px] opacity-60">Chief {card.chief}</p> : null}
 
@@ -608,14 +694,20 @@ export function PatientCard({
             : `Belum: ${progress.pendingLabel ?? '—'}`}
         </p>
       </div>
+      </>
+      )}
     </Link>
 
-      {note ? (
-        <CardNote
-          note={note}
-          expanded={noteOpen}
-          onToggle={() => onToggleNote?.(patient.id)}
-        />
+      {note && !collapsed ? (
+        // Measured on its own: it sits outside the link, and a minimum that
+        // left it out was the other half of the overlap.
+        <div ref={noteRef} className="shrink-0">
+          <CardNote
+            note={note}
+            expanded={noteOpen}
+            onToggle={() => onToggleNote?.(patient.id)}
+          />
+        </div>
       ) : null}
     </div>
   );

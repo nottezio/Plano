@@ -136,6 +136,27 @@ export function CanvasBoard({
    */
   const heightBounds = useRef(new Map<string, { min: number; max: number }>());
   const boundsSetters = useRef(new Map<string, (bounds: { min: number; max: number }) => void>());
+
+  /**
+   * Each card's MINIMUM, as state — the one bound the render needs.
+   *
+   * The ref above is enough for the grip, which reads bounds only when a drag
+   * starts. It was not enough for the render: a cap is stored, and the card
+   * can grow a taller minimum later — its note is opened, a badge appears — so
+   * a cap that was valid when set can be too small now. Rendered at
+   * `height: cap`, the parts that must not shrink (header, progress, note)
+   * then overflowed each other: the "Belum:" line printed over the note.
+   *
+   * Re-renders only when a card's minimum CHANGES, which is rare (content,
+   * not every reflow), so the reason the ref exists still holds.
+   *
+   * The maximum is kept too: a cap is a MAXIMUM (`hMax`), so a card whose
+   * content needs less than its cap — a folded card above all — renders at
+   * what it needs instead of sitting at the top of a tall empty slot.
+   */
+  const [renderBounds, setRenderBounds] = useState<
+    Readonly<Record<string, { min: number; max: number }>>
+  >({});
   const boundsSetter = useCallback((id: string) => {
     const existing = boundsSetters.current.get(id);
     if (existing) return existing;
@@ -144,6 +165,12 @@ export function CanvasBoard({
     // each time would tear down and rebuild its observer continuously.
     const setter = (bounds: { min: number; max: number }): void => {
       heightBounds.current.set(id, bounds);
+      setRenderBounds((current) => {
+        const previous = current[id];
+        return previous && previous.min === bounds.min && previous.max === bounds.max
+          ? current
+          : { ...current, [id]: bounds };
+      });
     };
     boundsSetters.current.set(id, setter);
     return setter;
@@ -365,6 +392,8 @@ export function CanvasBoard({
             <ClampedCard
               id={id}
               cap={open ? 0 : layout.hMax}
+              floor={renderBounds[id]?.min ?? 0}
+              ceiling={renderBounds[id]?.max ?? 0}
               expanded={open}
               onNaturalHeight={recordHeight}
               onToggle={() => toggleExpanded(id)}
@@ -409,6 +438,8 @@ export function CanvasBoard({
 function ClampedCard({
   id,
   cap,
+  floor,
+  ceiling,
   expanded,
   onNaturalHeight,
   onToggle,
@@ -417,6 +448,14 @@ function ClampedCard({
   id: string;
   /** Maximum height in pixels, or 0 for none. */
   cap: number;
+  /**
+   * The card's own minimum. Wins over `cap` when larger — a stored cap the
+   * card has since outgrown is honoured as far as it can be without
+   * overlapping the card's own text, and no further.
+   */
+  floor: number;
+  /** What the content needs at most, or 0 if not yet known. */
+  ceiling: number;
   expanded: boolean;
   onNaturalHeight: (id: string, value: number) => void;
   onToggle: () => void;
@@ -456,7 +495,16 @@ function ClampedCard({
         the overflow — which cuts the progress strip off the bottom, the one
         part of a short card that still has to be readable.
       */
-      style={cap > 0 ? { height: cap, overflow: 'hidden' } : undefined}
+      style={
+        cap > 0
+          ? {
+              // Never below what the card cannot shrink past, never above
+              // what its content needs, and otherwise the cap.
+              height: Math.max(floor, ceiling > 0 ? Math.min(cap, ceiling) : cap),
+              overflow: 'hidden',
+            }
+          : undefined
+      }
     >
       {children}
       {/*

@@ -1,5 +1,87 @@
 # Plano — CHANGES
 
+## `2026-09-21.1`
+
+**The overlapping text on capped cards, remembered note state, and folding a
+card to its name and DPJP.**
+
+### 1. Why "Belum:" printed over the note
+
+Two faults, one on top of the other.
+
+**The minimum was measured from the box, not from what is in it.** A capped
+card reported its smallest usable height as `root.offsetHeight -
+body.clientHeight`. Under a cap the root is pinned to the cap (`h-full`), so
+once the shrinkable body reached zero the formula returned *the cap itself*.
+It could not see the header and progress strip overflowing the box, so it
+reported a minimum smaller than the parts that cannot shrink, and the height
+grip allowed a height that did not fit them. The note strip was left out of
+the sum entirely, because it sits outside the link.
+
+It now measures `link.scrollHeight` — the content height whatever the box is
+clamped to — minus the body's current share, plus the note strip, measured
+on its own.
+
+**Nothing enforced the minimum when rendering.** The canvas slot was
+`height: cap`. A cap valid when set becomes too small when the card later
+grows a taller minimum — the note is opened, a badge appears — and the fixed
+parts then overflowed each other. That is the screenshot: a cap set with the
+note closed, then the note opened.
+
+The canvas now keeps each card's reported bounds and renders the slot at
+`max(min, min(cap, max))`: never below what the card cannot shrink past,
+never above what its content needs, otherwise the cap. It re-renders only
+when a card's bounds CHANGE, which is rare — the reason the bounds lived in a
+ref (not re-rendering the board on every reflow) still holds.
+
+A cap is a maximum (the field is `hMax`), so a card that needs less than its
+cap now takes less, instead of sitting at the top of a tall empty slot.
+
+### 2. The note's open/closed state is remembered
+
+Per card, per device. The old comment said this was deliberately not
+persisted — closing a note was a "crowding the board right now" act. In use it
+is a standing choice about that patient, and closing the same note again after
+every reload is the app forgetting what you told it.
+
+### 3. Fold a card to its name and DPJP
+
+A `−` beside the eye folds the card to its name and its DPJP (initials and
+name); `+` unfolds it. Location, badges, body, progress and note all come back
+with one tap. Remembered per card, per device, like the note.
+
+The DPJP is the one fact kept because it is what a folded card is still
+scanned for — whose patient this is.
+
+On the canvas, a folded card reports its folded height so its slot shrinks to
+fit; without that, the floor from before the fold would have kept the slot
+tall and empty.
+
+Both remembered sets are only ever toggled one id at a time, never rebuilt
+from the cards on screen — a set rewritten from a filtered board would forget
+every card the filter hides (recurring pattern 1).
+
+### Not done, and why
+
+- **Per device, not per account.** Folds follow the screen, like the canvas
+  layout: the phone and the ward PC want different cards folded.
+- **Remembered ids are never pruned.** A discharged patient's fold stays in
+  localStorage. It is a few bytes per patient; pruning it safely would mean
+  knowing every patient on every scope, which is the thing pattern 1 warns
+  against guessing.
+- **A folded card on the canvas can leave a gap below it** until Rapikan is
+  pressed, because the canvas places by hand and does not move the cards
+  underneath on its own.
+- **Not rendered here.** Worth checking: cap a card, open its note, and
+  confirm the card grows instead of overlapping; fold a card and reload.
+
+```
+1431 tests passed (+4)
+typecheck / lint (0 warnings) / check:version / check:contrast / check:a11y / build — clean
+```
+
+---
+
 ## `2026-09-20.3`
 
 **Catatan tempel: sticky notes on the patient board.**
