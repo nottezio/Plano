@@ -592,7 +592,7 @@ export default function BoardPage(): JSX.Element {
           title="Tempel catatan singkat di papan. Pindah dan ubah ukurannya di Urutan sendiri."
           className="min-h-tap shrink-0 rounded-lg bg-bg-subtle px-3 text-xs font-medium text-fg"
         >
-          + Catatan tempel
+          + Catatan
         </button>
         <button
           type="button"
@@ -750,10 +750,13 @@ export default function BoardPage(): JSX.Element {
                 ...(showStickies ? boardNotes.map((entry) => stickyCanvasId(entry.id)) : []),
               ]}
               actionsSlot={canvasActions}
-              // A patient card with its note open (and not folded) shows in
-              // full; see `isUncapped` on the canvas.
+              // Shown at natural height, with no height grip: a card with its
+              // note open (see `isUncapped` on the canvas), and a FOLDED card,
+              // whose one line has no height to cap. The grip under a folded
+              // card was the dark bar beneath it.
               isUncapped={(id) => {
-                if (noteIdFromCanvasId(id) !== null || cardsFolded.has(id)) return false;
+                if (noteIdFromCanvasId(id) !== null) return false;
+                if (cardsFolded.has(id)) return true;
                 const card = cards.find((entry) => entry.patient.id === id);
                 return card ? noteOpen(card.patient) : false;
               }}

@@ -113,7 +113,7 @@ export function StickyNoteCard({
     >
       <div className="flex items-center gap-1 px-2 pt-1.5">
         <span className="flex-1 text-[10px] font-semibold uppercase tracking-wide opacity-60">
-          Catatan tempel
+          Catatan
         </span>
 
         {/* Colour: a dot that opens the palette in place. */}
@@ -144,7 +144,7 @@ export function StickyNoteCard({
               console.error('[sticky] remove rejected', error),
             );
           }}
-          aria-label={armed ? 'Ketuk lagi untuk menghapus' : 'Hapus catatan tempel'}
+          aria-label={armed ? 'Ketuk lagi untuk menghapus' : 'Hapus catatan'}
           title={armed ? 'Ketuk lagi untuk menghapus' : 'Hapus'}
           className={[
             'flex min-h-tap min-w-tap items-center justify-center rounded text-sm',
@@ -194,7 +194,7 @@ export function StickyNoteCard({
           flush();
         }}
         placeholder="Tulis catatan…"
-        aria-label="Isi catatan tempel"
+        aria-label="Isi catatan"
         spellCheck
         className={[
           'w-full resize-none bg-transparent px-2.5 pb-2.5 pt-1 text-sm leading-snug outline-none placeholder:opacity-50',

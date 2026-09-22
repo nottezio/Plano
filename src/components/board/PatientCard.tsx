@@ -153,12 +153,24 @@ export function PatientCard({
       clamped to, so minus the body's current share it is the fixed part; the
       note strip is measured on its own because it sits outside the link.
     */
+    /*
+      The minimum keeps ONE line of the body, not zero.
+
+      With a floor of zero the body could be squeezed to a sliver a few pixels
+      tall — too short for a line of text, tall enough for the fade — so the
+      card showed an empty band between its header and "Belum:", which read as
+      a broken card (the screenshot with the gap). A capped card now always
+      shows at least the first diagnosis; if the body has less than a line,
+      the minimum is exactly what it has.
+    */
+    const ONE_LINE = 22;
     const measure = (): void => {
       const link = linkRef.current;
       const fixed = (link ? link.scrollHeight : root.offsetHeight) - body.clientHeight;
       const note = noteRef.current?.offsetHeight ?? 0;
-      const min = Math.round(fixed + note);
-      onHeightBounds({ min, max: Math.round(min + body.scrollHeight) });
+      const floor = Math.min(body.scrollHeight, ONE_LINE);
+      const min = Math.round(fixed + note + floor);
+      onHeightBounds({ min, max: Math.round(fixed + note + body.scrollHeight) });
     };
 
     const observer = new ResizeObserver(measure);
@@ -322,7 +334,9 @@ export function PatientCard({
         onLongPress(patient.id);
       }}
       className={[
-        'block min-w-0 border border-black/5 bg-token p-3 text-token-fg shadow-sm transition-shadow hover:shadow-md dark:border-white/10',
+        // `p-2.5`, not `p-3`: part of the compact pass — with twelve cards on a
+        // board every pixel of padding is paid twelve times.
+        'block min-w-0 border border-black/5 bg-token p-2.5 text-token-fg shadow-sm transition-shadow hover:shadow-md dark:border-white/10',
         // `min-h-0` is what lets the middle actually shrink: a flex child
         // defaults to `min-height: auto`, which refuses to go below its content
         // and would push the progress strip out of the bottom of the card
@@ -458,7 +472,7 @@ export function PatientCard({
         recorded on the discharge wash. This is the same colour at a different
         weight, which is a separation the eye reads without having to be told.
       */}
-      <div className="-mx-3 -mt-3 mb-2 border-b border-token-fg/10 bg-black/10 px-3 py-2 dark:bg-white/[0.04]">
+      <div className="-mx-2.5 -mt-2.5 mb-1.5 border-b border-token-fg/10 bg-black/10 px-2.5 py-1.5 dark:bg-white/[0.04]">
       {/*
         TWO COLUMNS: everything that wraps on the left, the eye fixed on the
         right. It is not decoration — it is what stops the blank row.
@@ -649,6 +663,17 @@ export function PatientCard({
           the eye has its own target: the card is already a link, a long-press
           and a drag handle, and a fifth gesture would lose the race to them.
         */}
+        {/*
+          The two controls as ONE tight pair.
+
+          Each was a 44 × 44 target with its own gap, so together they took
+          ~90px of the header — on a narrow card that pushed the name onto two
+          lines and the location onto two more (the tall header in the
+          screenshots). They stay 44px TALL, which is the dimension a thumb
+          misses on; they are 28px wide each, with no gap, which is still above
+          the 24px WCAG 2.2 minimum and gives the name back ~34px.
+        */}
+        <div className="-mr-1.5 -mt-1 flex shrink-0">
         {onToggleCollapsed ? (
           <button
             type="button"
@@ -660,7 +685,7 @@ export function PatientCard({
               event.stopPropagation();
               onToggleCollapsed(patient.id);
             }}
-            className="-my-1 min-h-tap min-w-tap shrink-0 text-base font-semibold leading-none text-token-fg/50"
+            className="flex min-h-tap w-7 shrink-0 items-center justify-center text-base font-semibold leading-none text-token-fg/50"
           >
             −
           </button>
@@ -676,11 +701,12 @@ export function PatientCard({
               event.stopPropagation();
               onPreview(patient.id);
             }}
-            className="-my-1 min-h-tap min-w-tap shrink-0 text-token-fg/50"
+            className="flex min-h-tap w-7 shrink-0 items-center justify-center text-token-fg/50"
           >
-            <IconEye className="mx-auto" width={16} height={16} />
+            <IconEye width={16} height={16} />
           </button>
         ) : null}
+        </div>
 
         {/*
           The corner. Nothing else on the card may sit to the right of this.
@@ -717,12 +743,14 @@ export function PatientCard({
       <ClampedBody enabled={fitHeight} bodyRef={bodyRef}>
       {card.chief ? <p className="text-[11px] opacity-60">Chief {card.chief}</p> : null}
 
+      {/* `leading-snug`: a list of diagnoses reads fine at 1.375, and
+          `relaxed` spent a fifth of the body's height between the lines. */}
       {lines.length > 0 ? (
-        <p className="mt-2 whitespace-pre-line text-xs leading-relaxed opacity-90">
+        <p className="mt-1 whitespace-pre-line text-xs leading-snug opacity-90">
           {lines.join('\n')}
         </p>
       ) : (
-        <p className="mt-2 text-xs italic opacity-60">Belum ada catatan hari ini.</p>
+        <p className="mt-1 text-xs italic opacity-60">Belum ada catatan hari ini.</p>
       )}
 
       {card.previewIsStale ? (
@@ -744,9 +772,9 @@ export function PatientCard({
 
       </ClampedBody>
 
-      <div className={fitHeight ? 'mt-3 shrink-0' : 'mt-3'}>
+      <div className={fitHeight ? 'mt-2 shrink-0' : 'mt-2'}>
         <ProgressStrip progress={progress} />
-        <p className="mt-1.5 text-[11px] font-medium opacity-80">
+        <p className="mt-1 text-[11px] font-medium opacity-80">
           {progress.complete
             ? 'Semua selesai'
             : `Belum: ${progress.pendingLabel ?? '—'}`}

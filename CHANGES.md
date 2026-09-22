@@ -1,5 +1,66 @@
 # Plano — CHANGES
 
+## `2026-09-21.3`
+
+**A compact pass on the patient card, and the display bugs in the screenshots.**
+
+### What was wrong, screenshot by screenshot
+
+| Seen | Cause | Fix |
+|---|---|---|
+| Header two or three lines tall on a narrow card | "−" and the eye were two 44 × 44 targets with a gap: ~90px of header, paid for out of the name and the location | One tight pair, 44px tall and 28px wide each, no gap — ~56px |
+| An empty band between the header and "Belum:" | The card's minimum let the body shrink to zero, so under a small cap it became a sliver too short for text but tall enough for the fade | The minimum always keeps ONE line of body (or everything, if there is less) |
+| A dark bar under a folded card | The height grip, on a card whose single line has no height to cap | Folded cards are uncapped: natural height, no grip |
+| A drag tab too small to find on a folded card | 48px wide | 112px wide |
+
+### The header controls
+
+They stay 44px **tall** — the dimension a thumb misses on — and are 28px wide
+each, still above the 24px minimum in WCAG 2.2. They sit as one group, so the
+rule the header has kept since the eye's first bug still holds: a control never
+shares a wrapping row with content, and the name column wraps on its own.
+
+### Compact, not smaller
+
+Nothing got a smaller font. What changed is the air around it:
+
+- card padding 12px → 10px, the header band tightened to match;
+- diagnoses at `leading-snug` instead of `relaxed` — a list of diagnoses reads
+  fine at 1.375, and `relaxed` spent about a fifth of the body's height between
+  the lines;
+- the gaps above the body, the progress strip and the "Belum:" line
+  trimmed.
+
+With twelve cards on a board, every pixel of padding is paid twelve times.
+
+### The drag tab
+
+Wider, not taller. Canvas cards are 12px apart (`GAP_PX`), and the tab already
+sits in that gap — a taller one would sit on the card above.
+
+### Renamed
+
+"Catatan tempel" is now **Catatan**, on the note and on the toolbar button.
+
+### Not done, and why
+
+- **The last visible diagnosis still fades** on a capped card. That is the
+  intended signal that there is more below, drawn only when there IS more — a
+  fade under every card would claim more on cards where there is none.
+- **"Catatan" now names two things**: the Catatan page and the board's sticky
+  notes. They are different features with the same word; say if you want the
+  board's to read differently in the toolbar.
+- **Not rendered here.** Worth checking on a narrow canvas card: the name,
+  EKG badge and location should each fit on one line where they did not
+  before.
+
+```
+1431 tests passed
+typecheck / lint (0 warnings) / check:version / check:contrast / check:a11y / build — clean
+```
+
+---
+
 ## `2026-09-21.2`
 
 **An open note shows the whole card, and a folded card is a plain box.**

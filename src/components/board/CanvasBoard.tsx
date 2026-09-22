@@ -646,9 +646,15 @@ function CanvasHandle({
       aria-label="Geser kartu"
       onPointerDown={onPointerDown}
       onClick={(event) => event.preventDefault()}
-      className="absolute -top-4 left-2 z-10 flex h-4 w-12 cursor-grab touch-none items-center justify-center rounded bg-border text-[10px] leading-none text-fg-faint opacity-0 transition-opacity group-hover:opacity-100 group-data-[active=true]:opacity-100 focus-visible:opacity-100"
+      /*
+        Wider, not taller. 48px was a small target to find on a wide card, and
+        on a folded one — a single line — it was most of what was there to
+        grab. Height stays at 16px because the gap between canvas cards is
+        12px (`GAP_PX`): a taller tab would sit on the card above it.
+      */
+      className="absolute -top-4 left-2 z-10 flex h-4 w-28 cursor-grab touch-none items-center justify-center gap-1 rounded bg-border text-[10px] leading-none text-fg-faint opacity-0 transition-opacity group-hover:opacity-100 group-data-[active=true]:opacity-100 focus-visible:opacity-100"
     >
-      <span aria-hidden="true">⠿</span>
+      <span aria-hidden="true">⠿ ⠿ ⠿</span>
     </button>
   );
 }
