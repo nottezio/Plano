@@ -1,5 +1,72 @@
 # Plano — CHANGES
 
+## `2026-09-21.2`
+
+**An open note shows the whole card, and a folded card is a plain box.**
+
+### 1. Opening the note squeezed the card
+
+Under a height cap the note took its height from the body above it, so the
+diagnoses faded out at exactly the moment the card was opened to be read.
+Last release made the card stop OVERLAPPING in that state; it did not make it
+readable.
+
+Now, while a patient card's note is open, the canvas ignores that card's cap
+and renders it at its natural height. Closing the note gives the cap back,
+unchanged.
+
+**Why the board decides, not the card.** The board already holds which notes
+are open, so the canvas asks it (`isUncapped`). A card reporting "uncap me"
+through its own measurement would stop measuring the moment it was uncapped —
+the measurement only runs under a cap — and could never report the note
+closing again.
+
+**The height grip is hidden while a card is uncapped.** A drag there would set
+a cap that does not apply until the note closes: a control whose effect you
+cannot see.
+
+The corner "show in full" toggle keeps its own state separately. An uncapped
+card is not "expanded by the toggle", and offering to collapse it there would
+fight the note that uncapped it.
+
+### 2. The folded card is one plain box
+
+Last release folded a card by hiding its body, progress and note with
+conditionals through the full card — and left everything else. The EKG and
+discharge badges, the KJS mark, the eye and the location all survived the
+fold, so "folded" still looked like a card, and anything added to the full card
+later would have survived it too.
+
+The folded card now has its own render: **one box, the name and the DPJP as
+text, and `+`**. Nothing else exists in it to leak through.
+
+It keeps the card's colour, because the colour is the checklist progress —
+information, not decoration. And it still behaves as a card on the board: it
+opens the patient, selects in selection mode, and has its drag handle in custom
+order.
+
+The name wraps rather than truncating, which is the rule the full card's name
+has always kept: a name cut short is a patient you cannot tell from the next.
+
+The old scattered conditionals were removed rather than left unreachable, so
+there is one folded view in the code, not two.
+
+### Not done, and why
+
+- **Uncapping moves the cards below it on the canvas only after Rapikan.** The
+  canvas places cards by hand; an opened note makes one card taller, and the
+  canvas does not push its neighbours down on its own.
+- **Not rendered here.** Worth checking: open a capped card's note and confirm
+  the diagnoses are all visible; fold a card and confirm only the name, DPJP
+  and `+` remain.
+
+```
+1431 tests passed
+typecheck / lint (0 warnings) / check:version / check:contrast / check:a11y / build — clean
+```
+
+---
+
 ## `2026-09-21.1`
 
 **The overlapping text on capped cards, remembered note state, and folding a

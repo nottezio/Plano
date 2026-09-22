@@ -750,6 +750,13 @@ export default function BoardPage(): JSX.Element {
                 ...(showStickies ? boardNotes.map((entry) => stickyCanvasId(entry.id)) : []),
               ]}
               actionsSlot={canvasActions}
+              // A patient card with its note open (and not folded) shows in
+              // full; see `isUncapped` on the canvas.
+              isUncapped={(id) => {
+                if (noteIdFromCanvasId(id) !== null || cardsFolded.has(id)) return false;
+                const card = cards.find((entry) => entry.patient.id === id);
+                return card ? noteOpen(card.patient) : false;
+              }}
               renderItem={(id, { fitHeight, onHeightBounds, maxPreviewLines }) => {
                 const noteId = noteIdFromCanvasId(id);
                 if (noteId !== null) {

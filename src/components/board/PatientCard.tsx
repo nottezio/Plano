@@ -188,6 +188,87 @@ export function PatientCard({
    */
   const noteOpen = noteExpanded && note.length > 0;
 
+  /*
+    FOLDED: one plain box, the name and the DPJP as text, and the button that
+    unfolds it.
+
+    Its own render rather than the full card with parts hidden. The first
+    version hid the body, progress and note with conditionals through the full
+    card and left the rest — so the EKG and discharge badges, the KJS mark, the
+    eye and the location row all survived the fold, and "folded" still looked
+    like a card. Anything added to the full card later would have survived it
+    too. Here the folded card is only what is written below.
+
+    It keeps the card's colour: the colour is the checklist progress, which is
+    information, not decoration. And it keeps what makes a card a card on the
+    board — it opens the patient, selects in selection mode, and can still be
+    dragged in custom order.
+  */
+  if (collapsed) {
+    return (
+      <div ref={rootRef}>
+        <Link
+          ref={linkRef}
+          to={`/p/${patient.id}`}
+          onClick={
+            selectable
+              ? (event) => {
+                  event.preventDefault();
+                  onToggleSelected?.(patient.id);
+                }
+              : undefined
+          }
+          data-patient-id={patient.id}
+          data-color-token={card.colorToken}
+          className={[
+            'flex min-w-0 items-center gap-2 rounded-lg border border-black/5 bg-token px-3 py-1.5 text-token-fg dark:border-white/10',
+            dragging ? 'opacity-40' : '',
+            selectable && checked ? 'ring-2 ring-accent' : '',
+          ].join(' ')}
+        >
+          {onDragHandleDown ? (
+            <button
+              type="button"
+              aria-label={`Pindahkan ${card.title}`}
+              onPointerDown={(event) => {
+                event.preventDefault();
+                event.stopPropagation();
+                onDragHandleDown(event, patient.id);
+              }}
+              onClick={(event) => event.preventDefault()}
+              className="-my-1 -ml-1 min-h-tap min-w-tap shrink-0 cursor-grab touch-none text-token-fg/50"
+            >
+              <span aria-hidden="true">⠿</span>
+            </button>
+          ) : null}
+          {/* Wraps, never truncates — the rule the full card's name keeps,
+              for the same reason: a name cut short is a patient you cannot
+              tell apart from the next. */}
+          <span className="min-w-0 flex-1 break-words text-sm leading-snug">
+            <span className="font-semibold">{card.title}</span>
+            {card.dpjp ? <span className="opacity-70"> · {card.dpjp.name}</span> : null}
+          </span>
+          {onToggleCollapsed ? (
+            <button
+              type="button"
+              aria-label={`Buka kartu ${card.title}`}
+              aria-expanded={false}
+              title="Tampilkan kartu"
+              onClick={(event) => {
+                event.preventDefault();
+                event.stopPropagation();
+                onToggleCollapsed(patient.id);
+              }}
+              className="-my-1 -mr-1 min-h-tap min-w-tap shrink-0 text-base font-semibold leading-none text-token-fg/60"
+            >
+              +
+            </button>
+          ) : null}
+        </Link>
+      </div>
+    );
+  }
+
   return (
     /*
       THE NOTE GOES UNDER THE CARD, not beside it.
@@ -209,7 +290,7 @@ export function PatientCard({
       stuck to the card rather than as another field inside it, which was the
       actual objection to keeping it inside.
     */
-    <div ref={rootRef} className={fitHeight && !collapsed ? 'flex h-full flex-col' : undefined}>
+    <div ref={rootRef} className={fitHeight ? 'flex h-full flex-col' : undefined}>
     <Link
       ref={linkRef}
       to={`/p/${patient.id}`}
@@ -510,26 +591,6 @@ export function PatientCard({
         what you are walking to, and a card showing only "PJT Lt 4" still has
         to be opened to find out where.
       */}
-      {collapsed ? (
-        /*
-          Folded: the name above, the DPJP here, and nothing else.
-
-          The DPJP is the one fact kept beside the name because it is what a
-          folded card is still being scanned for — whose patient this is. The
-          location, badges, note, body and progress all come back with one tap.
-        */
-        card.dpjp ? (
-          <div className="mt-0.5 text-[11px] opacity-70">
-            <span
-              title={card.dpjp.name}
-              className="rounded border border-current/30 px-1 text-[10px] font-semibold"
-            >
-              {card.dpjp.initials}
-            </span>{' '}
-            <span className="opacity-80">{card.dpjp.name}</span>
-          </div>
-        ) : null
-      ) : (
       <div className="mt-0.5 flex flex-wrap items-center gap-x-1.5 gap-y-1 text-[11px] opacity-70">
         <span>{formatLocation(patient) || 'Lokasi belum diisi'}</span>
         {card.dpjp ? (
@@ -574,7 +635,6 @@ export function PatientCard({
           </span>
         ) : null}
       </div>
-      )}
       </div>
 
         {/*
@@ -592,9 +652,9 @@ export function PatientCard({
         {onToggleCollapsed ? (
           <button
             type="button"
-            aria-label={collapsed ? `Buka kartu ${card.title}` : `Lipat kartu ${card.title}`}
-            aria-expanded={!collapsed}
-            title={collapsed ? 'Tampilkan kartu' : 'Lipat kartu'}
+            aria-label={`Lipat kartu ${card.title}`}
+            aria-expanded
+            title="Lipat kartu"
             onClick={(event) => {
               event.preventDefault();
               event.stopPropagation();
@@ -602,7 +662,7 @@ export function PatientCard({
             }}
             className="-my-1 min-h-tap min-w-tap shrink-0 text-base font-semibold leading-none text-token-fg/50"
           >
-            {collapsed ? '+' : '−'}
+            −
           </button>
         ) : null}
         {onPreview ? (
@@ -654,8 +714,6 @@ export function PatientCard({
         Outside `fitHeight` this div contributes nothing: no classes, so the
         block flows exactly as it did when these four were siblings.
       */}
-      {collapsed ? null : (
-      <>
       <ClampedBody enabled={fitHeight} bodyRef={bodyRef}>
       {card.chief ? <p className="text-[11px] opacity-60">Chief {card.chief}</p> : null}
 
@@ -694,11 +752,9 @@ export function PatientCard({
             : `Belum: ${progress.pendingLabel ?? '—'}`}
         </p>
       </div>
-      </>
-      )}
     </Link>
 
-      {note && !collapsed ? (
+      {note ? (
         // Measured on its own: it sits outside the link, and a minimum that
         // left it out was the other half of the overlap.
         <div ref={noteRef} className="shrink-0">

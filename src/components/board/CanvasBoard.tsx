@@ -41,6 +41,7 @@ export function CanvasBoard({
   renderItem,
   enabled,
   actionsSlot,
+  isUncapped,
 }: {
   /** Every card on the board, in board order. Drives auto-placement. */
   ids: readonly string[];
@@ -70,6 +71,20 @@ export function CanvasBoard({
    * owner and puts the buttons where there is already a row for them.
    */
   actionsSlot?: HTMLElement | null;
+  /**
+   * Cards that ignore their height cap right now — a patient card whose note
+   * is open.
+   *
+   * Opening a note is a request to read it. Under the cap the note took its
+   * height from the body above it, so the diagnoses faded out exactly when
+   * the card was opened to be read. While this returns true the card renders
+   * at its natural height; closing the note gives the cap back, unchanged.
+   *
+   * Asked of the board, not measured from the card: the board already holds
+   * which notes are open, and a card reporting "uncap me" through its own
+   * measurement would stop measuring the moment it was uncapped.
+   */
+  isUncapped?: ((id: string) => boolean) | undefined;
 }): JSX.Element {
   const surfaceRef = useRef<HTMLDivElement>(null);
   const [stored, setStored] = useState<CanvasLayouts>(() => readLayouts());
@@ -362,7 +377,10 @@ export function CanvasBoard({
         const layout = live?.id === id ? live.layout : base;
         const active = live?.id === id;
         const cardWidth = Math.max(MIN_CARD_PX, layout.w * canvasWidth);
-        const open = expanded.has(id);
+        // Either shown in full for now (the corner toggle) or uncapped by the
+        // board (its note is open). Both mean "render at natural height".
+        const open = expanded.has(id) || (isUncapped?.(id) ?? false);
+        const uncapped = isUncapped?.(id) ?? false;
 
         return (
           <div
@@ -394,7 +412,10 @@ export function CanvasBoard({
               cap={open ? 0 : layout.hMax}
               floor={renderBounds[id]?.min ?? 0}
               ceiling={renderBounds[id]?.max ?? 0}
-              expanded={open}
+              // The corner toggle reflects only ITS own state. An uncapped
+              // card is not "expanded by the toggle", and offering to
+              // collapse it there would fight the note that uncapped it.
+              expanded={expanded.has(id)}
               onNaturalHeight={recordHeight}
               onToggle={() => toggleExpanded(id)}
             >
@@ -413,11 +434,18 @@ export function CanvasBoard({
               onPointerDown={(event) => beginGesture(event, id, 'width')}
               onReset={() => commit(id, { ...layout, w: DEFAULT_W }, layouts)}
             />
+            {/*
+              No height grip while the board has uncapped the card: a drag
+              here would set a cap that is not applied until the note closes,
+              which is a control whose effect you cannot see.
+            */}
+            {uncapped ? null : (
             <Grip
               axis="height"
               onPointerDown={(event) => beginGesture(event, id, 'height')}
               onReset={() => commit(id, { ...layout, hMax: 0 }, layouts)}
             />
+            )}
           </div>
         );
       })}
