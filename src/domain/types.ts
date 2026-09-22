@@ -302,6 +302,11 @@ export interface UserProfile {
    */
   notes?: ScratchNote[];
   /**
+   * Sticky notes on the patient board, keyed by id. A map written one field
+   * path at a time; see `domain/boardNotes`.
+   */
+  boardNotes?: import('./boardNotes').BoardNotes;
+  /**
    * Reusable checklists and their current ticks.
    *
    * Ticks live with the list rather than per patient, because these are worked

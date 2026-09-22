@@ -8,6 +8,9 @@ import { ARCHIVE_REASON_LABELS } from '@/domain/archive';
 import type { ArchiveReason } from '@/domain/types';
 
 import { CanvasBoard } from '@/components/board/CanvasBoard';
+import { StickyNoteCard } from '@/components/board/StickyNoteCard';
+import { createBoardNote } from '@/data/repositories/boardNotes.repo';
+import { activeBoardNotes, noteIdFromCanvasId, stickyCanvasId } from '@/domain/boardNotes';
 import { useMediaQuery } from '@/hooks/useMediaQuery';
 import { MasonryGrid, MasonryItem } from '@/components/board/MasonryGrid';
 import { LabSheet } from '@/components/patient/LabSheet';
@@ -352,6 +355,7 @@ export default function BoardPage(): JSX.Element {
    */
   const [canvasActions, setCanvasActions] = useState<HTMLElement | null>(null);
 
+
   const debouncedQuery = useDebouncedValue(query, 150);
 
   /**
@@ -363,6 +367,19 @@ export default function BoardPage(): JSX.Element {
    * attaches only when there is a query, so an idle board still costs one.
    */
   const searching = debouncedQuery.trim().length > 0;
+
+  /**
+   * Sticky notes. Hidden while searching or selecting: a search asks "which
+   * patient", and a note matching nothing would sit in the result looking like
+   * an answer; in selection mode a tap means "tick", and a note cannot be
+   * ticked for archive.
+   */
+  const rawBoardNotes = useSession((state) => state.profile?.boardNotes);
+  const boardNotes = useMemo(() => activeBoardNotes(rawBoardNotes), [rawBoardNotes]);
+  const showStickies = !searching && !selecting;
+  const addSticky = (): void => {
+    if (uid) createBoardNote(uid);
+  };
   const { patients: archived } = usePatients('archived', searching);
 
   const items = settings.checklistItems;
@@ -571,6 +588,15 @@ export default function BoardPage(): JSX.Element {
         <span aria-hidden="true" className="h-5 w-px shrink-0 bg-border" />
         <button
           type="button"
+          onClick={addSticky}
+          disabled={!uid}
+          title="Tempel catatan singkat di papan. Pindah dan ubah ukurannya di Urutan sendiri."
+          className="min-h-tap shrink-0 rounded-lg bg-bg-subtle px-3 text-xs font-medium text-fg"
+        >
+          + Catatan tempel
+        </button>
+        <button
+          type="button"
           onClick={() => setLabOpen(true)}
           className="min-h-tap shrink-0 rounded-lg bg-bg-subtle px-3 text-xs font-medium text-fg"
         >
@@ -715,9 +741,30 @@ export default function BoardPage(): JSX.Element {
             */
             <CanvasBoard
               enabled
-              ids={cards.map((card) => card.patient.id)}
+              /*
+                Notes AFTER patients: the canvas auto-places in this order, so a
+                new note takes the next free slot instead of pushing every
+                arranged card down one.
+              */
+              ids={[
+                ...cards.map((card) => card.patient.id),
+                ...(showStickies ? boardNotes.map((entry) => stickyCanvasId(entry.id)) : []),
+              ]}
               actionsSlot={canvasActions}
               renderItem={(id, { fitHeight, onHeightBounds, maxPreviewLines }) => {
+                const noteId = noteIdFromCanvasId(id);
+                if (noteId !== null) {
+                  const entry = boardNotes.find((candidate) => candidate.id === noteId);
+                  return entry && uid ? (
+                    <StickyNoteCard
+                      uid={uid}
+                      id={entry.id}
+                      note={entry.note}
+                      fitHeight={fitHeight}
+                      onHeightBounds={onHeightBounds}
+                    />
+                  ) : null;
+                }
                 const card = cards.find((entry) => entry.patient.id === id);
                 if (!card) return null;
                 return (
@@ -749,7 +796,23 @@ export default function BoardPage(): JSX.Element {
               }}
             />
           ) : cards.length > 0 ? (
-            groups.map((group) => (
+            <>
+            {/*
+              Outside the canvas the notes sit in their own row above the
+              patients. Masonry places by measurement, not by hand, so there is
+              nowhere a note could be "left" among the cards; a row of their
+              own keeps them findable and out of the patient order.
+            */}
+            {showStickies && boardNotes.length > 0 && uid ? (
+              <MasonryGrid>
+                {boardNotes.map((entry) => (
+                  <MasonryItem key={stickyCanvasId(entry.id)}>
+                    <StickyNoteCard uid={uid} id={entry.id} note={entry.note} />
+                  </MasonryItem>
+                ))}
+              </MasonryGrid>
+            ) : null}
+            {groups.map((group) => (
               <section key={group.label || 'all'}>
                 {group.label ? <SectionHeading label={group.label} /> : null}
                 {/* Grid masonry rather than CSS multi-column, so a card with
@@ -791,7 +854,8 @@ export default function BoardPage(): JSX.Element {
                   ))}
                 </MasonryGrid>
               </section>
-            ))
+            ))}
+            </>
           ) : searching ? (
             <p className="px-4 py-3 text-sm text-fg-muted">
               Tidak ada pasien aktif yang cocok.

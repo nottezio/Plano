@@ -1,5 +1,86 @@
 # Plano — CHANGES
 
+## `2026-09-20.3`
+
+**Catatan tempel: sticky notes on the patient board.**
+
+`+ Catatan tempel` in the board toolbar puts a blank yellow note on the board.
+Type straight into it — there is no page behind it and no sheet; the note IS
+the card, the way a paper note is written where it is stuck.
+
+### On the canvas it is a card like any other
+
+In `Urutan sendiri` a sticky note is dragged by the same handle and resized by
+the same width and height grips as a patient card. That is not a copy of the
+behaviour: the canvas was already written against ids and a `renderItem`
+callback, so a note is just another id it places. A fix to dragging is a fix to
+both, and there is no second drag system to drift out of step.
+
+It honours the same height contract as `PatientCard`: under a height cap it
+fills the space and scrolls inside; uncapped it grows with its text.
+
+Notes are listed AFTER the patients, because the canvas auto-places in that
+order — a new note takes the next free slot instead of pushing every arranged
+card down one.
+
+Outside the canvas (the other orders, and phones) the notes sit in their own
+row above the patients. Masonry places by measurement, not by hand, so there is
+nowhere for a note to be "left" among the cards.
+
+### Storage, and the bug it was designed around
+
+On the profile, as a **map keyed by note id**, with every change written to
+exactly ONE field path — `boardNotes.<id>.text`, `.color`, `.deletedAt`.
+
+Not an array. Catatan are one array in one document, and two quick saves there
+lost the first (recurring pattern 5), which needed `pendingBodies` to fix.
+Here, typing in one note and recolouring another — or editing on the phone
+while the PC changes a colour — write different fields and cannot overwrite
+each other. `FieldPath` rather than a dotted string, so a path cannot be
+misread whatever the id contains.
+
+Position and size are not stored here: they belong to the canvas layout, as a
+patient card's do.
+
+### Editing
+
+- Saves after a 600 ms pause, and on blur, and when the board unmounts — a
+  note left mid-sentence is saved, not dropped.
+- While a note has focus it keeps its own text and ignores echoes. Replacing
+  text under a caret moves the caret and eats what was typed in between; on
+  blur it catches up with the stored version.
+- **Colour**: the dot opens six swatches in place — kuning, oranye, merah muda,
+  hijau, biru, ungu. They are the shared card tokens, so they follow the theme
+  and pass `check:contrast`. Yellow is the default because that is what a
+  sticky note looks like.
+- **Delete**: `×`, then `Hapus?` to confirm. Soft delete, like everything else:
+  the note leaves the board and its text stays in the profile.
+- A slight tilt, the cheapest way to say "this is not a patient".
+
+Hidden while searching (a search asks "which patient", and a note would sit in
+the results looking like an answer) and while selecting (a note cannot be
+ticked for archive).
+
+### Not done, and why
+
+- **Positions are per device**, exactly as patient cards' are. The note's text
+  and colour sync; where it sits on the canvas does not. If that turns out
+  wrong it is one change in `readLayouts`/`writeLayouts`, for both at once.
+- **No undo for a deleted note.** Its text is kept, but there is no screen to
+  bring it back yet.
+- **Text only.** No checklist or formatting inside a note — it is for "lab jam
+  14", not for a document; Catatan is where documents go.
+- **Not rendered here.** Worth checking: add two notes on the ward PC, drag one
+  between patient cards, cap its height, change its colour, and check the phone
+  shows the same text.
+
+```
+1427 tests passed (+6)
+typecheck / lint (0 warnings) / check:version / check:contrast / check:a11y / build — clean
+```
+
+---
+
 ## `2026-09-20.2`
 
 **Both emphasis engines rewritten against the real corpus. `Aa*` and Format
