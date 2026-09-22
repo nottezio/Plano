@@ -1,5 +1,43 @@
 # Plano — CHANGES
 
+## `2026-09-21.4`
+
+**The width grip is usable on a folded card; the drag tab is back to its old
+size.**
+
+Last release widened the wrong thing. The request was the width-resize grip,
+not the drag tab — the drag tab is reverted to exactly what it was.
+
+### Why the width grip was a sliver
+
+`inset-y-6` inset it 24px from the top AND the bottom. On a full card that is a
+reasonable bar. On a folded card, about 46px tall, it left the grip almost no
+height at all — and a folded card is the one card where width is the only size
+left to change.
+
+Now:
+
+- inset 4px from each end, so it spans nearly the card's whole height at any
+  height;
+- a 16px-wide hit area centred on the card's edge, with the visible 6px bar
+  inside it. The bar used to BE the target, which is a thin thing to catch.
+  8px of the hit area sits in the 12px gap between cards, so it never reaches
+  the neighbour.
+
+The height grip is unchanged.
+
+### Not done
+
+- **Not rendered here.** Worth checking: hover a folded card on the canvas —
+  the bar on its right edge should run nearly its full height.
+
+```
+1431 tests passed
+typecheck / lint (0 warnings) / check:version / check:contrast / check:a11y / build — clean
+```
+
+---
+
 ## `2026-09-21.3`
 
 **A compact pass on the patient card, and the display bugs in the screenshots.**

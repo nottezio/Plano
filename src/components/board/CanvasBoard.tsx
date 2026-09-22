@@ -605,13 +605,30 @@ function Grip({
         // leaves the card the instant a resize starts — it is being captured,
         // not tracked — so a hover-only grip vanishes mid-drag and the gesture
         // reads as having been dropped.
-        'absolute touch-none rounded bg-border opacity-0 transition-opacity',
+        'absolute flex touch-none opacity-0 transition-opacity',
         'group-hover:opacity-100 group-data-[active=true]:opacity-100 focus-visible:opacity-100',
         horizontal
-          ? 'inset-y-6 -right-1 w-1.5 cursor-ew-resize'
+          ? /*
+              Inset 4px, not 24px, from top and bottom.
+
+              `inset-y-6` took 24px off BOTH ends. On a full card that is a
+              reasonable bar; on a folded card, about 46px tall, it left the
+              grip almost no height — the sliver in the screenshot, on the one
+              card where width is the only size left to change.
+
+              The hit area is 16px wide, centred on the edge (8px of it in the
+              12px gap between cards), with the visible bar inside it. A 6px
+              bar was also the target, which is a thin thing to catch.
+            */
+            'inset-y-1 -right-2 w-4 cursor-ew-resize justify-center'
           : 'inset-x-6 -bottom-1 h-1.5 cursor-ns-resize',
       ].join(' ')}
-    />
+    >
+      <span
+        aria-hidden="true"
+        className={horizontal ? 'h-full w-1.5 rounded bg-border' : 'h-full w-full rounded bg-border'}
+      />
+    </button>
   );
 }
 
@@ -646,15 +663,9 @@ function CanvasHandle({
       aria-label="Geser kartu"
       onPointerDown={onPointerDown}
       onClick={(event) => event.preventDefault()}
-      /*
-        Wider, not taller. 48px was a small target to find on a wide card, and
-        on a folded one — a single line — it was most of what was there to
-        grab. Height stays at 16px because the gap between canvas cards is
-        12px (`GAP_PX`): a taller tab would sit on the card above it.
-      */
-      className="absolute -top-4 left-2 z-10 flex h-4 w-28 cursor-grab touch-none items-center justify-center gap-1 rounded bg-border text-[10px] leading-none text-fg-faint opacity-0 transition-opacity group-hover:opacity-100 group-data-[active=true]:opacity-100 focus-visible:opacity-100"
+      className="absolute -top-4 left-2 z-10 flex h-4 w-12 cursor-grab touch-none items-center justify-center rounded bg-border text-[10px] leading-none text-fg-faint opacity-0 transition-opacity group-hover:opacity-100 group-data-[active=true]:opacity-100 focus-visible:opacity-100"
     >
-      <span aria-hidden="true">⠿ ⠿ ⠿</span>
+      <span aria-hidden="true">⠿</span>
     </button>
   );
 }
