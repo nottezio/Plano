@@ -26,7 +26,7 @@ describe('activeBoardNotes', () => {
     } as unknown as BoardNotes;
     const result = activeBoardNotes(notes);
     expect(result.map((entry) => entry.id)).toEqual(['broken', 'ok']);
-    expect(result[0]?.note).toEqual({ text: '', color: 'kuning', createdAt: 0 });
+    expect(result[0]?.note).toEqual({ text: '', color: 'kuning', createdAt: 0, images: [] });
   });
 
   it('is empty when there is no map at all', () => {
@@ -48,5 +48,14 @@ describe('stickyTone', () => {
   it('uses theme tokens, yellow by default', () => {
     expect(stickyTone('kuning').bg).toBe('var(--card-step-3-bg)');
     expect(stickyTone('ungu' as never).fg).toMatch(/^var\(--card-step-\d+-fg\)$/);
+  });
+});
+
+describe('images on a note', () => {
+  it('keeps only string ids', () => {
+    const notes = {
+      n: { text: '', color: 'kuning', createdAt: 1, images: ['a', 3, null, 'b'] },
+    } as unknown as BoardNotes;
+    expect(activeBoardNotes(notes)[0]?.note.images).toEqual(['a', 'b']);
   });
 });

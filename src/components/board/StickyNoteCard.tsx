@@ -5,6 +5,12 @@ import {
   setBoardNoteColor,
   setBoardNoteText,
 } from '@/data/repositories/boardNotes.repo';
+import {
+  addImageToNote,
+  copyImageToClipboard,
+  loadBoardImage,
+  removeImageFromNote,
+} from '@/data/repositories/boardImages.repo';
 import { STICKY_COLORS, stickyTone, type BoardNote, type StickyColor } from '@/domain/boardNotes';
 
 /**
@@ -37,6 +43,25 @@ export function StickyNoteCard({
   const [focused, setFocused] = useState(false);
   const [armed, setArmed] = useState(false);
   const [paletteOpen, setPaletteOpen] = useState(false);
+  const [dropping, setDropping] = useState(false);
+  const [imageStatus, setImageStatus] = useState<string | null>(null);
+
+  /**
+   * Images from a drop or a paste. Each is compressed and stored as its own
+   * document (see `boardImages.repo`), one after another so the note shows
+   * them in the order they were given.
+   */
+  const attach = async (files: readonly File[]): Promise<void> => {
+    const images = files.filter((file) => file.type.startsWith('image/'));
+    if (images.length === 0) return;
+    setImageStatus(images.length === 1 ? 'Mengunggah gambar…' : `Mengunggah ${String(images.length)} gambar…`);
+    try {
+      for (const image of images) await addImageToNote(uid, id, image);
+      setImageStatus(null);
+    } catch (error) {
+      setImageStatus(error instanceof Error ? error.message : 'Gambar gagal diunggah.');
+    }
+  };
   const timer = useRef(0);
   const pending = useRef<string | null>(null);
   const areaRef = useRef<HTMLTextAreaElement | null>(null);
@@ -85,12 +110,33 @@ export function StickyNoteCard({
     area.style.height = `${Math.max(area.scrollHeight, 72)}px`;
   }, [text, fitHeight]);
 
+  /*
+    Bounds from what the note CONTAINS, not a fixed range.
+
+    It reported 96–640px whatever was in it, which was fine for text — the
+    text scrolls inside — and wrong once images arrived: an image does not
+    scroll, so under a small cap it was simply clipped. Now the minimum is
+    everything except the text area, plus one line of text, and the maximum is
+    everything at its natural height. The canvas enforces the minimum.
+  */
   useLayoutEffect(() => {
-    if (!fitHeight || !onHeightBounds || !rootRef.current) return;
-    // A note is short by nature; the grip may make it anything from a strip
-    // to a tall column, and nothing inside it needs a minimum beyond one line.
-    onHeightBounds({ min: 96, max: 640 });
-  }, [fitHeight, onHeightBounds]);
+    const root = rootRef.current;
+    const area = areaRef.current;
+    if (!fitHeight || !onHeightBounds || !root || !area) return undefined;
+    const ONE_LINE = 28;
+    const measure = (): void => {
+      const fixed = root.scrollHeight - area.clientHeight;
+      onHeightBounds({
+        min: Math.round(fixed + ONE_LINE),
+        max: Math.round(fixed + Math.max(area.scrollHeight, ONE_LINE)),
+      });
+    };
+    const observer = new ResizeObserver(measure);
+    observer.observe(root);
+    observer.observe(area);
+    measure();
+    return () => observer.disconnect();
+  }, [fitHeight, onHeightBounds, note.images]);
 
   useEffect(() => {
     if (!armed) return undefined;
@@ -103,17 +149,50 @@ export function StickyNoteCard({
   return (
     <div
       ref={rootRef}
+      onDragOver={(event) => {
+        if (!event.dataTransfer.types.includes('Files')) return;
+        event.preventDefault();
+        event.dataTransfer.dropEffect = 'copy';
+        if (!dropping) setDropping(true);
+      }}
+      onDragLeave={(event) => {
+        // Leaving INTO a child is not leaving the note.
+        if (!event.currentTarget.contains(event.relatedTarget as Node | null)) setDropping(false);
+      }}
+      onDrop={(event) => {
+        if (!event.dataTransfer.files.length) return;
+        event.preventDefault();
+        setDropping(false);
+        void attach([...event.dataTransfer.files]);
+      }}
       style={{ backgroundColor: tone.bg, color: tone.fg }}
       className={[
-        'group relative rounded-lg shadow-md',
-        // A slight tilt is the cheapest way to say "this is not a patient".
-        '[transform:rotate(-0.4deg)]',
+        /*
+          Made to look like PAPER, not like a card, because on a board of
+          patient cards the one thing a note must never be is mistaken for a
+          patient. A patient card is a rounded box with a header band; this has
+          square-ish corners, a strip of tape across the top, a folded corner
+          at the bottom right, a tilt, and no header band at all.
+        */
+        'group relative rounded-sm pt-2 shadow-[0_6px_14px_rgba(0,0,0,0.35)]',
+        '[transform:rotate(-0.6deg)]',
+        dropping ? 'outline-dashed outline-2 outline-offset-2 outline-current' : '',
         fitHeight ? 'flex h-full flex-col' : '',
       ].join(' ')}
     >
+      {/* The tape. */}
+      <span
+        aria-hidden="true"
+        className="pointer-events-none absolute -top-2 left-1/2 h-4 w-16 -translate-x-1/2 rotate-2 rounded-[2px] bg-white/45 shadow-sm"
+      />
+      {/* The folded corner. */}
+      <span
+        aria-hidden="true"
+        className="pointer-events-none absolute bottom-0 right-0 h-4 w-4 bg-[linear-gradient(135deg,transparent_50%,rgba(0,0,0,0.22)_50%)]"
+      />
       <div className="flex items-center gap-1 px-2 pt-1.5">
         <span className="flex-1 text-[10px] font-semibold uppercase tracking-wide opacity-60">
-          Catatan
+          📌 Catatan
         </span>
 
         {/* Colour: a dot that opens the palette in place. */}
@@ -186,6 +265,16 @@ export function StickyNoteCard({
 
       <textarea
         ref={areaRef}
+        onPaste={(event) => {
+          // An image pasted INTO the text becomes an attachment, not a
+          // filename in the text. Text pastes are left entirely alone.
+          const files = [...event.clipboardData.files].filter((file) =>
+            file.type.startsWith('image/'),
+          );
+          if (files.length === 0) return;
+          event.preventDefault();
+          void attach(files);
+        }}
         value={text}
         onChange={(event) => change(event.target.value)}
         onFocus={() => setFocused(true)}
@@ -202,6 +291,104 @@ export function StickyNoteCard({
         ].join(' ')}
         style={{ color: tone.fg }}
       />
+
+      {(note.images ?? []).length > 0 ? (
+        <div className={['space-y-1.5 px-2.5 pb-3', fitHeight ? 'shrink-0' : ''].join(' ')}>
+          {(note.images ?? []).map((imageId) => (
+            <NoteImage key={imageId} uid={uid} noteId={id} imageId={imageId} />
+          ))}
+        </div>
+      ) : null}
+
+      {imageStatus ? (
+        <p role="status" className="px-2.5 pb-2 text-[11px] opacity-70">
+          {imageStatus}
+        </p>
+      ) : dropping ? (
+        <p className="px-2.5 pb-2 text-[11px] font-medium">Lepaskan untuk menempel gambar</p>
+      ) : null}
     </div>
+  );
+}
+
+/**
+ * One attached image, with the two things it is for: seeing it, and taking
+ * it somewhere else.
+ *
+ * Copy puts the IMAGE on the clipboard, so it pastes into WhatsApp or a
+ * document as a picture. A right-click → copy on the `<img>` works too; the
+ * button is for the phone, where there is no right-click.
+ */
+function NoteImage({
+  uid,
+  noteId,
+  imageId,
+}: {
+  uid: string;
+  noteId: string;
+  imageId: string;
+}): JSX.Element {
+  const [src, setSrc] = useState<string | null | undefined>(undefined);
+  const [copied, setCopied] = useState<string | null>(null);
+
+  useEffect(() => {
+    let alive = true;
+    void loadBoardImage(uid, imageId).then((value) => {
+      if (alive) setSrc(value);
+    });
+    return () => {
+      alive = false;
+    };
+  }, [uid, imageId]);
+
+  if (src === undefined) {
+    return <div className="h-16 animate-pulse rounded bg-black/10" aria-label="Memuat gambar" />;
+  }
+  if (src === null) {
+    return <p className="text-[11px] opacity-60">Gambar tidak bisa dimuat.</p>;
+  }
+
+  return (
+    <figure className="group/img relative">
+      <img
+        src={src}
+        alt="Gambar di catatan"
+        className="max-h-48 w-full rounded border border-black/15 bg-white object-contain"
+        draggable={false}
+      />
+      <div className="absolute right-1 top-1 hidden gap-1 group-hover/img:flex">
+        <button
+          type="button"
+          onClick={() => {
+            void copyImageToClipboard(src)
+              .then(() => setCopied('Tersalin'))
+              .catch((error: unknown) =>
+                setCopied(error instanceof Error ? error.message : 'Gagal menyalin'),
+              )
+              .finally(() => window.setTimeout(() => setCopied(null), 2500));
+          }}
+          className="min-h-tap rounded bg-black/70 px-2 text-[11px] font-medium text-white"
+        >
+          Salin
+        </button>
+        <button
+          type="button"
+          onClick={() =>
+            void removeImageFromNote(uid, noteId, imageId).catch((error: unknown) =>
+              console.error('[sticky] detach failed', error),
+            )
+          }
+          aria-label="Lepas gambar dari catatan"
+          className="min-h-tap min-w-tap rounded bg-black/70 text-sm text-white"
+        >
+          ×
+        </button>
+      </div>
+      {copied ? (
+        <figcaption role="status" className="mt-0.5 text-[11px] opacity-80">
+          {copied}
+        </figcaption>
+      ) : null}
+    </figure>
   );
 }

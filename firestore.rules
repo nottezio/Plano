@@ -193,6 +193,23 @@ service cloud.firestore {
         allow delete: if false;
       }
 
+      // Images in board sticky notes, one per document (see paths.ts).
+      // Immutable once written: an image is replaced by adding another, and
+      // removing one from a note only drops its id there. The size bound is
+      // well under the 1 MiB document cap, so a write can never be the one
+      // that fails for size, whatever the client did before sending it.
+      match /boardImages/{imageId} {
+        allow read: if isSelf(uid) && allowed();
+        allow create: if isSelf(uid) && allowed()
+          && request.resource.data.dataUrl is string
+          && request.resource.data.dataUrl.size() < 900000
+          // Checked on a small field, not by a regex over the image itself:
+          // a pattern run across ~900 KB is a rule-engine limit waiting to
+          // be found in production.
+          && request.resource.data.mime in ['image/jpeg', 'image/png'];
+        allow update, delete: if false;
+      }
+
       // Konfirmasi Jaga: parsed rosters and working state, owner only.
       // The id is limited to the five documents the app writes, so this
       // path cannot become a general-purpose store. No delete: a roster is

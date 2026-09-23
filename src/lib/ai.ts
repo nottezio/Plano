@@ -51,9 +51,19 @@ export interface AiFlags {
    * reads and corrects.
    */
   summary: boolean;
+  /**
+   * Ward census verification (Helper, WIP): the DENAH and LIST PASIEN PDFs
+   * are sent to the model to be transcribed.
+   *
+   * Its own switch, not folded into another, because it is the one feature
+   * that sends WHOLE documents — every patient's name, RM and date of birth
+   * on the ward — rather than one note someone is looking at. That is a
+   * different decision and it gets its own yes.
+   */
+  census: boolean;
 }
 
-const OFF: AiFlags = { lab: false, soap: false, check: false, summary: false };
+const OFF: AiFlags = { lab: false, soap: false, check: false, summary: false, census: false };
 
 /**
  * Does this look like an Anthropic key, at a glance?
@@ -95,6 +105,9 @@ export function readAiFlags(): AiFlags {
       soap: parsed.soap === true,
       check: parsed.check === true,
       summary: parsed.summary === true,
+      // Absent on every flag set saved before this existed, which reads as
+      // off: a stored "yes" to other features is not a yes to this one.
+      census: parsed.census === true,
     };
   } catch {
     return OFF;
@@ -170,4 +183,76 @@ export async function askClaude(
 
   if (!text) throw new AiError('AI tidak mengembalikan teks.');
   return text;
+}
+
+/**
+ * One forced tool call with a PDF attached — the shape the census extraction
+ * needs, and the only caller of it.
+ *
+ * Separate from `askClaude` rather than an option on it: that one returns
+ * text and every existing caller relies on that, while this returns the
+ * tool's INPUT as data. Folding both into one function would give every text
+ * caller a code path it can never take.
+ *
+ * `temperature: 0` and a forced tool, as in `extraction.ts`: a transcription
+ * that varies between identical runs is not a transcription.
+ */
+export async function askClaudeTool(options: {
+  model: string;
+  system: string;
+  tool: { name: string; description: string; input_schema: unknown };
+  pdfBase64: string;
+  instruction: string;
+  maxTokens: number;
+}): Promise<{ input: unknown; truncated: boolean }> {
+  const key = readApiKey();
+  if (!key) throw new AiError('Belum ada API key.');
+
+  let response: Response;
+  try {
+    response = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'content-type': 'application/json',
+        'x-api-key': key,
+        'anthropic-version': '2023-06-01',
+        'anthropic-dangerous-direct-browser-access': 'true',
+      },
+      body: JSON.stringify({
+        model: options.model,
+        max_tokens: options.maxTokens,
+        temperature: 0,
+        system: options.system,
+        tools: [options.tool],
+        tool_choice: { type: 'tool', name: options.tool.name },
+        messages: [
+          {
+            role: 'user',
+            content: [
+              {
+                type: 'document',
+                source: { type: 'base64', media_type: 'application/pdf', data: options.pdfBase64 },
+              },
+              { type: 'text', text: options.instruction },
+            ],
+          },
+        ],
+      }),
+    });
+  } catch {
+    throw new AiError('Tidak ada koneksi ke server AI.');
+  }
+
+  if (response.status === 401) throw new AiError('API key ditolak. Periksa kembali key-nya.');
+  if (response.status === 429) throw new AiError('Kuota API sedang penuh. Coba lagi nanti.');
+  if (response.status === 413) throw new AiError('PDF terlalu besar untuk dikirim.');
+  if (!response.ok) throw new AiError(`Gagal memanggil AI (${String(response.status)}).`);
+
+  const data = (await response.json()) as {
+    stop_reason?: string;
+    content?: Array<{ type?: string; input?: unknown }>;
+  };
+  const block = (data.content ?? []).find((candidate) => candidate.type === 'tool_use');
+  if (!block) throw new AiError('AI tidak mengembalikan hasil transkripsi.');
+  return { input: block.input, truncated: data.stop_reason === 'max_tokens' };
 }

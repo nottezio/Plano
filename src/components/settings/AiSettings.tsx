@@ -123,6 +123,13 @@ export function AiSettings(): JSX.Element {
           disabled={!key}
           onChange={(value) => update({ soap: value })}
         />
+        <Toggle
+          label="Verifikasi sensus bangsal (WIP)"
+          detail="PDF DENAH dan LIST PASIEN dikirim utuh untuk ditranskripsi — nama, RM dan tanggal lahir semua pasien di dalamnya. Pengecekannya dilakukan di perangkat ini."
+          checked={flags.census}
+          disabled={!key}
+          onChange={(value) => update({ census: value })}
+        />
       </div>
 
       {/*

@@ -37,19 +37,19 @@ describe('the key', () => {
 
 describe('the switches', () => {
   it('are off when nothing has been saved', () => {
-    expect(readAiFlags()).toEqual({ lab: false, soap: false, check: false, summary: false });
+    expect(readAiFlags()).toEqual({ lab: false, soap: false, check: false, summary: false, census: false });
   });
 
   it('treat anything that is not exactly true as off', () => {
     // A half-written or hand-edited value must fail closed. The failure this
     // guards is a feature turning itself on and sending a note somewhere.
     store.set('visite.ai.flags', JSON.stringify({ lab: 'yes', soap: 1 }));
-    expect(readAiFlags()).toEqual({ lab: false, soap: false, check: false, summary: false });
+    expect(readAiFlags()).toEqual({ lab: false, soap: false, check: false, summary: false, census: false });
   });
 
   it('are off when the stored value is not JSON at all', () => {
     store.set('visite.ai.flags', 'nonsense{');
-    expect(readAiFlags()).toEqual({ lab: false, soap: false, check: false, summary: false });
+    expect(readAiFlags()).toEqual({ lab: false, soap: false, check: false, summary: false, census: false });
   });
 });
 
@@ -57,13 +57,13 @@ describe('aiEnabled', () => {
   it('needs BOTH a key and the switch', () => {
     // Two conditions because they answer different questions: can this app
     // call the API, and should it call it with my patient's note.
-    writeAiFlags({ lab: true, soap: true, check: true, summary: true });
+    writeAiFlags({ lab: true, soap: true, check: true, summary: true, census: false });
     expect(aiEnabled('lab')).toBe(false);
 
     writeApiKey('sk-ant-abc');
     expect(aiEnabled('lab')).toBe(true);
 
-    writeAiFlags({ lab: false, soap: true, check: false, summary: false });
+    writeAiFlags({ lab: false, soap: true, check: false, summary: false, census: false });
     expect(aiEnabled('lab')).toBe(false);
     expect(aiEnabled('soap')).toBe(true);
   });
@@ -79,5 +79,14 @@ describe('looksLikeApiKey', () => {
     // filling a saved credential into a field it mistook for a login.
     expect(looksLikeApiKey('Hunter2!2026')).toBe(false);
     expect(looksLikeApiKey('')).toBe(false);
+  });
+});
+
+describe('census switch', () => {
+  it('is off for a flag set saved before it existed', () => {
+    // Every other switch on says nothing about sending whole census PDFs.
+    localStorage.setItem('visite.ai.flags', JSON.stringify({ lab: true, soap: true, check: true, summary: true }));
+    writeApiKey('sk-ant-abc');
+    expect(aiEnabled('census')).toBe(false);
   });
 });

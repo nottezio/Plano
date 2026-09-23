@@ -171,7 +171,16 @@ export function CanvasStickers({
               persist(stickers);
             }}
             onPointerCancel={() => setDragId(null)}
-            className="cursor-grab text-2xl leading-none drop-shadow-sm"
+            /*
+              On its own white disc with a dark ring and a real shadow.
+
+              A bare emoji on a card is an emoji on a coloured background, and
+              the cards come in twelve colours: a flag on the red card, a tick
+              on the green one, simply disappeared into it — a marker nobody
+              notices marks nothing. White with a dark ring separates from
+              every card colour in both themes, which no single tint could.
+            */
+            className="flex h-10 w-10 cursor-grab items-center justify-center rounded-full bg-white text-2xl leading-none shadow-[0_2px_8px_rgba(0,0,0,0.45)] ring-2 ring-black/70"
           >
             <span aria-hidden="true">{sticker.emoji}</span>
           </button>

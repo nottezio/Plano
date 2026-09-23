@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 
 import { useJagaSync } from '@/hooks/useJagaSync';
+import { CensusVerifier } from '@/components/helper/CensusVerifier';
 
 import { copyText } from '@/lib/clipboard';
 import { extractPdf } from '@/lib/pdfItems';
@@ -767,6 +768,12 @@ export function HelperPage(): JSX.Element {
           </section>
         </>
       ) : null}
+      {/*
+        A separate tool that shares the page because it shares the purpose:
+        getting the ward's handover documents right. It reads nothing from the
+        rosters above and writes nothing to them.
+      */}
+      <CensusVerifier />
     </div>
   );
 }

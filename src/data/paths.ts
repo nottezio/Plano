@@ -50,3 +50,14 @@ export const accessCol = (): CollectionReference => collection(db(), 'access');
 export const accessDoc = (uid: string): DocumentReference => doc(db(), 'access', uid);
 /** The enforcement switch. */
 export const accessConfigDoc = (): DocumentReference => doc(db(), 'config', 'access');
+
+/**
+ * Images pasted into board sticky notes, one document each.
+ *
+ * Not on the profile: that document holds settings and every Catatan note
+ * under Firestore's 1 MiB cap, and a few photos there would push it over and
+ * break every save to it. One image per document keeps each within its own
+ * cap and leaves the profile untouched.
+ */
+export const boardImageDoc = (uid: string, imageId: string): DocumentReference =>
+  doc(db(), 'users', uid, 'boardImages', imageId);

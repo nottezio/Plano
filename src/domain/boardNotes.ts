@@ -41,6 +41,8 @@ export interface BoardNote {
   color: StickyColor;
   /** Epoch ms, set by the creating device. Orders new notes; nothing else. */
   createdAt: number;
+  /** Ids of attached images, in the order they were added. See `boardImages`. */
+  images?: string[];
   /**
    * Soft delete, as everywhere else in this app: no client ever hard-deletes.
    * A deleted note leaves the board and its text stays recoverable.
@@ -89,6 +91,9 @@ export function activeBoardNotes(
         text: typeof note.text === 'string' ? note.text : '',
         color: STICKY_COLORS.some((entry) => entry.id === note.color) ? note.color : 'kuning',
         createdAt: typeof note.createdAt === 'number' ? note.createdAt : 0,
+        images: Array.isArray(note.images)
+          ? note.images.filter((image): image is string => typeof image === 'string')
+          : [],
       },
     }))
     .sort((a, b) => a.note.createdAt - b.note.createdAt || a.id.localeCompare(b.id));

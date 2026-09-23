@@ -1,5 +1,238 @@
 # Plano — CHANGES
 
+## `2026-09-23.1`
+
+**The census verifier's Stages 4–8, ported from Avi's `verifier.ts`, with the
+confirmation loop the spec asks for.**
+
+(This release also carries `2026-09-22.4`, which was not yet pushed.)
+
+### What was ported
+
+`domain/census/verifier.ts` is Avi's file: the pipeline (flatten → match →
+checks → diff → report → markdown), every rule, every severity and every
+message, as written. Each change is marked `PORT:` at the line where it
+happens. None re-interprets a rule; each is a fix or a spec item the original
+did not implement.
+
+The re-uploaded `extraction.ts` was compared against last release's port:
+schemas and prompt are identical, so the extraction layer is unchanged.
+
+### It did not compile
+
+In C3 the comparison object read `header /* alias */ as any: undefined` — not
+valid TypeScript. The whole file failed at that line.
+
+### Five bugs, each with a test that fails without the fix
+
+Confirmed by reverting the fixes and watching six tests fail, then restoring
+them.
+
+1. **Issue ids collided.** An id was `ruleId + patient keys`, and C3, C9 and
+   C10b have no patients — so every DPJP's count mismatch was `C3:`, every
+   chief `C9:`, every category `C10b:`. Stage 6 diffs by id, so fixing one
+   DPJP reported a DIFFERENT one as resolved, and two open issues collapsed
+   into one. Ids now carry what the issue is about (the DPJP code, chief,
+   category or RM).
+2. **O5 had the same collision** (`O5:` for every vanished patient), and its
+   message said "with no LEPAS RAWAT / Pindah CVCU / Operkan ke Tmn Lain
+   notation found" although it never looked. It now names the patient (from
+   the saved history — the original's own comment asked for this) and says
+   only what it knows.
+3. **One missing RM made two patients.** A name-only record was keyed apart
+   from its RM-keyed twin, so a patient whose RM was left off in the LIST
+   became an O3 orphan AND an O4 stale entry — two high-severity findings for
+   one missing number. Name-only records now fold into the RM match with the
+   same normalised name, and only when exactly one exists: two RMs sharing a
+   name are two people.
+4. **C3 checked only configured DPJPs.** A doctor new to the ward — exactly the
+   one nobody has checked yet — was skipped silently. It now checks every code
+   that appears.
+5. **C9's message described something it did not do** ("if unconfirmed name
+   variants are folded in"). Only confirmed aliases are folded; the message now
+   says so.
+
+### Spec items the original did not implement
+
+- **Transposition detector (§3.4).** Two DPJPs each off by one in opposite
+  directions: the total still matches, so C1 and C2 pass and C3 would report two
+  unrelated mismatches. They are replaced by one issue: "Counts swapped between
+  X and Y".
+- **F5 (§3.5).** A dual DPJP code (`AHA-NP`) in the room grid, cosmetic when the
+  other views agree. The original normalised it away and never reported it.
+- **F6 (§3.5).** Same RM, different spelling of the name. Cosmetic.
+- **The confirmation loop (§6, §7.6)** and O5's "carry it forward until the user
+  confirms" (`domain/census/history.ts`).
+
+### The confirmation loop
+
+Kept on this device between runs: the last run's open issues (the baseline
+for resolved / persisting / new), the RMs on the ward with their names, and
+your answers.
+
+- 🟡 items carry three buttons: *Sudah pulang / pindah*, *Memang disengaja*,
+  *Salah ketik, sudah diperbaiki*. An answer closes the item on this run and
+  later ones.
+- **Answers close ONLY 🟡 items.** If "intentional" could close a count
+  mismatch, the next shift's genuinely wrong count — same rule, same DPJP,
+  same id — would be hidden by yesterday's answer.
+- A vanished patient stays "on the ward" for O5 until confirmed gone, run after
+  run.
+- **Cleared on sign-out.** It holds names and RMs of the whole ward, and the
+  next person on a shared PC must not inherit them.
+
+### The screen
+
+Following spec §7: pre-flight problems in red first; the verdict (CLEAN /
+NOT CLEAN — n / PARTIAL) with date and patient count; resolved since last run;
+issues grouped 🔴 → 🟠 → 🟡 → cosmetic, each with its view-by-view values as a
+table; answered items; **Salin laporan** copies the original's markdown report.
+The provisional checks from `2026-09-22.4` are deleted, not kept beside the
+real verifier.
+
+### Not done, and why
+
+- **C4's "numbering typos" and the other cosmetic line checks** (`11.`, `3Plan:`)
+  are not implemented: the spec lists them as cosmetic, the original has no rule,
+  and they need the raw line grammar rather than the transcription.
+- **The cascade detector is the original's**: C6 gains a note when C5 or C7 also
+  fired. It does not merge them into one issue as the spec describes.
+- **Chief aliases stay empty** (`confirmedChiefAliases: {}`), as in the original,
+  until you confirm Gaby → Gabi. There is no screen to edit the config yet; it is
+  `DEFAULT_CONFIG` in code.
+- **History is per device**, like the canvas layout. Running on the phone and
+  then the PC gives two separate baselines.
+- **Not run against real PDFs.** 28 tests (19 verifier, 9 history) cover the
+  rules on synthetic shifts — net +23, since the provisional checker's 5 were
+  deleted with it. A real DENAH will find what they do not.
+
+```
+1481 tests passed (+23)
+typecheck / lint (0 warnings) / check:version / check:contrast / check:a11y / build — clean
+```
+
+---
+
+## `2026-09-22.4`
+
+**Ward census verification in Helper (WIP), markers that stand out, and
+images in board notes.**
+
+### 1. Verifikasi sensus bangsal — WIP
+
+Your `extraction.ts` (Stages 0–3), ported into the browser.
+
+**What was ported unchanged:** the roster, the patient-line sub-schema, both
+tool schemas and the whole system prompt, word for word
+(`domain/census/schemas.ts`). They are the specification of what the model is
+asked to do, and paraphrasing a spec while porting it is how two copies of one
+instruction come to disagree. Also unchanged: the model, 16 000 tokens,
+`temperature: 0`, the forced tool call, one retry on a failed self-check, and
+returning the data WITH `_extractionWarnings` on the last attempt rather than
+discarding it.
+
+**What had to change:** the original is Node (`@anthropic-ai/sdk`,
+`readFileSync`, a key in the server environment). Plano is a browser app, so
+the call goes through `lib/ai` with the user's own key, like every other AI
+feature, and the PDF comes from a file input, base64-encoded in chunks (a
+single `fromCharCode(...bytes)` on a multi-megabyte PDF exceeds the argument
+limit and throws).
+
+**One behaviour change in `selfCheckProblems`, found by a test:** the original
+pushed "Expected DENAH, got LIST_PASIEN" and carried on counting `roomGrid`.
+With the wrong document's shape those arrays are missing and the count throws —
+so dropping the LIST into the DENAH slot produced an exception instead of the
+one message that says what to do. It now stops at the type mismatch.
+
+**Its own AI switch**, off by default and off for every flag set saved before it
+existed: it is the one feature that sends WHOLE documents — every patient's
+name, RM and date of birth on the ward — rather than one note someone is
+looking at, and that is a different decision from the others.
+
+**What the checks cover so far** (`censusFindings`): a printed count against
+the lines under it in the LIST (section headings and the header's per-DPJP
+lines), and a patient — matched by RM digits, leading zeros kept — present in
+one document and not the other. Nothing else yet, on purpose: chief-name
+matching, holder lists and dispositions need the Stage 4–8 spec, and guessing
+that "Gaby" is "Gabi" is exactly the correction the prompt forbids the model
+from making. The verifier must not make it either.
+
+**Nothing is stored** — not the PDFs, the transcriptions or the findings. The
+raw JSON is viewable, collapsed, for checking the transcription itself.
+
+### 2. Markers stand out
+
+A bare emoji on a coloured card is an emoji on a coloured background, and the
+cards come in twelve colours — a flag on the red card simply disappeared. Each
+marker now sits on a white disc with a dark ring and a real shadow, which
+separates from every card colour in both themes; no single tint could.
+
+### 3. Images in board notes
+
+Drag an image onto a note, or paste one while typing in it. Each image has
+**Salin**, which puts the image itself on the clipboard (PNG, the one type
+every browser's clipboard accepts), so it pastes into WhatsApp as a picture.
+Right-click → copy works too; the button is for the phone.
+
+**Where the images live, and why.** Firebase Storage is not enabled, and the
+profile document was not an option: it holds settings and every Catatan note
+under Firestore's 1 MiB cap, and a few photos there would push it over and break
+every save to it. So each image is **its own document**
+(`users/{uid}/boardImages/{id}`), the note holds only the ids, and the profile
+is untouched.
+
+Each image is re-encoded to fit: longest side 1400px, JPEG at stepped quality
+until it is under 700 000 characters. JPEG because it is the only browser
+encoding whose size trades for quality — a lab screenshot shrunk to fit is one
+that can no longer be read. Transparent PNGs get a white background first,
+since JPEG would turn them black.
+
+The **rules** accept an image only under 900 000 characters with an
+`image/jpeg` or `image/png` type, and never allow it to be updated or deleted.
+The type is checked on a small field rather than by a regex over the image: a
+pattern run across ~900 KB is a rule-engine limit waiting to be found in
+production. Removing an image from a note only drops its id; the document stays
+(no client hard-deletes). The image is written BEFORE its id is attached, so a
+failure leaves an unused document, never a broken tile.
+
+**Bounds follow the content.** The note used to report 96–640px whatever was in
+it — fine for text, which scrolls, wrong for an image, which does not, and
+would have been clipped under a small cap.
+
+### 4. A note no longer looks like a patient
+
+Paper, not a card: near-square corners, a strip of tape across the top, a
+folded bottom-right corner, a stronger tilt and shadow, 📌 beside the label, and
+no header band. On a board of patient cards, the one thing a note must never be
+is mistaken for a patient.
+
+### Deploy
+
+**`firestore.rules` changed** (the image documents). Wait for
+`firestore-deploy` to go green; until then image uploads are refused and the
+note says so.
+
+### Not done, and why
+
+- **Stages 4–8 of the verifier.** Only the checks that follow from the schema
+  itself are in. The rest needs the spec.
+- **The roster is still the constant from your file.** Deriving it from the
+  Jarkom import is the obvious next step, and it should be a decision rather
+  than a quiet substitution.
+- **`claude-sonnet-5`** as in your file, including its own advice to test Haiku
+  against real shifts before switching. Not tested against real PDFs here.
+- **Image documents are never cleaned up.** A detached image stays, per the
+  no-hard-delete rule, and costs its own storage.
+- **Not rendered here.** Worth checking: drop a screenshot on a note and paste
+  it into WhatsApp with Salin; run the verifier on one real shift.
+
+```
+1458 tests passed (+26)
+typecheck / lint (0 warnings) / check:version / check:contrast / check:a11y / build — clean
+```
+
+---
+
 ## `2026-09-22.3`
 
 **Penanda moved out of the way.**

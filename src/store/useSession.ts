@@ -1,3 +1,4 @@
+import { HISTORY_KEY as CENSUS_HISTORY_KEY } from '@/domain/census/history';
 import {
   GoogleAuthProvider,
   createUserWithEmailAndPassword,
@@ -286,6 +287,17 @@ export async function signOutAndClear(): Promise<void> {
 
   await signOut(auth);
   await clearLocalBase();
+
+  /*
+    The census verifier's memory holds names and RMs of every patient on the
+    ward. Sign-out is when the next person on this device must not inherit
+    them — the same reason the offline cache is cleared just below.
+  */
+  try {
+    localStorage.removeItem(CENSUS_HISTORY_KEY);
+  } catch {
+    // No storage means nothing was kept.
+  }
 
   try {
     await terminate(db);
