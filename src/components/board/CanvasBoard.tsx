@@ -42,6 +42,7 @@ export function CanvasBoard({
   enabled,
   actionsSlot,
   isUncapped,
+  overlay,
 }: {
   /** Every card on the board, in board order. Drives auto-placement. */
   ids: readonly string[];
@@ -85,6 +86,12 @@ export function CanvasBoard({
    * measurement would stop measuring the moment it was uncapped.
    */
   isUncapped?: ((id: string) => boolean) | undefined;
+  /**
+   * Rendered inside the canvas surface, above the cards — the sticker layer.
+   * Given the surface so it can place by the same coordinates the cards use,
+   * rather than being handed positions it cannot recompute on a resize.
+   */
+  overlay?: ((surfaceRef: React.RefObject<HTMLDivElement>) => JSX.Element | null) | undefined;
 }): JSX.Element {
   const surfaceRef = useRef<HTMLDivElement>(null);
   const [stored, setStored] = useState<CanvasLayouts>(() => readLayouts());
@@ -389,6 +396,7 @@ export function CanvasBoard({
         : null}
 
     <div ref={surfaceRef} className="relative px-4 pt-1" style={{ height }}>
+      {overlay?.(surfaceRef)}
       {ids.map((id) => {
         const base = layouts[id];
         if (!base) return null;

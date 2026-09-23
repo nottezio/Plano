@@ -1,5 +1,77 @@
 # Plano — CHANGES
 
+## `2026-09-22.2`
+
+**Compare two versions of a day's SOAP, and emoji markers on the canvas.**
+
+### 1. Comparing two versions
+
+Expanding a version in Riwayat perubahan already diffs it against the note as
+it is NOW, which answers "what has changed since then". It could not answer
+"what changed between the morning SOAP and the one after the chief's round" —
+two points in the past, which is what a trail of thirty snapshots is for.
+
+Each row now carries a **Banding** button. Pick two and the comparison appears
+above the list, marked `1` and `2` on the rows it came from.
+
+- **Ordered by `rev`, not by tap order.** A diff reads "what became what";
+  picking the newer one first would print every addition as a removal.
+- **Held by id, not by body.** A version can be deleted while the sheet is
+  open, and a stored body would then be compared against something no longer
+  in the list.
+- **A third pick replaces the oldest** rather than being refused: refusing
+  makes you work out which one to clear before you can do what you are already
+  doing.
+- The comparison sits above the list, not inside one of the two rows — it
+  belongs to both.
+- Picking is its own button. Tapping a row still expands it; a row that
+  sometimes expanded and sometimes queued a comparison would be neither.
+
+### 2. Penanda — emoji markers on the canvas
+
+A **Penanda** button on the canvas opens twelve marks (🚩 ✅ ❌ ⭐ ⚠️ ❗ 🕒 📞
+🩸 💉 🫀 👀). Pick one and it lands on the board; drag it next to the card it
+is about.
+
+- **They sit above the cards and take no part in the layout.** Their whole
+  meaning is which card they are beside, so nothing reflows around them and
+  nothing is pushed by them.
+- **Per device, like the canvas layout itself.** A marker means something by
+  WHERE it is, and where a card sits is already per device. Syncing markers
+  while the cards stayed local would put a flag beside a different patient on
+  the phone — worse than not syncing at all.
+- **Coordinates are the canvas's own** (`x` a fraction of the width, `y` in
+  pixels), so resizing the window keeps the marker beside the same card, which
+  is the entire point of it.
+- Dragged with pointer events, like the cards: the gesture survives the
+  pointer leaving the marker, and it works with a finger.
+- Written to storage once per drag, on release, not on every frame.
+- `×` on hover removes one. No confirmation: it is two taps to place again.
+- Hidden while searching or selecting, like the sticky notes.
+
+Nothing else in the app reads a marker. What it means lives with whoever put
+it there, and it is true until they move it.
+
+### Not done, and why
+
+- **A marker is not attached to a patient.** It is next to a card, not on one,
+  so Rapikan — which re-lays the cards — leaves markers where they are and
+  they will need moving. Attaching one to a patient would make it a clinical
+  field, which is a different feature with a different bar.
+- **The compare view is the same character-level diff** the trail already
+  uses, not the word-level one from Bandingkan → revisi tempelan. Worth
+  aligning them, but they answer differently shaped questions and that is its
+  own change.
+- **Not rendered here.** Worth checking: pick two versions of a busy day, and
+  drag a flag next to a card on the ward PC.
+
+```
+1443 tests passed (+12)
+typecheck / lint (0 warnings) / check:version / check:contrast / check:a11y / build — clean
+```
+
+---
+
 ## `2026-09-22.1`
 
 **A note opened blank, the canvas could not bring a card forward, tighter

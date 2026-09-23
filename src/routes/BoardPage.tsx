@@ -9,6 +9,7 @@ import type { ArchiveReason } from '@/domain/types';
 
 import { CanvasBoard } from '@/components/board/CanvasBoard';
 import { StickyNoteCard } from '@/components/board/StickyNoteCard';
+import { CanvasStickers } from '@/components/board/CanvasStickers';
 import { createBoardNote } from '@/data/repositories/boardNotes.repo';
 import { activeBoardNotes, noteIdFromCanvasId, stickyCanvasId } from '@/domain/boardNotes';
 import { useMediaQuery } from '@/hooks/useMediaQuery';
@@ -750,6 +751,12 @@ export default function BoardPage(): JSX.Element {
                 ...(showStickies ? boardNotes.map((entry) => stickyCanvasId(entry.id)) : []),
               ]}
               actionsSlot={canvasActions}
+              // Stickers are hidden while searching or selecting, like the
+              // sticky notes and for the same reason: neither answers "which
+              // patient" and neither can be ticked.
+              overlay={(surfaceRef) => (
+                <CanvasStickers surfaceRef={surfaceRef} enabled={showStickies} />
+              )}
               // Shown at natural height, with no height grip: a card with its
               // note open (see `isUncapped` on the canvas), and a FOLDED card,
               // whose one line has no height to cap. The grip under a folded

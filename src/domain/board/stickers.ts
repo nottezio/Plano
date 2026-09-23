@@ -1,0 +1,85 @@
+/**
+ * Emoji stickers on the canvas board.
+ *
+ * A mark put NEXT TO a patient card — a flag, a tick, a cross — to say
+ * something about that patient for the next hour. It is not a field on the
+ * patient: what it means lives in the head of whoever put it there, it is
+ * true until they move it, and nothing else in the app should read it.
+ *
+ * WHY PER DEVICE
+ *
+ * A sticker means something by WHERE it is, and where a card is on the canvas
+ * is already per device (`readLayouts`/`writeLayouts`). Syncing the stickers
+ * while the cards stay local would put a flag beside a different patient on
+ * the phone — worse than not syncing it at all. So stickers live beside the
+ * layout they point into, in localStorage, and move with it or not at all.
+ *
+ * Coordinates match the canvas layout's: `x` a fraction of the canvas width,
+ * `y` in pixels. A window resized to half the width keeps the sticker beside
+ * the same card, which is the entire point of it.
+ */
+
+export interface BoardSticker {
+  id: string;
+  emoji: string;
+  /** 0–1, fraction of the canvas width. */
+  x: number;
+  /** Pixels from the top of the canvas. */
+  y: number;
+}
+
+/**
+ * The palette. Small on purpose: a picker of two hundred emoji is a decision
+ * every time it opens, and these are the marks a ward round actually makes.
+ */
+export const STICKER_EMOJI: readonly string[] = [
+  '🚩', '✅', '❌', '⭐', '⚠️', '❗', '🕒', '📞', '🩸', '💉', '🫀', '👀',
+];
+
+export const STICKER_KEY = 'visite.board.stickers';
+
+export function parseStickers(raw: string | null): BoardSticker[] {
+  if (!raw) return [];
+  try {
+    const parsed: unknown = JSON.parse(raw);
+    if (!Array.isArray(parsed)) return [];
+    return parsed.flatMap((entry) => {
+      if (typeof entry !== 'object' || entry === null) return [];
+      const { id, emoji, x, y } = entry as Partial<BoardSticker>;
+      if (typeof id !== 'string' || typeof emoji !== 'string') return [];
+      if (typeof x !== 'number' || typeof y !== 'number') return [];
+      if (!Number.isFinite(x) || !Number.isFinite(y)) return [];
+      return [{ id, emoji, x: clampX(x), y: Math.max(0, y) }];
+    });
+  } catch {
+    // A corrupt entry costs the stickers, never the board.
+    return [];
+  }
+}
+
+/** Kept inside the canvas horizontally; a sticker dragged off it is gone. */
+export function clampX(x: number): number {
+  return Math.min(Math.max(x, 0), 0.97);
+}
+
+export function moveSticker(
+  stickers: readonly BoardSticker[],
+  id: string,
+  x: number,
+  y: number,
+): BoardSticker[] {
+  return stickers.map((sticker) =>
+    sticker.id === id ? { ...sticker, x: clampX(x), y: Math.max(0, y) } : sticker,
+  );
+}
+
+export function addSticker(
+  stickers: readonly BoardSticker[],
+  sticker: BoardSticker,
+): BoardSticker[] {
+  return [...stickers, { ...sticker, x: clampX(sticker.x), y: Math.max(0, sticker.y) }];
+}
+
+export function removeSticker(stickers: readonly BoardSticker[], id: string): BoardSticker[] {
+  return stickers.filter((sticker) => sticker.id !== id);
+}

@@ -45,6 +45,21 @@ export function RevisionTrail({
   focusId?: string | null;
 }): JSX.Element {
   const [selected, setSelected] = useState<EntryRevision | null>(null);
+
+  /**
+   * Two versions picked to compare with each other.
+   *
+   * Expanding one version already diffs it against the note as it is NOW,
+   * which answers "what has changed since then". It cannot answer "what
+   * changed between the morning SOAP and the one after the chief's round",
+   * which is two points in the past and the question a trail of thirty
+   * snapshots exists for.
+   *
+   * Ids, not bodies: a revision can be deleted while this is open, and a
+   * stored body would then be compared against something no longer in the
+   * list.
+   */
+  const [comparing, setComparing] = useState<readonly string[]>([]);
   /**
    * Confirmed in place, not through a dialog.
    *
@@ -67,6 +82,19 @@ export function RevisionTrail({
    */
   const ordered = [...saved, ...auto];
 
+  /**
+   * The two picked versions, oldest first.
+   *
+   * Ordered by `rev`, not by the order they were tapped: a diff reads "what
+   * became what", and picking the newer one first would print every addition
+   * as a removal.
+   */
+  const picked = comparing
+    .map((id) => revisions.find((revision) => revision.id === id))
+    .filter((revision): revision is EntryRevision => revision !== undefined)
+    .sort((a, b) => a.rev - b.rev || when(a) - when(b));
+  const pair = picked.length === 2 ? { older: picked[0]!, newer: picked[1]! } : null;
+
   return (
     <Sheet
       open={open}
@@ -87,16 +115,48 @@ export function RevisionTrail({
           : `${auto.length} cadangan otomatis (maksimum 30).`
       }
     >
+      {pair ? (
+        /*
+          The comparison sits ABOVE the list, not inside the row that was
+          picked second: it is about two rows, and putting it under one of
+          them would say it belongs to that one.
+        */
+        <div className="mb-3 rounded-lg border border-accent/50 p-2">
+          <p className="mb-2 text-xs font-medium">
+            {versionLabel(pair.older)} <span className="text-fg-faint">→</span>{' '}
+            {versionLabel(pair.newer)}
+          </p>
+          <DiffView before={pair.older.body} after={pair.newer.body} />
+          <div className="mt-2 flex items-center gap-3">
+            <p className="flex-1 text-[11px] text-fg-faint">
+              Merah = ada di versi lama, hijau = ada di versi yang lebih baru.
+            </p>
+            <button
+              type="button"
+              onClick={() => setComparing([])}
+              className="min-h-tap shrink-0 text-xs text-accent underline"
+            >
+              Bersihkan
+            </button>
+          </div>
+        </div>
+      ) : comparing.length === 1 ? (
+        <p className="mb-3 rounded-lg border border-border px-3 py-2 text-xs text-fg-muted">
+          Pilih satu versi lagi untuk dibandingkan.
+        </p>
+      ) : null}
+
       {revisions.length === 0 ? (
         <p className="text-sm text-fg-muted">Belum ada versi tersimpan untuk hari ini.</p>
       ) : (
         <ul className="space-y-2">
           {ordered.map((revision) => (
             <li key={revision.id}>
+              <div className="flex items-start gap-2">
               <button
                 type="button"
                 onClick={() => setSelected(shown?.id === revision.id ? null : revision)}
-                className="w-full rounded-lg border border-border px-3 py-2 text-left"
+                className="min-w-0 flex-1 rounded-lg border border-border px-3 py-2 text-left"
               >
                 <span className="flex items-baseline gap-2">
                   <span className="text-sm font-medium">
@@ -119,6 +179,31 @@ export function RevisionTrail({
                   {revision.body.trim().split('\n')[0] || '(kosong)'}
                 </span>
               </button>
+
+              {/*
+                Picking for comparison is its own control. Tapping the row
+                expands it — one row, one meaning — and a row that sometimes
+                expanded and sometimes queued a comparison would be neither.
+              */}
+              <button
+                type="button"
+                onClick={() => setComparing((current) => pick(current, revision.id))}
+                aria-pressed={comparing.includes(revision.id)}
+                title="Bandingkan dengan versi lain"
+                className={[
+                  'min-h-tap shrink-0 rounded-lg border px-2 text-[11px] font-medium',
+                  comparing.includes(revision.id)
+                    ? 'border-accent bg-accent/15 text-accent'
+                    : 'border-border text-fg-muted',
+                ].join(' ')}
+              >
+                {comparing.indexOf(revision.id) === 0
+                  ? '1'
+                  : comparing.indexOf(revision.id) === 1
+                    ? '2'
+                    : 'Banding'}
+              </button>
+              </div>
 
               {shown?.id === revision.id ? (
                 <div className="mt-2 space-y-2">
@@ -199,4 +284,25 @@ function formatWhen(revision: EntryRevision): string {
     hour: '2-digit',
     minute: '2-digit',
   });
+}
+
+/**
+ * Keeps at most two, oldest pick dropped first.
+ *
+ * Tapping a third replaces the first rather than refusing: refusing means the
+ * user has to work out which one to clear before they can do the thing they
+ * are already doing.
+ */
+export function pick(current: readonly string[], id: string): string[] {
+  if (current.includes(id)) return current.filter((entry) => entry !== id);
+  return [...current, id].slice(-2);
+}
+
+function versionLabel(revision: EntryRevision): string {
+  const name = revision.label ?? REASON_LABEL[revision.reason];
+  return `${name} (rev ${String(revision.rev)})`;
+}
+
+function when(revision: EntryRevision): number {
+  return revision.at?.toMillis?.() ?? 0;
 }
