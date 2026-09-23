@@ -755,7 +755,11 @@ export default function BoardPage(): JSX.Element {
               // sticky notes and for the same reason: neither answers "which
               // patient" and neither can be ticked.
               overlay={(surfaceRef) => (
-                <CanvasStickers surfaceRef={surfaceRef} enabled={showStickies} />
+                <CanvasStickers
+                  surfaceRef={surfaceRef}
+                  enabled={showStickies}
+                  actionsSlot={canvasActions}
+                />
               )}
               // Shown at natural height, with no height grip: a card with its
               // note open (see `isUncapped` on the canvas), and a FOLDED card,

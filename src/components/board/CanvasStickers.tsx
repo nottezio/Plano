@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 
 import {
   STICKER_EMOJI,
@@ -26,10 +27,21 @@ import {
 export function CanvasStickers({
   surfaceRef,
   enabled,
+  actionsSlot,
 }: {
   /** The canvas surface, for turning a pointer position into a position on it. */
   surfaceRef: React.RefObject<HTMLDivElement>;
   enabled: boolean;
+  /**
+   * The board toolbar, where the button belongs.
+   *
+   * It was pinned to the top-right corner of the canvas, which is where a
+   * card sits: the button covered the card it was floating over, and a
+   * control that hides the thing it is meant to mark is worse than no
+   * control. Rapikan and Urungkan already portal into this slot; the marker
+   * picker is the same kind of thing and now sits beside them.
+   */
+  actionsSlot?: HTMLElement | null;
 }): JSX.Element | null {
   const [stickers, setStickers] = useState<BoardSticker[]>([]);
   const [picking, setPicking] = useState(false);
@@ -77,38 +89,46 @@ export function CanvasStickers({
 
   return (
     <>
-      {/* The picker, pinned to the canvas rather than the page: it belongs to
-          the surface the stickers land on. */}
-      <div className="pointer-events-auto absolute right-2 top-1 z-50 flex flex-col items-end gap-1">
-        <button
-          type="button"
-          onClick={() => setPicking((open) => !open)}
-          aria-expanded={picking}
-          title="Tempel penanda di papan"
-          className="min-h-tap rounded-lg border border-border bg-surface px-2 text-sm shadow-sm"
-        >
-          🚩<span className="ml-1 text-xs text-fg-muted">Penanda</span>
-        </button>
-        {picking ? (
-          <div
-            role="group"
-            aria-label="Pilih penanda"
-            className="flex max-w-[260px] flex-wrap justify-end gap-1 rounded-lg border border-border bg-surface p-1.5 shadow-lg"
-          >
-            {STICKER_EMOJI.map((emoji) => (
+      {actionsSlot
+        ? createPortal(
+            <span className="relative shrink-0">
               <button
-                key={emoji}
                 type="button"
-                onClick={() => place(emoji)}
-                aria-label={`Tempel ${emoji}`}
-                className="flex min-h-tap w-10 items-center justify-center rounded text-xl hover:bg-bg-subtle"
+                onClick={() => setPicking((open) => !open)}
+                aria-expanded={picking}
+                title="Tempel penanda di papan"
+                className="min-h-tap shrink-0 rounded-lg border border-border px-3 text-xs font-medium text-fg"
               >
-                {emoji}
+                🚩 Penanda
               </button>
-            ))}
-          </div>
-        ) : null}
-      </div>
+              {picking ? (
+                /*
+                  Hangs BELOW the toolbar, over the top of the board. It
+                  covers cards only while it is open, and closes as soon as a
+                  marker is picked.
+                */
+                <div
+                  role="group"
+                  aria-label="Pilih penanda"
+                  className="absolute right-0 top-full z-50 mt-1 flex w-[232px] flex-wrap gap-1 rounded-lg border border-border bg-surface p-1.5 shadow-lg"
+                >
+                  {STICKER_EMOJI.map((emoji) => (
+                    <button
+                      key={emoji}
+                      type="button"
+                      onClick={() => place(emoji)}
+                      aria-label={`Tempel ${emoji}`}
+                      className="flex min-h-tap w-10 items-center justify-center rounded text-xl hover:bg-bg-subtle"
+                    >
+                      {emoji}
+                    </button>
+                  ))}
+                </div>
+              ) : null}
+            </span>,
+            actionsSlot,
+          )
+        : null}
 
       {stickers.map((sticker) => (
         <div

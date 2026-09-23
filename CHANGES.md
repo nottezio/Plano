@@ -1,5 +1,35 @@
 # Plano — CHANGES
 
+## `2026-09-22.3`
+
+**Penanda moved out of the way.**
+
+The button was pinned to the top-right corner of the canvas — which is where a
+card sits. It floated over that card and covered it, and a control that hides
+the thing it is meant to mark is worse than no control.
+
+It now sits in the board toolbar beside Rapikan and Urungkan, through the same
+portal slot they use. The palette hangs below the toolbar while it is open and
+closes as soon as a marker is picked, so it covers a card only while it is
+being used.
+
+Nothing else changed: markers still land on the board, drag the same way, and
+are still per device.
+
+### Not done
+
+- **A new marker still lands at the top left of the board**, which is on top of
+  whatever card is there — by design, since a marker is meant to sit on the
+  cards, and dragging it is the next thing you do. If it should land somewhere
+  emptier, that is a placement rule worth deciding rather than guessing.
+
+```
+1443 tests passed
+typecheck / lint (0 warnings) / check:version / check:contrast / check:a11y / build — clean
+```
+
+---
+
 ## `2026-09-22.2`
 
 **Compare two versions of a day's SOAP, and emoji markers on the canvas.**
