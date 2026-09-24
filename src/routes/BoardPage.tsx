@@ -759,6 +759,7 @@ export default function BoardPage(): JSX.Element {
                   surfaceRef={surfaceRef}
                   enabled={showStickies}
                   actionsSlot={canvasActions}
+                  scope={scope}
                 />
               )}
               // Shown at natural height, with no height grip: a card with its

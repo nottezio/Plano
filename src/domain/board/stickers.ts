@@ -17,6 +17,15 @@
  * Coordinates match the canvas layout's: `x` a fraction of the canvas width,
  * `y` in pixels. A window resized to half the width keeps the sticker beside
  * the same card, which is the entire point of it.
+ *
+ * WHY PER SCOPE
+ *
+ * The board has two scopes over the same canvas, Pasien saya and Titipan, and
+ * they show different cards at the same (x, y). A sticker stored once was
+ * drawn in both — a flag placed next to a patient in one scope appeared next
+ * to whatever card happened to sit there in the other, which is a mark on the
+ * wrong patient. Storage is keyed by scope, the same fix `readLayouts` would
+ * need if two scopes ever showed different card sets at the same position.
  */
 
 export interface BoardSticker {
@@ -126,7 +135,14 @@ export function stickerTilt(id: string): number {
   return (sum % 17) - 8;
 }
 
-export const STICKER_KEY = 'visite.board.stickers';
+const STICKER_KEY_PREFIX = 'visite.board.stickers';
+/** Where every scope stored its stickers before this release. Migrated once. */
+export const LEGACY_STICKER_KEY = STICKER_KEY_PREFIX;
+
+/** `scope` is the board's own scope id ('mine' | 'temporary'), not a free string. */
+export function stickerStorageKey(scope: string): string {
+  return `${STICKER_KEY_PREFIX}.${scope}`;
+}
 
 export function parseStickers(raw: string | null): BoardSticker[] {
   if (!raw) return [];
@@ -172,4 +188,22 @@ export function addSticker(
 
 export function removeSticker(stickers: readonly BoardSticker[], id: string): BoardSticker[] {
   return stickers.filter((sticker) => sticker.id !== id);
+}
+
+/**
+ * What to do when a scope's own storage is empty: read fresh (no stored key
+ * at all, or an empty array — genuinely nothing has been placed yet) or run
+ * the one-time migration from the pre-scope key (`'mine'` only, and only when
+ * that legacy key still has something in it).
+ *
+ * Pure, so the decision is tested without a DOM or localStorage.
+ */
+export function stickerMigrationPlan(
+  scope: string,
+  scopeStorageValue: string | null,
+  legacyStorageValue: string | null,
+): 'use-scope' | 'migrate-legacy' | 'fresh' {
+  if (scopeStorageValue !== null) return 'use-scope';
+  if (scope === 'mine' && legacyStorageValue !== null) return 'migrate-legacy';
+  return 'fresh';
 }

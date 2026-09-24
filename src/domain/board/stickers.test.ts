@@ -9,6 +9,8 @@ import {
   STICKER_EMOJI,
   STICKER_GROUPS,
   stickerLabel,
+  stickerMigrationPlan,
+  stickerStorageKey,
   stickerTilt,
   type BoardSticker,
 } from './stickers';
@@ -94,5 +96,30 @@ describe('stickerTilt', () => {
     for (const id of ['a', 'st-123-4', 'zzzz', '']) {
       expect(Math.abs(stickerTilt(id))).toBeLessThanOrEqual(8);
     }
+  });
+});
+
+describe('stickerStorageKey', () => {
+  it('gives each scope its own key', () => {
+    expect(stickerStorageKey('mine')).not.toBe(stickerStorageKey('temporary'));
+    expect(stickerStorageKey('mine')).toContain('mine');
+  });
+});
+
+describe('stickerMigrationPlan', () => {
+  it("migrates 'mine' once, when it has never had its own key and the old one has stickers", () => {
+    expect(stickerMigrationPlan('mine', null, '[{"id":"s1"}]')).toBe('migrate-legacy');
+  });
+
+  it("never migrates into 'temporary': the old key was never that scope's", () => {
+    expect(stickerMigrationPlan('temporary', null, '[{"id":"s1"}]')).toBe('fresh');
+  });
+
+  it('uses the scoped key once it exists, even if empty, rather than migrating again', () => {
+    expect(stickerMigrationPlan('mine', '[]', '[{"id":"s1"}]')).toBe('use-scope');
+  });
+
+  it('starts fresh when neither key has anything', () => {
+    expect(stickerMigrationPlan('mine', null, null)).toBe('fresh');
   });
 });

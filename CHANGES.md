@@ -1,5 +1,52 @@
 # Plano — CHANGES
 
+## `2026-09-23.3`
+
+**Stickers no longer bleed between Pasien saya and Titipan.**
+
+### Root cause
+
+The board has two scopes over one canvas — Pasien saya and Titipan — showing
+different cards at the same (x, y) positions. Stickers were stored once,
+globally, so a flag placed beside a patient in one scope was drawn at the same
+spot in the other, next to whatever card happened to be there. A mark meant
+for one patient landed on a different one.
+
+Card positions never had this problem, because they are keyed by patient id
+and ids do not collide across scopes. A sticker has no such key — it belongs
+to a position, not a patient — so the scope has to be part of where it is
+stored.
+
+### The fix
+
+Stickers are now stored per scope. Switching between Pasien saya and Titipan
+shows that scope's own stickers; a drag in progress when you switch belongs to
+the scope you left, not the one now on screen.
+
+**Existing stickers are migrated once, into Pasien saya.** Before this release
+every scope read one shared key, so whatever was there was placed while
+looking at some scope — most often Pasien saya, the default view. Moving it
+there keeps it findable; leaving it in the old key would have made it quietly
+stop appearing the moment this shipped. Titipan starts empty, since the old
+key was never particularly its.
+
+The decision of which key to read (`stickerMigrationPlan`) is a pure function,
+tested on its own: migrate only for Pasien saya, only when it has never had its
+own key yet, and only when the old key actually has something in it.
+
+### Not done, and why
+
+- **Not rendered here.** Worth checking: place a sticker while on Pasien saya,
+  switch to Titipan, and confirm it is not there; switch back and confirm it
+  is.
+
+```
+1493 tests passed (+5)
+typecheck / lint (0 warnings) / check:version / check:contrast / check:a11y / build — clean
+```
+
+---
+
 ## `2026-09-23.2`
 
 **Stickers that look like stickers, a bigger labelled set, and imported

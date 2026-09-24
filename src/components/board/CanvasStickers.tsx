@@ -2,9 +2,11 @@ import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 
 import {
+  LEGACY_STICKER_KEY as LEGACY_KEY,
   STICKER_GROUPS,
-  STICKER_KEY,
+  stickerMigrationPlan,
   stickerLabel,
+  stickerStorageKey,
   stickerTilt,
   addSticker,
   moveSticker,
@@ -30,10 +32,17 @@ export function CanvasStickers({
   surfaceRef,
   enabled,
   actionsSlot,
+  scope,
 }: {
   /** The canvas surface, for turning a pointer position into a position on it. */
   surfaceRef: React.RefObject<HTMLDivElement>;
   enabled: boolean;
+  /**
+   * Which board scope this is (Pasien saya / Titipan). Stickers are stored
+   * per scope, because the two show different cards at the same position —
+   * see the header of `domain/board/stickers`.
+   */
+  scope: string;
   /**
    * The board toolbar, where the button belongs.
    *
@@ -52,16 +61,36 @@ export function CanvasStickers({
 
   useEffect(() => {
     try {
-      setStickers(parseStickers(localStorage.getItem(STICKER_KEY)));
+      const key = stickerStorageKey(scope);
+      const scopeValue = localStorage.getItem(key);
+      const legacyValue = localStorage.getItem(LEGACY_KEY);
+
+      /*
+        A one-time migration, 'mine' only. Before this release every scope
+        read one shared, unscoped key, so whatever is there was placed while
+        looking at SOME scope — most often Pasien saya, the default. Moving it
+        under `mine` keeps it findable; leaving it where it was would mean it
+        quietly stops appearing the moment this ships.
+      */
+      const plan = stickerMigrationPlan(scope, scopeValue, legacyValue);
+      const migrated = plan === 'migrate-legacy' ? parseStickers(legacyValue) : parseStickers(scopeValue);
+      setStickers(migrated);
+      if (plan === 'migrate-legacy') {
+        localStorage.setItem(key, JSON.stringify(migrated));
+        localStorage.removeItem(LEGACY_KEY);
+      }
     } catch {
       setStickers([]);
     }
-  }, []);
+    // Switching scope shows a different board; a drag in progress on the one
+    // just left belongs to it, not to the one now on screen.
+    setDragId(null);
+  }, [scope]);
 
   const persist = (next: BoardSticker[]): void => {
     setStickers(next);
     try {
-      localStorage.setItem(STICKER_KEY, JSON.stringify(next));
+      localStorage.setItem(stickerStorageKey(scope), JSON.stringify(next));
     } catch {
       // No storage: they last for this session, which is what a sticker is for.
     }
