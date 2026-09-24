@@ -1,5 +1,70 @@
 # Plano — CHANGES
 
+## `2026-09-23.2`
+
+**Stickers that look like stickers, a bigger labelled set, and imported
+checklist steps set apart from your own.**
+
+### 1. Die-cut stickers
+
+The white disc from `2026-09-22.4` solved the right problem — a bare emoji
+vanished into a card of the same colour — the wrong way: a circle reads as a
+button or a badge, not as something stuck on.
+
+Each sticker is now **die-cut**, like a vinyl sticker: a white border that
+follows the emoji's own outline, and a soft shadow under the whole thing. Four
+offset, unblurred copies of the glyph in white make the border; one dark
+shadow lifts it off the card. It still separates from every card colour in
+either theme — white against the card, shadow beneath — but it keeps the shape
+of the thing.
+
+Each has a slight tilt (−8° to 8°) derived from its id, so it is slapped on
+rather than aligned, and keeps the same angle every time the board draws.
+
+### 2. More stickers, with names
+
+33 stickers in five groups: Status (🚩 ✅ ❌ ⭐ ⚠️ ❗ ❓), Menunggu (🕒 ⏳ 📞 🔔 📝),
+Klinis (🩸 🧪 💉 💊 🩺 🫀 🫁 🧠 🍽️), Disposisi (🚗 pulang, 🏠 🚑 🏥 ✂️ 🛏️) and six
+colour dots.
+
+**Every sticker has a label** — the tooltip in the picker and on the board, and
+what a screen reader says. "🚗" alone does not say *pulang*, and a marker is only
+useful if its meaning is shared.
+
+### 3. Imported checklist steps in their own band
+
+Steps added with **Ambil dari checklist harian** now sit in a block ruled above
+and below with a dashed line, headed **Dari checklist: <nama checklist>**, after
+your own items. One block per checklist if you imported from more than one.
+
+A template's steps and your own reminders are different kinds of thing — one is
+the ward's routine, the other is what only you know this patient needs — and in
+one run they read as a single list someone wrote.
+
+**How an item is known to be imported.** New imports record their source
+(`fromChecklist`, the checklist's title). Items imported before this release
+have no source, so an item whose label matches a step in one of your checklists
+is treated as imported. The import only ever adds such labels, so a match almost
+always is one; the one misread is an item typed by hand with exactly a step's
+wording, and the cost is only which block it is drawn in.
+
+Ticking, the ⟳ toggle and delete are unchanged, and the rows are the same
+component in both groups.
+
+### Not done
+
+- **The sidebar's minimised Custom Checklist preview is not grouped.** It is a
+  four-line glance; bands in four lines would be mostly rule.
+- **Not rendered here.** Worth checking: import a checklist into a patient who
+  already has your own items, and put a 🚗 on a green card.
+
+```
+1488 tests passed (+7)
+typecheck / lint (0 warnings) / check:version / check:contrast / check:a11y / build — clean
+```
+
+---
+
 ## `2026-09-23.1`
 
 **The census verifier's Stages 4–8, ported from Avi's `verifier.ts`, with the

@@ -5,6 +5,7 @@ import { setTodoTicks, updatePatient } from '@/data/repositories/patients.repo';
 import { SEED_CHECKLISTS } from '@/domain/checklists/seeds';
 import { useSession } from '@/store/useSession';
 import {
+  groupTodoViews,
   labelsToImport,
   removeTodo,
   setRepeat,
@@ -109,67 +110,23 @@ export function PatientTodos({
     const added = labelsToImport(
       todos,
       seed.items.map((item) => item.label),
-    ).map((label) => ({ id: nanoid(6), label, done: false }));
+    ).map((label) => ({ id: nanoid(6), label, done: false, fromChecklist: seed.title }));
 
     save([...todos, ...added]);
     setImportOpen(false);
   };
 
-  return (
-    <section
-      className={
-        compact ? 'px-0 py-0' : 'border-b border-border px-4 py-2 xl:border-0 xl:px-0'
-      }
-    >
-      <div className="flex items-center gap-2">
-        {compact ? null : (
-          <h3 className="flex-1 text-xs font-semibold text-fg-muted">
-            Custom Checklist
-            {views.length > 0 ? (
-              <span className="ml-1 font-normal text-fg-faint">
-                {doneCount}/{views.length}
-              </span>
-            ) : null}
-          </h3>
-        )}
-        <button
-          type="button"
-          onClick={() => setImportOpen((open) => !open)}
-          className="min-h-tap text-[11px] text-accent underline"
-        >
-          Ambil dari checklist harian
-        </button>
-        <button
-          type="button"
-          onClick={() => setHistoryOpen((open) => !open)}
-          aria-expanded={historyOpen}
-          className="min-h-tap shrink-0 text-[11px] text-accent underline"
-        >
-          {historyOpen ? 'Tutup riwayat' : 'Riwayat'}
-        </button>
-      </div>
+  /** Labels of every available checklist, for items imported before the source was kept. */
+  const legacySources = new Map<string, string>();
+  for (const list of available) {
+    for (const item of list.items) {
+      if (!legacySources.has(item.label)) legacySources.set(item.label, list.title);
+    }
+  }
+  const grouped = groupTodoViews(views, legacySources);
 
-      {historyOpen ? <TodoHistoryList history={todoHistory(todos, patient.todoTicks)} /> : null}
-
-      {importOpen ? (
-        <div className="mt-1 space-y-1">
-          {available.map((list) => (
-            <button
-              key={list.id}
-              type="button"
-              onClick={() => importList(list.id)}
-              className="w-full rounded-lg border border-border px-2 py-1.5 text-left text-[11px]"
-            >
-              {list.title}
-            </button>
-          ))}
-        </div>
-      ) : null}
-
-      {views.length > 0 ? (
-        <ul className="mt-1.5 space-y-1">
-          {views.map((todo) => (
-            <li key={todo.id} className="flex items-start gap-2">
+  const renderRow = (todo: (typeof views)[number]): JSX.Element => (
+      <li key={todo.id} className="flex items-start gap-2">
               <button
                 type="button"
                 onClick={() => {
@@ -255,8 +212,85 @@ export function PatientTodos({
                 ×
               </button>
             </li>
+  );
+
+  return (
+    <section
+      className={
+        compact ? 'px-0 py-0' : 'border-b border-border px-4 py-2 xl:border-0 xl:px-0'
+      }
+    >
+      <div className="flex items-center gap-2">
+        {compact ? null : (
+          <h3 className="flex-1 text-xs font-semibold text-fg-muted">
+            Custom Checklist
+            {views.length > 0 ? (
+              <span className="ml-1 font-normal text-fg-faint">
+                {doneCount}/{views.length}
+              </span>
+            ) : null}
+          </h3>
+        )}
+        <button
+          type="button"
+          onClick={() => setImportOpen((open) => !open)}
+          className="min-h-tap text-[11px] text-accent underline"
+        >
+          Ambil dari checklist harian
+        </button>
+        <button
+          type="button"
+          onClick={() => setHistoryOpen((open) => !open)}
+          aria-expanded={historyOpen}
+          className="min-h-tap shrink-0 text-[11px] text-accent underline"
+        >
+          {historyOpen ? 'Tutup riwayat' : 'Riwayat'}
+        </button>
+      </div>
+
+      {historyOpen ? <TodoHistoryList history={todoHistory(todos, patient.todoTicks)} /> : null}
+
+      {importOpen ? (
+        <div className="mt-1 space-y-1">
+          {available.map((list) => (
+            <button
+              key={list.id}
+              type="button"
+              onClick={() => importList(list.id)}
+              className="w-full rounded-lg border border-border px-2 py-1.5 text-left text-[11px]"
+            >
+              {list.title}
+            </button>
           ))}
-        </ul>
+        </div>
+      ) : null}
+
+      {views.length > 0 ? (
+        <>
+          {grouped.own.length > 0 ? (
+            <ul className="mt-1.5 space-y-1">{grouped.own.map(renderRow)}</ul>
+          ) : null}
+          {/*
+            Imported steps in their own band, ruled above and below.
+
+            A template's steps and your own reminders are different kinds of
+            thing — one is the ward's routine, the other is what only you know
+            this patient needs — and in one run they read as a single list
+            someone wrote. The rule says where the routine starts and stops;
+            the label says which checklist it came from.
+          */}
+          {grouped.imported.map((block) => (
+            <div
+              key={block.title}
+              className="mt-2 border-y border-dashed border-border-strong py-1.5"
+            >
+              <p className="text-[10px] font-semibold uppercase tracking-wide text-fg-faint">
+                Dari checklist: {block.title}
+              </p>
+              <ul className="mt-1 space-y-1">{block.items.map(renderRow)}</ul>
+            </div>
+          ))}
+        </>
       ) : null}
 
       <div className="mt-1.5 flex gap-1">

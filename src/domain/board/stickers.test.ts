@@ -6,6 +6,10 @@ import {
   moveSticker,
   parseStickers,
   removeSticker,
+  STICKER_EMOJI,
+  STICKER_GROUPS,
+  stickerLabel,
+  stickerTilt,
   type BoardSticker,
 } from './stickers';
 
@@ -63,5 +67,32 @@ describe('adding and removing', () => {
 
   it('removes one and leaves the rest', () => {
     expect(removeSticker([one, { ...one, id: 's2' }], 's1').map((s) => s.id)).toEqual(['s2']);
+  });
+});
+
+describe('the palette', () => {
+  it('has the car for discharge, and a label for every sticker', () => {
+    expect(STICKER_EMOJI).toContain('🚗');
+    expect(stickerLabel('🚗')).toBe('Pulang');
+    for (const group of STICKER_GROUPS) {
+      for (const sticker of group.stickers) expect(sticker.label.length).toBeGreaterThan(0);
+    }
+  });
+
+  it('never lists the same sticker twice', () => {
+    expect(new Set(STICKER_EMOJI).size).toBe(STICKER_EMOJI.length);
+  });
+
+  it('falls back to the emoji itself for one no longer in the palette', () => {
+    expect(stickerLabel('🦄')).toBe('🦄');
+  });
+});
+
+describe('stickerTilt', () => {
+  it('is stable per id and stays within ±8°', () => {
+    expect(stickerTilt('st-1')).toBe(stickerTilt('st-1'));
+    for (const id of ['a', 'st-123-4', 'zzzz', '']) {
+      expect(Math.abs(stickerTilt(id))).toBeLessThanOrEqual(8);
+    }
   });
 });

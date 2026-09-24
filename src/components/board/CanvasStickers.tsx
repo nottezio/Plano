@@ -2,8 +2,10 @@ import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 
 import {
-  STICKER_EMOJI,
+  STICKER_GROUPS,
   STICKER_KEY,
+  stickerLabel,
+  stickerTilt,
   addSticker,
   moveSticker,
   parseStickers,
@@ -110,18 +112,28 @@ export function CanvasStickers({
                 <div
                   role="group"
                   aria-label="Pilih penanda"
-                  className="absolute right-0 top-full z-50 mt-1 flex w-[232px] flex-wrap gap-1 rounded-lg border border-border bg-surface p-1.5 shadow-lg"
+                  className="absolute right-0 top-full z-50 mt-1 max-h-[70vh] w-[288px] space-y-2 overflow-y-auto rounded-lg border border-border bg-surface p-2 shadow-lg"
                 >
-                  {STICKER_EMOJI.map((emoji) => (
-                    <button
-                      key={emoji}
-                      type="button"
-                      onClick={() => place(emoji)}
-                      aria-label={`Tempel ${emoji}`}
-                      className="flex min-h-tap w-10 items-center justify-center rounded text-xl hover:bg-bg-subtle"
-                    >
-                      {emoji}
-                    </button>
+                  {STICKER_GROUPS.map((group) => (
+                    <div key={group.title}>
+                      <p className="mb-0.5 text-[10px] font-semibold uppercase tracking-wide text-fg-faint">
+                        {group.title}
+                      </p>
+                      <div className="flex flex-wrap gap-0.5">
+                        {group.stickers.map((sticker) => (
+                          <button
+                            key={sticker.emoji}
+                            type="button"
+                            onClick={() => place(sticker.emoji)}
+                            aria-label={`Tempel ${sticker.label}`}
+                            title={sticker.label}
+                            className="flex min-h-tap w-11 items-center justify-center rounded text-2xl hover:bg-bg-subtle"
+                          >
+                            {sticker.emoji}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
                   ))}
                 </div>
               ) : null}
@@ -142,7 +154,8 @@ export function CanvasStickers({
         >
           <button
             type="button"
-            aria-label={`Geser penanda ${sticker.emoji}`}
+            aria-label={`Geser penanda ${stickerLabel(sticker.emoji)}`}
+            title={stickerLabel(sticker.emoji)}
             onPointerDown={(event) => {
               const surface = surfaceRef.current;
               if (!surface) return;
@@ -172,15 +185,26 @@ export function CanvasStickers({
             }}
             onPointerCancel={() => setDragId(null)}
             /*
-              On its own white disc with a dark ring and a real shadow.
+              DIE-CUT, like a vinyl sticker: a white border that follows the
+              emoji's own outline, then a drop shadow under the whole thing.
 
-              A bare emoji on a card is an emoji on a coloured background, and
-              the cards come in twelve colours: a flag on the red card, a tick
-              on the green one, simply disappeared into it — a marker nobody
-              notices marks nothing. White with a dark ring separates from
-              every card colour in both themes, which no single tint could.
+              The white disc it replaces solved the right problem — a bare
+              emoji vanished into a card of the same colour — the wrong way:
+              a circle reads as a button or a badge, not as something stuck on.
+              The outline still separates the mark from any card colour in
+              either theme, because it is white against the card and the
+              shadow lifts it off, but it keeps the shape of the thing.
+
+              Four offset copies of the glyph in white (`drop-shadow` with no
+              blur) make the border; one soft dark shadow makes it sit on top.
+              The tilt comes from the id, so it is the same on every draw.
             */
-            className="flex h-10 w-10 cursor-grab items-center justify-center rounded-full bg-white text-2xl leading-none shadow-[0_2px_8px_rgba(0,0,0,0.45)] ring-2 ring-black/70"
+            style={{
+              filter:
+                'drop-shadow(2px 0 0 white) drop-shadow(-2px 0 0 white) drop-shadow(0 2px 0 white) drop-shadow(0 -2px 0 white) drop-shadow(0 3px 3px rgba(0,0,0,0.55))',
+              transform: `rotate(${String(stickerTilt(sticker.id))}deg)`,
+            }}
+            className="cursor-grab p-1 text-3xl leading-none"
           >
             <span aria-hidden="true">{sticker.emoji}</span>
           </button>
@@ -191,7 +215,7 @@ export function CanvasStickers({
           <button
             type="button"
             onClick={() => persist(removeSticker(stickers, sticker.id))}
-            aria-label={`Hapus penanda ${sticker.emoji}`}
+            aria-label={`Hapus penanda ${stickerLabel(sticker.emoji)}`}
             className="absolute -right-2 -top-1 hidden h-5 w-5 items-center justify-center rounded-full border border-border bg-surface text-[10px] text-fg-muted group-hover/sticker:flex"
           >
             ×

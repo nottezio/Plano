@@ -29,12 +29,102 @@ export interface BoardSticker {
 }
 
 /**
- * The palette. Small on purpose: a picker of two hundred emoji is a decision
- * every time it opens, and these are the marks a ward round actually makes.
+ * The palette, grouped by what a ward round marks. Each has a LABEL, shown as
+ * the tooltip and read by a screen reader — "🚗" alone does not say "pulang",
+ * and the whole point of a marker is that its meaning is shared.
+ *
+ * Still a fixed set rather than any emoji: a picker of two hundred is a
+ * decision every time it opens.
  */
-export const STICKER_EMOJI: readonly string[] = [
-  '🚩', '✅', '❌', '⭐', '⚠️', '❗', '🕒', '📞', '🩸', '💉', '🫀', '👀',
+export const STICKER_GROUPS: ReadonlyArray<{
+  title: string;
+  stickers: ReadonlyArray<{ emoji: string; label: string }>;
+}> = [
+  {
+    title: 'Status',
+    stickers: [
+      { emoji: '🚩', label: 'Tandai' },
+      { emoji: '✅', label: 'Selesai' },
+      { emoji: '❌', label: 'Batal' },
+      { emoji: '⭐', label: 'Penting' },
+      { emoji: '⚠️', label: 'Waspada' },
+      { emoji: '❗', label: 'Segera' },
+      { emoji: '❓', label: 'Perlu ditanyakan' },
+    ],
+  },
+  {
+    title: 'Menunggu',
+    stickers: [
+      { emoji: '🕒', label: 'Tunggu jam' },
+      { emoji: '⏳', label: 'Menunggu hasil' },
+      { emoji: '📞', label: 'Telepon' },
+      { emoji: '🔔', label: 'Ingatkan' },
+      { emoji: '📝', label: 'Catat' },
+    ],
+  },
+  {
+    title: 'Klinis',
+    stickers: [
+      { emoji: '🩸', label: 'Darah / transfusi' },
+      { emoji: '🧪', label: 'Lab' },
+      { emoji: '💉', label: 'Injeksi' },
+      { emoji: '💊', label: 'Obat' },
+      { emoji: '🩺', label: 'Periksa ulang' },
+      { emoji: '🫀', label: 'Jantung' },
+      { emoji: '🫁', label: 'Paru' },
+      { emoji: '🧠', label: 'Neuro' },
+      { emoji: '🍽️', label: 'Makan / puasa' },
+    ],
+  },
+  {
+    title: 'Disposisi',
+    stickers: [
+      { emoji: '🚗', label: 'Pulang' },
+      { emoji: '🏠', label: 'Rawat jalan' },
+      { emoji: '🚑', label: 'Rujuk / transfer' },
+      { emoji: '🏥', label: 'Pindah ruangan' },
+      { emoji: '✂️', label: 'Tindakan / operasi' },
+      { emoji: '🛏️', label: 'Tirah baring' },
+    ],
+  },
+  {
+    title: 'Warna',
+    stickers: [
+      { emoji: '🔴', label: 'Merah' },
+      { emoji: '🟠', label: 'Oranye' },
+      { emoji: '🟡', label: 'Kuning' },
+      { emoji: '🟢', label: 'Hijau' },
+      { emoji: '🔵', label: 'Biru' },
+      { emoji: '🟣', label: 'Ungu' },
+    ],
+  },
 ];
+
+/** Flat, for lookups. */
+export const STICKER_EMOJI: readonly string[] = STICKER_GROUPS.flatMap((group) =>
+  group.stickers.map((sticker) => sticker.emoji),
+);
+
+export function stickerLabel(emoji: string): string {
+  for (const group of STICKER_GROUPS) {
+    const found = group.stickers.find((sticker) => sticker.emoji === emoji);
+    if (found) return found.label;
+  }
+  return emoji;
+}
+
+/**
+ * A small, stable tilt per sticker, -8° to 8°, from its id.
+ *
+ * Stickers are slapped on, not aligned; a row of perfectly upright ones reads
+ * as icons in a toolbar. Derived from the id, so a sticker keeps its angle
+ * across reloads instead of jittering each time the board draws.
+ */
+export function stickerTilt(id: string): number {
+  let sum = 0;
+  for (const char of id) sum = (sum * 31 + char.charCodeAt(0)) % 1000;
+  return (sum % 17) - 8;
+}
 
 export const STICKER_KEY = 'visite.board.stickers';
 

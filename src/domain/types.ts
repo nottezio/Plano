@@ -496,6 +496,15 @@ export interface Patient {
      * outright.
      */
     removedOn?: ClinicalDate;
+    /**
+     * The title of the checklist this item was imported from ("Ambil dari
+     * checklist harian"). Absent on items the user typed.
+     *
+     * Kept so the list can SHOW the difference: a template's steps and your
+     * own reminders are different kinds of thing, and mixed in one run they
+     * read as one list someone wrote.
+     */
+    fromChecklist?: string;
   }>;
   /**
    * Ticks on repeating checklist items, keyed by clinical date.

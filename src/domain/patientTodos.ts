@@ -50,6 +50,8 @@ export interface TodoView {
    * yesterday", so it is surfaced on the item rather than left in storage.
    */
   doneYesterday: boolean;
+  /** The checklist it was imported from, if any. See `PatientTodo.fromChecklist`. */
+  fromChecklist?: string;
 }
 
 function ticksOn(ticks: TodoTicks | undefined, date: ClinicalDate): readonly string[] | undefined {
@@ -91,8 +93,36 @@ export function todoViews(
       repeat,
       done,
       doneYesterday: repeat && !done && (yesterday?.includes(todo.id) ?? false),
+      ...(todo.fromChecklist ? { fromChecklist: todo.fromChecklist } : {}),
     };
   });
+}
+
+/**
+ * Your own items, then one block per checklist the rest were imported from.
+ *
+ * Items imported before `fromChecklist` existed carry no source. For those,
+ * `legacySources` maps a label to the checklist that has it, and a match is
+ * treated as imported — the import only ever adds labels that are in a
+ * checklist, so a matching label almost always came from one. The one case
+ * it misreads is an item typed by hand with exactly a checklist step's
+ * wording, and the cost of that is only which block it is drawn in.
+ */
+export function groupTodoViews(
+  views: readonly TodoView[],
+  legacySources: ReadonlyMap<string, string>,
+): { own: TodoView[]; imported: Array<{ title: string; items: TodoView[] }> } {
+  const own: TodoView[] = [];
+  const blocks = new Map<string, TodoView[]>();
+  for (const view of views) {
+    const title = view.fromChecklist ?? legacySources.get(view.label);
+    if (!title) {
+      own.push(view);
+      continue;
+    }
+    blocks.set(title, [...(blocks.get(title) ?? []), view]);
+  }
+  return { own, imported: [...blocks].map(([title, items]) => ({ title, items })) };
 }
 
 export interface TodoToggle {

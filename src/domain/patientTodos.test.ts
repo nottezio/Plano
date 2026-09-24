@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import {
   activeTodos,
+  groupTodoViews,
   labelsToImport,
   removeTodo,
   setRepeat,
@@ -258,5 +259,42 @@ describe('labelsToImport', () => {
   it('brings back a step that was checked and deleted', () => {
     const todos: PatientTodo[] = [{ id: 'a', label: 'EKG', done: true, removedOn: YESTERDAY }];
     expect(labelsToImport(todos, ['EKG', 'Lab'])).toEqual(['EKG', 'Lab']);
+  });
+});
+
+describe('groupTodoViews', () => {
+  const view = (id: string, label: string, fromChecklist?: string) => ({
+    id,
+    label,
+    repeat: false,
+    done: false,
+    doneYesterday: false,
+    ...(fromChecklist ? { fromChecklist } : {}),
+  });
+
+  it('separates your own items from imported ones, one block per checklist', () => {
+    const grouped = groupTodoViews(
+      [view('a', 'Konfirmasi BTKV'), view('b', 'EKG', 'Follow-up harian'), view('c', 'Lab', 'Follow-up harian')],
+      new Map(),
+    );
+    expect(grouped.own.map((v) => v.id)).toEqual(['a']);
+    expect(grouped.imported).toEqual([
+      { title: 'Follow-up harian', items: [grouped.imported[0]!.items[0]!, grouped.imported[0]!.items[1]!] },
+    ]);
+    expect(grouped.imported[0]?.items.map((v) => v.id)).toEqual(['b', 'c']);
+  });
+
+  it('recognises an item imported before the source was recorded, by its label', () => {
+    const grouped = groupTodoViews([view('a', 'EKG')], new Map([['EKG', 'Follow-up harian']]));
+    expect(grouped.own).toEqual([]);
+    expect(grouped.imported[0]?.title).toBe('Follow-up harian');
+  });
+
+  it('keeps list order inside each group', () => {
+    const grouped = groupTodoViews(
+      [view('1', 'x', 'A'), view('2', 'mine'), view('3', 'y', 'A')],
+      new Map(),
+    );
+    expect(grouped.imported[0]?.items.map((v) => v.id)).toEqual(['1', '3']);
   });
 });
