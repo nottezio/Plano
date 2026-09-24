@@ -39,6 +39,19 @@ export interface CardLayout {
    * the user did by hand.
    */
   hMax: number;
+  /**
+   * The height cap was set BY HAND while the card's note was open.
+   *
+   * A card with an open note is shown at its full height, so the note can be
+   * read — that is the point of opening it. Dragging the height grip there is
+   * an explicit answer to "how tall should this be", and it overrides that.
+   *
+   * Stored, not held in memory. It was memory-only for one release, so the
+   * height was written to disk and then ignored on the next mount: the card
+   * reverted to full height the moment you switched tabs and came back. A
+   * decision the user made by hand is not session state.
+   */
+  hMaxWithNote?: true;
 }
 
 export type CanvasLayouts = Record<string, CardLayout>;
@@ -81,11 +94,15 @@ export function readLayouts(): CanvasLayouts {
       const w = Number(entry.w);
       const hMax = Number(entry.hMax ?? 0);
       if (!Number.isFinite(x) || !Number.isFinite(y) || !Number.isFinite(w)) continue;
+      const cap = Number.isFinite(hMax) ? Math.max(0, hMax) : 0;
       out[id] = {
         x: clamp(x, 0, 0.98),
         y: Math.max(0, y),
         w: clamp(w, 0.08, 1),
-        hMax: Number.isFinite(hMax) ? Math.max(0, hMax) : 0,
+        hMax: cap,
+        // Only meaningful with a cap: a flag without one would make a card
+        // with no height set claim a height decision nobody made.
+        ...(cap > 0 && entry.hMaxWithNote === true ? { hMaxWithNote: true as const } : {}),
       };
     }
     return out;

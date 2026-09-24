@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it } from 'vitest';
 
 import {
   MIN_CARD_H,
@@ -9,6 +9,8 @@ import {
   mergeLayouts,
   placeAll,
   tidy,
+  readLayouts,
+  writeLayouts,
 } from './canvasLayout';
 
 describe('placeAll', () => {
@@ -265,5 +267,56 @@ describe('mergeLayouts', () => {
   it('adds a card that was not stored before', () => {
     const next = mergeLayouts({}, {}, 'baru', { x: 0.2, y: 5, w: 0.25, hMax: 0 });
     expect(next.baru).toMatchObject({ x: 0.2 });
+  });
+});
+
+describe('a height set while the note was open survives a reload', () => {
+  const store = new Map<string, string>();
+
+  beforeEach(() => {
+    store.clear();
+    (globalThis as { localStorage?: unknown }).localStorage = {
+      getItem: (key: string) => store.get(key) ?? null,
+      setItem: (key: string, value: string) => void store.set(key, value),
+      removeItem: (key: string) => void store.delete(key),
+      clear: () => store.clear(),
+    };
+  });
+
+  it('round-trips the decision with the cap', () => {
+    // The bug: this flag lived in memory, so on the next mount the card was
+    // uncapped again and sprang back to full height.
+    writeLayouts({ p1: { x: 0, y: 0, w: 0.25, hMax: 320, hMaxWithNote: true } });
+    expect(readLayouts().p1).toEqual({ x: 0, y: 0, w: 0.25, hMax: 320, hMaxWithNote: true });
+  });
+
+  it('drops the flag when there is no cap, so it cannot claim a height nobody set', () => {
+    writeLayouts({ p1: { x: 0, y: 0, w: 0.25, hMax: 0, hMaxWithNote: true } });
+    expect(readLayouts().p1).toEqual({ x: 0, y: 0, w: 0.25, hMax: 0 });
+  });
+
+  it('leaves a layout written before the flag existed alone', () => {
+    localStorage.setItem('visite.boardCanvasLayout', JSON.stringify({ p1: { x: 0, y: 0, w: 0.25, hMax: 300 } }));
+    expect(readLayouts().p1).toEqual({ x: 0, y: 0, w: 0.25, hMax: 300 });
+  });
+
+  it('ignores a flag that is not exactly true', () => {
+    localStorage.setItem(
+      'visite.boardCanvasLayout',
+      JSON.stringify({ p1: { x: 0, y: 0, w: 0.25, hMax: 300, hMaxWithNote: 'yes' } }),
+    );
+    expect(readLayouts().p1?.hMaxWithNote).toBeUndefined();
+  });
+
+  it('keeps the cap and the flag through a merge, as a commit does', () => {
+    const merged = mergeLayouts(
+      { p1: { x: 0, y: 0, w: 0.25, hMax: 0 }, p2: { x: 0.5, y: 0, w: 0.25, hMax: 0 } },
+      { p1: { x: 0, y: 0, w: 0.25, hMax: 0 } },
+      'p1',
+      { x: 0, y: 0, w: 0.25, hMax: 280, hMaxWithNote: true },
+    );
+    expect(merged.p1).toMatchObject({ hMax: 280, hMaxWithNote: true });
+    // A card the user did not touch is untouched.
+    expect(merged.p2).toEqual({ x: 0.5, y: 0, w: 0.25, hMax: 0 });
   });
 });

@@ -1,5 +1,49 @@
 # Plano — CHANGES
 
+## `2026-09-24.2`
+
+**A card resized while its note was open no longer springs back.**
+
+### Root cause
+
+Mine, from the previous release. A card whose note is open is shown at full
+height so the note can be read, and dragging the height grip there was made an
+explicit override — but the record of that override was held in React state,
+in the canvas component.
+
+So the height was written to storage correctly and then ignored on the next
+mount: switching tabs unmounts the canvas, the in-memory set came back empty,
+the card was uncapped again, and it sprang back to full height. The height was
+never lost; it was overruled every time the board was rebuilt.
+
+**A decision the user made by hand is not session state.** The override now
+lives in the layout, beside the height it applies to (`hMaxWithNote`), and is
+stored with it.
+
+- Dropped on read when there is no cap, so a stray flag cannot claim a height
+  nobody set.
+- Ignored unless exactly `true`, like every other field read from storage.
+- Cleared by the double-click that removes the cap, which is the one act that
+  says "no height".
+- Layouts written before the flag existed are untouched.
+
+Five tests, including the report itself: set a height with the note open, read
+it back, and it is still there. With the flag dropped from storage — the old
+behaviour — that one fails.
+
+### Not done
+
+- **Positions and sizes are still per device**, as they have always been.
+- **Not rendered here.** Worth checking: resize a card with its note open,
+  switch to another tab and back, and confirm it keeps the height you gave it.
+
+```
+1515 tests passed (+5)
+typecheck / lint (0 warnings) / check:version / check:contrast / check:a11y / build — clean
+```
+
+---
+
 ## `2026-09-24.1`
 
 **Catatan checklist ticks save again, the height grip is back on cards with an

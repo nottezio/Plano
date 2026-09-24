@@ -203,18 +203,6 @@ export function CanvasBoard({
    */
   const [frontId, setFrontId] = useState<string | null>(null);
 
-  /**
-   * Cards whose note is open but whose height you have just SET.
-   *
-   * An earlier release hid the height grip whenever a note was open, reasoning
-   * that a cap would not apply until the note closed. That made the grip
-   * vanish on exactly the cards being worked on, and "the resizer sometimes
-   * doesn't show" was the result. A drag on the grip is an explicit choice of
-   * height, so from that moment the card honours it even with the note open.
-   * Kept for the session; closing the note makes it irrelevant anyway.
-   */
-  const [capOverride, setCapOverride] = useState<ReadonlySet<string>>(new Set());
-
   const [renderBounds, setRenderBounds] = useState<
     Readonly<Record<string, { min: number; max: number }>>
   >({});
@@ -332,11 +320,19 @@ export function CanvasBoard({
         the stored cap the card would jump to that height the instant the drag
         began — a resize that first moves somewhere you did not point.
       */
-      const takingOver = mode === 'height' && isUncapped?.(id) === 'note' && !capOverride.has(id);
+      /*
+        A height drag on a card its note has uncapped starts from the height
+        it is SHOWING, not from the cap stored before the note opened — from
+        the stored cap the card would jump the instant the drag began.
+
+        `hMaxWithNote` records the decision WITH the layout, so it survives a
+        remount. It was session state for one release, which is why a resized
+        card reverted to full height on switching tabs: the height was saved
+        and then ignored.
+      */
+      const takingOver =
+        mode === 'height' && isUncapped?.(id) === 'note' && !stored.hMaxWithNote;
       const origin: CardLayout = takingOver ? { ...stored, hMax: natural || stored.hMax } : stored;
-      if (takingOver) {
-        setCapOverride((current) => new Set(current).add(id));
-      }
       const bounds = heightBounds.current.get(id);
       const startX = event.clientX;
       const startY = event.clientY;
@@ -353,12 +349,24 @@ export function CanvasBoard({
           ...(bounds ? { minH: bounds.min, maxH: bounds.max } : {}),
         });
 
-        setLive({ id, layout: latest });
+        setLive({
+          id,
+          layout:
+            mode === 'height' && isUncapped?.(id) === 'note'
+              ? { ...latest, hMaxWithNote: true }
+              : latest,
+        });
       };
 
       const onUp = (): void => {
         setLive(null);
-        commit(id, latest, layouts);
+        commit(
+          id,
+          mode === 'height' && isUncapped?.(id) === 'note'
+            ? { ...latest, hMaxWithNote: true }
+            : latest,
+          layouts,
+        );
         window.removeEventListener('pointermove', onMove);
         window.removeEventListener('pointerup', onUp);
         window.removeEventListener('pointercancel', onUp);
@@ -373,7 +381,7 @@ export function CanvasBoard({
     },
     // `isUncapped` is an inline arrow from the board, so this re-creates each
     // render. Harmless: every grip already calls it through an inline arrow.
-    [layouts, commit, isUncapped, capOverride],
+    [layouts, commit, isUncapped],
   );
 
   /**
@@ -441,7 +449,7 @@ export function CanvasBoard({
         // board (its note is open). Both mean "render at natural height".
         const reason = isUncapped?.(id) ?? false;
         const boardUncapped =
-          reason === 'folded' || (reason === 'note' && !capOverride.has(id));
+          reason === 'folded' || (reason === 'note' && !layout.hMaxWithNote);
         const open = expanded.has(id) || boardUncapped;
 
         return (
@@ -518,7 +526,12 @@ export function CanvasBoard({
             <Grip
               axis="height"
               onPointerDown={(event) => beginGesture(event, id, 'height')}
-              onReset={() => commit(id, { ...layout, hMax: 0 }, layouts)}
+              // Uncapping drops the decision with the cap: the flag without a
+              // cap would claim a height nobody set.
+              onReset={() => {
+                const { hMaxWithNote: _cleared, ...rest } = layout;
+                commit(id, { ...rest, hMax: 0 }, layouts);
+              }}
             />
             )}
           </div>
