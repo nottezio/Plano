@@ -31,10 +31,22 @@
 export interface BoardSticker {
   id: string;
   emoji: string;
-  /** 0–1, fraction of the canvas width. */
+  /** 0–1, fraction of the canvas width. Where it sits when it is free. */
   x: number;
   /** Pixels from the top of the canvas. */
   y: number;
+  /**
+   * The card it is stuck ON, and where on that card, in pixels from the card's
+   * top-left corner.
+   *
+   * A sticker dropped on a card belongs to it: it is drawn INSIDE the card's
+   * own box, so it moves with the card — including while the card is being
+   * dragged — with no arithmetic kept in step. When the card is not on the
+   * board (filtered out, discharged, the other scope), the sticker is not
+   * drawn at all, because drawing it where the card used to be would be a
+   * mark on whichever patient is there now.
+   */
+  card?: { id: string; dx: number; dy: number };
 }
 
 /**
@@ -151,11 +163,21 @@ export function parseStickers(raw: string | null): BoardSticker[] {
     if (!Array.isArray(parsed)) return [];
     return parsed.flatMap((entry) => {
       if (typeof entry !== 'object' || entry === null) return [];
-      const { id, emoji, x, y } = entry as Partial<BoardSticker>;
+      const { id, emoji, x, y, card } = entry as Partial<BoardSticker>;
       if (typeof id !== 'string' || typeof emoji !== 'string') return [];
       if (typeof x !== 'number' || typeof y !== 'number') return [];
       if (!Number.isFinite(x) || !Number.isFinite(y)) return [];
-      return [{ id, emoji, x: clampX(x), y: Math.max(0, y) }];
+      const base = { id, emoji, x: clampX(x), y: Math.max(0, y) };
+      // An unreadable attachment falls back to FREE at its stored position,
+      // rather than dropping the sticker.
+      const attached =
+        card &&
+        typeof card.id === 'string' &&
+        Number.isFinite(card.dx) &&
+        Number.isFinite(card.dy)
+          ? { card: { id: card.id, dx: card.dx, dy: card.dy } }
+          : {};
+      return [{ ...base, ...attached }];
     });
   } catch {
     // A corrupt entry costs the stickers, never the board.
@@ -206,4 +228,34 @@ export function stickerMigrationPlan(
   if (scopeStorageValue !== null) return 'use-scope';
   if (scope === 'mine' && legacyStorageValue !== null) return 'migrate-legacy';
   return 'fresh';
+}
+
+/**
+ * Where a sticker ends up after a drop: on a card (with its offset on that
+ * card) or free on the canvas. Either way the free position is kept current,
+ * so a sticker whose card is later removed still has somewhere sane to be if
+ * it is ever freed.
+ */
+export function dropSticker(
+  stickers: readonly BoardSticker[],
+  id: string,
+  at: { x: number; y: number },
+  card: { id: string; dx: number; dy: number } | null,
+): BoardSticker[] {
+  return stickers.map((sticker) => {
+    if (sticker.id !== id) return sticker;
+    const { card: _previous, ...rest } = sticker;
+    const placed = { ...rest, x: clampX(at.x), y: Math.max(0, at.y) };
+    return card ? { ...placed, card } : placed;
+  });
+}
+
+/** Stickers drawn on the canvas itself: the ones not stuck on a card. */
+export function freeStickers(stickers: readonly BoardSticker[]): BoardSticker[] {
+  return stickers.filter((sticker) => !sticker.card);
+}
+
+/** Stickers stuck on one card. */
+export function stickersOnCard(stickers: readonly BoardSticker[], cardId: string): BoardSticker[] {
+  return stickers.filter((sticker) => sticker.card?.id === cardId);
 }

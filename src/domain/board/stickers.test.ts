@@ -2,6 +2,9 @@ import { describe, expect, it } from 'vitest';
 
 import {
   addSticker,
+  dropSticker,
+  freeStickers,
+  stickersOnCard,
   clampX,
   moveSticker,
   parseStickers,
@@ -121,5 +124,43 @@ describe('stickerMigrationPlan', () => {
 
   it('starts fresh when neither key has anything', () => {
     expect(stickerMigrationPlan('mine', null, null)).toBe('fresh');
+  });
+});
+
+describe('attaching to a card', () => {
+  const free: BoardSticker = { id: 's1', emoji: '🚩', x: 0.2, y: 40 };
+
+  it('attaches on a drop over a card, keeping the free position current', () => {
+    const [placed] = dropSticker([free], 's1', { x: 0.5, y: 300 }, { id: 'p1', dx: 12, dy: 8 });
+    expect(placed).toEqual({ id: 's1', emoji: '🚩', x: 0.5, y: 300, card: { id: 'p1', dx: 12, dy: 8 } });
+  });
+
+  it('detaches on a drop onto empty canvas', () => {
+    const attached = { ...free, card: { id: 'p1', dx: 1, dy: 1 } };
+    const [placed] = dropSticker([attached], 's1', { x: 0.3, y: 50 }, null);
+    expect(placed).toEqual({ id: 's1', emoji: '🚩', x: 0.3, y: 50 });
+    expect(placed && 'card' in placed).toBe(false);
+  });
+
+  it('splits free stickers from each card’s own', () => {
+    const all: BoardSticker[] = [
+      free,
+      { id: 's2', emoji: '✅', x: 0, y: 0, card: { id: 'p1', dx: 0, dy: 0 } },
+      { id: 's3', emoji: '❌', x: 0, y: 0, card: { id: 'p2', dx: 0, dy: 0 } },
+    ];
+    expect(freeStickers(all).map((s) => s.id)).toEqual(['s1']);
+    expect(stickersOnCard(all, 'p1').map((s) => s.id)).toEqual(['s2']);
+    // A card not on the board simply never asks: its stickers are not drawn.
+    expect(stickersOnCard(all, 'gone')).toEqual([]);
+  });
+
+  it('reads an attachment back, and frees one it cannot read', () => {
+    const raw = JSON.stringify([
+      { id: 'a', emoji: '🚩', x: 0.1, y: 1, card: { id: 'p1', dx: 3, dy: 4 } },
+      { id: 'b', emoji: '🚩', x: 0.1, y: 1, card: { id: 'p1', dx: 'x' } },
+    ]);
+    const [a, b] = parseStickers(raw);
+    expect(a?.card).toEqual({ id: 'p1', dx: 3, dy: 4 });
+    expect(b && 'card' in b).toBe(false);
   });
 });

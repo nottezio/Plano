@@ -60,6 +60,18 @@ export interface ParsedSection {
    * filtered these out and the tint layer did not.
    */
   ownsLine: boolean;
+  /**
+   * The heading line IS the section's content, not a label over it.
+   *
+   * Set only for the cardiology conclusion of a consult reply ("Saat ini
+   * evaluasi Kardiologi … pasien kami assess dengan …"), which is one bolded
+   * sentence that both opens the assessment and states it. Everything else —
+   * the tint layer, copy, carry-forward — treats it as an ordinary heading
+   * that owns its line, which is what it is on screen. The card preview is the
+   * one reader that needs the words, and it reads this flag rather than
+   * guessing from the heading's length.
+   */
+  carriesContent?: true;
 }
 
 interface HeaderHit {
@@ -67,7 +79,30 @@ interface HeaderHit {
   headerEnd: number;
   sectionId: SectionId;
   label: string;
+  carriesContent?: true;
 }
+
+/**
+ * The cardiology conclusion of a consult reply.
+ *
+ *   *_Saat ini evaluasi kardiologi berdasarkan anamnesis, … pasien kami assess
+ *     dengan Tachypnea ec Abdominal Pain. …_*
+ *   *Saat ini evaluasi Kardiologi berdasarkan anamnesis, … pasien termasuk
+ *     kategori Low Risk …*
+ *
+ * It is our assessment of the patient, written as one bolded sentence rather
+ * than under an "A" heading. `MAX_WRAPPED_HEADER_LENGTH` rightly refuses a
+ * fully bolded 200-character line as a heading — a bolded sentence is not a
+ * label — so this line was never a section at all: it was swallowed into the
+ * last investigation above it, the jump bar had no A, and the card preview
+ * had no assessment to show.
+ *
+ * Recognised by its OPENING FORMULA, not by relaxing the length rule. The
+ * formula is what makes it unambiguous; relaxing the length would start
+ * turning any bolded sentence into a section. Emphasis before it (`*`, `_`,
+ * any mix) is allowed, since the two samples wrap it differently.
+ */
+const KARDIO_CONCLUSION_RE = /^[ \t]*[*_]*[ \t]*saat ini evaluasi\s+kardiologi\b/i;
 
 interface Line {
   start: number;
@@ -275,6 +310,19 @@ function detectHeader(
     }
   }
 
+  // Before the wrapped-header rule, which would reject it for its length.
+  if (KARDIO_CONCLUSION_RE.test(line.text)) {
+    return {
+      start: line.start,
+      // The whole line: on screen it is a line of its own, and every layer
+      // that mirrors the textarea treats it as a heading that owns its line.
+      headerEnd: line.start + line.text.length,
+      sectionId: 'a',
+      label: labelFor('a', aliases),
+      carriesContent: true,
+    };
+  }
+
   // A fully asterisk-wrapped line is a header in its own right. Checked before
   // the general custom rule because it is the stricter of the two: the whole
   // line must match, so there is nothing for it to false-positive on.
@@ -398,6 +446,7 @@ export function parseSections(
       // A heading owns its line when nothing but whitespace follows the header
       // prefix before the newline. `*O :*` does; `LVSV : 41,8 mL` does not.
       ownsLine: /^[ \t]*(\n|$)/.test(body.slice(hit.headerEnd)),
+      ...(hit.carriesContent ? { carriesContent: true as const } : {}),
     });
   });
 

@@ -9,7 +9,8 @@ import type { ArchiveReason } from '@/domain/types';
 
 import { CanvasBoard } from '@/components/board/CanvasBoard';
 import { StickyNoteCard } from '@/components/board/StickyNoteCard';
-import { CanvasStickers } from '@/components/board/CanvasStickers';
+import { CanvasStickers, CardStickers } from '@/components/board/CanvasStickers';
+import { useBoardStickers } from '@/hooks/useBoardStickers';
 import { createBoardNote } from '@/data/repositories/boardNotes.repo';
 import { activeBoardNotes, noteIdFromCanvasId, stickyCanvasId } from '@/domain/boardNotes';
 import { useMediaQuery } from '@/hooks/useMediaQuery';
@@ -123,6 +124,9 @@ export default function BoardPage(): JSX.Element {
   });
 
   scopeRef.current = scope;
+
+  /** The stickers of the scope on screen: one list, drawn by the canvas and by each card. */
+  const stickerState = useBoardStickers(scope);
 
   const changeScope = (next: 'mine' | 'temporary'): void => {
     setScope(next);
@@ -759,18 +763,20 @@ export default function BoardPage(): JSX.Element {
                   surfaceRef={surfaceRef}
                   enabled={showStickies}
                   actionsSlot={canvasActions}
-                  scope={scope}
+                  state={stickerState}
                 />
               )}
-              // Shown at natural height, with no height grip: a card with its
-              // note open (see `isUncapped` on the canvas), and a FOLDED card,
-              // whose one line has no height to cap. The grip under a folded
-              // card was the dark bar beneath it.
+              renderInCard={(id) =>
+                showStickies ? <CardStickers cardId={id} state={stickerState} /> : null
+              }
+              // Why a card is shown at natural height, if it is: folded to
+              // one line, or its note is open. See `isUncapped` on the canvas
+              // for how the two differ.
               isUncapped={(id) => {
                 if (noteIdFromCanvasId(id) !== null) return false;
-                if (cardsFolded.has(id)) return true;
+                if (cardsFolded.has(id)) return 'folded';
                 const card = cards.find((entry) => entry.patient.id === id);
-                return card ? noteOpen(card.patient) : false;
+                return card && noteOpen(card.patient) ? 'note' : false;
               }}
               renderItem={(id, { fitHeight, onHeightBounds, maxPreviewLines }) => {
                 const noteId = noteIdFromCanvasId(id);

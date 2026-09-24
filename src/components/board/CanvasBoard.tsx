@@ -43,6 +43,7 @@ export function CanvasBoard({
   actionsSlot,
   isUncapped,
   overlay,
+  renderInCard,
 }: {
   /** Every card on the board, in board order. Drives auto-placement. */
   ids: readonly string[];
@@ -85,13 +86,21 @@ export function CanvasBoard({
    * which notes are open, and a card reporting "uncap me" through its own
    * measurement would stop measuring the moment it was uncapped.
    */
-  isUncapped?: ((id: string) => boolean) | undefined;
+  /**
+   * Why, if at all: `'note'` — its note is open; `'folded'` — folded to one
+   * line. The canvas treats them differently: a folded card has no height to
+   * cap, so it gets no height grip; a card with an open note keeps its grip,
+   * and a drag on it is honoured (see `capOverride`).
+   */
+  isUncapped?: ((id: string) => false | 'note' | 'folded') | undefined;
   /**
    * Rendered inside the canvas surface, above the cards — the sticker layer.
    * Given the surface so it can place by the same coordinates the cards use,
    * rather than being handed positions it cannot recompute on a resize.
    */
   overlay?: ((surfaceRef: React.RefObject<HTMLDivElement>) => JSX.Element | null) | undefined;
+  /** Drawn inside each card's box, above the card — the stickers stuck on it. */
+  renderInCard?: ((id: string) => JSX.Element | null) | undefined;
 }): JSX.Element {
   const surfaceRef = useRef<HTMLDivElement>(null);
   const [stored, setStored] = useState<CanvasLayouts>(() => readLayouts());
@@ -193,6 +202,18 @@ export function CanvasBoard({
    * restored from yesterday would put yesterday's card on top.
    */
   const [frontId, setFrontId] = useState<string | null>(null);
+
+  /**
+   * Cards whose note is open but whose height you have just SET.
+   *
+   * An earlier release hid the height grip whenever a note was open, reasoning
+   * that a cap would not apply until the note closed. That made the grip
+   * vanish on exactly the cards being worked on, and "the resizer sometimes
+   * doesn't show" was the result. A drag on the grip is an explicit choice of
+   * height, so from that moment the card honours it even with the note open.
+   * Kept for the session; closing the note makes it irrelevant anyway.
+   */
+  const [capOverride, setCapOverride] = useState<ReadonlySet<string>>(new Set());
 
   const [renderBounds, setRenderBounds] = useState<
     Readonly<Record<string, { min: number; max: number }>>
@@ -303,8 +324,19 @@ export function CanvasBoard({
       handle.setPointerCapture(event.pointerId);
 
       const measured = surface.getBoundingClientRect().width || 1;
-      const origin: CardLayout = layouts[id] ?? { x: 0, y: 0, w: DEFAULT_W, hMax: 0 };
       const natural = naturalHeights.current.get(id) ?? 0;
+      const stored: CardLayout = layouts[id] ?? { x: 0, y: 0, w: DEFAULT_W, hMax: 0 };
+      /*
+        A height drag on a card its note has uncapped starts from the height
+        it is SHOWING, not from the cap stored before the note opened. From
+        the stored cap the card would jump to that height the instant the drag
+        began — a resize that first moves somewhere you did not point.
+      */
+      const takingOver = mode === 'height' && isUncapped?.(id) === 'note' && !capOverride.has(id);
+      const origin: CardLayout = takingOver ? { ...stored, hMax: natural || stored.hMax } : stored;
+      if (takingOver) {
+        setCapOverride((current) => new Set(current).add(id));
+      }
       const bounds = heightBounds.current.get(id);
       const startX = event.clientX;
       const startY = event.clientY;
@@ -339,7 +371,9 @@ export function CanvasBoard({
       // moves a card.
       window.addEventListener('pointercancel', onUp);
     },
-    [layouts, commit],
+    // `isUncapped` is an inline arrow from the board, so this re-creates each
+    // render. Harmless: every grip already calls it through an inline arrow.
+    [layouts, commit, isUncapped, capOverride],
   );
 
   /**
@@ -395,7 +429,7 @@ export function CanvasBoard({
           )
         : null}
 
-    <div ref={surfaceRef} className="relative px-4 pt-1" style={{ height }}>
+    <div ref={surfaceRef} data-canvas-surface="" className="relative px-4 pt-1" style={{ height }}>
       {overlay?.(surfaceRef)}
       {ids.map((id) => {
         const base = layouts[id];
@@ -405,12 +439,16 @@ export function CanvasBoard({
         const cardWidth = Math.max(MIN_CARD_PX, layout.w * canvasWidth);
         // Either shown in full for now (the corner toggle) or uncapped by the
         // board (its note is open). Both mean "render at natural height".
-        const open = expanded.has(id) || (isUncapped?.(id) ?? false);
-        const uncapped = isUncapped?.(id) ?? false;
+        const reason = isUncapped?.(id) ?? false;
+        const boardUncapped =
+          reason === 'folded' || (reason === 'note' && !capOverride.has(id));
+        const open = expanded.has(id) || boardUncapped;
 
         return (
           <div
             key={id}
+            // Found by a dropped sticker, to know which card it landed on.
+            data-canvas-id={id}
             data-active={active ? 'true' : undefined}
             onPointerDownCapture={() => {
               if (frontId !== id) setFrontId(id);
@@ -458,17 +496,25 @@ export function CanvasBoard({
               })}
             </ClampedCard>
 
+            {/*
+              Drawn INSIDE the card's box, so whatever is here moves with the
+              card — including mid-drag — without its position being kept in
+              step by hand. Outside the clamped card, so a height cap never
+              clips a sticker stuck near the card's edge.
+            */}
+            {renderInCard?.(id)}
+
             <Grip
               axis="width"
               onPointerDown={(event) => beginGesture(event, id, 'width')}
               onReset={() => commit(id, { ...layout, w: DEFAULT_W }, layouts)}
             />
             {/*
-              No height grip while the board has uncapped the card: a drag
-              here would set a cap that is not applied until the note closes,
-              which is a control whose effect you cannot see.
+              No height grip on a FOLDED card only: one line has no height to
+              cap, and the grip beneath it was the dark bar under folded cards.
+              A card with an open note keeps its grip; see `capOverride`.
             */}
-            {uncapped ? null : (
+            {reason === 'folded' ? null : (
             <Grip
               axis="height"
               onPointerDown={(event) => beginGesture(event, id, 'height')}

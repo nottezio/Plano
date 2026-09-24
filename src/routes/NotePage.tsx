@@ -249,24 +249,28 @@ export default function NotePage(): JSX.Element {
   const syncRef = useRef(sync);
   syncRef.current = sync;
 
-  useEffect(() => {
+  /*
+    Bound in `attachEditor` below, NOT in an effect — and that is the fix.
+
+    This was `useEffect(…, [])`, which runs once, when the PAGE mounts. Since
+    the Catatan board, the editor only exists after a card is opened, so at
+    mount `ref.current` was null, the effect returned early, and the listener
+    was never attached: ticks changed on screen and were never saved.
+
+    The blank-note bug (see CHANGES.md) was the same failure in the same
+    component — a DOM effect keyed to the page's lifetime instead of the
+    node's — and was fixed for the text write while this listener, a few
+    lines above it, was left behind. Both now live in the callback ref, which
+    runs exactly when the editor attaches and detaches.
+  */
+  const onToggle = useCallback((event: Event): void => {
+    const target = event.target;
     const node = ref.current;
     if (!node) return;
-
-    const onToggle = (event: Event): void => {
-      const target = event.target;
-      if (!(target instanceof HTMLInputElement) || target.type !== 'checkbox') return;
-      if (target.checked) target.setAttribute('checked', '');
-      else target.removeAttribute('checked');
-      syncRef.current.setValue(node.innerHTML);
-    };
-
-    node.addEventListener('change', onToggle);
-    node.addEventListener('click', onToggle);
-    return () => {
-      node.removeEventListener('change', onToggle);
-      node.removeEventListener('click', onToggle);
-    };
+    if (!(target instanceof HTMLInputElement) || target.type !== 'checkbox') return;
+    if (target.checked) target.setAttribute('checked', '');
+    else target.removeAttribute('checked');
+    syncRef.current.setValue(node.innerHTML);
   }, []);
 
   const addNote = (): void => {
@@ -370,11 +374,25 @@ export default function NotePage(): JSX.Element {
    * to the thing that was missing — the element's lifetime — rather than to
    * the value. It reads through `syncRef` so it never holds a stale note.
    */
-  const attachEditor = useCallback((node: HTMLDivElement | null) => {
-    ref.current = node;
-    const value = syncRef.current.value;
-    if (node && node.innerHTML !== value) node.innerHTML = value;
-  }, []);
+  const attachEditor = useCallback(
+    (node: HTMLDivElement | null) => {
+      // Detach from the editor being replaced (closing a note, switching one).
+      const previous = ref.current;
+      if (previous && previous !== node) {
+        previous.removeEventListener('change', onToggle);
+        previous.removeEventListener('click', onToggle);
+      }
+      ref.current = node;
+      if (!node) return;
+      const value = syncRef.current.value;
+      if (node.innerHTML !== value) node.innerHTML = value;
+      if (node !== previous) {
+        node.addEventListener('change', onToggle);
+        node.addEventListener('click', onToggle);
+      }
+    },
+    [onToggle],
+  );
 
   /**
    * Put the selection back to the theme's own text colour.

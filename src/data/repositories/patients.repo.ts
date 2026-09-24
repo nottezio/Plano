@@ -25,6 +25,7 @@ import { kjsRole } from '@/domain/board';
 import { primaryDpjp } from '@/domain/dpjp';
 import { isIgdEntry } from '@/domain/clinicalDate';
 import { parsePatientFacts } from '@/domain/parsePatient';
+import { konsulPreview } from '@/domain/konsulReply';
 import { parseSections } from '@/domain/sections/parseSections';
 import { DEFAULT_SECTION_ALIASES } from '@/domain/sections/aliases';
 import type { SectionAlias } from '@/domain/types';
@@ -170,9 +171,19 @@ export function buildPreview(body: string, aliases?: readonly SectionAlias[]): s
     return /diagnos|assess|problem/.test(haystack);
   });
 
-  const source = assessment?.text.trim()
-    ? assessment.text.trim()
-    : body.slice(clinicalStart(sections)).trim();
+  /*
+    A consult reply's assessment is its cardiology conclusion, a heading whose
+    LINE is the content (`carriesContent`). Its `text` is whatever follows the
+    line — usually nothing before the TS blocks — so reading `text` alone
+    found an empty assessment and fell back to the note's opening: S, O and
+    every investigation, which is what these cards showed.
+  */
+  const source =
+    assessment?.carriesContent && assessment.headerLine
+      ? konsulPreview(body, assessment.headerLine, assessment.text)
+      : assessment?.text.trim()
+        ? assessment.text.trim()
+        : body.slice(clinicalStart(sections)).trim();
 
   return source.length > PREVIEW_LIMIT ? `${source.slice(0, PREVIEW_LIMIT)}…` : source;
 }

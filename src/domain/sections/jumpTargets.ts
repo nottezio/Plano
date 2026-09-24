@@ -113,7 +113,8 @@ export function jumpTargets(
   // First occurrence wins, matching the anchor rule in SectionBands: a note
   // carries three EKG blocks, and "jump to O" means the first one.
   const present = new Map<SectionId, ParsedSection>();
-  for (const section of parseSections(body, aliases)) {
+  const sections = parseSections(body, aliases);
+  for (const section of sections) {
     // A field is not a jump target. `section.ownsLine` is the parser's single
     // answer to "is this a heading", shared with the tint layer so the two
     // cannot drift apart — they did once, and the bar was clean while the
@@ -154,5 +155,33 @@ export function jumpTargets(
     });
   }
 
+  /*
+    The consulting services' blocks — `*TS Pulmo*`, `*TS BTKV*` — after ours,
+    in the order the note writes them.
+
+    A consult reply is mostly other services' assessments and orders, one
+    block each, and "where is BTKV's plan" is the question the bar is for on
+    such a note. They are already sections (custom ones, since no alias names
+    them); they were simply never offered as targets. Their `A/`, `P/`, `I/`
+    stay INSIDE the block, and are never mistaken for this note's own A or P
+    (see `classifyProseHeader`).
+  */
+  const seenTs = new Set<string>();
+  for (const section of sections) {
+    if (!section.ownsLine || !TS_BLOCK_RE.test(section.label)) continue;
+    if (seenTs.has(section.sectionId)) continue;
+    seenTs.add(section.sectionId);
+    targets.push({
+      sectionId: section.sectionId,
+      label: section.label.length > MAX_TS_LABEL ? `${section.label.slice(0, MAX_TS_LABEL - 1)}…` : section.label,
+      anchorId: `sec-${section.sectionId}`,
+    });
+  }
+
   return targets;
 }
+
+/** A consulting service's block: `TS` then the service. */
+const TS_BLOCK_RE = /^TS\s+\S/;
+/** `TS Bedah Digestif` is 17; the bar scrolls, but a button is not a sentence. */
+const MAX_TS_LABEL = 14;

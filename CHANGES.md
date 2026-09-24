@@ -1,5 +1,122 @@
 # Plano — CHANGES
 
+## `2026-09-24.1`
+
+**Catatan checklist ticks save again, the height grip is back on cards with an
+open note, stickers stick to cards, and consult replies are read properly.**
+
+### 1. Catatan checklist ticks were not saved
+
+**Root cause.** The native listener that saves a tick was bound in
+`useEffect(…, [])`, which runs once, when the PAGE mounts. Since the Catatan
+board, the editor only exists after a card is opened, so at mount the editor
+ref was null, the effect returned early, and the listener was never attached.
+Ticks changed on screen and were never written.
+
+This is the blank-note bug of `2026-09-22.1` again, in the same component: a
+DOM effect tied to the page's lifetime instead of the node's. That fix moved
+the text write into a callback ref and left this listener, a few lines above
+it, behind. The listener now lives in the same callback ref, attached when the
+editor attaches and removed when it detaches. The rest of the file was audited
+for the same shape: the one other `[]` effect listens on `document` and reads
+the node only when an event fires, which is safe.
+
+### 2. The height grip "sometimes" missing
+
+My doing, in `2026-09-21.2`: the grip was hidden whenever a card's note was
+open, on the reasoning that a cap would not apply until the note closed. That
+hid it on exactly the cards being worked on.
+
+The canvas now distinguishes WHY a card is uncapped:
+
+- **folded** — no height grip (one line has no height to cap; the grip there was
+  the dark bar under folded cards);
+- **note open** — the grip is shown. Dragging it is an explicit choice of
+  height, so from then on the card honours it even with the note open,
+  starting from the height it is showing — not the cap stored before the note
+  opened, which would make the card jump the instant the drag began.
+
+The zero-warnings lint rule caught the new state missing from the gesture's
+dependencies; a stale copy would have let a second drag re-take a card already
+taken over.
+
+### 3. Stickers stick to cards
+
+Drop a sticker ON a card and it is stuck there: drawn inside the card's own
+box, at an offset from its corner, so it moves with the card — including while
+the card is being dragged — with no position kept in step by hand. Drop it on
+empty canvas and it is free, as before.
+
+- **A card that leaves the board takes its stickers with it** (filtered out,
+  discharged, the other scope). Drawing them where the card used to be would
+  be a mark on whichever patient is there now — the bug this whole area has
+  been about.
+- Sticker state moved to one owner (`useBoardStickers`) read by two places:
+  the canvas draws free stickers, each card draws its own. One list, not two
+  copies that could disagree.
+- Drags run on window listeners instead of pointer capture: a sticker pulled
+  off a card is re-drawn on the canvas mid-gesture, a different element, and
+  capture on the old one would have ended with it.
+- The card under the pointer is found with `elementsFromPoint` on the drop,
+  which sees through the sticker to the topmost card beneath it.
+- A stored attachment that cannot be read falls back to FREE at its last
+  position rather than dropping the sticker.
+
+### 4. Consult replies
+
+**What was wrong, measured on the two notes you sent.** The parser recognised
+S and O, and each TS block as its own section. The cardiology conclusion —
+"Saat ini evaluasi Kardiologi … pasien kami assess dengan …" — was not
+recognised at all. It is one bolded sentence of ~200 characters, and a fully
+bolded line counts as a heading only up to 72 characters (a deliberate guard:
+a bolded sentence is not a label). So it was swallowed into the last
+investigation above it: no A in the jump bar, and the card preview, finding no
+assessment, fell back to S, O and every investigation.
+
+**The fix.**
+
+- The conclusion is recognised by its **opening formula**, not by relaxing the
+  length rule, which would start turning any bolded sentence into a section.
+  It becomes section A, as a heading that owns its line, so tinting, copy and
+  carry-forward treat it like any other; `carriesContent` tells the one reader
+  that needs the words — the preview — that the line IS the content.
+- **Card preview**: the question, then the answer —
+  `Konsul: kelayakan bronkoskopi dengan general anestesi` /
+  `Low Risk (Lee RCRI) 0.9% … MACE …`. The method statement that opens every
+  conclusion ("berdasarkan anamnesis, pemeriksaan fisik, EKG …") is skipped;
+  the finding after "pasien kami assess dengan" or "pasien termasuk (kategori)"
+  is kept. With neither phrase, the whole sentence is shown rather than a
+  guess.
+- **Jump bar**: `Identitas · S · O · A · TS Bedah Dige… · TS EMD` — each TS block
+  in note order. Their `A/`, `P/`, `I/` stay inside the block and are never read
+  as this note's own A or P, as `classifyProseHeader` has always required.
+
+**Checked against the whole export**: 237 notes, none loses a character, and the
+new rule touches exactly one — the one existing consult reply.
+
+The two notes are kept as test fixtures with the patients' names, dates of
+birth and RM numbers replaced; every heading and marker line is untouched.
+
+### Not done, and why
+
+- **Built on two samples and one old note.** Rules this narrow will miss a
+  variation — a conclusion opening "Evaluasi kardiologi saat ini …", or a TS
+  block written `*TS: Pulmo*`. Each such case falls back to today's behaviour
+  rather than misreading, but it will not be recognised until seen.
+- **The Catatan and grip fixes have no automated test.** Both live in
+  components, and this suite renders none. The Catatan fix is the same pattern
+  as the blank-note fix, now applied to both effects in that file.
+- **Not rendered here.** Worth checking: tick a checkbox in a Catatan note and
+  reload; drag a sticker onto a card and move the card; open a consult reply's
+  card on the board.
+
+```
+1510 tests passed (+17)
+typecheck / lint (0 warnings) / check:version / check:contrast / check:a11y / build — clean
+```
+
+---
+
 ## `2026-09-23.3`
 
 **Stickers no longer bleed between Pasien saya and Titipan.**
