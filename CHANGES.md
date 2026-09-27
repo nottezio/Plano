@@ -1,5 +1,60 @@
 # Plano — CHANGES
 
+## `2026-09-27.2`
+
+**Pengampu defaults now carry full names and titles, exactly as in Avi's sent
+PAKAR confirmations.**
+
+### Root cause
+
+Mine. The previous release seeded the weekly pengampu from a condensed
+restatement of Avi's request, carried over when the session was compacted,
+instead of from the messages he had pasted. That restatement had cut each name
+down to a surname, e.g. "Alkatiri" for "Dr. dr. Abdul Hakim Alkatiri, Sp.JP(K)",
+and the seed repeated it.
+
+**Reference data typed from memory is a copy of a copy.** The fix is in two
+parts:
+
+1. The defaults are now copied verbatim from the sent confirmations, and the
+   tests check the parser's output from those same messages against them.
+2. Pengaturan MR gains **"Ambil jadwal dari pesan PAKAR yang pernah
+   dikirim"**. Paste one or several sent confirmations, and each weekday block
+   found replaces that weekday's list. The schedule then comes from the
+   messages themselves and never has to be retyped when a pengampu changes.
+
+The line parser finds the status by its words ("menunggu", "konfirmasi",
+"berhalangan", "hadir"), not by the last parentheses. It has to, because the
+samples contain:
+
+- titles with brackets of their own (`Sp.JP(K)`, `Sp.JP (K)`);
+- a status glued on with no space (`Sp.JP(K)(menunggu …)`);
+- a status missing its opening bracket (`Sp.JP(K)  konfirmasi … WITA)`);
+- WhatsApp's invisible U+2060 around `•` bullets.
+
+### Already-saved data
+
+- **A weekday list or status list identical to the old seed** counts as
+  "never edited" and picks up the corrected defaults. Anything else stored is
+  treated as a hand edit and kept.
+- **A date saved in that window** has its surname-only names shown in full,
+  with statuses unchanged. Only exact matches are converted.
+
+The status presets now follow the samples: `Konfirmasi kehadiran pukul 07:00
+WITA`, `… 07:30 WITA`, `Konfirmasi berhalangan hadir`.
+
+### Not done
+
+- Pasting a sent confirmation sets the weekly schedule only. It does not set
+  statuses for a date: a status belongs to the day it was sent for.
+
+```
+1539 tests passed (+4)
+typecheck / lint (0 warnings) / check:version / check:contrast / check:a11y / build — clean
+```
+
+---
+
 ## `2026-09-27.1`
 
 **Helper is split into tabs, and has a new one: Morning Report.**
@@ -64,8 +119,8 @@ option before shipping.
 - **Same-date pengampu edits on two devices at once:** the date's list is one
   array, so the last write wins for that list. Patient lists are per jaga and
   do not have this problem.
-- **Titles:** the default pengampu are the names as given, without "dr./Prof."
-  prefixes. Add them once in Pengaturan MR.
+- **Titles:** the default pengampu were seeded as surnames only. That was
+  wrong; see `2026-09-27.2`.
 - **Formatting guesses, to confirm against a real send:**
   - the divider (30 `-`);
   - the blank line between patients;

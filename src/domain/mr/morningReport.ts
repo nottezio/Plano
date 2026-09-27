@@ -289,36 +289,143 @@ export const DEFAULT_STATUS = 'menunggu konfirmasi kehadiran';
 
 export const DEFAULT_STATUSES = [
   DEFAULT_STATUS,
+  'Konfirmasi kehadiran pukul 07:00 WITA',
+  'Konfirmasi kehadiran pukul 07:30 WITA',
+  'Konfirmasi berhalangan hadir',
+];
+
+/**
+ * The scheduled pengampu per weekday (1 = Senin … 5 = Jumat), with titles
+ * exactly as they appear in Avi's sent PAKAR confirmations. Only a starting
+ * point: each account keeps its own copy once edited, and a given date's list
+ * can differ from its weekday's.
+ */
+export const DEFAULT_PENGAMPU: Record<number, string[]> = {
+  1: [
+    'Dr. dr. Abdul Hakim Alkatiri, Sp.JP(K)',
+    'Prof. Dr. dr. Idar Mappangara, Sp.PD, SpJP(K)',
+    'dr. Almudai, Sp.PD, Sp.JP(K)',
+    'dr. Bogie Putra Palinggi, Sp.JP',
+  ],
+  2: [
+    'dr. Az Hafid Nashar, Sp.JP(K)',
+    'dr. Andi Alief Utama Armyn, M.Kes, Sp.JP, Subsp. KPPJB (K)',
+    'Prof. dr. Peter Kabo, Ph.D, Sp.FK, Sp.JP(K)',
+    'dr. Andi Renata Bastario, Sp.JP(K)',
+  ],
+  3: [
+    'dr. Pendrik Tandean, Sp.PD-KKV',
+    'Dr. dr. Yulius Patimang, Sp.A, Sp.JP(K)',
+    'dr. Fadillah Maricar, Sp.JP (K), FIHA',
+    'dr. Frizt Alfred Tandean, Sp.JP (K)',
+    'dr. Aussie Fitriani Ghaznawie, Sp.JP(K)',
+  ],
+  4: [
+    'Prof. Dr. dr. Muzakkir Amir, Sp.JP(K)',
+    'Dr. dr. Khalid Saleh, Sp.PD-KKV',
+    'Prof. dr. Peter Kabo, Ph.D, Sp.FK, Sp.JP(K)',
+    'dr. Amelia Arindanie, Sp.JP',
+    'dr. Muhammad Asrul Apris, Sp.JP(K)',
+    'Dr. dr. Sumarni, Sp.JP(K)',
+  ],
+  5: [
+    'Dr. dr. Akhtar Fajar Muzakkir, Sp.JP(K)',
+    'dr. Zaenab Djafar, M.Kes, Sp.PD, Sp.JP(K)',
+    'dr. Irmarisyani Sudirman, Sp.JP(K)',
+    'dr. Sitti Multazam Sp.JP, FIHA',
+  ],
+};
+
+/**
+ * What the first release seeded: surnames only, taken from a condensed
+ * restatement of Avi's message instead of the message itself. A stored list
+ * identical to one of these was never edited by hand (it could only have been
+ * saved by touching the settings box), so it is read as "use the default"
+ * and picks up the corrected names. Anything else stored is his and wins.
+ */
+const SUPERSEDED_PENGAMPU: Record<number, string[]> = {
+  1: ['Alkatiri', 'Idar Mappangara', 'Almudai', 'Bogie Putra Palinggi'],
+  2: ['Az Hafid Nashar', 'Andi Alief Utama Armyn', 'Peter Kabo', 'Andi Renata Bastario'],
+  3: ['Pendrik Tandean', 'Yulius Patimang', 'Fadillah Maricar', 'Frizt Alfred Tandean', 'Aussie Fitriani Ghaznawie'],
+  4: ['Muzakkir Amir', 'Khalid Saleh', 'Peter Kabo', 'Amelia Arindanie', 'Muhammad Asrul Apris', 'Sumarni'],
+  5: ['Akhtar Fajar Muzakkir', 'Zaenab Djafar', 'Irmarisyani Sudirman', 'Sitti Multazam'],
+};
+const SUPERSEDED_STATUSES = [
+  DEFAULT_STATUS,
   'konfirmasi kehadiran pukul 07.00 WITA',
   'konfirmasi kehadiran pukul 07.30 WITA',
   'konfirmasi berhalangan hadir',
 ];
 
 /**
- * The scheduled pengampu per weekday (1 = Senin … 5 = Jumat), as Avi gave
- * them. Only a starting point: each account keeps its own copy once edited,
- * and a given date's list can differ from its weekday's.
+ * A surname seeded by the first release → the full name it stood for, so a
+ * date whose list was saved in that window (with its statuses) is shown
+ * correctly without losing the statuses. Exact matches only.
  */
-export const DEFAULT_PENGAMPU: Record<number, string[]> = {
-  1: ['Alkatiri', 'Idar Mappangara', 'Almudai', 'Bogie Putra Palinggi'],
-  2: ['Az Hafid Nashar', 'Andi Alief Utama Armyn', 'Peter Kabo', 'Andi Renata Bastario'],
-  3: [
-    'Pendrik Tandean',
-    'Yulius Patimang',
-    'Fadillah Maricar',
-    'Frizt Alfred Tandean',
-    'Aussie Fitriani Ghaznawie',
-  ],
-  4: [
-    'Muzakkir Amir',
-    'Khalid Saleh',
-    'Peter Kabo',
-    'Amelia Arindanie',
-    'Muhammad Asrul Apris',
-    'Sumarni',
-  ],
-  5: ['Akhtar Fajar Muzakkir', 'Zaenab Djafar', 'Irmarisyani Sudirman', 'Sitti Multazam'],
+function fullName(name: string): string {
+  for (const [day, names] of Object.entries(SUPERSEDED_PENGAMPU)) {
+    const at = names.indexOf(name);
+    if (at >= 0) return DEFAULT_PENGAMPU[Number(day)]?.[at] ?? name;
+  }
+  return name;
+}
+
+const sameList = (a: readonly string[], b: readonly string[] | undefined): boolean =>
+  !!b && a.length === b.length && a.every((item, i) => item === b[i]);
+
+/** Invisible characters WhatsApp inserts around bullets (U+2060 and friends). */
+const INVISIBLE_RE = /[\u200B-\u200D\u2060\uFEFF]/g;
+const STATUS_START_RE = /\b(?:menunggu|konfirmasi|berhalangan|hadir)\b/i;
+
+/**
+ * One line of a sent confirmation → name and status.
+ *
+ * The status is found by its WORDS, not by "the last parentheses": names
+ * carry parentheses of their own (`Sp.JP(K)`, `Sp.JP (K)`), a status is
+ * sometimes glued on without a space (`Sp.JP(K)(menunggu …)`), and one
+ * sample is missing its opening bracket (`Sp.JP(K)  konfirmasi … WITA)`).
+ * No title contains "menunggu"/"konfirmasi", so the first of those words is
+ * where the status begins.
+ */
+export function parsePengampuLine(raw: string): Pengampu | null {
+  const line = raw.replace(INVISIBLE_RE, '').trim();
+  const bullet = /^(?:[-•·▪◦]|\d{1,2}[.)])\s*(.*)$/.exec(line);
+  if (!bullet) return null;
+  const text = (bullet[1] ?? '').trim();
+  if (!text) return null;
+  const at = text.search(STATUS_START_RE);
+  if (at < 0) return { name: text, status: '' };
+  const name = text.slice(0, at).replace(/[\s(]+$/, '').trim();
+  const status = text.slice(at).replace(/[\s)]+$/, '').trim();
+  return name ? { name, status } : null;
+}
+
+const DAY_INDEX: Record<string, number> = {
+  senin: 1, selasa: 2, rabu: 3, kamis: 4, jumat: 5, "jum'at": 5,
 };
+
+/**
+ * A PAKAR confirmation as sent (one or several pasted together) → the
+ * weekday each block is for and its pengampu. Lets the weekly schedule be
+ * taken from Avi's own messages rather than typed out again.
+ */
+export function parsePengampuMessage(text: string): Array<{ weekday: number; pengampu: Pengampu[] }> {
+  const out: Array<{ weekday: number; pengampu: Pengampu[] }> = [];
+  let current: { weekday: number; pengampu: Pengampu[] } | null = null;
+  for (const raw of text.split(/\r?\n/)) {
+    const clean = raw.replace(INVISIBLE_RE, '').replace(/[*_]/g, '');
+    const header = /pengampu\s+mr\b[\s,:]*(senin|selasa|rabu|kamis|jum'?at)\b/i.exec(clean);
+    if (header) {
+      current = { weekday: DAY_INDEX[header[1]!.toLowerCase()] ?? 0, pengampu: [] };
+      out.push(current);
+      continue;
+    }
+    if (!current) continue;
+    const entry = parsePengampuLine(clean);
+    if (entry) current.pengampu.push(entry);
+  }
+  return out.filter((block) => block.weekday > 0 && block.pengampu.length > 0);
+}
 
 export function pengampuLines(list: readonly Pengampu[]): string[] {
   return list
@@ -413,15 +520,20 @@ export function readMrConfig(raw: unknown): Required<MrConfig> {
   const pengampu: Record<string, string[]> = {};
   for (const day of ['1', '2', '3', '4', '5']) {
     const stored = (source.pengampu as Record<string, unknown> | undefined)?.[day];
-    pengampu[day] = Array.isArray(stored)
-      ? stored.filter(isString)
-      : [...(DEFAULT_PENGAMPU[Number(day)] ?? [])];
+    const list = Array.isArray(stored) ? stored.filter(isString) : null;
+    pengampu[day] =
+      list && !sameList(list, SUPERSEDED_PENGAMPU[Number(day)])
+        ? list
+        : [...(DEFAULT_PENGAMPU[Number(day)] ?? [])];
   }
   const statuses = Array.isArray(source.statuses) ? source.statuses.filter(isString) : [];
   return {
     sender: isString(source.sender) ? source.sender : '',
     zoom: isString(source.zoom) ? source.zoom : '',
-    statuses: statuses.length > 0 ? statuses : [...DEFAULT_STATUSES],
+    statuses:
+      statuses.length > 0 && !sameList(statuses, SUPERSEDED_STATUSES)
+        ? statuses
+        : [...DEFAULT_STATUSES],
     pengampu,
   };
 }
@@ -455,7 +567,7 @@ export function readMrDay(raw: unknown): MrDay {
  * scheduled names, all awaiting confirmation.
  */
 export function pengampuFor(mrDate: string, day: MrDay, config: Required<MrConfig>): Pengampu[] {
-  if (day.pengampu) return day.pengampu;
+  if (day.pengampu) return day.pengampu.map((entry) => ({ ...entry, name: fullName(entry.name) }));
   return (config.pengampu[String(weekday(mrDate))] ?? []).map((name) => ({
     name,
     status: DEFAULT_STATUS,

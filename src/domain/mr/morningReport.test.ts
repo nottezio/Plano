@@ -17,6 +17,10 @@ import {
   readMrConfig,
   readMrDay,
   staleMrDays,
+  DEFAULT_PENGAMPU,
+  DEFAULT_STATUSES,
+  parsePengampuLine,
+  parsePengampuMessage,
 } from './morningReport';
 
 // Anonymised: initials, dates and RM numbers are invented.
@@ -145,15 +149,45 @@ describe('messages', () => {
 describe('stored shape', () => {
   it('falls back to the scheduled names and default statuses', () => {
     const config = readMrConfig(undefined);
-    expect(config.pengampu['1']).toContain('Alkatiri');
+    expect(config.pengampu['1']).toContain('Dr. dr. Abdul Hakim Alkatiri, Sp.JP(K)');
     expect(config.statuses[0]).toBe(DEFAULT_STATUS);
-    expect(pengampuFor('2026-09-28', {}, config)[0]).toEqual({ name: 'Alkatiri', status: DEFAULT_STATUS });
+    expect(pengampuFor('2026-09-28', {}, config)[0]).toEqual({
+      name: 'Dr. dr. Abdul Hakim Alkatiri, Sp.JP(K)',
+      status: DEFAULT_STATUS,
+    });
   });
 
   it("a date's own list wins over its weekday's", () => {
     const config = readMrConfig({ pengampu: { '1': ['dr. X'] } });
     expect(pengampuFor('2026-09-28', {}, config)).toEqual([{ name: 'dr. X', status: DEFAULT_STATUS }]);
     expect(pengampuFor('2026-09-28', { pengampu: [] }, config)).toEqual([]);
+  });
+
+  it('replaces the surname-only seed of the first release, keeps real edits', () => {
+    const seeded = readMrConfig({
+      pengampu: { '1': ['Alkatiri', 'Idar Mappangara', 'Almudai', 'Bogie Putra Palinggi'] },
+      statuses: [
+        'menunggu konfirmasi kehadiran',
+        'konfirmasi kehadiran pukul 07.00 WITA',
+        'konfirmasi kehadiran pukul 07.30 WITA',
+        'konfirmasi berhalangan hadir',
+      ],
+    });
+    expect(seeded.pengampu['1']).toEqual(DEFAULT_PENGAMPU[1]);
+    expect(seeded.statuses).toEqual(DEFAULT_STATUSES);
+    expect(readMrConfig({ pengampu: { '1': ['Alkatiri'] } }).pengampu['1']).toEqual(['Alkatiri']);
+  });
+
+  it('shows full names on a date saved with the old seed, statuses intact', () => {
+    const list = pengampuFor(
+      '2026-09-28',
+      { pengampu: [{ name: 'Bogie Putra Palinggi', status: 'hadir' }, { name: 'dr. X', status: '' }] },
+      readMrConfig(undefined),
+    );
+    expect(list).toEqual([
+      { name: 'dr. Bogie Putra Palinggi, Sp.JP', status: 'hadir' },
+      { name: 'dr. X', status: '' },
+    ]);
   });
 
   it('reads garbage without throwing', () => {
@@ -165,5 +199,45 @@ describe('stored shape', () => {
 
   it('prunes drafts past the keep window', () => {
     expect(staleMrDays({ '2026-08-01': {}, '2026-09-20': {} }, '2026-09-27')).toEqual(['2026-08-01']);
+  });
+});
+
+// Avi's sent confirmations, verbatim, including WhatsApp's U+2060 around bullets.
+const SENT = `Pengampu MR, *Jumat, 25 September 2026*:
+*Pimpinan Morning Report terjadwal :*
+•\u2060  \u2060Dr. dr. Akhtar Fajar Muzakkir, Sp.JP(K)  (menunggu konfirmasi kehadiran)
+•\u2060  \u2060\u2060dr. Zaenab Djafar, M.Kes, Sp.PD, Sp.JP(K) (menunggu konfirmasi kehadiran)
+•\u2060  \u2060\u2060dr. Irmarisyani Sudirman, Sp.JP(K) (menunggu konfirmasi kehadiran)
+•\u2060  \u2060\u2060dr. Sitti Multazam Sp.JP, FIHA (menunggu konfirmasi kehadiran)
+
+pengampu MR *Selasa, 22 September 2026*:
+*Pimpinan Morning Report terjadwal:*
+- dr. Az Hafid Nashar, Sp.JP(K) (menunggu konfirmasi kehadiran)
+- dr. Andi Alief Utama Armyn, M.Kes, Sp.JP, Subsp. KPPJB (K) (menunggu konfirmasi kehadiran)
+- Prof. dr. Peter Kabo, Ph.D, Sp.FK, Sp.JP(K) (menunggu konfirmasi kehadiran)
+- dr. Andi Renata Bastario, Sp.JP(K)  konfirmasi kehadiran pukul 07:30 WITA)`;
+
+describe('reading sent confirmations', () => {
+  it('splits name and status whatever the brackets do', () => {
+    expect(parsePengampuLine('•\u2060  \u2060\u2060Dr. dr. Abdul Hakim Alkatiri, Sp.JP(K)(menunggu konfirmasi kehadiran)')).toEqual({
+      name: 'Dr. dr. Abdul Hakim Alkatiri, Sp.JP(K)',
+      status: 'menunggu konfirmasi kehadiran',
+    });
+    expect(parsePengampuLine('- dr. Fadillah Maricar, Sp.JP (K), FIHA (Konfirmasi kehadiran pukul 07:30 WITA)')).toEqual({
+      name: 'dr. Fadillah Maricar, Sp.JP (K), FIHA',
+      status: 'Konfirmasi kehadiran pukul 07:30 WITA',
+    });
+    expect(parsePengampuLine('- Dr. dr. Khalid Saleh, Sp.PD-KKV (Menunggu Konfirmasi kehadiran ) ')).toEqual({
+      name: 'Dr. dr. Khalid Saleh, Sp.PD-KKV',
+      status: 'Menunggu Konfirmasi kehadiran',
+    });
+  });
+
+  it('finds each weekday block and its pengampu, and they match the defaults', () => {
+    const blocks = parsePengampuMessage(SENT);
+    expect(blocks.map((b) => b.weekday)).toEqual([5, 2]);
+    expect(blocks[0]!.pengampu.map((p) => p.name)).toEqual(DEFAULT_PENGAMPU[5]);
+    expect(blocks[1]!.pengampu.map((p) => p.name)).toEqual(DEFAULT_PENGAMPU[2]);
+    expect(blocks[1]!.pengampu[3]!.status).toBe('konfirmasi kehadiran pukul 07:30 WITA');
   });
 });

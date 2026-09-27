@@ -18,6 +18,7 @@ import {
   defaultMrDate,
   longDateText,
   parsePatients,
+  parsePengampuMessage,
   parseShiftKey,
   pengampuFor,
   readMrConfig,
@@ -451,6 +452,7 @@ function MrSettings({
             list
           />
         </label>
+        <ImportFromSent uid={uid} />
         <div className="space-y-2">
           <p className="text-xs text-fg-muted">
             Jadwal pengampu mingguan (satu nama per baris). Dipakai untuk tanggal yang daftarnya
@@ -488,6 +490,62 @@ const listForm = (text: string): string =>
     .map((line) => line.trim())
     .filter(Boolean)
     .join('\n');
+
+/**
+ * The weekly schedule taken from confirmations already sent: paste one or
+ * several, and each weekday block found replaces that weekday's list. Names
+ * are copied exactly as sent, titles included; statuses are ignored here
+ * (they belong to the date they were sent for).
+ */
+function ImportFromSent({ uid }: { uid: string | null }): JSX.Element {
+  const [text, setText] = useState('');
+  const [done, setDone] = useState<string | null>(null);
+  const blocks = useMemo(() => parsePengampuMessage(text), [text]);
+  return (
+    <div className="space-y-1">
+      <label className="block text-xs text-fg-muted">
+        Ambil jadwal dari pesan PAKAR yang pernah dikirim (boleh beberapa sekaligus)
+        <textarea
+          value={text}
+          onChange={(event) => {
+            setText(event.target.value);
+            setDone(null);
+          }}
+          rows={4}
+          placeholder="Pengampu MR, Senin, …:&#10;Pimpinan Morning Report terjadwal:&#10;- Dr. dr. … (menunggu konfirmasi kehadiran)"
+          className="mt-1 block w-full rounded-lg border border-border bg-surface px-2 py-1.5 text-[12px] text-fg"
+        />
+      </label>
+      {text.trim() ? (
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="flex-1 text-[11px] text-fg-muted">
+            {blocks.length > 0
+              ? blocks
+                  .map((block) => `${WEEKDAYS[block.weekday - 1]?.[1] ?? '?'}: ${block.pengampu.length} nama`)
+                  .join(' · ')
+              : 'Belum terbaca: perlu baris “Pengampu MR, <hari>, …” lalu daftar bertanda - atau •.'}
+          </span>
+          <button
+            type="button"
+            disabled={!uid || blocks.length === 0}
+            onClick={() => {
+              if (!uid) return;
+              for (const block of blocks) {
+                setMrWeekdayPengampu(uid, String(block.weekday), block.pengampu.map((entry) => entry.name));
+              }
+              setDone(`${blocks.length} hari diperbarui.`);
+              setText('');
+            }}
+            className="min-h-tap rounded-lg border border-accent px-3 text-xs font-medium text-accent disabled:opacity-40"
+          >
+            Pakai sebagai jadwal
+          </button>
+        </div>
+      ) : null}
+      {done ? <p className="text-[11px] text-fg-muted">{done}</p> : null}
+    </div>
+  );
+}
 
 function SyncedArea({
   remote,
