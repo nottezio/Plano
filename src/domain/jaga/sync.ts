@@ -35,8 +35,15 @@ export type JagaRosterKind = 'roster' | 'dpjp' | 'jarkom' | 'pediatri';
 export const JAGA_ROSTER_KINDS: readonly JagaRosterKind[] = ['roster', 'dpjp', 'jarkom', 'pediatri'];
 
 /** Fields of the state document. `sender` is one value; the rest are maps. */
-export type JagaStateField = 'sender' | 'names' | 'religion' | 'confirmed' | 'posts' | 'dpjpEdits';
-export const JAGA_MAP_FIELDS = ['names', 'religion', 'confirmed', 'posts', 'dpjpEdits'] as const;
+export type JagaStateField =
+  | 'sender'
+  | 'names'
+  | 'religion'
+  | 'confirmed'
+  | 'posts'
+  | 'dpjpEdits'
+  | 'links';
+export const JAGA_MAP_FIELDS = ['names', 'religion', 'confirmed', 'posts', 'dpjpEdits', 'links'] as const;
 export type JagaMapField = (typeof JAGA_MAP_FIELDS)[number];
 
 export type JagaState = Partial<Record<JagaMapField, Record<string, unknown>>> & {

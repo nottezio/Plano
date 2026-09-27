@@ -1,5 +1,88 @@
 # Plano — CHANGES
 
+## `2026-09-27.3`
+
+**Konfirmasi Jaga: a roster name that fits two Jarkom rows is no longer
+settled by row order. You pick the row, and the pick brings the right
+nickname and agama. The tukar jaga label is now a clearly visible header.**
+
+### Root cause
+
+The roster legend spells one resident `dr. Ahmad Rizki Yusuf`; the Jarkom
+sheet has `dr. Ahmad Rifqi Yusuf` (nickname Yusuf). "Rizki" and "Rifqi" are
+two letters apart, past the one-typo tolerance, so the legend name shared
+exactly two words with each of two rows:
+
+| Jarkom row | Words shared | Score |
+|---|---|---|
+| dr. Ahmad Rizki Imran (Rizki) | ahmad, rizki | 2/3 |
+| dr. Ahmad Rifqi Yusuf (Yusuf) | ahmad, yusuf | 2/3 |
+
+`matchJarkom` kept the first best score it met (`score > best.score`), so
+**row order decided who this person was**. Rizki Imran is row 36 and Rifqi
+Yusuf row 50. The wrong nickname was printed and nothing on screen said a
+choice had been made. The name override by initials could not repair it
+either: it changes the displayed nickname only, not the agama or the full
+name.
+
+**Two people who fit equally is a question, not a match.**
+
+### Fix
+
+1. **Ties are reported, not broken by order.** `resolveJarkom` ranks by the
+   share of words in common, then by how rare those words are across the
+   sheet. `ahmad` appears on 4 rows and says little; `yusuf` is on one. When
+   both measures tie, it returns no match plus the tied rows. Here it
+   genuinely ties (rizki and yusuf are each unique), so it asks rather than
+   guesses.
+2. **The question is asked where the name is shown.** The row shows a
+   warning box: "“dr. Ahmad Rizki Yusuf” cocok dengan 2 orang di Jarkom. Yang
+   mana …?", with one button per candidate, name and nickname.
+3. **The answer is a link, not a label.** `setJarkomLink(initials, row)` is
+   stored as a new synced state field (`links`). A linked person takes the
+   row's **full name, nickname and agama**, so the greeting is corrected with
+   the name. It applies in the Formasi, the confirmation messages, and the
+   tukar jaga picker.
+   - The link stores the row's name, so a re-imported sheet in another order
+     still finds it.
+   - A link to a row a newer sheet no longer has is ignored, and matching
+     takes over.
+4. **"Salah orang?"** under every matched name opens a picker over the whole
+   sheet, for a match that is confidently wrong rather than ambiguous.
+   "Kembalikan ke pencocokan otomatis" removes a link.
+
+**No rules change needed:** `links` is one more map in the existing
+`users/{uid}/jaga/state` document.
+
+### Tukar jaga label
+
+**Before:** a 10 px grey chip in the top corner of the message box, sitting on
+the text.
+
+**Now:**
+
+- a header strip in the warning colour: **⇄ Tukar jaga · menggantikan
+  <rostered name>**;
+- the message box border in the same colour, so a swapped message stands out
+  when scanning down the list;
+- the small grey full-name line is hidden on swaps, because it showed the
+  rostered person under the swapped-in name.
+
+### Not done
+
+- **Not applied to your data yet.** The fix for this resident happens when
+  you tap "dr. Ahmad Rifqi Yusuf (Yusuf)" once on a shift they are on. After
+  that it syncs to your other devices.
+- **Tests use invented names** with the same shape as this case, not the
+  real ones. Colleague names stay out of the public repo.
+
+```
+1545 tests passed (+6)
+typecheck / lint (0 warnings) / check:version / check:contrast / check:a11y / build — clean
+```
+
+---
+
 ## `2026-09-27.2`
 
 **Pengampu defaults now carry full names and titles, exactly as in Avi's sent

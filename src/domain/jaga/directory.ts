@@ -1,4 +1,4 @@
-import { matchJarkom } from './match';
+import { jarkomFor } from './match';
 import type { JagaRoster, JarkomDirectory } from './types';
 
 /**
@@ -25,14 +25,16 @@ export interface Resident {
 export function buildDirectory(
   roster: JagaRoster | null,
   jarkom: JarkomDirectory | null,
+  /** Jarkom rows picked by hand; see `store.setJarkomLink`. */
+  links: Readonly<Record<string, string>> = {},
 ): Resident[] {
   if (!roster) return [];
   return Object.entries(roster.initials)
-    .map(([initials, name]) => {
-      const entry = jarkom ? matchJarkom(name, jarkom) : null;
+    .map(([initials, legendName]) => {
+      const { entry, linked } = jarkomFor(initials, legendName, jarkom, links);
       return {
         initials,
-        name,
+        name: linked && entry ? entry.name : legendName,
         panggilan: entry?.panggilan ?? null,
         muslim: entry ? entry.muslim : null,
       };

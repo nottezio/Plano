@@ -26,6 +26,7 @@ const KEYS = {
   posts: 'visite.jaga.posts',
   dpjpEdits: 'visite.jaga.dpjpEdits',
   religion: 'visite.jaga.religion',
+  links: 'visite.jaga.links',
   pediatri: 'visite.jaga.pediatri',
   owner: 'visite.jaga.owner',
 } as const;
@@ -156,6 +157,29 @@ export function setNameOverride(initials: string, name: string): NameOverrides {
 }
 
 /**
+ * Which Jarkom row a legend name belongs to, set by hand, keyed by initials.
+ *
+ * For the names matching cannot settle: a legend typo that fits two rows
+ * equally (`Ahmad Rizki Yusuf` → Rizki Imran or Rifqi Yusuf), or a match that
+ * is simply wrong. Unlike a name override, a link brings the whole row — the
+ * nickname AND the agama — so the greeting is corrected along with the name.
+ * Stored as the row's full name, not its position, so a re-imported sheet in a
+ * different order still finds it.
+ */
+export type JarkomLinks = Record<string, string>;
+
+export const readJarkomLinks = (): JarkomLinks => read<JarkomLinks>(KEYS.links) ?? {};
+
+export function setJarkomLink(initials: string, jarkomName: string | null): JarkomLinks {
+  const all = readJarkomLinks();
+  if (jarkomName) all[initials] = jarkomName;
+  else delete all[initials];
+  write(KEYS.links, all);
+  remote?.putState('links', initials, all[initials] ?? null);
+  return all;
+}
+
+/**
  * Who is ACTUALLY on a post, for one date and one shift.
  *
  * Deliberately separate from `NameOverrides`, which is keyed by initials and
@@ -278,6 +302,7 @@ const STATE_KEYS: Record<JagaStateField, string> = {
   confirmed: KEYS.confirmed,
   posts: KEYS.posts,
   dpjpEdits: KEYS.dpjpEdits,
+  links: KEYS.links,
 };
 
 export function readRosterKind(kind: JagaRosterKind): unknown {

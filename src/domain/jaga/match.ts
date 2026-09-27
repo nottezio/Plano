@@ -65,30 +65,98 @@ function sameWord(left: string, right: string): boolean {
   return edits + (left.length - a) + (right.length - b) <= 1;
 }
 
-function sharedTokens(wanted: readonly string[], tokens: readonly string[]): number {
-  return wanted.filter((token) => tokens.some((other) => sameWord(token, other))).length;
+export interface JarkomResolution {
+  /** The one row this name belongs to, or null. */
+  entry: JarkomEntry | null;
+  /**
+   * When the name fits two or more rows EQUALLY well, those rows, and `entry`
+   * is null. Shown to the user to pick from; never decided here.
+   */
+  ambiguous: JarkomEntry[];
+}
+
+/**
+ * How many rows each word appears in. A word on four rows (`ahmad`) says far
+ * less about who is meant than a word on one (`yusuf`).
+ */
+function wordCounts(directory: JarkomDirectory): Map<string, number> {
+  const counts = new Map<string, number>();
+  for (const entry of directory.entries) {
+    for (const token of new Set(nameTokens(entry.name))) {
+      counts.set(token, (counts.get(token) ?? 0) + 1);
+    }
+  }
+  return counts;
+}
+
+/**
+ * Match a legend name to a Jarkom row, or say that it cannot be told apart.
+ *
+ * Ranked by the share of words in common, then by how RARE those shared words
+ * are. A tie on both is reported as ambiguous instead of settled by row order.
+ * Row order is what used to settle it: the legend's `dr. Ahmad Rizki Yusuf`
+ * (a typo for Rifqi) shares two words with `dr. Ahmad Rizki Imran` and two
+ * with `dr. Ahmad Rifqi Yusuf`, and the earlier row won silently, so the
+ * wrong nickname was printed and nothing on screen said a choice had been made.
+ */
+export function resolveJarkom(name: string, directory: JarkomDirectory): JarkomResolution {
+  const wanted = nameTokens(name);
+  if (wanted.length === 0) return { entry: null, ambiguous: [] };
+  const counts = wordCounts(directory);
+
+  const scored: Array<{ entry: JarkomEntry; score: number; rarity: number; passes: boolean }> = [];
+  for (const entry of directory.entries) {
+    const tokens = nameTokens(entry.name);
+    const hits = wanted.filter((token) => tokens.some((other) => sameWord(token, other)));
+    if (hits.length === 0) continue;
+    // Normalised so a four-word name does not out-score a two-word one purely
+    // by having more chances to hit.
+    const score = hits.length / Math.min(wanted.length, tokens.length);
+    const rarity = hits.reduce((sum, token) => {
+      const match = tokens.find((other) => sameWord(token, other)) ?? token;
+      return sum + 1 / (counts.get(match) ?? 1);
+    }, 0);
+    // One shared word is a coincidence in a list this size — there are four
+    // residents whose only distinctive token is `nurul`.
+    const minimumShared = Math.min(tokens.length, wanted.length) >= 2 ? 2 : 1;
+    scored.push({ entry, score, rarity, passes: hits.length >= minimumShared });
+  }
+  if (scored.length === 0) return { entry: null, ambiguous: [] };
+
+  const EPS = 1e-9;
+  scored.sort((a, b) => b.score - a.score || b.rarity - a.rarity);
+  const best = scored[0]!;
+  if (!best.passes) return { entry: null, ambiguous: [] };
+  const tied = scored.filter(
+    (other) =>
+      other.passes &&
+      Math.abs(other.score - best.score) < EPS &&
+      Math.abs(other.rarity - best.rarity) < EPS,
+  );
+  return tied.length > 1
+    ? { entry: null, ambiguous: tied.map((other) => other.entry) }
+    : { entry: best.entry, ambiguous: [] };
 }
 
 export function matchJarkom(name: string, directory: JarkomDirectory): JarkomEntry | null {
-  const wanted = nameTokens(name);
-  if (wanted.length === 0) return null;
+  return resolveJarkom(name, directory).entry;
+}
 
-  let best: { entry: JarkomEntry; score: number } | null = null;
-
-  for (const entry of directory.entries) {
-    const tokens = nameTokens(entry.name);
-    const shared = sharedTokens(wanted, tokens);
-    if (shared === 0) continue;
-    // Normalised so a four-word name does not out-score a two-word one purely
-    // by having more chances to hit.
-    const score = shared / Math.min(wanted.length, tokens.length);
-    if (!best || score > best.score) best = { entry, score };
-  }
-
-  if (!best) return null;
-  // One shared word is a coincidence in a list this size — there are four
-  // residents whose only distinctive token is `nurul`.
-  const minimumShared = Math.min(nameTokens(best.entry.name).length, wanted.length) >= 2 ? 2 : 1;
-  const shared = sharedTokens(wanted, nameTokens(best.entry.name));
-  return shared >= minimumShared ? best.entry : null;
+/**
+ * The row a legend name belongs to, honouring a link the user made by hand
+ * (`store.setJarkomLink`, keyed by initials, holding the Jarkom row's name).
+ * A link to a row that a newer Jarkom import no longer has is ignored, and
+ * matching takes over again.
+ */
+export function jarkomFor(
+  initials: string,
+  name: string | null,
+  directory: JarkomDirectory | null,
+  links: Readonly<Record<string, string>>,
+): JarkomResolution & { linked: boolean } {
+  if (!directory) return { entry: null, ambiguous: [], linked: false };
+  const link = initials ? links[initials] : undefined;
+  const linked = link ? directory.entries.find((entry) => entry.name === link) : undefined;
+  if (linked) return { entry: linked, ambiguous: [], linked: true };
+  return name ? { ...resolveJarkom(name, directory), linked: false } : { entry: null, ambiguous: [], linked: false };
 }

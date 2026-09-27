@@ -1,8 +1,8 @@
 import { expandOpeningTokens, timeOfDayWord } from '@/domain/opening';
 
-import { matchJarkom } from './match';
+import { jarkomFor } from './match';
 import { JAGA_POSTS, type JagaPostId } from './types';
-import type { DpjpDay, DpjpRoster, JagaRoster, JagaShift, JarkomDirectory } from './types';
+import type { DpjpDay, DpjpRoster, JagaRoster, JagaShift, JarkomDirectory, JarkomEntry } from './types';
 
 /**
  * Do two nicknames refer to the same person, allowing one typo?
@@ -89,6 +89,10 @@ export interface ResolvedPost {
   personInitials: string;
   /** A PPDS BTKV on alongside them. Printed, never confirmed. */
   companion?: string;
+  /** The Jarkom row was picked by hand for these initials. */
+  jarkomLinked: boolean;
+  /** Rows the legend name fits equally well; empty unless undecidable. */
+  jarkomAmbiguous: JarkomEntry[];
 }
 
 /**
@@ -126,11 +130,21 @@ export function resolveShift(
    * BELOW a manual swap and ABOVE everything else.
    */
   pediatri?: { name: string; btkv?: string } | null,
+  /** Jarkom rows picked by hand, by initials. See `store.setJarkomLink`. */
+  links: Readonly<Record<string, string>> = {},
 ): ResolvedPost[] {
   return JAGA_POSTS.map((post) => {
     const initials = shift.posts[post.id] ?? '';
-    const name = initials ? (roster.initials[initials] ?? null) : null;
-    const entry = name && jarkom ? matchJarkom(name, jarkom) : null;
+    const legendName = initials ? (roster.initials[initials] ?? null) : null;
+    const found = jarkomFor(initials, legendName, jarkom, links);
+    const entry = found.entry;
+    /*
+      The legend's spelling, except when the user has LINKED this person to a
+      Jarkom row: that link is a statement of who the initials are, made
+      because the legend's spelling was wrong or matched two people, so the
+      row they picked supplies the name too.
+    */
+    const name = found.linked && entry ? entry.name : legendName;
     const override = initials ? overrides[initials] : undefined;
     const swap = posts[post.id];
     const pedi = post.id === 'pedi' && !swap ? (pediatri ?? null) : null;
@@ -199,6 +213,8 @@ export function resolveShift(
       swapped: swap !== undefined,
       /** Initials of whoever is actually on, for keying a religion fix. */
       personInitials: swap?.initials ?? initials,
+      jarkomLinked: found.linked,
+      jarkomAmbiguous: found.ambiguous,
     };
   });
 }

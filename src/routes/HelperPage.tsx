@@ -11,11 +11,12 @@ import { describeVersion, nearestYear, refuseOlder } from '@/domain/jaga/recency
 import {
   buildFormasi,
   buildKonfirmasi,
+  type ResolvedPost,
   longDate,
   nextDate,
   resolveShift,
 } from '@/domain/jaga/formasi';
-import type { JagaPostId } from '@/domain/jaga/types';
+import type { JagaPostId, JarkomDirectory, JarkomEntry } from '@/domain/jaga/types';
 import type { PostSwap } from '@/domain/jaga/store';
 import { buildDirectory, searchResidents, type Resident } from '@/domain/jaga/directory';
 import { describeMismatch, identifyJagaPdf } from '@/domain/jaga/identify';
@@ -30,6 +31,8 @@ import {
   readRoster,
   readDpjpEdit,
   readNameOverrides,
+  readJarkomLinks,
+  setJarkomLink,
   readReligion,
   readPediatri,
   readPostOverrides,
@@ -159,6 +162,7 @@ function KonfirmasiJaga(): JSX.Element {
   const shift = shifts[Math.min(shiftIndex, shifts.length - 1)] ?? null;
 
   const [overrides, setOverrides] = useState(() => readNameOverrides());
+  const [links, setLinks] = useState(() => readJarkomLinks());
 
   /**
    * Per-date edits: who swapped onto a post, and which consultants swapped.
@@ -172,7 +176,7 @@ function KonfirmasiJaga(): JSX.Element {
   const [religion, setReligionMap] = useState(() => readReligion());
 
   /** Everyone on this month's rota, for the swap picker. */
-  const directory = useMemo(() => buildDirectory(roster, jarkom), [roster, jarkom]);
+  const directory = useMemo(() => buildDirectory(roster, jarkom, links), [roster, jarkom, links]);
   const [dpjpEdits, setDpjpEdits] = useState<
     Record<string, { utama?: string; tindakan?: string }>
   >({});
@@ -189,9 +193,10 @@ function KonfirmasiJaga(): JSX.Element {
             postEdits,
             religion,
             pediatriFor(pediatri, shift.date, shift.shift),
+            links,
           )
         : [],
-    [shift, roster, jarkom, overrides, postEdits, religion, pediatri],
+    [shift, roster, jarkom, overrides, postEdits, religion, pediatri, links],
   );
 
   /**
@@ -234,6 +239,7 @@ function KonfirmasiJaga(): JSX.Element {
     setPediatri(readPediatri());
     setSender(readSender());
     setOverrides(readNameOverrides());
+    setLinks(readJarkomLinks());
     setReligionMap(readReligion());
     setConfirmKey('');
     setEditKey('');
@@ -793,8 +799,16 @@ function KonfirmasiJaga(): JSX.Element {
                       above does not belong to this person, this line is where
                       you see it.
                     */}
-                    {post.name && post.name !== post.display ? (
+                    {/* On a swap this is the ROSTERED person; the swap header names them instead. */}
+                    {post.name && post.name !== post.display && !post.swapped ? (
                       <p className="mt-0.5 text-[10px] text-fg-faint">{post.name}</p>
+                    ) : null}
+                    {post.initials && !post.swapped && jarkom ? (
+                      <JarkomLinkControl
+                        post={post}
+                        jarkom={jarkom}
+                        onLink={(row) => setLinks(setJarkomLink(post.initials, row))}
+                      />
                     ) : null}
 
                     {/*
@@ -808,13 +822,34 @@ function KonfirmasiJaga(): JSX.Element {
                       the row means they see it before they have decided to
                       send, which is the wrong moment.
                     */}
-                    <div className="relative mt-1">
+                    {/*
+                      A swap is marked as a HEADER on the message box, in the
+                      warning colour, with who was rostered — not as a small
+                      grey chip in its corner, which sat on top of the text
+                      and read as decoration. The box border takes the same
+                      colour, so a swapped message cannot be mistaken for a
+                      rostered one at a glance down the list.
+                    */}
+                    <div className="mt-1">
                       {post.swapped ? (
-                        <span className="absolute right-1 top-1 rounded bg-bg-subtle px-1 text-[10px] font-medium text-fg-muted">
-                          tukar jaga
-                        </span>
+                        <p className="flex items-center gap-1.5 rounded-t-lg border border-b-0 border-[var(--warn-strong)] bg-[var(--warn-soft)] px-2 py-1 text-xs font-semibold text-[var(--warn-strong)]">
+                          <span aria-hidden="true">⇄</span>
+                          Tukar jaga
+                          {post.initials ? (
+                            <span className="font-normal">
+                              · menggantikan {post.name ?? post.initials}
+                            </span>
+                          ) : null}
+                        </p>
                       ) : null}
-                      <p className="whitespace-pre-wrap rounded-lg border border-border px-2 py-1.5 text-[11px] leading-relaxed text-fg-muted">
+                      <p
+                        className={[
+                          'whitespace-pre-wrap border px-2 py-1.5 text-[11px] leading-relaxed text-fg-muted',
+                          post.swapped
+                            ? 'rounded-b-lg border-[var(--warn-strong)]'
+                            : 'rounded-lg border-border',
+                        ].join(' ')}
+                      >
                         {message}
                       </p>
                     </div>
@@ -826,6 +861,100 @@ function KonfirmasiJaga(): JSX.Element {
         </>
       ) : null}
     </div>
+  );
+}
+
+/**
+ * Which Jarkom row these initials are, when matching could not say or said
+ * wrong.
+ *
+ * Open by itself when the legend name fits two rows equally — that is a
+ * question only the user can answer, so it is asked where the name is shown.
+ * Otherwise folded behind "Salah orang?", because a correct match needs
+ * nothing from anyone.
+ */
+function JarkomLinkControl({
+  post,
+  jarkom,
+  onLink,
+}: {
+  post: ResolvedPost;
+  jarkom: JarkomDirectory;
+  onLink: (row: string | null) => void;
+}): JSX.Element {
+  const [open, setOpen] = useState(false);
+  const ambiguous = post.jarkomAmbiguous;
+  const sorted = useMemo(
+    () => [...jarkom.entries].sort((a, b) => a.name.localeCompare(b.name)),
+    [jarkom],
+  );
+  const describe = (entry: JarkomEntry): string => `${entry.name} (${entry.panggilan})`;
+
+  if (post.jarkomLinked) {
+    return (
+      <p className="mt-0.5 flex flex-wrap items-center gap-2 text-[10px] text-fg-muted">
+        Dipilih manual dari Jarkom.
+        <button
+          type="button"
+          onClick={() => onLink(null)}
+          className="min-h-tap underline decoration-dotted"
+        >
+          Kembalikan ke pencocokan otomatis
+        </button>
+      </p>
+    );
+  }
+
+  if (ambiguous.length > 1) {
+    return (
+      <div className="mt-1 space-y-1 rounded-lg border border-[var(--warn-strong)] bg-[var(--warn-soft)] px-2 py-1.5">
+        <p className="text-[11px] font-medium text-[var(--warn-strong)]">
+          “{post.name}” cocok dengan {ambiguous.length} orang di Jarkom. Yang mana {post.initials}?
+        </p>
+        <div className="flex flex-wrap gap-1">
+          {ambiguous.map((entry) => (
+            <button
+              key={entry.name}
+              type="button"
+              onClick={() => onLink(entry.name)}
+              className="min-h-tap rounded-lg border border-border bg-surface px-3 text-xs"
+            >
+              {describe(entry)}
+            </button>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  return open ? (
+    <label className="mt-1 block text-[10px] text-fg-muted">
+      Orang yang benar untuk {post.initials} di Jarkom
+      <select
+        defaultValue=""
+        onChange={(event) => {
+          if (!event.target.value) return;
+          onLink(event.target.value);
+          setOpen(false);
+        }}
+        className="mt-0.5 block min-h-tap w-full rounded-lg border border-border bg-surface px-2 text-xs text-fg"
+      >
+        <option value="">Pilih…</option>
+        {sorted.map((entry) => (
+          <option key={entry.name} value={entry.name}>
+            {describe(entry)}
+          </option>
+        ))}
+      </select>
+    </label>
+  ) : (
+    <button
+      type="button"
+      onClick={() => setOpen(true)}
+      className="mt-0.5 min-h-tap text-[10px] text-fg-faint underline decoration-dotted"
+    >
+      Salah orang?
+    </button>
   );
 }
 

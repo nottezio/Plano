@@ -337,3 +337,30 @@ describe('the paediatrics post', () => {
     expect(posts.find((post) => post.id === 'pedi')?.display).toBe('Gaby');
   });
 });
+
+describe('resolveShift with a hand-picked Jarkom row', () => {
+  const jarkom: JarkomDirectory = {
+    entries: [
+      ...JARKOM.entries,
+      { name: 'dr. Indah Kartika Ramadhani', panggilan: 'Tika', muslim: false },
+    ],
+    importedAt: '',
+  };
+
+  it('takes name, nickname and agama from the linked row', () => {
+    const post = resolveShift(SHIFT, ROSTER, jarkom, {}, {}, {}, null, {
+      IK: 'dr. Indah Kartika Ramadhani',
+    }).find((p) => p.initials === 'IK')!;
+    expect(post).toMatchObject({
+      name: 'dr. Indah Kartika Ramadhani',
+      display: 'Tika',
+      muslim: false,
+      jarkomLinked: true,
+    });
+  });
+
+  it('without a link the legend spelling stays', () => {
+    const post = resolveShift(SHIFT, ROSTER, jarkom).find((p) => p.initials === 'HM')!;
+    expect(post).toMatchObject({ name: 'dr. Siti Hajar Malika', display: 'Malika', jarkomLinked: false });
+  });
+});
