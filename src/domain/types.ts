@@ -315,6 +315,10 @@ export interface UserProfile {
    * were evidence, which they are not.
    */
   checklists?: SavedChecklist[];
+  /** Morning Report settings (Helper). See `domain/mr/morningReport`. */
+  morningReport?: import('./mr/morningReport').MrConfig;
+  /** Morning Report drafts by MR date, pruned after three weeks. */
+  mrDays?: Record<string, import('./mr/morningReport').MrDay>;
   uid: string;
   displayName: string;
   email: string;

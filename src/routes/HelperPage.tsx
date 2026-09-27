@@ -1,7 +1,9 @@
 import { useEffect, useMemo, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 
 import { useJagaSync } from '@/hooks/useJagaSync';
 import { CensusVerifier } from '@/components/helper/CensusVerifier';
+import { MorningReport } from '@/components/helper/MorningReport';
 
 import { copyText } from '@/lib/clipboard';
 import { extractPdf } from '@/lib/pdfItems';
@@ -47,6 +49,67 @@ import {
 } from '@/domain/jaga/store';
 import { useClinicalToday } from '@/hooks/useClinicalToday';
 
+const HELPER_TABS = [
+  { id: 'jaga', label: 'Konfirmasi Jaga' },
+  { id: 'sensus', label: 'Verifikasi Sensus' },
+  { id: 'mr', label: 'Morning Report' },
+] as const;
+
+type HelperTab = (typeof HELPER_TABS)[number]['id'];
+
+/**
+ * Helper — three unrelated tools, one tab each.
+ *
+ * They share a page only because they share a purpose (the ward's paperwork),
+ * never data: none reads or writes another's state. Only the open tab is
+ * mounted, so Konfirmasi Jaga's sync listener runs only while that tab is
+ * open, as before.
+ *
+ * The tab lives in the URL (`?tab=`), so the back button, a bookmark and a
+ * reload all return to it.
+ */
+export function HelperPage(): JSX.Element {
+  const [params, setParams] = useSearchParams();
+  const requested = params.get('tab');
+  const tab: HelperTab = HELPER_TABS.some((entry) => entry.id === requested)
+    ? (requested as HelperTab)
+    : 'jaga';
+
+  return (
+    <div className="mx-auto max-w-3xl space-y-4 px-4 py-4">
+      <div className="flex flex-wrap items-center gap-2">
+        <h1 className="text-lg font-semibold">Helper</h1>
+        <span className="rounded-full border border-current/40 px-2 py-0.5 text-[10px] font-semibold text-danger">
+          Work in progress
+        </span>
+      </div>
+      <div role="tablist" aria-label="Alat Helper" className="flex border-b border-border">
+        {HELPER_TABS.map((entry) => (
+          <button
+            key={entry.id}
+            type="button"
+            role="tab"
+            aria-selected={tab === entry.id}
+            onClick={() => setParams({ tab: entry.id }, { replace: true })}
+            className={[
+              // Equal thirds: three labels fit a 360 px phone without scrolling.
+              'min-h-tap flex-1 border-b-2 px-1 text-xs font-medium sm:text-sm',
+              tab === entry.id
+                ? 'border-accent text-accent'
+                : 'border-transparent text-fg-muted',
+            ].join(' ')}
+          >
+            {entry.label}
+          </button>
+        ))}
+      </div>
+      <div role="tabpanel">
+        {tab === 'jaga' ? <KonfirmasiJaga /> : tab === 'sensus' ? <CensusVerifier /> : <MorningReport />}
+      </div>
+    </div>
+  );
+}
+
 /**
  * Konfirmasi Jaga — WORK IN PROGRESS.
  *
@@ -64,7 +127,7 @@ import { useClinicalToday } from '@/hooks/useClinicalToday';
  * shared code is the greeting/time expander and the clipboard helper. If this
  * ever becomes its own app, that boundary is where it cuts.
  */
-export function HelperPage(): JSX.Element {
+function KonfirmasiJaga(): JSX.Element {
   const today = useClinicalToday();
 
   const [roster, setRoster] = useState(() => readRoster());
@@ -324,14 +387,8 @@ export function HelperPage(): JSX.Element {
   }
 
   return (
-    <div className="mx-auto max-w-3xl space-y-6 px-4 py-4">
+    <div className="space-y-6">
       <header className="space-y-1">
-        <div className="flex flex-wrap items-center gap-2">
-          <h1 className="text-lg font-semibold">Konfirmasi Jaga</h1>
-          <span className="rounded-full border border-current/40 px-2 py-0.5 text-[10px] font-semibold text-danger">
-            Work in progress
-          </span>
-        </div>
         <p className="text-xs text-fg-muted">
           Impor jadwalnya, lalu pilih tanggal. Formasi dan pesan konfirmasi
           disusun dari situ.
@@ -768,12 +825,6 @@ export function HelperPage(): JSX.Element {
           </section>
         </>
       ) : null}
-      {/*
-        A separate tool that shares the page because it shares the purpose:
-        getting the ward's handover documents right. It reads nothing from the
-        rosters above and writes nothing to them.
-      */}
-      <CensusVerifier />
     </div>
   );
 }

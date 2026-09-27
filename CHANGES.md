@@ -1,5 +1,85 @@
 # Plano — CHANGES
 
+## `2026-09-27.1`
+
+**Helper is split into tabs, and has a new one: Morning Report.**
+
+### Helper tabs
+
+Konfirmasi Jaga, Verifikasi Sensus and Morning Report are now one tab each
+instead of one long page. The tab is in the URL (`/helper?tab=mr`), so reload
+and the back button return to it. Only the open tab is mounted, so the jaga
+sync listener still runs only while Konfirmasi Jaga is open, as before. The
+Work-in-progress badge moved to the Helper title and covers all three.
+
+### Morning Report confirmator (new, WIP)
+
+One working state per MR date, three messages from it:
+
+| Message | Built from |
+|---|---|
+| Request to the senior | your name + MR date + the chosen jaga |
+| Laporan Grup Prodi | every covered jaga's pasted list, pengampu with status, Zoom block |
+| Konfirmasi Grup PAKAR | pengampu with status |
+
+- **Covered jaga:** Monday's MR covers Jumat, Sabtu Pagi/Malam, Minggu
+  Pagi/Malam. Any other day covers the day before. "Jaga mulai dari" moves the
+  start earlier by hand (holidays). No holiday calendar is guessed.
+- **Patient lists are pasted as the senior sent them.** The parser accepts bold
+  or plain, `-` or `•`, "Diagnosis:"/"Diagnosa", and renumbers per jaga.
+  Numbered diagnoses stay diagnoses unless the line reads like a patient
+  (Tn./Ny./RM/several ` / `). A line before the first patient is kept and
+  flagged, never dropped. An empty jaga prints `(Tidak ada pasien)`.
+- **Pengampu:** the weekday's scheduled list (Avi's five lists as the default),
+  each starting "menunggu konfirmasi kehadiran". The status is picked from the
+  account's presets or typed freely. Editing a date's list makes it that date's
+  own; "Kembalikan ke jadwal" goes back to the weekday's.
+- **Settings (Pengaturan MR):** your name, the Zoom block, the status presets,
+  and the weekly pengampu per weekday.
+
+**The Zoom meeting ID, passcode and host key are NOT in the repo.** The repo is
+public. They are pasted once into Pengaturan MR and stored on your profile,
+which only you can read.
+
+**Storage and sync.** Settings are on the profile (`morningReport`); drafts are
+under `mrDays.<date>` and pruned after 21 days. The profile was chosen because
+it is already subscribed on every device and its rules already allow the owner
+to write any field: **no rules deploy is needed.** Every write names one leaf
+(one jaga's list, one date's pengampu), so the phone and the PC editing
+different parts cannot overwrite each other.
+
+Typing is kept local and written after a pause (`useSyncedDraft`). A value from
+another device is adopted only when it actually changed and nothing typed here
+is waiting to be sent. That way the echo of your own write cannot roll the field
+back mid-sentence. The decision is a pure function with four tests.
+
+### Wrong turn
+
+The first render gave every pengampu four status chips plus a text field, about
+250 px per person. That was replaced by one select with a "Ketik sendiri…"
+option before shipping.
+
+### Not done
+
+- **Same-date pengampu edits on two devices at once:** the date's list is one
+  array, so the last write wins for that list. Patient lists are per jaga and
+  do not have this problem.
+- **Titles:** the default pengampu are the names as given, without "dr./Prof."
+  prefixes. Add them once in Pengaturan MR.
+- **Formatting guesses, to confirm against a real send:**
+  - the divider (30 `-`);
+  - the blank line between patients;
+  - a divider before "Pimpinan Morning Report terjadwal".
+- **Rendered in isolation only** (phone and desktop width, with a mocked
+  profile), not signed in against Firestore.
+
+```
+1535 tests passed (+20)
+typecheck / lint (0 warnings) / check:version / check:contrast / check:a11y / build — clean
+```
+
+---
+
 ## `2026-09-24.2`
 
 **A card resized while its note was open no longer springs back.**
