@@ -1,5 +1,5 @@
 import { jarkomFor } from './match';
-import type { JagaRoster, JarkomDirectory } from './types';
+import type { JagaRoster, JarkomDirectory, JarkomEntry } from './types';
 
 /**
  * Everyone the app knows about, from the two imported documents joined once.
@@ -20,6 +20,10 @@ export interface Resident {
   name: string;
   panggilan: string | null;
   muslim: boolean | null;
+  /** The Jarkom row was picked by hand. */
+  linked: boolean;
+  /** Jarkom rows the legend name fits equally; empty unless undecidable. */
+  ambiguous: JarkomEntry[];
 }
 
 export function buildDirectory(
@@ -31,12 +35,14 @@ export function buildDirectory(
   if (!roster) return [];
   return Object.entries(roster.initials)
     .map(([initials, legendName]) => {
-      const { entry, linked } = jarkomFor(initials, legendName, jarkom, links);
+      const { entry, linked, ambiguous } = jarkomFor(initials, legendName, jarkom, links);
       return {
         initials,
         name: linked && entry ? entry.name : legendName,
         panggilan: entry?.panggilan ?? null,
         muslim: entry ? entry.muslim : null,
+        linked,
+        ambiguous,
       };
     })
     .sort((left, right) =>
@@ -83,4 +89,25 @@ export function searchResidents(
     .sort((left, right) => left.score - right.score);
 
   return scored.slice(0, limit).map((hit) => hit.resident);
+}
+
+/**
+ * A swap as it should read NOW. A swap stores the person picked (initials)
+ * with the nickname and agama known at the time; when the directory has since
+ * learned better — a Jarkom row linked by hand — the directory wins, so fixing
+ * a person once fixes every night they were swapped onto too. A swap typed as
+ * free text (no initials) is left exactly as typed.
+ */
+export function refreshSwap<T extends { name: string; initials?: string; muslim?: boolean }>(
+  swap: T,
+  residents: readonly Resident[],
+): T {
+  if (!swap.initials) return swap;
+  const resident = residents.find((entry) => entry.initials === swap.initials);
+  if (!resident || !resident.panggilan) return swap;
+  return {
+    ...swap,
+    name: resident.panggilan,
+    ...(resident.muslim === null ? {} : { muslim: resident.muslim }),
+  };
 }

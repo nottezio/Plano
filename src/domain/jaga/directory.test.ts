@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { buildDirectory, searchResidents } from './directory';
+import { buildDirectory, refreshSwap, searchResidents } from './directory';
 import type { JagaRoster, JarkomDirectory } from './types';
 
 const ROSTER = {
@@ -73,5 +73,43 @@ describe('searchResidents', () => {
 
   it('caps the list', () => {
     expect(searchResidents(DIR, 'dr', 2)).toHaveLength(2);
+  });
+});
+
+describe('refreshSwap', () => {
+  const residents = [
+    { initials: 'BR', name: 'dr. Bayu Refki Hakim', panggilan: 'Hakim', muslim: true, linked: true, ambiguous: [] },
+    { initials: 'XX', name: 'dr. X', panggilan: null, muslim: null, linked: false, ambiguous: [] },
+  ];
+
+  it('a picked swap follows what the directory now knows', () => {
+    expect(refreshSwap({ name: 'Bayu Rendi Hakim', initials: 'BR', muslim: false }, residents)).toEqual({
+      name: 'Hakim',
+      initials: 'BR',
+      muslim: true,
+    });
+  });
+
+  it('a typed swap, or one the directory cannot name, is left alone', () => {
+    expect(refreshSwap({ name: 'Suci' }, residents)).toEqual({ name: 'Suci' });
+    expect(refreshSwap({ name: 'X', initials: 'XX' }, residents)).toEqual({ name: 'X', initials: 'XX' });
+  });
+});
+
+describe('buildDirectory with an undecidable name', () => {
+  it('leaves nickname empty and lists the rows until linked', () => {
+    const roster = { title: '', shifts: [], importedAt: '', initials: { BR: 'dr. Bayu Rendi Hakim' } };
+    const jarkom = {
+      importedAt: '',
+      entries: [
+        { name: 'dr. Bayu Rendi Pratama', panggilan: 'Rendi', muslim: true },
+        { name: 'dr. Bayu Refki Hakim', panggilan: 'Hakim', muslim: true },
+      ],
+    };
+    const [open] = buildDirectory(roster, jarkom);
+    expect(open).toMatchObject({ panggilan: null, linked: false });
+    expect(open!.ambiguous).toHaveLength(2);
+    const [linked] = buildDirectory(roster, jarkom, { BR: 'dr. Bayu Refki Hakim' });
+    expect(linked).toMatchObject({ panggilan: 'Hakim', name: 'dr. Bayu Refki Hakim', linked: true });
   });
 });

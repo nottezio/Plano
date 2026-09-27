@@ -1,5 +1,62 @@
 # Plano — CHANGES
 
+## `2026-09-27.4`
+
+**A resident picked for a tukar jaga whose name fits two Jarkom rows can now be
+resolved right there. A swap updates when its person is corrected.**
+
+### Root cause
+
+Mine, from `2026-09-27.3`. The "which Jarkom row?" question was attached to the
+ROSTERED person on each post (`post.initials`), and hidden on swapped posts.
+Yusuf's case was a swap: he was picked into CVCU. So:
+
+- **The tukar jaga picker had no answer to give.** His legend name
+  (`Ahmad Rizki Yusuf`) is now correctly treated as undecidable, so it
+  offered him with no nickname: "Ahmad Rizki Yusuf YS".
+- **The row that would ask the question was not shown** on a swapped post.
+- **A swap stored the nickname and agama as they were at pick time.** Even a
+  correct link made afterwards would not have reached a night he had already
+  been swapped onto.
+
+The fix in 27.3 answered the question for the posts it looked at, not for the
+person, who can appear either way.
+
+### Fix
+
+1. **The picker asks.** A resident whose legend name fits several rows is
+   listed once per row: nickname, the Jarkom full name, and "Jadwal: <legend
+   name> — pilih yang benar". Picking one links the initials to that row
+   (for every shift and device) and swaps them in with the right nickname and
+   agama.
+2. **Swapped posts get the same question** as rostered ones, about the person
+   swapped IN (`personInitials`), not the one printed in the roster.
+3. **Swaps are re-read against the directory** (`refreshSwap`). A swap picked
+   from the list (it has initials) takes the directory's current nickname and
+   agama. A swap typed as free text is left exactly as typed. Correcting a
+   person once corrects every night they were swapped onto.
+
+`Resident` now carries `linked` and `ambiguous`.
+
+### Wrong turn
+
+Ran `prettier --write` on `HelperPage.tsx` mid-edit. It reformatted about 500
+unrelated lines. Reverted and the edit reapplied, so the diff holds only this
+change.
+
+### Not done
+
+- **The link still takes one tap.** Type "Yusuf" (or "Ahmad") in the CVCU
+  field and pick **Yusuf — dr. Ahmad Rifqi Yusuf**. After that he is fixed
+  everywhere.
+
+```
+1548 tests passed (+3)
+typecheck / lint (0 warnings) / check:version / check:contrast / check:a11y / build — clean
+```
+
+---
+
 ## `2026-09-27.3`
 
 **Konfirmasi Jaga: a roster name that fits two Jarkom rows is no longer

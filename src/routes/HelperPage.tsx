@@ -11,14 +11,18 @@ import { describeVersion, nearestYear, refuseOlder } from '@/domain/jaga/recency
 import {
   buildFormasi,
   buildKonfirmasi,
-  type ResolvedPost,
   longDate,
   nextDate,
   resolveShift,
 } from '@/domain/jaga/formasi';
 import type { JagaPostId, JarkomDirectory, JarkomEntry } from '@/domain/jaga/types';
 import type { PostSwap } from '@/domain/jaga/store';
-import { buildDirectory, searchResidents, type Resident } from '@/domain/jaga/directory';
+import {
+  buildDirectory,
+  refreshSwap,
+  searchResidents,
+  type Resident,
+} from '@/domain/jaga/directory';
 import { describeMismatch, identifyJagaPdf } from '@/domain/jaga/identify';
 import { parseDpjpRoster } from '@/domain/jaga/parseDpjp';
 import { parseJagaRoster } from '@/domain/jaga/parseRoster';
@@ -182,6 +186,15 @@ function KonfirmasiJaga(): JSX.Element {
   >({});
   const [editKey, setEditKey] = useState('');
 
+  /** Swaps re-read against the directory, so a corrected person shows corrected. */
+  const livePosts = useMemo(
+    () =>
+      Object.fromEntries(
+        Object.entries(postEdits).map(([id, swap]) => [id, refreshSwap(swap, directory)]),
+      ),
+    [postEdits, directory],
+  );
+
   const posts = useMemo(
     () =>
       shift && roster
@@ -190,13 +203,13 @@ function KonfirmasiJaga(): JSX.Element {
             roster,
             jarkom,
             overrides,
-            postEdits,
+            livePosts,
             religion,
             pediatriFor(pediatri, shift.date, shift.shift),
             links,
           )
         : [],
-    [shift, roster, jarkom, overrides, postEdits, religion, pediatri, links],
+    [shift, roster, jarkom, overrides, livePosts, religion, pediatri, links],
   );
 
   /**
@@ -706,6 +719,7 @@ function KonfirmasiJaga(): JSX.Element {
                             )
                           }
                           label={post.label}
+                          onLink={(initials, row) => setLinks(setJarkomLink(initials, row))}
                         />
                       </label>
                       <span className="text-xs text-fg-muted">{post.label}</span>
@@ -803,13 +817,41 @@ function KonfirmasiJaga(): JSX.Element {
                     {post.name && post.name !== post.display && !post.swapped ? (
                       <p className="mt-0.5 text-[10px] text-fg-faint">{post.name}</p>
                     ) : null}
-                    {post.initials && !post.swapped && jarkom ? (
-                      <JarkomLinkControl
-                        post={post}
-                        jarkom={jarkom}
-                        onLink={(row) => setLinks(setJarkomLink(post.initials, row))}
-                      />
-                    ) : null}
+                    {(() => {
+                      /*
+                        For a swap, the question is about whoever was swapped
+                        IN — their initials, their Jarkom row — not the
+                        rostered person the post was printed with.
+                      */
+                      if (!jarkom) return null;
+                      const person = post.swapped
+                        ? directory.find((entry) => entry.initials === post.personInitials)
+                        : null;
+                      const subject = post.swapped
+                        ? person
+                          ? {
+                              initials: person.initials,
+                              name: person.name,
+                              linked: person.linked,
+                              ambiguous: person.ambiguous,
+                            }
+                          : null
+                        : post.initials
+                          ? {
+                              initials: post.initials,
+                              name: post.name,
+                              linked: post.jarkomLinked,
+                              ambiguous: post.jarkomAmbiguous,
+                            }
+                          : null;
+                      return subject ? (
+                        <JarkomLinkControl
+                          subject={subject}
+                          jarkom={jarkom}
+                          onLink={(row) => setLinks(setJarkomLink(subject.initials, row))}
+                        />
+                      ) : null;
+                    })()}
 
                     {/*
                       The tag sits ON the message box, not only on the row
@@ -874,23 +916,23 @@ function KonfirmasiJaga(): JSX.Element {
  * nothing from anyone.
  */
 function JarkomLinkControl({
-  post,
+  subject: post,
   jarkom,
   onLink,
 }: {
-  post: ResolvedPost;
+  subject: { initials: string; name: string | null; linked: boolean; ambiguous: JarkomEntry[] };
   jarkom: JarkomDirectory;
   onLink: (row: string | null) => void;
 }): JSX.Element {
   const [open, setOpen] = useState(false);
-  const ambiguous = post.jarkomAmbiguous;
+  const ambiguous = post.ambiguous;
   const sorted = useMemo(
     () => [...jarkom.entries].sort((a, b) => a.name.localeCompare(b.name)),
     [jarkom],
   );
   const describe = (entry: JarkomEntry): string => `${entry.name} (${entry.panggilan})`;
 
-  if (post.jarkomLinked) {
+  if (post.linked) {
     return (
       <p className="mt-0.5 flex flex-wrap items-center gap-2 text-[10px] text-fg-muted">
         Dipilih manual dari Jarkom.
@@ -1007,11 +1049,14 @@ function ResidentPicker({
   directory,
   label,
   onPick,
+  onLink,
 }: {
   value: string;
   directory: readonly Resident[];
   label: string;
   onPick: (swap: PostSwap | null) => void;
+  /** Link initials to a Jarkom row; see `store.setJarkomLink`. */
+  onLink: (initials: string, jarkomName: string) => void;
 }): JSX.Element {
   const [query, setQuery] = useState<string | null>(null);
   const matches = query === null ? [] : searchResidents(directory, query);
@@ -1034,7 +1079,40 @@ function ResidentPicker({
       />
       {matches.length > 0 ? (
         <ul className="absolute left-0 top-full z-20 mt-1 w-56 overflow-hidden rounded-lg border border-border bg-surface shadow-lg">
-          {matches.map((resident) => (
+          {matches.map((resident) =>
+            resident.ambiguous.length > 1 ? (
+              /*
+                The legend name fits more than one Jarkom row, so "this
+                resident" has no nickname or agama yet. Offer each row: the
+                pick both links the initials to that row (fixing them
+                everywhere) and swaps them in.
+              */
+              resident.ambiguous.map((entry) => (
+                <li key={`${resident.initials}:${entry.name}`}>
+                  <button
+                    type="button"
+                    onMouseDown={(event) => {
+                      event.preventDefault();
+                      onLink(resident.initials, entry.name);
+                      onPick({
+                        name: entry.panggilan,
+                        initials: resident.initials,
+                        ...(entry.muslim === null ? {} : { muslim: entry.muslim }),
+                      });
+                      setQuery(null);
+                    }}
+                    className="block w-full px-2 py-1.5 text-left text-xs hover:bg-bg-subtle"
+                  >
+                    <span className="font-medium">{entry.panggilan}</span>
+                    <span className="ml-1 text-fg-faint">{resident.initials}</span>
+                    <span className="block truncate text-[10px] text-fg-muted">{entry.name}</span>
+                    <span className="block truncate text-[10px] text-[var(--warn-strong)]">
+                      Jadwal: {resident.name} — pilih yang benar
+                    </span>
+                  </button>
+                </li>
+              ))
+            ) : (
             <li key={resident.initials}>
               <button
                 type="button"
@@ -1056,7 +1134,8 @@ function ResidentPicker({
                 <span className="block truncate text-[10px] text-fg-muted">{resident.name}</span>
               </button>
             </li>
-          ))}
+            ),
+          )}
         </ul>
       ) : null}
     </span>
