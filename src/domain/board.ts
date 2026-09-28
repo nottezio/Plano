@@ -236,11 +236,20 @@ export const EMPTY_FILTERS: BoardFilters = {
 export function matchesQuery(patient: Patient, query: string): boolean {
   const tokens = query.trim().toLowerCase().split(/\s+/).filter(Boolean);
   if (tokens.length === 0) return true;
+  const haystack = patientHaystack(patient);
+  return tokens.every((token) => haystack.includes(token));
+}
+
+/**
+ * Everything a patient is searched by WITHOUT opening their notes: name, RM,
+ * bed, ward, diagnoses, the card preview and the consultant. Lowercase.
+ */
+export function patientHaystack(patient: Patient): string {
   // The preview is included because a patient with no typed name is titled by
   // their note — searching for the words on the card must find the card.
   const dpjp = patient.dpjpId ? dpjpById(patient.dpjpId) : undefined;
 
-  const haystack = [
+  return [
     patient.searchBlob,
     patient.name ?? '',
     patient.preview ?? '',
@@ -250,7 +259,6 @@ export function matchesQuery(patient: Patient, query: string): boolean {
   ]
     .join(' ')
     .toLowerCase();
-  return tokens.every((token) => haystack.includes(token));
 }
 
 export function filterPatients(

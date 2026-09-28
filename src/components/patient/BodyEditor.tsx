@@ -17,6 +17,7 @@ import {
   type TextEdit,
 } from '@/domain/format/markdownLite';
 import type { ClinicalDate, SectionAlias } from '@/domain/types';
+import { mapOffset } from '@/domain/caret';
 import { FormatToolbar } from './FormatToolbar';
 import { SectionBands } from './SectionBands';
 import { SNIPPETS, insertSnippet } from '@/domain/format/snippets';
@@ -209,6 +210,47 @@ export function BodyEditor({
     setContentHeight((current) => (current === measured ? current : measured));
   }, []);
 
+  /*
+    OWN EDITS VS OUTSIDE EDITS, and the caret.
+
+    Every change this component makes goes through `emit`, which remembers the
+    text it sent. When a new `value` arrives that is NOT that text, it came
+    from outside: the entry finishing loading, another device's edit being
+    adopted, a merge. React has just written it into the textarea, and the
+    browser put the caret at the END. With the note focused, the next
+    keystroke then lands at the bottom of the page.
+
+    The caret is carried through the change instead (`mapOffset`), from the
+    selection recorded before it. Own edits are left alone: typing already
+    has the right caret, and `applyEdit` and undo set theirs a frame later.
+  */
+  const ownEdit = useRef<string | null>(null);
+  const shown = useRef(value);
+  const selection = useRef({ start: 0, end: 0 });
+
+  const emit = useCallback(
+    (next: string) => {
+      ownEdit.current = next;
+      onChange(next);
+    },
+    [onChange],
+  );
+
+  useLayoutEffect(() => {
+    const before = shown.current;
+    shown.current = value;
+    if (before === value) return;
+    const own = ownEdit.current === value;
+    ownEdit.current = null;
+    if (own) return;
+    const node = ref.current;
+    if (!node || document.activeElement !== node) return;
+    const start = mapOffset(before, value, selection.current.start);
+    const end = Math.max(start, mapOffset(before, value, selection.current.end));
+    node.setSelectionRange(start, end);
+    selection.current = { start, end };
+  }, [value]);
+
   // Layout effect, not effect: the measurement must land before the browser
   // paints, or the collapse is visible as a flicker.
   useLayoutEffect(resize, [value, resize]);
@@ -383,7 +425,7 @@ export function BodyEditor({
 
   const applyEdit = useCallback(
     (edit: TextEdit) => {
-      onChange(edit.text);
+      emit(edit.text);
       requestAnimationFrame(() => {
         const node = ref.current;
         if (!node) return;
@@ -409,7 +451,7 @@ export function BodyEditor({
         if (scroller && scroller.scrollTop !== scrollTop) scroller.scrollTop = scrollTop;
       });
     },
-    [onChange],
+    [emit],
   );
 
   const withSelection = useCallback(
@@ -569,8 +611,18 @@ export function BodyEditor({
             history?.registerEditor(node);
           }}
           value={value}
+          onSelect={(event) => {
+            selection.current = {
+              start: event.currentTarget.selectionStart,
+              end: event.currentTarget.selectionEnd,
+            };
+          }}
           onChange={(event) => {
-            onChange(event.target.value);
+            selection.current = {
+              start: event.target.selectionStart,
+              end: event.target.selectionEnd,
+            };
+            emit(event.target.value);
 
             /**
              * Scroll an undo or redo into view.
@@ -705,7 +757,7 @@ export function BodyEditor({
           disabled={readOnly}
           {...(history ? { history } : {})}
           value={value}
-          onReplace={onChange}
+          onReplace={emit}
           aliases={aliases}
           onBold={() => withSelection((text, start, end) => toggleWrap(text, start, end, BOLD))}
           onItalic={() =>

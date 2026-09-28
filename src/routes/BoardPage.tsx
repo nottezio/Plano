@@ -22,6 +22,9 @@ import { PatientCard } from '@/components/board/PatientCard';
 import { PatientPeekWindow } from '@/components/board/PatientPeekWindow';
 import { QuickChecklistSheet } from '@/components/board/QuickChecklistSheet';
 import { IconSearch } from '@/components/common/Icons';
+import { NoteSearchToggle, useSearchNotesPreference } from '@/components/archive/NoteSearchToggle';
+import { useArchiveText } from '@/hooks/useArchiveText';
+import { matchArchived, searchTokens } from '@/domain/archiveSearch';
 import { useClinicalToday } from '@/hooks/useClinicalToday';
 import { useDebouncedValue } from '@/hooks/useDebouncedValue';
 import { archivePatient, createBlankPatient } from '@/data/repositories/patients.repo';
@@ -385,6 +388,8 @@ export default function BoardPage(): JSX.Element {
     if (uid) createBoardNote(uid);
   };
   const { patients: archived } = usePatients('archived', searching);
+  const [searchNotes, setSearchNotes] = useSearchNotesPreference();
+  const archiveText = useArchiveText(archived, searching && searchNotes);
 
   const items = settings.checklistItems;
 
@@ -441,11 +446,21 @@ export default function BoardPage(): JSX.Element {
     return result;
   }, [cards, order]);
 
+  /*
+    Archived matches, with the notes searched too when that is switched on.
+    `snippet` says where in the notes the words were found, so a match from
+    inside a SOAP is not a card that seems to match nothing.
+  */
   const archivedCards = useMemo(() => {
     if (!searching) return [];
-    return sortPatients(
-      filterPatients(archived, { ...filters, query: debouncedQuery }, items, today),
-    ).map((patient) => buildCard(patient, items, today, settings.privacy.boardShowInitialsOnly));
+    const tokens = searchTokens(debouncedQuery);
+    return sortPatients(filterPatients(archived, { ...filters, query: '' }, items, today))
+      .map((patient) => matchArchived(patient, tokens, archiveText.text(patient)))
+      .filter((match): match is NonNullable<typeof match> => match !== null)
+      .map((match) => ({
+        ...buildCard(match.patient, items, today, settings.privacy.boardShowInitialsOnly),
+        snippet: match.snippet,
+      }));
   }, [
     searching,
     archived,
@@ -454,6 +469,7 @@ export default function BoardPage(): JSX.Element {
     items,
     today,
     settings.privacy.boardShowInitialsOnly,
+    archiveText,
   ]);
 
   const quickPatient = patients.find((patient) => patient.id === quickPatientId) ?? null;
@@ -461,6 +477,15 @@ export default function BoardPage(): JSX.Element {
 
   return (
     <AppShell title="Aktif">
+      {/*
+        THE HEADER STAYS; ONLY THE CARDS SCROLL.
+
+        Search, scope, order and the actions used to scroll away with the
+        board, so changing the order or searching from halfway down a long
+        board meant scrolling back up first. Pinned to the top of the page's
+        scroller, opaque, so cards pass cleanly underneath it.
+      */}
+      <div className="sticky top-0 z-20 border-b border-border bg-bg">
       <div className="flex items-center gap-2 px-4 pb-2 pt-1 lg:pt-3">
         <label className="flex min-h-tap flex-1 items-center gap-2 rounded-lg border border-border bg-surface px-3 lg:max-w-md">
           <IconSearch className="shrink-0 text-fg-faint" width={18} height={18} />
@@ -484,6 +509,11 @@ export default function BoardPage(): JSX.Element {
           Pasien baru
         </button>
       </div>
+      {searching ? (
+        <div className="px-4 pb-1">
+          <NoteSearchToggle on={searchNotes} onChange={setSearchNotes} status={archiveText} />
+        </div>
+      ) : null}
 
       {/* Chips, not full-width buttons. Two of these at `flex-1` claimed a
           whole row of a phone screen for a switch that is used occasionally,
@@ -689,6 +719,7 @@ export default function BoardPage(): JSX.Element {
           Seret ⠿ untuk menyusun ulang. Urutan tersimpan di perangkat ini.
         </p>
       ) : null}
+      </div>
 
       {/* Filters hidden for now. The row of "Belum …" chips ate
           the top of the board and pushed the cards below the fold before there
@@ -705,6 +736,12 @@ export default function BoardPage(): JSX.Element {
         />
       )}
 
+      {/*
+        Its own stacking context: canvas cards raise themselves with z-index
+        up to 40 (bring-to-front), and without this they would paint over the
+        pinned header as they scroll under it. Peek windows stay outside.
+      */}
+      <div className="isolate">
       {error ? (
         <p role="alert" className="px-4 py-6 text-center text-sm text-danger">
           {error}
@@ -900,6 +937,11 @@ export default function BoardPage(): JSX.Element {
                 {archivedCards.map((card) => (
                   <MasonryItem key={card.patient.id}>
                     <PatientCard card={card} onLongPress={setQuickPatientId} />
+                    {card.snippet ? (
+                      <p className="px-2 pt-1 text-[11px] italic leading-snug text-fg-muted">
+                        {card.snippet}
+                      </p>
+                    ) : null}
                   </MasonryItem>
                 ))}
               </MasonryGrid>
@@ -907,6 +949,7 @@ export default function BoardPage(): JSX.Element {
           ) : null}
         </>
       )}
+      </div>
 
       <button
         type="button"

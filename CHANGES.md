@@ -1,5 +1,119 @@
 # Plano — CHANGES
 
+## `2026-09-28.5`
+
+**Four changes: the board header stays put; typing on a just-opened note no
+longer vanishes or jumps to the end; search can look inside archived notes;
+the Arsip page is rebuilt around finding a patient.**
+
+### 1. First keystrokes lost, then typing at the end of the note
+
+**Root cause.** The editor is locked while the day's entry loads. That lock
+is right: it is what stopped a blank editor wiping a note after a mobile
+sign-in. But the locked editor looked ready. It was empty, with the
+placeholder "Tulis SOAP hari ini…", and only a 70 % opacity to say
+otherwise. For a patient not already cached on this device, loading waits
+for the server, so the window lasts long enough to type into:
+
+1. You tap in and type. The textarea is read-only, so nothing registers.
+2. The entry arrives and React writes it into the focused textarea. **A
+   browser puts the caret at the END whenever a textarea's value is set
+   from outside**, so the next keystrokes land at the bottom of the note.
+
+Step 2 had a second trigger with the same effect: another device's edit
+adopted (or merged) while you are in the note.
+
+**Fundamental fix.**
+- **Every outside change now carries the caret through it** instead of
+  dropping it at the end. `BodyEditor` sends all of its own edits through
+  `emit`, which remembers the text it sent. Any other new `value` is an
+  outside change, and the caret is mapped from the selection recorded just
+  before it (`domain/caret.ts` `mapOffset`: before the change it keeps its
+  offset, after it it moves with its text, inside it it goes to the end of
+  the rewritten span).
+- **Loading says "Memuat catatan…"**, not "Tulis SOAP hari ini…".
+- The lock stays. Removing it would bring back the note-wipe bug.
+
+Checked in Chromium with the real `BodyEditor`: typing while loading is
+refused visibly, and when the note arrives the caret is at the start, not the
+end. Then, typing mid-line while a remote edit inserts a line at the top, the
+keystrokes land where they were being typed (`TD 120/80 N 88`) and the end of
+the note is intact.
+
+**Not done:** keystrokes typed during loading are still not kept. Putting
+them anywhere would be a guess about where they belonged.
+
+### 2. Board header pinned
+
+Search, scope, order and the actions are `sticky top-0` in the page's
+scroller, opaque, with a hairline under them; the cards scroll beneath. The
+card area is its own stacking context (`isolate`), because canvas cards
+raise themselves up to z-index 40 (bring-to-front) and would otherwise paint
+over the header. Peek windows are outside it and still float above
+everything.
+
+### 3. Search inside archived notes
+
+The board search already included archived patients, but only by name, RM,
+bed, ward, diagnoses, card preview and DPJP, never by what the notes said. A
+switch, **"Cari juga di isi catatan arsip (SOAP & catatan pasien)"**, on the
+board (while searching) and on Arsip, adds:
+- **every day's SOAP**, loaded on request (`useArchiveText`);
+- **the Catatan pasien**, which is on the patient document and searchable
+  immediately.
+
+How the SOAP is loaded:
+- it lives in a subcollection, so it's read once per patient version, keyed
+  by `id|updatedAt` (a discharge summary written after archiving moves
+  `updatedAt`);
+- four patients at a time, with a progress count;
+- then served from the device's cache, offline too.
+
+Remembered per device. A match that came from the notes shows a **snippet**
+of where, cut on whole words, with the words marked.
+
+`matchesQuery`'s field list became `patientHaystack` and is shared, so
+both pages match the same fields (`domain/archiveSearch.ts`).
+
+### 4. Arsip rebuilt
+
+| Before | Now |
+|---|---|
+| Search box over one long run of bordered boxes, 3 grey lines each | Pinned header: search, the notes switch, trash |
+| No way to narrow except typing | **DPJP · Ruang · Alasan · Bulan** filters, each offering only values that occur, with counts; ward spellings merged (`canonicalWard`); Reset |
+| Month sections only | "12 dari 142 pasien", then months, rows in one grouped card per month |
+| Reason as grey text on every row | Reason tag only when it isn't "Pulang": **MENINGGAL** in red, PINDAH outlined |
+| — | Search words highlighted in name, RM and snippet; a no-results state offers to search inside notes |
+
+The search field gained an accessible label (it had only a placeholder).
+Trash is unchanged in behaviour.
+
+### Wrong turns
+
+- The highlight first used `text-inherit`, which isn't a Tailwind class.
+  The highlight colour uses `bg-[var(--warn-soft)]`, not an opacity
+  modifier (see 28.3).
+- My first snippet test expected the wrong words for its radius; the
+  function was right.
+
+### Not done
+
+- Active patients' note text is not searched; this was asked for the
+  archive only.
+- The board header is pinned on every order, including the canvas. At
+  phone height it takes about three rows.
+- The board-header and Arsip changes were rendered with a mocked data
+  layer; the board itself was not rendered (it needs live Firestore). Worth
+  checking on a device: scroll a long board; open Arsip, switch the notes
+  search on, and watch the count finish.
+
+```
+1614 tests passed (+16)
+typecheck / lint (0 warnings) / check:version / check:contrast / check:a11y / build — clean
+```
+
+---
+
 ## `2026-09-28.4`
 
 **Lab PDFs: results that were dropped or misread are now read correctly, and

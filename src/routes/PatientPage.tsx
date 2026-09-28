@@ -1646,7 +1646,13 @@ export default function PatientPage(): JSX.Element {
                   },
                 }
               : {})}
-            placeholder="Tulis SOAP hari ini…"
+            /*
+              Loading says loading. The editor is locked until the entry
+              arrives (that lock is what stopped a blank editor wiping a
+              note), but it used to say "Tulis SOAP hari ini…" while locked,
+              so the first keystrokes went nowhere and nothing said why.
+            */
+            placeholder={entryLoading ? 'Memuat catatan…' : 'Tulis SOAP hari ini…'}
           />
         )}
 
