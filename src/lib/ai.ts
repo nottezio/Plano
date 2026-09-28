@@ -256,3 +256,56 @@ export async function askClaudeTool(options: {
   if (!block) throw new AiError('AI tidak mengembalikan hasil transkripsi.');
   return { input: block.input, truncated: data.stop_reason === 'max_tokens' };
 }
+
+/**
+ * One forced tool call on TEXT: the shape every checker that must return
+ * structured, verifiable findings needs. `temperature: 0` for the same
+ * reason as the PDF transcription: a check whose findings vary between
+ * identical runs cannot be trusted by the run.
+ */
+export async function askClaudeStructured(options: {
+  system: string;
+  tool: { name: string; description: string; input_schema: unknown };
+  prompt: string;
+  maxTokens: number;
+  model?: string;
+}): Promise<{ input: unknown; truncated: boolean }> {
+  const key = readApiKey();
+  if (!key) throw new AiError('Belum ada API key.');
+
+  let response: Response;
+  try {
+    response = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'content-type': 'application/json',
+        'x-api-key': key,
+        'anthropic-version': '2023-06-01',
+        'anthropic-dangerous-direct-browser-access': 'true',
+      },
+      body: JSON.stringify({
+        model: options.model ?? 'claude-sonnet-4-5',
+        max_tokens: options.maxTokens,
+        temperature: 0,
+        system: options.system,
+        tools: [options.tool],
+        tool_choice: { type: 'tool', name: options.tool.name },
+        messages: [{ role: 'user', content: options.prompt }],
+      }),
+    });
+  } catch {
+    throw new AiError('Tidak ada koneksi ke server AI.');
+  }
+
+  if (response.status === 401) throw new AiError('API key ditolak. Periksa kembali key-nya.');
+  if (response.status === 429) throw new AiError('Kuota API sedang penuh. Coba lagi nanti.');
+  if (!response.ok) throw new AiError(`Gagal memanggil AI (${String(response.status)}).`);
+
+  const data = (await response.json()) as {
+    stop_reason?: string;
+    content?: Array<{ type?: string; input?: unknown }>;
+  };
+  const block = (data.content ?? []).find((candidate) => candidate.type === 'tool_use');
+  if (!block) throw new AiError('AI tidak mengembalikan hasil pemeriksaan.');
+  return { input: block.input, truncated: data.stop_reason === 'max_tokens' };
+}

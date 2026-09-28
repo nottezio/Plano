@@ -204,6 +204,7 @@ export function checkSoap(input: SoapCheckInput): SoapFinding[] {
   if (!body.trim()) return findings;
 
   const aliases = aliasesOrDefault(input.aliases);
+  const sections = parseSections(body, aliases);
   const signs = readVitalSigns(body, aliases);
   const vitals: Record<string, string> = { ...signs.readings };
 
@@ -245,7 +246,7 @@ export function checkSoap(input: SoapCheckInput): SoapFinding[] {
         kind: 'flow-unchanged',
         level: 'kemarin',
         message: `${label} sama persis dengan kemarin (${value}).`,
-        anchor: label,
+        ...anchorMatch(body, new RegExp(`\\b${label}\\b`, 'i')),
       });
     }
   }
@@ -261,7 +262,7 @@ export function checkSoap(input: SoapCheckInput): SoapFinding[] {
         kind: 'day-marker',
         level: 'kemarin',
         message: `Hitungan hari belum berubah dari kemarin: ${unchanged.map((m) => m.text).join(', ')}.`,
-        ...(unchanged[0] ? { anchor: unchanged[0].text } : {}),
+        ...(unchanged[0] ? anchorFor(body, unchanged[0].text) : {}),
       });
     }
   }
@@ -270,23 +271,30 @@ export function checkSoap(input: SoapCheckInput): SoapFinding[] {
   // to remove; the result is why.
   const labs = readLabs(body);
   /*
-    Only a plan line that reads as a one-off "check this" counts. `Cek
-    elektrolit ulang besok`, `serial`, `evaluasi`, `per 12 jam` are real plans
-    for the NEXT result, and flagging them made this the noisiest rule here.
+    ONLY LINES IN THE PLAN, and the finding points at the line.
+
+    This used to test EVERY line of the note, so a `Periksa lab…` or `Cek DL`
+    anywhere (anamnesis, penunjang, a quoted consult reply) counted as "still
+    written in the Plan", and "Tampilkan" searched for the bare word `Plan`,
+    whose first hit in an echo report is "Planimetry". Reported 29 September
+    on a patient with no lab plan at all.
+
+    Only a one-off "check this" counts. `Cek elektrolit ulang besok`,
+    `serial`, `evaluasi`, `per 12 jam` are plans for the NEXT result.
   */
-  const plansLab = body
-    .split('\n')
-    .some(
-      (line) =>
-        /^\s*-?\s*(?:cek|periksa|rencana)\s+(?:lab|darah\s*rutin|elektrolit|dl\b)/i.test(line) &&
-        !/\b(?:ulang|besok|serial|evaluasi|kontrol|tiap|setiap|per\s*\d|post|jam|pagi|sore|malam|h\+?\d)/i.test(line),
-    );
-  if (plansLab && Object.keys(labs).length > 0) {
+  const planHit = planLines(body, sections).find(
+    ({ line }) =>
+      /^\s*-?\s*(?:cek|periksa|rencana)\s+(?:lab\b|laboratorium|darah\s*rutin|elektrolit|dl\b)/i.test(line) &&
+      !/\b(?:ulang|besok|serial|evaluasi|kontrol|tiap|setiap|per\s*\d|post|jam|pagi|sore|malam|h\+?\d)/i.test(line),
+  );
+  if (planHit && Object.keys(labs).length > 0) {
+    const text = planHit.line.trim();
     findings.push({
       kind: 'lab-planned-but-resulted',
       level: 'cek',
-      message: 'Lab sudah ada hasilnya tapi masih tertulis di Plan.',
-      anchor: 'Plan',
+      message: `Lab sudah ada hasilnya, tapi Plan masih menulis “${text.replace(/^[-•]\s*/, '')}”.`,
+      anchor: text,
+      at: planHit.offset + planHit.line.indexOf(text),
     });
   }
 
@@ -301,7 +309,7 @@ export function checkSoap(input: SoapCheckInput): SoapFinding[] {
         kind: 'diagnosis-value-stale',
         level: 'cek',
         message: `Diagnosis menyebut ${analyte} ${quoted}, lab terbaru ${measured}.`,
-        anchor: analyte,
+        ...anchorMatch(body, pattern),
       });
     }
   }
@@ -339,7 +347,7 @@ export function checkSoap(input: SoapCheckInput): SoapFinding[] {
       kind: 'consult-not-in-dpjp',
       level: 'cek',
       message: `TS ${service} sudah menjawab tapi belum ada di daftar DPJP.`,
-      anchor: 'DPJP',
+      ...anchorMatch(body, new RegExp(`^[*_\\s]*TS\\s+${escapeRegex(service)}`, 'im')),
     });
   }
 
@@ -367,7 +375,7 @@ export function checkSoap(input: SoapCheckInput): SoapFinding[] {
       kind: 'electrolyte-corrected',
       level: 'cek',
       message: `${analyte} sudah ${measured} (dalam rentang) — tambahkan "perbaikan" di diagnosisnya?`,
-      anchor: line.trim().slice(0, 40),
+      ...anchorFor(body, line.trim().slice(0, 40)),
     });
   }
 
@@ -376,11 +384,10 @@ export function checkSoap(input: SoapCheckInput): SoapFinding[] {
       kind: 'anemia-without-hb',
       level: 'cek',
       message: 'Diagnosis anemia tapi tidak ada Hb di catatan ini.',
-      anchor: 'Anemia',
+      ...anchorMatch(body, /\banemia\b/i),
     });
   }
 
-  const sections = parseSections(body, aliases);
   findings.push(...checkSections(sections, previous, aliases));
   findings.push(...checkUnfilled(body));
   findings.push(...checkHariRawat(body, previous));
@@ -397,6 +404,46 @@ function anchorFor(body: string, text: string, from = 0): Pick<SoapFinding, 'anc
   if (!text) return {};
   const at = body.toLowerCase().indexOf(text.toLowerCase(), from);
   return at >= 0 ? { anchor: body.slice(at, at + text.length), at } : { anchor: text };
+}
+
+/** The exact text a pattern matched, and where: never a bare-word search. */
+function anchorMatch(body: string, pattern: RegExp): Pick<SoapFinding, 'anchor' | 'at'> {
+  const flags = pattern.flags.replace('g', '');
+  const match = new RegExp(pattern.source, flags).exec(body);
+  if (!match) return {};
+  const text = match[0].trim();
+  return { anchor: text, at: match.index + match[0].indexOf(text) };
+}
+
+function escapeRegex(text: string): string {
+  return text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+/** Section ids that end the plan. */
+const NOT_PLAN = new Set<SectionId>(['_intro', 's', 'o', 'ttv', 'a', 'penunjang']);
+
+/**
+ * Every line of the plan, with its offset: the P and Terapi sections and the
+ * plan's own sub-blocks after them (`Plan Monitoring:` parses as a custom
+ * section), until the next S / O / A / Penunjang.
+ */
+function planLines(
+  body: string,
+  sections: readonly ParsedSection[],
+): Array<{ line: string; offset: number }> {
+  const out: Array<{ line: string; offset: number }> = [];
+  let inPlan = false;
+  for (const section of sections) {
+    if (section.sectionId === 'p' || section.sectionId === 'terapi') inPlan = true;
+    else if (NOT_PLAN.has(section.sectionId)) inPlan = false;
+    if (!inPlan) continue;
+    let offset = section.start + (section.headerLine?.length ?? 0);
+    for (const line of body.slice(offset, section.end).split('\n')) {
+      out.push({ line, offset });
+      offset += line.length + 1;
+    }
+  }
+  return out;
 }
 
 /** Content with bullets, emphasis and whitespace removed: what is actually written. */

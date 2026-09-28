@@ -1,4 +1,8 @@
 import {
+  FieldPath,
+  arrayRemove,
+  arrayUnion,
+  updateDoc,
   getDoc,
   onSnapshot,
   serverTimestamp,
@@ -110,6 +114,36 @@ export function updateProfileNote(uid: string, scratchNote: string): Promise<voi
  * the root of the lost-edit races. Catatan are written one field at a time by
  * `scratchNotes.repo.ts`; the old `notes` array is read, never written.
  */
+
+/**
+ * Tick or untick one step of a reusable checklist: one atomic array change on
+ * that list's own entry, so quick ticks cannot overwrite each other and the
+ * list itself is never copied into the account.
+ *
+ * `legacy` is the list's ticks stored the old way (inside the list) when it
+ * has no entry of its own yet: the first write carries them over whole.
+ */
+export function tickChecklistStep(
+  uid: string,
+  listId: string,
+  itemId: string,
+  checked: boolean,
+  legacy: string[] | null,
+): Promise<void> {
+  const path = new FieldPath('checklistDone', listId);
+  if (legacy !== null) {
+    const next = checked ? [...new Set([...legacy, itemId])] : legacy.filter((id) => id !== itemId);
+    return trackWrite(updateDoc(userDoc(uid), path, next));
+  }
+  return trackWrite(
+    updateDoc(userDoc(uid), path, checked ? arrayUnion(itemId) : arrayRemove(itemId)),
+  );
+}
+
+/** Untick every step of one list. */
+export function resetChecklistTicks(uid: string, listId: string): Promise<void> {
+  return trackWrite(updateDoc(userDoc(uid), new FieldPath('checklistDone', listId), []));
+}
 
 /** The whole checklist collection, written as one field, for the same reason. */
 export function updateChecklists(uid: string, checklists: SavedChecklist[]): Promise<void> {

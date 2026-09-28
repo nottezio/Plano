@@ -420,3 +420,59 @@ describe('order', () => {
     expect(levels[0]).toBe('isi');
   });
 });
+
+/**
+ * Reported 29 September: "Lab sudah ada hasilnya tapi masih tertulis di Plan"
+ * on a patient with no lab plan, and "Tampilkan" jumped to "Planimetry" in
+ * the echo. The rule read every line of the note, and its anchor was the bare
+ * word `Plan`.
+ */
+describe('lab planned but resulted — only the plan counts, and it points at the line', () => {
+  const NOTE = [
+    '*S:*',
+    '- Periksa lab di puskesmas 1 minggu lalu, Hb 9',
+    '*O:*',
+    'TD 110/70',
+    '*Echocardiography (27 Sep)*',
+    'MS severe, MVA planimetry 0.8 cm2',
+    '*Laboratorium (28 Sep)*',
+    'Na/K/Cl 136/3.6/103',
+    '*A:*',
+    '- Severe MS',
+    '*P:*',
+    '- Rencana PTMC',
+  ].join('\n');
+
+  it('is silent when no plan line asks for a lab', () => {
+    expect(kinds(NOTE)).not.toContain('lab-planned-but-resulted');
+  });
+
+  it('when it fires, quotes and points at the plan line itself', () => {
+    const body = NOTE.replace('- Rencana PTMC', '- Rencana PTMC\n- Cek elektrolit');
+    const finding = checkSoap({ body }).find((f) => f.kind === 'lab-planned-but-resulted')!;
+    expect(finding.message).toBe('Lab sudah ada hasilnya, tapi Plan masih menulis “Cek elektrolit”.');
+    expect(body.slice(finding.at!, finding.at! + finding.anchor!.length)).toBe('- Cek elektrolit');
+  });
+
+  it('reads the plan’s sub-blocks too (Plan Monitoring, Terapi)', () => {
+    const body = NOTE.replace('- Rencana PTMC', '- Rencana PTMC\nPlan Monitoring:\n- Cek DL');
+    expect(kinds(body)).toContain('lab-planned-but-resulted');
+  });
+});
+
+describe('every finding points at its own text', () => {
+  it('a stale diagnosis value points at the diagnosis, not the first letter K in the note', () => {
+    const body = '*O:*\nTD 120/80, Kesadaran baik\nNa/K/Cl 136/3.9/103\n*A:*\n- Hypokalemia (2.9)\n*P:*\n- KSR';
+    const finding = checkSoap({ body }).find((f) => f.kind === 'diagnosis-value-stale')!;
+    expect(body.slice(finding.at!).startsWith('Hypokalemia')).toBe(true);
+  });
+
+  it('no finding ever anchors on a bare word it did not match', () => {
+    const body = GOOD_TODAY.replace('- ADHF ec CAD', '- ADHF ec CAD\n- Anemia ringan').replace('hari perawatan ke 5', 'hari perawatan ke 5\nPlanimetry');
+    for (const finding of checkSoap({ body, previous: GOOD_YESTERDAY })) {
+      if (finding.anchor === undefined) continue;
+      expect(finding.at).toBeDefined();
+      expect(body.slice(finding.at!, finding.at! + finding.anchor.length).toLowerCase()).toBe(finding.anchor.toLowerCase());
+    }
+  });
+});

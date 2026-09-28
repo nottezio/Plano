@@ -1,5 +1,95 @@
 # Plano — CHANGES
 
+## `2026-09-29.2`
+
+**"Periksa lagi" no longer blames a plan that isn't there, and every
+Tampilkan lands on the line it names. The AI check is rebuilt to add what
+the rules can't see, quoting the note. Dokumen and Checklist redesigned;
+checklist ticks stored safely.**
+
+### 1. "Lab sudah ada hasilnya…" on a patient with no lab plan; Tampilkan jumped to "Planimetry"
+
+**Root cause, two layers.**
+1. The rule looked for lab words ("cek lab", "DL", …) on **every line of the
+   note**, not only in the Plan. A lab word in S, O or A (a past result, a
+   history line) was read as a plan that was still waiting.
+2. The jump target was the **bare word `Plan`**, searched from the top of
+   the note. The first match was inside `Planimetry` (an echo line in O).
+   Several other findings used the same kind of loose anchor.
+
+**Fundamental fix.**
+- New `planLines(body, sections)`: the Plan is the P/Terapi section plus any
+  custom sections that follow it, until the next S/O/A/Penunjang. The rule
+  reads only those lines.
+- The message now quotes the plan line itself: *Lab sudah ada hasilnya,
+  tapi Plan masih menulis "…"*, so it can be judged without jumping.
+- Every finding now carries an **exact position** (`anchorMatch`), taken from
+  the text that triggered it: fluids, day marker, stale diagnosis value,
+  consult (the TS line), electrolytes, anemia. No finding searches for a
+  word again after the fact.
+- Regression tests: the Planimetry note, and "every anchor matches its own
+  text".
+
+### 2. AI check ("Periksa dengan AI"), rebuilt
+
+**What was wrong.** A free-text reply parsed from prose. It did not know
+what the rules had already said, so it could repeat them, and its findings
+had no position in the note to jump to.
+
+**Now.**
+- **Structured reply** (`askClaudeStructured`, forced tool
+  `laporkan_temuan`, temperature 0): at most 6 findings, each with a level
+  (Isi / Kemarin / Cek), a message and a **verbatim quote** from the note.
+- **Grounded:** a finding whose quote is not in the note is dropped (and the
+  count is shown). The quote is the jump target, so Tampilkan works.
+- **Rule-aware:** the rule findings are sent as "do not repeat". The AI is
+  pointed at what rules can't see: A↔P mismatch, abnormal values nobody
+  addresses, contradictions, numbers that disagree, identity, future dates.
+- **Stale marker:** after the note changes, results are marked out of date
+  instead of silently pointing at old text. They clear on date/patient change.
+- Still no clinical recommendations; still the H-2 "kemarin" meaning.
+
+### 3. Checklist: ticks lost, "versi lama" banner for no reason; redesign
+
+**Root cause.** Each tick **rewrote the whole `checklists` array** (every
+list, built-in ones included) from the copy on screen.
+- Two quick ticks, or two devices: the later write replaced the earlier
+  (bug pattern #5).
+- The first tick on a built-in list **saved a copy of it into the account**.
+  From then on, any update to the built-in list showed as "outdated".
+
+**Fundamental fix.** Ticks live apart from the lists: `checklistDone.<listId>`,
+changed with one atomic `arrayUnion` / `arrayRemove` per tick
+(`tickChecklistStep`). Built-in lists are never copied by ticking. Ticks
+stored the old way (inside a saved list) are read and carried over on the
+first new tick.
+
+**Redesign.**
+- Two panes on desktop; list → detail on phone (`?c=`, back works).
+- Search over titles and steps.
+- "Sedang berjalan" group first, with a progress bar per list.
+- Detail: progress, **"Langkah berikutnya"** highlighted, Reset with an
+  inline confirm.
+
+### 4. Dokumen redesign
+
+- Sticky header: search (title, category **and body**, with a highlighted
+  snippet), "Dokumen baru" (floating button on phone), ⋯ menu for the rarer
+  actions (add built-in formats, export, manage the selected category).
+- Category chips with counts.
+- Pinned documents in their own group; the rest grouped by category in a
+  2-column grid with a two-line preview.
+- `Highlight` moved to `components/common` (shared with Arsip).
+
+### Not done
+- AI check needs a network round-trip; nothing is cached across reloads.
+- Checklist ticks are still per account, not per patient (by design).
+
+```
+1658 tests passed (+20)
+typecheck / lint (0 warnings) / check:version / check:contrast / check:a11y / build — clean
+```
+
 ## `2026-09-29.1`
 
 **Dropdowns readable in dark mode. "Salin dari hari sebelumnya" now empties

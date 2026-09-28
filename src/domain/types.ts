@@ -321,6 +321,11 @@ export interface UserProfile {
    * were evidence, which they are not.
    */
   checklists?: SavedChecklist[];
+  /**
+   * Ticks of the reusable checklists, by list id, each written as one atomic
+   * add/remove. See `domain/checklists/progress`.
+   */
+  checklistDone?: Record<string, string[]>;
   /** Morning Report settings (Helper). See `domain/mr/morningReport`. */
   morningReport?: import('./mr/morningReport').MrConfig;
   /** Morning Report drafts by MR date, pruned after three weeks. */

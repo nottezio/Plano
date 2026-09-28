@@ -12,6 +12,10 @@ import {
 import { SEED_DOCUMENTS } from '@/domain/seedDocuments';
 import { documentCategories } from '@/domain/documentCategories';
 import { useDocumentList } from '@/hooks/useDocuments';
+import { useDebouncedValue } from '@/hooks/useDebouncedValue';
+import { Highlight } from '@/components/common/Highlight';
+import { IconMore, IconPin, IconSearch } from '@/components/common/Icons';
+import { findSnippet, searchTokens } from '@/domain/archiveSearch';
 import { useSession } from '@/store/useSession';
 import type { AppDocument } from '@/domain/types';
 
@@ -27,16 +31,14 @@ import type { AppDocument } from '@/domain/types';
 export default function DocumentsPage(): JSX.Element {
   const { documents, loading } = useDocumentList();
   const [createOpen, setCreateOpen] = useState(false);
+  const [moreOpen, setMoreOpen] = useState(false);
   const [seeding, setSeeding] = useState(false);
   const [managingCategory, setManagingCategory] = useState<string | null>(null);
+  const [query, setQuery] = useState('');
+  const debounced = useDebouncedValue(query, 120);
+  const tokens = useMemo(() => searchTokens(debounced), [debounced]);
 
-  /**
-   * Category filter, remembered per device.
-   *
-   * The list grew past thirty documents once the seeds were added, and a flat
-   * list of thirty is a list nobody scans — you search it, which only works if
-   * you already know the title.
-   */
+  /** Category filter, remembered per device. */
   const [category, setCategory] = useState<string>(() => {
     try {
       return localStorage.getItem('visite.docCategory') ?? 'all';
@@ -44,39 +46,31 @@ export default function DocumentsPage(): JSX.Element {
       return 'all';
     }
   });
+  const chooseCategory = (value: string): void => {
+    setCategory(value);
+    try {
+      localStorage.setItem('visite.docCategory', value);
+    } catch (error) {
+      console.warn('[documents] filter not saved', error);
+    }
+  };
 
-  /**
-   * Derived from `documentCategories`, the same function the create-sheet and
-   * `DocumentPage`'s picker use — one definition of "what categories exist",
-   * rather than three places computing it separately and risking disagreement.
-   */
-  const categories = useMemo(
-    () => ['all', ...documentCategories(documents)],
-    [documents],
-  );
+  /** Same definition of "what categories exist" as the create sheet and DocumentPage. */
+  const categories = useMemo(() => documentCategories(documents), [documents]);
+  const counts = useMemo(() => {
+    const map = new Map<string, number>();
+    for (const document of documents) map.set(document.category, (map.get(document.category) ?? 0) + 1);
+    return map;
+  }, [documents]);
+  // A remembered category that no longer exists falls back to all.
+  const activeCategory = category === 'all' || counts.has(category) ? category : 'all';
 
-  const shown = useMemo(
-    () => (category === 'all' ? documents : documents.filter((d) => d.category === category)),
-    [documents, category],
-  );
   const uid = useSession((state) => state.user?.uid ?? null);
 
   /**
-   * Adds the starter documents, once, on request.
-   *
-   * Skips any title already present so a second tap cannot duplicate them, and
-   * so a set added months ago is topped up rather than doubled.
-   */
-  /**
-   * Export every document as the source form the seeds are written in.
-   *
-   * The point is that the output can be handed back to me and become built-in
-   * defaults — so it is emitted as the same `{ category, title, body }` shape
-   * `seedDocuments.ts` already uses, rather than as prose. Anything else means
-   * transcribing it by hand on the way in, which is where errors enter.
-   *
-   * Downloaded as a file rather than copied: these run to thousands of lines,
-   * and a clipboard that large is refused by some browsers.
+   * Export every document in the seed source form (`{ category, title, body }`),
+   * so the output can be handed back and become built-in defaults. Downloaded,
+   * not copied: these run to thousands of lines.
    */
   const exportDocuments = (): void => {
     const payload = documents.map((document) => ({
@@ -84,7 +78,6 @@ export default function DocumentsPage(): JSX.Element {
       title: document.title,
       body: document.body,
     }));
-
     const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
     const link = window.document.createElement('a');
@@ -96,170 +89,149 @@ export default function DocumentsPage(): JSX.Element {
     URL.revokeObjectURL(url);
   };
 
+  /** Adds the starter documents that are missing, by title. Never duplicates. */
   const addSeeds = (): void => {
     if (!uid || seeding) return;
     setSeeding(true);
-
     const existing = new Set(documents.map((document) => document.title.trim().toLowerCase()));
     for (const seed of SEED_DOCUMENTS) {
       if (existing.has(seed.title.trim().toLowerCase())) continue;
-      const { written } = createDocument(uid, {
-        title: seed.title,
-        category: seed.category,
-        body: seed.body,
-      });
-      void written.catch((error: unknown) =>
-        console.error('[documents] seed rejected', error),
-      );
+      const { written } = createDocument(uid, { title: seed.title, category: seed.category, body: seed.body });
+      void written.catch((error: unknown) => console.error('[documents] seed rejected', error));
     }
-
     window.setTimeout(() => setSeeding(false), 800);
   };
 
+  /*
+    SEARCH covers the title, the category AND the body. The page had no search
+    at all once the list passed thirty documents, which meant scrolling to find
+    a jadwal poli you knew was there.
+  */
+  const matches = useMemo(
+    () =>
+      documents
+        .filter((document) => activeCategory === 'all' || document.category === activeCategory)
+        .map((document) => {
+          if (tokens.length === 0) return { document, snippet: null as string | null };
+          const head = `${document.title} ${document.category}`.toLowerCase();
+          const body = document.body.toLowerCase();
+          if (!tokens.every((token) => head.includes(token) || body.includes(token))) return null;
+          const inBody = tokens.filter((token) => !head.includes(token));
+          return { document, snippet: inBody.length > 0 ? findSnippet(document.body, inBody) : null };
+        })
+        .filter((match): match is { document: AppDocument; snippet: string | null } => match !== null),
+    [documents, activeCategory, tokens],
+  );
+
+  /** Pinned first, across categories; the rest grouped by category. */
+  const pinned = matches.filter(({ document }) => document.pinned);
   const grouped = useMemo(() => {
-    const groups = new Map<string, AppDocument[]>();
-    for (const document of shown) {
-      const bucket = groups.get(document.category);
-      if (bucket) bucket.push(document);
-      else groups.set(document.category, [document]);
+    const groups = new Map<string, typeof matches>();
+    for (const match of matches) {
+      if (match.document.pinned) continue;
+      const bucket = groups.get(match.document.category);
+      if (bucket) bucket.push(match);
+      else groups.set(match.document.category, [match]);
     }
     return [...groups.entries()];
-  }, [shown]);
+  }, [matches]);
 
   return (
     <AppShell title="Dokumen">
-      <div className="mx-auto w-full max-w-3xl">
-      {documents.length > 0 ? (
-        <div className="flex flex-wrap gap-1.5 px-4 pb-1 pt-1">
-          {categories.map((value) => (
+      <div className="sticky top-0 z-20 border-b border-border bg-bg">
+        <div className="mx-auto w-full max-w-5xl px-4 pb-2 pt-2">
+          <div className="flex items-center gap-2">
+            <label className="flex min-h-tap min-w-0 flex-1 items-center gap-2 rounded-lg border border-border bg-surface px-3 focus-within:border-accent">
+              <IconSearch width={16} height={16} className="shrink-0 text-fg-faint" />
+              <input
+                type="search"
+                value={query}
+                onChange={(event) => setQuery(event.target.value)}
+                aria-label="Cari dokumen"
+                placeholder="Cari judul atau isi dokumen…"
+                className="min-w-0 flex-1 bg-transparent py-1.5 text-sm outline-none"
+              />
+            </label>
             <button
-              key={value}
               type="button"
-              aria-pressed={category === value}
-              onClick={() => {
-                setCategory(value);
-                try {
-                  localStorage.setItem('visite.docCategory', value);
-                } catch (error) {
-                  console.warn('[documents] filter not saved', error);
-                }
-              }}
-              className={[
-                'min-h-tap rounded-full border px-3 text-xs',
-                category === value
-                  ? 'border-accent bg-bg-subtle font-medium text-accent'
-                  : 'border-border text-fg-muted',
-              ].join(' ')}
+              onClick={() => setCreateOpen(true)}
+              className="hidden min-h-tap shrink-0 items-center gap-1.5 rounded-lg bg-accent px-3 text-sm font-medium text-white sm:flex"
             >
-              {value === 'all' ? 'Semua' : value}
+              <span aria-hidden="true" className="text-base leading-none">+</span>
+              Dokumen baru
             </button>
-          ))}
-        </div>
-      ) : null}
+            <button
+              type="button"
+              onClick={() => setMoreOpen(true)}
+              aria-label="Aksi lain"
+              className="flex min-h-tap min-w-tap shrink-0 items-center justify-center rounded-lg text-fg-muted hover:bg-bg-subtle"
+            >
+              <IconMore />
+            </button>
+          </div>
 
-      {documents.length > 0 ? (
-        <div className="px-4 pb-1 pt-1">
-          {/*
-            Renaming or deleting a category is an edit to text scattered across
-            documents, not a settings screen — so it lives beside the tabs
-            that display that text, opened from whichever tab is currently
-            selected. "Semua" has nothing to rename, so the control is absent
-            there rather than disabled: a category-management action that
-            cannot act on anything is not a smaller version of the feature,
-            it is a different screen state.
-          */}
-          {category !== 'all' ? (
-            <button
-              type="button"
-              onClick={() => setManagingCategory(category)}
-              className="text-xs text-fg-muted underline"
-            >
-              Kelola kategori "{category}"
-            </button>
+          {documents.length > 0 ? (
+            <div className="-mx-4 mt-2 flex gap-1.5 overflow-x-auto px-4 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+              {['all', ...categories].map((value) => {
+                const selected = activeCategory === value;
+                return (
+                  <button
+                    key={value}
+                    type="button"
+                    aria-pressed={selected}
+                    onClick={() => chooseCategory(value)}
+                    className={[
+                      'min-h-tap shrink-0 whitespace-nowrap rounded-full border px-3 text-xs',
+                      selected
+                        ? 'border-accent bg-accent font-semibold text-white'
+                        : 'border-border text-fg-muted hover:bg-bg-subtle',
+                    ].join(' ')}
+                  >
+                    {value === 'all' ? 'Semua' : value}{' '}
+                    <span className={selected ? 'opacity-80' : 'text-fg-faint'}>
+                      {value === 'all' ? documents.length : (counts.get(value) ?? 0)}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
           ) : null}
-          <button
-            type="button"
-            onClick={addSeeds}
-            disabled={seeding}
-            className={[
-              'text-xs text-fg-muted underline disabled:opacity-50',
-              category !== 'all' ? 'ml-3' : '',
-            ].join(' ')}
-          >
-            {seeding ? 'Menambahkan…' : 'Tambahkan format bawaan yang belum ada'}
-          </button>
-          <button
-            type="button"
-            onClick={exportDocuments}
-            className="ml-3 text-xs text-fg-muted underline"
-          >
-            Ekspor semua dokumen (JSON)
-          </button>
         </div>
-      ) : null}
-
-      <div className="hidden justify-end px-4 pb-2 pt-1 sm:flex">
-        <button
-          type="button"
-          onClick={() => setCreateOpen(true)}
-          className="flex min-h-tap items-center gap-1.5 rounded-lg bg-accent px-4 text-sm font-medium text-white"
-        >
-          <span aria-hidden="true" className="text-base leading-none">+</span>
-          Dokumen baru
-        </button>
       </div>
 
-      {loading ? (
-        <p className="px-4 py-10 text-center text-sm text-fg-muted">Memuat…</p>
-      ) : documents.length === 0 ? (
-        <div className="px-6 py-14 text-center">
-          <p className="text-sm text-fg-muted">Belum ada dokumen.</p>
-          <button
-            type="button"
-            onClick={() => setCreateOpen(true)}
-            className="mt-3 min-h-tap rounded-lg border border-border px-4 text-sm text-accent"
-          >
-            Buat dokumen pertama
-          </button>
-          <button
-            type="button"
-            onClick={addSeeds}
-            className="mt-2 block w-full text-xs text-fg-muted underline"
-          >
-            Atau tambahkan {SEED_DOCUMENTS.length} format bawaan
-          </button>
-        </div>
-      ) : (
-        <div className="px-4 pb-4">
-          {grouped.map(([category, list]) => (
-            <section key={category} className="mt-4 first:mt-0">
-              <h2 className="text-xs font-semibold text-fg-muted">
-                {category}
-              </h2>
-              <ul className="mt-1 space-y-2">
-                {list.map((document) => (
-                  <li key={document.id}>
-                    <Link
-                      to={`/dokumen/${document.id}`}
-                      className="block rounded-lg border border-border bg-surface px-3 py-2.5"
-                    >
-                      <span className="flex items-baseline gap-2">
-                        <span className="min-w-0 flex-1 truncate text-sm font-medium">
-                          {document.title}
-                        </span>
-                        {document.pinned ? <span aria-label="Disematkan">★</span> : null}
-                      </span>
-                      <span className="mt-0.5 block truncate text-xs text-fg-muted">
-                        {document.body.trim().split('\n')[0] || 'Kosong'}
-                      </span>
-                    </Link>
-                  </li>
-                ))}
-              </ul>
-            </section>
-          ))}
-        </div>
-      )}
+      <div className="mx-auto w-full max-w-5xl px-4 pb-24 pt-3 sm:pb-6">
+        {loading ? (
+          <p className="py-10 text-center text-sm text-fg-muted">Memuat…</p>
+        ) : documents.length === 0 ? (
+          <div className="px-6 py-14 text-center">
+            <p className="text-sm text-fg-muted">Belum ada dokumen.</p>
+            <button
+              type="button"
+              onClick={() => setCreateOpen(true)}
+              className="mt-3 min-h-tap rounded-lg border border-border px-4 text-sm text-accent"
+            >
+              Buat dokumen pertama
+            </button>
+            <button type="button" onClick={addSeeds} className="mt-2 block w-full min-h-tap text-xs text-fg-muted underline">
+              Atau tambahkan {SEED_DOCUMENTS.length} format bawaan
+            </button>
+          </div>
+        ) : matches.length === 0 ? (
+          <p className="py-10 text-center text-sm text-fg-muted">Tidak ada dokumen yang cocok.</p>
+        ) : (
+          <>
+            {tokens.length > 0 ? (
+              <p className="pb-1 text-xs text-fg-muted" aria-live="polite">{matches.length} dokumen</p>
+            ) : null}
+            {pinned.length > 0 ? (
+              <DocumentGroup title="Disematkan" matches={pinned} tokens={tokens} showCategory />
+            ) : null}
+            {grouped.map(([name, list]) => (
+              <DocumentGroup key={name} title={name} matches={list} tokens={tokens} showCategory={false} />
+            ))}
+          </>
+        )}
+      </div>
 
       <button
         type="button"
@@ -270,12 +242,41 @@ export default function DocumentsPage(): JSX.Element {
         +
       </button>
 
-      </div>
+      <Sheet open={moreOpen} onOpenChange={setMoreOpen} title="Aksi dokumen">
+        <div className="space-y-2 p-4">
+          {activeCategory !== 'all' ? (
+            <MenuRow
+              onClick={() => {
+                setMoreOpen(false);
+                setManagingCategory(activeCategory);
+              }}
+            >
+              Kelola kategori “{activeCategory}” (ganti nama / hapus)
+            </MenuRow>
+          ) : null}
+          <MenuRow
+            onClick={() => {
+              addSeeds();
+              setMoreOpen(false);
+            }}
+          >
+            {seeding ? 'Menambahkan…' : 'Tambahkan format bawaan yang belum ada'}
+          </MenuRow>
+          <MenuRow
+            onClick={() => {
+              exportDocuments();
+              setMoreOpen(false);
+            }}
+          >
+            Ekspor semua dokumen (JSON)
+          </MenuRow>
+        </div>
+      </Sheet>
 
       <CreateDocumentSheet
         open={createOpen}
         onOpenChange={setCreateOpen}
-        existingCategories={documentCategories(documents)}
+        existingCategories={categories}
       />
       {managingCategory ? (
         <ManageCategorySheet
@@ -287,6 +288,91 @@ export default function DocumentsPage(): JSX.Element {
         />
       ) : null}
     </AppShell>
+  );
+}
+
+function MenuRow({ onClick, children }: { onClick: () => void; children: React.ReactNode }): JSX.Element {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="min-h-tap w-full rounded-lg border border-border px-3 py-2 text-left text-sm font-medium"
+    >
+      {children}
+    </button>
+  );
+}
+
+/**
+ * Two lines of what the document actually says: markup stripped, and the
+ * first line skipped when it only repeats the title (it usually does).
+ */
+export function documentPreview(document: Pick<AppDocument, 'title' | 'body'>): string {
+  const title = document.title.trim().toLowerCase();
+  const lines = document.body
+    .split('\n')
+    .map((line) => line.replace(/[*_~`]/g, '').replace(/\s+/g, ' ').trim())
+    .filter(Boolean);
+  if (lines[0] && lines[0].toLowerCase() === title) lines.shift();
+  return lines.slice(0, 2).join('\n');
+}
+
+function DocumentGroup({
+  title,
+  matches,
+  tokens,
+  showCategory,
+}: {
+  title: string;
+  matches: ReadonlyArray<{ document: AppDocument; snippet: string | null }>;
+  tokens: readonly string[];
+  showCategory: boolean;
+}): JSX.Element {
+  return (
+    <section className="mt-4 first:mt-1">
+      <h2 className="flex items-center gap-3 pb-2">
+        <span className="text-xs font-semibold uppercase tracking-wide text-fg-muted">{title}</span>
+        <span className="text-[11px] text-fg-faint">{matches.length}</span>
+        <span aria-hidden="true" className="h-px flex-1 bg-border" />
+      </h2>
+      <ul className="grid gap-2 sm:grid-cols-2">
+        {matches.map(({ document, snippet }) => {
+          const preview = documentPreview(document);
+          return (
+            <li key={document.id}>
+              <Link
+                to={`/dokumen/${document.id}`}
+                className="flex h-full flex-col rounded-xl border border-border bg-surface px-3 py-2.5 transition-colors hover:border-border-strong hover:bg-bg-subtle"
+              >
+                <span className="flex items-baseline gap-2">
+                  <span className="min-w-0 flex-1 text-sm font-semibold leading-snug">
+                    <Highlight text={document.title} tokens={tokens} />
+                  </span>
+                  {document.pinned ? (
+                    <IconPin filled width="14" height="14" className="shrink-0 text-accent" aria-label="Disematkan" />
+                  ) : null}
+                </span>
+                {showCategory ? (
+                  <span className="mt-0.5 text-[11px] text-fg-faint">{document.category}</span>
+                ) : null}
+                {snippet ? (
+                  <span className="mt-1 text-xs italic leading-snug text-fg-muted">
+                    <Highlight text={snippet} tokens={tokens} />
+                  </span>
+                ) : preview ? (
+                  // No `block` beside `line-clamp-*` (pattern 13).
+                  <span className="mt-1 line-clamp-2 whitespace-pre-line text-xs leading-snug text-fg-muted">
+                    {preview}
+                  </span>
+                ) : (
+                  <span className="mt-1 text-xs italic text-fg-faint">Kosong</span>
+                )}
+              </Link>
+            </li>
+          );
+        })}
+      </ul>
+    </section>
   );
 }
 

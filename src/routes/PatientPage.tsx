@@ -35,7 +35,14 @@ import { parsePatientFacts } from '@/domain/parsePatient';
 import { carryForward, carryForwardSummary } from '@/domain/carryForward';
 import { checkSoap } from '@/domain/format/soapCheck';
 import { readReferenceRanges } from '@/components/settings/ReferenceRanges';
-import { AiError, aiEnabled, askClaude } from '@/lib/ai';
+import { AiError, aiEnabled, askClaudeStructured } from '@/lib/ai';
+import {
+  SOAP_REVIEW_TOOL,
+  parseSoapReview,
+  soapReviewPrompt,
+  soapReviewSystem,
+  type AiFinding,
+} from '@/domain/ai/soapReview';
 import { useMediaQuery } from '@/hooks/useMediaQuery';
 import { countDayMarker, daysBetween as dayGap, findDayMarker, findDayMarkers } from '@/domain/dayMarkers';
 import { formatLocation } from '@/domain/identity';
@@ -547,86 +554,48 @@ export default function PatientPage(): JSX.Element {
    * different kind of claim: the rules found a mismatch between two numbers in
    * the note, this one has an opinion.
    */
-  const [aiFindings, setAiFindings] = useState<string[]>([]);
+  const [aiFindings, setAiFindings] = useState<AiFinding[]>([]);
+  const [aiDropped, setAiDropped] = useState(0);
+  /** The note text the AI looked at, so findings can say when they are out of date. */
+  const [aiCheckedText, setAiCheckedText] = useState<string | null>(null);
   const [aiCheckState, setAiCheckState] = useState<'idle' | 'running'>('idle');
   const [aiCheckError, setAiCheckError] = useState<string | null>(null);
+
+  // A different day is a different note: its findings do not carry over.
+  useEffect(() => {
+    setAiFindings([]);
+    setAiDropped(0);
+    setAiCheckedText(null);
+    setAiCheckError(null);
+  }, [selected, patientId]);
 
   const runAiCheck = async (): Promise<void> => {
     setAiCheckState('running');
     setAiCheckError(null);
+    const body = editor.value;
     try {
-      const text = await askClaude(
-        [
-          previous.entry?.body ? `CATATAN KEMARIN:\n${previous.entry.body}\n\n` : '',
-          `CATATAN HARI INI:\n${editor.value}`,
-        ].join(''),
-        {
-          system: [
-            'Kamu memeriksa catatan SOAP kardiologi berbahasa Indonesia untuk hal yang',
-            'TERLUPA DIPERBARUI dari hari sebelumnya.',
-            '',
-            // Given explicitly. Without them the model dated findings by
-            // guesswork — reporting a result as "from yesterday" when its
-            // heading carried today's date.
-            `Tanggal catatan hari ini: ${selected}.`,
-            previous.entry?.body ? `Tanggal catatan sebelumnya: ${previousDay(selected)}.` : '',
-            '',
-            // The reported failure of 14 September: it announced that a lab
-            // planned yesterday had no result and that a urinalysis was not in
-            // the assessment, when both were already written in today's note.
-            // A checker that reports work already done is one that gets
-            // ignored, and it takes the true findings with it.
-            'CARA MEMERIKSA — wajib:',
-            '1. Untuk setiap hal yang mau dilaporkan, CARI DULU di CATATAN HARI INI.',
-            '2. Kalau hasilnya sudah ada di catatan hari ini, JANGAN dilaporkan,',
-            '   walaupun rencananya masih tertulis di Plan.',
-            '3. Kalau ragu apakah sudah diperbarui, JANGAN dilaporkan.',
-            '',
-            // Stated because the notation is not what it looks like.
-            'ARTI PENANDA HARI:',
-            '- H-2 berarti HARI KE-2, bukan 2 hari sebelum sesuatu.',
-            '- Besoknya jadi H-3. Hitungannya maju, bukan mundur.',
-            '- Kecuali di konteks rencana pulang, di mana H-1 berarti besok pulang.',
-            '',
-            'Yang biasanya berubah tiap hari, periksa apakah ikut diperbarui:',
-            '- TTV (tekanan darah, nadi, pernapasan, suhu, SpO2)',
-            '- Urine output dan balance cairan',
-            '- Keluhan di bagian S — masih keluhan kemarin?',
-            '- Terapi: dosis berubah, obat baru, obat yang sudah selesai',
-            '- Plan: rencana yang sudah dikerjakan DAN hasilnya belum ada di catatan',
-            '- Hitungan hari (H-, hari ke-) yang tidak maju',
-            '- Nilai lab yang dikutip di diagnosis tapi sudah ada hasil baru',
-            '- Elektrolit yang sudah normal tapi diagnosis masih menyebut defisitnya',
-            '- TS yang sudah menjawab konsul tapi belum masuk daftar DPJP',
-            '',
-            'YANG BUKAN KESALAHAN — jangan sebutkan:',
-            '- Echo, foto thorax, MSCT, atau EKG lama yang sama dengan kemarin',
-            '  (pemeriksaannya memang tidak diulang)',
-            '- Diagnosis yang memang belum berubah',
-            '- Riwayat dan faktor risiko yang memang tetap',
-            '- Pemeriksaan yang hasilnya SUDAH tertulis di catatan hari ini',
-            '',
-            'ATURAN KERAS:',
-            '- JANGAN memberi saran klinis, dosis, atau diagnosis baru.',
-            '- JANGAN mengarang temuan. Jika tidak yakin, jangan sebutkan.',
-            '- Setiap poin maksimal satu kalimat pendek, sebutkan bagian mana.',
-            '- Maksimal 5 poin. Jika tidak ada yang terlewat, keluarkan tepat: TIDAK ADA',
-            '- Keluarkan HANYA daftar berawalan "- ", tanpa pengantar.',
-          ].join('\n'),
-          maxTokens: 600,
-        },
-      );
-      const lines = text
-        .split('\n')
-        .map((line) => line.replace(/^[-*\s]+/, '').trim())
-        .filter((line) => line.length > 0 && !/^tidak ada$/i.test(line));
-      setAiFindings(lines.slice(0, 5));
+      const { input } = await askClaudeStructured({
+        system: soapReviewSystem({
+          today: selected,
+          previousDate: previous.entry?.body ? previousDay(selected) : null,
+          ruleFindings: soapFindings,
+        }),
+        tool: SOAP_REVIEW_TOOL,
+        prompt: soapReviewPrompt(body, previous.entry?.body),
+        maxTokens: 1200,
+      });
+      // Only what can be found in the note survives: see `parseSoapReview`.
+      const result = parseSoapReview(input, body);
+      setAiFindings(result.findings);
+      setAiDropped(result.dropped);
+      setAiCheckedText(body);
     } catch (error) {
       setAiCheckError(error instanceof AiError ? error.message : 'Gagal memanggil AI.');
     } finally {
       setAiCheckState('idle');
     }
   };
+  const aiStale = aiCheckedText !== null && aiCheckedText !== editor.value;
 
   const markerCounts = useMemo<Record<string, number>>(() => {
     if (!staleMarkers) return {};
@@ -1409,18 +1378,7 @@ export default function PatientPage(): JSX.Element {
             <ul className="mt-1 space-y-1">
               {soapFindings.map((finding) => (
                 <li key={finding.kind + finding.message} className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
-                  <span
-                    className={[
-                      'shrink-0 rounded-sm border px-1 text-[10px] font-bold uppercase tracking-wide',
-                      finding.level === 'isi'
-                        ? 'border-danger text-danger'
-                        : finding.level === 'kemarin'
-                          ? 'border-[var(--warn-strong)] text-[var(--warn-strong)]'
-                          : 'border-border-strong text-fg-muted',
-                    ].join(' ')}
-                  >
-                    {finding.level === 'isi' ? 'Isi' : finding.level === 'kemarin' ? 'Kemarin' : 'Cek'}
-                  </span>
+                  <FindingTag level={finding.level} />
                   <span className="min-w-0 flex-1 text-fg">{finding.message}</span>
                   {finding.anchor ? (
                     <button
@@ -1470,13 +1428,42 @@ export default function PatientPage(): JSX.Element {
             {aiEnabled('check') ? (
               <div className="mt-2 border-t border-border pt-2">
                 {aiFindings.length > 0 ? (
-                  <ul className="mb-2 space-y-1">
+                  <ul className={['mb-2 space-y-1', aiStale ? 'opacity-60' : ''].join(' ')}>
                     {aiFindings.map((finding) => (
-                      <li key={finding} className="text-fg-muted">
-                        {finding} <span className="text-fg-faint">(AI)</span>
+                      <li key={finding.message} className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
+                        <FindingTag level={finding.level} />
+                        <span className="min-w-0 flex-1 text-fg">
+                          {finding.message} <span className="text-fg-faint">(AI)</span>
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            // The quote was verified against the note the AI saw;
+                            // after an edit, search for it instead.
+                            const exact =
+                              editor.value.slice(finding.at, finding.at + finding.anchor.length) === finding.anchor;
+                            const at = exact
+                              ? finding.at
+                              : editor.value.toLowerCase().indexOf(finding.anchor.toLowerCase());
+                            if (at >= 0) editorHandle.current?.selectRange(at, at + finding.anchor.length);
+                          }}
+                          className="min-h-tap shrink-0 text-accent underline decoration-dotted [@media(pointer:fine)]:min-h-0"
+                        >
+                          Tampilkan
+                        </button>
                       </li>
                     ))}
                   </ul>
+                ) : aiCheckedText !== null && !aiStale && !aiCheckError ? (
+                  <p className="mb-2 text-fg-muted">AI tidak menemukan ketidakcocokan lain.</p>
+                ) : null}
+                {aiDropped > 0 && !aiStale ? (
+                  <p className="mb-2 text-[11px] text-fg-faint">
+                    {aiDropped} temuan AI dibuang karena kutipannya tidak ada di catatan.
+                  </p>
+                ) : null}
+                {aiStale ? (
+                  <p className="mb-1 text-[11px] text-fg-faint">Catatan sudah diubah sejak diperiksa AI.</p>
                 ) : null}
                 {aiCheckError ? <p className="mb-1 text-danger">{aiCheckError}</p> : null}
                 <button
@@ -1487,7 +1474,7 @@ export default function PatientPage(): JSX.Element {
                 >
                   {aiCheckState === 'running'
                     ? 'Memeriksa…'
-                    : aiFindings.length > 0
+                    : aiCheckedText !== null
                       ? 'Periksa ulang dengan AI'
                       : 'Periksa dengan AI'}
                 </button>
@@ -2293,4 +2280,22 @@ function buildRail(
 function defaultVersionLabel(): string {
   const now = new Date();
   return `${String(now.getHours()).padStart(2, '0')}.${String(now.getMinutes()).padStart(2, '0')}`;
+}
+
+/** Urgency of a Periksa lagi finding, in words, not colour alone. */
+function FindingTag({ level }: { level: 'isi' | 'kemarin' | 'cek' }): JSX.Element {
+  return (
+    <span
+      className={[
+        'shrink-0 rounded-sm border px-1 text-[10px] font-bold uppercase tracking-wide',
+        level === 'isi'
+          ? 'border-danger text-danger'
+          : level === 'kemarin'
+            ? 'border-[var(--warn-strong)] text-[var(--warn-strong)]'
+            : 'border-border-strong text-fg-muted',
+      ].join(' ')}
+    >
+      {level === 'isi' ? 'Isi' : level === 'kemarin' ? 'Kemarin' : 'Cek'}
+    </span>
+  );
 }
