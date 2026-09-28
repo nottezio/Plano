@@ -42,6 +42,31 @@ describe('cardTitle', () => {
   it('omits the separator when there is no bed', () => {
     expect(cardTitle(makePatient({ name: 'Tn. Budi Santoso' }), true)).toBe('B.S');
   });
+
+  it('leaves the bed off when asked (the full card shows it in the location line)', () => {
+    expect(cardTitle(patient, false, false)).toBe('Tn. Budi Santoso');
+    expect(cardTitle(patient, true, false)).toBe('B.S');
+    expect(cardTitle(makePatient({ name: '', bed: '3B' }), false, false)).toBe('Catatan baru');
+  });
+});
+
+describe('buildCard — name and RM', () => {
+  it('gives the full card a bed-less name and keeps the bed in the folded title', () => {
+    const card = buildCard(makePatient({ name: 'Tn. Budi Santoso', bed: '3B' }), [], TODAY, false);
+    expect(card.name).toBe('Tn. Budi Santoso');
+    expect(card.title).toBe('Tn. Budi Santoso · 3B');
+  });
+
+  it('carries the trimmed RM, or null when there is none', () => {
+    expect(buildCard(makePatient({ mrn: ' 123456 ' }), [], TODAY, false).mrn).toBe('123456');
+    expect(buildCard(makePatient({ mrn: '  ' }), [], TODAY, false).mrn).toBeNull();
+    expect(buildCard(makePatient({}), [], TODAY, false).mrn).toBeNull();
+  });
+
+  it('hides the RM digits in initials-only mode', () => {
+    expect(buildCard(makePatient({ mrn: '123456' }), [], TODAY, true).mrnHidden).toBe(true);
+    expect(buildCard(makePatient({ mrn: '123456' }), [], TODAY, false).mrnHidden).toBe(false);
+  });
 });
 
 describe('boardTickStates — the midnight reset, on the board', () => {

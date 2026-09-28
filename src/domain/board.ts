@@ -42,12 +42,24 @@ export function initials(name: string): string {
  * a privacy setting that hid the name field while leaking the note's opening
  * line would be worse than no setting.
  */
-export function cardTitle(patient: Patient, showInitialsOnly: boolean): string {
+export function cardTitle(
+  patient: Patient,
+  showInitialsOnly: boolean,
+  /**
+   * Append the bed. On by default for the places where the title is the only
+   * "where" — the folded card, the archive rows. Off for the full board card,
+   * whose location line directly underneath already ends in the bed: the same
+   * number twice, one line apart, is noise on the one line that has to be
+   * read at a glance.
+   */
+  withBed = true,
+): string {
   const name = displayName(patient);
-  if (!name) return patient.bed ? `Catatan baru · ${patient.bed}` : 'Catatan baru';
+  const bed = withBed ? patient.bed : undefined;
+  if (!name) return bed ? `Catatan baru · ${bed}` : 'Catatan baru';
 
   const label = showInitialsOnly ? initials(name) : name;
-  return patient.bed ? `${label} · ${patient.bed}` : label;
+  return bed ? `${label} · ${bed}` : label;
 }
 
 /**
@@ -74,7 +86,20 @@ export interface BoardCard {
   /** Derived from the planned date, so it is right every morning by itself. */
   discharge: DischargeStage | null;
   patient: Patient;
+  /** Name with the bed — for the folded card, which has no location line. */
   title: string;
+  /** Name alone — for the full card, whose location line carries the bed. */
+  name: string;
+  /**
+   * The medical record number for the tap-to-copy chip, or null.
+   *
+   * `mrnHidden` in initials-only mode: the chip still copies, but does not
+   * print the digits. An RM number identifies a patient as surely as a name,
+   * and hiding one while showing the other is not the privacy the mode
+   * promises (SPEC 18).
+   */
+  mrn: string | null;
+  mrnHidden: boolean;
   colorToken: string;
   hariRawat: number;
   /** Under closer watch; drawn as a marker on the card. */
@@ -125,6 +150,9 @@ export function buildCard(
   return {
     patient,
     title: cardTitle(patient, showInitialsOnly),
+    name: cardTitle(patient, showInitialsOnly, false),
+    mrn: patient.mrn?.trim() || null,
+    mrnHidden: showInitialsOnly,
     colorToken: resolveCardColor(items, states, patient.colorOverride),
     hariRawat: hariRawat(today, patient.admittedAt),
     pemantauan: patient.pemantauan === true,

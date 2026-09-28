@@ -5,6 +5,7 @@ import { previewLines, type BoardCard } from '@/domain/board';
 import { ProgressStrip } from './ProgressStrip';
 import { IconCar, IconEye } from '@/components/common/Icons';
 import { formatLocation } from '@/domain/identity';
+import { copyText } from '@/lib/clipboard';
 import {
   STAGE_LABELS,
   STAGE_SHORT,
@@ -567,7 +568,7 @@ export function PatientCard({
           badges wrap instead.
         */}
         <h3 className="max-w-full break-words text-sm font-semibold leading-snug">
-          {card.title}
+          {card.name}
         </h3>
 
         {/*
@@ -614,6 +615,7 @@ export function PatientCard({
       */}
       <div className="mt-0.5 flex flex-wrap items-center gap-x-1.5 gap-y-1 text-[11px] opacity-70">
         <span>{formatLocation(patient) || 'Lokasi belum diisi'}</span>
+        {card.mrn ? <RmChip mrn={card.mrn} hidden={card.mrnHidden} /> : null}
         {card.dpjp ? (
           <span
             title={card.dpjp.name}
@@ -1014,5 +1016,50 @@ function ClampedBody({
         />
       ) : null}
     </div>
+  );
+}
+
+/**
+ * The RM number, which copies itself when tapped.
+ *
+ * The number IS the button, rather than a number with a "Salin RM" button
+ * beside it: one thing on the card instead of two, on a board that is
+ * already dense with controls. Digits only, without the "RM " prefix, the
+ * same as the patient page, because the paste goes into a search box that
+ * wants the digits.
+ *
+ * Inside the card's link, so it prevents the link and stops the press from
+ * reaching the card's long-press (select) handler. The hit area is a full
+ * 44 px, pulled into the text row with negative margins, so the row stays the
+ * height of its text.
+ */
+function RmChip({ mrn, hidden }: { mrn: string; hidden: boolean }): JSX.Element {
+  const [copied, setCopied] = useState(false);
+  const timer = useRef<number | undefined>(undefined);
+  useEffect(() => () => window.clearTimeout(timer.current), []);
+
+  return (
+    <button
+      type="button"
+      title={hidden ? 'Salin nomor RM' : `Salin nomor RM ${mrn}`}
+      aria-label={hidden ? 'Salin nomor RM' : `Salin nomor RM ${mrn}`}
+      onPointerDown={(event) => event.stopPropagation()}
+      onContextMenu={(event) => event.stopPropagation()}
+      onClick={(event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        void copyText(mrn).then((ok) => {
+          if (!ok) return;
+          setCopied(true);
+          window.clearTimeout(timer.current);
+          timer.current = window.setTimeout(() => setCopied(false), 1200);
+        });
+      }}
+      className="-my-3 flex min-h-tap items-center"
+    >
+      <span className="rounded border border-current/30 px-1 font-mono text-[10px] font-semibold">
+        {copied ? 'Tersalin ✓' : hidden ? 'Salin RM' : `RM ${mrn}`}
+      </span>
+    </button>
   );
 }

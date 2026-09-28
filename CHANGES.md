@@ -1,5 +1,64 @@
 # Plano — CHANGES
 
+## `2026-09-28.2`
+
+**Patient card: the bed number no longer sits beside the name. The RM number
+is on the card, and tapping it copies it.**
+
+### Why
+
+- **Bed beside the name.** It was duplicated: the location line directly
+  underneath already ends in the bed (`… Kamar 417 Bed 4`). Two copies of the
+  same number, one line apart, on the line you scan to find a patient.
+- **RM.** It was reachable only by opening the patient or the peek window,
+  and each of those has its own "Salin RM" button. On the board the number
+  itself is now the control, so the board gains no button.
+
+### Change
+
+| Where | Before | Now |
+|---|---|---|
+| Full card, name | `Ny. X · 4` | `Ny. X` |
+| Full card, location row | location · DPJP · KJS | location · **`RM 123456`** · DPJP · KJS |
+| Folded card | `Ny. X · 4 · DPJP` | unchanged: it has no location line, so the bed is its only "where" |
+| Archive rows | `Ny. X · 4` | unchanged, for the same reason |
+
+- `cardTitle(patient, initialsOnly, withBed = true)`; the full card passes
+  `false`. `BoardCard` gains `name` (without the bed), `mrn` and `mrnHidden`.
+- **The chip:**
+  - A tap copies the digits only (no `RM ` prefix), the same as the patient
+    page, because the paste goes into a search box.
+  - It shows "Tersalin ✓" for 1.2 s.
+  - The tap prevents the card's link and stops `pointerdown` and
+    `contextmenu`, so it neither opens the patient nor starts long-press
+    selection.
+  - The hit area is 44 px, pulled into the text row with negative margins,
+    so the row stays one line tall.
+- **Initials-only mode:** the chip reads "Salin RM" and still copies, but the
+  digits are not printed. An RM identifies a patient as surely as a name, so
+  hiding the name while showing the RM would not be the privacy the mode
+  promises (SPEC 18).
+
+### Tested
+
+- `board.test.ts` +4: `withBed`, `name` vs `title`, RM trimmed or null,
+  `mrnHidden`.
+- Rendered in Chromium, dark theme: normal mode and initials-only mode.
+  Tapping the chip put `123456` on the clipboard, and the page stayed on
+  the board. No console errors.
+
+### Not done
+
+- The chip is not on the peek window or the preview sheet, which already
+  have their own "Salin RM".
+
+```
+1584 tests passed (+4)
+typecheck / lint (0 warnings) / check:version / check:contrast / check:a11y / build — clean
+```
+
+---
+
 ## `2026-09-28.1`
 
 **Catatan rebuilt. The list and the note sit side by side on a laptop, and a
