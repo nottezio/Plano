@@ -165,3 +165,58 @@ describe('clearing the vital signs', () => {
     expect(carryForward(BODY, ['s']).body).toContain('Tekanan Darah : 160/83 mmHg');
   });
 });
+
+/**
+ * The shapes that used to come through with yesterday's readings, because the
+ * old clearer only knew the seed template's exact labels and read only the
+ * first colon of a line.
+ */
+describe('clearing vitals written any way', () => {
+  const clear = (body: string): string => carryForward(body, ['ttv']).body;
+
+  it('clears the one-line form, the app’s own Follow-up ringkas template', () => {
+    const body = [
+      '*O/*',
+      'GCS E4V5M6; Tekanan Darah : 160/83 mmHg; Nadi : 88 kali/menit, reguler; Pernapasan : 20 kali/menit; Suhu : 36.7 derajat celcius; Saturasi : 98% on room air',
+      '*A/*',
+      '- CHF',
+    ].join('\n');
+    expect(clear(body)).toContain(
+      'GCS E4V5M6; Tekanan Darah :  mmHg; Nadi :  kali/menit, reguler; Pernapasan :  kali/menit; Suhu :  derajat celcius; Saturasi : % on room air',
+    );
+  });
+
+  it('clears the ward’s own names, and bold labels', () => {
+    const out = clear('*O:*\nTensi : 150/90 mmHg\nNafas : 22 x/m\n*Nadi* : 100 x/m\nSp02 : 95 %');
+    for (const stale of ['150/90', '22 x', '100 x', '95']) expect(out).not.toContain(stale);
+    expect(out).toContain('Tensi :  mmHg');
+    expect(out).toContain('*Nadi* :  x/m');
+    expect(out).toContain('Sp02 : %');
+  });
+
+  it('clears the compact form with short names, inside O', () => {
+    const out = clear('*O:*\nTD 130/80 mmHg, N 92x/m, P 20x/m, S 36,5, SpO2 98%');
+    for (const stale of ['130/80', '92', '20x', '36,5', '98']) expect(out).not.toContain(stale);
+    expect(out).toContain('TD  mmHg, N x/m, P x/m, S , SpO2 %');
+  });
+
+  it('never touches heart sounds, headings, height or weight', () => {
+    const body = ['*S:*', '- sesak 3 hari', '*O:*', 'TD 120/80', 'BJ S1 S2 tunggal', 'TB : 160 cm', 'BB : 60 kg'].join('\n');
+    const out = clear(body);
+    expect(out).toContain('*S:*');
+    expect(out).toContain('BJ S1 S2 tunggal');
+    expect(out).toContain('TB : 160 cm');
+    expect(out).toContain('BB : 60 kg');
+  });
+
+  it('does not read short names outside the O block', () => {
+    // `P` in a plan is not a respiratory rate.
+    const body = ['*O:*', 'TD 120/80', '*P:*', 'P 2 tablet furosemid'].join('\n');
+    expect(clear(body)).toContain('P 2 tablet furosemid');
+  });
+
+  it('needs a whole word: an abbreviation starting with a vital’s name is left alone', () => {
+    const out = clear('*O:*\nTD 120/80\ntdk ada 2 keluhan');
+    expect(out).toContain('tdk ada 2 keluhan');
+  });
+});

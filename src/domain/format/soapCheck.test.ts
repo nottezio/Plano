@@ -272,3 +272,151 @@ describe('urine and balance', () => {
     expect(kinds(withEcho, withEcho)).not.toContain('flow-unchanged');
   });
 });
+
+/**
+ * A complete note in the shape the templates produce, filled in properly.
+ * The checker's first duty is to say NOTHING about it: a checker that fires on
+ * a good note is one people stop reading.
+ */
+const GOOD_YESTERDAY = [
+  '*S:*',
+  '- Sesak berkurang, nyeri dada tidak ada.',
+  '- Pasien saat ini hari perawatan ke 4 hari',
+  '',
+  '*O:*',
+  'Compos Mentis GCS (E4V5M6)',
+  'Tekanan Darah : 118/76 mmHg',
+  'Nadi : 84 kali/menit, reguler',
+  'Pernapasan : 20 kali/menit',
+  'Suhu : 36.6 derajat Celcius',
+  'SpO2 : 97 % on room air',
+  '',
+  '*A:*',
+  '- ADHF ec CAD',
+  '',
+  '*P:*',
+  '- Furosemid 40 mg iv tiap 12 jam',
+  '- Cek elektrolit ulang besok',
+].join('\n');
+
+const GOOD_TODAY = GOOD_YESTERDAY
+  .replace('Sesak berkurang, nyeri dada tidak ada.', 'Sesak tidak ada, bisa tidur telentang.')
+  .replace('hari perawatan ke 4', 'hari perawatan ke 5')
+  .replace('118/76', '112/70')
+  .replace('Nadi : 84', 'Nadi : 78');
+
+describe('a good note', () => {
+  it('produces no findings at all', () => {
+    expect(checkSoap({ body: GOOD_TODAY, previous: GOOD_YESTERDAY })).toEqual([]);
+  });
+});
+
+describe('vitals written the ward’s way', () => {
+  it('reads TD / N / RR / Saturasi and the one-line form, so no false "Tidak ada TTV"', () => {
+    expect(kinds('*O:*\nTD 120/80 mmHg, N 88x/m, RR 20x/m, S 36.5, SpO2 98%')).not.toContain('vitals-missing');
+    expect(readVitals('*O/*\nGCS E4V5M6; Tensi : 150/90 mmHg; Nafas : 22 x/m; Saturasi : 95% on room air')).toMatchObject({
+      'Tekanan darah': '150/90',
+      Pernapasan: '22',
+      SpO2: '95',
+    });
+  });
+
+  it('names the vitals left blank, as carry-forward leaves them', () => {
+    const findings = checkSoap({ body: '*O:*\nTekanan Darah :  mmHg\nNadi :  kali/menit, reguler\nSuhu : 36.5 derajat' });
+    const blank = findings.find((finding) => finding.kind === 'vitals-blank');
+    expect(blank?.message).toBe('TTV belum diisi: Tekanan darah, Nadi.');
+    expect(blank?.level).toBe('isi');
+    expect(findings.map((finding) => finding.kind)).not.toContain('vitals-missing');
+  });
+
+  it('does not take heart sounds or lung findings for vitals', () => {
+    expect(readVitals('*O:*\nBJ S1 S2 tunggal\nPulmo: pernapasan vesikuler')).toEqual({});
+  });
+});
+
+describe('empty sections', () => {
+  it('flags an S emptied by carry-forward and never refilled', () => {
+    expect(kinds(GOOD_TODAY.replace(/\*S:\*\n- Sesak[^\n]*\n- Pasien[^\n]*/, '*S:*\n- '))).toContain('section-empty');
+  });
+
+  it('treats P and Terapi together: one filled is a plan', () => {
+    const body = '*S:*\n- sesak\n*O:*\nTD 120/80\n*A:*\n- CHF\n*P:*\n- \nTerapi:\n- Furosemid 40 mg';
+    expect(checkSoap({ body }).filter((finding) => finding.kind === 'section-empty')).toEqual([]);
+  });
+});
+
+describe('copied from yesterday', () => {
+  it('flags S identical to yesterday’s', () => {
+    const today = GOOD_TODAY.replace('Sesak tidak ada, bisa tidur telentang.', 'Sesak berkurang, nyeri dada tidak ada.').replace('hari perawatan ke 5', 'hari perawatan ke 4');
+    const found = checkSoap({ body: today, previous: GOOD_YESTERDAY }).map((finding) => finding.kind);
+    expect(found).toContain('subjective-unchanged');
+    expect(found).toContain('hari-rawat');
+  });
+
+  it('says how the hari perawatan disagrees with yesterday', () => {
+    const skipped = GOOD_TODAY.replace('hari perawatan ke 5', 'hari perawatan ke 7');
+    const finding = checkSoap({ body: skipped, previous: GOOD_YESTERDAY }).find((f) => f.kind === 'hari-rawat');
+    expect(finding?.message).toBe('Hari perawatan ke-7, kemarin ke-4.');
+  });
+});
+
+describe('template holes', () => {
+  it('finds each shape a template leaves unfilled', () => {
+    const body = [
+      '*S:*',
+      '- Pasien saat ini hari perawatan ke  hari,',
+      '- ',
+      '*O:*',
+      'TD 120/80',
+      'TB :  cm',
+      '_Post Tindakan :  ()_',
+      '*A:*',
+      '- CHF, EF xx %',
+      '*P:*',
+      '- Furosemid',
+    ].join('\n');
+    const messages = checkSoap({ body }).filter((f) => f.kind === 'unfilled' || f.kind === 'placeholder').map((f) => f.message);
+    expect(messages).toEqual([
+      'Hari perawatan belum diisi.',
+      'TB belum diisi.',
+      'Ada kurung kosong “()”.',
+      'Ada 1 butir “-” kosong.',
+      'Masih ada penanda sementara “xx”.',
+    ]);
+  });
+
+  it('points at the right place, not the first matching text', () => {
+    const body = '*S:*\n- sesak\n- \n*O:*\nTD 120/80\n*A:*\n- CHF\n*P:*\n- lasix';
+    const bullet = checkSoap({ body }).find((f) => f.kind === 'unfilled');
+    expect(body.slice(bullet!.at!, bullet!.at! + 2)).toBe('- ');
+    expect(bullet!.at).toBe(body.indexOf('- \n'));
+  });
+});
+
+describe('plans and duplicates', () => {
+  const RESULTED = 'Na/K/Cl 136/3.6/103';
+
+  it('flags a one-off lab plan once the result is in', () => {
+    expect(kinds(`*O:*\nTD 120/80\n${RESULTED}\n*P:*\n- Cek elektrolit`)).toContain('lab-planned-but-resulted');
+  });
+
+  it('leaves a plan for the NEXT result alone', () => {
+    for (const plan of ['- Cek elektrolit ulang besok', '- Cek lab serial', '- Cek elektrolit per 12 jam']) {
+      expect(kinds(`*O:*\nTD 120/80\n${RESULTED}\n*P:*\n${plan}`)).not.toContain('lab-planned-but-resulted');
+    }
+  });
+
+  it('flags the same line pasted twice in one section', () => {
+    const body = '*P:*\n- Furosemid 40 mg iv tiap 12 jam\n- Spironolakton 25 mg\n- Furosemid 40 mg iv tiap 12 jam';
+    expect(kinds(body)).toContain('duplicate-line');
+  });
+});
+
+describe('order', () => {
+  it('lists what to fill first, then what was copied, then what to check', () => {
+    const body = GOOD_TODAY.replace('hari perawatan ke 5', 'hari perawatan ke 4').replace('- Furosemid 40 mg iv tiap 12 jam', '- Furosemid 40 mg iv tiap 12 jam\n- Furosemid 40 mg iv tiap 12 jam\n- ');
+    const levels = checkSoap({ body, previous: GOOD_YESTERDAY }).map((finding) => finding.level);
+    expect(levels).toEqual([...levels].sort((a, b) => ['isi', 'kemarin', 'cek'].indexOf(a) - ['isi', 'kemarin', 'cek'].indexOf(b)));
+    expect(levels[0]).toBe('isi');
+  });
+});

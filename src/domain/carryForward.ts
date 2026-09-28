@@ -1,6 +1,6 @@
 import { aliasesOrDefault } from './sections/aliases';
-import { VITAL_BLANKS } from './templates';
 import { parseSections } from './sections/parseSections';
+import { clearVitalValues } from './vitals';
 import type { SectionAlias, SectionId } from './types';
 
 /**
@@ -71,44 +71,10 @@ export function carryForward(
     })
     .join('');
 
-  /**
-   * Vitals are cleared LINE BY LINE, not as a section.
-   *
-   * `ttv` in the cleared list did nothing, and the reason is structural: real
-   * notes have no `TTV:` heading. The vitals are bare labelled lines under
-   * `*O:*` — `Tekanan Darah : 160/83 mmHg` parses as its own custom section,
-   * not as part of a `ttv` one — so a rule that blanks sections had no section
-   * to blank. The setting promised something the note's shape could not
-   * deliver, and failed silently, which is the worst way for it to fail:
-   * yesterday's blood pressure carried into today's note looking filled in.
-   *
-   * Each line is replaced with its blank form from the seeded O block rather
-   * than having its digits stripped. Stripping would have to know that
-   * `reguler` after the pulse is not a number, that `on room air` after SpO2
-   * stays, and that `36.7` and `160/83` are shaped differently. Substituting
-   * the template line needs to know none of that, and it produces exactly what
-   * a fresh note looks like.
-   */
   const clearVitals = clearable.has('ttv' as SectionId);
-  let vitalsCleared = false;
-  const finalBody = !clearVitals
-    ? body
-    : body
-        .split('\n')
-        .map((line) => {
-          const colon = line.indexOf(':');
-          if (colon < 0) return line;
-          const label = line.slice(0, colon).trim().toLowerCase();
-          const blank = VITAL_BLANKS.get(label);
-          // Already blank — nothing to report, and nothing to change.
-          if (!blank || line.trimEnd() === blank.trimEnd()) return line;
-          vitalsCleared = true;
-          // Leading whitespace or bullet is preserved: the line's place in the
-          // note is the user's, only its value is ours to reset.
-          const lead = /^[\s>#-]*/.exec(line)?.[0] ?? '';
-          return `${lead}${blank}`;
-        })
-        .join('\n');
+  const vitals = clearVitals ? clearVitalValues(body, table) : { body, changed: false };
+  const finalBody = vitals.body;
+  const vitalsCleared = vitals.changed;
 
   if (vitalsCleared && !cleared.includes('Tanda vital')) cleared.push('Tanda vital');
 

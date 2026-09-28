@@ -1,5 +1,104 @@
 # Plano — CHANGES
 
+## `2026-09-29.1`
+
+**Dropdowns readable in dark mode. "Salin dari hari sebelumnya" now empties
+the TTV however it is written. "Periksa lagi" reads vitals the ward's way,
+names what is left unfilled, and stays silent on a good note.**
+
+### 1. Dropdown list unreadable in dark mode (Urutan, and every select)
+
+**Root cause.** Chrome on Windows paints a `<select>`'s option list with the
+select's own background colour. Every select here is `bg-transparent`, so it
+sits flush in its control, and the list fell back to white while the options
+inherited the dark theme's light text. `color-scheme: dark` was already
+declared; it does not reach this.
+
+**Fix.** One base rule: `select option, select optgroup` take `--surface`
+and `--fg`. It covers all 11 selects in the app, whatever their own
+background.
+
+### 2. TTV sometimes not emptied by "Salin dari hari sebelumnya"
+
+**Root cause, two layers.**
+1. Vitals were cleared by **replacing each line with the seed template's
+   blank line**, matched on the exact text before the line's **first
+   colon**. It worked only for lines already shaped like that template.
+   `Tensi`, `Nafas` (which the template's own comment says the ward
+   writes), `TD`, `N`, `RR`, `Saturasi`, `*Tekanan Darah* :` and `TD 120/80`
+   (no colon) were copied with yesterday's readings.
+2. **One-line vitals** (`GCS E4V5M6; Tekanan Darah : 160/83 mmHg; Nadi : …`,
+   the app's own *Follow-up ringkas* template) were never cleared at all:
+   the first colon's label is `gcs e4v5m6; tekanan darah`.
+
+The wiring was fine (`ttv` is in the default clear list). What varied was
+the shape of the note, which is why it looked like "sometimes".
+
+**Fundamental fix.** **The number is removed, not the line replaced.**
+- New `domain/vitals.ts` is the **one vocabulary** for vital signs, used by
+  both carry-forward and the checker. Before, each kept its own
+  five-label list, which is the shared root of this bug and of the
+  checker's false "Tidak ada TTV" (§3).
+- Lines are read as segments (split at `;` and at a `,` that is not a
+  decimal comma).
+- A segment starting with any usual name of a vital has only its reading
+  removed (`160/83`, `88`, `36,5`, `98`). The label, units and qualifiers
+  stay as written.
+- Single letters (`N`, `P`, `S`, `T`) count only inside the O block and only
+  with a separator, so `S1 S2 tunggal`, the `*S:*` heading and `P 2 tablet`
+  in a plan are never touched. TB/BB are not vitals.
+
+**Wrong turn:** the first version split `S 36,5` at the decimal comma and
+left `,5`. The compact-form test caught it.
+
+### 3. "Periksa lagi" (the rule-based checker)
+
+Audit of what it could and could not see:
+
+| | Before | Now |
+|---|---|---|
+| Vitals | Only the five template names, so `TD 120/80, N 88` gave a **false "Tidak ada TTV"** | Shared vocabulary (§2): any usual name, the one-line form, bold labels |
+| Blank vitals | Invisible (`Tekanan Darah :  mmHg` looked like "no TTV" or nothing) | **"TTV belum diisi: Tekanan darah, Nadi."** Exactly what carry-forward leaves |
+| Empty S / A / P | — | **"S (keluhan) masih kosong."**; P judged with Terapi (the templates split the plan), empty only if both are |
+| S copied | — | **"Keluhan (S) sama persis dengan kemarin."** (the one section expected to change daily) |
+| Template holes | — | `hari perawatan ke  hari`, `TB :  cm` / `BB :  kg`, `()`, empty `- ` bullets (counted), `xx` / `??` |
+| Hari perawatan | — | Compared with **yesterday's note**, not the admission date (a patient entered on their day 3 would be wrong every day): "masih ke-4, sama dengan kemarin" / "ke-7, kemarin ke-4" |
+| Duplicate line | — | The same line (15+ chars) twice in one section: a therapy pasted twice |
+| Lab planned but resulted | Fired on **any** lab + **any** "cek lab" line | A plan for the next result (`ulang`, `besok`, `serial`, `evaluasi`, `per 12 jam`, …) is left alone |
+| Kept | Urine/balance copied, day counters, diagnosis value stale, TS not in DPJP, electrolyte corrected, anemia without Hb | unchanged |
+
+**Every finding has an urgency, and the list is ordered by it**:
+- **Isi**: something left unfilled.
+- **Kemarin**: copied from yesterday and not updated.
+- **Cek**: two parts of the note disagree.
+
+The heading shows the count. "Tampilkan" jumps to the exact spot (new
+`at` field), not the first matching text. `- ` and headings occur many
+times, and a text search found the wrong one. It falls back to a search if
+you have typed since the check ran.
+
+**The first test is a complete, correct note: it must produce zero
+findings, and does.** A checker that fires on a good note is one nobody
+reads.
+
+Still deterministic, still never edits.
+
+### Not done
+
+- **Tuning against your real notes.** The rules follow the templates' own
+  shapes and the conventions already in the code. The earlier 59-note
+  export was what settled format questions before; a fresh export
+  (anonymised or not, it stays in the sandbox) would show which rules are
+  noisy on real notes before you rely on them.
+- Keystrokes typed while a note loads are still not kept (see 28.5).
+
+```
+1638 tests passed (+20)
+typecheck / lint (0 warnings) / check:version / check:contrast / check:a11y / build — clean
+```
+
+---
+
 ## `2026-09-28.6`
 
 **The pinned board header shrinks from ~260 px to 57 px on a laptop (one

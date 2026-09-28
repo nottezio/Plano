@@ -1,4 +1,8 @@
 import { findDayMarkers } from '@/domain/dayMarkers';
+import { aliasesOrDefault } from '@/domain/sections/aliases';
+import { parseSections, type ParsedSection } from '@/domain/sections/parseSections';
+import type { SectionAlias, SectionId } from '@/domain/types';
+import { readVitalSigns } from '@/domain/vitals';
 
 /**
  * Checks a note against yesterday's for the things that get forgotten.
@@ -24,6 +28,13 @@ import { findDayMarkers } from '@/domain/dayMarkers';
 export type SoapFindingKind =
   | 'vitals-unchanged'
   | 'vitals-missing'
+  | 'vitals-blank'
+  | 'section-empty'
+  | 'subjective-unchanged'
+  | 'unfilled'
+  | 'hari-rawat'
+  | 'placeholder'
+  | 'duplicate-line'
   | 'flow-unchanged'
   | 'day-marker'
   | 'lab-planned-but-resulted'
@@ -32,29 +43,32 @@ export type SoapFindingKind =
   | 'electrolyte-corrected'
   | 'anemia-without-hb';
 
+/**
+ * How urgent, which is also the order they are listed in:
+ *  - `isi`: something left unfilled; the note is incomplete as sent.
+ *  - `kemarin`: copied from yesterday and not updated.
+ *  - `cek`: two parts of the note disagree.
+ */
+export type SoapFindingLevel = 'isi' | 'kemarin' | 'cek';
+
 export interface SoapFinding {
   kind: SoapFindingKind;
+  level: SoapFindingLevel;
   /** One line, in the user's language, naming the thing to look at. */
   message: string;
   /** The text to search for in the body, so the UI can jump to it. */
   anchor?: string;
+  /** Where the anchor is, when a plain search would find the wrong copy of it. */
+  at?: number;
 }
 
-const VITALS: ReadonlyArray<readonly [string, RegExp]> = [
-  ['Tekanan darah', /tekanan\s*darah\s*:?\s*([0-9]{2,3}\/[0-9]{2,3})/i],
-  ['Nadi', /nadi\s*:?\s*(\d{2,3})/i],
-  ['Pernapasan', /pernapasan\s*:?\s*(\d{1,2})/i],
-  ['Suhu', /suhu\s*:?\s*(\d{2}[.,]\d)/i],
-  ['SpO2', /spo2\s*:?\s*(\d{2,3})/i],
-];
-
-export function readVitals(body: string): Record<string, string> {
-  const out: Record<string, string> = {};
-  for (const [label, pattern] of VITALS) {
-    const match = pattern.exec(body);
-    if (match?.[1]) out[label] = match[1].replace(',', '.');
-  }
-  return out;
+/**
+ * The first reading of each vital sign, normalised. Reads every usual name
+ * (`TD`, `Tensi`, `N`, `RR`, `Saturasi`…) and the one-line form; see
+ * `domain/vitals`, which carry-forward uses to clear the same fields.
+ */
+export function readVitals(body: string, aliases?: readonly SectionAlias[]): Record<string, string> {
+  return { ...readVitalSigns(body, aliases).readings };
 }
 
 /**
@@ -178,30 +192,46 @@ export interface SoapCheckInput {
   previous?: string | undefined;
   /** True when the day counters have already been reviewed and dismissed. */
   dayMarkersDismissed?: boolean;
+  /** Section headings, from Settings. */
+  aliases?: readonly SectionAlias[];
 }
+
+const LEVEL_ORDER: Record<SoapFindingLevel, number> = { isi: 0, kemarin: 1, cek: 2 };
 
 export function checkSoap(input: SoapCheckInput): SoapFinding[] {
   const { body, previous } = input;
   const findings: SoapFinding[] = [];
   if (!body.trim()) return findings;
 
-  const vitals = readVitals(body);
+  const aliases = aliasesOrDefault(input.aliases);
+  const signs = readVitalSigns(body, aliases);
+  const vitals: Record<string, string> = { ...signs.readings };
 
-  if (Object.keys(vitals).length === 0) {
+  if (signs.blank.length > 0) {
+    findings.push({
+      kind: 'vitals-blank',
+      level: 'isi',
+      message: `TTV belum diisi: ${signs.blank.join(', ')}.`,
+      ...anchorFor(body, signs.blank[0] ?? ''),
+    });
+  }
+  if (!signs.named) {
     findings.push({
       kind: 'vitals-missing',
+      level: 'isi',
       message: 'Tidak ada TTV di catatan ini.',
     });
-  } else if (previous) {
-    const before = readVitals(previous);
+  } else if (previous && Object.keys(vitals).length > 0) {
+    const before = readVitals(previous, aliases);
     const shared = Object.keys(vitals).filter((key) => before[key] !== undefined);
     // All of them, not some: one vital genuinely repeating is ordinary, the
     // whole block repeating is a copy that was never edited.
     if (shared.length >= 3 && shared.every((key) => before[key] === vitals[key])) {
       findings.push({
         kind: 'vitals-unchanged',
+        level: 'kemarin',
         message: `TTV sama persis dengan catatan sebelumnya (${shared.join(', ')}).`,
-        anchor: 'Tekanan Darah',
+        ...anchorFor(body, shared[0] ?? ''),
       });
     }
   }
@@ -213,6 +243,7 @@ export function checkSoap(input: SoapCheckInput): SoapFinding[] {
       if (before[label] === undefined || before[label] !== value) continue;
       findings.push({
         kind: 'flow-unchanged',
+        level: 'kemarin',
         message: `${label} sama persis dengan kemarin (${value}).`,
         anchor: label,
       });
@@ -228,6 +259,7 @@ export function checkSoap(input: SoapCheckInput): SoapFinding[] {
     if (unchanged.length > 0) {
       findings.push({
         kind: 'day-marker',
+        level: 'kemarin',
         message: `Hitungan hari belum berubah dari kemarin: ${unchanged.map((m) => m.text).join(', ')}.`,
         ...(unchanged[0] ? { anchor: unchanged[0].text } : {}),
       });
@@ -237,12 +269,22 @@ export function checkSoap(input: SoapCheckInput): SoapFinding[] {
   // A lab both planned and resulted in the same note. The plan line is the one
   // to remove; the result is why.
   const labs = readLabs(body);
-  const plansLab = /(?:^|\n)\s*-?\s*(?:cek|periksa|rencana)\s+(?:lab|darah\s*rutin|elektrolit|dl\b)/i.test(
-    body,
-  );
+  /*
+    Only a plan line that reads as a one-off "check this" counts. `Cek
+    elektrolit ulang besok`, `serial`, `evaluasi`, `per 12 jam` are real plans
+    for the NEXT result, and flagging them made this the noisiest rule here.
+  */
+  const plansLab = body
+    .split('\n')
+    .some(
+      (line) =>
+        /^\s*-?\s*(?:cek|periksa|rencana)\s+(?:lab|darah\s*rutin|elektrolit|dl\b)/i.test(line) &&
+        !/\b(?:ulang|besok|serial|evaluasi|kontrol|tiap|setiap|per\s*\d|post|jam|pagi|sore|malam|h\+?\d)/i.test(line),
+    );
   if (plansLab && Object.keys(labs).length > 0) {
     findings.push({
       kind: 'lab-planned-but-resulted',
+      level: 'cek',
       message: 'Lab sudah ada hasilnya tapi masih tertulis di Plan.',
       anchor: 'Plan',
     });
@@ -257,6 +299,7 @@ export function checkSoap(input: SoapCheckInput): SoapFinding[] {
     if (Math.abs(quoted - measured) > 0.05) {
       findings.push({
         kind: 'diagnosis-value-stale',
+        level: 'cek',
         message: `Diagnosis menyebut ${analyte} ${quoted}, lab terbaru ${measured}.`,
         anchor: analyte,
       });
@@ -294,6 +337,7 @@ export function checkSoap(input: SoapCheckInput): SoapFinding[] {
     if (dpjpLines.includes(stem)) continue;
     findings.push({
       kind: 'consult-not-in-dpjp',
+      level: 'cek',
       message: `TS ${service} sudah menjawab tapi belum ada di daftar DPJP.`,
       anchor: 'DPJP',
     });
@@ -321,6 +365,7 @@ export function checkSoap(input: SoapCheckInput): SoapFinding[] {
 
     findings.push({
       kind: 'electrolyte-corrected',
+      level: 'cek',
       message: `${analyte} sudah ${measured} (dalam rentang) — tambahkan "perbaikan" di diagnosisnya?`,
       anchor: line.trim().slice(0, 40),
     });
@@ -329,10 +374,217 @@ export function checkSoap(input: SoapCheckInput): SoapFinding[] {
   if (/\banemia\b/i.test(body) && labs['Hb'] === undefined) {
     findings.push({
       kind: 'anemia-without-hb',
+      level: 'cek',
       message: 'Diagnosis anemia tapi tidak ada Hb di catatan ini.',
       anchor: 'Anemia',
     });
   }
 
-  return findings;
+  const sections = parseSections(body, aliases);
+  findings.push(...checkSections(sections, previous, aliases));
+  findings.push(...checkUnfilled(body));
+  findings.push(...checkHariRawat(body, previous));
+  findings.push(...checkDuplicates(sections));
+
+  return findings
+    .map((finding, index) => ({ finding, index }))
+    .sort((a, b) => LEVEL_ORDER[a.finding.level] - LEVEL_ORDER[b.finding.level] || a.index - b.index)
+    .map(({ finding }) => finding);
+}
+
+/** An anchor with its position, for text that may occur more than once. */
+function anchorFor(body: string, text: string, from = 0): Pick<SoapFinding, 'anchor' | 'at'> {
+  if (!text) return {};
+  const at = body.toLowerCase().indexOf(text.toLowerCase(), from);
+  return at >= 0 ? { anchor: body.slice(at, at + text.length), at } : { anchor: text };
+}
+
+/** Content with bullets, emphasis and whitespace removed: what is actually written. */
+function substance(text: string): string {
+  return text
+    .split('\n')
+    .map((line) => line.replace(/^[\s\-•*_>]+|[\s*_]+$/g, ''))
+    .filter(Boolean)
+    .join('\n')
+    .trim();
+}
+
+const SECTION_NAMES: Partial<Record<SectionId, string>> = {
+  s: 'S (keluhan)',
+  a: 'A (assessment)',
+};
+
+/**
+ * EMPTY SECTIONS, and S copied unchanged.
+ *
+ * After "Salin dari hari sebelumnya" the S section is emptied on purpose, to
+ * be rewritten; left empty, the note goes out with no complaint at all. A and
+ * P are never cleared, so an empty one is a template never filled in. P is
+ * judged together with Terapi, because the templates split the plan across
+ * `P/ Plan Diagnostik` and `Plan Terapi`: only when BOTH are empty is there
+ * no plan.
+ *
+ * S identical to yesterday's is the one section expected to change daily; the
+ * others legitimately carry forward.
+ */
+function checkSections(
+  sections: readonly ParsedSection[],
+  previous: string | undefined,
+  aliases: readonly SectionAlias[],
+): SoapFinding[] {
+  const out: SoapFinding[] = [];
+  for (const id of ['s', 'a'] as const) {
+    const found = sections.filter((section) => section.sectionId === id);
+    if (found.length > 0 && found.every((section) => !substance(section.text))) {
+      out.push({
+        kind: 'section-empty',
+        level: 'isi',
+        message: `${SECTION_NAMES[id]} masih kosong.`,
+        ...(found[0]?.headerLine ? { anchor: found[0].headerLine.trim(), at: found[0].start } : {}),
+      });
+    }
+  }
+  const plans = sections.filter((section) => section.sectionId === 'p' || section.sectionId === 'terapi');
+  if (plans.length > 0 && plans.every((section) => !substance(section.text))) {
+    out.push({
+      kind: 'section-empty',
+      level: 'isi',
+      message: 'P (plan / terapi) masih kosong.',
+      ...(plans[0]?.headerLine ? { anchor: plans[0].headerLine.trim(), at: plans[0].start } : {}),
+    });
+  }
+
+  if (previous) {
+    const today = sections.filter((section) => section.sectionId === 's').map((section) => substance(section.text)).join('\n');
+    const before = parseSections(previous, aliases)
+      .filter((section) => section.sectionId === 's')
+      .map((section) => substance(section.text))
+      .join('\n');
+    if (today.length >= 20 && today.replace(/\s+/g, ' ') === before.replace(/\s+/g, ' ')) {
+      const first = sections.find((section) => section.sectionId === 's');
+      out.push({
+        kind: 'subjective-unchanged',
+        level: 'kemarin',
+        message: 'Keluhan (S) sama persis dengan kemarin.',
+        ...(first?.headerLine ? { anchor: first.headerLine.trim(), at: first.start } : {}),
+      });
+    }
+  }
+  return out;
+}
+
+/**
+ * TEMPLATE HOLES left unfilled.
+ *
+ * Each pattern is a gap that only exists because a template put a label down
+ * and nothing was typed after it. They are the shapes the seeded templates
+ * leave: `hari perawatan ke  hari`, `TB :  cm`, `()`, a bullet with nothing
+ * on it. Placeholders people type to come back to (`xx`, `??`) are here too.
+ */
+function checkUnfilled(body: string): SoapFinding[] {
+  const out: SoapFinding[] = [];
+
+  const rawat = /hari\s+(?:perawatan|rawat)\s+ke[\s-]*(?=hari\b|[,.;]|$)/im.exec(body);
+  if (rawat) {
+    out.push({ kind: 'unfilled', level: 'isi', message: 'Hari perawatan belum diisi.', anchor: rawat[0], at: rawat.index });
+  }
+
+  for (const [label, unit] of [['TB', 'cm'], ['BB', 'kg']] as const) {
+    const hole = new RegExp(`^\\s*${label}\\s*:?\\s*${unit}\\b`, 'im').exec(body);
+    if (hole) {
+      out.push({ kind: 'unfilled', level: 'isi', message: `${label} belum diisi.`, anchor: hole[0].trim(), at: hole.index + hole[0].indexOf(label) });
+    }
+  }
+
+  const brackets = /\(\s*\)/.exec(body);
+  if (brackets) {
+    out.push({ kind: 'unfilled', level: 'isi', message: 'Ada kurung kosong “()”.', anchor: brackets[0], at: brackets.index });
+  }
+
+  const bullets = [...body.matchAll(/^[ \t]*[-•][ \t]*$/gm)];
+  if (bullets.length > 0) {
+    out.push({
+      kind: 'unfilled',
+      level: 'isi',
+      message: bullets.length === 1 ? 'Ada 1 butir “-” kosong.' : `Ada ${bullets.length} butir “-” kosong.`,
+      anchor: bullets[0]?.[0] ?? '-',
+      ...(bullets[0]?.index !== undefined ? { at: bullets[0].index } : {}),
+    });
+  }
+
+  const placeholder = /(?<![\w])(?:xx+|XX+|\?{2,})(?![\w])/.exec(body);
+  if (placeholder) {
+    out.push({
+      kind: 'placeholder',
+      level: 'isi',
+      message: `Masih ada penanda sementara “${placeholder[0]}”.`,
+      anchor: placeholder[0],
+      at: placeholder.index,
+    });
+  }
+  return out;
+}
+
+/**
+ * HARI PERAWATAN not moved on from yesterday's note.
+ *
+ * Compared with YESTERDAY'S NOTE, not with the admission date: a patient
+ * entered in the app on their third day has an admission date that is the
+ * day they were entered, and a rule built on it would be wrong about exactly
+ * those patients every day of their stay. Yesterday's own number is the one
+ * the author last checked.
+ */
+const HARI_RAWAT = /hari\s+(?:perawatan|rawat)\s+(?:ke[\s-]*)?(\d{1,3})\b/i;
+
+function checkHariRawat(body: string, previous: string | undefined): SoapFinding[] {
+  if (!previous) return [];
+  const today = HARI_RAWAT.exec(body);
+  const before = HARI_RAWAT.exec(previous);
+  if (!today?.[1] || !before?.[1]) return [];
+  const now = Number(today[1]);
+  const then = Number(before[1]);
+  if (now === then + 1) return [];
+  return [
+    {
+      kind: 'hari-rawat',
+      level: now === then ? 'kemarin' : 'cek',
+      message:
+        now === then
+          ? `Hari perawatan masih ke-${now}, sama dengan kemarin.`
+          : `Hari perawatan ke-${now}, kemarin ke-${then}.`,
+      anchor: today[0],
+      at: today.index,
+    },
+  ];
+}
+
+/**
+ * The SAME line twice in one section: a therapy or plan pasted twice.
+ * Short lines are skipped (`- Pantau`, `- Diet`), and so are headings.
+ */
+function checkDuplicates(sections: readonly ParsedSection[]): SoapFinding[] {
+  for (const section of sections) {
+    const seen = new Map<string, number>();
+    const contentStart = section.start + (section.headerLine?.length ?? 0);
+    let offset = contentStart;
+    for (const line of section.text.split('\n')) {
+      const key = line.replace(/^[\s\-•*_>]+/, '').replace(/\s+/g, ' ').trim().toLowerCase();
+      if (key.length >= 15) {
+        if (seen.has(key)) {
+          return [
+            {
+              kind: 'duplicate-line',
+              level: 'cek',
+              message: `Baris ganda: “${line.trim().slice(0, 50)}${line.trim().length > 50 ? '…' : ''}”.`,
+              anchor: line.trim(),
+              at: offset + line.indexOf(line.trim()),
+            },
+          ];
+        }
+        seen.set(key, offset);
+      }
+      offset += line.length + 1;
+    }
+  }
+  return [];
 }

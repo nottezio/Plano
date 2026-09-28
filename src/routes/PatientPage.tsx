@@ -531,8 +531,9 @@ export default function PatientPage(): JSX.Element {
         // another screen, and a stale copy would silence a check the user just
         // enabled.
         ranges: readReferenceRanges(),
+        aliases: settings.sectionAliases,
       }),
-    [settledBody, previous.entry?.body, dayMarkersDismissed],
+    [settledBody, previous.entry?.body, dayMarkersDismissed, settings.sectionAliases],
   );
 
   /**
@@ -1395,24 +1396,53 @@ export default function PatientPage(): JSX.Element {
         */}
         {!locked && (soapFindings.length > 0 || aiEnabled('check')) ? (
           <div className="mx-4 mt-2 rounded-lg border border-border px-3 py-2 text-xs">
-            <p className="font-medium">Periksa lagi:</p>
+            <p className="font-medium">
+              Periksa lagi{soapFindings.length > 0 ? ` (${soapFindings.length})` : ''}:
+            </p>
             {soapFindings.length === 0 ? (
               <p className="mt-1 text-fg-muted">Tidak ada yang janggal dari aturan biasa.</p>
             ) : null}
+            {/*
+              Ordered by urgency, and tagged with it, so the list reads top-down
+              as "fill these in, then update what was copied, then check".
+            */}
             <ul className="mt-1 space-y-1">
               {soapFindings.map((finding) => (
-                <li key={finding.kind + finding.message} className="flex flex-wrap gap-2">
-                  <span className="text-fg-muted">{finding.message}</span>
+                <li key={finding.kind + finding.message} className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
+                  <span
+                    className={[
+                      'shrink-0 rounded-sm border px-1 text-[10px] font-bold uppercase tracking-wide',
+                      finding.level === 'isi'
+                        ? 'border-danger text-danger'
+                        : finding.level === 'kemarin'
+                          ? 'border-[var(--warn-strong)] text-[var(--warn-strong)]'
+                          : 'border-border-strong text-fg-muted',
+                    ].join(' ')}
+                  >
+                    {finding.level === 'isi' ? 'Isi' : finding.level === 'kemarin' ? 'Kemarin' : 'Cek'}
+                  </span>
+                  <span className="min-w-0 flex-1 text-fg">{finding.message}</span>
                   {finding.anchor ? (
                     <button
                       type="button"
                       onClick={() => {
-                        const at = editor.value.toLowerCase().indexOf(finding.anchor!.toLowerCase());
-                        if (at >= 0) {
-                          editorHandle.current?.selectRange(at, at + finding.anchor!.length);
-                        }
+                        /*
+                          The exact position first: `- ` or a heading occurs
+                          many times, and a text search finds the wrong one.
+                          Checked against the live text, because the check
+                          ran on a copy up to 400 ms old; if it moved, search.
+                        */
+                        const anchor = finding.anchor!;
+                        const exact =
+                          finding.at !== undefined &&
+                          editor.value.slice(finding.at, finding.at + anchor.length).toLowerCase() ===
+                            anchor.toLowerCase();
+                        const at = exact
+                          ? finding.at!
+                          : editor.value.toLowerCase().indexOf(anchor.toLowerCase());
+                        if (at >= 0) editorHandle.current?.selectRange(at, at + anchor.length);
                       }}
-                      className="underline decoration-dotted"
+                      className="min-h-tap shrink-0 text-accent underline decoration-dotted [@media(pointer:fine)]:min-h-0"
                     >
                       Tampilkan
                     </button>

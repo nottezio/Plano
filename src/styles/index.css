@@ -37,6 +37,24 @@
   }
 }
 
+@layer base {
+  /*
+    Dropdown lists in the theme's colours.
+
+    Chrome on Windows paints a <select>'s option list with the SELECT's
+    background colour. Every select here is `bg-transparent` so it sits
+    flush in its control, so the list fell back to white, while the options
+    inherited the dark theme's light text: light grey on white, unreadable
+    (reported on the board's Urutan). Set on the options themselves, so it
+    holds for every select in the app regardless of its own background.
+  */
+  select option,
+  select optgroup {
+    background-color: var(--surface);
+    color: var(--fg);
+  }
+}
+
 @layer components {
   /* SPEC 18 — blur content when backgrounded (wired in a later phase; the
      class exists now so the shell can toggle one attribute). */
