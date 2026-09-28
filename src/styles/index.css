@@ -45,6 +45,65 @@
     pointer-events: none;
     user-select: none;
   }
+
+  /*
+   * Catatan editor content. Lives here rather than in arbitrary Tailwind
+   * variants because the checklist box is a pseudo-element on markup the
+   * browser writes (`li[data-checked]`), which no class list can reach.
+   *
+   * The box is drawn, not an <input>: an input inside a contenteditable caught
+   * the caret, broke Enter, and needed native listeners React could not give
+   * it. See `components/notes/checklistDom.ts`.
+   */
+  .note-editor ul:not(.cl) {
+    list-style: disc;
+    padding-left: 1.25rem;
+  }
+  .note-editor ol {
+    list-style: decimal;
+    padding-left: 1.25rem;
+  }
+  .note-editor ul.cl {
+    list-style: none;
+    padding-left: 0;
+  }
+  .note-editor ul.cl > li {
+    position: relative;
+    padding-left: 2rem;
+  }
+  .note-editor ul.cl > li::before {
+    content: '';
+    position: absolute;
+    left: 0.25rem;
+    top: 0.3rem;
+    width: 1.125rem;
+    height: 1.125rem;
+    border: 2px solid var(--fg-faint);
+    border-radius: 0.3rem;
+    background: var(--surface);
+    cursor: pointer;
+  }
+  .note-editor ul.cl > li[data-checked='true'] {
+    color: var(--fg-faint);
+    text-decoration: line-through;
+  }
+  .note-editor ul.cl > li[data-checked='true']::before {
+    border-color: var(--accent);
+    background: var(--accent);
+  }
+  .note-editor ul.cl > li[data-checked='true']::after {
+    /* The tick: an L rotated, so it needs no font and no image. */
+    content: '';
+    position: absolute;
+    left: 0.64rem;
+    top: 0.47rem;
+    width: 0.35rem;
+    height: 0.65rem;
+    border: solid var(--surface);
+    border-width: 0 2px 2px 0;
+    transform: rotate(45deg);
+    pointer-events: none;
+  }
 }
 
 /**

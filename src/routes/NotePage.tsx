@@ -1,807 +1,482 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
+import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 
 import { AppShell } from '@/components/common/AppShell';
-import { moveBeside } from '@/domain/reorder';
-import { applyPending, settlePending } from '@/domain/pendingBodies';
-import { NoteCards } from '@/components/notes/NoteCards';
-import { COLOR_SENTINEL, stripSentinelColor } from '@/domain/format/noteColor';
-import { updateScratchNotes } from '@/data/repositories/settings.repo';
-import { useTextSync } from '@/hooks/useTextSync';
+import { IconClose, IconPlus, IconSearch } from '@/components/common/Icons';
+import { Sheet } from '@/components/common/Sheet';
+import { NoteEditor } from '@/components/notes/NoteEditor';
+import { NoteList } from '@/components/notes/NoteList';
+import {
+  createScratchNote,
+  patchScratchNote,
+  purgeScratchNote,
+} from '@/data/repositories/scratchNotes.repo';
+import {
+  countView,
+  displayTitle,
+  notePlainText,
+  notesForView,
+  orderAtTop,
+  orderForMove,
+  resolveNotes,
+  searchNotes,
+  type NoteView,
+  type ResolvedNote,
+} from '@/domain/notes/scratchNotes';
+import type { ScratchNoteCategory } from '@/domain/types';
+import { useMediaQuery } from '@/hooks/useMediaQuery';
+import { copyText } from '@/lib/clipboard';
 import { useSession } from '@/store/useSession';
-import type { ScratchNote, ScratchNoteCategory } from '@/domain/types';
 
 /**
- * A single scratch note, for the user rather than for a patient.
+ * Catatan — personal notes, not for any patient.
  *
- * One note, not a list: opening the tab puts a cursor in the text you were
- * already writing. A list would make you choose a note before you could write
- * in one, which is the friction this removes.
+ * LAYOUT
  *
- * This is the ONE editor in the app that stores rich text. Everywhere else the
- * body is plain, because it has to survive a byte-faithful copy into WhatsApp
- * and a lossless section parse. Nothing here is ever copied into a handover, so
- * none of that applies — and colour and size are genuinely useful for marking
- * what matters in a page of reminders.
+ *  - ≥1024 px: the list and the open note side by side. Switching notes is one
+ *    press; the old page swapped the whole screen between board and editor,
+ *    so every switch was "← Semua" and then a card.
+ *  - Phone: the list, and a note opens full screen. The open note is in the
+ *    URL (`?n=`), so the Android back gesture closes the note instead of
+ *    leaving Catatan altogether.
  *
- * The cost, stated plainly: the three-way merge operates on the stored string,
- * which here is HTML. Merging two device's edits could in principle split a
- * tag. For a personal note edited on one device at a time that is a remote
- * risk, and the conflict dialog's "keep both" is still there if it happens.
+ * STORAGE: `domain/notes/scratchNotes` (a map written one field at a time).
  */
 
-/**
- * Read from the token layer rather than hardcoded, so the note stays legible in
- * both themes — a red that reads well on white is too dark on the night-shift
- * background, and `execCommand` bakes whatever value it is given into the
- * stored HTML permanently.
- *
- * Resolved at click time, because the stored colour has to be a literal.
- */
-const COLORS = [
-  { label: 'Biasa', token: null },
-  { label: 'Merah', token: '--note-red' },
-  { label: 'Kuning', token: '--note-amber' },
-  { label: 'Hijau', token: '--note-green' },
-  { label: 'Biru', token: '--note-blue' },
-] as const;
+const SHELF_KEY = 'visite.catatan.shelf';
 
-/**
- * The concrete colour for a palette token.
- *
- * `--note-red` and friends are CSS variables, and `execCommand('foreColor')`
- * takes a colour VALUE — it cannot read a variable — so the current computed
- * value is looked up and passed instead.
- */
-function resolveToken(token: string): string {
-  const value = getComputedStyle(document.documentElement).getPropertyValue(token).trim();
-  // A missing variable would otherwise pass `''` to `foreColor`, which some
-  // browsers accept as black — wrong, and wrong in a way that looks deliberate.
-  return value || 'currentColor';
+function readShelf(): ScratchNoteCategory {
+  try {
+    return localStorage.getItem(SHELF_KEY) === 'jaga' ? 'jaga' : 'umum';
+  } catch {
+    return 'umum';
+  }
 }
-
-const SIZES = [
-  { label: 'Kecil', value: '2' },
-  { label: 'Normal', value: '3' },
-  { label: 'Besar', value: '5' },
-];
 
 export default function NotePage(): JSX.Element {
   const uid = useSession((state) => state.user?.uid ?? null);
   const profile = useSession((state) => state.profile);
-  const ref = useRef<HTMLDivElement | null>(null);
+  const wide = useMediaQuery('(min-width: 1024px)');
+  const [params, setParams] = useSearchParams();
+  const location = useLocation();
+  const navigate = useNavigate();
 
-  /**
-   * The stored list, with the original single note folded in.
-   *
-   * Anyone who wrote in the app before tabs existed has their text in
-   * `scratchNote`. Migrating it on read rather than with a write means nothing
-   * is rewritten while they might be mid-sentence in it, and the old field is
-   * simply never written again.
-   */
-  const notes = useMemo<ScratchNote[]>(() => {
-    const stored = profile?.notes ?? [];
-    if (stored.length > 0) return stored;
+  const notes = useMemo(() => resolveNotes(profile), [profile]);
 
-    const legacy = profile?.scratchNote ?? '';
-    return [{ id: 'n1', title: 'Catatan', body: legacy }];
-  }, [profile?.notes, profile?.scratchNote]);
-
-  const [showArchived, setShowArchived] = useState(false);
-  const [category, setCategory] = useState<ScratchNoteCategory>('umum');
-
-  const visible = useMemo(
-    () =>
-      notes.filter(
-        (note) =>
-          // Absent category means `umum`. Notes written before the shelf
-          // existed must not vanish from the only shelf that used to exist.
-          (note.category ?? 'umum') === category &&
-          (showArchived ? note.archived : !note.archived),
-      ),
-    [notes, showArchived, category],
-  );
-  const archivedCount = useMemo(
-    () =>
-      notes.filter((note) => note.archived && (note.category ?? 'umum') === category).length,
-    [notes, category],
-  );
-
-  const [activeId, setActiveId] = useState<string>(() => notes[0]?.id ?? 'n1');
-  /**
-   * The board is the page; a note is opened FROM it.
-   *
-   * Opening rather than expanding in place, because the editor carries a
-   * toolbar, a title field and archive/delete — none of which belongs on a
-   * card being scanned.
-   */
-  const [openNote, setOpenNote] = useState(false);
-  /**
-   * Board or list. Per device, not per account: it follows the screen you are
-   * on — the list suits a phone and a long shelf, the board a wide monitor —
-   * and syncing it would make one device's choice change the other's.
-   */
-  const [noteView, setNoteView] = useState<'kartu' | 'daftar'>(() => {
+  const [shelf, setShelfState] = useState<ScratchNoteCategory>(readShelf);
+  const setShelf = (next: ScratchNoteCategory): void => {
+    setShelfState(next);
+    setView('aktif');
     try {
-      return localStorage.getItem('visite.catatan.view') === 'daftar' ? 'daftar' : 'kartu';
+      localStorage.setItem(SHELF_KEY, next);
     } catch {
-      return 'kartu';
-    }
-  });
-
-  const chooseView = (next: 'kartu' | 'daftar'): void => {
-    setNoteView(next);
-    try {
-      localStorage.setItem('visite.catatan.view', next);
-    } catch {
-      // No storage: the choice lasts for this session, which is enough.
+      // No storage: the choice lasts for this visit.
     }
   };
-  /**
-   * The note being edited, or nothing when this shelf is empty.
-   *
-   * The final fallback used to be `notes[0]`, which reaches ACROSS shelves: on
-   * an empty jaga shelf it selected the first Umum note, so the editor showed
-   * and saved a note from a shelf the user was not looking at, under a header
-   * that said otherwise. Falling back to nothing is the honest answer — an
-   * empty shelf is empty.
-   */
-  const active = visible.find((note) => note.id === activeId) ?? visible[0];
+  const [view, setView] = useState<NoteView>('aktif');
+  const [query, setQuery] = useState('');
+  const searching = query.trim() !== '';
 
-
-  /**
-   * Bodies sent and not yet echoed back by Firestore.
-   *
-   * These notes live in ONE document as an array, so saving any note rewrites
-   * all of them — and on a tab switch two saves happen in quick succession: a
-   * flush for the note being left, then a save for the note being entered. The
-   * second used to build its array from a render that had not yet seen the
-   * first echo back, so it carried the OLD body for the note just left and
-   * overwrote a checklist added seconds earlier.
-   *
-   * Replaying what is in flight makes the second write carry the first.
-   */
-  const pendingBodies = useRef(new Map<string, string>());
-  const notesRef = useRef(notes);
-  notesRef.current = notes;
-
+  // Relative times ("12 mnt") stay honest without a re-render per keystroke.
+  const [now, setNow] = useState(() => Date.now());
   useEffect(() => {
-    settlePending(notes, pendingBodies.current);
-  }, [notes]);
+    const timer = window.setInterval(() => setNow(Date.now()), 60_000);
+    return () => window.clearInterval(timer);
+  }, []);
 
+  const listed = useMemo(
+    () => (searching ? searchNotes(notes, query) : notesForView(notes, shelf, view)),
+    [notes, shelf, view, query, searching],
+  );
 
-  /**
-   * Drop a card next to another one, from the board.
-   *
-   * Order is the stored array order, so a move rewrites `notes` — and it has
-   * to be rewritten in terms of the FULL list, not the visible one. `visible`
-   * is filtered by shelf and by archived state, so splicing within it and
-   * writing that back would drop every note the current filter hides. That is
-   * what `moveBeside` is for.
-   */
-  const moveNote = (fromId: string, targetId: string, place: 'before' | 'after'): void => {
-    if (!uid || fromId === targetId) return;
+  // ── Which note is open ─────────────────────────────────────────────────────
+  const requested = params.get('n');
+  const byId = useMemo(() => new Map(notes.map((note) => [note.id, note])), [notes]);
+  /*
+    Wide: the requested note, or the first in the list, so the right pane is
+    never an empty frame. Phone: only an explicitly opened note — the list IS
+    the phone's first screen.
+  */
+  const open: ResolvedNote | null =
+    (requested ? byId.get(requested) : undefined) ?? (wide ? listed[0] ?? null : null);
 
-    const next = applyPending(
-      moveBeside(notes, visible, (note) => note.id, fromId, targetId, place),
-      // Reordering rewrites the same array, so an unsaved body in flight would
-      // be reverted by it exactly as the tab-switch save was.
-      pendingBodies.current,
-    );
+  const openNote = (id: string): void => {
+    const next = new URLSearchParams(params);
+    next.set('n', id);
+    // Wide: switching is not navigation, so it must not pile up history.
+    // Phone: opening IS navigation, so back closes it.
+    setParams(next, wide ? { replace: true } : { state: { fromList: true } });
+  };
 
-    void updateScratchNotes(uid, next).catch((error: unknown) =>
+  const closeNote = (): void => {
+    if ((location.state as { fromList?: boolean } | null)?.fromList) {
+      navigate(-1);
+      return;
+    }
+    const next = new URLSearchParams(params);
+    next.delete('n');
+    setParams(next, { replace: true });
+  };
+
+  const [justCreated, setJustCreated] = useState<string | null>(null);
+
+  const addNote = (): void => {
+    if (!uid) return;
+    setQuery('');
+    setView('aktif');
+    const id = createScratchNote(uid, {
+      title: '',
+      body: '',
+      category: shelf,
+      order: orderAtTop(notes),
+    });
+    setJustCreated(id);
+    openNote(id);
+  };
+
+  const moveNote = (
+    group: readonly ResolvedNote[],
+    fromId: string,
+    targetId: string,
+    place: 'before' | 'after',
+  ): void => {
+    const note = byId.get(fromId);
+    const order = orderForMove(group, fromId, targetId, place);
+    if (!uid || !note || order === null) return;
+    void patchScratchNote(uid, note, { order }).catch((error: unknown) =>
       console.error('[catatan] reorder rejected', error),
     );
   };
 
-  const setArchived = (archived: boolean): void => {
-    if (!uid || !active) return;
-    void updateScratchNotes(
-      uid,
-      applyPending(
-        notes.map((note) => (note.id === active.id ? { ...note, archived } : note)),
-        pendingBodies.current,
-      ),
-    ).catch((error: unknown) => console.error('[catatan] archive rejected', error));
-  };
+  // ── The ⋯ menu ─────────────────────────────────────────────────────────────
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [confirmPurge, setConfirmPurge] = useState(false);
+  const [copied, setCopied] = useState(false);
 
-  const write = useCallback(
-    (body: string) => {
-      if (!uid || !active) return Promise.resolve();
-      pendingBodies.current.set(active.id, body);
-      // `notesRef`, not the closed-over `notes`: this callback is memoised and
-      // a save can fire from a render older than the one that created it.
-      return updateScratchNotes(uid, applyPending(notesRef.current, pendingBodies.current));
-    },
-    [uid, active],
-  );
-
-  const sync = useTextSync({
-    // Keyed per note: two tabs sharing a draft key would each see the other's
-    // text as a remote edit, which is how the standing-note panel broke.
-    key: `scratch|${uid ?? 'none'}|${active?.id ?? 'n1'}`,
-    serverText: active?.body ?? '',
-    locked: uid === null,
-    write,
-  });
-
-  /**
-   * Ticking a checklist box — on a NATIVE listener, not React's `onChange`.
-   *
-   * This is why the ticks kept disappearing, and it was never the sync race
-   * fixed on 14 September: the tick was never saved in the first place.
-   *
-   * React's change plugin handles checkboxes through `click`, and only for
-   * inputs React itself rendered. These boxes are inserted by `execCommand`
-   * into a contenteditable, so they have no fiber. React walks up to the
-   * nearest element it does know — this `div` — sees that a `div` is not a
-   * checkbox, and dispatches nothing. The `onChange` prop on the container
-   * looked correct and had simply never run.
-   *
-   * The ATTRIBUTE is written rather than the property, because `innerHTML` is
-   * how this note is stored and it serialises attributes and ignores
-   * properties. A box ticked without this looks ticked until the value is
-   * reloaded, and is then blank again.
-   *
-   * `click` as well as `change`: the two are redundant here, and redundancy is
-   * cheap because the handler is idempotent — it reads the box's own state
-   * rather than toggling anything.
-   */
-  const syncRef = useRef(sync);
-  syncRef.current = sync;
-
-  /*
-    Bound in `attachEditor` below, NOT in an effect — and that is the fix.
-
-    This was `useEffect(…, [])`, which runs once, when the PAGE mounts. Since
-    the Catatan board, the editor only exists after a card is opened, so at
-    mount `ref.current` was null, the effect returned early, and the listener
-    was never attached: ticks changed on screen and were never saved.
-
-    The blank-note bug (see CHANGES.md) was the same failure in the same
-    component — a DOM effect keyed to the page's lifetime instead of the
-    node's — and was fixed for the text write while this listener, a few
-    lines above it, was left behind. Both now live in the callback ref, which
-    runs exactly when the editor attaches and detaches.
-  */
-  const onToggle = useCallback((event: Event): void => {
-    const target = event.target;
-    const node = ref.current;
-    if (!node) return;
-    if (!(target instanceof HTMLInputElement) || target.type !== 'checkbox') return;
-    if (target.checked) target.setAttribute('checked', '');
-    else target.removeAttribute('checked');
-    syncRef.current.setValue(node.innerHTML);
-  }, []);
-
-  const addNote = (): void => {
-    if (!uid) return;
-    const id = `n${Date.now().toString(36)}`;
-    // A new note lands on the shelf you are looking at. Adding one from the
-    // jaga list and finding it under Umum would be a small betrayal every time.
-    const next = [
-      ...notes,
-      {
-        id,
-        title: category === 'jaga' ? `Jaga ${notes.length + 1}` : `Catatan ${notes.length + 1}`,
-        body: '',
-        category,
-      },
-    ];
-    void updateScratchNotes(uid, next).catch((error: unknown) =>
-      console.error('[catatan] could not add', error),
+  const patchOpen = (patch: Parameters<typeof patchScratchNote>[2]): void => {
+    if (!uid || !open) return;
+    void patchScratchNote(uid, open, patch).catch((error: unknown) =>
+      console.error('[catatan] update rejected', error),
     );
-    setActiveId(id);
-    setOpenNote(true);
   };
 
-  /**
-   * The title, held locally while typing and written on a pause.
-   *
-   * Every keystroke used to write the WHOLE notes array to Firestore, and the
-   * input read its value back from that round trip — so each character waited
-   * on a network write before it appeared, and the caret jumped whenever a
-   * snapshot landed mid-word. On ward wifi that is the lag.
-   *
-   * `null` means "not being edited", so the input falls back to the stored
-   * title and a rename made on another device still shows up.
-   */
-  const [titleDraft, setTitleDraft] = useState<string | null>(null);
-  const titleTimer = useRef<number | undefined>(undefined);
-
-  const commitTitle = useCallback(
-    (title: string) => {
-      if (!uid || !active) return;
-      void updateScratchNotes(
-        uid,
-        notes.map((note) => (note.id === active.id ? { ...note, title } : note)),
-      ).catch((error: unknown) => console.error('[catatan] could not rename', error));
-    },
-    [uid, active, notes],
-  );
-
-  const renameNote = (title: string): void => {
-    setTitleDraft(title);
-    window.clearTimeout(titleTimer.current);
-    titleTimer.current = window.setTimeout(() => {
-      commitTitle(title);
-      // Back to the stored value once the write is out, so a later remote
-      // rename is not masked by a stale draft.
-      setTitleDraft(null);
-    }, 400);
+  /** After a note leaves the current list, a phone goes back to the list. */
+  const leave = (): void => {
+    setMenuOpen(false);
+    if (!wide) closeNote();
+    else {
+      const next = new URLSearchParams(params);
+      next.delete('n');
+      setParams(next, { replace: true });
+    }
   };
 
-  /** Blur writes immediately: leaving the field is a finished edit. */
-  const flushTitle = (): void => {
-    if (titleDraft === null) return;
-    window.clearTimeout(titleTimer.current);
-    commitTitle(titleDraft);
-    setTitleDraft(null);
-  };
+  const archivedCount = countView(notes, shelf, 'arsip');
+  const trashCount = countView(notes, shelf, 'sampah');
 
-  const deleteNote = (): void => {
-    // The last note ON THIS SHELF may still be deleted when the other shelf
-    // has notes; the guard exists so the app is never left with none at all.
-    if (!uid || !active || notes.length <= 1) return;
-    const next = notes.filter((note) => note.id !== active.id);
-    void updateScratchNotes(uid, next).catch((error: unknown) =>
-      console.error('[catatan] could not delete', error),
-    );
-    setActiveId(next[0]?.id ?? 'n1');
-  };
+  // ── Rendering ──────────────────────────────────────────────────────────────
+  const listPane = (
+    <div className="flex flex-col gap-2 p-3">
+      {/* Shelf: which list you are looking at, filled so it reads as a choice. */}
+      <div role="group" aria-label="Rak catatan" className="flex gap-1 rounded-xl bg-bg-subtle p-1">
+        {(['umum', 'jaga'] as const).map((value) => (
+          <button
+            key={value}
+            type="button"
+            aria-pressed={shelf === value && !searching}
+            onClick={() => {
+              setQuery('');
+              setShelf(value);
+            }}
+            className={[
+              'min-h-tap flex-1 rounded-lg text-sm transition-colors',
+              shelf === value && !searching
+                ? 'bg-surface font-semibold text-fg shadow-sm'
+                : 'text-fg-muted hover:text-fg',
+            ].join(' ')}
+          >
+            {value === 'umum' ? 'Catatan' : 'Catatan jaga'}
+          </button>
+        ))}
+      </div>
 
-  /**
-   * Written into the DOM only when the two have actually diverged.
-   *
-   * Assigning `innerHTML` on every render would move the caret to the start on
-   * every keystroke — the same class of bug as the textarea autosize that used
-   * to scroll the page to the top.
-   */
-  useEffect(() => {
-    const node = ref.current;
-    if (node && node.innerHTML !== sync.value) node.innerHTML = sync.value;
-  }, [sync.value]);
-
-  /**
-   * And written when the editor MOUNTS, which the effect above cannot do.
-   *
-   * That effect runs when the text changes. Since the board, the editor only
-   * exists once a card is opened — so opening the card that was ALREADY the
-   * active note (the first one, or the last one opened) mounted an empty
-   * editor with text that had not changed, the effect never ran, and the note
-   * looked blank until switching tabs changed the text and made it run.
-   *
-   * A callback ref runs exactly when the node attaches, so the write is tied
-   * to the thing that was missing — the element's lifetime — rather than to
-   * the value. It reads through `syncRef` so it never holds a stale note.
-   */
-  const attachEditor = useCallback(
-    (node: HTMLDivElement | null) => {
-      // Detach from the editor being replaced (closing a note, switching one).
-      const previous = ref.current;
-      if (previous && previous !== node) {
-        previous.removeEventListener('change', onToggle);
-        previous.removeEventListener('click', onToggle);
-      }
-      ref.current = node;
-      if (!node) return;
-      const value = syncRef.current.value;
-      if (node.innerHTML !== value) node.innerHTML = value;
-      if (node !== previous) {
-        node.addEventListener('change', onToggle);
-        node.addEventListener('click', onToggle);
-      }
-    },
-    [onToggle],
-  );
-
-  /**
-   * Put the selection back to the theme's own text colour.
-   *
-   * The palette's "Biasa" entry used to pass the string `'inherit'` to
-   * `foreColor`. That is not a colour, the browser silently rejects it, and
-   * the button did nothing — text went red with no way back. The swatch was
-   * `transparent` too, so the one control that could have fixed it was also
-   * invisible.
-   *
-   * `removeFormat` would work but takes bold and italic with it, which is more
-   * than was asked for. Painting a sentinel and unwrapping it removes exactly
-   * the colour.
-   */
-  /**
-   * Insert one checklist row at the caret.
-   *
-   * `insertHTML` rather than building nodes by hand: it splits whatever the
-   * caret is inside and puts the markup at the right depth, which is the part
-   * that is genuinely awkward to do manually in a contentEditable.
-   *
-   * The input carries `contenteditable="false"` so the caret cannot land
-   * inside the box itself, and a trailing space so there is somewhere to type.
-   * One row per press — a list grows by pressing Enter, the same as any other
-   * list here.
-   */
-  const insertChecklistItem = (): void => {
-    const node = ref.current;
-    if (!node) return;
-    restoreSelection();
-    document.execCommand(
-      'insertHTML',
-      false,
-      '<ul class="cl"><li><input type="checkbox" contenteditable="false">&nbsp;</li></ul>',
-    );
-    sync.setValue(node.innerHTML);
-  };
-
-  const clearColor = (): void => {
-    const node = ref.current;
-    if (!node) return;
-    restoreSelection();
-    document.execCommand('foreColor', false, COLOR_SENTINEL);
-    stripSentinelColor(node);
-    sync.setValue(node.innerHTML);
-  };
-
-  /**
-   * The last selection made INSIDE the note, kept so a toolbar control can put
-   * it back.
-   *
-   * This is the fix for "ukuran teks kadang tidak jalan". The size control is
-   * a native `<select>`, and opening one MUST move focus away from the
-   * contenteditable — at which point the browser is free to drop the document
-   * selection. `apply` then called `focus()` and `execCommand('fontSize')`
-   * against a caret, not a range, and the size was applied to nothing.
-   *
-   * It looked intermittent because it depends on whether the browser happened
-   * to preserve the range across the focus change, and on a LONG note it
-   * almost never does: `focus()` scrolls the caret into view, and on a
-   * document that scrolls, that is a different position from the one the user
-   * had selected.
-   *
-   * Recorded from `selectionchange` rather than from a click handler, because
-   * a selection can also be made with the keyboard, or extended after the
-   * mouse is released.
-   */
-  const lastRange = useRef<Range | null>(null);
-
-  useEffect(() => {
-    const onSelectionChange = (): void => {
-      const node = ref.current;
-      const selection = window.getSelection();
-      if (!node || !selection || selection.rangeCount === 0) return;
-      const range = selection.getRangeAt(0);
-      // Only ranges inside this editor. A selection in the sidebar or in
-      // another note must not be restored into this one.
-      if (!node.contains(range.commonAncestorContainer)) return;
-      lastRange.current = range.cloneRange();
-    };
-    document.addEventListener('selectionchange', onSelectionChange);
-    return () => document.removeEventListener('selectionchange', onSelectionChange);
-  }, []);
-
-  /** Put the caret back where the user left it, before any `execCommand`. */
-  const restoreSelection = (): void => {
-    const node = ref.current;
-    const range = lastRange.current;
-    if (!node) return;
-    // `preventScroll`, so restoring focus on a long note does not jump the
-    // page away from what the user is looking at.
-    node.focus({ preventScroll: true });
-    if (!range || !node.contains(range.commonAncestorContainer)) return;
-    const selection = window.getSelection();
-    if (!selection) return;
-    selection.removeAllRanges();
-    selection.addRange(range);
-  };
-
-  const apply = (command: string, value?: string): void => {
-    restoreSelection();
-    // `execCommand` is deprecated and has no replacement for this. Every
-    // alternative means owning a document model, which for one personal note is
-    // far more machinery than the feature is worth.
-    document.execCommand(command, false, value);
-    if (ref.current) sync.setValue(ref.current.innerHTML);
-  };
-
-  return (
-    <AppShell title="Catatan">
-      <div className="mx-auto flex min-h-0 w-full max-w-3xl flex-1 flex-col px-4 pb-4 pt-4">
-        {/*
-          The two shelves, above the note tabs rather than mixed among them.
-
-          A jaga list is a different KIND of thing from a reference note — it
-          is written to be worked through and finished, not kept — and mixing
-          both into one scrolling row of tabs makes the row longer every shift
-          while hiding which are which.
-        */}
-        <div className="mb-2 flex items-center gap-1">
-          {(['umum', 'jaga'] as const).map((shelf) => (
+      <div className="flex gap-2">
+        <label className="flex min-h-tap min-w-0 flex-1 items-center gap-2 rounded-xl border border-border bg-surface px-3 focus-within:border-accent">
+          <IconSearch width="16" height="16" className="shrink-0 text-fg-faint" />
+          <input
+            type="search"
+            value={query}
+            onChange={(event) => setQuery(event.target.value)}
+            onKeyDown={(event) => {
+              if (event.key === 'Escape') setQuery('');
+            }}
+            placeholder="Cari semua catatan"
+            aria-label="Cari catatan"
+            className="min-w-0 flex-1 bg-transparent text-sm outline-none"
+          />
+          {searching ? (
             <button
-              key={shelf}
               type="button"
-              aria-pressed={category === shelf}
-              onClick={() => {
-                sync.flush();
-                setCategory(shelf);
-                setShowArchived(false);
-              }}
-              /**
-               * A filled tab, not another outlined pill.
-               *
-               * These sat in a row of outlined buttons that all looked alike —
-               * the note tabs below, the archive toggle beside them — so the
-               * one control that changes WHICH LIST you are looking at read as
-               * just another button. Filling the selected shelf makes the
-               * choice visible without adding a fourth border weight.
-               */
-              className={[
-                'min-h-tap flex-1 rounded-lg px-3 text-xs transition-colors',
-                category === shelf
-                  ? 'bg-accent font-semibold text-white'
-                  : 'border border-border text-fg-muted hover:bg-bg-subtle',
-              ].join(' ')}
+              aria-label="Hapus pencarian"
+              onClick={() => setQuery('')}
+              className="-mr-2 flex min-h-tap min-w-tap items-center justify-center text-fg-faint"
             >
-              {shelf === 'umum' ? 'Catatan' : 'Catatan jaga'}
+              <IconClose width="16" height="16" />
             </button>
-          ))}
-        </div>
+          ) : null}
+        </label>
+        <button
+          type="button"
+          onClick={addNote}
+          disabled={!uid}
+          className="flex min-h-tap shrink-0 items-center gap-1 rounded-xl bg-accent px-3 text-sm font-semibold text-white disabled:opacity-50"
+        >
+          <IconPlus width="18" height="18" />
+          Baru
+        </button>
+      </div>
 
-        {!openNote ? (
-          <div className="mb-2 flex items-center gap-2">
-            {archivedCount > 0 || showArchived ? (
+      {!searching ? (
+        <div className="flex items-center gap-1 text-xs">
+          {(
+            [
+              ['aktif', 'Aktif', null],
+              ['arsip', 'Arsip', archivedCount],
+              ['sampah', 'Sampah', trashCount],
+            ] as const
+          ).map(([value, label, count]) =>
+            // Arsip and Sampah appear only when they have something in them.
+            value === 'aktif' || (count ?? 0) > 0 || view === value ? (
               <button
+                key={value}
                 type="button"
-                onClick={() => setShowArchived((current) => !current)}
-                className="min-h-tap shrink-0 rounded-lg border border-border px-2 text-[11px] text-fg-muted"
+                aria-pressed={view === value}
+                onClick={() => setView(value)}
+                className={[
+                  'min-h-tap rounded-lg px-2',
+                  view === value ? 'font-semibold text-accent' : 'text-fg-muted hover:text-fg',
+                ].join(' ')}
               >
-                {showArchived ? 'Aktif' : `Arsip (${archivedCount})`}
+                {label}
+                {count ? ` (${count})` : ''}
               </button>
-            ) : null}
-            <span className="flex-1" />
-            <div role="group" aria-label="Tampilan catatan" className="flex shrink-0 gap-1">
-              {([
-                ['kartu', 'Kartu'],
-                ['daftar', 'Daftar'],
-              ] as const).map(([value, label]) => (
-                <button
-                  key={value}
-                  type="button"
-                  onClick={() => chooseView(value)}
-                  aria-pressed={noteView === value}
-                  className={[
-                    'min-h-tap rounded-lg border px-2 text-[11px]',
-                    noteView === value
-                      ? 'border-accent bg-accent/15 text-accent'
-                      : 'border-border text-fg-muted',
-                  ].join(' ')}
-                >
-                  {label}
-                </button>
-              ))}
-            </div>
+            ) : null,
+          )}
+        </div>
+      ) : (
+        <p className="px-1 text-xs text-fg-muted">
+          {listed.length === 0 ? 'Tidak ditemukan.' : `${listed.length} catatan`} · kedua rak dan
+          arsip
+        </p>
+      )}
+
+      {listed.length > 0 ? (
+        <NoteList
+          notes={listed}
+          activeId={wide ? open?.id ?? null : null}
+          onOpen={openNote}
+          onMove={moveNote}
+          now={now}
+          reorderable={!searching && view !== 'sampah'}
+          showShelf={searching}
+        />
+      ) : !searching ? (
+        <div className="flex flex-col items-center gap-3 py-12 text-center">
+          <p className="text-sm text-fg-muted">
+            {view === 'arsip'
+              ? 'Tidak ada catatan terarsip.'
+              : view === 'sampah'
+                ? 'Sampah kosong.'
+                : shelf === 'jaga'
+                  ? 'Belum ada catatan jaga.'
+                  : 'Belum ada catatan.'}
+          </p>
+          {view === 'aktif' ? (
             <button
               type="button"
               onClick={addNote}
-              className="min-h-tap shrink-0 rounded-lg border border-dashed border-border-strong px-3 text-xs text-fg-muted"
+              disabled={!uid}
+              className="min-h-tap rounded-lg border border-border px-4 text-sm font-medium text-accent"
             >
-              + Catatan baru
-            </button>
-          </div>
-        ) : null}
-
-        {/*
-          An empty shelf says so and offers the one action that helps.
-
-          Rendering the editor anyway would show a titled, toolbarred, empty
-          box bound to no note — every keystroke discarded, with nothing on
-          screen saying why.
-        */}
-        {!openNote || !active ? (
-          visible.length > 0 ? (
-            <div className="flex-1 overflow-y-auto">
-              <NoteCards
-                notes={visible}
-                activeId={active?.id ?? null}
-                onOpen={(id) => {
-                  setActiveId(id);
-                  setOpenNote(true);
-                }}
-                onMove={moveNote}
-                view={noteView}
-              />
-            </div>
-          ) : (
-          <div className="flex flex-1 flex-col items-center justify-center gap-3 py-12">
-            <p className="text-sm text-fg-muted">
-              {category === 'jaga'
-                ? 'Belum ada catatan jaga.'
-                : showArchived
-                  ? 'Tidak ada catatan terarsip.'
-                  : 'Belum ada catatan.'}
-            </p>
-            {!showArchived ? (
-              <button
-                type="button"
-                onClick={addNote}
-                className="min-h-tap rounded-lg border border-border px-4 text-sm font-medium text-accent"
-              >
-                {category === 'jaga' ? 'Buat catatan jaga' : 'Buat catatan'}
-              </button>
-            ) : null}
-          </div>
-          )
-        ) : (
-        <>
-        <div className="mb-2 flex items-center gap-2">
-          {/* Back to the board. The card you came from keeps its place. */}
-          <button
-            type="button"
-            onClick={() => {
-              sync.flush();
-              flushTitle();
-              setOpenNote(false);
-            }}
-            className="min-h-tap shrink-0 rounded-lg border border-border px-2 text-xs text-fg-muted"
-          >
-            ← Semua
-          </button>
-          <input
-            type="text"
-            value={titleDraft ?? active?.title ?? ''}
-            onChange={(event) => renameNote(event.target.value)}
-            onBlur={flushTitle}
-            placeholder="Judul catatan"
-            className="min-h-tap min-w-0 flex-1 rounded-lg border border-transparent bg-transparent px-2 text-sm font-medium outline-none focus:border-border"
-          />
-          <button
-            type="button"
-            onClick={() => setArchived(!active?.archived)}
-            className="min-h-tap shrink-0 px-2 text-xs text-accent"
-          >
-            {active?.archived ? 'Pulihkan' : 'Arsipkan'}
-          </button>
-          {notes.length > 1 ? (
-            <button
-              type="button"
-              onClick={deleteNote}
-              className="min-h-tap shrink-0 px-2 text-xs text-danger"
-            >
-              Hapus
+              {shelf === 'jaga' ? 'Buat catatan jaga' : 'Buat catatan'}
             </button>
           ) : null}
         </div>
-      {/*
-        THE TOOLBAR FOLLOWS THE PAGE.
+      ) : null}
+    </div>
+  );
 
-        A reference note runs to several screens, and the formatting controls
-        sat at the top of it — so applying bold to something two screens down
-        meant selecting the text, scrolling back up, and losing the selection
-        on the way. Sticky keeps them where the text is.
+  const editorPane = open ? (
+    <NoteEditor
+      key={open.id}
+      uid={uid}
+      note={open}
+      now={now}
+      autoFocus={open.id === justCreated}
+      onBack={wide ? undefined : closeNote}
+      onMenu={() => {
+        setConfirmPurge(false);
+        setMenuOpen(true);
+      }}
+    />
+  ) : (
+    <div className="flex h-full items-center justify-center p-8 text-sm text-fg-faint">
+      Pilih catatan, atau buat yang baru.
+    </div>
+  );
 
-        `z-10` and an opaque background, not a translucent one: this sits over
-        body text as it scrolls under, and a translucent bar makes both
-        unreadable at exactly the moment you are aiming at a small button.
-
-        `top-0` relative to the page's own scroller rather than the viewport —
-        the shelf tabs and note tabs above scroll away, which is right. They
-        are navigation and you have already used them by the time you are
-        formatting.
-      */}
-      <div className="sticky top-0 z-10 mb-2 flex flex-wrap items-center gap-1 rounded-lg border border-border bg-surface p-1">
-          <ToolButton label="Tebal" onClick={() => apply('bold')}>
-            <strong>B</strong>
-          </ToolButton>
-          <ToolButton label="Miring" onClick={() => apply('italic')}>
-            <em>I</em>
-          </ToolButton>
-          <ToolButton label="Garis bawah" onClick={() => apply('underline')}>
-            <span className="underline">U</span>
-          </ToolButton>
-          <ToolButton label="Daftar" onClick={() => apply('insertUnorderedList')}>
-            •
-          </ToolButton>
-          <ToolButton label="Checklist" onClick={insertChecklistItem}>
-            ☑
-          </ToolButton>
-
-          <span aria-hidden="true" className="mx-1 h-5 w-px bg-border" />
-
-          {/*
-            `value`, not `defaultValue`, with the choice reset after applying.
-
-            A `<select>` left showing "Besar" after the size was applied makes
-            the next press of the same option a no-op — `onChange` does not
-            fire when the value has not changed — so applying the same size to
-            a second paragraph silently did nothing. Resetting to the neutral
-            label turns it into a command rather than a state.
-          */}
-          <select
-            aria-label="Ukuran teks"
-            value="label"
-            onChange={(event) => {
-              apply('fontSize', event.target.value);
-              event.target.value = 'label';
-            }}
-            className="min-h-tap rounded-lg border border-border bg-surface px-2 text-xs"
-          >
-            <option value="label" disabled>
-              Ukuran
-            </option>
-            {SIZES.map((size) => (
-              <option key={size.value} value={size.value}>
-                {size.label}
-              </option>
-            ))}
-          </select>
-
-          {COLORS.map((color) => (
-            <button
-              key={color.label}
-              type="button"
-              aria-label={`Warna ${color.label}`}
-              title={color.label}
-              onClick={() =>
-                color.token ? apply('foreColor', resolveToken(color.token)) : clearColor()
-              }
-              className="flex min-h-tap min-w-tap items-center justify-center"
-            >
-              <span
-                aria-hidden="true"
-                className="h-5 w-5 rounded-full border border-border-strong"
-                style={{
-                  // The reset swatch shows the body colour rather than
-                  // `transparent`, which rendered it invisible — an option
-                  // nobody could see was an option nobody used.
-                  backgroundColor: color.token ? `var(${color.token})` : 'var(--fg)',
-                }}
-              />
-            </button>
-          ))}
+  return (
+    <AppShell title="Catatan">
+      {wide ? (
+        <div className="flex h-full min-h-0">
+          <aside className="w-[22rem] shrink-0 overflow-y-auto border-r border-border">
+            {listPane}
+          </aside>
+          <section className="min-w-0 flex-1 overflow-y-auto">
+            <div className="mx-auto h-full max-w-3xl">{editorPane}</div>
+          </section>
         </div>
+      ) : open ? (
+        editorPane
+      ) : (
+        <div className="mx-auto max-w-2xl">{listPane}</div>
+      )}
 
-        <div
-          ref={attachEditor}
-          contentEditable
-          role="textbox"
-          aria-multiline="true"
-          aria-label="Catatan pribadi"
-          spellCheck
-          lang=""
-          onInput={(event) => sync.setValue(event.currentTarget.innerHTML)}
-          onBlur={sync.flush}
-          /**
-           * `ul.cl` is the checklist list: no bullet, because each row already
-           * carries a box, and two markers per line reads as a mistake.
-           */
-          className="min-h-[55vh] flex-1 rounded-lg border border-border bg-surface p-3 text-[15px] leading-7 outline-none [&_ul.cl]:list-none [&_ul.cl]:pl-0 [&_ul.cl_input]:mr-2 [&_ul:not(.cl)]:list-disc [&_ul:not(.cl)]:pl-5"
-        />
-
-        <p className="pt-2 text-[11px] text-fg-faint">
-          {sync.dirty ? 'Menyimpan…' : 'Tersimpan'} · Hanya untuk Anda, tidak ikut tersalin
-          ke laporan.
-        </p>
-        </>
-        )}
-      </div>
+      {open ? (
+        <Sheet
+          open={menuOpen}
+          onOpenChange={(next) => {
+            if (!next) setConfirmPurge(false);
+            setMenuOpen(next);
+          }}
+          title={displayTitle(open)}
+        >
+          <div className="space-y-2">
+            {open.deletedAt !== undefined ? (
+              <>
+                <MenuButton
+                  onClick={() => {
+                    patchOpen({ deletedAt: undefined });
+                    setMenuOpen(false);
+                  }}
+                >
+                  Pulihkan dari Sampah
+                </MenuButton>
+                {confirmPurge ? (
+                  <div className="rounded-lg border border-danger p-3">
+                    <p className="text-xs text-fg-muted">
+                      Hapus “{displayTitle(open)}” selamanya? Isinya tidak bisa dikembalikan.
+                    </p>
+                    <div className="mt-2 flex gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setConfirmPurge(false)}
+                        className="min-h-tap flex-1 rounded-lg border border-border text-sm"
+                      >
+                        Batal
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (uid) {
+                            void purgeScratchNote(uid, open.id).catch((error: unknown) =>
+                              console.error('[catatan] purge rejected', error),
+                            );
+                          }
+                          leave();
+                        }}
+                        className="min-h-tap flex-1 rounded-lg bg-danger text-sm font-semibold text-white"
+                      >
+                        Hapus permanen
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <MenuButton danger onClick={() => setConfirmPurge(true)}>
+                    Hapus permanen…
+                  </MenuButton>
+                )}
+              </>
+            ) : (
+              <>
+                <MenuButton
+                  onClick={() => {
+                    patchOpen({ pinned: !open.pinned });
+                    setMenuOpen(false);
+                  }}
+                >
+                  {open.pinned ? 'Lepas sematan' : 'Sematkan di atas'}
+                </MenuButton>
+                <MenuButton
+                  onClick={() => {
+                    void copyText(
+                      `${open.title.trim() ? `${open.title.trim()}\n\n` : ''}${notePlainText(open.body)}`,
+                    ).then((ok) => {
+                      setCopied(ok);
+                      window.setTimeout(() => setCopied(false), 1500);
+                    });
+                  }}
+                >
+                  {copied ? 'Tersalin ✓' : 'Salin sebagai teks'}
+                </MenuButton>
+                <MenuButton
+                  onClick={() => {
+                    const target: ScratchNoteCategory = open.category === 'jaga' ? 'umum' : 'jaga';
+                    patchOpen({ category: target, order: orderAtTop(notes) });
+                    setMenuOpen(false);
+                    if (!searching) setShelf(target);
+                  }}
+                >
+                  Pindahkan ke {open.category === 'jaga' ? 'Catatan' : 'Catatan jaga'}
+                </MenuButton>
+                <MenuButton
+                  onClick={() => {
+                    patchOpen({ archived: !open.archived });
+                    leave();
+                  }}
+                >
+                  {open.archived ? 'Keluarkan dari arsip' : 'Arsipkan'}
+                </MenuButton>
+                {/*
+                  Soft delete. It was a hard delete, unconfirmed, beside
+                  Arsipkan — one mis-tap from gone. Now it goes to Sampah, so
+                  no confirmation is needed: nothing is lost.
+                */}
+                <MenuButton
+                  danger
+                  onClick={() => {
+                    patchOpen({ deletedAt: Date.now(), pinned: false });
+                    leave();
+                  }}
+                >
+                  Pindahkan ke Sampah
+                </MenuButton>
+              </>
+            )}
+          </div>
+        </Sheet>
+      ) : null}
     </AppShell>
   );
 }
 
-function ToolButton({
-  label,
+function MenuButton({
   onClick,
+  danger = false,
   children,
 }: {
-  label: string;
   onClick: () => void;
+  danger?: boolean;
   children: React.ReactNode;
 }): JSX.Element {
   return (
     <button
       type="button"
-      aria-label={label}
-      title={label}
-      onMouseDown={(event) => event.preventDefault()}
       onClick={onClick}
-      className="min-h-tap min-w-tap rounded-lg text-sm text-fg-muted hover:bg-bg-subtle"
+      className={[
+        'min-h-tap w-full rounded-lg border px-3 py-2 text-left text-sm font-medium',
+        danger ? 'border-danger/40 text-danger' : 'border-border',
+      ].join(' ')}
     >
       {children}
     </button>

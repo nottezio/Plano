@@ -14,7 +14,6 @@ import { defaultUserSettings } from '@/domain/defaults';
 import {
   SCHEMA_VERSION,
   type SavedChecklist,
-  type ScratchNote,
   type UserProfile,
   type UserSettings,
 } from '@/domain/types';
@@ -106,16 +105,11 @@ export function updateProfileNote(uid: string, scratchNote: string): Promise<voi
   return trackWrite(setDoc(userDoc(uid), { scratchNote }, { merge: true }));
 }
 
-/**
- * The whole tab list, written as one field.
- *
- * Wholesale rather than per-note, because reordering, renaming and deleting all
- * change the array's shape, and a per-index patch would race with them. The
- * list is a handful of short notes; writing it whole costs nothing.
+/*
+ * `updateScratchNotes` (the whole Catatan array in one write) is gone: it was
+ * the root of the lost-edit races. Catatan are written one field at a time by
+ * `scratchNotes.repo.ts`; the old `notes` array is read, never written.
  */
-export function updateScratchNotes(uid: string, notes: ScratchNote[]): Promise<void> {
-  return trackWrite(setDoc(userDoc(uid), { notes }, { merge: true }));
-}
 
 /** The whole checklist collection, written as one field, for the same reason. */
 export function updateChecklists(uid: string, checklists: SavedChecklist[]): Promise<void> {

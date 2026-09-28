@@ -1,5 +1,108 @@
 # Plano — CHANGES
 
+## `2026-09-28.1`
+
+**Catatan rebuilt. The list and the note sit side by side on a laptop, and a
+note opens full screen on a phone, where back closes it. You can search, pin
+notes, and reorder them by touch. Checklists continue on Enter. Deleting goes
+to Sampah. Underneath, each note is now stored and saved separately, which
+removes a race that could revert text you had just typed.**
+
+### Root cause
+
+"Clunky" had three layers. Only the first was visible.
+
+1. **Layout.** The board and the editor were two separate screens, so every
+   switch was "← Semua" and then another card. The editor stacked three bars
+   above the text (shelf tabs; back/title/Arsipkan/Hapus; a wrapping
+   toolbar), which on a phone took about a third of the screen. There was no
+   search. Drag used the HTML drag API, which touch screens never fire, so a
+   phone could not reorder. New notes were called "Catatan 7".
+2. **Checklists.** A row was `<li><input type=checkbox>`. An `<input>` inside
+   a contenteditable is foreign to the browser's editing engine, which caused
+   three problems:
+   - Enter split the row and left the box behind, so the only way to build a
+     list was one toolbar press per row.
+   - The caret could land beside the box instead of in the text.
+   - Ticks needed native listeners (pattern 4).
+3. **Storage.** All notes were **one array** on the profile (pattern 5).
+   - Every keystroke rewrote every note.
+   - `pendingBodies` patched the body-save path, but rename, add and delete
+     built their arrays from the last render **without** it. Renaming a note,
+     or adding or deleting one, within about a second of typing could write
+     back the old body.
+   - "Hapus" was a hard delete, unconfirmed, next to "Arsipkan". That broke
+     the soft-delete rule.
+
+### Fix
+
+| Layer | Change |
+|---|---|
+| **Storage** | `notesById.<id>.<field>`, one `FieldPath` leaf per change, the same as `boardNotes` (`scratchNotes.repo.ts`). A rename, a body save and a reorder touch different fields, so none can overwrite another. `pendingBodies` and `updateScratchNotes` are **deleted**. |
+| **Migration** | Zero writes. The old `notes` array (and `scratchNote`) is read for any id the map lacks. A legacy note is copied into the map whole on its first change, and after that only leaf writes happen (`materialised`, so a rename right after a body save can't copy it a second time). The array is never written again. |
+| **Order** | `order` is a number. A move writes only the moved note, at the midpoint of its new neighbours. New notes go to the top. `pinned` puts a note above the rest. |
+| **Delete** | Soft: `deletedAt` moves the note to Sampah. From there, "Hapus permanen…" (confirmed) writes a tombstone `{purgedAt}`, not `deleteField`. Removing the map entry would let the note's legacy copy reappear. |
+| **Layout** | ≥1024 px: list pane and editor side by side, so switching is one click. Phone: the list, then the note full screen; `?n=<id>` is in the URL, so the Android back gesture closes the note instead of leaving Catatan. |
+| **Editor chrome** | Two rows. The header (back · title · pin · ⋯) scrolls away. The toolbar stays and scrolls sideways instead of wrapping. Arsipkan, Pindahkan rak, Salin sebagai teks and Sampah moved into ⋯. |
+| **Titles** | An empty title shows the first line of the note, in the row and as the placeholder. Enter in the title field moves into the note. |
+| **Finding** | Search covers both shelves and the archive (never Sampah); every word must match, in any order. Each row shows colour, title, two lines, ☑ progress (e.g. 2/4) and the last edit time. |
+| **Reorder** | A grip on each row, on pointer events with `touch-action: none`: finger, mouse or pen. The drop line shows before the drop. Arrow keys on a focused grip move the note one step. |
+| **Checklists** | A row is `li[data-checked]` and the box is drawn with CSS (`.note-editor` in `index.css`). `checklistDom.ts` handles the rest: Enter continues the list; Enter on an empty row ends it; Backspace at the start of a row turns it into a plain line; the ☐ button toggles the current line (and turns a bullet list into a checklist); Ctrl/Cmd+Enter ticks. Ticking fires on pointerdown in the box, so a tap on a phone does not raise the keyboard. Ticked rows are struck through. Old `<input>` rows are converted when opened, keeping their ticks, and saved on the next edit. |
+| **Paste** | Plain text only. A rich paste brought fonts, tables and stray `<li>` / `<input>` elements into rows. |
+
+Kartu/Daftar is replaced by one list. Its rows carry what the cards did
+(colour, title, first lines) plus progress and edit time, in less height.
+
+### Tested
+
+- `scratchNotes.test.ts` (29): migration, malformed entries, tombstones,
+  views, search, titles, progress, ordering.
+- `checklistDom.test.ts` (19): run on a **real DOM** (jsdom, added as a dev
+  dependency). This is the first time Catatan editing is under test; it
+  broke twice before with no test to catch it.
+- Driven in Chromium through a throwaway harness (real page, in-memory
+  profile) at 1280 px and at 390 px with touch:
+  - an old checklist converted with its ticks kept;
+  - tick → saved; Enter → new row; Enter twice → out of the list;
+  - ☐ on a plain line; search; grip drag; new note focused with its first
+    line as title;
+  - Sampah → purge with no resurfacing;
+  - phone open → `?n=`, back → list;
+  - dark theme;
+  - zero console errors.
+
+### Wrong turns (caught before shipping)
+
+- **Purge by `deleteField`** would have brought a legacy note straight back
+  from the old array. It is now a tombstone.
+- **Whole-note copy on every legacy write.** Two quick writes (body, then
+  title) each carried a full copy, and the second would have reverted the
+  first. That is the exact race this release removes, reintroduced in the
+  migration path. A note is now copied once, then written leaf by leaf.
+- The row colour used the pastel `-bg` token, which is invisible at 4 px. It
+  now uses `-accent`.
+
+### Not done
+
+- **Update every device.** A device still on the old version keeps
+  writing the old array. Its edits to a note that has already moved to the
+  map won't show on updated devices. Reload each device once (update banner).
+- **Undo (Ctrl+Z) does not cover** checklist Enter/Backspace/ticks. They
+  change the DOM directly, outside the browser's undo stack. Typing and
+  toolbar formatting still undo as before.
+- Ticked rows stay where they are; there's no "move ticked to the bottom".
+- Reordering works within a group (Disematkan / Lainnya), not across it. Pin
+  or unpin to change group.
+- `updateProfileNote` (the pre-tabs single-note writer) was already unused
+  and has been left alone.
+
+```
+1580 tests passed (+32: +48 new, −16 removed with NoteCards/pendingBodies)
+typecheck / lint (0 warnings) / check:version / check:contrast / check:a11y / build — clean
+```
+
+---
+
 ## `2026-09-27.4`
 
 **A resident picked for a tukar jaga whose name fits two Jarkom rows can now be

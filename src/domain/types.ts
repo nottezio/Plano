@@ -302,6 +302,12 @@ export interface UserProfile {
    */
   notes?: ScratchNote[];
   /**
+   * Catatan, keyed by id, written one field at a time. Supersedes `notes`,
+   * which is still READ for anything not yet here and never written again.
+   * See `domain/notes/scratchNotes`.
+   */
+  notesById?: import('./notes/scratchNotes').NotesById;
+  /**
    * Sticky notes on the patient board, keyed by id. A map written one field
    * path at a time; see `domain/boardNotes`.
    */

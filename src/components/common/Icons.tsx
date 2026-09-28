@@ -160,3 +160,42 @@ export const IconCar = (props: IconProps): JSX.Element => (
     <circle cx="16.5" cy="17" r="1.5" />
   </Base>
 );
+
+/** Back, for leaving a full-screen editor on a phone. */
+export const IconBack = (props: IconProps): JSX.Element => (
+  <Base {...props}>
+    <path d="m15 18-6-6 6-6" />
+  </Base>
+);
+
+export const IconPlus = (props: IconProps): JSX.Element => (
+  <Base {...props}>
+    <path d="M12 5v14M5 12h14" />
+  </Base>
+);
+
+/** A pushpin: pinned notes sit above the rest of their shelf. */
+export const IconPin = (props: IconProps & { filled?: boolean }): JSX.Element => {
+  const { filled, ...rest } = props;
+  return (
+    <Base {...rest}>
+      <path
+        d="M9 4h6l-1 6 3 3v2H7v-2l3-3-1-6Z"
+        fill={filled ? 'currentColor' : 'none'}
+      />
+      <path d="M12 15v5" />
+    </Base>
+  );
+};
+
+/** Six dots: the handle a row is dragged by. */
+export const IconGrip = (props: IconProps): JSX.Element => (
+  <Base {...props}>
+    {[6, 12, 18].map((y) => (
+      <g key={y}>
+        <circle cx="9" cy={y} r="1.3" fill="currentColor" stroke="none" />
+        <circle cx="15" cy={y} r="1.3" fill="currentColor" stroke="none" />
+      </g>
+    ))}
+  </Base>
+);
