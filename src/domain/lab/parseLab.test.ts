@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { insertIntoObjective, labHeading, parseLab } from './parseLab';
+import { insertIntoObjective, labHeading, labReportKind, parseLab } from './parseLab';
 import { parseSections } from '../sections/parseSections';
 import { DEFAULT_SECTION_ALIASES as ALIASES } from '../sections/aliases';
 
@@ -598,5 +598,160 @@ describe('grouped rows without a colon — the app’s own output format', () =>
     // `Anti HCV Non Reactive` has no slash and no numeric run; treating it as
     // grouped would split a result into nonsense.
     expect(out('Anti HCV Non Reactive')).toContain('Anti HCV');
+  });
+});
+
+/**
+ * SIMGOS lab PDFs, as the app extracts them (rows rebuilt from glyph
+ * positions). The layout is copied from 36 real exports; every name, number,
+ * doctor and ID here is invented.
+ */
+const SIMGOS_PAGE_1 = [
+  'HASIL PEMERIKSAAN LABORATORIUM',
+  'No. RM : 00000000 No. Registrasi : 0000000000',
+  'Nama : PASIEN CONTOH Tgl. Registrasi : 01/09/2026 08:00:00',
+  'Sex / Tgl Lahir : Laki-Laki / 01-01-1970 Tgl. Hasil : 01/09/2026 10:00:00',
+  'No. Lab : 1000000000000000001 Unit Pengantar : IGD Jantung',
+  'Diagnosa : Heart Failure Dokter Perujuk : dr. CONTOH',
+  'Hypokalemia ( 2.9',
+  'Post PCI 1',
+  'PEMERIKSAAN HASIL NILAI RUJUKAN SATUAN',
+  'IMUNOSEROLOGI',
+  'HS TROPONIN I',
+  'Hs Troponin I < 0.010 <=0.04 ng / ml',
+  'HBsAg CMIA/ECLIA',
+  'HBsAg CMIA Non Reactive Non Reactive',
+  'Anti HIV (CMIA)',
+  'Anti HIV ( CMIA ) Non Reactive Non Reactive',
+  'KIMIA DARAH',
+  'Fraksi Lipid',
+  'CHOLESTEROL HDL / HDL KOLESTEROL',
+  'Kolesterol HDL 35 L(>55); P(>65) mg/dl',
+  'CHOLESTEROL LDL / LDL KOLESTEROL DIREK',
+  'Kolesterol LDL 160 <130 mg/dl',
+  'CHOLESTEROL TOTAL / KOLESTEROL TOTAL',
+  'Kolesterol Total 230 200 mg/dl',
+  'TRIGLISERIDA',
+  'Trigliserida 180 200 mg/dl',
+  'ASAM URAT DARAH',
+  'Asam Urat 8.1 P(2.4-5,7); L(3.4-7.0) mg/dl',
+  'Halaman 1 dari 2',
+];
+
+const SIMGOS_PAGE_2 = [
+  'HASIL PEMERIKSAAN LABORATORIUM',
+  'No. RM : 00000000 No. Registrasi : 0000000000',
+  'Diagnosa : Heart Failure Dokter Perujuk :',
+  'from admission to 6',
+  'PEMERIKSAAN HASIL NILAI RUJUKAN SATUAN',
+  'Analisa Gas Darah',
+  'PH 7.40 7.35 - 7.45',
+  'PCO2 38.0 35.0 - 45.0 mmHg',
+  'LACTAT/ LAKTAT (ASAM LAKTAT)',
+  '(Darah Arteri : 0.6 - 1.5)',
+  'Laktat Darah 2.4 mmol/l',
+  '(Darah Vena : 0.5 - 2.2)',
+  'URINALISIS (AUTOMATIK)',
+  'Warna Kuning Kuning Muda',
+  'Vit, C - Negatif mg/dl',
+  'Sedimen Lain - lain BAC=3 ul',
+  'IMUNOSEROLOGI',
+  'ANA IF',
+  'Titer - <1 : 100',
+  'BDRS',
+  'GOLONGAN DARAH/ GOL.DARAH (ABO) + RHESUS',
+  'Golongan darah O Rh+',
+  'Kesan / Saran : Dislipidemia',
+  'Ahli Teknologi : ANALIS CONTOH, A.Md.Kes',
+  'MAKASSAR, 01-09-2026 12:00:00',
+  'Prof. dr. DOKTER CONTOH, Sp.PK',
+];
+
+const SIMGOS = [...SIMGOS_PAGE_1, ...SIMGOS_PAGE_2].join('\n');
+
+describe('SIMGOS lab PDF (corpus of 36 exports, anonymised)', () => {
+  const result = parseLab(SIMGOS);
+  const out = result.formatted;
+
+  it('reads only the results table: no header, diagnosis, page or signature lines', () => {
+    expect(result.unknown).toEqual([]);
+    expect(out).not.toContain('Lain-lain:');
+    expect(out).not.toMatch(/MAKASSAR|Hypokalemia|Post PCI|admission|Halaman/);
+  });
+
+  it('reads a name longer than its alias (the name ends where the value starts)', () => {
+    expect(out).toContain('Troponin <0.010');
+    expect(out).toContain('Laktat 2.4');
+  });
+
+  it('reads serology with the assay method bare or in parentheses', () => {
+    expect(out).toContain('HBsAg Non Reactive');
+    expect(out).toContain('Anti HIV Non Reactive');
+  });
+
+  it('groups the lipid panel and uric acid', () => {
+    expect(out).toContain('Kol total/LDL/HDL/TG 230/160/35/180');
+    expect(out).toContain('Asam urat 8.1');
+  });
+
+  it('reads the blood group from the result row, never from the test-name row', () => {
+    expect(out).toContain('Golongan darah O Rh+');
+    expect(out).not.toMatch(/Golongan darah A\b/);
+  });
+
+  it('reads a word result, not the word reference beside it', () => {
+    expect(out).toMatch(/^Warna Kuning$/m);
+  });
+
+  it('reports nothing for a not-done row, and never its reference as the result', () => {
+    expect(out).not.toContain('Vit C');
+    expect(out).not.toContain('Titer');
+  });
+
+  it('maps a punctuated name onto the printed text (Sedimen Lain - lain)', () => {
+    expect(out).toContain('Sedimen Lain-lain BAC=3');
+  });
+
+  it('skips the per-specimen range notes under a row', () => {
+    expect(out).not.toContain('Darah Arteri');
+    expect(out).not.toContain('Darah Vena');
+  });
+});
+
+describe('recognised-name safety (Rule 1: never a real number under the wrong name)', () => {
+  it('does not read urine potassium as serum potassium', () => {
+    const result = parseLab('Kalium Urin 20 mmol/l');
+    expect(result.known.find((value) => value.key === 'K')).toBeUndefined();
+    expect(result.formatted).toContain('Kalium Urin 20');
+  });
+
+  it('does not read chemistry total bilirubin as the urinalysis bilirubin', () => {
+    const result = parseLab('Bilirubin Total 0.5 mg/dl');
+    expect(result.known.find((value) => value.key === 'Bilirubin')).toBeUndefined();
+    expect(result.formatted).toContain('Bilirubin Total 0.5');
+  });
+
+  it('shows a recognised word result it could not read instead of dropping it (Rule 2)', () => {
+    const result = parseLab('HBsAg Stik Non Reactive');
+    expect(result.formatted).toContain('HBsAg Stik Non Reactive');
+  });
+});
+
+describe('several sources in one box', () => {
+  it('still reads pasted text before and after a report', () => {
+    const text = ['Natrium 140', '', SIMGOS, '', 'Kalium 4.1'].join('\n');
+    const out = parseLab(text).formatted;
+    expect(out).toContain('Na/K 140/4.1');
+    expect(out).toContain('Troponin <0.010');
+  });
+});
+
+describe('labReportKind', () => {
+  it('tells a lab report from radiology, echo and procedure reports', () => {
+    expect(labReportKind(SIMGOS)).toBe('lab');
+    expect(labReportKind('HASIL PEMERIKSAAN RADIOLOGI\nKESAN PEMERIKSAAN :')).toBe('other');
+    expect(labReportKind('MR.24/R.I\nLAPORAN EKOKARDIOGRAFI')).toBe('other');
+    expect(labReportKind('MR.24/R.I\nLAPORAN ELECTROPHYISIOLOGY STUDY')).toBe('other');
+    expect(labReportKind('Natrium 140')).toBe('unknown');
   });
 });

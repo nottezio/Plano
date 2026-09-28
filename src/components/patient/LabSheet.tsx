@@ -2,7 +2,7 @@ import { useMemo, useRef, useState } from 'react';
 
 import { Sheet } from '@/components/common/Sheet';
 import { AiError, aiEnabled, askClaude } from '@/lib/ai';
-import { labHeading, parseLab } from '@/domain/lab/parseLab';
+import { labHeading, labReportKind, parseLab } from '@/domain/lab/parseLab';
 import { copyText } from '@/lib/clipboard';
 import { preprocessForOcr } from '@/lib/ocrPreprocess';
 import { extractPdfText, isPdf } from '@/lib/pdfText';
@@ -38,6 +38,8 @@ export function LabSheet({
   const [source, setSource] = useState('Laboratorium');
   const [ocrState, setOcrState] = useState<'idle' | 'running' | 'failed'>('idle');
   const [readMode, setReadMode] = useState<'pdf' | 'image' | null>(null);
+  /** The name of a PDF that was not a lab report, so it was not read. */
+  const [notLab, setNotLab] = useState<string | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
 
   /**
@@ -123,7 +125,20 @@ export function LabSheet({
       setOcrState('running');
       try {
         const text = await extractPdfText(file);
-        setRaw((current) => (current ? `${current}\n${text}` : text));
+        /*
+          A radiology, echo or procedure report is said to be one, not read.
+          Read as a lab it filled "Lain-lain" with `Radiografi Thorax 1` and
+          `MR. 24`: plausible-looking lines that are not results.
+        */
+        if (labReportKind(text) === 'other') {
+          setNotLab(file.name);
+          setOcrState('idle');
+          return;
+        }
+        setNotLab(null);
+        // A BLANK line between sources: it is what tells the parser a PDF's
+        // report has ended, so pasted text after it is read (see parseLab).
+        setRaw((current) => (current ? `${current}\n\n${text}` : text));
         setOcrState('idle');
       } catch (error) {
         console.error('[lab] PDF read failed', error);
@@ -162,7 +177,7 @@ export function LabSheet({
         tessedit_char_whitelist:
           'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789.,/()<>=+-% ',
       });
-      setRaw((current) => (current ? `${current}\n${data.text}` : data.text));
+      setRaw((current) => (current ? `${current}\n\n${data.text}` : data.text));
       setOcrState('idle');
     } catch (error) {
       console.error('[lab] OCR failed', error);
@@ -268,6 +283,13 @@ export function LabSheet({
           Hanya {result.known.length} nilai yang terbaca dari teks sepanjang ini — kemungkinan
           hasil pembacaan gambar tidak terpakai. Blok teks langsung dari PDF lab, atau gunakan
           Live Text (iOS) / Google Lens lalu tempel di sini.
+        </p>
+      ) : null}
+
+      {notLab ? (
+        <p role="alert" className="mt-2 text-xs text-danger">
+          “{notLab}” bukan hasil laboratorium (radiologi / ekokardiografi / laporan tindakan),
+          jadi tidak dibaca.
         </p>
       ) : null}
 

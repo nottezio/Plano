@@ -1,5 +1,108 @@
 # Plano — CHANGES
 
+## `2026-09-28.4`
+
+**Lab PDFs: results that were dropped or misread are now read correctly, and
+page furniture no longer reaches "Lain-lain". Radiology, echo and procedure
+PDFs are identified instead of being read as labs.**
+
+Corpus: 42 SIMGOS PDFs from Avi (36 lab, 6 other), run through the same
+extraction as the app (pdf.js, rows rebuilt from glyph positions) and the
+real `parseLab`. Kept in the sandbox only. Every fixture in the tests is
+invented, with the same layout.
+
+### Root cause
+
+Three structural faults, not a list of missing names.
+
+**1. Value patterns were not all anchored.** An earlier release anchored the
+NUMERIC result to the start of the value region, because an unanchored
+search had read reference ranges as results. The word, graded and
+blood-group patterns were never anchored, and made the same mistake:
+
+| Printed | Output was | Reports |
+|---|---|---|
+| `GOLONGAN DARAH/ GOL.DARAH (ABO) + RHESUS`, then `Golongan darah B Rh+` | **`Golongan darah A`** (the "A" of "(ABO)" on the test-name row; first occurrence won) | 1 |
+| `Vit, C - Negatif` (result `-` = not done) | `Vit C Negatif` (the reference) | 2 |
+| `Warna Kuning Kuning Muda` | `Warna Kuning Kuning` | 2 |
+
+The existing blood-group test asserted only that the words "Golongan darah"
+appeared, which is how a wrong group passed.
+
+**2. The name ended where the ALIAS ended, not where the value began.** The
+value region was the raw line sliced at the normalised alias's length.
+- A longer printed name left a word in front of the value, and anchored
+  reading found nothing: `Hs Troponin I < 0.010` (3 reports), `Laktat
+  Darah 1.2` (2).
+- Punctuation shifted the slice: `Sedimen Lain - lain BAC=2` became
+  `in BAC=2` (3). The comment on `matchAnalyte` described this and fixed
+  only the exact-match case.
+- **And a recognised analyte with no readable value was discarded
+  silently**, in neither the output nor "Lain-lain", against Rule 2.
+
+**3. The whole page was read, not the results table.** Anything shaped
+"words then a number" reached "Lain-lain":
+- `MAKASSAR, 15` (the signature date) on **all 36** lab reports;
+- wrapped diagnosis lines: `Hypokalemia ( 2.9`, `Post PCI 1`,
+  `Normoventricular Response (CHA 2`;
+- per-specimen range notes: `(Darah Arteri : 0.6 - 1.5)`;
+- the patient header repeated on page 2.
+
+Plus coverage: lipids and uric acid had no aliases (2 reports), and the 6
+non-lab PDFs were read as labs (`Radiografi Thorax 1`, `MR. 24`).
+
+### Fix
+
+| # | Change |
+|---|---|
+| 1 | **Every value pattern is anchored** to the start of the value region (`GRADED`, `QUALITATIVE`, `BLOOD_GROUP`, like the numeric one). Blood group must be a whole token (`AB|A|B|O` not followed by a letter). `Kuning` takes only `muda`/`tua` after it. |
+| 2a | **The name is mapped, not measured**: the alias's words are found in the raw line in order, across any punctuation (`matchAnalyte`). |
+| 2b | **The name extends over harmless qualifiers** until the value starts: `darah serum plasma arteri vena I T`, assay methods bare or in parentheses (`CMIA`, `( CMIA )`, `ECLIA`…). An **allowlist**: `Kalium Urin 20` is not serum K and chemistry `Bilirubin Total 0.5` is not the urinalysis bilirubin; skipping those words would put a real number under the wrong name (Rule 1). They go to "Lain-lain" under their full name. |
+| 2c | **No silent drop.** A recognised row whose value can't be read falls through to "Lain-lain": with its number, or verbatim if its result is a word. A `-` result (not done) is skipped deliberately, in both paths (`Titer - <1 : 100` no longer reports the reference). |
+| 3 | **Per-report table scoping**: `free → header → table → footer → free`. A report start (`HASIL PEMERIKSAAN LABORATORIUM`) begins the patient header, the table header row begins reading, and `Kesan / Saran` or `Halaman n dari m` ends it. The header row is recognised in both layouts (one row; one cell per line). **Fails open:** a report whose table header isn't found is read whole, as before. Parenthesised annotation lines and `CITY, dd-mm-yyyy` signatures are skipped anywhere. |
+| 3b | **Several sources in one box.** Scoping is per report, and the sheet now separates appended PDFs/OCR with a blank line (PDF text never has one), so pasted text before or after a report is still read. |
+| 4 | Aliases: `Kol Total`, `LDL`, `HDL`, `TG`, `Asam Urat`. Output `Kol total/LDL/HDL/TG 194/195/15/99` (after Ca/Mg) and `Asam urat 10.6` (after Ur/Cr). |
+| 5 | `labReportKind(text)`: `lab` / `other` / `unknown`. The sheet refuses a radiology/echo/procedure PDF with a message instead of reading it. |
+
+### Result on the corpus
+
+| | Before | After |
+|---|---|---|
+| Lab reports with junk in "Lain-lain" | 36 / 36 | **0 / 36** |
+| Wrong values (blood group, Vit C, Warna) | 5 rows in 3 reports | 0 |
+| Recognised rows dropped silently | 8 rows in 8 reports | 0 |
+| Table rows whose value is missing from the output | — | only `LED -` (not done, correct) and one ANA "Hasil" row (see Not done) |
+
+### Wrong turns (caught before shipping)
+
+- **Scoping to the table first made the old one-cell-per-line layout read
+  nothing at all.** Its header row is split across four lines, so the header
+  was never found and the parser stayed in "skip patient header" to the end.
+  The existing tests caught it (6 failures). Now both layouts are recognised,
+  and scoping fails open.
+- A first global "table only" rule would have ignored pasted text next to a
+  PDF. Made per-report, with blank-line separation.
+
+### Not done
+
+- **ANA IF**: the result row is labelled `Hasil` under an `ANA IF` heading
+  line. It isn't read (and isn't misread). Rare; say if you want it.
+- **Culture reports** (`Kultur & Sensitivitas Tidak ada pertumbuhan`) are
+  labs with no numeric table, so nothing is extracted. The Kesan is the
+  result there.
+- Troponin I and T both print as `Troponin`. The I/T distinction is in the
+  PDF, not the output.
+- Sex-split ranges (`L(1.3); P(<1.1)`, `L(>55); P(>65)`) aren't parsed, so
+  those values are never bolded. Unchanged; the no-hardcoded-ranges rule
+  stands.
+
+```
+1598 tests passed (+14)
+typecheck / lint (0 warnings) / check:version / check:contrast / check:a11y / build — clean
+```
+
+---
+
 ## `2026-09-28.3`
 
 **Patient card: DPJP, KJS and RM now look different from one another.**

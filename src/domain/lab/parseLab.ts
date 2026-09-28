@@ -213,6 +213,16 @@ const ALIASES: Record<string, readonly string[]> = {
   'Rasio Albumin Kreatinin': ['rasio albumin creatinin', 'rasio albumin kreatinin'],
   'Rasio Protein Kreatinin': ['rasio protein creatinin', 'rasio protein kreatinin'],
   'Golongan darah': ['golongan darah', 'gol darah'],
+  // Lipids and uric acid: routine on a cardiology ward, and every one of them
+  // was landing in "Lain-lain" (SIMGOS prints `Kolesterol HDL`, `Kolesterol
+  // LDL`, `Kolesterol Total`, `Trigliserida`, `Asam Urat`). The test-name rows
+  // above them (`CHOLESTEROL HDL / HDL KOLESTEROL`) carry no value and are
+  // skipped as before.
+  'Kol Total': ['kolesterol total', 'cholesterol total', 'total cholesterol', 'total kolesterol'],
+  LDL: ['kolesterol ldl', 'cholesterol ldl', 'ldl kolesterol', 'ldl cholesterol', 'ldl'],
+  HDL: ['kolesterol hdl', 'cholesterol hdl', 'hdl kolesterol', 'hdl cholesterol', 'hdl'],
+  TG: ['trigliserida', 'trigliserid', 'triglyceride', 'triglycerides', 'tg'],
+  'Asam Urat': ['asam urat', 'uric acid'],
 };
 
 /**
@@ -234,10 +244,12 @@ const GROUPS: ReadonlyArray<{ label: string; keys: readonly string[] }> = [
   { label: 'GDS', keys: ['GDS'] },
   { label: 'GDP', keys: ['GDP'] },
   { label: 'Ur/Cr', keys: ['Ureum', 'Kreatinin'] },
+  { label: 'Asam urat', keys: ['Asam Urat'] },
   { label: 'Albumin', keys: ['Albumin'] },
   { label: 'GOT/GPT', keys: ['GOT', 'GPT'] },
   { label: 'Na/K/Cl', keys: ['Na', 'K', 'Cl'] },
   { label: 'Ca/Mg', keys: ['Kalsium', 'Magnesium'] },
+  { label: 'Kol total/LDL/HDL/TG', keys: ['Kol Total', 'LDL', 'HDL', 'TG'] },
   { label: 'CRP', keys: ['CRP'] },
   { label: 'Troponin', keys: ['Troponin'] },
   { label: 'D-Dimer', keys: ['D-Dimer'] },
@@ -278,10 +290,28 @@ const LOOKUP: ReadonlyArray<readonly [string, string]> = Object.entries(ALIASES)
  * reads as a plain count, on a panel where the difference between `1+` and
  * `3+` protein is the clinical finding.
  */
-const GRADED = /\b[0-4]\+/;
+const GRADED = /^[\s:=]*([0-4]\+)/;
 
+/**
+ * ALL value patterns are anchored to the start of the value region, like the
+ * numeric one below. The numeric pattern was anchored when it was found reading
+ * a reference range as the result; these three were not, and made the same
+ * mistake on words:
+ *
+ *  - `Vit, C - Negatif`: result `-` (not done), reference `Negatif`. The
+ *    unanchored search found the reference and reported `Vit C Negatif`.
+ *  - `Warna Kuning Kuning Muda`: `kuning\s*\w*` swallowed the reference and
+ *    gave `Kuning Kuning`.
+ *  - `GOLONGAN DARAH/ GOL.DARAH (ABO) + RHESUS`, the test-name row above the
+ *    result, gave blood group `A` from "(ABO)". The real row said `B Rh+`, and
+ *    first-occurrence-wins kept the `A`.
+ */
 const QUALITATIVE =
-  /\b(non\s*reactive|reactive|negatif|negative|positif|positive|kuning\s*\w*|jernih|keruh)\b/i;
+  /^[\s:=]*(non\s*reactive|reactive|negatif|negative|positif|positive|kuning(?:\s+(?:muda|tua))?|agak\s+keruh|jernih|keruh)\b/i;
+
+/** A result word anywhere in a row, used only to decide a row is worth showing. */
+const QUALITATIVE_ANYWHERE =
+  /\b(non\s*reactive|reactive|negatif|negative|positif|positive)\b/i;
 
 /**
  * Blood group, which is the one result with no number and no yes/no.
@@ -290,7 +320,8 @@ const QUALITATIVE =
  * dropped entirely — silently, which is the worst way to lose a value that
  * matters before an operation.
  */
-const BLOOD_GROUP = /\b(A|B|AB|O)\s*(Rh)?\s*[+-]?\s*(positif|negatif|pos|neg)?/i;
+const BLOOD_GROUP =
+  /^[\s:=]*(AB|A|B|O)(?![A-Za-z0-9])\s*(?:Rh\s*)?[+-]?\s*(?:positif|negatif|pos|neg)?/i;
 
 /**
  * Report furniture that looks exactly like a result line.
@@ -348,17 +379,64 @@ const IGNORED_LABELS: readonly string[] = [
   'nilai rujukan',
 ];
 
+/**
+ * Words a printout adds AFTER the analyte name that do not change which
+ * analyte it is: `Laktat Darah 1.2`, `Hs Troponin I < 0.010`,
+ * `Kreatinin Serum 1.1`.
+ *
+ * WHY THIS EXISTS: the name used to end where the ALIAS ended. `laktat`
+ * matched, and the value region began at ` Darah 1.2`. Value reading is
+ * anchored to the start of that region (see below: that anchor is what
+ * stops a reference range being read as the result), so it found nothing,
+ * and the row was dropped. The name really ends where the VALUE begins.
+ *
+ * An ALLOWLIST, not "skip any word". `Kalium Urin 20` is not serum
+ * potassium, and chemistry `Bilirubin Total 0.5` is not the urinalysis
+ * bilirubin. Skipping those words would report a real number under the
+ * wrong name, which is the one failure worse than missing (Rule 1). Anything
+ * not listed here falls through to "Lain-lain" with its full printed name.
+ */
+const HARMLESS_QUALIFIERS = new Set([
+  'darah', 'serum', 'plasma', 'arteri', 'vena', 'i', 't',
+  // Assay methods, printed bare as often as in parentheses: `HBsAg CMIA Non
+  // Reactive`. How it was measured, never what.
+  'cmia', 'eclia', 'clia', 'elisa', 'elfa', 'rapid', 'ict',
+]);
+
+/**
+ * `extractValue`, after stepping over up to three harmless qualifier words.
+ * Tries the region as given first, so every line that already parsed parses
+ * identically.
+ */
+function extractAfterQualifiers(rest: string, key: string): string | null {
+  const direct = extractValue(rest, key);
+  if (direct || key === 'Golongan darah') return direct;
+  let region = rest;
+  for (let step = 0; step < 3; step++) {
+    // A method in parentheses, `Anti HIV ( CMIA ) Non Reactive`, names how
+    // it was measured, not what; it is always harmless.
+    const word = /^[\s,:]*(\(\s*[A-Za-z ]+\s*\)|[A-Za-z]+)(?=[\s,:]|$)/.exec(region);
+    const token = word?.[1];
+    if (!token) return null;
+    if (!token.startsWith('(') && !HARMLESS_QUALIFIERS.has(token.toLowerCase())) return null;
+    region = region.slice(word[0].length);
+    const value = extractValue(region, key);
+    if (value) return value;
+  }
+  return null;
+}
+
 function extractValue(rest: string, key?: string): string | null {
   if (key === 'Golongan darah') {
     const group = BLOOD_GROUP.exec(rest);
-    if (group?.[0]) return group[0].replace(/\s+/g, ' ').trim();
+    if (group?.[0]) return group[0].replace(/^[\s:=]+/, '').replace(/\s+/g, ' ').trim();
   }
 
   const graded = GRADED.exec(rest);
-  if (graded?.[0]) return graded[0];
+  if (graded?.[1]) return graded[1];
 
   const qualitative = QUALITATIVE.exec(rest);
-  if (qualitative?.[0]) return qualitative[0].replace(/\s+/g, ' ').trim();
+  if (qualitative?.[1]) return qualitative[1].replace(/\s+/g, ' ').trim();
 
   /**
    * `>=300`, `BAC=2` — a comparison or a labelled count in front of the
@@ -461,7 +539,17 @@ function matchAnalyte(line: string, section: string | null): { key: string; rest
        */
       if (exact) return { key: resolvedKey, rest: '' };
 
-      const rest = line.slice(line.toLowerCase().indexOf(alias.split(' ')[0] ?? '') + alias.length);
+      /*
+        MAPPED, NOT MEASURED. The value region used to be the raw line sliced at
+        the normalised alias's LENGTH, and the comment above says why that is
+        wrong. The exact-match case was fixed and the general one was not:
+        `Sedimen Lain - lain BAC=2` sliced at 17 left `in BAC=2`, which read as
+        nothing, and the row vanished. The alias's words are now found in the
+        raw line in order, across whatever punctuation separates them.
+      */
+      const words = alias.split(' ').map((word) => word.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'));
+      const head = new RegExp(`^[^a-z0-9]*${words.join('[^a-z0-9]+')}`, 'i').exec(line);
+      const rest = head ? line.slice(head[0].length) : '';
       return { key: resolvedKey, rest };
     }
   }
@@ -552,6 +640,97 @@ function looksLikeRange(line: string): boolean {
   return /^(negatif|negative|normal|kuning\s*muda|jernih)$/.test(flat);
 }
 
+/**
+ * The SIMGOS results table: where a report starts, its header row, and what
+ * ends it.
+ *
+ * A SIMGOS PDF is a page, not a table. Above the table sit the patient header
+ * and a Diagnosa field that wraps onto extra lines; below it, the Kesan, the
+ * analyst, and a signature line `MAKASSAR, 15-09-2026 14:27:18`. All of it was
+ * read as possible results, and anything shaped "words then a number" reached
+ * "Lain-lain": `MAKASSAR, 15` on every report, `Hypokalemia ( 2.9`,
+ * `Post PCI 1`. Those are not results that went unrecognised; they were never
+ * results.
+ *
+ * So the text is read as a sequence of states, per report:
+ *
+ *   free   ─ `HASIL PEMERIKSAAN LABORATORIUM` ─▶ header   (patient block, skipped)
+ *   header ─ `PEMERIKSAAN HASIL NILAI RUJUKAN` ─▶ table   (read)
+ *   table  ─ `Kesan / Saran`, `Halaman 1 dari 2` ─▶ footer (skipped)
+ *   footer ─ next report / next table header ─▶ header / table
+ *   footer ─ a BLANK line ─▶ free
+ *
+ * Per report, not per text: the sheet appends several PDFs and pasted lines
+ * into one box, and a global "only read the table" would have swallowed the
+ * pasted lines. PDF text never contains a blank line (rows are rebuilt and
+ * empties dropped), so the sheet separates appended sources with one, and
+ * that is what hands control back to free text. Text with no report in it at
+ * all (a paste, a note) stays `free` throughout and is read as before.
+ */
+const REPORT_START = /^hasil\s+pemeriksaan\s+laboratorium\b/i;
+const TABLE_HEADER = /^pemeriksaan\s+hasil\s+nilai\s+rujukan\b/i;
+const TABLE_END = /^(kesan\s*\/\s*saran|ahli\s+teknologi|halaman\s+\d+\s+dari\s+\d+)/i;
+
+/**
+ * Which kind of SIMGOS document a PDF's text is.
+ *
+ * Every lab PDF in the corpus (36 of 36) carries `HASIL PEMERIKSAAN
+ * LABORATORIUM`; none of the radiology, echo, EP study or ablation reports
+ * do. Those were read as if they were labs and filled "Lain-lain" with
+ * `Radiografi Thorax 1`, `MR. 24`, `- Aorta 3`. The sheet uses this to say
+ * "not a lab report" instead of producing that.
+ *
+ * `unknown` (a paste, a screenshot's OCR) is read normally.
+ */
+export function labReportKind(text: string): 'lab' | 'other' | 'unknown' {
+  if (/hasil\s+pemeriksaan\s+laboratorium/i.test(text)) return 'lab';
+  if (
+    /hasil\s+pemeriksaan\s+radiologi|^\s*laporan\s+(operasi|ekokardiografi|echocardiograph|electrophy|radiofrequency)/im.test(
+      text,
+    )
+  ) {
+    return 'other';
+  }
+  return 'unknown';
+}
+
+/**
+ * How many lines the results-table header occupies at `index`, or 0.
+ *
+ * Two layouts: one row (`PEMERIKSAAN HASIL NILAI RUJUKAN SATUAN`), or one
+ * cell per line (`PEMERIKSAAN` / `HASIL` / `NILAI RUJUKAN` / `SATUAN`), which
+ * is how some exports extract.
+ */
+function tableHeaderLength(lines: readonly string[], index: number): number {
+  const line = lines[index]?.trim() ?? '';
+  if (TABLE_HEADER.test(line)) return 1;
+  if (!/^pemeriksaan$/i.test(line) || !/^hasil$/i.test(lines[index + 1]?.trim() ?? '')) return 0;
+  let length = 2;
+  if (/^nilai\s+rujukan$/i.test(lines[index + length]?.trim() ?? '')) length += 1;
+  if (/^satuan$/i.test(lines[index + length]?.trim() ?? '')) length += 1;
+  return length;
+}
+
+/** Is there a table header before this report ends (next report, or a blank line)? */
+function tableHeaderAhead(lines: readonly string[], from: number): boolean {
+  for (let index = from; index < lines.length; index++) {
+    const line = lines[index]?.trim() ?? '';
+    if (!line || REPORT_START.test(line)) return false;
+    if (tableHeaderLength(lines, index) > 0) return true;
+  }
+  return false;
+}
+
+/**
+ * Lines that annotate a row rather than being one: `(Darah Arteri : 0.6 - 1.5)`
+ * under the lactate row states the reference range per specimen. Wrapped in
+ * parentheses, which no result line is.
+ */
+const ANNOTATION = /^\(.*\)$/;
+
+/** `MAKASSAR, 15-09-2026 …`: the signature line, for text read without a table. */
+const SIGNATURE = /^[A-Za-z .]+,\s*\d{1,2}[-/]\d{1,2}[-/]\d{2,4}\b/;
+
 export interface LabParseOptions {
   /**
    * Wrap values outside their PRINTED reference range in `*…*`.
@@ -593,9 +772,35 @@ export function parseLab(raw: string, options: LabParseOptions = {}): LabParseRe
    */
   let section: string | null = null;
 
+  let state: 'free' | 'header' | 'table' | 'footer' = 'free';
+
   for (let i = 0; i < rawLines.length; i++) {
     const trimmed = rawLines[i]!;
-    if (!trimmed) continue;
+    if (!trimmed) {
+      if (state === 'footer') state = 'free';
+      continue;
+    }
+
+    if (REPORT_START.test(trimmed)) {
+      /*
+        FAIL OPEN. Only skip the patient header if this report's table header
+        is actually found further on. A layout whose header this does not
+        recognise is read whole, as before this scoping existed: some page
+        furniture in "Lain-lain" is a nuisance; a report that yields nothing
+        at all is a lost result.
+      */
+      if (tableHeaderAhead(rawLines, i + 1)) state = 'header';
+      continue;
+    }
+    const header = tableHeaderLength(rawLines, i);
+    if (header > 0) {
+      state = 'table';
+      i += header - 1;
+      continue;
+    }
+    if (state === 'table' && TABLE_END.test(trimmed)) state = 'footer';
+    if (state === 'header' || state === 'footer') continue;
+    if (ANNOTATION.test(trimmed) || SIGNATURE.test(trimmed)) continue;
 
     const headingMatch = SECTION_HEADINGS.find(([pattern]) => pattern.test(trimmed));
     if (headingMatch) section = headingMatch[1];
@@ -609,8 +814,21 @@ export function parseLab(raw: string, options: LabParseOptions = {}): LabParseRe
     }
 
     const matched = matchAnalyte(trimmed, section);
-    if (matched) {
-      let value = extractValue(matched.rest, matched.key);
+    /*
+      RECOGNISED BUT NO VALUE, WITH TEXT AFTER THE NAME: not dropped.
+
+      This used to end in `continue` with nothing recorded, so a row like
+      `Bilirubin Total 0.5` (matched `bilirubin`, value not readable after
+      `Total`) disappeared: not in the output, not in "Lain-lain". That broke
+      Rule 2 at the top of this file and made every future misread invisible.
+      Such a line now falls through to the unrecognised path below and shows
+      up under its full printed name. A test-name row with no number in it
+      (`CHOLESTEROL HDL / HDL KOLESTEROL`) still yields nothing there.
+    */
+    const matchedValue = matched ? extractAfterQualifiers(matched.rest, matched.key) : null;
+    const unreadable = matched !== null && !matchedValue && matched.rest.trim() !== '';
+    if (matched && !unreadable) {
+      let value = matchedValue;
 
       /**
        * The label matched and carried no value of its own — the one-cell-
@@ -696,7 +914,25 @@ export function parseLab(raw: string, options: LabParseOptions = {}): LabParseRe
      *
      * One contract now: the argument is always the value region.
      */
-    const label = trimmed.slice(0, trimmed.search(/-?\d/)).replace(/[:\s]+$/, '').trim();
+    if (unreadable) {
+      // `-` in the result column: not done. Nothing to report, by design.
+      if (/^[\s:=]*-(?=[\s)]|$)/.test(matched.rest)) continue;
+      // A recognised row whose result is a WORD that could not be read after
+      // the name (`HBsAg Rapid Non Reactive`): shown as printed rather than
+      // lost. Test-name rows (`SGOT (AST)`) carry no result word and stay out.
+      if (!/\d/.test(trimmed)) {
+        if (QUALITATIVE_ANYWHERE.test(matched.rest)) unknown.push({ key: trimmed, value: '' });
+        continue;
+      }
+    }
+
+    const digitAt = trimmed.search(/-?\d/);
+    if (digitAt < 0) continue;
+    // Name, then a lone `-` in the result column: not done, and every number
+    // after it is the reference (`Titer - <1 : 100`). Same rule as the
+    // recognised path. `Lain - lain` is not this: a word follows its dash.
+    if (/^[A-Za-z][A-Za-z ]*?\s+-(?=\s*(?:$|[^A-Za-z\s]))/.test(trimmed)) continue;
+    const label = trimmed.slice(0, digitAt).replace(/[:\s]+$/, '').trim();
     const value = extractValue(trimmed.slice(label.length));
 
     // Analyte names are one to three words. That single constraint is what
@@ -780,7 +1016,7 @@ export function parseLab(raw: string, options: LabParseOptions = {}): LabParseRe
   if (unknown.length > 0) {
     lines.push('');
     lines.push('Lain-lain:');
-    for (const item of unknown) lines.push(`${item.key} ${item.value}`);
+    for (const item of unknown) lines.push(item.value ? `${item.key} ${item.value}` : item.key);
   }
 
   return { known, unknown, formatted: lines.join('\n') };
