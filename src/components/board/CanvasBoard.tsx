@@ -416,7 +416,7 @@ export function CanvasBoard({
                     applyLayouts(undo);
                     setUndo(null);
                   }}
-                  className="min-h-tap shrink-0 rounded-lg border border-border px-3 text-xs font-medium text-accent"
+                  className="min-h-tap shrink-0 rounded-lg border border-border px-2.5 text-xs font-medium text-accent [@media(pointer:fine)]:min-h-9"
                 >
                   Urungkan
                 </button>
@@ -428,7 +428,7 @@ export function CanvasBoard({
                   applyLayouts(tidy(ids, layouts, columns));
                 }}
                 title="Rapatkan kartu, tanpa mengubah urutan yang sudah diatur"
-                className="min-h-tap shrink-0 rounded-lg border border-border px-3 text-xs font-medium text-fg-muted"
+                className="min-h-tap shrink-0 rounded-lg px-2.5 text-xs font-medium text-fg-muted hover:bg-bg-subtle [@media(pointer:fine)]:min-h-9"
               >
                 Rapikan
               </button>

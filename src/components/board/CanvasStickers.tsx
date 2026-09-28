@@ -256,7 +256,7 @@ export function CanvasStickers({
                 onClick={() => setPicking((open) => !open)}
                 aria-expanded={picking}
                 title="Tempel penanda di papan"
-                className="min-h-tap shrink-0 rounded-lg border border-border px-3 text-xs font-medium text-fg"
+                className="min-h-tap shrink-0 rounded-lg px-2.5 text-xs font-medium text-fg hover:bg-bg-subtle [@media(pointer:fine)]:min-h-9"
               >
                 🚩 Penanda
               </button>

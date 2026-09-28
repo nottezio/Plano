@@ -21,7 +21,9 @@ import { copyText } from '@/lib/clipboard';
 import { PatientCard } from '@/components/board/PatientCard';
 import { PatientPeekWindow } from '@/components/board/PatientPeekWindow';
 import { QuickChecklistSheet } from '@/components/board/QuickChecklistSheet';
-import { IconSearch } from '@/components/common/Icons';
+import { IconMore, IconSearch } from '@/components/common/Icons';
+import { Sheet } from '@/components/common/Sheet';
+import { useHideOnScroll } from '@/hooks/useHideOnScroll';
 import { NoteSearchToggle, useSearchNotesPreference } from '@/components/archive/NoteSearchToggle';
 import { useArchiveText } from '@/hooks/useArchiveText';
 import { matchArchived, searchTokens } from '@/domain/archiveSearch';
@@ -361,6 +363,27 @@ export default function BoardPage(): JSX.Element {
    * never look again.
    */
   const [canvasActions, setCanvasActions] = useState<HTMLElement | null>(null);
+  const [moreOpen, setMoreOpen] = useState(false);
+  /**
+   * The drag hint, shown until dismissed once. It was a permanent line of the
+   * pinned header in Urutan sendiri: useful the first time, 20 px of a pinned
+   * header every time after.
+   */
+  const [dragHintSeen, setDragHintSeen] = useState(() => {
+    try {
+      return localStorage.getItem('visite.board.dragHintSeen') === '1';
+    } catch {
+      return false;
+    }
+  });
+  const dismissDragHint = (): void => {
+    setDragHintSeen(true);
+    try {
+      localStorage.setItem('visite.board.dragHintSeen', '1');
+    } catch {
+      // No storage: hidden for this visit.
+    }
+  };
 
 
   const debouncedQuery = useDebouncedValue(query, 150);
@@ -475,6 +498,32 @@ export default function BoardPage(): JSX.Element {
   const quickPatient = patients.find((patient) => patient.id === quickPatientId) ?? null;
   const filtering = hasActiveFilters({ ...filters, query: debouncedQuery });
 
+  const headerRef = useRef<HTMLDivElement>(null);
+  /*
+    Phone and tablet only, and never while searching or selecting: the header
+    is then the thing being used, and hiding it under the keyboard or mid-
+    selection would take the control away from the hand using it.
+  */
+  const headerHidden = useHideOnScroll(headerRef, !canvasWidth && !searching && !selecting);
+
+  /** The order dropdown: in the single row on a laptop, row two on a phone. */
+  const orderControl = (
+    <label className={`${CONTROL} flex min-w-0 flex-1 items-center gap-1 rounded-lg border border-border bg-surface pl-3 text-xs text-fg-muted lg:flex-none`}>
+      Urutan
+      <select
+        value={order}
+        onChange={(event) => changeOrder(event.target.value as BoardOrder)}
+        aria-label="Urutan kartu"
+        className="min-w-0 flex-1 cursor-pointer bg-transparent py-1.5 pr-2 font-semibold text-fg outline-none"
+      >
+        <option value="recent">Terbaru</option>
+        <option value="location">Denah</option>
+        <option value="dpjp">Per DPJP</option>
+        <option value="custom">Urutan sendiri</option>
+      </select>
+    </label>
+  );
+
   return (
     <AppShell title="Aktif">
       {/*
@@ -485,175 +534,137 @@ export default function BoardPage(): JSX.Element {
         board meant scrolling back up first. Pinned to the top of the page's
         scroller, opaque, so cards pass cleanly underneath it.
       */}
-      <div className="sticky top-0 z-20 border-b border-border bg-bg">
-      <div className="flex items-center gap-2 px-4 pb-2 pt-1 lg:pt-3">
-        <label className="flex min-h-tap flex-1 items-center gap-2 rounded-lg border border-border bg-surface px-3 lg:max-w-md">
-          <IconSearch className="shrink-0 text-fg-faint" width={18} height={18} />
+      <div
+        ref={headerRef}
+        className={[
+          'sticky top-0 z-20 border-b border-border bg-bg transition-transform duration-200',
+          headerHidden ? '-translate-y-full' : 'translate-y-0',
+        ].join(' ')}
+      >
+      {/*
+        ONE ROW ON A LAPTOP, TWO ON A PHONE.
+
+        Pinning the header made its size matter: four stacked rows (search;
+        scope chips; four order chips plus actions; a hint line) took about a
+        third of a laptop screen. The same controls now fit one row:
+
+          search · Saya|Titipan · Urutan ▾ · [canvas actions] · actions · +Pasien baru
+
+        - Scope is one segmented switch, not two pills on their own row.
+        - The four order chips are one dropdown. Exactly one is ever on, which
+          is what a select is for, and it costs one control's width.
+        - Controls are 36 px tall with a mouse and 44 px on touch
+          (`CONTROL`): the tap-target rule is about fingers.
+        - On a phone the actions go behind ⋯, and the header hides while
+          scrolling down and returns on scroll up (`useHideOnScroll`).
+      */}
+      <div className="flex flex-wrap items-center gap-2 px-4 py-2 lg:flex-nowrap">
+        <label className={`${CONTROL} flex min-w-0 flex-1 basis-40 items-center gap-2 rounded-lg border border-border bg-surface px-3 lg:max-w-sm`}>
+          <IconSearch className="shrink-0 text-fg-faint" width={16} height={16} />
           <input
             type="search"
             value={query}
             onChange={(event) => setQuery(event.target.value)}
+            aria-label="Cari pasien"
             placeholder="Cari nama, RM, bed, diagnosis…"
-            className="min-w-0 flex-1 bg-transparent py-2 text-sm outline-none"
+            className="min-w-0 flex-1 bg-transparent py-1.5 text-sm outline-none"
           />
         </label>
 
-        {/* From tablet up the primary action belongs in the content flow, not
-            floating over the bottom-right corner of a desktop window. */}
+        {/* Titipan only exists when there are some; a one-option switch is
+            not a control. */}
+        {temporaryCount > 0 || scope === 'temporary' ? (
+          <div role="group" aria-label="Daftar pasien" className="flex shrink-0 rounded-lg bg-bg-subtle p-0.5">
+            {(
+              [
+                ['mine', 'Saya', patients.length - temporaryCount],
+                ['temporary', 'Titipan', temporaryCount],
+              ] as const
+            ).map(([value, label, count]) => (
+              <button
+                key={value}
+                type="button"
+                aria-pressed={scope === value}
+                onClick={() => changeScope(value)}
+                className={[
+                  `${CONTROL} rounded-md px-2.5 text-xs`,
+                  scope === value ? 'bg-surface font-semibold text-accent shadow-sm' : 'text-fg-muted',
+                ].join(' ')}
+              >
+                {label} <span className="font-normal opacity-70">{count}</span>
+              </button>
+            ))}
+          </div>
+        ) : null}
+
+        {canvasWidth ? orderControl : null}
+
+        {canvasWidth ? (
+          <>
+            {/*
+              Where the canvas puts Rapikan / Urungkan / Penanda: portalled
+              into this `contents` span so they sit in the row as if written
+              here. Desktop only, which is the only place the canvas exists.
+            */}
+            <span ref={setCanvasActions} className="contents" />
+            <span aria-hidden="true" className="h-5 w-px shrink-0 bg-border" />
+            <button
+              type="button"
+              onClick={addSticky}
+              disabled={!uid}
+              title="Tempel catatan singkat di papan"
+              className={`${CONTROL} shrink-0 rounded-lg px-2.5 text-xs font-medium text-fg hover:bg-bg-subtle`}
+            >
+              + Catatan
+            </button>
+            <button
+              type="button"
+              onClick={() => setLabOpen(true)}
+              className={`${CONTROL} shrink-0 rounded-lg px-2.5 text-xs font-medium text-fg hover:bg-bg-subtle`}
+            >
+              Format lab
+            </button>
+            <SelectButton selecting={selecting} onToggle={() => (selecting ? leaveSelection() : setSelecting(true))} />
+          </>
+        ) : null}
+
+        {/* From tablet up the primary action sits in the row; on a phone it
+            is the floating + in the corner. */}
         <button
           type="button"
           onClick={createAndOpen}
-          className="hidden min-h-tap shrink-0 items-center gap-1.5 rounded-lg bg-accent px-4 text-sm font-medium text-white sm:flex lg:ml-auto"
+          className={`${CONTROL} hidden shrink-0 items-center gap-1.5 rounded-lg bg-accent px-3 text-sm font-medium text-white sm:flex lg:ml-auto`}
         >
           <span aria-hidden="true" className="text-base leading-none">+</span>
           Pasien baru
         </button>
       </div>
+
+      {/* Phone and tablet: the occasional actions behind one button. Pilih
+          stays visible while selecting, because it is how you leave. */}
+      {!canvasWidth ? (
+        <div className="-mt-1 flex items-center gap-2 px-4 pb-2">
+          {orderControl}
+          {selecting ? (
+            <SelectButton selecting onToggle={leaveSelection} />
+          ) : (
+            <button
+              type="button"
+              onClick={() => setMoreOpen(true)}
+              aria-label="Aksi lain"
+              className="flex min-h-tap items-center gap-1 rounded-lg px-2 text-xs font-medium text-fg-muted"
+            >
+              <IconMore width={18} height={18} /> Aksi
+            </button>
+          )}
+        </div>
+      ) : null}
+
       {searching ? (
         <div className="px-4 pb-1">
           <NoteSearchToggle on={searchNotes} onChange={setSearchNotes} status={archiveText} />
         </div>
       ) : null}
-
-      {/* Chips, not full-width buttons. Two of these at `flex-1` claimed a
-          whole row of a phone screen for a switch that is used occasionally,
-          and pushed the cards below the fold. Titipan hides entirely when
-          there are none — an empty list is not worth a permanent control. */}
-      <div className="flex items-center gap-2 px-4 pb-2">
-        <button
-          type="button"
-          aria-pressed={scope === 'mine'}
-          onClick={() => changeScope('mine')}
-          className={[
-            'min-h-tap rounded-full border px-3 text-xs',
-            scope === 'mine'
-              ? 'border-accent bg-bg-subtle font-medium text-accent'
-              : 'border-border text-fg-muted',
-          ].join(' ')}
-        >
-          Pasien saya ({patients.length - temporaryCount})
-        </button>
-        {temporaryCount > 0 || scope === 'temporary' ? (
-          <button
-            type="button"
-            aria-pressed={scope === 'temporary'}
-            onClick={() => changeScope('temporary')}
-            className={[
-              'min-h-tap rounded-full border px-3 text-xs',
-              scope === 'temporary'
-                ? 'border-accent bg-bg-subtle font-medium text-accent'
-                : 'border-border text-fg-muted',
-            ].join(' ')}
-          >
-            Titipan ({temporaryCount})
-          </button>
-        ) : null}
-      </div>
-
-      {/* Walking order. Labels say what the order IS, not what it sorts by:
-          "Sesuai denah" is the thing a resident recognises. */}
-      {/*
-        TWO BOXES, because the two halves of this row overflow differently.
-
-        It used to be one non-wrapping flex row: four order chips, then a rule,
-        then Format lab and Pilih. On a 360 px phone the four chips alone are
-        wider than the screen, and since the actions sat last and were
-        `shrink-0`, they were the first thing pushed off the right edge — so
-        the only two controls in the row that are always needed were the two
-        that disappeared, while the chips (one of which is already selected and
-        visible) kept their space.
-
-        The order chips are a LIST and can scroll; the actions are FIXED and
-        must not. Splitting them says exactly that: the chip strip takes the
-        leftover width and scrolls inside it, and the actions keep their own
-        width at every screen size.
-
-        `min-w-0` on the scroller is load-bearing — a flex child's default
-        `min-width: auto` refuses to shrink below its content, which is how a
-        nested `overflow-x-auto` ends up never scrolling and widening the page
-        instead.
-      */}
-      <div className="flex items-center gap-2 px-4 pb-2">
-        <div className="flex min-w-0 flex-1 gap-2 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-          {(
-            [
-              ['recent', 'Terbaru'],
-              ['location', 'Denah'],
-              ['dpjp', 'Per DPJP'],
-              ['custom', 'Urutan sendiri'],
-            ] as Array<[BoardOrder, string]>
-          ).map(([value, label]) => (
-            <button
-              key={value}
-              type="button"
-              aria-pressed={order === value}
-              onClick={() => changeOrder(value)}
-              className={[
-                'min-h-tap shrink-0 rounded-full border px-3 text-xs',
-                order === value
-                  ? 'border-accent bg-bg-subtle font-medium text-accent'
-                  : 'border-border text-fg-muted',
-              ].join(' ')}
-            >
-              {label}
-            </button>
-          ))}
-        </div>
-
-        {/*
-          Squared, filled, and separated by a rule — because these two are NOT
-          the same kind of control as the chips to their left.
-
-          The chips are a single choice of how the board is ordered: exactly one
-          is on, and pressing another turns this one off. `Format lab` opens a
-          sheet and `Pilih` enters a mode. Sharing the chips' pill outline made
-          them read as two more sort options that happened never to be
-          selected, which is why they were invisible as actions.
-        */}
-        {/*
-          Where the canvas puts Rapikan / Urungkan.
-
-          An empty span with `contents` so it adds no box of its own — the
-          portalled buttons become direct flex children of this row and sit
-          beside Format lab exactly as if they had been written here.
-        */}
-        <span ref={setCanvasActions} className="contents" />
-
-        <span aria-hidden="true" className="h-5 w-px shrink-0 bg-border" />
-        <button
-          type="button"
-          onClick={addSticky}
-          disabled={!uid}
-          title="Tempel catatan singkat di papan. Pindah dan ubah ukurannya di Urutan sendiri."
-          className="min-h-tap shrink-0 rounded-lg bg-bg-subtle px-3 text-xs font-medium text-fg"
-        >
-          + Catatan
-        </button>
-        <button
-          type="button"
-          onClick={() => setLabOpen(true)}
-          className="min-h-tap shrink-0 rounded-lg bg-bg-subtle px-3 text-xs font-medium text-fg"
-        >
-          Format lab
-        </button>
-
-        {/*
-          Small, and beside the other board controls — the dashboard is
-          already crowded and this is an occasional action, not a mode anyone
-          spends time in.
-        */}
-        <button
-          type="button"
-          onClick={() => (selecting ? leaveSelection() : setSelecting(true))}
-          aria-pressed={selecting}
-          className={[
-            'min-h-tap shrink-0 rounded-lg px-3 text-xs font-medium',
-            selecting ? 'bg-accent text-white' : 'bg-bg-subtle text-fg',
-          ].join(' ')}
-        >
-          {selecting ? 'Batal' : 'Pilih'}
-        </button>
-      </div>
 
       {selecting ? (
         <div className="mb-2 space-y-2 rounded-lg border border-border px-3 py-2">
@@ -714,9 +725,16 @@ export default function BoardPage(): JSX.Element {
         shifts, and the grip is deliberately quiet so it does not compete with
         the card. One line, only in the mode where it applies.
       */}
-      {order === 'custom' ? (
-        <p className="mb-2 px-1 text-[11px] text-fg-faint">
-          Seret ⠿ untuk menyusun ulang. Urutan tersimpan di perangkat ini.
+      {order === 'custom' && !dragHintSeen ? (
+        <p className="flex items-center gap-2 px-4 pb-2 text-[11px] text-fg-faint">
+          <span className="flex-1">Seret ⠿ untuk menyusun ulang. Urutan tersimpan di perangkat ini.</span>
+          <button
+            type="button"
+            onClick={dismissDragHint}
+            className="min-h-tap shrink-0 px-2 text-accent [@media(pointer:fine)]:min-h-8"
+          >
+            Mengerti
+          </button>
         </p>
       ) : null}
       </div>
@@ -961,6 +979,28 @@ export default function BoardPage(): JSX.Element {
         +
       </button>
 
+      <Sheet open={moreOpen} onOpenChange={setMoreOpen} title="Aksi">
+        <div className="space-y-2 p-4">
+          {[
+            ['+ Catatan tempel', () => addSticky()],
+            ['Format lab', () => setLabOpen(true)],
+            ['Pilih pasien (arsipkan / sampah)', () => setSelecting(true)],
+          ].map(([label, run]) => (
+            <button
+              key={label as string}
+              type="button"
+              onClick={() => {
+                setMoreOpen(false);
+                (run as () => void)();
+              }}
+              className="min-h-tap w-full rounded-lg border border-border px-3 text-left text-sm font-medium"
+            >
+              {label as string}
+            </button>
+          ))}
+        </div>
+      </Sheet>
+
       <LabSheet
         open={labOpen}
         onOpenChange={setLabOpen}
@@ -1019,6 +1059,36 @@ export default function BoardPage(): JSX.Element {
         }}
       />
     </AppShell>
+  );
+}
+
+/**
+ * Control height: 44 px for a finger, 36 px for a mouse. The 44 px rule is
+ * about fingers; on a laptop it made every chip in the pinned header half
+ * again as tall as it needed to be.
+ */
+const CONTROL = 'min-h-tap [@media(pointer:fine)]:min-h-9';
+
+/** Pilih / Batal: enters and leaves selection mode. */
+function SelectButton({
+  selecting,
+  onToggle,
+}: {
+  selecting: boolean;
+  onToggle: () => void;
+}): JSX.Element {
+  return (
+    <button
+      type="button"
+      onClick={onToggle}
+      aria-pressed={selecting}
+      className={[
+        `${CONTROL} shrink-0 rounded-lg px-2.5 text-xs font-medium`,
+        selecting ? 'bg-accent text-white' : 'text-fg hover:bg-bg-subtle',
+      ].join(' ')}
+    >
+      {selecting ? 'Batal' : 'Pilih'}
+    </button>
   );
 }
 

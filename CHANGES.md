@@ -1,5 +1,56 @@
 # Plano — CHANGES
 
+## `2026-09-28.6`
+
+**The pinned board header shrinks from ~260 px to 57 px on a laptop (one
+row), and to two rows on a phone that hide while scrolling down.**
+
+### Why
+
+Pinning the header (28.5) made its size permanent. It stacked four rows
+(search; scope chips; four order chips plus actions; the drag hint), about a
+third of a 1080p screen, measured from Avi's screenshot.
+
+### Change
+
+| | Before | Now |
+|---|---|---|
+| Scope | Two 44 px pills on their own row | One segmented switch beside the search (`Saya 6 · Titipan 3`); hidden when there are no titipan, as before |
+| Order | Four chips on their own row | One dropdown: `Urutan [Urutan sendiri ▾]`. Exactly one order is ever on, which is what a select is for |
+| Actions | Filled 44 px boxes | Compact text buttons in the same row. The canvas's Rapikan / Urungkan / Penanda are sized to match (`CanvasBoard`, `CanvasStickers`) |
+| Height | 44 px everywhere | `CONTROL`: **36 px with a mouse, 44 px on touch** (`[@media(pointer:fine)]:min-h-9`). The 44 px rule is about fingers |
+| Drag hint | A permanent line in Urutan sendiri | Shown until "Mengerti" is pressed once (per device) |
+| Phone | Everything stacked | Row 1: search + scope. Row 2: order + **Aksi** (a sheet with + Catatan tempel, Format lab, Pilih). While selecting, Aksi becomes **Batal** |
+| Phone scrolling | Header always there | **Hides on scroll down, returns on any scroll up** (`useHideOnScroll`); never while searching or selecting, never within its own height of the top. Laptop header never hides |
+
+Measured in Chromium (mocked data layer): laptop header **57 px** (97 px
+with the one-time hint), phone **113 px**, hidden on scroll down, back on
+scroll up.
+
+### Wrong turn (caught before shipping)
+
+`useHideOnScroll` first read `lastY` inside the `setHidden` updater. React
+runs an updater when it gets to it, and by then the next line had already
+set `lastY` to the new position. So it saw no movement and **never un-hid
+the header**. The first hide only worked because React computed that one
+update eagerly. The render check caught it; the previous position is now
+captured before the update. `nextHidden` itself is pure and tested (4).
+
+Also mine: the first draft put the phone's order dropdown on its own
+full-width line, which made three rows instead of the two proposed.
+
+### Not done
+
+- Tablets (768–1023 px) use the phone layout, including hide-on-scroll.
+- The FAB (+) on the phone is unchanged.
+
+```
+1618 tests passed (+4)
+typecheck / lint (0 warnings) / check:version / check:contrast / check:a11y / build — clean
+```
+
+---
+
 ## `2026-09-28.5`
 
 **Four changes: the board header stays put; typing on a just-opened note no
