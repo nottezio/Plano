@@ -1,5 +1,76 @@
 # Plano — CHANGES
 
+## `2026-09-28.3`
+
+**Patient card: DPJP, KJS and RM now look different from one another.**
+
+### Root cause
+
+Two causes, and the second is the one worth remembering.
+
+1. **One shape for three meanings.** DPJP, KJS and RM were all a
+   `rounded border px-1 text-[10px] font-semibold` box in the card's ink.
+   Mine for RM, from `2026-09-28.2`: I copied the DPJP badge's style.
+2. **The differences that were meant to exist never rendered.** KJS·Kardio
+   was supposed to be told apart by a `bg-current/15` tint, and the new DPJP
+   pill got `bg-token-fg/15`. **Tailwind 3 emits no CSS for an opacity
+   modifier on `currentColor` or on a colour defined as a bare `var(--…)`.**
+   The class looks right in review and does nothing. Measured in Chromium:
+   the DPJP background was `rgba(0,0,0,0)`, and `border-current/60` fell back
+   to Tailwind's default grey border (nearly invisible on a light card).
+
+### Fix: form, not hue
+
+The card colour already means checklist progress, and a second hue on the
+same surface is the collision recorded on the discharge wash. So every mark
+stays in the card's own ink, which passes contrast on every card colour by
+construction. They differ by shape:
+
+| Mark | Look | Reads as |
+|---|---|---|
+| **DPJP** | rounded-full pill, soft fill (`bg-black/10`, `dark:bg-white/15`), no border | a person |
+| **KJS · KARDIO** | square tag, **solid inverted** (`bg-token-fg text-token`), uppercase | the rarer case that changes handling: not our patient |
+| **KJS · TS** | square tag, full-ink outline, uppercase | joint care, our patient |
+| **RM** | no box: mono digits, a copy icon (`IconCopy`, new), dotted underline | a control, tap to copy |
+
+Every tint uses colours that do take an opacity modifier (`black`, `white`)
+or none at all.
+
+### Tested
+
+Rendered in Chromium, light and dark, with a DPJP and both KJS kinds:
+- computed styles confirmed the fills are present;
+- RM copy still works and still does not open the patient;
+- no console errors.
+
+### Not done: the same silent failure exists elsewhere (predates this)
+
+Opacity modifiers on variable colours, 11 uses in 6 files. They render at
+full strength or not at all, not at the intended softness:
+
+- `PatientCard.tsx`:
+  - `text-token-fg/50` ×4;
+  - `text-token-fg/60`, `ring-current/40`, `border-token-fg/10` (the
+    identity band's hairline);
+- `CanvasBoard.tsx`: `text-token-fg/60`;
+- `ProgressStrip.tsx`: `bg-token-accent/25`;
+- `PatientPage.tsx` and `HelperPage.tsx`: `border-current/40`.
+
+The fundamental fix is either:
+- defining the token colours in the Tailwind config with `<alpha-value>`,
+  which needs the tokens as RGB channels; or
+- a guard test like `clampClasses.test.ts` that fails the build on
+  `-(current|token…)/NN`.
+
+Offered, not done.
+
+```
+1584 tests passed
+typecheck / lint (0 warnings) / check:version / check:contrast / check:a11y / build — clean
+```
+
+---
+
 ## `2026-09-28.2`
 
 **Patient card: the bed number no longer sits beside the name. The RM number

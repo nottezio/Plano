@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 
 import { previewLines, type BoardCard } from '@/domain/board';
 import { ProgressStrip } from './ProgressStrip';
-import { IconCar, IconEye } from '@/components/common/Icons';
+import { IconCar, IconCopy, IconEye } from '@/components/common/Icons';
 import { formatLocation } from '@/domain/identity';
 import { copyText } from '@/lib/clipboard';
 import {
@@ -616,10 +616,24 @@ export function PatientCard({
       <div className="mt-0.5 flex flex-wrap items-center gap-x-1.5 gap-y-1 text-[11px] opacity-70">
         <span>{formatLocation(patient) || 'Lokasi belum diisi'}</span>
         {card.mrn ? <RmChip mrn={card.mrn} hidden={card.mrnHidden} /> : null}
+        {/*
+          THREE MARKS, THREE SHAPES — they used to be one shape.
+
+          DPJP, KJS and RM were all the same outlined box in the same
+          weight, so telling them apart meant reading them. They differ by
+          FORM, not by hue: the card colour already means checklist progress,
+          and a second hue on the same surface is the collision recorded on
+          the discharge wash. Every mark stays in the card's own ink, so each
+          passes contrast on every card colour by construction.
+
+            DPJP  a soft pill, no border       — a person
+            KJS   a square tag; Kardio is solid (inverted), TS is outlined
+            RM    no box: mono digits + copy icon, dotted underline — a control
+        */}
         {card.dpjp ? (
           <span
-            title={card.dpjp.name}
-            className="rounded border border-current/30 px-1 text-[10px] font-semibold"
+            title={`DPJP: ${card.dpjp.name}`}
+            className="rounded-full bg-black/10 px-1.5 text-[10px] font-semibold dark:bg-white/15"
           >
             {card.dpjp.initials}
           </span>
@@ -640,14 +654,16 @@ export function PatientCard({
         {card.kjs === 'kardio' ? (
           <span
             title="KJS — pasien TS lain, kita konsulen kardiologi. DPJP utama bukan kita."
-            className="rounded bg-current/15 px-1 text-[10px] font-semibold ring-1 ring-current/40"
+            // Inverted: the one mark on the card that changes how you act on
+            // it (the plan is a recommendation, the discharge is not ours).
+            className="rounded-sm bg-token-fg px-1 text-[10px] font-bold uppercase tracking-wide text-token"
           >
             KJS · Kardio
           </span>
         ) : card.kjs === 'ts' ? (
           <span
             title="KJS — pasien kita, rawat bersama TS lain"
-            className="rounded border border-current/40 px-1 text-[10px] font-semibold"
+            className="rounded-sm border border-current px-1 text-[10px] font-bold uppercase tracking-wide"
           >
             KJS · TS
           </span>
@@ -1057,8 +1073,17 @@ function RmChip({ mrn, hidden }: { mrn: string; hidden: boolean }): JSX.Element 
       }}
       className="-my-3 flex min-h-tap items-center"
     >
-      <span className="rounded border border-current/30 px-1 font-mono text-[10px] font-semibold">
-        {copied ? 'Tersalin ✓' : hidden ? 'Salin RM' : `RM ${mrn}`}
+      {/* No box: the only mark here that DOES something, so it looks like a
+          link to copy rather than a label to read. */}
+      <span className="inline-flex items-center gap-0.5 font-mono text-[11px] underline decoration-dotted underline-offset-2">
+        {copied ? (
+          'Tersalin ✓'
+        ) : (
+          <>
+            {hidden ? 'Salin RM' : `RM ${mrn}`}
+            <IconCopy width="11" height="11" className="opacity-70" />
+          </>
+        )}
       </span>
     </button>
   );
