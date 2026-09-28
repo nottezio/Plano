@@ -476,3 +476,11 @@ describe('every finding points at its own text', () => {
     }
   });
 });
+
+describe('readVitals ignores investigations', () => {
+  it('does not take the EKG HR as the pulse', () => {
+    const body = '*O:*\nTekanan Darah : 120/80 mmHg\n\n*EKG (29-09-2026)*\nSR, HR 70 bpm\n\n*A:*\n- x';
+    expect(readVitals(body)['Nadi']).toBeUndefined();
+    expect(readVitals(body)['Tekanan darah']).toBe('120/80');
+  });
+});

@@ -220,3 +220,43 @@ describe('clearing vitals written any way', () => {
     expect(out).toContain('tdk ada 2 keluhan');
   });
 });
+
+describe('investigations keep their numbers', () => {
+  const clear = (body: string): string => carryForward(body, ['ttv']).body;
+
+  it('keeps HR in an EKG block written right after the vitals', () => {
+    const body = [
+      '*O:*',
+      'Tekanan Darah : 124/65 mmHg',
+      'Nadi : 149 kali/menit, reguler',
+      '',
+      '*EKG PJT Lantai 4 (24-09-2026)*',
+      'Sinus tachycardia, HR 166 bpm, regular, normoaxis',
+      '- HR 90 x/m',
+      '',
+      '*Echocardiography bedside (24-09-2026)*',
+      'HR 88, TD 110/70',
+      '',
+      '*A:*',
+      '- CHF',
+    ].join('\n');
+    const out = clear(body);
+    expect(out).toContain('Tekanan Darah :  mmHg');
+    expect(out).toContain('Nadi :  kali/menit, reguler');
+    expect(out).toContain('Sinus tachycardia, HR 166 bpm, regular, normoaxis');
+    expect(out).toContain('- HR 90 x/m');
+    expect(out).toContain('HR 88, TD 110/70');
+  });
+
+  it('keeps HR in an EKG block on a note with no O heading', () => {
+    const body = 'Tensi : 120/80 mmHg\n\n*EKG (29-09-2026)*\nSR, HR 70 bpm';
+    const out = clear(body);
+    expect(out).toContain('Tensi :  mmHg');
+    expect(out).toContain('SR, HR 70 bpm');
+  });
+
+  it('keeps O exam headings like Thorax inside O', () => {
+    const out = clear('*O:*\nThorax :\n- BJ I/II murni\nNadi : 80 x/m\n\n*A:*\n- x');
+    expect(out).toContain('Nadi :  x/m');
+  });
+});

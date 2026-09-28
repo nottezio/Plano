@@ -120,8 +120,32 @@ function splitSegments(line: string): string[] {
 const AFTER_OBJECTIVE = new Set<SectionId>(['penunjang', 'a', 'p', 'terapi', 's']);
 
 /**
- * Walk every line, telling the callback whether it sits in the O block.
- * Without an O heading the whole note is walked, full names only.
+ * A heading that names an INVESTIGATION: its numbers are the investigation's.
+ *
+ * `*EKG PJT Lantai 4 (24-09-2026)*` parses as a custom section, and custom
+ * sections could not end the O block, because blank template fields
+ * (`Nadi :  kali/menit`) parse as custom sections too and must stay inside it.
+ * So an EKG written right after the vitals was read as part of O, and its
+ * `Sinus rhythm, HR 80 bpm` lost the 80 on "Salin dari hari sebelumnya".
+ *
+ * Whole words only. Bare `thorax` is NOT here: `Thorax:` is also the
+ * physical-exam heading, which belongs to O; the X-ray is `Foto thorax`.
+ */
+const INVESTIGATION =
+  /(?:^|[^a-z0-9])(ekg|ecg|elektrokardiogra\w*|echo\w*|eko\w*|ekokardiogra\w*|lab\w*|foto|rontgen|x-?ray|cxr|ct|msct|ctca|mri|usg|lus|lung\s+ultrasound|angiograf\w*|laporan|holter|treadmill|tmt|hemodinamik\w*|kateterisasi|penunjang|hasil)(?![a-z0-9])/i;
+
+function isInvestigation(section: { sectionId: SectionId; label: string }): boolean {
+  if (section.sectionId === 'penunjang') return true;
+  return String(section.sectionId).startsWith('custom_') && INVESTIGATION.test(section.label);
+}
+
+/**
+ * Walk every line, telling the callback whether it may hold vitals and
+ * whether it sits in the O block.
+ *
+ * The O block runs from the O (or TTV) heading to the first section that is
+ * S/A/P/Terapi/Penunjang OR an investigation heading. Without an O heading
+ * the whole note is walked, full names only, except investigation sections.
  */
 function walk(
   body: string,
@@ -129,24 +153,36 @@ function walk(
   visit: (line: string, inObjective: boolean) => string,
 ): string {
   const sections = parseSections(body, aliasesOrDefault(aliases));
-  const objective = sections.find(
+  const hasObjective = sections.some(
     (section) => section.sectionId === 'o' || section.sectionId === 'ttv',
   );
-  const objectiveEnd = objective
-    ? (sections.find(
-        (section) => section.start > objective.start && AFTER_OBJECTIVE.has(section.sectionId),
-      )?.start ?? body.length)
-    : -1;
+
+  /** Per section: 'o' (vitals, short names too), 'free' (full names only), or null (never). */
+  const context: Array<'o' | 'free' | null> = [];
+  let open = false;
+  for (const section of sections) {
+    if (section.sectionId === 'o' || section.sectionId === 'ttv') open = true;
+    else if (AFTER_OBJECTIVE.has(section.sectionId) || isInvestigation(section)) open = false;
+    if (isInvestigation(section)) context.push(null);
+    else if (open) context.push('o');
+    else context.push(hasObjective ? null : 'free');
+  }
 
   let offset = 0;
+  let index = 0;
   return body
     .split('\n')
     .map((line) => {
       const start = offset;
       offset += line.length + 1;
-      const inObjective =
-        objective !== undefined && start > objective.start && start < objectiveEnd;
-      return visit(line, inObjective);
+      while (index + 1 < sections.length && (sections[index + 1]?.start ?? Infinity) <= start) index++;
+      const where = context[index] ?? null;
+      if (where === null) return line;
+      // The O heading line itself is never a vital.
+      const onHeading = sections[index]?.start === start && where === 'o' &&
+        (sections[index]?.sectionId === 'o' || sections[index]?.sectionId === 'ttv');
+      if (onHeading) return line;
+      return visit(line, where === 'o');
     })
     .join('\n');
 }

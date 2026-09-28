@@ -1,5 +1,42 @@
 # Plano — CHANGES
 
+## `2026-09-29.3`
+
+**"Salin dari hari sebelumnya" no longer empties the HR in an EKG (or
+echo) block.**
+
+### HR removed from the EKG
+
+**Root cause.** Vitals are cleared inside the **O block**, which ran from the
+O heading to the next S/A/P/Terapi/Penunjang heading. A custom heading could
+not end it, because blank template fields (`Nadi :  kali/menit`) parse as
+custom sections too and have to stay inside O. So a
+`*EKG PJT Lantai 4 (24-09-2026)*` block right after the vitals counted as O,
+and `Sinus tachycardia, HR 166 bpm` lost its 166. The same happened to
+`HR` / `TD` in an echo block, and the checker could read the EKG HR as the
+pulse. On a note with no O heading, every section was scanned, EKG included.
+
+**Fundamental fix** (`domain/vitals.ts`, shared by carry-forward and the
+checker):
+- An **investigation heading ends the O block**: EKG/ECG, echo/eko, lab,
+  foto/rontgen, CT/MSCT/MRI/USG/LUS, angiografi, laporan, holter, treadmill,
+  hemodinamik, penunjang, hasil (whole words).
+- Investigation sections are **never** read or cleared, with or without an
+  O heading.
+- When an O heading exists, only O is read. A `TD` in the Plan is no longer
+  touched.
+- Bare `Thorax:` stays in O, because it is also the physical-exam heading.
+  Only `Foto thorax` counts as an investigation.
+
+Tests: EKG and echo blocks after the vitals, a bullet `- HR 90`, a note
+without an O heading, and `Thorax:` inside O. All three investigation tests
+failed on the old code.
+
+```
+1662 tests passed (+4)
+typecheck / lint (0 warnings) / check:version / check:contrast / check:a11y / build — clean
+```
+
 ## `2026-09-29.2`
 
 **"Periksa lagi" no longer blames a plan that isn't there, and every
