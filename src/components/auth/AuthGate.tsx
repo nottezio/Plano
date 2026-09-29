@@ -1,4 +1,5 @@
-import type { ReactNode } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
+import { cleanReload } from '@/lib/cleanReload';
 import { useSession } from '@/store/useSession';
 import { Footer } from '@/components/common/Footer';
 import { LockScreen } from '@/components/privacy/LockScreen';
@@ -16,13 +17,7 @@ export function AuthGate({ children }: { children: ReactNode }): JSX.Element {
   const missingConfig = useSession((state) => state.missingConfig);
   const locked = useLock((state) => state.locked);
 
-  if (status === 'loading') {
-    return (
-      <div className="flex min-h-[100dvh] items-center justify-center text-sm text-fg-muted">
-        Memuat…
-      </div>
-    );
-  }
+  if (status === 'loading') return <Booting />;
 
   if (status === 'unconfigured') {
     return (
@@ -58,4 +53,37 @@ export function AuthGate({ children }: { children: ReactNode }): JSX.Element {
 
   // Signed in is not the same as allowed: see AccessGate.
   return <AccessGate>{children}</AccessGate>;
+}
+
+/**
+ * The boot screen. After a while it says why it may be slow and offers the
+ * phone's Ctrl+Shift+R, so a stuck start is never a dead end.
+ */
+function Booting(): JSX.Element {
+  const [slow, setSlow] = useState(false);
+  useEffect(() => {
+    const timer = window.setTimeout(() => setSlow(true), 8000);
+    return () => window.clearTimeout(timer);
+  }, []);
+
+  return (
+    <div className="flex min-h-[100dvh] flex-col items-center justify-center gap-3 px-6 text-center text-sm text-fg-muted">
+      <p>Memuat…</p>
+      {slow ? (
+        <>
+          <p className="max-w-xs text-xs">
+            Masih menunggu koneksi. Catatan Anda aman di perangkat ini. Kalau tidak berubah, coba
+            muat ulang bersih (kode aplikasi diunduh ulang; catatan tidak dihapus).
+          </p>
+          <button
+            type="button"
+            onClick={() => void cleanReload()}
+            className="min-h-tap rounded-lg border border-border px-4 text-sm text-fg"
+          >
+            Muat ulang bersih
+          </button>
+        </>
+      ) : null}
+    </div>
+  );
 }

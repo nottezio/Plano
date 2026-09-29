@@ -1,11 +1,13 @@
 import { initializeApp, type FirebaseApp } from 'firebase/app';
 import {
   browserLocalPersistence,
+  browserPopupRedirectResolver,
   indexedDBLocalPersistence,
-  getAuth,
-  setPersistence,
+  initializeAuth,
   type Auth,
 } from 'firebase/auth';
+
+import { hasSignedInHint } from './authHint';
 import {
   initializeFirestore,
   persistentLocalCache,
@@ -71,40 +73,32 @@ export function initFirebase(): FirebaseInit {
     experimentalAutoDetectLongPolling: true,
   });
 
-  const auth = getAuth(app);
-
   /**
-   * Persistence, resolved BEFORE anyone subscribes to auth state.
+   * `initializeAuth`, not `getAuth`: the boot must not wait on the network.
    *
-   * This used to be fire-and-forget (`void setPersistence(...)`) while
-   * `initSession` subscribed to `onAuthStateChanged` on the next line. That is
-   * a race with a real losing side: `setPersistence` swaps the store the SDK
-   * reads credentials from, and any auth state emitted while the swap is in
-   * flight describes a store that is being replaced. The listener cannot tell
-   * that from a genuine sign-out — it receives `null` either way.
+   * `getAuth` attaches the popup/redirect resolver, and on a MOBILE browser
+   * (not on a desktop one) the SDK then loads Google's sign-in iframe from the
+   * auth domain BEFORE it reports the first auth state, even when the user is
+   * already signed in and no sign-in is happening. On ward signal that is
+   * seconds of "Memuat…" on every cold start, and after every update reload,
+   * which is why the phone felt slow and the laptop did not.
    *
-   * IndexedDB FIRST, localStorage only as the fallback. The previous order was
-   * localStorage alone, which is the weaker store for this in three ways: it is
-   * the first thing a browser evicts under pressure, it is what "clear browsing
-   * data" and cleanup extensions target, and the SDK watches it for cross-tab
-   * changes by POLLING — so a read that comes back empty for a moment, with
-   * several Plano tabs open, looks exactly like another tab having signed out.
-   * IndexedDB is what the SDK itself prefers when left alone.
+   * So the resolver is attached at start-up only when there is no signed-in
+   * user to restore (the sign-in screen needs it ready: a popup opened after
+   * a network wait is blocked on iOS). Everyone else boots from the local
+   * credential store. Sign-in calls pass the resolver explicitly, so they work
+   * either way; sign-out reloads the page, so the next boot attaches it.
    *
-   * Never swallowed: without persistence the user is signed out on every cold
-   * boot, which reads as data loss even though nothing was lost.
+   * Persistence: IndexedDB first, localStorage as the fallback for profiles
+   * that refuse IndexedDB. Set here, at initialisation, so nothing can observe
+   * a half-swapped store (the reason `persistenceReady` exists). A credential
+   * already stored in either is found and kept.
    */
-  const persistenceReady = setPersistence(auth, indexedDBLocalPersistence)
-    .catch((error: unknown) => {
-      // Private-mode Safari and a few locked-down Windows profiles refuse
-      // IndexedDB outright. localStorage is worse for this, but worse is not
-      // the same as unusable, and the alternative is a sign-in on every boot.
-      console.warn('[auth] IndexedDB persistence unavailable, falling back', error);
-      return setPersistence(auth, browserLocalPersistence);
-    })
-    .catch((error: unknown) => {
-      console.error('[auth] could not set local persistence', error);
-    });
+  const auth = initializeAuth(app, {
+    persistence: [indexedDBLocalPersistence, browserLocalPersistence],
+    ...(hasSignedInHint() ? {} : { popupRedirectResolver: browserPopupRedirectResolver }),
+  });
+  const persistenceReady = Promise.resolve();
 
   cached = { ok: true, services: { app, auth, db, persistenceReady } };
   return cached;

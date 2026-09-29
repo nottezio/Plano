@@ -1,6 +1,7 @@
 import { HISTORY_KEY as CENSUS_HISTORY_KEY } from '@/domain/census/history';
 import {
   GoogleAuthProvider,
+  browserPopupRedirectResolver,
   createUserWithEmailAndPassword,
   getRedirectResult,
   onAuthStateChanged,
@@ -18,6 +19,7 @@ import { logSessionEvent } from '@/lib/sessionLog';
 
 import { initFirebase, services } from '@/data/firebase';
 import { clearLocalBase } from '@/data/localBase';
+import { hasSignedInHint, setSignedInHint } from '@/data/authHint';
 import {
   ensureProfile,
   seedSettingsIfMissing,
@@ -83,11 +85,15 @@ export function initSession(): () => void {
 
   // Completes signInWithRedirect, which is the only flow that works inside an
   // iOS standalone PWA (popups are blocked there).
-  void getRedirectResult(auth).catch((error: unknown) => {
-    console.error('[auth] redirect result failed', error);
-    logSessionEvent('redirect-error', errorCode(error));
-    useSession.setState({ error: describeAuthError(error) });
-  });
+  // Only when nobody is signed in: a pending redirect can exist only then, and
+  // on a signed-in boot this would load the sign-in iframe for nothing.
+  if (!hasSignedInHint()) {
+    void getRedirectResult(auth, browserPopupRedirectResolver).catch((error: unknown) => {
+      console.error('[auth] redirect result failed', error);
+      logSessionEvent('redirect-error', errorCode(error));
+      useSession.setState({ error: describeAuthError(error) });
+    });
+  }
 
   /**
    * Subscribe only once the credential store has settled.
@@ -132,6 +138,7 @@ function subscribe(auth: Auth): () => void {
     unsubscribeProfile?.();
     unsubscribeProfile = null;
 
+    setSignedInHint(user !== null);
     if (!user) {
       logSessionEvent('signed-out');
       useSession.setState({ status: 'signed-out', user: null, profile: null });
@@ -232,12 +239,12 @@ export async function signInWithGoogle(): Promise<void> {
      * Redirect is kept below rather than deleted: it is still the only thing
      * that works when a popup is genuinely blocked, which is common on iOS.
      */
-    await signInWithPopup(auth, provider);
+    await signInWithPopup(auth, provider, browserPopupRedirectResolver);
   } catch (error) {
     // A blocked or hung popup falls back to the old path. On iOS standalone
     // this is still the normal outcome, not an exception.
     if (isPopupProblem(error)) {
-      await signInWithRedirect(auth, provider);
+      await signInWithRedirect(auth, provider, browserPopupRedirectResolver);
       return;
     }
     useSession.setState({ error: describeAuthError(error) });

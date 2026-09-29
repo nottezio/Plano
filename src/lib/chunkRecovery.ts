@@ -15,6 +15,8 @@
  * stale cache and looping would only hide it.
  */
 
+import { cleanReload } from './cleanReload';
+
 const FLAG = 'visite.chunkRecovery';
 
 function looksLikeStaleChunk(message: string): boolean {
@@ -34,19 +36,7 @@ async function recover(): Promise<void> {
     // limited to once. Better than a permanently broken app.
   }
 
-  try {
-    const registrations = await navigator.serviceWorker?.getRegistrations();
-    await Promise.all((registrations ?? []).map((registration) => registration.unregister()));
-
-    const keys = await caches.keys();
-    await Promise.all(keys.map((key) => caches.delete(key)));
-  } catch (error) {
-    console.error('[recovery] could not clear caches', error);
-  }
-
-  // `location.reload()` alone can be served from the same stale cache; the
-  // registrations are gone by now, so this fetches the current shell.
-  window.location.replace(window.location.href);
+  await cleanReload();
 }
 
 export function installChunkRecovery(): void {

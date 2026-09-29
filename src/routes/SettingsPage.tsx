@@ -36,6 +36,7 @@ import { resetSettings } from '@/data/repositories/settings.repo';
 import { useUI, type ThemePreference } from '@/store/useUI';
 import type { NoteTemplate } from '@/domain/types';
 import { APP_VERSION } from '@/version.js';
+import { UpdateControls } from '@/components/common/UpdateControls';
 import { Link } from 'react-router-dom';
 import { isAdmin } from '@/domain/access';
 import type { UserSettings } from '@/domain/types';
@@ -802,6 +803,7 @@ export default function SettingsPage(): JSX.Element {
               <dd>Avicenna</dd>
             </div>
           </dl>
+          <UpdateControls />
           {/* Shown to the admin only. The page itself is protected by the
               Firestore rules, not by this link being absent. */}
           {isAdmin(user?.uid) ? (

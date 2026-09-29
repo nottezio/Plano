@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { applyUpdate, onUpdateAvailable } from '@/pwa';
+import { applyUpdate, onUpdateState, type UpdateState } from '@/pwa';
 import { useUI } from '@/store/useUI';
 import { IconRefresh } from './Icons';
 
@@ -16,14 +16,15 @@ import { IconRefresh } from './Icons';
  * reload is safe even offline.
  */
 export function UpdateBanner(): JSX.Element | null {
-  const [available, setAvailable] = useState(false);
+  const [update, setUpdate] = useState<UpdateState>('idle');
   const [saving, setSaving] = useState(false);
   const hasUnsavedWork = useUI((state) => state.hasUnsavedWork);
   const flushAll = useUI((state) => state.flushAll);
 
-  useEffect(() => onUpdateAvailable(setAvailable), []);
+  useEffect(() => onUpdateState(setUpdate), []);
 
-  if (!available) return null;
+  if (update !== 'available' && update !== 'applying') return null;
+  const applying = update === 'applying';
 
   const onReload = (): void => {
     if (!hasUnsavedWork()) {
@@ -47,16 +48,20 @@ export function UpdateBanner(): JSX.Element | null {
       <div className="min-w-0 flex-1 text-sm">
         <p className="font-medium">Versi baru tersedia</p>
         <p className="text-xs text-fg-muted">
-          {saving ? 'Menyimpan catatan…' : 'Catatan tersimpan otomatis sebelum muat ulang.'}
+          {applying
+            ? 'Memasang versi baru…'
+            : saving
+              ? 'Menyimpan catatan…'
+              : 'Catatan tersimpan otomatis sebelum muat ulang.'}
         </p>
       </div>
       <button
         type="button"
         onClick={onReload}
-        disabled={saving}
+        disabled={saving || applying}
         className="min-h-tap shrink-0 rounded-lg bg-accent px-3 text-sm font-medium text-white disabled:opacity-60"
       >
-        {saving ? 'Menyimpan…' : 'Muat ulang'}
+        {applying ? 'Memuat…' : saving ? 'Menyimpan…' : 'Muat ulang'}
       </button>
     </div>
   );

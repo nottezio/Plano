@@ -1,5 +1,83 @@
 # Plano — CHANGES
 
+## `2026-09-29.4`
+
+**Updating the installed app on a phone: found on its own, applied in one
+tap, and a phone equivalent of Ctrl+Shift+R. The phone no longer waits on
+Google's sign-in page before showing the app.**
+
+### 1. Long "Memuat…" on the phone (not on the laptop)
+
+**Root cause.** `getAuth()` attaches Firebase's popup/redirect sign-in
+machinery. On a **mobile** browser only, the SDK then loads Google's sign-in
+iframe from the auth domain **before** it reports the first auth state, even
+when you are already signed in. So every cold start (and every update
+reload) waited on a network round-trip to Google. Desktop browsers skip that
+step, which is why the laptop felt instant.
+
+Measured on this build with the sign-in hosts delayed 5 s (phone emulation):
+
+| | Phone | Laptop |
+|---|---|---|
+| Before | **5.2 s** "Memuat…" | 0.2 s |
+| After (signed in before) | **0.2 s** | 0.2 s |
+
+**Fundamental fix.** `initializeAuth` with IndexedDB → localStorage
+persistence. The sign-in machinery is attached at boot only when nobody was
+signed in on this device (`data/authHint.ts`), because the sign-in screen
+needs it ready. Sign-in calls pass it explicitly, and `getRedirectResult`
+runs only on a signed-out boot. Sign-out already reloads, so the next boot
+attaches it.
+
+**Not fixed (SDK):** on boot, Firebase still refreshes the signed-in
+account over the network (`getAccountInfo`), on phone and laptop alike. On
+a very bad signal that can still take a while. So after 8 s the boot screen
+now explains itself and offers **Muat ulang bersih**.
+
+### 2. "Muat ulang" on the update banner sometimes did nothing
+
+**Root cause.** `updateSW()` from vite-plugin-pwa only **posts**
+`SKIP_WAITING` and returns. `applyUpdate` reloaded as soon as it returned,
+before the new worker had taken over. The reload was often answered by the
+**old** worker: same version, banner back. It read as "the button doesn't
+work".
+
+**Fix.** The reload now waits for `controllerchange` (the new worker in
+control), with a 6 s fallback that reloads anyway. The button shows
+"Memuat…" and cannot be pressed twice.
+
+### 3. The phone found updates late
+
+**Root cause.** The browser checks for a new `sw.js` when a page is
+**navigated to**. An installed app on a phone is **resumed** from the
+background for days, never navigated. So it kept running the old version
+until it happened to be killed and reopened, and even then the first open
+still showed the old version.
+
+**Fix.** The app checks when it returns to the foreground (at most once a
+minute), when the connection comes back, and hourly while open.
+
+**Verified end to end** (production build, phone emulation): version A
+installed → version B deployed → app backgrounded and resumed → state went
+`checking → downloading → available` → apply → **B** is shown, and still B
+after another reload.
+
+### 4. Settings → Tentang
+
+- **Periksa pembaruan**, with a status line: checking / downloading / ready /
+  already newest / offline. It becomes **Pasang versi baru** when an update is
+  ready.
+- **Muat ulang bersih**, the phone's Ctrl+Shift+R. It unregisters the service
+  worker, deletes the app's code caches and reloads from the server. Notes
+  and the sync queue are **not** touched. It asks for confirmation first and
+  saves open editors. Also shared with the stale-chunk recovery
+  (`lib/cleanReload.ts`).
+
+```
+1662 tests passed
+typecheck / lint (0 warnings) / check:version / check:contrast / check:a11y / build — clean
+```
+
 ## `2026-09-29.3`
 
 **"Salin dari hari sebelumnya" no longer empties the HR in an EKG (or
