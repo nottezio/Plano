@@ -16,7 +16,9 @@ const IDLE_SAVE_MS = 1500;
 export interface ShiftNotesState {
   notes: ShiftNote[];
   /** Returns the new note's id, so the caller can open it immediately. */
-  add: () => string | null;
+  add: (body?: string) => string | null;
+  /** Correct the time stamp (`HH.MM`), for a note written after the fact. */
+  setTime: (id: string, time: string) => void;
   setBody: (id: string, body: string) => void;
   clear: (id: string) => void;
   flush: () => void;
@@ -77,7 +79,7 @@ export function useShiftNotes(
     [patientId, date, hariRawat, readOnly, stored],
   );
 
-  const add = useCallback(() => {
+  const add = useCallback((body = '') => {
     if (!patientId || readOnly) return null;
     const at = new Date();
     // Generated OUTSIDE `commit` so it can be returned. The caller needs it to
@@ -91,7 +93,7 @@ export function useShiftNotes(
         id,
         // Stamped at the tap, not at render: on a jaga those are hours apart.
         time: formatShiftTime(at),
-        body: '',
+        body,
         clearedAt: null,
         createdAt: Timestamp.now(),
       },
@@ -190,5 +192,23 @@ export function useShiftNotes(
     [commit],
   );
 
-  return { notes, add, setBody, clear, flush };
+  const setTime = useCallback(
+    (id: string, time: string) => {
+      // Pending text goes in the same write, or the time change would write
+      // the stored (older) body over it.
+      const pending = draftRef.current;
+      commit((current) =>
+        current.map((note) => ({
+          ...note,
+          ...(pending[note.id] === undefined ? {} : { body: pending[note.id]! }),
+          ...(note.id === id ? { time } : {}),
+        })),
+      );
+      draftRef.current = {};
+      setDraft({});
+    },
+    [commit],
+  );
+
+  return { notes, add, setBody, setTime, clear, flush };
 }

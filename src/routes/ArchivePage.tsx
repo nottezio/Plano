@@ -2,7 +2,7 @@ import { privateText } from '@/domain/identity';
 import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 
-import { NoteSearchToggle, useSearchNotesPreference } from '@/components/archive/NoteSearchToggle';
+import { ArchiveScopePicker, useArchiveScopes } from '@/components/archive/NoteSearchToggle';
 import { AppShell } from '@/components/common/AppShell';
 import { Highlight } from '@/components/common/Highlight';
 import { IconSearch, IconTrash } from '@/components/common/Icons';
@@ -12,7 +12,7 @@ import {
   NO_ARCHIVE_FILTERS,
   archiveFacets,
   hasArchiveFilters,
-  matchArchived,
+  matchArchivedScoped,
   matchesArchiveFilters,
   searchTokens,
   type ArchiveFilters,
@@ -71,8 +71,9 @@ export default function ArchivePage(): JSX.Element {
   const { patients, loading } = usePatients('archived');
   const { patients: trashed } = usePatients('trashed');
 
-  const [searchNotes, setSearchNotes] = useSearchNotesPreference();
-  const noteText = useArchiveText(patients, searchNotes);
+  const [scopes, toggleScope] = useArchiveScopes();
+  const searchSoap = scopes.has('soap');
+  const noteText = useArchiveText(patients, searchSoap);
 
   const facets = useMemo(() => archiveFacets(patients), [patients]);
 
@@ -80,9 +81,9 @@ export default function ArchivePage(): JSX.Element {
     () =>
       patients
         .filter((patient) => matchesArchiveFilters(patient, filters))
-        .map((patient) => matchArchived(patient, tokens, noteText.text(patient)))
+        .map((patient) => matchArchivedScoped(patient, tokens, scopes, noteText.text(patient)))
         .filter((match): match is NonNullable<typeof match> => match !== null),
-    [patients, filters, tokens, noteText],
+    [patients, filters, tokens, scopes, noteText],
   );
   const snippets = useMemo(
     () => new Map(matches.map((match) => [match.patient.id, match.snippet])),
@@ -118,9 +119,13 @@ export default function ArchivePage(): JSX.Element {
                 value={query}
                 onChange={(event) => setQuery(event.target.value)}
                 aria-label="Cari pasien arsip"
-                placeholder={
-                  searchNotes ? 'Cari nama, RM, diagnosis, isi catatan…' : 'Cari nama, RM, diagnosis…'
-                }
+                placeholder={`Cari ${[
+                  scopes.has('identitas') ? 'nama, RM, diagnosis' : '',
+                  scopes.has('arsip') ? 'catatan arsip' : '',
+                  scopes.has('soap') ? 'isi SOAP' : '',
+                ]
+                  .filter(Boolean)
+                  .join(', ')}…`}
                 className="min-w-0 flex-1 bg-transparent py-2 text-sm outline-none"
               />
             </label>
@@ -128,7 +133,7 @@ export default function ArchivePage(): JSX.Element {
           </div>
 
           <div className="mt-1">
-            <NoteSearchToggle on={searchNotes} onChange={setSearchNotes} status={noteText} />
+            <ArchiveScopePicker scopes={scopes} onToggle={toggleScope} status={noteText} />
           </div>
 
           {/* Scrolls sideways rather than wrapping: four chips and a reset
@@ -182,13 +187,13 @@ export default function ArchivePage(): JSX.Element {
             {matches.length === 0 ? (
               <div className="py-10 text-center text-sm text-fg-muted">
                 <p>Tidak ada yang cocok.</p>
-                {!searchNotes && tokens.length > 0 ? (
+                {!searchSoap && tokens.length > 0 ? (
                   <button
                     type="button"
-                    onClick={() => setSearchNotes(true)}
+                    onClick={() => toggleScope('soap')}
                     className="mt-2 min-h-tap text-xs text-accent"
                   >
-                    Cari juga di isi catatan
+                    Cari juga di isi SOAP
                   </button>
                 ) : null}
               </div>

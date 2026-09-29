@@ -51,7 +51,8 @@ export function AccessGate({ children }: { children: ReactNode }): JSX.Element {
 
   if (!uid) return <>{children}</>;
 
-  const decision = decideAccess({ uid, enforce, status });
+  const google = user?.providerData.some((provider) => provider.providerId === 'google.com') ?? false;
+  const decision = decideAccess({ uid, enforce, status, google });
   if (decision === 'allowed') return <>{children}</>;
 
   if (decision === 'unknown') {
@@ -60,6 +61,16 @@ export function AccessGate({ children }: { children: ReactNode }): JSX.Element {
         {failed
           ? 'Tidak dapat memeriksa akses. Periksa koneksi, lalu muat ulang.'
           : 'Pemeriksaan pertama di perangkat ini memerlukan koneksi internet.'}
+      </Screen>
+    );
+  }
+
+  if (decision === 'not-google') {
+    return (
+      <Screen title="Masuk dengan Google">
+        Plano kini hanya bisa dipakai dengan akun Google. Akun ini masuk dengan email dan kata
+        sandi. Keluar, lalu masuk lagi dengan Google.
+        <span className="mt-2 block font-mono text-xs text-fg-faint">{user?.email}</span>
       </Screen>
     );
   }

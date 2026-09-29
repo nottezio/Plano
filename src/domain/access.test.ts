@@ -71,3 +71,18 @@ describe('firestore.rules agrees with the client', () => {
     expect(bare.length).toBeLessThanOrEqual(6);
   });
 });
+
+describe('Google only (2026-09-29)', () => {
+  it('refuses a password session, except the admin', () => {
+    expect(decideAccess({ uid: 'someone', enforce: false, status: null, google: false })).toBe('not-google');
+    expect(decideAccess({ uid: ADMIN_UID, enforce: false, status: null, google: false })).toBe('allowed');
+    expect(decideAccess({ uid: 'someone', enforce: false, status: null, google: true })).toBe('allowed');
+  });
+});
+
+describe('firestore.rules is Google-only too', () => {
+  it('gates every data path on the sign-in provider', () => {
+    expect(RULES).toContain("request.auth.token.firebase.sign_in_provider == 'google.com'");
+    expect(RULES).toMatch(/function allowed\(\)[^}]*signedInWithGoogle\(\)/);
+  });
+});

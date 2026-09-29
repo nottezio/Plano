@@ -15,6 +15,42 @@ export function formatShiftTime(at: Date): string {
 }
 
 /**
+ * What a new jaga note starts with: the four headings and a vitals line,
+ * the shape a jaga review is written in. A blank box made every jaga note
+ * start by typing the same scaffold, at 03.00. Everything is editable, and
+ * the vitals are blank so nothing stale is implied.
+ */
+export const JAGA_TEMPLATE = [
+  'S:',
+  '- ',
+  '',
+  'O:',
+  'TD :  mmHg, N :  x/m, P :  x/m, S :  C, SpO2 :  %',
+  '',
+  'A:',
+  '- ',
+  '',
+  'P:',
+  '- ',
+].join('\n');
+
+/** Where the caret goes in a new note: after the first `- ` (the complaint). */
+export const JAGA_TEMPLATE_CARET = JAGA_TEMPLATE.indexOf('- ') + 2;
+
+/**
+ * A typed time, normalised to `HH.MM`, or null when it is not a time.
+ * Accepts `3.10`, `03:10`, `0310`, `3 10`.
+ */
+export function parseShiftTime(input: string): string | null {
+  const match = /^\s*(\d{1,2})\s*[.:\s]?\s*(\d{2})\s*$/.exec(input);
+  if (!match) return null;
+  const hours = Number(match[1]);
+  const minutes = Number(match[2]);
+  if (hours > 23 || minutes > 59) return null;
+  return `${String(hours).padStart(2, '0')}.${String(minutes).padStart(2, '0')}`;
+}
+
+/**
  * Ids are generated here rather than by index.
  *
  * The array is never reordered and entries are never spliced out, but an

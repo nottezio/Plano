@@ -278,7 +278,7 @@ export function PatientPeekWindow({
             <span
               className={[
                 'rounded px-1 font-medium',
-                date === today ? 'bg-accent/15 text-accent' : 'bg-danger/15 text-danger',
+                date === today ? 'bg-[var(--accent-soft)] text-accent' : 'bg-[var(--danger-soft)] text-danger',
               ].join(' ')}
             >
               {date ? (date === today ? 'Hari ini' : formatShortDate(date)) : '—'}
@@ -498,7 +498,7 @@ function ViewToggle({
       title={pressed ? 'Kembali ke catatan asli' : `Tampilkan versi ${label}`}
       className={[
         'min-h-tap shrink-0 rounded-lg border px-2 text-[10px] font-medium',
-        pressed ? 'border-accent bg-accent/15 text-accent' : 'border-border',
+        pressed ? 'border-accent bg-[var(--accent-soft)] text-accent' : 'border-border',
       ].join(' ')}
     >
       {label}
@@ -595,7 +595,7 @@ function DockTab({
           aria-hidden="true"
           className={[
             'shrink-0 rounded px-1 tabular-nums',
-            complete ? 'bg-accent/15 text-accent' : 'border border-border text-fg',
+            complete ? 'bg-[var(--accent-soft)] text-accent' : 'border border-border text-fg',
           ].join(' ')}
         >
           {summary}

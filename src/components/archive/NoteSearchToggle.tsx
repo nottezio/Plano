@@ -1,6 +1,7 @@
 import { useState } from 'react';
 
 import type { ArchiveText } from '@/hooks/useArchiveText';
+import { ARCHIVE_SCOPES, type ArchiveScope } from '@/domain/archiveSearch';
 
 const KEY = 'visite.archive.searchNotes';
 
@@ -67,6 +68,83 @@ export function NoteSearchToggle({
       {on && status.loading ? (
         <span className="text-[11px] text-fg-faint" aria-live="polite">
           Memuat catatan {status.loaded}/{status.total}…
+        </span>
+      ) : null}
+    </div>
+  );
+}
+
+const SCOPES_KEY = 'visite.archive.scopes';
+
+/** Which scopes the archive search covers, remembered on this device. */
+export function useArchiveScopes(): [ReadonlySet<ArchiveScope>, (scope: ArchiveScope) => void] {
+  const [scopes, setScopes] = useState<ReadonlySet<ArchiveScope>>(() => {
+    try {
+      const raw = localStorage.getItem(SCOPES_KEY);
+      const parsed: unknown = raw ? JSON.parse(raw) : null;
+      const valid = Array.isArray(parsed)
+        ? parsed.filter((value): value is ArchiveScope =>
+            ARCHIVE_SCOPES.some((scope) => scope.value === value),
+          )
+        : [];
+      return new Set(valid.length > 0 ? valid : (['identitas', 'arsip'] as ArchiveScope[]));
+    } catch {
+      return new Set<ArchiveScope>(['identitas', 'arsip']);
+    }
+  });
+  const toggle = (scope: ArchiveScope): void => {
+    setScopes((current) => {
+      const next = new Set(current);
+      if (next.has(scope)) next.delete(scope);
+      else next.add(scope);
+      // Never nothing: an empty scope set would match nobody for any query.
+      if (next.size === 0) return current;
+      try {
+        localStorage.setItem(SCOPES_KEY, JSON.stringify([...next]));
+      } catch {
+        // Lasts for this visit.
+      }
+      return next;
+    });
+  };
+  return [scopes, toggle];
+}
+
+/** "Cari di: [Identitas] [Catatan arsip] [Isi SOAP]" — any combination. */
+export function ArchiveScopePicker({
+  scopes,
+  onToggle,
+  status,
+}: {
+  scopes: ReadonlySet<ArchiveScope>;
+  onToggle: (scope: ArchiveScope) => void;
+  status: ArchiveText;
+}): JSX.Element {
+  return (
+    <div className="flex flex-wrap items-center gap-1.5" role="group" aria-label="Cari di">
+      <span className="text-[11px] text-fg-faint">Cari di</span>
+      {ARCHIVE_SCOPES.map((scope) => {
+        const on = scopes.has(scope.value);
+        return (
+          <button
+            key={scope.value}
+            type="button"
+            aria-pressed={on}
+            title={scope.hint}
+            onClick={() => onToggle(scope.value)}
+            className={[
+              'min-h-tap rounded-full border px-2.5 text-xs [@media(pointer:fine)]:min-h-8',
+              on ? 'border-accent bg-[var(--accent-soft)] font-medium text-accent' : 'border-border text-fg-muted',
+            ].join(' ')}
+          >
+            {on ? '✓ ' : ''}
+            {scope.label}
+          </button>
+        );
+      })}
+      {scopes.has('soap') && status.loading ? (
+        <span className="text-[11px] text-fg-faint" aria-live="polite">
+          Memuat SOAP {status.loaded}/{status.total}…
         </span>
       ) : null}
     </div>

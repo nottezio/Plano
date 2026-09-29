@@ -267,3 +267,14 @@ describe('relativeTime', () => {
     expect(relativeTime(Date.UTC(2026, 7, 2), now)).toBe('2 Agu');
   });
 });
+
+describe('archived jaga notes are a log (2026-09-29)', () => {
+  it('are ordered by when they were made, newest first, whatever the manual order', () => {
+    const notes = [
+      resolved('old', { category: 'jaga', archived: true, createdAt: 100, order: -5 }),
+      resolved('new', { category: 'jaga', archived: true, createdAt: 300, order: 9 }),
+      resolved('mid', { category: 'jaga', archived: true, createdAt: 200, order: 0 }),
+    ];
+    expect(notesForView(notes, 'jaga', 'arsip').map((n) => n.id)).toEqual(['new', 'mid', 'old']);
+  });
+});

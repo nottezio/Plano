@@ -31,6 +31,10 @@
   --fg-faint: #8b95a1;
   --accent: #0d6efd;
   --danger: #dc2626;
+  /* Tinted fills. Tailwind's `bg-accent/15` emits NO CSS for a colour that is a
+     CSS variable, so every such tint in the app was silently transparent. */
+  --accent-soft: #0d6efd1f;
+  --danger-soft: #dc26261f;
   /**
    * Pemantauan — a patient under closer watch.
    *
@@ -120,6 +124,8 @@
   --fg-faint: #6f7d8b;
   --accent: #5b9cff;
   --danger: #f87171;
+  --accent-soft: #5b9cff2e;
+  --danger-soft: #f8717129;
   /* Lifted for dark mode: amber at #d97706 disappears against a dark card. */
   --warn-strong: #fbbf24;
   --warn-soft: #f59e0b40;

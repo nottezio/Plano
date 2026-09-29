@@ -1,4 +1,6 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
+
+import { parseShiftTime } from '@/domain/shiftNotes';
 
 import { BodyEditor } from './BodyEditor';
 import type { ClinicalDate, SectionAlias, ShiftNote } from '@/domain/types';
@@ -32,6 +34,8 @@ export function ShiftNoteEditor({
   onBlur,
   onClear,
   onBack,
+  onTime,
+  focusAt,
 }: {
   note: ShiftNote;
   readOnly: boolean;
@@ -46,8 +50,31 @@ export function ShiftNoteEditor({
   onBlur: () => void;
   onClear: () => void;
   onBack: () => void;
+  /** Correct the time stamp. */
+  onTime: (time: string) => void;
+  /** Put the caret here once, when a new note is opened. */
+  focusAt?: number | undefined;
 }): JSX.Element {
   const [confirming, setConfirming] = useState(false);
+  const [editingTime, setEditingTime] = useState(false);
+  const [timeDraft, setTimeDraft] = useState(note.time);
+  const frame = useRef<HTMLDivElement>(null);
+
+  // A new note opens with the caret on the complaint line, ready to type.
+  useEffect(() => {
+    if (focusAt === undefined) return;
+    const textarea = frame.current?.querySelector('textarea');
+    if (!textarea) return;
+    textarea.focus();
+    textarea.setSelectionRange(focusAt, focusAt);
+  }, [focusAt, note.id]);
+
+  const commitTime = (): void => {
+    const parsed = parseShiftTime(timeDraft);
+    if (parsed && parsed !== note.time) onTime(parsed);
+    setTimeDraft(parsed ?? note.time);
+    setEditingTime(false);
+  };
 
   return (
     <section aria-label={`SOAP jaga jam ${note.time}`}>
@@ -85,8 +112,8 @@ export function ShiftNoteEditor({
         text within the frame instead of moving the page. That is the note
         being cut at both ends.
       */}
-      <div className="mx-4 mt-2 flex flex-col rounded-lg border border-accent/40 border-l-4 border-l-accent">
-        <div className="flex items-center gap-2 rounded-t-md bg-accent/10 px-3 py-1.5">
+      <div ref={frame} className="mx-4 mt-2 flex flex-col rounded-lg border border-accent border-l-4 border-l-accent">
+        <div className="flex items-center gap-2 rounded-t-md bg-[var(--accent-soft)] px-3 py-1.5">
           <button
             type="button"
             onClick={onBack}
@@ -95,8 +122,43 @@ export function ShiftNoteEditor({
           >
             ← SOAP hari ini
           </button>
-          <span className="min-w-0 flex-1 truncate text-right text-xs font-semibold text-accent">
-            SOAP jaga · {note.time}
+          {/*
+            The time is editable: a jaga note is often written up after the
+            event, and the stamp from the tap was then simply wrong.
+          */}
+          <span className="flex min-w-0 flex-1 items-center justify-end gap-1 text-xs font-semibold text-accent">
+            SOAP jaga ·
+            {editingTime ? (
+              <input
+                autoFocus
+                value={timeDraft}
+                inputMode="numeric"
+                aria-label="Jam SOAP jaga"
+                onChange={(event) => setTimeDraft(event.target.value)}
+                onBlur={commitTime}
+                onKeyDown={(event) => {
+                  if (event.key === 'Enter') commitTime();
+                  if (event.key === 'Escape') {
+                    setTimeDraft(note.time);
+                    setEditingTime(false);
+                  }
+                }}
+                className="w-16 rounded border border-accent bg-surface px-1 py-0.5 text-center text-xs text-fg"
+              />
+            ) : (
+              <button
+                type="button"
+                disabled={readOnly}
+                onClick={() => {
+                  setTimeDraft(note.time);
+                  setEditingTime(true);
+                }}
+                title="Ubah jam"
+                className="min-h-tap rounded px-1 underline decoration-dotted underline-offset-2 disabled:no-underline"
+              >
+                {note.time}
+              </button>
+            )}
           </span>
           {/*
             Two taps to delete.

@@ -81,6 +81,58 @@ export function matchArchived(
   };
 }
 
+/** Where the archive search looks. */
+export type ArchiveScope = 'identitas' | 'arsip' | 'soap';
+
+export const ARCHIVE_SCOPES: ReadonlyArray<{ value: ArchiveScope; label: string; hint: string }> = [
+  { value: 'identitas', label: 'Identitas', hint: 'Nama, RM, ruang, DPJP, diagnosis' },
+  { value: 'arsip', label: 'Catatan arsip', hint: 'Catatan yang ditulis saat pasien diarsipkan' },
+  { value: 'soap', label: 'Isi SOAP', hint: 'Semua SOAP harian dan catatan pasien' },
+];
+
+export interface ScopedMatch extends ArchiveMatch {
+  /** Which scope supplied the snippet, when one did. */
+  from: ArchiveScope | null;
+}
+
+/**
+ * Archive search over the chosen SCOPES.
+ *
+ * Every word must appear somewhere across the chosen scopes, in any order.
+ * Identity is what the search box always meant; the archive note and the
+ * SOAP are separate choices, because they answer different questions ("the
+ * patient discharged for the valve work-up" vs "who had furosemid 40") and
+ * a SOAP match is slow to load and noisy when you meant a name.
+ */
+export function matchArchivedScoped(
+  patient: Patient,
+  tokens: readonly string[],
+  scopes: ReadonlySet<ArchiveScope>,
+  soapText?: string,
+): ScopedMatch | null {
+  if (tokens.length === 0) return { patient, snippet: null, from: null };
+  const identity = scopes.has('identitas') ? identityHaystack(patient) : '';
+  const archiveNote = scopes.has('arsip') ? (patient.archive?.note ?? '') : '';
+  const soap = scopes.has('soap') ? (soapText ?? '') : '';
+  const lowerNote = archiveNote.toLowerCase();
+  const lowerSoap = soap.toLowerCase();
+
+  const rest = tokens.filter((token) => !identity.includes(token));
+  if (!rest.every((token) => lowerNote.includes(token) || lowerSoap.includes(token))) return null;
+  if (rest.length === 0) return { patient, snippet: null, from: null };
+
+  const inNote = rest.filter((token) => lowerNote.includes(token));
+  if (inNote.length > 0) return { patient, snippet: findSnippet(archiveNote, inNote), from: 'arsip' };
+  return { patient, snippet: findSnippet(soap, rest), from: 'soap' };
+}
+
+/** Identity only: the board haystack WITHOUT the archive note. */
+function identityHaystack(patient: Patient): string {
+  const { archive: _archive, ...rest } = patient;
+  void _archive;
+  return patientHaystack(rest as Patient);
+}
+
 /**
  * About `radius` characters either side of the first word found, on one line,
  * with ellipses where it was cut. Whitespace collapsed so a SOAP's line breaks

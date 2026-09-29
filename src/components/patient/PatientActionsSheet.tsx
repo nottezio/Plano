@@ -182,7 +182,7 @@ export function PatientActionsSheet({
         {onAddShiftNote ? (
           <Action
             label="Tambah SOAP jaga"
-            detail="Kotak kosong di bawah SOAP hari ini, untuk keluhan saat jaga."
+            detail="Format S/O/A/P jaga; jamnya bisa diubah. Juga ada di baris di atas catatan."
             onClick={() => {
               onAddShiftNote();
               close();

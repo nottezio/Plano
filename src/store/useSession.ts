@@ -1,14 +1,11 @@
 import {
   GoogleAuthProvider,
   browserPopupRedirectResolver,
-  createUserWithEmailAndPassword,
   getRedirectResult,
   onAuthStateChanged,
-  signInWithEmailAndPassword,
   signInWithPopup,
   signInWithRedirect,
   signOut,
-  updateProfile,
   type Auth,
   type User,
 } from 'firebase/auth';
@@ -281,32 +278,7 @@ export async function signInWithGoogle(): Promise<void> {
   }
 }
 
-export async function signInWithEmail(email: string, password: string): Promise<void> {
-  const { auth } = services();
-  try {
-    await signInWithEmailAndPassword(auth, email.trim(), password);
-  } catch (error) {
-    useSession.setState({ error: describeAuthError(error) });
-    throw error;
-  }
-}
 
-export async function registerWithEmail(
-  email: string,
-  password: string,
-  displayName: string,
-): Promise<void> {
-  const { auth } = services();
-  try {
-    const credential = await createUserWithEmailAndPassword(auth, email.trim(), password);
-    if (displayName.trim()) {
-      await updateProfile(credential.user, { displayName: displayName.trim() });
-    }
-  } catch (error) {
-    useSession.setState({ error: describeAuthError(error) });
-    throw error;
-  }
-}
 
 /**
  * SPEC F1 / 18 — sign-out clears the local cache AND localBase.

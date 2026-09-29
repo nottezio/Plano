@@ -14,6 +14,7 @@ import {
 import {
   countView,
   displayTitle,
+  isDateOrdered,
   notePlainText,
   notesForView,
   orderAtTop,
@@ -277,7 +278,7 @@ export default function NotePage(): JSX.Element {
           onOpen={openNote}
           onMove={moveNote}
           now={now}
-          reorderable={!searching && view !== 'sampah'}
+          reorderable={!searching && view !== 'sampah' && !isDateOrdered(shelf, view)}
           showShelf={searching}
         />
       ) : !searching ? (

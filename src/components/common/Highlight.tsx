@@ -1,7 +1,7 @@
 /**
  * The words searched for, marked where they occur.
  *
- * `--warn-soft` as an arbitrary value, not `bg-accent/20`: an opacity
+ * `--warn-soft` as an arbitrary value, not `bg-[var(--accent-soft)]`: an opacity
  * modifier on a CSS-variable colour emits no CSS in this Tailwind version.
  */
 export function Highlight({ text, tokens }: { text: string; tokens: readonly string[] }): JSX.Element {

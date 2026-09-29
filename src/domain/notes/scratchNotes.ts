@@ -163,12 +163,25 @@ export function notesForView(
       .filter((note) => note.deletedAt !== undefined)
       .sort((a, b) => (b.deletedAt ?? 0) - (a.deletedAt ?? 0));
   }
-  return notes.filter(
+  const shown = notes.filter(
     (note) =>
       note.deletedAt === undefined &&
       note.category === category &&
       (view === 'arsip' ? note.archived === true : note.archived !== true),
   );
+  if (!isDateOrdered(category, view)) return shown;
+  // Newest made first; notes from before `createdAt` existed (0) go last, in
+  // their old order.
+  return [...shown].sort((a, b) => b.createdAt - a.createdAt || compareNotes(a, b));
+}
+
+/**
+ * Archived jaga notes are a LOG: one per shift, read back by when they were
+ * written. They are always in the order they were made, and cannot be
+ * rearranged by hand (a hand-sorted log is one where the dates lie).
+ */
+export function isDateOrdered(category: ScratchNoteCategory, view: NoteView): boolean {
+  return category === 'jaga' && view === 'arsip';
 }
 
 export function countView(

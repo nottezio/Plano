@@ -74,7 +74,7 @@ export function SidePanel({
           <span
             className={[
               'shrink-0 rounded px-1.5 py-0.5 text-[11px] tabular-nums',
-              tone === 'done' ? 'bg-accent/15 text-accent' : 'bg-bg-subtle text-fg-muted',
+              tone === 'done' ? 'bg-[var(--accent-soft)] text-accent' : 'bg-bg-subtle text-fg-muted',
             ].join(' ')}
           >
             {summary}

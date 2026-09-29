@@ -98,3 +98,26 @@ describe('filters and facets', () => {
     expect(hasArchiveFilters({ ...NO_ARCHIVE_FILTERS, month: '2026-09' })).toBe(true);
   });
 });
+
+describe('matchArchivedScoped (2026-09-29)', () => {
+  it('searches only the chosen scopes', async () => {
+    const { matchArchivedScoped } = await import('./archiveSearch');
+    const { makePatient } = await import('./testFactories');
+    const patient = makePatient({
+      name: 'Tn. Contoh',
+      archive: { reason: 'pulang', at: null as never, note: 'Kontrol poli valvular' },
+    } as never);
+    const soap = 'P: furosemid 40 mg';
+    const identity = new Set(['identitas'] as const);
+    const note = new Set(['arsip'] as const);
+    const all = new Set(['identitas', 'arsip', 'soap'] as const);
+    expect(matchArchivedScoped(patient, ['contoh'], identity, soap)).not.toBeNull();
+    expect(matchArchivedScoped(patient, ['valvular'], identity, soap)).toBeNull();
+    expect(matchArchivedScoped(patient, ['valvular'], note, soap)?.from).toBe('arsip');
+    expect(matchArchivedScoped(patient, ['contoh'], note, soap)).toBeNull();
+    expect(matchArchivedScoped(patient, ['furosemid'], note, soap)).toBeNull();
+    const hit = matchArchivedScoped(patient, ['contoh', 'furosemid'], all, soap);
+    expect(hit?.from).toBe('soap');
+    expect(hit?.snippet).toContain('furosemid');
+  });
+});

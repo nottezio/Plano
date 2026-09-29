@@ -121,7 +121,7 @@ export function RevisionTrail({
           picked second: it is about two rows, and putting it under one of
           them would say it belongs to that one.
         */
-        <div className="mb-3 rounded-lg border border-accent/50 p-2">
+        <div className="mb-3 rounded-lg border border-accent p-2">
           <p className="mb-2 text-xs font-medium">
             {versionLabel(pair.older)} <span className="text-fg-faint">→</span>{' '}
             {versionLabel(pair.newer)}
@@ -193,7 +193,7 @@ export function RevisionTrail({
                 className={[
                   'min-h-tap shrink-0 rounded-lg border px-2 text-[11px] font-medium',
                   comparing.includes(revision.id)
-                    ? 'border-accent bg-accent/15 text-accent'
+                    ? 'border-accent bg-[var(--accent-soft)] text-accent'
                     : 'border-border text-fg-muted',
                 ].join(' ')}
               >

@@ -5,7 +5,7 @@ import { useUI } from '@/store/useUI';
  * In P0 the state is static; P1 drives it from Firestore snapshot metadata
  * (`hasPendingWrites`) plus `navigator.onLine`.
  */
-export function SyncPill(): JSX.Element {
+export function SyncPill({ compact = false }: { compact?: boolean }): JSX.Element {
   const sync = useUI((state) => state.sync);
 
   const { label, tone } =
@@ -17,6 +17,22 @@ export function SyncPill(): JSX.Element {
             tone: 'text-[var(--card-step-2-accent)]',
           }
         : { label: 'Tersinkron', tone: 'text-fg-faint' };
+
+  if (compact) {
+    // A dot and a word, for the sidebar's single status line.
+    const dot =
+      sync.kind === 'offline'
+        ? 'bg-[var(--card-step-2-accent)]'
+        : sync.kind === 'saving'
+          ? 'bg-accent'
+          : 'bg-[var(--fg-faint)]';
+    return (
+      <span role="status" aria-live="polite" className={`flex min-w-0 items-center gap-1.5 ${tone}`}>
+        <span aria-hidden="true" className={`h-2 w-2 shrink-0 rounded-full ${dot}`} />
+        <span className="truncate">{sync.kind === 'offline' ? `Offline · ${sync.pending} tertunda` : label}</span>
+      </span>
+    );
+  }
 
   return (
     <span

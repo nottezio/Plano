@@ -14,7 +14,14 @@ function clock(at: number): string {
  * Amber when a different patient's page is open: that is the moment a paste
  * into SIMGOS would land in the wrong chart.
  */
-export function ClipboardPill({ className = '' }: { className?: string }): JSX.Element | null {
+export function ClipboardPill({
+  className = '',
+  variant = 'floating',
+}: {
+  className?: string;
+  /** `row`: a line inside the sidebar's context card, no box of its own. */
+  variant?: 'floating' | 'row';
+}): JSX.Element | null {
   const last = useClipboardNote((state) => state.last);
   const openPatientId = useClipboardNote((state) => state.openPatientId);
   const dismiss = useClipboardNote((state) => state.dismiss);
@@ -23,6 +30,40 @@ export function ClipboardPill({ className = '' }: { className?: string }): JSX.E
   if (!last) return null;
 
   const wrong = isMismatch(last, openPatientId);
+  const who = initialsOnly ? initials(last.patientName) || '—' : last.patientName || 'Tanpa nama';
+
+  if (variant === 'row') {
+    return (
+      <div
+        role="status"
+        title={`Terakhir disalin: ${last.what} · ${who} · ${clock(last.at)}`}
+        className={[
+          'flex items-center gap-1.5 rounded-md px-1.5 py-1 text-[11px] leading-tight',
+          wrong ? 'bg-[var(--warn-soft)] text-fg' : 'text-fg-muted',
+          className,
+        ].join(' ')}
+      >
+        <span aria-hidden="true" className="shrink-0">
+          📋
+        </span>
+        <span className="min-w-0 flex-1">
+          <span className="block truncate font-medium text-fg">{who}</span>
+          <span className="block truncate">
+            {wrong ? 'Pasien LAIN · ' : ''}
+            {last.what} · {clock(last.at)}
+          </span>
+        </span>
+        <button
+          type="button"
+          onClick={dismiss}
+          aria-label="Tutup keterangan clipboard"
+          className="flex h-6 w-6 shrink-0 items-center justify-center rounded text-fg-faint hover:bg-bg-subtle"
+        >
+          <IconClose width={12} height={12} />
+        </button>
+      </div>
+    );
+  }
 
   return (
     <div
@@ -41,7 +82,7 @@ export function ClipboardPill({ className = '' }: { className?: string }): JSX.E
           {wrong ? 'Clipboard berisi pasien LAIN' : 'Terakhir disalin'} · {last.what} · {clock(last.at)}
         </span>
         <span className="block truncate text-[13px] font-semibold text-fg">
-          {initialsOnly ? initials(last.patientName) || '—' : last.patientName || 'Tanpa nama'}
+          {who}
           {last.mrn && !initialsOnly ? <span className="font-mono text-[11px] font-normal"> · RM {last.mrn}</span> : null}
         </span>
       </span>

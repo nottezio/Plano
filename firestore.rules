@@ -50,8 +50,19 @@ service cloud.firestore {
 
     // Every data path goes through this. Ordered so the admin costs no extra
     // read, and an unenforced project costs one `exists`.
+    /*
+     * Google only. Switching the Email/Password provider off in Firebase stops
+     * NEW password sign-ins, but a session made with a password before that
+     * keeps a valid token indefinitely. Without this, such a session kept full
+     * access to every data path. The admin is exempt so a mistake here can
+     * never lock the owner out.
+     */
+    function signedInWithGoogle() {
+      return request.auth.token.firebase.sign_in_provider == 'google.com';
+    }
+
     function allowed() {
-      return authed() && (isAdmin() || !accessEnforced() || isApproved());
+      return authed() && (isAdmin() || (signedInWithGoogle() && (!accessEnforced() || isApproved())));
     }
 
     function isMemberOf(data) {

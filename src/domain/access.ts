@@ -80,7 +80,7 @@ export interface AccessRecord {
  * cached. It is shown as a wait, never as a refusal: an approved resident on
  * a new phone with no signal must not be told they were rejected.
  */
-export type AccessDecision = 'allowed' | 'pending' | 'revoked' | 'unknown';
+export type AccessDecision = 'allowed' | 'pending' | 'revoked' | 'unknown' | 'not-google';
 
 export function decideAccess(input: {
   uid: string;
@@ -88,8 +88,15 @@ export function decideAccess(input: {
   enforce: boolean | null;
   /** `undefined` while not read yet; `null` when read and the document does not exist. */
   status: AccessStatus | null | undefined;
+  /**
+   * Whether this session was signed in with Google. Plano is Google-only;
+   * a session made with a password before that provider was switched off
+   * stays valid in Firebase, so it is refused here (and in the rules).
+   */
+  google?: boolean;
 }): AccessDecision {
   if (isAdmin(input.uid)) return 'allowed';
+  if (input.google === false) return 'not-google';
   if (input.enforce === null) return 'unknown';
   if (!input.enforce) return 'allowed';
   if (input.status === undefined) return 'unknown';

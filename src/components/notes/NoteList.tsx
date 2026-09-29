@@ -151,7 +151,7 @@ function Group({
             <div
               className={[
                 'flex items-stretch overflow-hidden rounded-xl border transition-colors',
-                active ? 'border-accent bg-accent/10' : 'border-border bg-surface hover:bg-bg-subtle',
+                active ? 'border-accent bg-[var(--accent-soft)]' : 'border-border bg-surface hover:bg-bg-subtle',
               ].join(' ')}
             >
               {/* The note's colour, as an edge rather than a fill: rows stay readable. */}

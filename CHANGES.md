@@ -1,5 +1,102 @@
 # Plano — CHANGES
 
+## `2026-09-29.7`
+
+**Google-only sign-in, enforced. Admin page redesigned. The sidebar's
+bottom is one compact card. Archive search chooses where to look. Archived
+catatan jaga are a dated log. Adding a SOAP jaga is one tap, from a
+template.**
+
+### 1. "Email/Password is disabled in Firebase, yet people still sign in with it"
+
+**Root cause, two layers.**
+1. **The form was hardcoded** on the sign-in page. Disabling the provider in
+   the Firebase console does not change the app; the page kept inviting
+   password sign-ins.
+2. **Disabling a provider does not sign anyone out.** Firebase refuses NEW
+   password sign-ins (`auth/operation-not-allowed`). A session created with a
+   password BEFORE the switch keeps a valid refresh token and keeps working,
+   and nothing in the app or the rules looked at HOW an account signed in.
+   So existing password sessions kept full access.
+
+**Fundamental fix, on both sides.**
+- **Server:** `firestore.rules` `allowed()` now also requires
+  `request.auth.token.firebase.sign_in_provider == 'google.com'` on every
+  data path. The admin UID is exempt, so this can never lock the owner out.
+  This deploys through the existing `firestore-deploy` workflow when pushed.
+- **App:** the sign-in page is Google-only (the email form and the
+  `signInWithEmail` / `registerWithEmail` code are gone). A password session
+  that is still signed in now sees "Masuk dengan Google" with a Keluar button
+  (`decideAccess` → `not-google`) instead of the app.
+- Tests: `decideAccess` refuses a password session except the admin, and a
+  test checks the rules contain the provider gate.
+
+### 2. Admin page
+
+- Header and **summary tiles**: Akun, Aktif 7 hari, Menunggu (amber when any
+  are waiting), Dicabut.
+- **Access switch** as a status card with an Aktif/Nonaktif badge, still a
+  two-tap confirmation.
+- **Filter tabs with counts.** The page opens on Menunggu when anyone is
+  waiting, else on Semua. There is also a search box.
+- **Compact rows:** initial, name, status pill, "aktif 2 jam lalu", the app
+  version with an **outdated version marked in red** (the usual reason a fix
+  "did not work" for someone), and the patient count. Details and UID open on
+  tap. Actions wrap under the row on phone.
+
+### 3. Sidebar bottom
+
+The DPJP box, clipboard box, sync pill and two-line footer were separate
+blocks. On a patient page they were taller than the navigation above them.
+Now:
+- **One context card** with compact rows: `DPJP CPT <format>` / `Poli … ·
+  lalu …`, a divider, then 📋 name / what · time (amber if another patient
+  is open). The full text is on hover.
+- **One status line:** ● Tersinkron and the version (© on hover).
+- The rail scrolls if a very short window still runs out of room.
+
+### 4. Arsip: choose where to search
+
+"Cari di [Identitas] [Catatan arsip] [Isi SOAP]", any combination,
+remembered per device. The default is Identitas + Catatan arsip. Isi SOAP
+loads the notes only when chosen. The snippet comes from the archive note
+first, else the SOAP. `matchArchivedScoped`, with tests.
+
+### 5. Archived catatan jaga: always by date made
+
+Newest first, and drag-to-reorder is off for that view (`isDateOrdered`). A
+hand-sorted log is one whose order lies about when things happened.
+
+### 6. SOAP jaga, revamped
+
+Before: ⋯ → find "Tambah SOAP jaga" among ten actions → an empty box
+stamped with the time of the tap → switch back through the date rail.
+
+Now:
+- **A row directly above the editor:** `SOAP hari ini · Jaga 21.40 ·
+  Jaga 03.10 · + SOAP jaga`. One tap creates a note, one tap switches between
+  notes, and switching saves the note you leave.
+- **Starts from the jaga template:** S / O with a blank vitals line / A / P,
+  with the **caret already on the complaint line**.
+- **Editable time:** tap the time in the note's header. It accepts `3.10`,
+  `03:10` and `0310`. Useful when the note is written up after the event. Any
+  pending text is written in the same save.
+- The template picker no longer shows (writing into the day SOAP) while a
+  jaga note is open.
+
+### Also fixed
+
+**Every tinted fill in the app was transparent.** Tailwind emits no CSS for
+`bg-accent/15` when the colour is a CSS variable. The affected places were
+14 classes: search highlights, the peek's date chip, revision-trail marks,
+the jaga frame header, the side panel and others. They now use
+`--accent-soft` / `--danger-soft` tokens (light and dark).
+
+```
+1683 tests passed (+6)
+typecheck / lint (0 warnings) / check:version / check:contrast / check:a11y / build — clean
+```
+
 ## `2026-09-29.6` — bug audit
 
 **Audit of the whole app (data/sync, patient page and editor, board,

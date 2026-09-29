@@ -13,6 +13,8 @@ import { IdentityBar } from '@/components/patient/IdentityBar';
 import { JumpBar } from '@/components/patient/JumpBar';
 import { ShiftNoteEditor } from '@/components/patient/ShiftNoteEditor';
 import { LabSheet } from '@/components/patient/LabSheet';
+import { JagaBar } from '@/components/patient/JagaBar';
+import { JAGA_TEMPLATE, JAGA_TEMPLATE_CARET } from '@/domain/shiftNotes';
 import { PatientNotes, usePatientNotes } from '@/components/patient/PatientNotes';
 import { PatientTodos } from '@/components/patient/PatientTodos';
 import { SidePanel } from '@/components/patient/SidePanel';
@@ -304,10 +306,24 @@ export default function PatientPage(): JSX.Element {
    * a note that is not in the list any more.
    */
   const [selectedShiftNoteId, setSelectedShiftNoteId] = useState<string | null>(null);
+  /** The jaga note just made here, so its editor opens with the caret placed. */
+  const [justCreatedJaga, setJustCreatedJaga] = useState<string | null>(null);
   const activeShiftNote =
     selectedShiftNoteId === null
       ? null
       : (shiftNotes.notes.find((note) => note.id === selectedShiftNoteId) ?? null);
+
+  /**
+   * One tap: a jaga note with the jaga scaffold, stamped now (editable in its
+   * header), opened with the caret on the complaint.
+   */
+  const addJagaNote = (): void => {
+    shiftNotes.flush();
+    const id = shiftNotes.add(JAGA_TEMPLATE);
+    if (!id) return;
+    setJustCreatedJaga(id);
+    setSelectedShiftNoteId(id);
+  };
 
   /**
    * A settled copy of the note, for everything derived from it.
@@ -1588,7 +1604,7 @@ export default function PatientPage(): JSX.Element {
                         ? `Tampilkan ${text} di catatan (${remaining} tempat)`
                         : `Tampilkan ${text} di catatan`
                     }
-                    className="rounded border border-current/40 px-1.5 py-0.5 font-semibold underline decoration-dotted"
+                    className="rounded border border-current px-1.5 py-0.5 font-semibold underline decoration-dotted"
                   >
                     {text}
                     {remaining > 1 ? ` ×${remaining}` : ''}
@@ -1645,8 +1661,22 @@ export default function PatientPage(): JSX.Element {
           </Banner>
         ) : null}
 
-        {/* Empty day only — see TemplatePicker for why this is never automatic. */}
-        {!locked && editor.value.trim().length === 0 ? (
+        <JagaBar
+          notes={shiftNotes.notes}
+          activeId={activeShiftNote?.id ?? null}
+          canAdd={!locked}
+          onSelect={(id) => {
+            // Leaving a jaga note saves it; see useShiftNotes.
+            shiftNotes.flush();
+            setJustCreatedJaga(null);
+            setSelectedShiftNoteId(id);
+          }}
+          onAdd={addJagaNote}
+        />
+
+        {/* Empty day only — see TemplatePicker for why this is never automatic.
+            Not while a jaga note is open: the picker writes the DAY's SOAP. */}
+        {!locked && !activeShiftNote && editor.value.trim().length === 0 ? (
           <TemplatePicker
             templates={settings.noteTemplates}
             onPick={(body) => {
@@ -1690,6 +1720,8 @@ export default function PatientPage(): JSX.Element {
               setSelectedShiftNoteId(null);
             }}
             onBack={() => setSelectedShiftNoteId(null)}
+            onTime={(time) => shiftNotes.setTime(activeShiftNote.id, time)}
+            focusAt={justCreatedJaga === activeShiftNote.id ? JAGA_TEMPLATE_CARET : undefined}
           />
         ) : (
           <BodyEditor
@@ -1919,14 +1951,7 @@ export default function PatientPage(): JSX.Element {
         open={actionsOpen}
         onOpenChange={setActionsOpen}
         patient={patient}
-        onAddShiftNote={
-          locked
-            ? undefined
-            : () => {
-                const id = shiftNotes.add();
-                if (id) setSelectedShiftNoteId(id);
-              }
-        }
+        onAddShiftNote={locked ? undefined : addJagaNote}
         onLab={locked || headerHasTools ? undefined : () => setLabOpen(true)}
         {...(locked || headerHasTools ? {} : { onReformat: () => setReformatOpen(true) })}
         {...(!locked && editor.value.trim().length > 0
@@ -2139,7 +2164,7 @@ export default function PatientPage(): JSX.Element {
                           className={[
                             'rounded px-1.5 py-0.5 text-[11px]',
                             date === selected
-                              ? 'bg-accent/15 font-medium text-accent'
+                              ? 'bg-[var(--accent-soft)] font-medium text-accent'
                               : 'bg-bg-subtle text-fg-muted',
                           ].join(' ')}
                         >

@@ -102,3 +102,20 @@ describe('renderShiftNotes', () => {
     expect(renderShiftNotes(notes, ['a'])).not.toMatch(/Jaga \d+:/);
   });
 });
+
+describe('jaga notes, revamped (2026-09-29)', () => {
+  it('reads a typed time in the usual forms', async () => {
+    const { parseShiftTime } = await import('./shiftNotes');
+    expect(parseShiftTime('3.10')).toBe('03.10');
+    expect(parseShiftTime('03:10')).toBe('03.10');
+    expect(parseShiftTime('0310')).toBe('03.10');
+    expect(parseShiftTime('23 45')).toBe('23.45');
+    expect(parseShiftTime('24.00')).toBeNull();
+    expect(parseShiftTime('jam 3')).toBeNull();
+  });
+
+  it('starts the caret on the complaint line of the template', async () => {
+    const { JAGA_TEMPLATE, JAGA_TEMPLATE_CARET } = await import('./shiftNotes');
+    expect(JAGA_TEMPLATE.slice(0, JAGA_TEMPLATE_CARET)).toBe('S:\n- ');
+  });
+});

@@ -5,6 +5,7 @@ import { Sheet } from './Sheet';
 import { SyncPill } from './SyncPill';
 import { APP_VERSION } from '@/version.js';
 import { ClipboardPill } from './ClipboardPill';
+import { useClipboardNote } from '@/store/useClipboardNote';
 import {
   IconArchive,
   IconBoard,
@@ -55,6 +56,7 @@ const TABS = [
 
 export function TabBar(): JSX.Element {
   const hint = useUI((state) => state.dpjpHint);
+  const hasClipboard = useClipboardNote((state) => state.last !== null);
   const [toolsOpen, setToolsOpen] = useState(false);
   const { pathname } = useLocation();
   const navigate = useNavigate();
@@ -71,7 +73,7 @@ export function TabBar(): JSX.Element {
         'fixed inset-x-0 bottom-0 z-40 flex border-t border-border bg-surface',
         'pb-[env(safe-area-inset-bottom)]',
         // tablet/desktop: static left rail
-        'sm:static sm:h-full sm:w-[76px] sm:flex-col sm:gap-0.5 sm:border-r sm:border-t-0 sm:py-2',
+        'sm:static sm:h-full sm:w-[76px] sm:flex-col sm:gap-0.5 sm:overflow-y-auto sm:border-r sm:border-t-0 sm:py-2',
         'lg:w-[224px] lg:items-stretch lg:px-3',
       ].join(' ')}
     >
@@ -206,72 +208,50 @@ export function TabBar(): JSX.Element {
       </Sheet>
 
       {/*
-        Reporting format for the patient currently open.
+        THE CONTEXT DOCK, desktop only: one card for the ambient facts about
+        what is open (the DPJP's reporting format, what was last copied), then
+        one line of status.
 
-        Bottom of the rail, above the sync pill: it is a reminder you glance at
-        before copying, not something to act on, so it belongs in the furniture
-        rather than over the note. Desktop only — on phone the rail is 64 px of
-        thumb target, and the patient page already shows the same line under the
-        date.
+        These used to be three separately boxed blocks stacked under the nav
+        (DPJP box, clipboard box, sync pill) plus a two-line footer. On a
+        patient page with a clipboard entry they took more height than the
+        navigation above them. One card with compact rows, and sync + version
+        on a single line, keep the rail's bottom a fixed, small size.
       */}
-      {hint ? (
+      <div className="mt-auto hidden lg:block">
+        {hint || hasClipboard ? (
+          <div className="mx-0 mb-2 space-y-0.5 rounded-lg border border-border bg-bg-subtle p-1">
+            {hint ? (
+              <div
+                title={`${hint.name}${hint.poli ? ` · Poli ${hint.poli}` : ''}${hint.poliAfter ? ` · lalu ${hint.poliAfter}` : ''}`}
+                className="px-1.5 py-1 text-[11px] leading-tight"
+              >
+                <p className="truncate font-medium">
+                  <span className="mr-1 rounded bg-surface px-1 text-[10px] font-semibold text-fg-muted">DPJP</span>
+                  {hint.initials}
+                  <span className="ml-1 font-normal text-fg-muted">{hint.description}</span>
+                </p>
+                {hint.poli ? (
+                  <p className="mt-0.5 truncate text-fg-muted">
+                    Poli {hint.poli}
+                    {hint.poliAfter ? <span className="text-fg-faint"> · lalu {hint.poliAfter}</span> : null}
+                  </p>
+                ) : null}
+              </div>
+            ) : null}
+            {hint && hasClipboard ? <div className="mx-1.5 h-px bg-border" /> : null}
+            <ClipboardPill variant="row" />
+          </div>
+        ) : null}
+
         <div
-          title={`${hint.name}${hint.poli ? ` · Poli ${hint.poli}` : ''}${hint.poliAfter ? ` · lalu ${hint.poliAfter}` : ''}`}
-          className="mx-3 mb-2 mt-auto hidden rounded-lg border border-border bg-bg-subtle px-2 py-1.5 text-[11px] leading-tight lg:block"
+          title={`© Avicenna · v${APP_VERSION}`}
+          className="flex items-center gap-2 px-1 pb-1 text-[11px] text-fg-faint"
         >
-          {/*
-            ONE LINE PER FACT, AND EVERY LINE CLIPPED TO ONE LINE.
-
-            The block kept growing taller than the nav above it — the reason is
-            that nothing in it had a height limit, so a long description, a
-            two-clinic week and a ward name that wrapped could between them
-            make four or five rendered lines out of three facts, in a rail
-            180 px wide. It is ambient furniture; it cannot be allowed to
-            out-size the navigation it sits under.
-
-            `truncate` on each line rather than a shorter string: the full text
-            is on the panel's `title`, so nothing is lost — it is one hover
-            away, and the rail keeps a predictable height whatever the roster
-            says.
-          */}
-          <p className="truncate font-medium">
-            {hint.initials}
-            <span className="ml-1 font-normal text-fg-muted">{hint.description}</span>
-          </p>
-          {hint.poli ? (
-            <p className="mt-0.5 truncate text-fg-muted">
-              {hint.poli}
-              {/* The roster is a dated document — say which one, so nobody
-                  reads last month's by accident. */}
-              <span className="ml-1 text-fg-faint">({hint.period})</span>
-            </p>
-          ) : null}
-          {/*
-            The clinic after next, dimmer and on its own line.
-
-            Knowing only the next one is not enough to plan a referral around:
-            when the next clinic is today or tomorrow, what decides whether a
-            patient can still be seen this week is the one after it.
-          */}
-          {hint.poliAfter ? (
-            <p className="truncate text-fg-faint">Lalu: {hint.poliAfter}</p>
-          ) : null}
+          <SyncPill compact />
+          <span className="ml-auto truncate font-mono">v{APP_VERSION}</span>
         </div>
-      ) : null}
-
-      {/* Sync state lives here on desktop: it is ambient status, not an action,
-          so it belongs with the other ambient furniture rather than in a bar of
-          its own across the top of the content. */}
-      <div className={`${hint ? '' : 'mt-auto '}hidden px-3 pb-2 lg:block`}>
-        <ClipboardPill className="mb-2" />
-        <SyncPill />
       </div>
-
-      <p className="hidden px-3 pb-1 text-[11px] leading-relaxed text-fg-faint lg:block">
-        © Avicenna
-        <br />
-        <span className="font-mono">v{APP_VERSION}</span>
-      </p>
     </nav>
   );
 }
