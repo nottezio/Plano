@@ -1,5 +1,6 @@
 import { useState } from 'react';
 
+import { useClipboardNote } from '@/store/useClipboardNote';
 import { copyText } from '@/lib/clipboard';
 import { formatLocation } from '@/domain/identity';
 import { initials } from '@/domain/board';
@@ -94,13 +95,22 @@ export function IdentityBar({
       already a button and a button inside a button is invalid HTML that
       browsers resolve by dropping one of them.
     */}
-    {patient.mrn ? <CopyMrn mrn={patient.mrn} /> : null}
+    {patient.mrn ? <CopyMrn mrn={patient.mrn} patientId={patient.id} name={patient.name?.trim() ?? ''} /> : null}
     </div>
   );
 }
 
-function CopyMrn({ mrn }: { mrn: string }): JSX.Element {
+function CopyMrn({
+  mrn,
+  patientId,
+  name,
+}: {
+  mrn: string;
+  patientId: string;
+  name: string;
+}): JSX.Element {
   const [copied, setCopied] = useState(false);
+  const remember = useClipboardNote((state) => state.remember);
 
   return (
     <button
@@ -108,7 +118,9 @@ function CopyMrn({ mrn }: { mrn: string }): JSX.Element {
       // The number alone, with no `RM ` prefix: it is going into a search box
       // that wants the digits.
       onClick={() => {
-        void copyText(mrn);
+        void copyText(mrn).then((ok) => {
+          if (ok) remember({ what: 'Nomor RM', patientId, patientName: name, mrn });
+        });
         setCopied(true);
         window.setTimeout(() => setCopied(false), 1200);
       }}

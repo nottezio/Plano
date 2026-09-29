@@ -1,4 +1,5 @@
 import { useEffect, useId, useRef, useState } from 'react';
+import { useClipboardNote } from '@/store/useClipboardNote';
 import { Link } from 'react-router-dom';
 
 import { fetchEntryBodies } from '@/data/repositories/entries.repo';
@@ -273,7 +274,7 @@ export function PatientPeekWindow({
             </span>
           </p>
         </div>
-        {patient.mrn ? <CopyMrnButton mrn={patient.mrn} /> : null}
+        {patient.mrn ? <CopyMrnButton mrn={patient.mrn} patientId={patient.id} name={patient.name?.trim() ?? ''} /> : null}
         {body && body.trim() ? (
           <div role="group" aria-label="Tampilan catatan" className="flex shrink-0 gap-1">
             <ViewToggle
@@ -495,14 +496,24 @@ function ViewToggle({
  * search box that wants the number. The number itself is shown in the
  * subtitle, so the button can stay short.
  */
-function CopyMrnButton({ mrn }: { mrn: string }): JSX.Element {
+function CopyMrnButton({
+  mrn,
+  patientId,
+  name,
+}: {
+  mrn: string;
+  patientId: string;
+  name: string;
+}): JSX.Element {
   const [copied, setCopied] = useState(false);
+  const remember = useClipboardNote((state) => state.remember);
   return (
     <button
       type="button"
       onClick={() => {
         void copyText(mrn).then((ok) => {
           setCopied(ok);
+          if (ok) remember({ what: 'Nomor RM', patientId, patientName: name, mrn });
           if (ok) window.setTimeout(() => setCopied(false), 1200);
         });
       }}

@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { fetchEntryBodies } from '@/data/repositories/entries.repo';
 import { buildPreview, updatePatient } from '@/data/repositories/patients.repo';
 import { kjsRole } from '@/domain/board';
+import { isIgdEntry } from '@/domain/clinicalDate';
 import { usePatients } from '@/hooks/usePatients';
 
 /**
@@ -32,27 +33,38 @@ import { usePatients } from '@/hooks/usePatients';
  * shows one day, and reading every day of every patient would be hundreds of
  * documents to rebuild a field that describes one of them.
  */
+/** Patients rebuilt at once. Each is a few reads and one write. */
+const PARALLEL = 6;
+
 export function RebuildCards(): JSX.Element {
-  // Active and archived, not trashed: an archived patient is still opened and
-  // copied from, so a stale card there is the same problem.
   const active = usePatients('active');
   const archived = usePatients('archived');
+  /**
+   * Archived patients are opt-in. The archive only grows, and walking it on
+   * every run is what made this slow; an archived card is rarely looked at,
+   * and opening its latest day heals it anyway.
+   */
+  const [withArchive, setWithArchive] = useState(false);
   const [state, setState] = useState<
     { phase: 'idle' } | { phase: 'running'; done: number; total: number } | { phase: 'done'; changed: number; failed: number }
   >({ phase: 'idle' });
 
   const run = async (): Promise<void> => {
-    const list = [...active.patients, ...archived.patients];
+    const list = withArchive ? [...active.patients, ...archived.patients] : [...active.patients];
     setState({ phase: 'running', done: 0, total: list.length });
 
     let changed = 0;
     let failed = 0;
+    let done = 0;
+    let next = 0;
 
-    for (const [index, patient] of list.entries()) {
+    const rebuild = async (patient: (typeof list)[number]): Promise<void> => {
       try {
         const entries = await fetchEntryBodies(patient.id);
-        const latest = entries.at(-1);
-        if (latest?.body?.trim()) {
+        // The latest written day that is not the admission note: the same
+        // day the card shows on the write path.
+        const latest = entries.filter((entry) => !isIgdEntry(entry.date) && entry.body.trim()).at(-1);
+        if (latest) {
           const preview = buildPreview(latest.body);
           const kjs = kjsRole(latest.body);
           /*
@@ -64,22 +76,36 @@ export function RebuildCards(): JSX.Element {
             the best one. A rebuild is the opposite act. It exists because the
             RULE changed, and its whole job is to replace old answers with what
             the current rule says — including "nothing".
-
-            Without this a false positive was uncorrectable. A patient marked
-            `kjs: 'kardio'` by the pre-13-September rule, which fired on any
-            `DPJP Kardio` line, kept that badge through every rebuild, because
-            the recomputed `null` was quietly skipped.
           */
-          const fields: Record<string, unknown> = { preview, kjs: kjs ?? undefined };
-          await updatePatient(patient.id, fields as never);
-          changed += 1;
+          const same =
+            patient.preview === preview && patient.previewDate === latest.date && patient.kjs === (kjs ?? undefined);
+          if (!same) {
+            const fields: Record<string, unknown> = {
+              preview,
+              previewDate: latest.date,
+              lastEntryDate: latest.date,
+              kjs: kjs ?? undefined,
+            };
+            await updatePatient(patient.id, fields as never);
+            changed += 1;
+          }
         }
       } catch (error) {
         console.error('[rebuild] patient failed', patient.id, error);
         failed += 1;
       }
-      setState({ phase: 'running', done: index + 1, total: list.length });
-    }
+      done += 1;
+      setState({ phase: 'running', done, total: list.length });
+    };
+
+    const worker = async (): Promise<void> => {
+      while (next < list.length) {
+        const patient = list[next];
+        next += 1;
+        if (patient) await rebuild(patient);
+      }
+    };
+    await Promise.all(Array.from({ length: PARALLEL }, () => worker()));
 
     setState({ phase: 'done', changed, failed });
   };
@@ -87,9 +113,20 @@ export function RebuildCards(): JSX.Element {
   return (
     <div className="space-y-2 text-xs">
       <p className="text-fg-muted">
-        Membaca catatan terakhir tiap pasien, lalu memperbarui ringkasan kartu dan penanda
-        KJS. Tidak mengubah isi catatan.
+        Biasanya tidak perlu: kartu kini diperbarui sendiri setiap kali hari terakhir pasien
+        dibuka. Tombol ini memperbarui semua sekaligus (mis. setelah aturan kartu berubah). Tidak
+        mengubah isi catatan.
       </p>
+
+      <label className="flex min-h-tap items-center gap-2">
+        <input
+          type="checkbox"
+          checked={withArchive}
+          onChange={(event) => setWithArchive(event.target.checked)}
+          disabled={state.phase === 'running'}
+        />
+        Termasuk pasien arsip ({archived.patients.length})
+      </label>
 
       {state.phase === 'running' ? (
         <p className="font-medium">
@@ -99,7 +136,7 @@ export function RebuildCards(): JSX.Element {
 
       {state.phase === 'done' ? (
         <p className="font-medium">
-          Selesai — {state.changed} pasien diperbarui
+          Selesai — {state.changed} kartu diperbarui
           {state.failed > 0 ? `, ${state.failed} gagal` : ''}.
         </p>
       ) : null}
@@ -110,7 +147,7 @@ export function RebuildCards(): JSX.Element {
         onClick={() => void run()}
         className="min-h-tap rounded-lg border border-border px-3 font-medium text-fg-muted disabled:opacity-40"
       >
-        Perbarui kartu pasien
+        Perbarui kartu pasien ({withArchive ? active.patients.length + archived.patients.length : active.patients.length})
       </button>
     </div>
   );

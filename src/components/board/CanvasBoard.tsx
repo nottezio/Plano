@@ -437,7 +437,17 @@ export function CanvasBoard({
           )
         : null}
 
-    <div ref={surfaceRef} data-canvas-surface="" className="relative px-4 pt-1" style={{ height }}>
+    {/*
+      `mt-5`: room ABOVE the surface for the drag handle of a card at y = 0.
+      The handle is drawn 16 px above its card (see CanvasHandle), and card
+      positions are floored at the surface's top edge, so a card moved to the
+      very top had its handle outside the surface, under the pinned board
+      header, where it could not be grabbed. Padding would not do it: cards
+      are absolutely positioned and padding does not move them; a margin
+      moves the whole surface, cards and stickers alike, with no stored
+      position changing.
+    */}
+    <div ref={surfaceRef} data-canvas-surface="" className="relative mt-5 px-4" style={{ height }}>
       {overlay?.(surfaceRef)}
       {ids.map((id) => {
         const base = layouts[id];

@@ -16,6 +16,7 @@ import { IosInstallHint } from './IosInstallHint';
 import { TabBar } from './TabBar';
 import { TopBar } from './TopBar';
 import { UpdateBanner } from './UpdateBanner';
+import { ClipboardPill } from './ClipboardPill';
 
 /**
  * SPEC 11.1 — the shell. Scrolling belongs to the content column only, so the
@@ -131,6 +132,10 @@ export function AppShell({
             <Footer />
           </div>
         </main>
+      </div>
+      {/* Phone/tablet: floating above the tab bar. Desktop: in the sidebar. */}
+      <div className="pointer-events-none fixed inset-x-3 bottom-[calc(env(safe-area-inset-bottom)+72px)] z-40 flex justify-start sm:bottom-4 lg:hidden">
+        <ClipboardPill className="pointer-events-auto max-w-[min(100%,22rem)]" />
       </div>
       <UpdateBanner />
     </div>

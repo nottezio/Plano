@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { useClipboardNote } from '@/store/useClipboardNote';
 import { Link } from 'react-router-dom';
 
 import { previewLines, type BoardCard } from '@/domain/board';
@@ -615,7 +616,7 @@ export function PatientCard({
       */}
       <div className="mt-0.5 flex flex-wrap items-center gap-x-1.5 gap-y-1 text-[11px] opacity-70">
         <span>{formatLocation(patient) || 'Lokasi belum diisi'}</span>
-        {card.mrn ? <RmChip mrn={card.mrn} hidden={card.mrnHidden} /> : null}
+        {card.mrn ? <RmChip mrn={card.mrn} hidden={card.mrnHidden} patientId={card.patient.id} name={card.name} /> : null}
         {/*
           THREE MARKS, THREE SHAPES — they used to be one shape.
 
@@ -1049,7 +1050,18 @@ function ClampedBody({
  * 44 px, pulled into the text row with negative margins, so the row stays the
  * height of its text.
  */
-function RmChip({ mrn, hidden }: { mrn: string; hidden: boolean }): JSX.Element {
+function RmChip({
+  mrn,
+  hidden,
+  patientId,
+  name,
+}: {
+  mrn: string;
+  hidden: boolean;
+  patientId: string;
+  name: string;
+}): JSX.Element {
+  const remember = useClipboardNote((state) => state.remember);
   const [copied, setCopied] = useState(false);
   const timer = useRef<number | undefined>(undefined);
   useEffect(() => () => window.clearTimeout(timer.current), []);
@@ -1066,6 +1078,7 @@ function RmChip({ mrn, hidden }: { mrn: string; hidden: boolean }): JSX.Element 
         event.stopPropagation();
         void copyText(mrn).then((ok) => {
           if (!ok) return;
+          remember({ what: 'Nomor RM', patientId, patientName: name, mrn: hidden ? null : mrn });
           setCopied(true);
           window.clearTimeout(timer.current);
           timer.current = window.setTimeout(() => setCopied(false), 1200);

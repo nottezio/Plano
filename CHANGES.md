@@ -1,5 +1,97 @@
 # Plano — CHANGES
 
+## `2026-09-29.5`
+
+**Cardiology markers (PCI, EP, BTKV). The app says whose note is on the
+clipboard, and warns when it is another patient's. Cards update
+themselves. Helper has a way back. Archive rows show the archive note. The
+drag handle of a card at the very top is reachable again.**
+
+### 1. Penanda: PCI, EP study / Ablasi, Operasi BTKV
+
+A new first group, **Tindakan kardiologi**, with three **text tags** drawn
+as coloured pills (PCI red, EP purple, BTKV teal) rather than emoji. No
+emoji says "PCI" to a colleague, and a guessed one is a meaning kept in one
+person's head. The stored value is the text itself (`stickerTag`), so
+nothing about how stickers are saved changed.
+
+### 2. Whose note is on the clipboard
+
+- **Always in view:** "Terakhir disalin · SOAP harian 29/09 · 11.34 /
+  **Tn. X** · RM …". It sits in the sidebar above the sync pill on desktop,
+  and floats above the tab bar on phone. Tap × to hide it.
+- **Amber, "Clipboard berisi pasien LAIN"**, when a different patient's
+  page is open. That is the moment a paste into SIMGOS would land in the
+  wrong chart.
+- Recorded by: **Salin** (every format), and every **Salin RM** (card,
+  peek, patient page).
+- The Salin sheet's title is now the patient's name; the subtitle gives the
+  note date and RM. The copy button shows the name in large type.
+- Limit: this is what **Plano** copied. Browsers do not let a page read the
+  clipboard without a permission prompt, so something copied in another app
+  afterwards is not known. That is why the label says "Terakhir disalin".
+
+### 3. Cards update themselves ("Perbarui kartu pasien" was needed too often)
+
+**Root cause.** Every write sets the card's preview from **the day being
+written**. So opening **yesterday** to fix a line put yesterday's assessment
+on the card (and moved `lastEntryDate` back). It stayed there until today's
+note was typed into again. The maintenance button was being used to undo
+that.
+
+**Fundamental fix.**
+- The preview only moves **forward** (`previewMovesTo`). A write to an older
+  day still updates DPJP/KJS, but not the card text.
+- **Heal on open:** opening a patient's **latest** day puts it on the card
+  if the card says anything else (`healCardPreview`). There is no write when
+  the card is already right. Any drift — a rule change, a deleted day, a
+  race — fixes itself by being looked at.
+
+**The button** is still there for rule changes, but:
+- It runs **6 patients at once** instead of one by one.
+- It covers **active patients only** by default. The archive (which only
+  grows) is behind a checkbox.
+- It skips cards that are already right.
+- It takes the latest non-IGD day (it used to take the last entry, which
+  could be the IGD note).
+
+### 4. Helper had no way back
+
+**Root cause.** `/helper` was the one route rendered **outside `AppShell`**:
+no sidebar, no tab bar. In the installed app, closing the app was the only
+way out.
+
+**Fix.** It is now inside `AppShell` like every page, and has a back button
+beside the title. (The WIP badge border was a Tailwind opacity-on-variable
+class that emitted no CSS; it is now `border-danger`.)
+
+### 5. Arsip: the archive note on the row
+
+The note written at archiving ("Catatan arsip") now shows on the row, up to
+3 lines, with an amber rule and search highlighting. It is also part of the
+normal search (`patientHaystack`), so no toggle is needed to find a patient
+by it.
+
+### 6. Card at the very top: drag handle under the header
+
+**Root cause.** The handle is drawn 16 px **above** its card, but card
+positions are floored at the canvas's top edge. A card at y = 0 therefore
+had its handle outside the canvas, under the pinned header. The canvas's
+`pt-1` did nothing: cards are absolutely positioned, and padding does not
+move them.
+
+**Fix.** The canvas gets a 20 px top margin, which moves cards and stickers
+alike, and no stored position changes. Measured: handle top 106 px vs header
+bottom 122 px before (hidden), 126 px after (grabbable).
+
+**Wrong turn:** the explanatory comment was first placed bare inside JSX and
+rendered as text on the board. The render check caught it.
+
+```
+1665 tests passed (+3)
+typecheck / lint (0 warnings) / check:version / check:contrast / check:a11y / build — clean
+```
+
 ## `2026-09-29.4`
 
 **Updating the installed app on a phone: found on its own, applied in one

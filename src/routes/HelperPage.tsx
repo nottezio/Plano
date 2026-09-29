@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useState } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 
+import { AppShell } from '@/components/common/AppShell';
+import { IconBack } from '@/components/common/Icons';
 import { useJagaSync } from '@/hooks/useJagaSync';
 import { CensusVerifier } from '@/components/helper/CensusVerifier';
 import { MorningReport } from '@/components/helper/MorningReport';
@@ -77,43 +79,59 @@ type HelperTab = (typeof HELPER_TABS)[number]['id'];
  */
 export function HelperPage(): JSX.Element {
   const [params, setParams] = useSearchParams();
+  const navigate = useNavigate();
   const requested = params.get('tab');
   const tab: HelperTab = HELPER_TABS.some((entry) => entry.id === requested)
     ? (requested as HelperTab)
     : 'jaga';
 
+  /*
+    Inside AppShell like every other page. It used to render bare, with no tab
+    bar or sidebar, so in the installed app there was no way out of it but
+    closing the app.
+  */
   return (
-    <div className="mx-auto max-w-3xl space-y-4 px-4 py-4">
-      <div className="flex flex-wrap items-center gap-2">
-        <h1 className="text-lg font-semibold">Helper</h1>
-        <span className="rounded-full border border-current/40 px-2 py-0.5 text-[10px] font-semibold text-danger">
-          Work in progress
-        </span>
-      </div>
-      <div role="tablist" aria-label="Alat Helper" className="flex border-b border-border">
-        {HELPER_TABS.map((entry) => (
+    <AppShell title="Helper">
+      <div className="mx-auto max-w-3xl space-y-4 px-4 py-4">
+        <div className="flex flex-wrap items-center gap-2">
           <button
-            key={entry.id}
             type="button"
-            role="tab"
-            aria-selected={tab === entry.id}
-            onClick={() => setParams({ tab: entry.id }, { replace: true })}
-            className={[
-              // Equal thirds: three labels fit a 360 px phone without scrolling.
-              'min-h-tap flex-1 border-b-2 px-1 text-xs font-medium sm:text-sm',
-              tab === entry.id
-                ? 'border-accent text-accent'
-                : 'border-transparent text-fg-muted',
-            ].join(' ')}
+            onClick={() => (window.history.length > 1 ? navigate(-1) : navigate('/'))}
+            aria-label="Kembali"
+            className="-ml-2 flex min-h-tap min-w-tap items-center justify-center rounded-lg text-fg-muted hover:bg-bg-subtle"
           >
-            {entry.label}
+            <IconBack />
           </button>
-        ))}
+          <h1 className="text-lg font-semibold">Helper</h1>
+          <span className="rounded-full border border-danger px-2 py-0.5 text-[10px] font-semibold text-danger">
+            Work in progress
+          </span>
+        </div>
+        <div role="tablist" aria-label="Alat Helper" className="flex border-b border-border">
+          {HELPER_TABS.map((entry) => (
+            <button
+              key={entry.id}
+              type="button"
+              role="tab"
+              aria-selected={tab === entry.id}
+              onClick={() => setParams({ tab: entry.id }, { replace: true })}
+              className={[
+                // Equal thirds: three labels fit a 360 px phone without scrolling.
+                'min-h-tap flex-1 border-b-2 px-1 text-xs font-medium sm:text-sm',
+                tab === entry.id
+                  ? 'border-accent text-accent'
+                  : 'border-transparent text-fg-muted',
+              ].join(' ')}
+            >
+              {entry.label}
+            </button>
+          ))}
+        </div>
+        <div role="tabpanel">
+          {tab === 'jaga' ? <KonfirmasiJaga /> : tab === 'sensus' ? <CensusVerifier /> : <MorningReport />}
+        </div>
       </div>
-      <div role="tabpanel">
-        {tab === 'jaga' ? <KonfirmasiJaga /> : tab === 'sensus' ? <CensusVerifier /> : <MorningReport />}
-      </div>
-    </div>
+    </AppShell>
   );
 }
 

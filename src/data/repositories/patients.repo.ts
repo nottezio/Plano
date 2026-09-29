@@ -3,6 +3,7 @@ import {
   deleteDoc,
   deleteField,
   FieldPath,
+  getDocFromCache,
   getDocs,
   writeBatch,
   onSnapshot,
@@ -266,7 +267,20 @@ export function fillPatientFromNote(patient: Patient, body: string): Promise<voi
   return updatePatient(patient.id, patch, blobSource);
 }
 
-export function touchEntryMeta(
+/**
+ * Does a write to `date` move the card's preview?
+ *
+ * Only forward. The card answers "how is this patient TODAY"; opening
+ * yesterday to fix a typo used to make the card show yesterday's assessment
+ * (and `lastEntryDate` step back), until today's note was typed into again.
+ * That stale card is what "Perbarui kartu pasien" was being run to fix.
+ */
+export function previewMovesTo(stored: ClinicalDate | undefined, date: ClinicalDate): boolean {
+  if (isIgdEntry(date)) return false;
+  return !stored || date >= stored;
+}
+
+export async function touchEntryMeta(
   patientId: string,
   date: ClinicalDate,
   body: string,
@@ -278,15 +292,48 @@ export function touchEntryMeta(
    * IGD note answers "where were they when they arrived" — which on day six is
    * actively misleading. Writing it still updates the derived fields, because
    * the DPJP and identity in it are as true as anywhere else.
+   *
+   * The stored preview date is read from the LOCAL cache: instant, works
+   * offline, and the board is already subscribed to this document so it is
+   * there. When it is not, the write goes ahead as before.
    */
-  const previewFields: DocumentData = isIgdEntry(date)
-    ? {}
-    : { lastEntryDate: date, preview: buildPreview(body), previewDate: date };
+  let stored: ClinicalDate | undefined;
+  try {
+    const cached = await getDocFromCache(patientDoc(patientId));
+    stored = (cached.data() as Patient | undefined)?.previewDate;
+  } catch {
+    stored = undefined;
+  }
+  const previewFields: DocumentData = previewMovesTo(stored, date)
+    ? { lastEntryDate: date, preview: buildPreview(body), previewDate: date }
+    : {};
 
   return trackWrite(
     updateDoc(patientDoc(patientId), {
       ...previewFields,
       ...derivedPatientFields(body),
+      updatedAt: serverTimestamp(),
+      updatedBy: getDeviceId(),
+    }),
+  );
+}
+
+/**
+ * Put `body` (the note of `date`) on the card, when it is not there already.
+ *
+ * Called when a patient's LATEST day is opened, so any card that drifted —
+ * a rule change, a write that raced, a day deleted — heals by being looked
+ * at, with no maintenance button. No write when the card is already right.
+ */
+export function healCardPreview(patient: Patient, date: ClinicalDate, body: string): Promise<void> | null {
+  if (!body.trim() || isIgdEntry(date)) return null;
+  const preview = buildPreview(body);
+  if (patient.preview === preview && patient.previewDate === date) return null;
+  return trackWrite(
+    updateDoc(patientDoc(patient.id), {
+      lastEntryDate: date,
+      preview,
+      previewDate: date,
       updatedAt: serverTimestamp(),
       updatedBy: getDeviceId(),
     }),

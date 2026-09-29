@@ -4,6 +4,7 @@ import { NavLink, useLocation, useNavigate } from 'react-router-dom';
 import { Sheet } from './Sheet';
 import { SyncPill } from './SyncPill';
 import { APP_VERSION } from '@/version.js';
+import { ClipboardPill } from './ClipboardPill';
 import {
   IconArchive,
   IconBoard,
@@ -262,6 +263,7 @@ export function TabBar(): JSX.Element {
           so it belongs with the other ambient furniture rather than in a bar of
           its own across the top of the content. */}
       <div className={`${hint ? '' : 'mt-auto '}hidden px-3 pb-2 lg:block`}>
+        <ClipboardPill className="mb-2" />
         <SyncPill />
       </div>
 

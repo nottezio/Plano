@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 
 import { Sheet } from '@/components/common/Sheet';
+import { useClipboardNote } from '@/store/useClipboardNote';
 import { useUI } from '@/store/useUI';
 import { composeCopy } from '@/domain/format/composeCopy';
 import {
@@ -517,16 +518,36 @@ export function CopySheet({
     setGroups(next.length === 0 || next.length === COPY_GROUPS.length ? 'all' : next);
   };
 
+  const remember = useClipboardNote((state) => state.remember);
+  const patientName = patient.name?.trim() || 'Tanpa nama';
+  const whatLabel: Record<typeof shape, string> = {
+    harian: 'SOAP harian',
+    ringkas: 'SOAP ringkas',
+    jaga: 'SOAP jaga',
+    invasif: 'Grup invasif',
+    konsul: 'Konsul',
+  };
+
   const onCopy = (): void => {
-    void copyText(output).then((ok) => setCopied(ok));
+    void copyText(output).then((ok) => {
+      setCopied(ok);
+      if (ok) {
+        remember({
+          what: `${whatLabel[shape]} ${date.slice(8, 10)}/${date.slice(5, 7)}`,
+          patientId: patient.id,
+          patientName,
+          mrn: patient.mrn ?? null,
+        });
+      }
+    });
   };
 
   return (
     <Sheet
       open={open}
       onOpenChange={onOpenChange}
-      title="Salin catatan"
-      description="Menyalin catatan yang sedang dibuka. Pilih format dan bagian."
+      title={`Salin · ${patientName}`}
+      description={`Catatan ${date.slice(8, 10)}/${date.slice(5, 7)}${patient.mrn ? ` · RM ${patient.mrn}` : ''}. Pilih format dan bagian.`}
       footer={
         /*
          * The button names the patient.
@@ -544,11 +565,14 @@ export function CopySheet({
           className="min-h-tap w-full rounded-lg bg-accent px-4 py-1 text-sm font-medium text-white disabled:opacity-40"
         >
           {copied ? (
-            'Tersalin ✓'
+            <>
+              <span className="block">Tersalin ✓</span>
+              <span className="block truncate text-[11px] font-normal opacity-90">{patientName}</span>
+            </>
           ) : (
             <>
-              <span className="block">Salin</span>
-              <span className="block truncate text-[11px] font-normal opacity-90">
+              <span className="block text-[11px] font-normal opacity-90">Salin catatan</span>
+              <span className="block truncate text-sm font-semibold">
                 {patient.name?.trim() || 'Tanpa nama'}
                 {patient.mrn ? ` · RM ${patient.mrn}` : ''}
               </span>

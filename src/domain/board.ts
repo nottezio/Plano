@@ -253,6 +253,8 @@ export function patientHaystack(patient: Patient): string {
     patient.searchBlob,
     patient.name ?? '',
     patient.preview ?? '',
+    // The note written when the patient was archived ("catatan arsip").
+    patient.archive?.note ?? '',
     // Searchable by consultant, by full name or by initials: "AHN" and
     // "nashar" both find his patients.
     dpjp ? `${dpjp.name} ${dpjp.initials} ${dpjp.match.join(' ')}` : '',

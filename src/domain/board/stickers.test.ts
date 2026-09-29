@@ -10,6 +10,7 @@ import {
   parseStickers,
   removeSticker,
   STICKER_EMOJI,
+  stickerTag,
   STICKER_GROUPS,
   stickerLabel,
   stickerMigrationPlan,
@@ -86,6 +87,15 @@ describe('the palette', () => {
 
   it('never lists the same sticker twice', () => {
     expect(new Set(STICKER_EMOJI).size).toBe(STICKER_EMOJI.length);
+  });
+
+  it('has PCI, EP and BTKV as coloured text tags; emoji are not tags', () => {
+    for (const tag of ['PCI', 'EP', 'BTKV']) {
+      expect(STICKER_EMOJI).toContain(tag);
+      expect(stickerTag(tag)).toMatch(/^#/);
+    }
+    expect(stickerLabel('EP')).toBe('EP study / Ablasi');
+    expect(stickerTag('🚗')).toBeNull();
   });
 
   it('falls back to the emoji itself for one no longer in the palette', () => {

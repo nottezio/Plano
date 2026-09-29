@@ -9,6 +9,7 @@ import {
   freeStickers,
   removeSticker,
   stickerLabel,
+  stickerTag,
   stickerTilt,
   stickersOnCard,
   type BoardSticker,
@@ -161,7 +162,7 @@ function StickerGlyph({
         }}
         className="cursor-grab p-1 text-3xl leading-none"
       >
-        <span aria-hidden="true">{sticker.emoji}</span>
+        <StickerFace value={sticker.emoji} />
       </button>
 
       {/* Removal is deliberate and small: a sticker is easy to place again,
@@ -179,6 +180,21 @@ function StickerGlyph({
         ×
       </button>
     </div>
+  );
+}
+
+/** An emoji, or a text tag drawn as a coloured pill (PCI, EP, BTKV). */
+function StickerFace({ value }: { value: string }): JSX.Element {
+  const colour = stickerTag(value);
+  if (!colour) return <span aria-hidden="true">{value}</span>;
+  return (
+    <span
+      aria-hidden="true"
+      className="inline-block rounded-md px-1.5 py-0.5 text-sm font-bold tracking-wide text-white"
+      style={{ backgroundColor: colour }}
+    >
+      {value}
+    </span>
   );
 }
 
@@ -287,9 +303,9 @@ export function CanvasStickers({
                             onClick={() => place(sticker.emoji)}
                             aria-label={`Tempel ${sticker.label}`}
                             title={sticker.label}
-                            className="flex min-h-tap w-11 items-center justify-center rounded text-2xl hover:bg-bg-subtle"
+                            className={`flex min-h-tap items-center justify-center rounded hover:bg-bg-subtle ${stickerTag(sticker.emoji) ? 'px-1.5' : 'w-11 text-2xl'}`}
                           >
-                            {sticker.emoji}
+                            <StickerFace value={sticker.emoji} />
                           </button>
                         ))}
                       </div>

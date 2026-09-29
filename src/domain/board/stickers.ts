@@ -62,6 +62,21 @@ export const STICKER_GROUPS: ReadonlyArray<{
   stickers: ReadonlyArray<{ emoji: string; label: string }>;
 }> = [
   {
+    /*
+      TEXT tags, not emoji. There is no emoji that says "PCI" to a colleague
+      glancing at the board, and a guessed one (a balloon, a lightning bolt)
+      is a meaning kept in one person's head, which is what a shared marker
+      must not be. The stored value is the text itself; `stickerTag` knows
+      how to draw it.
+    */
+    title: 'Tindakan kardiologi',
+    stickers: [
+      { emoji: 'PCI', label: 'PCI (Percutaneous Coronary Intervention)' },
+      { emoji: 'EP', label: 'EP study / Ablasi' },
+      { emoji: 'BTKV', label: 'Operasi BTKV' },
+    ],
+  },
+  {
     title: 'Status',
     stickers: [
       { emoji: '🚩', label: 'Tandai' },
@@ -125,6 +140,21 @@ export const STICKER_GROUPS: ReadonlyArray<{
 export const STICKER_EMOJI: readonly string[] = STICKER_GROUPS.flatMap((group) =>
   group.stickers.map((sticker) => sticker.emoji),
 );
+
+/**
+ * Text tags draw as a coloured pill instead of a glyph. Each has its own
+ * colour so the three read apart at a glance; white text on all three.
+ */
+const TAGS: Readonly<Record<string, string>> = {
+  PCI: '#c0262d',
+  EP: '#6d28d9',
+  BTKV: '#0f6e8c',
+};
+
+/** The pill colour when the value is a text tag, else null (an emoji). */
+export function stickerTag(value: string): string | null {
+  return TAGS[value] ?? null;
+}
 
 export function stickerLabel(emoji: string): string {
   for (const group of STICKER_GROUPS) {

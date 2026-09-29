@@ -608,3 +608,13 @@ describe('ECG marks', () => {
     expect(card.ekg).toBe('harian');
   });
 });
+
+describe('the card preview only moves forward', () => {
+  it('a write to an older day does not replace today on the card', async () => {
+    const { previewMovesTo } = await import('@/data/repositories/patients.repo');
+    expect(previewMovesTo('2026-09-29', '2026-09-28')).toBe(false);
+    expect(previewMovesTo('2026-09-28', '2026-09-29')).toBe(true);
+    expect(previewMovesTo('2026-09-29', '2026-09-29')).toBe(true);
+    expect(previewMovesTo(undefined, '2026-09-29')).toBe(true);
+  });
+});

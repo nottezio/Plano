@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState, useRef } from 'react';
+import { useClipboardNote } from '@/store/useClipboardNote';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 
 import { BodyEditor, type BodyEditorHandle } from '@/components/patient/BodyEditor';
@@ -30,7 +31,7 @@ import { AppShell } from '@/components/common/AppShell';
 import { clearEntry, fetchEntryBodies, setEntryLocked } from '@/data/repositories/entries.repo';
 import { updateArchiveNote, updatePatient } from '@/data/repositories/patients.repo';
 import { archiveSummary } from '@/domain/archive';
-import { fillPatientFromNote } from '@/data/repositories/patients.repo';
+import { fillPatientFromNote, healCardPreview } from '@/data/repositories/patients.repo';
 import { parsePatientFacts } from '@/domain/parsePatient';
 import { carryForward, carryForwardSummary } from '@/domain/carryForward';
 import { checkSoap } from '@/domain/format/soapCheck';
@@ -96,6 +97,13 @@ export default function PatientPage(): JSX.Element {
    */
   const selected: ClinicalDate = routeDate ?? today;
   const { patient, loading, error } = usePatient(patientId);
+
+  /** Tells the clipboard note which patient is open, so a mismatch shows. */
+  const setOpenPatient = useClipboardNote((state) => state.setOpenPatient);
+  useEffect(() => {
+    setOpenPatient(patientId ?? null);
+    return () => setOpenPatient(null);
+  }, [patientId, setOpenPatient]);
   const { entry, exists, loading: entryLoading } = useEntry(patientId, selected);
   const entryDates = useEntryDates(patientId);
   const previous = useEntry(patientId, previousDay(selected));
@@ -479,6 +487,23 @@ export default function PatientPage(): JSX.Element {
     () => new Set(entryDates.datesWithBody),
     [entryDates.datesWithBody],
   );
+
+  /**
+   * Opening the LATEST written day puts it on the board card, if the card
+   * says anything else. Cards heal by being looked at, instead of by running
+   * "Perbarui kartu pasien" over every patient.
+   */
+  const latestWritten = useMemo(
+    () => [...entryDates.datesWithBody].filter((date) => !isIgdEntry(date)).sort().at(-1) ?? null,
+    [entryDates.datesWithBody],
+  );
+  const storedBody = entry?.body ?? '';
+  useEffect(() => {
+    if (!patient || entryLoading || selected !== latestWritten) return;
+    void healCardPreview(patient, selected, storedBody)?.catch((error: unknown) =>
+      console.warn('[card] heal failed', error),
+    );
+  }, [patient, entryLoading, selected, latestWritten, storedBody]);
 
   const hint = useMemo(
     () =>
