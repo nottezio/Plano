@@ -554,6 +554,12 @@ export interface Patient {
   preview?: string;
   previewDate?: ClinicalDate;
   boardChecklist?: { date: ClinicalDate; done: Record<string, boolean> };
+  /**
+   * The id this patient had in the account it was IMPORTED from. Set only by
+   * import; it is how a second import of the same file knows the patient is
+   * already here instead of creating a duplicate.
+   */
+  importedFrom?: string;
   /** lowercase name + mrn + bed + ward + dx — powers offline search (F10). */
   searchBlob: string;
   createdAt: Timestamp;

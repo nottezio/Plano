@@ -1,5 +1,70 @@
 # Plano — CHANGES
 
+## `2026-09-29.8`
+
+**Opening lines corrected for konsul KJS and konsul kelayakan. Pembuka no
+longer mangles the poli template's opening. The echo list opening is
+retired. A Plano export can now be imported.**
+
+### 1. Openings (from the revised SOAP format)
+
+| Template | Before | Now |
+|---|---|---|
+| Konsul KJS pasien baru | `… melaporkan pasien baru KJS *TS (Bagian) ((Nama DPJP TS))* …` | `… melaporkan konsul pasien dari *TS (Bagian) (Nama DPJP TS)* …` |
+| Konsul kelayakan pra tindakan | `… melaporkan konsul baru dari *TS …*` | `Assalamualaikum dokter, tabe dokter, mohon izin melaporkan konsul kelayakan tindakan dari *TS (Bagian) ((Nama DPJP TS))* …` |
+
+- **Pembuka sentences:** the echo "list pasien echocardiography full study"
+  opening is removed. The three konsul/new-patient sentences above, plus
+  "pasien baru dari *Poli …*", are added so Pembuka can switch between them.
+- Seed reconciliation delivers these to every profile. A template you edited
+  yourself is merged, not overwritten; a sentence you never touched is
+  replaced or removed.
+
+### 2. Pembuka replaced the poli opening wrongly
+
+**Root cause.** The opening line was split into greeting and report at the
+**first full stop**, assuming "<greeting>. <report>". The poli template is
+`Assalamualaikum dokter, tabe dokter izin melaporkan …`: a comma and no full
+stop. So the whole line counted as the report.
+- Picking a greeting PREPENDED a second one: "Selamat pagi dokter.
+  Assalamualaikum dokter, tabe …".
+- Picking a sentence threw away the salam.
+
+The same rule split a greeting-less report at the `dr.` in a DPJP's name.
+
+**Fix.** The report starts at its reporting words (`Tabe`, `Mohon izin`,
+`Izin`, `Kami mohon`). Everything before them is the greeting, whatever the
+punctuation. The greeting gets its full stop, and the report is capitalised
+when a greeting precedes it. Without reporting words, the old rule applies.
+Tests cover the comma form and the `dr.` case.
+
+### 3. Import a Plano export (Settings → Impor data)
+
+For moving to a new Google account, a lost account, or starting over.
+- **Preview first:** when the file was exported and from which version,
+  then counts of new patients, daily notes, daily checklists and documents,
+  and what will be skipped because it is already here.
+- **Only adds, never overwrites.** Patients and documents already in the
+  account are skipped. Catatan notes, board notes and checklist ticks are
+  merged key by key (existing ones kept). Settings are replaced only if you
+  tick that option.
+- **Patients get new ids** owned by this account, with `importedFrom` = the
+  old id. The old account's patient documents still exist under their ids,
+  and the rules rightly refuse writes into them. Because of `importedFrom`,
+  **importing the same file twice creates no duplicates**, and a run that
+  stopped part-way can simply be repeated.
+- Timestamps in the JSON are turned back into Firestore Timestamps.
+  One-write fields (`baseHash`, `editing`) are dropped.
+- Needs a connection. Each patient is written first and its notes after,
+  because the rules check the parent patient on the server. It goes patient
+  by patient, so a failure never leaves a patient without their notes.
+- Tests cover the planner, the merge, idempotency and timestamp revival.
+
+```
+1693 tests passed (+10)
+typecheck / lint (0 warnings) / check:version / check:contrast / check:a11y / build — clean
+```
+
 ## `2026-09-29.7`
 
 **Google-only sign-in, enforced. Admin page redesigned. The sidebar's

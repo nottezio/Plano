@@ -151,7 +151,7 @@ describe('carry-forward defaults', () => {
 
 describe('KONSUL_KJS_BODY', () => {
   it('carries the KJS opening with both DPJP lines', () => {
-    expect(KONSUL_KJS_BODY).toContain('pasien baru KJS *TS (Bagian)');
+    expect(KONSUL_KJS_BODY).toContain('konsul pasien dari *TS (Bagian)');
     expect(KONSUL_KJS_BODY).toContain('_DPJP (Bagian) (Utama):');
     expect(KONSUL_KJS_BODY).toContain('_DPJP Kardio :');
   });

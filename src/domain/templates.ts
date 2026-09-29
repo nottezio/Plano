@@ -155,7 +155,7 @@ ${CLOSING}`;
  * consult question answered in the first few lines, and the full workup follows
  * for whoever reads further.
  */
-export const KONSUL_KJS_BODY = `Assalamualaikum dokter. Tabe dokter, mohon izin melaporkan pasien baru KJS *TS (Bagian) ((Nama DPJP TS))* di *(Ruang) Kamar (no) Bed (no)* atas nama :
+export const KONSUL_KJS_BODY = `Assalamualaikum dokter. Tabe dokter, mohon izin melaporkan konsul pasien dari *TS (Bagian) (Nama DPJP TS)* di *(Ruang) Kamar (no) Bed (no)* atas nama :
 
 *(Nama)/(tgl lahir)/(umur)/RM (no)*
 
@@ -285,7 +285,7 @@ ${CLOSING}`;
  * single template carrying both would mean deleting half of it every time, and
  * the half left behind is the one that gets sent by mistake.
  */
-export const KONSUL_KELAYAKAN_BODY = `Assalamualaikum dokter. Tabe dokter, mohon izin melaporkan konsul baru dari *TS (Bagian) ((Nama DPJP TS))* di *(Ruang) Kamar (no) Bed (no)* atas nama :
+export const KONSUL_KELAYAKAN_BODY = `Assalamualaikum dokter, tabe dokter, mohon izin melaporkan konsul kelayakan tindakan dari *TS (Bagian) ((Nama DPJP TS))* di *(Ruang) Kamar (no) Bed (no)* atas nama :
 
 *(Nama) / (tgl lahir) / (umur) / RM (no)*
 

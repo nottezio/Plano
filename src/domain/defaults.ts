@@ -189,14 +189,13 @@ export const SEED_OPENING_SENTENCES: readonly string[] = [
       // same sentence as the move, because both change at once and reporting
       // one without the other is what makes a handover ambiguous.
       'Tabe dokter, mohon izin melapor perpindahan pasien *KJS TS (Bagian) ((Nama DPJP)) dari (Ruang asal) bed (no)* ke *(Ruang tujuan) Kamar (no) bed (no)* atas nama :',
-      // A LIST, not a patient — the only opening here that heads a message
-      // about several people at once, which is why it ends with the ward and
-      // the date rather than "atas nama :".
-      //
-      // The date is a token because it is different every day and a list headed
-      // with yesterday's date is exactly the error this replaces; the ward is
-      // not, because only the person sending it knows which one.
-      'Tabe dokter, mohon izin mengirimkan list pasien echocardiography full study dari *(Ruang), (hari), (tanggal)*',
+      // The three konsul/new-patient openings, so Pembuka can switch a note
+      // between them. (The echo "list pasien" opening was retired at the
+      // user's request; seed reconciliation removes it from profiles that
+      // never edited it.)
+      'Tabe dokter, mohon izin melaporkan konsul pasien dari *TS (Bagian) (Nama DPJP TS)* di *(Ruang) Kamar (no) Bed (no)* atas nama :',
+      'Tabe dokter, mohon izin melaporkan konsul kelayakan tindakan dari *TS (Bagian) ((Nama DPJP TS))* di *(Ruang) Kamar (no) Bed (no)* atas nama :',
+      'Tabe dokter, mohon izin melaporkan pasien baru dari *Poli (nama poli)* di *(Ruang) Kamar (no) Bed (no)* atas nama :',
 ];
 
 /**

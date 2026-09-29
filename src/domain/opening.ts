@@ -38,16 +38,44 @@ export function findOpeningLine(body: string): OpeningLine | null {
 /**
  * Splits the opening line into greeting and the rest.
  *
- * The boundary is the first sentence terminator: openings are written as
- * "<greeting>. <report sentence>". If there is no terminator the whole line is
- * treated as the report and the greeting is empty — better to leave a line
- * alone than to guess a split point inside someone's sentence.
+ * The REPORT starts where the reporting words start: `Tabe`, `Mohon izin`,
+ * `Izin`, `Kami`. Everything before that is the greeting.
+ *
+ * This used to split at the first sentence terminator. That assumed every
+ * opening was "<greeting>. <report>", and two real ones are not:
+ *
+ *  - `Assalamualaikum dokter, tabe dokter izin melaporkan pasien baru dari
+ *    *Poli …*` (the poli template) has a COMMA and no full stop, so the whole
+ *    line was taken as the report: choosing a greeting then PREPENDED one
+ *    ("Selamat pagi dokter. Assalamualaikum dokter, tabe …"), and choosing a
+ *    sentence threw the salam away.
+ *  - a report naming a DPJP (`… *TS BTKV dr. Nama, Sp.B.* …`) with no
+ *    greeting in front split at `dr.`, cutting the sentence in half.
+ *
+ * Without any reporting word, the old rule still applies.
  */
+const REPORT_START = /\b(?:tabe|mohon\s+izin|izin|kami\s+mohon|kami\s+melaporkan)\b/i;
+
 export function splitOpening(line: string): { greeting: string; rest: string } {
+  const at = line.search(REPORT_START);
+  if (at >= 0) {
+    const greeting = line.slice(0, at).replace(/[\s,;]+$/, '').trim();
+    const rest = line.slice(at).trim();
+    // A greeting ends with a full stop once it stands alone; the report
+    // after it starts with a capital.
+    return {
+      greeting: greeting && !/[.!?]$/.test(greeting) ? `${greeting}.` : greeting,
+      rest: greeting ? capitalise(rest) : rest,
+    };
+  }
   const match = /^(\s*[^.!?]*[.!?])\s*(.*)$/s.exec(line);
   if (!match || !match[2]) return { greeting: '', rest: line.trim() };
 
   return { greeting: match[1]?.trim() ?? '', rest: match[2].trim() };
+}
+
+function capitalise(text: string): string {
+  return text.charAt(0).toUpperCase() + text.slice(1);
 }
 
 /** Replaces the greeting, keeping the reporting sentence exactly as written. */

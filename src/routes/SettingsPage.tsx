@@ -38,6 +38,7 @@ import { useUI, type ThemePreference } from '@/store/useUI';
 import type { NoteTemplate } from '@/domain/types';
 import { APP_VERSION } from '@/version.js';
 import { UpdateControls } from '@/components/common/UpdateControls';
+import { ImportData } from '@/components/settings/ImportData';
 import { Link } from 'react-router-dom';
 import { isAdmin } from '@/domain/access';
 import type { UserSettings } from '@/domain/types';
@@ -671,6 +672,13 @@ export default function SettingsPage(): JSX.Element {
               {exportError}
             </p>
           ) : null}
+        </SettingsSection>
+
+        <SettingsSection
+          title="Impor data"
+          description="Masukkan berkas ekspor Plano ke akun ini (pindah akun, akun hilang)."
+        >
+          {user ? <ImportData uid={user.uid} /> : null}
         </SettingsSection>
 
         <SettingsGroup label="Akun & data" />

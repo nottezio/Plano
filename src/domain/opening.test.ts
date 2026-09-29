@@ -204,3 +204,25 @@ describe('expandOpeningTokens', () => {
     expect(expandOpeningTokens('(tanggal)', new Date(2026, 0, 5, 9))).toBe('05-01-2026');
   });
 });
+
+describe('opening split by the reporting words (2026-09-29)', () => {
+  it('handles the comma form of the poli template', async () => {
+    const { replaceGreeting, replaceOpeningSentence, splitOpening } = await import('./opening');
+    const body =
+      'Assalamualaikum dokter, tabe dokter izin melaporkan pasien baru dari *Poli Jantung* di *PJT Kamar 1 Bed 2* atas nama :\n\nX';
+    expect(splitOpening(body.split('\n')[0]!).greeting).toBe('Assalamualaikum dokter.');
+    expect(replaceGreeting(body, 'Selamat pagi dokter.').split('\n')[0]).toBe(
+      'Selamat pagi dokter. Tabe dokter izin melaporkan pasien baru dari *Poli Jantung* di *PJT Kamar 1 Bed 2* atas nama :',
+    );
+    expect(replaceOpeningSentence(body, 'Tabe dokter, mohon izin melaporkan follow up pasien di *X* atas nama :').split('\n')[0]).toBe(
+      'Assalamualaikum dokter. Tabe dokter, mohon izin melaporkan follow up pasien di *X* atas nama :',
+    );
+  });
+
+  it('does not split a report at a "dr." inside a DPJP name', async () => {
+    const { splitOpening } = await import('./opening');
+    const line = 'Tabe prof, mohon izin melaporkan konsul pasien dari *TS BTKV dr. Contoh, Sp.B.* di *PJT* atas nama :';
+    expect(splitOpening(line)).toEqual({ greeting: '', rest: line });
+    expect(splitOpening(`Selamat malam prof. ${line}`).greeting).toBe('Selamat malam prof.');
+  });
+});
