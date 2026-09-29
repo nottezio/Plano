@@ -23,6 +23,7 @@ export function UpdateControls(): JSX.Element {
   const flushAll = useUI((state) => state.flushAll);
   const hasUnsavedWork = useUI((state) => state.hasUnsavedWork);
   const [confirmClean, setConfirmClean] = useState(false);
+  const [unreachable, setUnreachable] = useState(false);
 
   useEffect(() => onUpdateState(setUpdate), []);
 
@@ -80,11 +81,23 @@ export function UpdateControls(): JSX.Element {
           </p>
           <button
             type="button"
-            onClick={() => afterSaving(() => void cleanReload())}
+            onClick={() =>
+              afterSaving(
+                () =>
+                  void cleanReload().then((ok) => {
+                    if (!ok) setUnreachable(true);
+                  }),
+              )
+            }
             className="mt-2 min-h-tap w-full rounded-lg bg-accent px-3 text-sm font-medium text-white"
           >
             Muat ulang bersih sekarang
           </button>
+          {unreachable ? (
+            <p role="alert" className="mt-2 text-danger">
+              Server tidak terjangkau. Tidak ada yang dihapus; coba lagi saat ada sinyal.
+            </p>
+          ) : null}
         </div>
       ) : null}
     </div>

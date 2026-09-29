@@ -308,3 +308,11 @@ describe('short date carries the weekday', () => {
     expect(formatShortDateNoWeekday(IGD_ENTRY)).toBe('Awal');
   });
 });
+
+describe('compareEntryDates (audit 2026-09-29)', () => {
+  it('puts the admission note first, then days in order', async () => {
+    const { compareEntryDates, IGD_ENTRY } = await import('./clinicalDate');
+    const ids = ['2026-09-29', IGD_ENTRY, '2026-09-27'] as string[];
+    expect([...ids].sort(compareEntryDates)).toEqual([IGD_ENTRY, '2026-09-27', '2026-09-29']);
+  });
+});

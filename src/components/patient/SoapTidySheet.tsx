@@ -55,7 +55,17 @@ export function SoapTidySheet({
    * for the residue.
    */
   const [state, setState] = useState<'idle' | 'running'>('idle');
-  const [suggestion, setSuggestion] = useState('');
+  /**
+   * The AI suggestion, WITH the body it was made from.
+   *
+   * The comment below promised a suggestion is "discarded when the sheet is
+   * opened on a different body", and nothing did it: an answer made on day A,
+   * kept across a close, was offered and applied on day B. It now only shows
+   * while the note is still the one it was made from.
+   */
+  const [made, setMade] = useState<{ from: string; text: string } | null>(null);
+  const suggestion = made && made.from === body ? made.text : '';
+  const setSuggestion = (text: string): void => setMade(text ? { from: body, text } : null);
   const [error, setError] = useState<string | null>(null);
 
   // A suggestion belongs to the note it was made from. Kept across an
@@ -70,6 +80,7 @@ export function SoapTidySheet({
   const run = async (): Promise<void> => {
     setState('running');
     setError(null);
+    const from = body;
     try {
       const text = await askClaude(tidied.body, {
         system: [
@@ -86,7 +97,7 @@ export function SoapTidySheet({
         ].join('\n'),
         maxTokens: 3000,
       });
-      setSuggestion(text);
+      setMade({ from, text });
     } catch (cause) {
       setError(cause instanceof AiError ? cause.message : 'Gagal memanggil AI.');
     } finally {

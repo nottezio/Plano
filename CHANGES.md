@@ -1,5 +1,94 @@
 # Plano — CHANGES
 
+## `2026-09-29.6` — bug audit
+
+**Audit of the whole app (data/sync, patient page and editor, board,
+parsers, shell/auth), about 45 findings. Each was checked against the code.
+The confirmed ones are fixed at the root, with tests; the ones left open
+are listed at the end with reasons.**
+
+### A. Notes and data (lost or wrong-day writes)
+
+| # | Bug | Root cause | Fix |
+|---|---|---|---|
+| A1 | **"Hapus catatan" silently refused** on any day that had been typed in; the clear flashed and rolled back | The rules read the MERGED document, and `baseHash` stayed stored from the previous write. A write that sent none was checked against that leftover, which never equals the current `bodyHash` | Every body write now sends `baseHash` or `deleteField()`, and so does the clear. Client-only, no rules deploy |
+| A2 | **Typing lost when the day changed under the editor**: midnight rollover on a page following "today", back/forward between days | The flush lived at one call site (`goToDate`). A key change moved `latest` to the new key, so the pending debounce flushed the NEW, clean note | `useTextSync` saves the previous note, with its own writer, on the key transition itself (layout-effect cleanup). Test fails on the old code |
+| A3 | **Jaga notes lost**: saved only on blur | A second editor outside the SOAP editor's durability path | Idle save (1.5 s), save on hide/pagehide/unmount, save with the OLD day's writer when the day changes, registered with the update banner |
+| A4 | **For one render after a day switch, the entry hook returned the previous day's note.** Effects: a spurious conflict or "digabungkan otomatis" on the first keystroke, undo starting from another day, the card heal writing an older assessment | Subscription results were not tagged with the key they belong to | `useEntry` tags the result with `patient\|date` and reports "loading" for any other key, in the same render |
+| A5 | **Carry-forward could write into the day you navigated to** while its read was in flight | The editor's setter from an old render stored under the old key but moved `latest` forward, so the flush wrote the new day | The setter refuses when its key is not current (covers every async caller); carry-forward also checks the note it was pressed on |
+| A6 | **Rapikan SOAP could apply another day's AI suggestion** | The code comment promised "discarded on a different body"; nothing did it | The suggestion is stored with its source body and shown only while the note is still that body |
+| A7 | **Lab insert went into the day SOAP while a jaga note was open** | Each transform chose its own target | One `activeNote {body, apply}` used by lab, reformat, opening and tidy |
+| A8 | **"Perbarui kartu pasien" rebuilt every card from the day of ADMISSION** (the version before today's did too) | `fetchEntryBodies` returns newest first; the caller took `.at(-1)` | It takes the newest non-IGD day |
+| A9 | **The admission note sorted as the NEWEST day** (preview, peek, history summary sent to AI) | `'igd' > '2026-…'` as strings | `compareEntryDates` puts IGD first; used by `fetchEntryBodies` and the history summary |
+| A10 | Sticky-note image hung offline, leaving an orphan | Awaited the image write (server ack) before queueing the link | One `writeBatch` |
+| A11 | Carry-forward banners followed you to other days | Not reset with the day | Reset with the day |
+
+### B. Sign-out and device privacy
+
+| # | Bug | Fix |
+|---|---|---|
+| B1 | **"Lupa PIN? Keluar" signed you straight back into the same lock, forever**; the next person on the device got your PIN | Sign-out clears **every** `visite.*`/`plano.*` key except four that describe the device (`lib/deviceUserState.ts`). New keys are cleared by default |
+| B2 | **Sign-out deleted unsynced edits without a word** (outbox and Firestore queue) | Open editors are saved first, then it waits for the queue up to 5 s. If anything is still unsent it asks: **Tunggu sinyal / Keluar tetap** (`SignOutButton`, used in all three places) |
+| B3 | The next person inherited your **Anthropic key and AI consent** | Covered by B1 |
+| B4 | The clipboard pill showed the previous user's patient, and ignored initials-only | Covered by B1; the pill now follows initials-only (no RM) |
+| B5 | Sign-out with another Plano tab open **kept the offline cache** while saying it was deleted | The next boot says so, and what to do |
+| B6 | "Muat ulang bersih" offered offline could leave **no app at all** | It checks the server first; if unreachable, nothing is deleted and it says so |
+| B7 | Sign-in page claimed "Kunci PIN aktif secara bawaan" (false) | Text corrected |
+
+### C. Board
+
+| # | Bug | Root cause | Fix |
+|---|---|---|---|
+| C1 | **Board re-rendered forever with no profile yet** (new account, first offline load): "Maximum update depth exceeded". Found by the render check, not by the reviewers | The `settings()` selector returned a NEW default object on every call | One default object, built once |
+| C2 | **Drag in Titipan or during a search wiped the hand-made order of Pasien saya** | Order rebuilt from the filtered view and saved as the whole order | `reorderBoard` keeps the hidden ids in their slots (test) |
+| C3 | **Initials-only leaked** name and RM: Denah lines and tooltips, peek title bar, quick-checklist title, search snippets, archive note | Each surface had its own (or no) privacy rule | Denah uses the board's `initials` and drops the RM; peek and quick checklist use `cardTitle`; snippets and the archive note go through `privateText` |
+| C4 | **Peek window ticks went to yesterday** before today's note existed | Checklist/todos used the note's date | Always today |
+| C5 | Quick checklist popped up after an ordinary tap | The long-press timer was a render-local `let` | A ref |
+| C6 | **Batch trash/archive hit patients no longer on screen** | Selection survived scope/search changes | Pruned to the visible cards |
+| C7 | Canvas placement and Rapikan during a search ignored hidden cards | Positions were computed from the filtered set | Placement runs over the whole scope; only drawing is filtered |
+| C8 | Peek windows jumped 28 px when a back one was pressed | Cascade followed the live z-order | Index captured at open |
+| C9 | Long-press on an archived search result did nothing | Looked up only in active patients | Both lists |
+
+### D. Parsers and calculators (wrong clinical content)
+
+| # | Bug (actual → expected) | Fix |
+|---|---|---|
+| D1 | `CA 19-9 30` → **Kalsium 19**; `CA 125 35` → Kalsium 125 | Names containing numbers (`NUMBERED_NAME`) are not claimed by the `ca` alias |
+| D2 | `HbA1c 6.5` → `HbA 1`; `FT4 1.5` → `FT 4`; `Vitamin B12` → `Vitamin B 12` | The fallback label ends at the first WHOLE number, not the first digit |
+| D3 | Urinalysis `Leukosit 2+` → **WBC 2+**; `Eritrosit 10` → RBC; `Glukosa Negatif` dropped | Section-scoped aliases under Urinalisis; a blood heading ends the urine section; word-result rows in the table are kept |
+| D4 | `P: 20` / `S: 36,5` under O opened **Plan / Subjektif** sections (vitals then not cleared, Plan copied "20") | Inside O, a one-letter S/P label followed by a number is a field (`isVitalField`) |
+| D5 | `Massa: tidak teraba`, `Class:`, `Bypass:` → **Assessment** | Stems anchored to a word start |
+| D6 | "melaporkan… Tn. Budi" → name "an pasien di …"; `RM 1478911 66 tahun` → MRN **147891166** | Word-bounded honorific; the age is removed before reading the MRN |
+| D7 | Archived 00:00–07:59 WITA filed under the previous day or month | Local calendar day, not UTC |
+| D8 | Urine output 0.496 shown as 0.5 "Cukup" | Band from the exact rate; 3 decimals when 2 would cross a band |
+
+Regression check on the 42 real lab PDFs (text extraction, old vs new
+parser): 6 outputs changed, all for the better. Non-lab lines such as
+`MR. 24` and `NHS 2` no longer appear in Lain-lain, and one qualitative row
+(ANA) that used to be dropped is now kept.
+
+### Not fixed in this release (and why)
+
+- **Jaga notes and patient todos are still written as whole arrays**, so two
+  devices editing the SAME day's jaga notes offline can overwrite each other.
+  The fix is a keyed map with per-note writes, which needs a data migration
+  and deserves its own release.
+- **The "sent body" memory is not persisted**: after an app kill mid-offline
+  typing, the reconciler may park the newest text in Riwayat instead of
+  merging it. Needs the sent-body record in IndexedDB.
+- **A refused body write still updates the board card** until the note is
+  opened (the heal from .5 then corrects it).
+- **The PIN-toggle intent is not reconciled** with a PIN actually being set
+  on a new device.
+- **At midnight a page that follows "today" still switches day** (no text is
+  lost any more, A2). Whether it should stay on the day being written is a
+  behaviour choice to make.
+
+```
+1677 tests passed (+12)
+typecheck / lint (0 warnings) / check:version / check:contrast / check:a11y / build — clean
+```
+
 ## `2026-09-29.5`
 
 **Cardiology markers (PCI, EP, BTKV). The app says whose note is on the

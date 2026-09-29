@@ -1,4 +1,5 @@
-import { useCallback, useMemo, useRef, useState } from 'react';
+import { privateText } from '@/domain/identity';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 
 import { AppShell } from '@/components/common/AppShell';
@@ -189,8 +190,14 @@ export default function BoardPage(): JSX.Element {
     }
   });
 
+  // Read by the drag's window listeners, which outlive the render they
+  // were created in.
+  const customIdsRef = useRef(customIds);
+  customIdsRef.current = customIds;
+
   const saveCustomIds = (ids: string[]): void => {
     setCustomIds(ids);
+    customIdsRef.current = ids;
     try {
       localStorage.setItem('visite.boardCustomOrder', JSON.stringify(ids));
     } catch (error) {
@@ -329,7 +336,14 @@ export default function BoardPage(): JSX.Element {
        * is working; without it the board sits still until release and the only
        * way to find out where a card landed is to let go.
        */
-      saveCustomIds(reorderBoard(cards.map((card) => card.patient), patientId, targetId));
+      saveCustomIds(
+        reorderBoard(
+          cards.map((card) => card.patient),
+          patientId,
+          targetId,
+          { stored: customIdsRef.current, all: patients.map((patient) => patient.id) },
+        ),
+      );
     };
 
     const onUp = (): void => {
@@ -416,6 +430,19 @@ export default function BoardPage(): JSX.Element {
 
   const items = settings.checklistItems;
 
+  /** The whole scope, unfiltered: what the canvas must make room for. */
+  const scopeIds = useMemo(
+    () =>
+      orderPatients(
+        patients.filter((patient) =>
+          scope === 'temporary' ? patient.temporary === true : patient.temporary !== true,
+        ),
+        order,
+        customIds,
+      ).map((patient) => patient.id),
+    [patients, scope, order, customIds],
+  );
+
   const cards = useMemo(() => {
     const matched = filterPatients(
       patients.filter((patient) =>
@@ -439,6 +466,19 @@ export default function BoardPage(): JSX.Element {
     customIds,
     settings.privacy.boardShowInitialsOnly,
   ]);
+
+  /*
+    A selection is of cards ON SCREEN. It used to survive a scope switch or a
+    search, so "Pindahkan ke sampah" also trashed patients picked in the other
+    view and no longer visible; only the count hinted at it.
+  */
+  useEffect(() => {
+    const visible = new Set(cards.map((card) => card.patient.id));
+    setSelected((current) => {
+      const kept = [...current].filter((id) => visible.has(id));
+      return kept.length === current.size ? current : new Set(kept);
+    });
+  }, [cards]);
 
   const temporaryCount = useMemo(
     () => patients.filter((patient) => patient.temporary === true).length,
@@ -482,7 +522,9 @@ export default function BoardPage(): JSX.Element {
       .filter((match): match is NonNullable<typeof match> => match !== null)
       .map((match) => ({
         ...buildCard(match.patient, items, today, settings.privacy.boardShowInitialsOnly),
-        snippet: match.snippet,
+        snippet: match.snippet
+          ? privateText(match.snippet, match.patient, settings.privacy.boardShowInitialsOnly)
+          : match.snippet,
       }));
   }, [
     searching,
@@ -495,7 +537,12 @@ export default function BoardPage(): JSX.Element {
     archiveText,
   ]);
 
-  const quickPatient = patients.find((patient) => patient.id === quickPatientId) ?? null;
+  // Archived search results are long-pressable too; they were looked up only
+  // among active patients, so the long-press did nothing.
+  const quickPatient =
+    patients.find((patient) => patient.id === quickPatientId) ??
+    archived.find((patient) => patient.id === quickPatientId) ??
+    null;
   const filtering = hasActiveFilters({ ...filters, query: debouncedQuery });
 
   const headerRef = useRef<HTMLDivElement>(null);
@@ -808,6 +855,10 @@ export default function BoardPage(): JSX.Element {
               ids={[
                 ...cards.map((card) => card.patient.id),
                 ...(showStickies ? boardNotes.map((entry) => stickyCanvasId(entry.id)) : []),
+              ]}
+              layoutIds={[
+                ...scopeIds,
+                ...boardNotes.map((entry) => stickyCanvasId(entry.id)),
               ]}
               actionsSlot={canvasActions}
               // Stickers are hidden while searching or selecting, like the

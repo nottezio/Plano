@@ -86,6 +86,23 @@ export interface ParsedSectionLike {
  * visible to a corridor. Reducing the title while the preview underneath spells
  * the name out in full is not a partial protection — it is none.
  */
+/**
+ * Free text about a patient, as the privacy setting allows it on screen:
+ * with initials-only on, the name and the RM number are blanked. For text
+ * that reaches the board from OUTSIDE the card (search snippets, the archive
+ * note), which `buildCard`'s own redaction never sees.
+ */
+export function privateText(
+  text: string,
+  patient: { name?: string | undefined; mrn?: string | undefined },
+  initialsOnly: boolean,
+): string {
+  if (!initialsOnly) return text;
+  const withoutName = redactName(text, patient.name ?? '');
+  const mrn = patient.mrn?.trim();
+  return mrn && mrn.length >= 4 ? withoutName.split(mrn).join('—') : withoutName;
+}
+
 export function redactName(text: string, name: string): string {
   const trimmed = name.trim();
   if (trimmed.length < 3) return text;

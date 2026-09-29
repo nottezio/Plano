@@ -1,6 +1,7 @@
 import {
   addDoc,
   deleteDoc,
+  deleteField,
   doc,
   getDocs,
   increment,
@@ -20,6 +21,7 @@ import { getDeviceId } from '../deviceId';
 import { PRUNABLE_REASONS, prunableRevisions, REVISION_CAP } from '@/domain/revisionPrune';
 import { entriesCol, entryDoc, revisionsCol } from '../paths';
 import { touchEntryMeta } from './patients.repo';
+import { compareEntryDates } from '@/domain/clinicalDate';
 import {
   clearOutbox,
   forgetSentBody,
@@ -147,9 +149,9 @@ export async function fetchEntryBodies(
      */
     .map((entry) => ({ date: entry.date, body: entry.body ?? '' }))
     .filter((entry) => entry.body.trim().length > 0)
-    // Sorted here, now that the query does not order. Newest first, matching
-    // what `orderBy('date', 'desc')` used to return.
-    .sort((a, b) => (a.date < b.date ? 1 : -1));
+    // Sorted here, now that the query does not order. NEWEST FIRST, with the
+    // admission note (`igd`) as the oldest: see `compareEntryDates`.
+    .sort((a, b) => compareEntryDates(b.date, a.date));
 }
 
 /**
@@ -282,7 +284,15 @@ export function writeBody(
     hariRawat,
     body,
     bodyHash: bodyHash(body),
-    ...(options.baseHash === undefined ? {} : { baseHash: options.baseHash }),
+    /*
+      ALWAYS written: the value, or deleted. The rules read the MERGED
+      document, and `baseHash` stays stored from the previous write. A write
+      that sent none was checked against that leftover (the hash the PREVIOUS
+      writer built on), which never equals the current `bodyHash`, so every
+      such write was refused. Deleting it is what "this write is unchecked"
+      has to look like to the rules.
+    */
+    baseHash: options.baseHash === undefined ? deleteField() : options.baseHash,
     rev: increment(1),
     updatedAt: serverTimestamp(),
     updatedBy: getDeviceId(),
@@ -695,6 +705,11 @@ export function clearEntry(patientId: string, date: ClinicalDate): Promise<void>
           later write on a cleared day (see CHANGES.md).
         */
         bodyHash: bodyHash(''),
+        // An explicit clear is unchecked by design, and has to SAY so: a
+        // stored `baseHash` from the last typed write made the rules refuse
+        // every "Hapus catatan" on a day that had been typed in (see
+        // `writeBody`).
+        baseHash: deleteField(),
         deletedAt: serverTimestamp(),
         updatedAt: serverTimestamp(),
         updatedBy: getDeviceId(),

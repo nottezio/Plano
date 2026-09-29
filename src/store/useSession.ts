@@ -1,4 +1,3 @@
-import { HISTORY_KEY as CENSUS_HISTORY_KEY } from '@/domain/census/history';
 import {
   GoogleAuthProvider,
   browserPopupRedirectResolver,
@@ -13,12 +12,19 @@ import {
   type Auth,
   type User,
 } from 'firebase/auth';
-import { clearIndexedDbPersistence, terminate } from 'firebase/firestore';
+import {
+  clearIndexedDbPersistence,
+  terminate,
+  waitForPendingWrites,
+  type Firestore,
+} from 'firebase/firestore';
 import { create } from 'zustand';
 import { logSessionEvent } from '@/lib/sessionLog';
 
 import { initFirebase, services } from '@/data/firebase';
-import { clearLocalBase } from '@/data/localBase';
+import { clearLocalBase, listOutbox } from '@/data/localBase';
+import { CACHE_KEPT_FLAG, clearDeviceUserState } from '@/lib/deviceUserState';
+import { useUI } from '@/store/useUI';
 import { hasSignedInHint, setSignedInHint } from '@/data/authHint';
 import {
   ensureProfile,
@@ -53,6 +59,18 @@ interface SessionState {
   settings: () => UserSettings;
 }
 
+/**
+ * ONE default object, built once.
+ *
+ * `settings()` is used as a zustand selector (`useSession((s) => s.settings())`)
+ * all over the app, and a selector must return the same reference while
+ * nothing changed. With no profile yet (first sign-in, a new account before
+ * seeding, an offline first load) it returned `defaultUserSettings()`: a NEW
+ * object on every call, so every subscriber saw a change on every render and
+ * re-rendered forever ("Maximum update depth exceeded" on the board).
+ */
+const DEFAULT_SETTINGS: UserSettings = defaultUserSettings();
+
 export const useSession = create<SessionState>((set, get) => ({
   status: 'loading',
   storagePersistence: 'unsupported',
@@ -61,7 +79,7 @@ export const useSession = create<SessionState>((set, get) => ({
   missingConfig: [],
   error: null,
   setError: (error) => set({ error }),
-  settings: () => get().profile?.settings ?? defaultUserSettings(),
+  settings: () => get().profile?.settings ?? DEFAULT_SETTINGS,
 }));
 
 let unsubscribeProfile: (() => void) | null = null;
@@ -82,6 +100,17 @@ export function initSession(): () => void {
 
   const { auth, persistenceReady } = init.services;
   logSessionEvent('boot');
+  try {
+    if (sessionStorage.getItem(CACHE_KEPT_FLAG) === '1') {
+      sessionStorage.removeItem(CACHE_KEPT_FLAG);
+      useSession.setState({
+        error:
+          'Data offline di perangkat ini BELUM terhapus: ada tab Plano lain yang terbuka. Tutup semua tab Plano, masuk, lalu Keluar sekali lagi.',
+      });
+    }
+  } catch {
+    // No storage.
+  }
 
   // Completes signInWithRedirect, which is the only flow that works inside an
   // iOS standalone PWA (popups are blocked there).
@@ -286,36 +315,65 @@ export async function registerWithEmail(
  * the same laptop is a privacy defect. Firestore's cache can only be cleared
  * while the client is terminated, and the client cannot be restarted in place,
  * so the page reloads afterwards. That is intentional, not a workaround.
+ *
+ * UNSYNCED WRITES FIRST. In an offline-first app the local store is not only
+ * a cache: until the server confirms, it is the ONLY copy of what was typed.
+ * Sign-out used to delete the outbox and Firestore's write queue without
+ * looking, so signing out on a ward with no signal destroyed the round's
+ * edits. It now saves open editors, waits briefly for the queue to drain,
+ * and refuses (returning `'unsynced'`) unless the caller passes `force`
+ * after the person has been told.
  */
-export async function signOutAndClear(): Promise<void> {
+export type SignOutResult = 'done' | 'unsynced';
+
+async function writesSettled(db: Firestore, timeoutMs: number): Promise<boolean> {
+  const drained = waitForPendingWrites(db).then(
+    () => true,
+    () => false,
+  );
+  const timedOut = new Promise<boolean>((resolve) => window.setTimeout(() => resolve(false), timeoutMs));
+  const queueDrained = await Promise.race([drained, timedOut]);
+  if (!queueDrained) return false;
+  const outbox = await listOutbox().catch(() => []);
+  return outbox.length === 0;
+}
+
+export async function signOutAndClear(options: { force?: boolean } = {}): Promise<SignOutResult> {
   const { auth, db } = services();
+
+  // Anything still in an editor's debounce goes into the queue first.
+  useUI.getState().flushAll();
+  if (!options.force && !(await writesSettled(db, 5000))) return 'unsynced';
+
   unsubscribeProfile?.();
   unsubscribeProfile = null;
 
   await signOut(auth);
   await clearLocalBase();
 
-  /*
-    The census verifier's memory holds names and RMs of every patient on the
-    ward. Sign-out is when the next person on this device must not inherit
-    them — the same reason the offline cache is cleared just below.
-  */
-  try {
-    localStorage.removeItem(CENSUS_HISTORY_KEY);
-  } catch {
-    // No storage means nothing was kept.
-  }
+  // PIN, AI key and consent, clipboard note, census history, layouts, jaga
+  // roster: everything per person on this device. See `clearDeviceUserState`.
+  clearDeviceUserState();
 
   try {
     await terminate(db);
     await clearIndexedDbPersistence(db);
   } catch (error) {
-    // Another open tab holds the cache. Surface it rather than pretending the
-    // data is gone — the user needs to know to close the other tab.
+    /*
+      Another open tab holds the cache. It used to be logged and nothing
+      else, while the screen said the offline data had been deleted. The
+      next boot now says it was NOT, and what to do.
+    */
     console.error('[auth] could not clear offline cache', error);
+    try {
+      sessionStorage.setItem(CACHE_KEPT_FLAG, '1');
+    } catch {
+      // Nowhere to say it.
+    }
   }
 
   window.location.replace(import.meta.env.BASE_URL);
+  return 'done';
 }
 
 function isPopupProblem(error: unknown): boolean {

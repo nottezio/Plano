@@ -321,3 +321,15 @@ describe('an unlabelled record number', () => {
     expect(parseIdentity('*(Nama) / (tgl lahir) / (umur) / RM (no)*')).toEqual({});
   });
 });
+
+describe('audit 2026-09-29: identity line', () => {
+  it('does not glue the age onto the MRN', () => {
+    expect(parseIdentity('*Tn. Budi / 01-02-1960 / RM 1478911 66 tahun*').mrn).toBe('1478911');
+  });
+  it('does not start the name inside a word ending in "an"', () => {
+    const facts = parseIdentity(
+      'Selamat pagi dokter, melaporkan pasien di *PJT Lantai 5 Kamar 517 Bed 3* atas nama Tn. Budi / 01-02-1960 / RM 01725320',
+    );
+    expect(facts.name).toBe('Tn. Budi');
+  });
+});

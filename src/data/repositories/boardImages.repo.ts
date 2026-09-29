@@ -1,6 +1,7 @@
-import { FieldPath, arrayRemove, arrayUnion, getDoc, setDoc, updateDoc } from 'firebase/firestore';
+import { FieldPath, arrayRemove, arrayUnion, getDoc, updateDoc, writeBatch } from 'firebase/firestore';
 import { nanoid } from 'nanoid';
 
+import { db } from '../firebase';
 import { boardImageDoc, userDoc } from '../paths';
 import { trackWrite } from '../syncStatus';
 import { QUALITY_STEPS, TARGET_DATA_URL, fitWithin } from '@/domain/boardImages';
@@ -59,19 +60,22 @@ async function toFittedDataUrl(file: Blob): Promise<string> {
 export async function addImageToNote(uid: string, noteId: string, file: Blob): Promise<string> {
   const dataUrl = await toFittedDataUrl(file);
   const id = nanoid(10);
-  // The image first, then the reference: a reference to an image that was
-  // never written would leave a broken tile; an image nobody references
-  // costs only its own document.
-  await trackWrite(
-    setDoc(boardImageDoc(uid, id), {
-      dataUrl,
-      mime: 'image/jpeg',
-      noteId,
-      createdAt: Date.now(),
-    }),
-  );
-  await trackWrite(
-    updateDoc(userDoc(uid), new FieldPath('boardNotes', noteId, 'images'), arrayUnion(id)),
+  /*
+    ONE batch: the image and the reference land together or not at all.
+    Awaiting the image write first meant, offline, waiting for a server that
+    was not there: the reference was never even queued, and closing the app
+    left an image attached to nothing.
+  */
+  const batch = writeBatch(db());
+  batch.set(boardImageDoc(uid, id), {
+    dataUrl,
+    mime: 'image/jpeg',
+    noteId,
+    createdAt: Date.now(),
+  });
+  batch.update(userDoc(uid), new FieldPath('boardNotes', noteId, 'images'), arrayUnion(id));
+  void trackWrite(batch.commit()).catch((error: unknown) =>
+    console.error('[board] image write rejected', error),
   );
   return id;
 }

@@ -127,3 +127,13 @@ describe('real note formats', () => {
     expect(jumpTargets(igd, ALIASES).map((t) => t.label)).not.toContain('EKG di IGD PJT');
   });
 });
+
+describe('stems start a word (audit 2026-09-29)', () => {
+  it('does not read massa, class or bypass as Assessment', () => {
+    for (const label of ['Massa', 'Class', 'Bypass', 'Massa: tidak teraba']) {
+      expect(classifyProseHeader(label)).toBeNull();
+    }
+    expect(classifyProseHeader('Assessment')).toBe('a');
+    expect(classifyProseHeader('Mohon izin kami assess dengan')).toBe('a');
+  });
+});

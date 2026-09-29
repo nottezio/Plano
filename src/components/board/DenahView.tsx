@@ -81,7 +81,7 @@ export function DenahView({
                       <Link
                         to={`/p/${patient.id}/${today}`}
                         className="min-w-0 flex-1 truncate text-[11px] leading-snug text-fg hover:underline"
-                        title={denahLine(patient, false)}
+                        title={denahLine(patient, showInitialsOnly)}
                       >
                         {denahLine(patient, showInitialsOnly)}
                       </Link>

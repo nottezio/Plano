@@ -1,3 +1,4 @@
+import { cardTitle } from '@/domain/board';
 import { useEffect, useId, useRef, useState } from 'react';
 import { useClipboardNote } from '@/store/useClipboardNote';
 import { Link } from 'react-router-dom';
@@ -86,7 +87,12 @@ export function PatientPeekWindow({
     is not always today — a window opened on an older note must show that day's
     ticks, not this morning's.
   */
-  const checklist = useChecklist(patient.id, date ?? today, settings.checklistItems, date !== null);
+  /*
+    The checklist and todos are TODAY's, whatever day's note is shown. They
+    used to follow the note's date, so before today's note existed a tick in
+    the peek was written to yesterday, and today's board card never saw it.
+  */
+  const checklist = useChecklist(patient.id, today, settings.checklistItems, true);
   const notes = usePatientNotes(patient);
 
   /*
@@ -97,22 +103,29 @@ export function PatientPeekWindow({
     they disagreed nobody would know which was right.
   */
   const todoCounts = (() => {
-    const views = todoViews(patient.todos ?? [], patient.todoTicks, date ?? today);
+    const views = todoViews(patient.todos ?? [], patient.todoTicks, today);
     return { done: views.filter((view) => view.done).length, total: views.length };
   })();
 
+  const openIndex = useRef<number | null>(null);
   useEffect(() => {
     // Placed once, offset from the top-right and CASCADED by how many are
     // already open — two windows landing on the same pixel look like one, and
     // the second appears not to have opened at all.
+    //
+    // By the index AT OPEN, kept in a ref: pressing a back window re-sorts the
+    // stack, and following the live index moved the window 28 px under the
+    // press, so the tap landed on something else.
+    if (openIndex.current === null) openIndex.current = index;
     if (!dragged.current) {
-      const step = index * 28;
+      const step = openIndex.current * 28;
       setPos({
         x: Math.max(16, window.innerWidth - 460 - step),
         y: 96 + step,
       });
     }
-  }, [patient.id, index]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- placed once per patient; see above
+  }, [patient.id]);
 
   useEffect(() => {
     let cancelled = false;
@@ -226,10 +239,14 @@ export function PatientPeekWindow({
           ? toWhatsApp(body, settings.whatsappBullet)
           : body;
 
+  // The board's privacy rule, on the window that opens from the board.
+  const initialsOnly = settings.privacy.boardShowInitialsOnly;
+  const title = cardTitle(patient, initialsOnly, false);
+
   return (
     <div
       role="dialog"
-      aria-label={`Pratinjau ${patient.name?.trim() || 'pasien'}`}
+      aria-label={`Pratinjau ${title}`}
       onPointerDownCapture={onFocus}
       className="fixed flex flex-col overflow-hidden rounded-xl border border-border bg-surface shadow-2xl"
       style={{ left: pos.x, top: pos.y, width: size.w, height: size.h, zIndex: z }}
@@ -247,7 +264,7 @@ export function PatientPeekWindow({
       >
         <div className="min-w-0 flex-1">
           <p className="truncate text-xs font-semibold">
-            {patient.name?.trim() || 'Tanpa nama'}
+            {title}
           </p>
           {/*
             The date is a chip, not a sentence.
@@ -266,7 +283,7 @@ export function PatientPeekWindow({
             >
               {date ? (date === today ? 'Hari ini' : formatShortDate(date)) : '—'}
             </span>
-            {patient.mrn ? (
+            {patient.mrn && !initialsOnly ? (
               <span className="shrink-0 font-mono">RM {patient.mrn}</span>
             ) : null}
             <span className="truncate">
@@ -383,7 +400,7 @@ export function PatientPeekWindow({
               ))}
             </ul>
           ) : tab === 'todos' ? (
-            <PatientTodos patient={patient} date={date ?? today} compact />
+            <PatientTodos patient={patient} date={today} compact />
           ) : notes.value.trim() ? (
             <p className="whitespace-pre-line">{notes.value}</p>
           ) : (

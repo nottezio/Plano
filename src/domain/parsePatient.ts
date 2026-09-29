@@ -87,7 +87,12 @@ const BIRTH_DATE = /\b(\d{1,2}[-/]\d{1,2}[-/]\d{4})\b/;
 const AGE = /(\d{1,3})\s*(?:tahun|thn|th)\b/i;
 
 function findMrn(line: string): string | undefined {
-  const labelled = MRN_LABELLED.exec(line);
+  /*
+    The age comes out first. The labelled number may contain spaces
+    (`RM 147-891 1`), so `RM 1478911 66 tahun` read as 147891166: the age
+    glued onto the record number.
+  */
+  const labelled = MRN_LABELLED.exec(line.replace(new RegExp(AGE.source, 'gi'), ' '));
   const digits = labelled?.[1]?.replace(/[\s.\-]/g, '');
   if (digits && digits.length >= 4 && digits.length <= 12) return digits;
 
@@ -217,7 +222,9 @@ export function parseIdentity(
     else if (marker === 'ny' || marker === 'nn' || marker === 'sdri') result.sex = 'P';
   }
 
-  const nameMatch = /((?:Tn|Ny|Nn|An|Sdr|Sdri)\.?\s+[^/,]+)/i.exec(line);
+  // Word-bounded like the sex test above: unbounded, the `an` at the end of
+  // `melaporkan` was read as the honorific An., and the name began there.
+  const nameMatch = /\b((?:Sdri|Sdr|Tn|Ny|Nn|An)\b\.?\s+[^/,]+)/i.exec(line);
   if (nameMatch?.[1]) {
     const name = nameMatch[1]
       .replace(/\b\d{1,2}[-/]\d{1,2}[-/]\d{4}\b.*$/, '')

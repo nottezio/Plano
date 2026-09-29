@@ -15,7 +15,8 @@ import {
   isDue,
   type AccessStatus,
 } from '@/domain/access';
-import { signOutAndClear, useSession } from '@/store/useSession';
+import { useSession } from '@/store/useSession';
+import { SignOutButton } from './SignOutButton';
 import { APP_VERSION } from '@/version.js';
 
 /**
@@ -80,13 +81,7 @@ function Screen({ title, children }: { title: string; children: ReactNode }): JS
         <div className="max-w-sm text-center">
           <h1 className="text-lg font-semibold">{title}</h1>
           <p className="mt-2 text-sm text-fg-muted">{children}</p>
-          <button
-            type="button"
-            onClick={() => void signOutAndClear()}
-            className="mt-4 min-h-tap rounded-lg border border-border px-4 text-sm"
-          >
-            Keluar
-          </button>
+          <SignOutButton className="mt-4 min-h-tap rounded-lg border border-border px-4 text-sm" />
         </div>
       </div>
       <Footer />

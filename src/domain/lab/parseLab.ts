@@ -106,7 +106,7 @@ const PANELS: ReadonlyArray<{ heading: string; keys: readonly string[] }> = [
      */
     keys: [
       'Urin Warna', 'Urin pH', 'Urin BJ', 'Protein', 'Glukosa', 'Bilirubin',
-      'Urobilinogen', 'Keton', 'Nitrit', 'Blood', 'Leukosit', 'Urin Vit C',
+      'Urobilinogen', 'Keton', 'Nitrit', 'Blood', 'Urin Eritrosit', 'Leukosit', 'Urin Vit C',
       'Sedimen Eritrosit', 'Sedimen Kristal', 'Sedimen Epitel', 'Sedimen Lain-lain',
       'Sedimen Leukosit', 'Sedimen Torak', 'Rasio Albumin Kreatinin',
       'Rasio Protein Kreatinin',
@@ -187,7 +187,8 @@ const ALIASES: Record<string, readonly string[]> = {
   'Urin pH': ['ph urin', 'ph'],
   'Urin BJ': ['bj', 'berat jenis'],
   Protein: ['protein'],
-  Glukosa: ['glukose', 'glukosa urin'],
+  Glukosa: ['glukose', 'glukosa urin', 'glukosa'],
+  'Urin Eritrosit': ['eritrosit urin'],
   Bilirubin: ['bilirubine', 'bilirubin'],
   Urobilinogen: ['urobilinogen', 'urobilonegen'],
   Keton: ['keton'],
@@ -500,16 +501,50 @@ function extractValue(rest: string, key?: string): string | null {
 const SECTION_HEADINGS: ReadonlyArray<readonly [RegExp, string]> = [
   [/analisa\s*gas\s*darah|blood\s*gas|\bagd\b/i, 'gas'],
   [/urinalisis|urinalisa|urinalysa/i, 'urine'],
+  // A blood section after urinalysis ends it: without this, a hematology
+  // block printed below the urine would have its Leukosit read as urine.
+  [/^(?:hematolog\w*|darah\s+rutin|darah\s+lengkap|kimia\s+darah|kimia\s+klinik|elektrolit|hemostasis|koagulasi)\b/i, 'blood'],
 ];
 
-/** Aliases that resolve differently depending on which section they are in. */
+/**
+ * Aliases that resolve differently depending on which section they are in.
+ *
+ * `leukosit` and `eritrosit` are the blood count everywhere EXCEPT under
+ * Urinalisis, where the same words are the urine rows. Reading them as WBC/RBC
+ * there put `2+` under the blood count, or (first wins) hid the urine result
+ * behind the real one.
+ */
 const SECTION_SCOPED: Readonly<Record<string, Partial<Record<string, string>>>> = {
   ph: { gas: 'pH', urine: 'Urin pH' },
+  leukosit: { urine: 'Leukosit' },
+  eritrosit: { urine: 'Urin Eritrosit' },
+  glukosa: { urine: 'Glukosa' },
 };
+
+/** Scoped aliases that mean nothing outside their section (left to Lain-lain). */
+const SECTION_ONLY = new Set(['glukosa']);
+
+/**
+ * Analyte names that CONTAIN a number: the number is part of the name.
+ *
+ * Two readers got these wrong. The two-letter alias `ca` claimed `CA 19-9 30`
+ * as calcium 19, and the fallback cut every unknown label at its first digit,
+ * so `HbA1c 6.5` became `HbA 1` and `FT4 1.5` became `FT 4`.
+ */
+const NUMBERED_NAME =
+  /^(?:ca\s*-?\s*(?:19\s*-\s*9|125|15\s*-\s*3|72\s*-\s*4|27\s*[-.]\s*29)|hba1c|ft3|ft4|t3|t4|vit(?:amin)?\.?\s*b12|vit(?:amin)?\.?\s*d3|25\s*-?\s*oh\s*(?:vit(?:amin)?\.?\s*)?d|nt\s*-?\s*pro\s*-?\s*bnp|il\s*-?\s*6|cd4)\b/i;
+
+/** The length of a numbered analyte name at the start of `line`, or 0. */
+function numberedNameLength(line: string): number {
+  return NUMBERED_NAME.exec(line)?.[0].length ?? 0;
+}
 
 function matchAnalyte(line: string, section: string | null): { key: string; rest: string } | null {
   const flat = normalise(line);
   if (!flat) return null;
+  // `CA 19-9` is not calcium: a name with a number in it is left to the
+  // fallback, which keeps the whole name.
+  if (numberedNameLength(line.trim()) > 0) return null;
 
   for (const [alias, key] of LOOKUP) {
     // Anchored at the start: a reference range mentioning "kalium" must not
@@ -517,7 +552,9 @@ function matchAnalyte(line: string, section: string | null): { key: string; rest
     const exact = flat === alias;
     if (exact || flat.startsWith(`${alias} `)) {
       const scoped = SECTION_SCOPED[alias];
-      const resolvedKey = scoped ? (scoped[section ?? ''] ?? key) : key;
+      const inSection = scoped?.[section ?? ''];
+      if (!inSection && SECTION_ONLY.has(alias)) continue;
+      const resolvedKey = inSection ?? key;
 
       /**
        * `rest` is what follows the analyte name on the same line.
@@ -743,6 +780,16 @@ export interface LabParseOptions {
   boldAbnormal?: boolean;
 }
 
+/**
+ * Index of the first WHOLE number in `line` (a token that is only a number,
+ * optionally signed or decimal, possibly followed by a unit or `%`), or -1.
+ * `B12` and `1c` are parts of words, not numbers.
+ */
+function wholeNumberAt(line: string): number {
+  const match = /(^|[\s:=(])(-?\d+(?:[.,]\d+)?)(?![A-Za-z0-9])/.exec(line);
+  return match ? match.index + (match[1]?.length ?? 0) : -1;
+}
+
 export function parseLab(raw: string, options: LabParseOptions = {}): LabParseResult {
   const found = new Map<string, string>();
   /** Printed reference range per analyte, when the sheet stated one. */
@@ -926,8 +973,25 @@ export function parseLab(raw: string, options: LabParseOptions = {}): LabParseRe
       }
     }
 
-    const digitAt = trimmed.search(/-?\d/);
-    if (digitAt < 0) continue;
+    /*
+      Where the name ends: after a numbered name (`CA 19-9`, `HbA1c`), else at
+      the first WHOLE number, never at the first digit character.
+    */
+    const named = numberedNameLength(trimmed);
+    const numberAt = named > 0 ? named : wholeNumberAt(trimmed);
+    if (numberAt < 0) {
+      /*
+        No number: a row whose result is a word (`Glukosa Negatif`) inside the
+        result table. It used to be dropped, against this parser's own rule
+        that nothing unrecognised disappears; it is shown as printed.
+      */
+      if (state === 'table' && QUALITATIVE_ANYWHERE.test(trimmed)) {
+        const words = trimmed.split(/\s+/);
+        if (words.length <= 5) unknown.push({ key: words.join(' '), value: '' });
+      }
+      continue;
+    }
+    const digitAt = numberAt;
     // Name, then a lone `-` in the result column: not done, and every number
     // after it is the reference (`Titer - <1 : 100`). Same rule as the
     // recognised path. `Lain - lain` is not this: a word follows its dash.

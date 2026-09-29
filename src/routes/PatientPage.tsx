@@ -105,6 +105,9 @@ export default function PatientPage(): JSX.Element {
     return () => setOpenPatient(null);
   }, [patientId, setOpenPatient]);
   const { entry, exists, loading: entryLoading } = useEntry(patientId, selected);
+  /** The note on screen now, for async actions to check they still apply. */
+  const currentNoteKey = useRef('');
+  currentNoteKey.current = `${patientId ?? ''}|${selected}`;
   const entryDates = useEntryDates(patientId);
   const previous = useEntry(patientId, previousDay(selected));
 
@@ -157,6 +160,10 @@ export default function PatientPage(): JSX.Element {
   */
   useEffect(() => {
     setDayMarkersDismissed(false);
+    // The carry-forward summary and its counter list describe the note they
+    // were made on; they used to follow you to other days and patients.
+    setCarrySummary(null);
+    setStaleMarkers(null);
   }, [patientId, selected]);
 
   /**
@@ -650,9 +657,13 @@ export default function PatientPage(): JSX.Element {
 
   const applyCarryForward = (): void => {
     if (!patientId) return;
+    // The note this was pressed on. The read below can take seconds on ward
+    // signal; if the day or patient changed meanwhile, nothing is applied.
+    const target = `${patientId}|${selected}`;
 
     void fetchEntryBodies(patientId)
       .then((days) => {
+        if (currentNoteKey.current !== target) return;
         const source = days
           .filter((day) => day.date < selected && day.body.trim().length > 0)
           .sort((a, b) => (a.date < b.date ? 1 : -1))[0];
@@ -718,6 +729,26 @@ export default function PatientPage(): JSX.Element {
         );
       })
       .catch((error: unknown) => console.error('[patient] carry-forward failed', error));
+  };
+
+  /**
+   * THE note on screen: the jaga note when one is open, else the day's SOAP.
+   *
+   * Every transform (reformat, opening, tidy, lab insert) reads and writes
+   * through this, so none can read one note and write another. The lab
+   * insert did exactly that: with a jaga note open at 03:00 the results
+   * went, unseen, into the morning SOAP.
+   */
+  const activeNote = {
+    body: activeShiftNote ? activeShiftNote.body : editor.value,
+    apply: (next: string): void => {
+      if (activeShiftNote) {
+        shiftNotes.setBody(activeShiftNote.id, next);
+        return;
+      }
+      editor.markNextChange('transform');
+      editor.setValue(next);
+    },
   };
 
   if (loading) {
@@ -1827,14 +1858,8 @@ export default function PatientPage(): JSX.Element {
       <ReformatSheet
         open={reformatOpen}
         onOpenChange={setReformatOpen}
-        body={activeShiftNote ? activeShiftNote.body : editor.value}
-        onApply={(next) => {
-          if (activeShiftNote) shiftNotes.setBody(activeShiftNote.id, next);
-          else {
-            editor.markNextChange('transform');
-            editor.setValue(next);
-          }
-        }}
+        body={activeNote.body}
+        onApply={activeNote.apply}
       />
 
       {/*
@@ -1886,11 +1911,8 @@ export default function PatientPage(): JSX.Element {
       <SoapTidySheet
         open={tidyOpen}
         onOpenChange={setTidyOpen}
-        body={editor.value}
-        onApply={(next) => {
-          editor.markNextChange('transform');
-          editor.setValue(next);
-        }}
+        body={activeNote.body}
+        onApply={activeNote.apply}
       />
 
       <PatientActionsSheet
@@ -2172,15 +2194,14 @@ export default function PatientPage(): JSX.Element {
           // Into the objective block, after any existing dated investigations.
           // Appending to the end put lab results below Plan, where they read
           // wrong and where the "O + Penunjang" copy group would miss them.
-          const boundaries = parseSections(editor.value, settings.sectionAliases).map(
+          const boundaries = parseSections(activeNote.body, settings.sectionAliases).map(
             (section) => ({
               sectionId: section.sectionId,
               start: section.start,
               end: section.end,
             }),
           );
-          editor.markNextChange('transform');
-          editor.setValue(insertIntoObjective(editor.value, text, boundaries));
+          activeNote.apply(insertIntoObjective(activeNote.body, text, boundaries));
         }}
       />
 
@@ -2198,16 +2219,12 @@ export default function PatientPage(): JSX.Element {
          * action on this page has to ask the same question the editor does:
          * which note am I looking at.
          */
-        body={activeShiftNote ? activeShiftNote.body : editor.value}
+        body={activeNote.body}
         greetings={settings.greetings}
         openingSentences={settings.openingSentences}
         closingSentences={settings.closingSentences}
         onApply={(next) => {
-          if (activeShiftNote) shiftNotes.setBody(activeShiftNote.id, next);
-          else {
-            editor.markNextChange('transform');
-            editor.setValue(next);
-          }
+          activeNote.apply(next);
           setOpeningOpen(false);
         }}
       />

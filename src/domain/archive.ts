@@ -29,9 +29,17 @@ export const ARCHIVE_REASON_LABELS: Record<ArchiveReason, string> = {
  * then to admission) keeps the patient in a sensible month offline instead of
  * vanishing into an "unknown" bucket until reconnect.
  */
+function localDay(date: Date): ClinicalDate {
+  const pad = (n: number): string => String(n).padStart(2, '0');
+  return `${String(date.getFullYear())}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
+}
+
 export function archiveDate(patient: Patient): ClinicalDate {
   const millis = patient.archive?.at?.toMillis?.();
-  if (millis !== undefined) return new Date(millis).toISOString().slice(0, 10);
+  // The device's LOCAL calendar day. `toISOString()` is UTC, which filed
+  // everything archived between 00:00 and 07:59 WITA under the previous day,
+  // and on the 1st under the previous month.
+  if (millis !== undefined) return localDay(new Date(millis));
   return patient.lastEntryDate ?? patient.admittedAt;
 }
 

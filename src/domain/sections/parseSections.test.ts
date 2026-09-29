@@ -424,3 +424,15 @@ describe('WhatsApp-style wrapped headers', () => {
     expect(rebuilt).toBe(body);
   });
 });
+
+describe('one-letter vitals inside O (audit 2026-09-29)', () => {
+  it('reads S: 36,5 and P: 20 under O as fields, not as S and P headings', () => {
+    const body = 'S:\nNyeri dada\nO:\nTD: 120/80\nN: 88\nP: 20\nS: 36,5\nSpO2: 98%\nA: CHF\nP: Furosemid';
+    const ids = parseSections(body).map((section) => section.sectionId);
+    expect(ids.filter((id) => id === 's')).toHaveLength(1);
+    expect(ids.filter((id) => id === 'p')).toHaveLength(1);
+    const plan = parseSections(body).find((section) => section.sectionId === 'p');
+    expect(plan?.text).toContain('Furosemid');
+    expect(plan?.text).not.toContain('20');
+  });
+});

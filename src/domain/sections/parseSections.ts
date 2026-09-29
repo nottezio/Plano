@@ -381,6 +381,23 @@ function detectHeader(
 }
 
 /**
+ * `S: 36,5` and `P: 20` inside the O block are suhu and pernapasan, not the
+ * Subjektif and Plan headings.
+ *
+ * The one-letter aliases accept a colon, and without context `P: 20` under O
+ * opened a Plan section: the reading was then copied as Plan, the vitals
+ * after it were never read or cleared, and yesterday's numbers carried over.
+ * A heading is followed by text or nothing; a one-letter label followed on
+ * the same line by a number is a field.
+ */
+function isVitalField(line: Line, hit: HeaderHit): boolean {
+  if (hit.sectionId !== 's' && hit.sectionId !== 'p') return false;
+  const token = tokenOf(line.text.slice(0, hit.headerEnd - line.start));
+  if (token.length !== 1) return false;
+  return /^\s*\d/.test(line.text.slice(hit.headerEnd - line.start));
+}
+
+/**
  * Parses a body into contiguous, total blocks.
  *
  * Zero headers → a single `_intro` section labelled "Catatan" spanning the
@@ -396,9 +413,15 @@ export function parseSections(
   const matcher = buildMatcher(table);
 
   const hits: HeaderHit[] = [];
+  /** Inside the O block: from an O/TTV heading until the next known heading. */
+  let inObjective = false;
   for (const line of splitLines(body)) {
     const hit = detectHeader(line, matcher, table);
-    if (hit) hits.push(hit);
+    if (!hit) continue;
+    if (inObjective && isVitalField(line, hit)) continue;
+    if (hit.sectionId === 'o' || hit.sectionId === 'ttv') inObjective = true;
+    else if (!hit.sectionId.startsWith('custom_')) inObjective = false;
+    hits.push(hit);
   }
 
   if (hits.length === 0) {

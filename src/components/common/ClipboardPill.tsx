@@ -1,4 +1,6 @@
+import { initials } from '@/domain/board';
 import { isMismatch, useClipboardNote } from '@/store/useClipboardNote';
+import { useSession } from '@/store/useSession';
 import { IconClose } from './Icons';
 
 function clock(at: number): string {
@@ -16,6 +18,8 @@ export function ClipboardPill({ className = '' }: { className?: string }): JSX.E
   const last = useClipboardNote((state) => state.last);
   const openPatientId = useClipboardNote((state) => state.openPatientId);
   const dismiss = useClipboardNote((state) => state.dismiss);
+  // Same privacy rule as the board: initials only, no RM, when that is on.
+  const initialsOnly = useSession((state) => state.settings().privacy.boardShowInitialsOnly);
   if (!last) return null;
 
   const wrong = isMismatch(last, openPatientId);
@@ -37,8 +41,8 @@ export function ClipboardPill({ className = '' }: { className?: string }): JSX.E
           {wrong ? 'Clipboard berisi pasien LAIN' : 'Terakhir disalin'} · {last.what} · {clock(last.at)}
         </span>
         <span className="block truncate text-[13px] font-semibold text-fg">
-          {last.patientName || 'Tanpa nama'}
-          {last.mrn ? <span className="font-mono text-[11px] font-normal"> · RM {last.mrn}</span> : null}
+          {initialsOnly ? initials(last.patientName) || '—' : last.patientName || 'Tanpa nama'}
+          {last.mrn && !initialsOnly ? <span className="font-mono text-[11px] font-normal"> · RM {last.mrn}</span> : null}
         </span>
       </span>
       <button

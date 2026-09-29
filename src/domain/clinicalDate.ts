@@ -154,6 +154,22 @@ export function formatShortDateNoWeekday(date: ClinicalDate): string {
  */
 export const IGD_ENTRY = 'igd' as ClinicalDate;
 
+/**
+ * Chronological order of entry ids, oldest first.
+ *
+ * The admission note's id is the word `igd`, and `'igd' > '2026-…'` as a
+ * string, so every plain string sort put the ADMISSION note last: "most
+ * recent" in the preview and peek, the newest day in the history summary.
+ * It is the first day of the stay. Every ordering of entry ids goes through
+ * this.
+ */
+export function compareEntryDates(a: ClinicalDate, b: ClinicalDate): number {
+  const igdA = isIgdEntry(a);
+  const igdB = isIgdEntry(b);
+  if (igdA || igdB) return igdA === igdB ? 0 : igdA ? -1 : 1;
+  return a < b ? -1 : a > b ? 1 : 0;
+}
+
 export function isIgdEntry(date: ClinicalDate): boolean {
   return date === IGD_ENTRY;
 }

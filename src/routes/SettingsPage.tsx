@@ -31,7 +31,8 @@ import {
 } from '@/domain/restoreDefaults';
 import { downloadJson, exportAll } from '@/data/exportData';
 import { FORMAT_LABELS } from '@/domain/format/formatters';
-import { signOutAndClear, useSession } from '@/store/useSession';
+import { useSession } from '@/store/useSession';
+import { SignOutButton } from '@/components/auth/SignOutButton';
 import { resetSettings } from '@/data/repositories/settings.repo';
 import { useUI, type ThemePreference } from '@/store/useUI';
 import type { NoteTemplate } from '@/domain/types';
@@ -688,13 +689,7 @@ export default function SettingsPage(): JSX.Element {
             </p>
           ) : null}
           <p className="truncate text-xs text-fg-muted">{user?.email ?? '—'}</p>
-          <button
-            type="button"
-            onClick={() => void signOutAndClear()}
-            className="mt-3 min-h-tap w-full rounded-lg border border-border px-3 text-sm text-danger"
-          >
-            Keluar
-          </button>
+          <SignOutButton className="mt-3 min-h-tap w-full rounded-lg border border-border px-3 text-sm text-danger" />
           <p className="mt-2 text-[11px] text-fg-faint">
             Keluar menghapus seluruh data offline di perangkat ini dan memuat ulang aplikasi.
           </p>

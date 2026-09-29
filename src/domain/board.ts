@@ -1,3 +1,4 @@
+import { reorderWithinVisible } from './reorder';
 import { checklistProgress, resolveCardColor, type ChecklistStates } from './checklist';
 import { hariRawat } from './clinicalDate';
 import { displayName, redactName } from './identity';
@@ -403,15 +404,37 @@ function applyCustomOrder(patients: readonly Patient[], ids: readonly string[]):
  * Returns the FULL list including ids that were not in the stored order yet,
  * so the result is a complete order rather than a patch that has to be merged
  * with the old one — the stored list can then be replaced outright.
+ *
+ * `hidden` carries the rest of the board: the stored order and every patient
+ * id. Without it the result held only the cards ON SCREEN, and the board
+ * saved it as the whole order: a drag in Titipan, or during a search, wiped
+ * the hand-made order of Pasien saya (every patient "unknown", so all at the
+ * top). The same "stored list rebuilt from a filtered view" that
+ * `reorderWithinVisible` and `mergeLayouts` already guard against.
  */
 export function reorderBoard(
   current: readonly Patient[],
   draggedId: string,
   targetId: string,
+  hidden?: { stored: readonly string[]; all: readonly string[] },
 ): string[] {
   const ids = current.map((patient) => patient.id);
   const from = ids.indexOf(draggedId);
   const to = ids.indexOf(targetId);
+
+  if (hidden) {
+    const known = new Set(hidden.stored);
+    const everyone = new Set([...hidden.all, ...ids]);
+    // As displayed: ids not in the stored order first (see applyCustomOrder),
+    // then the stored order, minus patients no longer on the board.
+    const full = [
+      ...[...everyone].filter((id) => !known.has(id)),
+      ...hidden.stored.filter((id) => everyone.has(id)),
+    ];
+    if (from === -1 || to === -1 || from === to) return full;
+    return reorderWithinVisible(full, ids, (id) => id, draggedId, targetId);
+  }
+
   // A card dropped on itself, or on something no longer on the board, is not a
   // move — returning the list unchanged avoids writing a no-op order.
   if (from === -1 || to === -1 || from === to) return ids;

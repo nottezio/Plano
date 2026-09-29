@@ -121,8 +121,8 @@ export function SignInPage(): JSX.Element {
 
           <p className="mt-8 rounded-lg border border-border bg-bg-subtle p-3 text-[11px] leading-relaxed text-fg-muted">
             Aplikasi ini menyimpan data pasien. Anda bertanggung jawab atas kepatuhan
-            terhadap kebijakan rumah sakit dan UU PDP No. 27/2022. Kunci PIN aktif secara
-            bawaan dan papan hanya menampilkan inisial.
+            terhadap kebijakan rumah sakit dan UU PDP No. 27/2022. Kunci PIN dan tampilan
+            inisial di papan diatur di Pengaturan → Privasi.
           </p>
         </div>
       </div>

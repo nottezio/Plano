@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 
 import { mergeThreeWay, type MergeOutcome } from '@/domain/merge/threeWayMerge';
 import {
@@ -183,6 +183,16 @@ export function useTextSync({
 
   const setValue = useCallback(
     (next: string) => {
+      /*
+        A setter from an OLD render (an async result arriving after the day or
+        patient changed: carry-forward's read, an AI answer) refuses. It used
+        to store the text as the old key's draft but move `latest` forward, so
+        the flush that followed wrote the old day's text into the NEW day.
+      */
+      if (key !== latest.current.key) {
+        console.warn('[textsync] ignored a write meant for another note', key);
+        return;
+      }
       setDraft(key, next);
 
       /**
@@ -397,6 +407,39 @@ export function useTextSync({
       useDrafts.getState().clearDraft(key);
     }
   }, [draft, serverText, key]);
+
+  /**
+   * Save the PREVIOUS note when the key changes under the editor.
+   *
+   * Flushing used to live at one call site (`goToDate`). Any other way the
+   * key could change (the clinical day rolling over at midnight on a page
+   * that follows "today", browser back/forward between days, a link to
+   * another day) moved `latest` to the new key during render, so the pending
+   * debounce later flushed the NEW, clean note and returned: the old note's
+   * last seconds of typing stayed in a draft nobody wrote. Losing text must
+   * not depend on how the day was changed, so it is handled here, on the
+   * transition itself, with the old key's own writer.
+   *
+   * `committed` is the state as of the last commit; the layout-effect cleanup
+   * for the old key runs before it is updated, so it still describes the old
+   * note.
+   */
+  const committed = useRef(latest.current);
+  useLayoutEffect(() => {
+    committed.current = latest.current;
+  });
+  useLayoutEffect(
+    () => () => {
+      const previous = committed.current;
+      if (previous.key !== key || !previous.dirty || previous.locked) return;
+      window.clearTimeout(timerRef.current);
+      firstDirtyAtRef.current = 0;
+      void previous.write(previous.value).catch((error: unknown) => {
+        console.error('[textsync] write of the previous note rejected', error);
+      });
+    },
+    [key],
+  );
 
   // Let the update banner save this editor rather than refusing to reload.
   const registerFlush = useUI((state) => state.registerFlush);

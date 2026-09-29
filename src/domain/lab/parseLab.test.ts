@@ -755,3 +755,27 @@ describe('labReportKind', () => {
     expect(labReportKind('Natrium 140')).toBe('unknown');
   });
 });
+
+describe('audit 2026-09-29: names with numbers, urinalysis rows', () => {
+  it('does not read CA 19-9 or CA 125 as calcium', () => {
+    expect(parseLab('CA 19-9 30').formatted).not.toContain('Kalsium');
+    expect(parseLab('CA 19-9 30').formatted).toContain('CA 19-9 30');
+    expect(parseLab('CA 125 35').formatted).toContain('CA 125 35');
+    expect(parseLab('Ca 9.1').formatted).toContain('Kalsium 9.1');
+  });
+
+  it('keeps names that contain digits whole', () => {
+    expect(parseLab('HbA1c 6.5 4 - 5.7').formatted).toContain('HbA1c 6.5');
+    expect(parseLab('Vitamin B12 350').formatted).toContain('Vitamin B12 350');
+    expect(parseLab('FT4 1.5').formatted).toContain('FT4 1.5');
+  });
+
+  it('files urinalysis leukosit, eritrosit and glukosa under Urinalisis', () => {
+    const out = parseLab('Leukosit 12.0\nUrinalisis\nLeukosit 3+\nEritrosit 10\nGlukosa Negatif').formatted;
+    expect(out).toContain('WBC 12.0');
+    expect(out).toContain('Leukosit 3+');
+    expect(out).toContain('Eritrosit 10');
+    expect(out).toContain('Glukosa Negatif');
+    expect(out).not.toContain('RBC');
+  });
+});

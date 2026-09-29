@@ -55,3 +55,11 @@ describe('calculateUrineOutput', () => {
     );
   });
 });
+
+describe('audit 2026-09-29: band on the exact rate', () => {
+  it('0.496 cc/kg/jam is below 0.5, not rounded up into the normal band', () => {
+    const result = calculateUrineOutput({ volumeMl: 1190, hours: 24, weightKg: 100 });
+    expect(result?.rate).toBe(0.496);
+    expect(result?.band).toBe(calculateUrineOutput({ volumeMl: 1000, hours: 24, weightKg: 100 })?.band);
+  });
+});

@@ -61,6 +61,7 @@ export function AuthGate({ children }: { children: ReactNode }): JSX.Element {
  */
 function Booting(): JSX.Element {
   const [slow, setSlow] = useState(false);
+  const [unreachable, setUnreachable] = useState(false);
   useEffect(() => {
     const timer = window.setTimeout(() => setSlow(true), 8000);
     return () => window.clearTimeout(timer);
@@ -77,11 +78,20 @@ function Booting(): JSX.Element {
           </p>
           <button
             type="button"
-            onClick={() => void cleanReload()}
+            onClick={() =>
+              void cleanReload().then((ok) => {
+                if (!ok) setUnreachable(true);
+              })
+            }
             className="min-h-tap rounded-lg border border-border px-4 text-sm text-fg"
           >
             Muat ulang bersih
           </button>
+          {unreachable ? (
+            <p role="alert" className="max-w-xs text-xs text-danger">
+              Server tidak terjangkau. Aplikasi offline tidak dihapus; tunggu sinyal lalu coba lagi.
+            </p>
+          ) : null}
         </>
       ) : null}
     </div>

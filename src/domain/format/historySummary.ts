@@ -1,3 +1,4 @@
+import { compareEntryDates } from '../clinicalDate';
 export interface HistoryEntry {
   date: string;
   body: string;
@@ -38,7 +39,7 @@ export function selectHistory(
 ): HistorySelection {
   const usable = entries
     .filter((entry) => entry.body.trim().length > 0)
-    .sort((left, right) => left.date.localeCompare(right.date));
+    .sort((left, right) => compareEntryDates(left.date, right.date));
 
   if (usable.length === 0) return { included: [], omitted: [] };
 

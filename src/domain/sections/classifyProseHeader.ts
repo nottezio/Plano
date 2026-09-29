@@ -33,8 +33,14 @@ import type { SectionId } from '../types';
  * Built from the doubling that actually varies — the `ss` and the `e` — rather
  * than from a list of the spellings seen so far.
  */
-const ASSESS = /as+e?s+/;
-const TERAPI = /terapi|therapy|tatalaksana/;
+const ASSESS = /\bas+e?s+/;
+const TERAPI = /\b(?:terapi|therapy|tatalaksana)/;
+/*
+ * `\b`: the stem must START a word. Unanchored, `as+e?s+` matched inside
+ * `massa`, `class` and `bypass`, so `Massa: tidak teraba` under O became the
+ * Assessment section, and went into the A copy group, the card and the PDF
+ * diagnosis.
+ */
 
 /*
  * Only assessment and therapy.

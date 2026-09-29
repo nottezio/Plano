@@ -186,11 +186,18 @@ export function PatientCard({
   // Long-press opens the quick checklist (SPEC 11.3) so ticking during rounds
   // never requires opening the note. Implemented with pointer events + a timer
   // rather than `contextmenu` so it behaves the same on touch and mouse.
-  let timer = 0;
+  //
+  // A REF, not a render-local `let`: pressing a card brings it to the front,
+  // which re-renders it before pointer-up, and the new render's `timer` was 0.
+  // `cancelPress` then cleared nothing and the quick checklist opened 500 ms
+  // after an ordinary tap on the eye or fold button.
+  const pressTimer = useRef(0);
+  useEffect(() => () => window.clearTimeout(pressTimer.current), []);
   const startPress = (): void => {
-    timer = window.setTimeout(() => onLongPress(patient.id), 500);
+    window.clearTimeout(pressTimer.current);
+    pressTimer.current = window.setTimeout(() => onLongPress(patient.id), 500);
   };
-  const cancelPress = (): void => window.clearTimeout(timer);
+  const cancelPress = (): void => window.clearTimeout(pressTimer.current);
 
   const note = patient.notes.trim();
   /**

@@ -78,3 +78,10 @@ describe('pemantauan', () => {
     expect(orderPatients([plain, watched], 'recent').map((x) => x.id)).toEqual(['p', 'w']);
   });
 });
+
+describe('reorderBoard keeps what the view hides (audit 2026-09-29)', () => {
+  it('a drag in a filtered view does not drop the hidden patients from the order', () => {
+    const next = reorderBoard([B, C], 'c', 'b', { stored: ['a', 'b', 'c', 'd'], all: ['a', 'b', 'c', 'd'] });
+    expect(next).toEqual(['a', 'c', 'b', 'd']);
+  });
+});

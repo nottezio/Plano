@@ -38,6 +38,7 @@ import {
  */
 export function CanvasBoard({
   ids,
+  layoutIds,
   renderItem,
   enabled,
   actionsSlot,
@@ -47,6 +48,13 @@ export function CanvasBoard({
 }: {
   /** Every card on the board, in board order. Drives auto-placement. */
   ids: readonly string[];
+  /**
+   * Every id the layout must make room for, visible or not: the whole scope,
+   * unfiltered. `ids` is what is DRAWN. Placement and Rapikan used to run over
+   * `ids` alone, so during a search they packed the matches into slots the
+   * hidden cards were sitting in, and after the search the cards overlapped.
+   */
+  layoutIds?: readonly string[] | undefined;
   /**
    * Renders one card. A function rather than a ready-made list because the
    * canvas is what knows whether a card has been capped, and a capped card has
@@ -127,7 +135,15 @@ export function CanvasBoard({
 
   const canvasWidth = width || 1200;
   const columns = columnsFor(canvasWidth);
-  const layouts = useMemo(() => placeAll(ids, stored, columns), [ids, stored, columns]);
+  const placementIds = useMemo(() => {
+    if (!layoutIds) return ids;
+    const drawn = new Set(ids);
+    return [...ids, ...layoutIds.filter((id) => !drawn.has(id))];
+  }, [ids, layoutIds]);
+  const layouts = useMemo(
+    () => placeAll(placementIds, stored, columns),
+    [placementIds, stored, columns],
+  );
 
   /**
    * The card under the finger, held apart from `stored`.
@@ -425,7 +441,7 @@ export function CanvasBoard({
                 type="button"
                 onClick={() => {
                   setUndo(layouts);
-                  applyLayouts(tidy(ids, layouts, columns));
+                  applyLayouts(tidy(placementIds, layouts, columns));
                 }}
                 title="Rapatkan kartu, tanpa mengubah urutan yang sudah diatur"
                 className="min-h-tap shrink-0 rounded-lg px-2.5 text-xs font-medium text-fg-muted hover:bg-bg-subtle [@media(pointer:fine)]:min-h-9"

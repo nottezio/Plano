@@ -1,3 +1,4 @@
+import { privateText } from '@/domain/identity';
 import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 
@@ -356,13 +357,13 @@ function ArchiveRow({
           the row itself, because it is usually the reason to find them. */}
       {patient.archive?.note?.trim() ? (
         <span className="mt-1.5 block whitespace-pre-line border-l-2 border-[var(--warn-strong)] pl-2 text-xs leading-snug text-fg [display:-webkit-box] [-webkit-box-orient:vertical] [-webkit-line-clamp:3] overflow-hidden">
-          <Highlight text={patient.archive.note.trim()} tokens={tokens} />
+          <Highlight text={privateText(patient.archive.note.trim(), patient, showInitialsOnly)} tokens={tokens} />
         </span>
       ) : null}
 
       {snippet ? (
         <span className="mt-1 block text-[11px] italic leading-snug text-fg-muted">
-          <Highlight text={snippet} tokens={tokens} />
+          <Highlight text={privateText(snippet, patient, showInitialsOnly)} tokens={tokens} />
         </span>
       ) : null}
     </Link>

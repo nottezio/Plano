@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 
 import { Footer } from '@/components/common/Footer';
 import { PIN_MAX_LENGTH, PIN_MIN_LENGTH } from '@/lib/pinCrypto';
-import { signOutAndClear } from '@/store/useSession';
+import { SignOutButton } from '@/components/auth/SignOutButton';
 import { useLock } from '@/store/useLock';
 
 /**
@@ -85,16 +85,14 @@ export function LockScreen(): JSX.Element {
           {checking ? 'Memeriksa…' : 'Buka'}
         </button>
 
-        <button
-          type="button"
-          onClick={() => void signOutAndClear()}
-          className="mt-8 text-xs text-fg-faint underline"
-        >
-          Lupa PIN? Keluar dan masuk lagi
-        </button>
+        <div className="mt-8 max-w-xs text-center">
+          <SignOutButton className="text-xs text-fg-faint underline">
+            Lupa PIN? Keluar dan masuk lagi
+          </SignOutButton>
+        </div>
         <p className="mt-2 max-w-xs text-center text-[11px] text-fg-faint">
-          Keluar menghapus data offline di perangkat ini. Catatan tetap aman di server dan
-          akan tersinkron ulang.
+          Keluar menghapus data offline dan PIN di perangkat ini. Catatan yang sudah
+          tersinkron aman di server; yang belum terkirim akan diperingatkan dulu.
         </p>
       </div>
       <Footer />

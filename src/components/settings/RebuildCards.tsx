@@ -63,7 +63,10 @@ export function RebuildCards(): JSX.Element {
         const entries = await fetchEntryBodies(patient.id);
         // The latest written day that is not the admission note: the same
         // day the card shows on the write path.
-        const latest = entries.filter((entry) => !isIgdEntry(entry.date) && entry.body.trim()).at(-1);
+        // NEWEST first (`fetchEntryBodies`), so the first that is not the
+        // admission note. `.at(-1)` here took the OLDEST day and rebuilt every
+        // card from the day of admission.
+        const latest = entries.find((entry) => !isIgdEntry(entry.date) && entry.body.trim());
         if (latest) {
           const preview = buildPreview(latest.body);
           const kjs = kjsRole(latest.body);

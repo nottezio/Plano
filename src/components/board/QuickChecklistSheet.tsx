@@ -1,3 +1,5 @@
+import { cardTitle } from '@/domain/board';
+import { useSession } from '@/store/useSession';
 import { Sheet } from '@/components/common/Sheet';
 import { ProgressStrip } from './ProgressStrip';
 import { useChecklist } from '@/hooks/useChecklist';
@@ -26,6 +28,7 @@ export function QuickChecklistSheet({
   onOpenChange: (open: boolean) => void;
 }): JSX.Element | null {
   const checklist = useChecklist(patient?.id, today, items, patient !== null);
+  const initialsOnly = useSession((state) => state.settings().privacy.boardShowInitialsOnly);
 
   if (!patient) return null;
 
@@ -33,7 +36,7 @@ export function QuickChecklistSheet({
     <Sheet
       open
       onOpenChange={onOpenChange}
-      title={patient.name}
+      title={cardTitle(patient, initialsOnly, false)}
       description="Checklist hari ini"
     >
       <ul className="space-y-2">

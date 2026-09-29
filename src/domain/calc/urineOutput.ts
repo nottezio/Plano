@@ -65,12 +65,20 @@ export function calculateUrineOutput(input: UrineOutputInput): UrineOutputResult
   // keeps the caller from ever displaying Infinity or NaN as a clinical value.
   if (!(volumeMl >= 0) || !(hours > 0) || !(weightKg > 0)) return null;
 
-  const rate = round(volumeMl / weightKg / hours, 2);
+  const exact = volumeMl / weightKg / hours;
+  /*
+    The band is decided on the EXACT rate. Rounding first turned 0.496 into
+    0.5 and called oliguria "Cukup". Shown to 2 decimals as the ward writes
+    it, or 3 when 2 would round across a band boundary, so the number and
+    the band never disagree.
+  */
+  const twoPlaces = round(exact, 2);
+  const rate = bandFor(twoPlaces) === bandFor(exact) ? twoPlaces : round(exact, 3);
 
   return {
     rate,
     perDayMl: Math.round((volumeMl / hours) * 24),
-    band: bandFor(rate),
+    band: bandFor(exact),
     line: `Urine output ${volumeMl} cc/${round(hours, 2)} jam/${round(weightKg, 1)}kg: ${rate} cc/kgbb/jam`,
   };
 }

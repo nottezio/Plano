@@ -1,3 +1,4 @@
+import { initials } from './board';
 import { dpjpById } from './dpjp';
 import { canonicalWard } from './denahPlan';
 import type { Patient } from './types';
@@ -99,26 +100,20 @@ export function denahLine(patient: Patient, showInitialsOnly: boolean): string {
   const dpjp = patient.dpjpId ? dpjpById(patient.dpjpId) : undefined;
   const name = patient.name?.trim() || 'Tanpa nama';
 
+  /*
+    Initials-only follows the card's rule (SPEC 18): the RM identifies a
+    patient as surely as a name, so it goes too, and the initials come from
+    the board's own `initials`. This used to keep the RM, and to strip the
+    honorific pattern even INSIDE names ("Tn. Andi Nyoman" -> "D.O").
+  */
   return [
     dpjp?.initials,
-    showInitialsOnly ? initialsOnly(name) : name,
+    showInitialsOnly ? initials(name) : name,
     patient.age !== undefined ? `${patient.age} th` : null,
-    patient.mrn ? `RM ${patient.mrn}` : null,
+    patient.mrn && !showInitialsOnly ? `RM ${patient.mrn}` : null,
   ]
     .filter(Boolean)
     .join(' / ');
-}
-
-function initialsOnly(name: string): string {
-  return (
-    name
-      .replace(/\b(Tn|Ny|Nn|An|Sdr|Sdri)\.?\s*/gi, '')
-      .split(/\s+/)
-      .filter(Boolean)
-      .slice(0, 3)
-      .map((word) => word[0]?.toUpperCase() ?? '')
-      .join('.') || '—'
-  );
 }
 
 /**
