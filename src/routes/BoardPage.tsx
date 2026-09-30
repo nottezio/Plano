@@ -1,3 +1,4 @@
+import { DEFAULT_REMINDER_KINDS } from '@/domain/reminders';
 import { privateText } from '@/domain/identity';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
@@ -429,6 +430,7 @@ export default function BoardPage(): JSX.Element {
   const archiveText = useArchiveText(archived, searching && searchNotes);
 
   const items = settings.checklistItems;
+  const reminderKinds = settings.reminderKinds ?? DEFAULT_REMINDER_KINDS;
 
   /** The whole scope, unfiltered: what the canvas must make room for. */
   const scopeIds = useMemo(
@@ -453,7 +455,7 @@ export default function BoardPage(): JSX.Element {
       today,
     );
     return orderPatients(matched, order, customIds).map((patient) =>
-      buildCard(patient, items, today, settings.privacy.boardShowInitialsOnly),
+      buildCard(patient, items, today, settings.privacy.boardShowInitialsOnly, reminderKinds),
     );
   }, [
     patients,
@@ -465,6 +467,7 @@ export default function BoardPage(): JSX.Element {
     order,
     customIds,
     settings.privacy.boardShowInitialsOnly,
+    reminderKinds,
   ]);
 
   /*
@@ -521,7 +524,7 @@ export default function BoardPage(): JSX.Element {
       .map((patient) => matchArchived(patient, tokens, archiveText.text(patient)))
       .filter((match): match is NonNullable<typeof match> => match !== null)
       .map((match) => ({
-        ...buildCard(match.patient, items, today, settings.privacy.boardShowInitialsOnly),
+        ...buildCard(match.patient, items, today, settings.privacy.boardShowInitialsOnly, reminderKinds),
         snippet: match.snippet
           ? privateText(match.snippet, match.patient, settings.privacy.boardShowInitialsOnly)
           : match.snippet,
@@ -534,6 +537,7 @@ export default function BoardPage(): JSX.Element {
     items,
     today,
     settings.privacy.boardShowInitialsOnly,
+    reminderKinds,
     archiveText,
   ]);
 

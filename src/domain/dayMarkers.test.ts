@@ -181,3 +181,16 @@ describe('findDayMarker — jump targets', () => {
     expect(countDayMarker('post PPM H-4', 'H-3')).toBe(0);
   });
 });
+
+describe('one counter at a time (2026-09-30)', () => {
+  it('advances only the counter pointed at', async () => {
+    const { bumpDayMarkerAt, locateDayMarker } = await import('./dayMarkers');
+    const body = 'post PPM H-2\nCeftriaxone (H-3)\n_Paska CABG hari ke-9_';
+    const found = locateDayMarker(body, { text: 'H-3', at: body.indexOf('H-3') });
+    expect(found).not.toBeNull();
+    expect(bumpDayMarkerAt(body, found!)).toBe('post PPM H-2\nCeftriaxone (H-4)\n_Paska CABG hari ke-9_');
+    const moved = `xx ${body}`;
+    const again = locateDayMarker(moved, { text: 'hari ke-9', at: body.indexOf('hari ke-9') });
+    expect(bumpDayMarkerAt(moved, again!)).toContain('hari ke-10');
+  });
+});

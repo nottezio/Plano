@@ -136,6 +136,38 @@ export function bumpDayMarkers(body: string, days: number): string {
 }
 
 /**
+ * Find ONE counter in the live body: at its remembered position if it is
+ * still there, else the `occurrence`-th counter with the same text.
+ */
+export function locateDayMarker(
+  body: string,
+  marker: { text: string; at: number },
+  occurrence = 0,
+): DayMarker | null {
+  const key = (value: string): string => value.replace(/\s+/g, '').toLowerCase();
+  const all = findDayMarkers(body);
+  const exact = all.find((found) => found.start === marker.at && key(found.text) === key(marker.text));
+  return exact ?? findDayMarker(body, marker.text, occurrence);
+}
+
+/**
+ * Advance ONE counter, the one a person pointed at, by `days`.
+ *
+ * The per-counter counterpart of `bumpDayMarkers`: the checker lists the
+ * counters that did not move since yesterday and each gets its own +1, so a
+ * human decides counter by counter (the reason carry-forward never does it).
+ * Only the digits change.
+ */
+export function bumpDayMarkerAt(body: string, found: DayMarker, days = 1): string {
+  const segment = body.slice(found.start, found.end);
+  const bumped = segment.replace(/(\d{1,3})$/, (digits) => {
+    const next = Number(digits) + days;
+    return next < 1 ? digits : String(next);
+  });
+  return body.slice(0, found.start) + bumped + body.slice(found.end);
+}
+
+/**
  * How many days apart two clinical dates are, or `null` when that is not a
  * meaningful question.
  *

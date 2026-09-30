@@ -47,7 +47,14 @@ import {
   type AiFinding,
 } from '@/domain/ai/soapReview';
 import { useMediaQuery } from '@/hooks/useMediaQuery';
-import { countDayMarker, daysBetween as dayGap, findDayMarker, findDayMarkers } from '@/domain/dayMarkers';
+import {
+  bumpDayMarkerAt,
+  countDayMarker,
+  daysBetween as dayGap,
+  findDayMarker,
+  findDayMarkers,
+  locateDayMarker,
+} from '@/domain/dayMarkers';
 import { formatLocation } from '@/domain/identity';
 import { isIgdEntry } from '@/domain/clinicalDate';
 import { insertIntoObjective } from '@/domain/lab/parseLab';
@@ -1477,6 +1484,22 @@ export default function PatientPage(): JSX.Element {
                       Tampilkan
                     </button>
                   ) : null}
+                  {finding.markers && finding.markers.length > 0 ? (
+                    <MarkerChips
+                      markers={finding.markers}
+                      onJump={(marker, index) => {
+                        const found = locateDayMarker(editor.value, marker, index);
+                        if (found) editorHandle.current?.selectRange(found.start, found.end);
+                      }}
+                      onBump={(marker, index) => {
+                        const found = locateDayMarker(editor.value, marker, index);
+                        if (!found) return;
+                        editor.markNextChange('transform');
+                        editor.setValue(bumpDayMarkerAt(editor.value, found));
+                        editorHandle.current?.selectRange(found.start, found.end + 1);
+                      }}
+                    />
+                  ) : null}
                 </li>
               ))}
             </ul>
@@ -2364,5 +2387,64 @@ function FindingTag({ level }: { level: 'isi' | 'kemarin' | 'cek' }): JSX.Elemen
     >
       {level === 'isi' ? 'Isi' : level === 'kemarin' ? 'Kemarin' : 'Cek'}
     </span>
+  );
+}
+
+/**
+ * The day counters that did not move since yesterday, one chip each, in a
+ * row that scrolls sideways: tap the counter to go to it, +1 to advance just
+ * that one. Choosing counter by counter is the point; which ones should move
+ * (an antibiotic course that ended, a post-procedure day that keeps running)
+ * is a clinical judgement, so there is no "all +1".
+ */
+function MarkerChips({
+  markers,
+  onJump,
+  onBump,
+}: {
+  markers: ReadonlyArray<{ text: string; value: number; at: number }>;
+  onJump: (marker: { text: string; at: number }, index: number) => void;
+  onBump: (marker: { text: string; at: number }, index: number) => void;
+}): JSX.Element {
+  const [bumped, setBumped] = useState<ReadonlySet<number>>(new Set());
+  // Occurrence index among counters with the same text, for relocating one
+  // after edits have moved it.
+  const occurrence = (index: number): number =>
+    markers.slice(0, index).filter((other) => other.text === markers[index]?.text).length;
+
+  return (
+    <div className="flex w-full gap-1.5 overflow-x-auto pb-1 [scrollbar-width:thin]" role="group" aria-label="Hitungan hari">
+      {markers.map((marker, index) => (
+        <span
+          key={`${marker.text}-${String(marker.at)}`}
+          className={[
+            'flex shrink-0 items-stretch overflow-hidden rounded-full border text-[11px]',
+            bumped.has(index) ? 'border-border opacity-60' : 'border-[var(--warn-strong)]',
+          ].join(' ')}
+        >
+          <button
+            type="button"
+            onClick={() => onJump(marker, occurrence(index))}
+            title="Tampilkan di catatan"
+            className="min-h-tap px-2.5 font-mono [@media(pointer:fine)]:min-h-7"
+          >
+            {bumped.has(index) ? `✓ ${marker.text.replace(/\d+$/, String(marker.value + 1))}` : marker.text}
+          </button>
+          {bumped.has(index) ? null : (
+            <button
+              type="button"
+              onClick={() => {
+                onBump(marker, occurrence(index));
+                setBumped((current) => new Set(current).add(index));
+              }}
+              aria-label={`Naikkan ${marker.text} satu hari`}
+              className="min-h-tap border-l border-[var(--warn-strong)] bg-[var(--warn-soft)] px-2 font-semibold [@media(pointer:fine)]:min-h-7"
+            >
+              +1
+            </button>
+          )}
+        </span>
+      ))}
+    </div>
   );
 }

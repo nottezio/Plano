@@ -160,3 +160,21 @@
 *::-webkit-scrollbar-corner {
   background: transparent;
 }
+
+/*
+ * Settings search (SettingsSection.tsx): a group whose sections are all
+ * hidden by the search hides its heading too, and the page says when nothing
+ * matched at all. `:has` rather than state lifted into the page, so a section
+ * stays a self-contained component.
+ */
+.settings-group:not(:has(section:not([hidden]))) {
+  display: none;
+}
+
+.settings-empty {
+  display: none;
+}
+
+.settings-list:not(:has(section:not([hidden]))) .settings-empty {
+  display: block;
+}

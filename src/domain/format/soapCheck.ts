@@ -37,6 +37,7 @@ export type SoapFindingKind =
   | 'duplicate-line'
   | 'flow-unchanged'
   | 'day-marker'
+  | 'urine-unchanged'
   | 'lab-planned-but-resulted'
   | 'diagnosis-value-stale'
   | 'consult-not-in-dpjp'
@@ -60,6 +61,12 @@ export interface SoapFinding {
   anchor?: string;
   /** Where the anchor is, when a plain search would find the wrong copy of it. */
   at?: number;
+  /**
+   * Day counters (`H-3`, `hari ke-9`), each with its own position, for a
+   * finding that is about several of them: the panel lists them one by one,
+   * each jumpable and each can be advanced by one on its own.
+   */
+  markers?: Array<{ text: string; value: number; at: number }>;
 }
 
 /**
@@ -69,6 +76,43 @@ export interface SoapFinding {
  */
 export function readVitals(body: string, aliases?: readonly SectionAlias[]): Record<string, string> {
   return { ...readVitalSigns(body, aliases).readings };
+}
+
+/**
+ * The urine output of a note: the measured volume and, when written, the
+ * rate per kg per hour, with where the line is.
+ *
+ * `readFlows` only knew `Urine … cc`. The ward also writes `Urin`, `UO`,
+ * `Produksi urin`, `Diuresis` and `BAK`, and `ml`/`mL` as often as `cc`, so
+ * an unchanged urine output written any of those ways was never reported.
+ * Compared as NUMBERS (volume, and rate when both have one), so a line that
+ * was re-typed with different spacing still counts as the same measurement.
+ */
+const URINE_LINE =
+  /^[^\S\n]*[-•*_]*[^\S\n]*(urine\s*output|produksi\s+urine?|urine?|diuresis|u\.?o|bak)\b[^\n]*$/gim;
+
+export interface UrineReading {
+  volume: number;
+  rate: number | null;
+  text: string;
+  at: number;
+}
+
+export function readUrineOutput(body: string): UrineReading | null {
+  for (const match of body.matchAll(URINE_LINE)) {
+    const line = match[0];
+    const volume = /(\d+(?:[.,]\d+)?)\s*(?:cc|ml)\b(?!\s*\/\s*kg)/i.exec(line);
+    if (!volume?.[1]) continue;
+    const rate = /(\d+(?:[.,]\d+)?)\s*(?:cc|ml)\s*\/\s*kg/i.exec(line);
+    const labelAt = line.search(/[A-Za-z]/);
+    return {
+      volume: Number(volume[1].replace(',', '.')),
+      rate: rate?.[1] ? Number(rate[1].replace(',', '.')) : null,
+      text: line.trim().replace(/\s+/g, ' '),
+      at: (match.index ?? 0) + Math.max(0, labelAt),
+    };
+  }
+  return null;
 }
 
 /**
@@ -238,9 +282,30 @@ export function checkSoap(input: SoapCheckInput): SoapFinding[] {
   }
 
   if (previous) {
+    const urine = readUrineOutput(body);
+    const urineBefore = readUrineOutput(previous);
+    if (
+      urine &&
+      urineBefore &&
+      urine.volume === urineBefore.volume &&
+      (urine.rate === null || urineBefore.rate === null || urine.rate === urineBefore.rate)
+    ) {
+      findings.push({
+        kind: 'urine-unchanged',
+        level: 'kemarin',
+        message: `Urine output sama dengan kemarin (${String(urine.volume)} cc${
+          urine.rate !== null ? `, ${String(urine.rate)} cc/kgBB/jam` : ''
+        }). Sudah diukur ulang?`,
+        anchor: body.slice(urine.at, urine.at + 4),
+        at: urine.at,
+      });
+    }
+
     const flows = readFlows(body);
     const before = readFlows(previous);
     for (const [label, value] of Object.entries(flows)) {
+      // Urine is checked above, by its numbers, under any of its names.
+      if (label === 'Urine') continue;
       if (before[label] === undefined || before[label] !== value) continue;
       findings.push({
         kind: 'flow-unchanged',
@@ -261,8 +326,12 @@ export function checkSoap(input: SoapCheckInput): SoapFinding[] {
       findings.push({
         kind: 'day-marker',
         level: 'kemarin',
-        message: `Hitungan hari belum berubah dari kemarin: ${unchanged.map((m) => m.text).join(', ')}.`,
-        ...(unchanged[0] ? anchorFor(body, unchanged[0].text) : {}),
+        message:
+          unchanged.length === 1
+            ? `Hitungan hari belum berubah dari kemarin: ${unchanged[0]?.text ?? ''}.`
+            : `${String(unchanged.length)} hitungan hari belum berubah dari kemarin. Pilih untuk melihat, +1 untuk menaikkan.`,
+        ...(unchanged[0] ? { anchor: unchanged[0].text, at: unchanged[0].start } : {}),
+        markers: unchanged.map((marker) => ({ text: marker.text, value: marker.value, at: marker.start })),
       });
     }
   }

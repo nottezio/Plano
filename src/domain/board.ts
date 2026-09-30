@@ -1,3 +1,4 @@
+import { DEFAULT_REMINDER_KINDS, activeReminders, type ActiveReminder, type ReminderKind } from './reminders';
 import { reorderWithinVisible } from './reorder';
 import { checklistProgress, resolveCardColor, type ChecklistStates } from './checklist';
 import { hariRawat } from './clinicalDate';
@@ -117,6 +118,8 @@ export interface BoardCard {
    * yesterday's mark by comparing the wrong day.
    */
   ekg: 'harian' | 'hari-ini' | null;
+  /** Daily reminders due today, with their tick; see `domain/reminders`. */
+  reminders: ActiveReminder[];
   progress: ReturnType<typeof checklistProgress>;
   /** Consultant detected from the note, for the card badge. */
   dpjp: Dpjp | null;
@@ -146,6 +149,7 @@ export function buildCard(
   items: readonly ChecklistItemDef[],
   today: ClinicalDate,
   showInitialsOnly: boolean,
+  reminderKinds: readonly ReminderKind[] = DEFAULT_REMINDER_KINDS,
 ): BoardCard {
   const states = boardTickStates(patient, items, today);
   return {
@@ -161,6 +165,7 @@ export function buildCard(
     // statement, and showing "hari ini" on a patient who needs one daily would
     // understate it.
     ekg: patient.ekgHarian === true ? 'harian' : patient.ekgFor === today ? 'hari-ini' : null,
+    reminders: activeReminders(patient, reminderKinds, today),
     progress: checklistProgress(items, states),
     // Redacted when the board is in initials-only mode. Reducing the title to
     // initials while the preview under it spells the name out in full is not

@@ -129,6 +129,8 @@ export interface UserSettings {
   timezone: string;
   /** DEFAULT `klasik`. Absent on profiles written before this existed. */
   soapLayout?: SoapLayout;
+  /** Daily reminder kinds for the board. Absent: EKG and Urine output. */
+  reminderKinds?: import('./reminders').ReminderKind[];
   /** DEFAULT 0 (midnight). Configurable — nothing may hardcode it (SPEC 9.1). */
   dayRolloverHour: number;
   checklistItems: ChecklistItemDef[];
@@ -437,6 +439,10 @@ export interface Patient {
    * patient. This is one day's decision about anybody.
    */
   ekgFor?: ClinicalDate;
+  /** Daily reminders by kind id; see `domain/reminders`. */
+  reminders?: Record<string, import('./reminders').ReminderSetting>;
+  /** Which reminders were ticked, and for which clinical day. */
+  reminderDone?: { date: ClinicalDate; ids: string[] };
   /**
    * Held temporarily — someone else's patient, covered on a shift.
    *

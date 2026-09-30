@@ -1,3 +1,6 @@
+import { useClinicalToday } from '@/hooks/useClinicalToday';
+import { toggleReminderDone, type ActiveReminder } from '@/domain/reminders';
+import { setReminderDone } from '@/data/repositories/patients.repo';
 import { useEffect, useRef, useState } from 'react';
 import { useClipboardNote } from '@/store/useClipboardNote';
 import { Link } from 'react-router-dom';
@@ -590,18 +593,9 @@ export function PatientCard({
           Word, not icon. A tracing symbol at 10px is a squiggle, and the
           reader of this badge is deciding whether to walk back with a machine.
         */}
-        {card.ekg ? (
-          <span
-            title={
-              card.ekg === 'harian'
-                ? 'EKG harian — pasien aritmia, rekam tiap hari'
-                : 'EKG hari ini — ditandai manual, hilang sendiri besok'
-            }
-            className="shrink-0 rounded-full px-1.5 py-0.5 text-[10px] font-semibold ring-1 ring-current/40"
-          >
-            {card.ekg === 'harian' ? 'EKG/hari' : 'EKG hari ini'}
-          </span>
-        ) : null}
+        {card.reminders.map((reminder) => (
+          <ReminderChip key={reminder.id} patient={card.patient} reminder={reminder} />
+        ))}
 
         {card.discharge ? <DischargeChip stage={card.discharge} /> : null}
 
@@ -1104,6 +1098,62 @@ function RmChip({
             <IconCopy width="11" height="11" className="opacity-70" />
           </>
         )}
+      </span>
+    </button>
+  );
+}
+
+/**
+ * One daily reminder on the card, tickable for today.
+ *
+ * Replaces the EKG badge, which could only say "needed": a tracing done at
+ * 07.00 still said "EKG hari ini" at 13.00, so the badge was either ignored
+ * or re-checked. Now the chip is ticked when it is done and reads as done
+ * (✓, dimmed) until the clinical day changes, when a standing reminder is
+ * due again by itself.
+ *
+ * Amber while due: a thing to do, not an alarm (danger) and not a selection
+ * (accent).
+ */
+function ReminderChip({
+  patient,
+  reminder,
+}: {
+  patient: BoardCard['patient'];
+  reminder: ActiveReminder;
+}): JSX.Element {
+  const today = useClinicalToday();
+  return (
+    <button
+      type="button"
+      aria-pressed={reminder.done}
+      title={`${reminder.label} ${reminder.mode === 'harian' ? 'setiap hari' : 'hari ini'}. Ketuk untuk ${reminder.done ? 'membatalkan tanda selesai' : 'menandai selesai'}.`}
+      onPointerDown={(event) => event.stopPropagation()}
+      onContextMenu={(event) => event.stopPropagation()}
+      onClick={(event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        void setReminderDone(patient.id, toggleReminderDone(patient.reminderDone, reminder.id, today)).catch(
+          (error: unknown) => console.error('[card] reminder tick rejected', error),
+        );
+      }}
+      className={[
+        '-my-2 flex min-h-tap shrink-0 items-center [@media(pointer:fine)]:min-h-0 [@media(pointer:fine)]:my-0',
+      ].join(' ')}
+    >
+      <span
+        className={[
+          'inline-flex items-center gap-1 rounded-full border px-1.5 py-0.5 text-[10px] font-semibold',
+          reminder.done
+            ? 'border-[var(--border-strong)] bg-[var(--accent-soft)] text-fg-muted'
+            : 'border-[var(--warn-strong)] bg-[var(--warn-soft)] text-fg',
+        ].join(' ')}
+      >
+        <span aria-hidden="true" className={reminder.done ? 'text-accent' : ''}>
+          {reminder.done ? '✓' : '○'}
+        </span>
+        {reminder.label}
+        {reminder.mode === 'harian' ? <span className="font-normal opacity-70">/hari</span> : null}
       </span>
     </button>
   );

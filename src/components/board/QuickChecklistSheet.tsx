@@ -2,6 +2,7 @@ import { cardTitle } from '@/domain/board';
 import { useSession } from '@/store/useSession';
 import { Sheet } from '@/components/common/Sheet';
 import { ProgressStrip } from './ProgressStrip';
+import { ReminderPicker } from '@/components/patient/ReminderPicker';
 import { useChecklist } from '@/hooks/useChecklist';
 import { activeItems, isDone } from '@/domain/checklist';
 import type { ChecklistItemDef, ClinicalDate, Patient } from '@/domain/types';
@@ -37,7 +38,7 @@ export function QuickChecklistSheet({
       open
       onOpenChange={onOpenChange}
       title={cardTitle(patient, initialsOnly, false)}
-      description="Checklist hari ini"
+      description="Checklist dan pengingat hari ini"
     >
       <ul className="space-y-2">
         {activeItems(items).map((item) => {
@@ -77,6 +78,13 @@ export function QuickChecklistSheet({
         <p className="mt-1.5 text-[11px] text-fg-muted">
           {checklist.progress.doneCount}/{checklist.progress.total} selesai
         </p>
+      </div>
+
+      {/* Reminders are set from the board too, not only from the patient's
+          ⋯ sheet: they are a board thing (a chip on the card), and a long
+          press is the board's way to act on one patient without opening it. */}
+      <div className="mt-4">
+        <ReminderPicker patient={patient} today={today} />
       </div>
     </Sheet>
   );

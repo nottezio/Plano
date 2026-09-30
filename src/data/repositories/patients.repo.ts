@@ -30,6 +30,7 @@ import { konsulPreview } from '@/domain/konsulReply';
 import { parseSections } from '@/domain/sections/parseSections';
 import { DEFAULT_SECTION_ALIASES } from '@/domain/sections/aliases';
 import type { SectionAlias } from '@/domain/types';
+import type { ReminderSetting } from '@/domain/reminders';
 import {
   checklistCol,
   entriesCol,
@@ -447,6 +448,47 @@ export function updatePatient(
   }
 
   return trackWrite(updateDoc(patientDoc(patientId), payload));
+}
+
+/**
+ * Set one daily reminder on a patient: one leaf, `reminders.<kind>`, so two
+ * reminders set in quick succession (or from two devices) never overwrite
+ * each other. Setting the EKG kind also clears the legacy `ekgHarian` /
+ * `ekgFor`, which would otherwise keep the old badge alive underneath.
+ */
+export function setPatientReminder(
+  patientId: string,
+  kindId: string,
+  setting: ReminderSetting,
+): Promise<void> {
+  const legacy: unknown[] =
+    kindId === 'ekg' ? [new FieldPath('ekgHarian'), deleteField(), new FieldPath('ekgFor'), deleteField()] : [];
+  return trackWrite(
+    updateDoc(
+      patientDoc(patientId),
+      new FieldPath('reminders', kindId),
+      setting,
+      ...legacy,
+      new FieldPath('updatedAt'),
+      serverTimestamp(),
+      new FieldPath('updatedBy'),
+      getDeviceId(),
+    ),
+  );
+}
+
+/** Today's reminder ticks, written whole (a small list for one day). */
+export function setReminderDone(
+  patientId: string,
+  done: { date: ClinicalDate; ids: string[] },
+): Promise<void> {
+  return trackWrite(
+    updateDoc(patientDoc(patientId), {
+      reminderDone: done,
+      updatedAt: serverTimestamp(),
+      updatedBy: getDeviceId(),
+    }),
+  );
 }
 
 /**

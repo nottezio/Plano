@@ -22,6 +22,7 @@ hits=$(grep -rnE "$PATTERN" . \
         --exclude=package-lock.json \
         --exclude=SPEC.md \
         --exclude=CHANGES.md \
+        --exclude=CHANGELOG.md \
         --exclude=check-version.sh \
         | grep -vE '^\./src/version\.js:' || true)
 

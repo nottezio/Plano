@@ -1,5 +1,115 @@
 # Plano — CHANGES
 
+## `2026-09-30.1`
+
+**Daily reminders on the patient card (EKG, urine output, your own), ticked
+off from the board. Every unchanged day counter in Periksa lagi is its own
+chip with +1. Periksa lagi catches an unchanged urine output however it is
+written. Settings has search and a jump bar. An in-app changelog.**
+
+### 1. Day counters: one chip each, +1 each
+
+**Before.** One finding listed every unchanged counter in a sentence
+("H-3, POD-2, hari ke-9") with one Tampilkan, to the first. Getting to the
+third meant finding it by eye, and advancing one meant typing.
+
+**Now.** The finding carries each counter with its position (`markers`).
+The panel shows a horizontally scrolling row of chips: tap a chip to select
+that counter in the note, tap **+1** to advance only that one.
+- `locateDayMarker` finds the counter again at its recorded position, or,
+  if typing has moved it, the n-th counter with the same text.
+  `bumpDayMarkerAt` changes only its digits.
+- The +1 is a `transform` change, so it is one undo step.
+- Test: advancing one of three counters leaves the other two untouched.
+
+### 2. Unchanged urine output
+
+**Root cause.** The copied-forward check (`readFlows`) knew urine only as a
+line starting `Urine` with a number followed by `cc`, compared as a string.
+The ward also writes `Urin`, `UO`, `Produksi urin`, `Diuresis` and `BAK`,
+`ml` as often as `cc`, and adds a rate (`1,2 cc/kgBB/jam`). Any of those
+forms was never reported, and a re-spaced line counted as "changed".
+
+**Fix.** `readUrineOutput` reads the first urine line under any of those
+names: the volume (a number with cc/ml, NOT followed by `/kg`) and the rate
+(cc/ml per kg), as numbers. `urine-unchanged` fires when the volume is equal
+and the rate is equal or missing on either side. Tampilkan lands on the
+label. `readFlows` no longer reports urine, so there is no double finding;
+balance is unchanged. Five ward formats are tested, plus the anchor.
+
+### 3. Daily reminders (pengingat harian)
+
+A patient can have reminders that show as chips on the board card: **EKG**
+and **Urine output** by default, plus any kind added in Pengaturan →
+Pengingat harian (rename, reorder, remove).
+- Per patient and per kind: Tidak / Hari ini / Setiap hari. Set from a long
+  press on the card (the quick sheet now has the picker under the
+  checklist) or from the patient's ⋯ sheet. "Hari ini" stores the date,
+  so it expires by itself.
+- **Tap the chip to tick it.** The tick stores the clinical date, so it
+  clears itself tomorrow and a standing reminder is due again. Amber while
+  due, ✓ on a soft accent when done.
+- Stored as `reminders.<kind>` (one field path per kind, so two devices
+  setting different kinds do not overwrite each other) and
+  `reminderDone {date, ids}`. The old EKG badge's `ekgHarian`/`ekgFor` are
+  still read for the `ekg` kind and are deleted the first time EKG is set
+  through the new picker, so no card lost its mark in the upgrade.
+- Removing a kind in Settings hides it; patients' settings stay, and adding
+  it back under the same name restores them.
+
+### 4. Settings revamp
+
+- **Search** at the top (pinned while scrolling): matches the start of any
+  word in a section's title, description or keywords ("pin", "gelap",
+  "reset", "pengingat"). Matching sections open; groups with no match hide
+  (CSS `:has`, so each section stays self-contained); "no match" is said.
+- **Jump bar:** one chip per group; the Akun & aplikasi chip has a dot
+  when there is an unread changelog.
+- **Six groups instead of four headings plus stray sub-headings:** Tampilan
+  · Papan & harian · Format laporan · Privasi & data · Lanjutan · Akun &
+  aplikasi. The old page rendered two group headings in a row in three
+  places.
+- Bigger targets: section headers have a chevron in a 28 px circle,
+  switches are 48×28 and each Toggle row is 44 px tall. Focus rings on
+  both. Setel ulang is collapsible now, so the danger button is one more
+  tap away.
+
+### 5. In-app changelog (Pengaturan → Yang baru)
+
+- Source: **`CHANGELOG.md`** at the root, short and in Indonesian, one
+  bullet per change. CHANGES.md stays the engineering record; at 300 kB of
+  English it does not belong in the bundle.
+- Loaded as a separate chunk (`?raw`, dynamic import) only when the
+  section opens; the service worker precaches it, so it works offline.
+- The newest four releases show, "Tampilkan N pembaruan sebelumnya" for
+  the rest. The running version is marked "Versi ini".
+- "Baru" badge (and the dot in the jump bar) until the section has been
+  opened once on this device (localStorage, per device).
+- `check-version.sh` excludes CHANGELOG.md like CHANGES.md: it is prose
+  history. **A test fails when the newest CHANGELOG entry is not
+  `APP_VERSION`**, so a release cannot pass `verify` without a user-facing
+  entry.
+
+### Wrong turns
+
+- Search matched substrings first: "pin" found "Tata letak" (in
+  "sam**pin**g") before Privasi. Now prefix of a word.
+- The reminder `ReminderPicker` lived inside PatientActionsSheet; moved to
+  its own file when it was added to the long-press sheet.
+- The done chip was `text-fg-faint line-through`, near-invisible on the
+  dark card. Now muted text on `--accent-soft` with a ✓ in accent.
+
+### Not done
+
+- No reminder list or filter on the board ("who still needs an EKG
+  today") — the chips are per card only.
+- The changelog "seen" mark is per device, not per account.
+
+```
+1708 tests passed (+15)
+typecheck / lint (0 warnings) / check:version / check:contrast / check:a11y / build — clean
+```
+
 ## `2026-09-29.8`
 
 **Opening lines corrected for konsul KJS and konsul kelayakan. Pembuka no

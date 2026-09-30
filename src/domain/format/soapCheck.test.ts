@@ -252,6 +252,7 @@ describe('urine and balance', () => {
     // Measured on the 2026-09-11 export: urine repeats in 13 of 41 consecutive
     // pairs, balance in 12 of 30 — roughly a third of the time, against 5 of
     // 94 for the whole vitals block.
+    expect(kinds(yesterday, yesterday)).toContain('urine-unchanged');
     expect(kinds(yesterday, yesterday)).toContain('flow-unchanged');
   });
 
@@ -482,5 +483,28 @@ describe('readVitals ignores investigations', () => {
     const body = '*O:*\nTekanan Darah : 120/80 mmHg\n\n*EKG (29-09-2026)*\nSR, HR 70 bpm\n\n*A:*\n- x';
     expect(readVitals(body)['Nadi']).toBeUndefined();
     expect(readVitals(body)['Tekanan darah']).toBe('120/80');
+  });
+});
+
+describe('urine output unchanged, written any usual way (2026-09-30)', () => {
+  const base = 'Tekanan Darah : 120/80\nNadi : 80\nSuhu : 36.5';
+  it.each([
+    'UO 1500 ml/24 jam',
+    'Urin : 1200 cc/24 jam',
+    '- Produksi urin 800 mL / 12 jam',
+    'Diuresis 2000cc/24jam = 1,2 cc/kgBB/jam',
+    'BAK 900 cc',
+  ])('flags "%s" copied unchanged, and not once the number changes', (line) => {
+    const note = `${base}\n${line}`;
+    expect(kinds(note, note)).toContain('urine-unchanged');
+    const changed = note.replace(/(\d+)(\s*(?:cc|ml|mL))/, (_, n: string, unit: string) => `${String(Number(n) + 100)}${unit}`);
+    expect(kinds(changed, note)).not.toContain('urine-unchanged');
+  });
+
+  it('points Tampilkan at the urine line', async () => {
+    const { checkSoap } = await import('./soapCheck');
+    const note = `${base}\nUO 1500 ml/24 jam`;
+    const finding = checkSoap({ body: note, previous: note }).find((f) => f.kind === 'urine-unchanged');
+    expect(note.slice(finding!.at!, finding!.at! + 2)).toBe('UO');
   });
 });
