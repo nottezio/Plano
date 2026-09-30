@@ -30,28 +30,35 @@ export interface UrineOutputResult {
 /**
  * Bands are for orientation, not diagnosis.
  *
- * Corrected against the sources: **≥0.5 ml/kg/h is adequate** in an adult, so
- * the old 0.5–1.0 band labelled "Rendah" was wrong — it called a normal output
- * low. KDIGO uses <0.5 for AKI stages 1–2 and <0.3 for stage 3, which is why
- * 0.3 is a band of its own.
+ * OLIGURIA by RATE, from KDIGO 2012 (AKI guideline, urine-output criteria):
+ * < 0.5 ml/kg/h for 6–12 h is stage 1, for >= 12 h stage 2; < 0.3 ml/kg/h
+ * for >= 24 h (or anuria >= 12 h) stage 3. So < 0.3 is a band of its own.
+ * Staging is NOT attempted: it depends on how long the rate has persisted,
+ * which one collection cannot establish.
  *
- * Staging is deliberately NOT attempted: it depends on how long the rate has
- * persisted (6h, 12h, 24h), and a single collection cannot establish that. The
- * band is a word, never a colour alone and never advice.
+ * POLYURIA by VOLUME, > 3 L per 24 h in an adult (Merck Manual; the usual
+ * definition). It used to be a rate above 3.0 ml/kg/h, which is not a
+ * published threshold: at 60 kg that is 4.3 L/day, so 3–4.3 L/day was called
+ * "Cukup". A shorter collection is projected to 24 h.
  */
-function bandFor(rate: number): UrineOutputResult['band'] {
+function bandFor(rate: number, perDayMl: number): UrineOutputResult['band'] {
   if (rate < 0.3) return 'severe';
   if (rate < 0.5) return 'oliguria';
-  if (rate <= 3) return 'normal';
-  return 'high';
+  if (perDayMl > 3000) return 'high';
+  return 'normal';
 }
 
 export const BAND_LABELS: Record<UrineOutputResult['band'], string> = {
-  severe: 'Oliguria berat (<0.3)',
-  oliguria: 'Oliguria (<0.5)',
-  normal: 'Cukup (0.5–3.0)',
-  high: 'Poliuria (>3.0)',
+  severe: 'Oliguria berat (< 0.3 cc/kgbb/jam)',
+  oliguria: 'Oliguria (< 0.5 cc/kgbb/jam)',
+  normal: 'Bukan oliguria (≥ 0.5 cc/kgbb/jam)',
+  high: 'Poliuria (> 3 L/24 jam)',
 };
+
+export const URINE_OUTPUT_SOURCES = [
+  'KDIGO Clinical Practice Guideline for Acute Kidney Injury. Kidney Int Suppl 2012;2:1–138 — kriteria urine output: < 0.5 cc/kgbb/jam 6–12 jam (stage 1), ≥ 12 jam (stage 2); < 0.3 cc/kgbb/jam ≥ 24 jam atau anuria ≥ 12 jam (stage 3).',
+  'Poliuria: > 3 L/24 jam pada dewasa (Merck Manual Professional, Polyuria).',
+];
 
 function round(value: number, places: number): number {
   const factor = 10 ** places;
@@ -72,13 +79,15 @@ export function calculateUrineOutput(input: UrineOutputInput): UrineOutputResult
     it, or 3 when 2 would round across a band boundary, so the number and
     the band never disagree.
   */
+  const perDayMl = Math.round((volumeMl / hours) * 24);
   const twoPlaces = round(exact, 2);
-  const rate = bandFor(twoPlaces) === bandFor(exact) ? twoPlaces : round(exact, 3);
+  const rate =
+    bandFor(twoPlaces, perDayMl) === bandFor(exact, perDayMl) ? twoPlaces : round(exact, 3);
 
   return {
     rate,
-    perDayMl: Math.round((volumeMl / hours) * 24),
-    band: bandFor(exact),
+    perDayMl,
+    band: bandFor(exact, perDayMl),
     line: `Urine output ${volumeMl} cc/${round(hours, 2)} jam/${round(weightKg, 1)}kg: ${rate} cc/kgbb/jam`,
   };
 }

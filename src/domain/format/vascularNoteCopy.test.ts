@@ -19,7 +19,7 @@ import { DEFAULT_SECTION_ALIASES as ALIASES } from '../defaults';
 const NOTE = [
   'Assalamualaikum wr wb. Tabe prof, mohon izin melaporkan follow up pasien di *PJT lantai 4 kamar 420 bed 6 atas nama :',
   '',
-  '*Tn. Irwan / 04-10-1984 / 41 tahun / RM 1661366*',
+  '*Tn. Contoh / 01-01-1980 / 41 tahun / RM 1234567*',
   '',
   '_DPJP : Prof. Dr. dr. Idar Mappangara, Sp.PD, FINASIM, Sp.JP(K), FIHA_',
   '',
@@ -79,7 +79,7 @@ describe('Salin bagian on a vascular note', () => {
     for (const group of ['s', 'o', 'a', 'terapi', 'plan'] as const) {
       const out = slice(group);
       expect(out).not.toContain('Assalamualaikum');
-      expect(out).not.toContain('RM 1661366');
+      expect(out).not.toContain('RM 1234567');
       expect(out).not.toContain('Idar Mappangara');
     }
   });

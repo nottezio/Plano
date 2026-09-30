@@ -165,34 +165,10 @@ export function replaceClosing(body: string, closing: string): string {
 }
 
 /**
- * Swap every `dokter`/`dok` for `Prof`, or back.
- *
- * A consultant addressed as Prof is addressed that way throughout — greeting,
- * opening sentence and closing — and getting one of the three wrong in a
- * message to a professor reads as carelessness. Doing it by hand means three
- * edits and remembering all three.
- *
- * Case is preserved, so `Dokter` becomes `Prof` and `dokter` becomes `prof`.
- * `Dr.` and `dr.` are left alone: those are titles inside a DPJP name, not a
- * form of address.
- *
- * Named `toProfForm`, not `useProfForm`. These are pure string functions, but
- * the `use` prefix is reserved by React's naming convention — the linter read
- * them as hooks called inside an onClick and flagged two errors, and any human
- * reading `onClick={() => onApply(useProfForm(body))}` would wonder the same
- * thing. "Use the Prof form of address" is correct English and the wrong name.
+ * The Prof/dokter swap lives in `address.ts`, which knows a vocative from a
+ * title. Re-exported so existing imports keep working.
  */
-export function toProfForm(body: string): string {
-  return body
-    .replace(/\bDokter\b/g, 'Prof')
-    .replace(/\bdokter\b/g, 'prof')
-    .replace(/\bDok\b/g, 'Prof')
-    .replace(/\bdok\b/g, 'prof');
-}
-
-export function toDokterForm(body: string): string {
-  return body.replace(/\bProf\b/g, 'dokter').replace(/\bprof\b/g, 'dokter');
-}
+export { toDokterForm, toProfForm } from './address';
 
 /**
  * Tokens in a stored greeting or opening sentence that resolve to the clock

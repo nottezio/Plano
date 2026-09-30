@@ -1,5 +1,113 @@
 # Plano — CHANGES
 
+## `2026-10-01.1`
+
+**The Prof/dokter swap no longer rewrites DPJP titles, and the Ringkas
+closing follows the note's own address. The calculators are regrouped, each
+with its references; a unit converter is added; the polyuria band follows
+the published definition. The board-card note is reimplemented as a
+fixed strip plus a floating panel.**
+
+### 1. "Ganti ke dokter" changed DPJP titles
+
+**Root cause.** `toDokterForm` replaced every `\bProf\b` in the whole body,
+and `toProfForm` every `dokter`/`dok`. The functions had no notion of
+*address* (a vocative: "Tabe Prof", "Terima kasih dokter") versus *title*
+(a word before a name: "Prof. Dr. dr. X"). So `_DPJP : Prof. Dr. dr. X_`
+became `dokter. Dr. dr. X`, and a plan item `- Konsul dokter anestesi`
+became `- Konsul prof anestesi`.
+
+**Fix.** New `domain/address.ts`:
+- Only the **opening paragraph** (first non-empty lines up to a blank line,
+  max 3) and the **closing line** (last line, when it reads as a sign-off)
+  are rewritten. The clinical body is never touched.
+- Within them, `Prof` followed by `dr`/`Dr`/`drg` is a title and kept, and
+  any line containing `DPJP` is skipped.
+- `Prof` → `Dokter` at a sentence start, `dokter` elsewhere; case kept the
+  other way.
+- `opening.ts` re-exports the new functions, so the sheet is unchanged.
+  Its help text now says what is and isn't touched.
+- Test: prof → dokter round-trips a note with a TS professor, a DPJP
+  professor and a plan mentioning "dokter" back to the identical text.
+
+### 2. Ringkas closing turned to "Prof" on a note written to "dokter"
+
+**Root cause.** Two faults combined:
+- `closingFrom` kept the note's own closing only when it matched one of the
+  configured closing sentences. Any other wording fell through to a
+  generated fallback.
+- The fallback chose its address with `/\bprof\b/i` over the whole opening
+  block, which includes the opening line's TS/konsulen name and the
+  identity/DPJP lines. A "Prof. dr. …" anywhere there signed the report
+  off to "Prof".
+
+**Fix.**
+- `closingFrom` also keeps a last line that reads as a sign-off
+  (`isClosingLine`: thanks or "arahan", not bulleted).
+- The fallback uses `noteAddress`: the vocative in the closing, else in the
+  opening paragraph, ignoring titles and DPJP lines; "dokter" by default.
+- Tests: a Prof TS in the opening line stays "dokter"; an unlisted closing
+  is kept verbatim.
+
+### 3. Calculators
+
+- **Revamp:** groups (Ginjal & cairan · Elektrolit · Konversi satuan · Alat
+  lain) with a sticky jump bar, and two columns from `md`. Every card has
+  the same shell: title, formula, inputs, a result block with "Salin baris",
+  and a "Rujukan" list. Results appear only once every field is typed
+  (urine output and sodium correction had the `Number('') = 0` fault too).
+- **Unit converter** (`domain/calc/units.ts`): Ureum ↔ BUN ↔ mmol/L,
+  creatinine mg/dL ↔ µmol/L, glucose mg/dL ↔ mmol/L. Every factor is
+  derived from a molar mass (urea 60.06, urea N 28.014, creatinine 113.12,
+  glucose 180.16), so ureum/BUN = 2.144.
+- **References audit:**
+
+| Calculator | Checked against | Result |
+|---|---|---|
+| Urine output — oliguria | KDIGO AKI 2012 (< 0.5 for 6–12 h; < 0.3 for ≥ 24 h) | Correct; the stages are now quoted on the card |
+| Urine output — polyuria | Merck Manual: > 3 L/day in adults | **Wrong:** it was a rate > 3.0 ml/kg/h (4.3 L/day at 60 kg), not a published threshold. Now > 3 L per 24 h, a shorter collection projected to 24 h |
+| Sodium correction | Katz NEJM 1973 (1.6); Hillier Am J Med 1999 (2.4) | Correct; citations on the card |
+| Osmolality | 2Na + glu/18 + BUN/2.8; effective per the 2024 consensus; Spasovski 2014 | Correct since 09-30.3; citations expanded |
+
+### 4. Board-card note
+
+**Root cause.** Opening a note grew it **in place** and asked the layout to
+make room: two columns in masonry, an uncapped height on the canvas. The
+canvas places cards where the user put them, so nothing moves, and the
+opened note painted over the card below. Its fill (`--warn-soft`, 25–33 %
+alpha) let that card's text show through, which gave the two
+interleaved texts in the screenshot.
+
+**Fix.**
+- The strip on the card is fixed: two lines (`line-clamp-2`), plus
+  "+N baris · ketuk untuk membaca" when there are more.
+- Tapping opens `NotePopover`: portalled to `body`, fixed-positioned under
+  the strip (above it when there's more room), opaque `bg-surface`,
+  shadowed, max-height from the available room with its own scroll. It
+  closes on outside tap or Escape.
+- Removed from the board: `notesClosed` persistence, the
+  `noteExpanded`/`onToggleNote` props, and the canvas "note" uncap. The
+  board never relays out for a note, and a card's measured height no longer
+  depends on it.
+
+### Also
+
+- Test fixtures still carried a real-looking name, date of birth and RM
+  from an old note (`vascularNoteCopy`, `parseLab`, `pdfReport`, `board`
+  tests). They are anonymised.
+
+### Not done
+
+- `CanvasBoard` still has the `'note'` uncap branch (`hMaxWithNote`),
+  which is now unreachable. It is left in place to keep this change out of
+  the canvas sizing code.
+- The note panel is read-only; editing stays on the patient page.
+
+```
+1729 tests passed (+18)
+typecheck / lint (0 warnings) / check:version / check:contrast / check:a11y / build — clean
+```
+
 ## `2026-09-30.3` — osmolality cut-offs
 
 **The osmolality card labels its results against published cut-offs, each

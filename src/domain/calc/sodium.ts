@@ -138,6 +138,9 @@ export function readTotal(
   return { tone: 'normal', label: `Normal (${span})` };
 }
 
-export const OSMOLALITY_SOURCES =
-  'Normal total 275–295 mOsm/kg · Hipotonik < 275 (Spasovski, Eur J Endocrinol 2014) · ' +
-  'HHS: efektif > 300 atau total > 320 (Umpierrez, Diabetes Care 2024)';
+export const OSMOLALITY_SOURCES: readonly string[] = [
+  'Rumus: 2·Na + glukosa/18 + BUN/2.8 (mg/dL); ureum ÷ 6 karena urea 60 g/mol vs nitrogen urea 28 g/mol. Osmolalitas efektif = 2·Na + glukosa/18 (Umpierrez et al., Diabetes Care 2024;47:1257–75).',
+  'Hipotonik: osmolalitas < 275 mOsm/kg (Spasovski et al., Clinical practice guideline on hyponatraemia, Eur J Endocrinol 2014;170:G1–47; didefinisikan pada osmolalitas terukur).',
+  'HHS: osmolalitas efektif > 300 atau total > 320 mOsm/kg, dengan glukosa ≥ 600 mg/dL (Umpierrez et al., Diabetes Care 2024).',
+  'Rentang normal total 275–295 mOsm/kg (rentang lazim; dapat diganti di Pengaturan → Rentang rujukan lab).',
+];

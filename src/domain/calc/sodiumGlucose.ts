@@ -79,3 +79,8 @@ export function formatSodiumCorrection(
     `Na terkoreksi ${result.katz} (Katz 1.6) / ${result.hillier} (Hillier 2.4) mmol/L`,
   ].join('\n');
 }
+
+export const SODIUM_GLUCOSE_SOURCES: readonly string[] = [
+  'Katz MA. Hyperglycemia-induced hyponatremia — calculation of expected serum sodium depression. N Engl J Med 1973;289:843–4 (1.6 mmol/L per 100 mg/dL di atas 100).',
+  'Hillier TA, Abbott RD, Barrett EJ. Hyponatremia: evaluating the correction factor for hyperglycemia. Am J Med 1999;106:399–403 (2.4 mmol/L per 100 mg/dL; lebih sesuai pada glukosa > 400 mg/dL).',
+];

@@ -284,7 +284,7 @@ describe('closing sentence', () => {
 
 describe('the closing addresses whoever the note addresses', () => {
   const NOTE = (greeting: string): string =>
-    [greeting, '', '*Tn. Irwan / 04-10-1984 / 41 tahun / RM 1661366*', '', '*A:*', '- CLTI'].join(
+    [greeting, '', '*Tn. Contoh / 01-01-1980 / 45 tahun / RM 000002*', '', '*A:*', '- CLTI'].join(
       '\n',
     );
 
@@ -308,6 +308,21 @@ describe('the closing addresses whoever the note addresses', () => {
       { ...OPTIONS, closings: [] },
     );
     expect(output.trimEnd().endsWith('Terima kasih dokter')).toBe(true);
+  });
+
+  it('a Prof TITLE in the opening line does not make it a Prof note (AFG, 2026-10-01)', () => {
+    // The opening names a TS professor; the note is written to "dokter".
+    const output = composePdfReport(
+      NOTE('Tabe dokter, mohon izin melaporkan konsul dari *TS Bedah (Prof. dr. Contoh, Sp.B)*'),
+      { ...OPTIONS, closings: [] },
+    );
+    expect(output.trimEnd().endsWith('Terima kasih dokter')).toBe(true);
+  });
+
+  it('keeps a closing that is not in the configured list, verbatim', () => {
+    const body = [NOTE('Tabe dokter'), '', 'Mohon arahannya dokter, terima kasih banyak'].join('\n');
+    const output = composePdfReport(body, { ...OPTIONS, closings: [] });
+    expect(output.trimEnd().endsWith('Mohon arahannya dokter, terima kasih banyak')).toBe(true);
   });
 
   it('reads only the opening, never a plan item', () => {

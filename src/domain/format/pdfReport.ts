@@ -1,6 +1,7 @@
 import { mergeSections, parseSections } from '../sections/parseSections';
 import { formatBody, type BulletStyle } from './formatters';
 import { findOpeningLine } from '../opening';
+import { isClosingLine, noteAddress } from '../address';
 import type { DpjpReportConfig, OutputFormat, SectionAlias } from '../types';
 
 /**
@@ -28,36 +29,20 @@ import type { DpjpReportConfig, OutputFormat, SectionAlias } from '../types';
 const FALLBACK_CLOSING = 'Selanjutnya mohon arahan dokter.  Terima kasih dokter';
 
 /**
- * The honorific the note itself addresses, for the fallback closing.
+ * The fallback closing, addressed the way the note addresses its reader.
  *
- * A note that opens `Assalamualaikum wr wb. Tabe prof …` and is signed off
- * `Terima kasih dokter` is addressing two different people in one message. The
- * fallback was a fixed string, so every report for a Prof ended that way
- * whenever the note's own closing was not one of the configured sentences.
- *
- * Read from the OPENING BLOCK — the text above the first clinical heading,
- * via the same `openingBlock` this file already uses for the report header.
- *
- * Not "the first few lines". `- Lapor Prof besok pagi` is a plan item, and a
- * note with no greeting at all would have had that read as its salutation and
- * signed the report off to a Prof who was never being addressed. Below the
- * first heading, "Prof" is as likely to be a consultant mentioned in passing
- * as the person being written to; the opening is the one place the note says
- * who it is for.
- *
- * Two forms rather than a general title parser. `Prof` and `dokter` are what
- * the corpus uses, and inventing a rule for titles nobody writes would be
- * guessing at text that goes out under the resident's name.
+ * This used to test `/\bprof\b/` against the whole opening block, which
+ * holds the identity, TS and DPJP lines. A consultant or TS named
+ * `Prof. dr. …` there made a note written to "dokter" sign off to "Prof"
+ * (reported 2026-10-01 on AFG's Ringkas). `noteAddress` reads only the
+ * vocatives of the opening paragraph and the closing, never a title or a
+ * DPJP line.
  */
-function honorificFrom(body: string, aliases: readonly SectionAlias[]): string {
-  return /\bprof\b/i.test(openingBlock(body, aliases)) ? 'Prof' : 'dokter';
-}
-
-function fallbackClosing(body: string, aliases: readonly SectionAlias[]): string {
-  const honorific = honorificFrom(body, aliases);
-  return honorific === 'dokter'
+function fallbackClosing(body: string): string {
+  const form = noteAddress(body);
+  return form === 'dokter'
     ? FALLBACK_CLOSING
-    : `Selanjutnya mohon arahan ${honorific}.  Terima kasih ${honorific}`;
+    : `Selanjutnya mohon arahan ${form}.  Terima kasih ${form}`;
 }
 
 /**
@@ -83,7 +68,10 @@ function closingFrom(body: string, closings: readonly string[]): string | null {
       // usually carries.
       return target.length > 0 && (flat === target || flat.startsWith(target));
     });
-    return matches ? line : null;
+    // The configured sentences first; otherwise any last line that reads
+    // as a sign-off (thanks, a request for direction, not bulleted). A note
+    // closing in words not on the list used to lose them to the fallback.
+    return matches || isClosingLine(line) ? line : null;
   }
   return null;
 }
@@ -287,7 +275,7 @@ export function composePdfReport(body: string, options: PdfReportOptions): strin
 
   // The note's own words when it has them: this report is addressed to a
   // specific consultant, and they are not all called "dokter".
-  parts.push(closingFrom(body, options.closings ?? []) ?? fallbackClosing(body, options.aliases));
+  parts.push(closingFrom(body, options.closings ?? []) ?? fallbackClosing(body));
 
   return formatBody(
     parts.join('\n').replace(/\n{3,}/g, '\n\n').trim(),

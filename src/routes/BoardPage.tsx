@@ -233,34 +233,8 @@ export default function BoardPage(): JSX.Element {
    */
   const [previewIds, setPreviewIds] = useState<string[]>([]);
 
-  /**
-   * Which cards have their standing note open.
-   *
-   * Held here rather than inside each card because an open note makes the
-   * card's grid cell span two columns, and the cell belongs to this grid. A
-   * card holding the flag privately would be wide while its container thought
-   * it was narrow.
-   *
-   * Tracked as which notes are CLOSED, so the default is open. A note exists
-   * because somebody wrote down what to do with this patient; one that has to
-   * be opened to be read is one nobody reads, and the empty set is the right
-   * starting point rather than a list built by scanning the cards.
-   *
-   * Remembered per device. It used not to be, on the reasoning that closing
-   * a note is a "crowding the board right now" act; in use it is a standing
-   * choice about that patient, and having to close the same note again after
-   * every reload is the app forgetting something you told it.
-   */
-  const [notesClosed, toggleNote] = usePersistentIdSet('visite.board.notesClosed');
-
-  /** Cards folded to name and DPJP. Remembered the same way. */
+  /** Cards folded to name and DPJP, remembered per device. */
   const [cardsFolded, toggleFolded] = usePersistentIdSet('visite.board.cardsFolded');
-  const noteOpen = useCallback(
-    (patient: { id: string; notes: string }) =>
-      patient.notes.trim().length > 0 && !notesClosed.has(patient.id),
-    [notesClosed],
-  );
-
   const [selecting, setSelecting] = useState(false);
   const [selected, setSelected] = useState<ReadonlySet<string>>(new Set());
 
@@ -885,8 +859,9 @@ export default function BoardPage(): JSX.Element {
               isUncapped={(id) => {
                 if (noteIdFromCanvasId(id) !== null) return false;
                 if (cardsFolded.has(id)) return 'folded';
-                const card = cards.find((entry) => entry.patient.id === id);
-                return card && noteOpen(card.patient) ? 'note' : false;
+                // A note never uncaps a card any more: it opens in a
+                // floating panel (PatientCard → NotePopover).
+                return false;
               }}
               renderItem={(id, { fitHeight, onHeightBounds, maxPreviewLines }) => {
                 const noteId = noteIdFromCanvasId(id);
@@ -910,8 +885,6 @@ export default function BoardPage(): JSX.Element {
                     fitHeight={fitHeight}
                     onHeightBounds={onHeightBounds}
                     maxPreviewLines={maxPreviewLines}
-                    noteExpanded={noteOpen(card.patient)}
-                    onToggleNote={toggleNote}
                     collapsed={cardsFolded.has(card.patient.id)}
                     onToggleCollapsed={toggleFolded}
                     onLongPress={setQuickPatientId}
@@ -963,8 +936,6 @@ export default function BoardPage(): JSX.Element {
                     <MasonryItem key={card.patient.id}>
                     <PatientCard
                       card={card}
-                      noteExpanded={noteOpen(card.patient)}
-                      onToggleNote={toggleNote}
                       collapsed={cardsFolded.has(card.patient.id)}
                       onToggleCollapsed={toggleFolded}
                       onLongPress={setQuickPatientId}

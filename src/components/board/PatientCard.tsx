@@ -1,7 +1,8 @@
 import { useClinicalToday } from '@/hooks/useClinicalToday';
 import { toggleReminderDone, type ActiveReminder } from '@/domain/reminders';
 import { setReminderDone } from '@/data/repositories/patients.repo';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState, type RefObject } from 'react';
+import { createPortal } from 'react-dom';
 import { useClipboardNote } from '@/store/useClipboardNote';
 import { Link } from 'react-router-dom';
 
@@ -37,8 +38,6 @@ export function PatientCard({
   checked,
   onToggleSelected,
   onPreview,
-  noteExpanded = false,
-  onToggleNote,
 }: {
   card: BoardCard;
   onLongPress: (patientId: string) => void;
@@ -94,9 +93,6 @@ export function PatientCard({
    */
   collapsed?: boolean;
   onToggleCollapsed?: ((patientId: string) => void) | undefined;
-  /** The standing note is open, so the board has widened this cell. */
-  noteExpanded?: boolean;
-  onToggleNote?: ((patientId: string) => void) | undefined;
 }): JSX.Element {
   const { patient, progress } = card;
   const lines = previewLines(card.preview, maxPreviewLines);
@@ -203,14 +199,6 @@ export function PatientCard({
   const cancelPress = (): void => window.clearTimeout(pressTimer.current);
 
   const note = patient.notes.trim();
-  /**
-   * Held by the board, not here.
-   *
-   * Expanding the note makes the card's grid cell span two columns, and the
-   * cell is the board's to size. Keeping the flag local would mean the card
-   * knowing it was wide while its container did not.
-   */
-  const noteOpen = noteExpanded && note.length > 0;
 
   /*
     FOLDED: one plain box, the name and the DPJP as text, and the button that
@@ -813,11 +801,7 @@ export function PatientCard({
         // Measured on its own: it sits outside the link, and a minimum that
         // left it out was the other half of the overlap.
         <div ref={noteRef} className="shrink-0">
-          <CardNote
-            note={note}
-            expanded={noteOpen}
-            onToggle={() => onToggleNote?.(patient.id)}
-          />
+          <CardNote note={note} patientName={patient.name} />
         </div>
       ) : null}
     </div>
@@ -897,72 +881,154 @@ function DischargeChip({ stage }: { stage: DischargeStage }): JSX.Element {
 /**
  * The standing note, as paper stuck to the bottom of the card.
  *
- * WHY NOT TO THE RIGHT
+ * REIMPLEMENTED 2026-10-01. It used to expand IN PLACE: the full note grew
+ * inside the card's flow and the board was asked to make room (two columns
+ * in masonry, an uncapped height on the canvas). On the canvas nothing makes
+ * room — cards sit where they were put — so an opened note grew over the card
+ * below, and its fill (`--warn-soft`, 25–33 % alpha) let that card's text
+ * show through: two notes printed on top of each other.
  *
- * Two attempts put it there and both failed on the same constraint. A note can
- * be to the RIGHT, sized to its CONTENT, and not OVERLAP its neighbour — any
- * two of those, never all three. The board reserves whole columns, so a
- * right-hand note that does not overlap reserves a whole column too, and a
- * three-word note leaves most of one empty. Half-width tracks halved that gap
- * and left it plainly visible.
- *
- * Underneath, all three hold at once: full card width, height from the text,
- * and masonry closing up beneath it exactly as it does for a card carrying one
- * more line of diagnoses. Nothing is reserved and nothing is covered.
- *
- * WHY IT STILL READS AS SEPARATE
- *
- * The objection to keeping it inside the card was that it looked like another
- * field — one more line among the diagnoses. So it keeps its own fill and
- * outline and sits below the card's border with square top corners against the
- * card's squared-off bottom: one continuous shape with a visible seam, which is
- * what a note taped to a chart looks like.
- *
- * COLLAPSED IS STILL USEFUL
- *
- * Collapsed shows the first line, truncated, rather than hiding the note behind
- * a tab. A tab says "something is written here" and makes you click to find out
- * what; one line usually IS what — most of these are short — and it costs a
- * single row.
+ * Now the strip is FIXED in size (two lines at most, `+N baris` when there is
+ * more) and the full note opens in a floating panel above the board: opaque,
+ * shadowed, scrollable, closed by tapping outside or Escape. The board never
+ * relays out for a note, so no layout can overlap, and the card's measured
+ * height no longer depends on whether its note is open.
  */
-function CardNote({
-  note,
-  expanded,
-  onToggle,
-}: {
-  note: string;
-  expanded: boolean;
-  onToggle: () => void;
-}): JSX.Element {
+function CardNote({ note, patientName }: { note: string; patientName: string }): JSX.Element {
+  const [open, setOpen] = useState(false);
+  const stripRef = useRef<HTMLButtonElement>(null);
+  const lines = note.split('\n').filter((line) => line.trim() !== '');
+  const more = Math.max(0, lines.length - 2);
   return (
-    <button
-      type="button"
-      aria-expanded={expanded}
-      aria-label={expanded ? 'Ringkas catatan' : 'Selengkapnya'}
-      onClick={onToggle}
-      className="flex w-full items-start gap-1.5 rounded-b-xl rounded-t-none border border-t-0 border-[var(--warn-strong)]/40 bg-[var(--warn-soft)] px-3 py-1.5 text-left text-fg"
+    <>
+      <button
+        ref={stripRef}
+        type="button"
+        aria-expanded={open}
+        aria-haspopup="dialog"
+        aria-label={`Catatan ${patientName}: buka`}
+        onPointerDown={(event) => event.stopPropagation()}
+        onClick={() => setOpen((current) => !current)}
+        className="flex w-full items-start gap-1.5 rounded-b-xl rounded-t-none border border-t-0 border-[var(--warn-strong)] bg-[var(--warn-soft)] px-3 py-1.5 text-left text-fg"
+      >
+        <span aria-hidden="true" className="mt-px shrink-0 text-[10px] leading-snug text-[var(--warn-strong)]">
+          ✎
+        </span>
+        <span className="min-w-0 flex-1">
+          <span className="line-clamp-2 whitespace-pre-line break-words text-[11px] leading-snug [overflow-wrap:anywhere]">
+            {lines.slice(0, 2).join('\n')}
+          </span>
+          {more > 0 ? (
+            <span className="mt-0.5 block text-[10px] font-medium text-[var(--warn-strong)]">
+              +{more} baris · ketuk untuk membaca
+            </span>
+          ) : null}
+        </span>
+      </button>
+      {open ? (
+        <NotePopover anchor={stripRef} title={patientName} note={note} onClose={() => setOpen(false)} />
+      ) : null}
+    </>
+  );
+}
+
+/**
+ * The full note, floating above the board next to its card.
+ *
+ * Portalled to `body` with fixed coordinates from the strip's rectangle, so
+ * no scroll container or `overflow-hidden` cell can clip it, and repositioned
+ * on scroll and resize. Opens below the strip, or above it when there is more
+ * room there; its height is capped by the room available and it scrolls.
+ */
+function NotePopover({
+  anchor,
+  title,
+  note,
+  onClose,
+}: {
+  anchor: RefObject<HTMLElement>;
+  title: string;
+  note: string;
+  onClose: () => void;
+}): JSX.Element | null {
+  const panelRef = useRef<HTMLDivElement>(null);
+  const [box, setBox] = useState<{ left: number; width: number; top?: number; bottom?: number; maxHeight: number } | null>(null);
+
+  useLayoutEffect(() => {
+    const place = (): void => {
+      const rect = anchor.current?.getBoundingClientRect();
+      if (!rect) return;
+      const margin = 8;
+      const width = Math.min(Math.max(rect.width, 280), 440, window.innerWidth - margin * 2);
+      const left = Math.min(Math.max(rect.left, margin), window.innerWidth - width - margin);
+      const below = window.innerHeight - rect.bottom - margin;
+      const above = rect.top - margin;
+      if (below >= 200 || below >= above) {
+        setBox({ left, width, top: rect.bottom + 4, maxHeight: Math.max(120, below - 4) });
+      } else {
+        setBox({ left, width, bottom: window.innerHeight - rect.top + 4, maxHeight: Math.max(120, above - 4) });
+      }
+    };
+    place();
+    window.addEventListener('scroll', place, true);
+    window.addEventListener('resize', place);
+    return () => {
+      window.removeEventListener('scroll', place, true);
+      window.removeEventListener('resize', place);
+    };
+  }, [anchor]);
+
+  useEffect(() => {
+    const onKey = (event: KeyboardEvent): void => {
+      if (event.key === 'Escape') onClose();
+    };
+    const onDown = (event: PointerEvent): void => {
+      const target = event.target as Node;
+      if (panelRef.current?.contains(target) || anchor.current?.contains(target)) return;
+      onClose();
+    };
+    window.addEventListener('keydown', onKey);
+    window.addEventListener('pointerdown', onDown, true);
+    panelRef.current?.focus();
+    return () => {
+      window.removeEventListener('keydown', onKey);
+      window.removeEventListener('pointerdown', onDown, true);
+    };
+  }, [anchor, onClose]);
+
+  if (!box) return null;
+  return createPortal(
+    <div
+      ref={panelRef}
+      role="dialog"
+      aria-label={`Catatan ${title}`}
+      tabIndex={-1}
+      style={{
+        position: 'fixed',
+        left: box.left,
+        width: box.width,
+        top: box.top,
+        bottom: box.bottom,
+        maxHeight: box.maxHeight,
+      }}
+      className="z-50 flex flex-col overflow-hidden rounded-xl border border-[var(--warn-strong)] bg-surface text-fg shadow-2xl outline-none"
     >
-      <span
-        aria-hidden="true"
-        className="mt-px shrink-0 text-[9px] leading-snug text-[var(--warn-strong)]"
-      >
-        {expanded ? '▾' : '▸'}
-      </span>
-      <span
-        className={[
-          'min-w-0 flex-1 text-[11px] leading-snug',
-          // `break-words` plus `overflow-wrap: anywhere` because notes are free
-          // text and people paste identifiers into them. An unbroken
-          // 200-character string has no space to wrap at, and ran across the
-          // whole board before this.
-          expanded
-            ? 'whitespace-pre-line break-words [overflow-wrap:anywhere]'
-            : 'truncate',
-        ].join(' ')}
-      >
-        {expanded ? note : note.split('\n')[0]}
-      </span>
-    </button>
+      <div className="flex items-center gap-2 border-b border-border bg-[var(--warn-soft)] px-3 py-1.5">
+        <span className="min-w-0 flex-1 truncate text-xs font-semibold">Catatan · {title}</span>
+        <button
+          type="button"
+          onClick={onClose}
+          aria-label="Tutup catatan"
+          className="-my-1 min-h-tap min-w-tap rounded-lg text-fg-muted [@media(pointer:fine)]:min-h-8 [@media(pointer:fine)]:min-w-8"
+        >
+          ×
+        </button>
+      </div>
+      <p className="overflow-y-auto whitespace-pre-line break-words px-3 py-2 text-[13px] leading-relaxed [overflow-wrap:anywhere]">
+        {note}
+      </p>
+    </div>,
+    document.body,
   );
 }
 

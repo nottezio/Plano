@@ -155,8 +155,8 @@ export function OpeningSheet({
           </button>
         </div>
         <p className="mt-1 text-[11px] text-fg-faint">
-          Mengganti sapaan di seluruh catatan sekaligus — salam, kalimat pembuka, dan penutup.
-          Nama DPJP (Dr./dr.) tidak ikut berubah.
+          Mengganti sapaan di paragraf pembuka dan kalimat penutup sekaligus. Gelar dan
+          nama (Prof. dr. …, baris DPJP) serta isi SOAP tidak ikut berubah.
         </p>
       </section>
 

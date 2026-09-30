@@ -533,7 +533,7 @@ describe('kjsRole — cases taken from the 2026-09-11 export', () => {
   });
 
   it('reads DPJP KJS <bagian> on our own patient as ts', () => {
-    // Tn. Irwan: Utama is a cardiologist, anaesthesia is the KJS side.
+    // Tn. Contoh: Utama is a cardiologist, anaesthesia is the KJS side.
     const note = [
       '_DPJP Utama : Dr. dr. Akhtar Fajar Muzakkir, Sp.JP_',
       '_DPJP KJS Anestesi: dr. Nur Surya Wirawan, Sp.AnTI_',

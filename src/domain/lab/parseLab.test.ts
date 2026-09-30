@@ -139,9 +139,9 @@ describe('text extracted from a lab PDF', () => {
   /** Exactly as the PDF text layer yields it, header and footer included. */
   const PDF_TEXT = `
 HASIL PEMERIKSAAN LABORATORIUM
-No. RM : 01661366
+No. RM : 01234567
 Nama : IRWAN
-Sex / Tgl Lahir : Laki-Laki / 04-10-1984
+Sex / Tgl Lahir : Laki-Laki / 01-01-1980
 No. Lab : 1011601062608100068
 Diagnosa : ACLI
 No. Registrasi 2608032053
@@ -208,7 +208,7 @@ Halaman 1 dari 2
   });
 
   it('drops the patient header, not just the page footer', () => {
-    expect(result.formatted).not.toContain('01661366');
+    expect(result.formatted).not.toContain('01234567');
     expect(result.formatted).not.toContain('2608032053');
     expect(result.formatted).not.toContain('IRWAN');
   });

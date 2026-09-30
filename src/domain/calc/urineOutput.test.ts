@@ -29,6 +29,14 @@ describe('calculateUrineOutput', () => {
     expect(calculateUrineOutput({ volumeMl: 6000, hours: 24, weightKg: 60 })?.band).toBe('high');
   });
 
+  it('polyuria is > 3 L per 24 h (projected), not a rate above 3 cc/kg/h', () => {
+    // 3500 ml/24h at 60 kg is 2.43 cc/kg/h — the old rate band called it normal.
+    expect(calculateUrineOutput({ volumeMl: 3500, hours: 24, weightKg: 60 })?.band).toBe('high');
+    expect(calculateUrineOutput({ volumeMl: 3000, hours: 24, weightKg: 60 })?.band).toBe('normal');
+    // 800 ml in 6 h projects to 3200 ml/24 h.
+    expect(calculateUrineOutput({ volumeMl: 800, hours: 6, weightKg: 70 })?.band).toBe('high');
+  });
+
   it('returns nothing rather than Infinity when hours is zero', () => {
     expect(calculateUrineOutput({ volumeMl: 1100, hours: 0, weightKg: 55 })).toBeNull();
   });
