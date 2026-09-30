@@ -13,8 +13,9 @@ const KEY = 'visite.refRanges';
  * therefore a valid, permanent state — the one check that uses these stays
  * silent until they are filled in, and nothing else changes.
  *
- * Three analytes, because three are what the checker can act on. A general
- * table of every lab value would be a form nobody finishes.
+ * Na, K and Cl are what the SOAP checker acts on; Osm labels the result of
+ * the osmolality calculator. A general table of every lab value would be a
+ * form nobody finishes.
  */
 export function readReferenceRanges(): Ranges {
   try {
@@ -40,6 +41,7 @@ const ANALYTES = [
   { key: 'Na', label: 'Natrium (mmol/L)' },
   { key: 'K', label: 'Kalium (mmol/L)' },
   { key: 'Cl', label: 'Klorida (mmol/L)' },
+  { key: 'Osm', label: 'Osmolalitas (mOsm/kg)' },
 ] as const;
 
 export function ReferenceRangeSettings(): JSX.Element {
@@ -74,8 +76,8 @@ export function ReferenceRangeSettings(): JSX.Element {
   return (
     <div className="space-y-2 text-xs">
       <p className="text-fg-muted">
-        Dipakai hanya untuk mengingatkan menambah "perbaikan" saat elektrolit sudah kembali
-        normal. Kosongkan jika tidak ingin dipakai.
+        Na, K, Cl: mengingatkan menambah "perbaikan" saat elektrolit sudah kembali normal.
+        Osmolalitas: label hasil di kalkulator. Kosongkan jika tidak ingin dipakai.
       </p>
       {ANALYTES.map(({ key, label }) => (
         <div key={key} className="flex flex-wrap items-center gap-2">

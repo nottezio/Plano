@@ -2,7 +2,15 @@ import { useMemo, useState } from 'react';
 
 import { AppShell } from '@/components/common/AppShell';
 import { BAND_LABELS, calculateUrineOutput } from '@/domain/calc/urineOutput';
-import { OSMOLALITY_BANDS, calculateOsmolality } from '@/domain/calc/sodium';
+import {
+  OSMOLALITY_BANDS,
+  UREA_DIVISOR,
+  UREA_LABEL,
+  bandFor,
+  calculateOsmolality,
+  type UreaKind,
+} from '@/domain/calc/sodium';
+import { readReferenceRanges } from '@/components/settings/ReferenceRanges';
 import { correctSodium, formatSodiumCorrection } from '@/domain/calc/sodiumGlucose';
 import { copyText } from '@/lib/clipboard';
 
@@ -190,45 +198,102 @@ function NumberField({
   );
 }
 
+/**
+ * Calculated plasma osmolality, total and effective. See `domain/calc/sodium`
+ * for why the urea field asks Ureum or BUN (SIMGOS prints Ureum; the old card
+ * divided it by BUN's 2.8) and why no range is built in.
+ */
 function OsmolalityCard(): JSX.Element {
   const [sodium, setSodium] = useState('');
   const [glucose, setGlucose] = useState('');
-  const [bun, setBun] = useState('');
+  const [urea, setUrea] = useState('');
+  const [ureaKind, setUreaKind] = useState<UreaKind>('ureum');
   const [copied, setCopied] = useState(false);
+  const range = readReferenceRanges().Osm;
 
+  // All three, typed. `Number('')` is 0, and the card used to show a finished
+  // result (glucose and urea taken as 0) as soon as the sodium was in.
+  const filled = [sodium, glucose, urea].every((value) => value.trim() !== '');
   const result = useMemo(
     () =>
-      calculateOsmolality({
-        sodium: Number(sodium),
-        glucose: Number(glucose),
-        bun: Number(bun),
-      }),
-    [sodium, glucose, bun],
+      filled
+        ? calculateOsmolality({
+            sodium: Number(sodium),
+            glucose: Number(glucose),
+            urea: Number(urea),
+            ureaKind,
+          })
+        : null,
+    [filled, sodium, glucose, urea, ureaKind],
   );
+  const divisor = UREA_DIVISOR[ureaKind];
 
   return (
     <section className="rounded-xl border border-border bg-surface p-4">
-      <h2 className="text-sm font-semibold">Osmolalitas plasma</h2>
-      <p className="mt-0.5 text-xs text-fg-muted">2(Na) + Glukosa/18 + BUN/2.8</p>
+      <h2 className="text-sm font-semibold">Osmolalitas plasma (hitung)</h2>
+      <p className="mt-0.5 text-xs text-fg-muted">
+        2(Na) + Glukosa/18 + {UREA_LABEL[ureaKind]}/{divisor}
+      </p>
 
-      <div className="mt-3 grid grid-cols-3 gap-2">
+      <div role="group" aria-label="Satuan urea" className="mt-3 flex overflow-hidden rounded-lg border border-border text-xs">
+        {(['ureum', 'bun'] as const).map((kind) => (
+          <button
+            key={kind}
+            type="button"
+            aria-pressed={ureaKind === kind}
+            onClick={() => setUreaKind(kind)}
+            className={[
+              'min-h-tap flex-1 px-2',
+              ureaKind === kind ? 'bg-accent font-semibold text-white' : 'text-fg-muted',
+            ].join(' ')}
+          >
+            {kind === 'ureum' ? 'Ureum (SIMGOS) ÷ 6' : 'BUN ÷ 2.8'}
+          </button>
+        ))}
+      </div>
+
+      <div className="mt-2 grid grid-cols-3 gap-2">
         <NumberField label="Na (mmol/L)" value={sodium} onChange={setSodium} />
         <NumberField label="Glukosa (mg/dL)" value={glucose} onChange={setGlucose} />
-        <NumberField label="BUN (mg/dL)" value={bun} onChange={setBun} />
+        <NumberField label={`${UREA_LABEL[ureaKind]} (mg/dL)`} value={urea} onChange={setUrea} />
       </div>
 
       <p className="mt-1 text-[11px] text-fg-faint">
-        Perhatikan satuan: natrium mmol/L, glukosa dan BUN mg/dL. Pembagi 18 dan 2.8 adalah
-        konversi satuan, bukan faktor koreksi.
+        Ureum ≠ BUN: ureum = BUN × 2.14. Pembagi 18, 6 dan 2.8 adalah konversi mg/dL ke
+        mmol/L, bukan faktor koreksi.
       </p>
 
       {result ? (
         <div className="mt-3 rounded-lg border border-border bg-bg-subtle p-3">
-          <p className="text-lg font-semibold">
-            {result.value}{' '}
-            <span className="text-xs font-normal text-fg-muted">mOsm/kg</span>
-          </p>
-          <p className="mt-0.5 text-xs text-fg-muted">{OSMOLALITY_BANDS[result.band]}</p>
+          <div className="grid grid-cols-2 gap-2">
+            <div>
+              <p className="text-lg font-semibold">
+                {result.effective}{' '}
+                <span className="text-xs font-normal text-fg-muted">mOsm/kg</span>
+              </p>
+              <p className="text-[11px] text-fg-muted">
+                Efektif (tonisitas) — dipakai untuk hiponatremia
+              </p>
+              {bandFor(result.effective, range) ? (
+                <p className="text-[11px] font-medium">{OSMOLALITY_BANDS[bandFor(result.effective, range)!]}</p>
+              ) : null}
+            </div>
+            <div>
+              <p className="text-lg font-semibold">
+                {result.total}{' '}
+                <span className="text-xs font-normal text-fg-muted">mOsm/kg</span>
+              </p>
+              <p className="text-[11px] text-fg-muted">Total (+ urea {result.ureaTerm})</p>
+              {bandFor(result.total, range) ? (
+                <p className="text-[11px] font-medium">{OSMOLALITY_BANDS[bandFor(result.total, range)!]}</p>
+              ) : null}
+            </div>
+          </div>
+          {range ? null : (
+            <p className="mt-2 text-[11px] text-fg-faint">
+              Tanpa label rendah/normal: isi rentang osmolalitas di Pengaturan → Rentang rujukan lab.
+            </p>
+          )}
           <p className="mt-2 break-words font-mono text-[11px] leading-relaxed">{result.line}</p>
           <CopyLine text={result.line} copied={copied} setCopied={setCopied} />
         </div>

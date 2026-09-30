@@ -1,5 +1,72 @@
 # Plano — CHANGES
 
+## `2026-09-30.2` — osmolality calculator
+
+**The osmolality card divided UREUM by BUN's 2.8, overstating the urea term
+2.14×. It now asks which one was entered, shows the effective (tonicity)
+value used for hyponatraemia, waits for all three fields, and has no
+built-in range.**
+
+### Root cause
+
+`calculateOsmolality` was `2·Na + glucose/18 + BUN/2.8`, documented as
+"BUN or ureum, mg/dL". The divisor is a unit conversion: mg/dL ÷ (molar mass
+÷ 10). 2.8 is urea NITROGEN (28 g/mol). SIMGOS reports **Ureum**, the whole
+molecule (60 g/mol), so its divisor is 6. The code treated two different
+analytes as one, and the lab parser does the same (`Ureum: ['ureum', 'urea',
+'bun', 'ur']`), which is how "BUN or ureum" read as reasonable.
+
+| Ureum (mg/dL) | Correct urea term | Old card | Error |
+|---|---|---|---|
+| 30 | 5.0 | 10.7 | +5.7 |
+| 60 | 10.0 | 21.4 | +11.4 |
+| 180 | 30.0 | 64.3 | +34.3 |
+
+In a cardiorenal patient (Na 128, GDS 110, ureum 180) the card said 326
+("hiperosmolal"); the calculated value is 292, and the tonicity is 262,
+which is hypotonic.
+
+Three smaller faults in the same card:
+- **Blank fields computed as 0.** `Number('')` is 0, so typing only the Na
+  showed a finished result (280 at Na 140) while the hint said "Isi
+  ketiganya".
+- **Built-in 275–295 bands**, against the no-hardcoded-ranges rule.
+- **No effective osmolality.** Urea is an ineffective osmole. Whether a
+  hyponatraemia is hypotonic, the question before correcting sodium, is
+  answered by `2·Na + glucose/18`. The card showed only the total.
+
+### Fix
+
+- Input is `{ sodium, glucose, urea, ureaKind: 'ureum' | 'bun' }`, with
+  `UREA_DIVISOR = { ureum: 6, bun: 2.8 }`. The card has a segmented
+  control, Ureum (SIMGOS) ÷ 6 by default, and the field label follows it.
+- Returns `total`, `effective` and `ureaTerm`. The card shows the effective
+  value first, labelled for hyponatraemia, and the total with its urea term.
+  The copied line names the urea kind and both values.
+- Result only when all three fields are typed.
+- Bands come from Pengaturan → Rentang rujukan lab, new row "Osmolalitas"
+  (`Osm`). Without it, no label and a hint where to set one. The SOAP
+  checker iterates its own analytes, so the new key does not reach it.
+- Tests: ureum 30 and BUN 14 give the same 290; the ureum 180 case; working
+  line; bands only with a user range.
+
+### Also
+
+- `sodiumGlucose.ts` comment said Katz and Hillier differ by "about 6" at
+  glucose 600; it is 4 (500 × 0.8/100), as the test and the card say.
+
+### Not done
+
+- The lab parser still files a `BUN` result under `Ureum`. SIMGOS prints
+  Ureum, so no Plano data is affected today, but a BUN from another lab
+  would be misread in Ur/Cr. Separating them is its own change.
+- The correction formulas themselves (deficit, rate) stay in ElektroCalc.
+
+```
+1710 tests passed (+2)
+typecheck / lint (0 warnings) / check:version / check:contrast / check:a11y / build — clean
+```
+
 ## `2026-09-30.1`
 
 **Daily reminders on the patient card (EKG, urine output, your own), ticked

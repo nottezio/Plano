@@ -16,7 +16,7 @@
  * Katz's 1.6 comes from a 1973 theoretical derivation; Hillier's 2.4 comes
  * from a 1999 experimental study and fits better once glucose is high. Picking
  * one and hiding the other would present a contested number as a settled one —
- * at glucose 600 they differ by about 6 mmol/L, which is the difference
+ * at glucose 600 they differ by 4 mmol/L, which is the difference
  * between "hyponatraemia" and "normal" on the same blood sample.
  *
  * Units are mg/dL for glucose, which is what Indonesian labs report (`GDS 147`
