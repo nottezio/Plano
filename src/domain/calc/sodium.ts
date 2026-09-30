@@ -28,12 +28,20 @@
  * sodium correction — is `2·Na + glucose/18`, without urea. Both are returned;
  * the effective value is the one to read for hyponatraemia.
  *
- * NO BUILT-IN BANDS
+ * GUIDELINE CUT-OFFS, NOT A LAB RANGE (Avi, 2026-09-30)
  *
- * The card used to label results against 275–295 compiled into the app. Plano
- * carries no clinical reference ranges (a range belongs to the lab and the
- * reader), so a band is shown only when the user has entered one in
- * Pengaturan → Rentang rujukan lab.
+ * Plano carries no lab reference ranges. The exception, asked for by Avi, is a
+ * short list of published CUT-OFFS, each shown with its source, because they
+ * are decisions rather than a lab's property:
+ *
+ * - Effective < 275: hypotonic (Spasovski et al., Eur J Endocrinol 2014,
+ *   hyponatraemia guideline; defined there on MEASURED osmolality, which the
+ *   calculated effective value approximates).
+ * - Effective > 300 or total > 320: the HHS osmolality criterion (Umpierrez et
+ *   al., Diabetes Care 2024), meaningful with glucose >= 600 mg/dL. The 2009
+ *   criterion was effective > 320; 2024 lowered it.
+ * - Total 275–295: the usual normal range. A range the user enters in
+ *   Pengaturan → Rentang rujukan lab replaces it.
  *
  * Returns `null` on input it cannot use rather than a number computed from a
  * default.
@@ -94,19 +102,42 @@ export function calculateOsmolality(input: OsmolalityInput): OsmolalityResult | 
   };
 }
 
-/** Below / within / above the user's own range, or null when none is set. */
-export function bandFor(
-  value: number,
-  range: { low: number; high: number } | undefined,
-): 'low' | 'normal' | 'high' | null {
-  if (!range) return null;
-  if (value < range.low) return 'low';
-  if (value > range.high) return 'high';
-  return 'normal';
+export const DEFAULT_TOTAL_RANGE = { low: 275, high: 295 } as const;
+export const HYPOTONIC_BELOW = 275;
+export const HHS_EFFECTIVE_ABOVE = 300;
+export const HHS_TOTAL_ABOVE = 320;
+
+export type Tone = 'low' | 'normal' | 'high';
+
+export interface OsmolalityReading {
+  tone: Tone;
+  label: string;
 }
 
-export const OSMOLALITY_BANDS: Record<'low' | 'normal' | 'high', string> = {
-  low: 'Hipoosmolal',
-  normal: 'Dalam rentang',
-  high: 'Hiperosmolal',
-};
+/** What the effective value means, against the published cut-offs. */
+export function readEffective(value: number): OsmolalityReading {
+  if (value < HYPOTONIC_BELOW) return { tone: 'low', label: `< ${HYPOTONIC_BELOW}: hipotonik` };
+  if (value > HHS_EFFECTIVE_ABOVE) {
+    return { tone: 'high', label: `> ${HHS_EFFECTIVE_ABOVE}: ambang HHS (bila GDS ≥ 600)` };
+  }
+  return { tone: 'normal', label: 'Tidak hipotonik' };
+}
+
+/** What the total value means: the normal range (user's, or 275–295) and the HHS cut-off. */
+export function readTotal(
+  value: number,
+  userRange?: { low: number; high: number },
+): OsmolalityReading {
+  const range = userRange ?? DEFAULT_TOTAL_RANGE;
+  const span = `${String(range.low)}–${String(range.high)}`;
+  if (value > HHS_TOTAL_ABOVE) {
+    return { tone: 'high', label: `> ${HHS_TOTAL_ABOVE}: ambang HHS (bila GDS ≥ 600)` };
+  }
+  if (value < range.low) return { tone: 'low', label: `Di bawah normal (${span})` };
+  if (value > range.high) return { tone: 'high', label: `Di atas normal (${span})` };
+  return { tone: 'normal', label: `Normal (${span})` };
+}
+
+export const OSMOLALITY_SOURCES =
+  'Normal total 275–295 mOsm/kg · Hipotonik < 275 (Spasovski, Eur J Endocrinol 2014) · ' +
+  'HHS: efektif > 300 atau total > 320 (Umpierrez, Diabetes Care 2024)';

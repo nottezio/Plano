@@ -13,8 +13,8 @@ const KEY = 'visite.refRanges';
  * therefore a valid, permanent state — the one check that uses these stays
  * silent until they are filled in, and nothing else changes.
  *
- * Na, K and Cl are what the SOAP checker acts on; Osm labels the result of
- * the osmolality calculator. A general table of every lab value would be a
+ * Na, K and Cl are what the SOAP checker acts on; Osm replaces the calculator's
+ * default normal range for total osmolality (275–295). A general table of every lab value would be a
  * form nobody finishes.
  */
 export function readReferenceRanges(): Ranges {
@@ -77,7 +77,7 @@ export function ReferenceRangeSettings(): JSX.Element {
     <div className="space-y-2 text-xs">
       <p className="text-fg-muted">
         Na, K, Cl: mengingatkan menambah "perbaikan" saat elektrolit sudah kembali normal.
-        Osmolalitas: label hasil di kalkulator. Kosongkan jika tidak ingin dipakai.
+        Osmolalitas: mengganti rentang normal total 275–295 di kalkulator. Kosongkan jika tidak ingin dipakai.
       </p>
       {ANALYTES.map(({ key, label }) => (
         <div key={key} className="flex flex-wrap items-center gap-2">

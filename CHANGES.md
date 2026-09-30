@@ -1,5 +1,35 @@
 # Plano — CHANGES
 
+## `2026-09-30.3` — osmolality cut-offs
+
+**The osmolality card labels its results against published cut-offs, each
+with its source. Asked for by Avi as an explicit exception to "no built-in
+reference ranges": these are guideline decision thresholds, not a lab's
+range, and the lab range stays overridable.**
+
+| Value | Cut-off | Label | Source |
+|---|---|---|---|
+| Effective | < 275 | hipotonik | Spasovski et al., Eur J Endocrinol 2014 (defined on measured osmolality; calculated effective is the proxy) |
+| Effective | > 300 | ambang HHS (bila GDS ≥ 600) | Umpierrez et al., Diabetes Care 2024 |
+| Total | > 320 | ambang HHS (bila GDS ≥ 600) | Umpierrez et al., Diabetes Care 2024 |
+| Total | 275–295 | normal / di bawah / di atas | Usual range; replaced by Pengaturan → Rentang rujukan lab → Osmolalitas when set |
+
+- The 2024 consensus lowered the HHS criterion from effective > 320 (2009)
+  to effective > 300 or total > 320. The code uses 2024 and says so.
+- `readEffective` / `readTotal` replace `bandFor` / `OSMOLALITY_BANDS`.
+  Each result has a chip (accent for low, amber for high) and the card
+  lists the sources under the numbers.
+- Tests cover every cut-off boundary and the user-range override.
+
+### Not done
+
+- The copied line still carries the numbers only, not the labels.
+
+```
+1711 tests passed (+1)
+typecheck / lint (0 warnings) / check:version / check:contrast / check:a11y / build — clean
+```
+
 ## `2026-09-30.2` — osmolality calculator
 
 **The osmolality card divided UREUM by BUN's 2.8, overstating the urea term

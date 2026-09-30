@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { bandFor, calculateOsmolality } from './sodium';
+import { calculateOsmolality, readEffective, readTotal } from './sodium';
 
 describe('calculateOsmolality', () => {
   it('BUN: 2·Na + glucose/18 + BUN/2.8', () => {
@@ -43,12 +43,20 @@ describe('calculateOsmolality', () => {
   });
 });
 
-describe('bandFor', () => {
-  it('labels only against a range the user entered', () => {
-    expect(bandFor(270, undefined)).toBeNull();
-    const range = { low: 275, high: 295 };
-    expect(bandFor(270, range)).toBe('low');
-    expect(bandFor(285, range)).toBe('normal');
-    expect(bandFor(300, range)).toBe('high');
+describe('guideline cut-offs', () => {
+  it('effective: hypotonic below 275, HHS above 300 (2024 consensus)', () => {
+    expect(readEffective(262.1).tone).toBe('low');
+    expect(readEffective(275).tone).toBe('normal');
+    expect(readEffective(300).tone).toBe('normal');
+    expect(readEffective(300.1).label).toContain('HHS');
+  });
+
+  it('total: 275–295 by default, the user range when set, HHS above 320', () => {
+    expect(readTotal(290).label).toBe('Normal (275–295)');
+    expect(readTotal(270).tone).toBe('low');
+    expect(readTotal(300).label).toBe('Di atas normal (275–295)');
+    expect(readTotal(321).label).toContain('HHS');
+    expect(readTotal(290, { low: 285, high: 295 }).label).toBe('Normal (285–295)');
+    expect(readTotal(280, { low: 285, high: 295 }).tone).toBe('low');
   });
 });

@@ -3,11 +3,13 @@ import { useMemo, useState } from 'react';
 import { AppShell } from '@/components/common/AppShell';
 import { BAND_LABELS, calculateUrineOutput } from '@/domain/calc/urineOutput';
 import {
-  OSMOLALITY_BANDS,
+  OSMOLALITY_SOURCES,
   UREA_DIVISOR,
   UREA_LABEL,
-  bandFor,
   calculateOsmolality,
+  readEffective,
+  readTotal,
+  type OsmolalityReading,
   type UreaKind,
 } from '@/domain/calc/sodium';
 import { readReferenceRanges } from '@/components/settings/ReferenceRanges';
@@ -201,7 +203,7 @@ function NumberField({
 /**
  * Calculated plasma osmolality, total and effective. See `domain/calc/sodium`
  * for why the urea field asks Ureum or BUN (SIMGOS prints Ureum; the old card
- * divided it by BUN's 2.8) and why no range is built in.
+ * divided it by BUN's 2.8) and where each cut-off comes from.
  */
 function OsmolalityCard(): JSX.Element {
   const [sodium, setSodium] = useState('');
@@ -274,9 +276,7 @@ function OsmolalityCard(): JSX.Element {
               <p className="text-[11px] text-fg-muted">
                 Efektif (tonisitas) — dipakai untuk hiponatremia
               </p>
-              {bandFor(result.effective, range) ? (
-                <p className="text-[11px] font-medium">{OSMOLALITY_BANDS[bandFor(result.effective, range)!]}</p>
-              ) : null}
+              <ReadingChip reading={readEffective(result.effective)} />
             </div>
             <div>
               <p className="text-lg font-semibold">
@@ -284,16 +284,15 @@ function OsmolalityCard(): JSX.Element {
                 <span className="text-xs font-normal text-fg-muted">mOsm/kg</span>
               </p>
               <p className="text-[11px] text-fg-muted">Total (+ urea {result.ureaTerm})</p>
-              {bandFor(result.total, range) ? (
-                <p className="text-[11px] font-medium">{OSMOLALITY_BANDS[bandFor(result.total, range)!]}</p>
-              ) : null}
+              <ReadingChip reading={readTotal(result.total, range)} />
             </div>
           </div>
-          {range ? null : (
-            <p className="mt-2 text-[11px] text-fg-faint">
-              Tanpa label rendah/normal: isi rentang osmolalitas di Pengaturan → Rentang rujukan lab.
-            </p>
-          )}
+          <p className="mt-2 text-[11px] leading-relaxed text-fg-faint">
+            {range
+              ? `Rentang normal total dari Pengaturan (${String(range.low)}–${String(range.high)}). `
+              : ''}
+            {OSMOLALITY_SOURCES}
+          </p>
           <p className="mt-2 break-words font-mono text-[11px] leading-relaxed">{result.line}</p>
           <CopyLine text={result.line} copied={copied} setCopied={setCopied} />
         </div>
@@ -301,6 +300,20 @@ function OsmolalityCard(): JSX.Element {
         <p className="mt-3 text-xs text-fg-faint">Isi ketiganya untuk menghitung.</p>
       )}
     </section>
+  );
+}
+
+function ReadingChip({ reading }: { reading: OsmolalityReading }): JSX.Element {
+  const style =
+    reading.tone === 'normal'
+      ? { borderColor: 'var(--border-strong)' }
+      : reading.tone === 'low'
+        ? { borderColor: 'var(--accent)', background: 'var(--accent-soft)' }
+        : { borderColor: 'var(--warn-strong)', background: 'var(--warn-soft)' };
+  return (
+    <p className="mt-1 inline-block rounded-md border px-1.5 py-0.5 text-[11px] font-medium" style={style}>
+      {reading.label}
+    </p>
   );
 }
 
