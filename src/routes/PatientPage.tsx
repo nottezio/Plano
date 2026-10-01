@@ -114,7 +114,7 @@ export default function PatientPage(): JSX.Element {
     setOpenPatient(patientId ?? null);
     return () => setOpenPatient(null);
   }, [patientId, setOpenPatient]);
-  const { entry, exists, loading: entryLoading } = useEntry(patientId, selected);
+  const { entry, exists, loading: entryLoading, hasPendingWrites } = useEntry(patientId, selected);
   /** The note on screen now, for async actions to check they still apply. */
   const currentNoteKey = useRef('');
   currentNoteKey.current = `${patientId ?? ''}|${selected}`;
@@ -286,6 +286,7 @@ export default function PatientPage(): JSX.Element {
     exists,
     hariRawat,
     locked,
+    serverPending: hasPendingWrites,
   });
 
   /**

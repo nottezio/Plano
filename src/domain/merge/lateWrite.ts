@@ -99,7 +99,7 @@ function removedLines(base: string, text: string): Map<string, number> {
 }
 
 /** Did both sides change or delete the same line of the base? */
-function sameLineTouched(base: string, local: string, remote: string): boolean {
+export function sameLineTouched(base: string, local: string, remote: string): boolean {
   if (base.length === 0) return true; // No common ancestor: nothing to merge against.
   const mine = removedLines(base, local);
   for (const line of removedLines(base, remote).keys()) {

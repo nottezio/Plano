@@ -89,8 +89,8 @@ describe('the palette', () => {
     expect(new Set(STICKER_EMOJI).size).toBe(STICKER_EMOJI.length);
   });
 
-  it('has PCI, EP and BTKV as coloured text tags; emoji are not tags', () => {
-    for (const tag of ['PCI', 'EP', 'BTKV']) {
+  it('has PCI, EP, BTKV, PPM and TPM as coloured text tags; emoji are not tags', () => {
+    for (const tag of ['PCI', 'EP', 'BTKV', 'PPM', 'TPM']) {
       expect(STICKER_EMOJI).toContain(tag);
       expect(stickerTag(tag)).toMatch(/^#/);
     }

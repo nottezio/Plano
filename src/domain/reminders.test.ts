@@ -41,3 +41,32 @@ describe('daily reminders', () => {
     expect(newReminderId('EKG', DEFAULT_REMINDER_KINDS)).toBe('ekg-2');
   });
 });
+
+describe('procedure reminders (ICU post-op, dr. Nuralim Mallapasi)', () => {
+  it('appears on H-1 for MNM patients, on any DPJP line', async () => {
+    const { activeReminders, DEFAULT_REMINDER_KINDS: kinds } = await import('./reminders');
+    const patient = { operationFor: '2026-10-03', dpjpId: 'zd', dpjpIds: ['zd', 'mnm'] };
+    expect(activeReminders(patient, kinds, '2026-10-02').map((r) => r.label)).toEqual(['Konsul ICU post-op']);
+    expect(activeReminders(patient, kinds, '2026-10-03')).toEqual([]);
+    expect(activeReminders(patient, kinds, '2026-10-01')).toEqual([]);
+  });
+
+  it('not for other consultants, and ticks like any reminder', async () => {
+    const { activeReminders, DEFAULT_REMINDER_KINDS: kinds } = await import('./reminders');
+    expect(activeReminders({ operationFor: '2026-10-03', dpjpId: 'zd' }, kinds, '2026-10-02')).toEqual([]);
+    const done = activeReminders(
+      { operationFor: '2026-10-03', dpjpIds: ['mnm'], reminderDone: { date: '2026-10-02', ids: ['icu-postop'] } },
+      kinds,
+      '2026-10-02',
+    );
+    expect(done[0]?.done).toBe(true);
+  });
+});
+
+describe('MNM is not confused with dr. Zulfadly Nuralim', () => {
+  it('attributes only the Mallapasi spelling', async () => {
+    const { detectDpjps } = await import('./dpjp');
+    expect(detectDpjps('_DPJP BTKV : dr. Muhammad Nuralim Mallapasi, Sp.BTKV_').map((d) => d.id)).toContain('mnm');
+    expect(detectDpjps('_DPJP BTKV (Utama) : dr. Muhammad Zulfadly Nuralim, Sp.BTKV_').map((d) => d.id)).not.toContain('mnm');
+  });
+});

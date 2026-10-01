@@ -250,10 +250,22 @@ export interface OutboxRecord {
   base: string;
   /** Local epoch ms, for showing the user how old an unmerged version is. */
   at: number;
+  /**
+   * The server REFUSED this body (its base had moved). Kept under its own key
+   * so that later writes for the same day — which replace the day's record —
+   * can never overwrite it before the reconciler has put it in the trail.
+   */
+  refused?: true;
 }
 
-export async function putOutbox(record: Omit<OutboxRecord, 'key'>): Promise<void> {
-  const full: OutboxRecord = { ...record, key: baseKey(record.patientId, record.date) };
+export async function putOutbox(
+  record: Omit<OutboxRecord, 'key'>,
+  options: { refused?: boolean } = {},
+): Promise<void> {
+  const key = baseKey(record.patientId, record.date);
+  const full: OutboxRecord = options.refused
+    ? { ...record, refused: true, key: `${key}|refused|${String(record.at)}` }
+    : { ...record, key };
   try {
     await run('readwrite', (store) => store.put(full) as IDBRequest<IDBValidKey>, STORE_OUTBOX);
   } catch (error) {
@@ -284,6 +296,15 @@ export async function clearOutbox(
     await run('readwrite', (store) => store.delete(key) as IDBRequest<undefined>, STORE_OUTBOX);
   } catch (error) {
     console.error('[outbox] clear failed', error);
+  }
+}
+
+/** Remove one record by its key (refused records, which `clearOutbox` never touches). */
+export async function deleteOutbox(key: string): Promise<void> {
+  try {
+    await run('readwrite', (store) => store.delete(key) as IDBRequest<undefined>, STORE_OUTBOX);
+  } catch (error) {
+    console.error('[outbox] delete failed', error);
   }
 }
 

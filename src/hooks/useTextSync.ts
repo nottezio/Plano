@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 
 import { mergeThreeWay, type MergeOutcome } from '@/domain/merge/threeWayMerge';
+import { sameLineTouched } from '@/domain/merge/lateWrite';
 import {
   canRedo,
   canUndo,
@@ -27,6 +28,12 @@ export interface TextSyncOptions {
   key: string;
   /** The body as the server currently holds it. */
   serverText: string;
+  /**
+   * True while `serverText` comes from a snapshot with PENDING local writes:
+   * Firestore's optimistic copy of what this device sent, not something the
+   * server has accepted. See "OPTIMISTIC IS NOT CONFIRMED" below.
+   */
+  serverPending?: boolean;
   locked: boolean;
   write: (text: string) => Promise<void>;
   /**
@@ -92,6 +99,7 @@ export interface TextSyncState {
 export function useTextSync({
   key,
   serverText,
+  serverPending = false,
   locked,
   write,
   snapshot,
@@ -325,11 +333,29 @@ export function useTextSync({
    * The echo landed: the server now holds text this device wrote, so that text
    * is the new common ancestor. Nothing to merge.
    */
+  /*
+    OPTIMISTIC IS NOT CONFIRMED (2026-10-01).
+
+    Firestore echoes a local write immediately, from its cache, with
+    `hasPendingWrites`. This used to count as "the server has our text": the
+    base advanced and the draft was cleared. When the write was then REFUSED
+    (the note had moved on another device, so `baseHash` failed), Firestore
+    rolled its cache back to the server's body — and with no draft left, the
+    editor simply showed the other device's text. No merge, no conflict, no
+    trail: the phone's version disappeared from the screen, and the next save
+    wrote the other device's text back as if it were ours.
+
+    So the echo only counts once the snapshot is confirmed. Until then the
+    draft stays (it equals the server text, so nothing looks unsaved) and the
+    base stays where the server last confirmed it. A rollback then arrives as
+    a remote change under unsaved text, and goes through the three-way merge
+    like any other.
+  */
   useEffect(() => {
-    if (!isOwnEcho) return;
+    if (!isOwnEcho || serverPending) return;
     pending.current.delete(serverText);
     if (base !== serverText) setBase(key, serverText);
-  }, [isOwnEcho, serverText, base, key, setBase]);
+  }, [isOwnEcho, serverPending, serverText, base, key, setBase]);
 
   /** SPEC 7.2 step 5 — merge whenever the server moves under unsaved text. */
   useEffect(() => {
@@ -338,7 +364,32 @@ export function useTextSync({
       return;
     }
 
-    const outcome = mergeThreeWay(base ?? null, value, serverText);
+    let outcome = mergeThreeWay(base ?? null, value, serverText);
+
+    /*
+      A ROLLBACK is stricter. When the text on screen is one we SENT and never
+      saw confirmed, this remote change is the server refusing it — the other
+      device got there first. The character-level merge would splice the two
+      versions of a line ("tidak sesak berat"), which is acceptable while two
+      people are visibly co-editing and not when one of them just watched
+      their save bounce. Same line touched on both sides → ask.
+    */
+    if (
+      outcome.kind !== 'conflict' &&
+      pending.current.has(value) &&
+      base !== undefined &&
+      sameLineTouched(base, value, serverText)
+    ) {
+      outcome = {
+        kind: 'conflict',
+        body: outcome.body,
+        local: value,
+        remote: serverText,
+        base,
+        failedHunks: 0,
+        reason: 'overlap',
+      };
+    }
 
     if (outcome.kind === 'conflict') {
       setConflict(outcome);
@@ -403,10 +454,11 @@ export function useTextSync({
   // Drop a draft that has caught up with the server, so a later snapshot from
   // another device is adopted rather than fought by a stale local copy.
   useEffect(() => {
-    if (draft !== undefined && draft === serverText) {
+    // Only against a CONFIRMED body: see "OPTIMISTIC IS NOT CONFIRMED".
+    if (draft !== undefined && draft === serverText && !serverPending) {
       useDrafts.getState().clearDraft(key);
     }
-  }, [draft, serverText, key]);
+  }, [draft, serverText, serverPending, key]);
 
   /**
    * Save the PREVIOUS note when the key changes under the editor.

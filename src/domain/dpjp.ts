@@ -117,7 +117,9 @@ export const DPJPS: readonly Dpjp[] = [
   { id: 'fat', name: 'dr. Frizt Alfred Tandean, Sp.JP(K)', initials: 'FAT', match: ['frizt'] },
   { id: 'arb', name: 'dr. Andi Renata Bastario, Sp.JP(K)', initials: 'ARB', match: ['bastario', 'renata'], delivery: { route: 'group', channel: 'grup dr. Rio' } },
   { id: 'np', name: 'dr. Nurminsyah P., Sp.JP', initials: 'NP', match: ['nurminsyah'] },
-  { id: 'mnm', name: 'dr. Muhammad Nuralim Mallapasi, Sp.B, Sp.BTKV(K)VE', initials: 'MNM', match: ['mallapasi', 'nuralim'] },
+  // Not bare 'nuralim': dr. M. Zulfadly Nuralim (Sp.BTKV) shares it, and a
+  // wrong attribution drives the wrong reminder (ICU post-op H-1 is MNM's).
+  { id: 'mnm', name: 'dr. Muhammad Nuralim Mallapasi, Sp.B, Sp.BTKV(K)VE', initials: 'MNM', match: ['mallapasi', 'muhammad nuralim', 'nuralim mallapasi'] },
   { id: 'jk', name: 'dr. Jayarasti Kusumanegara, Sp.BTKV(K)VE', initials: 'JK', match: ['kusumanegara', 'jayarasti'] },
 ];
 

@@ -1,3 +1,4 @@
+import { addDays } from './clinicalDate';
 import type { ClinicalDate, Patient } from './types';
 
 /**
@@ -59,16 +60,68 @@ export function reminderMode(
   return null;
 }
 
+/**
+ * Reminders that follow from a planned operation, per consultant.
+ *
+ * dr. Muhammad Nuralim Mallapasi's (MNM) BTKV patients go to ICU after
+ * surgery and the ICU consult has to be done THE DAY BEFORE (Avi,
+ * 2026-10-01). With an operation date on the patient (`operationFor`), the
+ * card shows "Konsul ICU post-op" on H-1, tickable like any reminder. The
+ * consultant is matched on ANY DPJP line (`dpjpIds`), because the BTKV
+ * surgeon is often not the patient's main DPJP.
+ */
+export interface ProcedureRule {
+  id: string;
+  label: string;
+  dpjpId: string;
+  /** Days before the operation the reminder is due. */
+  daysBefore: number;
+}
+
+export const PROCEDURE_RULES: readonly ProcedureRule[] = [
+  { id: 'icu-postop', label: 'Konsul ICU post-op', dpjpId: 'mnm', daysBefore: 1 },
+];
+
+export function procedureReminders(
+  patient: Pick<Patient, 'operationFor' | 'dpjpId' | 'dpjpIds'>,
+  today: ClinicalDate,
+): Array<{ id: string; label: string }> {
+  const date = patient.operationFor;
+  if (!date) return [];
+  const ids = new Set([...(patient.dpjpIds ?? []), ...(patient.dpjpId ? [patient.dpjpId] : [])]);
+  return PROCEDURE_RULES.filter(
+    (rule) => ids.has(rule.dpjpId) && addDays(date, -rule.daysBefore) === today,
+  ).map((rule) => ({ id: rule.id, label: rule.label }));
+}
+
+/** The rule that applies to this patient, if any, for the picker's hint. */
+export function procedureRuleFor(
+  patient: Pick<Patient, 'dpjpId' | 'dpjpIds'>,
+): ProcedureRule | null {
+  const ids = new Set([...(patient.dpjpIds ?? []), ...(patient.dpjpId ? [patient.dpjpId] : [])]);
+  return PROCEDURE_RULES.find((rule) => ids.has(rule.dpjpId)) ?? null;
+}
+
 export function activeReminders(
-  patient: Pick<Patient, 'reminders' | 'reminderDone' | 'ekgHarian' | 'ekgFor'>,
+  patient: Pick<
+    Patient,
+    'reminders' | 'reminderDone' | 'ekgHarian' | 'ekgFor' | 'operationFor' | 'dpjpId' | 'dpjpIds'
+  >,
   kinds: readonly ReminderKind[],
   today: ClinicalDate,
 ): ActiveReminder[] {
   const done = patient.reminderDone?.date === today ? new Set(patient.reminderDone.ids) : new Set<string>();
-  return kinds.flatMap((kind) => {
+  const chosen = kinds.flatMap((kind) => {
     const mode = reminderMode(patient, kind.id, today);
     return mode ? [{ id: kind.id, label: kind.label, mode, done: done.has(kind.id) }] : [];
   });
+  const procedures = procedureReminders(patient, today).map((rule) => ({
+    id: rule.id,
+    label: rule.label,
+    mode: 'hari-ini' as const,
+    done: done.has(rule.id),
+  }));
+  return [...procedures, ...chosen];
 }
 
 /** Today's ticks after toggling one; yesterday's ticks never carry over. */

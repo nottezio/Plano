@@ -1,6 +1,6 @@
 import { getDoc } from 'firebase/firestore';
 
-import { clearOutbox, listOutbox, type OutboxRecord } from './localBase';
+import { clearOutbox, deleteOutbox, listOutbox, type OutboxRecord } from './localBase';
 import { entryDoc } from './paths';
 import { appendRevision, writeBody } from './repositories/entries.repo';
 import { planLateWrite } from '@/domain/merge/lateWrite';
@@ -43,6 +43,13 @@ export async function reconcileOutbox(): Promise<ReconcileResult[]> {
   return results;
 }
 
+/** Drop a settled record: a refused one by its own key, the day's by body. */
+function done(record: OutboxRecord): Promise<void> {
+  return record.refused
+    ? deleteOutbox(record.key)
+    : clearOutbox(record.patientId, record.date, record.body);
+}
+
 async function settle(record: OutboxRecord): Promise<ReconcileResult | null> {
   const { patientId, date, body, base } = record;
   const snapshot = await getDoc(entryDoc(patientId, date));
@@ -57,7 +64,7 @@ async function settle(record: OutboxRecord): Promise<ReconcileResult | null> {
   // deliberate clear.
   if (entry?.deletedAt != null || (server.length === 0 && body.length > 0 && entry !== null)) {
     await snapshotForReview(patientId, date, body, entry?.rev ?? 0);
-    await clearOutbox(patientId, date, body);
+    await done(record);
     return { patientId, date, outcome: 'review', age };
   }
 
@@ -65,7 +72,7 @@ async function settle(record: OutboxRecord): Promise<ReconcileResult | null> {
 
   switch (plan.kind) {
     case 'landed':
-      await clearOutbox(patientId, date, body);
+      await done(record);
       return null;
 
     case 'rewrite':
@@ -73,7 +80,7 @@ async function settle(record: OutboxRecord): Promise<ReconcileResult | null> {
         isNew: entry === null,
         ...(typeof entry?.bodyHash === 'string' ? { baseHash: entry.bodyHash } : {}),
       });
-      await clearOutbox(patientId, date, body);
+      await done(record);
       return { patientId, date, outcome: 'rewritten', age };
 
     case 'merge':
@@ -89,13 +96,13 @@ async function settle(record: OutboxRecord): Promise<ReconcileResult | null> {
         isNew: false,
         ...(typeof entry?.bodyHash === 'string' ? { baseHash: entry.bodyHash } : {}),
       });
-      await clearOutbox(patientId, date, body);
+      await done(record);
       return { patientId, date, outcome: 'merged', age };
 
     case 'review':
     default:
       await snapshotForReview(patientId, date, body, entry?.rev ?? 0);
-      await clearOutbox(patientId, date, body);
+      await done(record);
       return { patientId, date, outcome: 'review', age };
   }
 }

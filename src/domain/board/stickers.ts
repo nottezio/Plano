@@ -74,6 +74,8 @@ export const STICKER_GROUPS: ReadonlyArray<{
       { emoji: 'PCI', label: 'PCI (Percutaneous Coronary Intervention)' },
       { emoji: 'EP', label: 'EP study / Ablasi' },
       { emoji: 'BTKV', label: 'Operasi BTKV' },
+      { emoji: 'PPM', label: 'PPM (Permanent Pacemaker)' },
+      { emoji: 'TPM', label: 'TPM (Temporary Pacemaker)' },
     ],
   },
   {
@@ -143,12 +145,16 @@ export const STICKER_EMOJI: readonly string[] = STICKER_GROUPS.flatMap((group) =
 
 /**
  * Text tags draw as a coloured pill instead of a glyph. Each has its own
- * colour so the three read apart at a glance; white text on all three.
+ * colour so they read apart at a glance; white text on all of them.
  */
 const TAGS: Readonly<Record<string, string>> = {
   PCI: '#c0262d',
   EP: '#6d28d9',
   BTKV: '#0f6e8c',
+  // Pacemakers: permanent darker than temporary, same family, so the two
+  // read as related but never as each other.
+  PPM: '#9a3412',
+  TPM: '#b45309',
 };
 
 /** The pill colour when the value is a text tag, else null (an emoji). */

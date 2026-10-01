@@ -399,6 +399,16 @@ export function writeBodyTracked(
       // Kept in the outbox on purpose, a refusal by the rules included: the
       // reconciler merges it against whatever the note has become.
       forgetSentBody(patientId, date);
+      /*
+        A REFUSAL also gets a record of its own (2026-10-01). The day's record
+        is replaced by the next write for that day, and after a refusal the
+        next write is usually built on the server's text — so the refused body
+        was overwritten before the reconciler ran, and "versi luring belum
+        digabung" held the other device's text instead of this one's.
+      */
+      if ((error as { code?: string } | null)?.code === 'permission-denied') {
+        void putOutbox({ patientId, date, body, base: confirmed ?? '', at: Date.now() }, { refused: true });
+      }
       console.error('[entries] body write not confirmed', error);
       /*
         Ask for a reconcile NOW rather than at the next startup.

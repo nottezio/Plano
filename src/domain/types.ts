@@ -488,6 +488,17 @@ export interface Patient {
   /** The clinical date the patient is expected to go home. */
   dischargePlannedFor?: ClinicalDate;
   /**
+   * Date of a planned operation (BTKV), set from the reminder picker. Drives
+   * procedure reminders such as the H-1 ICU post-op consult; see
+   * `PROCEDURE_RULES` in `reminders.ts`.
+   */
+  operationFor?: ClinicalDate;
+  /**
+   * Every consultant named on the note's DPJP lines (Utama, Tindakan, BTKV…),
+   * derived on each body write like `dpjpId`. `dpjpId` is only the main one.
+   */
+  dpjpIds?: string[];
+  /**
    * One-off checklist for this patient.
    *
    * Separate from the daily checklist, which is the same steps for everyone and

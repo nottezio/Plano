@@ -1,5 +1,87 @@
 # Plano — CHANGES
 
+## `2026-10-01.4`
+
+**A phone edit refused by the server is no longer silently replaced by the
+laptop's text: it is merged, or raised as a conflict, and always kept in
+the trail. Adds an H-1 ICU post-op consult reminder for dr. Muhammad
+Nuralim Mallapasi's operations, and PPM/TPM stickers.**
+
+### 1. "Versi luring belum digabung" held the laptop's text
+
+**Report.** The phone's latest SOAP never appeared in Riwayat perubahan;
+the "versi luring" entry showed the same text as the desktop.
+
+**Root cause: two faults that together erase the phone's version.**
+
+1. **An optimistic echo was treated as a confirmation** (`useTextSync`).
+   - Firestore echoes a local write from its cache at once, with
+     `hasPendingWrites`. The editor took that echo as "the server has our
+     text": it advanced the merge base and **cleared the draft**.
+   - The phone's write carried `baseHash`. The laptop had changed the note
+     in between, so the rules **refused** the write, and Firestore rolled its
+     cache back to the laptop's body.
+   - With no draft left, the editor simply showed the laptop text. Nothing
+     was dirty, so there was no merge and no conflict. The phone's version
+     vanished from the screen.
+2. **The outbox kept one record per day** (`localBase`). The refused body
+   stayed in the outbox for the reconciler, but under the day's key. The
+   next save — now built on the laptop text shown after the rollback —
+   replaced it. When the reconciler ran, it filed *that* body as "versi
+   luring belum digabung": the laptop text with at most the phone's newest
+   keystrokes. That is the screenshot.
+
+**Fix.**
+- `useTextSync` takes `serverPending`, wired from `useEntry`'s
+  `hasPendingWrites` through `useBodyEditor`. An own echo advances the base
+  and clears the draft **only when confirmed**. Until then the draft stays
+  (equal to the server text, so nothing looks unsaved).
+- A rollback therefore arrives as a remote change under unsaved text and
+  goes through the merge:
+  - different lines → merged on screen;
+  - the same line on both sides → **conflict dialog**, with both versions
+    snapshotted.
+- The live merge is character-level. On a rollback specifically (the text
+  on screen was sent and never confirmed), a same-line change is forced to
+  a conflict, using `sameLineTouched` from `lateWrite`, the rule the
+  background reconciler already uses. Without that, the test case merged
+  "sesak berat" with "tidak sesak" into "tidak sesak berat".
+- A write refused with `permission-denied` is also stored under its **own
+  outbox key** (`…|refused|<at>`), which later writes for the day cannot
+  overwrite. The reconciler settles it like any record and deletes it by
+  key. So the refused text always reaches the trail.
+- Tests (`useTextSync.rollback.test.ts`):
+  - a different-line rollback keeps both edits;
+  - a same-line rollback raises a conflict with the phone text still on
+    screen;
+  - a confirmed echo still clears the draft and adopts later remote edits.
+
+### 2. ICU post-op consult, H-1 (dr. Muhammad Nuralim Mallapasi)
+
+- `Patient.operationFor` holds the operation date, set as "Jadwal operasi
+  (BTKV)" in the reminder picker (long-press sheet and ⋯ sheet).
+- `PROCEDURE_RULES` has `{ icu-postop, "Konsul ICU post-op", dpjpId: mnm,
+  daysBefore: 1 }`. `activeReminders` includes it on H-1, tickable through
+  the same `reminderDone`. The picker says on which date it will appear.
+- The surgeon is often not the main DPJP, so the body write now also
+  derives `dpjpIds` (every consultant on the DPJP lines), and the rule
+  matches on any of them.
+- **Registry:** MNM matched the bare token `nuralim`, which dr. M. Zulfadly
+  Nuralim (Sp.BTKV) shares, so his patients were attributed to MNM. The
+  tokens are now `mallapasi`, `muhammad nuralim` and `nuralim mallapasi`.
+  A note that writes only "dr. Nuralim" is no longer attributed to either.
+  That is the registry's rule for ambiguous names.
+
+### 3. PPM / TPM stickers
+
+Text tags beside PCI / EP / BTKV: PPM `#9a3412`, TPM `#b45309`, both with
+white text.
+
+```
+1753 tests passed (+6)
+typecheck / lint (0 warnings) / check:version / check:contrast / check:a11y / build — clean
+```
+
 ## `2026-10-01.3` — phone canvas, rebuilt
 
 **The phone canvas is a grid of small blocks you arrange on the phone,

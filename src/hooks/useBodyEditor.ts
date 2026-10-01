@@ -28,10 +28,13 @@ export function useBodyEditor({
   exists,
   hariRawat,
   locked,
+  serverPending = false,
 }: {
   patientId: string;
   date: ClinicalDate;
   entry: DailyEntry | null;
+  /** The entry snapshot still has this device's writes pending. */
+  serverPending?: boolean;
   exists: boolean;
   hariRawat: number;
   locked: boolean;
@@ -110,6 +113,7 @@ export function useBodyEditor({
   const sync = useTextSync({
     key,
     serverText: entry?.body ?? '',
+    serverPending,
     locked,
     write,
     snapshot,

@@ -23,7 +23,7 @@ import { nanoid } from 'nanoid';
 import { getDeviceId } from '../deviceId';
 import { clinicalStart } from '@/domain/identity';
 import { kjsRole } from '@/domain/board';
-import { primaryDpjp } from '@/domain/dpjp';
+import { detectDpjps, primaryDpjp } from '@/domain/dpjp';
 import { isIgdEntry } from '@/domain/clinicalDate';
 import { parsePatientFacts } from '@/domain/parsePatient';
 import { konsulPreview } from '@/domain/konsulReply';
@@ -216,6 +216,10 @@ function derivedPatientFields(body: string): DocumentData {
 
   const dpjp = primaryDpjp(body);
   if (dpjp) fields['dpjpId'] = dpjp.id;
+  // Every consultant on the DPJP lines, for rules about a secondary one
+  // (the BTKV surgeon of a cardiology patient).
+  const all = detectDpjps(body).map((entry) => entry.id);
+  if (all.length > 0) fields['dpjpIds'] = all;
 
   // Joint-care role. Derived HERE because this is the only place with the
   // whole body — the board has the preview, which is the diagnosis block on
@@ -393,6 +397,7 @@ type PatientPatchKey = keyof Pick<
   | 'chief'
   | 'discharge'
   | 'dischargePlannedFor'
+  | 'operationFor'
   | 'todos'
   | 'colorOverride'
   | 'admittedAt'
