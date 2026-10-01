@@ -1,5 +1,68 @@
 # Plano — CHANGES
 
+## `2026-10-02.1` — "frequently Memuat"
+
+**Patient lists are now one shared, long-lived query, so returning to a
+screen no longer reloads it. A patient's chart paints from the board's list
+at once.**
+
+### Root cause
+
+Every "Memuat…" in the app is one of three gates:
+
+| Gate | Shown while | How often |
+|---|---|---|
+| `AuthGate` (boot) | auth state is read from IndexedDB | cold start only |
+| `BoardPage` / `ArchivePage` | `usePatients(...).loading` | **every mount** |
+| `PatientPage` | `usePatient(id).loading` | **every open of a chart** |
+
+`usePatients` opened its own `onSnapshot` query in a `useEffect` and closed
+it on unmount, with `loading: true` until the first snapshot.
+- Aktif → patient → back to Aktif therefore tore down the board's query and
+  built a new one. Firestore then re-ran a composite query (`memberIds`,
+  `status`, `deletedAt`, ordered) against its IndexedDB cache before it
+  could answer.
+- On a phone that costs from a fraction of a second to a few seconds for a
+  ward-sized list, so the board said "Memuat…" on every return.
+- Opening a patient did the same with its single-document listener, even
+  though the board had that patient's data in hand.
+
+No reload or service-worker issue was involved: the SW update flow is
+prompt-only (`registerType: 'prompt'`, no automatic `skipWaiting`), so the
+app is not reloading itself. Cold starts after the phone suspends the app
+still show the boot screen; that is the OS ending the page, not Plano.
+
+### Fix
+
+- **`data/patientsFeed.ts`.** One query per (account, status), ref-counted.
+  - The first screen to need a list starts it. When the last screen leaves,
+    `active` stays live for the session, and other lists linger 5 minutes.
+  - A returning screen reads the held list synchronously: no loading
+    state, no second query.
+  - Reattach-on-error with capped jittered backoff moved here unchanged,
+    keeping the last good list meanwhile.
+  - Switching account drops every feed of the previous one, and sign-out
+    calls `resetPatientFeeds`.
+- **`usePatients`** is now a thin subscriber to the feed, with the same
+  signature and result.
+- **`usePatient`** seeds from `findCachedPatient`, so a chart opened from the
+  board renders at once. The document listener then takes over as before.
+- Tests: a second visit causes no loading and no second query; watchers are
+  notified; lingering lists stop after 5 minutes; an account switch drops
+  the old feeds.
+
+### Not done
+
+- Documents (`useDocuments`) still open a query per visit. They are far
+  smaller and rarely revisited, so this is the next candidate if it is
+  still noticeable.
+- The boot screen after the phone kills the app is unchanged.
+
+```
+1757 tests passed (+4)
+typecheck / lint (0 warnings) / check:version / check:contrast / check:a11y / build — clean
+```
+
 ## `2026-10-01.4`
 
 **A phone edit refused by the server is no longer silently replaced by the

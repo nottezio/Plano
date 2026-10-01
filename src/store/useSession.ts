@@ -20,6 +20,7 @@ import { logSessionEvent } from '@/lib/sessionLog';
 
 import { initFirebase, services } from '@/data/firebase';
 import { clearLocalBase, listOutbox } from '@/data/localBase';
+import { resetPatientFeeds } from '@/data/patientsFeed';
 import { CACHE_KEPT_FLAG, clearDeviceUserState } from '@/lib/deviceUserState';
 import { useUI } from '@/store/useUI';
 import { hasSignedInHint, setSignedInHint } from '@/data/authHint';
@@ -167,6 +168,7 @@ function subscribe(auth: Auth): () => void {
     setSignedInHint(user !== null);
     if (!user) {
       logSessionEvent('signed-out');
+      resetPatientFeeds();
       useSession.setState({ status: 'signed-out', user: null, profile: null });
       return;
     }
