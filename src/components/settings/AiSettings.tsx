@@ -33,7 +33,7 @@ export function AiSettings(): JSX.Element {
     <div className="space-y-3 text-xs">
       <p className="text-fg-muted">
         Fitur AI memakai API key Anda sendiri, bukan kuota bersama. Key disimpan hanya di
-        perangkat ini — tidak disinkronkan, tidak ikut dalam ekspor.
+        perangkat ini — tidak di-sync, tidak ikut dalam ekspor.
       </p>
 
       {/*

@@ -77,7 +77,7 @@ export function PatientPreviewSheet({
     <Sheet
       open={patient !== null}
       onOpenChange={onOpenChange}
-      title={patient?.name?.trim() || 'Pratinjau'}
+      title={patient?.name?.trim() || 'Preview'}
       description={
         date
           ? date === today

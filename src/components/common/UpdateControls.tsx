@@ -65,7 +65,7 @@ export function UpdateControls(): JSX.Element {
           onClick={() => setConfirmClean((value) => !value)}
           className="min-h-tap flex-1 rounded-lg border border-border px-3 text-sm"
         >
-          Muat ulang bersih
+          Hard refresh
         </button>
       </div>
       {STATUS[update] ? (
@@ -77,7 +77,7 @@ export function UpdateControls(): JSX.Element {
         <div className="rounded-lg border border-border p-3 text-xs text-fg-muted">
           <p>
             Sama dengan Ctrl+Shift+R di laptop: kode aplikasi diunduh ulang dari server. Catatan
-            dan antrean sinkronisasi tidak dihapus. Butuh koneksi internet.
+            dan antrean sync tidak dihapus. Butuh koneksi internet.
           </p>
           <button
             type="button"
@@ -91,7 +91,7 @@ export function UpdateControls(): JSX.Element {
             }
             className="mt-2 min-h-tap w-full rounded-lg bg-accent px-3 text-sm font-medium text-white"
           >
-            Muat ulang bersih sekarang
+            Hard refresh sekarang
           </button>
           {unreachable ? (
             <p role="alert" className="mt-2 text-danger">

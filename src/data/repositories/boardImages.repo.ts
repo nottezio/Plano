@@ -122,7 +122,7 @@ export function loadBoardImage(uid: string, imageId: string): Promise<string | n
  */
 export async function copyImageToClipboard(dataUrl: string): Promise<void> {
   if (typeof ClipboardItem === 'undefined' || !navigator.clipboard?.write) {
-    throw new Error('Peramban ini tidak bisa menyalin gambar. Klik kanan → Salin gambar.');
+    throw new Error('Browser ini tidak bisa menyalin gambar. Klik kanan → Salin gambar.');
   }
   const image = await loadImage(await (await fetch(dataUrl)).blob());
   const canvas = document.createElement('canvas');

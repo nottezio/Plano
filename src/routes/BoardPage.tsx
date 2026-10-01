@@ -624,7 +624,7 @@ export default function BoardPage(): JSX.Element {
 
     const result: Array<{ label: string; cards: typeof cards }> = [];
     for (const card of cards) {
-      const label = card.patient.pinned ? 'Disematkan' : groupLabel(card.patient, order);
+      const label = card.patient.pinned ? 'Pinned' : groupLabel(card.patient, order);
       const last = result[result.length - 1];
       if (last && last.label === label) last.cards.push(card);
       else result.push({ label, cards: [card] });

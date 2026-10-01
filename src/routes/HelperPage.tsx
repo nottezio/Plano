@@ -9,7 +9,7 @@ import { MorningReport } from '@/components/helper/MorningReport';
 
 import { copyText } from '@/lib/clipboard';
 import { extractPdf } from '@/lib/pdfItems';
-import { describeVersion, nearestYear, refuseOlder } from '@/domain/jaga/recency';
+import { describeVersion, nearestYear, refuseOlder, rosterFreshness, type RosterFreshness } from '@/domain/jaga/recency';
 import {
   buildFormasi,
   buildKonfirmasi,
@@ -180,6 +180,22 @@ function KonfirmasiJaga(): JSX.Element {
     () => (roster?.shifts ?? []).filter((shift) => shift.date === date),
     [roster, date],
   );
+  /** Each monthly schedule judged against the date being confirmed (see recency.ts). */
+  const freshness = useMemo(
+    () => ({
+      roster: rosterFreshness('roster', roster, date, today),
+      dpjp: rosterFreshness('dpjp', dpjp, date, today),
+      pediatri: rosterFreshness('pediatri', pediatri, date, today),
+    }),
+    [roster, dpjp, pediatri, date, today],
+  );
+  const staleSchedules = (
+    [
+      ['Jadwal Jaga PPDS', freshness.roster, Boolean(roster)],
+      ['Jadwal DPJP', freshness.dpjp, Boolean(dpjp)],
+      ['Jadwal Jaga Pediatri', freshness.pediatri, Boolean(pediatri)],
+    ] as Array<[string, RosterFreshness, boolean]>
+  ).filter(([, state, present]) => present && state.state !== 'ok');
   const [shiftIndex, setShiftIndex] = useState(0);
   const shift = shifts[Math.min(shiftIndex, shifts.length - 1)] ?? null;
 
@@ -443,7 +459,7 @@ function KonfirmasiJaga(): JSX.Element {
         */}
         <p className="text-[11px] text-fg-faint">
           Jadwal yang diimpor dan perubahan di layar ini (konfirmasi, tukar jaga, nama, agama,
-          DPJP) disinkronkan ke akun Anda dan berlaku hanya untuk tanggalnya. Sumber utamanya
+          DPJP) di-sync ke akun Anda dan berlaku hanya untuk tanggalnya. Sumber utamanya
           tetap PDF jadwal.
         </p>
         <p
@@ -454,17 +470,42 @@ function KonfirmasiJaga(): JSX.Element {
           ].join(' ')}
         >
           {sync.status === 'synced'
-            ? 'Sinkron dengan akun.'
+            ? 'Synced dengan akun.'
             : sync.status === 'waiting'
-              ? 'Menunggu koneksi untuk sinkron. Perubahan tetap tersimpan di perangkat ini.'
+              ? 'Menunggu koneksi untuk sync. Perubahan tetap tersimpan di perangkat ini.'
               : sync.status === 'error'
-                ? 'Sinkron gagal. Perubahan tetap tersimpan di perangkat ini.'
+                ? 'Sync gagal. Perubahan tetap tersimpan di perangkat ini.'
                 : 'Belum masuk akun: tersimpan di perangkat ini saja.'}
         </p>
       </header>
 
       <section className="space-y-2">
         <h2 className="text-sm font-medium">1. Impor jadwal</h2>
+        {staleSchedules.length > 0 ? (
+          <div
+            role="alert"
+            className={[
+              'rounded-lg border px-3 py-2 text-xs',
+              staleSchedules.some(([, state]) => state.state === 'outdated')
+                ? 'border-[var(--danger)] bg-[var(--danger-soft)]'
+                : 'border-[var(--warn-strong)] bg-[var(--warn-soft)]',
+            ].join(' ')}
+          >
+            <p className="font-semibold">
+              {staleSchedules.some(([, state]) => state.state === 'outdated')
+                ? 'Jadwal sudah kedaluwarsa — impor jadwal terbaru'
+                : 'Jadwal hampir habis — siapkan jadwal bulan berikutnya'}
+            </p>
+            <ul className="mt-1 space-y-0.5">
+              {staleSchedules.map(([label, state]) => (
+                <li key={label}>
+                  {label}: berlaku sampai {longDate(state.state === 'ok' ? date : state.end)}
+                  {state.state === 'outdated' ? ' (sudah lewat)' : ''}
+                </li>
+              ))}
+            </ul>
+          </div>
+        ) : null}
         <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
           <ImportCard
             label="Jadwal Jaga PPDS"
@@ -474,6 +515,7 @@ function KonfirmasiJaga(): JSX.Element {
                 : 'Belum diimpor · tiap bulan'
             }
             busy={busy === 'roster'}
+            warning={freshness.roster.state}
             onFile={(file) => void importPdf(file, 'roster')}
           />
           <ImportCard
@@ -484,6 +526,7 @@ function KonfirmasiJaga(): JSX.Element {
                 : 'Belum diimpor · tiap bulan'
             }
             busy={busy === 'dpjp'}
+            warning={freshness.dpjp.state}
             onFile={(file) => void importPdf(file, 'dpjp')}
           />
           <ImportCard
@@ -494,6 +537,7 @@ function KonfirmasiJaga(): JSX.Element {
                 : 'Belum diimpor · tiap bulan'
             }
             busy={busy === 'pediatri'}
+            warning={freshness.pediatri.state}
             onFile={(file) => void importPdf(file, 'pediatri')}
           />
           <ImportCard
@@ -1022,16 +1066,31 @@ function ImportCard({
   label,
   detail,
   busy,
+  warning = 'ok',
   onFile,
 }: {
   label: string;
   detail: string;
   busy: boolean;
+  /** From `rosterFreshness`: outlined red when outdated, amber when ending. */
+  warning?: RosterFreshness['state'];
   onFile: (file: File) => void;
 }): JSX.Element {
   return (
-    <label className="flex min-h-tap cursor-pointer flex-col justify-center rounded-lg border border-border px-3 py-2">
-      <span className="text-xs font-medium">{label}</span>
+    <label
+      className={[
+        'flex min-h-tap cursor-pointer flex-col justify-center rounded-lg border px-3 py-2',
+        warning === 'outdated'
+          ? 'border-[var(--danger)] bg-[var(--danger-soft)]'
+          : warning === 'ending'
+            ? 'border-[var(--warn-strong)] bg-[var(--warn-soft)]'
+            : 'border-border',
+      ].join(' ')}
+    >
+      <span className="text-xs font-medium">
+        {label}
+        {warning === 'outdated' ? ' · kedaluwarsa' : warning === 'ending' ? ' · hampir habis' : ''}
+      </span>
       <span className="text-[11px] text-fg-muted">{busy ? 'Membaca…' : detail}</span>
       <input
         type="file"

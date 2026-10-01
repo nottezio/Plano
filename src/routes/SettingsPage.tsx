@@ -698,7 +698,7 @@ export default function SettingsPage(): JSX.Element {
             keywords="data firestore uu pdp enkripsi" title="Keterbukaan data">
             <p className="text-xs leading-relaxed text-fg-muted">
               Aplikasi ini menyimpan nama lengkap, nomor rekam medis, dan isi catatan pasien di
-              Google Firestore serta di penyimpanan peramban perangkat ini. Data tidak
+              Google Firestore serta di penyimpanan browser perangkat ini. Data tidak
               dienkripsi ujung-ke-ujung: penyedia layanan secara teknis dapat mengaksesnya.
             </p>
             <p className="mt-2 text-xs leading-relaxed text-fg-muted">

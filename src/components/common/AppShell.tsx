@@ -159,7 +159,7 @@ function OutboxNotice(): JSX.Element | null {
       role="status"
       className="fixed inset-x-3 top-3 z-50 mx-auto max-w-md rounded-xl border border-border bg-surface p-3 text-xs shadow-lg"
     >
-      <p className="font-medium">Catatan luring diselesaikan</p>
+      <p className="font-medium">Catatan offline diselesaikan</p>
       <ul className="mt-1 space-y-1">
         {results.map((result) => (
           <li key={`${result.patientId}|${result.date}|${result.outcome}`}>
@@ -174,7 +174,7 @@ function OutboxNotice(): JSX.Element | null {
               ? '— digabung dengan versi terbaru. Cek Riwayat perubahan.'
               : result.outcome === 'rewritten'
                 ? '— tersimpan sekarang.'
-                : '— tidak bisa digabung otomatis; versi luring disimpan di Riwayat perubahan.'}
+                : '— tidak bisa digabung otomatis; versi offline disimpan di Riwayat perubahan.'}
           </li>
         ))}
       </ul>

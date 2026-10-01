@@ -856,7 +856,7 @@ export function CopySheet({
       ) : null}
 
       <div className="mb-1 mt-4 flex items-center gap-2">
-        <p className="flex-1 text-xs font-medium text-fg-muted">Pratinjau</p>
+        <p className="flex-1 text-xs font-medium text-fg-muted">Preview</p>
         {(
           [
             ['teks', 'Teks'],

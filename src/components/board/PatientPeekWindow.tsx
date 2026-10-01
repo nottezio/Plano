@@ -252,7 +252,7 @@ export function PatientPeekWindow({
   return (
     <div
       role="dialog"
-      aria-label={`Pratinjau ${title}`}
+      aria-label={`Preview ${title}`}
       onPointerDownCapture={onFocus}
       className="fixed flex flex-col overflow-hidden rounded-xl border border-border bg-surface shadow-2xl"
       style={{ left: pos.x, top: pos.y, width: size.w, height: size.h, zIndex: z }}
@@ -322,7 +322,7 @@ export function PatientPeekWindow({
         <button
           type="button"
           onClick={onClose}
-          aria-label="Tutup pratinjau"
+          aria-label="Tutup preview"
           className="min-h-tap min-w-tap shrink-0 rounded-lg text-xs text-fg-muted"
         >
           ✕

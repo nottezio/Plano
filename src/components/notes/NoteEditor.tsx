@@ -354,9 +354,9 @@ export function NoteEditor({
         {!trashed ? (
           <button
             type="button"
-            aria-label={note.pinned ? 'Lepas sematan' : 'Sematkan'}
+            aria-label={note.pinned ? 'Lepas pin' : 'Pin'}
             aria-pressed={note.pinned === true}
-            title={note.pinned ? 'Lepas sematan' : 'Sematkan'}
+            title={note.pinned ? 'Lepas pin' : 'Pin'}
             onClick={togglePin}
             className={[
               'flex min-h-tap min-w-tap shrink-0 items-center justify-center rounded-lg hover:bg-bg-subtle',

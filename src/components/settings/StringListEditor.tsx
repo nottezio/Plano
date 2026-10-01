@@ -128,7 +128,7 @@ export function StringListEditor({
             onClick={restore}
             className="min-h-tap shrink-0 text-xs font-medium text-accent underline"
           >
-            Urungkan
+            Undo
           </button>
         </div>
       ) : null}

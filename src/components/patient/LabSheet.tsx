@@ -253,7 +253,7 @@ export function LabSheet({
             }}
             className="min-h-tap rounded-lg border border-border px-3 text-xs"
           >
-            Urungkan AI
+            Undo AI
           </button>
         ) : null}
         <span className="text-[11px] text-fg-faint">

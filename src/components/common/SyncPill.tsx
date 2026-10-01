@@ -13,10 +13,10 @@ export function SyncPill({ compact = false }: { compact?: boolean }): JSX.Elemen
       ? { label: 'Menyimpan…', tone: 'text-fg-muted' }
       : sync.kind === 'offline'
         ? {
-            label: `Offline — ${sync.pending} perubahan tertunda`,
+            label: `Offline — ${sync.pending} perubahan pending`,
             tone: 'text-[var(--card-step-2-accent)]',
           }
-        : { label: 'Tersinkron', tone: 'text-fg-faint' };
+        : { label: 'Synced', tone: 'text-fg-faint' };
 
   if (compact) {
     // A dot and a word, for the sidebar's single status line.
@@ -29,7 +29,7 @@ export function SyncPill({ compact = false }: { compact?: boolean }): JSX.Elemen
     return (
       <span role="status" aria-live="polite" className={`flex min-w-0 items-center gap-1.5 ${tone}`}>
         <span aria-hidden="true" className={`h-2 w-2 shrink-0 rounded-full ${dot}`} />
-        <span className="truncate">{sync.kind === 'offline' ? `Offline · ${sync.pending} tertunda` : label}</span>
+        <span className="truncate">{sync.kind === 'offline' ? `Offline · ${sync.pending} pending` : label}</span>
       </span>
     );
   }

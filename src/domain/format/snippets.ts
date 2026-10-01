@@ -32,8 +32,22 @@ function numericDate(date: ClinicalDate): string {
 export interface Snippet {
   id: string;
   label: string;
-  /** `date` is the clinical day of the note being edited. */
-  build: (date: ClinicalDate) => string;
+  /**
+   * `date` is the clinical day of the note being edited; `ward` is the
+   * patient's ward as recorded (e.g. `PJT Lantai 4`), when known.
+   */
+  build: (date: ClinicalDate, ward?: string) => string;
+}
+
+/**
+ * The ward as the EKG heading writes it: `PJT Lantai 4` / `PJT Lt 4` →
+ * `PJT Lt. 4`; anything else (`CVCU`, `ICVCU`) as recorded; unknown → the
+ * visible blank `PJT Lt. ...`.
+ */
+export function ekgPlace(ward: string | undefined): string {
+  const text = ward?.trim().replace(/\s+/g, ' ');
+  if (!text) return 'PJT Lt. ...';
+  return text.replace(/\b(?:lantai|lt\.?)\s*(\d+)/i, 'Lt. $1');
 }
 
 export const SNIPPETS: readonly Snippet[] = [
@@ -48,15 +62,13 @@ export const SNIPPETS: readonly Snippet[] = [
      * date, which is the same rule the rest of the app follows.
      */
     /**
-     * The floor is left BLANK on purpose.
-     *
-     * A patient moves between Lantai 4, Lantai 5, CVCU and IGD during one
-     * stay, and the app knows the ward on the patient record but not which
-     * floor the tracing was actually taken on — those differ the day someone
-     * is moved. Prefilling it would be right most days and quietly wrong on
-     * exactly the day it matters.
+     * The floor comes from the patient's ward (Avi, 2026-10-02):
+     * `*EKG PJT Lt. 4 (01-10-2026)*`. It used to be left blank because a
+     * patient can move between floors; the ward on the record is right on
+     * almost every day, and the heading stays editable on the day it is not.
+     * With no ward recorded the blank `...` is kept, so nothing is guessed.
      */
-    build: (date) => `*EKG di PJT Lt. ... (${numericDate(date)})*\n`,
+    build: (date, ward) => `*EKG ${ekgPlace(ward)} (${numericDate(date)})*\n`,
   },
   {
     id: 'keluhan-pendek',

@@ -74,7 +74,7 @@ function Booting(): JSX.Element {
         <>
           <p className="max-w-xs text-xs">
             Masih menunggu koneksi. Catatan Anda aman di perangkat ini. Kalau tidak berubah, coba
-            muat ulang bersih (kode aplikasi diunduh ulang; catatan tidak dihapus).
+            hard refresh (kode aplikasi diunduh ulang; catatan tidak dihapus).
           </p>
           <button
             type="button"
@@ -85,7 +85,7 @@ function Booting(): JSX.Element {
             }
             className="min-h-tap rounded-lg border border-border px-4 text-sm text-fg"
           >
-            Muat ulang bersih
+            Hard refresh
           </button>
           {unreachable ? (
             <p role="alert" className="max-w-xs text-xs text-danger">

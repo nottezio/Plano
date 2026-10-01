@@ -659,7 +659,7 @@ export function PatientCard({
           </span>
         ) : null}
         {patient.pinned ? (
-          <span aria-label="Disematkan" className="text-xs">
+          <span aria-label="Pinned" className="text-xs">
             ★
           </span>
         ) : null}
@@ -708,7 +708,7 @@ export function PatientCard({
         {onPreview ? (
           <button
             type="button"
-            aria-label={`Pratinjau catatan ${card.title}`}
+            aria-label={`Preview catatan ${card.title}`}
             onClick={(event) => {
               // The card is a `<Link>`; without this the preview opens and the
               // route changes underneath it.

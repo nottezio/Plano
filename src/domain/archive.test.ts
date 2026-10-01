@@ -87,3 +87,14 @@ describe('archiveSummary', () => {
     ]);
   });
 });
+
+describe('weekOfMonth', () => {
+  it('splits October 2026 into Monday-start weeks clipped to the month', async () => {
+    const { weekOfMonth } = await import('./archive');
+    // 1 Oct 2026 is a Thursday.
+    expect(weekOfMonth('2026-10-01')).toEqual({ index: 1, from: 1, to: 4 });
+    expect(weekOfMonth('2026-10-04')).toEqual({ index: 1, from: 1, to: 4 });
+    expect(weekOfMonth('2026-10-05')).toEqual({ index: 2, from: 5, to: 11 });
+    expect(weekOfMonth('2026-10-31')).toEqual({ index: 5, from: 26, to: 31 });
+  });
+});

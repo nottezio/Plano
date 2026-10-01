@@ -461,7 +461,7 @@ export function CanvasBoard({
                   }}
                   className="min-h-tap shrink-0 rounded-lg border border-border px-2.5 text-xs font-medium text-accent [@media(pointer:fine)]:min-h-9"
                 >
-                  Urungkan
+                  Undo
                 </button>
               ) : null}
               <button

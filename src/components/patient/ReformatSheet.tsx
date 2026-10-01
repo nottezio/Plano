@@ -190,7 +190,7 @@ export function ReformatSheet({
           </ul>
 
           <div className="mb-1 flex items-center gap-2">
-            <p className="flex-1 text-xs font-medium text-fg-muted">Pratinjau</p>
+            <p className="flex-1 text-xs font-medium text-fg-muted">Preview</p>
             {(
               [
                 ['berdampingan', 'Berdampingan'],

@@ -207,18 +207,26 @@ export default function ArchivePage(): JSX.Element {
                     <span className="text-[11px] text-fg-faint">{group.patients.length}</span>
                     <span aria-hidden="true" className="h-px flex-1 bg-border" />
                   </h2>
-                  <ul className="divide-y divide-border overflow-hidden rounded-xl border border-border bg-surface">
-                    {group.patients.map((patient) => (
-                      <li key={patient.id}>
-                        <ArchiveRow
-                          patient={patient}
-                          showInitialsOnly={showInitialsOnly}
-                          tokens={tokens}
-                          snippet={snippets.get(patient.id) ?? null}
-                        />
-                      </li>
-                    ))}
-                  </ul>
+                  {group.weeks.map((week) => (
+                    <div key={week.key} className="mt-2">
+                      <h3 className="flex items-center gap-2 px-1 pb-1 text-[11px] font-medium text-fg-muted">
+                        <span>{week.label}</span>
+                        <span className="text-fg-faint">{week.patients.length}</span>
+                      </h3>
+                      <ul className="divide-y divide-border overflow-hidden rounded-xl border border-border bg-surface">
+                        {week.patients.map((patient) => (
+                          <li key={patient.id}>
+                            <ArchiveRow
+                              patient={patient}
+                              showInitialsOnly={showInitialsOnly}
+                              tokens={tokens}
+                              snippet={snippets.get(patient.id) ?? null}
+                            />
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  ))}
                 </section>
               ))
             )}

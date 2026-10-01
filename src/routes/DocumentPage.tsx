@@ -272,7 +272,7 @@ export default function DocumentPage(): JSX.Element {
             }}
             className="w-full rounded-lg border border-border px-3 py-3 text-left text-sm font-medium"
           >
-            {document.pinned ? 'Lepas sematan' : 'Sematkan'}
+            {document.pinned ? 'Lepas pin' : 'Pin'}
           </button>
           {/*
             Export as text, for sending to someone else.

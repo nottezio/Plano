@@ -108,3 +108,21 @@ describe('nearestYear', () => {
     expect(nearestYear(9, '2026-10-01')).toBe(2026);
   });
 });
+
+describe('rosterFreshness', () => {
+  const september = { shifts: [{ date: '2026-09-01' }, { date: '2026-09-30' }] };
+  it('outdated once the schedule ends before the date asked for', async () => {
+    const { rosterFreshness } = await import('./recency');
+    expect(rosterFreshness('roster', september, '2026-10-01', '2026-09-30')).toEqual({ state: 'outdated', end: '2026-09-30' });
+  });
+  it('ending within three days of today', async () => {
+    const { rosterFreshness } = await import('./recency');
+    expect(rosterFreshness('roster', september, '2026-09-28', '2026-09-27')).toEqual({ state: 'ending', end: '2026-09-30' });
+    expect(rosterFreshness('roster', september, '2026-09-15', '2026-09-14')).toEqual({ state: 'ok' });
+  });
+  it('Jarkom and empty documents are never flagged', async () => {
+    const { rosterFreshness } = await import('./recency');
+    expect(rosterFreshness('jarkom', { entries: [] }, '2026-10-01', '2026-10-01')).toEqual({ state: 'ok' });
+    expect(rosterFreshness('roster', null, '2026-10-01', '2026-10-01')).toEqual({ state: 'ok' });
+  });
+});

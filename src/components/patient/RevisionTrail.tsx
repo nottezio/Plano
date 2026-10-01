@@ -277,7 +277,7 @@ export function RevisionTrail({
 
 function formatWhen(revision: EntryRevision): string {
   const millis = revision.at?.toMillis?.();
-  if (millis === undefined) return 'menunggu sinkron';
+  if (millis === undefined) return 'menunggu sync';
   return new Date(millis).toLocaleString('id-ID', {
     day: 'numeric',
     month: 'short',

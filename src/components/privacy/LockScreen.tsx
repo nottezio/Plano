@@ -92,7 +92,7 @@ export function LockScreen(): JSX.Element {
         </div>
         <p className="mt-2 max-w-xs text-center text-[11px] text-fg-faint">
           Keluar menghapus data offline dan PIN di perangkat ini. Catatan yang sudah
-          tersinkron aman di server; yang belum terkirim akan diperingatkan dulu.
+          synced aman di server; yang belum terkirim akan diperingatkan dulu.
         </p>
       </div>
       <Footer />

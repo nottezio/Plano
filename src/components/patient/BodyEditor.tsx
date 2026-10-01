@@ -61,6 +61,7 @@ export function BodyEditor({
   onBlur,
   aliases,
   date,
+  ward,
   tint = false,
   readOnly,
   placeholder,
@@ -82,6 +83,8 @@ export function BodyEditor({
    * carry that day's date, which is the rule the rest of the app follows.
    */
   date: ClinicalDate;
+  /** The patient's ward, for the floor in an inserted EKG heading. */
+  ward?: string | undefined;
   /** Tint section headers; off unless the user turned it on. */
   tint?: boolean;
   readOnly: boolean;
@@ -765,6 +768,9 @@ export function BodyEditor({
           }
           onBullet={() => withSelection(toggleBullet)}
           onNumbered={() => withSelection(toggleNumbered)}
+          snippetPreview={(snippetId) =>
+            SNIPPETS.find((entry) => entry.id === snippetId)?.build(date, ward) ?? ''
+          }
           onInsertSnippet={
             snippets
               ? (snippetId) => {
@@ -773,7 +779,7 @@ export function BodyEditor({
             // `date` is the note's clinical day, not today: a note written
             // after midnight for the previous day carries that day's date.
                   withSelection((text, start) =>
-                    insertSnippet(text, start, snippet.build(date)),
+                    insertSnippet(text, start, snippet.build(date, ward)),
                   );
                 }
               : undefined

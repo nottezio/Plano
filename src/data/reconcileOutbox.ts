@@ -90,7 +90,7 @@ async function settle(record: OutboxRecord): Promise<ReconcileResult | null> {
         body: plan.replaced,
         rev: entry?.rev ?? 0,
         reason: 'pre-conflict',
-        label: 'sebelum gabung versi luring',
+        label: 'sebelum gabung versi offline',
       });
       await writeBody(patientId, date, plan.body, entry?.hariRawat ?? 0, {
         isNew: false,
@@ -126,6 +126,6 @@ async function snapshotForReview(
     body,
     rev,
     reason: 'pre-conflict',
-    label: 'versi luring belum digabung',
+    label: 'versi offline belum digabung',
   });
 }

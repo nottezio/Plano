@@ -27,7 +27,7 @@ export function ImportData({ uid }: { uid: string }): JSX.Element {
   const onFile = async (file: File): Promise<void> => {
     setState({ phase: 'reading' });
     if (!navigator.onLine) {
-      setState({ phase: 'error', message: 'Impor butuh koneksi internet. Coba lagi saat daring.' });
+      setState({ phase: 'error', message: 'Impor butuh koneksi internet. Coba lagi saat online.' });
       return;
     }
     const parsed = parseBundle(await file.text());

@@ -66,7 +66,7 @@ export function NoteList({
     <div className="space-y-3">
       <section>
         <h3 className="px-3 pb-1 text-[11px] font-semibold uppercase tracking-wide text-fg-faint">
-          Disematkan
+          Pinned
         </h3>
         <Group notes={pinned} {...{ activeId, onOpen, onMove, now, reorderable, showShelf }} />
       </section>

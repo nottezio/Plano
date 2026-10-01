@@ -406,7 +406,7 @@ export default function NotePage(): JSX.Element {
                     setMenuOpen(false);
                   }}
                 >
-                  {open.pinned ? 'Lepas sematan' : 'Sematkan di atas'}
+                  {open.pinned ? 'Lepas pin' : 'Pin di atas'}
                 </MenuButton>
                 <MenuButton
                   onClick={() => {

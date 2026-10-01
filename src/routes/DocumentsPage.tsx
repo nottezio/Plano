@@ -224,7 +224,7 @@ export default function DocumentsPage(): JSX.Element {
               <p className="pb-1 text-xs text-fg-muted" aria-live="polite">{matches.length} dokumen</p>
             ) : null}
             {pinned.length > 0 ? (
-              <DocumentGroup title="Disematkan" matches={pinned} tokens={tokens} showCategory />
+              <DocumentGroup title="Pinned" matches={pinned} tokens={tokens} showCategory />
             ) : null}
             {grouped.map(([name, list]) => (
               <DocumentGroup key={name} title={name} matches={list} tokens={tokens} showCategory={false} />
@@ -349,7 +349,7 @@ function DocumentGroup({
                     <Highlight text={document.title} tokens={tokens} />
                   </span>
                   {document.pinned ? (
-                    <IconPin filled width="14" height="14" className="shrink-0 text-accent" aria-label="Disematkan" />
+                    <IconPin filled width="14" height="14" className="shrink-0 text-accent" aria-label="Pinned" />
                   ) : null}
                 </span>
                 {showCategory ? (

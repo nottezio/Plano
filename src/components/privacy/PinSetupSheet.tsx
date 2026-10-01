@@ -63,7 +63,7 @@ export function PinSetupSheet({
 
       <p className="mt-4 rounded-lg border border-border bg-bg-subtle p-3 text-[11px] leading-relaxed text-fg-muted">
         PIN hanya menutup layar di perangkat ini. Catatan tetap tersimpan tanpa enkripsi di
-        penyimpanan peramban, sehingga PIN bukan pengganti kunci layar perangkat. Tidak ada
+        penyimpanan browser, sehingga PIN bukan pengganti kunci layar perangkat. Tidak ada
         pemulihan PIN — bila lupa, keluar lalu masuk kembali.
       </p>
     </Sheet>

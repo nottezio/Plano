@@ -9,13 +9,17 @@ describe('snippets', () => {
     // All-numeric and zero padded, matching every dated heading in the corpus.
     // The note's day, not today's wall clock: a note written after midnight
     // for the previous day must carry that day's date.
-    expect(byId('ekg').build('2026-09-04')).toBe('*EKG di PJT Lt. ... (04-09-2026)*\n');
+    expect(byId('ekg').build('2026-09-04', 'PJT Lantai 4')).toBe('*EKG PJT Lt. 4 (04-09-2026)*\n');
   });
 
-  it('leaves the EKG floor blank', () => {
-    // A patient moves between Lantai 4, Lantai 5, CVCU and IGD in one stay,
-    // and the tracing's floor is not something the record knows.
-    expect(byId('ekg').build('2026-09-04')).toContain('Lt. ...');
+  it('takes the floor from the ward, however it is written', () => {
+    expect(byId('ekg').build('2026-10-01', 'PJT Lt 5')).toBe('*EKG PJT Lt. 5 (01-10-2026)*\n');
+    expect(byId('ekg').build('2026-10-01', 'PJT Lt. 4')).toBe('*EKG PJT Lt. 4 (01-10-2026)*\n');
+    expect(byId('ekg').build('2026-10-01', 'CVCU')).toBe('*EKG CVCU (01-10-2026)*\n');
+  });
+
+  it('leaves the floor blank when no ward is recorded', () => {
+    expect(byId('ekg').build('2026-09-04')).toBe('*EKG PJT Lt. ... (04-09-2026)*\n');
   });
 
   it('writes the short complaint block', () => {

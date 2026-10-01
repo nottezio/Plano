@@ -43,12 +43,56 @@ export function archiveDate(patient: Patient): ClinicalDate {
   return patient.lastEntryDate ?? patient.admittedAt;
 }
 
+export interface WeekGroup {
+  /** "2026-10-w2" */
+  key: string;
+  /** "Minggu 2 · 5–11 Okt" */
+  label: string;
+  patients: Patient[];
+}
+
 export interface MonthGroup {
   /** "2026-08" */
   key: string;
   /** "Agustus 2026" */
   label: string;
   patients: Patient[];
+  /**
+   * The month split into weeks (Monday–Sunday, clipped to the month), newest
+   * first, only weeks that hold someone. A month of 60 discharges is a long
+   * scroll; "which week did they go home" is how they are remembered.
+   */
+  weeks: WeekGroup[];
+}
+
+const MONTH_SHORT = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des'];
+
+/** Week of the month (1-based, Monday start) and its day range, clipped to the month. */
+export function weekOfMonth(day: ClinicalDate): { index: number; from: number; to: number } {
+  const [y, m, d] = day.split('-').map(Number) as [number, number, number];
+  const first = new Date(Date.UTC(y, m - 1, 1));
+  const lastDay = new Date(Date.UTC(y, m, 0)).getUTCDate();
+  // Monday = 0 … Sunday = 6
+  const offset = (first.getUTCDay() + 6) % 7;
+  const index = Math.floor((d - 1 + offset) / 7) + 1;
+  const from = Math.max(1, (index - 1) * 7 - offset + 1);
+  const to = Math.min(lastDay, index * 7 - offset);
+  return { index, from, to };
+}
+
+function groupByWeek(monthKey: string, patients: readonly Patient[]): WeekGroup[] {
+  const month = MONTH_SHORT[Number(monthKey.slice(5, 7)) - 1] ?? '';
+  const weeks = new Map<number, { label: string; patients: Patient[] }>();
+  for (const patient of patients) {
+    const week = weekOfMonth(archiveDate(patient));
+    const range = week.from === week.to ? `${week.from}` : `${week.from}–${week.to}`;
+    const bucket = weeks.get(week.index);
+    if (bucket) bucket.patients.push(patient);
+    else weeks.set(week.index, { label: `Minggu ${week.index} · ${range} ${month}`, patients: [patient] });
+  }
+  return [...weeks.entries()]
+    .sort(([a], [b]) => b - a)
+    .map(([index, week]) => ({ key: `${monthKey}-w${index}`, label: week.label, patients: week.patients }));
 }
 
 export function groupByMonth(patients: readonly Patient[]): MonthGroup[] {
@@ -63,13 +107,10 @@ export function groupByMonth(patients: readonly Patient[]): MonthGroup[] {
 
   return [...groups.entries()]
     .sort(([a], [b]) => (a < b ? 1 : -1))
-    .map(([key, list]) => ({
-      key,
-      label: monthLabel(key),
-      patients: [...list].sort((a, b) =>
-        archiveDate(a) < archiveDate(b) ? 1 : -1,
-      ),
-    }));
+    .map(([key, list]) => {
+      const patients = [...list].sort((a, b) => (archiveDate(a) < archiveDate(b) ? 1 : -1));
+      return { key, label: monthLabel(key), patients, weeks: groupByWeek(key, patients) };
+    });
 }
 
 export function monthLabel(monthKey: string): string {

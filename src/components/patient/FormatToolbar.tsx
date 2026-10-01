@@ -1,18 +1,27 @@
+import { useEffect, useRef, useState, type ReactNode } from 'react';
+
 import { normaliseBullets, restoreEmphasis } from '@/domain/format/markdownLite';
 import type { SectionAlias } from '@/domain/types';
 import { SNIPPETS } from '@/domain/format/snippets';
 
 /**
- * SPEC F4 — Bold, Italic, Bullet, and an insert menu.
+ * SPEC F4 — the floating toolbar under the SOAP editor.
  *
- * That menu used to insert a section header — `*O:*` at the caret — as the way
- * to opt into parseable structure. In practice nobody needed help typing a
- * five-character heading, and the menu was reported as redundant. It now
- * inserts the blocks that ARE retyped every admission: the dated EKG heading,
- * the long anamnesis, the cardiovascular risk factors.
+ * REDESIGNED 2026-10-02. The old bar was a strip of bare glyphs (↶ ↷ B I •
+ * 1.), a native select reading "Sisipkan…", and two cryptic buttons "Aa*" and
+ * "•→-" that rewrote the whole note. Now:
  *
- * There are still no S/O/A/P input boxes and there never will be — the spec
- * rejects them explicitly. Structure remains something typed into free text.
+ *  - Three groups in one rounded, shadowed pill: history · text format ·
+ *    insert / tools. Icons are drawn, each with a tooltip and aria-label.
+ *  - "Sisipkan" is a real menu that opens UPWARD (the bar sits at the bottom
+ *    of the editor) and shows what each block will insert — the EKG line
+ *    with this patient's floor and the note's date.
+ *  - The two whole-note rewrites live in a "Rapikan" menu with words, not
+ *    symbols, so nobody presses them to find out what they do.
+ *
+ * Every control keeps the textarea's focus and selection (mousedown is
+ * prevented), as before: losing the selection would make Bold act on nothing
+ * and dismiss the phone keyboard.
  */
 export function FormatToolbar({
   disabled,
@@ -21,24 +30,14 @@ export function FormatToolbar({
   onBullet,
   onNumbered,
   onInsertSnippet,
+  snippetPreview,
   value,
   onReplace,
-  /**
-   * The user's section aliases.
-   *
-   * Threaded in rather than defaulted inside `restoreEmphasis`, so a heading
-   * added in Settings is emphasised by this button too. When the two had
-   * separate vocabularies, an alias the parser understood was one this button
-   * silently could not see.
-   */
   aliases,
   history,
 }: {
   disabled: boolean;
-  /**
-   * Undo/redo for the note. Optional: the read-only views and the jaga note
-   * editor do not carry one, and a pair of dead buttons is worse than none.
-   */
+  /** Undo/redo for the note; absent where there is none. */
   history?:
     | { undo: () => void; redo: () => void; canUndo: boolean; canRedo: boolean }
     | undefined;
@@ -46,115 +45,173 @@ export function FormatToolbar({
   onItalic: () => void;
   onBullet: () => void;
   onNumbered: () => void;
-  /**
-   * Absent for the jaga editor: a shift note is a short paragraph about one
-   * complaint, and an admission anamnesis block does not belong in it.
-   */
+  /** Absent for the jaga editor: an admission block does not belong there. */
   onInsertSnippet?: ((snippetId: string) => void) | undefined;
+  /** What a snippet will insert, for the menu's second line. */
+  snippetPreview?: ((snippetId: string) => string) | undefined;
   /** Current body, for the whole-note actions. */
   value: string;
   onReplace: (next: string) => void;
+  /** The user's section aliases, so "Tebalkan judul" sees custom headings too. */
   aliases?: readonly SectionAlias[] | undefined;
 }): JSX.Element {
+  const [menu, setMenu] = useState<'insert' | 'tidy' | null>(null);
+  const rootRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!menu) return undefined;
+    const close = (event: PointerEvent): void => {
+      if (!rootRef.current?.contains(event.target as Node)) setMenu(null);
+    };
+    const escape = (event: KeyboardEvent): void => {
+      if (event.key === 'Escape') setMenu(null);
+    };
+    window.addEventListener('pointerdown', close, true);
+    window.addEventListener('keydown', escape);
+    return () => {
+      window.removeEventListener('pointerdown', close, true);
+      window.removeEventListener('keydown', escape);
+    };
+  }, [menu]);
+
   return (
-    // Sized to its contents rather than spanning the column. A full-width bar
-    // of four small buttons reads as a section of the page; a compact one reads
-    // as a tool attached to the text above it.
-    <div className="flex w-fit max-w-full items-center gap-0.5 overflow-x-auto rounded-lg border border-border bg-surface px-1 py-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-      {history ? (
-        <>
-          {/* First in the row: the two most-reached-for controls, and the pair
-              people look for at the left of a toolbar. */}
-          <Button
-            label="↶"
-            title="Urungkan (Ctrl+Z)"
-            disabled={disabled || !history.canUndo}
-            onClick={history.undo}
+    <div ref={rootRef} className="relative w-fit max-w-full">
+      <div
+        role="toolbar"
+        aria-label="Format catatan"
+        className="flex max-w-full items-center gap-0.5 overflow-x-auto rounded-xl border border-border bg-surface/95 p-0.5 shadow-lg backdrop-blur [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+      >
+        {history ? (
+          <Group>
+            <Tool title="Undo (Ctrl+Z)" disabled={disabled || !history.canUndo} onClick={history.undo}>
+              <Svg><path d="M9 14 4 9l5-5" /><path d="M4 9h10.5a5.5 5.5 0 0 1 0 11H11" /></Svg>
+            </Tool>
+            <Tool title="Redo (Ctrl+Shift+Z)" disabled={disabled || !history.canRedo} onClick={history.redo}>
+              <Svg><path d="m15 14 5-5-5-5" /><path d="M20 9H9.5a5.5 5.5 0 0 0 0 11H13" /></Svg>
+            </Tool>
+          </Group>
+        ) : null}
+
+        <Group>
+          <Tool title="Bold" disabled={disabled} onClick={onBold}>
+            <span className="text-[15px] font-extrabold">B</span>
+          </Tool>
+          <Tool title="Italic" disabled={disabled} onClick={onItalic}>
+            <span className="font-serif text-[15px] italic">I</span>
+          </Tool>
+          <Tool title="Bullet list" disabled={disabled} onClick={onBullet}>
+            <Svg>
+              <path d="M9 6h11M9 12h11M9 18h11" />
+              <circle cx="4.5" cy="6" r="1" fill="currentColor" />
+              <circle cx="4.5" cy="12" r="1" fill="currentColor" />
+              <circle cx="4.5" cy="18" r="1" fill="currentColor" />
+            </Svg>
+          </Tool>
+          <Tool title="Numbered list" disabled={disabled} onClick={onNumbered}>
+            <Svg>
+              <path d="M10 6h10M10 12h10M10 18h10" />
+              <path d="M4 5h1.5v4M4 9h3M4 15.5c0-.8.7-1.5 1.5-1.5S7 14.7 7 15.5 4 18 4 19h3" />
+            </Svg>
+          </Tool>
+        </Group>
+
+        <Group last>
+          {onInsertSnippet ? (
+            <MenuButton
+              label="Sisipkan"
+              open={menu === 'insert'}
+              disabled={disabled}
+              onToggle={() => setMenu(menu === 'insert' ? null : 'insert')}
+              icon={<Svg><path d="M12 5v14M5 12h14" /></Svg>}
+            />
+          ) : null}
+          <MenuButton
+            label="Rapikan"
+            compactLabel
+            open={menu === 'tidy'}
+            disabled={disabled}
+            onToggle={() => setMenu(menu === 'tidy' ? null : 'tidy')}
+            icon={<Svg><path d="m4 20 10-10M14 4l1.5 3L19 8.5 15.5 10 14 13l-1.5-3L9 8.5 12.5 7z" /></Svg>}
           />
-          <Button
-            label="↷"
-            title="Ulangi (Ctrl+Shift+Z)"
-            disabled={disabled || !history.canRedo}
-            onClick={history.redo}
-          />
-          <span className="mx-1 h-5 w-px shrink-0 bg-border" aria-hidden="true" />
-        </>
-      ) : null}
-      <Button label="B" title="Tebal" bold disabled={disabled} onClick={onBold} />
-      <Button label="I" title="Miring" italic disabled={disabled} onClick={onItalic} />
-      <Button label="•" title="Poin" disabled={disabled} onClick={onBullet} />
-      <Button label="1." title="Bernomor" disabled={disabled} onClick={onNumbered} />
+        </Group>
+      </div>
 
-      <span className="mx-1 h-5 w-px shrink-0 bg-border" aria-hidden="true" />
-
-      <label className="sr-only" htmlFor="insert-section">
-        Sisipkan bagian
-      </label>
-      {/*
-        Clinical blocks, not section headings.
-
-        This dropdown used to insert `*O:*` — five characters anyone can type,
-        on a screen where the work is the paragraph underneath. These are the
-        blocks actually retyped on every admission.
-      */}
-      {onInsertSnippet ? (
-        <select
-          id="insert-snippet"
-          disabled={disabled}
-          value=""
-          onChange={(event) => {
-            if (event.target.value) onInsertSnippet(event.target.value);
-            event.currentTarget.value = '';
-          }}
-          className="min-h-tap shrink-0 rounded-lg border border-border bg-surface px-2 text-xs text-fg-muted disabled:opacity-40"
-        >
-          <option value="">Sisipkan…</option>
+      {menu === 'insert' && onInsertSnippet ? (
+        <Menu>
           {SNIPPETS.map((snippet) => (
-            <option key={snippet.id} value={snippet.id}>
-              {snippet.label}
-            </option>
+            <MenuItem
+              key={snippet.id}
+              label={snippet.label}
+              detail={snippetPreview?.(snippet.id).split('\n')[0]}
+              onClick={() => {
+                onInsertSnippet(snippet.id);
+                setMenu(null);
+              }}
+            />
           ))}
-        </select>
+        </Menu>
       ) : null}
-      <span aria-hidden="true" className="mx-1 h-5 w-px bg-border" />
 
-      {/* Both are actions, never automatic. Applying either on paste would edit
-          text the moment it arrives, and the one time it guessed wrong there
-          would be no way to tell what the original said. */}
-      <button
-        type="button"
-        onClick={() => onReplace(restoreEmphasis(value, aliases))}
-        title="Kembalikan tebal/miring pada judul"
-        className="min-h-tap rounded-lg px-2 text-xs text-fg-muted"
-      >
-        Aa*
-      </button>
-      <button
-        type="button"
-        onClick={() => onReplace(normaliseBullets(value))}
-        title="Ubah • menjadi -"
-        className="min-h-tap rounded-lg px-2 text-xs text-fg-muted"
-      >
-        •→-
-      </button>
+      {menu === 'tidy' ? (
+        <Menu>
+          <MenuItem
+            label="Tebalkan semua judul bagian"
+            detail="Mengembalikan *tebal* pada S, O, A, P, EKG, Lab… yang hilang saat ditempel"
+            onClick={() => {
+              onReplace(restoreEmphasis(value, aliases));
+              setMenu(null);
+            }}
+          />
+          <MenuItem
+            label="Ubah • menjadi -"
+            detail="Seragamkan tanda poin sebelum disalin"
+            onClick={() => {
+              onReplace(normaliseBullets(value));
+              setMenu(null);
+            }}
+          />
+        </Menu>
+      ) : null}
     </div>
   );
 }
 
-function Button({
-  label,
+function Group({ children, last = false }: { children: ReactNode; last?: boolean }): JSX.Element {
+  return (
+    <div className={['flex shrink-0 items-center gap-0.5', last ? '' : 'border-r border-border pr-0.5'].join(' ')}>
+      {children}
+    </div>
+  );
+}
+
+function Svg({ children }: { children: ReactNode }): JSX.Element {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      width="18"
+      height="18"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={2}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      {children}
+    </svg>
+  );
+}
+
+function Tool({
   title,
   onClick,
   disabled,
-  bold,
-  italic,
+  children,
 }: {
-  label: string;
   title: string;
   onClick: () => void;
   disabled: boolean;
-  bold?: boolean;
-  italic?: boolean;
+  children: ReactNode;
 }): JSX.Element {
   return (
     <button
@@ -162,17 +219,82 @@ function Button({
       title={title}
       aria-label={title}
       disabled={disabled}
-      // Keep the textarea focused: losing the selection would make the button
-      // operate on nothing, and on mobile it would also dismiss the keyboard.
       onMouseDown={(event) => event.preventDefault()}
       onClick={onClick}
+      className="flex min-h-tap min-w-tap shrink-0 items-center justify-center rounded-lg text-fg-muted hover:bg-bg-subtle hover:text-fg active:bg-[var(--accent-soft)] disabled:opacity-35 disabled:hover:bg-transparent [@media(pointer:fine)]:min-h-9 [@media(pointer:fine)]:min-w-9"
+    >
+      {children}
+    </button>
+  );
+}
+
+function MenuButton({
+  label,
+  icon,
+  open,
+  disabled,
+  onToggle,
+  compactLabel = false,
+}: {
+  label: string;
+  /** Hide the word on a narrow phone (icon + tooltip only), so the bar fits. */
+  compactLabel?: boolean;
+  icon: ReactNode;
+  open: boolean;
+  disabled: boolean;
+  onToggle: () => void;
+}): JSX.Element {
+  return (
+    <button
+      type="button"
+      aria-haspopup="menu"
+      aria-expanded={open}
+      aria-label={label}
+      title={label}
+      disabled={disabled}
+      onMouseDown={(event) => event.preventDefault()}
+      onClick={onToggle}
       className={[
-        'min-h-tap min-w-tap shrink-0 rounded-lg text-sm text-fg-muted disabled:opacity-40',
-        bold ? 'font-bold' : '',
-        italic ? 'italic' : '',
+        'flex min-h-tap shrink-0 items-center gap-1 rounded-lg px-2 text-xs font-medium disabled:opacity-35 [@media(pointer:fine)]:min-h-9',
+        open ? 'bg-[var(--accent-soft)] text-accent' : 'text-fg-muted hover:bg-bg-subtle hover:text-fg',
       ].join(' ')}
     >
-      {label}
+      {icon}
+      <span className={compactLabel ? 'hidden min-[420px]:inline' : ''}>{label}</span>
+    </button>
+  );
+}
+
+function Menu({ children }: { children: ReactNode }): JSX.Element {
+  return (
+    <div
+      role="menu"
+      className="absolute bottom-full left-0 z-30 mb-2 w-72 max-w-[calc(100vw-2rem)] overflow-hidden rounded-xl border border-border bg-surface p-1 shadow-2xl"
+    >
+      {children}
+    </div>
+  );
+}
+
+function MenuItem({
+  label,
+  detail,
+  onClick,
+}: {
+  label: string;
+  detail?: string | undefined;
+  onClick: () => void;
+}): JSX.Element {
+  return (
+    <button
+      type="button"
+      role="menuitem"
+      onMouseDown={(event) => event.preventDefault()}
+      onClick={onClick}
+      className="block min-h-tap w-full rounded-lg px-3 py-2 text-left hover:bg-bg-subtle"
+    >
+      <span className="block text-sm font-medium text-fg">{label}</span>
+      {detail ? <span className="mt-0.5 block truncate font-mono text-[11px] text-fg-muted">{detail}</span> : null}
     </button>
   );
 }

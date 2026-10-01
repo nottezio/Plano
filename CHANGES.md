@@ -1,5 +1,94 @@
 # Plano — CHANGES
 
+## `2026-10-02.2`
+
+**EKG heading takes the floor from the ward. A redesigned format toolbar.
+English where the Indonesian term is forced. Outdated-schedule warnings in
+Konfirmasi Jaga. No hospital system name in the calculator. Weekly
+dividers in the archive.**
+
+### 1. EKG heading with the patient's floor
+
+- `Snippet.build(date, ward)`. `ekgPlace` turns "PJT Lantai 4" / "PJT Lt 4"
+  into "PJT Lt. 4", keeps any other ward as recorded (CVCU), and keeps the
+  visible blank "PJT Lt. ..." when there is no ward.
+- The format follows Avi's example, `*EKG PJT Lt. 4 (01-10-2026)*` (no
+  "di").
+- The old rationale for leaving the floor blank (patients move) is
+  answered by the heading staying editable on the day the ward is wrong.
+- Tests: Lantai/Lt/Lt. forms, CVCU, and no ward.
+
+### 2. Format toolbar
+
+The bar had bare glyphs (↶ ↷ B I • 1.), a native `<select>` labelled
+"Sisipkan…", and two cryptic whole-note buttons, "Aa*" and "•→-".
+
+Now:
+- **Three groups in one shadowed pill:** history · text format · insert
+  and tools. Drawn SVG icons, each with a tooltip and aria-label.
+- **"Sisipkan"** is a menu that opens upward and shows the first line each
+  block will insert, including the EKG heading with this patient's floor.
+- **"Rapikan"** holds the two whole-note rewrites, described in words.
+- Menus close on an outside tap or Escape. Every control still prevents
+  mousedown, so the textarea keeps its selection.
+- On a phone narrower than 420 px the Rapikan label collapses to its icon,
+  so the bar fits without scrolling (checked at 390 px).
+
+### 3. English for forced Indonesian terms
+
+Policy (Avi): use the English word where the Indonesian one reads as
+forced. Applied to UI strings only; comments are unchanged.
+
+| Was | Now |
+|---|---|
+| Pratinjau | Preview |
+| Sematkan / Lepas sematan / Disematkan | Pin / Lepas pin / Pinned |
+| Urungkan | Undo |
+| Tersinkron, sinkron, disinkronkan | Synced, sync, di-sync |
+| luring / daring | offline / online |
+| tertunda | pending |
+| Muat ulang bersih | Hard refresh |
+| peramban | browser |
+
+New revision labels read "versi offline belum digabung" and "sebelum
+gabung versi offline". Existing trail entries keep their stored wording.
+Kept in Indonesian because they read naturally: Salin, Unduh, Impor/Ekspor,
+Rapikan, Ulangi PIN.
+
+### 4. Outdated schedules in Konfirmasi Jaga
+
+**Problem.** The monthly rosters are replaced by hand. After a month rolls
+over without an import, the helper offered last month's names, or said
+"tanggal ini tidak ada di jadwal" with no reason given.
+
+**Fix.**
+- `rosterFreshness(kind, doc, forDate, today)` in `jaga/recency.ts`, from
+  the schedule's own coverage dates:
+  - **outdated**: it ends before the date being confirmed, or before today;
+  - **ending**: it ends within 3 days of today;
+  - **ok**: otherwise. Jarkom, which has no dates, is never flagged.
+- A banner above "1. Impor jadwal" lists each flagged schedule with its
+  end date. Its import card is outlined red (outdated) or amber (ending).
+- Tests cover all three states and Jarkom.
+
+### 5. Calculator
+
+The Ureum/BUN switch reads "Ureum ÷ 6" (it said "Ureum (SIMGOS) ÷ 6"). The
+user-facing changelog entry for 09-30.2 is reworded the same way.
+
+### 6. Archive by week
+
+- `MonthGroup.weeks`: Monday–Sunday weeks clipped to the month, newest
+  first, holding only weeks that contain a patient. Labelled e.g.
+  "Minggu 2 · 5–11 Okt".
+- Arsip renders a sub-heading and list per week inside each month.
+- Test: October 2026 (1 Oct is a Thursday) gives 1–4, 5–11 … 26–31.
+
+```
+1762 tests passed (+5)
+typecheck / lint (0 warnings) / check:version / check:contrast / check:a11y / build — clean
+```
+
 ## `2026-10-02.1` — "frequently Memuat"
 
 **Patient lists are now one shared, long-lived query, so returning to a

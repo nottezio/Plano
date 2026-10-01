@@ -338,7 +338,7 @@ function OsmolalityCard(): JSX.Element {
         value={ureaKind}
         onChange={setUreaKind}
         options={[
-          { value: 'ureum', label: 'Ureum (SIMGOS) ÷ 6' },
+          { value: 'ureum', label: 'Ureum ÷ 6' },
           { value: 'bun', label: 'BUN ÷ 2.8' },
         ]}
       />

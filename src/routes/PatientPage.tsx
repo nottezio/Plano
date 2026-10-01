@@ -1776,6 +1776,7 @@ export default function PatientPage(): JSX.Element {
             onBlur={editor.flush}
             aliases={settings.sectionAliases}
             date={selected}
+            ward={patient.ward}
             tint={settings.sectionTint}
             readOnly={locked}
             {...(settings.showWatermark

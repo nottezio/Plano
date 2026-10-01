@@ -127,3 +127,43 @@ export function nearestYear(month: number, viewed: string): number {
   const distance = (year: number): number => Math.abs(year * 12 + month - (vy * 12 + vm));
   return candidates.reduce((best, year) => (distance(year) < distance(best) ? year : best), vy);
 }
+
+/**
+ * Is an imported schedule still current? (2026-10-02)
+ *
+ * The rosters are monthly and are replaced by hand. A month rolls over, the
+ * new PDF is not imported, and the helper quietly offers last month's names —
+ * or "this date is not in the schedule" with no hint why. So each monthly
+ * roster is judged against the date the confirmation is FOR (usually
+ * tomorrow) and against today:
+ *
+ *   outdated  the schedule ends before that date — import the new month
+ *   ending    it ends within `ENDING_DAYS` of today — the next month's PDF is
+ *             due, so ask for it before the round where it is needed
+ *   ok        otherwise, and for Jarkom, which has no dates to judge by
+ */
+export type RosterFreshness =
+  | { state: 'ok' }
+  | { state: 'ending'; end: string }
+  | { state: 'outdated'; end: string };
+
+export const ENDING_DAYS = 3;
+
+function addDaysIso(date: string, days: number): string {
+  const at = new Date(`${date}T00:00:00Z`);
+  at.setUTCDate(at.getUTCDate() + days);
+  return at.toISOString().slice(0, 10);
+}
+
+export function rosterFreshness(
+  kind: JagaRosterKind,
+  doc: unknown,
+  forDate: string,
+  today: string,
+): RosterFreshness {
+  const coverage = coverageOf(kind, doc);
+  if (!coverage) return { state: 'ok' };
+  if (coverage.end < forDate || coverage.end < today) return { state: 'outdated', end: coverage.end };
+  if (coverage.end <= addDaysIso(today, ENDING_DAYS)) return { state: 'ending', end: coverage.end };
+  return { state: 'ok' };
+}
