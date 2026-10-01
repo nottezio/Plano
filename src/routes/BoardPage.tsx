@@ -1,6 +1,9 @@
 import { DEFAULT_REMINDER_KINDS } from '@/domain/reminders';
 import { privateText } from '@/domain/identity';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { CanvasViewer } from '@/components/board/CanvasViewer';
+import { parseSharedCanvas, type CanvasLayouts } from '@/domain/board/canvasLayout';
+import { saveSharedCanvas } from '@/data/repositories/boardCanvas.repo';
 import { useNavigate } from 'react-router-dom';
 
 import { AppShell } from '@/components/common/AppShell';
@@ -155,7 +158,7 @@ export default function BoardPage(): JSX.Element {
   const [order, setOrder] = useState<BoardOrder>(() => {
     try {
       const stored = localStorage.getItem('visite.boardOrder');
-      return stored === 'location' || stored === 'dpjp' || stored === 'custom'
+      return stored === 'location' || stored === 'visite' || stored === 'dpjp' || stored === 'custom'
         ? stored
         : 'recent';
     } catch {
@@ -344,6 +347,25 @@ export default function BoardPage(): JSX.Element {
    * than a thing you can describe.
    */
   const canvasWidth = useMediaQuery('(min-width: 1024px)');
+  /**
+   * On a phone in Urutan sendiri: the laptop's canvas scaled down, or the
+   * plain list. Per device, like the order itself.
+   */
+  const [phoneView, setPhoneViewState] = useState<'canvas' | 'list'>(() => {
+    try {
+      return localStorage.getItem('visite.board.phoneView') === 'list' ? 'list' : 'canvas';
+    } catch {
+      return 'canvas';
+    }
+  });
+  const setPhoneView = (next: 'canvas' | 'list'): void => {
+    setPhoneViewState(next);
+    try {
+      localStorage.setItem('visite.board.phoneView', next);
+    } catch {
+      // Per-device convenience only.
+    }
+  };
 
   /**
    * A callback ref, not `useRef`: the canvas needs to RE-RENDER once the slot
@@ -417,6 +439,90 @@ export default function BoardPage(): JSX.Element {
         customIds,
       ).map((patient) => patient.id),
     [patients, scope, order, customIds],
+  );
+
+  /** One canvas cell: a sticky note or a patient card. Shared by the laptop canvas and the phone viewer. */
+  const renderCanvasItem = (
+    id: string,
+    {
+      fitHeight,
+      onHeightBounds,
+      maxPreviewLines,
+    }: {
+      fitHeight: boolean;
+      onHeightBounds?: (bounds: { min: number; max: number }) => void;
+      maxPreviewLines: number;
+    },
+  ): ReactNode => {
+    const noteId = noteIdFromCanvasId(id);
+    if (noteId !== null) {
+      const entry = boardNotes.find((candidate) => candidate.id === noteId);
+      return entry && uid ? (
+        <StickyNoteCard
+          uid={uid}
+          id={entry.id}
+          note={entry.note}
+          fitHeight={fitHeight}
+          onHeightBounds={onHeightBounds}
+        />
+      ) : null;
+    }
+    const card = cards.find((entry) => entry.patient.id === id);
+    if (!card) return null;
+    return (
+      <PatientCard
+        card={card}
+        fitHeight={fitHeight}
+        onHeightBounds={onHeightBounds}
+        maxPreviewLines={maxPreviewLines}
+        collapsed={cardsFolded.has(card.patient.id)}
+        onToggleCollapsed={toggleFolded}
+        onLongPress={setQuickPatientId}
+        selectable={selecting}
+        checked={selected.has(card.patient.id)}
+        onToggleSelected={toggleSelected}
+        onPreview={
+          selecting
+            ? undefined
+            : (id: string) =>
+                setPreviewIds((current) =>
+                  // Re-peeking an open window brings it forward
+                  // rather than opening a second copy of it.
+                  current.includes(id)
+                    ? [...current.filter((x) => x !== id), id]
+                    : [...current, id]
+                )
+        }
+      />
+    );
+  };
+
+  /*
+    The canvas mirrored to the account, for the phone (see SharedCanvas).
+    Debounced: a drag ends in one stored change, but a resize of the window
+    produces a burst. Skipped when nothing differs from what is already there.
+  */
+  const rawSharedCanvas = useSession((state) => state.profile?.boardCanvas);
+  const sharedCanvas = useMemo(() => parseSharedCanvas(rawSharedCanvas), [rawSharedCanvas]);
+  const mirrorTimer = useRef<number | undefined>(undefined);
+  const lastMirrored = useRef<string | null>(null);
+  const mirrorCanvas = useCallback(
+    (layouts: CanvasLayouts, width: number) => {
+      if (!uid) return;
+      window.clearTimeout(mirrorTimer.current);
+      mirrorTimer.current = window.setTimeout(() => {
+        const key = JSON.stringify({ layouts, width: Math.round(width) });
+        const remoteKey = sharedCanvas
+          ? JSON.stringify({ layouts: sharedCanvas.layouts, width: Math.round(sharedCanvas.width) })
+          : null;
+        if (key === lastMirrored.current || key === remoteKey) return;
+        lastMirrored.current = key;
+        void saveSharedCanvas(uid, { layouts, width: Math.round(width), at: Date.now() }).catch(
+          (error: unknown) => console.warn('[board] canvas not mirrored', error),
+        );
+      }, 2000);
+    },
+    [uid, sharedCanvas],
   );
 
   const cards = useMemo(() => {
@@ -543,6 +649,7 @@ export default function BoardPage(): JSX.Element {
       >
         <option value="recent">Terbaru</option>
         <option value="location">Denah</option>
+        <option value="visite">Urutan visite</option>
         <option value="dpjp">Per DPJP</option>
         <option value="custom">Urutan sendiri</option>
       </select>
@@ -797,6 +904,37 @@ export default function BoardPage(): JSX.Element {
         <>
           {/* Headed only while searching. On an idle board the heading would be
               noise — there is nothing to distinguish it from. */}
+          {!canvasWidth && order === 'custom' && !searching && cards.length > 0 ? (
+            <div className="flex items-center gap-2 px-4 pb-2 pt-1">
+              <div role="group" aria-label="Tampilan" className="flex overflow-hidden rounded-lg border border-border text-xs">
+                {(
+                  [
+                    ['canvas', 'Kanvas'],
+                    ['list', 'Daftar'],
+                  ] as const
+                ).map(([value, label]) => (
+                  <button
+                    key={value}
+                    type="button"
+                    aria-pressed={phoneView === value}
+                    onClick={() => setPhoneView(value)}
+                    className={[
+                      'min-h-tap px-3',
+                      phoneView === value ? 'bg-accent font-semibold text-white' : 'text-fg-muted',
+                    ].join(' ')}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+              {phoneView === 'canvas' && !sharedCanvas ? (
+                <span className="min-w-0 flex-1 text-[11px] text-fg-muted">
+                  Belum ada kanvas: atur dulu di laptop (Urutan sendiri), lalu muncul di sini.
+                </span>
+              ) : null}
+            </div>
+          ) : null}
+
           {searching && cards.length > 0 ? (
             <SectionHeading label={`Pasien aktif (${cards.length})`} />
           ) : null}
@@ -825,6 +963,8 @@ export default function BoardPage(): JSX.Element {
             */
             <CanvasBoard
               enabled
+              seed={sharedCanvas?.layouts}
+              onStoredChange={mirrorCanvas}
               /*
                 Notes AFTER patients: the canvas auto-places in this order, so a
                 new note takes the next free slot instead of pushing every
@@ -863,49 +1003,17 @@ export default function BoardPage(): JSX.Element {
                 // floating panel (PatientCard → NotePopover).
                 return false;
               }}
-              renderItem={(id, { fitHeight, onHeightBounds, maxPreviewLines }) => {
-                const noteId = noteIdFromCanvasId(id);
-                if (noteId !== null) {
-                  const entry = boardNotes.find((candidate) => candidate.id === noteId);
-                  return entry && uid ? (
-                    <StickyNoteCard
-                      uid={uid}
-                      id={entry.id}
-                      note={entry.note}
-                      fitHeight={fitHeight}
-                      onHeightBounds={onHeightBounds}
-                    />
-                  ) : null;
-                }
-                const card = cards.find((entry) => entry.patient.id === id);
-                if (!card) return null;
-                return (
-                  <PatientCard
-                    card={card}
-                    fitHeight={fitHeight}
-                    onHeightBounds={onHeightBounds}
-                    maxPreviewLines={maxPreviewLines}
-                    collapsed={cardsFolded.has(card.patient.id)}
-                    onToggleCollapsed={toggleFolded}
-                    onLongPress={setQuickPatientId}
-                    selectable={selecting}
-                    checked={selected.has(card.patient.id)}
-                    onToggleSelected={toggleSelected}
-                    onPreview={
-                      selecting
-                        ? undefined
-                        : (id: string) =>
-                            setPreviewIds((current) =>
-                              // Re-peeking an open window brings it forward
-                              // rather than opening a second copy of it.
-                              current.includes(id)
-                                ? [...current.filter((x) => x !== id), id]
-                                : [...current, id]
-                            )
-                    }
-                  />
-                );
-              }}
+              renderItem={renderCanvasItem}
+            />
+          ) : cards.length > 0 && order === 'custom' && sharedCanvas && phoneView === 'canvas' ? (
+            <CanvasViewer
+              ids={[
+                ...cards.map((card) => card.patient.id),
+                ...(showStickies ? boardNotes.map((entry) => stickyCanvasId(entry.id)) : []),
+              ]}
+              layouts={sharedCanvas.layouts}
+              width={sharedCanvas.width}
+              renderItem={(id, options) => renderCanvasItem(id, options)}
             />
           ) : cards.length > 0 ? (
             <>

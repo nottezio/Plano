@@ -1,9 +1,11 @@
 import { DEFAULT_REMINDER_KINDS, activeReminders, type ActiveReminder, type ReminderKind } from './reminders';
 import { reorderWithinVisible } from './reorder';
 import { checklistProgress, resolveCardColor, type ChecklistStates } from './checklist';
+import { itemsForPatientDay } from './checklistDay';
 import { hariRawat } from './clinicalDate';
 import { displayName, redactName } from './identity';
 import { dpjpById, type Dpjp } from './dpjp';
+import { canonicalWard, visitIndex } from './denahPlan';
 import { dischargeStage, migrateLegacyDischarge, type DischargeStage } from './discharge';
 import type {
   ChecklistItemDef,
@@ -151,6 +153,9 @@ export function buildCard(
   showInitialsOnly: boolean,
   reminderKinds: readonly ReminderKind[] = DEFAULT_REMINDER_KINDS,
 ): BoardCard {
+  // Steps that do not apply today (Order obat on the discharge day) are
+  // inactive here, so progress and colour do not wait for them.
+  items = itemsForPatientDay(items, patient, today, today);
   const states = boardTickStates(patient, items, today);
   return {
     patient,
@@ -285,8 +290,13 @@ export function filterPatients(
       return false;
     }
     if (filters.pendingItemIds.length > 0) {
-      const states = boardTickStates(patient, items, today);
-      const allPending = filters.pendingItemIds.every((itemId) => !states[itemId]?.done);
+      const dayItems = itemsForPatientDay(items, patient, today, today);
+      const states = boardTickStates(patient, dayItems, today);
+      const active = new Set(dayItems.filter((item) => item.active).map((item) => item.id));
+      // A step that does not apply today is not "belum" either.
+      const allPending = filters.pendingItemIds.every(
+        (itemId) => active.has(itemId) && !states[itemId]?.done,
+      );
       if (!allPending) return false;
     }
     return true;
@@ -373,7 +383,24 @@ function compareLocation(a: Patient, b: Patient): number {
   return aBedText.localeCompare(bBedText, 'id');
 }
 
-export type BoardOrder = 'recent' | 'location' | 'dpjp' | 'custom';
+export type BoardOrder = 'recent' | 'location' | 'visite' | 'dpjp' | 'custom';
+
+/**
+ * "Urutan visite": the order the round walks, from the ward's visit route
+ * (`denahPlan.ts`), beds ascending inside a room. Patients in a room off the
+ * route, or in a ward without one, follow in plain location order; patients
+ * with no location last.
+ */
+function compareVisit(a: Patient, b: Patient): number {
+  const aWard = canonicalWard(a.ward ?? '');
+  const bWard = canonicalWard(b.ward ?? '');
+  if (aWard !== bWard) return compareLocation(a, b);
+  const aAt = visitIndex(a.ward, a.room);
+  const bAt = visitIndex(b.ward, b.room);
+  if (aAt !== null && bAt !== null && aAt !== bAt) return aAt - bAt;
+  if ((aAt === null) !== (bAt === null)) return aAt === null ? 1 : -1;
+  return compareLocation(a, b);
+}
 
 /**
  * Apply a hand-made order.
@@ -493,7 +520,7 @@ export function orderPatients(
     const bHas = Boolean(b.ward?.trim() || b.room?.trim() || b.bed?.trim());
     if (aHas !== bHas) return aHas ? -1 : 1;
 
-    return compareLocation(a, b);
+    return order === 'visite' ? compareVisit(a, b) : compareLocation(a, b);
   });
 
   return [...pinned, ...sorted];
@@ -506,6 +533,13 @@ export function groupLabel(patient: Patient, order: BoardOrder): string {
     const room = patient.room?.trim();
     if (!ward && !room) return 'Tanpa lokasi';
     return [ward, room ? `Kamar ${room}` : null].filter(Boolean).join(' · ');
+  }
+
+  if (order === 'visite') {
+    const ward = patient.ward?.trim();
+    const room = patient.room?.trim();
+    if (!ward && !room) return 'Tanpa lokasi';
+    return ward ? canonicalWard(ward) : 'Tanpa bangsal';
   }
 
   if (order === 'dpjp') {

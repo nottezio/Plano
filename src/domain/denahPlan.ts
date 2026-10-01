@@ -57,6 +57,13 @@ export interface WardPlan {
   header: DenahRoomSlot[];
   /** Left, centre, right — in the order the sheet is read. */
   columns: [DenahColumn[], DenahColumn[], DenahColumn[]];
+  /**
+   * The order the round walks the rooms ("Urutan visite"), as Avi gave it on
+   * 2026-10-01. A ward is a loop: start at 420, along the top to 421, down the
+   * right side 412 → 419, the Super VIP 411, then up the left side 401 → 410,
+   * which ends back beside 420. Rooms not listed are visited after these.
+   */
+  visitRoute?: readonly string[];
 }
 
 const PJT_LANTAI_4: WardPlan = {
@@ -103,7 +110,17 @@ const PJT_LANTAI_4: WardPlan = {
   ],
 };
 
-const PLANS: readonly WardPlan[] = [PJT_LANTAI_4];
+const PLANS: readonly WardPlan[] = [
+  {
+    ...PJT_LANTAI_4,
+    visitRoute: [
+      '420', '421',
+      '412', '413', '414', '415', '416', '417', '418', '419',
+      '411',
+      '401', '402', '403', '404', '405', '406', '407', '408', '409', '410',
+    ],
+  },
+];
 
 /**
  * Ward names as RECORDED, not as printed.
@@ -162,4 +179,17 @@ export function planRooms(plan: WardPlan): DenahRoomSlot[] {
       column.flatMap((block) => block.rooms ?? []),
     ),
   ];
+}
+
+/**
+ * Where a room falls on its ward's visit route: the index, or null when the
+ * ward has no route or the room is not on it.
+ */
+export function visitIndex(ward: string | undefined, room: string | undefined): number | null {
+  if (!ward || !room) return null;
+  const route = wardPlan(ward)?.visitRoute;
+  if (!route) return null;
+  const key = room.trim().replace(/^0+/, '');
+  const at = route.indexOf(key);
+  return at >= 0 ? at : null;
 }

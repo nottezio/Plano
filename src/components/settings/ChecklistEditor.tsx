@@ -1,3 +1,4 @@
+import { skipsOnDischargeDay } from '@/domain/checklistDay';
 import { useState } from 'react';
 import { nanoid } from 'nanoid';
 
@@ -86,7 +87,7 @@ export function ChecklistEditor({
               </button>
             </div>
 
-            <div className="mt-1 flex items-center gap-2 px-7 text-xs">
+            <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 px-7 text-xs">
               <button
                 type="button"
                 onClick={() => setPaletteFor(paletteFor === item.id ? null : item.id)}
@@ -100,6 +101,22 @@ export function ChecklistEditor({
                 className="underline"
               >
                 {item.active ? 'Nonaktifkan' : 'Aktifkan'}
+              </button>
+              <button
+                type="button"
+                aria-pressed={skipsOnDischargeDay(item)}
+                onClick={() =>
+                  onChange(
+                    ordered.map((other) =>
+                      other.id === item.id
+                        ? { ...other, skipOnDischargeDay: !skipsOnDischargeDay(item) }
+                        : other,
+                    ),
+                  )
+                }
+                className="underline"
+              >
+                {skipsOnDischargeDay(item) ? 'Dilewati saat pulang hari ini ✓' : 'Lewati saat pulang hari ini'}
               </button>
               {!item.active ? (
                 <span className="opacity-70">

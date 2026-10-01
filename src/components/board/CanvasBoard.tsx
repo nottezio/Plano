@@ -45,7 +45,16 @@ export function CanvasBoard({
   isUncapped,
   overlay,
   renderInCard,
+  seed,
+  onStoredChange,
 }: {
+  /**
+   * The account's copy, used only when this device has no layout yet (a new
+   * laptop). See `SharedCanvas`.
+   */
+  seed?: CanvasLayouts | undefined;
+  /** Called after the stored layout changes, to mirror it to the account. */
+  onStoredChange?: ((layouts: CanvasLayouts, canvasWidth: number) => void) | undefined;
   /** Every card on the board, in board order. Drives auto-placement. */
   ids: readonly string[];
   /**
@@ -111,7 +120,10 @@ export function CanvasBoard({
   renderInCard?: ((id: string) => JSX.Element | null) | undefined;
 }): JSX.Element {
   const surfaceRef = useRef<HTMLDivElement>(null);
-  const [stored, setStored] = useState<CanvasLayouts>(() => readLayouts());
+  const [stored, setStored] = useState<CanvasLayouts>(() => {
+    const local = readLayouts();
+    return Object.keys(local).length === 0 && seed ? seed : local;
+  });
   const [width, setWidth] = useState(0);
 
   /**
@@ -135,6 +147,21 @@ export function CanvasBoard({
 
   const canvasWidth = width || 1200;
   const columns = columnsFor(canvasWidth);
+
+  /*
+    Mirror every stored change. Skipped on mount: reading is not a change,
+    and a layout seeded from the account must not be written straight back.
+  */
+  const mounted = useRef(false);
+  const notify = useRef(onStoredChange);
+  notify.current = onStoredChange;
+  useEffect(() => {
+    if (!mounted.current) {
+      mounted.current = true;
+      return;
+    }
+    if (width > 0) notify.current?.(stored, width);
+  }, [stored, width]);
   const placementIds = useMemo(() => {
     if (!layoutIds) return ids;
     const drawn = new Set(ids);

@@ -1,4 +1,7 @@
+import { useMemo } from 'react';
+
 import { cardTitle } from '@/domain/board';
+import { itemsForPatientDay } from '@/domain/checklistDay';
 import { useSession } from '@/store/useSession';
 import { Sheet } from '@/components/common/Sheet';
 import { ProgressStrip } from './ProgressStrip';
@@ -28,7 +31,13 @@ export function QuickChecklistSheet({
   today: ClinicalDate;
   onOpenChange: (open: boolean) => void;
 }): JSX.Element | null {
-  const checklist = useChecklist(patient?.id, today, items, patient !== null);
+  const dischargePlannedFor = patient?.dischargePlannedFor;
+  const legacyDischarge = patient?.discharge;
+  const dayItems = useMemo(
+    () => itemsForPatientDay(items, { dischargePlannedFor, discharge: legacyDischarge }, today, today),
+    [items, dischargePlannedFor, legacyDischarge, today],
+  );
+  const checklist = useChecklist(patient?.id, today, dayItems, patient !== null);
   const initialsOnly = useSession((state) => state.settings().privacy.boardShowInitialsOnly);
 
   if (!patient) return null;
@@ -41,7 +50,7 @@ export function QuickChecklistSheet({
       description="Checklist dan pengingat hari ini"
     >
       <ul className="space-y-2">
-        {activeItems(items).map((item) => {
+        {activeItems(dayItems).map((item) => {
           const done = isDone(checklist.states, item.id);
           return (
             <li key={item.id}>

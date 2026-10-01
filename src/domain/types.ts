@@ -75,6 +75,13 @@ export interface ChecklistItemDef {
   colorToken: string;
   /** Soft-disable. Deleting would orphan every historical tick. */
   active: boolean;
+  /**
+   * Not needed on the day the patient goes home (e.g. "Order obat": the
+   * discharge prescription replaces the daily order). Hidden from that day's
+   * checklist, progress and card colour. Absent = the seed default; see
+   * `skipsOnDischargeDay`.
+   */
+  skipOnDischargeDay?: boolean;
 }
 
 export interface SectionAlias {
@@ -314,6 +321,11 @@ export interface UserProfile {
    * path at a time; see `domain/boardNotes`.
    */
   boardNotes?: import('./boardNotes').BoardNotes;
+  /**
+   * The board canvas as last arranged on a wide screen, for the phone to
+   * show. Untrusted shape: read through `parseSharedCanvas`.
+   */
+  boardCanvas?: unknown;
   /**
    * Reusable checklists and their current ticks.
    *

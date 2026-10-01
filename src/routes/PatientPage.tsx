@@ -83,6 +83,7 @@ import { useUI } from '@/store/useUI';
 import type { ClinicalDate } from '@/domain/types';
 import { useDebouncedValue } from '@/hooks/useDebouncedValue';
 import { ConfirmDialog } from '@/components/common/ConfirmDialog';
+import { itemsForPatientDay } from '@/domain/checklistDay';
 
 /** Minimum window the rail offers, so a patient admitted today can still scroll. */
 
@@ -390,7 +391,20 @@ export default function PatientPage(): JSX.Element {
    */
   const revisions = useRevisions(patientId, selected, true);
   const savedVersions = revisions.filter((revision) => revision.reason === 'version');
-  const checklist = useChecklist(patientId, selected, settings.checklistItems);
+  /** Steps that apply to this patient on this day (no Order obat on the discharge day). */
+  const dischargePlannedFor = patient?.dischargePlannedFor;
+  const legacyDischarge = patient?.discharge;
+  const dayItems = useMemo(
+    () =>
+      itemsForPatientDay(
+        settings.checklistItems,
+        { dischargePlannedFor, discharge: legacyDischarge },
+        selected,
+        today,
+      ),
+    [settings.checklistItems, dischargePlannedFor, legacyDischarge, selected, today],
+  );
+  const checklist = useChecklist(patientId, selected, dayItems);
   const notesSync = usePatientNotes(patient ?? null);
 
   /**
@@ -863,7 +877,7 @@ export default function PatientPage(): JSX.Element {
 
   const layout = settings.soapLayout ?? 'klasik';
 
-  const activeChecklistItems = settings.checklistItems.filter((item) => item.active);
+  const activeChecklistItems = dayItems.filter((item) => item.active);
   const checklistDone =
     checklist.progress.total > 0 && checklist.progress.doneCount === checklist.progress.total;
 
@@ -1255,7 +1269,7 @@ export default function PatientPage(): JSX.Element {
 
         <div className="xl:hidden">
           <ChecklistPills
-            items={settings.checklistItems}
+            items={dayItems}
             states={checklist.states}
             progress={checklist.progress}
             onToggle={checklist.toggle}
@@ -2119,7 +2133,7 @@ export default function PatientPage(): JSX.Element {
                 }
               >
                 <ChecklistPills
-                  items={settings.checklistItems}
+                  items={dayItems}
                   states={checklist.states}
                   progress={checklist.progress}
                   onToggle={checklist.toggle}
@@ -2221,7 +2235,7 @@ export default function PatientPage(): JSX.Element {
           <section>
             <h3 className="mb-1.5 text-xs font-semibold text-fg-muted">Checklist</h3>
             <ChecklistPills
-              items={settings.checklistItems}
+              items={dayItems}
               states={checklist.states}
               progress={checklist.progress}
               onToggle={checklist.toggle}

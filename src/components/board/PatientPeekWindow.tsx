@@ -1,5 +1,6 @@
 import { cardTitle } from '@/domain/board';
-import { useEffect, useId, useRef, useState } from 'react';
+import { useEffect, useId, useMemo, useRef, useState } from 'react';
+import { itemsForPatientDay } from '@/domain/checklistDay';
 import { useClipboardNote } from '@/store/useClipboardNote';
 import { Link } from 'react-router-dom';
 
@@ -92,7 +93,12 @@ export function PatientPeekWindow({
     used to follow the note's date, so before today's note existed a tick in
     the peek was written to yesterday, and today's board card never saw it.
   */
-  const checklist = useChecklist(patient.id, today, settings.checklistItems, true);
+  const dayItems = useMemo(
+    () => itemsForPatientDay(settings.checklistItems, patient, today, today),
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- only the discharge fields matter
+    [settings.checklistItems, patient.dischargePlannedFor, patient.discharge, today],
+  );
+  const checklist = useChecklist(patient.id, today, dayItems, true);
   const notes = usePatientNotes(patient);
 
   /*
@@ -379,7 +385,7 @@ export function PatientPeekWindow({
         >
           {tab === 'checklist' ? (
             <ul className="space-y-1">
-              {settings.checklistItems.map((item) => (
+              {dayItems.filter((item) => item.active).map((item) => (
                 <li key={item.id}>
                   <label className="flex items-start gap-2">
                     <input

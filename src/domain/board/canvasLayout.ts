@@ -78,37 +78,72 @@ export const GAP_PX = 12;
 export function readLayouts(): CanvasLayouts {
   try {
     const raw = localStorage.getItem(KEY);
-    const parsed: unknown = raw ? JSON.parse(raw) : null;
-    if (!parsed || typeof parsed !== 'object') return {};
-
-    // Validated field by field rather than cast. This is the one input to the
-    // board that comes from outside the app's own writes — an older build, a
-    // half-finished write, someone's devtools — and a NaN in `x` positions a
-    // card nowhere and takes the whole board's layout with it.
-    const out: CanvasLayouts = {};
-    for (const [id, value] of Object.entries(parsed as Record<string, unknown>)) {
-      if (!value || typeof value !== 'object') continue;
-      const entry = value as Record<string, unknown>;
-      const x = Number(entry.x);
-      const y = Number(entry.y);
-      const w = Number(entry.w);
-      const hMax = Number(entry.hMax ?? 0);
-      if (!Number.isFinite(x) || !Number.isFinite(y) || !Number.isFinite(w)) continue;
-      const cap = Number.isFinite(hMax) ? Math.max(0, hMax) : 0;
-      out[id] = {
-        x: clamp(x, 0, 0.98),
-        y: Math.max(0, y),
-        w: clamp(w, 0.08, 1),
-        hMax: cap,
-        // Only meaningful with a cap: a flag without one would make a card
-        // with no height set claim a height decision nobody made.
-        ...(cap > 0 && entry.hMaxWithNote === true ? { hMaxWithNote: true as const } : {}),
-      };
-    }
-    return out;
+    return sanitizeLayouts(raw ? JSON.parse(raw) : null);
   } catch {
     return {};
   }
+}
+
+/**
+ * Validated field by field rather than cast. Layouts come from outside the
+ * app's own writes — an older build, another device through the account, a
+ * half-finished write — and a NaN in `x` positions a card nowhere and takes
+ * the whole board's layout with it.
+ */
+export function sanitizeLayouts(parsed: unknown): CanvasLayouts {
+  if (!parsed || typeof parsed !== 'object') return {};
+  const out: CanvasLayouts = {};
+  for (const [id, value] of Object.entries(parsed as Record<string, unknown>)) {
+    if (!value || typeof value !== 'object') continue;
+    const entry = value as Record<string, unknown>;
+    const x = Number(entry.x);
+    const y = Number(entry.y);
+    const w = Number(entry.w);
+    const hMax = Number(entry.hMax ?? 0);
+    if (!Number.isFinite(x) || !Number.isFinite(y) || !Number.isFinite(w)) continue;
+    const cap = Number.isFinite(hMax) ? Math.max(0, hMax) : 0;
+    out[id] = {
+      x: clamp(x, 0, 0.98),
+      y: Math.max(0, y),
+      w: clamp(w, 0.08, 1),
+      hMax: cap,
+      // Only meaningful with a cap: a flag without one would make a card
+      // with no height set claim a height decision nobody made.
+      ...(cap > 0 && entry.hMaxWithNote === true ? { hMaxWithNote: true as const } : {}),
+    };
+  }
+  return out;
+}
+
+/**
+ * The canvas as last arranged on a wide screen, kept on the account so the
+ * phone can show the same board (2026-10-01).
+ *
+ * The phone has no room for a canvas (`min-width: 1024px`), so it does not
+ * arrange one: it draws this one, scaled to fit, read-only. `width` is the
+ * canvas width it was arranged at, because `x`/`w` are fractions of it and
+ * `y` is pixels — the phone needs both to reproduce the proportions.
+ *
+ * The device's own localStorage copy stays the working copy on a laptop;
+ * this is a mirror written after each change, and the seed for a laptop that
+ * has none yet. Two laptops arranging at once: the last one wins.
+ */
+export interface SharedCanvas {
+  layouts: CanvasLayouts;
+  /** Canvas width in px when it was arranged. */
+  width: number;
+  /** ms since epoch of the write. */
+  at: number;
+}
+
+export function parseSharedCanvas(value: unknown): SharedCanvas | null {
+  if (!value || typeof value !== 'object') return null;
+  const entry = value as Record<string, unknown>;
+  const width = Number(entry.width);
+  if (!Number.isFinite(width) || width < 320) return null;
+  const layouts = sanitizeLayouts(entry.layouts);
+  if (Object.keys(layouts).length === 0) return null;
+  return { layouts, width, at: Number(entry.at) || 0 };
 }
 
 export function writeLayouts(layouts: CanvasLayouts): void {

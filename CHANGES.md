@@ -1,5 +1,89 @@
 # Plano — CHANGES
 
+## `2026-10-01.2`
+
+**No "Order obat" on the discharge day. A new "Urutan visite" sort that
+walks the PJT Lantai 4 loop. On the phone, Urutan sendiri shows the
+laptop's canvas, scaled down and read-only, from a copy kept on the
+account.**
+
+### 1. Order obat on the discharge day
+
+**Before.** The checklist was one list for every patient and every day. On
+the day a patient goes home, the discharge prescription replaces the daily
+order, but "Order obat" stayed. The card never reached "Semua selesai",
+"Belum: Order obat" kept showing, and the "belum order obat" filter kept
+listing the patient.
+
+**Fix.** `domain/checklistDay.ts`:
+- `itemsForPatientDay(items, patient, date, today)` returns the steps for
+  that patient on that day. A step marked `skipOnDischargeDay` is returned
+  **inactive** when the discharge date (`migrateLegacyDischarge`) equals
+  the date.
+- Inactive is the existing "not part of today, history kept" state, so
+  progress, colour, pending label and the tick map all follow with no
+  second rule.
+- Applied in `buildCard`, `filterPatients` (a skipped step is not "belum"),
+  `PatientPage` (all three checklist placements), `QuickChecklistSheet` and
+  `PatientPeekWindow`.
+- **Default:** profiles predate the flag, so an unset flag means "skip" for
+  the seeded "Order obat" (`c8`) only. Pengaturan → Checklist harian has a
+  per-step toggle, "Lewati saat pulang hari ini".
+- H-1 is unaffected: the order is still written the day before.
+- Tests: skipped on the day, kept on H-1, legacy `discharge: 'today'`
+  honoured, a discharge day can be complete without the step, and an
+  explicit setting wins.
+
+### 2. Urutan visite
+
+- `WardPlan.visitRoute` holds the walking order Avi gave: **420 → 421 → 412
+  … 419 → 411 → 401 … 410**. It is a loop that ends back beside 420.
+- `BoardOrder` gains `'visite'`. `compareVisit` sorts by route index, then
+  by bed (numeric). Rooms off the route, or wards without a route, follow
+  in plain location order; patients without a location come last.
+- Grouped by canonical ward name, so "PJT Lt. 4" and "PJT Lantai 4" sort
+  together. The order is remembered per device like the others.
+
+### 3. Canvas on the phone
+
+**Constraint.** The canvas needs `min-width: 1024px` to arrange, and its
+layout lived only in the laptop's localStorage, so the phone had nothing
+to show.
+
+**Approach (Avi's choice: show the laptop layout).**
+- **Account mirror.** `CanvasBoard` reports every stored change
+  (`onStoredChange`, skipped on mount). The board debounces 2 s and writes
+  `boardCanvas: { layouts, width, at }` on the profile with `updateDoc`.
+  That replaces the field outright: a merge would keep entries and flags
+  the laptop has since removed. Writes identical to the account copy are
+  skipped.
+- **Seed.** A laptop with no local layout starts from the account copy.
+  With two laptops, the last arrangement wins.
+- **Phone.** `CanvasViewer` draws the layout at the width it was arranged
+  at (x/w are fractions of it, y is px) and scales the surface to fit.
+  Cards keep their exact positions and height caps, and unplaced patients
+  are auto-placed as the laptop would place them.
+  - Pinch zoom is anchored at the midpoint between the fingers; − / Pas
+    layar / + buttons do the same.
+  - It is read-only (no grips). A tap opens the patient, and a long press
+    opens the quick sheet.
+- On a phone in Urutan sendiri a **Kanvas / Daftar** switch is shown,
+  remembered per device. With no account layout yet it says to arrange on
+  the laptop first.
+- `parseSharedCanvas` validates the account copy entry by entry
+  (`sanitizeLayouts`, now shared with `readLayouts`). Tests cover it.
+
+### Not done
+
+- Stickers (emoji on the canvas) are not mirrored. Sticky notes and
+  patient cards are.
+- Arranging on the phone is not offered: its width cannot hold the layout.
+
+```
+1740 tests passed (+11)
+typecheck / lint (0 warnings) / check:version / check:contrast / check:a11y / build — clean
+```
+
 ## `2026-10-01.1`
 
 **The Prof/dokter swap no longer rewrites DPJP titles, and the Ringkas

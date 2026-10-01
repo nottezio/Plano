@@ -320,3 +320,22 @@ describe('a height set while the note was open survives a reload', () => {
     expect(merged.p2).toEqual({ x: 0.5, y: 0, w: 0.25, hMax: 0 });
   });
 });
+
+describe('parseSharedCanvas', () => {
+  it('accepts a layout mirrored from a laptop', async () => {
+    const { parseSharedCanvas } = await import('./canvasLayout');
+    const shared = parseSharedCanvas({ layouts: { p1: { x: 0.5, y: 120, w: 0.24, hMax: 0 } }, width: 1180, at: 1 });
+    expect(shared?.width).toBe(1180);
+    expect(shared?.layouts.p1).toEqual({ x: 0.5, y: 120, w: 0.24, hMax: 0 });
+  });
+
+  it('rejects what it cannot draw', async () => {
+    const { parseSharedCanvas } = await import('./canvasLayout');
+    expect(parseSharedCanvas(null)).toBeNull();
+    expect(parseSharedCanvas({ layouts: {}, width: 1180 })).toBeNull();
+    expect(parseSharedCanvas({ layouts: { p1: { x: 0, y: 0, w: 0.2 } }, width: 'wide' })).toBeNull();
+    // A bad entry is dropped, not the whole layout.
+    const shared = parseSharedCanvas({ layouts: { p1: { x: 'NaN', y: 0, w: 0.2 }, p2: { x: 0, y: 0, w: 0.2 } }, width: 1000 });
+    expect(Object.keys(shared?.layouts ?? {})).toEqual(['p2']);
+  });
+});
