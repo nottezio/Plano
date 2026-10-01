@@ -1,5 +1,57 @@
 # Plano — CHANGES
 
+## `2026-10-01.3` — phone canvas, rebuilt
+
+**The phone canvas is a grid of small blocks you arrange on the phone,
+replacing the scaled-down, read-only copy of the laptop canvas.**
+
+### Why the first version was clunky
+
+`CanvasViewer` drew the laptop layout at its laptop width (about 1180 px)
+and scaled the whole surface to the phone, about 0.3×. That gave three
+problems:
+- Every card was a third of its size: unreadable and untappable until
+  zoomed.
+- Zooming meant pinch plus panning inside a nested scroll box.
+- Nothing could be moved, because the layout belonged to a screen shape the
+  phone does not have.
+
+A scaled picture of a canvas is not a canvas.
+
+### What replaces it
+
+- **`domain/board/phoneGrid.ts`.** The phone's own layout: one cell
+  `{c, r}` per id on a 3-column grid (4 from 480 px, 5 from 640 px).
+  - `placeGrid`: stored cells are kept, new ids fill free cells.
+  - `moveBlock`: a move into an occupied cell swaps the two blocks.
+  - `compactGrid`: "Rapikan".
+  - `readingOrder`: the first-time seed, taken from the laptop canvas.
+  - `sanitizePhoneGrid`: validates the stored grid.
+  - Tests for each.
+- **`PhoneCanvas`.** 78 px blocks showing name (2 lines), room/bed, DPJP
+  initials, `done/total` or ✓, Pulang / H-1, and a count of reminders
+  still due. The background is the card colour (checklist progress), as
+  on the board. Sticky notes are blocks too, and tapping one shows the
+  note in `NotePopover` (moved to its own file).
+- **Two modes**, so a finger never has to be guessed between "open",
+  "scroll" and "move":
+  - **Normal:** tap opens the patient, long-press opens the quick sheet
+    (checklist and reminders), and the page scrolls.
+  - **Atur:** blocks follow the finger (`touch-action: none`), the target
+    cell is highlighted, and empty cells are outlined with two spare rows
+    below. The page auto-scrolls near the top and bottom edges.
+    "Rapikan" packs the gaps.
+- **Saved on the account** (`boardPhoneGrid`, replaced whole with
+  `updateDoc`), and applied locally first so a drop lands at once. It is
+  separate from the laptop layout, which has a different shape.
+- `CanvasViewer` is removed. The laptop→account mirror stays: it seeds a
+  new laptop and the phone grid's first order.
+
+```
+1747 tests passed (+7)
+typecheck / lint (0 warnings) / check:version / check:contrast / check:a11y / build — clean
+```
+
 ## `2026-10-01.2`
 
 **No "Order obat" on the discharge day. A new "Urutan visite" sort that

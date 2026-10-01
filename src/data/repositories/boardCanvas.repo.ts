@@ -14,3 +14,11 @@ import type { SharedCanvas } from '@/domain/board/canvasLayout';
 export function saveSharedCanvas(uid: string, shared: SharedCanvas): Promise<void> {
   return trackWrite(updateDoc(userDoc(uid), { boardCanvas: shared }));
 }
+
+/** The phone's block grid (see `domain/board/phoneGrid`), replaced whole. */
+export function savePhoneGrid(
+  uid: string,
+  grid: { cells: Record<string, { c: number; r: number }>; columns: number; at: number },
+): Promise<void> {
+  return trackWrite(updateDoc(userDoc(uid), { boardPhoneGrid: grid }));
+}

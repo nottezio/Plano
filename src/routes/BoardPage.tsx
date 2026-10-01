@@ -1,9 +1,10 @@
 import { DEFAULT_REMINDER_KINDS } from '@/domain/reminders';
 import { privateText } from '@/domain/identity';
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
-import { CanvasViewer } from '@/components/board/CanvasViewer';
+import { PhoneCanvas, type PhoneSticky } from '@/components/board/PhoneCanvas';
+import { readingOrder, sanitizePhoneGrid, type PhoneGrid } from '@/domain/board/phoneGrid';
 import { parseSharedCanvas, type CanvasLayouts } from '@/domain/board/canvasLayout';
-import { saveSharedCanvas } from '@/data/repositories/boardCanvas.repo';
+import { savePhoneGrid, saveSharedCanvas } from '@/data/repositories/boardCanvas.repo';
 import { useNavigate } from 'react-router-dom';
 
 import { AppShell } from '@/components/common/AppShell';
@@ -525,6 +526,28 @@ export default function BoardPage(): JSX.Element {
     [uid, sharedCanvas],
   );
 
+  /*
+    The phone's block grid (PhoneCanvas). Saved on the account, optimistic
+    locally so a drop lands at once. First use: blocks fill in the laptop
+    canvas's reading order, so the phone starts out like the laptop.
+  */
+  const rawPhoneGrid = useSession((state) => state.profile?.boardPhoneGrid);
+  const [localPhoneGrid, setLocalPhoneGrid] = useState<PhoneGrid | null>(null);
+  const phoneGrid = useMemo(
+    () => localPhoneGrid ?? sanitizePhoneGrid(rawPhoneGrid, 5),
+    [localPhoneGrid, rawPhoneGrid],
+  );
+  const changePhoneGrid = useCallback(
+    (next: PhoneGrid, columns: number) => {
+      setLocalPhoneGrid(next);
+      if (!uid) return;
+      void savePhoneGrid(uid, { cells: next, columns, at: Date.now() }).catch((error: unknown) =>
+        console.warn('[board] phone grid not saved', error),
+      );
+    },
+    [uid],
+  );
+
   const cards = useMemo(() => {
     const matched = filterPatients(
       patients.filter((patient) =>
@@ -549,6 +572,23 @@ export default function BoardPage(): JSX.Element {
     settings.privacy.boardShowInitialsOnly,
     reminderKinds,
   ]);
+
+  /** Inputs of the phone's block canvas. */
+  const phoneCards = useMemo(() => new Map(cards.map((card) => [card.patient.id, card])), [cards]);
+  const phoneStickies = useMemo(
+    () =>
+      new Map<string, PhoneSticky>(
+        boardNotes.map((entry) => [stickyCanvasId(entry.id), { id: entry.id, text: entry.note.text }]),
+      ),
+    [boardNotes],
+  );
+  const phoneIds = useMemo(() => {
+    const ids = [
+      ...cards.map((card) => card.patient.id),
+      ...(showStickies ? boardNotes.map((entry) => stickyCanvasId(entry.id)) : []),
+    ];
+    return sharedCanvas ? readingOrder(ids, sharedCanvas.layouts) : ids;
+  }, [cards, showStickies, boardNotes, sharedCanvas]);
 
   /*
     A selection is of cards ON SCREEN. It used to survive a scope switch or a
@@ -927,11 +967,6 @@ export default function BoardPage(): JSX.Element {
                   </button>
                 ))}
               </div>
-              {phoneView === 'canvas' && !sharedCanvas ? (
-                <span className="min-w-0 flex-1 text-[11px] text-fg-muted">
-                  Belum ada kanvas: atur dulu di laptop (Urutan sendiri), lalu muncul di sini.
-                </span>
-              ) : null}
             </div>
           ) : null}
 
@@ -1005,15 +1040,14 @@ export default function BoardPage(): JSX.Element {
               }}
               renderItem={renderCanvasItem}
             />
-          ) : cards.length > 0 && order === 'custom' && sharedCanvas && phoneView === 'canvas' ? (
-            <CanvasViewer
-              ids={[
-                ...cards.map((card) => card.patient.id),
-                ...(showStickies ? boardNotes.map((entry) => stickyCanvasId(entry.id)) : []),
-              ]}
-              layouts={sharedCanvas.layouts}
-              width={sharedCanvas.width}
-              renderItem={(id, options) => renderCanvasItem(id, options)}
+          ) : cards.length > 0 && order === 'custom' && phoneView === 'canvas' ? (
+            <PhoneCanvas
+              ids={phoneIds}
+              cards={phoneCards}
+              stickies={phoneStickies}
+              grid={phoneGrid}
+              onChange={changePhoneGrid}
+              onLongPress={setQuickPatientId}
             />
           ) : cards.length > 0 ? (
             <>

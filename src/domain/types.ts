@@ -326,6 +326,8 @@ export interface UserProfile {
    * show. Untrusted shape: read through `parseSharedCanvas`.
    */
   boardCanvas?: unknown;
+  /** The phone's block grid; read through `sanitizePhoneGrid`. */
+  boardPhoneGrid?: unknown;
   /**
    * Reusable checklists and their current ticks.
    *
