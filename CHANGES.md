@@ -1,5 +1,72 @@
 # Plano — CHANGES
 
+## `2026-10-02.4`
+
+**The lab block heading takes its date and unit from the report:
+`*Laboratorium PJT (02-10-2026)*`.**
+
+### Root cause
+
+`LabSheet` built the heading from the NOTE's clinical day, in the rail's
+short form: `*Laboratorium (30 Agu)*`. The text of the report was never
+consulted for when the sample was taken. This was wrong in two ways:
+
+- **Form.** Every hand-written lab heading in the corpus is
+  `*Laboratorium PJT (dd-mm-yyyy)*`. `parseSections` and `sectionSlices`
+  already document that form.
+- **Day.** The note's day is often not the lab's day:
+  - an IGD draw registered at 23:36 and resulted at 01:59;
+  - a culture registered on the 5th and resulted on the 10th;
+  - yesterday's result pasted into today's note.
+
+  All of these were filed under the wrong date.
+
+### Fix
+
+- **`domain/lab/labMeta.ts`:**
+  - `readLabMeta(text)` → `{ dates, date, unit }`.
+    - **Date:** `Tgl. Registrasi`, the sample date, which is how a lab is
+      referred to on rounds. Falls back to `Tgl. Hasil`.
+    - **Formats:** day-first `dd/mm/yyyy` and `dd/mm/yy`, with impossible
+      dates (31/02) rejected.
+    - **Ignored:** date of birth and the `MAKASSAR, dd-mm-yyyy` signature
+      line.
+    - **Appended reports:** every distinct date is collected, and the newest
+      is picked.
+  - `labUnitLabel`: `PJT Perawatan Lt. N (…)` → `PJT`, `IGD …` → `IGD`, and
+    anything else as printed (CVCU, HCU PJT, Poli Aritmia).
+  - `headingDate` gives `dd-mm-yyyy`. `DEFAULT_LAB_TITLE` is
+    "Laboratorium PJT" (Avi's example).
+- **`LabSheet`:**
+  - The title and date follow the report (derived from the raw text, so a
+    pasted header works too) until the user edits them.
+  - A date field with a line saying where the date came from (PDF, manual,
+    or the note's day).
+  - A warning when the text holds reports from more than one date.
+  - Overrides reset after insert.
+- **Tests:**
+  - `labMeta.test.ts` (8): registration vs result, two-digit year, DOB and
+    signature ignored, appended reports, fallbacks, wide layout, final
+    heading.
+  - **Corpus run.** All 36 lab PDFs were read through pdfjs in the same row
+    rebuild as `extractPdfText`. Every one yielded its `Tgl. Registrasi`
+    date and unit. This run was local only; the PDFs are not committed.
+- **Render check.** I read two real PDFs (04-09 IGD, then 15-09 IGD) into the
+  sheet. It showed the two-date warning, and the inserted block began with
+  `*Laboratorium IGD (15-09-2026)*`.
+
+### Not done
+
+- **Mixed dates are not split.** Reports from different dates appended
+  together are still parsed into one block, because `parseLab` merges values
+  across reports. The sheet warns instead, and splitting per report would be
+  a `parseLab` change.
+
+```
+1791 tests passed (+8)
+typecheck / lint (0 warnings) / check:version / check:contrast / check:a11y / build — clean
+```
+
 ## `2026-10-02.3`
 
 **Back goes up to the parent screen, like an app. Sheets close on back, and

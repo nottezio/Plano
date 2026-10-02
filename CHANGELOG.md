@@ -5,6 +5,12 @@ Catatan teknis lengkap (akar masalah, perbaikan) ada di CHANGES.md.
 
 Entri teratas harus versi yang sedang dirilis; tes gagal bila belum ditulis.
 
+## `2026-10-02.4`
+- **Format hasil lab memakai tanggal dari PDF:** judul blok kini `*Laboratorium PJT (02-10-2026)*` — tanggal diambil dari **Tgl. Registrasi** (saat sampel diambil), bukan tanggal catatan. Lab IGD yang diambil 23:36 dan keluar lewat tengah malam tetap tertulis tanggal pengambilan.
+- Judul mengikuti unit pengirim di PDF: **Laboratorium PJT**, **Laboratorium IGD**, CVCU, HCU PJT, atau poli sesuai yang tercetak. Judul dan tanggal tetap bisa diubah.
+- Bila beberapa PDF dari tanggal berbeda digabung, muncul peringatan; judul memakai tanggal terbaru.
+- Teks tempelan tanpa kepala laporan memakai tanggal catatan, seperti sebelumnya.
+
 ## `2026-10-02.3`
 - **Tombol back kini naik ke halaman induk, seperti aplikasi.** Back dari pasien kembali ke papan (atau ke Arsip, bila pasien dibuka dari Arsip) — tidak lagi melewati setiap hari yang sempat dibuka. Berpindah tab (Arsip, Kalkulator, Pengaturan…) tidak menumpuk: back dari tab mana pun kembali ke papan, dan back di papan menutup aplikasi.
 - **Back menutup sheet atau dialog yang terbuka** dulu (checklist cepat, menu pasien, Alat), bukan meninggalkan halaman.

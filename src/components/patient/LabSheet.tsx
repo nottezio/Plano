@@ -6,7 +6,8 @@ import { labHeading, labReportKind, parseLab } from '@/domain/lab/parseLab';
 import { copyText } from '@/lib/clipboard';
 import { preprocessForOcr } from '@/lib/ocrPreprocess';
 import { extractPdfText, isPdf } from '@/lib/pdfText';
-import { formatShortDateNoWeekday } from '@/domain/clinicalDate';
+import { isClinicalDate } from '@/domain/clinicalDate';
+import { headingDate, labTitleFor, readLabMeta } from '@/domain/lab/labMeta';
 import type { ClinicalDate } from '@/domain/types';
 
 /**
@@ -35,7 +36,9 @@ export function LabSheet({
   onInsert: (text: string) => void;
 }): JSX.Element {
   const [raw, setRaw] = useState('');
-  const [source, setSource] = useState('Laboratorium');
+  /** The title and date as typed by the user; null follows the report. */
+  const [titleOverride, setTitleOverride] = useState<string | null>(null);
+  const [dateOverride, setDateOverride] = useState<ClinicalDate | null>(null);
   const [ocrState, setOcrState] = useState<'idle' | 'running' | 'failed'>('idle');
   const [readMode, setReadMode] = useState<'pdf' | 'image' | null>(null);
   /** The name of a PDF that was not a lab report, so it was not read. */
@@ -96,11 +99,19 @@ export function LabSheet({
   };
 
   const result = useMemo(() => parseLab(raw, { boldAbnormal }), [raw, boldAbnormal]);
-  // `formatShortDateNoWeekday`, not `formatShortDate`. This string goes INTO
-  // the note as `*Laboratorium (30 Agu)*`, and every lab heading in the corpus
-  // is a bare date — the weekday belongs to the rail, which is navigation, not
-  // to the note, which is the document.
-  const heading = labHeading(formatShortDateNoWeekday(date), source.trim() || 'Laboratorium');
+  /*
+    The heading follows the REPORT (2026-10-02): its sample date and sending
+    unit, `*Laboratorium PJT (02-10-2026)*`. It used to be the note's day in
+    the rail's form, `*Laboratorium (30 Agu)*`, which was neither how the
+    corpus writes it nor, for a draw before midnight or a culture, the right
+    day. The note's day is only the fallback for text with no report header.
+    See `domain/lab/labMeta`.
+  */
+  const meta = useMemo(() => readLabMeta(raw), [raw]);
+  const title = titleOverride ?? labTitleFor(meta);
+  const labDate = dateOverride ?? meta.date ?? date;
+  const dateSource = dateOverride ? 'manual' : meta.date ? 'report' : 'note';
+  const heading = labHeading(headingDate(labDate), title.trim() || labTitleFor(meta));
   const block = result.formatted ? `${heading}\n${result.formatted}` : '';
 
   /**
@@ -198,6 +209,8 @@ export function LabSheet({
           onClick={() => {
             onInsert(block);
             setRaw('');
+            setTitleOverride(null);
+            setDateOverride(null);
             onOpenChange(false);
           }}
           className="min-h-tap w-full rounded-lg bg-accent px-4 text-sm font-medium text-white disabled:opacity-40"
@@ -208,16 +221,43 @@ export function LabSheet({
     >
       {aiError ? <p className="mb-2 text-xs text-danger">{aiError}</p> : null}
 
-      <label className="block">
-        <span className="mb-1 block text-xs text-fg-muted">Judul blok</span>
-        <input
-          type="text"
-          value={source}
-          onChange={(event) => setSource(event.target.value)}
-          placeholder="Laboratorium PJT"
-          className="min-h-tap w-full rounded-lg border border-border bg-surface px-3 text-sm outline-none"
-        />
-      </label>
+      <div className="flex gap-2">
+        <label className="block min-w-0 flex-1">
+          <span className="mb-1 block text-xs text-fg-muted">Judul blok</span>
+          <input
+            type="text"
+            value={title}
+            onChange={(event) => setTitleOverride(event.target.value)}
+            placeholder="Laboratorium PJT"
+            className="min-h-tap w-full rounded-lg border border-border bg-surface px-3 text-sm outline-none"
+          />
+        </label>
+        <label className="block w-40 shrink-0">
+          <span className="mb-1 block text-xs text-fg-muted">Tanggal lab</span>
+          <input
+            type="date"
+            value={labDate}
+            onChange={(event) => {
+              const next = event.target.value;
+              setDateOverride(isClinicalDate(next) ? next : null);
+            }}
+            className="min-h-tap w-full rounded-lg border border-border bg-surface px-2 text-sm outline-none"
+          />
+        </label>
+      </div>
+      <p className="mt-1 text-[11px] text-fg-faint">
+        {dateSource === 'report'
+          ? 'Tanggal dari PDF (Tgl. Registrasi — saat sampel diambil).'
+          : dateSource === 'manual'
+            ? 'Tanggal diisi manual.'
+            : 'Belum ada tanggal di teks — memakai tanggal catatan.'}
+      </p>
+      {!dateOverride && meta.dates.length > 1 ? (
+        <p role="alert" className="mt-1 rounded-lg bg-[var(--warn-soft)] px-2 py-1 text-[11px] text-fg">
+          Teks berisi lab dari {meta.dates.length} tanggal ({meta.dates.map(headingDate).join(', ')}).
+          Judul memakai yang terbaru; sisipkan per tanggal bila ingin dipisah.
+        </p>
+      ) : null}
 
       <div className="mt-3 flex items-center gap-2">
         <button
