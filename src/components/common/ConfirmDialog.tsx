@@ -1,3 +1,5 @@
+import { useBackToClose } from '@/lib/useBackToClose';
+
 /**
  * A confirmation that names what it is about to do.
  *
@@ -18,6 +20,7 @@ export function ConfirmDialog({
   onConfirm: () => void;
   onCancel: () => void;
 }): JSX.Element {
+  useBackToClose(true, onCancel);
   return (
     <div
       role="dialog"

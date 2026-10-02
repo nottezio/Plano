@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useSearchParams } from 'react-router-dom';
+import { useGoUp } from '@/lib/useGoUp';
 
 import { AppShell } from '@/components/common/AppShell';
 import { IconBack } from '@/components/common/Icons';
@@ -79,7 +80,7 @@ type HelperTab = (typeof HELPER_TABS)[number]['id'];
  */
 export function HelperPage(): JSX.Element {
   const [params, setParams] = useSearchParams();
-  const navigate = useNavigate();
+  const goUp = useGoUp('/');
   const requested = params.get('tab');
   const tab: HelperTab = HELPER_TABS.some((entry) => entry.id === requested)
     ? (requested as HelperTab)
@@ -96,7 +97,7 @@ export function HelperPage(): JSX.Element {
         <div className="flex flex-wrap items-center gap-2">
           <button
             type="button"
-            onClick={() => (window.history.length > 1 ? navigate(-1) : navigate('/'))}
+            onClick={goUp}
             aria-label="Kembali"
             className="-ml-2 flex min-h-tap min-w-tap items-center justify-center rounded-lg text-fg-muted hover:bg-bg-subtle"
           >

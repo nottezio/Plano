@@ -5,6 +5,9 @@ import {
   archiveDate,
   archiveSummary,
   groupByMonth,
+  isMonthOpen,
+  isWeekOpen,
+  setAllFolds,
   monthLabel,
 } from './archive';
 import { makePatient } from './testFactories';
@@ -96,5 +99,34 @@ describe('weekOfMonth', () => {
     expect(weekOfMonth('2026-10-04')).toEqual({ index: 1, from: 1, to: 4 });
     expect(weekOfMonth('2026-10-05')).toEqual({ index: 2, from: 5, to: 11 });
     expect(weekOfMonth('2026-10-31')).toEqual({ index: 5, from: 26, to: 31 });
+  });
+});
+
+describe('archive folds', () => {
+  const groups = [
+    { key: '2026-10', label: 'Oktober 2026', patients: [], weeks: [{ key: '2026-10-w1', label: 'w1', patients: [] }] },
+    { key: '2026-09', label: 'September 2026', patients: [], weeks: [{ key: '2026-09-w2', label: 'w2', patients: [] }] },
+  ];
+
+  it('opens only the newest month by default, and every week', () => {
+    expect(isMonthOpen({}, '2026-10', 0, false)).toBe(true);
+    expect(isMonthOpen({}, '2026-09', 1, false)).toBe(false);
+    expect(isWeekOpen({}, '2026-09-w2', false)).toBe(true);
+  });
+
+  it('keeps what the user chose', () => {
+    expect(isMonthOpen({ '2026-10': false }, '2026-10', 0, false)).toBe(false);
+    expect(isMonthOpen({ '2026-09': true }, '2026-09', 1, false)).toBe(true);
+    expect(isWeekOpen({ '2026-09-w2': false }, '2026-09-w2', false)).toBe(false);
+  });
+
+  it('opens everything while searching, whatever was chosen', () => {
+    expect(isMonthOpen({ '2026-10': false }, '2026-10', 0, true)).toBe(true);
+    expect(isWeekOpen({ '2026-10-w1': false }, '2026-10-w1', true)).toBe(true);
+  });
+
+  it('opens or closes every month at once', () => {
+    expect(setAllFolds(groups, true)).toEqual({ '2026-10': true, '2026-10-w1': true, '2026-09': true, '2026-09-w2': true });
+    expect(setAllFolds(groups, false)).toEqual({ '2026-10': false, '2026-09': false });
   });
 });

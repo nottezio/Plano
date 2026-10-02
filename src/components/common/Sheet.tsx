@@ -1,6 +1,7 @@
 import * as Dialog from '@radix-ui/react-dialog';
 import type { ReactNode } from 'react';
 import { IconClose } from './Icons';
+import { useBackToClose } from '@/lib/useBackToClose';
 
 /**
  * Bottom sheet on phone, centred dialog from 640 px up.
@@ -25,6 +26,7 @@ export function Sheet({
   children: ReactNode;
   footer?: ReactNode;
 }): JSX.Element {
+  useBackToClose(open, () => onOpenChange(false));
   return (
     <Dialog.Root open={open} onOpenChange={onOpenChange}>
       <Dialog.Portal>

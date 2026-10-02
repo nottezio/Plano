@@ -1,5 +1,5 @@
 import { privateText } from '@/domain/identity';
-import { useMemo, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 
 import { ArchiveScopePicker, useArchiveScopes } from '@/components/archive/NoteSearchToggle';
@@ -7,7 +7,15 @@ import { AppShell } from '@/components/common/AppShell';
 import { Highlight } from '@/components/common/Highlight';
 import { IconSearch, IconTrash } from '@/components/common/Icons';
 import { Sheet } from '@/components/common/Sheet';
-import { ARCHIVE_REASON_LABELS, archiveDate, groupByMonth } from '@/domain/archive';
+import {
+  ARCHIVE_REASON_LABELS,
+  archiveDate,
+  groupByMonth,
+  isMonthOpen,
+  isWeekOpen,
+  setAllFolds,
+  type ArchiveFolds,
+} from '@/domain/archive';
 import {
   NO_ARCHIVE_FILTERS,
   archiveFacets,
@@ -91,6 +99,9 @@ export default function ArchivePage(): JSX.Element {
   );
   const groups = useMemo(() => groupByMonth(matches.map((match) => match.patient)), [matches]);
   const narrowing = tokens.length > 0 || hasArchiveFilters(filters);
+  const [folds, setFolds] = useArchiveFolds();
+  const toggleFold = (key: string, open: boolean): void => setFolds({ ...folds, [key]: !open });
+  const allOpen = groups.every((group, position) => isMonthOpen(folds, group.key, position, false));
 
   const facetOptions = (key: FacetKey): Facet<string>[] =>
     key === 'dpjp'
@@ -178,11 +189,22 @@ export default function ArchivePage(): JSX.Element {
           <p className="py-12 text-center text-sm text-fg-muted">Belum ada pasien terarsip.</p>
         ) : (
           <>
-            <p className="pb-1 pt-3 text-xs text-fg-muted" aria-live="polite">
-              {narrowing
-                ? `${matches.length} dari ${patients.length} pasien`
-                : `${patients.length} pasien`}
-            </p>
+            <div className="flex items-center gap-2 pb-1 pt-3">
+              <p className="min-w-0 flex-1 text-xs text-fg-muted" aria-live="polite">
+                {narrowing
+                  ? `${matches.length} dari ${patients.length} pasien · semua bulan dibuka`
+                  : `${patients.length} pasien`}
+              </p>
+              {!narrowing && groups.length > 1 ? (
+                <button
+                  type="button"
+                  onClick={() => setFolds(setAllFolds(groups, !allOpen))}
+                  className="min-h-tap rounded-lg px-2 text-xs font-medium text-accent hover:bg-bg-subtle [@media(pointer:fine)]:min-h-8"
+                >
+                  {allOpen ? 'Tutup semua' : 'Buka semua'}
+                </button>
+              ) : null}
+            </div>
 
             {matches.length === 0 ? (
               <div className="py-10 text-center text-sm text-fg-muted">
@@ -198,37 +220,81 @@ export default function ArchivePage(): JSX.Element {
                 ) : null}
               </div>
             ) : (
-              groups.map((group) => (
-                <section key={group.key} className="mt-4">
-                  <h2 className="flex items-center gap-3 pb-1">
-                    <span className="text-xs font-semibold uppercase tracking-wide text-fg-muted">
-                      {group.label}
-                    </span>
-                    <span className="text-[11px] text-fg-faint">{group.patients.length}</span>
-                    <span aria-hidden="true" className="h-px flex-1 bg-border" />
-                  </h2>
-                  {group.weeks.map((week) => (
-                    <div key={week.key} className="mt-2">
-                      <h3 className="flex items-center gap-2 px-1 pb-1 text-[11px] font-medium text-fg-muted">
-                        <span>{week.label}</span>
-                        <span className="text-fg-faint">{week.patients.length}</span>
-                      </h3>
-                      <ul className="divide-y divide-border overflow-hidden rounded-xl border border-border bg-surface">
-                        {week.patients.map((patient) => (
-                          <li key={patient.id}>
-                            <ArchiveRow
-                              patient={patient}
-                              showInitialsOnly={showInitialsOnly}
-                              tokens={tokens}
-                              snippet={snippets.get(patient.id) ?? null}
-                            />
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
-                  ))}
-                </section>
-              ))
+              groups.map((group, position) => {
+                const monthOpen = isMonthOpen(folds, group.key, position, narrowing);
+                const monthBody = `arsip-${group.key}`;
+                return (
+                  <section key={group.key} className="mt-3">
+                    <h2>
+                      <button
+                        type="button"
+                        aria-expanded={monthOpen}
+                        aria-controls={monthBody}
+                        disabled={narrowing}
+                        onClick={() => toggleFold(group.key, monthOpen)}
+                        className="flex min-h-tap w-full items-center gap-2 rounded-lg px-1 text-left hover:bg-bg-subtle disabled:hover:bg-transparent [@media(pointer:fine)]:min-h-9"
+                      >
+                        <Chevron open={monthOpen} />
+                        <span className="text-xs font-semibold uppercase tracking-wide text-fg-muted">
+                          {group.label}
+                        </span>
+                        <span className="rounded-full bg-bg-subtle px-1.5 text-[11px] font-medium text-fg-muted">
+                          {group.patients.length}
+                        </span>
+                        <span aria-hidden="true" className="h-px flex-1 bg-border" />
+                        {!monthOpen ? (
+                          <span className="shrink-0 text-[11px] text-fg-faint">
+                            {group.weeks.length} minggu
+                          </span>
+                        ) : null}
+                      </button>
+                    </h2>
+                    {monthOpen ? (
+                      <div id={monthBody}>
+                        {group.weeks.map((week) => {
+                          const weekOpen = isWeekOpen(folds, week.key, narrowing);
+                          const weekBody = `arsip-${week.key}`;
+                          return (
+                            <div key={week.key} className="mt-1">
+                              <h3>
+                                <button
+                                  type="button"
+                                  aria-expanded={weekOpen}
+                                  aria-controls={weekBody}
+                                  disabled={narrowing}
+                                  onClick={() => toggleFold(week.key, weekOpen)}
+                                  className="flex min-h-tap w-full items-center gap-2 rounded-lg pl-5 pr-1 text-left text-[11px] font-medium text-fg-muted hover:bg-bg-subtle disabled:hover:bg-transparent [@media(pointer:fine)]:min-h-8"
+                                >
+                                  <Chevron open={weekOpen} small />
+                                  <span>{week.label}</span>
+                                  <span className="text-fg-faint">{week.patients.length}</span>
+                                </button>
+                              </h3>
+                              {weekOpen ? (
+                                <ul
+                                  id={weekBody}
+                                  className="mb-1 divide-y divide-border overflow-hidden rounded-xl border border-border bg-surface"
+                                >
+                                  {week.patients.map((patient) => (
+                                    <li key={patient.id}>
+                                      <ArchiveRow
+                                        patient={patient}
+                                        showInitialsOnly={showInitialsOnly}
+                                        tokens={tokens}
+                                        snippet={snippets.get(patient.id) ?? null}
+                                      />
+                                    </li>
+                                  ))}
+                                </ul>
+                              ) : null}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    ) : null}
+                  </section>
+                );
+              })
             )}
           </>
         )}
@@ -497,5 +563,49 @@ function TrashButton({
         </div>
       </Sheet>
     </>
+  );
+}
+
+const FOLDS_KEY = 'plano.archiveFolds';
+
+/** The months and weeks this device has opened or closed (see `domain/archive`). */
+function useArchiveFolds(): [ArchiveFolds, (next: ArchiveFolds) => void] {
+  const [folds, setState] = useState<ArchiveFolds>(() => {
+    try {
+      const raw = localStorage.getItem(FOLDS_KEY);
+      const parsed: unknown = raw ? JSON.parse(raw) : null;
+      return parsed && typeof parsed === 'object' ? (parsed as ArchiveFolds) : {};
+    } catch {
+      return {};
+    }
+  });
+  const set = useCallback((next: ArchiveFolds) => {
+    setState(next);
+    try {
+      localStorage.setItem(FOLDS_KEY, JSON.stringify(next));
+    } catch {
+      // Blocked storage: the choice lasts until the page is left.
+    }
+  }, []);
+  return [folds, set];
+}
+
+function Chevron({ open, small = false }: { open: boolean; small?: boolean }): JSX.Element {
+  const size = small ? 12 : 14;
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      width={size}
+      height={size}
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={2.5}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+      className={['shrink-0 text-fg-faint transition-transform', open ? 'rotate-90' : ''].join(' ')}
+    >
+      <path d="m9 6 6 6-6 6" />
+    </svg>
   );
 }

@@ -30,6 +30,7 @@ import { DateRail } from '@/components/patient/DateRail';
 import { RevisionTrail } from '@/components/patient/RevisionTrail';
 import { deleteVersion, saveVersion } from '@/data/repositories/entries.repo';
 import { AppShell } from '@/components/common/AppShell';
+import { useGoUp } from '@/lib/useGoUp';
 import { clearEntry, fetchEntryBodies, setEntryLocked } from '@/data/repositories/entries.repo';
 import { updateArchiveNote, updatePatient } from '@/data/repositories/patients.repo';
 import { archiveSummary } from '@/domain/archive';
@@ -90,6 +91,7 @@ import { itemsForPatientDay } from '@/domain/checklistDay';
 export default function PatientPage(): JSX.Element {
   const { patientId, date: routeDate } = useParams<{ patientId: string; date?: string }>();
   const navigate = useNavigate();
+  const goUp = useGoUp('/');
   const today = useClinicalToday();
   const settings = useSession((state) => state.settings());
 
@@ -572,7 +574,9 @@ export default function PatientPage(): JSX.Element {
     shiftNotes.flush();
     // A note id means nothing outside its own day.
     setSelectedShiftNoteId(null);
-    navigate(`/p/${patientId}/${next}`);
+    // Another day of the same patient is not a level down: back still goes
+    // to where the patient was opened from, not through every day viewed.
+    navigate(`/p/${patientId}/${next}`, { replace: true });
   };
 
   /**
@@ -958,8 +962,8 @@ export default function PatientPage(): JSX.Element {
               show it, and on desktop the note fills the window. */}
           <button
             type="button"
-            onClick={() => navigate('/')}
-            aria-label="Kembali ke papan"
+            onClick={goUp}
+            aria-label="Kembali"
             className="min-h-tap min-w-tap shrink-0 text-fg-muted"
           >
             <span aria-hidden="true">←</span>

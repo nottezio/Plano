@@ -1,6 +1,6 @@
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
-import { BrowserRouter } from 'react-router-dom';
+import { unstable_HistoryRouter as HistoryRouter } from 'react-router-dom';
 
 import App from './App';
 import { AuthGate } from '@/components/auth/AuthGate';
@@ -8,6 +8,7 @@ import { ErrorBoundary } from '@/components/common/ErrorBoundary';
 import { initSyncStatus } from '@/data/syncStatus';
 import { initSession } from '@/store/useSession';
 import { initThemeSync } from '@/store/useUI';
+import { createAppHistory } from '@/lib/appHistory';
 import { installChunkRecovery, markBootSucceeded } from '@/lib/chunkRecovery';
 import { registerServiceWorker } from './pwa';
 import '@/styles/index.css';
@@ -28,15 +29,18 @@ initSession();
 
 markBootSucceeded();
 
+// Back goes up to the parent screen, not to the previous page (lib/appHistory).
+const appRouterHistory = createAppHistory();
+
 createRoot(container).render(
   <StrictMode>
     <ErrorBoundary>
       {/* basename lets the same bundle serve "/" and "/<repo>/" on Pages. */}
-      <BrowserRouter basename={import.meta.env.BASE_URL}>
+      <HistoryRouter history={appRouterHistory} basename={import.meta.env.BASE_URL}>
         <AuthGate>
           <App />
         </AuthGate>
-      </BrowserRouter>
+      </HistoryRouter>
     </ErrorBoundary>
   </StrictMode>,
 );

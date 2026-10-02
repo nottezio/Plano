@@ -1,7 +1,8 @@
-import { useEffect, type ReactNode } from 'react';
+import { useEffect, useLayoutEffect, type ReactNode } from 'react';
 
 import { usePrivacyGuard } from '@/hooks/usePrivacyGuard';
-import { Link } from 'react-router-dom';
+import { Link, NavigationType, useLocation, useNavigationType } from 'react-router-dom';
+import { appHistory } from '@/lib/appHistory';
 import { useLock } from '@/store/useLock';
 import { useOutboxReconcile } from '@/hooks/useOutboxReconcile';
 import { formatShortDate } from '@/domain/clinicalDate';
@@ -28,6 +29,44 @@ import { ClipboardPill } from './ClipboardPill';
  * reduction applies only where the title IS a person — which is exactly where
  * `initials` differs from its input.
  */
+/**
+ * Back to a list puts it where it was left.
+ *
+ * Every route mounts its own shell, so `#main` used to come back at the top:
+ * back from a patient opened halfway down the board, or from the fortieth
+ * archived patient, meant scrolling to find the place again — the clearest
+ * "this is a web page" tell. `appHistory` records each entry's scroll when it
+ * is left; on a back navigation it is put back. Lists can still be filling in
+ * for a few frames, so it is re-applied until it sticks (≈1.5 s at most) and
+ * abandoned the moment the user touches or scrolls.
+ */
+function useRestoreScroll(): void {
+  const navigationType = useNavigationType();
+  const { key } = useLocation();
+  useLayoutEffect(() => {
+    if (navigationType !== NavigationType.Pop) return undefined;
+    const target = appHistory()?.savedScroll(key) ?? 0;
+    const main = document.getElementById('main');
+    if (!main || target <= 0) return undefined;
+    let frame = 0;
+    let tries = 0;
+    const stop = (): void => cancelAnimationFrame(frame);
+    const apply = (): void => {
+      main.scrollTop = target;
+      tries += 1;
+      if (Math.abs(main.scrollTop - target) > 1 && tries < 90) frame = requestAnimationFrame(apply);
+    };
+    main.addEventListener('touchstart', stop, { passive: true });
+    main.addEventListener('wheel', stop, { passive: true });
+    apply();
+    return () => {
+      stop();
+      main.removeEventListener('touchstart', stop);
+      main.removeEventListener('wheel', stop);
+    };
+  }, [key, navigationType]);
+}
+
 function titleForPrivacy(title: string, initialsOnly: boolean): string {
   return initialsOnly ? initials(title) : title;
 }
@@ -40,6 +79,7 @@ export function AppShell({
   children: ReactNode;
 }): JSX.Element {
   usePrivacyGuard();
+  useRestoreScroll();
   // SPEC 18 — blur the moment the app is backgrounded. The class has existed
   // in styles/index.css since P0 precisely so this is one attribute, applied
   // above every route rather than remembered per screen.

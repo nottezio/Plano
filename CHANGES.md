@@ -1,5 +1,150 @@
 # Plano — CHANGES
 
+## `2026-10-02.3`
+
+**Back goes up to the parent screen, like an app. Sheets close on back, and
+lists keep their scroll position. Archive months and weeks fold.**
+
+### 1. Back navigation
+
+#### Root cause
+
+The router was a plain `BrowserRouter`, which pushes a browser history entry
+for every navigation. The browser's back button therefore replayed the
+session in reverse. That is the web's model, and it showed in three ways:
+
+- **Patient days stacked.** `goToDate` pushed `/p/:id/:date`, so back from a
+  patient walked through every day that had been opened.
+- **Tabs stacked.** Aktif → Arsip → Kalkulator → Pengaturan meant three back
+  presses to reach the board.
+- **Opened on a detail, back left the app.** A cold start on `/p/x` (a shared
+  link, or a reload in a new tab) had nothing under it.
+
+Two related tells came from the same cause:
+
+- **Back ignored open sheets.** Sheets are React state, invisible to history,
+  so back left the screen with the sheet open. On the board it closed the app.
+- **Lists came back at the top.** Each route mounts its own `AppShell`, so
+  `#main` was new on every navigation, including back.
+
+Patching individual call sites (`replace: true` here, `navigate(-1)` there)
+cannot fix this. Links, tab buttons and `setParams` all go through the
+router's history, and the stack shape is the sum of all of them.
+
+#### Fix
+
+The app now owns its history:
+
+```
+domain/navigation.ts   pure: screenLevel, ancestorsOf, planNavigation
+lib/appHistory.ts      History for unstable_HistoryRouter that applies the plan
+```
+
+**The model:** each screen has a level.
+
+| Level | Screens |
+|---|---|
+| 0 | `/` |
+| 1 | the sections |
+| 2 | `/p/…`, `/dokumen/:id`, `/catatan?n=`, `/checklist?c=` |
+
+The browser stack is kept equal to the path from the board to the current
+screen. Every push or replace is planned against it:
+
+| Move | Plan |
+|---|---|
+| Deeper | push |
+| Sideways (another day, tab or patient) | replace |
+| Upward | `history.go(-n)` to the nearest entry at or above the target's level, then push or replace if that entry is not exactly the target |
+
+A patient opened from Arsip therefore returns to Arsip, and back from any tab
+returns to the board.
+
+**Implementation details:**
+
+- **Cold start below the board.** The fresh entry is rewritten into its
+  ancestor chain (`/` and, for `/dokumen/:id`, `/dokumen`), with the detail
+  pushed on top.
+- **Sheets.**
+  - `useBackToClose` is used by `Sheet`, `ConfirmDialog` and `NotePopover`.
+    While one is open, it registers an overlay, and one extra entry with the
+    same URL sits on top.
+  - Back consumes that entry and closes the top overlay. If more overlays are
+    open, the entry is pushed again.
+  - **Closed with ✕:** the entry is left "spent". The next navigation replaces
+    it, or plans from the screen underneath. A back press on a spent entry
+    goes straight on up, so no press is wasted.
+  - The desktop `PatientPeekWindow` is not modal and is not registered.
+- **Scroll.** The scroll position of each entry is recorded when it is left
+  (sessionStorage, last 200 entries). `AppShell.useRestoreScroll` puts it
+  back on a POP. It re-applies for up to ~90 frames while the list fills in,
+  and stops on touch or wheel.
+- **Router contract kept.** Entries still carry React Router's
+  `{ usr, key, idx }`, so `location.state` (`fromList`) and keys behave as
+  before. The trail survives a reload (sessionStorage), and the planner
+  degrades to the requested push or replace where nothing was recorded.
+- **Call sites.**
+  - `goToDate` passes `replace: true` explicitly.
+  - The patient and Helper ← buttons use `useGoUp`, which returns to the
+    entry above, or to a fallback.
+  - The `history.length` guess in Helper is gone.
+- **Tests.**
+  - `navigation.test.ts`: levels, ancestors, every plan shape.
+  - `appHistory.test.ts`, in jsdom against a real `window.history`:
+    - a cold start on a patient;
+    - days and tabs not stacking;
+    - Arsip → patient → back;
+    - going up to an ancestor;
+    - back closing a sheet;
+    - a spent sheet entry being skipped;
+    - navigating from an open sheet.
+
+#### Wrong turns
+
+- I considered intercepting `window.history.pushState` under
+  `BrowserRouter`. It was rejected because React Router renders the target
+  before calling `pushState`, so an upward move (`go(-n)`, then render) could
+  not be expressed without a flash and a desynchronised location.
+- I first planned to swallow the browser's back and then `go(+1)` to keep a
+  sheet's screen. It was dropped because it cannot work on the board: back at
+  index 0 leaves the page without a `popstate`. Hence the extra entry per
+  open sheet.
+
+### 2. Archive folds
+
+- **Month headers and week sub-headers are buttons.**
+  - Each has `aria-expanded` and `aria-controls`, and a chevron.
+  - A closed month shows its patient count and its number of weeks.
+- **Defaults:** the newest month is open and older months are closed. A week
+  is open unless it was closed.
+- **Storage:** only explicit choices are stored, per device
+  (`localStorage['plano.archiveFolds']`), so the defaults still apply to
+  months that appear later. There are "Buka semua" and "Tutup semua" buttons.
+- **While searching or filtering, everything is open** and the headers are
+  inert. The count line says "semua bulan dibuka", because a match inside a
+  folded month would read as "not found".
+- `isMonthOpen`, `isWeekOpen` and `setAllFolds` live in `domain/archive`,
+  with tests.
+- **Render check at 390 px:**
+  - default: 2 rows (September open, August closed);
+  - opening August: 4;
+  - closing a week: 3, which survived a reload;
+  - Tutup semua: 0;
+  - search: 4, all open;
+  - no console errors.
+
+### Not done
+
+- **iOS standalone has no back button.** The edge-swipe still follows
+  history, so it gets the same model, but this was not tested on a device.
+- **Sheet state across navigation.** A sheet that stays mounted across a
+  same-page replace (none does today) would lose its back-to-close entry.
+
+```
+1783 tests passed (+21)
+typecheck / lint (0 warnings) / check:version / check:contrast / check:a11y / build — clean
+```
+
 ## `2026-10-02.2`
 
 **EKG heading takes the floor from the ward. A redesigned format toolbar.

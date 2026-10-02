@@ -1,5 +1,6 @@
 import { useEffect, useLayoutEffect, useRef, useState, type RefObject } from 'react';
 import { createPortal } from 'react-dom';
+import { useBackToClose } from '@/lib/useBackToClose';
 
 /**
  * The full note, floating above the board next to its card.
@@ -20,6 +21,7 @@ export function NotePopover({
   note: string;
   onClose: () => void;
 }): JSX.Element | null {
+  useBackToClose(true, onClose);
   const panelRef = useRef<HTMLDivElement>(null);
   const [box, setBox] = useState<{ left: number; width: number; top?: number; bottom?: number; maxHeight: number } | null>(null);
 

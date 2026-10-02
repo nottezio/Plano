@@ -125,3 +125,40 @@ export function archiveSummary(patient: Patient): string {
   const note = patient.archive?.note;
   return note ? `${label} — ${note}` : label;
 }
+
+/**
+ * Which months and weeks of the archive are open (2026-10-02).
+ *
+ * A year of discharges is hundreds of rows; a month header you can fold is
+ * how you get from "Agustus" to "Maret" without scrolling through everything
+ * between. Only what the user chose is stored, per device — `true` open,
+ * `false` closed — so the defaults keep applying to months that did not exist
+ * yet when the choice was made:
+ *
+ *  - the newest month is open, older months are closed;
+ *  - a week is open unless it was closed.
+ *
+ * While searching or filtering everything is open (`narrowing`): a match
+ * hidden inside a folded month would read as "not found".
+ */
+export type ArchiveFolds = Readonly<Record<string, boolean>>;
+
+export function isMonthOpen(folds: ArchiveFolds, key: string, position: number, narrowing: boolean): boolean {
+  if (narrowing) return true;
+  return folds[key] ?? position === 0;
+}
+
+export function isWeekOpen(folds: ArchiveFolds, key: string, narrowing: boolean): boolean {
+  if (narrowing) return true;
+  return folds[key] ?? true;
+}
+
+/** Open or close every month (and, opening, every week in them). */
+export function setAllFolds(groups: readonly MonthGroup[], open: boolean): ArchiveFolds {
+  const next: Record<string, boolean> = {};
+  for (const group of groups) {
+    next[group.key] = open;
+    if (open) for (const week of group.weeks) next[week.key] = true;
+  }
+  return next;
+}
