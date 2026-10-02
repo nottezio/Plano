@@ -1,6 +1,13 @@
 import { describe, expect, it } from 'vitest';
 
-import { buildFormasi, buildKonfirmasi, longDate, nextDate, resolveShift } from './formasi';
+import {
+  buildFormasi,
+  buildKonfirmasi,
+  longDate,
+  nextDate,
+  resolveShift,
+  shiftDateLabel,
+} from './formasi';
 import type { DpjpRoster, JagaRoster, JagaShift, JarkomDirectory } from './types';
 
 const SHIFT: JagaShift = {
@@ -362,5 +369,67 @@ describe('resolveShift with a hand-picked Jarkom row', () => {
   it('without a link the legend spelling stays', () => {
     const post = resolveShift(SHIFT, ROSTER, jarkom).find((p) => p.initials === 'HM')!;
     expect(post).toMatchObject({ name: 'dr. Siti Hajar Malika', display: 'Malika', jarkomLinked: false });
+  });
+});
+
+describe('weekend shifts (Pagi / Malam)', () => {
+  const pagi: JagaShift = {
+    date: '2026-09-05',
+    shift: 'pagi',
+    hari: 'Sabtu Pagi',
+    posts: { chiefPjt: 'HM', bangsalA: 'IK' },
+  };
+  const malam: JagaShift = { ...pagi, shift: 'malam', hari: 'Sabtu Malam' };
+  const weekendDpjp: DpjpRoster = {
+    title: 'SEPTEMBER 2026',
+    days: [
+      { date: '2026-09-05', utama: 'Prof. A', tindakan: 'Prof. A' },
+      { date: '2026-09-06', utama: 'dr. B', tindakan: 'dr. C' },
+    ],
+    importedAt: '',
+  };
+  const at = new Date(2026, 8, 5, 7, 0);
+
+  it('puts the shift after the weekday, and leaves a weekday alone', () => {
+    expect(shiftDateLabel('2026-09-05', 'pagi')).toBe('Sabtu Pagi, 5 September 2026');
+    expect(shiftDateLabel('2026-09-05', 'malam')).toBe('Sabtu Malam, 5 September 2026');
+    expect(shiftDateLabel('2026-09-17', 'penuh')).toBe('Kamis, 17 September 2026');
+    expect(shiftDateLabel('2026-09-17')).toBe('Kamis, 17 September 2026');
+  });
+
+  it('names the shift in the Formasi heading', () => {
+    const posts = resolveShift(pagi, { ...ROSTER, shifts: [pagi, malam] }, JARKOM);
+    expect(buildFormasi(pagi, posts, weekendDpjp, at)).toContain(
+      '*Hari/Tanggal : Sabtu Pagi, 5 September 2026*',
+    );
+    expect(buildFormasi(malam, posts, weekendDpjp, at)).toContain(
+      '*Hari/Tanggal : Sabtu Malam, 5 September 2026*',
+    );
+  });
+
+  it('prints the post-midnight DPJP for the night team only', () => {
+    const posts = resolveShift(pagi, { ...ROSTER, shifts: [pagi, malam] }, JARKOM);
+    const morning = buildFormasi(pagi, posts, weekendDpjp, at);
+    expect(morning).toContain('_DPJP Utama : Prof. A_');
+    expect(morning).not.toContain('setelah Pk. 00.00');
+    expect(morning).not.toContain('dr. B');
+    const night = buildFormasi(malam, posts, weekendDpjp, at);
+    expect(night).toContain('*DPJP Utama dan Tindakan setelah Pk. 00.00 WITA*');
+    expect(night).toContain('_DPJP Utama : dr. B_');
+  });
+
+  it('asks about the same shift in the confirmation message', () => {
+    const posts = resolveShift(pagi, { ...ROSTER, shifts: [pagi] }, JARKOM);
+    const text = buildKonfirmasi(
+      posts[0]!,
+      { senderName: 'Avi', senderPlace: 'Bangsal PJT A', date: '2026-09-05', shift: 'pagi' },
+      at,
+    );
+    expect(text).toBe(
+      [
+        'Assalamualaikum tabe dokter,',
+        'Mohon maaf mengganggu. Saya Avi, yang bertugas jaga di Bangsal PJT A pada _Sabtu Pagi, 5 September 2026_. Saya ingin mengonfirmasi apakah dokter bertugas sebagai *Chief Jaga PJT* pada hari tersebut. Mohon arahan dan bimbingannya. Terima kasih, dokter.',
+      ].join('\n'),
+    );
   });
 });

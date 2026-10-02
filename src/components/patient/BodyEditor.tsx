@@ -50,6 +50,12 @@ export interface BodyEditorHandle {
    * having computed them against that string and not an older one.
    */
   selectRange: (start: number, end: number) => void;
+  /**
+   * Scroll `[start, end)` to just under the sticky header and flash it,
+   * WITHOUT focusing the editor. A bookmark is for reading the line: focusing
+   * would raise the phone keyboard over the very line it jumped to.
+   */
+  revealLine: (start: number, end: number) => void;
 }
 
 export const METRICS =
@@ -70,6 +76,7 @@ export function BodyEditor({
   watermark,
   handleRef,
   history,
+  bookmarks,
 }: {
   value: string;
   onChange: (next: string) => void;
@@ -120,6 +127,16 @@ export function BodyEditor({
    * reason to be driven from outside — the jaga note, the read-only views.
    */
   handleRef?: MutableRefObject<BodyEditorHandle | null> | undefined;
+  /**
+   * Line bookmarks (day SOAP only): where they sit, for the margin marks and
+   * the toolbar's pressed state, and the toggle for the caret's line.
+   */
+  bookmarks?:
+    | {
+        starts: readonly number[];
+        onToggle: (offset: number) => void;
+      }
+    | undefined;
   /**
    * Undo/redo for this note, from `useTextSync`. Also registers the textarea,
    * so a restored step can put the caret back where the edit was.
@@ -230,6 +247,12 @@ export function BodyEditor({
   const ownEdit = useRef<string | null>(null);
   const shown = useRef(value);
   const selection = useRef({ start: 0, end: 0 });
+  /** Start of the caret's line, for the bookmark button's pressed state. */
+  const [caretLine, setCaretLine] = useState(-1);
+  const trackCaret = (node: HTMLTextAreaElement): void => {
+    const at = node.selectionStart;
+    setCaretLine(node.value.lastIndexOf('\n', at - 1) + 1);
+  };
 
   const emit = useCallback(
     (next: string) => {
@@ -323,6 +346,9 @@ export function BodyEditor({
   const revealCaret = useCallback((node: HTMLTextAreaElement) => {
     const scroller = node.closest('main');
     if (!scroller) return;
+    const caretOffset = offsetTopOf(node, node.selectionStart);
+    if (caretOffset === null) return;
+    const style = window.getComputedStyle(node);
 
     /**
      * The caret's height is MEASURED, not counted.
@@ -338,33 +364,6 @@ export function BodyEditor({
      * position. It is built, read and thrown away inside one frame, which
      * costs a layout on undo only — not on typing.
      */
-    const probe = document.createElement('div');
-    const wrapper = node.parentElement;
-    if (!wrapper) return;
-
-    const style = window.getComputedStyle(node);
-    probe.style.cssText = [
-      'position:absolute',
-      'visibility:hidden',
-      'pointer-events:none',
-      'white-space:pre-wrap',
-      'overflow-wrap:anywhere',
-      `top:0`,
-      `left:0`,
-      `width:${node.clientWidth}px`,
-      `font:${style.font}`,
-      `line-height:${style.lineHeight}`,
-      `letter-spacing:${style.letterSpacing}`,
-      `padding:${style.padding}`,
-    ].join(';');
-
-    const before = document.createTextNode(node.value.slice(0, node.selectionStart));
-    const marker = document.createElement('span');
-    probe.append(before, marker);
-    wrapper.appendChild(probe);
-    const caretOffset = marker.offsetTop;
-    probe.remove();
-
     const lineHeight = Number.parseFloat(style.lineHeight) || 28;
     const caretTop =
       node.getBoundingClientRect().top -
@@ -424,7 +423,52 @@ export function BodyEditor({
     [revealCaret],
   );
 
-  useImperativeHandle(handleRef, () => ({ selectRange }), [selectRange]);
+  /** The band drawn over a line `revealLine` jumped to; fades, then goes. */
+  const [flash, setFlash] = useState<{ top: number; height: number; on: boolean } | null>(null);
+  const flashTimers = useRef<Array<ReturnType<typeof setTimeout>>>([]);
+  useEffect(
+    () => () => {
+      for (const timer of flashTimers.current) clearTimeout(timer);
+    },
+    [],
+  );
+
+  const revealLine = useCallback((start: number, end: number) => {
+    const node = ref.current;
+    const scroller = node?.closest('main');
+    if (!node || !scroller) return;
+    const max = node.value.length;
+    const from = Math.max(0, Math.min(start, max));
+    const to = Math.max(from, Math.min(end, max));
+    const top = offsetTopOf(node, from);
+    // The last character's top, so a wrapped line is covered to its last row.
+    const last = offsetTopOf(node, Math.max(from, to - 1));
+    if (top === null || last === null) return;
+    const style = window.getComputedStyle(node);
+    const lineHeight = Number.parseFloat(style.lineHeight) || 28;
+    const lineTop = top;
+
+    // Same clearance rule as JumpBar: measured off the header, never encoded.
+    const header = document.getElementById('patient-sticky-header');
+    const clearance = header?.getBoundingClientRect().height ?? 0;
+    const target =
+      scroller.scrollTop +
+      node.getBoundingClientRect().top -
+      scroller.getBoundingClientRect().top +
+      lineTop -
+      clearance -
+      lineHeight / 2;
+    scroller.scrollTo({ top: Math.max(0, target), behavior: 'smooth' });
+
+    for (const timer of flashTimers.current) clearTimeout(timer);
+    setFlash({ top: lineTop, height: last - top + lineHeight, on: true });
+    flashTimers.current = [
+      setTimeout(() => setFlash((current) => (current ? { ...current, on: false } : null)), 900),
+      setTimeout(() => setFlash(null), 2200),
+    ];
+  }, []);
+
+  useImperativeHandle(handleRef, () => ({ selectRange, revealLine }), [selectRange, revealLine]);
 
   const applyEdit = useCallback(
     (edit: TextEdit) => {
@@ -598,6 +642,22 @@ export function BodyEditor({
         */}
         <SectionBands body={value} aliases={aliases} paint={tint} />
         {/*
+          Bookmark marks in the left margin: the note laid out again in
+          transparent text (same METRICS, so the same wrapping), with a bar at
+          the start of each bookmarked line. Positions come from layout, not
+          from counting newlines, for the reason recorded on `resize`.
+        */}
+        {bookmarks && bookmarks.starts.length > 0 ? (
+          <BookmarkMarks body={value} starts={bookmarks.starts} />
+        ) : null}
+        {flash ? (
+          <div
+            aria-hidden="true"
+            className="pointer-events-none absolute inset-x-1 z-0 rounded-md bg-[var(--accent-soft)] transition-opacity duration-1000"
+            style={{ top: flash.top, height: flash.height, opacity: flash.on ? 1 : 0 }}
+          />
+        ) : null}
+        {/*
           The measuring copy. Invisible, not `display:none`: a hidden element
           has no layout and cannot report a height. `absolute` keeps it out of
           the flow, `w-full` gives it the textarea's width, and `METRICS` gives
@@ -619,6 +679,7 @@ export function BodyEditor({
               start: event.currentTarget.selectionStart,
               end: event.currentTarget.selectionEnd,
             };
+            if (bookmarks) trackCaret(event.currentTarget);
           }}
           onChange={(event) => {
             selection.current = {
@@ -768,6 +829,18 @@ export function BodyEditor({
           }
           onBullet={() => withSelection(toggleBullet)}
           onNumbered={() => withSelection(toggleNumbered)}
+          {...(bookmarks
+            ? {
+                bookmark: {
+                  pressed: bookmarks.starts.includes(caretLine),
+                  onToggle: () => {
+                    const node = ref.current;
+                    if (!node) return;
+                    bookmarks.onToggle(node.selectionStart);
+                  },
+                },
+              }
+            : {})}
           snippetPreview={(snippetId) =>
             SNIPPETS.find((entry) => entry.id === snippetId)?.build(date, ward) ?? ''
           }
@@ -811,4 +884,71 @@ const WATERMARK_PITCH = 420;
  */
 function watermarkTiles(height: number): number {
   return Math.max(1, Math.ceil(height / WATERMARK_PITCH) + 1);
+}
+
+/**
+ * Where `offset` sits, in px from the top of the textarea (its top padding
+ * included, so it is directly a `top` inside the wrapper), measured with a throwaway copy laid out with the
+ * textarea's own metrics. Built, read and removed inside one frame.
+ *
+ * Counting `\n` is the wrong measure: a bullet that wraps to four rows holds
+ * one newline (see `revealCaret`'s history).
+ */
+function offsetTopOf(node: HTMLTextAreaElement, offset: number): number | null {
+  const wrapper = node.parentElement;
+  if (!wrapper) return null;
+  const style = window.getComputedStyle(node);
+  const probe = document.createElement('div');
+  probe.style.cssText = [
+    'position:absolute',
+    'visibility:hidden',
+    'pointer-events:none',
+    'white-space:pre-wrap',
+    'overflow-wrap:anywhere',
+    'top:0',
+    'left:0',
+    `width:${node.clientWidth}px`,
+    `font:${style.font}`,
+    `line-height:${style.lineHeight}`,
+    `letter-spacing:${style.letterSpacing}`,
+    `padding:${style.padding}`,
+  ].join(';');
+  const before = document.createTextNode(node.value.slice(0, offset));
+  const marker = document.createElement('span');
+  probe.append(before, marker);
+  wrapper.appendChild(probe);
+  const top = marker.offsetTop;
+  probe.remove();
+  return top;
+}
+
+/** The margin bars for bookmarked lines; see the comment where it is used. */
+function BookmarkMarks({
+  body,
+  starts,
+}: {
+  body: string;
+  starts: readonly number[];
+}): JSX.Element {
+  const parts: JSX.Element[] = [];
+  const sorted = [...new Set(starts)].filter((at) => at <= body.length).sort((a, b) => a - b);
+  let from = 0;
+  for (const at of sorted) {
+    parts.push(<span key={`t${at}`}>{body.slice(from, at)}</span>);
+    parts.push(
+      <span key={`m${at}`} className="relative">
+        <span className="absolute -left-3 top-[0.4rem] h-4 w-1 rounded-full bg-accent" />
+      </span>,
+    );
+    from = at;
+  }
+  parts.push(<span key="end">{`${body.slice(from)}\u200b`}</span>);
+  return (
+    <div
+      aria-hidden="true"
+      className={`${METRICS} pointer-events-none absolute inset-0 select-none text-transparent`}
+    >
+      {parts}
+    </div>
+  );
 }

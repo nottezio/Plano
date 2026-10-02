@@ -220,6 +220,122 @@ const ASCII_FOLD: ReadonlyArray<readonly [RegExp, string]> = [
 ];
 
 /**
+ * Characters whose plain decomposition CHANGES A NUMBER.
+ *
+ * NFKD (step 2 below) turns `½` into `1`, U+2044 FRACTION SLASH, `2`, and
+ * step 4 then removed the slash: `½ tab` reached SIMGOS as `12 tab`, and
+ * `1½` as `112`. Superscripts decompose to bare digits, so `10³/µL` became
+ * `103/uL`. Neither is a lost symbol — both are a different dose or count,
+ * written without any sign that something happened.
+ *
+ * So these are spelled out BEFORE decomposition, unconditionally: unlike the
+ * symbol words below, there is no setting under which a changed number is
+ * acceptable.
+ */
+const VULGAR_FRACTIONS: Readonly<Record<string, string>> = {
+  '\u00BD': '1/2', '\u00BC': '1/4', '\u00BE': '3/4',
+  '\u2153': '1/3', '\u2154': '2/3', '\u2155': '1/5', '\u2156': '2/5',
+  '\u2157': '3/5', '\u2158': '4/5', '\u2159': '1/6', '\u215A': '5/6',
+  '\u2150': '1/7', '\u2151': '1/9', '\u2152': '1/10',
+  '\u215B': '1/8', '\u215C': '3/8', '\u215D': '5/8', '\u215E': '7/8',
+};
+const VULGAR_RE = /(\d?)([\u00BC-\u00BE\u2150-\u215E])/g;
+const SUPERSCRIPTS: Readonly<Record<string, string>> = {
+  '\u2070': '0', '\u00B9': '1', '\u00B2': '2', '\u00B3': '3', '\u2074': '4',
+  '\u2075': '5', '\u2076': '6', '\u2077': '7', '\u2078': '8', '\u2079': '9',
+  '\u207A': '+', '\u207B': '-',
+};
+const SUPERSCRIPT_RE = /[\u2070\u00B9\u00B2\u00B3\u2074-\u2079\u207A\u207B]+/g;
+
+function spellNumbers(text: string): string {
+  return text
+    .replace(VULGAR_RE, (_, whole: string, fraction: string) =>
+      `${whole ? `${whole} ` : ''}${VULGAR_FRACTIONS[fraction] ?? fraction}`,
+    )
+    .replace(SUPERSCRIPT_RE, (run) => `^${[...run].map((c) => SUPERSCRIPTS[c] ?? c).join('')}`);
+}
+
+/**
+ * Symbols with an ASCII spelling, for SIMGOS (Salin → Teks polos, on by
+ * default, switchable in the sheet).
+ *
+ * Without this, step 4 of `foldToAscii` DELETES them: `Troponin ↑` arrived as
+ * `Troponin `, `Aspilet → CPG` as `Aspilet  CPG`, `β-blocker` as `-blocker`.
+ * Nothing in the result says a word is missing, which is the worst way for a
+ * note to be wrong.
+ *
+ * Ordered: `µg` before `µ`, so a dose reads `mcg` (the spelling that cannot be
+ * misread as `mg`) and anything else micro- reads `u`. Word replacements are
+ * padded with a space where they would otherwise fuse with a letter or digit —
+ * `K 3,1↓` → `K 3,1 (turun)`, never `3,1(turun)` glued to the next token.
+ *
+ * The arrows' words are Indonesian because the note is; the Greek letters are
+ * spelled the way the drug classes are written in the notes (`beta blocker`).
+ */
+export const SYMBOL_ASCII: ReadonlyArray<readonly [string, string]> = [
+  ['\u2192', '->'], ['\u27F6', '->'], ['\u2794', '->'], ['\u279C', '->'], ['\u279D', '->'], ['\u21FE', '->'],
+  ['\u2190', '<-'], ['\u27F5', '<-'],
+  ['\u2194', '<->'], ['\u27F7', '<->'],
+  ['\u21D2', '=>'], ['\u27F9', '=>'], ['\u21D4', '<=>'],
+  ['\u2191', '(naik)'], ['\u2B06', '(naik)'], ['\u21E7', '(naik)'],
+  ['\u2193', '(turun)'], ['\u2B07', '(turun)'], ['\u21E9', '(turun)'],
+  ['\u00B1', '+/-'], ['\u2213', '-/+'],
+  ['\u00B5g', 'mcg'], ['\u03BCg', 'mcg'], ['\u00B5', 'u'], ['\u03BC', 'u'],
+  ['\u2248', '~'], ['\u223C', '~'], ['\u2243', '~'],
+  ['\u2260', '=/='], ['\u00F7', '/'],
+  ['\u03B1', 'alpha'], ['\u03B2', 'beta'], ['\u03B3', 'gamma'],
+  ['\u0394', 'delta'], ['\u03B4', 'delta'], ['\u03BA', 'kappa'], ['\u03BB', 'lambda'],
+  ['\u2713', '(v)'], ['\u2714', '(v)'], ['\u2611', '(v)'], ['\u221A', '(v)'],
+  ['\u2717', '(x)'], ['\u2718', '(x)'], ['\u2612', '(x)'], ['\u2715', '(x)'],
+  ['\u2642', '(L)'], ['\u2640', '(P)'],
+];
+
+const SYMBOL_RE = new RegExp(
+  SYMBOL_ASCII.map(([symbol]) => symbol.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|'),
+  'gu',
+);
+const SYMBOL_MAP = new Map(SYMBOL_ASCII);
+const PADDED = /^\(/;
+
+/** Replace every symbol `SYMBOL_ASCII` knows; anything else is left alone. */
+export function symbolsToAscii(text: string): string {
+  return text.replace(SYMBOL_RE, (symbol, offset: number, whole: string) => {
+    const ascii = SYMBOL_MAP.get(symbol) ?? symbol;
+    if (!PADDED.test(ascii)) return ascii;
+    const before = whole[offset - 1] ?? '';
+    const after = whole[offset + symbol.length] ?? '';
+    return `${/[\p{L}\p{N}]/u.test(before) ? ' ' : ''}${ascii}${/[\p{L}\p{N}]/u.test(after) ? ' ' : ''}`;
+  });
+}
+
+/**
+ * Which symbols a text holds that `symbolsToAscii` would rewrite, with counts,
+ * in first-seen order — the sheet's "what changed" line.
+ */
+export function findConvertibleSymbols(
+  text: string,
+): Array<{ symbol: string; ascii: string; count: number }> {
+  const found = new Map<string, number>();
+  for (const match of text.matchAll(SYMBOL_RE)) {
+    found.set(match[0], (found.get(match[0]) ?? 0) + 1);
+  }
+  return [...found].map(([symbol, count]) => ({
+    symbol,
+    ascii: SYMBOL_MAP.get(symbol) ?? symbol,
+    count,
+  }));
+}
+
+export interface AsciiOptions {
+  /**
+   * Spell known symbols in ASCII (`→` → `->`) instead of deleting them.
+   * Default ON: deleting is never the better outcome, and the only reason to
+   * turn it off is to see what the plain fold alone would do.
+   */
+  asciiSymbols?: boolean | undefined;
+}
+
+/**
  * Guarantees the output is pure ASCII, rather than handling known offenders.
  *
  * Three releases running I fixed this one character at a time — the bullet,
@@ -241,16 +357,19 @@ const ASCII_FOLD: ReadonlyArray<readonly [RegExp, string]> = [
  * Step 4 is what makes this final. There is a test asserting the output of
  * `toPlain` contains no non-ASCII character at all, for any input.
  */
-export function foldToAscii(text: string): string {
+export function foldToAscii(text: string, options: AsciiOptions = {}): string {
+  const symbols = options.asciiSymbols ?? true;
   const named = ASCII_FOLD.reduce(
     (acc, [pattern, replacement]) => acc.replace(pattern, replacement),
-    text,
+    spellNumbers(symbols ? symbolsToAscii(text) : text),
   );
 
   return named
     .normalize('NFKD')
     .replace(/\p{Mn}/gu, '')
     .replace(/[\u2028\u2029]/g, '\n')
+    // What NFKD makes of the fractions not in the named list (`⅐` → `1⁄7`).
+    .replace(/\u2044/g, '/')
     .replace(/[^\x00-\x7F]/g, '');
 }
 
@@ -263,7 +382,7 @@ export function findNonAsciiChars(text: string): string[] {
  * SPEC 12.3 — plain text for SIMGOS and other systems that show raw characters.
  * Every marker is removed; the words and the line structure survive untouched.
  */
-export function toPlain(body: string): string {
+export function toPlain(body: string, options: AsciiOptions = {}): string {
   return foldToAscii(
     body
       // `**` first: otherwise the single-asterisk rule would eat one pair of
@@ -274,6 +393,7 @@ export function toPlain(body: string): string {
       .replace(ITALIC_RE, '$1$2')
       // `* ` bullets become `- `, the spelling plain text has always used.
       .replace(BULLET_LINE_RE, '$1- '),
+    options,
   );
 }
 
@@ -293,12 +413,13 @@ export function formatBody(
   body: string,
   format: OutputFormat,
   bullet: BulletStyle = 'hyphen',
+  ascii: AsciiOptions = {},
 ): string {
   switch (format) {
     case 'whatsapp':
       return toWhatsApp(body, bullet);
     case 'plain':
-      return toPlain(body);
+      return toPlain(body, ascii);
     case 'markdown':
       return toMarkdown(body);
   }

@@ -96,6 +96,8 @@ export interface PdfReportOptions {
   aliases: readonly SectionAlias[];
   format: OutputFormat;
   bullet?: BulletStyle;
+  /** Plain only: spell symbols in ASCII (`→` → `->`). See `SYMBOL_ASCII`. */
+  asciiSymbols?: boolean | undefined;
   chief?: string;
   junior?: string;
   /**
@@ -281,5 +283,6 @@ export function composePdfReport(body: string, options: PdfReportOptions): strin
     parts.join('\n').replace(/\n{3,}/g, '\n\n').trim(),
     options.format,
     options.bullet,
+    { asciiSymbols: options.asciiSymbols },
   );
 }

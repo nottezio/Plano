@@ -5,6 +5,15 @@ Catatan teknis lengkap (akar masalah, perbaikan) ada di CHANGES.md.
 
 Entri teratas harus versi yang sedang dirilis; tes gagal bila belum ditulis.
 
+## `2026-10-03.1`
+- **Bookmark baris di SOAP:** taruh kursor di sebuah baris, lalu ketuk ikon bookmark di toolbar. Baris itu diberi tanda biru di tepi kiri, dan namanya muncul di bar lompat atas (setelah S/O/A/Terapi). Ketuk untuk langsung menggulir ke baris tersebut — tanpa membuka keyboard — dan baris itu disorot sebentar. Ketuk ikon bookmark lagi di baris yang sama untuk menghapusnya.
+- Bookmark tersimpan di pasien dan ikut tersinkron ke perangkat lain. Bookmark tetap ada di hari berikutnya bila barisnya terbawa, dan tetap menempel saat isi baris diedit (mis. `K 3,1` diubah jadi `K 3,5`).
+- Bila baris yang di-bookmark sudah tidak ada di catatan terbaru, bar atas menampilkan "n bookmark tidak ditemukan · Hapus".
+- **Konfirmasi Jaga akhir pekan menyebut shift-nya:** Formasi kini `*Hari/Tanggal : Sabtu Pagi, 5 September 2026*` (atau *Sabtu Malam*), dan pesan konfirmasi ke residen juga menyebut `_Sabtu Pagi, 5 September 2026_`. Hari kerja tetap tanpa Pagi/Malam.
+- Formasi shift **Pagi** tidak lagi mencantumkan blok "DPJP setelah Pk. 00.00 WITA", karena tim pagi sudah serah terima sebelum tengah malam. Shift Malam dan hari kerja tetap mencantumkannya.
+- **Salin → Teks polos mengubah simbol agar terbaca di SIMGOS**, tidak lagi menghapusnya: `→` jadi `->`, `↑` jadi `(naik)`, `↓` jadi `(turun)`, `±` jadi `+/-`, `µg` jadi `mcg`, `β` jadi `beta`, `✓` jadi `(v)`, dan lainnya. Berlaku di Preview dan teks yang disalin; catatan aslinya tidak berubah. Bisa dimatikan lewat centang "Ubah simbol agar terbaca di SIMGOS" (diingat di perangkat ini).
+- **Perbaikan angka di teks polos:** `½ tab` dulu menjadi `12 tab` dan `10³/µL` menjadi `103/uL`. Sekarang menjadi `1/2 tab` dan `10^3/uL`, selalu.
+
 ## `2026-10-02.4`
 - **Format hasil lab memakai tanggal dari PDF:** judul blok kini `*Laboratorium PJT (02-10-2026)*` — tanggal diambil dari **Tgl. Registrasi** (saat sampel diambil), bukan tanggal catatan. Lab IGD yang diambil 23:36 dan keluar lewat tengah malam tetap tertulis tanggal pengambilan.
 - Judul mengikuti unit pengirim di PDF: **Laboratorium PJT**, **Laboratorium IGD**, CVCU, HCU PJT, atau poli sesuai yang tercetak. Judul dan tanggal tetap bisa diubah.

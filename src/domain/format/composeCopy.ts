@@ -36,6 +36,8 @@ export interface ComposeOptions {
   format: OutputFormat;
   /** How bullets are written for WhatsApp; see formatters.ts. */
   bullet?: BulletStyle;
+  /** Plain only: spell symbols in ASCII (`→` → `->`). See `SYMBOL_ASCII`. */
+  asciiSymbols?: boolean | undefined;
   /**
    * `'all'`, or the chosen "Salin bagian" groups.
    *
@@ -159,7 +161,9 @@ export function composeCopy(days: readonly CopyDay[], options: ComposeOptions): 
     parts.push(chunk.join('\n'));
   }
 
-  return formatBody(parts.join('\n\n').trim(), options.format, options.bullet);
+  return formatBody(parts.join('\n\n').trim(), options.format, options.bullet, {
+    asciiSymbols: options.asciiSymbols,
+  });
 }
 
 /**

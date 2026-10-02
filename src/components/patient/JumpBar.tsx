@@ -29,9 +29,23 @@ import type { SectionAlias } from '@/domain/types';
 export function JumpBar({
   body,
   aliases,
+  bookmarks = [],
+  onBookmark,
+  missingBookmarks = 0,
+  onClearMissing,
 }: {
   body: string;
   aliases: readonly SectionAlias[];
+  /**
+   * Bookmarked lines of the note on screen, top to bottom. After the sections:
+   * the sections are the note's own structure and always in the same place on
+   * this bar, the bookmarks are the user's and come and go.
+   */
+  bookmarks?: ReadonlyArray<{ id: string; label: string }>;
+  onBookmark?: ((id: string) => void) | undefined;
+  /** Bookmarks whose line is not in this note (kept: it may be back tomorrow). */
+  missingBookmarks?: number;
+  onClearMissing?: (() => void) | undefined;
 }): JSX.Element | null {
   const targets = jumpTargets(body, aliases);
 
@@ -83,7 +97,7 @@ export function JumpBar({
 
   // One button is the identity button alone, which is just "scroll up" — not
   // worth a row of chrome on a phone.
-  if (targets.length < 2) return null;
+  if (targets.length < 2 && bookmarks.length === 0 && missingBookmarks === 0) return null;
 
   return (
     <div
@@ -120,6 +134,40 @@ export function JumpBar({
           {target.label}
         </button>
       ))}
+      {bookmarks.length > 0 ? (
+        <span aria-hidden="true" className="my-2 w-px shrink-0 bg-border" />
+      ) : null}
+      {bookmarks.map((bookmark) => (
+        <button
+          key={bookmark.id}
+          type="button"
+          onClick={() => onBookmark?.(bookmark.id)}
+          title={`Ke baris: ${bookmark.label}`}
+          className="flex h-8 max-w-[11rem] shrink-0 items-center gap-1 rounded-lg px-2 text-[11px] font-medium text-accent"
+        >
+          <svg
+            viewBox="0 0 24 24"
+            width="12"
+            height="12"
+            fill="currentColor"
+            aria-hidden="true"
+            className="shrink-0"
+          >
+            <path d="M6 4h12v16l-6-4-6 4z" />
+          </svg>
+          <span className="truncate">{bookmark.label}</span>
+        </button>
+      ))}
+      {missingBookmarks > 0 && onClearMissing ? (
+        <button
+          type="button"
+          onClick={onClearMissing}
+          title="Baris yang di-bookmark tidak ada di catatan hari ini. Ketuk untuk menghapus bookmark-nya."
+          className="h-8 shrink-0 rounded-lg px-2 text-[11px] text-fg-faint"
+        >
+          {missingBookmarks} bookmark tidak ditemukan · Hapus
+        </button>
+      ) : null}
     </div>
   );
 }

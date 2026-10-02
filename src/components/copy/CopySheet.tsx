@@ -7,6 +7,7 @@ import { composeCopy } from '@/domain/format/composeCopy';
 import {
   FORMAT_LABELS,
   findMarkdownLeaks,
+  findConvertibleSymbols,
   findNonAsciiChars,
   type BulletStyle,
 } from '@/domain/format/formatters';
@@ -112,6 +113,17 @@ export function CopySheet({
   closings: readonly string[];
 }): JSX.Element {
   const [format, setFormat] = useState<OutputFormat>('whatsapp');
+  /**
+   * Teks polos: spell symbols in ASCII (`→` → `->`) or let the fold delete
+   * them. Per device and remembered, because it is a habit about where the
+   * text is going, not a property of one note; the note itself is never
+   * changed either way.
+   */
+  const [asciiSymbols, setAsciiSymbolsState] = useState<boolean>(readAsciiSymbols);
+  const setAsciiSymbols = (next: boolean): void => {
+    setAsciiSymbolsState(next);
+    writeAsciiSymbols(next);
+  };
   const [groups, setGroups] = useState<CopyGroupId[] | 'all'>('all');
   /**
    * Identity and date header are no longer options.
@@ -342,6 +354,7 @@ export function CopySheet({
             includeInvestigations: invasifPenunjang,
             format,
             bullet,
+            asciiSymbols,
           })
         : shape === 'jaga' && activeShiftNote
         ? // Stands alone. A jaga note is reported when it happens, to whoever
@@ -351,6 +364,7 @@ export function CopySheet({
             format,
             bullet,
             includeIdentity,
+            asciiSymbols,
           })
         : shape === 'konsul'
         ? // Always the day on screen, never a range: a referral describes the
@@ -364,6 +378,7 @@ export function CopySheet({
             listDate: formatDayNoWeekday(date),
             format,
             bullet,
+            asciiSymbols,
           })
         : pdfMode
         ? composePdfReport(body, {
@@ -373,6 +388,7 @@ export function CopySheet({
             // without staffing lines, rather than one shape for everyone.
             format: reportFormat,
             bullet,
+            asciiSymbols,
             staffing: reportStaffing,
             ...(reportVerificationTime ? { verificationTime: reportVerificationTime } : {}),
             closings,
@@ -386,8 +402,10 @@ export function CopySheet({
             patient,
             bullet,
             closings,
+            asciiSymbols,
           }),
     [
+      asciiSymbols,
       shape,
       activeShiftNote,
       bullet,
@@ -462,6 +480,18 @@ export function CopySheet({
    * says what is in the text and offers the one-tap fix rather than guessing.
    */
   const nonAscii = useMemo(() => findNonAsciiChars(output), [output]);
+
+  /**
+   * The symbols Teks polos rewrites (or, switched off, deletes), read from
+   * the note being copied — the composed output has already lost them.
+   */
+  const symbolHits = useMemo(
+    () =>
+      format === 'plain'
+        ? findConvertibleSymbols(shape === 'jaga' && activeShiftNote ? activeShiftNote.body : body)
+        : [],
+    [format, shape, activeShiftNote, body],
+  );
 
   /**
    * Does this note belong to the patient whose chart is open?
@@ -946,6 +976,41 @@ export function CopySheet({
         </>
       )}
 
+      {/*
+        Teks polos only, and only when the note has something to convert.
+        The switch changes the Preview and the copy together — they are the
+        same string — and never the note.
+      */}
+      {format === 'plain' && symbolHits.length > 0 ? (
+        <div className="mt-2 rounded-lg border border-border bg-bg-subtle p-2 text-[11px] leading-relaxed">
+          <label className="flex min-h-tap cursor-pointer items-center gap-2 font-medium text-fg">
+            <input
+              type="checkbox"
+              checked={asciiSymbols}
+              onChange={(event) => setAsciiSymbols(event.target.checked)}
+              className="h-4 w-4"
+            />
+            Ubah simbol agar terbaca di SIMGOS
+          </label>
+          <p className="text-fg-muted">
+            {asciiSymbols ? 'Di Preview dan teks yang disalin: ' : 'Dimatikan — simbol ini dihapus: '}
+            {symbolHits.map((hit, index) => (
+              <span key={hit.symbol}>
+                {index > 0 ? ' · ' : ''}
+                <span className="text-sm text-fg">{hit.symbol}</span>
+                {asciiSymbols ? (
+                  <>
+                    {' '}jadi <span className="font-mono text-fg">{hit.ascii}</span>
+                  </>
+                ) : null}
+                {hit.count > 1 ? ` (${hit.count}×)` : ''}
+              </span>
+            ))}
+            . Catatan aslinya tidak berubah.
+          </p>
+        </div>
+      ) : null}
+
       {identityCheck.status === 'mismatch' ? (
         <div
           role="alert"
@@ -1064,4 +1129,24 @@ function Chip({
       {children}
     </button>
   );
+}
+
+const ASCII_SYMBOLS_KEY = 'plano.asciiSymbols';
+
+/** On unless switched off; storage that throws (private mode) reads as on. */
+function readAsciiSymbols(): boolean {
+  try {
+    return window.localStorage.getItem(ASCII_SYMBOLS_KEY) !== 'off';
+  } catch {
+    return true;
+  }
+}
+
+function writeAsciiSymbols(on: boolean): void {
+  try {
+    if (on) window.localStorage.removeItem(ASCII_SYMBOLS_KEY);
+    else window.localStorage.setItem(ASCII_SYMBOLS_KEY, 'off');
+  } catch {
+    // Not remembered; the switch still works for this sheet.
+  }
 }

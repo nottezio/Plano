@@ -23,6 +23,8 @@ export function composeShiftNote(
   options: {
     format: OutputFormat;
     bullet: BulletStyle;
+    /** Plain only: spell symbols in ASCII (`→` → `->`). See `SYMBOL_ASCII`. */
+    asciiSymbols?: boolean | undefined;
     includeIdentity: boolean;
   },
 ): string {
@@ -61,5 +63,7 @@ export function composeShiftNote(
   // Through the same formatters as the daily note: WhatsApp emphasis survives,
   // SIMGOS gets guaranteed ASCII. A jaga note pasted into SIMGOS has exactly
   // the same `?` problem as any other text, and no reason to solve it twice.
-  return formatBody(lines.join('\n').trim(), options.format, options.bullet);
+  return formatBody(lines.join('\n').trim(), options.format, options.bullet, {
+    asciiSymbols: options.asciiSymbols,
+  });
 }

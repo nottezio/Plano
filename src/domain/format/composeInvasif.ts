@@ -43,6 +43,8 @@ export interface InvasifOptions {
   /** Destination format; see `KonsulOptions.format` for why this exists. */
   format?: OutputFormat;
   bullet?: BulletStyle;
+  /** Plain only: spell symbols in ASCII (`→` → `->`). See `SYMBOL_ASCII`. */
+  asciiSymbols?: boolean | undefined;
 }
 
 const DEFAULT_GREETING = 'Assalamualaikum Wr. Wb. Tabe dokter,';
@@ -196,5 +198,6 @@ export function composeInvasif(
       .trim(),
     options.format ?? 'whatsapp',
     options.bullet,
+    { asciiSymbols: options.asciiSymbols },
   );
 }

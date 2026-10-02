@@ -72,6 +72,7 @@ import {
   yesterdayHint,
 } from '@/domain/clinicalDate';
 import { useBodyEditor } from '@/hooks/useBodyEditor';
+import { useLineBookmarks } from '@/hooks/useLineBookmarks';
 import { useClinicalToday } from '@/hooks/useClinicalToday';
 import { useChecklist } from '@/hooks/useChecklist';
 import { useShiftNotes } from '@/hooks/useShiftNotes';
@@ -323,6 +324,19 @@ export default function PatientPage(): JSX.Element {
     selectedShiftNoteId === null
       ? null
       : (shiftNotes.notes.find((note) => note.id === selectedShiftNoteId) ?? null);
+
+  /**
+   * Line bookmarks on the day's SOAP. Off while the entry loads (the body is
+   * a placeholder '' then, and following an "edit" from '' to the real note
+   * would be nonsense) and while a jaga note fills the editor.
+   */
+  const lineBookmarks = useLineBookmarks({
+    patientId: patientId ?? null,
+    stored: patient?.bookmarks,
+    body: editor.value,
+    date: selected,
+    enabled: !entryLoading && !activeShiftNote,
+  });
 
   /**
    * One tap: a jaga note with the jaga scaffold, stamped now (editable in its
@@ -1133,6 +1147,20 @@ export default function PatientPage(): JSX.Element {
         <JumpBar
           body={activeShiftNote ? activeShiftNote.body : editor.value}
           aliases={settings.sectionAliases}
+          bookmarks={lineBookmarks.resolved}
+          onBookmark={(id) => {
+            const target = lineBookmarks.resolved.find((entry) => entry.id === id);
+            if (target) editorHandle.current?.revealLine(target.start, target.end);
+          }}
+          /*
+            Offered only on the latest note. On an older day a bookmark made
+            since is "missing" simply because the line did not exist yet, and
+            clearing it from there would delete today's bookmarks.
+          */
+          missingBookmarks={
+            selected >= (patient.lastEntryDate ?? selected) ? lineBookmarks.missing.length : 0
+          }
+          onClearMissing={lineBookmarks.clearMissing}
         />
         </header>
 
@@ -1781,6 +1809,10 @@ export default function PatientPage(): JSX.Element {
             aliases={settings.sectionAliases}
             date={selected}
             ward={patient.ward}
+            bookmarks={{
+              starts: lineBookmarks.resolved.map((entry) => entry.start),
+              onToggle: lineBookmarks.toggleAt,
+            }}
             tint={settings.sectionTint}
             readOnly={locked}
             {...(settings.showWatermark

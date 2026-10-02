@@ -1,5 +1,122 @@
 # Plano — CHANGES
 
+## `2026-10-03.1`
+
+Three requests: line bookmarks in the SOAP, Pagi/Malam in Konfirmasi Jaga, and
+SIMGOS-safe symbols in Teks polos.
+
+### 1. Konfirmasi Jaga — no Pagi/Malam
+
+**Root cause.** The roster parser already split weekend rows into `pagi` and
+`malam` shifts, and the page already offered a shift picker. Both messages,
+however, printed `longDate(shift.date)`. That is the date and nothing about
+WHICH team. A senior asked "are you Chief PJT on Sabtu, 5 September" cannot
+tell which half of the day is meant. The shift lived in the data model and was
+dropped at the last step, the string.
+
+**Fix.**
+- `shiftDateLabel(date, shift)` → `Sabtu Pagi, 5 September 2026`;
+  `penuh` is unchanged. It is derived from the date and the shift kind, not
+  copied from the roster's `hari` cell (the weekend `Malam` row's cells are
+  merged in the PDF).
+- Used in the Formasi heading, in `buildKonfirmasi` (new `shift` option) and in
+  the DPJP-edit labels.
+- **Pagi Formasi has no post-midnight DPJP block.** The pagi team hands over
+  before 00.00, and Avi's sample Formasi has none. The block stays for Malam and
+  for weekdays. The "setelah 00.00" DPJP edit row is hidden for Pagi to match.
+
+**Not done.** The opening line is still `Assalamualaikum dokter, selamat
+(waktu) dokter`. Avi's sample reads `Assalamualaikum dokter.` with no
+time-of-day. Left as is, since that was not the request. The day stays
+unpadded (`5 September`), matching his confirmation sample; his Formasi sample
+reads `05`. Unify on his word.
+
+### 2. Teks polos — symbols deleted, numbers changed
+
+**Root cause.** `foldToAscii` guarantees ASCII by making its last step "remove
+anything still non-ASCII". That guarantee is right. The named table in front of
+it, however, only covered dashes, quotes, spaces, `°`, `≤ ≥ ×`. Everything else
+was silently DELETED: `Troponin ↑` → `Troponin `, `Aspilet → CPG` →
+`Aspilet  CPG`, `β-blocker` → `-blocker`. Worse, NFKD (step 2) decomposes some
+characters into ASCII plus a non-ASCII joiner, and step 4 then removed the
+joiner, CHANGING NUMBERS:
+- `½ tab` → `1⁄2` → **`12 tab`**; `1½` → **`112`**
+- `10³/µL` → **`103/uL`**
+
+**Fix.**
+- **Always on (correctness):** `spellNumbers` runs before NFKD. Vulgar
+  fractions become `1/2` (with a space after a leading digit: `1 1/2`) and
+  superscript runs become `^3`, `^-3`. A leftover U+2044 becomes `/`. There is
+  no setting under which a changed dose is acceptable, so no switch.
+- **`SYMBOL_ASCII` table (switchable, default ON):** arrows → `->`, `<-`,
+  `=>`, `(naik)`, `(turun)`; `±` → `+/-`; `µg` → `mcg` (cannot be misread as
+  mg), other `µ` → `u`; `≈` → `~`; `≠` → `=/=`; `÷` → `/`; Greek letters →
+  `alpha`/`beta`/`delta`…; `✓ √` → `(v)`; `✗` → `(x)`; `♂ ♀` → `(L)`/`(P)`.
+  Parenthesised words are padded where they would fuse with a letter or digit
+  (`3,1↓` → `3,1 (turun)`).
+- Threaded as `asciiSymbols` through `formatBody` → every composer (copy, jaga
+  note, konsul, invasif, PDF report). The sheet passes it, so the Preview and
+  the clipboard stay the same string.
+- **CopySheet:** in Teks polos, when the note holds a convertible symbol, a
+  checkbox "Ubah simbol agar terbaca di SIMGOS" lists each symbol, its
+  replacement and its count, or "dihapus" when switched off. It is remembered
+  per device (`plano.asciiSymbols`). The note is never changed.
+- Other plain paths (drag-copy sanitiser, peek window, revision diff) get the
+  default, ON.
+
+**Deviation.** I offered to highlight changed characters "in the Preview". The
+Teks preview is a real `<textarea>` (selectable, by design) and cannot
+highlight a span. The sheet lists the changes under the Preview instead.
+
+### 3. Line bookmarks
+
+**Design.** The body is one free-form string, copied verbatim. So a bookmark
+cannot be a marker in the text (it would reach SIMGOS), and cannot be a line
+number (it would shift onto another line). It is instead **the line's trimmed
+text + which occurrence**, stored on the patient (`bookmarks.<id>`, one leaf per
+change, `setPatientBookmark`). Being on the patient, it survives
+carry-forward: yesterday's bookmarked line is usually in today's note.
+- `domain/bookmarks.ts`: `lineAt`, `resolveBookmark` (nth, else the last copy),
+  `resolveBookmarks` (top-to-bottom, missing kept, duplicates merged),
+  `bookmarkLabel`, `reanchorBookmarks`.
+- **Re-anchoring:** an edit inside a bookmarked line is followed by mapping the
+  line's start through the edit (`mapOffset`, the caret's own mapping). The new
+  line takes over only if it shares ≥40% of the old text as prefix + suffix,
+  so a deleted line does not hand its bookmark to a neighbour. Writes are
+  debounced 1.2 s, and the local value applies immediately.
+- **UI:**
+  - a toolbar toggle (pressed when the caret's line is marked; works on a
+    locked note);
+  - a blue bar in the left margin, laid out by a transparent copy of the note
+    with the textarea's METRICS;
+  - chips on the JumpBar after the sections. A chip calls `revealLine`, which
+    scrolls the line under the measured sticky header **without focusing**, so
+    no keyboard covers it, and flashes it.
+  - "n bookmark tidak ditemukan · Hapus" appears on the latest day only. On an
+    older day a newer bookmark is "missing" by definition, and clearing from
+    there would delete today's.
+
+### Wrong turns
+- **Bookmark fell off after one keystroke** (caught in the render check, typing
+  ` koreksi` into a marked line). The re-anchor ran in an effect and stored
+  the move in state. A fast second keystroke is a discrete update, so React
+  rendered it before that state landed. The second pass then saw the old text,
+  found no line, and dropped the bookmark. The vitest harness renders
+  keystrokes one `act` at a time and could not show this. The fix is a ref
+  mirror of the pending map, updated in the same tick as the move.
+- The symbol summary first read `→ → ->`. The separator is now the word "jadi".
+
+### Not done
+- Bookmarks are for the day SOAP only, not jaga notes.
+- No rename of a bookmark; the chip shows the line's first 24 characters.
+- Two identical lines inserted above a marked duplicate can move the bookmark
+  to another copy (`nth` is positional among equals).
+
+```
+1816 tests passed (+25)
+typecheck / lint (0 warnings) / check:version / check:contrast / check:a11y / build — clean
+```
+
 ## `2026-10-02.4`
 
 **The lab block heading takes its date and unit from the report:

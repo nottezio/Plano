@@ -30,6 +30,7 @@ import { konsulPreview } from '@/domain/konsulReply';
 import { parseSections } from '@/domain/sections/parseSections';
 import { DEFAULT_SECTION_ALIASES } from '@/domain/sections/aliases';
 import type { SectionAlias } from '@/domain/types';
+import type { LineBookmark } from '@/domain/bookmarks';
 import type { ReminderSetting } from '@/domain/reminders';
 import {
   checklistCol,
@@ -474,6 +475,31 @@ export function setPatientReminder(
       new FieldPath('reminders', kindId),
       setting,
       ...legacy,
+      new FieldPath('updatedAt'),
+      serverTimestamp(),
+      new FieldPath('updatedBy'),
+      getDeviceId(),
+    ),
+  );
+}
+
+/**
+ * Set or remove one line bookmark: one leaf, `bookmarks.<id>`.
+ *
+ * Never the whole map. Two devices bookmarking two lines within a second of
+ * each other would otherwise each write a map the other had not seen, and the
+ * later write would erase the earlier bookmark (pattern 5).
+ */
+export function setPatientBookmark(
+  patientId: string,
+  id: string,
+  bookmark: LineBookmark | null,
+): Promise<void> {
+  return trackWrite(
+    updateDoc(
+      patientDoc(patientId),
+      new FieldPath('bookmarks', id),
+      bookmark ?? deleteField(),
       new FieldPath('updatedAt'),
       serverTimestamp(),
       new FieldPath('updatedBy'),

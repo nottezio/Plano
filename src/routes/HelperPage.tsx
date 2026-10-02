@@ -15,6 +15,7 @@ import {
   buildFormasi,
   buildKonfirmasi,
   longDate,
+  shiftDateLabel,
   nextDate,
   resolveShift,
 } from '@/domain/jaga/formasi';
@@ -650,8 +651,17 @@ function KonfirmasiJaga(): JSX.Element {
               </summary>
               <div className="mt-2 space-y-2">
                 {[
-                  { date: shift.date, label: longDate(shift.date) },
-                  { date: nextDate(shift.date), label: `setelah 00.00 — ${longDate(nextDate(shift.date))}` },
+                  { date: shift.date, label: shiftDateLabel(shift.date, shift.shift) },
+                  // A pagi team's Formasi has no post-midnight block (see
+                  // `buildFormasi`), so there is nothing here to edit for it.
+                  ...(shift.shift === 'pagi'
+                    ? []
+                    : [
+                        {
+                          date: nextDate(shift.date),
+                          label: `setelah 00.00 — ${longDate(nextDate(shift.date))}`,
+                        },
+                      ]),
                 ].map(({ date, label }) => (
                   <div key={date} className="space-y-1">
                     <p className="text-fg-faint">{label}</p>
@@ -726,6 +736,7 @@ function KonfirmasiJaga(): JSX.Element {
                     senderName: sender.name || '(nama)',
                     senderPlace: sender.place || '(pos)',
                     date: shift.date,
+                    shift: shift.shift,
                   },
                   new Date(),
                 );

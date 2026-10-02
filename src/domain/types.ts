@@ -453,6 +453,12 @@ export interface Patient {
    * patient. This is one day's decision about anybody.
    */
   ekgFor?: ClinicalDate;
+  /**
+   * Bookmarked lines of the SOAP, by id; see `domain/bookmarks`. On the
+   * patient, not the day, so they follow the note through carry-forward.
+   * Written one leaf at a time (`setPatientBookmark`).
+   */
+  bookmarks?: Record<string, import('./bookmarks').LineBookmark>;
   /** Daily reminders by kind id; see `domain/reminders`. */
   reminders?: Record<string, import('./reminders').ReminderSetting>;
   /** Which reminders were ticked, and for which clinical day. */

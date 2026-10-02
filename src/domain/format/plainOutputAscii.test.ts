@@ -5,7 +5,7 @@ import { composeInvasif } from './composeInvasif';
 import { composeKonsul } from './composeKonsul';
 import { composePdfReport } from './pdfReport';
 import { composeShiftNote } from './composeShiftNote';
-import { toPlain, toWhatsApp } from './formatters';
+import { findConvertibleSymbols, toPlain, toWhatsApp } from './formatters';
 import { DEFAULT_SECTION_ALIASES as ALIASES } from '../defaults';
 import { makePatient } from '../testFactories';
 
@@ -114,5 +114,53 @@ describe('invisible characters never reach WhatsApp output either', () => {
 
   it('peek WhatsApp view (default bullets)', () => {
     expect(toWhatsApp(HOSTILE)).not.toMatch(/[\u200B\u2060\uFEFF]/);
+  });
+});
+
+describe('symbols in Teks polos', () => {
+  it('spells known symbols instead of deleting them (default on)', () => {
+    expect(toPlain('Troponin ↑, K 3,1↓')).toBe('Troponin (naik), K 3,1 (turun)');
+    expect(toPlain('Aspilet → CPG')).toBe('Aspilet -> CPG');
+    expect(toPlain('β-blocker, α-agonis, Δ ST')).toBe('beta-blocker, alpha-agonis, delta ST');
+    expect(toPlain('NTG 10 µg/menit, µmol')).toBe('NTG 10 mcg/menit, umol');
+    expect(toPlain('MAP 65 ± 5, EKG ✓')).toBe('MAP 65 +/- 5, EKG (v)');
+  });
+
+  it('deletes them when switched off, and stays ASCII either way', () => {
+    const text = 'Troponin ↑ → ICCU β';
+    expect(toPlain(text, { asciiSymbols: false })).toBe('Troponin   ICCU ');
+    expect(nonAscii(toPlain(text, { asciiSymbols: false }))).toEqual([]);
+    expect(nonAscii(toPlain(text))).toEqual([]);
+  });
+
+  it('never turns a fraction or a power into a different number', () => {
+    // Before: `½ tab` → `12 tab`, `1½` → `112`, `10³/µL` → `103/uL`.
+    expect(toPlain('Bisoprolol ½ tab')).toBe('Bisoprolol 1/2 tab');
+    expect(toPlain('1½ tab')).toBe('1 1/2 tab');
+    expect(toPlain('PLT 250 10³/µL', { asciiSymbols: false })).toBe('PLT 250 10^3/L');
+    expect(toPlain('PLT 250 10³/µL')).toBe('PLT 250 10^3/uL');
+    expect(toPlain('BSA 1,8 m², 10⁻³')).toBe('BSA 1,8 m^2, 10^-3');
+    expect(toPlain('⅐ dosis')).toBe('1/7 dosis');
+  });
+
+  it('reaches every composer through its options', () => {
+    const body = '*S :*\n- Nyeri dada ↓';
+    const on = composeCopy([{ date: '2026-09-16', body }], {
+      format: 'plain', sections: 'all', includeIdentity: false, includeDateHeader: false,
+      aliases: ALIASES, patient: PATIENT,
+    });
+    const off = composeCopy([{ date: '2026-09-16', body }], {
+      format: 'plain', sections: 'all', includeIdentity: false, includeDateHeader: false,
+      aliases: ALIASES, patient: PATIENT, asciiSymbols: false,
+    });
+    expect(on).toContain('Nyeri dada (turun)');
+    expect(off).not.toContain('(turun)');
+  });
+
+  it('lists what it converts, with counts, in order', () => {
+    expect(findConvertibleSymbols('a → b ↑ c →')).toEqual([
+      { symbol: '→', ascii: '->', count: 2 },
+      { symbol: '↑', ascii: '(naik)', count: 1 },
+    ]);
   });
 });

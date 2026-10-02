@@ -35,6 +35,7 @@ export function FormatToolbar({
   onReplace,
   aliases,
   history,
+  bookmark,
 }: {
   disabled: boolean;
   /** Undo/redo for the note; absent where there is none. */
@@ -54,6 +55,8 @@ export function FormatToolbar({
   onReplace: (next: string) => void;
   /** The user's section aliases, so "Tebalkan judul" sees custom headings too. */
   aliases?: readonly SectionAlias[] | undefined;
+  /** Bookmark the caret's line (day SOAP only); pressed when it already is. */
+  bookmark?: { pressed: boolean; onToggle: () => void } | undefined;
 }): JSX.Element {
   const [menu, setMenu] = useState<'insert' | 'tidy' | null>(null);
   const rootRef = useRef<HTMLDivElement>(null);
@@ -113,6 +116,25 @@ export function FormatToolbar({
               <path d="M4 5h1.5v4M4 9h3M4 15.5c0-.8.7-1.5 1.5-1.5S7 14.7 7 15.5 4 18 4 19h3" />
             </Svg>
           </Tool>
+          {bookmark ? (
+            /*
+              Not disabled on a locked note: a bookmark is a reading aid kept
+              on the patient, and it changes nothing in the note itself.
+            */
+            <Tool
+              title={bookmark.pressed ? 'Hapus bookmark baris ini' : 'Bookmark baris ini'}
+              disabled={false}
+              pressed={bookmark.pressed}
+              onClick={bookmark.onToggle}
+            >
+              <Svg>
+                <path
+                  d="M6 4h12v16l-6-4-6 4z"
+                  fill={bookmark.pressed ? 'currentColor' : 'none'}
+                />
+              </Svg>
+            </Tool>
+          ) : null}
         </Group>
 
         <Group last>
@@ -206,11 +228,14 @@ function Tool({
   title,
   onClick,
   disabled,
+  pressed,
   children,
 }: {
   title: string;
   onClick: () => void;
   disabled: boolean;
+  /** For a toggle; plain actions leave it out and get no aria-pressed. */
+  pressed?: boolean | undefined;
   children: ReactNode;
 }): JSX.Element {
   return (
@@ -218,10 +243,11 @@ function Tool({
       type="button"
       title={title}
       aria-label={title}
+      aria-pressed={pressed}
       disabled={disabled}
       onMouseDown={(event) => event.preventDefault()}
       onClick={onClick}
-      className="flex min-h-tap min-w-tap shrink-0 items-center justify-center rounded-lg text-fg-muted hover:bg-bg-subtle hover:text-fg active:bg-[var(--accent-soft)] disabled:opacity-35 disabled:hover:bg-transparent [@media(pointer:fine)]:min-h-9 [@media(pointer:fine)]:min-w-9"
+      className={`${pressed ? 'text-accent' : 'text-fg-muted'} flex min-h-tap min-w-tap shrink-0 items-center justify-center rounded-lg hover:bg-bg-subtle hover:text-fg active:bg-[var(--accent-soft)] disabled:opacity-35 disabled:hover:bg-transparent [@media(pointer:fine)]:min-h-9 [@media(pointer:fine)]:min-w-9`}
     >
       {children}
     </button>

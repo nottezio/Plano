@@ -55,6 +55,28 @@ export function longDate(date: string): string {
   return `${DAY_NAMES[at.getDay()]}, ${day} ${MONTH_NAMES[month - 1]} ${year}`;
 }
 
+/**
+ * The date as the team is named: `Sabtu Pagi, 5 September 2026` at the
+ * weekend, `Senin, 7 September 2026` on a weekday.
+ *
+ * Weekend days carry two teams of entirely different people, and a message
+ * that says only "Sabtu" asks a senior to confirm a day they may be on for
+ * half of. The word goes after the weekday, the way the roster prints its
+ * `hari` column (`Minggu Pagi`) and the way the group writes it.
+ *
+ * Built from the date and the shift kind rather than copied from `hari`:
+ * a weekend `Malam` row's cells are merged in the PDF, and the derived form
+ * cannot disagree with the date it sits beside.
+ */
+export function shiftDateLabel(date: string, shift: JagaShift['shift'] = 'penuh'): string {
+  const long = longDate(date);
+  if (shift === 'penuh') return long;
+  const comma = long.indexOf(',');
+  if (comma < 0) return long;
+  const word = shift === 'pagi' ? 'Pagi' : 'Malam';
+  return `${long.slice(0, comma)} ${word}${long.slice(comma)}`;
+}
+
 /** The day after `date`, as the same ISO string. */
 export function nextDate(date: string): string {
   const [year, month, day] = date.split('-').map(Number);
@@ -268,10 +290,19 @@ export function buildFormasi(
   };
 
   const today = apply(dpjp?.days.find((day) => day.date === shift.date) ?? null, shift.date);
-  const tomorrow = apply(
-    dpjp?.days.find((day) => day.date === nextDate(shift.date)) ?? null,
-    nextDate(shift.date),
-  );
+  /*
+    A PAGI team hands over in the evening, hours before the consultant changes
+    at 00.00, so the post-midnight pair is nobody on that team's business —
+    printing it put tomorrow's names in front of a senior who will never call
+    them. A weekday team and the MALAM team are on across midnight and keep it.
+  */
+  const tomorrow =
+    shift.shift === 'pagi'
+      ? null
+      : apply(
+          dpjp?.days.find((day) => day.date === nextDate(shift.date)) ?? null,
+          nextDate(shift.date),
+        );
 
   const lines: string[] = [
     expandOpeningTokens('Assalamualaikum dokter, selamat (waktu) dokter', at),
@@ -283,7 +314,7 @@ export function buildFormasi(
     lines.push(`_DPJP Utama : ${today.utama}_`, `_DPJP Tindakan : ${today.tindakan}_`, '');
   }
 
-  lines.push(`*Hari/Tanggal : ${longDate(shift.date)}*`, '');
+  lines.push(`*Hari/Tanggal : ${shiftDateLabel(shift.date, shift.shift)}*`, '');
 
   for (const post of posts) {
     /*
@@ -330,7 +361,13 @@ export function buildFormasi(
  */
 export function buildKonfirmasi(
   post: ResolvedPost,
-  options: { senderName: string; senderPlace: string; date: string },
+  options: {
+    senderName: string;
+    senderPlace: string;
+    date: string;
+    /** Which team on that date; the weekend's two are different people. */
+    shift?: JagaShift['shift'];
+  },
   at: Date,
 ): string {
   const waktu = timeOfDayWord(at.getHours());
@@ -339,6 +376,6 @@ export function buildKonfirmasi(
 
   return [
     greeting,
-    `Mohon maaf mengganggu. Saya ${options.senderName}, yang bertugas jaga di ${options.senderPlace} pada _${longDate(options.date)}_. Saya ingin mengonfirmasi apakah dokter bertugas sebagai *${post.place}* pada hari tersebut. Mohon arahan dan bimbingannya. Terima kasih, dokter.`,
+    `Mohon maaf mengganggu. Saya ${options.senderName}, yang bertugas jaga di ${options.senderPlace} pada _${shiftDateLabel(options.date, options.shift)}_. Saya ingin mengonfirmasi apakah dokter bertugas sebagai *${post.place}* pada hari tersebut. Mohon arahan dan bimbingannya. Terima kasih, dokter.`,
   ].join('\n');
 }
