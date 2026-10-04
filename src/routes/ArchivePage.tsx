@@ -1,4 +1,5 @@
 import { privateText } from '@/domain/identity';
+import { useSlowWait } from '@/lib/loadTiming';
 import { useCallback, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 
@@ -77,6 +78,7 @@ export default function ArchivePage(): JSX.Element {
     (state) => state.settings().privacy.boardShowInitialsOnly,
   );
   const { patients, loading } = usePatients('archived');
+  useSlowWait('arsip', loading);
   const { patients: trashed } = usePatients('trashed');
 
   const [scopes, toggleScope] = useArchiveScopes();

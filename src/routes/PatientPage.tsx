@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState, useRef } from 'react';
+import { useSlowWait } from '@/lib/loadTiming';
 import { useClipboardNote } from '@/store/useClipboardNote';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 
@@ -134,6 +135,9 @@ export default function PatientPage(): JSX.Element {
     return () => setOpenPatient(null);
   }, [patientId, setOpenPatient]);
   const { entry, exists, loading: entryLoading, hasPendingWrites } = useEntry(patientId, selected);
+  // Both "Memuat…" gates on this page, timed (lib/loadTiming).
+  useSlowWait('membuka pasien', loading);
+  useSlowWait('memuat catatan', entryLoading);
   /** The note on screen now, for async actions to check they still apply. */
   const currentNoteKey = useRef('');
   currentNoteKey.current = `${patientId ?? ''}|${selected}`;

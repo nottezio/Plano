@@ -1,5 +1,70 @@
 # Plano — CHANGES
 
+## `2026-10-05.4` — "Memuat… takes too long": measure before fixing
+
+### The report
+"The Memuat… took too long. It sometimes appears out of nowhere." On the laptop,
+and Avi could not say which screen.
+
+### Why this release does not fix it
+**Root cause not yet established.** Each "Memuat…" in the app is one of five
+gates, and every one already had an obvious slowness removed:
+- **AuthGate.** The boot: `initializeAuth` without the iframe (2026-09);
+- **AccessGate.** "Memeriksa akses…";
+- **Board / Arsip.** Lists that outlive the screen (2026-10-02);
+- **PatientPage.** First paint from the board's list (2026-10-02);
+- **Editor.** "Memuat catatan…".
+
+**What the code rules out.**
+- The app never reloads itself on its own. The update banner waits for a
+  press; chunk recovery fires only on a load error, once per session.
+- There are no lazy routes, so there is no Suspense fallback.
+- The session status never returns to `loading` after sign-in.
+
+**What fits "out of nowhere, on a laptop", but code alone cannot confirm.**
+
+| # | Cause | What would show it |
+|---|---|---|
+| 1 | Chrome **discarded** the background tab (Memory Saver). Returning is a full cold start. | `document.wasDiscarded` on the next boot |
+| 2 | **Several Plano tabs.** Firestore's multi-tab cache has one primary tab; the tab on screen waits on a frozen or throttled background one. | count of other Plano tabs at the slow moment |
+| 3 | Slow local cache (large IndexedDB) | slow with 0 other tabs, online |
+| 4 | Not cached, so it waited on the server | slow while online, on first opens only |
+
+Fixing one of these blind would repeat the four-releases-of-guesses pattern the
+session log was built to end (SIMGOS `?`). So this release records the
+evidence when it happens.
+
+### What was added
+- `lib/loadTiming.ts`:
+  - **`useSlowWait(label, waiting)`** on every gate: membuka pasien, memuat
+    catatan, daftar pasien, arsip, memeriksa akses. It writes a `Lambat` line to
+    the session log when a wait is **2 s or longer**, including one the user
+    walked away from (`(ditinggalkan)`).
+  - **Start-up:** page start → signed in, logged the same way.
+  - **Boot reason** on the existing `Aplikasi dibuka` line: dibuka / dimuat
+    ulang / kembali-maju, plus **"tab sempat dibuang Chrome"** when
+    `document.wasDiscarded` is set (cause 1, named outright).
+  - **Other Plano tabs**, from a small `localStorage` registry (frozen tabs
+    included; a tab that died uncleanly expires after 12 h).
+  - **Kembali ke tab**: after Chrome froze the tab (`resume` event), or after
+    10+ min hidden.
+- `SessionLogPanel` labels the new lines and says what to send. The log holds
+  40 entries (was 20).
+- Still no uid, email or patient data in the log: labels, durations, counts.
+
+**Temporary Workaround (told to Avi, not shipped as code):** keep one Plano tab,
+and add the Plano site to Chrome's "Always keep these sites active". That
+addresses causes 1 and 2 if they are the cause. It is not the fix, because
+which cause it is decides the fix:
+- for 2: single-tab persistence, or a "Plano sudah terbuka di tab lain" notice;
+- for 3: index or cache pruning;
+- for 4: prefetch.
+
+```
+1882 tests passed (+9)
+typecheck / lint (0 warnings) / check:version / check:contrast / check:a11y / build - clean
+```
+
 ## `2026-10-05.3` — Salin: preview to the bottom, chips that do not move
 
 ### 1. Bagian chips moved when pressed (Avi)

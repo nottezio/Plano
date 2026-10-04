@@ -13,6 +13,8 @@ const LABELS: Record<SessionEvent['kind'], string> = {
   'signed-out': 'Keluar',
   'profile-error': 'Gagal memuat pengaturan',
   'redirect-error': 'Gagal menyelesaikan login',
+  slow: 'Lambat',
+  resumed: 'Kembali ke tab',
 };
 
 /**
@@ -30,6 +32,7 @@ const LABELS: Record<SessionEvent['kind'], string> = {
 export function SessionLogPanel(): JSX.Element {
   const [log, setLog] = useState(() => readSessionLog());
   const headline = describeLastSignOut(log);
+  const slowCount = log.filter((entry) => entry.kind === 'slow').length;
 
   if (log.length === 0) {
     return <p className="text-xs text-fg-muted">Belum ada catatan sesi.</p>;
@@ -38,6 +41,12 @@ export function SessionLogPanel(): JSX.Element {
   return (
     <div className="space-y-2 text-xs">
       {headline ? <p className="font-medium">{headline}</p> : null}
+      {slowCount > 0 ? (
+        <p className="text-fg-muted">
+          {slowCount} kali lambat tercatat. Saat "Memuat…" terasa lama, buka halaman ini dan kirim
+          tangkapan layarnya: baris "Lambat" menyebut apa yang ditunggu dan berapa lama.
+        </p>
+      ) : null}
 
       <ul className="space-y-1">
         {[...log].reverse().map((entry, index) => (

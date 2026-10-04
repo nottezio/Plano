@@ -5,6 +5,10 @@ Catatan teknis lengkap (akar masalah, perbaikan) ada di CHANGES.md.
 
 Entri teratas harus versi yang sedang dirilis; tes gagal bila belum ditulis.
 
+## `2026-10-05.4`
+- **"Memuat…" yang terasa lama kini tercatat:** setiap kali layar memuat 2 detik atau lebih (membuka pasien, memuat catatan, daftar pasien, arsip, memeriksa akses, atau saat aplikasi dibuka), Plano mencatat apa yang ditunggu, berapa lama, berapa tab Plano lain yang terbuka, dan apakah Chrome sempat membuang atau membekukan tab ini. Tidak ada data pasien yang dicatat.
+- **Bila terjadi lagi:** buka **Pengaturan → Riwayat sesi** dan kirim tangkapan layarnya. Baris "Lambat" menunjukkan penyebabnya, sehingga perbaikannya tepat sasaran.
+
 ## `2026-10-05.3`
 - **Tombol Bagian tidak lagi bergeser saat ditekan:** tombol yang dipilih dulu melebar karena tanda ✓ dan huruf tebal, sehingga tombol lain pindah baris. Kini lebar setiap tombol pilihan tetap, di Salin maupun sheet lain.
 - **Preview Salin lebih tinggi:** di laptop, tombol Salin pindah ke bawah kolom pilihan (di bawah "Penunjang terbaru saja"), dan jumlah karakter, "Ukuran awal" serta "Pilih semua teks" naik ke baris judul Preview. Kotak Preview kini memanjang sampai ke bawah sheet. Di HP tombol Salin tetap di bawah seperti biasa.

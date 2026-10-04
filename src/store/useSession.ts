@@ -17,6 +17,7 @@ import {
 } from 'firebase/firestore';
 import { create } from 'zustand';
 import { logSessionEvent } from '@/lib/sessionLog';
+import { bootReason, reportWait } from '@/lib/loadTiming';
 
 import { initFirebase, services } from '@/data/firebase';
 import { clearLocalBase, listOutbox } from '@/data/localBase';
@@ -97,7 +98,7 @@ export function initSession(): () => void {
   }
 
   const { auth, persistenceReady } = init.services;
-  logSessionEvent('boot');
+  logSessionEvent('boot', bootReason());
   try {
     if (sessionStorage.getItem(CACHE_KEPT_FLAG) === '1') {
       sessionStorage.removeItem(CACHE_KEPT_FLAG);
@@ -160,6 +161,9 @@ function errorCode(error: unknown): string | undefined {
   return undefined;
 }
 
+/** Whether this page has logged its start-up time yet. */
+let reportedBoot = false;
+
 function subscribe(auth: Auth): () => void {
   return onAuthStateChanged(auth, (user) => {
     unsubscribeProfile?.();
@@ -174,6 +178,13 @@ function subscribe(auth: Auth): () => void {
     }
 
     logSessionEvent('signed-in');
+    // Page start to a known session: download, start-up and the credential
+    // store together. Only the first time per page; later events are not a
+    // wait anybody watched.
+    if (!reportedBoot) {
+      reportedBoot = true;
+      reportWait('mulai sampai masuk', performance.now());
+    }
     // The error is cleared on every transition. It described the PREVIOUS
     // session, and a sign-in page showing "Gagal memuat pengaturan." from a
     // session that ended minutes ago reads as a failure of the sign-in

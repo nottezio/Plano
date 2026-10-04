@@ -748,9 +748,9 @@ export default function SettingsPage(): JSX.Element {
           </SettingsSection>
           <SettingsSection
             id="riwayat-sesi"
-            keywords="sesi logout login log"
+            keywords="sesi logout login log memuat lambat loading"
             title="Riwayat sesi"
-            description="Catatan masuk/keluar aplikasi, untuk menelusuri logout mendadak."
+            description="Catatan masuk/keluar dan pemuatan yang lambat, untuk menelusuri logout mendadak atau “Memuat…” yang lama."
           >
             <SessionLogPanel />
           </SettingsSection>

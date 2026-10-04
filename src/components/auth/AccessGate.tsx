@@ -15,6 +15,7 @@ import {
   isDue,
   type AccessStatus,
 } from '@/domain/access';
+import { useSlowWait } from '@/lib/loadTiming';
 import { useSession } from '@/store/useSession';
 import { SignOutButton } from './SignOutButton';
 import { APP_VERSION } from '@/version.js';
@@ -49,10 +50,12 @@ export function AccessGate({ children }: { children: ReactNode }): JSX.Element {
 
   useRegistration(uid, user?.email ?? '', user?.displayName ?? '', status);
 
+  const google = user?.providerData.some((provider) => provider.providerId === 'google.com') ?? false;
+  const decision = uid ? decideAccess({ uid, enforce, status, google }) : 'allowed';
+  useSlowWait('memeriksa akses', decision === 'unknown');
+
   if (!uid) return <>{children}</>;
 
-  const google = user?.providerData.some((provider) => provider.providerId === 'google.com') ?? false;
-  const decision = decideAccess({ uid, enforce, status, google });
   if (decision === 'allowed') return <>{children}</>;
 
   if (decision === 'unknown') {

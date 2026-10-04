@@ -10,6 +10,7 @@ import { initSession } from '@/store/useSession';
 import { initThemeSync } from '@/store/useUI';
 import { createAppHistory } from '@/lib/appHistory';
 import { installChunkRecovery, markBootSucceeded } from '@/lib/chunkRecovery';
+import { installLoadDiagnostics } from '@/lib/loadTiming';
 import { registerServiceWorker } from './pwa';
 import '@/styles/index.css';
 
@@ -23,6 +24,7 @@ if (!container) {
 // Before anything else: a stale precached shell fails during module load.
 installChunkRecovery();
 
+installLoadDiagnostics();
 initThemeSync();
 initSyncStatus();
 initSession();

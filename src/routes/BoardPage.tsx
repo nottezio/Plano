@@ -1,4 +1,5 @@
 import { DEFAULT_REMINDER_KINDS } from '@/domain/reminders';
+import { useSlowWait } from '@/lib/loadTiming';
 import { privateText } from '@/domain/identity';
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { PhoneCanvas, type PhoneSticky } from '@/components/board/PhoneCanvas';
@@ -87,6 +88,7 @@ export default function BoardPage(): JSX.Element {
   }, [uid, today, navigate]);
   const settings = useSession((state) => state.settings());
   const { patients, loading, error } = usePatients('active');
+  useSlowWait('daftar pasien', loading);
 
   const [query, setQuery] = useState('');
   const [filters, setFilters] = useState<BoardFilters>(EMPTY_FILTERS);

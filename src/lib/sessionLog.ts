@@ -26,21 +26,25 @@
 
 const KEY = 'visite.sessionLog';
 /**
- * Twenty entries.
+ * Forty entries (twenty until the load timings joined, 2026-10-05).
  *
  * Long enough to hold the boot, the failure, and the recovery of a few
  * incidents; short enough that it cannot grow into a localStorage problem of
  * its own, which would be an unusually poor way to cause the bug it exists to
  * explain.
  */
-const LIMIT = 20;
+const LIMIT = 40;
 
 export type SessionEventKind =
   | 'boot'
   | 'signed-in'
   | 'signed-out'
   | 'profile-error'
-  | 'redirect-error';
+  | 'redirect-error'
+  /** A loading state that took `SLOW_MS` or longer (see loadTiming.ts). */
+  | 'slow'
+  /** The tab came back after Chrome froze it, or after a long time hidden. */
+  | 'resumed';
 
 export interface SessionEvent {
   at: string;
