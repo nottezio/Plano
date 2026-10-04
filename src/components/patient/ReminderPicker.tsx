@@ -15,12 +15,9 @@ import { useSession } from '@/store/useSession';
 export function ReminderPicker({ patient, today }: { patient: Patient; today: string }): JSX.Element {
   const kinds = useSession((state) => state.settings().reminderKinds) ?? DEFAULT_REMINDER_KINDS;
   return (
-    <div className="rounded-lg border border-border px-3 py-2">
-      <p className="text-sm font-medium">Pengingat harian</p>
-      <p className="text-xs text-fg-muted">
-        Muncul di kartu pasien dan bisa dicentang saat selesai. "Hari ini" hilang sendiri besok.
-      </p>
-      <ul className="mt-2 space-y-1.5">
+    // Title and explanation come from the surrounding Section (actions sheet).
+    <div className="divide-y divide-border overflow-hidden rounded-xl border border-border bg-surface">
+      <ul className="divide-y divide-border">
         {kinds.map((kind) => {
           const mode = reminderMode(patient, kind.id, today);
           const set = (next: 'off' | 'hari-ini' | 'harian'): void => {
@@ -31,9 +28,9 @@ export function ReminderPicker({ patient, today }: { patient: Patient; today: st
             ).catch((error: unknown) => console.error('[actions] reminder rejected', error));
           };
           return (
-            <li key={kind.id} className="flex flex-wrap items-center gap-2">
-              <span className="min-w-0 flex-1 truncate text-sm">{kind.label}</span>
-              <span role="group" aria-label={kind.label} className="flex overflow-hidden rounded-lg border border-border text-xs">
+            <li key={kind.id} className="flex flex-wrap items-center gap-2 px-3 py-2">
+              <span className="min-w-0 flex-1 truncate text-sm font-medium">{kind.label}</span>
+              <span role="group" aria-label={kind.label} className="flex rounded-xl border border-border bg-bg-subtle p-0.5 text-xs">
                 {(
                   [
                     ['off', 'Tidak'],
@@ -49,8 +46,8 @@ export function ReminderPicker({ patient, today }: { patient: Patient; today: st
                       aria-pressed={on}
                       onClick={() => set(value)}
                       className={[
-                        'min-h-tap px-2.5 [@media(pointer:fine)]:min-h-8',
-                        on ? 'bg-accent font-semibold text-white' : 'text-fg-muted',
+                        'min-h-tap rounded-lg px-2.5 [@media(pointer:fine)]:min-h-8',
+                        on ? 'bg-surface font-semibold text-fg shadow-sm ring-1 ring-border' : 'text-fg-muted hover:text-fg',
                       ].join(' ')}
                     >
                       {label}
@@ -76,9 +73,9 @@ function OperationDate({ patient }: { patient: Patient }): JSX.Element {
   const rule = procedureRuleFor(patient);
   const date = patient.operationFor;
   return (
-    <div className="mt-3 border-t border-border pt-2">
+    <div className="px-3 py-2">
       <label className="flex flex-wrap items-center gap-2 text-sm">
-        <span className="min-w-0 flex-1">Jadwal operasi (BTKV)</span>
+        <span className="min-w-0 flex-1 font-medium">Jadwal operasi (BTKV)</span>
         <input
           type="date"
           value={date ?? ''}
@@ -88,7 +85,7 @@ function OperationDate({ patient }: { patient: Patient }): JSX.Element {
               console.error('[actions] operation date rejected', error),
             );
           }}
-          className="min-h-tap rounded-lg border border-border bg-surface px-2 text-sm"
+          className="min-h-tap rounded-xl border border-border bg-surface px-2 text-sm [@media(pointer:fine)]:min-h-9"
         />
       </label>
       {date && rule ? (

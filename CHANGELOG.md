@@ -5,6 +5,15 @@ Catatan teknis lengkap (akar masalah, perbaikan) ada di CHANGES.md.
 
 Entri teratas harus versi yang sedang dirilis; tes gagal bila belum ditulis.
 
+## `2026-10-04.3`
+- **Tampilan sheet dirapikan menyeluruh:** Salin, menu ⋯ pasien, Pembuka & penutup, Ubah ke format bangsal, dan Format hasil lab kini memakai satu gaya yang sama: judul bagian kecil, pilihan berbentuk tombol ringkas dengan tanda ✓, saklar geser untuk pilihan dua-tiga opsi, dan kotak peringatan berwarna sesuai tingkatnya.
+- **Salin:** di laptop, pilihan di kiri dan Preview di kanan (tetap terlihat saat menggulir). Peringatan identitas tidak cocok kini paling atas. Tombol salin menyebut bentuk dan formatnya, dan jumlah karakter ditampilkan di bawah Preview.
+- **Menu ⋯ pasien:** dikelompokkan (Catatan, AI, Pasien, Pengingat harian, Rencana pulang, Arsipkan) dengan ikon. Pemantauan, Titipan, dan Pin tampil sebagai saklar yang menunjukkan status saat ini. Hapus pasien dipisah di bagian paling bawah.
+- **Pembuka & penutup:** menampilkan baris pembuka saat ini; salam, kalimat pembuka, dan penutup yang sedang dipakai diberi tanda ✓.
+- **Format bangsal:** ringkasan berupa angka, peringatan "bagian tidak dikenali" berwarna, dan Sebelum/Sesudah lebar berdampingan.
+- **Format hasil lab:** sumber di kiri (PDF/gambar bisa diketuk atau **diseret** ke kotak), hasil di kanan.
+- Sheet di laptop lebih lebar bila berisi preview. Tombol ✕ tidak lagi berbingkai biru setiap kali sheet dibuka.
+
 ## `2026-10-04.2`
 - **Bandingkan catatan didesain ulang.** Di atas kini ada pasangan **Dari → Ke**: dua kotak yang menunjukkan catatan mana dibandingkan dengan mana, plus tombol **⇄** untuk menukar sisi.
 - Ketuk salah satu kotak untuk memilih catatan: daftar dikelompokkan **per tanggal** (terbaru di atas, dengan keterangan H-1, H-2…). Di bawah tiap tanggal ada SOAP-nya, lalu versi dan SOAP jaga hari itu. Semua hari bisa dipilih, tidak lagi terbatas 12 tombol terakhir.

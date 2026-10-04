@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 
 import { Sheet } from '@/components/common/Sheet';
+import { Button, Callout, ListGroup, ListRow, Section } from '@/components/common/ui';
 import {
   expandOpeningTokens,
   findOpeningLine,
@@ -72,113 +73,84 @@ export function OpeningSheet({
   const suggested =
     resolvedGreetings[suggestGreetingIndex(resolvedGreetings, now.getHours())];
 
+  const closingNow = body.trimEnd();
+
   return (
     <Sheet
       open={open}
       onOpenChange={onOpenChange}
-      title="Kalimat pembuka"
-      description="Hanya baris pertama yang diubah. Isi catatan di bawahnya tidak tersentuh."
+      title="Pembuka & penutup"
+      description="Mengubah baris pertama dan kalimat penutup saja. Isi SOAP di antaranya tidak tersentuh."
     >
-      <section>
-        <h3 className="text-xs font-medium text-fg-muted">Salam</h3>
-        <div className="mt-1.5 space-y-1.5">
-          {resolvedGreetings.map((greeting) => {
-            const active = current.greeting === greeting;
-            return (
-              <button
-                key={greeting}
-                type="button"
-                aria-pressed={active}
-                onClick={() => onApply(replaceGreeting(body, greeting))}
-                className={[
-                  'flex min-h-tap w-full items-center gap-2 rounded-lg border px-3 text-left text-sm',
-                  active
-                    ? 'border-accent bg-bg-subtle font-medium text-accent'
-                    : 'border-border text-fg',
-                ].join(' ')}
-              >
-                <span className="min-w-0 flex-1 py-2">{greeting}</span>
-                {greeting === suggested && !active ? (
-                  <span className="shrink-0 text-[11px] text-fg-faint">sesuai jam</span>
-                ) : null}
-              </button>
-            );
-          })}
-        </div>
-      </section>
+      <div className="space-y-6">
+        {/* What is there now, so a tap below reads as a change to something. */}
+        <Callout title="Baris pembuka saat ini">
+          {line ? (
+            <span className="text-fg">{line.text}</span>
+          ) : (
+            <span className="italic">Belum ada baris pembuka — pilihan di bawah menambahkannya.</span>
+          )}
+        </Callout>
 
-      <section className="mt-5">
-        <h3 className="text-xs font-medium text-fg-muted">Kalimat pembuka</h3>
-        <div className="mt-1.5 space-y-1.5">
-          {resolvedSentences.map((sentence) => {
-            const active = current.rest === sentence;
-            return (
-              <button
+        <Section title="Salam">
+          <ListGroup>
+            {resolvedGreetings.map((greeting) => {
+              const active = current.greeting === greeting;
+              return (
+                <ListRow
+                  key={greeting}
+                  title={greeting}
+                  selected={active}
+                  {...(greeting === suggested && !active ? { badge: 'sesuai jam' } : {})}
+                  onClick={() => onApply(replaceGreeting(body, greeting))}
+                />
+              );
+            })}
+          </ListGroup>
+        </Section>
+
+        <Section
+          title="Kalimat pembuka"
+          hint="Ruang, kamar, bed, dan poli diisi manual: ini hanya kerangka kalimatnya. Tambah atau ubah di Pengaturan → Format catatan."
+        >
+          <ListGroup>
+            {resolvedSentences.map((sentence) => (
+              <ListRow
                 key={sentence}
-                type="button"
-                aria-pressed={active}
+                title={<span className="font-normal leading-snug">{sentence}</span>}
+                selected={current.rest === sentence}
                 onClick={() => onApply(replaceOpeningSentence(body, sentence))}
-                className={[
-                  'w-full rounded-lg border px-3 py-2.5 text-left text-xs leading-relaxed',
-                  active
-                    ? 'border-accent bg-bg-subtle font-medium text-accent'
-                    : 'border-border text-fg',
-                ].join(' ')}
-              >
-                {sentence}
-              </button>
-            );
-          })}
-        </div>
-        <p className="mt-2 text-[11px] text-fg-faint">
-          Ruang, kamar, bed, dan poli tetap diisi manual — daftar ini hanya kerangka
-          kalimatnya. Tambah atau ubah di Pengaturan → Format catatan.
-        </p>
-      </section>
+              />
+            ))}
+          </ListGroup>
+        </Section>
 
-      <section className="mt-5">
-        <h3 className="text-xs font-medium text-fg-muted">Sapaan</h3>
-        <div className="mt-1.5 flex gap-2">
-          <button
-            type="button"
-            onClick={() => onApply(toProfForm(body))}
-            className="min-h-tap flex-1 rounded-lg border border-border px-3 text-xs"
-          >
-            Ganti ke Prof
-          </button>
-          <button
-            type="button"
-            onClick={() => onApply(toDokterForm(body))}
-            className="min-h-tap flex-1 rounded-lg border border-border px-3 text-xs"
-          >
-            Ganti ke dokter
-          </button>
-        </div>
-        <p className="mt-1 text-[11px] text-fg-faint">
-          Mengganti sapaan di paragraf pembuka dan kalimat penutup sekaligus. Gelar dan
-          nama (Prof. dr. …, baris DPJP) serta isi SOAP tidak ikut berubah.
-        </p>
-      </section>
+        <Section
+          title="Sapaan"
+          hint="Mengganti sapaan di paragraf pembuka dan kalimat penutup sekaligus. Gelar dan nama (Prof. dr. …, baris DPJP) serta isi SOAP tidak berubah."
+        >
+          <div className="grid grid-cols-2 gap-2">
+            <Button onClick={() => onApply(toProfForm(body))}>Ganti ke Prof</Button>
+            <Button onClick={() => onApply(toDokterForm(body))}>Ganti ke dokter</Button>
+          </div>
+        </Section>
 
-      <section className="mt-5">
-        <h3 className="text-xs font-medium text-fg-muted">Kalimat penutup</h3>
-        <div className="mt-1.5 space-y-1.5">
-          {closingSentences.map((closing) => (
-            <button
-              key={closing}
-              type="button"
-              onClick={() => onApply(replaceClosing(body, closing))}
-              className="w-full rounded-lg border border-border px-3 py-2.5 text-left text-xs leading-relaxed text-fg"
-            >
-              {closing}
-            </button>
-          ))}
-        </div>
-        <p className="mt-2 text-[11px] text-fg-faint">
-          Mengganti baris penutup yang ada. Bila catatan belum punya penutup, kalimat
-          ditambahkan di bawah tanpa menghapus apa pun.
-        </p>
-      </section>
+        <Section
+          title="Kalimat penutup"
+          hint="Mengganti baris penutup yang ada. Bila belum ada penutup, kalimat ditambahkan di bawah tanpa menghapus apa pun."
+        >
+          <ListGroup>
+            {closingSentences.map((closing) => (
+              <ListRow
+                key={closing}
+                title={<span className="font-normal leading-snug">{closing}</span>}
+                selected={closingNow.endsWith(closing.trim())}
+                onClick={() => onApply(replaceClosing(body, closing))}
+              />
+            ))}
+          </ListGroup>
+        </Section>
+      </div>
     </Sheet>
   );
 }

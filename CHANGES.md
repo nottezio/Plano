@@ -1,5 +1,108 @@
 # Plano — CHANGES
 
+## `2026-10-04.3` — sheet UI revamp
+
+**Problem (Avi, with five screenshots: "made partially, not finished").**
+
+**Root cause.** It was not one bad screen. Every sheet had grown its own
+controls:
+- 44 px rounded pills for every choice, the same style in all modes;
+- each menu entry a separate bordered card (the ⋯ menu was nine cards);
+- grey 12 px text for section titles;
+- an underlined link as the primary action ("Pakai format ini");
+- four different "selected" styles.
+
+Each was defensible alone, but together they read as a prototype. Three
+problems were shared by all of them:
+- **Width.** `Sheet` was a fixed 32rem on a laptop, so any sheet with a preview
+  scrolled for everything.
+- **Focus ring.** Radix focused the ✕ on open, so it drew a focus ring every
+  time.
+- **No hierarchy.** Nothing marked a title, a hint or a danger zone.
+
+**Fix: one vocabulary, `components/common/ui.tsx`.**
+- **Pieces:**
+  - `Section` (small-caps title, hint);
+  - `Segmented` (2–4 exclusive options);
+  - `ChoiceChip` + `ChipRow` (multi-select, or more options than fit; ✓ when
+    on; dashed for versions/jaga);
+  - `ListGroup`/`ListRow` (one container of divided rows, icon left, chevron
+    or ✓ right, `danger` tone, badge);
+  - `Callout` (info/accent/warn/danger, with an optional action);
+  - `Button` (primary/secondary/ghost/danger, sm/md);
+  - `Field` + `INPUT`, `CheckRow`, `TextPane`.
+- **Tap targets.** Touch keeps the 44 px floor; a fine pointer gets 36 px
+  (`[@media(pointer:fine)]:min-h-9`). check:a11y still passes, because no
+  sub-44 px height is written explicitly.
+- **`Sheet`:**
+  - a `size` prop: md 34rem, lg 46rem, xl 64rem; a phone ignores it;
+  - on open, focus goes to the dialog, not the ✕ (still trapped, and Tab
+    still reaches ✕ first);
+  - a grab handle on the phone;
+  - a larger title;
+  - a rounded hover target for ✕.
+- **Icons:** 13 new glyphs in `Icons.tsx`, on the same grid and stroke.
+
+**Per sheet.**
+- **CopySheet (xl):**
+  - **Layout.** Options on the left (21rem); the preview on the right, sticky,
+    with a 26rem textarea and a character count.
+  - **Order.** The identity mismatch is moved to the top as a danger callout.
+    The DPJP reminder is a callout with a "Pakai" button. Format is
+    segmented; Bentuk and Bagian are chips.
+  - **Grouping.** The latest-penunjang and SIMGOS-symbol switches are grouped
+    under "Penyesuaian".
+  - **Copy button.** It says what and how ("Salin SOAP harian · WhatsApp"),
+    then the patient.
+  - **Logic.** No handler or composition logic changed.
+- **PatientActionsSheet:**
+  - grouped sections Catatan / AI / Pasien / Pengingat / Rencana pulang /
+    Arsipkan / Zona berbahaya;
+  - pemantauan, titipan and pin as switch rows that show the CURRENT state;
+  - discharge stages as a segmented control (a custom date shows no segment
+    selected);
+  - the archive button names the reason chosen;
+  - delete as a danger row, with its confirm as a danger callout.
+  - `ReminderPicker` restyled to match.
+- **OpeningSheet** (retitled "Pembuka & penutup"):
+  - a "baris pembuka saat ini" callout;
+  - radio rows with ✓ for the greeting and the sentence in use;
+  - the closing in use detected by `endsWith`;
+  - Sapaan as two buttons.
+- **ReformatSheet (xl):**
+  - the summary as three stat tiles;
+  - "tidak dikenali" as a warn callout;
+  - the AI fallback as a callout, and as an accent callout with the length
+    delta while the AI result is in use;
+  - a wide before/after view.
+- **LabSheet (xl):**
+  - Sumber on the left: a dashed drop zone that is both a button and a
+    drag-and-drop target, the AI buttons, error callouts and the raw text;
+  - Hasil on the right: title and date, the date-source hint, the multi-date
+    warning, bold toggle, "Akan disisipkan" pane and the unknown-values
+    warning;
+  - "Salin saja" moved to the footer, beside Sisipkan.
+- **CompareSheet:** uses the shared `Segmented` (its local copy was deleted).
+- **RenderedPreview:** taller, rounded to match.
+
+**Render check.** A Vite harness with mocked session, repo and AI, dark mode,
+at 1440×900 and 390×844. All five sheets rendered with no console errors.
+Verified:
+- Copy: two columns, sticky preview;
+- the menu groups, switches and danger zone;
+- the radio ✓ in Pembuka & penutup;
+- the reformat stat tiles, warn callout and AI callout;
+- Lab: drop zone and the two columns.
+
+**Not done.** The other 16 sheets (Settings sub-sheets, Konfirmasi Jaga…) use
+the new `Sheet` frame (padding, title, focus, width) but not yet the new
+controls. They can move over sheet by sheet. Nothing breaks if they don't.
+
+```
+1835 tests passed (+0)
+typecheck / lint (0 warnings) / check:version / check:contrast / check:a11y / build — clean
+```
+
 ## `2026-10-04.2` — Bandingkan: pair + grouped picker
 
 **Problem (Avi: "a mess to choose from").** Two rows of chips, one per pane,

@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 
 import { Sheet } from '@/components/common/Sheet';
+import { Segmented } from '@/components/common/ui';
 import {
   fetchComparableEntries,
   type ComparableEntry,
@@ -472,38 +473,6 @@ function Pane({ legend, label, body }: { legend: string; label: string; body: st
       <pre className="max-h-[55vh] overflow-auto whitespace-pre-wrap break-words rounded-lg border border-border bg-bg-subtle p-3 text-xs leading-relaxed">
         {body.trim() || '(kosong)'}
       </pre>
-    </div>
-  );
-}
-
-/** A two- or three-way switch, one row, full width. */
-function Segmented<T extends string>({
-  label,
-  value,
-  onChange,
-  options,
-}: {
-  label: string;
-  value: T;
-  onChange: (next: T) => void;
-  options: ReadonlyArray<readonly [T, string]>;
-}): JSX.Element {
-  return (
-    <div role="group" aria-label={label} className="flex rounded-xl border border-border bg-bg-subtle p-0.5">
-      {options.map(([key, text]) => (
-        <button
-          key={key}
-          type="button"
-          aria-pressed={value === key}
-          onClick={() => onChange(key)}
-          className={[
-            'min-h-tap flex-1 rounded-lg px-2 text-xs',
-            value === key ? 'bg-surface font-semibold text-fg shadow-sm' : 'text-fg-muted',
-          ].join(' ')}
-        >
-          {text}
-        </button>
-      ))}
     </div>
   );
 }

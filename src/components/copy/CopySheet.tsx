@@ -1,6 +1,18 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 
 import { Sheet } from '@/components/common/Sheet';
+import { IconCopy } from '@/components/common/Icons';
+import {
+  Button,
+  Callout,
+  CheckRow,
+  ChipRow,
+  ChoiceChip,
+  Field,
+  INPUT,
+  Section,
+  Segmented,
+} from '@/components/common/ui';
 import { useClipboardNote } from '@/store/useClipboardNote';
 import { useUI } from '@/store/useUI';
 import { composeCopy } from '@/domain/format/composeCopy';
@@ -586,528 +598,444 @@ export function CopySheet({
     });
   };
 
+  const chooseShape = (next: typeof shape): void => {
+    setShape(next);
+    setAppliedFor(null);
+  };
+
   return (
     <Sheet
       open={open}
       onOpenChange={onOpenChange}
+      size="xl"
       title={`Salin · ${patientName}`}
-      description={`Catatan ${date.slice(8, 10)}/${date.slice(5, 7)}${patient.mrn ? ` · RM ${patient.mrn}` : ''}. Pilih format dan bagian.`}
+      description={`Catatan ${date.slice(8, 10)}/${date.slice(5, 7)}${patient.mrn ? ` · RM ${patient.mrn}` : ''}`}
       footer={
         /*
          * The button names the patient.
          *
          * The mistake worth preventing is not a bad note — it is switching
          * between SIMGOS and Plano a dozen times and copying from the chart you
-         * were on a moment ago. A confirmation dialog would be dismissed
-         * without reading; a name written on the button you are already
+         * were on a moment ago. A name written on the button you are already
          * pressing is read, because it is where you are looking.
          */
         <button
           type="button"
           onClick={onCopy}
           disabled={!output.trim()}
-          className="min-h-tap w-full rounded-lg bg-accent px-4 py-1 text-sm font-medium text-white disabled:opacity-40"
+          className="flex min-h-tap w-full items-center gap-3 rounded-xl bg-accent px-4 py-2 text-left text-white transition-opacity hover:opacity-90 disabled:opacity-40"
         >
-          {copied ? (
-            <>
-              <span className="block">Tersalin ✓</span>
-              <span className="block truncate text-[11px] font-normal opacity-90">{patientName}</span>
-            </>
-          ) : (
-            <>
-              <span className="block text-[11px] font-normal opacity-90">Salin catatan</span>
-              <span className="block truncate text-sm font-semibold">
-                {patient.name?.trim() || 'Tanpa nama'}
-                {patient.mrn ? ` · RM ${patient.mrn}` : ''}
-              </span>
-            </>
-          )}
+          <IconCopy width={20} height={20} className="shrink-0" />
+          <span className="min-w-0 flex-1">
+            <span className="block text-[11px] opacity-90">
+              {copied ? 'Tersalin ✓' : `Salin ${whatLabel[shape]} · ${FORMAT_LABELS[format]}`}
+            </span>
+            <span className="block truncate text-sm font-semibold">
+              {patientName}
+              {patient.mrn ? ` · RM ${patient.mrn}` : ''}
+            </span>
+          </span>
         </button>
       }
     >
-      {presets.length > 0 ? (
-        <Group label="Preset">
-          {presets.map((preset) => (
-            <Chip key={preset.id} active={false} onClick={() => applyPreset(preset)}>
-              {preset.name}
-            </Chip>
-          ))}
-        </Group>
-      ) : null}
-
-      <Group label="Format">
-        {(Object.keys(FORMAT_LABELS) as OutputFormat[]).map((value) => (
-          <Chip
-            key={value}
-            active={format === value}
-            onClick={() => {
-              setFormat(value);
-              setAppliedFor(null);
-            }}
-          >
-            {FORMAT_LABELS[value]}
-          </Chip>
-        ))}
-      </Group>
-
-      {expected ? (
-        <div className="mb-3 rounded-lg border border-border bg-bg-subtle p-2">
-          <p className="text-[11px] text-fg-muted">
-            {dpjp?.initials} biasanya meminta: <strong>{describeConfig(expected)}</strong>
-          </p>
-          <button
-            type="button"
-            onClick={() => {
-              if (dpjp) setAppliedFor(dpjp.id);
-              setLatestOnly(Boolean(expected.latestPenunjang));
-              // The consultant's preference only ever names `ringkas` or the
-              // daily report; a konsul is a decision for this note, not a
-              // standing preference, so it is never applied from here.
-              setShape(expected.format === 'ringkas' ? 'ringkas' : 'harian');
-            }}
-            disabled={applied}
-            className="mt-1 min-h-tap text-xs font-medium text-accent underline disabled:text-fg-faint disabled:no-underline"
-          >
-            {applied ? 'Format ini sedang dipakai' : 'Pakai format ini'}
-          </button>
-        </div>
-      ) : null}
-
-      <Group label="Bentuk">
-        <Chip
-          active={shape === 'harian'}
-          onClick={() => {
-            setShape('harian');
-            setAppliedFor(null);
-          }}
-        >
-          Laporan harian
-        </Chip>
-        <Chip
-          active={shape === 'ringkas'}
-          onClick={() => {
-            setShape('ringkas');
-            setAppliedFor(null);
-          }}
-        >
-          Ringkas (PDF)
-        </Chip>
-        {activeShiftNote ? (
-          <Chip
-            active={shape === 'jaga'}
-            onClick={() => {
-              setShape('jaga');
-              setAppliedFor(null);
-            }}
-          >
-            SOAP jaga {activeShiftNote.time}
-          </Chip>
-        ) : null}
-        <Chip
-          active={shape === 'invasif'}
-          onClick={() => {
-            setShape('invasif');
-            setAppliedFor(null);
-          }}
-        >
-          Grup invasif
-        </Chip>
-        <Chip
-          active={shape === 'konsul'}
-          onClick={() => {
-            setShape('konsul');
-            setAppliedFor(null);
-          }}
-        >
-          Konsul
-        </Chip>
-      </Group>
-
-      {/*
-        Shown only for Ringkas, and only when this consultant asks for the
-        line. Everyone else gets no extra field to read past.
-      */}
-      {shape === 'ringkas' && active?.verificationTime ? (
-        <div className="mb-4">
-          <label className="mb-1 block text-[11px] text-fg-muted" htmlFor="verifikasi">
-            Jam verifikasi
-          </label>
-          <div className="flex items-center gap-2">
-            <input
-              id="verifikasi"
-              value={verificationTime}
-              onChange={(event) => setVerificationTime(event.target.value)}
-              className="min-h-tap flex-1 rounded-lg border border-border bg-surface px-3 font-mono text-sm outline-none"
-            />
-            <button
-              type="button"
-              onClick={() => setVerificationTime(verificationStamp(new Date()))}
-              className="min-h-tap shrink-0 rounded-lg border border-border px-3 text-xs text-fg-muted"
-            >
-              Sekarang
-            </button>
-          </div>
-          <p className="mt-1 text-[11px] text-fg-faint">
-            Muncul sebagai <span className="font-mono">_Verifikasi {verificationTime}_</span>
-          </p>
-        </div>
-      ) : null}
-
-      {shape === 'invasif' ? (
-        <div className="mb-4 space-y-2">
-          <div>
-            <label className="mb-1 block text-[11px] text-fg-muted" htmlFor="invasif-tindakan">
-              Rencana tindakan
-            </label>
-            <input
-              id="invasif-tindakan"
-              value={invasifProcedure}
-              onChange={(event) => setInvasifProcedure(event.target.value)}
-              placeholder="Advanced PCI"
-              className="min-h-tap w-full rounded-lg border border-border bg-surface px-3 text-sm outline-none"
-            />
-          </div>
-          <div className="flex gap-2">
-            <input
-              aria-label="Jadwal tindakan"
-              value={invasifWhen}
-              onChange={(event) => setInvasifWhen(event.target.value)}
-              placeholder="Minggu, 16-08-2026"
-              className="min-h-tap flex-1 rounded-lg border border-border bg-surface px-3 text-sm outline-none"
-            />
-            <input
-              aria-label="Penjamin"
-              value={invasifPayer}
-              onChange={(event) => setInvasifPayer(event.target.value)}
-              placeholder="BPJS Kelas I"
-              className="min-h-tap flex-1 rounded-lg border border-border bg-surface px-3 text-sm outline-none"
-            />
-          </div>
-          <label className="flex min-h-tap items-center gap-2 text-xs text-fg">
-            <input
-              type="checkbox"
-              checked={invasifPenunjang}
-              onChange={(event) => setInvasifPenunjang(event.target.checked)}
-            />
-            Sertakan pemeriksaan penunjang (laporan)
-          </label>
-          <p className="text-[11px] text-fg-faint">
-            Identitas, DPJP, diagnosis, TB dan BB diambil apa adanya dari catatan hari ini.
-          </p>
-        </div>
-      ) : null}
-
-      {shape === 'konsul' ? (
-        <div className="mb-4">
-          <label className="mb-1 block text-[11px] text-fg-muted" htmlFor="konsul-preset">
-            Konsul untuk
-          </label>
-          <select
-            id="konsul-preset"
-            value={konsulPresetId}
-            onChange={(event) => setKonsulPresetId(event.target.value)}
-            className="min-h-tap w-full rounded-lg border border-border bg-surface px-3 text-sm outline-none"
-          >
-            {KONSUL_PRESETS.map((preset) => (
-              <option key={preset.id} value={preset.id}>
-                {preset.label}
-              </option>
-            ))}
-            <option value={KONSUL_CUSTOM_ID}>Lainnya…</option>
-          </select>
-
-          {/*
-            The preset's shape is stated, not implied.
-
-            Choosing the reason now also chooses whether this goes out as a
-            letter or as a numbered list entry. That is the point of the
-            preset, but a choice made on the user's behalf and left invisible
-            is one they cannot check — and the two shapes are not obviously
-            different until the message is already in the chat.
-          */}
-          {missingMeasurements.length > 0 ? (
-            <p
-              role="alert"
-              className="mt-2 rounded-lg border border-[var(--warn-strong)] px-2 py-1.5 text-[11px] text-[var(--warn-strong)]"
-            >
-              {missingMeasurements.join(' dan ')} belum ada di catatan ini. 6MWT dilaporkan per
-              meter dan dibaca terhadap ukuran pasien, jadi permintaan tanpa {' '}
-              {missingMeasurements.join('/')} biasanya dikembalikan. Tambahkan di bagian O
-              sebelum mengirim.
-            </p>
-          ) : null}
-
-          {konsulPreset ? (
-            <p className="mt-1 text-[11px] text-fg-faint">{konsulPreset.note}</p>
-          ) : (
-            <>
-              <label className="mb-1 mt-2 block text-[11px] text-fg-muted" htmlFor="konsul-purpose">
-                Tulis tujuan konsul
-              </label>
-              <input
-                id="konsul-purpose"
-                value={konsulPurpose}
-                onChange={(event) => setKonsulPurpose(event.target.value)}
-                placeholder="mis. 6MWT"
-                className="min-h-tap w-full rounded-lg border border-border bg-surface px-3 text-sm outline-none"
-              />
-              <label className="mt-2 flex min-h-tap items-center gap-2 text-xs text-fg">
-                <input
-                  type="checkbox"
-                  checked={konsulList}
-                  onChange={(event) => setKonsulList(event.target.checked)}
-                />
-                Kirim sebagai list pasien bernomor
-              </label>
-            </>
-          )}
-
-          <p className="mt-1 text-[11px] text-fg-faint">
-            Identitas, DPJP, diagnosis, TB dan BB diambil apa adanya dari catatan hari
-            ini. S, O, terapi, dan plan tidak disertakan.
-          </p>
-        </div>
-      ) : null}
-
-      {pdfMode ? (
-        <p className="mb-4 text-[11px] text-fg-faint">
-          Berisi baris Chief/Junior (dikosongkan), blok pembuka apa adanya, daftar
-          diagnosis, dan kalimat penutup. Tanpa S, O, terapi, dan plan.
-        </p>
-      ) : null}
-
-      {/*
-        Hidden for konsul as well as ringkas. Neither shape reads the section
-        chips, and a control that visibly does nothing is worse than no
-        control: it invites the belief that the referral was narrowed when it
-        was not.
-      */}
-      {shape === 'harian' ? (
-      <Group label="Bagian">
-        <Chip active={groups === 'all'} onClick={() => setGroups('all')}>
-          Seluruh catatan
-        </Chip>
-        {COPY_GROUPS.map((group) => (
-          <Chip
-            key={group.id}
-            active={groups !== 'all' && groups.includes(group.id)}
-            disabled={!present.has(group.id)}
-            onClick={() => toggleGroup(group.id)}
-          >
-            {group.label}
-          </Chip>
-        ))}
-      </Group>
-      ) : null}
-
-      {shape !== 'jaga' && trimmed.removed.length > 0 ? (
-        <label className="mt-3 flex min-h-tap cursor-pointer items-center gap-2 text-xs">
-          <input
-            type="checkbox"
-            checked={latestOnly}
-            onChange={(event) => {
-              setLatestOnly(event.target.checked);
-              setAppliedFor(null);
-            }}
-            className="h-4 w-4"
-          />
-          <span>
-            <span className="font-medium">Penunjang terbaru saja</span>
-            <span className="text-fg-muted">
-              {' '}
-              — {trimmed.removed.length} blok lama {latestOnly ? 'tidak ikut disalin' : 'ikut disalin'}
-            </span>
-          </span>
-        </label>
-      ) : null}
-
-      <div className="mb-1 mt-4 flex items-center gap-2">
-        <p className="flex-1 text-xs font-medium text-fg-muted">Preview</p>
-        {(
-          [
-            ['teks', 'Teks'],
-            ['tampilan', 'Tampilan'],
-          ] as Array<['teks' | 'tampilan', string]>
-        ).map(([value, label]) => (
-          <button
-            key={value}
-            type="button"
-            aria-pressed={preview === value}
-            onClick={() => setPreview(value)}
-            className={[
-              'min-h-tap rounded-full border px-3 text-[11px]',
-              preview === value
-                ? 'border-accent bg-bg-subtle font-medium text-accent'
-                : 'border-border text-fg-muted',
-            ].join(' ')}
-          >
-            {label}
-          </button>
-        ))}
-      </div>
-
-      {/*
-        Shift notes, unticked.
-
-        Shown only when the day HAS one — nothing about the ordinary morning
-        copy changes for the days that do not, which is most of them.
-
-        Below the format controls and above the preview, so ticking one and
-        watching it appear in the preview is a single glance. The preview is
-        what makes opt-in safe rather than fiddly: you can see exactly what
-        will land in WhatsApp before you press Salin.
-      */}
-      {/*
-        The "Sertakan SOAP jaga" tick list was REMOVED.
-
-        It existed to append shift notes underneath the day's report, which
-        modelled a jaga note as part of the daily note. That is not what it is:
-        it is its own note that happens to have been written on that day, and
-        it has its own entry in the rail, its own editor and its own Salin
-        shape. Offering to fold it into the morning report as well gave the
-        same note two identities and made "which one did I send" a question.
-      */}
-
-      {preview === 'tampilan' ? (
-        <>
-          <RenderedPreview text={output} />
-          <p className="mt-1 text-[11px] text-fg-faint">
-            Perkiraan tampilan di WhatsApp. Jangan menyalin dari sini — tanda formatnya
-            ikut hilang. Gunakan tab “Teks”.
-          </p>
-        </>
-      ) : (
-        <>
-          {/*
-            A real textarea, not a <pre>.
-            
-            Read-only, but selectable, scrollable and — the point — tappable to
-            select everything at once. On a phone, dragging a selection through
-            forty lines inside a sheet is not a realistic way to copy a
-            handover.
-          */}
-          <textarea
-            ref={outputRef}
-            readOnly
-            value={output || '(kosong)'}
-            rows={10}
-            spellCheck={false}
-            /**
-             * No select-on-focus.
-             *
-             * Switching tabs re-mounts this textarea, which refocuses it — and
-             * a select-all on focus then wiped a selection the user had just
-             * made by hand. Selecting everything is an explicit action now,
-             * which is also the only time anyone wants it.
-             */
-            className="w-full resize-y rounded-lg border border-border bg-bg-subtle p-3 font-mono text-xs leading-relaxed outline-none"
-          />
-          <button
-            type="button"
-            onClick={() => outputRef.current?.select()}
-            className="mt-1 min-h-tap text-[11px] text-accent underline"
-          >
-            Pilih semua teks
-          </button>
-        </>
-      )}
-
-      {/*
-        Teks polos only, and only when the note has something to convert.
-        The switch changes the Preview and the copy together — they are the
-        same string — and never the note.
-      */}
-      {format === 'plain' && symbolHits.length > 0 ? (
-        <div className="mt-2 rounded-lg border border-border bg-bg-subtle p-2 text-[11px] leading-relaxed">
-          <label className="flex min-h-tap cursor-pointer items-center gap-2 font-medium text-fg">
-            <input
-              type="checkbox"
-              checked={asciiSymbols}
-              onChange={(event) => setAsciiSymbols(event.target.checked)}
-              className="h-4 w-4"
-            />
-            Ubah simbol agar terbaca di SIMGOS
-          </label>
-          <p className="text-fg-muted">
-            {asciiSymbols ? 'Di Preview dan teks yang disalin: ' : 'Dimatikan — simbol ini dihapus: '}
-            {symbolHits.map((hit, index) => (
-              <span key={hit.symbol}>
-                {index > 0 ? ' · ' : ''}
-                <span className="text-sm text-fg">{hit.symbol}</span>
-                {asciiSymbols ? (
-                  <>
-                    {' '}jadi <span className="font-mono text-fg">{hit.ascii}</span>
-                  </>
-                ) : null}
-                {hit.count > 1 ? ` (${hit.count}×)` : ''}
-              </span>
-            ))}
-            . Catatan aslinya tidak berubah.
-          </p>
-        </div>
-      ) : null}
-
       {identityCheck.status === 'mismatch' ? (
-        <div
-          role="alert"
-          className="mb-3 rounded-lg border border-danger p-2 text-[11px] leading-relaxed"
-        >
-          <p className="font-semibold text-danger">Identitas tidak cocok</p>
-          <p className="mt-0.5 text-fg">
+        <div className="mb-5">
+          <Callout tone="danger" role="alert" title="Identitas tidak cocok">
             Catatan ini menyebut{' '}
-            <strong>
+            <strong className="text-fg">
               {identityCheck.field === 'mrn' ? 'RM ' : ''}
               {identityCheck.noteValue}
             </strong>
             , tetapi pasien yang dibuka adalah{' '}
-            <strong>
+            <strong className="text-fg">
               {identityCheck.field === 'mrn' ? 'RM ' : ''}
               {identityCheck.recordValue}
             </strong>
             . Periksa sebelum menyalin.
-          </p>
+          </Callout>
         </div>
       ) : null}
 
-      {/*
-        Keyed on the OUTPUT, not on the format chip.
+      <div className="grid gap-6 sm:grid-cols-[minmax(0,21rem)_minmax(0,1fr)]">
+        {/* OPTIONS */}
+        <div className="space-y-5">
+          {expected ? (
+            /*
+             * A reminder, never a switch: the sheet does not change shape by
+             * itself between patients. Applying is one visible tap.
+             */
+            <Callout
+              tone={applied ? 'accent' : 'info'}
+              title={`${dpjp?.initials ?? 'DPJP'} biasanya meminta`}
+              action={
+                <Button
+                  size="sm"
+                  variant={applied ? 'secondary' : 'primary'}
+                  disabled={applied}
+                  onClick={() => {
+                    if (dpjp) setAppliedFor(dpjp.id);
+                    setLatestOnly(Boolean(expected.latestPenunjang));
+                    // The consultant's preference only ever names `ringkas` or
+                    // the daily report; a konsul is never applied from here.
+                    setShape(expected.format === 'ringkas' ? 'ringkas' : 'harian');
+                  }}
+                >
+                  {applied ? 'Dipakai ✓' : 'Pakai'}
+                </Button>
+              }
+            >
+              {describeConfig(expected)}
+            </Callout>
+          ) : null}
 
-        This used to be hidden whenever "Teks polos" was selected, on the
-        assumption that plain text is ASCII by construction. It was not: Konsul
-        and Grup invasif never ran the formatter, so their plain output could
-        carry a zero-width space while this stayed silent. With plain selected,
-        a non-ASCII character is Plano's fault, and the sheet says so.
-      */}
-      {nonAscii.length > 0 && format === 'plain' ? (
-        <p role="alert" className="mt-2 text-xs text-danger">
-          Hasil teks polos masih memuat karakter non-ASCII (
-          <span className="font-mono">{nonAscii.map(visibleChar).join(' ')}</span>) — ini bug
-          Plano, mohon laporkan.
-        </p>
-      ) : null}
-      {nonAscii.length > 0 && format !== 'plain' ? (
-        <p className="mt-2 rounded-lg border border-border bg-bg-subtle p-2 text-[11px] leading-relaxed text-fg-muted">
-          Teks ini memuat karakter yang muncul sebagai “?” di SIMGOS:{' '}
-          <span className="font-mono">{nonAscii.map(visibleChar).join(' ')}</span>. Untuk SIMGOS, pilih format{' '}
-          <button
-            type="button"
-            onClick={() => {
-              setFormat('plain');
-              setAppliedFor(null);
-            }}
-            className="font-medium text-accent underline"
+          {presets.length > 0 ? (
+            <Section title="Preset">
+              <ChipRow>
+                {presets.map((preset) => (
+                  <ChoiceChip
+                    key={preset.id}
+                    active={false}
+                    onClick={() => applyPreset(preset)}
+                  >
+                    {preset.name}
+                  </ChoiceChip>
+                ))}
+              </ChipRow>
+            </Section>
+          ) : null}
+
+          <Section title="Format">
+            <Segmented
+              label="Format"
+              value={format}
+              onChange={(value) => {
+                setFormat(value);
+                setAppliedFor(null);
+              }}
+              options={(Object.keys(FORMAT_LABELS) as OutputFormat[]).map(
+                (value) => [value, FORMAT_LABELS[value]] as const,
+              )}
+            />
+          </Section>
+
+          <Section title="Bentuk">
+            <ChipRow>
+              <ChoiceChip active={shape === 'harian'} onClick={() => chooseShape('harian')}>
+                Laporan harian
+              </ChoiceChip>
+              <ChoiceChip active={shape === 'ringkas'} onClick={() => chooseShape('ringkas')}>
+                Ringkas (PDF)
+              </ChoiceChip>
+              {activeShiftNote ? (
+                <ChoiceChip dashed active={shape === 'jaga'} onClick={() => chooseShape('jaga')}>
+                  SOAP jaga {activeShiftNote.time}
+                </ChoiceChip>
+              ) : null}
+              <ChoiceChip active={shape === 'invasif'} onClick={() => chooseShape('invasif')}>
+                Grup invasif
+              </ChoiceChip>
+              <ChoiceChip active={shape === 'konsul'} onClick={() => chooseShape('konsul')}>
+                Konsul
+              </ChoiceChip>
+            </ChipRow>
+          </Section>
+
+          {/*
+            Shown only for Ringkas, and only when this consultant asks for the
+            line. Everyone else gets no extra field to read past.
+          */}
+          {shape === 'ringkas' && active?.verificationTime ? (
+            <Field
+              label="Jam verifikasi"
+              htmlFor="verifikasi"
+              hint={
+                <>
+                  Muncul sebagai <span className="font-mono">_Verifikasi {verificationTime}_</span>
+                </>
+              }
+            >
+              <div className="flex items-center gap-2">
+                <input
+                  id="verifikasi"
+                  value={verificationTime}
+                  onChange={(event) => setVerificationTime(event.target.value)}
+                  className={`${INPUT} flex-1 font-mono`}
+                />
+                <Button size="sm" onClick={() => setVerificationTime(verificationStamp(new Date()))}>
+                  Sekarang
+                </Button>
+              </div>
+            </Field>
+          ) : null}
+
+          {pdfMode ? (
+            <p className="text-[11px] leading-relaxed text-fg-faint">
+              Berisi baris Chief/Junior (dikosongkan), blok pembuka apa adanya, daftar diagnosis,
+              dan kalimat penutup. Tanpa S, O, terapi, dan plan.
+            </p>
+          ) : null}
+
+          {shape === 'invasif' ? (
+            <Section
+              title="Grup invasif"
+              hint="Identitas, DPJP, diagnosis, TB dan BB diambil apa adanya dari catatan hari ini."
+            >
+              <Field label="Rencana tindakan" htmlFor="invasif-tindakan">
+                <input
+                  id="invasif-tindakan"
+                  value={invasifProcedure}
+                  onChange={(event) => setInvasifProcedure(event.target.value)}
+                  placeholder="Advanced PCI"
+                  className={INPUT}
+                />
+              </Field>
+              <div className="grid grid-cols-2 gap-2">
+                <Field label="Jadwal" htmlFor="invasif-jadwal">
+                  <input
+                    id="invasif-jadwal"
+                    value={invasifWhen}
+                    onChange={(event) => setInvasifWhen(event.target.value)}
+                    placeholder="Minggu, 16-08-2026"
+                    className={INPUT}
+                  />
+                </Field>
+                <Field label="Penjamin" htmlFor="invasif-penjamin">
+                  <input
+                    id="invasif-penjamin"
+                    value={invasifPayer}
+                    onChange={(event) => setInvasifPayer(event.target.value)}
+                    placeholder="BPJS Kelas I"
+                    className={INPUT}
+                  />
+                </Field>
+              </div>
+              <CheckRow
+                checked={invasifPenunjang}
+                onChange={setInvasifPenunjang}
+                title="Sertakan pemeriksaan penunjang"
+                detail="Bentuk laporan, untuk menyusul pesan singkatnya."
+              />
+            </Section>
+          ) : null}
+
+          {shape === 'konsul' ? (
+            <Section
+              title="Konsul"
+              hint="Identitas, DPJP, diagnosis, TB dan BB diambil apa adanya dari catatan hari ini. S, O, terapi, dan plan tidak disertakan."
+            >
+              <Field
+                label="Konsul untuk"
+                htmlFor="konsul-preset"
+                {...(konsulPreset ? { hint: konsulPreset.note } : {})}
+              >
+                <select
+                  id="konsul-preset"
+                  value={konsulPresetId}
+                  onChange={(event) => setKonsulPresetId(event.target.value)}
+                  className={INPUT}
+                >
+                  {KONSUL_PRESETS.map((preset) => (
+                    <option key={preset.id} value={preset.id}>
+                      {preset.label}
+                    </option>
+                  ))}
+                  <option value={KONSUL_CUSTOM_ID}>Lainnya…</option>
+                </select>
+              </Field>
+
+              {missingMeasurements.length > 0 ? (
+                <Callout tone="warn" role="alert" title={`${missingMeasurements.join(' dan ')} belum ada`}>
+                  6MWT dilaporkan per meter dan dibaca terhadap ukuran pasien, jadi permintaan tanpa{' '}
+                  {missingMeasurements.join('/')} biasanya dikembalikan. Tambahkan di bagian O sebelum
+                  mengirim.
+                </Callout>
+              ) : null}
+
+              {konsulPreset ? null : (
+                <>
+                  <Field label="Tujuan konsul" htmlFor="konsul-purpose">
+                    <input
+                      id="konsul-purpose"
+                      value={konsulPurpose}
+                      onChange={(event) => setKonsulPurpose(event.target.value)}
+                      placeholder="mis. 6MWT"
+                      className={INPUT}
+                    />
+                  </Field>
+                  <CheckRow
+                    checked={konsulList}
+                    onChange={setKonsulList}
+                    title="Kirim sebagai list pasien bernomor"
+                  />
+                </>
+              )}
+            </Section>
+          ) : null}
+
+          {/*
+            Hidden for every shape but the daily report: the others do not read
+            the section chips, and a control that visibly does nothing invites
+            the belief that the message was narrowed when it was not.
+          */}
+          {shape === 'harian' ? (
+            <Section title="Bagian">
+              <ChipRow>
+                <ChoiceChip active={groups === 'all'} onClick={() => setGroups('all')}>
+                  Seluruh catatan
+                </ChoiceChip>
+                {COPY_GROUPS.map((group) => (
+                  <ChoiceChip
+                    key={group.id}
+                    active={groups !== 'all' && groups.includes(group.id)}
+                    disabled={!present.has(group.id)}
+                    onClick={() => toggleGroup(group.id)}
+                  >
+                    {group.label}
+                  </ChoiceChip>
+                ))}
+              </ChipRow>
+            </Section>
+          ) : null}
+
+          {(shape !== 'jaga' && trimmed.removed.length > 0) ||
+          (format === 'plain' && symbolHits.length > 0) ? (
+            <Section title="Penyesuaian">
+              {shape !== 'jaga' && trimmed.removed.length > 0 ? (
+                <CheckRow
+                  checked={latestOnly}
+                  onChange={(next) => {
+                    setLatestOnly(next);
+                    setAppliedFor(null);
+                  }}
+                  title="Penunjang terbaru saja"
+                  detail={`${trimmed.removed.length} blok lama ${latestOnly ? 'tidak ikut disalin' : 'ikut disalin'}. Catatan tetap utuh.`}
+                />
+              ) : null}
+              {/*
+                Teks polos only, and only when the note has something to
+                convert. Changes the Preview and the copy together — they are
+                the same string — and never the note.
+              */}
+              {format === 'plain' && symbolHits.length > 0 ? (
+                <CheckRow
+                  checked={asciiSymbols}
+                  onChange={setAsciiSymbols}
+                  title="Ubah simbol agar terbaca di SIMGOS"
+                  detail={
+                    <>
+                      {asciiSymbols ? '' : 'Dimatikan — simbol ini dihapus: '}
+                      {symbolHits.map((hit, index) => (
+                        <span key={hit.symbol}>
+                          {index > 0 ? ' · ' : ''}
+                          <span className="text-fg">{hit.symbol}</span>
+                          {asciiSymbols ? (
+                            <>
+                              {' '}jadi <span className="font-mono text-fg">{hit.ascii}</span>
+                            </>
+                          ) : null}
+                          {hit.count > 1 ? ` (${hit.count}×)` : ''}
+                        </span>
+                      ))}
+                    </>
+                  }
+                />
+              ) : null}
+            </Section>
+          ) : null}
+        </div>
+
+        {/* PREVIEW: sticky beside the options on a laptop, below them on a phone. */}
+        <div className="min-w-0 sm:sticky sm:top-0 sm:self-start">
+          <Section
+            title="Preview"
+            aside={
+              <Segmented
+                size="sm"
+                label="Preview"
+                value={preview}
+                onChange={setPreview}
+                options={[
+                  ['teks', 'Teks'],
+                  ['tampilan', 'Tampilan'],
+                ]}
+              />
+            }
           >
-            Teks polos
-          </button>
-          .
-        </p>
-      ) : null}
+            {preview === 'tampilan' ? (
+              <>
+                <RenderedPreview text={output} />
+                <p className="text-[11px] text-fg-faint">
+                  Perkiraan tampilan di WhatsApp. Jangan menyalin dari sini — tanda formatnya ikut
+                  hilang. Gunakan “Teks”.
+                </p>
+              </>
+            ) : (
+              <>
+                {/*
+                  A real textarea, not a <pre>: read-only, but selectable and
+                  scrollable. No select-on-focus — switching tabs refocuses it,
+                  and a select-all then wiped a selection made by hand.
+                */}
+                <textarea
+                  ref={outputRef}
+                  readOnly
+                  value={output || '(kosong)'}
+                  rows={14}
+                  spellCheck={false}
+                  className="w-full resize-y rounded-xl border border-border bg-bg-subtle p-3 font-mono text-xs leading-relaxed text-fg outline-none sm:min-h-[26rem]"
+                />
+                <div className="flex items-center justify-between gap-2">
+                  <span className="text-[11px] tabular-nums text-fg-faint">
+                    {output.length.toLocaleString('id-ID')} karakter
+                  </span>
+                  <Button size="sm" variant="ghost" onClick={() => outputRef.current?.select()}>
+                    Pilih semua teks
+                  </Button>
+                </div>
+              </>
+            )}
+          </Section>
 
-      {leaks.length > 0 ? (
-        <p role="alert" className="mt-2 text-xs text-danger">
-          Peringatan: sisa penanda markdown ({leaks.join(' ')}) terdeteksi.
-        </p>
-      ) : null}
+          <div className="mt-3 space-y-2">
+            {/*
+              Keyed on the OUTPUT, not on the format chip: Konsul and Grup
+              invasif once carried a zero-width space through plain text while
+              this stayed silent. With plain selected, a non-ASCII character is
+              Plano's fault, and the sheet says so.
+            */}
+            {nonAscii.length > 0 && format === 'plain' ? (
+              <Callout tone="danger" role="alert" title="Masih ada karakter non-ASCII">
+                <span className="font-mono">{nonAscii.map(visibleChar).join(' ')}</span> — ini bug
+                Plano, mohon laporkan.
+              </Callout>
+            ) : null}
+            {nonAscii.length > 0 && format !== 'plain' ? (
+              <Callout
+                tone="info"
+                title="Karakter ini muncul sebagai “?” di SIMGOS"
+                action={
+                  <Button
+                    size="sm"
+                    onClick={() => {
+                      setFormat('plain');
+                      setAppliedFor(null);
+                    }}
+                  >
+                    Pakai Teks polos
+                  </Button>
+                }
+              >
+                <span className="font-mono">{nonAscii.map(visibleChar).join(' ')}</span>
+              </Callout>
+            ) : null}
+            {leaks.length > 0 ? (
+              <Callout tone="danger" role="alert" title="Sisa penanda markdown">
+                {leaks.join(' ')}
+              </Callout>
+            ) : null}
+          </div>
+        </div>
+      </div>
     </Sheet>
   );
 }
@@ -1120,51 +1048,9 @@ export function CopySheet({
  * double space. Invisible and space-like characters are shown by code point.
  */
 function visibleChar(char: string): string {
-  return /[\p{Cf}\p{Zs}\p{Zl}\p{Zp}\u00AD\u180E]/u.test(char)
+  return /[\p{Cf}\p{Zs}\p{Zl}\p{Zp}­᠎]/u.test(char)
     ? `U+${char.codePointAt(0)?.toString(16).toUpperCase().padStart(4, '0') ?? '?'}`
     : char;
-}
-
-function Group({
-  label,
-  children,
-}: {
-  label: string;
-  children: React.ReactNode;
-}): JSX.Element {
-  return (
-    <div className="mb-4">
-      <p className="mb-1.5 text-xs font-medium text-fg-muted">{label}</p>
-      <div className="flex flex-wrap gap-2">{children}</div>
-    </div>
-  );
-}
-
-function Chip({
-  active,
-  onClick,
-  disabled = false,
-  children,
-}: {
-  active: boolean;
-  onClick: () => void;
-  disabled?: boolean;
-  children: React.ReactNode;
-}): JSX.Element {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      disabled={disabled}
-      aria-pressed={active}
-      className={[
-        'min-h-tap rounded-full border px-3 text-xs disabled:opacity-30',
-        active ? 'border-accent bg-bg-subtle font-medium text-accent' : 'border-border text-fg-muted',
-      ].join(' ')}
-    >
-      {children}
-    </button>
-  );
 }
 
 const ASCII_SYMBOLS_KEY = 'plano.asciiSymbols';

@@ -13,6 +13,32 @@ import { dateForStage, migrateLegacyDischarge } from '@/domain/discharge';
 import { useClinicalToday } from '@/hooks/useClinicalToday';
 import type { ArchiveReason, Patient } from '@/domain/types';
 import { ReminderPicker } from './ReminderPicker';
+import {
+  IconColumns,
+  IconConvert,
+  IconEye,
+  IconFlask,
+  IconHandoff,
+  IconLayers,
+  IconMoon,
+  IconPin,
+  IconQuote,
+  IconReopen,
+  IconSparkle,
+  IconTrash,
+} from '@/components/common/Icons';
+import {
+  Button,
+  Callout,
+  ChipRow,
+  ChoiceChip,
+  Field,
+  INPUT,
+  ListGroup,
+  ListRow,
+  Section,
+  Segmented,
+} from '@/components/common/ui';
 
 /**
  * SPEC F9 — archive, pin, delete.
@@ -93,339 +119,300 @@ export function PatientActionsSheet({
     onOpenChange(false);
   };
 
+  const description = [patient.mrn ? `RM ${patient.mrn}` : null, patient.ward?.trim() || null]
+    .filter(Boolean)
+    .join(' · ');
+  const h1 = dateForStage('h1', today);
+  const dischargeToday = dateForStage('today', today);
+  const dischargeStage = !planned ? 'none' : planned === h1 ? 'h1' : planned === dischargeToday ? 'today' : 'custom';
+  const run = (action: () => void): void => {
+    close();
+    action();
+  };
+  const hasNoteTools = Boolean(onLab || onOpening || onCompare || onAddVersion || onAddShiftNote || onReformat);
+
   return (
-    <Sheet open={open} onOpenChange={(next) => (next ? onOpenChange(true) : close())} title={patient.name}>
-      <div className="space-y-2">
-        <Action
-          label={patient.temporary ? 'Jadikan pasien saya' : 'Tandai sebagai titipan'}
-          detail={
-            patient.temporary
-              ? 'Pindah ke daftar pasien saya.'
-              : 'Pindah ke daftar Titipan — untuk pasien yang dijaga sementara.'
-          }
-          onClick={() => {
-            void updatePatient(patient.id, { temporary: !patient.temporary });
-            close();
-          }}
-        />
-        {/*
-          The way a shift note gets created.
-          
-          Here rather than as a permanently visible "+ SOAP jaga" panel under
-          the note: the panel would cost a row on every patient on every round
-          to serve the few days that have a jaga complaint. Adding one is
-          occasional; reading one is not, so the BOXES are always visible once
-          they exist and only the button is behind a tap.
-        */}
-        {onLab ? (
-          <Action
-            label="Format lab"
-            detail="Susun hasil lab jadi satu baris."
-            onClick={() => {
-              close();
-              onLab();
-            }}
-          />
+    <Sheet
+      open={open}
+      onOpenChange={(next) => (next ? onOpenChange(true) : close())}
+      title={patient.name?.trim() || 'Pasien'}
+      {...(description ? { description } : {})}
+    >
+      <div className="space-y-6">
+        {hasNoteTools ? (
+          <Section title="Catatan">
+            <ListGroup>
+              {onLab ? (
+                <ListRow
+                  icon={<IconFlask width={18} height={18} />}
+                  title="Format hasil lab"
+                  detail="Dari PDF lab atau teks tempelan, jadi blok berjudul dan bertanggal."
+                  onClick={() => run(onLab)}
+                />
+              ) : null}
+              {onOpening ? (
+                <ListRow
+                  icon={<IconQuote width={18} height={18} />}
+                  title="Pembuka & penutup"
+                  detail="Ganti salam, kalimat pembuka, sapaan Prof/dokter, atau penutup."
+                  onClick={() => run(onOpening)}
+                />
+              ) : null}
+              {onCompare ? (
+                <ListRow
+                  icon={<IconColumns width={18} height={18} />}
+                  title="Bandingkan catatan"
+                  detail="Dengan hari sebelumnya, SOAP asli, atau versi lain."
+                  onClick={() => run(onCompare)}
+                />
+              ) : null}
+              {onAddVersion ? (
+                <ListRow
+                  icon={<IconLayers width={18} height={18} />}
+                  title="Buat versi SOAP"
+                  detail="Salinan untuk diedit (mis. untuk dr. AHA); SOAP aslinya tidak berubah."
+                  onClick={() => run(onAddVersion)}
+                />
+              ) : null}
+              {onAddShiftNote ? (
+                <ListRow
+                  icon={<IconMoon width={18} height={18} />}
+                  title="Tambah SOAP jaga"
+                  detail="Format S/O/A/P jaga, jam bisa diubah."
+                  onClick={() => run(onAddShiftNote)}
+                />
+              ) : null}
+              {onReformat ? (
+                <ListRow
+                  icon={<IconConvert width={18} height={18} />}
+                  title="Ubah ke format bangsal"
+                  detail="Menghapus header Airway/Breathing/Circulation dst."
+                  onClick={() => run(onReformat)}
+                />
+              ) : null}
+            </ListGroup>
+          </Section>
         ) : null}
 
-        {onOpening ? (
-          <Action
-            label="Pembuka"
-            detail="Sisipkan blok pembuka di awal catatan."
-            onClick={() => {
-              close();
-              onOpening();
-            }}
-          />
-        ) : null}
-
-        {onSummarise ? (
-          <Action
-            label="Ringkas perjalanan pasien (AI)"
-            detail="Untuk dibacakan ke DPJP. Tidak masuk ke catatan."
-            onClick={() => {
-              close();
-              onSummarise();
-            }}
-          />
-        ) : null}
-
-        {onReformat ? (
-          <Action
-            label="Ubah ke format bangsal"
-            detail="Menghapus header Airway/Breathing/Circulation dst."
-            onClick={() => {
-              close();
-              onReformat();
-            }}
-          />
-        ) : null}
-
-        {onTidy ? (
-          <Action
-            label="Rapikan SOAP"
-            detail="Tandai tebal/miring dan urutkan penunjang. Ditampilkan berdampingan dulu."
-            onClick={() => {
-              close();
-              onTidy();
-            }}
-          />
-        ) : null}
-
-        {onCompare ? (
-          <Action
-            label="Bandingkan hari"
-            detail="Lihat catatan hari ini berdampingan dengan hari sebelumnya."
-            onClick={() => {
-              close();
-              onCompare();
-            }}
-          />
-        ) : null}
-
-        {onAddVersion ? (
-          <Action
-            label="Buat versi SOAP"
-            detail="Salinan SOAP hari ini untuk diedit (mis. untuk dr. AHA); SOAP aslinya tidak berubah."
-            onClick={() => {
-              onAddVersion();
-              close();
-            }}
-          />
-        ) : null}
-
-        {onAddShiftNote ? (
-          <Action
-            label="Tambah SOAP jaga"
-            detail="Format S/O/A/P jaga; jamnya bisa diubah. Juga ada di baris di atas catatan."
-            onClick={() => {
-              onAddShiftNote();
-              close();
-            }}
-          />
+        {onSummarise || onTidy ? (
+          <Section title="AI">
+            <ListGroup>
+              {onSummarise ? (
+                <ListRow
+                  icon={<IconSparkle width={18} height={18} />}
+                  title="Ringkas perjalanan pasien"
+                  detail="Untuk dibacakan ke DPJP. Tidak masuk ke catatan."
+                  onClick={() => run(onSummarise)}
+                />
+              ) : null}
+              {onTidy ? (
+                <ListRow
+                  icon={<IconSparkle width={18} height={18} />}
+                  title="Rapikan SOAP"
+                  detail="Tebal/miring dan urutan penunjang. Ditampilkan berdampingan dulu."
+                  onClick={() => run(onTidy)}
+                />
+              ) : null}
+            </ListGroup>
+          </Section>
         ) : null}
 
         {/*
-          Above pinning, because it says something about the PATIENT while
-          pinning only says where their card sits.
+          States of the PATIENT, shown as switches: the row says what is true
+          now, not only what tapping it would do.
         */}
-        <Action
-          label={patient.pemantauan ? 'Selesai pemantauan' : 'Tandai pemantauan'}
-          detail="Menandai kartu pasien di papan."
-          onClick={() => {
-            void updatePatient(patient.id, { pemantauan: !patient.pemantauan });
-            close();
-          }}
-        />
-
-        <ReminderPicker patient={patient} today={today} />
-
-        <Action
-          label={patient.pinned ? 'Unpin dari dashboard' : 'Pin di dashboard'}
-          onClick={() => {
-            void updatePatient(patient.id, { pinned: !patient.pinned });
-            close();
-          }}
-        />
-
-        {archived ? (
-          <Action
-            label="Aktifkan kembali"
-            detail="Kembali muncul di papan pasien aktif."
-            onClick={() => {
-              void reopenPatient(patient.id);
-              close();
-            }}
-          />
-        ) : null}
-      </div>
-
-      {/* Discharge planning, kept above archiving: it is the step before, and
-          the two get confused if they sit together. */}
-      <section className="mt-5">
-        <h3 className="text-sm font-semibold">Rencana pulang</h3>
-
-        <div className="mt-2 flex gap-2">
-          <button
-            type="button"
-            aria-pressed={!planned}
-            onClick={() => void updatePatient(patient.id, { dischargePlannedFor: undefined })}
-            className={[
-              'min-h-tap flex-1 rounded-lg border px-2 text-xs',
-              !planned
-                ? 'border-accent bg-bg-subtle font-medium text-accent'
-                : 'border-border text-fg-muted',
-            ].join(' ')}
-          >
-            Belum
-          </button>
-          {(['h1', 'today'] as const).map((stage) => {
-            const date = dateForStage(stage, today);
-            return (
-              <button
-                key={stage}
-                type="button"
-                aria-pressed={planned === date}
-                onClick={() =>
-                  void updatePatient(patient.id, { dischargePlannedFor: date })
-                }
-                className={[
-                  'min-h-tap flex-1 rounded-lg border px-2 text-xs',
-                  planned === date
-                    ? 'border-accent bg-bg-subtle font-medium text-accent'
-                    : 'border-border text-fg-muted',
-                ].join(' ')}
-              >
-                {stage === 'h1' ? 'H-1 pulang' : 'Pulang hari ini'}
-              </button>
-            );
-          })}
-        </div>
-
-        {/* The date is the stored value, so it is also editable directly —
-            a discharge four days out is a real plan, and the two buttons above
-            only cover the last two days of it. */}
-        <label className="mt-2 block">
-          <span className="mb-1 block text-[11px] text-fg-muted">Tanggal pulang</span>
-          <input
-            type="date"
-            value={planned ?? ''}
-            onChange={(event) =>
-              void updatePatient(patient.id, {
-                dischargePlannedFor: event.target.value
-                  ? (event.target.value as typeof planned)
-                  : undefined,
-              })
-            }
-            className="min-h-tap w-full rounded-lg border border-border bg-surface px-3 text-sm outline-none"
-          />
-        </label>
-
-        <p className="mt-1 text-[11px] text-fg-faint">
-          Disimpan sebagai tanggal, bukan status — jadi H-1 hari ini otomatis menjadi
-          &ldquo;pulang hari ini&rdquo; besok pagi.
-        </p>
-      </section>
-
-      {!archived ? (
-      <section className="mt-5">
-          <h3 className="text-sm font-semibold">Arsipkan</h3>
-          <p className="mt-0.5 text-xs text-fg-muted">
-            Hilang dari papan, tetap tersimpan lengkap dan tetap bisa disalin.
-          </p>
-
-          <div className="mt-2 flex flex-wrap gap-2">
-            {(Object.keys(ARCHIVE_REASON_LABELS) as ArchiveReason[]).map((value) => (
-              <button
-                key={value}
-                type="button"
-                onClick={() => setReason(value)}
-                aria-pressed={reason === value}
-                className={[
-                  'min-h-tap rounded-full border px-3 text-xs',
-                  reason === value
-                    ? 'border-accent bg-bg-subtle font-medium text-accent'
-                    : 'border-border text-fg-muted',
-                ].join(' ')}
-              >
-                {ARCHIVE_REASON_LABELS[value]}
-              </button>
-            ))}
-          </div>
-
-          <input
-            type="text"
-            value={note}
-            onChange={(event) => setNote(event.target.value)}
-            placeholder="Catatan (opsional)"
-            className="mt-2 min-h-tap w-full rounded-lg border border-border bg-surface px-3 text-sm outline-none"
-          />
-
-          <button
-            type="button"
-            disabled={!reason}
-            onClick={() => {
-              if (!reason) return;
-              void archivePatient(patient.id, reason, note);
-              close();
-              navigate('/');
-            }}
-            className="mt-2 min-h-tap w-full rounded-lg bg-accent px-4 text-sm font-medium text-white disabled:opacity-40"
-          >
-            Arsipkan pasien
-          </button>
-        </section>
-      ) : null}
-
-      <section className="mt-6 border-t border-border pt-4">
-        {confirmDelete ? (
-          <>
-            <p className="text-xs text-fg-muted">
-              Pindahkan {patient.name?.trim() || 'catatan ini'} ke sampah? Bisa dipulihkan
-              dari Arsip sampai sampah dikosongkan. Gunakan Arsipkan bila hanya ingin
-              menyelesaikan pasien.
-            </p>
-            <div className="mt-2 flex gap-2">
-              <button
-                type="button"
-                onClick={() => setConfirmDelete(false)}
-                className="min-h-tap flex-1 rounded-lg border border-border text-sm"
-              >
-                Batal
-              </button>
-              <button
-                type="button"
+        <Section title="Pasien">
+          <ListGroup>
+            <ListRow
+              icon={<IconEye width={18} height={18} />}
+              title="Pemantauan"
+              detail="Menandai kartu pasien di papan."
+              onClick={() => {
+                void updatePatient(patient.id, { pemantauan: !patient.pemantauan });
+                close();
+              }}
+              trailing={<SwitchMark on={Boolean(patient.pemantauan)} />}
+            />
+            <ListRow
+              icon={<IconHandoff width={18} height={18} />}
+              title="Titipan"
+              detail="Pasien yang dijaga sementara, di daftar Titipan."
+              onClick={() => {
+                void updatePatient(patient.id, { temporary: !patient.temporary });
+                close();
+              }}
+              trailing={<SwitchMark on={Boolean(patient.temporary)} />}
+            />
+            <ListRow
+              icon={<IconPin width={18} height={18} />}
+              title="Pin di papan"
+              detail="Kartu tetap di urutan atas."
+              onClick={() => {
+                void updatePatient(patient.id, { pinned: !patient.pinned });
+                close();
+              }}
+              trailing={<SwitchMark on={Boolean(patient.pinned)} />}
+            />
+            {archived ? (
+              <ListRow
+                icon={<IconReopen width={18} height={18} />}
+                title="Aktifkan kembali"
+                detail="Kembali muncul di papan pasien aktif."
                 onClick={() => {
-                  /**
-                   * To the TRASH, not `deletePatient`.
-                   *
-                   * `deletePatient` sets `deletedAt`, which is a different
-                   * mechanism from the trash added for the board — so deleting
-                   * from inside a patient made it vanish without appearing in
-                   * the trash, and the only way back was an export. Two ways to
-                   * delete that land in different places is one too many.
-                   */
-                  void setPatientStatus(patient.id, 'trashed');
+                  void reopenPatient(patient.id);
                   close();
-                  navigate('/');
                 }}
-                className="min-h-tap flex-1 rounded-lg border border-danger text-sm font-medium text-danger"
-              >
-                Ke sampah
-              </button>
-            </div>
-          </>
-        ) : (
-          <button
-            type="button"
-            onClick={() => setConfirmDelete(true)}
-            className="min-h-tap w-full rounded-lg border border-border px-3 text-sm text-danger"
-          >
-            Hapus pasien
-          </button>
-        )}
-      </section>
+              />
+            ) : null}
+          </ListGroup>
+        </Section>
+
+        <Section
+          title="Pengingat harian"
+          hint={'Muncul di kartu pasien dan bisa dicentang saat selesai. "Hari ini" hilang sendiri besok.'}
+        >
+          <ReminderPicker patient={patient} today={today} />
+        </Section>
+
+        {/* Discharge planning, kept above archiving: it is the step before, and
+            the two get confused if they sit together. */}
+        <Section
+          title="Rencana pulang"
+          hint="Disimpan sebagai tanggal, bukan status: H-1 hari ini otomatis menjadi “pulang hari ini” besok pagi."
+        >
+          <Segmented
+            label="Rencana pulang"
+            value={dischargeStage}
+            onChange={(stage) => {
+              if (stage === 'custom') return;
+              void updatePatient(patient.id, {
+                dischargePlannedFor: stage === 'none' ? undefined : dateForStage(stage, today),
+              });
+            }}
+            options={[
+              ['none', 'Belum'],
+              ['h1', 'H-1 pulang'],
+              ['today', 'Pulang hari ini'],
+            ]}
+          />
+          {/* The date is the stored value, so it is also editable directly —
+              a discharge four days out is a real plan. */}
+          <Field label="Tanggal pulang" htmlFor="discharge-date">
+            <input
+              id="discharge-date"
+              type="date"
+              value={planned ?? ''}
+              onChange={(event) =>
+                void updatePatient(patient.id, {
+                  dischargePlannedFor: event.target.value
+                    ? (event.target.value as typeof planned)
+                    : undefined,
+                })
+              }
+              className={INPUT}
+            />
+          </Field>
+        </Section>
+
+        {!archived ? (
+          <Section title="Arsipkan" hint="Hilang dari papan, tetap tersimpan lengkap dan tetap bisa disalin.">
+            <ChipRow>
+              {(Object.keys(ARCHIVE_REASON_LABELS) as ArchiveReason[]).map((value) => (
+                <ChoiceChip key={value} active={reason === value} onClick={() => setReason(value)}>
+                  {ARCHIVE_REASON_LABELS[value]}
+                </ChoiceChip>
+              ))}
+            </ChipRow>
+            <input
+              type="text"
+              aria-label="Catatan arsip"
+              value={note}
+              onChange={(event) => setNote(event.target.value)}
+              placeholder="Catatan (opsional)"
+              className={INPUT}
+            />
+            <Button
+              variant="primary"
+              full
+              disabled={!reason}
+              onClick={() => {
+                if (!reason) return;
+                void archivePatient(patient.id, reason, note);
+                close();
+                navigate('/');
+              }}
+            >
+              {reason ? `Arsipkan · ${ARCHIVE_REASON_LABELS[reason]}` : 'Pilih alasan untuk mengarsipkan'}
+            </Button>
+          </Section>
+        ) : null}
+
+        <Section title="Zona berbahaya">
+          {confirmDelete ? (
+            <Callout
+              tone="danger"
+              role="alert"
+              title={`Pindahkan ${patient.name?.trim() || 'catatan ini'} ke sampah?`}
+            >
+              <p>
+                Bisa dipulihkan dari Arsip sampai sampah dikosongkan. Gunakan Arsipkan bila hanya
+                ingin menyelesaikan pasien.
+              </p>
+              <div className="mt-2 flex gap-2">
+                <Button size="sm" onClick={() => setConfirmDelete(false)}>
+                  Batal
+                </Button>
+                <Button
+                  size="sm"
+                  variant="danger"
+                  onClick={() => {
+                    /**
+                     * To the TRASH, not `deletePatient`: `deletedAt` is a
+                     * different mechanism, and deleting from here made the
+                     * patient vanish without appearing in the trash.
+                     */
+                    void setPatientStatus(patient.id, 'trashed');
+                    close();
+                    navigate('/');
+                  }}
+                >
+                  Ke sampah
+                </Button>
+              </div>
+            </Callout>
+          ) : (
+            <ListGroup>
+              <ListRow
+                icon={<IconTrash width={18} height={18} />}
+                tone="danger"
+                title="Hapus pasien"
+                detail="Ke sampah; bisa dipulihkan sampai sampah dikosongkan."
+                onClick={() => setConfirmDelete(true)}
+              />
+            </ListGroup>
+          )}
+        </Section>
+      </div>
     </Sheet>
   );
 }
 
-function Action({
-  label,
-  detail,
-  onClick,
-}: {
-  label: string;
-  detail?: string;
-  onClick: () => void;
-}): JSX.Element {
+/** The look of a switch, inside a row that is itself the button. */
+function SwitchMark({ on }: { on: boolean }): JSX.Element {
   return (
-    <button
-      type="button"
-      onClick={onClick}
-      className="w-full rounded-lg border border-border px-3 py-3 text-left"
+    <span
+      aria-hidden="true"
+      className={[
+        'relative h-6 w-10 shrink-0 rounded-full transition-colors',
+        on ? 'bg-accent' : 'bg-border',
+      ].join(' ')}
     >
-      <span className="block text-sm font-medium">{label}</span>
-      {detail ? <span className="mt-0.5 block text-xs text-fg-muted">{detail}</span> : null}
-    </button>
+      <span
+        className={[
+          'absolute top-0.5 h-5 w-5 rounded-full bg-surface shadow transition-all',
+          on ? 'left-[1.125rem]' : 'left-0.5',
+        ].join(' ')}
+      />
+    </span>
   );
 }

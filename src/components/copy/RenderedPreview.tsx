@@ -50,7 +50,7 @@ export function RenderedPreview({ text }: { text: string }): JSX.Element {
   const lines = useMemo(() => text.split('\n').map(tokenise), [text]);
 
   return (
-    <div className="max-h-56 overflow-auto rounded-lg border border-border bg-bg-subtle p-3 text-xs leading-relaxed">
+    <div className="max-h-[60vh] min-h-[14rem] overflow-auto rounded-xl border border-border bg-bg-subtle p-3 text-xs leading-relaxed text-fg sm:min-h-[26rem]">
       {lines.map((tokens, lineIndex) => (
         <p key={lineIndex} className="min-h-[1.2em] whitespace-pre-wrap break-words">
           {tokens.map((token, index) => (

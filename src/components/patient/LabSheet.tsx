@@ -1,6 +1,8 @@
 import { useMemo, useRef, useState } from 'react';
 
 import { Sheet } from '@/components/common/Sheet';
+import { IconCopy, IconSparkle, IconUpload } from '@/components/common/Icons';
+import { Button, Callout, CheckRow, Field, INPUT, Section, TextPane } from '@/components/common/ui';
 import { AiError, aiEnabled, askClaude } from '@/lib/ai';
 import { labHeading, labReportKind, parseLab } from '@/domain/lab/parseLab';
 import { copyText } from '@/lib/clipboard';
@@ -196,200 +198,226 @@ export function LabSheet({
     }
   };
 
+  const [dragging, setDragging] = useState(false);
+
+  const insert = (): void => {
+    onInsert(block);
+    setRaw('');
+    setTitleOverride(null);
+    setDateOverride(null);
+    onOpenChange(false);
+  };
+
   return (
     <Sheet
       open={open}
       onOpenChange={onOpenChange}
+      size="xl"
       title="Format hasil lab"
-      description="Ambil dari PDF lab, atau tempel teksnya. Berkas tidak diunggah ke mana pun."
+      description="Ambil dari PDF lab, atau tempel teksnya. Berkas dibaca di perangkat ini dan tidak diunggah ke mana pun."
       footer={
-        <button
-          type="button"
-          disabled={!block}
-          onClick={() => {
-            onInsert(block);
-            setRaw('');
-            setTitleOverride(null);
-            setDateOverride(null);
-            onOpenChange(false);
-          }}
-          className="min-h-tap w-full rounded-lg bg-accent px-4 text-sm font-medium text-white disabled:opacity-40"
-        >
-          Sisipkan ke catatan
-        </button>
+        <div className="flex items-center gap-2">
+          {block ? (
+            <Button
+              variant="ghost"
+              icon={<IconCopy width={16} height={16} />}
+              onClick={() => void copyText(block)}
+            >
+              Salin saja
+            </Button>
+          ) : null}
+          <Button variant="primary" className="flex-1" disabled={!block} onClick={insert}>
+            Sisipkan ke catatan
+          </Button>
+        </div>
       }
     >
-      {aiError ? <p className="mb-2 text-xs text-danger">{aiError}</p> : null}
-
-      <div className="flex gap-2">
-        <label className="block min-w-0 flex-1">
-          <span className="mb-1 block text-xs text-fg-muted">Judul blok</span>
+      <div className="grid gap-6 sm:grid-cols-2">
+        {/* SOURCE: where the text comes from, and the text itself. */}
+        <Section title="Sumber">
+          <button
+            type="button"
+            onClick={() => fileRef.current?.click()}
+            disabled={ocrState === 'running'}
+            onDragOver={(event) => {
+              event.preventDefault();
+              setDragging(true);
+            }}
+            onDragLeave={() => setDragging(false)}
+            onDrop={(event) => {
+              event.preventDefault();
+              setDragging(false);
+              const file = event.dataTransfer.files[0];
+              if (file) void readFile(file);
+            }}
+            className={[
+              'flex w-full items-center gap-3 rounded-xl border border-dashed px-4 py-3 text-left transition-colors disabled:opacity-60',
+              dragging
+                ? 'border-accent bg-[var(--accent-soft)]'
+                : 'border-border-strong bg-bg-subtle hover:border-accent',
+            ].join(' ')}
+          >
+            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-surface text-accent">
+              <IconUpload width={18} height={18} />
+            </span>
+            <span className="min-w-0 flex-1">
+              <span className="block text-sm font-semibold text-fg">
+                {ocrState === 'running' ? 'Membaca berkas…' : 'Ambil dari PDF / gambar'}
+              </span>
+              <span className="block text-[11px] leading-snug text-fg-muted">
+                Ketuk atau seret berkas ke sini. PDF lab dibaca persis; gambar dikenali dan wajib
+                diperiksa.
+              </span>
+            </span>
+          </button>
           <input
-            type="text"
-            value={title}
-            onChange={(event) => setTitleOverride(event.target.value)}
-            placeholder="Laboratorium PJT"
-            className="min-h-tap w-full rounded-lg border border-border bg-surface px-3 text-sm outline-none"
-          />
-        </label>
-        <label className="block w-40 shrink-0">
-          <span className="mb-1 block text-xs text-fg-muted">Tanggal lab</span>
-          <input
-            type="date"
-            value={labDate}
+            ref={fileRef}
+            type="file"
+            accept="application/pdf,image/*"
+            className="hidden"
             onChange={(event) => {
-              const next = event.target.value;
-              setDateOverride(isClinicalDate(next) ? next : null);
+              const file = event.target.files?.[0];
+              if (file) void readFile(file);
+              event.target.value = '';
             }}
-            className="min-h-tap w-full rounded-lg border border-border bg-surface px-2 text-sm outline-none"
           />
-        </label>
+
+          {/*
+            Only with a key AND the switch on. Absent otherwise — a disabled
+            button for a feature somebody has not enabled advertises sending a
+            lab result off the device.
+          */}
+          {aiEnabled('lab') || aiUndo !== null ? (
+            <div className="flex flex-wrap gap-2">
+              {aiEnabled('lab') ? (
+                <Button
+                  size="sm"
+                  icon={<IconSparkle width={14} height={14} />}
+                  onClick={() => void runAssist()}
+                  disabled={aiState === 'running' || raw.trim().length === 0}
+                >
+                  {aiState === 'running' ? 'Merapikan…' : 'Rapikan teks dengan AI'}
+                </Button>
+              ) : null}
+              {aiUndo !== null ? (
+                <Button
+                  size="sm"
+                  onClick={() => {
+                    setRaw(aiUndo);
+                    setAiUndo(null);
+                  }}
+                >
+                  Undo AI
+                </Button>
+              ) : null}
+            </div>
+          ) : null}
+
+          {aiError ? (
+            <Callout tone="danger" role="alert">
+              {aiError}
+            </Callout>
+          ) : null}
+          {notLab ? (
+            <Callout tone="danger" role="alert" title={`“${notLab}” bukan hasil laboratorium`}>
+              Radiologi, ekokardiografi, atau laporan tindakan tidak dibaca di sini.
+            </Callout>
+          ) : null}
+          {ocrState === 'failed' ? (
+            <Callout tone="danger" role="alert" title="Gagal membaca berkas">
+              Tempel teksnya secara manual di bawah.
+            </Callout>
+          ) : null}
+          {/*
+            The failure that matters is not an exception — it is OCR returning
+            confident nonsense. Comparing what was read against what parsed is
+            the only signal available.
+          */}
+          {readMode === 'image' && raw.trim().length > 40 && result.known.length < 3 ? (
+            <Callout tone="warn" role="alert" title={`Hanya ${result.known.length} nilai terbaca`}>
+              Hasil pembacaan gambar kemungkinan tidak terpakai. Blok teks langsung dari PDF lab,
+              atau gunakan Live Text (iOS) / Google Lens lalu tempel di sini.
+            </Callout>
+          ) : null}
+
+          <Field label="Teks hasil lab" htmlFor="lab-raw">
+            <textarea
+              id="lab-raw"
+              value={raw}
+              onChange={(event) => setRaw(event.target.value)}
+              rows={12}
+              spellCheck={false}
+              placeholder={'WBC 6.01 4.00 - 10.0\nHGB 12.4 12.0 - 16.0\nNatrium 132 136 - 145'}
+              className="w-full resize-y rounded-xl border border-border bg-surface p-3 font-mono text-xs leading-relaxed text-fg outline-none placeholder:text-fg-faint focus:border-accent"
+            />
+          </Field>
+        </Section>
+
+        {/* RESULT: what goes into the note, and the two things to check. */}
+        <Section title="Hasil">
+          <div className="flex gap-2">
+            <Field label="Judul blok" htmlFor="lab-title" className="flex-1">
+              <input
+                id="lab-title"
+                type="text"
+                value={title}
+                onChange={(event) => setTitleOverride(event.target.value)}
+                placeholder="Laboratorium PJT"
+                className={INPUT}
+              />
+            </Field>
+            <Field label="Tanggal lab" htmlFor="lab-date" className="w-40 shrink-0">
+              <input
+                id="lab-date"
+                type="date"
+                value={labDate}
+                onChange={(event) => {
+                  const next = event.target.value;
+                  setDateOverride(isClinicalDate(next) ? next : null);
+                }}
+                className={`${INPUT} px-2`}
+              />
+            </Field>
+          </div>
+          <p className="text-[11px] text-fg-faint">
+            {dateSource === 'report'
+              ? 'Tanggal dari PDF (Tgl. Registrasi — saat sampel diambil).'
+              : dateSource === 'manual'
+                ? 'Tanggal diisi manual.'
+                : 'Belum ada tanggal di teks — memakai tanggal catatan.'}
+          </p>
+          {!dateOverride && meta.dates.length > 1 ? (
+            <Callout tone="warn" role="alert" title={`Lab dari ${meta.dates.length} tanggal`}>
+              {meta.dates.map(headingDate).join(', ')}. Judul memakai yang terbaru; sisipkan per
+              tanggal bila ingin dipisah.
+            </Callout>
+          ) : null}
+
+          {/*
+            Only offered when the pasted sheet actually carries ranges: a
+            checkbox that can do nothing implies values were checked and found
+            normal.
+          */}
+          {result.known.some((value) => value.abnormal !== undefined) ? (
+            <CheckRow
+              checked={boldAbnormal}
+              onChange={setBoldAbnormal}
+              title="Tebalkan nilai di luar rujukan"
+              detail="Hanya untuk nilai yang rujukannya tercetak di lembar lab."
+            />
+          ) : null}
+
+          <TextPane label="Akan disisipkan" maxHeight="max-h-[40vh]">
+            {block || <span className="text-fg-faint">Belum ada nilai yang terbaca.</span>}
+          </TextPane>
+
+          {result.unknown.length > 0 ? (
+            <Callout tone="warn" title={`${result.unknown.length} nilai tidak dikenali`}>
+              Dimasukkan ke “Lain-lain”. Periksa kembali sebelum menyisipkan.
+            </Callout>
+          ) : null}
+        </Section>
       </div>
-      <p className="mt-1 text-[11px] text-fg-faint">
-        {dateSource === 'report'
-          ? 'Tanggal dari PDF (Tgl. Registrasi — saat sampel diambil).'
-          : dateSource === 'manual'
-            ? 'Tanggal diisi manual.'
-            : 'Belum ada tanggal di teks — memakai tanggal catatan.'}
-      </p>
-      {!dateOverride && meta.dates.length > 1 ? (
-        <p role="alert" className="mt-1 rounded-lg bg-[var(--warn-soft)] px-2 py-1 text-[11px] text-fg">
-          Teks berisi lab dari {meta.dates.length} tanggal ({meta.dates.map(headingDate).join(', ')}).
-          Judul memakai yang terbaru; sisipkan per tanggal bila ingin dipisah.
-        </p>
-      ) : null}
-
-      <div className="mt-3 flex items-center gap-2">
-        <button
-          type="button"
-          onClick={() => fileRef.current?.click()}
-          disabled={ocrState === 'running'}
-          className="min-h-tap rounded-lg border border-border px-3 text-xs disabled:opacity-50"
-        >
-          {ocrState === 'running' ? 'Membaca…' : 'Ambil dari PDF / gambar'}
-        </button>
-        {/*
-          Only with a key AND the switch on. Absent otherwise — a disabled
-          button for a feature somebody has not enabled is an advertisement,
-          and this one would be an advertisement for sending a lab result off
-          the device.
-        */}
-        {aiEnabled('lab') ? (
-          <button
-            type="button"
-            onClick={() => void runAssist()}
-            disabled={aiState === 'running' || raw.trim().length === 0}
-            className="min-h-tap rounded-lg border border-border px-3 text-xs disabled:opacity-50"
-          >
-            {aiState === 'running' ? 'Merapikan…' : 'Rapikan dengan AI'}
-          </button>
-        ) : null}
-        {aiUndo !== null ? (
-          <button
-            type="button"
-            onClick={() => {
-              setRaw(aiUndo);
-              setAiUndo(null);
-            }}
-            className="min-h-tap rounded-lg border border-border px-3 text-xs"
-          >
-            Undo AI
-          </button>
-        ) : null}
-        <span className="text-[11px] text-fg-faint">
-          PDF lab dibaca persis. Gambar dikenali dan wajib diperiksa.
-        </span>
-        <input
-          ref={fileRef}
-          type="file"
-          accept="application/pdf,image/*"
-          className="hidden"
-          onChange={(event) => {
-            const file = event.target.files?.[0];
-            if (file) void readFile(file);
-            event.target.value = '';
-          }}
-        />
-      </div>
-
-      {/*
-        The failure that matters is not an exception — it is OCR returning
-        confident nonsense. Comparing what was read against what parsed is the
-        only signal available, and staying quiet about it would let a garbled
-        table look like a thin one.
-      */}
-      {readMode === 'image' && raw.trim().length > 40 && result.known.length < 3 ? (
-        <p role="alert" className="mt-2 rounded-lg border border-danger p-2 text-[11px] text-danger">
-          Hanya {result.known.length} nilai yang terbaca dari teks sepanjang ini — kemungkinan
-          hasil pembacaan gambar tidak terpakai. Blok teks langsung dari PDF lab, atau gunakan
-          Live Text (iOS) / Google Lens lalu tempel di sini.
-        </p>
-      ) : null}
-
-      {notLab ? (
-        <p role="alert" className="mt-2 text-xs text-danger">
-          “{notLab}” bukan hasil laboratorium (radiologi / ekokardiografi / laporan tindakan),
-          jadi tidak dibaca.
-        </p>
-      ) : null}
-
-      {ocrState === 'failed' ? (
-        <p role="alert" className="mt-2 text-xs text-danger">
-          Gagal membaca berkas. Tempel teksnya secara manual di bawah.
-        </p>
-      ) : null}
-
-      <label className="mt-3 block">
-        <span className="mb-1 block text-xs text-fg-muted">Teks hasil lab</span>
-        <textarea
-          value={raw}
-          onChange={(event) => setRaw(event.target.value)}
-          rows={8}
-          spellCheck={false}
-          placeholder={'WBC 6.01 4.00 - 10.0\nHGB 12.4 12.0 - 16.0\nNatrium 132 136 - 145'}
-          className="w-full rounded-lg border border-border bg-surface p-2 font-mono text-xs leading-relaxed outline-none"
-        />
-      </label>
-
-      {/*
-        Only offered when the pasted sheet actually carries ranges.
-        
-        A checkbox that can do nothing is worse than no checkbox: it implies
-        the values were checked and found normal, when the truth is that this
-        printout stated no ranges to check them against.
-      */}
-      {result.known.some((value) => value.abnormal !== undefined) ? (
-        <label className="mt-3 flex min-h-tap items-center gap-2 text-xs text-fg">
-          <input
-            type="checkbox"
-            checked={boldAbnormal}
-            onChange={(event) => setBoldAbnormal(event.target.checked)}
-          />
-          Tebalkan nilai di luar rujukan
-        </label>
-      ) : null}
-
-      <p className="mb-1 mt-4 text-xs font-medium text-fg-muted">Hasil</p>
-      <pre className="max-h-56 overflow-auto whitespace-pre-wrap rounded-lg border border-border bg-bg-subtle p-3 text-xs leading-relaxed">
-        {block || '(belum ada nilai yang terbaca)'}
-      </pre>
-
-      {result.unknown.length > 0 ? (
-        <p className="mt-2 text-[11px] text-fg-faint">
-          {result.unknown.length} nilai tidak dikenali dan dimasukkan ke “Lain-lain”. Periksa
-          kembali sebelum menyisipkan.
-        </p>
-      ) : null}
-
-      {block ? (
-        <button
-          type="button"
-          onClick={() => void copyText(block)}
-          className="mt-2 min-h-tap text-xs text-accent underline"
-        >
-          Salin saja
-        </button>
-      ) : null}
     </Sheet>
   );
 }

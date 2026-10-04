@@ -1,6 +1,8 @@
 import { useMemo, useState } from 'react';
 
 import { Sheet } from '@/components/common/Sheet';
+import { IconSparkle } from '@/components/common/Icons';
+import { Button, Callout, Section, Segmented, TextPane } from '@/components/common/ui';
 import { cvcuToBangsal } from '@/domain/reformat/cvcuToBangsal';
 import { AiError, aiEnabled, askClaude } from '@/lib/ai';
 import { diffSegments } from '@/domain/merge/threeWayMerge';
@@ -118,143 +120,141 @@ export function ReformatSheet({
     <Sheet
       open={open}
       onOpenChange={onOpenChange}
+      size="xl"
       title="Ubah ke format bangsal"
-      description="Menghapus header Airway/Breathing/Circulation dst. Urutan tidak berubah."
+      description="Menghapus header Airway/Breathing/Circulation dst. Urutan isi tidak berubah."
       footer={
-        <button
-          type="button"
+        <Button
+          variant="primary"
+          full
           disabled={!changed}
           onClick={() => {
             onApply(result.body);
             onOpenChange(false);
           }}
-          className="min-h-tap w-full rounded-lg bg-accent px-4 text-sm font-medium text-white disabled:opacity-40"
         >
-          Terapkan
-        </button>
+          {aiBody !== null ? 'Terapkan hasil AI ke catatan' : 'Terapkan ke catatan'}
+        </Button>
       }
     >
-      {/*
-        Offered after the transform, not instead of it — and only with a key
-        and the switch on.
-      */}
-      {aiEnabled('soap') && changed ? (
-        <div className="mb-3 flex flex-wrap items-center gap-2 border-b border-border pb-3">
-          <span className="text-xs text-fg-muted">Hasilnya masih belum rapi?</span>
-          <button
-            type="button"
-            onClick={() => void runAi()}
-            disabled={aiState === 'running'}
-            className="min-h-tap rounded-lg border border-border px-3 text-xs font-medium disabled:opacity-50"
-          >
-            {aiState === 'running' ? 'Memperbaiki…' : 'Perbaiki dengan AI'}
-          </button>
-          {aiBody !== null ? (
-            <>
-              <button
-                type="button"
-                onClick={() => setAiBody(null)}
-                className="min-h-tap rounded-lg border border-border px-3 text-xs font-medium"
-              >
-                Kembali ke hasil otomatis
-              </button>
-              {/* Length delta, computed without a model: a big change is the
-                  signal that content was dropped or invented, which is the
-                  failure a reader skims past. */}
-              <span className="text-[11px] text-fg-muted">
-                {delta === 0 ? 'Panjang sama.' : `${delta > 0 ? '+' : ''}${delta} karakter`}
-              </span>
-            </>
-          ) : null}
-          {aiError ? <span className="text-[11px] text-danger">{aiError}</span> : null}
-        </div>
-      ) : null}
-
       {!changed ? (
-        <p className="text-sm text-fg-muted">
-          Tidak ada header Airway/Breathing/Circulation di bagian O — catatan ini sudah dalam
-          format bangsal.
-        </p>
+        <Callout title="Sudah dalam format bangsal">
+          Tidak ada header Airway/Breathing/Circulation di bagian O, jadi tidak ada yang perlu
+          diubah.
+        </Callout>
       ) : (
-        <>
-          <ul className="mb-3 space-y-1 text-xs text-fg-muted">
-            <li>{result.summary.vitals} tanda vital diangkat ke atas</li>
-            <li>{result.summary.exam} baris pemeriksaan fisis</li>
-            <li>{result.summary.investigations} blok penunjang dipindah ke bawah</li>
-            {result.summary.unmatched > 0 ? (
-              <li className="text-fg">
-                {result.summary.unmatched} bagian tidak dikenali — dikumpulkan di
-                “Lain-lain”, periksa sebelum menerapkan
-              </li>
-            ) : null}
-          </ul>
-
-          <div className="mb-1 flex items-center gap-2">
-            <p className="flex-1 text-xs font-medium text-fg-muted">Preview</p>
-            {(
-              [
-                ['berdampingan', 'Berdampingan'],
-                ['perubahan', 'Tandai perubahan'],
-              ] as Array<['berdampingan' | 'perubahan', string]>
-            ).map(([value, label]) => (
-              <button
-                key={value}
-                type="button"
-                aria-pressed={view === value}
-                onClick={() => setView(value)}
-                className={[
-                  'min-h-tap rounded-full border px-3 text-[11px]',
-                  view === value
-                    ? 'border-accent bg-bg-subtle font-medium text-accent'
-                    : 'border-border text-fg-muted',
-                ].join(' ')}
-              >
-                {label}
-              </button>
-            ))}
+        <div className="space-y-5">
+          <div className="grid grid-cols-3 gap-2">
+            <Stat value={result.summary.vitals} label="tanda vital diangkat ke atas" />
+            <Stat value={result.summary.exam} label="baris pemeriksaan fisis" />
+            <Stat value={result.summary.investigations} label="blok penunjang dipindah ke bawah" />
           </div>
 
-          {segments ? (
-            <pre className="max-h-[50vh] overflow-auto whitespace-pre-wrap break-words rounded-lg border border-border bg-bg-subtle p-3 text-xs leading-relaxed">
-              {segments.map((segment, index) => (
-                <span
-                  key={index}
-                  className={
-                    segment.type === 'insert'
-                      ? 'bg-[var(--card-step-12-bg)] text-[var(--card-step-12-fg)]'
-                      : segment.type === 'delete'
-                        ? 'bg-[var(--card-step-1-bg)] text-[var(--card-step-1-fg)] line-through'
-                        : undefined
-                  }
-                >
-                  {segment.text}
-                </span>
-              ))}
-            </pre>
-          ) : (
-            <div className="grid gap-2 sm:grid-cols-2">
-              <div className="min-w-0">
-                <p className="mb-1 text-[11px] font-semibold text-fg-muted">Sebelum</p>
-                <pre className="max-h-[45vh] overflow-auto whitespace-pre-wrap break-words rounded-lg border border-border bg-bg-subtle p-2 text-[11px] leading-relaxed">
-                  {body}
-                </pre>
-              </div>
-              <div className="min-w-0">
-                <p className="mb-1 text-[11px] font-semibold text-fg-muted">Sesudah</p>
-                <pre className="max-h-[45vh] overflow-auto whitespace-pre-wrap break-words rounded-lg border border-border bg-bg-subtle p-2 text-[11px] leading-relaxed">
-                  {result.body}
-                </pre>
-              </div>
-            </div>
-          )}
+          {result.summary.unmatched > 0 ? (
+            <Callout tone="warn" role="alert" title={`${result.summary.unmatched} bagian tidak dikenali`}>
+              Dikumpulkan di “Lain-lain” supaya tidak ada yang hilang. Periksa letaknya di kolom
+              Sesudah sebelum menerapkan.
+            </Callout>
+          ) : null}
 
-          <p className="mt-2 text-[11px] text-fg-faint">
-            Tidak ada isi yang dibuang — bagian yang tidak dikenali tetap dibawa ke
-            “Lain-lain”. Bila hasilnya tidak sesuai, versi sebelumnya ada di Riwayat
-            perubahan.
-          </p>
-        </>
+          {/*
+            Offered after the transform, not instead of it — and only with a key
+            and the switch on.
+          */}
+          {aiEnabled('soap') ? (
+            aiBody === null ? (
+              <Callout
+                tone="info"
+                title="Hasilnya masih belum rapi?"
+                action={
+                  <Button
+                    size="sm"
+                    icon={<IconSparkle width={14} height={14} />}
+                    onClick={() => void runAi()}
+                    disabled={aiState === 'running'}
+                  >
+                    {aiState === 'running' ? 'Memperbaiki…' : 'Perbaiki dengan AI'}
+                  </Button>
+                }
+              >
+                AI hanya merapikan susunan dari hasil otomatis ini; kata, angka, dan dosis tidak
+                boleh berubah.
+                {aiError ? <span className="mt-1 block text-danger">{aiError}</span> : null}
+              </Callout>
+            ) : (
+              <Callout
+                tone="accent"
+                title="Memakai hasil AI"
+                action={
+                  <Button size="sm" onClick={() => setAiBody(null)}>
+                    Kembali ke hasil otomatis
+                  </Button>
+                }
+              >
+                {/* Length delta, computed without a model: a big change is the
+                    signal that content was dropped or invented. */}
+                {delta === 0
+                  ? 'Panjang teks sama dengan hasil otomatis.'
+                  : `${delta > 0 ? '+' : ''}${delta} karakter dibanding hasil otomatis. Periksa tidak ada isi yang hilang.`}
+              </Callout>
+            )
+          ) : null}
+
+          <Section
+            title="Preview"
+            aside={
+              <Segmented
+                size="sm"
+                label="Tampilan"
+                value={view}
+                onChange={setView}
+                options={[
+                  ['berdampingan', 'Berdampingan'],
+                  ['perubahan', 'Tandai perubahan'],
+                ]}
+              />
+            }
+            hint="Bila hasilnya tidak sesuai setelah diterapkan, versi sebelumnya ada di Riwayat perubahan."
+          >
+            {segments ? (
+              <TextPane maxHeight="max-h-[55vh]">
+                {segments.map((segment, index) => (
+                  <span
+                    key={index}
+                    className={
+                      segment.type === 'insert'
+                        ? 'bg-[var(--card-step-12-bg)] text-[var(--card-step-12-fg)]'
+                        : segment.type === 'delete'
+                          ? 'bg-[var(--card-step-1-bg)] text-[var(--card-step-1-fg)] line-through'
+                          : undefined
+                    }
+                  >
+                    {segment.text}
+                  </span>
+                ))}
+              </TextPane>
+            ) : (
+              <div className="grid gap-3 sm:grid-cols-2">
+                <TextPane label="Sebelum" maxHeight="max-h-[55vh]">
+                  {body}
+                </TextPane>
+                <TextPane label="Sesudah" maxHeight="max-h-[55vh]">
+                  {result.body}
+                </TextPane>
+              </div>
+            )}
+          </Section>
+        </div>
       )}
     </Sheet>
+  );
+}
+
+function Stat({ value, label }: { value: number; label: string }): JSX.Element {
+  return (
+    <div className="rounded-xl border border-border bg-bg-subtle px-3 py-2.5">
+      <p className="text-2xl font-semibold tabular-nums text-fg">{value}</p>
+      <p className="text-[11px] leading-snug text-fg-muted">{label}</p>
+    </div>
   );
 }

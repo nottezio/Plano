@@ -207,3 +207,97 @@ export const IconCopy = (props: IconProps): JSX.Element => (
     <path d="M5 15V6a2 2 0 0 1 2-2h8" />
   </Base>
 );
+
+/* Sheet and menu glyphs (2026-10-04 sheet revamp). Same 24-grid, same stroke. */
+
+export const IconChevronRight = (props: IconProps): JSX.Element => (
+  <Base {...props}>
+    <path d="m9 6 6 6-6 6" />
+  </Base>
+);
+
+export const IconCheck = (props: IconProps): JSX.Element => (
+  <Base {...props}>
+    <path d="m5 12.5 4.5 4.5L19 7.5" />
+  </Base>
+);
+
+/** Flask: lab results. */
+export const IconFlask = (props: IconProps): JSX.Element => (
+  <Base {...props}>
+    <path d="M9 3h6M10 3v6l-5.2 8.7A2.2 2.2 0 0 0 6.7 21h10.6a2.2 2.2 0 0 0 1.9-3.3L14 9V3" />
+    <path d="M7.5 15h9" />
+  </Base>
+);
+
+/** Speech bubble: opening / closing sentences. */
+export const IconQuote = (props: IconProps): JSX.Element => (
+  <Base {...props}>
+    <path d="M4 5h16v11H9l-5 4z" />
+    <path d="M8 9.5h8M8 12.5h5" />
+  </Base>
+);
+
+/** Two columns: compare. */
+export const IconColumns = (props: IconProps): JSX.Element => (
+  <Base {...props}>
+    <rect x="3.5" y="4" width="7" height="16" rx="1.5" />
+    <rect x="13.5" y="4" width="7" height="16" rx="1.5" />
+  </Base>
+);
+
+/** Stacked sheets: a version of the note. */
+export const IconLayers = (props: IconProps): JSX.Element => (
+  <Base {...props}>
+    <path d="m12 4 8 4-8 4-8-4z" />
+    <path d="m4 12 8 4 8-4M4 16l8 4 8-4" />
+  </Base>
+);
+
+/** Moon: a jaga note. */
+export const IconMoon = (props: IconProps): JSX.Element => (
+  <Base {...props}>
+    <path d="M19 14.5A7.5 7.5 0 0 1 9.5 5a7.5 7.5 0 1 0 9.5 9.5z" />
+  </Base>
+);
+
+/** Sparkle: an AI action. */
+export const IconSparkle = (props: IconProps): JSX.Element => (
+  <Base {...props}>
+    <path d="M12 3.5 13.8 9l5.7 1.8-5.7 1.8L12 18.5l-1.8-5.9L4.5 10.8 10.2 9z" />
+    <path d="M19 3v3M17.5 4.5h3" />
+  </Base>
+);
+
+/** Arrows exchanging: convert a format. */
+export const IconConvert = (props: IconProps): JSX.Element => (
+  <Base {...props}>
+    <path d="M4 8h13l-3.5-3.5M20 16H7l3.5 3.5" />
+  </Base>
+);
+
+/** Person with a clock-hand: a patient held temporarily (titipan). */
+export const IconHandoff = (props: IconProps): JSX.Element => (
+  <Base {...props}>
+    <circle cx="9" cy="8" r="3.5" />
+    <path d="M3 20a6 6 0 0 1 12 0" />
+    <circle cx="18" cy="15" r="3.5" />
+    <path d="M18 13.5V15l1 1" />
+  </Base>
+);
+
+/** Arrow up into a tray: read a file. */
+export const IconUpload = (props: IconProps): JSX.Element => (
+  <Base {...props}>
+    <path d="M12 15V4M7.5 8.5 12 4l4.5 4.5" />
+    <path d="M4 14v4a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-4" />
+  </Base>
+);
+
+/** Rotate back: reopen. */
+export const IconReopen = (props: IconProps): JSX.Element => (
+  <Base {...props}>
+    <path d="M4 12a8 8 0 1 0 2.3-5.6L4 8.7" />
+    <path d="M4 4v4.7h4.7" />
+  </Base>
+);
