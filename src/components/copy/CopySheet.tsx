@@ -608,6 +608,7 @@ export function CopySheet({
       open={open}
       onOpenChange={onOpenChange}
       size="xl"
+      fill
       title={`Salin · ${patientName}`}
       description={`Catatan ${date.slice(8, 10)}/${date.slice(5, 7)}${patient.mrn ? ` · RM ${patient.mrn}` : ''}`}
       footer={
@@ -638,8 +639,11 @@ export function CopySheet({
         </button>
       }
     >
-      {identityCheck.status === 'mismatch' ? (
-        <div className="mb-5">
+      <div className="grid gap-6 sm:h-full sm:min-h-0 sm:grid-cols-[minmax(0,21rem)_minmax(0,1fr)]">
+        {/* OPTIONS: their own scroll on a laptop (see Sheet `fill`). */}
+        <div className="space-y-5 sm:min-h-0 sm:overflow-y-auto sm:pb-2 sm:pr-2">
+          {identityCheck.status === 'mismatch' ? (
+            <div>
           <Callout tone="danger" role="alert" title="Identitas tidak cocok">
             Catatan ini menyebut{' '}
             <strong className="text-fg">
@@ -656,9 +660,7 @@ export function CopySheet({
         </div>
       ) : null}
 
-      <div className="grid gap-6 sm:grid-cols-[minmax(0,21rem)_minmax(0,1fr)]">
-        {/* OPTIONS */}
-        <div className="space-y-5">
+
           {expected ? (
             /*
              * A reminder, never a switch: the sheet does not change shape by
@@ -944,31 +946,36 @@ export function CopySheet({
           ) : null}
         </div>
 
-        {/* PREVIEW: sticky beside the options on a laptop, below them on a phone. */}
-        <div className="min-w-0 sm:sticky sm:top-0 sm:self-start">
-          <Section
-            title="Preview"
-            aside={
-              <Segmented
-                size="sm"
-                label="Preview"
-                value={preview}
-                onChange={setPreview}
-                options={[
-                  ['teks', 'Teks'],
-                  ['tampilan', 'Tampilan'],
-                ]}
-              />
-            }
-          >
+        {/*
+          PREVIEW: on a laptop a column of fixed height whose TEXT scrolls, not
+          the page. Avi copies by selecting in this box by hand; when the sheet
+          body scrolled, dragging a selection to the bottom scrolled the body
+          and the box moved under the cursor. Below the options on a phone.
+        */}
+        <div className="flex min-w-0 flex-col gap-2 sm:min-h-0">
+          <div className="flex items-center gap-2">
+            <h3 className="flex-1 text-[11px] font-semibold uppercase tracking-wider text-fg-faint">
+              Preview
+            </h3>
+            <Segmented
+              size="sm"
+              label="Preview"
+              value={preview}
+              onChange={setPreview}
+              options={[
+                ['teks', 'Teks'],
+                ['tampilan', 'Tampilan'],
+              ]}
+            />
+          </div>
             {preview === 'tampilan' ? (
-              <>
+              <div className="flex flex-col gap-2 sm:min-h-0 sm:flex-1 sm:overflow-y-auto">
                 <RenderedPreview text={output} />
                 <p className="text-[11px] text-fg-faint">
                   Perkiraan tampilan di WhatsApp. Jangan menyalin dari sini — tanda formatnya ikut
                   hilang. Gunakan “Teks”.
                 </p>
-              </>
+              </div>
             ) : (
               <>
                 {/*
@@ -982,7 +989,7 @@ export function CopySheet({
                   value={output || '(kosong)'}
                   rows={14}
                   spellCheck={false}
-                  className="w-full resize-y rounded-xl border border-border bg-bg-subtle p-3 font-mono text-xs leading-relaxed text-fg outline-none sm:min-h-[26rem]"
+                  className="h-80 w-full resize-y overscroll-contain rounded-xl border border-border bg-bg-subtle p-3 font-mono text-xs leading-relaxed text-fg outline-none sm:h-auto sm:min-h-0 sm:flex-1 sm:resize-none"
                 />
                 <div className="flex items-center justify-between gap-2">
                   <span className="text-[11px] tabular-nums text-fg-faint">
@@ -994,9 +1001,8 @@ export function CopySheet({
                 </div>
               </>
             )}
-          </Section>
 
-          <div className="mt-3 space-y-2">
+          <div className="space-y-2">
             {/*
               Keyed on the OUTPUT, not on the format chip: Konsul and Grup
               invasif once carried a zero-width space through plain text while

@@ -3,7 +3,7 @@ import { useMemo, useState } from 'react';
 import { Sheet } from '@/components/common/Sheet';
 import { IconSparkle } from '@/components/common/Icons';
 import { Button, Callout, Section, Segmented, TextPane } from '@/components/common/ui';
-import { cvcuToBangsal } from '@/domain/reformat/cvcuToBangsal';
+import { cvcuToBangsal, lostTokens } from '@/domain/reformat/cvcuToBangsal';
 import { AiError, aiEnabled, askClaude } from '@/lib/ai';
 import { diffSegments } from '@/domain/merge/threeWayMerge';
 
@@ -58,6 +58,17 @@ export function ReformatSheet({
   const [aiError, setAiError] = useState<string | null>(null);
 
   const result = aiBody !== null ? { ...deterministic, body: aiBody } : deterministic;
+  /*
+    THE SAFETY GATE (2026-10-05). Every word and number of the note must
+    still be in the result; the AI result is held to the same check. A result
+    that lost anything cannot be applied — it can still be read, and the note
+    can be edited by hand.
+  */
+  const lost = useMemo(
+    () => (aiBody !== null ? lostTokens(body, aiBody) : deterministic.lost),
+    [aiBody, body, deterministic.lost],
+  );
+  const lostList = [...new Set(lost)];
 
   const runAi = async (): Promise<void> => {
     setAiState('running');
@@ -122,18 +133,22 @@ export function ReformatSheet({
       onOpenChange={onOpenChange}
       size="xl"
       title="Ubah ke format bangsal"
-      description="Menghapus header Airway/Breathing/Circulation dst. Urutan isi tidak berubah."
+      description="Menghapus header Airway/Breathing/dst, mengangkat tanda vital ke atas, mengelompokkan pemeriksaan fisis, dan memindahkan penunjang ke bawah. Setiap kata dan angka diperiksa agar tidak ada yang hilang."
       footer={
         <Button
           variant="primary"
           full
-          disabled={!changed}
+          disabled={!changed || lost.length > 0}
           onClick={() => {
             onApply(result.body);
             onOpenChange(false);
           }}
         >
-          {aiBody !== null ? 'Terapkan hasil AI ke catatan' : 'Terapkan ke catatan'}
+          {lost.length > 0
+            ? 'Tidak bisa diterapkan — ada isi yang hilang'
+            : aiBody !== null
+              ? 'Terapkan hasil AI ke catatan'
+              : 'Terapkan ke catatan'}
         </Button>
       }
     >
@@ -149,6 +164,21 @@ export function ReformatSheet({
             <Stat value={result.summary.exam} label="baris pemeriksaan fisis" />
             <Stat value={result.summary.investigations} label="blok penunjang dipindah ke bawah" />
           </div>
+
+          {lostList.length > 0 ? (
+            <Callout tone="danger" role="alert" title="Ada isi yang hilang di hasil ini">
+              Kata/angka berikut ada di catatan tetapi tidak ada di hasil, jadi hasil ini tidak bisa
+              diterapkan:{' '}
+              <span className="font-mono text-fg">{lostList.slice(0, 24).join(' · ')}</span>
+              {lostList.length > 24 ? ` (+${lostList.length - 24} lagi)` : ''}. Mohon laporkan
+              catatan ini bila muncul dari hasil otomatis.
+            </Callout>
+          ) : (
+            <Callout tone="accent" title="Tidak ada kata atau angka yang hilang">
+              Semua isi catatan ada di hasil, hanya letak dan label tanda vital yang berubah.
+              Tetap periksa letaknya di kolom Sesudah.
+            </Callout>
+          )}
 
           {result.summary.unmatched > 0 ? (
             <Callout tone="warn" role="alert" title={`${result.summary.unmatched} bagian tidak dikenali`}>

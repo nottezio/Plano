@@ -52,8 +52,26 @@ describe('stripTrailingClosing', () => {
     expect(stripTrailingClosing(text, CLOSINGS)).toBe(text);
   });
 
-  it('does nothing when no closings are configured', () => {
-    const text = '*Plan:*\n- Echo\n\nTerima kasih dokter';
-    expect(stripTrailingClosing(text, [])).toBe(text);
+  it('recognises a hand-written sign-off that is not in the configured list', () => {
+    // 2026-10-05: the stored list rarely matches what is actually typed.
+    expect(stripTrailingClosing('*Plan:*\n- Echo\n\nTabe terima kasih dokter', [])).toBe(
+      '*Plan:*\n- Echo',
+    );
+    expect(
+      stripTrailingClosing('*Plan:*\n- Echo\n\nMohon arahannya dokter. Terima kasih dokter.', []),
+    ).toBe('*Plan:*\n- Echo');
+    expect(stripTrailingClosing('*Plan:*\n- Echo\n\nTerima kasih Prof', [])).toBe('*Plan:*\n- Echo');
+  });
+
+  it('removes a sign-off that sits before a TS block, not only at the end', () => {
+    const text = '*Plan:*\n- Echo\n\nTerima kasih dokter.\n\n*TS Paru*\n- Nebu';
+    expect(stripTrailingClosing(text, [])).toBe('*Plan:*\n- Echo\n\n*TS Paru*\n- Nebu');
+  });
+
+  it('never removes a list item or the opening', () => {
+    const items = '*Plan:*\n- Terima kasih dokter jaga atas bantuannya\n1. Mohon arahan dokter re: CAG';
+    expect(stripTrailingClosing(items, [])).toBe(items);
+    const opening = 'Tabe dokter, mohon izin melaporkan pasien, terima kasih dokter';
+    expect(stripTrailingClosing(opening, [])).toBe(opening);
   });
 });

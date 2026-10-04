@@ -1,5 +1,117 @@
 # Plano — CHANGES
 
+## `2026-10-05.1` — Format bangsal safety, closings, lab placement, preview, declutter
+
+### 1. Format bangsal — "dangerously wrong" (Avi)
+**Reproduced** on a CVCU-style O section before touching anything:
+
+| Input | Output | |
+|---|---|---|
+| `Suhu 37,8 C` | `Suhu : 37` + `- 8 C` | decimal comma split |
+| `TD 90/60 (NE 0,1 mcg/kgBB/menit)` | `(NE 0` + `- 1 mcg/kgBB/menit)` | dose split |
+| `Kalium 3,1; Natrium 132` | `Kalium 3` + `- 1` | lab value changed |
+| `HR monitor 130` after `nadi 112` | **nothing** | dropped |
+| `sesak nafas berkurang` | candidate RR | label matched mid-fragment |
+
+**Root cause.**
+- **The split.** Findings were split with `split(/[,;]/)`, but Indonesian
+  writes the decimal with a comma, and parentheses carry qualifiers.
+- **The drop.** A fragment matching a vital already taken was dropped by
+  `if (!vital) unmatched.push(...)`. That means "matched a vital, but it was
+  already taken" went nowhere.
+- **Free lines.** Lines that were not organ-system sentences were split as
+  well.
+- **The false claim.** The file comment said "Nothing is discarded" and the
+  sheet said "Urutan isi tidak berubah". Neither was true.
+
+**Fundamental fix.**
+- `splitFindings`: splits on `;`, and on `,` only outside brackets and never
+  between two digits.
+- Vitals are anchored at the START of a fragment and need a digit, except
+  GCS/compos mentis, which collect onto one line.
+- A repeated vital goes to Lain-lain and is never dropped.
+- Free (non-header) lines are one finding each, kept whole.
+- **The invariant — `lostTokens(before, after, allowance)`.** Every word and
+  number of the input is counted (NFKD, lowercase) and must be present in the
+  output.
+  - Exempt: the organ-system headers and the vital labels this transform
+    renames, plus the exact bare `EKG` label lines it drops on purpose.
+  - Numbers are never exempt.
+- `ReformatResult.lost` carries the result. ReformatSheet applies the same
+  check to the AI result, lists the lost tokens in a danger callout, and
+  **disables Terapkan**. A clean result says so in an accent callout. The
+  description now says what the transform actually does.
+- **Tests:** every row of the table above, "loses nothing" on the worked
+  example and on the dangerous note, `lostTokens` and `splitFindings`.
+- **Wrong turn.** The invariant's first run flagged `ekg`: the bare `EKG`
+  label line is removed on purpose. It is exempted by line (the `allowance`
+  argument), not by adding `ekg` to the global exempt list, so a dropped
+  `EKG …` heading would still be caught.
+
+### 2. Section-only Salin kept the closing
+**Root cause.** Closings were recognised only from the configured list in
+Settings. Hand-written sign-offs ("Tabe terima kasih dokter", "Mohon arahannya
+dokter. Terima kasih dokter.") are not in it, so they stayed in every Plan-only
+copy.
+
+**Fix.** `isClosingLine` recognises a sign-off when all of these hold:
+- it contains a sign-off phrase (terima kasih / mohon arahan(nya) / mohon
+  bimbingan / wassalam);
+- it contains an addressee (dokter, dok, Prof, dr, chief…);
+- it is not a list item and not the opening ("melaporkan").
+
+The configured list still counts. The sign-off is removed wherever it stands
+as its own line in a subset (one written before a TS block was kept before).
+The old test "keeps a closing when none are configured" was replaced on
+purpose.
+
+### 3. Preview moved while selecting
+**Root cause.** On a laptop the whole sheet body scrolled with the preview
+sticky inside it. Drag-selecting to the bottom of the textarea auto-scrolled
+the body.
+
+**Fix.** `Sheet fill`: a fixed height from 640 px, with a body that does not
+scroll. CopySheet's options column scrolls itself, and the preview textarea
+fills the rest (`flex-1`, `resize-none`, `overscroll-contain`). Checked with a
+Playwright drag past the textarea's bottom edge: the textarea moved 0 px, and
+598 characters were selected. A phone is unchanged (fixed `h-80` textarea).
+
+### 4. Lab Sisipkan position
+**Root cause.** `insertIntoObjective` appended at the END of the stack, but
+the ward stack is newest-first.
+
+**Fix.** `domain/lab/insertLab.ts`:
+1. above the newest lab (by date; on a tie, the first written);
+2. else after the last EKG block;
+3. else the old end-of-O rule.
+
+Blocks come from `penunjangBlocks`, extracted from `latestPenunjangOnly` so
+both features share one detector. `labPlacement` / `describeLabPlacement`
+feed a line in LabSheet. Tests cover each rule, newest-by-date order, and
+"nothing else changes".
+
+### 5. Top of the note cluttered
+- **DPJP block.** Five or six lines are folded to one summary: initials, short
+  route (`shortDelivery`), report shape, next clinic, and 6MWT in accent. Tap
+  for the full lines. The choice is remembered per device
+  (`plano.dpjpInfoOpen`).
+- **Periksa lagi.** With nothing flagged it is one small line ("✓ Tidak ada
+  yang janggal…") with "Periksa dengan AI" inline. With findings, the box
+  stays and the AI button moves into its title row. The full-width button row
+  is gone.
+
+### Not done
+- The page-top change was not render-checked in the harness (PatientPage
+  needs the whole data layer). It is a markup-only change, typechecked and
+  linted; check it on the device.
+- `lostTokens` proves nothing was LOST, not that every finding sits in the
+  right place. The preview is still the check for placement.
+
+```
+1852 tests passed (+17)
+typecheck / lint (0 warnings) / check:version / check:contrast / check:a11y / build — clean
+```
+
 ## `2026-10-04.3` — sheet UI revamp
 
 **Problem (Avi, with five screenshots: "made partially, not finished").**

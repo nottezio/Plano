@@ -65,10 +65,17 @@ import {
 } from '@/domain/dayMarkers';
 import { formatLocation } from '@/domain/identity';
 import { isIgdEntry } from '@/domain/clinicalDate';
-import { insertIntoObjective } from '@/domain/lab/parseLab';
-import { describeConfig, dpjpById, isTrioDpjp, primaryDpjp, describeDelivery } from '@/domain/dpjp';
+import { describeLabPlacement, insertLabBlock, labPlacement } from '@/domain/lab/insertLab';
+import {
+  REPORT_FORMAT_LABELS,
+  describeConfig,
+  describeDelivery,
+  dpjpById,
+  isTrioDpjp,
+  primaryDpjp,
+  shortDelivery,
+} from '@/domain/dpjp';
 import { SCHEDULE_PERIOD, upcomingPoli, weekdayName } from '@/domain/poli/schedule';
-import { parseSections } from '@/domain/sections/parseSections';
 import {
   daysBetween,
   formatShortDate,
@@ -238,6 +245,28 @@ export default function PatientPage(): JSX.Element {
   const [labOpen, setLabOpen] = useState(false);
   const [compareOpen, setCompareOpen] = useState(false);
   const [versionSheetOpen, setVersionSheetOpen] = useState(false);
+  /**
+   * The DPJP details (route, format, 6MWT, clinic days, diagnoses) folded to
+   * one line by default; remembered per device, like the archive folds.
+   */
+  const [dpjpInfoOpen, setDpjpInfoOpen] = useState<boolean>(() => {
+    try {
+      return window.localStorage.getItem('plano.dpjpInfoOpen') === '1';
+    } catch {
+      return false;
+    }
+  });
+  const toggleDpjpInfo = (): void => {
+    setDpjpInfoOpen((current) => {
+      const next = !current;
+      try {
+        window.localStorage.setItem('plano.dpjpInfoOpen', next ? '1' : '0');
+      } catch {
+        // Not remembered; the toggle still works on this page.
+      }
+      return next;
+    });
+  };
   const [reformatOpen, setReformatOpen] = useState(false);
   /**
    * Confirmation before clearing a day, because there is no undo on the rail.
@@ -1247,7 +1276,46 @@ export default function PatientPage(): JSX.Element {
         dpjp?.delivery ||
         isTrioDpjp(dpjp?.id) ||
         patient.diagnoses.length > 0 ? (
-          <div className="space-y-0.5 border-b border-border px-4 py-1.5">
+          <div className="space-y-0.5 border-b border-border px-4 py-1">
+            {/*
+              DECLUTTER (2026-10-05). Five or six grey lines above every note,
+              read once on arrival and then scrolled past forty times. Folded
+              to ONE line — who, where the report goes, the shape, 6MWT, the
+              next clinic — with the full sentences a tap away. 6MWT keeps its
+              accent in the summary: it is the one standing instruction.
+            */}
+            <button
+              type="button"
+              aria-expanded={dpjpInfoOpen}
+              onClick={toggleDpjpInfo}
+              className="flex min-h-tap w-full items-center gap-2 text-left text-[11px] text-fg-muted [@media(pointer:fine)]:min-h-7"
+            >
+              {dpjp ? (
+                <span className="shrink-0 rounded border border-border px-1 font-semibold text-fg">
+                  {dpjp.initials}
+                </span>
+              ) : null}
+              <span className="min-w-0 flex-1 truncate">
+                {[
+                  dpjp?.delivery ? shortDelivery(dpjp.delivery) : null,
+                  dpjpFormat ? REPORT_FORMAT_LABELS[dpjpFormat.format] : null,
+                  poli
+                    ? `Poli ${weekdayName(poli.weekday)}${poli.inDays === 0 ? ' (hari ini)' : poli.inDays === 1 ? ' (besok)' : ''}`
+                    : null,
+                  !dpjp && patient.diagnoses.length > 0 ? patient.diagnoses.join(', ') : null,
+                ]
+                  .filter(Boolean)
+                  .join(' · ')}
+                {isTrioDpjp(dpjp?.id) ? (
+                  <span className="font-medium text-accent"> · rencanakan 6MWT</span>
+                ) : null}
+              </span>
+              <span aria-hidden="true" className="shrink-0 text-fg-faint">
+                {dpjpInfoOpen ? '▴' : '▾'}
+              </span>
+            </button>
+            {dpjpInfoOpen ? (
+            <div className="space-y-0.5 pb-1">
             {/*
               A standing instruction, shown for the three consultants whose
               patients get one — not a checklist item.
@@ -1315,6 +1383,8 @@ export default function PatientPage(): JSX.Element {
               <p className="truncate text-[11px] text-fg-faint">
                 {patient.diagnoses.join(', ')}
               </p>
+            ) : null}
+            </div>
             ) : null}
           </div>
         ) : null}
@@ -1516,14 +1586,55 @@ export default function PatientPage(): JSX.Element {
           Suppressed entirely on a locked day: nothing there can be changed, so
           a list of things to change is noise on a page you are reading.
         */}
-        {!locked && (soapFindings.length > 0 || aiEnabled('check')) ? (
-          <div className="mx-4 mt-2 rounded-lg border border-border px-3 py-2 text-xs">
-            <p className="font-medium">
-              Periksa lagi{soapFindings.length > 0 ? ` (${soapFindings.length})` : ''}:
-            </p>
-            {soapFindings.length === 0 ? (
-              <p className="mt-1 text-fg-muted">Tidak ada yang janggal dari aturan biasa.</p>
-            ) : null}
+        {/*
+          DECLUTTER (2026-10-05). With nothing flagged, the panel was a box,
+          a sentence saying nothing was found, and a full-width AI button —
+          three rows above every clean note. Now: nothing flagged and no AI
+          result → one small line. Something flagged → the box, with the AI
+          button moved up beside the title instead of a row of its own.
+        */}
+        {!locked &&
+        soapFindings.length === 0 &&
+        aiFindings.length === 0 &&
+        !aiCheckError &&
+        aiEnabled('check') ? (
+          <div className="mx-4 mt-1 flex items-center gap-2 text-[11px] text-fg-faint">
+            <span className="min-w-0 flex-1 truncate">✓ Tidak ada yang janggal dari aturan biasa</span>
+            <button
+              type="button"
+              onClick={() => void runAiCheck()}
+              disabled={aiCheckState === 'running' || editor.value.trim().length === 0}
+              className="min-h-tap shrink-0 rounded-lg px-2 font-medium text-accent hover:bg-bg-subtle disabled:opacity-50 [@media(pointer:fine)]:min-h-7"
+            >
+              {aiCheckState === 'running'
+                ? 'Memeriksa…'
+                : aiCheckedText !== null && !aiStale
+                  ? 'AI: tidak ada temuan · Periksa ulang'
+                  : 'Periksa dengan AI'}
+            </button>
+          </div>
+        ) : null}
+        {!locked && (soapFindings.length > 0 || aiFindings.length > 0 || aiCheckError) ? (
+          <div className="mx-4 mt-2 rounded-xl border border-border px-3 py-2 text-xs">
+            <div className="flex items-center gap-2">
+              <p className="flex-1 font-semibold">
+                Periksa lagi{soapFindings.length > 0 ? ` (${soapFindings.length})` : ''}
+              </p>
+              {aiEnabled('check') ? (
+                <button
+                  type="button"
+                  onClick={() => void runAiCheck()}
+                  disabled={aiCheckState === 'running' || editor.value.trim().length === 0}
+                  className="min-h-tap shrink-0 rounded-lg px-2 text-[11px] font-medium text-accent hover:bg-bg-subtle disabled:opacity-50 [@media(pointer:fine)]:min-h-7"
+                >
+                  {aiCheckState === 'running'
+                    ? 'Memeriksa…'
+                    : aiCheckedText !== null
+                      ? 'Periksa ulang dengan AI'
+                      : 'Periksa dengan AI'}
+                </button>
+              ) : null}
+            </div>
             {/*
               Ordered by urgency, and tagged with it, so the list reads top-down
               as "fill these in, then update what was copied, then check".
@@ -1594,7 +1705,7 @@ export default function PatientPage(): JSX.Element {
               them would let the weaker sort borrow the stronger sort's
               credibility.
             */}
-            {aiEnabled('check') ? (
+            {aiEnabled('check') && (aiFindings.length > 0 || aiCheckError || aiStale || aiDropped > 0) ? (
               <div className="mt-2 border-t border-border pt-2">
                 {aiFindings.length > 0 ? (
                   <ul className={['mb-2 space-y-1', aiStale ? 'opacity-60' : ''].join(' ')}>
@@ -1635,18 +1746,6 @@ export default function PatientPage(): JSX.Element {
                   <p className="mb-1 text-[11px] text-fg-faint">Catatan sudah diubah sejak diperiksa AI.</p>
                 ) : null}
                 {aiCheckError ? <p className="mb-1 text-danger">{aiCheckError}</p> : null}
-                <button
-                  type="button"
-                  onClick={() => void runAiCheck()}
-                  disabled={aiCheckState === 'running' || editor.value.trim().length === 0}
-                  className="min-h-tap rounded-lg border border-border px-3 text-xs font-medium disabled:opacity-50"
-                >
-                  {aiCheckState === 'running'
-                    ? 'Memeriksa…'
-                    : aiCheckedText !== null
-                      ? 'Periksa ulang dengan AI'
-                      : 'Periksa dengan AI'}
-                </button>
               </div>
             ) : null}
           </div>
@@ -2322,18 +2421,15 @@ export default function PatientPage(): JSX.Element {
         open={labOpen}
         onOpenChange={setLabOpen}
         date={selected}
+        placement={
+          labOpen
+            ? describeLabPlacement(labPlacement(activeNote.body, settings.sectionAliases))
+            : undefined
+        }
         onInsert={(text) => {
-          // Into the objective block, after any existing dated investigations.
-          // Appending to the end put lab results below Plan, where they read
-          // wrong and where the "O + Penunjang" copy group would miss them.
-          const boundaries = parseSections(activeNote.body, settings.sectionAliases).map(
-            (section) => ({
-              sectionId: section.sectionId,
-              start: section.start,
-              end: section.end,
-            }),
-          );
-          activeNote.apply(insertIntoObjective(activeNote.body, text, boundaries));
+          // Above the newest lab, else after the last EKG, else end of O.
+          // See domain/lab/insertLab for why the end of the stack was wrong.
+          activeNote.apply(insertLabBlock(activeNote.body, text, settings.sectionAliases));
         }}
       />
 

@@ -71,48 +71,64 @@ export function availableGroups(
 }
 
 /**
- * Strip a trailing closing sentence from a rendered section subset.
+ * The sign-off, recognised by what it IS, not only by the configured list.
+ *
+ * ROOT CAUSE (2026-10-05, Avi: section-only copies still ended with "Tabe
+ * terima kasih dokter"). Recognition used ONLY the closing sentences stored
+ * in Settings. The notes are written by hand and by colleagues, so the
+ * closing in a real note is very often not one of the stored templates —
+ * "Tabe terima kasih dokter", "Mohon arahannya dokter. Terima kasih dokter." —
+ * and anything not in the list sailed through into every Plan-only copy.
+ *
+ * The earlier objection to a pattern was that it would "eat a real plan
+ * item". That is answered by what a sign-off always has and a plan item never
+ * has together:
+ *  - a sign-off phrase (terima kasih / mohon arahan(nya) / mohon bimbingan /
+ *    wassalam), AND
+ *  - an addressee (dokter, dok, Prof, dr, chief…), AND
+ *  - it is NOT a list item (`- `, `• `, `1. `) — plan items are, and
+ *  - it is not the opening ("…mohon izin melaporkan…").
+ * The configured list still counts, for closings that break that shape.
+ */
+const SIGN_OFF = /\b(terima\s*kasih|mohon\s+(arahan|arahannya|bimbingan|bimbingannya)|wassalam\w*)\b/i;
+const ADDRESSEE = /\b(dokter|dok|prof|profesor|dr|chief|konsulen|senior|kak|kakak)\b/i;
+const LIST_ITEM = /^\s*[*_]*\s*([-•]|\d+[.)])\s/;
+
+export function isClosingLine(line: string, closings: readonly string[] = []): boolean {
+  const text = line.trim();
+  if (!text || text.length > 220) return false;
+  if (LIST_ITEM.test(text)) return false;
+  const normalise = (value: string): string =>
+    value.toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
+  const flat = normalise(text);
+  // `startsWith`, not equality: the stored sentence omits the final full stop
+  // that the note usually carries.
+  const configured = closings.some((closing) => {
+    const target = normalise(closing);
+    return target.length > 0 && (flat === target || flat.startsWith(target));
+  });
+  if (configured) return true;
+  return SIGN_OFF.test(text) && ADDRESSEE.test(text) && !/melaporkan/i.test(text);
+}
+
+/**
+ * Remove the sign-off from a rendered section SUBSET.
  *
  * The closing is not a section — it is loose text after the last heading, so
- * the parser hands it to whichever section came before it, which is Plan.
- * Copying Plan therefore ended with "Selanjutnya mohon arahan Prof. Terima
- * kasih Prof.", a sign-off pasted into the middle of a message that has not
- * finished yet.
+ * the parser hands it to whichever section came before it (Plan, or a TS
+ * block). Copying Plan therefore ended with a sign-off pasted into the middle
+ * of a message that has not finished yet. Removed wherever it stands as its
+ * own line, not only at the very end, because a TS block written after the
+ * closing used to keep it in the middle of a "Terapi + TS" copy.
  *
- * Matched against the user's OWN closing list rather than a pattern. These are
- * already configured — they are what the opening composer offers — and every
- * consultant is addressed differently enough ("dokter", "Prof", "dok") that a
- * regex would either miss half of them or eat a real plan item.
- *
- * Compared with punctuation and case removed, because the stored sentence is
- * the template and the note has whatever trailing full stop was typed.
+ * The whole-note copy never calls this: there the closing ends the message
+ * and belongs.
  */
 export function stripTrailingClosing(
   text: string,
   closings: readonly string[],
 ): string {
-  const normalise = (value: string): string =>
-    value.toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
-
-  const lines = text.split('\n');
-
-  while (lines.length > 0) {
-    const last = lines[lines.length - 1] ?? '';
-    if (last.trim() === '') {
-      lines.pop();
-      continue;
-    }
-
-    const flat = normalise(last);
-    // `startsWith`, not equality: the stored sentence omits the final full
-    // stop that the note usually carries.
-    const isClosing = closings.some((closing) => {
-      const target = normalise(closing);
-      return target.length > 0 && (flat === target || flat.startsWith(target));
-    });
-    if (!isClosing) break;
-    lines.pop();
-  }
-
-  return lines.join('\n').trimEnd();
+  const kept = text.split('\n').filter((line) => !isClosingLine(line, closings));
+  // A removed line in the middle can leave three newlines in a row.
+  return kept.join('\n').replace(/\n{3,}/g, '\n\n').trimEnd();
 }

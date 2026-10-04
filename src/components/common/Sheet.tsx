@@ -36,6 +36,7 @@ export function Sheet({
   children,
   footer,
   size = 'md',
+  fill = false,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -44,6 +45,14 @@ export function Sheet({
   children: ReactNode;
   footer?: ReactNode;
   size?: keyof typeof WIDTH;
+  /**
+   * From 640 px up: a fixed-height sheet whose body does NOT scroll, so the
+   * content lays out its own scrolling columns. For a sheet whose preview is
+   * selected by hand: when the whole body scrolled, dragging a selection to
+   * the bottom of the preview auto-scrolled the body and the preview moved
+   * under the cursor (Salin, 2026-10-05). A phone keeps the scrolling body.
+   */
+  fill?: boolean;
 }): JSX.Element {
   useBackToClose(open, () => onOpenChange(false));
   return (
@@ -61,6 +70,7 @@ export function Sheet({
             'inset-x-0 bottom-0 max-h-[90dvh] rounded-t-2xl pb-[env(safe-area-inset-bottom)]',
             // tablet/desktop: centred panel
             `sm:inset-x-auto sm:bottom-auto sm:left-1/2 sm:top-1/2 sm:max-h-[88dvh] sm:max-w-[94vw] ${WIDTH[size]}`,
+            fill ? 'sm:h-[88dvh]' : '',
             'sm:-translate-x-1/2 sm:-translate-y-1/2 sm:rounded-2xl sm:pb-0',
             'border border-border shadow-2xl',
           ].join(' ')}
@@ -88,7 +98,12 @@ export function Sheet({
             </Dialog.Close>
           </div>
 
-          <div className="min-h-0 flex-1 overflow-y-auto border-t border-border px-5 py-4">
+          <div
+            className={[
+              'min-h-0 flex-1 overflow-y-auto border-t border-border px-5 py-4',
+              fill ? 'sm:overflow-hidden' : '',
+            ].join(' ')}
+          >
             {children}
           </div>
 

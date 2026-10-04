@@ -94,6 +94,17 @@ export function describeDelivery(delivery: DpjpDelivery): string {
   return delivery.note ? `${base} — ${delivery.note}` : base;
 }
 
+/**
+ * The route in two or three words, for the one-line DPJP summary above the
+ * note: `PDF ke chief`, `grup dr. Pendrik`, `wapri`. The full sentence
+ * (`describeDelivery`) is one tap away in the details.
+ */
+export function shortDelivery(delivery: DpjpDelivery): string {
+  if (delivery.route === 'chief') return delivery.pdf ? 'PDF ke chief' : 'ke chief';
+  if (delivery.route === 'group') return delivery.channel ?? 'grup DPJP';
+  return 'wapri';
+}
+
 export const DPJPS: readonly Dpjp[] = [
   { id: 'pk', name: 'Prof. dr. Peter Kabo, Ph.D, Sp.FK, Sp.JP(K)', initials: 'PK', match: ['peter kabo', 'kabo'], delivery: { route: 'group', channel: 'grup Prof PK' } },
   { id: 'mz', name: 'Prof. Dr. dr. Muzakkir Amir, Sp.JP(K)', initials: 'MZ', match: ['muzakkir amir'], delivery: { route: 'group', channel: 'grup Prof MZ', note: 'ada slide tersendiri' } },

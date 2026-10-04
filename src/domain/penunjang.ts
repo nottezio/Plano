@@ -105,10 +105,15 @@ interface Block {
 const CORE = new Set(['s', 'o', 'ttv', 'a', 'p', 'terapi']);
 const BELOW = new Set(['a', 'p', 'terapi']);
 
-export function latestPenunjangOnly(
+/**
+ * Every dated investigation block above the assessment, in note order.
+ * Shared by "penunjang terbaru saja" and by where a new lab block is inserted,
+ * so the two can never disagree about what a block is.
+ */
+export function penunjangBlocks(
   body: string,
   aliases?: readonly SectionAlias[],
-): TrimResult {
+): Array<{ start: number; end: number; kind: string; date: string; heading: string }> {
   const sections = parseSections(body, aliases);
   const cutoff =
     sections.find((section) => BELOW.has(section.sectionId) && section.ownsLine)?.start ??
@@ -148,6 +153,14 @@ export function latestPenunjangOnly(
     if (open && (coreStarts.has(line.start) || BOLD_LINE_RE.test(line.text))) close(line.start);
   }
   close(cutoff);
+  return blocks;
+}
+
+export function latestPenunjangOnly(
+  body: string,
+  aliases?: readonly SectionAlias[],
+): TrimResult {
+  const blocks = penunjangBlocks(body, aliases);
 
   const newest = new Map<string, string>();
   for (const block of blocks) {

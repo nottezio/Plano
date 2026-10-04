@@ -31,11 +31,14 @@ export function LabSheet({
   onOpenChange,
   date,
   onInsert,
+  placement,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   date: ClinicalDate;
   onInsert: (text: string) => void;
+  /** Where Sisipkan will put the block, in words (see domain/lab/insertLab). */
+  placement?: string | undefined;
 }): JSX.Element {
   const [raw, setRaw] = useState('');
   /** The title and date as typed by the user; null follows the report. */
@@ -410,6 +413,7 @@ export function LabSheet({
           <TextPane label="Akan disisipkan" maxHeight="max-h-[40vh]">
             {block || <span className="text-fg-faint">Belum ada nilai yang terbaca.</span>}
           </TextPane>
+          {placement ? <p className="text-[11px] text-fg-muted">{placement}</p> : null}
 
           {result.unknown.length > 0 ? (
             <Callout tone="warn" title={`${result.unknown.length} nilai tidak dikenali`}>

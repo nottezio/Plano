@@ -5,6 +5,14 @@ Catatan teknis lengkap (akar masalah, perbaikan) ada di CHANGES.md.
 
 Entri teratas harus versi yang sedang dirilis; tes gagal bila belum ditulis.
 
+## `2026-10-05.1`
+- **Format bangsal diperbaiki (penting):** sebelumnya angka berkoma bisa terpotong — `Suhu 37,8 C` menjadi `Suhu : 37`, `NE 0,1 mcg` dan `Kalium 3,1` terbelah, dan pembacaan kedua sebuah tanda vital (mis. `HR monitor 130` setelah `nadi 112`) hilang tanpa jejak. Sekarang koma desimal dan isi dalam kurung tidak pernah dipotong, tidak ada temuan yang dibuang, dan kata seperti "sesak nafas" tidak lagi dibaca sebagai frekuensi napas.
+- **Pemeriksaan otomatis sebelum menerapkan:** setiap kata dan angka catatan dicocokkan dengan hasilnya (termasuk hasil "Perbaiki dengan AI"). Bila ada yang hilang, daftar kata/angkanya ditampilkan dan tombol **Terapkan** dikunci.
+- **Salin per bagian tidak lagi membawa kalimat penutup:** "Tabe terima kasih dokter", "Mohon arahannya dokter. Terima kasih dokter." dan sejenisnya kini dikenali walaupun tidak ada di daftar penutup di Pengaturan. Butir daftar (`- …`) tidak pernah dihapus.
+- **Preview Salin tidak ikut bergeser saat diblok:** di laptop, teks Preview kini menggulir di kotaknya sendiri, jadi memblok teks sampai ke bawah tidak lagi menggeser tampilan.
+- **Hasil lab disisipkan di tempat yang benar:** tepat **di atas lab terbaru**. Bila belum ada lab, **setelah EKG terakhir**. Sheet lab menuliskan di mana blok akan disisipkan.
+- **Bagian atas catatan lebih ringkas:** info DPJP (rute kirim, format, 6MWT, poli, diagnosis) kini satu baris; ketuk untuk detail. "Periksa lagi" tanpa temuan cukup satu baris kecil, dan tombol "Periksa dengan AI" pindah ke samping judulnya.
+
 ## `2026-10-04.3`
 - **Tampilan sheet dirapikan menyeluruh:** Salin, menu ⋯ pasien, Pembuka & penutup, Ubah ke format bangsal, dan Format hasil lab kini memakai satu gaya yang sama: judul bagian kecil, pilihan berbentuk tombol ringkas dengan tanda ✓, saklar geser untuk pilihan dua-tiga opsi, dan kotak peringatan berwarna sesuai tingkatnya.
 - **Salin:** di laptop, pilihan di kiri dan Preview di kanan (tetap terlihat saat menggulir). Peringatan identitas tidak cocok kini paling atas. Tombol salin menyebut bentuk dan formatnya, dan jumlah karakter ditampilkan di bawah Preview.

@@ -29,15 +29,20 @@ const SYSTEM_HEADERS = [
 ];
 
 /** Each vital, its canonical label, and how it is recognised. */
+/*
+ * Anchored at the START of the fragment, and (except consciousness) needing a
+ * digit. Matched anywhere, `sesak nafas berkurang` was a respiratory rate and
+ * `ronkhi … HR` a pulse.
+ */
 const VITALS: ReadonlyArray<{ key: string; label: string; test: RegExp }> = [
-  { key: 'gcs', label: '', test: /\b(compos mentis|GCS)\b/i },
-  { key: 'td', label: 'Tekanan Darah', test: /\b(TD|tensi|tekanan darah)\b/i },
-  { key: 'nadi', label: 'Nadi', test: /\b(nadi|HR)\b/i },
-  { key: 'rr', label: 'Pernapasan', test: /\b(RR|pernapasan|nafas|napas)\b/i },
-  { key: 'suhu', label: 'Suhu', test: /\bsuhu\b/i },
+  { key: 'gcs', label: '', test: /^(compos mentis|GCS)\b/i },
+  { key: 'td', label: 'Tekanan Darah', test: /^(TD|tensi|tekanan darah)\b.*\d/i },
+  { key: 'nadi', label: 'Nadi', test: /^(nadi|HR)\b.*\d/i },
+  { key: 'rr', label: 'Pernapasan', test: /^(RR|pernapasan|nafas|napas)\b.*\d/i },
+  { key: 'suhu', label: 'Suhu', test: /^suhu\b.*\d/i },
   // No trailing `\b` after `SpO₂`: the subscript is not a word character, so a
   // boundary never matches after it and the vital was silently skipped.
-  { key: 'spo2', label: 'SpO2', test: /\b(SpO2|SpO₂|saturasi)/i },
+  { key: 'spo2', label: 'SpO2', test: /^(SpO2|SpO₂|saturasi).*\d/i },
 ];
 
 const EXAM = /\b(anemis|ikterus|ikterik|JVP|BJ I|bunyi jantung|murmur|gallop|BP |vesikuler|bunyi pernapasan|ronkhi|rhonki|wheezing|abdomen|peristaltik|hepar|lien|edema|akral|CTR|CRT)\b/i;
@@ -54,6 +59,87 @@ import { normaliseBullets, splitFinishedTherapy } from './therapyDone';
 export interface ReformatResult {
   body: string;
   summary: { vitals: number; exam: number; investigations: number; unmatched: number };
+  /**
+   * Words or numbers of the input that are NOT in the output (see
+   * `lostTokens`). Empty means nothing was dropped or altered. The sheet
+   * refuses to apply a result where this is not empty.
+   */
+  lost: string[];
+}
+
+/**
+ * Split an organ-system sentence into findings — SAFELY.
+ *
+ * ROOT CAUSE of the 2026-10-05 report ("dangerously wrong"): the sentence was
+ * split with `split(/[,;]/)`. Indonesian writes decimals with a COMMA, so
+ * `Suhu 37,8 C` became `Suhu : 37` plus a stray `8 C` under Lain-lain,
+ * `NE 0,1 mcg/kgBB/menit` lost its dose, `Kalium 3,1` became `Kalium 3`. A
+ * changed number that still looks like a number is the worst failure a note
+ * tool can have.
+ *
+ * Now a comma splits only when it is not between two digits, and never inside
+ * parentheses, where a qualifier belongs to the finding before it.
+ */
+export function splitFindings(content: string): string[] {
+  const pieces: string[] = [];
+  let depth = 0;
+  let current = '';
+  for (let index = 0; index < content.length; index += 1) {
+    const char = content[index]!;
+    if (char === '(' || char === '[') depth += 1;
+    if ((char === ')' || char === ']') && depth > 0) depth -= 1;
+    const decimal =
+      char === ',' && /\d/.test(content[index - 1] ?? '') && /\d/.test(content[index + 1] ?? '');
+    if (depth === 0 && (char === ';' || (char === ',' && !decimal))) {
+      pieces.push(current);
+      current = '';
+      continue;
+    }
+    current += char;
+  }
+  pieces.push(current);
+  return pieces.map((piece) => piece.trim()).filter(Boolean);
+}
+
+/**
+ * Every word and number of `before` that `after` no longer contains, counted
+ * (so a value that appeared twice and now appears once is reported).
+ *
+ * The labels this transform is ALLOWED to drop are exempt: the organ-system
+ * headers it removes and the vital labels it renames (`TD` → `Tekanan
+ * Darah`). Numbers are never exempt.
+ *
+ * Applied to the deterministic result AND to the AI result. It does not prove
+ * the result is right; it proves nothing was lost, which is the failure that
+ * hides — a moved line is visible in the preview, a missing `,8` is not.
+ */
+const DROPPABLE = new Set([
+  ...SYSTEM_HEADERS.flatMap((header) => header.split(/[^a-z]+/)).filter(Boolean),
+  'td', 'tensi', 'tekanan', 'darah', 'nadi', 'hr', 'rr', 'pernapasan', 'nafas', 'napas',
+  'suhu', 'spo', 'saturasi', 'o',
+]);
+
+function tokenCounts(text: string): Map<string, number> {
+  const counts = new Map<string, number>();
+  const flat = text.normalize('NFKD').toLowerCase();
+  for (const match of flat.matchAll(/\d+(?:[.,]\d+)*|\p{L}+/gu)) {
+    counts.set(match[0], (counts.get(match[0]) ?? 0) + 1);
+  }
+  return counts;
+}
+
+export function lostTokens(before: string, after: string, allowance = ''): string[] {
+  const have = tokenCounts(after);
+  // Text the transform removed ON PURPOSE, by exact line (a bare `EKG`
+  // label above blocks that each carry their own heading).
+  const allowed = tokenCounts(allowance);
+  const lost: string[] = [];
+  for (const [token, count] of tokenCounts(before)) {
+    if (DROPPABLE.has(token)) continue;
+    const missing = count - (have.get(token) ?? 0) - (allowed.get(token) ?? 0);
+    for (let n = 0; n < missing; n += 1) lost.push(token);
+  }
+  return lost;
 }
 
 function splitHeader(line: string): { rest: string } | null {
@@ -100,19 +186,24 @@ export function cvcuToBangsal(input: string): ReformatResult {
     // Still returns the bullet and therapy passes: a note with no `O:` heading
     // is not a note this transform can restructure, but it is one whose
     // bullets still become question marks in SIMGOS.
-    return { body, summary: { vitals: 0, exam: 0, investigations: 0, unmatched: 0 } };
+    return {
+      body,
+      summary: { vitals: 0, exam: 0, investigations: 0, unmatched: 0 },
+      lost: lostTokens(input, body),
+    };
   }
 
   const head = lines.slice(0, bounds.start);
   const middle = lines.slice(bounds.start + 1, bounds.end);
   const tail = lines.slice(bounds.end);
 
-  const vitals = new Map<string, string>();
+  const vitals = new Map<string, string[]>();
   const exam: string[] = [];
   const investigations: string[] = [];
   const unmatched: string[] = [];
 
   let inInvestigation = false;
+  const droppedLabels: string[] = [];
 
   for (const raw of middle) {
     const line = raw.trim();
@@ -122,6 +213,7 @@ export function cvcuToBangsal(input: string): ReformatResult {
       // A bare `EKG` label adds nothing once each block carries its own
       // heading, and would otherwise sit alone above the first one.
       if (!BARE_LABEL.test(line)) investigations.push(wrapHeading(line));
+      else droppedLabels.push(line);
       continue;
     }
 
@@ -140,26 +232,35 @@ export function cvcuToBangsal(input: string): ReformatResult {
       continue;
     }
 
-    // Split on commas and semicolons: a CVCU line packs several findings into
-    // one sentence, and they belong in different places in a bangsal note.
-    for (const piece of content.split(/[,;]/).map((part) => part.trim()).filter(Boolean)) {
+    /*
+      Only an organ-system SENTENCE is split into findings; a free line is one
+      finding, kept whole. Splitting free lines turned `Kalium 3,1; Natrium
+      132` into three fragments under Lain-lain.
+    */
+    const pieces = header ? splitFindings(content) : [content];
+    for (const piece of pieces) {
       const vital = VITALS.find((candidate) => candidate.test.test(piece));
-      if (vital && !vitals.has(vital.key)) {
-        vitals.set(vital.key, piece);
+      const taken = vital ? vitals.get(vital.key) : undefined;
+      // Consciousness collects (GCS and compos mentis are one line). Any
+      // other vital seen a second time is KEPT, under Lain-lain — it used to
+      // be dropped without a trace (`HR monitor 130` after `nadi 112`).
+      if (vital && (!taken || vital.key === 'gcs')) {
+        vitals.set(vital.key, [...(taken ?? []), piece]);
         continue;
       }
       if (EXAM.test(piece)) {
         exam.push(piece);
         continue;
       }
-      if (!vital) unmatched.push(piece);
+      unmatched.push(piece);
     }
   }
 
   const vitalLines: string[] = [];
   for (const { key, label } of VITALS) {
-    const value = vitals.get(key);
-    if (!value) continue;
+    const values = vitals.get(key);
+    if (!values || values.length === 0) continue;
+    const value = values.join(', ');
     vitalLines.push(label ? formatVital(label, value) : capitalise(value));
   }
 
@@ -183,8 +284,10 @@ export function cvcuToBangsal(input: string): ReformatResult {
       : []),
   ];
 
+  const output = [...head, ...rebuilt, '', ...trimLeadingBlanks(tail)].join('\n');
   return {
-    body: [...head, ...rebuilt, '', ...trimLeadingBlanks(tail)].join('\n'),
+    body: output,
+    lost: lostTokens(input, output, droppedLabels.join('\n')),
     summary: {
       vitals: vitalLines.length,
       exam: exam.length,
