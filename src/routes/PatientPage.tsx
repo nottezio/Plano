@@ -2010,11 +2010,11 @@ export default function PatientPage(): JSX.Element {
         patientId={patientId ?? ''}
         todayBody={activeShiftNote ? activeShiftNote.body : editor.value}
         currentKey={activeShiftNote ? `${selected}#${activeShiftNote.id}` : selected}
-        currentLabel={
-          activeShiftNote
-            ? `${noteLabel(activeShiftNote)} (dibuka)`
-            : `${formatShortDate(selected)} (dibuka)`
-        }
+        openNote={{
+          date: selected,
+          kind: activeShiftNote ? (isVersion(activeShiftNote) ? 'versi' : 'jaga') : 'harian',
+          name: activeShiftNote ? noteLabel(activeShiftNote) : 'SOAP',
+        }}
         {...(activeShiftNote || locked
           ? {}
           : {

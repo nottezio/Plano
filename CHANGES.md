@@ -1,5 +1,68 @@
 # Plano — CHANGES
 
+## `2026-10-04.2` — Bandingkan: pair + grouped picker
+
+**Problem (Avi: "a mess to choose from").** Two rows of chips, one per pane,
+each repeating the same flat list of every day, version and jaga note:
+- **The pair was invisible.** Up to 26 near-identical pills. Which two were
+  selected meant finding two highlighted chips in that wall, and the dashed
+  border was the only thing marking a version.
+- **"Dibuka" was not a note's name.** The open note appeared as "Min, 4 Okt
+  (dibuka)", unlike every other chip.
+- **Older days were unreachable.** `slice(0, 12)` meant the 13th entry onward
+  could not be picked at all, and versions (10-04.1) made a single day cost
+  up to three entries.
+
+**Root cause.** The picker modelled "two independent lists" when the task is
+"choose a pair". Also, the list was flat when the question is hierarchical:
+which day, then which note on it.
+
+**Fix.**
+- **`domain/compareOptions.ts`** (pure, tested):
+  - `groupCompareOptions`: by date, newest first. Within a date: SOAP, then
+    versions, then jaga notes, by time. The open note sits in its own date
+    (it may be the only note there).
+  - `relativeDay` (H-n, relative to the open note; blank for the IGD entry).
+  - `compareSuggestions`: SOAP asli for a version or jaga note; Hari
+    sebelumnya, meaning the newest SOAP BEFORE the open day, not literally
+    yesterday; then the day's other versions.
+  - `defaultPartner`.
+- **`CompareSheet`:**
+  - **Pair.** A "Dari ⇄ Ke" pair of slots, each showing date · name and H-n or
+    "dibuka". Swap exchanges the sides.
+  - **List.** Tapping a slot opens ONE grouped list for that side
+    (`max-h-[45vh]`, all dates). The note on the other side is labelled "sisi
+    lain", not hidden, so the list keeps the same shape for both sides.
+  - **Shortcuts.** "Cepat" chips set Dari = suggestion and Ke = the open note.
+  - **Controls.** The mode (Antar catatan / Revisi tempelan) and the view
+    (Berdampingan / Tandai perubahan) are segmented controls instead of chips
+    and an underlined link.
+  - **Labels.** The legend and pane headers say "Dari"/"Ke". There is a guard
+    when both sides are the same note.
+- **Props.** `currentLabel` is replaced by `openNote {date, kind, name}`. The
+  sheet builds labels itself, so "(dibuka)" is no longer baked into a string.
+- **Unchanged:** the revision mode below the controls.
+
+**Render check.** Done at 390 px and 1100 px, with 12 days, a version and two
+jaga notes:
+- default H-2 · SOAP → today's SOAP;
+- picker grouped and scrollable;
+- picking Jaga 22.40 updates "Dari";
+- shortcut + "Tandai perubahan" diff;
+- swap exchanges the sides;
+- no console errors.
+
+**Not done.** The diff engine (`diffSegmentsByLine`) can still show an
+unchanged line as deleted and re-inserted when the line before it changed
+(seen as `- Monitoring` struck and re-added). That is the diff, not the
+picker. A line-aligned diff like the revision mode's (`diffRevision`) would
+fix it; this was not part of the request.
+
+```
+1835 tests passed (+6)
+typecheck / lint (0 warnings) / check:version / check:contrast / check:a11y / build — clean
+```
+
 ## `2026-10-04.1` — SOAP versions, "penunjang terbaru saja"
 
 **Request.** dr. AHA's report carries only the newest pemeriksaan penunjang,

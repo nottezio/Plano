@@ -5,305 +5,470 @@ import {
   fetchComparableEntries,
   type ComparableEntry,
 } from '@/data/repositories/entries.repo';
-import { formatShortDate } from '@/domain/clinicalDate';
+import {
+  compareSuggestions,
+  defaultPartner,
+  fullLabel,
+  groupCompareOptions,
+  relativeDay,
+  entryName,
+  type OpenNote,
+} from '@/domain/compareOptions';
 import { diffSegmentsByLine } from '@/domain/merge/threeWayMerge';
 import { diffRevision, type RevisionRow } from '@/domain/format/revisionDiff';
 
 /**
- * Today beside an earlier day.
+ * Two notes side by side, or one marked against the other.
  *
- * The question this answers is "what changed" — whether the plan moved, whether
- * a lab is new, whether something was dropped by accident when yesterday was
- * carried forward. Reading two days by flipping the date rail makes you hold
- * one in your head; side by side you do not have to.
+ * The question this answers is "what changed": whether the plan moved,
+ * whether a lab is new, whether something was dropped by accident when
+ * yesterday was carried forward, or what a version left out. Read-only,
+ * deliberately. An editable second pane means two editors on one patient in
+ * one tab, and the first time they disagree nobody can tell which is which.
  *
- * Read-only, deliberately. An editable second pane means two editors on one
- * patient in one tab, each with its own draft and merge state — and the first
- * time they disagree the user has no way to tell which one they are looking at.
+ * THE PICKER (2026-10-04 rebuild). It was two rows of chips, one per pane,
+ * each holding every day, version and jaga note again. That was a wall of
+ * near-identical pills, with the pair hard to find in it and the 13th entry
+ * onward unreachable. Now:
+ *
+ *  - a PAIR at the top, "Dari" → "Ke", each one tap to change, with a swap;
+ *  - shortcuts for the comparisons actually made (SOAP asli, Hari
+ *    sebelumnya, the day's versions), which cover most uses in one tap;
+ *  - one grouped list, opened for the side being changed: every date, newest
+ *    first, its SOAP and then its versions and jaga notes, scrollable all the
+ *    way back.
  */
 export function CompareSheet({
   open,
   onOpenChange,
   patientId,
   todayBody,
-  currentLabel,
+  openNote,
   currentKey,
   onApplyRevision,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   patientId: string;
-  /** The note open in the editor — a day's SOAP, or a jaga note. */
+  /** The note open in the editor — a day's SOAP, a version or a jaga note. */
   todayBody: string;
-  /** What that note is, e.g. `Hari ini` or `Jaga 23.42 · Sen, 31 Agt`. */
-  currentLabel: string;
+  /** What that note is: its day, kind and name (`SOAP`, `Versi dr. AHA`). */
+  openNote: OpenNote;
   /**
    * The key of the open note in the comparable list, so it is not offered
-   * twice — once as "dibuka" and once under its own date.
+   * twice: once live, once as the stored copy under its own date.
    */
   currentKey: string;
   /**
-   * Replace the note on screen with a pasted revision.
-   *
-   * The ONE write this sheet can cause, and only from the revision mode, where
-   * the user pasted the text themselves. Everything else here stays read-only:
-   * the panes are notes from other days, and editing them from a comparison
-   * view is how you end up editing the wrong day.
-   *
-   * Absent when the open note is a jaga note, which has its own editor.
+   * Replace the note on screen with a pasted revision. The ONE write this
+   * sheet can cause, and only from the revision mode. Absent when the open
+   * note is not the day's SOAP.
    */
   onApplyRevision?: (body: string) => void;
 }): JSX.Element {
   const [days, setDays] = useState<ComparableEntry[]>([]);
-  const [against, setAgainst] = useState<string | null>(null);
-  /**
-   * The RIGHT pane, which used to be hard-wired to the note in the editor.
-   *
-   * That was the source of the confusion: with a jaga note open, the right
-   * pane silently still held the day's SOAP, so "compare this jaga note with
-   * that day's SOAP" produced two panes neither of which was the thing on
-   * screen, and the header said "hari ini" over a note from another day.
-   *
-   * Both sides are now chosen the same way, from the same list, and the note
-   * in the editor is simply one more entry in it — `null` means that entry.
-   */
-  const [right, setRight] = useState<string | null>(null);
-  const [showDiff, setShowDiff] = useState(false);
-  /**
-   * Between two notes Plano holds, or between the open note and a revision
-   * pasted in from outside.
-   */
+  const [loaded, setLoaded] = useState(false);
+  /** "Dari": the older side, the diff's baseline. `null` is the open note. */
+  const [from, setFrom] = useState<string | null>(null);
+  /** "Ke": the newer side. Defaults to the open note. */
+  const [to, setTo] = useState<string | null>(null);
+  /** Which side's list is open, if any. */
+  const [picking, setPicking] = useState<'from' | 'to' | null>(null);
+  const [view, setView] = useState<'berdampingan' | 'perubahan'>('berdampingan');
   const [mode, setMode] = useState<'antar' | 'revisi'>('antar');
+
+  const openDate = openNote.date;
+  const openKind = openNote.kind;
+  const openName = openNote.name;
 
   useEffect(() => {
     if (!open) return;
     let cancelled = false;
+    setLoaded(false);
+    setPicking(null);
 
     void fetchComparableEntries(patientId)
       .then((entries) => {
         if (cancelled) return;
-        /**
-         * Everything except the note already open, which is the first chip.
-         *
-         * Two filters have been wrong here in turn. `entry.date < today` was
-         * right only while a date was the sole thing comparable. Replacing it
-         * with `date < today || kind === 'jaga'` then hid the DAY'S OWN SOAP —
-         * so with a jaga note open there was no way to compare it against the
-         * morning note it followed, which is the single most useful comparison
-         * a shift note has.
-         *
-         * Both were versions of the same mistake: deciding what could not be
-         * compared from what USED to occupy the other pane, back when that
-         * pane was fixed. Now that both sides are chosen, the only entry that
-         * cannot be picked is the one already offered as "dibuka" — and
-         * excluding it by key rather than by date or kind cannot go stale the
-         * next time something new becomes comparable.
-         */
-        const earlier = entries.filter((entry) => entry.key !== currentKey);
-        setDays(earlier);
-        // Default to the most recent, which is the comparison actually wanted
-        // — not strictly yesterday, which may be empty.
-        setAgainst(earlier[0]?.key ?? null);
-        // The right pane defaults to the note in the editor, which is what
-        // someone comparing has open in front of them.
-        setRight(null);
+        setDays(entries);
+        setFrom(
+          defaultPartner(entries, { date: openDate, kind: openKind, name: openName }, currentKey),
+        );
+        setTo(null);
+        setLoaded(true);
       })
       .catch((error: unknown) => console.error('[compare] could not read entries', error));
 
     return () => {
       cancelled = true;
     };
-  }, [open, patientId, currentKey]);
+  }, [open, patientId, currentKey, openDate, openKind, openName]);
+
+  const groups = useMemo(
+    () => groupCompareOptions(days, openNote, currentKey),
+    [days, openNote, currentKey],
+  );
+  const suggestions = useMemo(
+    () => compareSuggestions(days, openNote, currentKey),
+    [days, openNote, currentKey],
+  );
+  const hasOthers = days.some((entry) => entry.key !== currentKey);
 
   /**
-   * `null` means the note currently open in the editor.
-   *
-   * Kept as a sentinel rather than pushed into `days` as a synthetic entry,
-   * because the editor's text is LIVE — it changes as you type, and a copy
-   * captured into the list when the sheet opened would go stale mid-comparison
-   * while looking authoritative.
+   * `null` is the note in the editor, read LIVE rather than from the list:
+   * a copy taken when the sheet opened would go stale as you type while
+   * looking authoritative.
    */
-  const resolve = (key: string | null): { label: string; body: string } | null => {
-    if (key === null) return { label: currentLabel, body: todayBody };
-    const found = days.find((day) => day.key === key);
-    return found ? { label: labelFor(found), body: found.body } : null;
+  const resolve = (
+    key: string | null,
+  ): { label: string; sub: string; body: string; open: boolean } | null => {
+    if (key === null) {
+      return {
+        label: fullLabel(openDate, openName),
+        sub: 'dibuka',
+        body: todayBody,
+        open: true,
+      };
+    }
+    const found = days.find((entry) => entry.key === key);
+    if (!found) return null;
+    return {
+      label: fullLabel(found.date, entryName(found)),
+      sub: relativeDay(found.date, openDate),
+      body: found.body,
+      open: false,
+    };
   };
 
-  /**
-   * A version or jaga note is labelled by its NAME and dashed; a day by its date.
-   *
-   * Same list, different shape — which is the point. It is not a child of the
-   * day above it, it is another piece of writing from the same patient, and
-   * the label only has to say which one you are looking at.
-   */
-  const labelFor = (entry: ComparableEntry): string =>
-    entry.kind === 'harian'
-      ? formatShortDate(entry.date)
-      : `${entry.label ?? `Jaga ${entry.time}`} · ${formatShortDate(entry.date)}`;
+  const left = resolve(from);
+  const right = resolve(to);
 
-  const leftPane = resolve(against);
-  const rightPane = resolve(right);
-
-  /**
-   * The diff reads the two BODIES, taken out as strings first.
-   *
-   * `resolve` builds a fresh pane object every render, so depending on the
-   * panes would re-diff on every keystroke anywhere on the page. Listing
-   * `leftPane?.body` while reading `leftPane` inside was correct but left the
-   * dependency list incomplete as written — the shape a later edit turns
-   * into a stale diff. Strings make it complete and stable at once.
-   */
-  const leftBody = leftPane?.body;
-  const rightBody = rightPane?.body;
+  const leftBody = left?.body;
+  const rightBody = right?.body;
   const segments = useMemo(
     () =>
-      showDiff && leftBody !== undefined && rightBody !== undefined
+      view === 'perubahan' && leftBody !== undefined && rightBody !== undefined
         ? diffSegmentsByLine(leftBody, rightBody)
         : null,
-    [showDiff, leftBody, rightBody],
+    [view, leftBody, rightBody],
   );
+  const sameNote = from === to;
+
+  const choose = (key: string | null): void => {
+    if (picking === 'from') setFrom(key);
+    if (picking === 'to') setTo(key);
+    setPicking(null);
+  };
 
   return (
     <Sheet
       open={open}
       onOpenChange={onOpenChange}
       title="Bandingkan catatan"
-      description="Hanya untuk dibaca. Perubahan tetap dilakukan di catatan hari itu."
+      description="Hanya untuk dibaca. Perubahan tetap dilakukan di catatan itu sendiri."
     >
-      <div role="group" aria-label="Jenis perbandingan" className="mb-3 flex flex-wrap gap-2">
-        <Chip active={mode === 'antar'} onClick={() => setMode('antar')}>
-          Antar catatan
-        </Chip>
-        <Chip active={mode === 'revisi'} onClick={() => setMode('revisi')}>
-          Dengan revisi tempelan
-        </Chip>
-      </div>
+      <Segmented
+        label="Jenis perbandingan"
+        value={mode}
+        onChange={setMode}
+        options={[
+          ['antar', 'Antar catatan'],
+          ['revisi', 'Revisi tempelan'],
+        ]}
+      />
 
       {mode === 'revisi' ? (
-        <RevisionCompare
-          mine={todayBody}
-          mineLabel={currentLabel}
-          {...(onApplyRevision
-            ? {
-                onApply: (body: string) => {
-                  onApplyRevision(body);
-                  onOpenChange(false);
-                },
-              }
-            : {})}
-        />
-      ) : days.length === 0 ? (
-        <p className="text-sm text-fg-muted">
-          Belum ada catatan lain untuk dibandingkan.
-        </p>
+        <div className="mt-3">
+          <RevisionCompare
+            mine={todayBody}
+            mineLabel={fullLabel(openDate, openName)}
+            {...(onApplyRevision
+              ? {
+                  onApply: (body: string) => {
+                    onApplyRevision(body);
+                    onOpenChange(false);
+                  },
+                }
+              : {})}
+          />
+        </div>
+      ) : !loaded ? (
+        <p className="mt-4 text-sm text-fg-muted">Memuat…</p>
+      ) : !hasOthers ? (
+        <p className="mt-4 text-sm text-fg-muted">Belum ada catatan lain untuk dibandingkan.</p>
       ) : (
         <>
-          {/*
-            One picker per pane, both drawing on the same list.
-
-            The right pane used to be fixed to the note in the editor and
-            labelled "hari ini". With a jaga note open that was wrong twice
-            over: the pane held the day's SOAP rather than the note on screen,
-            and the label claimed a date that might not be today's. Choosing
-            both sides the same way removes the special case rather than
-            renaming it.
-          */}
-          <PanePicker
-            legend="Bandingkan"
-            days={days}
-            selected={against}
-            currentLabel={currentLabel}
-            labelFor={labelFor}
-            onSelect={setAgainst}
-          />
-          <PanePicker
-            legend="dengan"
-            days={days}
-            selected={right}
-            currentLabel={currentLabel}
-            labelFor={labelFor}
-            onSelect={setRight}
-          />
-
-          <div className="mb-3">
+          {/* THE PAIR. Read left to right as the diff reads: from → to. */}
+          <div className="mt-3 grid grid-cols-[1fr_auto_1fr] items-stretch gap-1.5">
+            <Slot
+              legend="Dari"
+              pane={left}
+              active={picking === 'from'}
+              onClick={() => setPicking(picking === 'from' ? null : 'from')}
+            />
             <button
               type="button"
-              onClick={() => setShowDiff((current) => !current)}
-              className="min-h-tap text-xs text-accent underline"
+              onClick={() => {
+                setFrom(to);
+                setTo(from);
+              }}
+              aria-label="Tukar sisi"
+              title="Tukar sisi"
+              className="flex min-h-tap min-w-tap items-center justify-center self-center rounded-full border border-border text-fg-muted hover:bg-bg-subtle"
             >
-              {showDiff ? 'Tampilkan berdampingan' : 'Tandai perubahan'}
+              <svg
+                viewBox="0 0 24 24"
+                width="16"
+                height="16"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth={2}
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                aria-hidden="true"
+              >
+                <path d="M7 7h13l-4-4M17 17H4l4 4" />
+              </svg>
             </button>
+            <Slot
+              legend="Ke"
+              pane={right}
+              active={picking === 'to'}
+              onClick={() => setPicking(picking === 'to' ? null : 'to')}
+            />
           </div>
 
-          {showDiff && segments ? (
+          {picking ? (
+            <OptionList
+              heading={picking === 'from' ? 'Pilih catatan "Dari"' : 'Pilih catatan "Ke"'}
+              groups={groups}
+              selected={picking === 'from' ? from : to}
+              other={picking === 'from' ? to : from}
+              onChoose={choose}
+              onClose={() => setPicking(null)}
+            />
+          ) : suggestions.length > 0 ? (
+            /*
+              Shortcuts compare the open note WITH something, so they set both
+              sides: the suggestion on "Dari", the open note on "Ke".
+            */
+            <div className="mt-3 flex flex-wrap items-center gap-1.5">
+              <span className="text-[11px] text-fg-faint">Cepat:</span>
+              {suggestions.map((suggestion) => {
+                const active = from === suggestion.key && to === null;
+                return (
+                  <button
+                    key={suggestion.key}
+                    type="button"
+                    aria-pressed={active}
+                    onClick={() => {
+                      setFrom(suggestion.key);
+                      setTo(null);
+                    }}
+                    className={[
+                      'min-h-tap rounded-full border px-3 text-xs',
+                      active
+                        ? 'border-accent bg-[var(--accent-soft)] font-medium text-accent'
+                        : 'border-border text-fg-muted hover:bg-bg-subtle',
+                    ].join(' ')}
+                  >
+                    {suggestion.label}
+                    <span className="ml-1 opacity-70">{suggestion.detail}</span>
+                  </button>
+                );
+              })}
+            </div>
+          ) : null}
+
+          {!picking ? (
             <>
-              {/*
-                Say which way round the comparison runs, in words, above the
-                colours.
-
-                A red/green diff with no stated direction is ambiguous by
-                construction: red can mean "deleted from the left" or "missing
-                on the right" depending on which side you think is the
-                baseline, and the reader has no way to tell which. Naming the
-                two notes and the direction between them makes the colours
-                readable without having to reason about them.
-              */}
-              <p className="mb-1 text-xs text-fg-muted">
-                Perubahan dari <strong className="text-fg">{leftPane?.label}</strong> ke{' '}
-                <strong className="text-fg">{rightPane?.label}</strong>
-              </p>
-
-              <div className="mb-2 flex flex-wrap items-center gap-3 text-[11px] text-fg-muted">
-                <span className="flex items-center gap-1">
-                  <span className="rounded bg-[var(--card-step-12-bg)] px-1 text-[var(--card-step-12-fg)]">
-                    hijau
-                  </span>
-                  baru di {rightPane?.label}
-                </span>
-                <span className="flex items-center gap-1">
-                  <span className="rounded bg-[var(--card-step-1-bg)] px-1 text-[var(--card-step-1-fg)] line-through">
-                    merah
-                  </span>
-                  hilang dari {leftPane?.label}
-                </span>
+              <div className="mt-4">
+                <Segmented
+                  label="Tampilan"
+                  value={view}
+                  onChange={setView}
+                  options={[
+                    ['berdampingan', 'Berdampingan'],
+                    ['perubahan', 'Tandai perubahan'],
+                  ]}
+                />
               </div>
 
-              <pre className="max-h-[60vh] overflow-auto whitespace-pre-wrap rounded-lg border border-border bg-bg-subtle p-3 text-xs leading-relaxed">
-                {segments.map((segment, index) => (
-                  <span
-                    key={index}
-                    className={
-                      segment.type === 'insert'
-                        ? 'bg-[var(--card-step-12-bg)] text-[var(--card-step-12-fg)]'
-                        : segment.type === 'delete'
-                          ? 'bg-[var(--card-step-1-bg)] text-[var(--card-step-1-fg)] line-through'
-                          : undefined
-                    }
-                  >
-                    {segment.text}
-                  </span>
-                ))}
-              </pre>
+              {sameNote ? (
+                <p className="mt-3 text-xs text-fg-muted">
+                  Kedua sisi adalah catatan yang sama. Ganti salah satunya.
+                </p>
+              ) : view === 'perubahan' && segments ? (
+                <>
+                  <div className="mt-3 flex flex-wrap items-center gap-3 text-[11px] text-fg-muted">
+                    <span className="flex items-center gap-1">
+                      <span className="rounded bg-[var(--card-step-12-bg)] px-1 text-[var(--card-step-12-fg)]">
+                        hijau
+                      </span>
+                      baru di “Ke”
+                    </span>
+                    <span className="flex items-center gap-1">
+                      <span className="rounded bg-[var(--card-step-1-bg)] px-1 text-[var(--card-step-1-fg)] line-through">
+                        merah
+                      </span>
+                      hilang dari “Dari”
+                    </span>
+                  </div>
+                  <pre className="mt-2 max-h-[60vh] overflow-auto whitespace-pre-wrap break-words rounded-lg border border-border bg-bg-subtle p-3 text-xs leading-relaxed">
+                    {segments.map((segment, index) => (
+                      <span
+                        key={index}
+                        className={
+                          segment.type === 'insert'
+                            ? 'bg-[var(--card-step-12-bg)] text-[var(--card-step-12-fg)]'
+                            : segment.type === 'delete'
+                              ? 'bg-[var(--card-step-1-bg)] text-[var(--card-step-1-fg)] line-through'
+                              : undefined
+                        }
+                      >
+                        {segment.text}
+                      </span>
+                    ))}
+                  </pre>
+                </>
+              ) : (
+                // Two columns from tablet up, stacked below: a 40-character
+                // column on a phone is worse than scrolling.
+                <div className="mt-3 grid gap-3 sm:grid-cols-2">
+                  <Pane legend="Dari" label={left?.label ?? '—'} body={left?.body ?? ''} />
+                  <Pane legend="Ke" label={right?.label ?? '—'} body={right?.body ?? ''} />
+                </div>
+              )}
             </>
-          ) : (
-            // Two columns from tablet up, stacked below — on a phone there is
-            // no width for two readable columns, and a 40-character column is
-            // worse than scrolling.
-            <div className="grid gap-3 sm:grid-cols-2">
-              <Pane label={leftPane?.label ?? '—'} body={leftPane?.body ?? ''} />
-              <Pane label={rightPane?.label ?? '—'} body={rightPane?.body ?? ''} />
-            </div>
-          )}
+          ) : null}
         </>
       )}
     </Sheet>
   );
 }
 
-function Pane({ label, body }: { label: string; body: string }): JSX.Element {
+/** One side of the pair: what is on it, and the way to change it. */
+function Slot({
+  legend,
+  pane,
+  active,
+  onClick,
+}: {
+  legend: string;
+  pane: { label: string; sub: string; open: boolean } | null;
+  active: boolean;
+  onClick: () => void;
+}): JSX.Element {
+  return (
+    <button
+      type="button"
+      aria-expanded={active}
+      onClick={onClick}
+      className={[
+        'flex min-h-tap min-w-0 flex-col items-start rounded-xl border px-3 py-2 text-left',
+        active ? 'border-accent bg-[var(--accent-soft)]' : 'border-border bg-surface hover:bg-bg-subtle',
+      ].join(' ')}
+    >
+      <span className="flex w-full items-center gap-1 text-[10px] font-semibold uppercase tracking-wide text-fg-faint">
+        <span className="flex-1">{legend}</span>
+        <span aria-hidden="true">{active ? '▴' : '▾'}</span>
+      </span>
+      <span className="w-full truncate text-sm font-medium text-fg">{pane?.label ?? 'Pilih…'}</span>
+      {pane?.sub ? (
+        <span
+          className={[
+            'text-[11px]',
+            pane.open ? 'font-medium text-accent' : 'text-fg-muted',
+          ].join(' ')}
+        >
+          {pane.sub}
+        </span>
+      ) : null}
+    </button>
+  );
+}
+
+/**
+ * Every note, by date. A date's SOAP is solid, its versions and jaga notes
+ * dashed (a second colour would collide with "selected"). The note on the
+ * other side is marked rather than hidden, so the list never changes shape
+ * between the two sides.
+ */
+function OptionList({
+  heading,
+  groups,
+  selected,
+  other,
+  onChoose,
+  onClose,
+}: {
+  heading: string;
+  groups: ReturnType<typeof groupCompareOptions>;
+  selected: string | null;
+  other: string | null;
+  onChoose: (key: string | null) => void;
+  onClose: () => void;
+}): JSX.Element {
+  return (
+    <div className="mt-3 rounded-xl border border-accent">
+      <div className="flex items-center gap-2 border-b border-border px-3 py-1">
+        <p className="flex-1 text-xs font-medium text-fg">{heading}</p>
+        <button type="button" onClick={onClose} className="min-h-tap px-1 text-xs text-fg-muted">
+          Tutup
+        </button>
+      </div>
+      <ul className="max-h-[45vh] divide-y divide-border overflow-y-auto">
+        {groups.map((group) => (
+          <li key={group.date} className="px-3 py-2">
+            <p className="mb-1.5 flex items-baseline gap-2 text-xs">
+              <span className="font-semibold text-fg">{group.dateLabel}</span>
+              {group.relative ? <span className="text-fg-faint">{group.relative}</span> : null}
+            </p>
+            <div className="flex flex-wrap gap-1.5">
+              {group.options.map((option) => {
+                const isSelected = option.key === selected;
+                const onOther = option.key === other;
+                return (
+                  <button
+                    key={option.key ?? 'open'}
+                    type="button"
+                    aria-pressed={isSelected}
+                    onClick={() => onChoose(option.key)}
+                    className={[
+                      'flex min-h-tap max-w-full items-center gap-1 rounded-full border px-3 text-xs',
+                      option.kind === 'harian' ? '' : 'border-dashed',
+                      isSelected
+                        ? 'border-accent bg-[var(--accent-soft)] font-medium text-accent'
+                        : 'border-border text-fg hover:bg-bg-subtle',
+                    ].join(' ')}
+                  >
+                    <span className="truncate">{option.name}</span>
+                    {option.open ? (
+                      <span className="shrink-0 rounded bg-accent px-1 text-[10px] font-semibold text-white">
+                        dibuka
+                      </span>
+                    ) : null}
+                    {onOther && !isSelected ? (
+                      <span className="shrink-0 text-[10px] text-fg-faint">sisi lain</span>
+                    ) : null}
+                  </button>
+                );
+              })}
+            </div>
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
+function Pane({ legend, label, body }: { legend: string; label: string; body: string }): JSX.Element {
   return (
     <div className="min-w-0">
-      <p className="mb-1 text-xs font-semibold text-fg-muted">{label}</p>
+      <p className="mb-1 truncate text-xs text-fg-muted">
+        <span className="font-semibold uppercase tracking-wide text-fg-faint">{legend}</span>{' '}
+        <span className="font-semibold text-fg">{label}</span>
+      </p>
       <pre className="max-h-[55vh] overflow-auto whitespace-pre-wrap break-words rounded-lg border border-border bg-bg-subtle p-3 text-xs leading-relaxed">
         {body.trim() || '(kosong)'}
       </pre>
@@ -311,77 +476,35 @@ function Pane({ label, body }: { label: string; body: string }): JSX.Element {
   );
 }
 
-/**
- * One row of chips for one pane.
- *
- * The note in the editor is the first option and is always present, because it
- * is the only one guaranteed to exist and the one most comparisons involve.
- */
-function PanePicker({
-  legend,
-  days,
-  selected,
-  currentLabel,
-  labelFor,
-  onSelect,
+/** A two- or three-way switch, one row, full width. */
+function Segmented<T extends string>({
+  label,
+  value,
+  onChange,
+  options,
 }: {
-  legend: string;
-  days: readonly ComparableEntry[];
-  selected: string | null;
-  currentLabel: string;
-  labelFor: (entry: ComparableEntry) => string;
-  onSelect: (key: string | null) => void;
+  label: string;
+  value: T;
+  onChange: (next: T) => void;
+  options: ReadonlyArray<readonly [T, string]>;
 }): JSX.Element {
   return (
-    <div className="mb-2 flex flex-wrap items-center gap-2">
-      <span className="w-20 shrink-0 text-xs text-fg-muted">{legend}</span>
-      <Chip active={selected === null} onClick={() => onSelect(null)}>
-        {currentLabel}
-      </Chip>
-      {/* 12, not 8: a day with a version and a jaga note is three entries,
-          and the last few days must still fit. */}
-      {days.slice(0, 12).map((day) => (
-        <Chip
-          key={day.key}
-          active={selected === day.key}
-          dashed={day.kind !== 'harian'}
-          onClick={() => onSelect(day.key)}
+    <div role="group" aria-label={label} className="flex rounded-xl border border-border bg-bg-subtle p-0.5">
+      {options.map(([key, text]) => (
+        <button
+          key={key}
+          type="button"
+          aria-pressed={value === key}
+          onClick={() => onChange(key)}
+          className={[
+            'min-h-tap flex-1 rounded-lg px-2 text-xs',
+            value === key ? 'bg-surface font-semibold text-fg shadow-sm' : 'text-fg-muted',
+          ].join(' ')}
         >
-          {labelFor(day)}
-        </Chip>
+          {text}
+        </button>
       ))}
     </div>
-  );
-}
-
-function Chip({
-  active,
-  dashed,
-  onClick,
-  children,
-}: {
-  active: boolean;
-  dashed?: boolean;
-  onClick: () => void;
-  children: React.ReactNode;
-}): JSX.Element {
-  return (
-    <button
-      type="button"
-      aria-pressed={active}
-      onClick={onClick}
-      className={[
-        'min-h-tap rounded-full border px-3 text-xs',
-        // Dashed marks a jaga note. Not a second colour: solid-versus-accent
-        // already means selected, and two colour axes on one control collide.
-        dashed ? 'border-dashed' : '',
-        active
-          ? 'border-accent bg-bg-subtle font-medium text-accent'
-          : 'border-border text-fg-muted',
-      ].join(' ')}
-    >
-      {children}
-    </button>
   );
 }
 

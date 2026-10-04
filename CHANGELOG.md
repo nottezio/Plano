@@ -5,6 +5,13 @@ Catatan teknis lengkap (akar masalah, perbaikan) ada di CHANGES.md.
 
 Entri teratas harus versi yang sedang dirilis; tes gagal bila belum ditulis.
 
+## `2026-10-04.2`
+- **Bandingkan catatan didesain ulang.** Di atas kini ada pasangan **Dari → Ke**: dua kotak yang menunjukkan catatan mana dibandingkan dengan mana, plus tombol **⇄** untuk menukar sisi.
+- Ketuk salah satu kotak untuk memilih catatan: daftar dikelompokkan **per tanggal** (terbaru di atas, dengan keterangan H-1, H-2…). Di bawah tiap tanggal ada SOAP-nya, lalu versi dan SOAP jaga hari itu. Semua hari bisa dipilih, tidak lagi terbatas 12 tombol terakhir.
+- **Pilihan cepat** untuk perbandingan yang paling sering: **Hari sebelumnya**, **SOAP asli** (saat membuka versi atau SOAP jaga), dan versi lain hari itu.
+- Tampilan **Berdampingan / Tandai perubahan** kini berupa tombol geser yang jelas, dan legenda warna menyebut sisi "Dari" dan "Ke".
+- Catatan yang sedang dibuka ditandai **dibuka**.
+
 ## `2026-10-04.1`
 - **Versi SOAP:** ketuk **+ Versi** di baris atas catatan (atau ⋯ → Buat versi SOAP) untuk membuat salinan SOAP hari ini, mis. versi khusus dr. AHA. Versi bisa diedit bebas; **SOAP aslinya tidak berubah**. Satu hari bisa punya beberapa versi.
 - **Nama versi bisa diubah:** ketuk namanya di kepala editor. Nama awal mengikuti DPJP di catatan (mis. "Versi dr. AHA"). SOAP jaga juga bisa diberi nama.
