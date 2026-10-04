@@ -1,9 +1,12 @@
 import { describe, expect, it } from 'vitest';
 
 import {
+  defaultVersionTitle,
   formatShiftTime,
   hasShiftNotes,
+  isVersion,
   newShiftNoteId,
+  noteLabel,
   renderShiftNotes,
   visibleShiftNotes,
 } from './shiftNotes';
@@ -117,5 +120,31 @@ describe('jaga notes, revamped (2026-09-29)', () => {
   it('starts the caret on the complaint line of the template', async () => {
     const { JAGA_TEMPLATE, JAGA_TEMPLATE_CARET } = await import('./shiftNotes');
     expect(JAGA_TEMPLATE.slice(0, JAGA_TEMPLATE_CARET)).toBe('S:\n- ');
+  });
+});
+
+describe('versions', () => {
+  it('reads a note without a kind as a jaga note', () => {
+    expect(isVersion(note())).toBe(false);
+    expect(isVersion(note({ kind: 'versi' }))).toBe(true);
+  });
+
+  it('labels by name, else by hour or as Versi', () => {
+    expect(noteLabel(note())).toBe('Jaga 21.40');
+    expect(noteLabel(note({ kind: 'versi' }))).toBe('Versi');
+    expect(noteLabel(note({ kind: 'versi', title: ' Versi dr. AHA ' }))).toBe('Versi dr. AHA');
+    expect(noteLabel(note({ title: 'Jaga sesak' }))).toBe('Jaga sesak');
+  });
+
+  it('names a new version for the DPJP, then by number', () => {
+    expect(defaultVersionTitle([], 'AHA')).toBe('Versi dr. AHA');
+    const one = [note({ id: 'v1', kind: 'versi', title: 'Versi dr. AHA' })];
+    expect(defaultVersionTitle(one, 'AHA')).toBe('Versi 3');
+    expect(defaultVersionTitle([], null)).toBe('Versi 2');
+  });
+
+  it('prefixes a version id so it is told apart in storage', () => {
+    expect(newShiftNoteId(new Date(5), [], 'versi')).toBe('versi-5');
+    expect(newShiftNoteId(new Date(5), [])).toBe('jaga-5');
   });
 });

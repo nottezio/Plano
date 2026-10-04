@@ -31,6 +31,7 @@ export function PatientActionsSheet({
   onOpenChange,
   patient,
   onAddShiftNote,
+  onAddVersion,
   onLab,
   onOpening,
   onCompare,
@@ -43,6 +44,8 @@ export function PatientActionsSheet({
   patient: Patient;
   /** Adds an empty shift note to the day on screen. Absent when the day is locked. */
   onAddShiftNote?: (() => void) | undefined;
+  /** Make a named version of the day's SOAP; absent on a locked or empty day. */
+  onAddVersion?: (() => void) | undefined;
   /*
    * The three header actions that no longer fit on a phone.
    *
@@ -176,6 +179,17 @@ export function PatientActionsSheet({
             onClick={() => {
               close();
               onCompare();
+            }}
+          />
+        ) : null}
+
+        {onAddVersion ? (
+          <Action
+            label="Buat versi SOAP"
+            detail="Salinan SOAP hari ini untuk diedit (mis. untuk dr. AHA); SOAP aslinya tidak berubah."
+            onClick={() => {
+              onAddVersion();
+              close();
             }}
           />
         ) : null}

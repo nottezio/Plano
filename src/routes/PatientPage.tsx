@@ -14,7 +14,14 @@ import { JumpBar } from '@/components/patient/JumpBar';
 import { ShiftNoteEditor } from '@/components/patient/ShiftNoteEditor';
 import { LabSheet } from '@/components/patient/LabSheet';
 import { JagaBar } from '@/components/patient/JagaBar';
-import { JAGA_TEMPLATE, JAGA_TEMPLATE_CARET } from '@/domain/shiftNotes';
+import {
+  JAGA_TEMPLATE,
+  JAGA_TEMPLATE_CARET,
+  defaultVersionTitle,
+  isVersion,
+  noteLabel,
+} from '@/domain/shiftNotes';
+import { NewVersionSheet } from '@/components/patient/NewVersionSheet';
 import { PatientNotes, usePatientNotes } from '@/components/patient/PatientNotes';
 import { PatientTodos } from '@/components/patient/PatientTodos';
 import { SidePanel } from '@/components/patient/SidePanel';
@@ -230,6 +237,7 @@ export default function PatientPage(): JSX.Element {
   const headerHasTools = useMediaQuery('(min-width: 640px)');
   const [labOpen, setLabOpen] = useState(false);
   const [compareOpen, setCompareOpen] = useState(false);
+  const [versionSheetOpen, setVersionSheetOpen] = useState(false);
   const [reformatOpen, setReformatOpen] = useState(false);
   /**
    * Confirmation before clearing a day, because there is no undo on the rail.
@@ -337,6 +345,25 @@ export default function PatientPage(): JSX.Element {
     date: selected,
     enabled: !entryLoading && !activeShiftNote,
   });
+
+  /**
+   * The open note split by what it is. A VERSION is the day's SOAP in another
+   * shape, so everything that takes "the SOAP" (Salin's shapes, Ringkas,
+   * Konsul) takes the version; a JAGA note keeps its own Salin shape.
+   */
+  const activeVersion = activeShiftNote && isVersion(activeShiftNote) ? activeShiftNote : null;
+  const activeJaga = activeShiftNote && !isVersion(activeShiftNote) ? activeShiftNote : null;
+
+  /** A version is a copy of the SOAP on screen, made in `NewVersionSheet`. */
+  const createVersion = ({ title, body }: { title: string; body: string }): void => {
+    editor.flush();
+    shiftNotes.flush();
+    const id = shiftNotes.add(body, { kind: 'versi', title });
+    setVersionSheetOpen(false);
+    if (!id) return;
+    setJustCreatedJaga(null);
+    setSelectedShiftNoteId(id);
+  };
 
   /**
    * One tap: a jaga note with the jaga scaffold, stamped now (editable in its
@@ -1742,6 +1769,7 @@ export default function PatientPage(): JSX.Element {
             setSelectedShiftNoteId(id);
           }}
           onAdd={addJagaNote}
+          onAddVersion={editor.value.trim() ? () => setVersionSheetOpen(true) : undefined}
         />
 
         {/* Empty day only — see TemplatePicker for why this is never automatic.
@@ -1791,6 +1819,7 @@ export default function PatientPage(): JSX.Element {
             }}
             onBack={() => setSelectedShiftNoteId(null)}
             onTime={(time) => shiftNotes.setTime(activeShiftNote.id, time)}
+            onRename={(title) => shiftNotes.rename(activeShiftNote.id, title)}
             focusAt={justCreatedJaga === activeShiftNote.id ? JAGA_TEMPLATE_CARET : undefined}
           />
         ) : (
@@ -1983,7 +2012,7 @@ export default function PatientPage(): JSX.Element {
         currentKey={activeShiftNote ? `${selected}#${activeShiftNote.id}` : selected}
         currentLabel={
           activeShiftNote
-            ? `Jaga ${activeShiftNote.time} (dibuka)`
+            ? `${noteLabel(activeShiftNote)} (dibuka)`
             : `${formatShortDate(selected)} (dibuka)`
         }
         {...(activeShiftNote || locked
@@ -2027,6 +2056,9 @@ export default function PatientPage(): JSX.Element {
         onOpenChange={setActionsOpen}
         patient={patient}
         onAddShiftNote={locked ? undefined : addJagaNote}
+        onAddVersion={
+          locked || !editor.value.trim() ? undefined : () => setVersionSheetOpen(true)
+        }
         onLab={locked || headerHasTools ? undefined : () => setLabOpen(true)}
         {...(locked || headerHasTools ? {} : { onReformat: () => setReformatOpen(true) })}
         {...(!locked && editor.value.trim().length > 0
@@ -2329,17 +2361,27 @@ export default function PatientPage(): JSX.Element {
         }}
       />
 
+      <NewVersionSheet
+        open={versionSheetOpen}
+        onOpenChange={setVersionSheetOpen}
+        body={editor.value}
+        aliases={settings.sectionAliases}
+        defaultTitle={defaultVersionTitle(shiftNotes.notes, dpjp?.initials)}
+        latestByDefault={Boolean(dpjp && settings.dpjpFormats[dpjp.id]?.latestPenunjang)}
+        onCreate={createVersion}
+      />
+
       <CopySheet
         open={copyOpen}
         onOpenChange={setCopyOpen}
         patient={patient}
-        body={editor.value}
+        body={activeVersion ? activeVersion.body : editor.value}
         date={selected}
         aliases={settings.sectionAliases}
         presets={settings.copyPresets}
         dpjpFormats={settings.dpjpFormats}
         bullet={settings.whatsappBullet}
-        activeShiftNote={activeShiftNote}
+        activeShiftNote={activeJaga}
         closings={settings.closingSentences}
       />
 

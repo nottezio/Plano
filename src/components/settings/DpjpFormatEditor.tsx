@@ -33,6 +33,7 @@ export function DpjpFormatEditor({
       merged &&
       merged.format === 'harian' &&
       !merged.verificationTime &&
+      !merged.latestPenunjang &&
       merged.staffing !== false &&
       !merged.hint
     ) {
@@ -86,6 +87,14 @@ export function DpjpFormatEditor({
                   />
                 </div>
               ) : null}
+
+              {/* Every format: which investigations a consultant wants is
+                  independent of the report's shape. */}
+              <Toggle
+                label="Penunjang terbaru saja"
+                checked={Boolean(config?.latestPenunjang)}
+                onChange={(latestPenunjang) => set(dpjp.id, { latestPenunjang })}
+              />
 
               <input
                 type="text"

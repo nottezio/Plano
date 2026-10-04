@@ -58,8 +58,12 @@ export function parseShiftTime(input: string): string | null {
  * state in the copy sheet is keyed on this. A value that is only stable while
  * nobody touches the list is not a stable value.
  */
-export function newShiftNoteId(at: Date, existing: readonly ShiftNote[]): string {
-  const base = `jaga-${at.getTime()}`;
+export function newShiftNoteId(
+  at: Date,
+  existing: readonly ShiftNote[],
+  kind: 'jaga' | 'versi' = 'jaga',
+): string {
+  const base = `${kind}-${at.getTime()}`;
   if (!existing.some((note) => note.id === base)) return base;
   // Two taps inside the same millisecond is not realistic, but a colliding id
   // would silently merge two notes into one box.
@@ -113,4 +117,39 @@ export function renderShiftNotes(
     .map((note) => `*SOAP Jaga ${note.time}*\n${note.body.trim()}`);
 
   return blocks.join('\n\n');
+}
+
+/** A SOAP version rather than a jaga note. Absent kind is a jaga note. */
+export function isVersion(note: Pick<ShiftNote, 'kind'>): boolean {
+  return note.kind === 'versi';
+}
+
+/**
+ * The name shown on the chip, the rail and Compare.
+ *
+ * The user's title when there is one. Otherwise a jaga note is named by its
+ * hour, as it always was, and a version is `Versi`.
+ */
+export function noteLabel(note: Pick<ShiftNote, 'kind' | 'title' | 'time'>): string {
+  const title = note.title?.trim();
+  if (title) return title;
+  return isVersion(note) ? 'Versi' : `Jaga ${note.time}`;
+}
+
+/**
+ * A default name for a new version: `Versi dr. AHA` when the note's DPJP is
+ * known, else `Versi 2`, `Versi 3`… counted from the versions already there.
+ */
+export function defaultVersionTitle(
+  existing: readonly ShiftNote[],
+  dpjpInitials?: string | null,
+): string {
+  const taken = new Set(visibleShiftNotes(existing).map((note) => noteLabel(note)));
+  if (dpjpInitials) {
+    const named = `Versi dr. ${dpjpInitials}`;
+    if (!taken.has(named)) return named;
+  }
+  let n = visibleShiftNotes(existing).filter(isVersion).length + 2;
+  while (taken.has(`Versi ${n}`)) n += 1;
+  return `Versi ${n}`;
 }

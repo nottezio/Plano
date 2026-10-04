@@ -5,6 +5,15 @@ Catatan teknis lengkap (akar masalah, perbaikan) ada di CHANGES.md.
 
 Entri teratas harus versi yang sedang dirilis; tes gagal bila belum ditulis.
 
+## `2026-10-04.1`
+- **Versi SOAP:** ketuk **+ Versi** di baris atas catatan (atau ⋯ → Buat versi SOAP) untuk membuat salinan SOAP hari ini, mis. versi khusus dr. AHA. Versi bisa diedit bebas; **SOAP aslinya tidak berubah**. Satu hari bisa punya beberapa versi.
+- **Nama versi bisa diubah:** ketuk namanya di kepala editor. Nama awal mengikuti DPJP di catatan (mis. "Versi dr. AHA"). SOAP jaga juga bisa diberi nama.
+- **Penunjang terbaru saja:** saat membuat versi, centang ini untuk menyisakan hanya EKG, Lab, Foto Thorax, Echo… dengan tanggal terbaru dari tiap jenis. Daftar blok yang dihilangkan ditampilkan sebelum versi dibuat. Hanya bagian di atas assessment yang dipangkas; rencana di Plan tidak tersentuh. Tersedia juga sebagai tombol di versi yang sudah ada.
+- **Salin dari versi** memakai isi versi itu, dengan semua bentuk (Laporan harian, Ringkas, Konsul…).
+- **Bandingkan** kini mencantumkan versi dengan namanya, jadi versi bisa dibandingkan dengan SOAP asli, dengan versi lain, atau dengan hari sebelumnya.
+- **Format DPJP:** pilihan baru **Penunjang terbaru saja** di Pengaturan → Format DPJP. Bila aktif, "Pakai format ini" di Salin langsung memangkas penunjang lama dari teks yang disalin (catatan tetap utuh), dan versi baru untuk DPJP itu tercentang otomatis. Untuk dr. AHA, aktifkan sekali di Pengaturan.
+- SOAP jaga tetap seperti sebelumnya (tombol **+ SOAP jaga**, format jaga, jam bisa diubah); kini tampil sebagai salah satu catatan lain di hari itu.
+
 ## `2026-10-03.1`
 - **Bookmark baris di SOAP:** taruh kursor di sebuah baris, lalu ketuk ikon bookmark di toolbar. Baris itu diberi tanda biru di tepi kiri, dan namanya muncul di bar lompat atas (setelah S/O/A/Terapi). Ketuk untuk langsung menggulir ke baris tersebut — tanpa membuka keyboard — dan baris itu disorot sebentar. Ketuk ikon bookmark lagi di baris yang sama untuk menghapusnya.
 - Bookmark tersimpan di pasien dan ikut tersinkron ke perangkat lain. Bookmark tetap ada di hari berikutnya bila barisnya terbawa, dan tetap menempel saat isi baris diedit (mis. `K 3,1` diubah jadi `K 3,5`).

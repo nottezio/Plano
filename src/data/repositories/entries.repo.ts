@@ -35,6 +35,7 @@ import {
 } from '../localBase';
 import { trackWrite } from '../syncStatus';
 import { bodyHash } from '@/domain/hash';
+import { isVersion, noteLabel } from '@/domain/shiftNotes';
 import { expectedBaseHash } from '@/domain/merge/lateWrite';
 import type { ClinicalDate, DailyEntry, EntryRevision, ShiftNote } from '@/domain/types';
 
@@ -798,9 +799,11 @@ export interface ComparableEntry {
   /** Unique across both kinds — a date alone is not, once jaga notes exist. */
   key: string;
   date: ClinicalDate;
-  /** `HH.MM` for a jaga note; absent for the day's own SOAP. */
+  /** `HH.MM` for a jaga note or version; absent for the day's own SOAP. */
   time?: string;
-  kind: 'harian' | 'jaga';
+  kind: 'harian' | 'jaga' | 'versi';
+  /** The note's name (`Versi dr. AHA`, `Jaga 21.40`); absent for the day's SOAP. */
+  label?: string;
   body: string;
 }
 
@@ -849,7 +852,8 @@ export async function fetchComparableEntries(
         key: `${date}#${note.id}`,
         date,
         time: note.time,
-        kind: 'jaga',
+        kind: isVersion(note) ? 'versi' : 'jaga',
+        label: noteLabel(note),
         body: note.body,
       });
     }
@@ -865,7 +869,11 @@ export async function fetchComparableEntries(
    */
   return out.sort((a, b) => {
     if (a.date !== b.date) return a.date < b.date ? 1 : -1;
-    if (a.kind === b.kind) return (b.time ?? '').localeCompare(a.time ?? '');
-    return a.kind === 'jaga' ? -1 : 1;
+    // The day's SOAP last within its date; its versions and jaga notes, which
+    // came after it, above it, newest first.
+    if ((a.kind === 'harian') === (b.kind === 'harian')) {
+      return (b.time ?? '').localeCompare(a.time ?? '');
+    }
+    return a.kind === 'harian' ? 1 : -1;
   });
 }

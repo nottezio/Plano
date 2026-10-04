@@ -323,7 +323,11 @@ export function defaultUserSettings(): UserSettings {
         hint: 'Kirim via Telegram',
       },
       ahn: { format: 'diagnosis' },
-      aha: { format: 'harian', hint: 'Bila fisis normal, ringkas O jadi satu baris' },
+      aha: {
+        format: 'harian',
+        latestPenunjang: true,
+        hint: 'Bila fisis normal, ringkas O jadi satu baris',
+      },
     },
     whatsappBullet: 'hyphen',
     sectionTint: false,

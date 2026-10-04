@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react';
 
 import { formatShortDate, relativeDayLabel } from '@/domain/clinicalDate';
+import { isVersion, noteLabel } from '@/domain/shiftNotes';
 import type { ClinicalDate, ShiftNote } from '@/domain/types';
 import { IGD_ENTRY } from '@/domain/clinicalDate';
 
@@ -189,8 +190,14 @@ export function DateRail({
                           : 'border-border text-fg-faint',
                     ].join(' ')}
                   >
-                    <span className="shrink-0">Jaga</span>
-                    <span className="shrink-0 opacity-80">{note.time}</span>
+                    {isVersion(note) || note.title ? (
+                      <span className="max-w-[9rem] shrink-0 truncate">{noteLabel(note)}</span>
+                    ) : (
+                      <>
+                        <span className="shrink-0">Jaga</span>
+                        <span className="shrink-0 opacity-80">{note.time}</span>
+                      </>
+                    )}
                     {orientation === 'vertical' ? (
                       <span className="min-w-0 flex-1 truncate opacity-70">
                         {note.body.trim() || '(kosong)'}
@@ -203,8 +210,8 @@ export function DateRail({
                     <button
                       type="button"
                       onClick={() => onClearShiftNote(date, note.id)}
-                      aria-label={`Hapus SOAP jaga jam ${note.time}`}
-                      title="Hapus SOAP jaga"
+                      aria-label={`Hapus ${noteLabel(note)}`}
+                      title={isVersion(note) ? 'Hapus versi SOAP' : 'Hapus SOAP jaga'}
                       className="min-h-tap min-w-tap shrink-0 text-fg-faint"
                     >
                       <span aria-hidden="true">×</span>

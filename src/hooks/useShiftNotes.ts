@@ -15,8 +15,13 @@ const IDLE_SAVE_MS = 1500;
 
 export interface ShiftNotesState {
   notes: ShiftNote[];
-  /** Returns the new note's id, so the caller can open it immediately. */
-  add: (body?: string) => string | null;
+  /**
+   * Returns the new note's id, so the caller can open it immediately.
+   * `kind: 'versi'` makes a SOAP version instead of a jaga note.
+   */
+  add: (body?: string, options?: { kind?: 'jaga' | 'versi'; title?: string }) => string | null;
+  /** Name (or rename) a note. An empty name goes back to the default. */
+  rename: (id: string, title: string) => void;
   /** Correct the time stamp (`HH.MM`), for a note written after the fact. */
   setTime: (id: string, time: string) => void;
   setBody: (id: string, body: string) => void;
@@ -79,14 +84,16 @@ export function useShiftNotes(
     [patientId, date, hariRawat, readOnly, stored],
   );
 
-  const add = useCallback((body = '') => {
+  const add = useCallback((body = '', options: { kind?: 'jaga' | 'versi'; title?: string } = {}) => {
     if (!patientId || readOnly) return null;
     const at = new Date();
+    const kind = options.kind ?? 'jaga';
+    const title = options.title?.trim();
     // Generated OUTSIDE `commit` so it can be returned. The caller needs it to
     // open the note straight away — a new empty box added to a list and left
     // unopened is one you have to go and find, and the reason for adding it
     // was that you had something to write down right then.
-    const id = newShiftNoteId(at, stored);
+    const id = newShiftNoteId(at, stored, kind);
     commit((current) => [
       ...current,
       {
@@ -96,6 +103,10 @@ export function useShiftNotes(
         body,
         clearedAt: null,
         createdAt: Timestamp.now(),
+        // Written only for a version: an absent kind already means jaga, and
+        // every jaga note in storage is written that way.
+        ...(kind === 'versi' ? { kind } : {}),
+        ...(title ? { title } : {}),
       },
     ]);
     return id;
@@ -210,5 +221,29 @@ export function useShiftNotes(
     [commit],
   );
 
-  return { notes, add, setBody, setTime, clear, flush };
+  /**
+   * Same shape as `setTime`: pending text goes in the same write, or the
+   * rename would put the stored (older) body back over what was just typed.
+   */
+  const rename = useCallback(
+    (id: string, title: string) => {
+      const pending = draftRef.current;
+      const name = title.trim();
+      commit((current) =>
+        current.map((note) => {
+          const withBody =
+            pending[note.id] === undefined ? note : { ...note, body: pending[note.id]! };
+          if (note.id !== id) return withBody;
+          if (name) return { ...withBody, title: name };
+          const { title: _dropped, ...rest } = withBody;
+          return rest;
+        }),
+      );
+      draftRef.current = {};
+      setDraft({});
+    },
+    [commit],
+  );
+
+  return { notes, add, setBody, setTime, rename, clear, flush };
 }

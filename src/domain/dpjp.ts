@@ -191,6 +191,7 @@ export function describeConfig(config: DpjpReportConfig): string {
   if (config.format === 'ringkas' && config.staffing === false) extras.push('tanpa Chief/Junior');
   if (config.verificationTime) extras.push('dengan jam verifikasi');
   if (config.plainText) extras.push('tanpa tebal/miring');
+  if (config.latestPenunjang) extras.push('penunjang terbaru saja');
   if (config.hint) extras.push(config.hint);
 
   const base = REPORT_FORMAT_LABELS[config.format];

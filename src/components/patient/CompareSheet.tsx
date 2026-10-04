@@ -130,16 +130,16 @@ export function CompareSheet({
   };
 
   /**
-   * A jaga note is labelled by its TIME and marked as jaga; a day by its date.
+   * A version or jaga note is labelled by its NAME and dashed; a day by its date.
    *
    * Same list, different shape — which is the point. It is not a child of the
    * day above it, it is another piece of writing from the same patient, and
    * the label only has to say which one you are looking at.
    */
   const labelFor = (entry: ComparableEntry): string =>
-    entry.kind === 'jaga'
-      ? `Jaga ${entry.time} · ${formatShortDate(entry.date)}`
-      : formatShortDate(entry.date);
+    entry.kind === 'harian'
+      ? formatShortDate(entry.date)
+      : `${entry.label ?? `Jaga ${entry.time}`} · ${formatShortDate(entry.date)}`;
 
   const leftPane = resolve(against);
   const rightPane = resolve(right);
@@ -338,11 +338,13 @@ function PanePicker({
       <Chip active={selected === null} onClick={() => onSelect(null)}>
         {currentLabel}
       </Chip>
-      {days.slice(0, 8).map((day) => (
+      {/* 12, not 8: a day with a version and a jaga note is three entries,
+          and the last few days must still fit. */}
+      {days.slice(0, 12).map((day) => (
         <Chip
           key={day.key}
           active={selected === day.key}
-          dashed={day.kind === 'jaga'}
+          dashed={day.kind !== 'harian'}
           onClick={() => onSelect(day.key)}
         >
           {labelFor(day)}

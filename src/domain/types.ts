@@ -50,6 +50,12 @@ export interface DpjpReportConfig {
    * Plain text is the correct output for that destination, not a degraded one.
    */
   plainText?: boolean;
+  /**
+   * Only the newest dated block of each investigation (dr. AHA). Applied to
+   * the copied text and offered when a version is made; the note itself keeps
+   * the whole stack. See `domain/penunjang`.
+   */
+  latestPenunjang?: boolean;
   /** Free note shown alongside the reminder, e.g. "kirim via Telegram". */
   hint?: string;
 }
@@ -640,6 +646,19 @@ export interface ShiftNote {
    */
   clearedAt: Timestamp | null;
   createdAt: Timestamp;
+  /**
+   * What this note is. Absent on every note written before 2026-10-04, which
+   * were all jaga notes, so absent reads as `jaga`.
+   *
+   * `versi` is another version of the DAY'S SOAP: a copy made to be edited for
+   * one reader (dr. AHA wants only the newest penunjang) without touching the
+   * original. Same storage, editor, rail entry and Compare entry as a jaga
+   * note, because it is the same thing — a second SOAP on the same day — and
+   * a parallel structure would have needed all four built twice.
+   */
+  kind?: 'jaga' | 'versi';
+  /** Name given by the user. Absent → `Jaga 21.40` / `Versi`. */
+  title?: string;
 }
 
 export interface DailyEntry {

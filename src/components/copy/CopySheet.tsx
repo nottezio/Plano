@@ -20,6 +20,7 @@ import {
   konsulPresetById,
 } from '@/domain/format/konsulPresets';
 import { composeShiftNote } from '@/domain/format/composeShiftNote';
+import { latestPenunjangOnly } from '@/domain/penunjang';
 import {
   appliedReportConfig,
   composePdfReport,
@@ -342,12 +343,25 @@ export function CopySheet({
    * and not yet flushed is included. That was already true for this day; now
    * there is no other day to be inconsistent with.
    */
-  const days = useMemo(() => [{ date, body }], [date, body]);
+  /**
+   * "Penunjang terbaru saja": the note with only the newest block of each
+   * investigation (dr. AHA). Off until switched on here or applied with the
+   * consultant's format, like every other preference on this sheet; the note
+   * itself keeps the whole stack.
+   */
+  const [latestOnly, setLatestOnly] = useState(false);
+  useEffect(() => {
+    if (open) setLatestOnly(false);
+  }, [open]);
+  const trimmed = useMemo(() => latestPenunjangOnly(body, aliases), [body, aliases]);
+  const source = latestOnly ? trimmed.text : body;
+
+  const days = useMemo(() => [{ date, body: source }], [date, source]);
 
   const composed = useMemo(
     () =>
       shape === 'invasif'
-        ? composeInvasif(body, patient, aliases, {
+        ? composeInvasif(source, patient, aliases, {
             procedure: invasifProcedure,
             scheduledFor: invasifWhen,
             payer: invasifPayer,
@@ -371,7 +385,7 @@ export function CopySheet({
           // patient now. Sections are not offered either — the konsul decides
           // its own contents, and letting the section chips subtract from it
           // would produce a referral missing its diagnosis.
-          composeKonsul(body, patient, aliases, {
+          composeKonsul(source, patient, aliases, {
             purpose: konsulEffective.purpose,
             listStyle: konsulEffective.listStyle,
             listFrom: patient.ward ?? '',
@@ -381,7 +395,7 @@ export function CopySheet({
             asciiSymbols,
           })
         : pdfMode
-        ? composePdfReport(body, {
+        ? composePdfReport(source, {
             aliases,
             // The consultant's own switches, so choosing "Ringkas (PDF)" for
             // ZD produces a report with a verification time and for MZ one
@@ -421,7 +435,7 @@ export function CopySheet({
       reportStaffing,
       reportVerificationTime,
       date,
-      body,
+      source,
       days,
       format,
       selected,
@@ -645,6 +659,7 @@ export function CopySheet({
             type="button"
             onClick={() => {
               if (dpjp) setAppliedFor(dpjp.id);
+              setLatestOnly(Boolean(expected.latestPenunjang));
               // The consultant's preference only ever names `ringkas` or the
               // daily report; a konsul is a decision for this note, not a
               // standing preference, so it is never applied from here.
@@ -883,6 +898,27 @@ export function CopySheet({
           </Chip>
         ))}
       </Group>
+      ) : null}
+
+      {shape !== 'jaga' && trimmed.removed.length > 0 ? (
+        <label className="mt-3 flex min-h-tap cursor-pointer items-center gap-2 text-xs">
+          <input
+            type="checkbox"
+            checked={latestOnly}
+            onChange={(event) => {
+              setLatestOnly(event.target.checked);
+              setAppliedFor(null);
+            }}
+            className="h-4 w-4"
+          />
+          <span>
+            <span className="font-medium">Penunjang terbaru saja</span>
+            <span className="text-fg-muted">
+              {' '}
+              — {trimmed.removed.length} blok lama {latestOnly ? 'tidak ikut disalin' : 'ikut disalin'}
+            </span>
+          </span>
+        </label>
       ) : null}
 
       <div className="mb-1 mt-4 flex items-center gap-2">

@@ -1,5 +1,103 @@
 # Plano — CHANGES
 
+## `2026-10-04.1` — SOAP versions, "penunjang terbaru saja"
+
+**Request.** dr. AHA's report carries only the newest pemeriksaan penunjang,
+while the day's SOAP must keep the whole stack. The stack is what carry-forward
+preserves on purpose (`carryForward`: clearing penunjang would delete the
+history). Avi needed a second, editable, named SOAP for the same day,
+comparable with the original. He chose to fold the jaga note into it rather
+than build a parallel structure.
+
+### Design: a version IS a jaga note with another kind
+A jaga note was already "a second SOAP on the same day": own storage
+(`entry.shiftNotes`), own editor slot, a rail entry, a Salin shape and a Compare
+entry. Building versions beside it would have duplicated all five. So:
+- `ShiftNote.kind?: 'jaga' | 'versi'` and `title?`.
+  - **Absent kind = jaga**, which is every note written so far. No migration and
+    no write-back.
+  - Ids are prefixed `versi-`/`jaga-`.
+- `noteLabel` (title → `Jaga HH.MM` → `Versi`) is the one label used by the
+  chip row, the rail, Compare and aria labels.
+- `defaultVersionTitle` gives `Versi dr. <DPJP>`, else `Versi n`.
+- `useShiftNotes.add(body, { kind, title })` and `rename(id, title)`. Rename
+  carries pending text in the same write, like `setTime`.
+- **Chip row (`JagaBar`):** `+ Versi` (only while the day's SOAP has text) next
+  to `+ SOAP jaga`. ⋯ also has "Buat versi SOAP".
+- **`NewVersionSheet`:** name plus "Penunjang terbaru saja". The checkbox is
+  ticked by default when the DPJP's format asks for it, and the sheet lists the
+  blocks it will drop before anything is created. Versions copy `editor.value`,
+  so unflushed typing is included.
+- **`ShiftNoteEditor`:** editable name on both kinds; the time stays jaga-only.
+  - A version gets the full editor (snippets, 55vh).
+  - A version gets a "Penunjang terbaru saja" bar whenever older blocks are
+    present.
+- **Salin:** a version is the SOAP in another shape, so `body` = the version and
+  every shape applies. A jaga note keeps its own shape (`activeShiftNote` is
+  now jaga only).
+- **Compare:** `ComparableEntry.kind` gains `versi` and a `label`. Non-day
+  entries sort above their day's SOAP, newest first. The chip limit went from
+  8 to 12, because one day can now be three entries.
+
+### `domain/penunjang.ts` — `latestPenunjangOnly`
+- **What is trimmed.** Only text above the first own-line A/Terapi/Plan
+  heading. Below it a dated line is a plan (`Rencana Echo (06-10-2026)`), not a
+  result.
+- **A block** starts at a heading line carrying `(d-m-yyyy)`, `(dd/mm/yy)` and
+  similar. It ends at the next such heading, an own-line bold heading, or a core
+  S/O/TTV/A/P/Terapi heading. Undated blocks are never removed.
+- **Which kind.** The heading is stripped of place words (PJT, IGD, CVCU,
+  Lt. N…) and digits, then mapped through synonyms (EKG/ECG,
+  Lab/Laboratorium, Echo/Echocardiography, Echo Hemodinamik, Thorax,
+  Urinalisa, AGD, LUS). Any other heading is its own kind, by its words.
+- **What is kept.** Every block on the newest date of its kind (two draws on one
+  day both stay).
+- **Failure direction.** Boundaries are found early rather than late. A missed
+  tail of an old block stays in the text; it is never someone else's lines
+  deleted.
+
+### DPJP format
+- `DpjpReportConfig.latestPenunjang`: a toggle in Settings → Format DPJP,
+  available for every format, and listed by `describeConfig`.
+- The seed for `aha` sets it, but **existing accounts keep their stored
+  formats**. Avi needs to switch it on once for dr. AHA.
+- CopySheet has a "Penunjang terbaru saja" switch, shown when it would remove
+  something. Like the other preferences it is off until ticked or applied with
+  "Pakai format ini" (offered, never imposed), and changing it un-applies the
+  format.
+
+### Render check
+In a Vite harness with mocked entries and Playwright at 390 px, all of these
+checked out, with no console errors:
+- create "Versi dr. AHA" with trimming;
+- the version keeps only the 03-10 EKG and 02-10 lab;
+- rename to "AHA ringkas";
+- type into the version, and the day SOAP still has both old blocks;
+- Salin from the version copies the version;
+- Salin on the day SOAP with "Pakai format ini" trims;
+- Compare lists "AHA ringkas · Min, 4 Okt".
+
+### Not done
+- **Versions are per day.** They are not carried forward, the same as jaga
+  notes. Tomorrow's AHA version is made again with one tap, or skipped
+  entirely: "Pakai format ini" now trims the day copy directly.
+- **Concurrent edits can be lost (pre-existing).** `shiftNotes` is still
+  written as a whole array (`writeShiftNotes`). Editing two different
+  versions/jaga notes on two devices within the same snapshot window is
+  last-write-wins (pattern 5). This already applied to jaga notes, but a
+  version is longer and more likely to be edited at length. The fundamental
+  fix is one map leaf per note (`shiftNotes.<id>`), which needs a read path
+  that accepts both shapes. It is not done in this release.
+- **No undo** for the in-version "Penunjang terbaru saja" button. Versions have
+  no history stack. The day SOAP is untouched, so a new version restores
+  everything.
+- `ShiftNotePanel.tsx` is dead code (no importer). Left in place.
+
+```
+1829 tests passed (+13)
+typecheck / lint (0 warnings) / check:version / check:contrast / check:a11y / build — clean
+```
+
 ## `2026-10-03.1`
 
 Three requests: line bookmarks in the SOAP, Pagi/Malam in Konfirmasi Jaga, and
