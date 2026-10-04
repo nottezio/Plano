@@ -3,6 +3,8 @@ import { useClipboardNote } from '@/store/useClipboardNote';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 
 import { BodyEditor, type BodyEditorHandle } from '@/components/patient/BodyEditor';
+import { FloatingCalculator } from '@/components/calc/FloatingCalculator';
+import { IconCalculator } from '@/components/common/Icons';
 import { CopySheet } from '@/components/copy/CopySheet';
 import { ChecklistPills } from '@/components/patient/ChecklistPills';
 import { CompareSheet } from '@/components/patient/CompareSheet';
@@ -222,6 +224,8 @@ export default function PatientPage(): JSX.Element {
   const [versionLabel, setVersionLabel] = useState<string | null>(null);
 
   const [copyOpen, setCopyOpen] = useState(false);
+  /** The floating calculator: non-modal, so it can stay open while writing. */
+  const [calcOpen, setCalcOpen] = useState(false);
   const [actionsOpen, setActionsOpen] = useState(false);
   const [identityOpen, setIdentityOpen] = useState(false);
   const [openingOpen, setOpeningOpen] = useState(false);
@@ -1126,6 +1130,19 @@ export default function PatientPage(): JSX.Element {
               Pembuka
             </button>
           ) : null}
+          <button
+            type="button"
+            onClick={() => setCalcOpen((current) => !current)}
+            aria-label={calcOpen ? 'Tutup kalkulator' : 'Buka kalkulator'}
+            aria-pressed={calcOpen}
+            title="Kalkulator melayang"
+            className={[
+              'hidden min-h-tap min-w-tap shrink-0 items-center justify-center rounded-lg border sm:flex',
+              calcOpen ? 'border-accent text-accent' : 'border-border text-fg-muted',
+            ].join(' ')}
+          >
+            <IconCalculator width={18} height={18} />
+          </button>
           <button
             type="button"
             onClick={() => setCopyOpen(true)}
@@ -2174,7 +2191,10 @@ export default function PatientPage(): JSX.Element {
             : () => setOpeningOpen(true)
         }
         {...(headerHasTools ? {} : { onCompare: () => setCompareOpen(true) })}
+        {...(headerHasTools ? {} : { onCalculator: () => setCalcOpen(true) })}
       />
+
+      {calcOpen ? <FloatingCalculator onClose={() => setCalcOpen(false)} /> : null}
 
         </div>
 

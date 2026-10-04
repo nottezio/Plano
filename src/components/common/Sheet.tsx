@@ -26,6 +26,7 @@ const WIDTH = {
   md: 'sm:w-[34rem]',
   lg: 'sm:w-[46rem]',
   xl: 'sm:w-[64rem]',
+  '2xl': 'sm:w-[84rem]',
 } as const;
 
 export function Sheet({
@@ -51,6 +52,7 @@ export function Sheet({
    * selected by hand: when the whole body scrolled, dragging a selection to
    * the bottom of the preview auto-scrolled the body and the preview moved
    * under the cursor (Salin, 2026-10-05). A phone keeps the scrolling body.
+   * Also 92dvh tall rather than 88 (2026-10-05).
    */
   fill?: boolean;
 }): JSX.Element {
@@ -69,8 +71,10 @@ export function Sheet({
             // phone: bottom sheet clearing the home indicator
             'inset-x-0 bottom-0 max-h-[90dvh] rounded-t-2xl pb-[env(safe-area-inset-bottom)]',
             // tablet/desktop: centred panel
-            `sm:inset-x-auto sm:bottom-auto sm:left-1/2 sm:top-1/2 sm:max-h-[88dvh] sm:max-w-[94vw] ${WIDTH[size]}`,
-            fill ? 'sm:h-[88dvh]' : '',
+            `sm:inset-x-auto sm:bottom-auto sm:left-1/2 sm:top-1/2 sm:max-w-[94vw] ${WIDTH[size]}`,
+            // A `fill` sheet is taller too: it holds a preview, and the strip of
+            // backdrop above and below it was space the preview could have used.
+            fill ? 'sm:h-[92dvh] sm:max-h-[92dvh]' : 'sm:max-h-[88dvh]',
             'sm:-translate-x-1/2 sm:-translate-y-1/2 sm:rounded-2xl sm:pb-0',
             'border border-border shadow-2xl',
           ].join(' ')}

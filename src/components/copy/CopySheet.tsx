@@ -1,7 +1,8 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
 
 import { Sheet } from '@/components/common/Sheet';
 import { IconCopy } from '@/components/common/Icons';
+import { ResizeGrip } from '@/components/common/ResizeGrip';
 import {
   Button,
   Callout,
@@ -158,6 +159,37 @@ export function CopySheet({
    */
   const [preview, setPreview] = useState<'teks' | 'tampilan'>('teks');
   const outputRef = useRef<HTMLTextAreaElement>(null);
+  /**
+   * How big the preview is, remembered per device (2026-10-05).
+   *
+   * `previewHeight` null means "fill the column", which is the default and
+   * what a laptop wants; a number is a height the user dragged to. The options
+   * column's width is the same idea. Both are habits about this screen, not
+   * properties of a note, so neither is ever written to the note.
+   */
+  const [previewHeight, setPreviewHeightState] = useState<number | null>(() =>
+    readSize(PREVIEW_HEIGHT_KEY, MIN_PREVIEW_HEIGHT, MAX_PREVIEW_HEIGHT),
+  );
+  const [optionsWidth, setOptionsWidthState] = useState<number>(
+    () => readSize(OPTIONS_WIDTH_KEY, MIN_OPTIONS_WIDTH, MAX_OPTIONS_WIDTH) ?? DEFAULT_OPTIONS_WIDTH,
+  );
+  const previewBoxRef = useRef<HTMLDivElement>(null);
+  /*
+    Remembered from the state itself rather than from the drag's last event: a
+    key press changes and "commits" in one event, where a handler would still
+    see the old value. The default is stored as nothing.
+  */
+  useEffect(() => writeSize(PREVIEW_HEIGHT_KEY, previewHeight), [previewHeight]);
+  useEffect(
+    () => writeSize(OPTIONS_WIDTH_KEY, optionsWidth === DEFAULT_OPTIONS_WIDTH ? null : optionsWidth),
+    [optionsWidth],
+  );
+  const setPreviewHeight = (next: number | null): void =>
+    setPreviewHeightState(
+      next === null ? null : Math.round(Math.max(MIN_PREVIEW_HEIGHT, Math.min(next, MAX_PREVIEW_HEIGHT))),
+    );
+  const setOptionsWidth = (next: number): void =>
+    setOptionsWidthState(Math.round(Math.max(MIN_OPTIONS_WIDTH, Math.min(next, MAX_OPTIONS_WIDTH))));
   /**
    * The short form three DPJPs want as a PDF: staffing lines, the opening block
    * verbatim, diagnoses, closing. It replaces the section picker entirely
@@ -607,7 +639,7 @@ export function CopySheet({
     <Sheet
       open={open}
       onOpenChange={onOpenChange}
-      size="xl"
+      size="2xl"
       fill
       title={`Salin · ${patientName}`}
       description={`Catatan ${date.slice(8, 10)}/${date.slice(5, 7)}${patient.mrn ? ` · RM ${patient.mrn}` : ''}`}
@@ -639,7 +671,10 @@ export function CopySheet({
         </button>
       }
     >
-      <div className="grid gap-6 sm:h-full sm:min-h-0 sm:grid-cols-[minmax(0,21rem)_minmax(0,1fr)]">
+      <div
+        style={{ '--salin-options': `${optionsWidth}px` } as CSSProperties}
+        className="relative grid gap-6 sm:h-full sm:min-h-0 sm:grid-cols-[var(--salin-options)_minmax(0,1fr)]"
+      >
         {/* OPTIONS: their own scroll on a laptop (see Sheet `fill`). */}
         <div className="space-y-5 sm:min-h-0 sm:overflow-y-auto sm:pb-2 sm:pr-2">
           {identityCheck.status === 'mismatch' ? (
@@ -947,12 +982,34 @@ export function CopySheet({
         </div>
 
         {/*
+          Width: a bar in the gutter between the two columns. Laptop only — on a
+          phone the columns are stacked and there is no width to trade. A child
+          of the GRID, not of the preview column: that column scrolls once the
+          preview is dragged taller, and would clip a bar sitting outside it.
+        */}
+        <ResizeGrip
+          axis="x"
+          label="Lebar kolom pilihan"
+          getStart={() => optionsWidth}
+          onChange={setOptionsWidth}
+          onReset={() => setOptionsWidthState(DEFAULT_OPTIONS_WIDTH)}
+          step={24}
+          className="absolute inset-y-0 hidden sm:left-[calc(var(--salin-options)+0.375rem)] sm:flex"
+        />
+
+        {/*
           PREVIEW: on a laptop a column of fixed height whose TEXT scrolls, not
           the page. Avi copies by selecting in this box by hand; when the sheet
           body scrolled, dragging a selection to the bottom scrolled the body
           and the box moved under the cursor. Below the options on a phone.
         */}
-        <div className="flex min-w-0 flex-col gap-2 sm:min-h-0">
+        <div
+          className={[
+            'flex min-w-0 flex-col gap-2 sm:min-h-0',
+            // Only once dragged taller than the column does it need to scroll.
+            previewHeight !== null ? 'sm:overflow-y-auto' : '',
+          ].join(' ')}
+        >
           <div className="flex items-center gap-2">
             <h3 className="flex-1 text-[11px] font-semibold uppercase tracking-wider text-fg-faint">
               Preview
@@ -968,8 +1025,23 @@ export function CopySheet({
               ]}
             />
           </div>
+
+          {/*
+            ONE box for both views, so the height the user sets applies to
+            whichever is showing. Its children are absolutely positioned: the
+            box's size comes from the layout (or the drag), never from its
+            content, so a long note cannot stretch it.
+          */}
+          <div
+            ref={previewBoxRef}
+            style={previewHeight !== null ? { height: previewHeight } : undefined}
+            className={[
+              'relative min-w-0',
+              previewHeight !== null ? 'shrink-0' : 'h-[26rem] sm:h-auto sm:min-h-[12rem] sm:flex-1',
+            ].join(' ')}
+          >
             {preview === 'tampilan' ? (
-              <div className="flex flex-col gap-2 sm:min-h-0 sm:flex-1 sm:overflow-y-auto">
+              <div className="absolute inset-0 flex flex-col gap-2 overflow-y-auto overscroll-contain">
                 <RenderedPreview text={output} />
                 <p className="text-[11px] text-fg-faint">
                   Perkiraan tampilan di WhatsApp. Jangan menyalin dari sini — tanda formatnya ikut
@@ -977,31 +1049,56 @@ export function CopySheet({
                 </p>
               </div>
             ) : (
-              <>
-                {/*
-                  A real textarea, not a <pre>: read-only, but selectable and
-                  scrollable. No select-on-focus — switching tabs refocuses it,
-                  and a select-all then wiped a selection made by hand.
-                */}
-                <textarea
-                  ref={outputRef}
-                  readOnly
-                  value={output || '(kosong)'}
-                  rows={14}
-                  spellCheck={false}
-                  className="h-80 w-full resize-y overscroll-contain rounded-xl border border-border bg-bg-subtle p-3 font-mono text-xs leading-relaxed text-fg outline-none sm:h-auto sm:min-h-0 sm:flex-1 sm:resize-none"
-                />
-                <div className="flex items-center justify-between gap-2">
-                  <span className="text-[11px] tabular-nums text-fg-faint">
-                    {output.length.toLocaleString('id-ID')} karakter
-                  </span>
-                  <Button size="sm" variant="ghost" onClick={() => outputRef.current?.select()}>
-                    Pilih semua teks
-                  </Button>
-                </div>
-              </>
+              /*
+                A real textarea, not a <pre>: read-only, but selectable and
+                scrollable. No select-on-focus — switching tabs refocuses it,
+                and a select-all then wiped a selection made by hand.
+              */
+              <textarea
+                ref={outputRef}
+                readOnly
+                value={output || '(kosong)'}
+                spellCheck={false}
+                className="absolute inset-0 h-full w-full resize-none overscroll-contain rounded-xl border border-border bg-bg-subtle p-3 font-mono text-xs leading-relaxed text-fg outline-none"
+              />
             )}
+          </div>
 
+          <ResizeGrip
+            axis="y"
+            label="Tinggi preview"
+            getStart={() => previewBoxRef.current?.getBoundingClientRect().height ?? MIN_PREVIEW_HEIGHT}
+            onChange={setPreviewHeight}
+            onReset={() => setPreviewHeight(null)}
+            className="-my-1"
+          />
+
+          <div className="flex items-center justify-between gap-2">
+            <span className="text-[11px] tabular-nums text-fg-faint">
+              {output.length.toLocaleString('id-ID')} karakter
+            </span>
+            <div className="flex items-center gap-1">
+              {previewHeight !== null || optionsWidth !== DEFAULT_OPTIONS_WIDTH ? (
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  onClick={() => {
+                    setPreviewHeight(null);
+                    setOptionsWidthState(DEFAULT_OPTIONS_WIDTH);
+                  }}
+                >
+                  Ukuran awal
+                </Button>
+              ) : null}
+              {preview === 'teks' ? (
+                <Button size="sm" variant="ghost" onClick={() => outputRef.current?.select()}>
+                  Pilih semua teks
+                </Button>
+              ) : null}
+            </div>
+          </div>
+
+          {nonAscii.length > 0 || leaks.length > 0 ? (
           <div className="space-y-2">
             {/*
               Keyed on the OUTPUT, not on the format chip: Konsul and Grup
@@ -1040,6 +1137,7 @@ export function CopySheet({
               </Callout>
             ) : null}
           </div>
+          ) : null}
         </div>
       </div>
     </Sheet>
@@ -1076,5 +1174,33 @@ function writeAsciiSymbols(on: boolean): void {
     else window.localStorage.setItem(ASCII_SYMBOLS_KEY, 'off');
   } catch {
     // Not remembered; the switch still works for this sheet.
+  }
+}
+
+const PREVIEW_HEIGHT_KEY = 'plano.salin.previewHeight';
+const OPTIONS_WIDTH_KEY = 'plano.salin.optionsWidth';
+const MIN_PREVIEW_HEIGHT = 128;
+const MAX_PREVIEW_HEIGHT = 4000;
+const DEFAULT_OPTIONS_WIDTH = 288;
+const MIN_OPTIONS_WIDTH = 224;
+const MAX_OPTIONS_WIDTH = 560;
+
+/** A remembered size, or null when none is stored or it is out of range. */
+function readSize(key: string, min: number, max: number): number | null {
+  try {
+    const value = Number(window.localStorage.getItem(key));
+    return Number.isFinite(value) && value >= min && value <= max ? value : null;
+  } catch {
+    return null;
+  }
+}
+
+/** null forgets the size, which means "the default" on the next open. */
+function writeSize(key: string, value: number | null): void {
+  try {
+    if (value === null) window.localStorage.removeItem(key);
+    else window.localStorage.setItem(key, String(value));
+  } catch {
+    // Not remembered; the size still holds for this sheet.
   }
 }

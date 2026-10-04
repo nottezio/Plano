@@ -14,6 +14,7 @@ import { useClinicalToday } from '@/hooks/useClinicalToday';
 import type { ArchiveReason, Patient } from '@/domain/types';
 import { ReminderPicker } from './ReminderPicker';
 import {
+  IconCalculator,
   IconColumns,
   IconConvert,
   IconEye,
@@ -61,6 +62,7 @@ export function PatientActionsSheet({
   onLab,
   onOpening,
   onCompare,
+  onCalculator,
   onTidy,
   onReformat,
   onSummarise,
@@ -87,6 +89,8 @@ export function PatientActionsSheet({
   onLab?: (() => void) | undefined;
   onOpening?: (() => void) | undefined;
   onCompare?: (() => void) | undefined;
+  /** Opens the floating calculator; listed here on a phone, where the header has no room for it. */
+  onCalculator?: (() => void) | undefined;
   /**
    * Present only when the AI switch is on AND a key exists AND there is a note
    * to tidy. Absent otherwise: a greyed-out row for a feature nobody enabled
@@ -129,7 +133,7 @@ export function PatientActionsSheet({
     close();
     action();
   };
-  const hasNoteTools = Boolean(onLab || onOpening || onCompare || onAddVersion || onAddShiftNote || onReformat);
+  const hasNoteTools = Boolean(onLab || onOpening || onCompare || onCalculator || onAddVersion || onAddShiftNote || onReformat);
 
   return (
     <Sheet
@@ -164,6 +168,14 @@ export function PatientActionsSheet({
                   title="Bandingkan catatan"
                   detail="Dengan hari sebelumnya, SOAP asli, atau versi lain."
                   onClick={() => run(onCompare)}
+                />
+              ) : null}
+              {onCalculator ? (
+                <ListRow
+                  icon={<IconCalculator width={18} height={18} />}
+                  title="Kalkulator"
+                  detail="Hitung sambil menulis; panelnya melayang di atas catatan."
+                  onClick={() => run(onCalculator)}
                 />
               ) : null}
               {onAddVersion ? (

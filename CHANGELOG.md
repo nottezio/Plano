@@ -5,6 +5,13 @@ Catatan teknis lengkap (akar masalah, perbaikan) ada di CHANGES.md.
 
 Entri teratas harus versi yang sedang dirilis; tes gagal bila belum ditulis.
 
+## `2026-10-05.2`
+- **Kalkulator melayang di halaman SOAP:** ikon kalkulator di samping tombol Salin (di HP: menu ⋯ → Kalkulator). Panelnya tidak menutupi catatan, jadi tetap bisa menulis sambil menghitung. Di laptop bisa diseret dan diingat posisinya; bisa dilipat dan hasil terakhir tetap terlihat di judulnya.
+- **Tab Hitung:** ketik atau pakai tombol angka; hasil langsung tampil, lengkap dengan "Dibaca: …" supaya terlihat bagaimana hitungan itu dimengerti. Titik tiga angka dibaca ribuan (`12.000` = 12000) dan koma dibaca desimal (`3,1`), seperti penulisan di catatan. Enter menghitung dan hasilnya jadi baris berikutnya; ketuk hasil sebelumnya untuk memakainya lagi; **Salin hasil** untuk ditempel.
+- **Tab Klinis:** kalkulator yang sama dengan halaman Kalkulator (urine output, osmolalitas, koreksi natrium, konversi satuan).
+- **Preview Salin lebih besar:** sheet lebih lebar dan lebih tinggi, kolom pilihan lebih ramping, dan tidak ada lagi ruang kosong di bawah Preview. Tinggi Preview kini sekitar 60% lebih besar di layar laptop.
+- **Preview Salin bisa diubah ukurannya:** seret garis di bawah Preview untuk mengubah tingginya, dan garis di antara dua kolom untuk mengubah lebar kolom pilihan (atau pakai tombol panah; klik dua kali untuk mengembalikan). Ukurannya diingat di perangkat ini; **Ukuran awal** mengembalikan keduanya.
+
 ## `2026-10-05.1`
 - **Format bangsal diperbaiki (penting):** sebelumnya angka berkoma bisa terpotong — `Suhu 37,8 C` menjadi `Suhu : 37`, `NE 0,1 mcg` dan `Kalium 3,1` terbelah, dan pembacaan kedua sebuah tanda vital (mis. `HR monitor 130` setelah `nadi 112`) hilang tanpa jejak. Sekarang koma desimal dan isi dalam kurung tidak pernah dipotong, tidak ada temuan yang dibuang, dan kata seperti "sesak nafas" tidak lagi dibaca sebagai frekuensi napas.
 - **Pemeriksaan otomatis sebelum menerapkan:** setiap kata dan angka catatan dicocokkan dengan hasilnya (termasuk hasil "Perbaiki dengan AI"). Bila ada yang hilang, daftar kata/angkanya ditampilkan dan tombol **Terapkan** dikunci.

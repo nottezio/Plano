@@ -1,5 +1,105 @@
 # Plano — CHANGES
 
+## `2026-10-05.2` — Floating calculator, bigger and resizable Salin preview
+
+### 1. Floating calculator on the SOAP page (Avi)
+**Why not a Sheet.** Every dialog in the app is modal: it dims the page, traps
+focus and blocks the note. A calculator is only useful while the note stays
+editable behind it. `FloatingCalculator` is a plain non-modal panel
+(`role="dialog"`, `aria-modal="false"`, z-40 so a real Sheet still covers it).
+
+**Default chosen, and why.** "Floating calculator" could mean arithmetic or the
+bedside formulas. Both are in, as two tabs, rather than asking:
+- **Hitung** — typed or keypad arithmetic, a live `= result`, a five-line tape,
+  Salin hasil. `domain/calc/arithmetic.ts` is a small recursive-descent parser,
+  **not `eval`** (tested: `alert(1)`, `2 ** 3` and `constructor` are syntax
+  errors).
+- **Klinis** — the same cards as the Kalkulator page (urine output, osmolality,
+  corrected sodium, unit converter). They moved out of `CalculatorPage` into
+  `components/calc/ClinicalCards.tsx`, so a formula fixed in one place is
+  fixed in both. Page behaviour is unchanged.
+
+**The one real hazard: number notation.** The notes write `12.000` for twelve
+thousand and `3,1` for three point one. A calculator that read `12.000` as
+twelve would be wrong by 1000x on exactly the numbers it is opened for. So:
+- `.` followed by exactly three digits is a thousands separator;
+- `,` is always the decimal mark;
+- `.` with one or two digits (`3.1`, `0.75`) is accepted as a decimal, because a
+  phone keypad types it.
+- `1.500` is genuinely ambiguous and is read as 1500. Every result shows
+  **"Dibaca: 1500 + 3,5"** so a misreading is visible, not silent.
+- `%` is a plain postfix (`200 x 10%` = 20). It is NOT the phone-calculator rule
+  that `200 + 10%` means 220. Results are written with a comma and no grouping,
+  like the notes.
+
+**Behaviour.**
+- Laptop: header button (calculator icon) next to Salin; the panel floats
+  bottom right, can be dragged by its header, is clamped to the window, and
+  remembers where it was, whether it was folded, and the tab
+  (`plano.floatCalc`). Folding keeps the line and the tape (the body is hidden,
+  not unmounted) and shows the live result in the header.
+- Phone: no room in the header, so it is a row in the ⋯ sheet. The panel docks
+  above the tab bar (no dragging a panel round a 360 px screen) and the keypad
+  replaces the system keyboard (`inputMode="none"` on a touch pointer), which
+  would otherwise cover the note.
+- Enter or `=` puts the result on the tape and into the line, so a chain needs
+  no retyping. Tape rows re-insert their result. Escape closes.
+- Nothing is saved but position, fold and tab. The tape dies with the panel,
+  for the reason the Kalkulator page gives: numbers with no patient attached.
+
+### 2. Salin preview: bigger by default, and resizable
+**Root cause of the dead space.** The sheet was 64 rem wide and 88 dvh tall with
+a 21 rem options column, and an empty notices `div` under the preview still took
+a flex gap. On a wide screen the preview was a narrow strip with air around it.
+
+**Fix.**
+- `Sheet` gains `size="2xl"` (84 rem, still capped at 94 vw); a `fill` sheet is
+  now 92 dvh tall. The options column is 18 rem by default (was 21 rem).
+- The notices block renders only when there is a notice.
+- The preview is one box for both views, so Teks and Tampilan share one height.
+  Measured at 1440 x 900: the textarea went from about 335 px (the screenshot)
+  to 532 px.
+- **Resizable both ways**, with `components/common/ResizeGrip`:
+  - a bar under the preview changes its height; a bar in the gutter changes the
+    options column's width (laptop only);
+  - drag, arrow keys (they are real `role="separator"` controls), double-click
+    or Home to reset; "Ukuran awal" resets both;
+  - remembered per device (`plano.salin.previewHeight`, `plano.salin.optionsWidth`).
+    Neither is ever written to a note.
+- Dragged taller than the column, the column scrolls (and the sheet does not).
+  Hand-selecting to the bottom still moves the textarea 0 px.
+
+**Wrong turns.**
+- CSS `resize` was the first idea. It cannot work here: the preview fills its
+  column with `flex-1`, whose flex-basis of 0 beats the height the browser
+  writes while dragging.
+- The first `ResizeGrip` kept the drag origin in a plain local object. Each
+  move re-rendered the parent and made a new object, so a drag forgot it had
+  started. It is a `useRef`.
+- Arrow keys changed the size and "committed" in one event, so the persisted
+  value was the OLD one. Sizes are now persisted from state in an effect.
+- The width bar first sat inside the preview column, which scrolls once the
+  preview is dragged taller, and would have been clipped. It is a child of the
+  grid.
+- The keypad `=` and the "Hitung" tab had the same accessible name; the key is
+  now "Hitung hasil".
+
+### Not done
+- The calculator and Salin were render-checked in a harness (Playwright:
+  drag, clamp, fold, tab, reload, phone width). The real PatientPage was not
+  (it needs the whole data layer): the header button and the ⋯ row are markup
+  plus one state flag, typechecked and linted. Check them on the device.
+- The calculator cannot insert its result at the note's caret: the editor has
+  no insert-at-caret handle, and focusing the panel loses the selection. It
+  copies; you paste.
+- On a phone the panel is about two-thirds of the screen high while open. Fold
+  it with the triangle.
+
+```
+1871 tests passed (+19)
+typecheck / lint (0 warnings) / check:version / check:contrast / check:a11y / build - clean
+```
+
 ## `2026-10-05.1` — Format bangsal safety, closings, lab placement, preview, declutter
 
 ### 1. Format bangsal — "dangerously wrong" (Avi)
