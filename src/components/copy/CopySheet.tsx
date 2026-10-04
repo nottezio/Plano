@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
 
 import { Sheet } from '@/components/common/Sheet';
 import { IconCopy } from '@/components/common/Icons';
@@ -184,6 +184,18 @@ export function CopySheet({
     () => writeSize(OPTIONS_WIDTH_KEY, optionsWidth === DEFAULT_OPTIONS_WIDTH ? null : optionsWidth),
     [optionsWidth],
   );
+  /*
+    Dragged past the bottom of the column, the box is held at the column's
+    height by flex-shrink while the number keeps growing. That number means
+    "as tall as it can be", which is what null already means, so it becomes
+    null: no stored height that the screen cannot show, and the column never
+    has to scroll (which is what moved the preview while hand-selecting).
+  */
+  useLayoutEffect(() => {
+    const box = previewBoxRef.current;
+    if (previewHeight === null || !box) return;
+    if (box.getBoundingClientRect().height < previewHeight - 1) setPreviewHeightState(null);
+  }, [previewHeight, preview]);
   const setPreviewHeight = (next: number | null): void =>
     setPreviewHeightState(
       next === null ? null : Math.round(Math.max(MIN_PREVIEW_HEIGHT, Math.min(next, MAX_PREVIEW_HEIGHT))),
@@ -635,6 +647,34 @@ export function CopySheet({
     setAppliedFor(null);
   };
 
+  const copyButton = (
+    /*
+     * The button names the patient.
+     *
+     * The mistake worth preventing is not a bad note — it is switching
+     * between SIMGOS and Plano a dozen times and copying from the chart you
+     * were on a moment ago. A name written on the button you are already
+     * pressing is read, because it is where you are looking.
+     */
+    <button
+      type="button"
+      onClick={onCopy}
+      disabled={!output.trim()}
+      className="flex min-h-tap w-full items-center gap-3 rounded-xl bg-accent px-4 py-2 text-left text-white transition-opacity hover:opacity-90 disabled:opacity-40"
+    >
+      <IconCopy width={20} height={20} className="shrink-0" />
+      <span className="min-w-0 flex-1">
+        <span className="block text-[11px] opacity-90">
+          {copied ? 'Tersalin ✓' : `Salin ${whatLabel[shape]} · ${FORMAT_LABELS[format]}`}
+        </span>
+        <span className="block truncate text-sm font-semibold">
+          {patientName}
+          {patient.mrn ? ` · RM ${patient.mrn}` : ''}
+        </span>
+      </span>
+    </button>
+  );
+
   return (
     <Sheet
       open={open}
@@ -643,40 +683,22 @@ export function CopySheet({
       fill
       title={`Salin · ${patientName}`}
       description={`Catatan ${date.slice(8, 10)}/${date.slice(5, 7)}${patient.mrn ? ` · RM ${patient.mrn}` : ''}`}
-      footer={
-        /*
-         * The button names the patient.
-         *
-         * The mistake worth preventing is not a bad note — it is switching
-         * between SIMGOS and Plano a dozen times and copying from the chart you
-         * were on a moment ago. A name written on the button you are already
-         * pressing is read, because it is where you are looking.
-         */
-        <button
-          type="button"
-          onClick={onCopy}
-          disabled={!output.trim()}
-          className="flex min-h-tap w-full items-center gap-3 rounded-xl bg-accent px-4 py-2 text-left text-white transition-opacity hover:opacity-90 disabled:opacity-40"
-        >
-          <IconCopy width={20} height={20} className="shrink-0" />
-          <span className="min-w-0 flex-1">
-            <span className="block text-[11px] opacity-90">
-              {copied ? 'Tersalin ✓' : `Salin ${whatLabel[shape]} · ${FORMAT_LABELS[format]}`}
-            </span>
-            <span className="block truncate text-sm font-semibold">
-              {patientName}
-              {patient.mrn ? ` · RM ${patient.mrn}` : ''}
-            </span>
-          </span>
-        </button>
-      }
+      footer={copyButton}
+      // On a laptop the button sits under the options instead, and the
+      // preview gets this bar's height (2026-10-05).
+      footerClassName="sm:hidden"
     >
       <div
         style={{ '--salin-options': `${optionsWidth}px` } as CSSProperties}
-        className="relative grid gap-6 sm:h-full sm:min-h-0 sm:grid-cols-[var(--salin-options)_minmax(0,1fr)]"
+        className="relative grid gap-5 sm:h-full sm:min-h-0 sm:grid-cols-[var(--salin-options)_minmax(0,1fr)]"
       >
-        {/* OPTIONS: their own scroll on a laptop (see Sheet `fill`). */}
-        <div className="space-y-5 sm:min-h-0 sm:overflow-y-auto sm:pb-2 sm:pr-2">
+        {/*
+          OPTIONS: their own scroll on a laptop (see Sheet `fill`), with the copy
+          button pinned beneath them. The button used to be a full-width footer
+          bar under BOTH columns, which took its height from the preview.
+        */}
+        <div className="flex min-w-0 flex-col gap-3 sm:min-h-0">
+        <div className="space-y-5 sm:min-h-0 sm:flex-1 sm:overflow-y-auto sm:pb-2 sm:pr-2">
           {identityCheck.status === 'mismatch' ? (
             <div>
           <Callout tone="danger" role="alert" title="Identitas tidak cocok">
@@ -980,12 +1002,13 @@ export function CopySheet({
             </Section>
           ) : null}
         </div>
+          <div className="hidden sm:block">{copyButton}</div>
+        </div>
 
         {/*
           Width: a bar in the gutter between the two columns. Laptop only — on a
           phone the columns are stacked and there is no width to trade. A child
-          of the GRID, not of the preview column: that column scrolls once the
-          preview is dragged taller, and would clip a bar sitting outside it.
+          of the GRID, so nothing in either column can clip it.
         */}
         <ResizeGrip
           axis="x"
@@ -994,7 +1017,7 @@ export function CopySheet({
           onChange={setOptionsWidth}
           onReset={() => setOptionsWidthState(DEFAULT_OPTIONS_WIDTH)}
           step={24}
-          className="absolute inset-y-0 hidden sm:left-[calc(var(--salin-options)+0.375rem)] sm:flex"
+          className="absolute inset-y-0 hidden sm:left-[calc(var(--salin-options)+0.25rem)] sm:flex"
         />
 
         {/*
@@ -1003,17 +1026,37 @@ export function CopySheet({
           body scrolled, dragging a selection to the bottom scrolled the body
           and the box moved under the cursor. Below the options on a phone.
         */}
-        <div
-          className={[
-            'flex min-w-0 flex-col gap-2 sm:min-h-0',
-            // Only once dragged taller than the column does it need to scroll.
-            previewHeight !== null ? 'sm:overflow-y-auto' : '',
-          ].join(' ')}
-        >
-          <div className="flex items-center gap-2">
-            <h3 className="flex-1 text-[11px] font-semibold uppercase tracking-wider text-fg-faint">
+        <div className="flex min-w-0 flex-col gap-2 sm:min-h-0">
+          {/*
+            One row above the box carries everything that used to sit below it
+            (count, Ukuran awal, Pilih semua teks), so the box runs down to the
+            bottom of the sheet.
+          */}
+          <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+            <h3 className="text-[11px] font-semibold uppercase tracking-wider text-fg-faint">
               Preview
             </h3>
+            <span className="text-[11px] tabular-nums text-fg-faint">
+              · {output.length.toLocaleString('id-ID')} karakter
+            </span>
+            <span className="flex-1" />
+            {previewHeight !== null || optionsWidth !== DEFAULT_OPTIONS_WIDTH ? (
+              <Button
+                size="sm"
+                variant="ghost"
+                onClick={() => {
+                  setPreviewHeight(null);
+                  setOptionsWidthState(DEFAULT_OPTIONS_WIDTH);
+                }}
+              >
+                Ukuran awal
+              </Button>
+            ) : null}
+            {preview === 'teks' ? (
+              <Button size="sm" variant="ghost" onClick={() => outputRef.current?.select()}>
+                Pilih semua teks
+              </Button>
+            ) : null}
             <Segmented
               size="sm"
               label="Preview"
@@ -1037,7 +1080,12 @@ export function CopySheet({
             style={previewHeight !== null ? { height: previewHeight } : undefined}
             className={[
               'relative min-w-0',
-              previewHeight !== null ? 'shrink-0' : 'h-[26rem] sm:h-auto sm:min-h-[12rem] sm:flex-1',
+              previewHeight !== null
+                ? // A laptop never lets it grow past the column: it shrinks to
+                  // fit, and a height that no longer fits snaps back to "fill"
+                  // (see the layout effect). A phone scrolls the sheet instead.
+                  'shrink-0 sm:min-h-[8rem] sm:shrink'
+                : 'h-[26rem] sm:h-auto sm:min-h-[12rem] sm:flex-1',
             ].join(' ')}
           >
             {preview === 'tampilan' ? (
@@ -1070,33 +1118,8 @@ export function CopySheet({
             getStart={() => previewBoxRef.current?.getBoundingClientRect().height ?? MIN_PREVIEW_HEIGHT}
             onChange={setPreviewHeight}
             onReset={() => setPreviewHeight(null)}
-            className="-my-1"
+            className="-mt-1"
           />
-
-          <div className="flex items-center justify-between gap-2">
-            <span className="text-[11px] tabular-nums text-fg-faint">
-              {output.length.toLocaleString('id-ID')} karakter
-            </span>
-            <div className="flex items-center gap-1">
-              {previewHeight !== null || optionsWidth !== DEFAULT_OPTIONS_WIDTH ? (
-                <Button
-                  size="sm"
-                  variant="ghost"
-                  onClick={() => {
-                    setPreviewHeight(null);
-                    setOptionsWidthState(DEFAULT_OPTIONS_WIDTH);
-                  }}
-                >
-                  Ukuran awal
-                </Button>
-              ) : null}
-              {preview === 'teks' ? (
-                <Button size="sm" variant="ghost" onClick={() => outputRef.current?.select()}>
-                  Pilih semua teks
-                </Button>
-              ) : null}
-            </div>
-          </div>
 
           {nonAscii.length > 0 || leaks.length > 0 ? (
           <div className="space-y-2">

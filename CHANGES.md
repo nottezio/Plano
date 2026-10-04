@@ -1,5 +1,66 @@
 # Plano — CHANGES
 
+## `2026-10-05.3` — Salin: preview to the bottom, chips that do not move
+
+### 1. Bagian chips moved when pressed (Avi)
+**Root cause.** `ChoiceChip`'s width depended on its state. Selecting added a
+14 px check icon plus a 6 px gap and switched the label to semibold, about
+25 px wider. In a wrapping row that reflows everything after the chip:
+- pressing "A" pushed "Terapi + TS" to the next line;
+- pressing "Seluruh catatan" pushed "S" back up.
+
+Avi's four screenshots are the four layouts of the same six chips.
+
+**Fundamental fix (in the shared component, so every chip row in the app is
+covered).** The chip is an `inline-grid` with two layers in one cell:
+- an invisible, `aria-hidden` sizer that is always the widest state (check +
+  semibold);
+- the visible layer.
+
+Width no longer depends on `active` at all. Checked in the harness: 5 presses
+across Bagian, 0 position changes in any of the six chips. Cost: unselected
+chips are as wide as their selected state, so the label sits centred with a
+little extra padding.
+
+`choiceChip.test.ts` pins the structure (jsdom cannot measure width).
+
+### 2. Preview height (Avi: "not the width, the height")
+**Root cause.** Height was taken by things that did not need it:
+- the copy button was a full-width footer bar under BOTH columns;
+- a row under the preview (count, Ukuran awal, Pilih semua teks);
+- with a dragged height, the preview column scrolled, which also hid its own
+  header (Avi's screenshot).
+
+**Fix.**
+- **Button.** On a laptop the copy button is pinned at the bottom of the
+  options column, under Penyesuaian; the options scroll above it.
+  `Sheet` gains `footerClassName`; Salin passes `sm:hidden`, so a phone keeps
+  the footer bar exactly as before.
+- **Count and actions.** The count, Ukuran awal and Pilih semua teks moved up
+  into the Preview header row.
+- **Fills to the bottom.** The preview now runs to the sheet's bottom edge;
+  only the height grip sits under it. Body top padding 16 → 12 px, column gap
+  24 → 20 px. Measured at 1600 x 820: textarea 579 px, ending 33 px above the
+  sheet's bottom edge.
+- **Column never scrolls.** A dragged height can only be smaller than the
+  column:
+  - past the bottom the box shrinks to fit (`flex-shrink`);
+  - a layout effect turns a height the box cannot show back into "fill"
+    (null).
+
+  The column never scrolls, so the hand-select test still moves the textarea
+  0 px.
+- The grip's `-my-1` let it hang 4 px out of the column; it is `-mt-1`.
+
+### Not done
+- The width handle from `.2` stays (harmless, in the gutter), but the default
+  width is unchanged from `.2`.
+
+```
+1873 tests passed (+2)
+typecheck / lint (0 warnings) / check:version / check:contrast / check:a11y / build - clean
+```
+
 ## `2026-10-05.2` — Floating calculator, bigger and resizable Salin preview
 
 ### 1. Floating calculator on the SOAP page (Avi)

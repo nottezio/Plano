@@ -135,15 +135,39 @@ export function ChoiceChip({
       disabled={disabled}
       aria-pressed={active}
       className={[
-        `inline-flex min-h-tap ${FINE} items-center gap-1.5 rounded-lg border px-3 text-xs transition-colors disabled:cursor-not-allowed disabled:opacity-35`,
+        `inline-grid min-h-tap ${FINE} place-items-center rounded-lg border px-3 text-xs transition-colors disabled:cursor-not-allowed disabled:opacity-35`,
         dashed ? 'border-dashed' : '',
         active
-          ? 'border-accent bg-[var(--accent-soft)] font-semibold text-accent'
+          ? 'border-accent bg-[var(--accent-soft)] text-accent'
           : 'border-border bg-surface text-fg hover:border-border-strong hover:bg-bg-subtle',
       ].join(' ')}
     >
-      {active ? <IconCheck width={14} height={14} strokeWidth={2.5} /> : null}
-      {children}
+      {/*
+        THE CHIP IS ALWAYS AS WIDE AS ITS SELECTED SELF (2026-10-05).
+
+        Selecting used to add a 14 px check and switch to semibold, so the chip
+        grew by about 25 px and every chip after it in the wrapping row moved —
+        pressing "A" in Salin's Bagian pushed "Terapi + TS" onto the next line
+        and pressing "Seluruh catatan" pushed "S" back. A control that moves
+        when pressed is one you press twice by mistake.
+
+        Both layers sit in the same grid cell. The first is invisible and only
+        sizes the chip in its widest state; the second is what is seen. Width
+        therefore never depends on `active`, in any sheet that uses chips.
+      */}
+      <span aria-hidden="true" className="invisible col-start-1 row-start-1 inline-flex items-center gap-1.5 font-semibold">
+        <IconCheck width={14} height={14} strokeWidth={2.5} />
+        {children}
+      </span>
+      <span
+        className={[
+          'col-start-1 row-start-1 inline-flex items-center gap-1.5',
+          active ? 'font-semibold' : '',
+        ].join(' ')}
+      >
+        {active ? <IconCheck width={14} height={14} strokeWidth={2.5} /> : null}
+        {children}
+      </span>
     </button>
   );
 }

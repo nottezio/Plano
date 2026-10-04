@@ -38,6 +38,7 @@ export function Sheet({
   footer,
   size = 'md',
   fill = false,
+  footerClassName = '',
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -55,6 +56,11 @@ export function Sheet({
    * Also 92dvh tall rather than 88 (2026-10-05).
    */
   fill?: boolean;
+  /**
+   * Extra classes for the footer bar, e.g. `sm:hidden` when a laptop layout
+   * places the footer's action elsewhere and wants the height back.
+   */
+  footerClassName?: string;
 }): JSX.Element {
   useBackToClose(open, () => onOpenChange(false));
   return (
@@ -105,14 +111,16 @@ export function Sheet({
           <div
             className={[
               'min-h-0 flex-1 overflow-y-auto border-t border-border px-5 py-4',
-              fill ? 'sm:overflow-hidden' : '',
+              fill ? 'sm:overflow-hidden sm:pb-4 sm:pt-3' : '',
             ].join(' ')}
           >
             {children}
           </div>
 
           {footer ? (
-            <div className="border-t border-border bg-surface px-5 py-3 sm:rounded-b-2xl">{footer}</div>
+            <div className={`border-t border-border bg-surface px-5 py-3 sm:rounded-b-2xl ${footerClassName}`}>
+              {footer}
+            </div>
           ) : null}
         </Dialog.Content>
       </Dialog.Portal>

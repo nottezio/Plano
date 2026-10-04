@@ -5,6 +5,11 @@ Catatan teknis lengkap (akar masalah, perbaikan) ada di CHANGES.md.
 
 Entri teratas harus versi yang sedang dirilis; tes gagal bila belum ditulis.
 
+## `2026-10-05.3`
+- **Tombol Bagian tidak lagi bergeser saat ditekan:** tombol yang dipilih dulu melebar karena tanda ✓ dan huruf tebal, sehingga tombol lain pindah baris. Kini lebar setiap tombol pilihan tetap, di Salin maupun sheet lain.
+- **Preview Salin lebih tinggi:** di laptop, tombol Salin pindah ke bawah kolom pilihan (di bawah "Penunjang terbaru saja"), dan jumlah karakter, "Ukuran awal" serta "Pilih semua teks" naik ke baris judul Preview. Kotak Preview kini memanjang sampai ke bawah sheet. Di HP tombol Salin tetap di bawah seperti biasa.
+- Menyeret tinggi Preview melewati batas bawah kini kembali ke ukuran penuh; kolom Preview tidak pernah ikut menggulir.
+
 ## `2026-10-05.2`
 - **Kalkulator melayang di halaman SOAP:** ikon kalkulator di samping tombol Salin (di HP: menu ⋯ → Kalkulator). Panelnya tidak menutupi catatan, jadi tetap bisa menulis sambil menghitung. Di laptop bisa diseret dan diingat posisinya; bisa dilipat dan hasil terakhir tetap terlihat di judulnya.
 - **Tab Hitung:** ketik atau pakai tombol angka; hasil langsung tampil, lengkap dengan "Dibaca: …" supaya terlihat bagaimana hitungan itu dimengerti. Titik tiga angka dibaca ribuan (`12.000` = 12000) dan koma dibaca desimal (`3,1`), seperti penulisan di catatan. Enter menghitung dan hasilnya jadi baris berikutnya; ketuk hasil sebelumnya untuk memakainya lagi; **Salin hasil** untuk ditempel.
