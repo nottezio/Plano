@@ -1,5 +1,65 @@
 # Plano — CHANGES
 
+## `2026-10-05.7` — Start-up no longer waits on a slow network
+
+### "Memuat… took too long" (Avi, Riwayat sesi screenshot)
+**What the log showed.** All 7 slow entries were the same wait, **page start →
+signed in** (`mulai sampai masuk`), 6.1–17.6 s. No patient-list or note waits.
+- None said "tab sempat dibuang Chrome" (cause 1 out).
+- Only 2 of 7 had another Plano tab open (cause 2 not the driver).
+- The 14–17 s ones were "tab tidak terlihat" (background throttling inflates
+  them; the 6–10 s visible ones are the real cost).
+
+**Root cause (read in the SDK, then reproduced).** Firebase Auth does not
+report a stored user until it has asked Google about it:
+`initializeCurrentUser` → `reloadAndSetCurrentUserOrClear` →
+`_reloadWithoutSaving` awaits `getIdToken()` (a refresh when the hourly token
+has expired) and `accounts:lookup`. Offline, both fail at once and the SDK
+keeps the user. On a network that is slow but alive, they hang up to the SDK's
+30 s timeout. Worse, Firestore enqueues every operation, **cache reads
+included**, behind Auth's first token (`FirebaseAuthCredentialsProvider`), so
+nothing on the device can be shown meanwhile. An earlier release already stopped the
+popup iframe loading at boot; this is the second network wait on the same
+path.
+
+**Fundamental fix (`data/bootAuthCap.ts`).** During the boot check only, a
+request to `identitytoolkit`/`securetoken` that has not answered in 3 s is
+failed as a network error. The SDK's documented contract for that is to keep
+the stored user, so the boot takes the existing offline path.
+- Installed only when this device had someone signed in; released at the first
+  auth state (sign-in, sign-out and every later refresh are untouched).
+- Other hosts (Firestore) are never capped.
+- A real answer from Google (e.g. `USER_DISABLED`) passes through and still
+  signs the account out.
+
+**Avi's condition: no out-of-sync, no lost or overwritten SOAP.** Unchanged by
+construction: this is the offline boot that already exists. Waiting for Google
+never made the copy fresher (the first snapshot came from cache either way);
+the `bodyHash` compare-and-set and three-way merge are what stop an older SOAP
+replacing a newer one, and they run as before.
+
+**Contract test (`bootAuthCap.contract.test.ts`).** Runs the real Firebase
+Auth **browser** build (loaded by path: under Vitest's Node conditions
+`firebase/auth` resolves to the Node build, which brings its own fetch and
+would pass without touching the cap).
+- Stored user + Google never answering + cap → user kept, cap fired, the SDK
+  did request `securetoken`.
+- Control without the cap: still no auth state after 1.5 s (the bug).
+- A Firebase upgrade that changes the contract fails here.
+
+**Diagnostics.** The boot line now splits `kode` (download + start-up) from
+`cek akun`, and says `jaringan lambat, dibuka dari perangkat` when the cap
+fired, so the next screenshot shows which half remains.
+
+**Not done.** Firestore's own first sync still needs the network; on bad wifi
+the "Pending/Offline" state lasts until it answers, as before. Also anonymised
+a consultant's name left in the `.5` entry.
+
+```
+1917 tests passed (+10)
+typecheck / lint (0 warnings) / check:version / check:contrast / check:a11y / build - clean
+```
+
 ## `2026-10-05.6` — Schedules re-read themselves when a parser is fixed; INT kept
 
 ### 1. "Why can't the app still detect the DPJP?" (Avi, on `.5`)
@@ -57,7 +117,7 @@ parsers: the DPJP sheet parsed **27 of 31 days**.
 | Days lost | October sheet | Old parser |
 |---|---|---|
 | 5–8 Okt | date drawn as two fragments, `5` + `Oktober 2026` | needed the whole date in ONE fragment |
-| 9 and 24 Okt, DPJP Utama only | Prof. Idar's long name, centred, starts at x = 139 | column hard-coded to start at x = 140 |
+| 9 and 24 Okt, DPJP Utama only | a long centred name starts at x = 139 | column hard-coded to start at x = 140 |
 
 `buildFormasi` prints a DPJP block only for a date the sheet has. So 6 Okt (and
 its after-midnight 7 Okt) came out with no DPJP and **no warning**.

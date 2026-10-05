@@ -17,7 +17,8 @@ import {
 } from 'firebase/firestore';
 import { create } from 'zustand';
 import { logSessionEvent } from '@/lib/sessionLog';
-import { bootReason, reportWait } from '@/lib/loadTiming';
+import { bootReason, formatSeconds, reportWait } from '@/lib/loadTiming';
+import { installBootAuthCap, type BootAuthCap } from '@/data/bootAuthCap';
 
 import { initFirebase, services } from '@/data/firebase';
 import { clearLocalBase, listOutbox } from '@/data/localBase';
@@ -82,6 +83,10 @@ export const useSession = create<SessionState>((set, get) => ({
 }));
 
 let unsubscribeProfile: (() => void) | null = null;
+/** When main.tsx began running: page start to here is download and start-up. */
+let codeReadyAt = 0;
+/** The start-up auth cap, released at the first auth state. */
+let bootCap: BootAuthCap | null = null;
 
 /**
  * Boots auth. Called once from main.tsx.
@@ -91,8 +96,13 @@ let unsubscribeProfile: (() => void) | null = null;
  * credential — losing it would strand a resident's entire ward list.
  */
 export function initSession(): () => void {
+  // The app's code has downloaded and started; what follows is the auth check.
+  codeReadyAt = performance.now();
+  // Only where a stored user exists to be kept (see data/bootAuthCap.ts).
+  bootCap = hasSignedInHint() ? installBootAuthCap() : null;
   const init = initFirebase();
   if (!init.ok) {
+    bootCap?.release();
     useSession.setState({ status: 'unconfigured', missingConfig: init.missing });
     return () => undefined;
   }
@@ -146,6 +156,7 @@ export function initSession(): () => void {
 
   return () => {
     disposed = true;
+    bootCap?.release();
     unsubscribeAuth?.();
     unsubscribeProfile?.();
     unsubscribeProfile = null;
@@ -164,10 +175,26 @@ function errorCode(error: unknown): string | undefined {
 /** Whether this page has logged its start-up time yet. */
 let reportedBoot = false;
 
+/**
+ * `kode 1,2 dtk · cek akun 8,7 dtk`: which half of a slow start was slow.
+ * Download and start-up are this page's code; the account check is the
+ * network. `dibuka dari perangkat` says the cap cut the check short.
+ */
+function bootPhases(now: number): string {
+  const parts = [
+    `kode ${formatSeconds(codeReadyAt)}`,
+    `cek akun ${formatSeconds(Math.max(0, now - codeReadyAt))}`,
+  ];
+  if (bootCap?.capped()) parts.push('jaringan lambat, dibuka dari perangkat');
+  return parts.join(' · ');
+}
+
 function subscribe(auth: Auth): () => void {
   return onAuthStateChanged(auth, (user) => {
     unsubscribeProfile?.();
     unsubscribeProfile = null;
+    // The boot check is over either way; later requests get no cap.
+    bootCap?.release();
 
     setSignedInHint(user !== null);
     if (!user) {
@@ -183,7 +210,8 @@ function subscribe(auth: Auth): () => void {
     // wait anybody watched.
     if (!reportedBoot) {
       reportedBoot = true;
-      reportWait('mulai sampai masuk', performance.now());
+      const now = performance.now();
+      reportWait('mulai sampai masuk', now, bootPhases(now));
     }
     // The error is cleared on every transition. It described the PREVIOUS
     // session, and a sign-in page showing "Gagal memuat pengaturan." from a

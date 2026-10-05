@@ -5,6 +5,12 @@ Catatan teknis lengkap (akar masalah, perbaikan) ada di CHANGES.md.
 
 Entri teratas harus versi yang sedang dirilis; tes gagal bila belum ditulis.
 
+## `2026-10-05.7`
+- **"Memuat…" saat membuka Plano kini paling lama sekitar 3 detik:** riwayat sesi Anda menunjukkan semua jeda lambat (6–17 detik) terjadi sebelum masuk. Penyebabnya: setiap kali dibuka, Firebase menanyakan akun Anda ke server Google dulu, dan di wifi rumah sakit yang lambat (tapi tidak putus) pertanyaan itu menggantung. Selama itu data yang sudah ada di perangkat pun tidak bisa ditampilkan.
+- **Sekarang:** bila server belum menjawab dalam 3 detik, Plano dibuka dari data di perangkat, sama seperti saat tidak ada sinyal, lalu sinkron otomatis begitu jaringan menjawab.
+- **SOAP tetap aman:** tidak ada yang berubah pada cara menyimpan dan sinkron. Catatan yang Anda ubah tetap tersimpan di perangkat lalu dikirim; versi lama tidak bisa menimpa versi yang lebih baru (tetap digabung seperti biasa).
+- **Riwayat sesi lebih rinci:** baris "Lambat" saat membuka kini memisahkan waktu memuat kode dan waktu cek akun, serta menulis "jaringan lambat, dibuka dari perangkat" bila batas 3 detik terpakai.
+
 ## `2026-10-05.6`
 - **Jadwal yang sudah diimpor kini ikut diperbaiki otomatis:** sebelumnya perbaikan pembaca PDF tidak menyentuh jadwal yang sudah tersimpan, jadi Jadwal DPJP tetap 27 hari. Mulai versi ini setiap impor menyimpan isi PDF-nya, sehingga perbaikan berikutnya langsung berlaku di semua perangkat tanpa impor ulang.
 - **Satu kali impor ulang terakhir:** jadwal yang diimpor sebelum versi ini ditandai "Dibaca Plano versi lama — impor ulang PDF ini sekali". Impor ulang **Jadwal DPJP** dan **Jadwal Jaga PPDS** Oktober; setelah itu tidak perlu lagi.
