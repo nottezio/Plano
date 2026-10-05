@@ -32,6 +32,28 @@ export interface JagaSource {
   documentDate?: string;
 }
 
+/**
+ * A PDF text fragment in storage: `[x, y, text, page]`, positions rounded to
+ * 0.1 pt. See `reparse.ts`.
+ */
+export type CompactPdfItem = [number, number, string, number];
+
+/**
+ * What a stored schedule was parsed FROM (2026-10-05).
+ *
+ * A schedule used to be stored as its parse alone, so a parser fix could never
+ * reach a schedule already imported — the October DPJP stayed at 27 of 31 days
+ * after the fix shipped, until somebody re-imported it by hand. Keeping the
+ * PDF's positioned text and the parser version lets every device re-derive
+ * the schedule when the parser improves (`reparse.ts`).
+ */
+export interface ParsedFrom {
+  /** Version of the parser that produced this; absent = before versioning (1). */
+  parser?: number;
+  /** The PDF's text with positions; absent on schedules imported before this. */
+  sourceItems?: CompactPdfItem[];
+}
+
 export const JAGA_POSTS = [
   { id: 'chiefPjt', label: 'Chief PJT', place: 'Chief Jaga PJT' },
   { id: 'chiefKonsul', label: 'Chief Konsul', place: 'Chief Konsul' },
@@ -70,7 +92,7 @@ export interface JagaShift {
 /** Initial → full name, from the legend tables beside the roster. */
 export type InitialsIndex = Record<string, string>;
 
-export interface JagaRoster {
+export interface JagaRoster extends ParsedFrom {
   /** Title line, so the user can see which month they imported. */
   title: string;
   shifts: JagaShift[];
@@ -86,7 +108,7 @@ export interface DpjpDay {
   tindakan: string;
 }
 
-export interface DpjpRoster {
+export interface DpjpRoster extends ParsedFrom {
   title: string;
   days: DpjpDay[];
   importedAt: string;
@@ -110,7 +132,7 @@ export interface JarkomEntry {
   muslim: boolean | null;
 }
 
-export interface JarkomDirectory {
+export interface JarkomDirectory extends ParsedFrom {
   entries: JarkomEntry[];
   importedAt: string;
   source?: JagaSource;
@@ -132,7 +154,7 @@ export interface PediatriShift {
   btkv?: string;
 }
 
-export interface PediatriRoster {
+export interface PediatriRoster extends ParsedFrom {
   title: string;
   shifts: PediatriShift[];
   importedAt: string;

@@ -1,5 +1,53 @@
 # Plano — CHANGES
 
+## `2026-10-05.6` — Schedules re-read themselves when a parser is fixed; INT kept
+
+### 1. "Why can't the app still detect the DPJP?" (Avi, on `.5`)
+His screenshot: the DPJP tile reads **27 hari · Tidak terbaca: 5–8 Okt** on
+v2026-10-05.5, whose parser reads all 31 days.
+
+**Root cause.** A schedule was stored, and synced, as its PARSE only. A parser
+fix therefore reached no schedule already imported: the copy in his account
+was still the old 27-day parse. It changes only when the PDF is imported again,
+by hand, on a device that already runs the new code.
+
+The new-document guard was ruled out: a 31-day re-import of the same sheet is
+not "older" (same coverage and document date, later `importedAt`), so it is
+accepted.
+
+**Fundamental fix (`reparse.ts`, `types.ts: ParsedFrom`).**
+- **What an import keeps.** Every import stores the PDF's positioned text
+  (`sourceItems`, `[x, y, text, page]`, 0.1 pt) and the parser version that
+  read it.
+- **Re-read on load.** On load, and after every sync, a schedule read by an
+  older parser is parsed again from its own source with the current one.
+  - Its `importedAt` and `source` are carried over.
+  - It is written back, so every device gets the corrected copy.
+  - A re-parse that reads nothing keeps the stored copy, so a parser regression
+    cannot erase a working schedule.
+- **Parser versions:** roster 2, dpjp 2, pediatri 1, jarkom 1. **Bump on any
+  output change.**
+- **Size:** about 23 KB (roster) and 5 KB (DPJP) more per document, well under
+  Firestore's 1 MB. `firestore.rules` has no size cap on `jaga/*`.
+- **Copies imported before this (no source).** They cannot heal. The tile says
+  "Dibaca Plano versi lama — impor ulang PDF ini sekali", so **one last manual
+  re-import** is needed for the DPJP (and the roster, for the boundary fix).
+- **Checked in the harness:**
+  - a seeded 27-day legacy copy warns, and re-importing gives 31;
+  - a seeded old parse that HAS its source heals itself to 31 on load;
+  - no console errors.
+
+### 2. `INT n` is a person (Avi: internal-medicine resident on rotation)
+`INT 1`… were dropped as "intern markers", so weekend-night **Bangsal B**
+printed blank. They are kept now (normalised to `INT n`). Their row is
+confirmable, and the swap picker can name the person. 31 Okt Sabtu Malam:
+`Bangsal B : INT 9 (belum konfirmasi)`.
+
+```
+1907 tests passed (+6)
+typecheck / lint (0 warnings) / check:version / check:contrast / check:a11y / build - clean
+```
+
 ## `2026-10-05.5` — October schedules: two parser bugs, gap warnings, Helper layout, stickers, poli
 
 ### 1. Konfirmasi Jaga: DPJP empty for 6 October (Avi)

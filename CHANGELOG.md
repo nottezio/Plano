@@ -5,6 +5,11 @@ Catatan teknis lengkap (akar masalah, perbaikan) ada di CHANGES.md.
 
 Entri teratas harus versi yang sedang dirilis; tes gagal bila belum ditulis.
 
+## `2026-10-05.6`
+- **Jadwal yang sudah diimpor kini ikut diperbaiki otomatis:** sebelumnya perbaikan pembaca PDF tidak menyentuh jadwal yang sudah tersimpan, jadi Jadwal DPJP tetap 27 hari. Mulai versi ini setiap impor menyimpan isi PDF-nya, sehingga perbaikan berikutnya langsung berlaku di semua perangkat tanpa impor ulang.
+- **Satu kali impor ulang terakhir:** jadwal yang diimpor sebelum versi ini ditandai "Dibaca Plano versi lama — impor ulang PDF ini sekali". Impor ulang **Jadwal DPJP** dan **Jadwal Jaga PPDS** Oktober; setelah itu tidak perlu lagi.
+- **INT (residen penyakit dalam yang rotasi di kardiologi) kini tampil di Formasi:** misalnya "Bangsal B : INT 9" pada Sabtu Malam, bukan kosong. Namanya bisa diisi lewat kolom nama di baris konfirmasinya.
+
 ## `2026-10-05.5`
 - **DPJP di Konfirmasi Jaga kembali terisi:** Jadwal DPJP Oktober sebelumnya hanya terbaca 27 dari 31 hari (5–8 Oktober hilang, DPJP Utama 9 & 24 Oktober kosong), sehingga Formasi 6 Oktober tanpa blok DPJP. **Impor ulang PDF Jadwal DPJP Oktober sekali** agar tanggal yang hilang terisi.
 - **Tim jaga malam akhir pekan di pergantian bulan kini bertanggal benar:** Sabtu Malam 31 Oktober sebelumnya tercatat 1 November. Impor ulang Jadwal Jaga PPDS juga dianjurkan.

@@ -215,10 +215,19 @@ export function parseJagaRoster(items: readonly PdfTextItem[]): JagaRoster {
     const posts: JagaShift['posts'] = {};
     for (const [key] of COLUMNS) {
       if (key === 'tanggal' || key === 'hari') continue;
-      const value = record[key];
-      // `INT 3` and similar are intern markers in the Pedi column, not a
-      // resident's initials. Left out rather than printed as a name.
-      if (value && /^[A-Z]{2,3}$/.test(value)) posts[key] = value;
+      const value = record[key]?.trim();
+      if (!value) continue;
+      /*
+        `INT 1`, `INT 2`… are internal-medicine residents rotating through
+        cardiology (Avi, 2026-10-05) — a real person on the post, numbered
+        because the roster does not name them. On the October sheet they hold
+        BANGSAL B on weekend nights. They were dropped as "intern markers",
+        which printed `Bangsal B :` blank: a staffed post shown as empty.
+        Kept now, normalised to `INT n`; the swap picker names the person.
+      */
+      const internist = /^INT\s*(\d{1,2})$/i.exec(value);
+      if (internist) posts[key] = `INT ${internist[1]}`;
+      else if (/^[A-Z]{2,3}$/.test(value)) posts[key] = value;
     }
 
     if (Object.keys(posts).length === 0) continue;

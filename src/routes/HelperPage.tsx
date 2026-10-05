@@ -30,6 +30,8 @@ import {
 } from '@/domain/jaga/directory';
 import { describeMismatch, identifyJagaPdf } from '@/domain/jaga/identify';
 import { describeDates, dpjpGaps, missingDates } from '@/domain/jaga/coverage';
+import { isLegacy, provenance, upgradeParsed } from '@/domain/jaga/reparse';
+import type { JagaRosterKind } from '@/domain/jaga/sync';
 import { parseDpjpRoster } from '@/domain/jaga/parseDpjp';
 import { parseJagaRoster } from '@/domain/jaga/parseRoster';
 import { parseJarkom } from '@/domain/jaga/parseJarkom';
@@ -274,6 +276,25 @@ function KonfirmasiJaga(): JSX.Element {
     });
   }
 
+  /*
+    A schedule read by an older parser is read again from its kept source,
+    on load and whenever the account sends one (see reparse.ts), and written
+    back so every device gets the corrected copy. This is how a parser fix
+    reaches a schedule imported before it — no re-import needed.
+  */
+  useEffect(() => {
+    const upgrade = <T,>(kind: JagaRosterKind, stored: T | null, write: (value: T) => void, set: (value: T) => void): void => {
+      const result = upgradeParsed(kind, stored);
+      if (!result.changed) return;
+      write(result.value as T);
+      set(result.value as T);
+    };
+    upgrade('roster', readRoster(), writeRoster, setRoster);
+    upgrade('dpjp', readDpjp(), writeDpjp, setDpjp);
+    upgrade('jarkom', readJarkom(), writeJarkom, setJarkom);
+    upgrade('pediatri', readPediatri(), writePediatri, setPediatri);
+  }, [sync.revision]);
+
   /**
    * Something arrived from another device: re-read everything from
    * localStorage, where the sync hook put it.
@@ -389,13 +410,13 @@ function KonfirmasiJaga(): JSX.Element {
       }
 
       if (kind === 'roster') {
-        const parsed = { ...parseJagaRoster(items), source: stamp };
+        const parsed = { ...parseJagaRoster(items), source: stamp, ...provenance('roster', items) };
         if (parsed.shifts.length === 0) throw new Error('Tidak ada baris jaga terbaca.');
         if (!guard(parsed, roster)) return;
         writeRoster(parsed);
         setRoster(parsed);
       } else if (kind === 'dpjp') {
-        const parsed = { ...parseDpjpRoster(items), source: stamp };
+        const parsed = { ...parseDpjpRoster(items), source: stamp, ...provenance('dpjp', items) };
         if (parsed.days.length === 0) throw new Error('Tidak ada tanggal DPJP terbaca.');
         if (!guard(parsed, dpjp)) return;
         writeDpjp(parsed);
@@ -423,13 +444,14 @@ function KonfirmasiJaga(): JSX.Element {
         const parsed = {
           ...(year === Number(date.slice(0, 4)) ? firstPass : parsePediatri(items, year)),
           source: stamp,
+          ...provenance('pediatri', items),
         };
         if (parsed.shifts.length === 0) throw new Error('Tidak ada baris jaga pediatri terbaca.');
         if (!guard(parsed, pediatri)) return;
         writePediatri(parsed);
         setPediatri(parsed);
       } else {
-        const parsed = { ...parseJarkom(items), source: stamp };
+        const parsed = { ...parseJarkom(items), source: stamp, ...provenance('jarkom', items) };
         if (parsed.entries.length === 0) throw new Error('Tidak ada nama terbaca.');
         if (!guard(parsed, jarkom)) return;
         writeJarkom(parsed);
@@ -602,6 +624,7 @@ function KonfirmasiJaga(): JSX.Element {
             gaps={rosterGaps}
             busy={busy === 'roster'}
             warning={freshness.roster.state}
+            legacy={isLegacy('roster', roster)}
             onFile={(file) => void importPdf(file, 'roster')}
           />
           <ScheduleTile
@@ -612,6 +635,7 @@ function KonfirmasiJaga(): JSX.Element {
             gaps={dpjpSheetGaps}
             busy={busy === 'dpjp'}
             warning={freshness.dpjp.state}
+            legacy={isLegacy('dpjp', dpjp)}
             onFile={(file) => void importPdf(file, 'dpjp')}
           />
           <ScheduleTile
@@ -622,6 +646,7 @@ function KonfirmasiJaga(): JSX.Element {
             gaps={[]}
             busy={busy === 'pediatri'}
             warning={freshness.pediatri.state}
+            legacy={isLegacy('pediatri', pediatri)}
             onFile={(file) => void importPdf(file, 'pediatri')}
           />
           {/*
@@ -636,6 +661,7 @@ function KonfirmasiJaga(): JSX.Element {
             version={jarkom ? describeVersion('jarkom', jarkom) : null}
             gaps={[]}
             busy={busy === 'jarkom'}
+            legacy={isLegacy('jarkom', jarkom)}
             onFile={(file) => void importPdf(file, 'jarkom')}
           />
         </div>
@@ -1178,10 +1204,13 @@ function ScheduleTile({
   gaps,
   busy,
   warning = 'ok',
+  legacy = false,
   onFile,
 }: {
   label: string;
   cadence: string;
+  /** Read by an older Plano with no source kept, so it cannot heal itself. */
+  legacy?: boolean;
   /** `1 Okt – 15 Nov · 60 shift`, or null when not imported. */
   summary: string | null;
   version: string | null;
@@ -1197,7 +1226,7 @@ function ScheduleTile({
     ? 'missing'
     : warning === 'outdated'
       ? 'outdated'
-      : warning === 'ending' || gaps.length > 0
+      : warning === 'ending' || gaps.length > 0 || legacy
         ? 'attention'
         : 'ok';
 
@@ -1251,6 +1280,16 @@ function ScheduleTile({
       {gaps.length > 0 ? (
         <span className="text-[11px] font-medium text-[var(--warn-strong)]">
           Tidak terbaca: {describeDates(gaps)}
+        </span>
+      ) : null}
+      {/*
+        Imported before sources were kept, by a parser that has since been
+        fixed: the stored copy may carry that parser's mistakes and cannot be
+        re-read. One import fixes it for good (reparse.ts).
+      */}
+      {legacy ? (
+        <span className="text-[11px] font-medium text-[var(--warn-strong)]">
+          Dibaca Plano versi lama — impor ulang PDF ini sekali.
         </span>
       ) : null}
       <input
