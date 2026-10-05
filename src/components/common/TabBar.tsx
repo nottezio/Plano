@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, type ComponentType, type SVGProps } from 'react';
 import { NavLink, useLocation, useNavigate } from 'react-router-dom';
 
 import { Sheet } from './Sheet';
@@ -11,6 +11,7 @@ import {
   IconBoard,
   IconCalculator,
   IconChecklist,
+  IconClipboard,
   IconDocuments,
   IconMore,
   IconNote,
@@ -19,51 +20,147 @@ import {
 import { useUI } from '@/store/useUI';
 
 /**
- * SPEC 11.1 / 11.2 — three layouts, one component:
- *   phone  (<640)  bottom tab bar
- *   tablet (>=640) 76 px icon rail
- *   desktop(>=1024) 224 px sidebar with labels beside the icons
+ * SPEC 11.1 / 11.2: three layouts, one component.
+ *   phone   (<640)   bottom tab bar
+ *   tablet  (>=640)  76 px icon rail
+ *   desktop (>=1024) 232 px sidebar, labels beside the icons
  *
- * The desktop tier exists because a 76 px icon rail on a 27" monitor is what
- * makes a web app feel like a stretched phone build. Two components would
- * drift; three breakpoints on one component cannot.
- */
-/**
- * Seven destinations does not fit a phone bar or a 76px rail.
+ * REVAMP (2026-10-05). The sidebar had grown two vocabularies: the three ward
+ * destinations were 14 px rows with a grey "selected" fill, the tools were
+ * 12 px rows with only a blue label, Helper borrowed Checklist's icon, and the
+ * owner's name had been cut to a tooltip on the version. Now:
+ *  - one row style for every destination, grouped under "Bangsal" and "Fitur";
+ *  - one "selected" look everywhere: the accent pill (rail, phone bar) or the
+ *    accent row with a side bar (sidebar);
+ *  - Pengaturan at the foot, beside the status it configures;
+ *  - "© Avicenna · v…" written out again (SPEC 11.1), not hidden in a title.
  *
- * The split is by how often each is opened, not by what they are: Aktif, Arsip
- * and Dokumen are used constantly, the four tools occasionally. Trimming the
- * primary row to four keeps every tap target full width, and the tools sit
- * behind one more tap rather than being squeezed into a column that scrolls.
+ * Seven destinations do not fit a phone bar, so the phone keeps the split by
+ * how often each is opened: the three ward screens on the bar, the tools one
+ * tap away in "Lainnya". The rail and sidebar have room for all of them.
  */
-const TOOL_TABS = [
+
+type Icon = ComponentType<SVGProps<SVGSVGElement>>;
+
+interface Destination {
+  to: string;
+  label: string;
+  Icon: Icon;
+  end?: boolean;
+  /** Marked until Avicenna says it is finished: a half-built feature that looks finished gets relied on. */
+  wip?: boolean;
+}
+
+const WARD: readonly Destination[] = [
+  { to: '/', label: 'Aktif', Icon: IconBoard, end: true },
+  { to: '/arsip', label: 'Arsip', Icon: IconArchive },
+  { to: '/dokumen', label: 'Dokumen', Icon: IconDocuments },
+];
+
+const TOOLS: readonly Destination[] = [
   { to: '/catatan', label: 'Catatan', Icon: IconNote },
   { to: '/kalkulator', label: 'Kalkulator', Icon: IconCalculator },
   { to: '/checklist', label: 'Checklist', Icon: IconChecklist },
-  // A tool, not a primary tab: it is opened once a day at most, on the evening
-  // before a jaga, and the four primary tabs are the ones touched on every
-  // round. `wip` marks it in the rail until Avicenna says it is finished —
-  // a half-built feature that looks finished is one that gets relied on.
-  { to: '/helper', label: 'Helper', Icon: IconChecklist, wip: true },
-  { to: '/pengaturan', label: 'Pengaturan', Icon: IconSettings },
-] as const;
+  { to: '/helper', label: 'Helper', Icon: IconClipboard, wip: true },
+];
 
-const TABS = [
-  { to: '/', label: 'Aktif', Icon: IconBoard, end: true },
-  { to: '/arsip', label: 'Arsip', Icon: IconArchive, end: false },
-  { to: '/dokumen', label: 'Dokumen', Icon: IconDocuments, end: false },
-] as const;
+const SETTINGS: Destination = { to: '/pengaturan', label: 'Pengaturan', Icon: IconSettings };
+
+/** Everything behind "Lainnya" on a phone. */
+const MORE: readonly Destination[] = [...TOOLS, SETTINGS];
+
+function WipTag({ className = '' }: { className?: string }): JSX.Element {
+  return (
+    <span
+      className={`rounded-full bg-[var(--danger-soft)] px-1.5 text-[9px] font-semibold leading-4 text-danger ${className}`}
+    >
+      WIP
+    </span>
+  );
+}
+
+/**
+ * One destination, in all three layouts.
+ *
+ * Below `lg` the icon sits in a pill that fills with the accent when active
+ * (the rail's and the phone bar's selection mark). From `lg` the pill dissolves
+ * and the whole row carries the selection instead.
+ */
+function NavItem({ item, phone = false }: { item: Destination; phone?: boolean }): JSX.Element {
+  const { to, label, Icon, end, wip } = item;
+  return (
+    <NavLink
+      to={to}
+      end={end ?? false}
+      className={({ isActive }) =>
+        [
+          'group relative flex min-h-tap flex-col items-center justify-center gap-0.5 px-1 py-1.5 text-[11px] outline-none sm:text-[10px]',
+          'focus-visible:ring-2 focus-visible:ring-accent',
+          phone ? 'flex-1' : 'hidden sm:flex sm:w-full sm:rounded-xl',
+          // Desktop: a row.
+          'lg:flex-row lg:justify-start lg:gap-3 lg:rounded-lg lg:px-2.5 lg:py-0 lg:text-[13px] [@media(pointer:fine)]:lg:min-h-9',
+          isActive
+            ? 'text-accent lg:bg-[var(--accent-soft)] lg:font-medium'
+            : 'text-fg-muted hover:text-fg lg:hover:bg-bg-subtle',
+        ].join(' ')
+      }
+    >
+      {({ isActive }) => (
+        <>
+          {/* The side bar marking the active row, desktop only. */}
+          <span
+            aria-hidden="true"
+            className={[
+              'absolute left-0 top-1/2 hidden h-4 w-[3px] -translate-y-1/2 rounded-full bg-accent',
+              isActive ? 'lg:block' : '',
+            ].join(' ')}
+          />
+          <span
+            className={[
+              'flex h-7 w-12 items-center justify-center rounded-full transition-colors',
+              'lg:h-auto lg:w-auto lg:bg-transparent',
+              isActive ? 'bg-[var(--accent-soft)]' : 'group-hover:bg-bg-subtle lg:group-hover:bg-transparent',
+            ].join(' ')}
+          >
+            <Icon width={20} height={20} strokeWidth={isActive ? 2.1 : 1.75} />
+          </span>
+          <span className={`max-w-full truncate leading-tight lg:flex-1 ${isActive ? 'font-medium' : ''}`}>
+            {label}
+          </span>
+          {wip ? (
+            <>
+              {/* Rail and phone: a dot on the icon. Sidebar: the word. */}
+              <span
+                aria-hidden="true"
+                className="absolute right-[calc(50%-1.5rem)] top-1.5 h-2 w-2 rounded-full bg-danger ring-2 ring-surface lg:hidden"
+              />
+              <WipTag className="hidden lg:inline" />
+            </>
+          ) : null}
+        </>
+      )}
+    </NavLink>
+  );
+}
+
+function GroupLabel({ children }: { children: string }): JSX.Element {
+  return (
+    <p className="hidden px-2.5 pb-1 pt-3 text-[10px] font-semibold uppercase tracking-wider text-fg-faint lg:block">
+      {children}
+    </p>
+  );
+}
 
 export function TabBar(): JSX.Element {
   const hint = useUI((state) => state.dpjpHint);
   const hasClipboard = useClipboardNote((state) => state.last !== null);
-  const [toolsOpen, setToolsOpen] = useState(false);
+  const [moreOpen, setMoreOpen] = useState(false);
   const { pathname } = useLocation();
   const navigate = useNavigate();
 
-  // The disclosure has to show the accent when the open screen is one of the
-  // tools, or the phone bar says nothing is selected while a tool is on screen.
-  const toolActive = TOOL_TABS.some((tab) => tab.to === pathname);
+  // "Lainnya" shows the accent while one of its screens is open, or the phone
+  // bar would say nothing is selected while a tool is on screen.
+  const moreActive = MORE.some((item) => item.to === pathname);
 
   return (
     <nav
@@ -72,155 +169,67 @@ export function TabBar(): JSX.Element {
         // phone: fixed bottom bar, clearing the home indicator
         'fixed inset-x-0 bottom-0 z-40 flex border-t border-border bg-surface',
         'pb-[env(safe-area-inset-bottom)]',
-        // tablet/desktop: static left rail
-        'sm:static sm:h-full sm:w-[76px] sm:flex-col sm:gap-0.5 sm:overflow-y-auto sm:border-r sm:border-t-0 sm:py-2',
-        'lg:w-[224px] lg:items-stretch lg:px-3',
+        // tablet: static icon rail
+        'sm:static sm:h-full sm:w-[76px] sm:flex-col sm:items-stretch sm:gap-0.5 sm:overflow-y-auto sm:border-r sm:border-t-0 sm:px-1.5 sm:py-3',
+        // desktop: labelled sidebar
+        'lg:w-[232px] lg:px-3',
       ].join(' ')}
     >
-      {/* Wordmark only where there is room for it. */}
-      <span className="hidden lg:mb-3 lg:block lg:px-3 lg:text-lg lg:font-semibold lg:tracking-tight">
-        Plano
-      </span>
-
-      {TABS.map(({ to, label, Icon, end }) => (
-        <NavLink
-          key={to}
-          to={to}
-          end={end}
-          className={({ isActive }) =>
-            [
-              'flex min-h-tap flex-1 flex-col items-center justify-center gap-1 px-1 py-2 text-[11px]',
-              'sm:flex-none sm:rounded-lg sm:py-3',
-              // Desktop: horizontal, left-aligned, readable label.
-              'lg:flex-row lg:justify-start lg:gap-3 lg:px-3 lg:text-sm',
-              isActive ? 'text-accent lg:bg-bg-subtle' : 'text-fg-faint',
-            ].join(' ')
-          }
+      {/* Brand: a mark on the rail, mark and name on the sidebar. */}
+      <div className="hidden items-center gap-2.5 px-1 pb-2 sm:flex sm:justify-center lg:justify-start lg:px-2.5 lg:pb-1">
+        <span
+          aria-hidden="true"
+          className="flex h-8 w-8 items-center justify-center rounded-lg bg-accent text-sm font-bold text-white"
         >
-          {({ isActive }) => (
-            <>
-              <Icon strokeWidth={isActive ? 2.1 : 1.75} />
-              <span className={isActive ? 'font-medium' : undefined}>{label}</span>
-            </>
-          )}
-        </NavLink>
-      ))}
-
-      {/*
-        Tools. A disclosure on phone, an inline block on the rail.
-
-        This USED TO BE one `flex shrink-0` row of four labelled links inside
-        the phone bar, which is what the note above says it should not be. The
-        container refused to shrink and had no `min-w-0`, so its width was the
-        intrinsic width of "CatatanKalkulatorChecklistPengaturan" — four labels
-        that cannot truncate — and it overflowed the viewport. Seven targets in
-        a 360 px bar left about 51 px each: legal by the tap-target check, and
-        unreadable.
-
-        The rail (>=640 px) is a column with room for all four, so it keeps
-        them inline. Only the phone bar gets the extra tap the note describes.
-      */}
-      <button
-        type="button"
-        onClick={() => setToolsOpen(true)}
-        aria-label="Alat lainnya"
-        aria-expanded={toolsOpen}
-        className={[
-          'flex min-h-tap flex-1 flex-col items-center justify-center gap-1 px-1 py-2 text-[11px]',
-          'sm:hidden',
-          toolActive ? 'text-accent' : 'text-fg-faint',
-        ].join(' ')}
-      >
-        <IconMore strokeWidth={toolActive ? 2.1 : 1.75} />
-        <span className={toolActive ? 'font-medium' : undefined}>Lainnya</span>
-      </button>
-
-      <div
-        className={[
-          'hidden shrink-0 sm:flex',
-          'sm:mt-1 sm:w-full sm:flex-col sm:gap-0.5 sm:border-t sm:border-border sm:pt-1',
-        ].join(' ')}
-      >
-        {TOOL_TABS.map(({ to, label, Icon, ...rest }) => (
-          <NavLink
-            key={to}
-            to={to}
-            aria-label={label}
-            className={({ isActive }) =>
-              [
-                'flex min-h-tap flex-1 flex-col items-center justify-center gap-0.5',
-                'sm:w-full sm:py-1 lg:flex-row lg:justify-start lg:gap-2 lg:px-3',
-                isActive ? 'text-accent' : 'text-fg-faint',
-              ].join(' ')
-            }
-          >
-            <Icon className="h-5 w-5" />
-            <span className="text-[10px] sm:hidden lg:inline lg:text-xs">
-              {label}
-              {'wip' in rest && rest.wip ? (
-                <span className="ml-1 align-top text-[8px] text-danger">WIP</span>
-              ) : null}
-            </span>
-          </NavLink>
-        ))}
+          P
+        </span>
+        <span className="hidden text-base font-semibold tracking-tight lg:inline">Plano</span>
       </div>
 
-      {/*
-        Full-width rows, not a grid of icons.
+      {/* Phone bar: the three ward screens and "Lainnya". */}
+      <div className="flex flex-1 sm:hidden">
+        {WARD.map((item) => (
+          <NavItem key={item.to} item={item} phone />
+        ))}
+        <button
+          type="button"
+          onClick={() => setMoreOpen(true)}
+          aria-label="Menu lainnya"
+          aria-expanded={moreOpen}
+          className={[
+            'flex min-h-tap flex-1 flex-col items-center justify-center gap-0.5 px-1 py-1.5 text-[11px]',
+            moreActive ? 'text-accent' : 'text-fg-muted',
+          ].join(' ')}
+        >
+          <span
+            className={`flex h-7 w-12 items-center justify-center rounded-full ${moreActive ? 'bg-[var(--accent-soft)]' : ''}`}
+          >
+            <IconMore width={20} height={20} strokeWidth={moreActive ? 2.1 : 1.75} />
+          </span>
+          <span className={moreActive ? 'font-medium' : undefined}>Lainnya</span>
+        </button>
+      </div>
 
-        The sheet exists because four labels did not fit across a phone bar;
-        laying them out in a 2×2 grid inside it would reproduce the same
-        squeeze one level down.
-      */}
-      <Sheet
-        open={toolsOpen}
-        onOpenChange={setToolsOpen}
-        title="Alat"
-        description="Catatan lepas, kalkulator, checklist, dan pengaturan."
-      >
-        <div className="flex flex-col p-2">
-          {TOOL_TABS.map(({ to, label, Icon, ...rest }) => {
-            const active = pathname === to;
-            return (
-              <button
-                key={to}
-                type="button"
-                onClick={() => {
-                  setToolsOpen(false);
-                  navigate(to);
-                }}
-                className={[
-                  'flex min-h-tap items-center gap-3 rounded-lg px-3 py-2 text-left text-sm',
-                  active ? 'bg-bg-subtle font-medium text-accent' : 'text-fg',
-                ].join(' ')}
-              >
-                <Icon className="h-5 w-5 shrink-0" />
-                <span className="min-w-0 flex-1 truncate">
-                  {label}
-                  {'wip' in rest && rest.wip ? (
-                    <span className="ml-1 text-[9px] text-danger">WIP</span>
-                  ) : null}
-                </span>
-              </button>
-            );
-          })}
-        </div>
-      </Sheet>
+      {/* Rail and sidebar: every destination, grouped. */}
+      <GroupLabel>Bangsal</GroupLabel>
+      {WARD.map((item) => (
+        <NavItem key={item.to} item={item} />
+      ))}
+      <div aria-hidden="true" className="mx-2 my-1.5 hidden h-px bg-border sm:block lg:hidden" />
+      <GroupLabel>Fitur</GroupLabel>
+      {TOOLS.map((item) => (
+        <NavItem key={item.to} item={item} />
+      ))}
 
-      {/*
-        THE CONTEXT DOCK, desktop only: one card for the ambient facts about
-        what is open (the DPJP's reporting format, what was last copied), then
-        one line of status.
-
-        These used to be three separately boxed blocks stacked under the nav
-        (DPJP box, clipboard box, sync pill) plus a two-line footer. On a
-        patient page with a clipboard entry they took more height than the
-        navigation above them. One card with compact rows, and sync + version
-        on a single line, keep the rail's bottom a fixed, small size.
-      */}
-      <div className="mt-auto hidden lg:block">
+      <div className="mt-auto hidden pt-2 sm:block">
+        {/*
+          THE CONTEXT DOCK, desktop only: one card for the ambient facts about
+          what is open (the DPJP's reporting format, what was last copied).
+          One card with compact rows keeps the sidebar's foot a fixed, small
+          size even on a patient page with a clipboard entry.
+        */}
         {hint || hasClipboard ? (
-          <div className="mx-0 mb-2 space-y-0.5 rounded-lg border border-border bg-bg-subtle p-1">
+          <div className="mb-2 hidden space-y-0.5 rounded-xl border border-border bg-bg-subtle p-1 lg:block">
             {hint ? (
               <div
                 title={`${hint.name}${hint.poli ? ` · Poli ${hint.poli}` : ''}${hint.poliAfter ? ` · lalu ${hint.poliAfter}` : ''}`}
@@ -244,14 +253,55 @@ export function TabBar(): JSX.Element {
           </div>
         ) : null}
 
-        <div
-          title={`© Avicenna · v${APP_VERSION}`}
-          className="flex items-center gap-2 px-1 pb-1 text-[11px] text-fg-faint"
-        >
+        <NavItem item={SETTINGS} />
+
+        {/* Status and credit. The rail is too narrow for either. */}
+        <div className="mt-2 hidden border-t border-border px-2.5 pt-2 text-[11px] lg:block">
           <SyncPill compact />
-          <span className="ml-auto truncate font-mono">v{APP_VERSION}</span>
+          <p className="mt-1 truncate text-fg-faint">
+            © Avicenna <span aria-hidden="true">·</span>{' '}
+            <span title="Versi aplikasi" className="font-mono">
+              v{APP_VERSION}
+            </span>
+          </p>
         </div>
       </div>
+
+      {/*
+        Full-width rows, not a grid of icons: the sheet exists because four
+        labels did not fit across a phone bar, and a 2×2 grid inside it would
+        reproduce the same squeeze one level down.
+      */}
+      <Sheet
+        open={moreOpen}
+        onOpenChange={setMoreOpen}
+        title="Lainnya"
+        description="Catatan lepas, kalkulator, checklist, Helper, dan pengaturan."
+      >
+        <div className="flex flex-col p-2">
+          {MORE.map(({ to, label, Icon, wip }) => {
+            const active = pathname === to;
+            return (
+              <button
+                key={to}
+                type="button"
+                onClick={() => {
+                  setMoreOpen(false);
+                  navigate(to);
+                }}
+                className={[
+                  'flex min-h-tap items-center gap-3 rounded-xl px-3 py-2 text-left text-sm',
+                  active ? 'bg-[var(--accent-soft)] font-medium text-accent' : 'text-fg',
+                ].join(' ')}
+              >
+                <Icon className="h-5 w-5 shrink-0" />
+                <span className="min-w-0 flex-1 truncate">{label}</span>
+                {wip ? <WipTag /> : null}
+              </button>
+            );
+          })}
+        </div>
+      </Sheet>
     </nav>
   );
 }

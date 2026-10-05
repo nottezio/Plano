@@ -98,7 +98,7 @@ export function HelperPage(): JSX.Element {
   */
   return (
     <AppShell title="Helper">
-      <div className={`mx-auto space-y-4 px-4 py-4 ${tab === 'jaga' ? 'max-w-6xl' : 'max-w-3xl'}`}>
+      <div className="mx-auto max-w-6xl space-y-4 px-4 py-4">
         <div className="flex flex-wrap items-center gap-2">
           <button
             type="button"
@@ -113,7 +113,7 @@ export function HelperPage(): JSX.Element {
             Work in progress
           </span>
         </div>
-        <div role="tablist" aria-label="Alat Helper" className="flex border-b border-border">
+        <div role="tablist" aria-label="Fitur Helper" className="flex border-b border-border">
           {HELPER_TABS.map((entry) => (
             <button
               key={entry.id}

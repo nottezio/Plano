@@ -80,8 +80,13 @@ export function defaultMrDate(today: string): string {
  * `full` is a weekday jaga (afternoon to morning, one team). On Saturday and
  * Sunday the day is split into a pagi and a malam team, each reported as its
  * own block.
+ *
+ * `dinas` (2026-10-05) is a weekday's daytime service: its patients go to MR
+ * too, requested from a different senior ("List Pasien MR Dinas …"), and are
+ * reported before that day's jaga. The jaga keeps the key `full`, so lists
+ * stored before Dinas existed stay where they were.
  */
-export type ShiftPart = 'full' | 'pagi' | 'malam';
+export type ShiftPart = 'dinas' | 'full' | 'pagi' | 'malam';
 
 export interface MrShift {
   date: string;
@@ -95,14 +100,20 @@ export function shiftKey(shift: MrShift): string {
 export function parseShiftKey(key: string): MrShift | null {
   const [date, part] = key.split(':');
   if (!date || !parseIso(date)) return null;
-  if (part !== 'full' && part !== 'pagi' && part !== 'malam') return null;
+  if (part !== 'dinas' && part !== 'full' && part !== 'pagi' && part !== 'malam') return null;
   return { date, part };
 }
 
-/** `Jaga Sabtu Malam, 26 September 2026`. */
+/** `Jaga Sabtu Malam, 26 September 2026`, `Dinas Senin, 5 Oktober 2026`. */
 export function shiftLabel(shift: MrShift): string {
+  if (shift.part === 'dinas') return `Dinas ${dayName(shift.date)}, ${dateText(shift.date)}`;
   const part = shift.part === 'pagi' ? ' Pagi' : shift.part === 'malam' ? ' Malam' : '';
   return `Jaga ${dayName(shift.date)}${part}, ${dateText(shift.date)}`;
+}
+
+/** The column heading inside a date's row: `Dinas`, `Jaga`, `Pagi`, `Malam`. */
+export function partLabel(part: ShiftPart): string {
+  return part === 'dinas' ? 'Dinas' : part === 'full' ? 'Jaga' : part === 'pagi' ? 'Jaga Pagi' : 'Jaga Malam';
 }
 
 /**
@@ -139,7 +150,8 @@ export function coveredShifts(mrDate: string, start?: string | null): MrShift[] 
     if (isSplitDay(date)) {
       out.push({ date, part: 'pagi' }, { date, part: 'malam' });
     } else {
-      out.push({ date, part: 'full' });
+      // Daytime first: the order the day happened and the order it is reported.
+      out.push({ date, part: 'dinas' }, { date, part: 'full' });
     }
   }
   return out;
@@ -443,9 +455,9 @@ export function buildRequestMessage(input: {
   shift: MrShift;
 }): string {
   const sender = input.sender.trim() || '…';
-  const shift = shiftLabel(input.shift).replace(/^Jaga /, '');
+  // "list Jaga Senin, 5 Oktober 2026" or "list Dinas Senin, 5 Oktober 2026".
   return [
-    `Assalamualaikum wr. wb. dokter, mohon maaf mengganggu dok, tabe dokter saya ${sender} Dokter PJ MR hari ${dayName(input.mrDate)} tgl ${dateText(input.mrDate)} dok, mohon izin apakah boleh meminta list Jaga ${shift} yang akan di MR kan dok?`,
+    `Assalamualaikum wr. wb. dokter, mohon maaf mengganggu dok, tabe dokter saya ${sender} Dokter PJ MR hari ${dayName(input.mrDate)} tgl ${dateText(input.mrDate)} dok, mohon izin apakah boleh meminta list ${shiftLabel(input.shift)} yang akan di MR kan dok?`,
     'Tabe mohon arahannya dokter',
   ].join('\n');
 }
@@ -580,4 +592,59 @@ export const MR_KEEP_DAYS = 21;
 export function staleMrDays(days: Readonly<Record<string, unknown>>, today: string): string[] {
   const cutoff = addDays(today, -MR_KEEP_DAYS);
   return Object.keys(days).filter((date) => date < cutoff);
+}
+
+/**
+ * The previous or next MR day: weekdays only, since there is no Morning
+ * Report on Saturday or Sunday (2026-10-05, Helper revamp).
+ */
+export function stepMrDate(date: string, direction: 1 | -1): string {
+  let next = addDays(date, direction);
+  while (weekday(next) === 0 || weekday(next) === 6) next = addDays(next, direction);
+  return next;
+}
+
+export interface MrReadinessItem {
+  label: string;
+  ok: boolean;
+  detail: string;
+}
+
+/**
+ * What is still missing before the messages can be sent, in the order the
+ * page asks for it. Read-only: it describes the state, it never blocks a copy
+ * (an empty jaga is a legitimate "(Tidak ada pasien)").
+ */
+export function mrReadiness(input: {
+  sender: string;
+  shifts: readonly MrShift[];
+  patients: Readonly<Record<string, string>>;
+  pengampu: readonly Pengampu[];
+  zoom: string;
+}): MrReadinessItem[] {
+  const filled = input.shifts.filter((shift) => (input.patients[shiftKey(shift)] ?? '').trim()).length;
+  const named = input.pengampu.filter((entry) => entry.name.trim());
+  const confirmed = named.filter((entry) => entry.status.trim() && entry.status !== DEFAULT_STATUS).length;
+  return [
+    {
+      label: 'Nama pengirim',
+      ok: input.sender.trim().length > 0,
+      detail: input.sender.trim() || 'belum diisi',
+    },
+    {
+      label: 'List pasien',
+      ok: input.shifts.length > 0 && filled === input.shifts.length,
+      detail: `${filled}/${input.shifts.length} list terisi`,
+    },
+    {
+      label: 'Konfirmasi pengampu',
+      ok: named.length > 0 && confirmed === named.length,
+      detail: named.length === 0 ? 'belum ada pengampu' : `${confirmed}/${named.length} sudah konfirmasi`,
+    },
+    {
+      label: 'Blok Zoom',
+      ok: input.zoom.trim().length > 0,
+      detail: input.zoom.trim() ? 'ada' : 'isi di Pengaturan MR',
+    },
+  ];
 }

@@ -1,5 +1,82 @@
 # Plano — CHANGES
 
+## `2026-10-05.8` — MR Dinas lists; Helper and sidebar revamp; checklist preview order; name back
+
+### 1. "© Avicenna" beside the version (Avi)
+**Root cause.** The 2026-10-04 UI revamp folded the sidebar footer into one
+status line and moved the credit into the `title` of the version, so on a
+laptop it existed only on hover. Phone and tablet still had `Footer`.
+**Fix.** The sidebar foot writes `© Avicenna · v…` again, under the sync state.
+
+### 2. Minimised Custom Checklist: unchecked first (Avi)
+**Root cause.** The side panel's preview was `slice(0, 4)` in written order: a
+list whose first four steps were ticked showed four struck-through lines and
+hid what was left behind "+N lagi", which is the opposite of what a minimised
+checklist is for (the daily checklist's preview already shows every item).
+**Fix.** `previewTodos` (domain, tested): unticked first, each group in written
+order; the overflow line says what it hides, "+N belum" / "+N selesai".
+
+### 3. Sidebar revamp (Avi), and no "Alat" (Avi: "too cringe")
+- One row style and one selected look for every destination (it had two:
+  14 px rows with a grey fill for the ward screens, 12 px rows with only a
+  blue label for the tools). Grouped **Bangsal** / **Fitur**; Pengaturan at
+  the foot beside the status it configures.
+- Rail and phone bar: the active icon sits in an accent pill; the rail labels
+  every icon (10 px, so "Pengaturan" fits 76 px); Helper's WIP is a dot there
+  and the word on the sidebar.
+- Helper has its own icon (it borrowed Checklist's).
+- "Alat" gone from the UI: sidebar group **Fitur**, phone sheet **Lainnya**
+  (the same word as its button, `aria-label` "Menu lainnya"), Helper tablist
+  label, and the calculator's "Alat lain" group is now "Lainnya".
+
+### 4. Morning Report: Dinas lists (Avi: weekdays confirm Dinas and Jaga)
+**Model.** `ShiftPart` gains `dinas`. `coveredShifts` gives each weekday
+`dinas` then `full` (the jaga); weekends stay `pagi`/`malam`. The jaga keeps
+the key `date:full`, so lists stored before this stay put: no migration.
+- Prodi report: the Dinas block comes before that day's Jaga block.
+- Request to the senior: `list ${shiftLabel}`. Avi's wording for a jaga is
+  unchanged byte for byte ("…apakah boleh meminta list Jaga Senin, 5 Oktober
+  2026 yang akan di MR kan dok?"); a Dinas request reads "list Dinas …".
+  Both pinned by tests.
+- Step 3 is one row per date with its lists as columns (Dinas | Jaga, or
+  Jaga Pagi | Jaga Malam), stacked on a phone.
+
+### 5. Helper revamp: Morning Report and Verifikasi Sensus (Avi)
+**Morning Report.**
+- Numbered steps on the left.
+- On a laptop, the three messages sit in a sticky right column, so what will
+  be sent stays in view while lists are pasted.
+- `mrReadiness` (domain, tested) gives a Kesiapan box: sender, lists filled,
+  pengampu confirmed, Zoom block. It describes and never blocks, since an
+  empty list is a legitimate "(Tidak ada pasien)".
+- ‹ › step MR days and skip weekends (`stepMrDate`, tested).
+- Pengampu rows are name | status | delete on one line.
+
+**Verifikasi Sensus.**
+- Documents on the left: drop tiles, one primary action, run progress.
+- The result on the right: a verdict card with counts per severity, issues
+  with a severity-coloured edge, and new/persisting tags.
+- In comparison tables the odd value out is marked (`oddValues`, domain,
+  tested; nothing is marked on a tie, since there is no telling which side is
+  wrong).
+- Resolved, answered, AI notes and JSON fold away.
+- When disabled, the explanation is a callout with a button to Pengaturan.
+
+No logic in the census verifier or the MR stores changed.
+
+**Checked in a harness** (real TabBar, HelperPage and UI kit; Firestore and AI
+mocked with anonymised data): desktop, tablet and phone, light and dark, no
+console errors.
+
+**Not done.** The census test fixtures and some seed templates in this public
+repo contain realistic patient, resident and consultant names and RM numbers.
+Flagged to Avi, not changed here.
+
+```
+1932 tests passed (+15)
+typecheck / lint (0 warnings) / check:version / check:contrast / check:a11y / build - clean
+```
+
 ## `2026-10-05.7` — Start-up no longer waits on a slow network
 
 ### "Memuat… took too long" (Avi, Riwayat sesi screenshot)

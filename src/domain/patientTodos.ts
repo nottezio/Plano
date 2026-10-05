@@ -332,3 +332,25 @@ export function labelsToImport(
   const existing = new Set(activeTodos(todos).map((todo) => todo.label));
   return labels.filter((label) => !existing.has(label));
 }
+
+/**
+ * The minimised Custom Checklist: what is LEFT first (2026-10-05).
+ *
+ * The side panel shows four lines. In written order, a list whose first four
+ * steps are ticked showed four struck-through lines and hid the unticked ones
+ * behind "+N lagi", answering "what is left?" with "what is done". Unticked
+ * steps now come first, each group keeping its written order, and the overflow
+ * line says what it hides: still to do, or only done ones.
+ */
+export function previewTodos(
+  views: readonly TodoView[],
+  limit = 4,
+): { shown: TodoView[]; hiddenOpen: number; hiddenDone: number } {
+  const ordered = [...views.filter((view) => !view.done), ...views.filter((view) => view.done)];
+  const hidden = ordered.slice(limit);
+  return {
+    shown: ordered.slice(0, limit),
+    hiddenOpen: hidden.filter((view) => !view.done).length,
+    hiddenDone: hidden.filter((view) => view.done).length,
+  };
+}

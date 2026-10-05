@@ -28,7 +28,7 @@ import { NewVersionSheet } from '@/components/patient/NewVersionSheet';
 import { PatientNotes, usePatientNotes } from '@/components/patient/PatientNotes';
 import { PatientTodos } from '@/components/patient/PatientTodos';
 import { SidePanel } from '@/components/patient/SidePanel';
-import { todoViews } from '@/domain/patientTodos';
+import { previewTodos, todoViews } from '@/domain/patientTodos';
 import { DocumentPanel } from '@/components/patient/DocumentPanel';
 import { ScrollToTop } from '@/components/patient/ScrollToTop';
 import { OpeningSheet } from '@/components/patient/OpeningSheet';
@@ -2349,21 +2349,30 @@ export default function PatientPage(): JSX.Element {
                       <span aria-hidden="true">✓</span> Semua selesai
                     </p>
                   ) : (
-                    <ul className="space-y-0.5 text-[11px]">
-                      {todoViewsForSummary.slice(0, 4).map((view) => (
-                        <li key={view.id} className="flex gap-1.5">
-                          <span aria-hidden="true" className={view.done ? 'text-accent' : 'text-fg-faint'}>
-                            {view.done ? '✓' : '○'}
-                          </span>
-                          <span className={view.done ? 'truncate text-fg-faint line-through' : 'truncate'}>
-                            {view.label}
-                          </span>
-                        </li>
-                      ))}
-                      {todoViewsForSummary.length > 4 ? (
-                        <li className="text-fg-faint">+{todoViewsForSummary.length - 4} lagi</li>
-                      ) : null}
-                    </ul>
+                    (() => {
+                      // What is left first: see `previewTodos`.
+                      const preview = previewTodos(todoViewsForSummary, 4);
+                      return (
+                        <ul className="space-y-0.5 text-[11px]">
+                          {preview.shown.map((view) => (
+                            <li key={view.id} className="flex gap-1.5">
+                              <span aria-hidden="true" className={view.done ? 'text-accent' : 'text-fg-faint'}>
+                                {view.done ? '✓' : '○'}
+                              </span>
+                              <span className={view.done ? 'truncate text-fg-faint line-through' : 'truncate'}>
+                                {view.label}
+                              </span>
+                            </li>
+                          ))}
+                          {preview.hiddenOpen > 0 ? (
+                            <li className="font-medium text-fg-muted">+{preview.hiddenOpen} belum</li>
+                          ) : null}
+                          {preview.hiddenDone > 0 ? (
+                            <li className="text-fg-faint">+{preview.hiddenDone} selesai</li>
+                          ) : null}
+                        </ul>
+                      );
+                    })()
                   )
                 }
               >

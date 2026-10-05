@@ -36,6 +36,15 @@ export const IconBoard = (props: IconProps): JSX.Element => (
   </Base>
 );
 
+/** Helper: a clipboard, so it no longer borrows Checklist's glyph. */
+export const IconClipboard = (props: IconProps): JSX.Element => (
+  <Base {...props}>
+    <rect x="5" y="4" width="14" height="17" rx="2" />
+    <path d="M9 4.5V3.5a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v1a1 1 0 0 1-1 1h-4a1 1 0 0 1-1-1Z" />
+    <path d="M9 11h6M9 15h4" />
+  </Base>
+);
+
 export const IconArchive = (props: IconProps): JSX.Element => (
   <Base {...props}>
     <rect x="3" y="4" width="18" height="4" rx="1" />

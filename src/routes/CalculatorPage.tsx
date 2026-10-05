@@ -34,7 +34,7 @@ const GROUPS = [
   { id: 'calc-cairan', label: 'Ginjal & cairan' },
   { id: 'calc-elektrolit', label: 'Elektrolit' },
   { id: 'calc-konversi', label: 'Konversi satuan' },
-  { id: 'calc-alat', label: 'Alat lain' },
+  { id: 'calc-alat', label: 'Lainnya' },
 ] as const;
 
 export default function CalculatorPage(): JSX.Element {
@@ -81,7 +81,7 @@ export default function CalculatorPage(): JSX.Element {
           <UnitConverterCard />
         </Group>
 
-        <Group id="calc-alat" label="Alat lain">
+        <Group id="calc-alat" label="Lainnya">
           <LinkCard
             title="Laju syringe pump"
             subtitle="InfuCalc — kalkulator laju infus dan syringe pump."

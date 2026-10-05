@@ -4,6 +4,7 @@ import {
   activeTodos,
   groupTodoViews,
   labelsToImport,
+  previewTodos,
   removeTodo,
   setRepeat,
   todoHistory,
@@ -296,5 +297,35 @@ describe('groupTodoViews', () => {
       new Map(),
     );
     expect(grouped.imported[0]?.items.map((v) => v.id)).toEqual(['1', '3']);
+  });
+});
+
+describe('previewTodos (the minimised Custom Checklist)', () => {
+  const view = (id: string, done: boolean) => ({ id, label: id, repeat: false, done, doneYesterday: false });
+  const ids = (list: Array<{ id: string }>) => list.map((item) => item.id);
+
+  it('shows what is left first, each group in written order', () => {
+    const views = [view('a', true), view('b', true), view('c', false), view('d', true), view('e', false)];
+    const { shown, hiddenOpen, hiddenDone } = previewTodos(views, 4);
+    expect(ids(shown)).toEqual(['c', 'e', 'a', 'b']);
+    expect(hiddenOpen).toBe(0);
+    expect(hiddenDone).toBe(1);
+  });
+
+  it('first four ticked no longer hides the unticked ones behind "+N lagi"', () => {
+    const views = ['1', '2', '3', '4'].map((id) => view(id, true)).concat([view('5', false), view('6', false)]);
+    expect(ids(previewTodos(views).shown).slice(0, 2)).toEqual(['5', '6']);
+  });
+
+  it('counts unticked steps that still do not fit', () => {
+    const views = ['1', '2', '3', '4', '5', '6'].map((id) => view(id, false)).concat([view('7', true)]);
+    const { shown, hiddenOpen, hiddenDone } = previewTodos(views, 4);
+    expect(ids(shown)).toEqual(['1', '2', '3', '4']);
+    expect(hiddenOpen).toBe(2);
+    expect(hiddenDone).toBe(1);
+  });
+
+  it('a short list hides nothing', () => {
+    expect(previewTodos([view('a', false)])).toEqual({ shown: [view('a', false)], hiddenOpen: 0, hiddenDone: 0 });
   });
 });

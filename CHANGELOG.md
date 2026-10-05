@@ -5,6 +5,14 @@ Catatan teknis lengkap (akar masalah, perbaikan) ada di CHANGES.md.
 
 Entri teratas harus versi yang sedang dirilis; tes gagal bila belum ditulis.
 
+## `2026-10-05.8`
+- **Morning Report kini memuat pasien Dinas:** setiap hari kerja punya dua kolom, **Dinas** dan **Jaga**, berdampingan (akhir pekan tetap Jaga Pagi dan Jaga Malam). Laporan Grup Prodi menampilkan blok Dinas sebelum Jaga hari itu. List Jaga yang sudah ditempel sebelumnya tetap di tempatnya.
+- **Pesan ke senior bisa untuk Dinas atau Jaga:** pilih di "List yang diminta"; kalimatnya tetap "…apakah boleh meminta list Jaga Senin, 5 Oktober 2026…" (atau "list Dinas …").
+- **Tampilan Morning Report baru:** langkah bernomor di kiri, ketiga pesan di kanan (tetap terlihat saat mengisi), kotak **Kesiapan** yang menunjukkan apa yang belum (nama, list terisi, konfirmasi pengampu, blok Zoom), tombol ‹ › yang melompati akhir pekan, dan pengampu dalam satu baris (nama, status, hapus).
+- **Tampilan Verifikasi Sensus baru:** dokumen di kiri (bisa ditarik-lepas), hasil di kanan dengan kartu putusan (CLEAN / NOT CLEAN / PARTIAL) dan jumlah per tingkat. Setiap masalah diberi warna tepi sesuai tingkatnya, dan nilai yang berbeda di tabel perbandingan ditandai merah.
+- **Sidebar baru:** satu gaya untuk semua menu, dikelompokkan **Bangsal** dan **Fitur**, Pengaturan di bawah, Helper punya ikon sendiri, dan nama **© Avicenna** kembali tampil di samping versi aplikasi.
+- **Custom Checklist versi ringkas menampilkan yang belum dicentang lebih dulu:** sebelumnya bila empat langkah pertama sudah dicentang, langkah yang belum tersembunyi di "+N lagi". Kini sisanya ditulis "+N belum" atau "+N selesai".
+
 ## `2026-10-05.7`
 - **"Memuat…" saat membuka Plano kini paling lama sekitar 3 detik:** riwayat sesi Anda menunjukkan semua jeda lambat (6–17 detik) terjadi sebelum masuk. Penyebabnya: setiap kali dibuka, Firebase menanyakan akun Anda ke server Google dulu, dan di wifi rumah sakit yang lambat (tapi tidak putus) pertanyaan itu menggantung. Selama itu data yang sudah ada di perangkat pun tidak bisa ditampilkan.
 - **Sekarang:** bila server belum menjawab dalam 3 detik, Plano dibuka dari data di perangkat, sama seperti saat tidak ada sinyal, lalu sinkron otomatis begitu jaringan menjawab.

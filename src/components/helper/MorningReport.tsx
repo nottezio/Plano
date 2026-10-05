@@ -20,10 +20,13 @@ import {
   parsePatients,
   parsePengampuMessage,
   parseShiftKey,
+  partLabel,
   pengampuFor,
+  mrReadiness,
   readMrConfig,
   readMrDay,
   shiftKey,
+  stepMrDate,
   shiftLabel,
   staleMrDays,
   weekday,
@@ -34,6 +37,8 @@ import { useClinicalToday } from '@/hooks/useClinicalToday';
 import { useSyncedDraft } from '@/hooks/useSyncedDraft';
 import { copyText } from '@/lib/clipboard';
 import { useSession } from '@/store/useSession';
+import { Button, Callout, Field, INPUT, Section } from '@/components/common/ui';
+import { IconBack, IconCheck, IconChevronRight, IconCopy, IconPlus, IconTrash } from '@/components/common/Icons';
 
 /**
  * Morning Report confirmator — WIP.
@@ -85,186 +90,306 @@ export function MorningReport(): JSX.Element {
 
   const isWeekend = weekday(mrDate) === 0 || weekday(mrDate) === 6;
 
+  const readiness = mrReadiness({
+    sender: config.sender,
+    shifts,
+    patients: day.patients ?? {},
+    pengampu,
+    zoom: config.zoom,
+  });
+  const readyCount = readiness.filter((item) => item.ok).length;
+
   return (
-    <section className="space-y-6">
-      <p className="text-xs text-fg-muted">
-        Pilih tanggal MR. Jaga yang dilaporkan, pesan ke senior, laporan Grup Prodi, dan konfirmasi
-        Grup PAKAR disusun dari situ. Semua isian tersimpan di akun dan ikut ke perangkat lain.
-      </p>
-      {!uid ? (
-        <p className="text-[11px] text-danger">Belum masuk akun: isian tidak tersimpan.</p>
-      ) : null}
+    <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,26rem)] lg:items-start">
+      {/* Left: the inputs, in the order the evening goes. */}
+      <div className="min-w-0 space-y-6">
+        {!uid ? (
+          <Callout tone="danger" title="Belum masuk akun">
+            Isian tidak tersimpan.
+          </Callout>
+        ) : null}
 
-      {/* 1. Date and range */}
-      <div className="space-y-2">
-        <h3 className="text-sm font-medium">1. Tanggal MR</h3>
-        <div className="flex flex-wrap items-end gap-3">
-          <label className="text-xs text-fg-muted">
-            Hari MR
-            <input
-              type="date"
-              value={mrDate}
-              onChange={(event) => event.target.value && setMrDate(event.target.value)}
-              className="mt-1 block min-h-tap rounded-lg border border-border bg-surface px-3 text-sm text-fg"
-            />
-          </label>
-          <label className="text-xs text-fg-muted">
-            Jaga mulai dari
-            <input
-              type="date"
-              value={start}
-              max={mrDate}
-              onChange={(event) => {
-                if (!uid || !event.target.value) return;
-                const value = event.target.value;
-                setMrDayField(uid, mrDate, 'start', value === defaultCoverStart(mrDate) ? null : value);
-              }}
-              className="mt-1 block min-h-tap rounded-lg border border-border bg-surface px-3 text-sm text-fg"
-            />
-          </label>
-        </div>
-        <p className="text-[11px] text-fg-faint">
-          {longDateText(mrDate)} · {shifts.length} jaga
-          {day.start ? ' (rentang diubah manual — mis. hari libur)' : ''}
-          {isWeekend ? ' · Catatan: tanggal ini jatuh di akhir pekan.' : ''}
-        </p>
-      </div>
+        <Step n={1} title="Tanggal MR">
+          <div className="flex flex-wrap items-end gap-3">
+            <Field label="Hari MR" htmlFor="mr-date">
+              <div className="flex items-center gap-1">
+                <button
+                  type="button"
+                  onClick={() => setMrDate(stepMrDate(mrDate, -1))}
+                  aria-label="Hari MR sebelumnya"
+                  className="flex min-h-tap min-w-tap items-center justify-center rounded-xl border border-border text-fg-muted hover:bg-bg-subtle [@media(pointer:fine)]:min-h-10"
+                >
+                  <IconBack className="h-4 w-4" />
+                </button>
+                <input
+                  id="mr-date"
+                  type="date"
+                  value={mrDate}
+                  onChange={(event) => event.target.value && setMrDate(event.target.value)}
+                  className={`${INPUT} w-auto`}
+                />
+                <button
+                  type="button"
+                  onClick={() => setMrDate(stepMrDate(mrDate, 1))}
+                  aria-label="Hari MR berikutnya"
+                  className="flex min-h-tap min-w-tap items-center justify-center rounded-xl border border-border text-fg-muted hover:bg-bg-subtle [@media(pointer:fine)]:min-h-10"
+                >
+                  <IconChevronRight className="h-4 w-4" />
+                </button>
+              </div>
+            </Field>
+            <Field label="Jaga mulai dari" htmlFor="mr-start">
+              <input
+                id="mr-start"
+                type="date"
+                value={start}
+                max={mrDate}
+                onChange={(event) => {
+                  if (!uid || !event.target.value) return;
+                  const value = event.target.value;
+                  setMrDayField(uid, mrDate, 'start', value === defaultCoverStart(mrDate) ? null : value);
+                }}
+                className={`${INPUT} w-auto`}
+              />
+            </Field>
+            {mrDate !== defaultMrDate(today) ? (
+              <Button size="sm" variant="ghost" onClick={() => setMrDate(defaultMrDate(today))}>
+                MR berikutnya
+              </Button>
+            ) : null}
+          </div>
+          <p className="text-xs text-fg-muted">
+            <span className="font-medium text-fg">{longDateText(mrDate)}</span> · {shifts.length} list dilaporkan
+            {day.start ? ' · rentang diubah manual (mis. hari libur)' : ''}
+          </p>
+          {isWeekend ? (
+            <Callout tone="warn">Tanggal ini jatuh di akhir pekan.</Callout>
+          ) : null}
+        </Step>
 
-      {/* 2. Request to the senior */}
-      <div className="space-y-2">
-        <h3 className="text-sm font-medium">2. Minta list ke senior</h3>
-        <div className="flex flex-wrap items-end gap-3">
-          <label className="flex-1 text-xs text-fg-muted">
-            Nama Anda
-            <SyncedInput
-              key={`sender:${String(uid)}`}
-              remote={config.sender}
-              onWrite={(value) => uid && setMrConfigField(uid, 'sender', value)}
-              placeholder="mis. Avi"
-            />
-          </label>
-          <label className="flex-1 text-xs text-fg-muted">
-            Jaga yang diminta
-            <select
-              value={shiftKey(target)}
-              onChange={(event) => uid && setMrDayField(uid, mrDate, 'target', event.target.value)}
-              className="mt-1 block min-h-tap w-full rounded-lg border border-border bg-surface px-2 text-sm text-fg"
-            >
-              {shifts.map((shift) => (
-                <option key={shiftKey(shift)} value={shiftKey(shift)}>
-                  {shiftLabel(shift)}
-                </option>
-              ))}
-            </select>
-          </label>
-        </div>
-        <MessageBox
-          label="Pesan ke senior"
-          text={buildRequestMessage({ sender: config.sender, mrDate, shift: target })}
-        />
-      </div>
+        <Step n={2} title="Minta list ke senior">
+          <div className="grid gap-3 sm:grid-cols-2">
+            <Field label="Nama Anda">
+              <SyncedInput
+                key={`sender:${String(uid)}`}
+                remote={config.sender}
+                onWrite={(value) => uid && setMrConfigField(uid, 'sender', value)}
+                placeholder="mis. Avi"
+                ariaLabel="Nama Anda"
+              />
+            </Field>
+            <Field label="List yang diminta" htmlFor="mr-target">
+              <select
+                id="mr-target"
+                value={shiftKey(target)}
+                onChange={(event) => uid && setMrDayField(uid, mrDate, 'target', event.target.value)}
+                className={INPUT}
+              >
+                {shifts.map((shift) => (
+                  <option key={shiftKey(shift)} value={shiftKey(shift)}>
+                    {shiftLabel(shift)}
+                  </option>
+                ))}
+              </select>
+            </Field>
+          </div>
+          <p className="text-[11px] text-fg-faint lg:hidden">Pesannya ada di bagian Pesan di bawah.</p>
+          <p className="hidden text-[11px] text-fg-faint lg:block">Pesannya ada di kolom kanan.</p>
+        </Step>
 
-      {/* 3. Patients per shift */}
-      <div className="space-y-2">
-        <h3 className="text-sm font-medium">3. Pasien per jaga</h3>
-        <p className="text-[11px] text-fg-faint">
-          Tempel list dari senior apa adanya. Nomor, huruf tebal, dan “Diagnosis:” dirapikan
-          otomatis; kosongkan untuk “(Tidak ada pasien)”.
-        </p>
-        {shifts.map((shift) => (
-          <ShiftPatients
-            key={`${mrDate}:${shiftKey(shift)}`}
-            shift={shift}
-            remote={day.patients?.[shiftKey(shift)] ?? ''}
-            onWrite={(text) => uid && setMrPatients(uid, mrDate, shiftKey(shift), text)}
-          />
-        ))}
-      </div>
+        <Step
+          n={3}
+          title="Pasien Dinas dan Jaga"
+          hint="Tempel list dari senior apa adanya. Nomor, huruf tebal, dan “Diagnosis:” dirapikan otomatis; kosongkan untuk “(Tidak ada pasien)”."
+        >
+          {/*
+            One row per date, its lists side by side: Dinas | Jaga on a
+            weekday, Jaga Pagi | Jaga Malam on a weekend. Stacked on a phone.
+          */}
+          <div className="space-y-4">
+            {groupByDate(shifts).map(([date, parts]) => (
+              <div key={date} className="space-y-1.5">
+                <p className="text-xs font-semibold text-fg-muted">{longDateText(date)}</p>
+                <div className="grid gap-2 md:grid-cols-2">
+                  {parts.map((shift) => (
+                    <ShiftPatients
+                      key={`${mrDate}:${shiftKey(shift)}`}
+                      shift={shift}
+                      remote={day.patients?.[shiftKey(shift)] ?? ''}
+                      onWrite={(text) => uid && setMrPatients(uid, mrDate, shiftKey(shift), text)}
+                    />
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+        </Step>
 
-      {/* 4. Pengampu */}
-      <div className="space-y-2">
-        <h3 className="text-sm font-medium">
-          4. Pengampu MR {dayName(mrDate)}
-          {day.pengampu ? '' : ' (jadwal mingguan)'}
-        </h3>
-        <ul className="space-y-2">
-          {pengampu.map((entry, index) => (
-            <li key={index} className="space-y-1 rounded-lg border border-border p-2">
-              <div className="flex items-center gap-2">
+        <Step
+          n={4}
+          title={`Pengampu MR ${dayName(mrDate)}`}
+          aside={
+            <span className="text-[11px] text-fg-faint">
+              {day.pengampu ? 'diubah untuk tanggal ini' : 'dari jadwal mingguan'}
+            </span>
+          }
+        >
+          <ul className="divide-y divide-border overflow-hidden rounded-xl border border-border">
+            {pengampu.map((entry, index) => (
+              <li key={index} className="grid gap-2 bg-surface p-2 sm:grid-cols-[minmax(0,1fr)_minmax(0,15rem)_auto] sm:items-start">
                 <SyncedInput
                   key={`${mrDate}:name:${index}:${pengampu.length}`}
                   remote={entry.name}
-                  onWrite={(name) =>
-                    setPengampu(pengampu.map((p, i) => (i === index ? { ...p, name } : p)))
-                  }
-                  className="flex-1"
+                  onWrite={(name) => setPengampu(pengampu.map((p, i) => (i === index ? { ...p, name } : p)))}
                   ariaLabel={`Nama pengampu ${index + 1}`}
+                  placeholder="Nama dan gelar"
+                />
+                <StatusPicker
+                  key={`${mrDate}:status:${index}:${pengampu.length}`}
+                  name={entry.name}
+                  status={entry.status}
+                  presets={config.statuses}
+                  onChange={(status) => setPengampu(pengampu.map((p, i) => (i === index ? { ...p, status } : p)))}
                 />
                 <button
                   type="button"
                   onClick={() => setPengampu(pengampu.filter((_, i) => i !== index))}
-                  className="min-h-tap shrink-0 rounded-lg px-3 text-xs text-danger"
+                  className="flex min-h-tap min-w-tap items-center justify-center justify-self-end rounded-xl text-fg-faint hover:bg-[var(--danger-soft)] hover:text-danger [@media(pointer:fine)]:min-h-10"
                   aria-label={`Hapus ${entry.name || 'pengampu'}`}
                 >
-                  Hapus
+                  <IconTrash className="h-4 w-4" />
                 </button>
-              </div>
-              <StatusPicker
-                key={`${mrDate}:status:${index}:${pengampu.length}`}
-                name={entry.name}
-                status={entry.status}
-                presets={config.statuses}
-                onChange={(status) =>
-                  setPengampu(pengampu.map((p, i) => (i === index ? { ...p, status } : p)))
-                }
-              />
-            </li>
-          ))}
-        </ul>
-        <div className="flex flex-wrap gap-2">
-          <button
-            type="button"
-            onClick={() => setPengampu([...pengampu, { name: '', status: DEFAULT_STATUS }])}
-            className="min-h-tap rounded-lg border border-border px-3 text-xs font-medium"
-          >
-            + Pengampu
-          </button>
-          {day.pengampu ? (
-            <button
-              type="button"
-              onClick={() => uid && setMrDayField(uid, mrDate, 'pengampu', null)}
-              className="min-h-tap rounded-lg px-3 text-xs font-medium text-fg-muted"
+              </li>
+            ))}
+            {pengampu.length === 0 ? (
+              <li className="bg-surface px-3 py-3 text-xs text-fg-faint">Belum ada pengampu untuk tanggal ini.</li>
+            ) : null}
+          </ul>
+          <div className="flex flex-wrap gap-2">
+            <Button
+              size="sm"
+              icon={<IconPlus className="h-4 w-4" />}
+              onClick={() => setPengampu([...pengampu, { name: '', status: DEFAULT_STATUS }])}
             >
-              Kembalikan ke jadwal {dayName(mrDate)}
-            </button>
-          ) : null}
-        </div>
+              Pengampu
+            </Button>
+            {day.pengampu ? (
+              <Button size="sm" variant="ghost" onClick={() => uid && setMrDayField(uid, mrDate, 'pengampu', null)}>
+                Kembalikan ke jadwal {dayName(mrDate)}
+              </Button>
+            ) : null}
+          </div>
+        </Step>
+
+        <MrSettings uid={uid} config={config} />
       </div>
 
-      {/* 5. Messages */}
-      <div className="space-y-3">
-        <h3 className="text-sm font-medium">5. Pesan</h3>
-        {!config.zoom.trim() ? (
-          <p className="text-[11px] text-fg-muted">
-            Blok Zoom belum diisi — tambahkan di Pengaturan MR di bawah agar ikut di laporan Prodi.
-          </p>
-        ) : null}
-        <MessageBox
-          label="Laporan Grup Prodi"
-          text={buildProdiMessage({
-            mrDate,
-            shifts,
-            patients: day.patients ?? {},
-            pengampu,
-            zoom: config.zoom,
-          })}
-        />
-        <MessageBox label="Konfirmasi Grup PAKAR" text={buildPakarMessage({ mrDate, pengampu })} />
-      </div>
+      {/* Right: what gets sent. Sticky on a laptop, so it stays in view while the list is pasted. */}
+      <aside className="min-w-0 space-y-4 lg:sticky lg:top-4">
+        <section
+          aria-labelledby="mr-ready"
+          className={[
+            'rounded-xl border px-3 py-2.5',
+            readyCount === readiness.length ? 'border-accent bg-[var(--accent-soft)]' : 'border-border bg-bg-subtle',
+          ].join(' ')}
+        >
+          <div className="flex items-center gap-2">
+            <h3 id="mr-ready" className="flex-1 text-xs font-semibold">
+              Kesiapan MR {dayName(mrDate)}
+            </h3>
+            <span className="text-[11px] font-medium text-fg-muted">
+              {readyCount}/{readiness.length}
+            </span>
+          </div>
+          <ul className="mt-1.5 space-y-1 text-[11px]">
+            {readiness.map((item) => (
+              <li key={item.label} className="flex items-center gap-2">
+                <span
+                  aria-hidden="true"
+                  className={[
+                    'flex h-4 w-4 shrink-0 items-center justify-center rounded-full text-[9px]',
+                    item.ok ? 'bg-accent text-white' : 'ring-1 ring-border-strong',
+                  ].join(' ')}
+                >
+                  {item.ok ? '✓' : ''}
+                </span>
+                <span className="flex-1">{item.label}</span>
+                <span className={item.ok ? 'text-fg-muted' : 'font-medium text-[var(--warn-strong)]'}>
+                  {item.detail}
+                </span>
+                <span className="sr-only">{item.ok ? 'siap' : 'belum'}</span>
+              </li>
+            ))}
+          </ul>
+        </section>
 
-      <MrSettings uid={uid} config={config} />
+        <Section title="Pesan">
+          <div className="space-y-3">
+            <MessageBox
+              label="Ke senior"
+              sub={`Minta list ${shiftLabel(target)}`}
+              text={buildRequestMessage({ sender: config.sender, mrDate, shift: target })}
+            />
+            <MessageBox
+              label="Laporan Grup Prodi"
+              sub="Dari langkah 3 dan 4, pagi hari MR"
+              text={buildProdiMessage({
+                mrDate,
+                shifts,
+                patients: day.patients ?? {},
+                pengampu,
+                zoom: config.zoom,
+              })}
+            />
+            <MessageBox
+              label="Konfirmasi Grup PAKAR"
+              sub="Dari langkah 4"
+              text={buildPakarMessage({ mrDate, pengampu })}
+            />
+          </div>
+        </Section>
+      </aside>
+    </div>
+  );
+}
+
+/** A numbered step: the number says the order, the title what it is for. */
+function Step({
+  n,
+  title,
+  hint,
+  aside,
+  children,
+}: {
+  n: number;
+  title: string;
+  hint?: string;
+  aside?: React.ReactNode;
+  children: React.ReactNode;
+}): JSX.Element {
+  return (
+    <section className="space-y-2.5">
+      <div className="flex items-center gap-2.5">
+        <span
+          aria-hidden="true"
+          className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-[var(--accent-soft)] text-xs font-semibold text-accent"
+        >
+          {n}
+        </span>
+        <h3 className="flex-1 text-sm font-semibold">{title}</h3>
+        {aside}
+      </div>
+      {hint ? <p className="text-[11px] leading-relaxed text-fg-faint">{hint}</p> : null}
+      {children}
     </section>
   );
+}
+
+/** Shifts grouped by date, dates in order, parts in report order. */
+function groupByDate(shifts: readonly MrShift[]): Array<[string, MrShift[]]> {
+  const groups = new Map<string, MrShift[]>();
+  for (const shift of shifts) groups.set(shift.date, [...(groups.get(shift.date) ?? []), shift]);
+  return [...groups];
 }
 
 const CUSTOM = '__custom__';
@@ -300,7 +425,7 @@ function StatusPicker({
           onChange(event.target.value);
         }}
         aria-label={`Status ${name || 'pengampu'}`}
-        className="block min-h-tap w-full rounded-lg border border-border bg-surface px-2 text-xs text-fg"
+        className={`${INPUT} text-xs`}
       >
         {presets.map((preset) => (
           <option key={preset} value={preset}>
@@ -341,7 +466,7 @@ function SyncedInput({
       onChange={(event) => setValue(event.target.value)}
       placeholder={placeholder}
       aria-label={ariaLabel}
-      className={`mt-1 block min-h-tap w-full rounded-lg border border-border bg-surface px-3 text-sm text-fg ${className}`}
+      className={`${INPUT} ${className}`}
     />
   );
 }
@@ -358,29 +483,36 @@ function ShiftPatients({
   const [text, setText] = useSyncedDraft(remote, onWrite);
   const parsed = useMemo(() => parsePatients(text), [text]);
   const count = parsed.patients.length;
+  const filled = text.trim().length > 0;
   return (
-    <label className="block space-y-1 rounded-lg border border-border p-2">
-      <span className="flex items-center gap-2 text-xs font-medium">
-        <span className="flex-1">{shiftLabel(shift)}</span>
-        <span className="text-[11px] font-normal text-fg-muted">
-          {text.trim() ? `${count} pasien` : 'Tidak ada pasien'}
+    <label className="block overflow-hidden rounded-xl border border-border bg-surface focus-within:border-accent">
+      <span className="flex items-center gap-2 border-b border-border bg-bg-subtle px-3 py-1.5 text-xs font-medium">
+        <span className="flex-1">{partLabel(shift.part)}</span>
+        <span className="sr-only">{shiftLabel(shift)}</span>
+        <span
+          className={[
+            'rounded-full px-2 py-0.5 text-[10px] font-semibold',
+            filled ? 'bg-[var(--accent-soft)] text-accent' : 'bg-surface text-fg-faint ring-1 ring-border',
+          ].join(' ')}
+        >
+          {filled ? `${count} pasien` : 'Tidak ada pasien'}
         </span>
       </span>
       <textarea
         value={text}
         onChange={(event) => setText(event.target.value)}
-        rows={text.trim() ? Math.min(12, text.split('\n').length + 1) : 2}
+        rows={filled ? Math.min(12, text.split('\n').length + 1) : 2}
         placeholder="1. Tn. … / tgl lahir / umur / RM … / ruangan / DPJP : …&#10;Diagnosis:&#10;- …"
-        className="block w-full rounded-lg border border-border bg-surface px-2 py-1.5 font-mono text-[12px] text-fg"
+        className="block w-full resize-y bg-surface px-3 py-2 font-mono text-[12px] text-fg outline-none placeholder:text-fg-faint"
       />
       {parsed.unplaced.length > 0 ? (
-        <span className="block text-[11px] text-danger">
+        <span className="block border-t border-border px-3 py-1.5 text-[11px] text-danger">
           {parsed.unplaced.length} baris sebelum pasien pertama ikut disalin apa adanya — hapus bila
           bukan bagian laporan.
         </span>
       ) : null}
-      {text.trim() && count === 0 ? (
-        <span className="block text-[11px] text-danger">
+      {filled && count === 0 ? (
+        <span className="block border-t border-border px-3 py-1.5 text-[11px] text-danger">
           Tidak ada baris yang terbaca sebagai pasien; teks disalin apa adanya.
         </span>
       ) : null}
@@ -388,26 +520,38 @@ function ShiftPatients({
   );
 }
 
-function MessageBox({ label, text }: { label: string; text: string }): JSX.Element {
+function MessageBox({
+  label,
+  sub,
+  text,
+}: {
+  label: string;
+  sub?: string;
+  text: string;
+}): JSX.Element {
   const [copied, setCopied] = useState(false);
   return (
-    <div className="space-y-1">
-      <div className="flex items-center gap-2">
-        <span className="flex-1 text-xs font-medium">{label}</span>
-        <button
-          type="button"
+    <div className="overflow-hidden rounded-xl border border-border bg-surface">
+      <div className="flex items-center gap-2 border-b border-border px-3 py-1.5">
+        <span className="min-w-0 flex-1">
+          <span className="block truncate text-xs font-semibold">{label}</span>
+          {sub ? <span className="block truncate text-[10px] text-fg-faint">{sub}</span> : null}
+        </span>
+        <Button
+          size="sm"
+          variant={copied ? 'secondary' : 'primary'}
+          icon={copied ? <IconCheck className="h-4 w-4" /> : <IconCopy className="h-4 w-4" />}
           onClick={() =>
             void copyText(text).then((ok) => {
               setCopied(ok);
               if (ok) window.setTimeout(() => setCopied(false), 1500);
             })
           }
-          className="min-h-tap shrink-0 rounded-lg border border-accent px-3 text-xs font-medium text-accent"
         >
           {copied ? 'Tersalin' : 'Salin'}
-        </button>
+        </Button>
       </div>
-      <p className="max-h-80 overflow-auto whitespace-pre-wrap rounded-lg border border-border px-2 py-1.5 text-[11px] leading-relaxed text-fg-muted">
+      <p className="max-h-72 overflow-auto whitespace-pre-wrap px-3 py-2 text-[11px] leading-relaxed text-fg-muted">
         {text}
       </p>
     </div>
@@ -422,9 +566,13 @@ function MrSettings({
   config: ReturnType<typeof readMrConfig>;
 }): JSX.Element {
   return (
-    <details className="rounded-lg border border-border p-2">
-      <summary className="min-h-tap cursor-pointer py-2 text-sm font-medium">Pengaturan MR</summary>
-      <div className="space-y-3 pt-2">
+    <details className="group rounded-xl border border-border">
+      <summary className="flex min-h-tap cursor-pointer items-center gap-2 px-3 text-sm font-medium [@media(pointer:fine)]:min-h-10">
+        <IconChevronRight className="h-4 w-4 text-fg-muted transition-transform group-open:rotate-90" />
+        <span className="flex-1">Pengaturan MR</span>
+        <span className="text-[11px] font-normal text-fg-faint">Zoom, status, jadwal pengampu</span>
+      </summary>
+      <div className="space-y-3 border-t border-border px-3 py-3">
         <label className="block text-xs text-fg-muted">
           Blok Zoom (Meeting ID, Passcode, Host Key, link) — ditempel sekali, tersimpan di akun Anda
           saja
@@ -570,7 +718,7 @@ function SyncedArea({
       value={value}
       onChange={(event) => setValue(event.target.value)}
       rows={rows}
-      className="mt-1 block w-full rounded-lg border border-border bg-surface px-2 py-1.5 text-[12px] text-fg"
+      className="mt-1 block w-full rounded-xl border border-border bg-surface px-3 py-2 text-[12px] text-fg outline-none focus:border-accent"
     />
   );
 }

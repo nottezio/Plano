@@ -11,6 +11,9 @@ import {
   formatShiftBlock,
   parsePatients,
   shiftKey,
+  parseShiftKey,
+  stepMrDate,
+  mrReadiness,
   shiftLabel,
   DEFAULT_STATUS,
   pengampuFor,
@@ -37,6 +40,7 @@ Diagnosis :
 describe('covered shifts', () => {
   it('Monday covers Jumat through Minggu Malam', () => {
     expect(coveredShifts('2026-09-28').map(shiftLabel)).toEqual([
+      'Dinas Jumat, 25 September 2026',
       'Jaga Jumat, 25 September 2026',
       'Jaga Sabtu Pagi, 26 September 2026',
       'Jaga Sabtu Malam, 26 September 2026',
@@ -45,17 +49,27 @@ describe('covered shifts', () => {
     ]);
   });
 
-  it('any other day covers the previous day only', () => {
-    expect(coveredShifts('2026-09-30').map(shiftLabel)).toEqual(['Jaga Selasa, 29 September 2026']);
+  it('any other day covers the previous day only: its Dinas, then its Jaga', () => {
+    expect(coveredShifts('2026-09-30').map(shiftLabel)).toEqual([
+      'Dinas Selasa, 29 September 2026',
+      'Jaga Selasa, 29 September 2026',
+    ]);
+  });
+
+  it('a Jaga list stored before Dinas existed keeps its key', () => {
+    const jaga = coveredShifts('2026-09-30')[1]!;
+    expect(shiftKey(jaga)).toBe('2026-09-29:full');
+    expect(parseShiftKey('2026-09-29:dinas')).toEqual({ date: '2026-09-29', part: 'dinas' });
   });
 
   it('a start moved earlier stretches the range; a start on the MR day falls back', () => {
-    expect(coveredShifts('2026-09-30', '2026-09-28')).toHaveLength(2);
-    expect(coveredShifts('2026-09-30', '2026-09-30')).toHaveLength(1);
+    expect(coveredShifts('2026-09-30', '2026-09-28')).toHaveLength(4);
+    expect(coveredShifts('2026-09-30', '2026-09-30')).toHaveLength(2);
   });
 
   it('is capped so a mistyped year cannot flood the report', () => {
-    expect(coveredShifts('2026-09-30', '2025-09-30').length).toBeLessThanOrEqual(20);
+    // 14 days at most, two lists each.
+    expect(coveredShifts('2026-09-30', '2025-09-30').length).toBeLessThanOrEqual(28);
   });
 
   it('prepares Monday from Friday evening', () => {
@@ -111,11 +125,11 @@ describe('messages', () => {
   });
 
   it('Prodi message: header, renumbered blocks, dividers, pengampu, zoom, closing', () => {
-    const shifts = coveredShifts('2026-09-28').slice(0, 2);
+    const shifts = coveredShifts('2026-09-28').slice(0, 3);
     const text = buildProdiMessage({
       mrDate: '2026-09-28',
       shifts,
-      patients: { [shiftKey(shifts[1]!)]: SENIOR_LIST },
+      patients: { [shiftKey(shifts[2]!)]: SENIOR_LIST },
       pengampu: [
         { name: 'dr. A', status: 'konfirmasi kehadiran pukul 07.00 WITA' },
         { name: 'dr. B', status: '' },
@@ -125,7 +139,9 @@ describe('messages', () => {
     expect(text.startsWith(
       'Assalamualaikum dokter, tabe dokter mohon izin melaporkan pasien *Morning Report* pada hari *Senin, 28 September 2026* :',
     )).toBe(true);
-    expect(text).toContain(`*Jaga Jumat, 25 September 2026*\n${NO_PATIENTS}\n\n${MR_DIVIDER}\n\n*Jaga Sabtu Pagi`);
+    expect(text).toContain(
+      `*Dinas Jumat, 25 September 2026*\n${NO_PATIENTS}\n\n${MR_DIVIDER}\n\n*Jaga Jumat, 25 September 2026*\n${NO_PATIENTS}\n\n${MR_DIVIDER}\n\n*Jaga Sabtu Pagi`,
+    );
     expect(text).toContain('*2. Ny. CD / 03-04-1970');
     expect(text).toContain('*Diagnosis:*\n- ADHF\n- AF RVR');
     expect(text).toContain(
@@ -239,5 +255,67 @@ describe('reading sent confirmations', () => {
     expect(blocks[0]!.pengampu.map((p) => p.name)).toEqual(DEFAULT_PENGAMPU[5]);
     expect(blocks[1]!.pengampu.map((p) => p.name)).toEqual(DEFAULT_PENGAMPU[2]);
     expect(blocks[1]!.pengampu[3]!.status).toBe('konfirmasi kehadiran pukul 07:30 WITA');
+  });
+});
+
+describe('stepMrDate', () => {
+  it('skips the weekend in both directions', () => {
+    // 2026-10-09 is a Friday, 2026-10-12 a Monday.
+    expect(stepMrDate('2026-10-09', 1)).toBe('2026-10-12');
+    expect(stepMrDate('2026-10-12', -1)).toBe('2026-10-09');
+    expect(stepMrDate('2026-10-06', 1)).toBe('2026-10-07');
+  });
+});
+
+describe('mrReadiness', () => {
+  const shifts = [
+    { date: '2026-10-05', part: 'full' as const },
+    { date: '2026-10-06', part: 'pagi' as const },
+  ];
+  const base = {
+    sender: 'Avi',
+    shifts,
+    patients: { [shiftKey(shifts[0]!)]: '1. Tn. A' },
+    pengampu: [
+      { name: 'dr. Satu', status: DEFAULT_STATUS },
+      { name: 'dr. Dua', status: 'Konfirmasi kehadiran pukul 07:00 WITA' },
+    ],
+    zoom: '',
+  };
+
+  it('says what is missing, in page order', () => {
+    expect(mrReadiness(base).map((item) => [item.label, item.ok, item.detail])).toEqual([
+      ['Nama pengirim', true, 'Avi'],
+      ['List pasien', false, '1/2 list terisi'],
+      ['Konfirmasi pengampu', false, '1/2 sudah konfirmasi'],
+      ['Blok Zoom', false, 'isi di Pengaturan MR'],
+    ]);
+  });
+
+  it('is all green when everything is in', () => {
+    const ready = mrReadiness({
+      ...base,
+      patients: { [shiftKey(shifts[0]!)]: 'x', [shiftKey(shifts[1]!)]: 'y' },
+      pengampu: [{ name: 'dr. Dua', status: 'hadir via Zoom' }],
+      zoom: 'Meeting ID',
+    });
+    expect(ready.every((item) => item.ok)).toBe(true);
+  });
+
+  it('a blank pengampu row is not counted', () => {
+    const item = mrReadiness({ ...base, pengampu: [{ name: ' ', status: DEFAULT_STATUS }] })[2];
+    expect(item?.detail).toBe('belum ada pengampu');
+  });
+});
+
+describe('request to the senior', () => {
+  it("keeps Avi's wording for a Jaga list", () => {
+    const text = buildRequestMessage({ sender: 'Avi', mrDate: '2026-10-06', shift: { date: '2026-10-05', part: 'full' } });
+    expect(text).toContain('apakah boleh meminta list Jaga Senin, 5 Oktober 2026 yang akan di MR kan dok?');
+  });
+
+  it('names the Dinas list the same way', () => {
+    const text = buildRequestMessage({ sender: 'Avi', mrDate: '2026-10-06', shift: { date: '2026-10-05', part: 'dinas' } });
+    expect(text).toContain('apakah boleh meminta list Dinas Senin, 5 Oktober 2026 yang akan di MR kan dok?');
   });
 });
