@@ -11,7 +11,7 @@ describe('POLI_SCHEDULE', () => {
   it('names the month it was transcribed from', () => {
     // A roster is a document with a date on it; reading last month's by
     // accident is the mistake worth preventing.
-    expect(SCHEDULE_PERIOD).toBe('Juli 2026');
+    expect(SCHEDULE_PERIOD).toBe('Oktober – Desember 2026');
   });
 
   it('covers Monday to Friday, with the split slots the sheet shows', () => {

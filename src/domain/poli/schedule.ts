@@ -3,9 +3,12 @@ import { DPJPS } from '../dpjp';
 import type { ClinicalDate } from '../types';
 
 /**
- * Outpatient clinic roster — JADWAL DPJP POLI CARDIO PJT, **Januari 2026**.
+ * Outpatient clinic roster — JADWAL DPJP POLI CARDIO PJT DAN POLI KONSULTASI
+ * KARDIOLOGI & ECHOCARDIOGRAPHY RAWAT JALAN, **Oktober – Desember 2026**.
  *
- * Transcribed from the signed sheet. The month is carried in `SCHEDULE_PERIOD`
+ * Transcribed from the signed sheet. The October–December sheet was checked
+ * slot by slot against the July one (2026-10-05): all 27 slots, rooms and
+ * hours are unchanged, so only the period moved. The month is carried in `SCHEDULE_PERIOD`
  * and shown wherever the schedule is, because a roster is a document with a
  * date on it: a resident reading "Rabu, poli 4" needs to know whether they are
  * reading this month's sheet or one from before someone rotated.
@@ -16,7 +19,7 @@ import type { ClinicalDate } from '../types';
  * them.
  */
 
-export const SCHEDULE_PERIOD = 'Juli 2026';
+export const SCHEDULE_PERIOD = 'Oktober – Desember 2026';
 
 /** 1 = Monday … 5 = Friday, matching `Date.getDay()`. */
 export interface PoliSlot {

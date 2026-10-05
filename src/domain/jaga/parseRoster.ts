@@ -75,6 +75,24 @@ function iso(year: number, month: number, day: number): string {
   return `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
 }
 
+const WEEKDAYS = ['minggu', 'senin', 'selasa', 'rabu', 'kamis', 'jumat', 'sabtu'];
+
+/** `Sabtu Malam` → 6, `Jum'at` → 5; -1 when the cell names no weekday. */
+function weekdayOfHari(hari: string): number {
+  const word = (hari.trim().split(/\s+/)[0] ?? '').toLowerCase().replace(/[^a-z]/g, '');
+  return WEEKDAYS.indexOf(word);
+}
+
+function weekdayOfIso(date: string): number {
+  return new Date(`${date}T00:00:00Z`).getUTCDay();
+}
+
+function addDaysIso(date: string, days: number): string {
+  const at = new Date(`${date}T00:00:00Z`);
+  at.setUTCDate(at.getUTCDate() + days);
+  return at.toISOString().slice(0, 10);
+}
+
 /**
  * Initial → full name, from the three legend tables down the right side.
  *
@@ -133,25 +151,59 @@ export function parseJagaRoster(items: readonly PdfTextItem[]): JagaRoster {
     if (!hari) continue;
     if (/^hari$/i.test(hari) || /jadwal jaga/i.test(hari)) continue;
 
+    /*
+      THE HARI COLUMN DECIDES THE DATE; a day number only confirms it
+      (2026-10-05).
+
+      A weekend's date is ONE merged cell printed between its two rows, and
+      pdf.js attaches it to whichever row its baseline is nearer. Mostly that
+      is the first row of the pair. On the October sheet, at the month
+      boundary, it was not: `1` (Minggu) landed on the `Sabtu Malam` row and
+      `2` (Senin) on `Minggu Malam`, so the 31 October night team was filed
+      under 1 November, and 31 Oktober Sabtu Malam could not be confirmed at
+      all.
+
+      Every row names its weekday, and that cannot be misplaced. So a number
+      is accepted only when the date it gives falls on the row's weekday;
+      otherwise the date is walked from the previous row — the same date if
+      the weekday did not change (Pagi → Malam), else forward to the next
+      day with that weekday.
+    */
+    const weekday = weekdayOfHari(hari);
     const dayNumber = Number(record['tanggal']);
+    let numbered: string | null = null;
     if (Number.isFinite(dayNumber) && dayNumber > 0) {
       // The roster spans a month boundary and prints day numbers only. A day
-      // number smaller than the last one is the rollover — the only signal
-      // there is.
+      // number smaller than the last one is the rollover.
+      let candidateMonth = month;
+      let candidateYear = year;
       if (dayNumber < previousDay) {
-        month += 1;
-        if (month > 11) {
-          month = 0;
-          year += 1;
+        candidateMonth += 1;
+        if (candidateMonth > 11) {
+          candidateMonth = 0;
+          candidateYear += 1;
         }
       }
-      previousDay = dayNumber;
-      lastDate = iso(year, month, dayNumber);
+      numbered = iso(candidateYear, candidateMonth, dayNumber);
     }
 
-    // A weekend `Malam` row has no date of its own: the TANGGAL cell is merged
-    // across both shifts and pdf.js attaches it to the first. Inheriting the
-    // last date is not a guess — the merged cell is literally the same cell.
+    let date: string | null = null;
+    if (numbered && (weekday === -1 || weekdayOfIso(numbered) === weekday)) {
+      date = numbered;
+    } else if (lastDate && weekday !== -1) {
+      date = addDaysIso(lastDate, (weekday - weekdayOfIso(lastDate) + 7) % 7);
+    } else if (numbered && !lastDate) {
+      // The first row, with a weekday that disagrees: nothing to walk from.
+      date = numbered;
+    }
+
+    if (date) {
+      lastDate = date;
+      previousDay = Number(date.slice(8, 10));
+      month = Number(date.slice(5, 7)) - 1;
+      year = Number(date.slice(0, 4));
+    }
+
     if (!lastDate) continue;
 
     const shift: JagaShift['shift'] = /malam/i.test(hari)

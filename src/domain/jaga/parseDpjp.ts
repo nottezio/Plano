@@ -24,32 +24,76 @@ function parseIndonesianDate(text: string): string | null {
 /**
  * The DPJP roster: date, DPJP Utama, Primary PCI.
  *
- * Three columns split on x. The thresholds are deliberately wide — the names
- * are centred in their cells, so a long one (`Prof. Dr. dr. Idar Mappangara,
- * Sp.PD, Sp.JP(K)`) starts nearly 30 points left of a short one in the same
- * column. Splitting at the midpoints between columns rather than at the
- * observed starts is what makes that survive.
+ * READ FROM THE DOCUMENT'S OWN LAYOUT (2026-10-05).
+ *
+ * This used to split columns at fixed x positions measured on the September
+ * sheet (date < 140 ≤ utama < 345 ≤ PCI) and to expect each date as ONE text
+ * fragment. The October sheet broke both, silently:
+ *
+ * - `5 Oktober 2026` … `8 Oktober 2026` are drawn as two fragments, `5` and
+ *   `Oktober 2026`. No single fragment parsed as a date, so the four rows
+ *   were skipped — the Formasi for 6 October had no DPJP at all.
+ * - Names are centred in their cells, and `Prof. Dr. dr. Idar Mappangara, …`
+ *   starts at x = 139, one point left of the hard-coded column. Its row kept
+ *   the PCI name and lost the DPJP Utama (9 and 24 October).
+ *
+ * 27 of 31 days parsed, and nothing said so. So now:
+ *
+ * - The date is read from the row's leading fragments, joined — one, two or
+ *   three of them, whichever first spells a date.
+ * - The boundary between the two name columns is the midpoint between the
+ *   document's own `JADWAL DPJP UTAMA` and `JADWAL PRIMARY PCI` headers, so it
+ *   moves with the sheet. Centred names spread around their header, never
+ *   past the midpoint to the next one.
+ * - Without those headers (a sheet laid out differently), names are taken in
+ *   order: the first is the DPJP Utama, the rest Primary PCI.
  */
 export function parseDpjpRoster(items: readonly PdfTextItem[]): DpjpRoster {
   const rows = groupRows(items, 3);
   const days: DpjpDay[] = [];
 
+  const texts = rows.flatMap((row) => row.items.map((item) => item.text));
   const title =
-    rows.flatMap((row) => row.items.map((item) => item.text)).find((text) => /jadwal jaga dpjp/i.test(text)) ??
-    rows.flatMap((row) => row.items.map((item) => item.text)).find((text) => /^[A-Z]+\s+\d{4}$/.test(text)) ??
+    texts.find((text) => /jadwal jaga dpjp/i.test(text)) ??
+    texts.find((text) => /^[A-Z]+\s+\d{4}$/.test(text)) ??
     '';
 
+  const headerX = (pattern: RegExp): number | null =>
+    rows.flatMap((row) => row.items).find((item) => pattern.test(item.text))?.x ?? null;
+  const utamaHeader = headerX(/dpjp utama/i);
+  const pciHeader = headerX(/primary pci/i);
+  const boundary =
+    utamaHeader !== null && pciHeader !== null && pciHeader > utamaHeader
+      ? (utamaHeader + pciHeader) / 2
+      : null;
+
   for (const row of rows) {
-    const dateItem = row.items.find((item) => item.x < 140 && parseIndonesianDate(item.text));
-    if (!dateItem) continue;
-    const date = parseIndonesianDate(dateItem.text);
+    const ordered = [...row.items].sort((a, b) => a.x - b.x);
+
+    let date: string | null = null;
+    let used = 0;
+    for (let count = 1; count <= Math.min(3, ordered.length); count += 1) {
+      date = parseIndonesianDate(
+        ordered
+          .slice(0, count)
+          .map((item) => item.text)
+          .join(' '),
+      );
+      if (date) {
+        used = count;
+        break;
+      }
+    }
     if (!date) continue;
 
-    const utama = row.items.filter((item) => item.x >= 140 && item.x < 345).map((item) => item.text).join(' ');
-    const tindakan = row.items.filter((item) => item.x >= 345).map((item) => item.text).join(' ');
+    const names = ordered.slice(used);
+    const left = boundary === null ? names.slice(0, 1) : names.filter((item) => item.x < boundary);
+    const right = boundary === null ? names.slice(1) : names.filter((item) => item.x >= boundary);
+    const utama = left.map((item) => item.text).join(' ').trim();
+    const tindakan = right.map((item) => item.text).join(' ').trim();
     if (!utama && !tindakan) continue;
 
-    days.push({ date, utama: utama.trim(), tindakan: tindakan.trim() });
+    days.push({ date, utama, tindakan });
   }
 
   return { title, days, importedAt: new Date().toISOString() };

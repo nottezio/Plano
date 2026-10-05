@@ -76,6 +76,9 @@ export const STICKER_GROUPS: ReadonlyArray<{
       { emoji: 'BTKV', label: 'Operasi BTKV' },
       { emoji: 'PPM', label: 'PPM (Permanent Pacemaker)' },
       { emoji: 'TPM', label: 'TPM (Temporary Pacemaker)' },
+      // No emoji means echocardiography (there is no ultrasound probe), so it
+      // is a tag like the procedures above (2026-10-05).
+      { emoji: 'ECHO', label: 'Echocardiography' },
     ],
   },
   {
@@ -110,6 +113,9 @@ export const STICKER_GROUPS: ReadonlyArray<{
       { emoji: '🩺', label: 'Periksa ulang' },
       { emoji: '🫀', label: 'Jantung' },
       { emoji: '🫁', label: 'Paru' },
+      // X-ray. An emoji here, unlike echo, because one exists and reads at a
+      // glance (Unicode 14: older Windows 10 fonts draw a box).
+      { emoji: '🩻', label: 'Rontgen / foto thorax' },
       { emoji: '🧠', label: 'Neuro' },
       { emoji: '🍽️', label: 'Makan / puasa' },
     ],
@@ -155,6 +161,8 @@ const TAGS: Readonly<Record<string, string>> = {
   // read as related but never as each other.
   PPM: '#9a3412',
   TPM: '#b45309',
+  // Echo: its own hue, apart from BTKV's teal so the two never blur together.
+  ECHO: '#047857',
 };
 
 /** The pill colour when the value is a text tag, else null (an emoji). */

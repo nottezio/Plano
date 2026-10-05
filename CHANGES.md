@@ -1,5 +1,116 @@
 # Plano — CHANGES
 
+## `2026-10-05.5` — October schedules: two parser bugs, gap warnings, Helper layout, stickers, poli
+
+### 1. Konfirmasi Jaga: DPJP empty for 6 October (Avi)
+**Reproduced** with the real October PDFs through pdf.js and the app's own
+parsers: the DPJP sheet parsed **27 of 31 days**.
+
+| Days lost | October sheet | Old parser |
+|---|---|---|
+| 5–8 Okt | date drawn as two fragments, `5` + `Oktober 2026` | needed the whole date in ONE fragment |
+| 9 and 24 Okt, DPJP Utama only | Prof. Idar's long name, centred, starts at x = 139 | column hard-coded to start at x = 140 |
+
+`buildFormasi` prints a DPJP block only for a date the sheet has. So 6 Okt (and
+its after-midnight 7 Okt) came out with no DPJP and **no warning**.
+
+**Root cause.** Column positions and date shape were hard-coded from the
+September sheet. A new layout produced a parse that was partial and silent.
+
+**Fundamental fix (`parseDpjp.ts`).**
+- The date is read from the row's leading fragments joined: 1, 2 or 3,
+  whichever first spells a date.
+- The Utama/PCI boundary is the midpoint of **this document's own column
+  headers**, so it moves with the sheet. With no headers, names are taken in
+  order.
+- Checked against `pdftotext` for all 31 days: 0 mismatches.
+
+**Fixing the class of failure (`coverage.ts`).**
+- `missingDates` runs on every import. The tile now says "Tidak terbaca:
+  5–8 Okt" instead of a plain "27 hari".
+- `dpjpGaps` mirrors `buildFormasi`'s dates (own date, plus the next unless
+  Pagi). The Formasi warns "DPJP 1 Nov tidak ada di Jadwal DPJP" and opens
+  "Ubah DPJP".
+
+**Avi must re-import the October DPJP PDF once.** The stored copy is the
+27-day parse; re-importing the same document is allowed.
+
+### 2. Resident roster: weekend night teams dated to the wrong day
+**Found while checking (not reported).**
+
+| Shift | Old parse | Should be |
+|---|---|---|
+| Sabtu Malam | 1 Nov | 31 Okt |
+| Minggu Malam | 2 Nov | 1 Nov |
+
+31 Okt Sabtu Malam could not be selected at all.
+
+**Root cause.** A weekend's date is one merged cell drawn between its two rows.
+At the month boundary pdf.js attached `1` to the Sabtu Malam row and `2` to
+Minggu Malam, and the parser trusted any number on a row.
+
+**Fundamental fix (`parseRoster.ts`).**
+- The HARI column is authoritative. A day number is accepted only if that date
+  falls on the row's weekday.
+- Otherwise the date is walked from the previous row: the same date if the
+  weekday did not change, else the next date with that weekday.
+- All 60 shifts now fall on their own weekday (was 2 wrong).
+- There were no tests for this parser; `parseRoster.test.ts` now reproduces
+  the boundary geometry. Initials are anonymised.
+
+### 3. Helper page layout
+The page was a numbered form (1. Impor, 2. Pilih tanggal, 3. Formasi,
+4. Konfirmasi) in a 48 rem column.
+- **Toolbar.**
+  - ‹ date ›, with Hari ini / Besok chips and a relative label ("2 hari lagi").
+  - The shift as a segmented switch on weekends.
+  - Sync as a pill; the long explanation is its tooltip.
+- **Jadwal: four status tiles.**
+  - Each tile shows a dot, its coverage and count, "Ganti/Impor", and its
+    gaps.
+  - Drop a PDF on a tile or tap it.
+  - Two-up on a phone.
+- **Formasi and Konfirmasi side by side** from 1024 px (the jaga tab uses
+  `max-w-6xl`; Sensus and MR keep `max-w-3xl`).
+  - **Formasi:** a primary "Salin Formasi" (with ✓), the DPJP-gap callout, and
+    "Ubah DPJP" as a bordered disclosure that opens when there is a gap.
+  - **Konfirmasi:** a progress bar (2/9), labelled sender fields, and
+    confirmed rows tinted. The per-row "belum konfirmasi" text was dropped,
+    since the box, the tint and the bar say it.
+- All behaviour unchanged: swaps, Jarkom links, agama, reset, sync,
+  wrong-slot guard.
+- Render-checked in a harness by importing the real PDFs through the tiles:
+  - Formasi 6 Okt shows Zaenab/Akhtar, and after 00.00 Tasrif/Asrul;
+  - wrong-slot refusal;
+  - 31 Okt Malam gap warning;
+  - ‹ › and Besok;
+  - progress;
+  - phone width.
+
+### 4. Stickers
+- **ECHO** joins the procedure tags (green pill). No emoji says
+  echocardiography, which is the file's own rule for tags.
+- **🩻 Rontgen / foto thorax** joins Klinis. It is Unicode 14, so Windows 10's
+  emoji font draws a box (Windows 11, Android and iOS are fine).
+
+### 5. Jadwal poli Oktober – Desember 2026
+Checked slot by slot against the stored July schedule: all 27 slots, rooms and
+hours are identical. `SCHEDULE_PERIOD` now reads "Oktober – Desember 2026".
+dr. M. Tasrif Mansur is still not in the DPJP registry, as before.
+
+### Not done / open
+- **Weekend nights put `INT 1`, `INT 2`… in the BANGSAL B column.** The parser
+  drops `INT n` as an intern marker, as it did when the markers sat in the
+  Pedi column, so the Formasi prints `Bangsal B :` blank on those nights. Asked
+  Avi whether it should print `INT 1`.
+- The November DPJP sheet is not out, so any Formasi that needs 1 Nov or later
+  warns until it is imported.
+
+```
+1901 tests passed (+19)
+typecheck / lint (0 warnings) / check:version / check:contrast / check:a11y / build - clean
+```
+
 ## `2026-10-05.4` — "Memuat… takes too long": measure before fixing
 
 ### The report

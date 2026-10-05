@@ -3,7 +3,8 @@ import { useSearchParams } from 'react-router-dom';
 import { useGoUp } from '@/lib/useGoUp';
 
 import { AppShell } from '@/components/common/AppShell';
-import { IconBack } from '@/components/common/Icons';
+import { IconBack, IconCopy } from '@/components/common/Icons';
+import { Button, Callout, ChipRow, ChoiceChip, Field, INPUT, Section, Segmented } from '@/components/common/ui';
 import { useJagaSync } from '@/hooks/useJagaSync';
 import { CensusVerifier } from '@/components/helper/CensusVerifier';
 import { MorningReport } from '@/components/helper/MorningReport';
@@ -28,6 +29,7 @@ import {
   type Resident,
 } from '@/domain/jaga/directory';
 import { describeMismatch, identifyJagaPdf } from '@/domain/jaga/identify';
+import { describeDates, dpjpGaps, missingDates } from '@/domain/jaga/coverage';
 import { parseDpjpRoster } from '@/domain/jaga/parseDpjp';
 import { parseJagaRoster } from '@/domain/jaga/parseRoster';
 import { parseJarkom } from '@/domain/jaga/parseJarkom';
@@ -94,7 +96,7 @@ export function HelperPage(): JSX.Element {
   */
   return (
     <AppShell title="Helper">
-      <div className="mx-auto max-w-3xl space-y-4 px-4 py-4">
+      <div className={`mx-auto space-y-4 px-4 py-4 ${tab === 'jaga' ? 'max-w-6xl' : 'max-w-3xl'}`}>
         <div className="flex flex-wrap items-center gap-2">
           <button
             type="button"
@@ -338,6 +340,8 @@ function KonfirmasiJaga(): JSX.Element {
   const staffed = posts.filter((post) => post.initials || post.swapped);
   const outstanding = staffed.filter((post) => !confirmed.has(post.id)).length;
 
+  const [formasiCopied, setFormasiCopied] = useState(false);
+
   async function importPdf(
     file: File,
     kind: 'roster' | 'dpjp' | 'jarkom' | 'pediatri',
@@ -441,202 +445,260 @@ function KonfirmasiJaga(): JSX.Element {
     }
   }
 
+  /* ── derived for the layout below (no hooks past this point) ─────────── */
+  const tomorrowIso = nextDate(today);
+  const pickDate = (next: string): void => {
+    if (!next) return;
+    setDate(next);
+    setShiftIndex(0);
+  };
+  const rosterGaps = roster ? missingDates(roster.shifts.map((entry) => entry.date)) : [];
+  const dpjpSheetGaps = dpjp
+    ? missingDates(
+        dpjp.days.map((day) => day.date),
+        { wholeMonths: true },
+      )
+    : [];
+  const formasiDpjpGaps = shift && dpjp ? dpjpGaps(shift, dpjp, dpjpEdits) : [];
+  const confirmedCount = staffed.length - outstanding;
+  const span = (dates: readonly string[]): string | null => {
+    const sorted = [...dates].sort();
+    const first = sorted[0];
+    const last = sorted[sorted.length - 1];
+    return first && last ? `${describeDates([first])} – ${describeDates([last])}` : null;
+  };
+  const syncTone =
+    sync.status === 'synced' ? 'ok' : sync.status === 'error' ? 'error' : sync.status === 'waiting' ? 'wait' : 'local';
+
+  const copyFormasi = (): void => {
+    void copyText(formasi).then((ok) => {
+      setFormasiCopied(ok);
+      if (ok) window.setTimeout(() => setFormasiCopied(false), 1500);
+    });
+  };
+
   return (
-    <div className="space-y-6">
-      <header className="space-y-1">
-        <p className="text-xs text-fg-muted">
-          Impor jadwalnya, lalu pilih tanggal. Formasi dan pesan konfirmasi
-          disusun dari situ.
-        </p>
-        {/*
-          Said where the edits are made, not in a help page.
-
-          Every change on this screen is synced to the account (see
-          `useJagaSync`) and applies only to the date it was made for. The PDFs remain the source of truth: re-importing a
-          new month replaces the schedule wholesale, and a swap entered against
-          a date in the old one simply stops applying. That is the intended
-          behaviour rather than a limitation — a tukar jaga is a fact about one
-          night, and carrying it into a schedule nobody has checked it against
-          would be worse than losing it.
-        */}
-        <p className="text-[11px] text-fg-faint">
-          Jadwal yang diimpor dan perubahan di layar ini (konfirmasi, tukar jaga, nama, agama,
-          DPJP) di-sync ke akun Anda dan berlaku hanya untuk tanggalnya. Sumber utamanya
-          tetap PDF jadwal.
-        </p>
-        <p
-          role="status"
-          className={[
-            'text-[11px]',
-            sync.status === 'error' ? 'text-danger' : 'text-fg-muted',
-          ].join(' ')}
-        >
-          {sync.status === 'synced'
-            ? 'Synced dengan akun.'
-            : sync.status === 'waiting'
-              ? 'Menunggu koneksi untuk sync. Perubahan tetap tersimpan di perangkat ini.'
-              : sync.status === 'error'
-                ? 'Sync gagal. Perubahan tetap tersimpan di perangkat ini.'
-                : 'Belum masuk akun: tersimpan di perangkat ini saja.'}
-        </p>
-      </header>
-
-      <section className="space-y-2">
-        <h2 className="text-sm font-medium">1. Impor jadwal</h2>
-        {staleSchedules.length > 0 ? (
-          <div
-            role="alert"
-            className={[
-              'rounded-lg border px-3 py-2 text-xs',
-              staleSchedules.some(([, state]) => state.state === 'outdated')
-                ? 'border-[var(--danger)] bg-[var(--danger-soft)]'
-                : 'border-[var(--warn-strong)] bg-[var(--warn-soft)]',
-            ].join(' ')}
+    <div className="space-y-5">
+      {/*
+        THE TOOLBAR (2026-10-05). Date, shift and sync on one line, because
+        they are the three things checked before anything else on this screen:
+        which night, which team, and whether what is shown is the account's.
+        It used to be a numbered form ("2. Pilih tanggal jaga") reached by
+        scrolling past the imports.
+      */}
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-2 rounded-2xl border border-border bg-surface px-3 py-2.5">
+        <div className="flex items-center gap-1">
+          <button
+            type="button"
+            onClick={() => pickDate(previousDate(date))}
+            aria-label="Hari sebelumnya"
+            className="flex min-h-tap min-w-tap items-center justify-center rounded-lg text-lg text-fg-muted hover:bg-bg-subtle"
           >
-            <p className="font-semibold">
-              {staleSchedules.some(([, state]) => state.state === 'outdated')
-                ? 'Jadwal sudah kedaluwarsa — impor jadwal terbaru'
-                : 'Jadwal hampir habis — siapkan jadwal bulan berikutnya'}
-            </p>
-            <ul className="mt-1 space-y-0.5">
-              {staleSchedules.map(([label, state]) => (
-                <li key={label}>
-                  {label}: berlaku sampai {longDate(state.state === 'ok' ? date : state.end)}
-                  {state.state === 'outdated' ? ' (sudah lewat)' : ''}
-                </li>
-              ))}
-            </ul>
-          </div>
-        ) : null}
-        <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
-          <ImportCard
-            label="Jadwal Jaga PPDS"
-            detail={
-              roster
-                ? `${roster.shifts.length} shift · ${describeVersion('roster', roster)}`
-                : 'Belum diimpor · tiap bulan'
-            }
-            busy={busy === 'roster'}
-            warning={freshness.roster.state}
-            onFile={(file) => void importPdf(file, 'roster')}
-          />
-          <ImportCard
-            label="Jadwal DPJP"
-            detail={
-              dpjp
-                ? `${dpjp.days.length} hari · ${describeVersion('dpjp', dpjp)}`
-                : 'Belum diimpor · tiap bulan'
-            }
-            busy={busy === 'dpjp'}
-            warning={freshness.dpjp.state}
-            onFile={(file) => void importPdf(file, 'dpjp')}
-          />
-          <ImportCard
-            label="Jadwal Jaga Pediatri"
-            detail={
-              pediatri
-                ? `${pediatri.shifts.length} shift · ${describeVersion('pediatri', pediatri)}`
-                : 'Belum diimpor · tiap bulan'
-            }
-            busy={busy === 'pediatri'}
-            warning={freshness.pediatri.state}
-            onFile={(file) => void importPdf(file, 'pediatri')}
-          />
-          <ImportCard
-            label="Daftar Jarkom"
-            // Per SEMESTER, not per month: new residents arrive twice a year,
-            // and a monthly prompt for a document that changes every six
-            // months is a prompt people learn to ignore.
-            detail={
-              jarkom
-                ? `${jarkom.entries.length} residen · ${describeVersion('jarkom', jarkom)}`
-                : 'Belum diimpor · per semester'
-            }
-            busy={busy === 'jarkom'}
-            onFile={(file) => void importPdf(file, 'jarkom')}
-          />
-        </div>
-        {error ? <p className="text-xs text-danger">{error}</p> : null}
-      </section>
-
-      <section className="space-y-2">
-        <h2 className="text-sm font-medium">2. Pilih tanggal jaga</h2>
-        <div className="flex flex-wrap items-center gap-2">
+            <span aria-hidden="true">‹</span>
+          </button>
           <input
             type="date"
+            aria-label="Tanggal jaga"
             value={date}
-            onChange={(event) => {
-              setDate(event.target.value);
-              setShiftIndex(0);
-            }}
-            className="min-h-tap rounded-lg border border-border bg-surface px-3 text-sm"
+            onChange={(event) => pickDate(event.target.value)}
+            className="min-h-tap rounded-lg border border-border bg-bg px-2 text-sm"
           />
-          <span className="text-xs text-fg-muted">{longDate(date)}</span>
-          {date === today ? <span className="text-xs text-fg-faint">(hari ini)</span> : null}
+          <button
+            type="button"
+            onClick={() => pickDate(nextDate(date))}
+            aria-label="Hari berikutnya"
+            className="flex min-h-tap min-w-tap items-center justify-center rounded-lg text-lg text-fg-muted hover:bg-bg-subtle"
+          >
+            <span aria-hidden="true">›</span>
+          </button>
         </div>
-
+        <div className="min-w-0">
+          <p className="text-sm font-semibold leading-tight">{longDate(date)}</p>
+          <p className="text-[11px] text-fg-muted">
+            {relativeDay(date, today)}
+          </p>
+        </div>
+        <ChipRow>
+          <ChoiceChip active={date === today} onClick={() => pickDate(today)}>
+            Hari ini
+          </ChoiceChip>
+          <ChoiceChip active={date === tomorrowIso} onClick={() => pickDate(tomorrowIso)}>
+            Besok
+          </ChoiceChip>
+        </ChipRow>
         {/*
           Weekends carry two teams — `Minggu Pagi` and `Minggu Malam` are
           different people entirely — so the shift is chosen, never assumed.
           On a weekday there is one and the control does not appear.
         */}
         {shifts.length > 1 ? (
-          <div className="flex flex-wrap gap-2">
-            {shifts.map((option, index) => (
-              <button
-                key={option.hari}
-                type="button"
-                aria-pressed={index === shiftIndex}
-                onClick={() => setShiftIndex(index)}
-                className={[
-                  'min-h-tap rounded-full border px-3 text-xs font-medium',
-                  index === shiftIndex ? 'border-accent text-accent' : 'border-border text-fg-muted',
-                ].join(' ')}
-              >
-                {option.hari}
-              </button>
-            ))}
-          </div>
+          <Segmented
+            size="sm"
+            label="Shift"
+            value={String(Math.min(shiftIndex, shifts.length - 1))}
+            onChange={(next) => setShiftIndex(Number(next))}
+            options={shifts.map((option, index) => [String(index), option.hari] as const)}
+          />
         ) : null}
+        <span
+          role="status"
+          title="Jadwal yang diimpor dan perubahan di layar ini (konfirmasi, tukar jaga, nama, agama, DPJP) di-sync ke akun dan berlaku hanya untuk tanggalnya. Sumber utamanya tetap PDF jadwal."
+          className={[
+            'ml-auto inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11px]',
+            syncTone === 'error' ? 'border-danger text-danger' : 'border-border text-fg-muted',
+          ].join(' ')}
+        >
+          <span
+            aria-hidden="true"
+            className={[
+              'h-2 w-2 rounded-full',
+              syncTone === 'ok'
+                ? 'bg-accent'
+                : syncTone === 'error'
+                  ? 'bg-[var(--danger)]'
+                  : syncTone === 'wait'
+                    ? 'bg-[var(--warn-strong)]'
+                    : 'bg-fg-faint',
+            ].join(' ')}
+          />
+          {syncTone === 'ok'
+            ? 'Synced'
+            : syncTone === 'wait'
+              ? 'Menunggu koneksi'
+              : syncTone === 'error'
+                ? 'Sync gagal · tersimpan di perangkat'
+                : 'Hanya di perangkat ini'}
+        </span>
+      </div>
 
-        {!roster ? (
-          <p className="text-xs text-fg-muted">Impor Jadwal Jaga PPDS dulu.</p>
-        ) : shifts.length === 0 ? (
-          <p className="text-xs text-danger">
-            Tanggal ini tidak ada di jadwal yang diimpor ({roster.title}).
-          </p>
+      <Section
+        title="Jadwal"
+        hint="Impor ulang kapan saja: ketuk kotaknya atau seret PDF ke atasnya. Jadwal dan perubahan di layar ini di-sync ke akun dan berlaku hanya untuk tanggalnya; sumber utamanya tetap PDF."
+      >
+        {staleSchedules.length > 0 ? (
+          <Callout
+            role="alert"
+            tone={staleSchedules.some(([, state]) => state.state === 'outdated') ? 'danger' : 'warn'}
+            title={
+              staleSchedules.some(([, state]) => state.state === 'outdated')
+                ? 'Jadwal sudah kedaluwarsa — impor jadwal terbaru'
+                : 'Jadwal hampir habis — siapkan jadwal bulan berikutnya'
+            }
+          >
+            {staleSchedules.map(([label, state]) => (
+              <span key={label} className="block">
+                {label}: berlaku sampai {longDate(state.state === 'ok' ? date : state.end)}
+                {state.state === 'outdated' ? ' (sudah lewat)' : ''}
+              </span>
+            ))}
+          </Callout>
         ) : null}
-      </section>
+        <div className="grid grid-cols-2 gap-2 xl:grid-cols-4">
+          <ScheduleTile
+            label="Jadwal Jaga PPDS"
+            cadence="tiap bulan"
+            summary={roster ? `${roster.shifts.length} shift` : null}
+            version={roster ? describeVersion('roster', roster) : null}
+            gaps={rosterGaps}
+            busy={busy === 'roster'}
+            warning={freshness.roster.state}
+            onFile={(file) => void importPdf(file, 'roster')}
+          />
+          <ScheduleTile
+            label="Jadwal DPJP"
+            cadence="tiap bulan"
+            summary={dpjp ? `${dpjp.days.length} hari` : null}
+            version={dpjp ? describeVersion('dpjp', dpjp) : null}
+            gaps={dpjpSheetGaps}
+            busy={busy === 'dpjp'}
+            warning={freshness.dpjp.state}
+            onFile={(file) => void importPdf(file, 'dpjp')}
+          />
+          <ScheduleTile
+            label="Jadwal Jaga Pediatri"
+            cadence="tiap bulan"
+            summary={pediatri ? `${pediatri.shifts.length} shift` : null}
+            version={pediatri ? describeVersion('pediatri', pediatri) : null}
+            gaps={[]}
+            busy={busy === 'pediatri'}
+            warning={freshness.pediatri.state}
+            onFile={(file) => void importPdf(file, 'pediatri')}
+          />
+          {/*
+            Per SEMESTER, not per month: new residents arrive twice a year,
+            and a monthly prompt for a document that changes every six months
+            is a prompt people learn to ignore.
+          */}
+          <ScheduleTile
+            label="Daftar Jarkom"
+            cadence="per semester"
+            summary={jarkom ? `${jarkom.entries.length} residen` : null}
+            version={jarkom ? describeVersion('jarkom', jarkom) : null}
+            gaps={[]}
+            busy={busy === 'jarkom'}
+            onFile={(file) => void importPdf(file, 'jarkom')}
+          />
+        </div>
+        {error ? (
+          <Callout tone="danger" role="alert" title="PDF tidak dipakai">
+            {error}
+          </Callout>
+        ) : null}
+      </Section>
+
+      {!roster ? (
+        <Callout title="Mulai dari Jadwal Jaga PPDS">
+          Impor PDF-nya di kotak pertama; Formasi dan pesan konfirmasi disusun dari situ.
+        </Callout>
+      ) : shifts.length === 0 ? (
+        <Callout tone="danger" role="alert" title="Tanggal ini tidak ada di jadwal yang diimpor">
+          {roster.title}
+          {span(roster.shifts.map((entry) => entry.date))
+            ? ` (${span(roster.shifts.map((entry) => entry.date))})`
+            : ''}
+        </Callout>
+      ) : null}
 
       {shift ? (
-        <>
-          <section className="space-y-2">
+        <div className="grid items-start gap-5 lg:grid-cols-2">
+          <section aria-labelledby="formasi-title" className="space-y-3 rounded-2xl border border-border bg-surface p-4">
             {/* Wraps only for the reset's explanation line, which is
                 `basis-full` text; the controls stay on the title row. */}
             <div className="flex flex-wrap items-center gap-2">
-              <h2 className="flex-1 text-sm font-medium">3. Formasi Jaga</h2>
+              <h2 id="formasi-title" className="flex-1 text-sm font-semibold">
+                Formasi Jaga
+                <span className="ml-2 text-xs font-normal text-fg-muted">{shift.hari}</span>
+              </h2>
               <ResetFormasi
                 key={currentKey}
                 counts={shiftEditCounts}
                 sharedDpjp={shift.shift !== 'penuh'}
                 onReset={resetFormasi}
               />
-              <button
-                type="button"
-                onClick={() => void copyText(formasi)}
-                className="min-h-tap rounded-lg border border-border px-3 text-xs font-medium"
-              >
-                Salin
-              </button>
+              <Button size="sm" variant="primary" icon={<IconCopy width={14} height={14} />} onClick={copyFormasi}>
+                {formasiCopied ? 'Tersalin ✓' : 'Salin Formasi'}
+              </Button>
             </div>
-            <pre className="whitespace-pre-wrap rounded-lg border border-border bg-surface px-3 py-2 text-xs leading-relaxed">
+
+            {/*
+              Said where it is missing, not only by its absence. A date the
+              DPJP sheet does not cover prints NO block — which on 6 October
+              read as a complete Formasi (see coverage.ts).
+            */}
+            {!dpjp ? (
+              <Callout tone="warn" title="Blok DPJP kosong">
+                Impor Jadwal DPJP untuk mengisinya.
+              </Callout>
+            ) : formasiDpjpGaps.length > 0 ? (
+              <Callout tone="warn" role="alert" title={`DPJP ${describeDates(formasiDpjpGaps)} tidak ada di Jadwal DPJP`}>
+                Blok DPJP untuk tanggal itu tidak ikut tercetak. Impor ulang PDF DPJP-nya, atau isi
+                manual di “Ubah DPJP” di bawah.
+              </Callout>
+            ) : null}
+
+            <pre className="whitespace-pre-wrap rounded-xl border border-border bg-bg-subtle px-3 py-2.5 font-mono text-xs leading-relaxed">
               {formasi}
             </pre>
-            {!dpjp ? (
-              <p className="text-xs text-fg-muted">
-                Blok DPJP kosong — impor Jadwal DPJP untuk mengisinya.
-              </p>
-            ) : null}
 
             {/*
               Consultants swap too, and the published roster is a month old by
@@ -645,11 +707,11 @@ function KonfirmasiJaga(): JSX.Element {
               tomorrow as "hari ini", so keying it any other way would need it
               entered twice.
             */}
-            <details className="text-xs">
-              <summary className="min-h-tap cursor-pointer text-fg-muted">
+            <details className="rounded-xl border border-border px-3 text-xs" open={formasiDpjpGaps.length > 0}>
+              <summary className="flex min-h-tap cursor-pointer items-center font-medium text-fg-muted">
                 Ubah DPJP (tukar jaga)
               </summary>
-              <div className="mt-2 space-y-2">
+              <div className="space-y-3 pb-3">
                 {[
                   { date: shift.date, label: shiftDateLabel(shift.date, shift.shift) },
                   // A pagi team's Formasi has no post-midnight block (see
@@ -662,70 +724,92 @@ function KonfirmasiJaga(): JSX.Element {
                           label: `setelah 00.00 — ${longDate(nextDate(shift.date))}`,
                         },
                       ]),
-                ].map(({ date, label }) => (
-                  <div key={date} className="space-y-1">
-                    <p className="text-fg-faint">{label}</p>
-                    {(['utama', 'tindakan'] as const).map((field) => (
-                      <input
-                        key={field}
-                        value={dpjpEdits[date]?.[field] ?? ''}
-                        onChange={(event) => {
-                          const next = setDpjpEdit(date, {
-                            ...dpjpEdits[date],
-                            [field]: event.target.value,
-                          });
-                          setDpjpEdits((current) => ({ ...current, [date]: next }));
-                        }}
-                        placeholder={
-                          field === 'utama'
-                            ? (dpjp?.days.find((day) => day.date === date)?.utama ??
-                              'DPJP Utama')
-                            : (dpjp?.days.find((day) => day.date === date)?.tindakan ??
-                              'DPJP Tindakan')
-                        }
-                        className="min-h-tap w-full rounded-lg border border-border bg-surface px-3 text-xs"
-                      />
-                    ))}
+                ].map(({ date: day, label }) => (
+                  <div key={day} className="space-y-1.5">
+                    <p className="text-[11px] font-medium text-fg-faint">{label}</p>
+                    <div className="grid gap-1.5 sm:grid-cols-2">
+                      {(['utama', 'tindakan'] as const).map((field) => (
+                        <input
+                          key={field}
+                          aria-label={`${field === 'utama' ? 'DPJP Utama' : 'DPJP Tindakan'} — ${label}`}
+                          value={dpjpEdits[day]?.[field] ?? ''}
+                          onChange={(event) => {
+                            const next = setDpjpEdit(day, {
+                              ...dpjpEdits[day],
+                              [field]: event.target.value,
+                            });
+                            setDpjpEdits((current) => ({ ...current, [day]: next }));
+                          }}
+                          placeholder={
+                            field === 'utama'
+                              ? (dpjp?.days.find((entry) => entry.date === day)?.utama || 'DPJP Utama')
+                              : (dpjp?.days.find((entry) => entry.date === day)?.tindakan || 'DPJP Tindakan')
+                          }
+                          className={`${INPUT} text-xs`}
+                        />
+                      ))}
+                    </div>
                   </div>
                 ))}
-                <p className="text-fg-faint">
-                  Kosongkan untuk memakai jadwal yang diimpor.
-                </p>
+                <p className="text-[11px] text-fg-faint">Kosongkan untuk memakai jadwal yang diimpor.</p>
               </div>
             </details>
           </section>
 
-          <section className="space-y-2">
-            <div className="flex flex-wrap items-center gap-2">
-              <h2 className="flex-1 text-sm font-medium">4. Konfirmasi tiap senior</h2>
-              <span className="text-xs text-fg-muted">
-                {outstanding === 0
-                  ? `${staffed.length} dari ${staffed.length} terkonfirmasi`
-                  : `${outstanding} belum konfirmasi`}
-              </span>
+          <section aria-labelledby="konfirmasi-title" className="space-y-3 rounded-2xl border border-border bg-surface p-4">
+            <div className="space-y-1.5">
+              <div className="flex flex-wrap items-center gap-2">
+                <h2 id="konfirmasi-title" className="flex-1 text-sm font-semibold">
+                  Konfirmasi senior
+                </h2>
+                <span className="text-xs tabular-nums text-fg-muted">
+                  {outstanding === 0
+                    ? `Semua ${staffed.length} terkonfirmasi ✓`
+                    : `${confirmedCount}/${staffed.length} · ${outstanding} belum`}
+                </span>
+              </div>
+              <div
+                role="progressbar"
+                aria-label="Terkonfirmasi"
+                aria-valuemin={0}
+                aria-valuemax={staffed.length}
+                aria-valuenow={confirmedCount}
+                className="h-1.5 overflow-hidden rounded-full bg-bg-subtle"
+              >
+                <div
+                  className="h-full rounded-full bg-accent transition-[width]"
+                  style={{ width: `${staffed.length ? (confirmedCount / staffed.length) * 100 : 0}%` }}
+                />
+              </div>
             </div>
 
-            <div className="flex flex-wrap gap-2">
-              <input
-                value={sender.name}
-                onChange={(event) => {
-                  const next = { ...sender, name: event.target.value };
-                  setSender(next);
-                  writeSender(next);
-                }}
-                placeholder="Nama saya (mis. Avi)"
-                className="min-h-tap min-w-0 flex-1 rounded-lg border border-border bg-surface px-3 text-sm"
-              />
-              <input
-                value={sender.place}
-                onChange={(event) => {
-                  const next = { ...sender, place: event.target.value };
-                  setSender(next);
-                  writeSender(next);
-                }}
-                placeholder="Pos saya (mis. Bangsal PJT A)"
-                className="min-h-tap min-w-0 flex-1 rounded-lg border border-border bg-surface px-3 text-sm"
-              />
+            <div className="grid gap-2 sm:grid-cols-2">
+              <Field label="Nama saya" htmlFor="jaga-sender-name">
+                <input
+                  id="jaga-sender-name"
+                  value={sender.name}
+                  onChange={(event) => {
+                    const next = { ...sender, name: event.target.value };
+                    setSender(next);
+                    writeSender(next);
+                  }}
+                  placeholder="mis. Avi"
+                  className={INPUT}
+                />
+              </Field>
+              <Field label="Pos saya" htmlFor="jaga-sender-place">
+                <input
+                  id="jaga-sender-place"
+                  value={sender.place}
+                  onChange={(event) => {
+                    const next = { ...sender, place: event.target.value };
+                    setSender(next);
+                    writeSender(next);
+                  }}
+                  placeholder="mis. Bangsal PJT A"
+                  className={INPUT}
+                />
+              </Field>
             </div>
 
             <ul className="space-y-2">
@@ -741,7 +825,13 @@ function KonfirmasiJaga(): JSX.Element {
                   new Date(),
                 );
                 return (
-                  <li key={post.id} className="rounded-lg border border-border px-3 py-2">
+                  <li
+                    key={post.id}
+                    className={[
+                      'rounded-xl border px-3 py-2 transition-colors',
+                      confirmed.has(post.id) ? 'border-accent bg-[var(--accent-soft)]' : 'border-border bg-bg',
+                    ].join(' ')}
+                  >
                     <div className="flex flex-wrap items-center gap-2">
                       {/*
                         The tick is the first thing in the row, because it is
@@ -865,9 +955,6 @@ function KonfirmasiJaga(): JSX.Element {
                           ) : null}
                         </>
                       ) : null}
-                      {!confirmed.has(post.id) ? (
-                        <span className="text-[10px] text-fg-faint">belum konfirmasi</span>
-                      ) : null}
                       <button
                         type="button"
                         onClick={() => void copyText(message)}
@@ -974,7 +1061,7 @@ function KonfirmasiJaga(): JSX.Element {
               })}
             </ul>
           </section>
-        </>
+        </div>
       ) : null}
     </div>
   );
@@ -1074,36 +1161,98 @@ function JarkomLinkControl({
   );
 }
 
-function ImportCard({
+/**
+ * One imported schedule, as a status tile (2026-10-05; was `ImportCard`).
+ *
+ * Says four things at a glance: whether it is there, what it covers, whether
+ * it is about to run out, and whether the import had HOLES — the October DPJP
+ * sheet imported with four dates missing and nothing said so (coverage.ts).
+ * The whole tile is the file picker, and a PDF can be dropped on it, because
+ * on a laptop the file is usually already in a Downloads window.
+ */
+function ScheduleTile({
   label,
-  detail,
+  cadence,
+  summary,
+  version,
+  gaps,
   busy,
   warning = 'ok',
   onFile,
 }: {
   label: string;
-  detail: string;
+  cadence: string;
+  /** `1 Okt – 15 Nov · 60 shift`, or null when not imported. */
+  summary: string | null;
+  version: string | null;
+  /** Dates the sheet should cover and does not. */
+  gaps: readonly string[];
   busy: boolean;
-  /** From `rosterFreshness`: outlined red when outdated, amber when ending. */
+  /** From `rosterFreshness`: red when outdated, amber when ending. */
   warning?: RosterFreshness['state'];
   onFile: (file: File) => void;
 }): JSX.Element {
+  const [dragging, setDragging] = useState(false);
+  const state = !summary
+    ? 'missing'
+    : warning === 'outdated'
+      ? 'outdated'
+      : warning === 'ending' || gaps.length > 0
+        ? 'attention'
+        : 'ok';
+
   return (
     <label
+      onDragOver={(event) => {
+        event.preventDefault();
+        setDragging(true);
+      }}
+      onDragLeave={() => setDragging(false)}
+      onDrop={(event) => {
+        event.preventDefault();
+        setDragging(false);
+        const file = event.dataTransfer.files[0];
+        if (file) onFile(file);
+      }}
       className={[
-        'flex min-h-tap cursor-pointer flex-col justify-center rounded-lg border px-3 py-2',
-        warning === 'outdated'
-          ? 'border-[var(--danger)] bg-[var(--danger-soft)]'
-          : warning === 'ending'
-            ? 'border-[var(--warn-strong)] bg-[var(--warn-soft)]'
-            : 'border-border',
+        'group flex min-h-[4.5rem] min-w-0 cursor-pointer flex-col gap-1 rounded-xl border px-3 py-2.5 transition-colors',
+        dragging
+          ? 'border-accent bg-[var(--accent-soft)]'
+          : state === 'outdated'
+            ? 'border-danger bg-[var(--danger-soft)]'
+            : state === 'attention'
+              ? 'border-[var(--warn-strong)] bg-[var(--warn-soft)]'
+              : 'border-border bg-surface hover:bg-bg-subtle',
       ].join(' ')}
     >
-      <span className="text-xs font-medium">
-        {label}
+      <span className="flex items-center gap-2">
+        <span
+          aria-hidden="true"
+          className={[
+            'h-2 w-2 shrink-0 rounded-full',
+            state === 'ok'
+              ? 'bg-accent'
+              : state === 'outdated'
+                ? 'bg-[var(--danger)]'
+                : state === 'attention'
+                  ? 'bg-[var(--warn-strong)]'
+                  : 'bg-fg-faint',
+          ].join(' ')}
+        />
+        <span className="min-w-0 flex-1 truncate text-xs font-semibold">{label}</span>
+        <span className="shrink-0 text-[11px] font-medium text-accent group-hover:underline">
+          {busy ? 'Membaca…' : summary ? 'Ganti' : 'Impor'}
+        </span>
+      </span>
+      <span className="text-[11px] text-fg-muted">
+        {summary ? [version, summary].filter(Boolean).join(' · ') : `Belum diimpor · ${cadence}`}
         {warning === 'outdated' ? ' · kedaluwarsa' : warning === 'ending' ? ' · hampir habis' : ''}
       </span>
-      <span className="text-[11px] text-fg-muted">{busy ? 'Membaca…' : detail}</span>
+      {gaps.length > 0 ? (
+        <span className="text-[11px] font-medium text-[var(--warn-strong)]">
+          Tidak terbaca: {describeDates(gaps)}
+        </span>
+      ) : null}
       <input
         type="file"
         accept="application/pdf,.pdf"
@@ -1118,6 +1267,24 @@ function ImportCard({
       />
     </label>
   );
+}
+
+/** `Hari ini`, `Besok`, `Kemarin`, `3 hari lagi`, `2 hari lalu`. */
+function relativeDay(date: string, today: string): string {
+  const days = Math.round(
+    (Date.parse(`${date}T00:00:00Z`) - Date.parse(`${today}T00:00:00Z`)) / 86_400_000,
+  );
+  if (!Number.isFinite(days)) return '';
+  if (days === 0) return 'Hari ini';
+  if (days === 1) return 'Besok';
+  if (days === -1) return 'Kemarin';
+  return days > 0 ? `${days} hari lagi` : `${-days} hari lalu`;
+}
+
+function previousDate(date: string): string {
+  const at = new Date(`${date}T00:00:00Z`);
+  at.setUTCDate(at.getUTCDate() - 1);
+  return at.toISOString().slice(0, 10);
 }
 
 /**

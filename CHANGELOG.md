@@ -5,6 +5,14 @@ Catatan teknis lengkap (akar masalah, perbaikan) ada di CHANGES.md.
 
 Entri teratas harus versi yang sedang dirilis; tes gagal bila belum ditulis.
 
+## `2026-10-05.5`
+- **DPJP di Konfirmasi Jaga kembali terisi:** Jadwal DPJP Oktober sebelumnya hanya terbaca 27 dari 31 hari (5–8 Oktober hilang, DPJP Utama 9 & 24 Oktober kosong), sehingga Formasi 6 Oktober tanpa blok DPJP. **Impor ulang PDF Jadwal DPJP Oktober sekali** agar tanggal yang hilang terisi.
+- **Tim jaga malam akhir pekan di pergantian bulan kini bertanggal benar:** Sabtu Malam 31 Oktober sebelumnya tercatat 1 November. Impor ulang Jadwal Jaga PPDS juga dianjurkan.
+- **Peringatan tanggal yang tidak terbaca:** kotak jadwal kini menyebut tanggal yang hilang ("Tidak terbaca: 5–8 Okt"), dan Formasi memberi tahu bila DPJP untuk tanggal itu tidak ada di jadwal, lalu membuka "Ubah DPJP" untuk diisi manual.
+- **Tampilan Helper baru:** tanggal dipilih dari satu baris (‹ ›, Hari ini, Besok, Pagi/Malam), keempat jadwal tampil sebagai kotak status yang bisa diketuk atau ditarik-lepas PDF-nya, dan di laptop Formasi berdampingan dengan daftar konfirmasi lengkap dengan bilah kemajuan.
+- **Stiker baru di papan:** tag **ECHO** (echocardiography) dan 🩻 Rontgen / foto thorax.
+- **Jadwal poli Oktober – Desember 2026:** isinya sama dengan jadwal sebelumnya; label periodenya diperbarui.
+
 ## `2026-10-05.4`
 - **"Memuat…" yang terasa lama kini tercatat:** setiap kali layar memuat 2 detik atau lebih (membuka pasien, memuat catatan, daftar pasien, arsip, memeriksa akses, atau saat aplikasi dibuka), Plano mencatat apa yang ditunggu, berapa lama, berapa tab Plano lain yang terbuka, dan apakah Chrome sempat membuang atau membekukan tab ini. Tidak ada data pasien yang dicatat.
 - **Bila terjadi lagi:** buka **Pengaturan → Riwayat sesi** dan kirim tangkapan layarnya. Baris "Lambat" menunjukkan penyebabnya, sehingga perbaikannya tepat sasaran.
