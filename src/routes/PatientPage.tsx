@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState, useRef } from 'react';
+import { useCallback, useEffect, useMemo, useState, useRef, type ReactNode } from 'react';
 import { useSlowWait } from '@/lib/loadTiming';
 import { useClipboardNote } from '@/store/useClipboardNote';
 import { Link, useNavigate, useParams } from 'react-router-dom';
@@ -40,6 +40,7 @@ import { DateRail } from '@/components/patient/DateRail';
 import { RevisionTrail } from '@/components/patient/RevisionTrail';
 import { deleteVersion, saveVersion } from '@/data/repositories/entries.repo';
 import { AppShell } from '@/components/common/AppShell';
+import { Segmented } from '@/components/common/ui';
 import { useGoUp } from '@/lib/useGoUp';
 import { clearEntry, fetchEntryBodies, setEntryLocked } from '@/data/repositories/entries.repo';
 import { updateArchiveNote, updatePatient } from '@/data/repositories/patients.repo';
@@ -976,6 +977,375 @@ export default function PatientPage(): JSX.Element {
         : ('plain' as const),
   };
 
+  /**
+   * Whether the sidebar is showing the patient panels in the panel layout,
+   * and so hosts the checker and the DPJP card (from 1280 px, where it is
+   * visible). Otherwise both stay above the note, as before.
+   */
+  const sideHosts = layout === 'panel' && paneOpen && paneView === 'pasien';
+
+  const renderChecker = (where: 'main' | 'side'): JSX.Element => (
+    <>
+        {!locked &&
+        soapFindings.length === 0 &&
+        aiFindings.length === 0 &&
+        !aiCheckError &&
+        (aiEnabled('check') || where === 'side') ? (
+          <div
+            className={
+              where === 'side'
+                ? 'flex shrink-0 items-center gap-2 rounded-xl border border-border bg-surface px-3 py-1 text-[11px] text-fg-muted'
+                : 'mx-4 mt-1 flex items-center gap-2 text-[11px] text-fg-faint'
+            }
+          >
+            <span className="min-w-0 flex-1 truncate">
+              <span aria-hidden="true" className="text-accent">✓</span> Tidak ada yang janggal dari aturan biasa
+            </span>
+            {aiEnabled('check') ? (
+            <button
+              type="button"
+              onClick={() => void runAiCheck()}
+              disabled={aiCheckState === 'running' || editor.value.trim().length === 0}
+              className="min-h-tap shrink-0 rounded-lg px-2 font-medium text-accent hover:bg-bg-subtle disabled:opacity-50 [@media(pointer:fine)]:min-h-7"
+            >
+              {aiCheckState === 'running'
+                ? 'Memeriksa…'
+                : aiCheckedText !== null && !aiStale
+                  ? 'AI: tidak ada temuan · Periksa ulang'
+                  : 'Periksa dengan AI'}
+            </button>
+            ) : null}
+          </div>
+        ) : null}
+        {!locked && (soapFindings.length > 0 || aiFindings.length > 0 || aiCheckError) ? (
+          <div
+            className={
+              where === 'side'
+                ? 'shrink-0 rounded-xl border border-[var(--warn-strong)] bg-surface px-3 py-2 text-xs'
+                : 'mx-4 mt-2 rounded-xl border border-border px-3 py-2 text-xs'
+            }
+          >
+            <div className="flex items-center gap-2">
+              <p className="flex flex-1 items-center gap-1.5 font-semibold">
+                Periksa lagi
+                {soapFindings.length > 0 ? (
+                  <span className="rounded-full bg-[var(--warn-soft)] px-1.5 text-[10px] font-semibold text-[var(--warn-strong)]">
+                    {soapFindings.length}
+                  </span>
+                ) : null}
+              </p>
+              {aiEnabled('check') ? (
+                <button
+                  type="button"
+                  onClick={() => void runAiCheck()}
+                  disabled={aiCheckState === 'running' || editor.value.trim().length === 0}
+                  className="min-h-tap shrink-0 rounded-lg px-2 text-[11px] font-medium text-accent hover:bg-bg-subtle disabled:opacity-50 [@media(pointer:fine)]:min-h-7"
+                >
+                  {aiCheckState === 'running'
+                    ? 'Memeriksa…'
+                    : aiCheckedText !== null
+                      ? 'Periksa ulang dengan AI'
+                      : 'Periksa dengan AI'}
+                </button>
+              ) : null}
+            </div>
+            {/*
+              Ordered by urgency, and tagged with it, so the list reads top-down
+              as "fill these in, then update what was copied, then check".
+            */}
+            <ul className="mt-1 space-y-1">
+              {soapFindings.map((finding) => (
+                <li key={finding.kind + finding.message} className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
+                  <FindingTag level={finding.level} />
+                  <span className="min-w-0 flex-1 text-fg">{finding.message}</span>
+                  {finding.anchor ? (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        /*
+                          The exact position first: `- ` or a heading occurs
+                          many times, and a text search finds the wrong one.
+                          Checked against the live text, because the check
+                          ran on a copy up to 400 ms old; if it moved, search.
+                        */
+                        const anchor = finding.anchor!;
+                        const exact =
+                          finding.at !== undefined &&
+                          editor.value.slice(finding.at, finding.at + anchor.length).toLowerCase() ===
+                            anchor.toLowerCase();
+                        const at = exact
+                          ? finding.at!
+                          : editor.value.toLowerCase().indexOf(anchor.toLowerCase());
+                        if (at >= 0) editorHandle.current?.selectRange(at, at + anchor.length);
+                      }}
+                      className="min-h-tap shrink-0 text-accent underline decoration-dotted [@media(pointer:fine)]:min-h-0"
+                    >
+                      Tampilkan
+                    </button>
+                  ) : null}
+                  {finding.markers && finding.markers.length > 0 ? (
+                    <MarkerChips
+                      markers={finding.markers}
+                      onJump={(marker, index) => {
+                        const found = locateDayMarker(editor.value, marker, index);
+                        if (found) editorHandle.current?.selectRange(found.start, found.end);
+                      }}
+                      onBump={(marker, index) => {
+                        const found = locateDayMarker(editor.value, marker, index);
+                        if (!found) return;
+                        editor.markNextChange('transform');
+                        editor.setValue(bumpDayMarkerAt(editor.value, found));
+                        editorHandle.current?.selectRange(found.start, found.end + 1);
+                      }}
+                    />
+                  ) : null}
+                </li>
+              ))}
+            </ul>
+
+            {/*
+              The AI trigger lives here, and it is a PRESS — never automatic.
+
+              The distinction that matters is not where the button sits but
+              what happens without it: enabling the feature in Settings says
+              the app MAY call the API, and nothing calls it until this is
+              pressed. Each press spends the user's quota and sends the note
+              off the device, so the app deciding on its own that now is a good
+              moment is the one behaviour that must not exist.
+
+              Findings land below the rules and are tagged, because they are a
+              different kind of claim — the rules found a mismatch between two
+              numbers written in the note; this one has an opinion — and mixing
+              them would let the weaker sort borrow the stronger sort's
+              credibility.
+            */}
+            {aiEnabled('check') && (aiFindings.length > 0 || aiCheckError || aiStale || aiDropped > 0) ? (
+              <div className="mt-2 border-t border-border pt-2">
+                {aiFindings.length > 0 ? (
+                  <ul className={['mb-2 space-y-1', aiStale ? 'opacity-60' : ''].join(' ')}>
+                    {aiFindings.map((finding) => (
+                      <li key={finding.message} className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
+                        <FindingTag level={finding.level} />
+                        <span className="min-w-0 flex-1 text-fg">
+                          {finding.message} <span className="text-fg-faint">(AI)</span>
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            // The quote was verified against the note the AI saw;
+                            // after an edit, search for it instead.
+                            const exact =
+                              editor.value.slice(finding.at, finding.at + finding.anchor.length) === finding.anchor;
+                            const at = exact
+                              ? finding.at
+                              : editor.value.toLowerCase().indexOf(finding.anchor.toLowerCase());
+                            if (at >= 0) editorHandle.current?.selectRange(at, at + finding.anchor.length);
+                          }}
+                          className="min-h-tap shrink-0 text-accent underline decoration-dotted [@media(pointer:fine)]:min-h-0"
+                        >
+                          Tampilkan
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                ) : aiCheckedText !== null && !aiStale && !aiCheckError ? (
+                  <p className="mb-2 text-fg-muted">AI tidak menemukan ketidakcocokan lain.</p>
+                ) : null}
+                {aiDropped > 0 && !aiStale ? (
+                  <p className="mb-2 text-[11px] text-fg-faint">
+                    {aiDropped} temuan AI dibuang karena kutipannya tidak ada di catatan.
+                  </p>
+                ) : null}
+                {aiStale ? (
+                  <p className="mb-1 text-[11px] text-fg-faint">Catatan sudah diubah sejak diperiksa AI.</p>
+                ) : null}
+                {aiCheckError ? <p className="mb-1 text-danger">{aiCheckError}</p> : null}
+              </div>
+            ) : null}
+          </div>
+        ) : null}
+
+    </>
+  );
+
+  const renderDpjpLine = (): JSX.Element => (
+    <>
+        {dpjpFormat ||
+        poli ||
+        (dpjp && !poli) ||
+        dpjp?.delivery ||
+        isTrioDpjp(dpjp?.id) ||
+        patient.diagnoses.length > 0 ? (
+          <div className="space-y-0.5 border-b border-border px-4 py-1">
+            {/*
+              DECLUTTER (2026-10-05). Five or six grey lines above every note,
+              read once on arrival and then scrolled past forty times. Folded
+              to ONE line — who, where the report goes, the shape, 6MWT, the
+              next clinic — with the full sentences a tap away. 6MWT keeps its
+              accent in the summary: it is the one standing instruction.
+            */}
+            <button
+              type="button"
+              aria-expanded={dpjpInfoOpen}
+              onClick={toggleDpjpInfo}
+              className="flex min-h-tap w-full items-center gap-2 text-left text-[11px] text-fg-muted [@media(pointer:fine)]:min-h-7"
+            >
+              {dpjp ? (
+                <span className="shrink-0 rounded border border-border px-1 font-semibold text-fg">
+                  {dpjp.initials}
+                </span>
+              ) : null}
+              <span className="min-w-0 flex-1 truncate">
+                {[
+                  dpjp?.delivery ? shortDelivery(dpjp.delivery) : null,
+                  dpjpFormat ? REPORT_FORMAT_LABELS[dpjpFormat.format] : null,
+                  poli
+                    ? `Poli ${weekdayName(poli.weekday)}${poli.inDays === 0 ? ' (hari ini)' : poli.inDays === 1 ? ' (besok)' : ''}`
+                    : null,
+                  !dpjp && patient.diagnoses.length > 0 ? patient.diagnoses.join(', ') : null,
+                ]
+                  .filter(Boolean)
+                  .join(' · ')}
+                {isTrioDpjp(dpjp?.id) ? (
+                  <span className="font-medium text-accent"> · rencanakan 6MWT</span>
+                ) : null}
+              </span>
+              <span aria-hidden="true" className="shrink-0 text-fg-faint">
+                {dpjpInfoOpen ? '▴' : '▾'}
+              </span>
+            </button>
+            {dpjpInfoOpen ? (
+            <div className="space-y-0.5 pb-1">
+            {/*
+              A standing instruction, shown for the three consultants whose
+              patients get one — not a checklist item.
+              
+              A checklist item has to be ticked or it nags, and this is a thing
+              that is true of the patient rather than a task with a completion.
+              Sitting beside the report format is right: both are "what this
+              consultant expects", read once on arrival at the patient.
+            */}
+            {/*
+              Where the report goes, for the consultants who have a route.
+              
+              Above the format line on purpose: the format is what the note
+              looks like, this is whether you send it at all. A resident who
+              reads only one of the two is better served by this one.
+            */}
+            {dpjp?.delivery ? (
+              <p className="text-[11px] text-fg-muted">
+                {dpjp.initials} — {describeDelivery(dpjp.delivery)}
+              </p>
+            ) : null}
+            {isTrioDpjp(dpjp?.id) ? (
+              <p className="truncate text-[11px] font-medium text-accent">
+                {dpjp?.initials} — rencanakan 6MWT (6 minute walk test)
+              </p>
+            ) : null}
+            {dpjpFormat ? (
+              <p className="truncate text-[11px] text-fg-faint">
+                {dpjp?.initials} — {describeConfig(dpjpFormat)}
+              </p>
+            ) : null}
+            {/*
+              When a consultant is recognised but has no clinic, say so.
+              Rendering nothing made two different situations look identical —
+              "not on the roster" and "the line is broken again" — and I could
+              not tell them apart from a screenshot either.
+            */}
+            {dpjp && !poli ? (
+              <p className="truncate text-[11px] text-fg-faint">
+                {dpjp.initials} tidak ada di jadwal poli {SCHEDULE_PERIOD}
+              </p>
+            ) : null}
+            {poli ? (
+              <p className="truncate text-[11px] text-fg-faint">
+                Poli {dpjp?.initials} {weekdayName(poli.weekday)}
+                {poli.inDays === 0 ? ' (hari ini)' : poli.inDays === 1 ? ' (besok)' : ''} ·{' '}
+                {poli.slot.clinic} · {poli.slot.time}
+              </p>
+            ) : null}
+            {/*
+              The clinic after next.
+
+              Prefixed `Lalu` rather than repeating `Poli <initials>`, so the
+              two lines cannot be misread as two different consultants — which
+              is the mistake that matters here, since a referral sent to the
+              wrong clinic comes back a week later.
+            */}
+            {poliAfter ? (
+              <p className="truncate text-[11px] text-fg-faint">
+                Lalu {weekdayName(poliAfter.weekday)}, {poliAfter.date} ·{' '}
+                {poliAfter.slot.clinic} · {poliAfter.slot.time}
+              </p>
+            ) : null}
+            {patient.diagnoses.length > 0 ? (
+              <p className="truncate text-[11px] text-fg-faint">
+                {patient.diagnoses.join(', ')}
+              </p>
+            ) : null}
+            </div>
+            ) : null}
+          </div>
+        ) : null}
+
+    </>
+  );
+
+  /**
+   * The DPJP card in the panel sidebar: the same facts as the folded line above
+   * the note, written out, since the sidebar has the room the note column
+   * does not. Who the report goes to, in what shape, the standing 6MWT, and
+   * the next two clinics.
+   */
+  const renderDpjpSide = (): JSX.Element | null => {
+    const rows: Array<{ label: string; value: ReactNode; strong?: boolean }> = [];
+    if (dpjp?.delivery) rows.push({ label: 'Kirim', value: describeDelivery(dpjp.delivery) });
+    if (dpjpFormat) rows.push({ label: 'Format', value: describeConfig(dpjpFormat) });
+    if (isTrioDpjp(dpjp?.id)) rows.push({ label: 'Rencana', value: 'Rencanakan 6MWT (6 minute walk test)', strong: true });
+    if (poli) {
+      rows.push({
+        label: 'Poli',
+        value: `${weekdayName(poli.weekday)}${poli.inDays === 0 ? ' (hari ini)' : poli.inDays === 1 ? ' (besok)' : ''}, ${poli.date} · ${poli.slot.clinic} · ${poli.slot.time}`,
+      });
+    } else if (dpjp) {
+      rows.push({ label: 'Poli', value: `Tidak ada di jadwal poli ${SCHEDULE_PERIOD}` });
+    }
+    if (poliAfter) {
+      rows.push({
+        label: 'Lalu',
+        value: `${weekdayName(poliAfter.weekday)}, ${poliAfter.date} · ${poliAfter.slot.clinic} · ${poliAfter.slot.time}`,
+      });
+    }
+    if (patient.diagnoses.length > 0) rows.push({ label: 'Diagnosis', value: patient.diagnoses.join(', ') });
+    if (!dpjp && rows.length === 0) return null;
+    return (
+      <section className="shrink-0 overflow-hidden rounded-xl border border-border bg-surface">
+        <div className="flex min-h-tap items-center gap-2 px-3 [@media(pointer:fine)]:min-h-10">
+          <span className="flex-1 text-[11px] font-semibold uppercase tracking-wider text-fg-faint">DPJP</span>
+          {dpjp ? (
+            <span className="rounded-md bg-[var(--accent-soft)] px-1.5 py-0.5 text-[11px] font-semibold text-accent">
+              {dpjp.initials}
+            </span>
+          ) : (
+            <span className="text-[11px] text-fg-faint">belum dikenali</span>
+          )}
+        </div>
+        {dpjp ? <p className="-mt-1 px-3 pb-1 text-xs font-medium leading-snug">{dpjp.name}</p> : null}
+        {rows.length > 0 ? (
+          <dl className="grid grid-cols-[auto_minmax(0,1fr)] gap-x-3 gap-y-1 border-t border-border px-3 py-2 text-[11px]">
+            {rows.map((row) => (
+              <div key={row.label} className="contents">
+                <dt className="text-fg-faint">{row.label}</dt>
+                <dd className={row.strong ? 'font-medium text-accent' : 'text-fg-muted'}>{row.value}</dd>
+              </div>
+            ))}
+          </dl>
+        ) : null}
+      </section>
+    );
+  };
+
   return (
     <AppShell title={patient.name}>
       {/*
@@ -1291,124 +1661,7 @@ export default function PatientPage(): JSX.Element {
           had a name it could never render — which is why a recognised DPJP
           showed no clinic. Separate conditions cannot shadow each other.
         */}
-        {dpjpFormat ||
-        poli ||
-        (dpjp && !poli) ||
-        dpjp?.delivery ||
-        isTrioDpjp(dpjp?.id) ||
-        patient.diagnoses.length > 0 ? (
-          <div className="space-y-0.5 border-b border-border px-4 py-1">
-            {/*
-              DECLUTTER (2026-10-05). Five or six grey lines above every note,
-              read once on arrival and then scrolled past forty times. Folded
-              to ONE line — who, where the report goes, the shape, 6MWT, the
-              next clinic — with the full sentences a tap away. 6MWT keeps its
-              accent in the summary: it is the one standing instruction.
-            */}
-            <button
-              type="button"
-              aria-expanded={dpjpInfoOpen}
-              onClick={toggleDpjpInfo}
-              className="flex min-h-tap w-full items-center gap-2 text-left text-[11px] text-fg-muted [@media(pointer:fine)]:min-h-7"
-            >
-              {dpjp ? (
-                <span className="shrink-0 rounded border border-border px-1 font-semibold text-fg">
-                  {dpjp.initials}
-                </span>
-              ) : null}
-              <span className="min-w-0 flex-1 truncate">
-                {[
-                  dpjp?.delivery ? shortDelivery(dpjp.delivery) : null,
-                  dpjpFormat ? REPORT_FORMAT_LABELS[dpjpFormat.format] : null,
-                  poli
-                    ? `Poli ${weekdayName(poli.weekday)}${poli.inDays === 0 ? ' (hari ini)' : poli.inDays === 1 ? ' (besok)' : ''}`
-                    : null,
-                  !dpjp && patient.diagnoses.length > 0 ? patient.diagnoses.join(', ') : null,
-                ]
-                  .filter(Boolean)
-                  .join(' · ')}
-                {isTrioDpjp(dpjp?.id) ? (
-                  <span className="font-medium text-accent"> · rencanakan 6MWT</span>
-                ) : null}
-              </span>
-              <span aria-hidden="true" className="shrink-0 text-fg-faint">
-                {dpjpInfoOpen ? '▴' : '▾'}
-              </span>
-            </button>
-            {dpjpInfoOpen ? (
-            <div className="space-y-0.5 pb-1">
-            {/*
-              A standing instruction, shown for the three consultants whose
-              patients get one — not a checklist item.
-              
-              A checklist item has to be ticked or it nags, and this is a thing
-              that is true of the patient rather than a task with a completion.
-              Sitting beside the report format is right: both are "what this
-              consultant expects", read once on arrival at the patient.
-            */}
-            {/*
-              Where the report goes, for the consultants who have a route.
-              
-              Above the format line on purpose: the format is what the note
-              looks like, this is whether you send it at all. A resident who
-              reads only one of the two is better served by this one.
-            */}
-            {dpjp?.delivery ? (
-              <p className="text-[11px] text-fg-muted">
-                {dpjp.initials} — {describeDelivery(dpjp.delivery)}
-              </p>
-            ) : null}
-            {isTrioDpjp(dpjp?.id) ? (
-              <p className="truncate text-[11px] font-medium text-accent">
-                {dpjp?.initials} — rencanakan 6MWT (6 minute walk test)
-              </p>
-            ) : null}
-            {dpjpFormat ? (
-              <p className="truncate text-[11px] text-fg-faint">
-                {dpjp?.initials} — {describeConfig(dpjpFormat)}
-              </p>
-            ) : null}
-            {/*
-              When a consultant is recognised but has no clinic, say so.
-              Rendering nothing made two different situations look identical —
-              "not on the roster" and "the line is broken again" — and I could
-              not tell them apart from a screenshot either.
-            */}
-            {dpjp && !poli ? (
-              <p className="truncate text-[11px] text-fg-faint">
-                {dpjp.initials} tidak ada di jadwal poli {SCHEDULE_PERIOD}
-              </p>
-            ) : null}
-            {poli ? (
-              <p className="truncate text-[11px] text-fg-faint">
-                Poli {dpjp?.initials} {weekdayName(poli.weekday)}
-                {poli.inDays === 0 ? ' (hari ini)' : poli.inDays === 1 ? ' (besok)' : ''} ·{' '}
-                {poli.slot.clinic} · {poli.slot.time}
-              </p>
-            ) : null}
-            {/*
-              The clinic after next.
-
-              Prefixed `Lalu` rather than repeating `Poli <initials>`, so the
-              two lines cannot be misread as two different consultants — which
-              is the mistake that matters here, since a referral sent to the
-              wrong clinic comes back a week later.
-            */}
-            {poliAfter ? (
-              <p className="truncate text-[11px] text-fg-faint">
-                Lalu {weekdayName(poliAfter.weekday)}, {poliAfter.date} ·{' '}
-                {poliAfter.slot.clinic} · {poliAfter.slot.time}
-              </p>
-            ) : null}
-            {patient.diagnoses.length > 0 ? (
-              <p className="truncate text-[11px] text-fg-faint">
-                {patient.diagnoses.join(', ')}
-              </p>
-            ) : null}
-            </div>
-            ) : null}
-          </div>
-        ) : null}
+        <div className={sideHosts ? 'xl:hidden' : ''}>{renderDpjpLine()}</div>
 
         <div className="xl:hidden">
           <PatientNotes sync={notesSync} />
@@ -1614,163 +1867,9 @@ export default function PatientPage(): JSX.Element {
           result → one small line. Something flagged → the box, with the AI
           button moved up beside the title instead of a row of its own.
         */}
-        {!locked &&
-        soapFindings.length === 0 &&
-        aiFindings.length === 0 &&
-        !aiCheckError &&
-        aiEnabled('check') ? (
-          <div className="mx-4 mt-1 flex items-center gap-2 text-[11px] text-fg-faint">
-            <span className="min-w-0 flex-1 truncate">✓ Tidak ada yang janggal dari aturan biasa</span>
-            <button
-              type="button"
-              onClick={() => void runAiCheck()}
-              disabled={aiCheckState === 'running' || editor.value.trim().length === 0}
-              className="min-h-tap shrink-0 rounded-lg px-2 font-medium text-accent hover:bg-bg-subtle disabled:opacity-50 [@media(pointer:fine)]:min-h-7"
-            >
-              {aiCheckState === 'running'
-                ? 'Memeriksa…'
-                : aiCheckedText !== null && !aiStale
-                  ? 'AI: tidak ada temuan · Periksa ulang'
-                  : 'Periksa dengan AI'}
-            </button>
-          </div>
-        ) : null}
-        {!locked && (soapFindings.length > 0 || aiFindings.length > 0 || aiCheckError) ? (
-          <div className="mx-4 mt-2 rounded-xl border border-border px-3 py-2 text-xs">
-            <div className="flex items-center gap-2">
-              <p className="flex-1 font-semibold">
-                Periksa lagi{soapFindings.length > 0 ? ` (${soapFindings.length})` : ''}
-              </p>
-              {aiEnabled('check') ? (
-                <button
-                  type="button"
-                  onClick={() => void runAiCheck()}
-                  disabled={aiCheckState === 'running' || editor.value.trim().length === 0}
-                  className="min-h-tap shrink-0 rounded-lg px-2 text-[11px] font-medium text-accent hover:bg-bg-subtle disabled:opacity-50 [@media(pointer:fine)]:min-h-7"
-                >
-                  {aiCheckState === 'running'
-                    ? 'Memeriksa…'
-                    : aiCheckedText !== null
-                      ? 'Periksa ulang dengan AI'
-                      : 'Periksa dengan AI'}
-                </button>
-              ) : null}
-            </div>
-            {/*
-              Ordered by urgency, and tagged with it, so the list reads top-down
-              as "fill these in, then update what was copied, then check".
-            */}
-            <ul className="mt-1 space-y-1">
-              {soapFindings.map((finding) => (
-                <li key={finding.kind + finding.message} className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
-                  <FindingTag level={finding.level} />
-                  <span className="min-w-0 flex-1 text-fg">{finding.message}</span>
-                  {finding.anchor ? (
-                    <button
-                      type="button"
-                      onClick={() => {
-                        /*
-                          The exact position first: `- ` or a heading occurs
-                          many times, and a text search finds the wrong one.
-                          Checked against the live text, because the check
-                          ran on a copy up to 400 ms old; if it moved, search.
-                        */
-                        const anchor = finding.anchor!;
-                        const exact =
-                          finding.at !== undefined &&
-                          editor.value.slice(finding.at, finding.at + anchor.length).toLowerCase() ===
-                            anchor.toLowerCase();
-                        const at = exact
-                          ? finding.at!
-                          : editor.value.toLowerCase().indexOf(anchor.toLowerCase());
-                        if (at >= 0) editorHandle.current?.selectRange(at, at + anchor.length);
-                      }}
-                      className="min-h-tap shrink-0 text-accent underline decoration-dotted [@media(pointer:fine)]:min-h-0"
-                    >
-                      Tampilkan
-                    </button>
-                  ) : null}
-                  {finding.markers && finding.markers.length > 0 ? (
-                    <MarkerChips
-                      markers={finding.markers}
-                      onJump={(marker, index) => {
-                        const found = locateDayMarker(editor.value, marker, index);
-                        if (found) editorHandle.current?.selectRange(found.start, found.end);
-                      }}
-                      onBump={(marker, index) => {
-                        const found = locateDayMarker(editor.value, marker, index);
-                        if (!found) return;
-                        editor.markNextChange('transform');
-                        editor.setValue(bumpDayMarkerAt(editor.value, found));
-                        editorHandle.current?.selectRange(found.start, found.end + 1);
-                      }}
-                    />
-                  ) : null}
-                </li>
-              ))}
-            </ul>
-
-            {/*
-              The AI trigger lives here, and it is a PRESS — never automatic.
-
-              The distinction that matters is not where the button sits but
-              what happens without it: enabling the feature in Settings says
-              the app MAY call the API, and nothing calls it until this is
-              pressed. Each press spends the user's quota and sends the note
-              off the device, so the app deciding on its own that now is a good
-              moment is the one behaviour that must not exist.
-
-              Findings land below the rules and are tagged, because they are a
-              different kind of claim — the rules found a mismatch between two
-              numbers written in the note; this one has an opinion — and mixing
-              them would let the weaker sort borrow the stronger sort's
-              credibility.
-            */}
-            {aiEnabled('check') && (aiFindings.length > 0 || aiCheckError || aiStale || aiDropped > 0) ? (
-              <div className="mt-2 border-t border-border pt-2">
-                {aiFindings.length > 0 ? (
-                  <ul className={['mb-2 space-y-1', aiStale ? 'opacity-60' : ''].join(' ')}>
-                    {aiFindings.map((finding) => (
-                      <li key={finding.message} className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
-                        <FindingTag level={finding.level} />
-                        <span className="min-w-0 flex-1 text-fg">
-                          {finding.message} <span className="text-fg-faint">(AI)</span>
-                        </span>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            // The quote was verified against the note the AI saw;
-                            // after an edit, search for it instead.
-                            const exact =
-                              editor.value.slice(finding.at, finding.at + finding.anchor.length) === finding.anchor;
-                            const at = exact
-                              ? finding.at
-                              : editor.value.toLowerCase().indexOf(finding.anchor.toLowerCase());
-                            if (at >= 0) editorHandle.current?.selectRange(at, at + finding.anchor.length);
-                          }}
-                          className="min-h-tap shrink-0 text-accent underline decoration-dotted [@media(pointer:fine)]:min-h-0"
-                        >
-                          Tampilkan
-                        </button>
-                      </li>
-                    ))}
-                  </ul>
-                ) : aiCheckedText !== null && !aiStale && !aiCheckError ? (
-                  <p className="mb-2 text-fg-muted">AI tidak menemukan ketidakcocokan lain.</p>
-                ) : null}
-                {aiDropped > 0 && !aiStale ? (
-                  <p className="mb-2 text-[11px] text-fg-faint">
-                    {aiDropped} temuan AI dibuang karena kutipannya tidak ada di catatan.
-                  </p>
-                ) : null}
-                {aiStale ? (
-                  <p className="mb-1 text-[11px] text-fg-faint">Catatan sudah diubah sejak diperiksa AI.</p>
-                ) : null}
-                {aiCheckError ? <p className="mb-1 text-danger">{aiCheckError}</p> : null}
-              </div>
-            ) : null}
-          </div>
-        ) : null}
+        {/* In the panel layout on a laptop the checker lives in the sidebar, so
+            it stays in view while the note scrolls; here it is the fallback. */}
+        <div className={sideHosts ? 'xl:hidden' : ''}>{renderChecker('main')}</div>
 
         {staleMarkers ? (
           <Banner tone="warn">
@@ -2215,7 +2314,8 @@ export default function PatientPage(): JSX.Element {
         */}
         <aside
           className={[
-            'sticky top-0 w-[300px] shrink-0 flex-col gap-4',
+            'sticky top-0 shrink-0 flex-col gap-4',
+            layout === 'panel' ? 'w-[320px]' : 'w-[300px]',
             // Panel layout: a FIXED-height column, so it is always its own
             // scroll container. `max-h` alone leaves the column as tall as its
             // content until that content exceeds the viewport, and an expanded
@@ -2230,34 +2330,24 @@ export default function PatientPage(): JSX.Element {
             paneOpen ? 'hidden xl:flex' : 'hidden',
           ].join(' ')}
         >
-          <div className="flex gap-1">
-            {(
-              [
+          <div className="shrink-0">
+            <Segmented
+              label="Isi panel samping"
+              value={paneView}
+              onChange={setPaneView}
+              options={[
                 ['pasien', 'Pasien'],
                 ['dokumen', 'Dokumen'],
-              ] as Array<['pasien' | 'dokumen', string]>
-            ).map(([value, label]) => (
-              <button
-                key={value}
-                type="button"
-                aria-pressed={paneView === value}
-                onClick={() => setPaneView(value)}
-                className={[
-                  'min-h-tap flex-1 rounded-lg border text-xs',
-                  paneView === value
-                    ? 'border-accent bg-bg-subtle font-medium text-accent'
-                    : 'border-border text-fg-muted',
-                ].join(' ')}
-              >
-                {label}
-              </button>
-            ))}
+              ]}
+            />
           </div>
 
           {paneView === 'dokumen' ? <DocumentPanel /> : null}
 
           {paneView === 'pasien' && layout === 'panel' ? (
             <>
+              {renderChecker('side')}
+              {renderDpjpSide()}
               {/*
                 Order: the standing note, then the daily checklist, then the
                 per-patient one, then the dates. Read top to bottom it is what

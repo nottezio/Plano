@@ -166,8 +166,8 @@ describe('buildKonfirmasi', () => {
   });
 
   it('names the sender, their post, the date and the target post', () => {
-    const text = buildKonfirmasi(posts[0]!, { senderName: 'Asad', senderPlace: 'Bangsal PJT A', date: '2026-07-13' }, at);
-    expect(text).toContain('Saya Asad');
+    const text = buildKonfirmasi(posts[0]!, { senderName: 'Arif', senderPlace: 'Bangsal PJT A', date: '2026-07-13' }, at);
+    expect(text).toContain('Saya Arif');
     expect(text).toContain('bertugas jaga di Bangsal PJT A');
     expect(text).toContain('_Senin, 13 Juli 2026_');
     expect(text).toContain('*Chief Jaga PJT*');
@@ -206,9 +206,9 @@ describe('display name', () => {
 
 describe('tukar jaga', () => {
   it('replaces who is on a post for this date only', () => {
-    const posts = resolveShift(SHIFT, ROSTER, JARKOM, {}, { chiefPjt: { name: 'Ellen' } });
+    const posts = resolveShift(SHIFT, ROSTER, JARKOM, {}, { chiefPjt: { name: 'Elsa' } });
     expect(posts.find((post) => post.id === 'chiefPjt')).toMatchObject({
-      display: 'Ellen',
+      display: 'Elsa',
       swapped: true,
       // The roster is still right about who HM is — only the day changed.
       name: 'dr. Siti Hajar Malika',
@@ -219,16 +219,16 @@ describe('tukar jaga', () => {
     // Paediatrics keeps its own roster, so its column is blank in every row.
     // Keying "staffed" on initials alone would leave that resident
     // permanently unconfirmable.
-    const posts = resolveShift(SHIFT, ROSTER, JARKOM, {}, { pedi: { name: 'Gaby' } });
+    const posts = resolveShift(SHIFT, ROSTER, JARKOM, {}, { pedi: { name: 'Gina' } });
     const text = buildFormasi(SHIFT, posts, DPJP, new Date(), new Set());
-    expect(text).toContain('Pediatri : Gaby (belum konfirmasi)');
+    expect(text).toContain('Pediatri : Gina (belum konfirmasi)');
   });
 
   it('leaves the by-initials correction alone', () => {
     // The two mean different things: one fixes who an initial refers to
     // everywhere, the other says who is on a post tonight.
-    const posts = resolveShift(SHIFT, ROSTER, JARKOM, { HM: 'Malika' }, { chiefPjt: { name: 'Ellen' } });
-    expect(posts.find((post) => post.id === 'chiefPjt')?.display).toBe('Ellen');
+    const posts = resolveShift(SHIFT, ROSTER, JARKOM, { HM: 'Malika' }, { chiefPjt: { name: 'Elsa' } });
+    expect(posts.find((post) => post.id === 'chiefPjt')?.display).toBe('Elsa');
     expect(resolveShift(SHIFT, ROSTER, JARKOM, { HM: 'Malika' })
       .find((post) => post.id === 'chiefPjt')?.display).toBe('Malika');
   });
@@ -338,10 +338,10 @@ describe('the paediatrics post', () => {
 
   it('yields to a manual swap', () => {
     // The roster is right about the schedule; a swap is right about tonight.
-    const posts = resolveShift(SHIFT, ROSTER, JARKOM, {}, { pedi: { name: 'Gaby' } }, {}, {
+    const posts = resolveShift(SHIFT, ROSTER, JARKOM, {}, { pedi: { name: 'Gina' } }, {}, {
       name: 'Ken',
     });
-    expect(posts.find((post) => post.id === 'pedi')?.display).toBe('Gaby');
+    expect(posts.find((post) => post.id === 'pedi')?.display).toBe('Gina');
   });
 });
 

@@ -10,7 +10,7 @@ import { DEFAULT_SECTION_ALIASES as ALIASES } from '../sections/aliases';
 const BODY = [
   "Assalamualaikum dokter. Tabe dokter, mohon izin melaporkan follow up pasien di *PJT Lt. 4 Kamar 418 Bed 4* atas nama:",
   '',
-  '*Tn. Hamzah Rahuddin / 01-01-1973 / 53 thn / RM 1656066*',
+  '*Tn. Hamid Rahman / 01-01-1973 / 53 thn / RM 8000010*',
   '',
   '_DPJP Utama dan Tindakan : Dr. dr. Akhtar Fajar M, SpJP, Subsp. IKKV(K), KI(K)_',
   '',
@@ -46,7 +46,7 @@ describe('composePdfReport', () => {
 
   it('keeps the opening block verbatim', () => {
     expect(output).toContain('mohon izin melaporkan follow up pasien');
-    expect(output).toContain('Tn. Hamzah Rahuddin / 01-01-1973 / 53 thn / RM 1656066');
+    expect(output).toContain('Tn. Hamid Rahman / 01-01-1973 / 53 thn / RM 8000010');
     expect(output).toContain('DPJP Utama dan Tindakan : Dr. dr. Akhtar Fajar M');
     expect(output).toContain('Pasien Post tindakan : CA Standby PCI');
   });
@@ -112,7 +112,7 @@ describe('per-consultant variants of the short form', () => {
     expect(output).not.toContain('Chief :');
     expect(output).not.toContain('Junior :');
     // Everything else is unchanged.
-    expect(output).toContain('Tn. Hamzah Rahuddin');
+    expect(output).toContain('Tn. Hamid Rahman');
     expect(output).toContain('Diagnosis:');
     expect(output.trimEnd().endsWith('Terima kasih dokter')).toBe(true);
   });
@@ -153,7 +153,7 @@ describe('plain-text output for a destination that renders no markers', () => {
     expect(output).not.toContain('*');
     expect(output).not.toMatch(/_[^\s]/);
     // The content is all still there — only the decoration is gone.
-    expect(output).toContain('Tn. Hamzah Rahuddin');
+    expect(output).toContain('Tn. Hamid Rahman');
     expect(output).toContain('DPJP Utama dan Tindakan');
     expect(output).toContain('Diagnosis:');
     expect(output).toContain('Chronic Coronary Syndrome');
@@ -178,7 +178,7 @@ describe('the Ringkas bugs from real notes', () => {
     // meant to be four lines long.
     const noHeadings = [
       'Assalamualaikum dokter. Melaporkan pasien di *PJT Lt 4 Kamar 418* atas nama:',
-      '*Tn. Aco Ridwan/01-06-1967/41 tahun/RM 01690671*',
+      '*Tn. Ali Rasyid/01-06-1967/41 tahun/RM 08000003*',
       '_DPJP Kardio : dr. Aussie Fitriani Ghaznawie, Sp.JP_',
       '',
       '*Diagnosis*',
@@ -190,7 +190,7 @@ describe('the Ringkas bugs from real notes', () => {
     ].join('\n');
 
     const out = composePdfReport(noHeadings, OPTIONS);
-    expect(out).toContain('Tn. Aco Ridwan');
+    expect(out).toContain('Tn. Ali Rasyid');
     expect(out).toContain('Severe Mitral Regurgitation');
     expect(out).not.toContain('Furosemide');
     expect(out).not.toContain('Spironolactone');

@@ -1,5 +1,106 @@
 # Plano — CHANGES
 
+## `2026-10-06.1` — Checker matches specialties; one list rule set; checker and DPJP in the panel sidebar; anonymised fixtures
+
+### 1. Periksa lagi: "TS Gizi Klinik / TS Rehab belum ada di daftar DPJP" (Avi)
+His note listed `DPJP Gizi` and `DPJP KFR`; the checker flagged TS Gizi Klinik,
+TS Rehab and TS Neuro.
+
+**Root cause.** The rule compared LETTERS: the TS name joined and cut to five
+(`Gizi Klinik` → `gizik`) had to appear in the DPJP lines. That fails whenever
+a service is written two ways: a longer name (`gizik` is not in `gizi`), or a
+synonym (`Rehab` / `KFR`, no letters in common).
+
+**Fix (`specialties.ts`).** Both sides are read into SPECIALTY keys:
+- a dictionary of names, abbreviations and phrases (longest phrase first, so
+  `bedah saraf` is not also `saraf`);
+- on the DPJP side, the consultant's titles too (`Sp.N`, `Sp.GK`,
+  `Sp.KFR.Ped(K)`, `KHOM`, `Sp.D.V.E`), which name the specialty even under a
+  generic label such as `DPJP Konsulen 2`;
+- unknown words fall back to five-letter stems, word by word, so `TS Pulmo`
+  still meets `DPJP Pulmonologi`;
+- only the label part of a DPJP line is read, so an `RM 1…` elsewhere in the
+  note cannot count.
+
+Run on his full note, the checker now raises exactly one item: TS Neuro, which
+has no DPJP line. That flag is correct.
+
+### 2. Catatan: a bullet or checklist row that "sometimes" cannot be removed (Avi)
+**Reproduced in Chromium**, driving the real editor:
+- checklist `a`, `b`; Enter at the end of `a`, then Backspace: the new row
+  became a blank line that split the checklist in two;
+- the same with bullets: back to the end of `a`, one list.
+
+**Root cause.** Two mechanisms for one kind of thing:
+- Checklists were handled by Plano on `keydown`; bullets were left to the
+  browser. Their rules differed (above).
+- `keydown` is skipped while the keyboard is composing (`isComposing`), which
+  on a phone keyboard with suggestions is most of the time. There the
+  BROWSER's handling ran inside checklist markup it does not understand.
+
+Which code handled a keypress depended on the keyboard's state, which is the
+"sometimes".
+
+**Fix (`checklistDom.ts`, `NoteEditor.tsx`).** One rule set for every list,
+from `beforeinput` (`insertParagraph` / `deleteContentBackward`), which every
+keyboard fires. Only cancelable events are taken, so an edit is never applied
+twice.
+- Enter on text splits the row (a new checklist row is unticked).
+- Enter on an empty row leaves the list.
+- Backspace on an empty row deletes it, caret to the end of the row above.
+- Backspace at the start of a row with text joins it to the row above; on the
+  first row it becomes a plain line.
+- A zero-width space no longer makes a row "not empty".
+- Same-kind lists left back to back by the browser's own editing are joined
+  on input, except mid-composition.
+
+Checked against every sequence of the reproduction, including a 2-second save
+echo: all now end as the bullet case does.
+
+### 3. Tata letak Panel: checker and DPJP detail in the right sidebar (Avi)
+- In the panel layout, from 1280 px, with the patient view open, Periksa lagi
+  renders at the top of the sidebar (amber edge when something is flagged), so
+  it stays in view while the note scrolls.
+- A DPJP card below it writes out what the folded line above the note
+  abbreviates: Kirim, Format, Rencana (6MWT), Poli, Lalu, Diagnosis.
+- Both are the same render functions as their main-column versions; the main
+  column hides its copy at that width (`xl:hidden`) only when the sidebar hosts
+  it. Klasik, phone, a closed sidebar and the Dokumen view are unchanged.
+- Sidebar: Pasien/Dokumen as the kit's Segmented control; panel headers in
+  the kit's small caps with a rotating chevron; 320 px wide in the panel layout.
+
+### 4. MR: the Dinas/Jaga box resizer (Avi)
+**Root cause.** The two cards share a grid row and stretch to one height, but
+each textarea kept its own, so one ended above its card's edge; dragging one
+handle moved the other card and not its box.
+**Fix.** The card is a column and the textarea grows to fill it. Measured
+after resizing either box: both end at their card's border.
+
+### 5. Anonymised fixtures (Avi: "Yes anonymise those")
+- Realistic patient names in tests, comments, the CHANGES history and one seed
+  template are replaced with same-shape pseudonyms (`Dg` particles and word
+  counts kept, since the parser cares).
+- RM numbers are replaced by fakes with the same digit count, leading zeros
+  kept. Placeholders (`123456`, `0000001`) were left alone.
+- Resident names in the seed templates and the jaga tests are replaced.
+- Seed documents are copied only on request, by title, and never updated, so
+  documents already added to an account are untouched.
+
+**Not done.**
+- Consultant names stay: the DPJP registry, MR and poli schedules need them to
+  recognise DPJP lines.
+- The census verifier's resident/chief roster (`schemas.ts`,
+  `DEFAULT_CONFIG.primaryChiefs`) and the census tests that match against it
+  stay. They are configuration; moving the roster into account settings would
+  let the repo hold no names.
+- Git HISTORY still contains the originals. Removing them needs a history
+  rewrite and a force push.
+
+```
+1960 tests passed (+28)
+typecheck / lint (0 warnings) / check:version / check:contrast / check:a11y / build - clean
+```
+
 ## `2026-10-05.8` — MR Dinas lists; Helper and sidebar revamp; checklist preview order; name back
 
 ### 1. "© Avicenna" beside the version (Avi)
@@ -2132,7 +2233,7 @@ are listed at the end with reasons.**
 | D3 | Urinalysis `Leukosit 2+` → **WBC 2+**; `Eritrosit 10` → RBC; `Glukosa Negatif` dropped | Section-scoped aliases under Urinalisis; a blood heading ends the urine section; word-result rows in the table are kept |
 | D4 | `P: 20` / `S: 36,5` under O opened **Plan / Subjektif** sections (vitals then not cleared, Plan copied "20") | Inside O, a one-letter S/P label followed by a number is a field (`isVitalField`) |
 | D5 | `Massa: tidak teraba`, `Class:`, `Bypass:` → **Assessment** | Stems anchored to a word start |
-| D6 | "melaporkan… Tn. Budi" → name "an pasien di …"; `RM 1478911 66 tahun` → MRN **147891166** | Word-bounded honorific; the age is removed before reading the MRN |
+| D6 | "melaporkan… Tn. Budi" → name "an pasien di …"; `RM 8000009 66 tahun` → MRN **147891166** | Word-bounded honorific; the age is removed before reading the MRN |
 | D7 | Archived 00:00–07:59 WITA filed under the previous day or month | Local calendar day, not UTC |
 | D8 | Urine output 0.496 shown as 0.5 "Cukup" | Band from the exact rate; 3 decimals when 2 would cross a band |
 
@@ -5485,7 +5586,7 @@ the text will settle it.
 
 ### 3. Peek: Salin RM
 
-- The number is shown in the subtitle (`RM 00452347`), and **Salin RM** in the
+- The number is shown in the subtitle (`RM 00800001`), and **Salin RM** in the
   title bar copies the digits only, matching the patient page.
 - The minimum window width is now 360 px (was 280). With five fixed-width
   controls in the title bar, the patient's name was the only thing left to
@@ -7554,7 +7655,7 @@ the card's display excerpt, and on almost every patient that is the diagnosis
 block. `searchBlob` is worse — built from name, MRN, bed, ward and diagnoses,
 it never holds a word of the note body. So the badge fired only on the handful
 of patients whose preview happened to begin at the note header, and Ny.
-Nuraeni — a KJS patient in every note she has — showed nothing at all.
+Nurhayati — a KJS patient in every note she has — showed nothing at all.
 
 `kjs` is now derived at WRITE time from the whole body, beside `dpjpId`, and
 stored on the patient. The preview remains a fallback for patients not re-saved
@@ -7578,8 +7679,8 @@ What actually separates them is **who is marked `Utama`**:
 
 A patient with several DPJP lines and no KJS is not promoted to joint care:
 multi-service is ordinary here, and inventing a badge for it would mark half
-the board. Tests now use the actual notes — Ny. Siati, Tn. Muh Iqbal, Tn.
-Irwan, Ny. St. Salmah, Ny. Nuraeni — rather than invented ones.
+the board. Tests now use the actual notes — Ny. Sutini, Tn. Muh Ikhsan, Tn.
+Iwan, Ny. St. Sarifah, Ny. Nurhayati — rather than invented ones.
 
 ### Resizing made the other cards jump
 

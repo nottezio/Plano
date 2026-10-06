@@ -3,7 +3,7 @@
  *
  * Read off the worked bangsal note, not invented. In that format:
  *
- *   *Nama/tgl lahir/umur/RM 01714449*      identity, bold
+ *   *Nama/tgl lahir/umur/RM 08000004*      identity, bold
  *   _DPJP Utama dan Tindakan : …_          every DPJP line, italic
  *   _Pasien dirujuk dari RS … _            the referral sentence, italic
  *   *S :*  *O :*                           section headings, bold
@@ -34,7 +34,7 @@ const RULES: readonly Rule[] = [
   { test: /^[^\n]*\bRM\s*\.?\s*\d{4,}[^\n]*$/i, mark: '*' },
   /*
     The same line written without the letters `RM`:
-    `Ny. Nuraeni / 3 Juli 1958 / 68 tahun / 1715410`. 28 lines in the corpus,
+    `Ny. Nurhayati / 3 Juli 1958 / 68 tahun / 1715410`. 28 lines in the corpus,
     all bold, all missed by the rule above — including the blank template
     line, which is how the seeded templates write it.
   */

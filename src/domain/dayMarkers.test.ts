@@ -24,7 +24,7 @@ describe('findDayMarkers', () => {
      */
     const body = [
       'Tekanan Darah : 160/83 mmHg',
-      'RM 01714792',
+      'RM 08000005',
       '22-07-1949',
       'Hb 10.2',
       'Furosemide 40 mg',
@@ -81,7 +81,7 @@ describe('bumpDayMarkers', () => {
   });
 
   it('leaves the rest of the note byte for byte', () => {
-    const body = 'Tekanan Darah : 160/83 mmHg\nRM 01714792\n22-07-1949';
+    const body = 'Tekanan Darah : 160/83 mmHg\nRM 08000005\n22-07-1949';
     expect(bumpDayMarkers(body, 2)).toBe(body);
   });
 });

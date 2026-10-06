@@ -30,9 +30,9 @@ const line = (
   ...extra,
 });
 
-const kahar = line('Tn. Kahar', '1709802', 'IM');
-const udis = line('Tn. Udis', '1607407', 'KS', { tags: ['KJS BTKV'], residentRaw: 'Qalby', chiefRaw: 'Arya' });
-const suharti = line('Suharti', '769889', 'NP', { residentRaw: null, chiefRaw: null });
+const karim = line('Tn. Karim', '8000014', 'IM');
+const udin = line('Tn. Udin', '8000017', 'KS', { tags: ['KJS BTKV'], residentRaw: 'Qalby', chiefRaw: 'Arya' });
+const sumarni = line('Sumarni', '800018', 'NP', { residentRaw: null, chiefRaw: null });
 
 function denah(grid: PatientLine[], over: Partial<DenahExtraction> = {}): DenahExtraction {
   const byCode = new Map<string, PatientLine[]>();
@@ -100,7 +100,7 @@ const rules = (report: ReturnType<typeof verify>): string[] => report.issues.map
 
 describe('a consistent shift', () => {
   it('is CLEAN', () => {
-    const grid = [kahar, udis, suharti];
+    const grid = [karim, udin, sumarni];
     const report = verify(denah(grid), listDoc(grid));
     expect(report.issues).toEqual([]);
     expect(report.verdict).toBe('CLEAN');
@@ -110,40 +110,40 @@ describe('a consistent shift', () => {
 
 describe('the original rules, as written', () => {
   it('O3: a patient in the room grid with no LIST entry', () => {
-    const report = verify(denah([kahar, udis]), listDoc([kahar]));
+    const report = verify(denah([karim, udin]), listDoc([karim]));
     expect(rules(report)).toContain('O3');
   });
 
   it('O4: a LIST entry with no room-grid line (likely discharged)', () => {
-    const report = verify(denah([kahar]), listDoc([kahar, udis]));
+    const report = verify(denah([karim]), listDoc([karim, udin]));
     expect(rules(report)).toContain('O4');
   });
 
   it('P2: different shift dates are flagged first', () => {
-    const d = denah([kahar]);
+    const d = denah([karim]);
     d.shiftDateIso = '2026-09-22';
-    expect(verify(d, listDoc([kahar])).issues[0]?.ruleId).toBe('P2');
+    expect(verify(d, listDoc([karim])).issues[0]?.ruleId).toBe('P2');
   });
 
   it('F3: a stale chief in the LIST after rotation', () => {
-    const report = verify(denah([kahar]), listDoc([{ ...kahar, chiefRaw: 'Arya' }]));
+    const report = verify(denah([karim]), listDoc([{ ...karim, chiefRaw: 'Arya' }]));
     expect(rules(report)).toContain('F3');
   });
 
-  it('F4: the room differs between views (the Haruna case)', () => {
-    const report = verify(denah([kahar]), listDoc([{ ...kahar, room: '402' }]));
+  it('F4: the room differs between views (the Hartono case)', () => {
+    const report = verify(denah([karim]), listDoc([{ ...karim, room: '402' }]));
     expect(rules(report)).toContain('F4');
   });
 
   it('unassigned categories are not expected in the holder-list', () => {
-    const report = verify(denah([kahar, suharti]), listDoc([kahar, suharti]));
+    const report = verify(denah([karim, sumarni]), listDoc([karim, sumarni]));
     expect(rules(report)).not.toContain('O2');
   });
 });
 
 describe('PORT fixes', () => {
   it('compiles: C3 fires with a normal comparison object', () => {
-    const report = verify(denah([kahar, udis]), listDoc([kahar, udis], {
+    const report = verify(denah([karim, udin]), listDoc([karim, udin], {
       perDpjp: [
         { lineRaw: 'IM', dpjpCode: 'IM', count: 3 },
         { lineRaw: 'KS', dpjpCode: 'KS', count: 1 },
@@ -154,7 +154,7 @@ describe('PORT fixes', () => {
   });
 
   it('gives each DPJP its own C3 id, so diffing cannot confuse them', () => {
-    const grid = [kahar, udis];
+    const grid = [karim, udin];
     const report = verify(denah(grid), listDoc(grid, {
       perDpjp: [
         { lineRaw: 'IM', dpjpCode: 'IM', count: 4 },
@@ -167,7 +167,7 @@ describe('PORT fixes', () => {
   });
 
   it('marks the RIGHT DPJP resolved when only one is fixed', () => {
-    const grid = [kahar, udis];
+    const grid = [karim, udin];
     const bad = verify(denah(grid), listDoc(grid, {
       perDpjp: [
         { lineRaw: 'IM', dpjpCode: 'IM', count: 4 },
@@ -197,24 +197,24 @@ describe('PORT fixes', () => {
 
   it('O5: one issue per vanished patient, named, with its own id', () => {
     const report = verify(
-      denah([kahar]),
-      listDoc([kahar]),
+      denah([karim]),
+      listDoc([karim]),
       DEFAULT_CONFIG,
       [],
-      new Set(['1709802', '1607407', '769889']),
-      { '1607407': 'Tn. Udis' },
+      new Set(['8000014', '8000017', '800018']),
+      { '8000017': 'Tn. Udin' },
     );
     const vanished = report.issues.filter((i) => i.ruleId === 'O5');
     expect(vanished).toHaveLength(2);
     expect(new Set(vanished.map((i) => i.id)).size).toBe(2);
-    expect(vanished.map((i) => i.title)).toContain('Patient vanished: Tn. Udis');
+    expect(vanished.map((i) => i.title)).toContain('Patient vanished: Tn. Udin');
     // It no longer claims a notation search that never happened.
     expect(vanished.every((i) => !/notation found/.test(i.detail))).toBe(true);
   });
 
   it('matches a line whose RM is missing to the same patient by name', () => {
-    const noRm = { ...kahar, rm: null };
-    const report = verify(denah([kahar]), listDoc([noRm]));
+    const noRm = { ...karim, rm: null };
+    const report = verify(denah([karim]), listDoc([noRm]));
     // One patient, not an O3 orphan plus an O4 stale entry.
     expect(rules(report)).not.toContain('O3');
     expect(rules(report)).not.toContain('O4');
@@ -229,9 +229,9 @@ describe('PORT fixes', () => {
   });
 
   it('C9 says what it counted', () => {
-    const d = denah([kahar]);
+    const d = denah([karim]);
     d.chiefTally = [{ lineRaw: 'dr. Gabi 5', chiefRaw: 'dr. Gabi', count: 5 }];
-    const c9 = verify(d, listDoc([kahar])).issues.find((i) => i.ruleId === 'C9');
+    const c9 = verify(d, listDoc([karim])).issues.find((i) => i.ruleId === 'C9');
     expect(c9?.detail).toContain('confirmed aliases');
     expect(c9?.detail).not.toContain('if unconfirmed name variants are folded in');
   });
@@ -239,7 +239,7 @@ describe('PORT fixes', () => {
 
 describe('spec items the original did not implement', () => {
   it('transposition: two counts swapped, total still right, reported once', () => {
-    const grid = [kahar, udis, line('Ny. Sari', '333', 'KS', { residentRaw: 'Qalby', chiefRaw: 'Arya' })];
+    const grid = [karim, udin, line('Ny. Sari', '333', 'KS', { residentRaw: 'Qalby', chiefRaw: 'Arya' })];
     const report = verify(denah(grid), listDoc(grid, {
       perDpjp: [
         { lineRaw: 'IM', dpjpCode: 'IM', count: 2 },
@@ -254,13 +254,13 @@ describe('spec items the original did not implement', () => {
   });
 
   it('F5: a dual code in the room grid is cosmetic when other views agree', () => {
-    const report = verify(denah([{ ...kahar, dpjpRaw: 'IM-NP' }]), listDoc([kahar]));
+    const report = verify(denah([{ ...karim, dpjpRaw: 'IM-NP' }]), listDoc([karim]));
     const f5 = report.issues.find((i) => i.ruleId === 'F5');
     expect(f5?.severity).toBe('cosmetic');
   });
 
   it('F6: same RM, different spelling of the name', () => {
-    const report = verify(denah([kahar]), listDoc([{ ...kahar, nameRaw: 'Tn. Kahhar' }]));
+    const report = verify(denah([karim]), listDoc([{ ...karim, nameRaw: 'Tn. Kahhar' }]));
     expect(report.issues.find((i) => i.ruleId === 'F6')?.severity).toBe('cosmetic');
   });
 });

@@ -5,8 +5,8 @@ import { makePatient } from '../testFactories';
 import type { ShiftNote } from '../types';
 
 const PATIENT = makePatient({
-  name: 'Tn. Muh. Djasmani Djafar',
-  mrn: '134048',
+  name: 'Tn. Muh. Darman Dahlan',
+  mrn: '800008',
   age: 53,
   ward: 'PJT Lt. 4',
   room: '402',
@@ -35,14 +35,14 @@ describe('composeShiftNote', () => {
 
   it('carries an identity line so the reader knows whose chart it is', () => {
     const out = composeShiftNote(NOTE, PATIENT, BASE);
-    expect(out).toContain('Tn. Muh. Djasmani Djafar');
-    expect(out).toContain('RM 134048');
+    expect(out).toContain('Tn. Muh. Darman Dahlan');
+    expect(out).toContain('RM 800008');
     expect(out).toContain('PJT Lt. 4 Kamar 402');
   });
 
   it('omits identity when asked', () => {
     const out = composeShiftNote(NOTE, PATIENT, { ...BASE, includeIdentity: false });
-    expect(out).not.toContain('RM 134048');
+    expect(out).not.toContain('RM 800008');
     expect(out).toContain('- Nyeri dada tengah sejak 30 menit lalu.');
   });
 

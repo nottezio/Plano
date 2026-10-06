@@ -361,8 +361,8 @@ describe('identity lines with trailing blanks', () => {
   });
 
   it('strips a filled-in identity line', () => {
-    expect(toPlain('*Tn. Abdullah / 11-04-1967/ 59 tahun/ RM 1667031*')).toBe(
-      'Tn. Abdullah / 11-04-1967/ 59 tahun/ RM 1667031',
+    expect(toPlain('*Tn. Abdullah / 11-04-1967/ 59 tahun/ RM 8000011*')).toBe(
+      'Tn. Abdullah / 11-04-1967/ 59 tahun/ RM 8000011',
     );
   });
 

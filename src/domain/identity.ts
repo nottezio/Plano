@@ -61,7 +61,7 @@ export function hasDisplayName(patient: Pick<Patient, 'name' | 'preview'>): bool
  *
  * So the preview skips leading blocks until the first heading the parser
  * recognises as clinical. Only KNOWN section ids qualify: the identity line is
- * itself a wrapped header (`*Tn. Basra / … / RM 1068190*`) and parses as a
+ * itself a wrapped header (`*Tn. Bakri / … / RM 8000007*`) and parses as a
  * custom section, so "skip the intro" alone would not have skipped it.
  */
 const CLINICAL_SECTION_IDS: readonly string[] = ['s', 'o', 'ttv', 'penunjang', 'a', 'p', 'terapi'];

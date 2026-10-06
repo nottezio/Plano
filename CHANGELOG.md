@@ -5,6 +5,13 @@ Catatan teknis lengkap (akar masalah, perbaikan) ada di CHANGES.md.
 
 Entri teratas harus versi yang sedang dirilis; tes gagal bila belum ditulis.
 
+## `2026-10-06.1`
+- **Periksa lagi tidak lagi salah menandai TS yang sudah ada di daftar DPJP:** "TS Gizi Klinik" kini dikenali sebagai "DPJP Gizi", dan "TS Rehab" sebagai "DPJP KFR". Pemeriksaan kini membandingkan spesialisasinya (termasuk gelar seperti Sp.N, Sp.GK, Sp.KFR), bukan ejaannya. TS yang memang belum ada (mis. TS Neuro tanpa DPJP Neuro) tetap ditandai.
+- **Poin dan checklist di Catatan kini konsisten:** Enter pada baris kosong mengakhiri daftar; Backspace pada baris kosong yang baru dibuat menghapusnya dan kembali ke akhir baris sebelumnya, untuk poin maupun checklist. Sebelumnya checklist meninggalkan baris kosong yang memecah daftar, dan di HP aturan ini kadang tidak berjalan sama sekali.
+- **Tata letak Panel: Periksa lagi dan info DPJP pindah ke panel kanan:** pemeriksa SOAP kini tetap terlihat saat menggulir catatan. Kartu DPJP menampilkan cara kirim, format laporan, rencana 6MWT, jadwal poli berikutnya dan sesudahnya, serta diagnosis. Panel kanan juga dirapikan (pilihan Pasien/Dokumen, judul panel dengan panah). Tata letak Klasik dan tampilan HP tidak berubah.
+- **Kotak pasien Morning Report:** kolom Dinas dan Jaga kini selalu sama tinggi; mengubah ukuran satu kotak tidak lagi membuat kotak lain tidak penuh.
+- **Privasi repo:** nama pasien, nomor RM, dan nama residen di data uji dan format bawaan diganti dengan nama samaran. Format bawaan yang sudah Anda tambahkan tidak ikut berubah.
+
 ## `2026-10-05.8`
 - **Morning Report kini memuat pasien Dinas:** setiap hari kerja punya dua kolom, **Dinas** dan **Jaga**, berdampingan (akhir pekan tetap Jaga Pagi dan Jaga Malam). Laporan Grup Prodi menampilkan blok Dinas sebelum Jaga hari itu. List Jaga yang sudah ditempel sebelumnya tetap di tempatnya.
 - **Pesan ke senior bisa untuk Dinas atau Jaga:** pilih di "List yang diminta"; kalimatnya tetap "…apakah boleh meminta list Jaga Senin, 5 Oktober 2026…" (atau "list Dinas …").

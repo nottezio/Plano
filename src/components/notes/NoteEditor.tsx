@@ -8,9 +8,10 @@ import { displayTitle, relativeTime, type ResolvedNote } from '@/domain/notes/sc
 import { useTextSync } from '@/hooks/useTextSync';
 
 import {
-  checklistBackspace,
-  checklistEnter,
+  listBackspace,
+  listEnter,
   itemInCheckZone,
+  joinSplitLists,
   normaliseChecklists,
   toggleChecklistLine,
   toggleItem,
@@ -173,18 +174,38 @@ export function NoteEditor({
   };
 
   // ── Native listeners, bound to the node's lifetime (pattern 11) ───────────
+  /*
+    Ctrl/Cmd+Enter ticks a row: a shortcut, so `keydown` is right for it.
+  */
   const onKeyDown = useCallback(
     (event: KeyboardEvent) => {
       const node = ref.current;
       if (!node || event.isComposing) return;
-      let handled = false;
-      if (event.key === 'Enter' && (event.ctrlKey || event.metaKey)) {
-        handled = toggleItemAtCaret(node);
-      } else if (event.key === 'Enter' && !event.shiftKey) {
-        handled = checklistEnter(node);
-      } else if (event.key === 'Backspace') {
-        handled = checklistBackspace(node);
+      if (event.key === 'Enter' && (event.ctrlKey || event.metaKey) && toggleItemAtCaret(node)) {
+        event.preventDefault();
+        commitDom();
       }
+    },
+    [commitDom],
+  );
+
+  /*
+    Enter and Backspace in a list, from `beforeinput`, not `keydown`.
+
+    `keydown` is a KEY: phone keyboards report Backspace as "Unidentified" and
+    skip it entirely while a word is being composed, so the list rules ran on
+    a laptop and silently did not on a phone, where the browser's own handling
+    took over. `beforeinput` is the EDIT the keyboard is about to make, which
+    every keyboard reports. Only cancelable events are taken: where a browser
+    will not let the edit be cancelled, doing ours as well would do it twice.
+  */
+  const onBeforeInput = useCallback(
+    (event: InputEvent) => {
+      const node = ref.current;
+      if (!node || event.isComposing || !event.cancelable) return;
+      let handled = false;
+      if (event.inputType === 'insertParagraph') handled = listEnter(node);
+      else if (event.inputType === 'deleteContentBackward') handled = listBackspace(node);
       if (handled) {
         event.preventDefault();
         commitDom();
@@ -239,6 +260,7 @@ export function NoteEditor({
       const previous = ref.current;
       if (previous && previous !== node) {
         previous.removeEventListener('keydown', onKeyDown);
+        previous.removeEventListener('beforeinput', onBeforeInput);
         previous.removeEventListener('pointerdown', onPointerDown);
         previous.removeEventListener('touchstart', onTouchStart);
         previous.removeEventListener('paste', onPaste);
@@ -252,6 +274,7 @@ export function NoteEditor({
       normaliseChecklists(node);
       if (node !== previous) {
         node.addEventListener('keydown', onKeyDown);
+        node.addEventListener('beforeinput', onBeforeInput);
         node.addEventListener('pointerdown', onPointerDown);
         node.addEventListener('touchstart', onTouchStart, { passive: false });
         node.addEventListener('paste', onPaste);
@@ -261,7 +284,7 @@ export function NoteEditor({
         }
       }
     },
-    [onKeyDown, onPointerDown, onTouchStart, onPaste],
+    [onKeyDown, onBeforeInput, onPointerDown, onTouchStart, onPaste],
   );
 
   /*
@@ -468,7 +491,13 @@ export function NoteEditor({
         aria-label="Isi catatan"
         spellCheck
         lang=""
-        onInput={commitDom}
+        onInput={(event) => {
+          // Lists the browser's own editing left split are joined, except
+          // mid-composition, where moving nodes would break the keyboard's word.
+          const node = ref.current;
+          if (node && !(event.nativeEvent as InputEvent).isComposing) joinSplitLists(node);
+          commitDom();
+        }}
         onBlur={sync.flush}
         className="note-editor min-h-[60vh] flex-1 px-4 py-3 text-[15px] leading-7 outline-none"
       />

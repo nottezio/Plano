@@ -556,8 +556,8 @@ export function PatientCard({
           break points count toward the element's MIN-CONTENT width, which
           collapses it to roughly one character. In a flex row that is a
           licence for every `shrink-0` badge beside it to take what it likes,
-          and the name is left with a column five letters wide — "Tn. Arfa /
-          Anugra / h Dicky". `break-word` keeps the min-content width at the
+          and the name is left with a column five letters wide — "Tn. Arka /
+          Wijay / a Dimas". `break-word` keeps the min-content width at the
           longest word, so the name holds a readable column and breaks inside a
           word only when a single word genuinely cannot fit.
 

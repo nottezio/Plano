@@ -7,8 +7,8 @@ import type { Patient } from '../types';
 
 const PATIENT = {
   id: 'p1',
-  name: 'Tn. Basra',
-  mrn: '1068190',
+  name: 'Tn. Bakri',
+  mrn: '8000007',
   age: 56,
   ward: 'PJT Lantai 5',
   room: '517',
@@ -20,7 +20,7 @@ const BODY = [
   'Assalamualaikum dokter.',
   'Mohon izin melaporkan pasien di *PJT Lantai 5 Kamar 517 Bed 3* atas nama:',
   '',
-  '*Tn. Basra / 12-03-1970 / 56 tahun / RM 1068190*',
+  '*Tn. Bakri / 12-03-1970 / 56 tahun / RM 8000007*',
   '',
   '_DPJP Kardio: dr. Zaenab Djafar, Sp.JP(K)_',
   '',
@@ -79,6 +79,6 @@ describe('presets drive composeKonsul', () => {
   it('echo full study composes a numbered list entry', () => {
     const out = compose('echo-full');
     expect(out).toContain('list pasien Echocardiography full study');
-    expect(out).toContain('1. *Tn. Basra / 12-03-1970 / 56 tahun / RM 1068190*');
+    expect(out).toContain('1. *Tn. Bakri / 12-03-1970 / 56 tahun / RM 8000007*');
   });
 });

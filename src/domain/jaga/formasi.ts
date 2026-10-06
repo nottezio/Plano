@@ -9,7 +9,7 @@ import type { DpjpDay, DpjpRoster, JagaRoster, JagaShift, JarkomDirectory, Jarko
  *
  * The paediatrics sheet and the Jarkom sheet are typed by different people and
  * disagree by a letter on real colleagues — `Fatur` against `Fathur`, `Auri`
- * against `Aurea`. The same one-edit rule the full-name matcher uses, applied
+ * against `Aulia`. The same one-edit rule the full-name matcher uses, applied
  * to the short name, which is the only string the paediatrics sheet carries.
  */
 function sameNickname(left: string, right: string): boolean {

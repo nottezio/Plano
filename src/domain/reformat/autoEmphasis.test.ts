@@ -8,8 +8,8 @@ describe('autoEmphasis', () => {
   it('bolds the identity line by its RM number', () => {
     // Matched on the RM rather than the slashes: a therapy line is full of
     // slashes too.
-    expect(out('Tn. H. Anwar Sjarida/02-12-1949/76 Tahun/RM 01714449')).toBe(
-      '*Tn. H. Anwar Sjarida/02-12-1949/76 Tahun/RM 01714449*',
+    expect(out('Tn. H. Anwar Sjarida/02-12-1949/76 Tahun/RM 08000004')).toBe(
+      '*Tn. H. Anwar Sjarida/02-12-1949/76 Tahun/RM 08000004*',
     );
   });
 
@@ -72,8 +72,8 @@ describe('autoEmphasis', () => {
 
   describe('measured against the corpus (export of 2026-09-20)', () => {
     it('bolds an identity line written without the letters RM', () => {
-      expect(out('Ny. Nuraeni / 3 Juli 1958 / 68 tahun / 1715410')).toBe(
-        '*Ny. Nuraeni / 3 Juli 1958 / 68 tahun / 1715410*',
+      expect(out('Ny. Nurhayati / 3 Juli 1958 / 68 tahun / 1715410')).toBe(
+        '*Ny. Nurhayati / 3 Juli 1958 / 68 tahun / 1715410*',
       );
     });
 

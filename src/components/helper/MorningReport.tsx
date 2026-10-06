@@ -485,7 +485,13 @@ function ShiftPatients({
   const count = parsed.patients.length;
   const filled = text.trim().length > 0;
   return (
-    <label className="block overflow-hidden rounded-xl border border-border bg-surface focus-within:border-accent">
+    /*
+      A column whose textarea GROWS to fill it. The Dinas and Jaga cards share
+      a grid row, so they always have the same height; a textarea with its own
+      fixed height left the shorter one ending above its card's edge, and
+      dragging one box's resize handle moved the other card but not its box.
+    */
+    <label className="flex flex-col overflow-hidden rounded-xl border border-border bg-surface focus-within:border-accent">
       <span className="flex items-center gap-2 border-b border-border bg-bg-subtle px-3 py-1.5 text-xs font-medium">
         <span className="flex-1">{partLabel(shift.part)}</span>
         <span className="sr-only">{shiftLabel(shift)}</span>
@@ -503,7 +509,7 @@ function ShiftPatients({
         onChange={(event) => setText(event.target.value)}
         rows={filled ? Math.min(12, text.split('\n').length + 1) : 2}
         placeholder="1. Tn. … / tgl lahir / umur / RM … / ruangan / DPJP : …&#10;Diagnosis:&#10;- …"
-        className="block w-full resize-y bg-surface px-3 py-2 font-mono text-[12px] text-fg outline-none placeholder:text-fg-faint"
+        className="block w-full grow resize-y bg-surface px-3 py-2 font-mono text-[12px] text-fg outline-none placeholder:text-fg-faint"
       />
       {parsed.unplaced.length > 0 ? (
         <span className="block border-t border-border px-3 py-1.5 text-[11px] text-danger">

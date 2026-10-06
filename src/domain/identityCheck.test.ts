@@ -34,8 +34,8 @@ describe('checkIdentity', () => {
 
   it('ignores a leading zero, which is written inconsistently', () => {
     const result = checkIdentity(
-      patient({ mrn: '1679091' }),
-      noteFor('*Tn. A / 39 thn / RM 01679091*'),
+      patient({ mrn: '8000002' }),
+      noteFor('*Tn. A / 39 thn / RM 08000002*'),
     );
     expect(result.status).toBe('match');
   });

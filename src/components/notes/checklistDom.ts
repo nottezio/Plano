@@ -66,6 +66,81 @@ export function checklistItemAt(root: HTMLElement, node: Node | null): HTMLLIEle
   return null;
 }
 
+const isList = (node: Node | null | undefined): node is HTMLElement =>
+  isElement(node) && (node.tagName === 'UL' || node.tagName === 'OL');
+
+/** The row of ANY list (bullet, numbered or checklist) containing `node`. */
+export function listItemAt(root: HTMLElement, node: Node | null): HTMLLIElement | null {
+  let current: Node | null = node;
+  while (current && current !== root) {
+    if (isElement(current) && current.tagName === 'LI' && isList(current.parentNode)) {
+      return current as HTMLLIElement;
+    }
+    current = current.parentNode;
+  }
+  return null;
+}
+
+/** Two lists of the same kind, back to back, are one list split by an edit. */
+function sameKind(a: Element, b: Element): boolean {
+  return a.tagName === b.tagName && a.classList.contains('cl') === b.classList.contains('cl');
+}
+
+/**
+ * Join the lists either side of `around` that an edit left back to back.
+ *
+ * Moving the rows keeps their nodes, so the caret inside them survives.
+ */
+function joinAdjacentLists(start: Node | null): void {
+  if (!isList(start)) return;
+  let list: HTMLElement = start;
+  const prev = list.previousSibling;
+  if (isList(prev) && sameKind(prev, list)) {
+    while (list.firstChild) prev.appendChild(list.firstChild);
+    list.remove();
+    list = prev;
+  }
+  const next = list.nextSibling;
+  if (isList(next) && sameKind(next, list)) {
+    while (next.firstChild) list.appendChild(next.firstChild);
+    next.remove();
+  }
+}
+
+/**
+ * Every pair of same-kind lists left back to back, anywhere in the note,
+ * joined. The browser's own Backspace on the blank line between two lists
+ * removes the line and leaves the lists split; this puts them back together.
+ * Returns whether anything moved.
+ */
+export function joinSplitLists(root: HTMLElement): boolean {
+  let changed = false;
+  root.querySelectorAll('ul, ol').forEach((list) => {
+    const next = list.nextSibling;
+    if (list.isConnected && isList(next) && sameKind(list, next)) {
+      while (next.firstChild) list.appendChild(next.firstChild);
+      next.remove();
+      changed = true;
+    }
+  });
+  return changed;
+}
+
+/** The caret at the end of an element's content (before a trailing <br>). */
+function caretAtEnd(element: Element): void {
+  let last: Node | null = element.lastChild;
+  if (isElement(last) && last.tagName === 'BR') last = last.previousSibling;
+  if (!last) {
+    placeCaret(element, 0);
+    return;
+  }
+  if (last.nodeType === 3) {
+    placeCaret(last, (last.textContent ?? '').length);
+    return;
+  }
+  placeCaret(element, Array.prototype.indexOf.call(element.childNodes, last) + 1);
+}
+
 const hasContent = (node: Node): boolean =>
   (node.textContent ?? '').replace(/ /g, ' ').trim() !== '' ||
   (isElement(node) && node.querySelector('img') !== null);
@@ -137,8 +212,8 @@ function detachItem(li: HTMLLIElement): { parent: Node; before: Node | null } {
   }
   let tailList: HTMLElement | null = null;
   if (tail.length > 0) {
-    tailList = doc.createElement('ul');
-    tailList.className = list.className;
+    tailList = doc.createElement(list.tagName === 'OL' ? 'ol' : 'ul');
+    if (list.className) tailList.className = list.className;
     for (const item of tail) tailList.appendChild(item);
     parent.insertBefore(tailList, list.nextSibling);
   }
@@ -165,19 +240,34 @@ function itemToLine(li: HTMLLIElement, caret: Range | null): void {
 }
 
 /**
- * Enter inside a checklist row. Returns true when handled (the caller then
- * prevents the browser's own Enter).
+ * ONE RULE SET FOR EVERY LIST (2026-10-06).
  *
- *  - In a row with text: split it at the caret; the new row is unticked.
- *  - In an EMPTY row: leave the list, as every notes app does — pressing
- *    Enter twice ends a checklist.
+ * Bullets used to be left to the browser and checklists handled here, and
+ * the two disagreed: Backspace on a fresh empty BULLET took the caret back to
+ * the row above, on a fresh empty CHECKLIST row it left a blank line that split
+ * the list in two. Worse, these ran from `keydown`, which skips any key pressed
+ * while the keyboard is composing, i.e. most keys on a phone keyboard with
+ * suggestions on, so there the browser's own handling ran instead, inside
+ * markup it does not understand. Which code handled a keypress depended on the
+ * keyboard's state: "sometimes it happens, sometimes it doesn't".
+ *
+ * Now both list kinds go through here, from `beforeinput` (which every
+ * keyboard fires), with one behaviour:
+ *  - Enter in a row with text: split it (a new checklist row is unticked).
+ *  - Enter in an EMPTY row: leave the list (Enter twice ends a list).
+ *  - Backspace at the start of an EMPTY row: delete the row, caret to the end
+ *    of the row above, as if the Enter had never happened.
+ *  - Backspace at the start of a row WITH text: join it onto the row above;
+ *    on the first row, the row becomes a plain line instead.
+ * Lists that an edit leaves back to back are joined again.
  */
-export function checklistEnter(root: HTMLElement): boolean {
+export function listEnter(root: HTMLElement): boolean {
   const range = selectionIn(root);
   if (!range) return false;
-  const li = checklistItemAt(root, range.startContainer);
+  const li = listItemAt(root, range.startContainer);
   if (!li) return false;
   const doc = root.ownerDocument;
+  const checklist = isChecklist(li.parentNode);
 
   if (!range.collapsed) range.deleteContents();
 
@@ -196,7 +286,7 @@ export function checklistEnter(root: HTMLElement): boolean {
   const moved = tail.extractContents();
 
   const next = doc.createElement('li');
-  next.setAttribute('data-checked', 'false');
+  if (checklist) next.setAttribute('data-checked', 'false');
   if (hasContent(moved)) next.appendChild(moved);
   fill(next);
   // What stayed behind may now be empty (Enter at the very start of a row).
@@ -206,22 +296,43 @@ export function checklistEnter(root: HTMLElement): boolean {
   return true;
 }
 
-/**
- * Backspace at the very start of a row removes the box and keeps the text, as
- * a plain line. Anywhere else, the browser's own Backspace is right.
- */
-export function checklistBackspace(root: HTMLElement): boolean {
+export function listBackspace(root: HTMLElement): boolean {
   const range = selectionIn(root);
   if (!range || !range.collapsed) return false;
-  const li = checklistItemAt(root, range.startContainer);
+  const li = listItemAt(root, range.startContainer);
   if (!li) return false;
   const before = root.ownerDocument.createRange();
   before.setStart(li, 0);
   before.setEnd(range.startContainer, range.startOffset);
-  if (before.toString().length > 0) return false;
-  itemToLine(li, range);
+  if (before.toString().replace(/[\u200b\u2060\ufeff]/g, '').length > 0) return false;
+
+  const previous = li.previousElementSibling;
+  const list = li.parentNode as HTMLElement;
+  if (!previous || previous.tagName !== 'LI') {
+    // The first row: it stops being a list item and keeps its text.
+    itemToLine(li, range);
+    return true;
+  }
+
+  if (!hasContent(li)) {
+    li.remove();
+    caretAtEnd(previous);
+    return true;
+  }
+
+  // Join onto the row above, caret at the seam.
+  previous.querySelectorAll(':scope > br:last-child').forEach((br) => br.remove());
+  const seam = previous.childNodes.length;
+  while (li.firstChild) previous.appendChild(li.firstChild);
+  li.remove();
+  placeCaret(previous, seam);
+  joinAdjacentLists(list);
   return true;
 }
+
+/** Names kept for callers written before bullets were handled here too. */
+export const checklistEnter = listEnter;
+export const checklistBackspace = listBackspace;
 
 /** Ctrl/Cmd+Enter: tick the row the caret is in, without touching the mouse. */
 export function toggleItemAtCaret(root: HTMLElement): boolean {

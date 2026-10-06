@@ -16,7 +16,7 @@ import { makePatient } from '../testFactories';
 const REAL_NOTE = [
   'Assalamualaikum dokter. Tabe dokter, mohon izin melaporkan follow up pasien di *PJT Lt. 4 kamar 414 bed 2* atas nama :',
   '',
-  '*Ny. Siati /01-06-1965/61 th/RM 881487*',
+  '*Ny. Sutini /01-06-1965/61 th/RM 800016*',
   '',
   '_DPJP Kardio (Utama): dr. Zaenab Djafar, M.Kes, Sp.PD, Sp.JP, Subsp.PRKV(K)_',
   '_DPJP Orthopedi: Dr. dr. Karya Triko Biakto, MARS, Sp.O.T.Subsp.O.T.B(K)_',
@@ -48,7 +48,7 @@ const OPTIONS = {
   includeIdentity: false,
   includeDateHeader: false,
   aliases: ALIASES,
-  patient: makePatient({ name: 'Ny. Siati', mrn: '881487' }),
+  patient: makePatient({ name: 'Ny. Sutini', mrn: '800016' }),
   bullet: 'hyphen' as const,
 };
 
@@ -93,7 +93,7 @@ describe('Salin bagian, against a real note', () => {
     // copying O pasted the patient name and three consultants above the
     // vitals.
     const out = copyGroup('o');
-    expect(out).not.toContain('Ny. Siati /01-06-1965');
+    expect(out).not.toContain('Ny. Sutini /01-06-1965');
     expect(out).not.toContain('DPJP Kardio');
     expect(out).not.toContain('Assalamualaikum');
   });

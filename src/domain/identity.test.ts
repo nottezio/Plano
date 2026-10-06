@@ -82,7 +82,7 @@ describe('clinicalStart', () => {
 
 describe('redactName', () => {
   it('removes every occurrence, case-insensitively', () => {
-    expect(redactName('Tn. Basra dan basra lagi', 'Basra')).toBe('Tn. — dan — lagi');
+    expect(redactName('Tn. Bakri dan bakri lagi', 'Bakri')).toBe('Tn. — dan — lagi');
   });
 
   it('ignores a name too short to be meaningful', () => {

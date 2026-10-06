@@ -5,7 +5,7 @@ import { expandOpeningTokens, findOpeningLine, replaceClosing, replaceGreeting, 
 const OPENING =
   "Assalamu'alaikum dokter. Tabe dokter, mohon izin melaporkan follow up pasien di *PJT Lantai 5 Kamar 516 Bed 2*  atas nama :";
 
-const BODY = [OPENING, '', '*Tn. Abdullah / 59 tahun / RM 1667031*', '', '*S:*', '- nyeri dada tidak ada'].join('\n');
+const BODY = [OPENING, '', '*Tn. Abdullah / 59 tahun / RM 8000011*', '', '*S:*', '- nyeri dada tidak ada'].join('\n');
 
 describe('findOpeningLine', () => {
   it('finds the first non-empty line', () => {
@@ -67,7 +67,7 @@ describe('replaceOpeningSentence', () => {
 
   it('does not touch the identity line below it', () => {
     const next = replaceOpeningSentence(BODY, 'Mohon izin melaporkan.');
-    expect(next).toContain('*Tn. Abdullah / 59 tahun / RM 1667031*');
+    expect(next).toContain('*Tn. Abdullah / 59 tahun / RM 8000011*');
   });
 });
 

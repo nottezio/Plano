@@ -217,8 +217,8 @@ describe('the iPhone asterisk bullet', () => {
  */
 describe('restoreEmphasis — confirmed rules', () => {
   it('bolds the identity line', () => {
-    expect(restoreEmphasis('Tn. Basra / 12-03-1970 / 56 tahun / RM 1068190')).toBe(
-      '*Tn. Basra / 12-03-1970 / 56 tahun / RM 1068190*',
+    expect(restoreEmphasis('Tn. Bakri / 12-03-1970 / 56 tahun / RM 8000007')).toBe(
+      '*Tn. Bakri / 12-03-1970 / 56 tahun / RM 8000007*',
     );
   });
 
@@ -242,7 +242,7 @@ describe('restoreEmphasis — confirmed rules', () => {
       'Assalamualaikum dokter.',
       'Mohon izin melaporkan pasien di PJT Lantai 5 Kamar 517 Bed 3 atas nama:',
       '',
-      'Tn. Basra / 12-03-1970 / 56 tahun / RM 1068190',
+      'Tn. Bakri / 12-03-1970 / 56 tahun / RM 8000007',
       '',
       'DPJP Utama dan Tindakan : dr. ZD',
       'Post Tindakan : PCI (Senin, 10-08-2026)',
@@ -261,7 +261,7 @@ describe('restoreEmphasis — confirmed rules', () => {
     expect(out[1]).toBe(
       'Mohon izin melaporkan pasien di PJT Lantai 5 Kamar 517 Bed 3 atas nama:',
     );
-    expect(out[3]).toBe('*Tn. Basra / 12-03-1970 / 56 tahun / RM 1068190*');
+    expect(out[3]).toBe('*Tn. Bakri / 12-03-1970 / 56 tahun / RM 8000007*');
     for (const index of [5, 6, 7, 8, 9]) {
       expect(out[index]).toMatch(/^_.+_$/);
     }
@@ -278,7 +278,7 @@ describe('restoreEmphasis — confirmed rules', () => {
 
   it('leaves the note alone when there is no clinical heading to bound the zone', () => {
     // An unbounded zone would italicise everything below the identity line.
-    const body = 'Tn. Basra / 56 tahun / RM 1068190\nCatatan bebas tanpa judul apapun';
+    const body = 'Tn. Bakri / 56 tahun / RM 8000007\nCatatan bebas tanpa judul apapun';
     expect(restoreEmphasis(body).split('\n')[1]).toBe('Catatan bebas tanpa judul apapun');
   });
 
@@ -368,7 +368,7 @@ describe('restoreEmphasis — confirmed rules', () => {
   });
 
   it('is idempotent', () => {
-    const body = 'Tn. Basra / RM 1068190\nS: Sesak\nTS BTKV: CABG\nPlan:';
+    const body = 'Tn. Bakri / RM 8000007\nS: Sesak\nTS BTKV: CABG\nPlan:';
     const once = restoreEmphasis(body);
     expect(restoreEmphasis(once)).toBe(once);
   });

@@ -5,8 +5,8 @@ import { DEFAULT_SECTION_ALIASES as ALIASES } from '../defaults';
 import { makePatient } from '../testFactories';
 
 const PATIENT = makePatient({
-  name: 'Tn. Muh. Djasmani Djafar',
-  mrn: '134048',
+  name: 'Tn. Muh. Darman Dahlan',
+  mrn: '800008',
   age: 53,
   ward: 'PJT Lt. 4',
   room: '402',
@@ -16,7 +16,7 @@ const PATIENT = makePatient({
 const BODY = [
   'Assalamualaikum dokter, Tabe dokter, mohon izin melaporkan follow up pasien.',
   '',
-  '*Tn. Muh. Djasmani Djafar/01-02-1973/53 tahun/RM 134048*',
+  '*Tn. Muh. Darman Dahlan/01-02-1973/53 tahun/RM 800008*',
   '',
   '_DPJP Kardio: dr. Aussie Fitriani Ghaznawie, Sp.JP, Subsp.Eko(K)_',
   '_DPJP Tindakan: Dr. dr. Akhtar Fajar Muzakkir, Sp.JP, Subsp.IKKV(K), KI(K)_',
@@ -54,7 +54,7 @@ describe('composeKonsul', () => {
   it("reuses the note's own identity line, date of birth and all", () => {
     // Rebuilt from the patient record it would lose the DOB, which the record
     // does not always hold and a referral needs.
-    expect(out).toContain('*Tn. Muh. Djasmani Djafar/01-02-1973/53 tahun/RM 134048*');
+    expect(out).toContain('*Tn. Muh. Darman Dahlan/01-02-1973/53 tahun/RM 800008*');
   });
 
   it('carries every DPJP line, in order', () => {
@@ -140,7 +140,7 @@ describe('composeKonsul list style', () => {
   });
 
   it('numbers the patient', () => {
-    expect(out).toContain('1. *Tn. Muh. Djasmani Djafar');
+    expect(out).toContain('1. *Tn. Muh. Darman Dahlan');
   });
 
   it('keeps the DPJP and diagnosis blocks identical to a referral', () => {

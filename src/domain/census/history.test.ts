@@ -13,8 +13,8 @@ const report = (issues: Issue[], verdict: VerificationReport['verdict'] = 'NOT_C
 
 describe('applyResolutions', () => {
   it('closes an answered 🟡 item and turns the verdict CLEAN when nothing else is open', () => {
-    const r = report([issue('O5:1709802:', 'O5', 'confirm')]);
-    const result = applyResolutions(r, { 'O5:1709802:': 'confirmedDischarge' });
+    const r = report([issue('O5:8000014:', 'O5', 'confirm')]);
+    const result = applyResolutions(r, { 'O5:8000014:': 'confirmedDischarge' });
     expect(result.open).toEqual([]);
     expect(result.answered).toHaveLength(1);
     expect(result.verdict).toBe('CLEAN');
@@ -33,26 +33,26 @@ describe('applyResolutions', () => {
 });
 
 describe('nextHistory — O5 carry-forward', () => {
-  const vanished = issue('O5:1607407:', 'O5', 'confirm');
+  const vanished = issue('O5:8000017:', 'O5', 'confirm');
 
   it('keeps carrying an unconfirmed vanished patient', () => {
     const next = nextHistory({
       report: report([vanished]),
-      roomGrid: [{ rm: '1709802', name: 'Tn. Kahar' }],
+      roomGrid: [{ rm: '8000014', name: 'Tn. Karim' }],
       previous: null,
       resolutions: {},
     });
-    expect(next.activeRms.sort()).toEqual(['1607407', '1709802']);
+    expect(next.activeRms.sort()).toEqual(['8000014', '8000017']);
   });
 
   it('drops them once confirmed discharged', () => {
     const next = nextHistory({
       report: report([vanished]),
-      roomGrid: [{ rm: '1709802', name: 'Tn. Kahar' }],
+      roomGrid: [{ rm: '8000014', name: 'Tn. Karim' }],
       previous: null,
-      resolutions: { 'O5:1607407:': 'confirmedDischarge' },
+      resolutions: { 'O5:8000017:': 'confirmedDischarge' },
     });
-    expect(next.activeRms).toEqual(['1709802']);
+    expect(next.activeRms).toEqual(['8000014']);
   });
 
   it('remembers names, keeping those of patients no longer on the grid', () => {
@@ -70,7 +70,7 @@ describe('nextHistory — O5 carry-forward', () => {
       report: report([vanished, issue('C3:IM:', 'C3', 'high')]),
       roomGrid: [],
       previous: null,
-      resolutions: { 'O5:1607407:': 'confirmedDischarge' },
+      resolutions: { 'O5:8000017:': 'confirmedDischarge' },
     });
     expect(next.issues.map((i) => i.id)).toEqual(['C3:IM:']);
   });

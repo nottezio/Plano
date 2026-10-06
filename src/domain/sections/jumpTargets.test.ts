@@ -79,7 +79,7 @@ describe('jumpTargets', () => {
       '*O:*', 'Compos mentis',
       '*Penunjang:*', 'Hb 12',
       '*EKG PJT Lt 4:*', 'sinus',
-      '*Tn Udis 01-06:*', 'lab',
+      '*Tn Udin 01-06:*', 'lab',
     ].join('\n');
     const ids = jumpTargets(noisy, ALIASES).map((target) => target.sectionId);
     expect(ids).toEqual(['_identity', 'o']);

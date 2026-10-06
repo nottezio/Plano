@@ -30,7 +30,7 @@ const OPTIONS = {
   includeIdentity: false,
   includeDateHeader: false,
   aliases: ALIASES,
-  patient: makePatient({ name: 'Ny. Siati', mrn: '881487' }),
+  patient: makePatient({ name: 'Ny. Sutini', mrn: '800016' }),
   bullet: 'hyphen' as const,
 };
 

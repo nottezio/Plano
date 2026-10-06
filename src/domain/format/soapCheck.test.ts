@@ -508,3 +508,42 @@ describe('urine output unchanged, written any usual way (2026-09-30)', () => {
     expect(note.slice(finding!.at!, finding!.at! + 2)).toBe('UO');
   });
 });
+
+describe('consults on the 6 October note (Gizi Klinik, Rehab, Neuro)', () => {
+  it('flags only the service the header really lacks', () => {
+    const body = [
+      '_DPJP Utama: dr. Konsulen A, Sp.JP, Subsp.Eko(K)_',
+      '_DPJP Gizi : dr. Konsulen C, Sp. GK (K)_',
+      '_DPJP HOM : dr. Konsulen D, Sp. PD, KHOM_',
+      '_DPJP KFR : dr. Konsulen E, Sp.KFR.Ped(K)_',
+      '_DPJP Derven : dr. Konsulen F, Sp.D.V.E_',
+      '',
+      '*S:*',
+      '- keluhan',
+      '',
+      '*TS Neuro*',
+      'A/',
+      'Post loss of consciousness',
+      '',
+      '*TS Gizi Klinik*',
+      'A/',
+      'Malnutrisi',
+      '',
+      '*TS HOM*',
+      'A/',
+      'Leukositosis',
+      '',
+      '*TS Rehab*',
+      'A/',
+      'Immobilization',
+      '',
+      '*TS Derven*',
+      'A/',
+      'Miliaria',
+    ].join('\n');
+    const messages = checkSoap({ body })
+      .filter((finding) => finding.kind === 'consult-not-in-dpjp')
+      .map((finding) => finding.message);
+    expect(messages).toEqual(['TS Neuro sudah menjawab tapi belum ada di daftar DPJP.']);
+  });
+});

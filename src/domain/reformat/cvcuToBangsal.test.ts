@@ -6,7 +6,7 @@ import { cvcuToBangsal, lostTokens, splitFindings } from './cvcuToBangsal';
 const CVCU = [
   'Assalamualaikum prof, melaporkan Pasien di *CVCU VIP 1*, pasien atas nama:',
   '',
-  '*Ny. Nirwana / 20-01-1967 / 59 tahun / RM 854003*',
+  '*Ny. Nurlela / 20-01-1967 / 59 tahun / RM 800015*',
   '',
   'S/',
   'Saat ini Keluhan nyeri dada, berdebar dan sesak napas tidak ada.',
@@ -88,7 +88,7 @@ describe('cvcuToBangsal', () => {
   });
 
   it('leaves everything outside O untouched', () => {
-    expect(body).toContain('*Ny. Nirwana / 20-01-1967 / 59 tahun / RM 854003*');
+    expect(body).toContain('*Ny. Nurlela / 20-01-1967 / 59 tahun / RM 800015*');
     expect(body).toContain('Saat ini Keluhan nyeri dada');
     expect(body).toContain('- Unstable Angina Pectoris Low Risk');
   });

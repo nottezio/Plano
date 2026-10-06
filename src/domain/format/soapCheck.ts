@@ -1,3 +1,4 @@
+import { consultCovered, dpjpSpecialties } from './specialties';
 import { findDayMarkers } from '@/domain/dayMarkers';
 import { aliasesOrDefault } from '@/domain/sections/aliases';
 import { parseSections, type ParsedSection } from '@/domain/sections/parseSections';
@@ -392,15 +393,13 @@ export function checkSoap(input: SoapCheckInput): SoapFinding[] {
     that is co-managing the patient and is missing from it does not get the
     note, and nobody notices until they ask why they were not told.
 
-    Matched on the first few letters of the service, because the two lines
-    rarely spell it the same: `TS Pulmo` in the block, `DPJP Pulmonologi` in
-    the header.
+    Matched by SPECIALTY, not by spelling (`specialties.ts`): `TS Pulmo` and
+    `DPJP Pulmonologi`, `TS Gizi Klinik` and `DPJP Gizi`, `TS Rehab` and
+    `DPJP KFR` are each one service, and a consultant's title (`Sp.N`) names
+    the specialty even under a generic label. The first-five-letters match
+    this replaced flagged the last two on a note that listed both.
   */
-  const dpjpLines = body
-    .split('\n')
-    .filter((line) => /DPJP/i.test(line))
-    .join(' ')
-    .toLowerCase();
+  const covered = dpjpSpecialties(body);
 
   const services = new Set(
     [...body.matchAll(/^[*_\s]*TS\s+([A-Za-z][\w ]{2,25}?)[*_:\s]*$/gim)]
@@ -409,9 +408,7 @@ export function checkSoap(input: SoapCheckInput): SoapFinding[] {
   );
 
   for (const service of services) {
-    const stem = service.replace(/[^a-z]/gi, '').slice(0, 5).toLowerCase();
-    if (stem.length < 3) continue;
-    if (dpjpLines.includes(stem)) continue;
+    if (consultCovered(service, covered)) continue;
     findings.push({
       kind: 'consult-not-in-dpjp',
       level: 'cek',

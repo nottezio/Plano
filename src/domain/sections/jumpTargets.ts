@@ -93,7 +93,7 @@ export function headerToken(headerLine: string | null): string | null {
  *
  * A previous version offered every heading the parser found, on the reasoning
  * that navigation should not depend on the alias table classifying a heading.
- * That produced a bar of `tn udis 0…`, `ekg pjt l…`, `ekg hcu p…` — the lab
+ * That produced a bar of `tn pasien 0…`, `ekg pjt l…`, `ekg hcu p…` — the lab
  * and EKG blocks — burying the five destinations that are used constantly. The
  * principle was right and the conclusion was wrong: the fix for an
  * unrecognised heading is to recognise it, not to widen the bar. See

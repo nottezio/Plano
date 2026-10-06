@@ -73,15 +73,15 @@ describe('buildDenah', () => {
 describe('denahLine', () => {
   it('reads like the denah does', () => {
     const patient: Patient = {
-      ...makePatient({ name: 'Tn. Roni Sampebua', age: 66 }),
-      mrn: '1691002',
+      ...makePatient({ name: 'Tn. Rudi Santoso', age: 66 }),
+      mrn: '8000012',
       dpjpId: 'afm',
     };
-    expect(denahLine(patient, false)).toBe('AFM / Tn. Roni Sampebua / 66 th / RM 1691002');
+    expect(denahLine(patient, false)).toBe('AFM / Tn. Rudi Santoso / 66 th / RM 8000012');
   });
 
   it('honours initials-only mode', () => {
-    const patient = { ...makePatient({ name: 'Tn. Roni Sampebua' }), dpjpId: 'afm' };
+    const patient = { ...makePatient({ name: 'Tn. Rudi Santoso' }), dpjpId: 'afm' };
     const line = denahLine(patient, true);
     expect(line).toContain('R.S');
     expect(line).not.toContain('Roni');

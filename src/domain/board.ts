@@ -196,7 +196,7 @@ export function buildCard(
       lines that decide this are nowhere in it. `searchBlob` is worse: it is
       built from name, MRN, bed, ward and diagnoses, and never contains a word
       of the note body. So the badge fired only on the handful of patients
-      whose preview happened to start at the note header, and Ny. Nuraeni — a
+      whose preview happened to start at the note header, and Ny. Nurhayati — a
       KJS patient in every note she has — showed nothing at all.
 
       It is computed once, at write time, from the WHOLE body, next to where

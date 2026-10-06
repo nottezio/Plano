@@ -339,19 +339,19 @@ describe('standing patient notes', () => {
 
 describe('initials-only mode does not leak the name in the preview', () => {
   const patient = makePatient({
-    name: 'Tn. Basra',
-    preview: '*Tn. Basra / 02-12-1970 / 55 tahun / RM 1068190*\nS: nyeri dada tidak ada',
+    name: 'Tn. Bakri',
+    preview: '*Tn. Bakri / 02-12-1970 / 55 tahun / RM 8000007*\nS: nyeri dada tidak ada',
   });
 
   it('redacts the name from the preview when initials-only is on', () => {
     const card = buildCard(patient, ITEMS, TODAY, true);
     expect(card.title).toBe('B');
-    expect(card.preview).not.toContain('Basra');
+    expect(card.preview).not.toContain('Bakri');
     expect(card.preview).toContain('nyeri dada');
   });
 
   it('leaves the preview intact when initials-only is off', () => {
-    expect(buildCard(patient, ITEMS, TODAY, false).preview).toContain('Basra');
+    expect(buildCard(patient, ITEMS, TODAY, false).preview).toContain('Bakri');
   });
 
   it('does not redact a name too short to be one', () => {
@@ -517,7 +517,7 @@ describe('kjsRole — cases taken from the 2026-09-11 export', () => {
   });
 
   it('does NOT call a cardiology-primary patient a consult, even with a Kardio line', () => {
-    // Ny. Siati: `DPJP Kardio (Utama)` — the cardiologist IS the primary. The
+    // Ny. Sutini: `DPJP Kardio (Utama)` — the cardiologist IS the primary. The
     // first version of this rule got her wrong, which said the plan was only a
     // recommendation on a patient who is entirely ours.
     const note = [
@@ -528,7 +528,7 @@ describe('kjsRole — cases taken from the 2026-09-11 export', () => {
   });
 
   it('does not promote an ordinary patient with one Kardio line', () => {
-    // Tn. Muh Iqbal: a solitary `_DPJP Kardio : …_` and nothing else.
+    // Tn. Muh Ikhsan: a solitary `_DPJP Kardio : …_` and nothing else.
     expect(kjsRole('_DPJP Kardio : Dr. dr. Abdul Hakim Alkatiri, Sp.JP(K)_')).toBeNull();
   });
 
@@ -550,7 +550,7 @@ describe('kjsRole — cases taken from the 2026-09-11 export', () => {
   });
 
   it('reads a KJS opening with no Kardio line as ts', () => {
-    // Ny. St. Salmah: the KJS template opening, cardiology Utama, no separate
+    // Ny. St. Sarifah: the KJS template opening, cardiology Utama, no separate
     // cardiology line.
     const note = [
       'melaporkan follow up pasien KJS *TS (Bagian) ((Nama DPJP))*',

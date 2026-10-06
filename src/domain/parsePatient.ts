@@ -42,7 +42,7 @@ const TITLE = /\b(Tn|Ny|Nn|An|Sdr|Sdri)\.?\s/i;
 /**
  * The identity line.
  *
- * Written as `*Ny. Bubi Dg Pajja/ 01-02-1960/ 66 tahun / RM 1478911*`, with the
+ * Written as `*Ny. Badu Dg Rapi/ 01-02-1960/ 66 tahun / RM 8000009*`, with the
  * separators and spacing varying freely. Fields are located by what they look
  * like rather than by position: a date is the thing shaped like a date, an MRN
  * is the number after `RM`. Splitting on `/` and trusting the order breaks the
@@ -61,8 +61,8 @@ const PLACEHOLDER = /\((nama|tgl|umur|no|ruang|bagian)[^)]*\)/i;
  *
  * Real identity lines write it both ways:
  *
- *   Tn. Basra / 12-03-1970 / 56 tahun / RM 1068190
- *   Tn. Arfa Anugrah Dicky Putra/13-02-2003/23 tahun/ 01705916
+ *   Tn. Bakri / 12-03-1970 / 56 tahun / RM 8000007
+ *   Tn. Arka Wijaya Dimas Putra/13-02-2003/23 tahun/ 01705916
  *
  * Requiring the literal `RM` meant the second shape parsed to nothing at all —
  * not a missing MRN, no patient. `looksLikeIdentityLine` tests for the same
@@ -89,7 +89,7 @@ const AGE = /(\d{1,3})\s*(?:tahun|thn|th)\b/i;
 function findMrn(line: string): string | undefined {
   /*
     The age comes out first. The labelled number may contain spaces
-    (`RM 147-891 1`), so `RM 1478911 66 tahun` read as 147891166: the age
+    (`RM 147-891 1`), so `RM 8000009 66 tahun` read as 147891166: the age
     glued onto the record number.
   */
   const labelled = MRN_LABELLED.exec(line.replace(new RegExp(AGE.source, 'gi'), ' '));

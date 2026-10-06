@@ -5,15 +5,15 @@ import { DEFAULT_SECTION_ALIASES as ALIASES } from '../defaults';
 import { makePatient } from '../testFactories';
 
 const PATIENT = makePatient({
-  name: 'Tn. Mansyur Lahman',
-  mrn: '1701549',
+  name: 'Tn. Mahmud Lantara',
+  mrn: '8000013',
   age: 68,
   ward: 'IGD PJT',
   bed: 'Redzoned 6',
 });
 
 const BODY = [
-  '*Tn. Mansyur Lahman/05-05-1958/68 tahun/RM 1701549*',
+  '*Tn. Mahmud Lantara/05-05-1958/68 tahun/RM 8000013*',
   '',
   '_DPJP Utama dan Tindakan : dr. Az Hafid Nashar, SpJP(K)_',
   '',
@@ -45,7 +45,7 @@ describe('composeInvasif', () => {
   });
 
   it("reuses the note's own identity line", () => {
-    expect(out).toContain('*Tn. Mansyur Lahman/05-05-1958/68 tahun/RM 1701549*');
+    expect(out).toContain('*Tn. Mahmud Lantara/05-05-1958/68 tahun/RM 8000013*');
   });
 
   it('carries the DPJP line as written', () => {

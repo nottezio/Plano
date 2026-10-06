@@ -1,5 +1,7 @@
 import { useState, type ReactNode } from 'react';
 
+import { IconChevronRight } from '@/components/common/Icons';
+
 /**
  * One section of the patient sidebar in the panel layout.
  *
@@ -65,24 +67,25 @@ export function SidePanel({
         type="button"
         onClick={() => setOpen((current) => !current)}
         aria-expanded={open}
-        className="flex min-h-tap w-full items-center gap-2 px-3 text-left"
+        className="flex min-h-tap w-full items-center gap-2 px-3 text-left hover:bg-bg-subtle [@media(pointer:fine)]:min-h-10"
       >
-        <span className="flex-1 text-xs font-semibold uppercase tracking-wide text-fg-muted">
+        <IconChevronRight
+          aria-hidden="true"
+          className={`h-3.5 w-3.5 shrink-0 text-fg-faint transition-transform ${open ? 'rotate-90' : ''}`}
+        />
+        <span className="flex-1 text-[11px] font-semibold uppercase tracking-wider text-fg-faint">
           {title}
         </span>
         {summary ? (
           <span
             className={[
-              'shrink-0 rounded px-1.5 py-0.5 text-[11px] tabular-nums',
+              'shrink-0 rounded-full px-2 py-0.5 text-[11px] font-medium tabular-nums',
               tone === 'done' ? 'bg-[var(--accent-soft)] text-accent' : 'bg-bg-subtle text-fg-muted',
             ].join(' ')}
           >
             {summary}
           </span>
         ) : null}
-        <span aria-hidden="true" className="shrink-0 text-fg-faint">
-          {open ? '−' : '+'}
-        </span>
       </button>
       {open ? (
         <div className="border-t border-border px-3 py-2">{children}</div>

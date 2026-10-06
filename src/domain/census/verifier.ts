@@ -276,8 +276,8 @@ export interface CheckContext {
   previousActiveRms?: Set<string>;
   /**
    * PORT: names for those RMs. The original noted "caller should pass richer
-   * history if display name matters" — it does: "RM 1709802 vanished" is a
-   * number to look up, "Tn. Kahar vanished" is a patient.
+   * history if display name matters" — it does: "RM 8000014 vanished" is a
+   * number to look up, "Tn. Karim vanished" is a patient.
    */
   previousNames?: Record<string, string>;
 }

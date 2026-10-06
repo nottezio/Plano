@@ -6,7 +6,7 @@ import { defaultUserSettings } from './defaults';
 const REAL_NOTE = [
   "Selamat pagi prof. Tabe prof, melaporkan follow up pasien di *PJT Lantai 5 Kamar 517 Bed 3* atas nama:",
   '',
-  '*Ny. Bubi Dg Pajja/ 01-02-1960/ 66 tahun / RM 1478911*',
+  '*Ny. Badu Dg Rapi/ 01-02-1960/ 66 tahun / RM 8000009*',
   '',
   '_DPJP Utama : Prof. dr. Peter Kabo, PhD, Sp.FK, Sp.JP(K)_',
   '_DPJP Tindakan : Dr. dr. Abdul Hakim Alkatiri, Sp.JP (K)_',
