@@ -17,7 +17,9 @@ import type { ArchiveReason } from '@/domain/types';
 import { CanvasBoard } from '@/components/board/CanvasBoard';
 import { StickyNoteCard } from '@/components/board/StickyNoteCard';
 import { CanvasStickers, CardStickers } from '@/components/board/CanvasStickers';
+import { CanvasDrawing } from '@/components/board/CanvasDrawing';
 import { useBoardStickers } from '@/hooks/useBoardStickers';
+import { useBoardDrawing } from '@/hooks/useBoardDrawing';
 import { createBoardNote } from '@/data/repositories/boardNotes.repo';
 import { activeBoardNotes, noteIdFromCanvasId, stickyCanvasId } from '@/domain/boardNotes';
 import { useMediaQuery } from '@/hooks/useMediaQuery';
@@ -140,6 +142,8 @@ export default function BoardPage(): JSX.Element {
 
   /** The stickers of the scope on screen: one list, drawn by the canvas and by each card. */
   const stickerState = useBoardStickers(scope);
+  /** The scope's drawing, on this device only (Avi: "stay on each device"). */
+  const drawingState = useBoardDrawing(scope);
 
   const changeScope = (next: 'mine' | 'temporary'): void => {
     setScope(next);
@@ -1021,12 +1025,21 @@ export default function BoardPage(): JSX.Element {
               // sticky notes and for the same reason: neither answers "which
               // patient" and neither can be ticked.
               overlay={(surfaceRef) => (
-                <CanvasStickers
-                  surfaceRef={surfaceRef}
-                  enabled={showStickies}
-                  actionsSlot={canvasActions}
-                  state={stickerState}
-                />
+                <>
+                  {/* First, so it is drawn under every card (see CanvasDrawing). */}
+                  <CanvasDrawing
+                    surfaceRef={surfaceRef}
+                    enabled={showStickies}
+                    actionsSlot={canvasActions}
+                    state={drawingState}
+                  />
+                  <CanvasStickers
+                    surfaceRef={surfaceRef}
+                    enabled={showStickies}
+                    actionsSlot={canvasActions}
+                    state={stickerState}
+                  />
+                </>
               )}
               renderInCard={(id) =>
                 showStickies ? <CardStickers cardId={id} state={stickerState} /> : null

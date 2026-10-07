@@ -1,5 +1,57 @@
 # Plano — CHANGES
 
+## `2026-10-07.2` — Drawing on the board canvas (per device, per scope)
+
+Avi: "Is it possible to make the dashboard canvas background drawable?", then
+"Stay on each device".
+
+**Model (`domain/board/drawing.ts`).**
+- The sticker rules exactly: localStorage per scope
+  (`visite.board.drawing.<scope>`), x as a fraction of the canvas width and y
+  in px, like card positions, so a stroke keeps its place relative to the
+  cards when the window is resized.
+- A stroke is `{id, tool: pen|highlighter, color, points[]}`, flat, rounded
+  (x to 1/10 000, y to 0.1 px).
+- Points closer than 2 px to the last kept are dropped.
+- Capped at 20 000 points (about 300 KB); the oldest strokes go first.
+- The eraser removes whole strokes it touches (reach includes the stroke's
+  half-width, so a highlighter is easier to hit).
+- Paths are midpoint-quadratic smoothed.
+- Colours are stored by id and drawn through tokens (`--fg`, `--danger`,
+  `--accent`, `--discharge-h1`), so they follow light and dark mode.
+
+**Layers (`CanvasDrawing.tsx`).**
+- The drawing is an SVG laid down through the canvas `overlay` slot before
+  the cards, so every card sits on top of it. It never takes a pointer.
+- Draw mode adds a transparent capture layer above everything (z-50), so
+  the pointer draws instead of dragging or opening a card. Pointer capture
+  and coalesced events give smooth, unbroken strokes.
+- Outside draw mode the board behaves exactly as before.
+- Tools are portalled into the board toolbar beside Penanda.
+- Undo (50 steps, in memory) takes back one gesture: a stroke, an eraser
+  drag, or a clear.
+- Hapus semua needs two presses rather than a browser dialog, which would
+  freeze the board.
+- Esc leaves draw mode; searching or selecting turns it off.
+
+**Checked in Chromium**, against the real component and hook:
+- a card opens outside draw mode and does not while drawing;
+- pen, highlighter, eraser and undo;
+- the drawing survives a reload;
+- Titipan is separate;
+- clear needs two presses and can be undone;
+- Esc exits;
+- light and dark;
+- no console errors.
+
+**Not done.** The phone board is a block grid with different positions, so
+the drawing is on the canvas board only (from 1024 px).
+
+```
+1980 tests passed (+12)
+typecheck / lint (0 warnings) / check:version / check:contrast / check:a11y / build - clean
+```
+
 ## `2026-10-07.1` — Foley reminder; sticky notes per board; discharge strips; effective osmolality explained
 
 ### 1. Periksa lagi: remind about a Foley catheter (Avi)

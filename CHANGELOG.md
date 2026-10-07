@@ -5,6 +5,10 @@ Catatan teknis lengkap (akar masalah, perbaikan) ada di CHANGES.md.
 
 Entri teratas harus versi yang sedang dirilis; tes gagal bila belum ditulis.
 
+## `2026-10-07.2`
+- **Gambar di papan pasien:** tombol **✏️ Gambar** di bilah papan (di samping Penanda) membuka mode gambar: **Pena**, **Stabilo**, dan **Penghapus** (menghapus satu garis utuh), empat warna, **Urungkan** (juga Ctrl+Z), dan **Hapus semua** (tekan dua kali). Gambar berada di belakang kartu pasien, jadi kartu tetap terbaca. Tekan **Selesai** atau Esc untuk kembali; selama mode gambar, kartu tidak terbuka saat diketuk.
+- Gambar tersimpan **di perangkat ini saja**, terpisah untuk Pasien saya dan Titipan. Tersedia di papan kanvas (laptop/layar lebar); tampilan HP tidak menampilkannya.
+
 ## `2026-10-07.1`
 - **Pengingat Foley di Periksa lagi:** bila Terapi berisi furosemide (atau Plan memantau balance cairan / urine output) tetapi kateter urin belum tercatat di mana pun di catatan, Periksa lagi mengingatkan: "Pertimbangkan pemasangan, atau tulis bila sudah terpasang." Catatan yang menulis "BAK per kateter", "terpasang DC", atau "Foley" tidak diingatkan.
 - **Catatan tempel terpisah antara Pasien saya dan Titipan:** catatan tempel yang ditulis di papan Titipan hanya tampil di Titipan, dan sebaliknya. Catatan tempel lama tetap di Pasien saya.
