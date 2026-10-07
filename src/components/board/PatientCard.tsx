@@ -288,6 +288,9 @@ export function PatientCard({
     );
   }
 
+  /** H-1 and pulang hari ini get the strip; the other stages keep the corner chip. */
+  const dischargeStrip = card.discharge === 'h1' || card.discharge === 'today' ? card.discharge : null;
+
   return (
     /*
       THE NOTE GOES UNDER THE CARD, not beside it.
@@ -429,10 +432,36 @@ export function PatientCard({
       */}
       {card.pemantauan ? (
         <p
-          className="-mx-3 -mt-3 mb-2 rounded-t-xl px-3 py-1 text-[10px] font-semibold uppercase tracking-wide text-white"
+          className={[
+            '-mx-3 -mt-3 rounded-t-xl px-3 py-1 text-[10px] font-semibold uppercase tracking-wide text-white',
+            dischargeStrip ? '' : 'mb-2',
+          ].join(' ')}
           style={{ backgroundColor: 'var(--danger)' }}
         >
           Pemantauan
+        </p>
+      ) : null}
+      {/*
+        H-1 and pulang hari ini as a STRIP, not the corner chip (2026-10-07).
+
+        The chip was graded to stay quieter than the name, and for these two
+        stages that was the wrong trade: they change what is done on this
+        round (resume, obat pulang, kontrol), and a 10 px pill in a corner of
+        twenty cards was found by looking for it, not by seeing it. The strip
+        is the pemantauan pattern: full width, named, solid, in normal flow,
+        and on the frame, so the card's own background keeps carrying the
+        checklist colour. Rencana and Lewat? keep the chip.
+      */}
+      {dischargeStrip ? (
+        <p
+          className={[
+            '-mx-3 mb-2 flex items-center gap-1.5 px-3 py-1 text-[10px] font-bold uppercase tracking-wide',
+            card.pemantauan ? '' : '-mt-3 rounded-t-xl',
+          ].join(' ')}
+          style={{ backgroundColor: STAGE_TOKEN[dischargeStrip], color: 'var(--discharge-fg)' }}
+        >
+          <IconCar width={13} height={13} className="shrink-0" aria-hidden="true" />
+          {dischargeStrip === 'today' ? 'Pulang hari ini' : 'Pulang besok · H-1'}
         </p>
       ) : null}
       {/*
@@ -585,7 +614,7 @@ export function PatientCard({
           <ReminderChip key={reminder.id} patient={card.patient} reminder={reminder} />
         ))}
 
-        {card.discharge ? <DischargeChip stage={card.discharge} /> : null}
+        {card.discharge && !dischargeStrip ? <DischargeChip stage={card.discharge} /> : null}
 
       </div>
 

@@ -14,13 +14,19 @@ import type { StickyColor } from '@/domain/boardNotes';
  * but a path built from segments cannot be misread whatever the id contains.
  */
 
-export function createBoardNote(uid: string, color: StickyColor = 'kuning'): string {
+export function createBoardNote(
+  uid: string,
+  color: StickyColor = 'kuning',
+  /** The board it is written on. Pasien saya stores nothing (see `BoardNote.scope`). */
+  scope: 'mine' | 'temporary' = 'mine',
+): string {
   const id = nanoid(8);
   void trackWrite(
     updateDoc(userDoc(uid), new FieldPath('boardNotes', id), {
       text: '',
       color,
       createdAt: Date.now(),
+      ...(scope === 'temporary' ? { scope: 'temporary' } : {}),
     }),
   ).catch((error: unknown) => console.error('[sticky] create rejected', error));
   return id;

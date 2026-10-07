@@ -283,6 +283,8 @@ const GOOD_YESTERDAY = [
   '*S:*',
   '- Sesak berkurang, nyeri dada tidak ada.',
   '- Pasien saat ini hari perawatan ke 4 hari',
+  // On furosemide, so a complete note says how urine is collected (2026-10-07).
+  '- BAK per kateter kesan normal',
   '',
   '*O:*',
   'Compos Mentis GCS (E4V5M6)',
@@ -337,7 +339,7 @@ describe('vitals written the ward’s way', () => {
 
 describe('empty sections', () => {
   it('flags an S emptied by carry-forward and never refilled', () => {
-    expect(kinds(GOOD_TODAY.replace(/\*S:\*\n- Sesak[^\n]*\n- Pasien[^\n]*/, '*S:*\n- '))).toContain('section-empty');
+    expect(kinds(GOOD_TODAY.replace(/\*S:\*\n- Sesak[^\n]*\n- Pasien[^\n]*\n- BAK[^\n]*/, '*S:*\n- '))).toContain('section-empty');
   });
 
   it('treats P and Terapi together: one filled is a plan', () => {
@@ -545,5 +547,33 @@ describe('consults on the 6 October note (Gizi Klinik, Rehab, Neuro)', () => {
       .filter((finding) => finding.kind === 'consult-not-in-dpjp')
       .map((finding) => finding.message);
     expect(messages).toEqual(['TS Neuro sudah menjawab tapi belum ada di daftar DPJP.']);
+  });
+});
+
+describe('Foley reminder: a diuretic or a balance without a catheter (2026-10-07)', () => {
+  const note = (terapi: string, plan: string, extra = '') =>
+    `*S:*\n- sesak berkurang${extra}\n\n*Mohon izin kami terapi dengan:*\n${terapi}\n\n*Plan:*\n${plan}`;
+  const reminder = (body: string) => checkSoap({ body }).filter((finding) => finding.kind === 'balance-without-catheter');
+
+  it('furosemide with no catheter written: remind, pointing at the drug', () => {
+    const found = reminder(note('- Furosemide 40 mg/8 jam/IV', '- Monitoring tanda vital'));
+    expect(found).toHaveLength(1);
+    expect(found[0]?.message).toMatch(/^Furosemide diberikan, tapi kateter urin \(Foley\)/);
+    expect(found[0]?.anchor).toBe('- Furosemide 40 mg/8 jam/IV');
+  });
+
+  it('a balance in the plan with no catheter: remind', () => {
+    const found = reminder(note('- Aspilet 80 mg/24 jam/oral', '- Monitoring urine output dan balance cairan'));
+    expect(found[0]?.message).toMatch(/^Plan memantau balance cairan/);
+  });
+
+  it('a catheter anywhere silences it ("BAK per kateter")', () => {
+    expect(reminder(note('- Furosemide 40 mg/8 jam/IV', '- Balance cairan', '\n- BAK per kateter kesan normal'))).toEqual([]);
+    expect(reminder(note('- Lasix 2 amp/IV', '- Monitoring', '\n- Terpasang DC'))).toEqual([]);
+  });
+
+  it('a stopped furosemide, or one only in the history, does not count', () => {
+    expect(reminder(note('- Furosemide (stop)', '- Monitoring tanda vital'))).toEqual([]);
+    expect(reminder(note('- Aspilet 80 mg', '- Monitoring', ', riwayat furosemide di RS asal'))).toEqual([]);
   });
 });

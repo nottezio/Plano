@@ -59,3 +59,23 @@ describe('images on a note', () => {
     expect(activeBoardNotes(notes)[0]?.note.images).toEqual(['a', 'b']);
   });
 });
+
+describe('notes per board (Pasien saya / Titipan)', () => {
+  const notes = {
+    old: { text: 'lab jam 14', color: 'kuning' as const, createdAt: 1 },
+    titip: { text: 'titipan: cek TTV', color: 'biru' as const, createdAt: 2, scope: 'temporary' as const },
+  };
+
+  it('a note written before scopes existed stays on Pasien saya', () => {
+    expect(activeBoardNotes(notes, 'mine').map((entry) => entry.id)).toEqual(['old']);
+  });
+
+  it('a Titipan note is shown only on Titipan', () => {
+    expect(activeBoardNotes(notes, 'temporary').map((entry) => entry.id)).toEqual(['titip']);
+    expect(activeBoardNotes(notes, 'temporary')[0]?.note.scope).toBe('temporary');
+  });
+
+  it('without a scope, every note (as before)', () => {
+    expect(activeBoardNotes(notes)).toHaveLength(2);
+  });
+});

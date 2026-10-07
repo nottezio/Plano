@@ -43,7 +43,8 @@ export type SoapFindingKind =
   | 'diagnosis-value-stale'
   | 'consult-not-in-dpjp'
   | 'electrolyte-corrected'
-  | 'anemia-without-hb';
+  | 'anemia-without-hb'
+  | 'balance-without-catheter';
 
 /**
  * How urgent, which is also the order they are listed in:
@@ -451,6 +452,41 @@ export function checkSoap(input: SoapCheckInput): SoapFinding[] {
       level: 'cek',
       message: 'Diagnosis anemia tapi tidak ada Hb di catatan ini.',
       ...anchorMatch(body, /\banemia\b/i),
+    });
+  }
+
+  /*
+    A diuretic or a fluid balance, with no urinary catheter written anywhere
+    (Avi, 2026-10-07).
+
+    Furosemide is given to make urine, and a balance is only as good as the
+    urine it counts: without a catheter the output is an estimate, and the
+    "1.83 cc/kgBB/jam" that the next line computes from it is precision the
+    number does not have. A reminder, not a rule: a patient who voids into a
+    measured urinal is fine, which is why it says "tulis bila sudah".
+
+    Only the Plan/Terapi lines can trigger it, so a furosemide in the history
+    or a "balance" in a consult's text does not; a line that stops the drug
+    does not either. Any mention of a catheter anywhere (`BAK per kateter`,
+    `terpasang DC`, `Foley`) silences it.
+  */
+  const plan = planLines(body, sections);
+  const stopped = /\b(?:stop|aff|hentikan|dihentikan|tunda|ditunda|off)\b/i;
+  const diuretic = plan.find(({ line }) => /\b(?:furosemid|furosemide|lasix)\b/i.test(line) && !stopped.test(line));
+  const balance = plan.find(({ line }) =>
+    /balan(?:ce|s)\s*cairan|\bbalance\b|urine?\s*output|produksi\s*urin|\bdiuresis\b|intake[\s-]*output|\bI\s*\/\s*O\b/i.test(line),
+  );
+  const catheter = /kateter|catheter|foley|\bDC\b|dower|urine?\s*bag/i.test(body);
+  const trigger = diuretic ?? balance;
+  if (trigger && !catheter) {
+    const what = diuretic ? 'Furosemide diberikan' : 'Plan memantau balance cairan / urine output';
+    const text = trigger.line.trim();
+    findings.push({
+      kind: 'balance-without-catheter',
+      level: 'cek',
+      message: `${what}, tapi kateter urin (Foley) belum tercatat. Pertimbangkan pemasangan, atau tulis bila sudah terpasang.`,
+      anchor: text,
+      at: trigger.offset + trigger.line.indexOf(text),
     });
   }
 

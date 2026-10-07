@@ -1,5 +1,63 @@
 # Plano — CHANGES
 
+## `2026-10-07.1` — Foley reminder; sticky notes per board; discharge strips; effective osmolality explained
+
+### 1. Periksa lagi: remind about a Foley catheter (Avi)
+New finding `balance-without-catheter` (level `cek`).
+- **Triggers:** furosemide / furosemid / lasix on a Plan or Terapi line that
+  does not stop it, or a Plan line monitoring balance cairan, urine output,
+  produksi urin, diuresis or intake-output.
+- **Silenced by:** any catheter anywhere in the note: kateter, catheter,
+  Foley, DC, dower, urine bag ("BAK per kateter" counts).
+- **Points at** the line that triggered it.
+- **Wording:** a reminder ("pertimbangkan… atau tulis bila sudah terpasang"),
+  because a patient voiding into a measured urinal is fine.
+- **Tests:** the "good note" fixture now carries "BAK per kateter", since by
+  this rule a furosemide note without it is no longer complete.
+
+### 2. Sticky notes: separate for Pasien saya and Titipan (Avi)
+**Root cause.** Sticky notes were one list on the profile, drawn on both
+scopes of the board, the same defect stickers had before they were keyed by
+scope. The two scopes show different cards at the same place, so a note
+written beside a titipan patient appeared beside one of your own.
+**Fix.** A note records `scope: 'temporary'` when written on Titipan.
+`activeBoardNotes(notes, scope)` shows each board its own; notes written
+before this have no scope and stay on Pasien saya, where they were all
+written. Layout positions are merged (`mergeLayouts`), so the board not on
+screen keeps its notes' places.
+
+### 3. H-1 and pulang hari ini, more noticeable (Avi)
+The corner chip was graded to stay quieter than the patient's name. For
+these two stages that was the wrong trade: they change what is done on this
+round, and a 10 px pill in one corner of twenty cards was found by looking
+for it, not seen. They now get a full-width named strip in the stage colour
+with `--discharge-fg` text, on the card's frame like the Pemantauan strip
+(stacked under it when both apply), so the card background keeps carrying
+the checklist colour. Rencana and Lewat? keep the chip.
+
+### 4. Osmolality: what "effective" means (Avi)
+A tap-to-open explainer on the card:
+- the definition (osmoles that cannot cross the membrane, so they move
+  water);
+- why urea is excluded;
+- when the effective value is the one to read (hyponatraemia in uraemia,
+  the HHS criterion);
+- a worked example.
+
+The example's numbers (`EFFECTIVE_EXAMPLE`: Na 125, glukosa 90, ureum 180 →
+total 285, efektif 255) are tested against `calculateOsmolality`, so the text
+cannot drift from the arithmetic. Sources: Rose & Post (2001), Spasovski
+et al. 2014, Umpierrez et al. 2024.
+
+### Not done
+Drawing on the board canvas: answered, not built; see the reply to Avi for
+the plan.
+
+```
+1968 tests passed (+8)
+typecheck / lint (0 warnings) / check:version / check:contrast / check:a11y / build - clean
+```
+
 ## `2026-10-06.1` — Checker matches specialties; one list rule set; checker and DPJP in the panel sidebar; anonymised fixtures
 
 ### 1. Periksa lagi: "TS Gizi Klinik / TS Rehab belum ada di daftar DPJP" (Avi)

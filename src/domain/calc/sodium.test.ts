@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
-import { calculateOsmolality, readEffective, readTotal } from './sodium';
+import { calculateOsmolality,
+  EFFECTIVE_EXAMPLE, readEffective, readTotal } from './sodium';
 
 describe('calculateOsmolality', () => {
   it('BUN: 2·Na + glucose/18 + BUN/2.8', () => {
@@ -58,5 +59,14 @@ describe('guideline cut-offs', () => {
     expect(readTotal(321).label).toContain('HHS');
     expect(readTotal(290, { low: 285, high: 295 }).label).toBe('Normal (285–295)');
     expect(readTotal(280, { low: 285, high: 295 }).tone).toBe('low');
+  });
+});
+
+describe('the effective-osmolality explainer', () => {
+  it('quotes numbers the calculator actually produces', () => {
+    const { sodium, glucose, urea, ureaKind, total, effective } = EFFECTIVE_EXAMPLE;
+    const result = calculateOsmolality({ sodium, glucose, urea, ureaKind });
+    expect(result?.total).toBe(total);
+    expect(result?.effective).toBe(effective);
   });
 });

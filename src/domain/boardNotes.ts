@@ -44,6 +44,15 @@ export interface BoardNote {
   /** Ids of attached images, in the order they were added. See `boardImages`. */
   images?: string[];
   /**
+   * Which board it was written on: `temporary` for Titipan, absent for Pasien
+   * saya (every note written before scopes existed was written there).
+   *
+   * Per scope for the same reason as stickers (`board/stickers.ts`): the two
+   * scopes show different cards at the same place, so a note shown in both
+   * sat beside a titipan patient in one and beside your own in the other.
+   */
+  scope?: 'temporary';
+  /**
    * Soft delete, as everywhere else in this app: no client ever hard-deletes.
    * A deleted note leaves the board and its text stays recoverable.
    */
@@ -82,9 +91,14 @@ export function stickyTone(color: StickyColor): { bg: string; fg: string } {
  */
 export function activeBoardNotes(
   notes: BoardNotes | undefined,
+  /** The board on screen; omitted, every note (exports, counts). */
+  scope?: 'mine' | 'temporary',
 ): Array<{ id: string; note: BoardNote }> {
   return Object.entries(notes ?? {})
     .filter(([, note]) => note && typeof note === 'object' && note.deletedAt === undefined)
+    .filter(([, note]) =>
+      scope === undefined ? true : scope === 'temporary' ? note.scope === 'temporary' : note.scope !== 'temporary',
+    )
     .map(([id, note]) => ({
       id,
       note: {
@@ -94,6 +108,7 @@ export function activeBoardNotes(
         images: Array.isArray(note.images)
           ? note.images.filter((image): image is string => typeof image === 'string')
           : [],
+        ...(note.scope === 'temporary' ? { scope: 'temporary' as const } : {}),
       },
     }))
     .sort((a, b) => a.note.createdAt - b.note.createdAt || a.id.localeCompare(b.id));

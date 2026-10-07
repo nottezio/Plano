@@ -5,6 +5,12 @@ Catatan teknis lengkap (akar masalah, perbaikan) ada di CHANGES.md.
 
 Entri teratas harus versi yang sedang dirilis; tes gagal bila belum ditulis.
 
+## `2026-10-07.1`
+- **Pengingat Foley di Periksa lagi:** bila Terapi berisi furosemide (atau Plan memantau balance cairan / urine output) tetapi kateter urin belum tercatat di mana pun di catatan, Periksa lagi mengingatkan: "Pertimbangkan pemasangan, atau tulis bila sudah terpasang." Catatan yang menulis "BAK per kateter", "terpasang DC", atau "Foley" tidak diingatkan.
+- **Catatan tempel terpisah antara Pasien saya dan Titipan:** catatan tempel yang ditulis di papan Titipan hanya tampil di Titipan, dan sebaliknya. Catatan tempel lama tetap di Pasien saya.
+- **Pulang hari ini dan H-1 lebih menonjol:** kartu pasien kini punya pita penuh di atas, "PULANG HARI INI" (hijau) atau "PULANG BESOK · H-1" (kuning), seperti pita Pemantauan. Rencana pulang dan "Lewat?" tetap memakai tanda kecil di pojok.
+- **Kalkulator osmolalitas menjelaskan osmolalitas efektif:** ketuk "Apa itu osmolalitas efektif?" di kartunya: definisi, mengapa urea tidak dihitung, kapan angka efektif yang dipakai (hiponatremia, HHS), contoh perhitungan, dan sumbernya.
+
 ## `2026-10-06.1`
 - **Periksa lagi tidak lagi salah menandai TS yang sudah ada di daftar DPJP:** "TS Gizi Klinik" kini dikenali sebagai "DPJP Gizi", dan "TS Rehab" sebagai "DPJP KFR". Pemeriksaan kini membandingkan spesialisasinya (termasuk gelar seperti Sp.N, Sp.GK, Sp.KFR), bukan ejaannya. TS yang memang belum ada (mis. TS Neuro tanpa DPJP Neuro) tetap ditandai.
 - **Poin dan checklist di Catatan kini konsisten:** Enter pada baris kosong mengakhiri daftar; Backspace pada baris kosong yang baru dibuat menghapusnya dan kembali ke akhir baris sebelumnya, untuk poin maupun checklist. Sebelumnya checklist meninggalkan baris kosong yang memecah daftar, dan di HP aturan ini kadang tidak berjalan sama sekali.

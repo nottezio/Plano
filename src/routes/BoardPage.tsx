@@ -419,10 +419,11 @@ export default function BoardPage(): JSX.Element {
    * ticked for archive.
    */
   const rawBoardNotes = useSession((state) => state.profile?.boardNotes);
-  const boardNotes = useMemo(() => activeBoardNotes(rawBoardNotes), [rawBoardNotes]);
+  const boardNotes = useMemo(() => activeBoardNotes(rawBoardNotes, scope), [rawBoardNotes, scope]);
   const showStickies = !searching && !selecting;
   const addSticky = (): void => {
-    if (uid) createBoardNote(uid);
+    // Written on the board on screen, and shown only there.
+    if (uid) createBoardNote(uid, 'kuning', scopeRef.current);
   };
   const { patients: archived } = usePatients('archived', searching);
   const [searchNotes, setSearchNotes] = useSearchNotesPreference();

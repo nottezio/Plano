@@ -144,3 +144,19 @@ export const OSMOLALITY_SOURCES: readonly string[] = [
   'HHS: osmolalitas efektif > 300 atau total > 320 mOsm/kg, dengan glukosa ≥ 600 mg/dL (Umpierrez et al., Diabetes Care 2024).',
   'Rentang normal total 275–295 mOsm/kg (rentang lazim; dapat diganti di Pengaturan → Rentang rujukan lab).',
 ];
+
+/**
+ * The worked example in the card's "Apa itu osmolalitas efektif?" note.
+ *
+ * Kept here, beside the formula, and tested against `calculateOsmolality`, so
+ * the numbers the explanation quotes cannot drift from what the card computes.
+ * A cardiorenal patient: Na 125, glucose 90, ureum 180 mg/dL.
+ */
+export const EFFECTIVE_EXAMPLE = { sodium: 125, glucose: 90, urea: 180, ureaKind: 'ureum' as const, total: 285, effective: 255 };
+
+/** Where the tonicity explanation comes from. */
+export const EFFECTIVE_SOURCES: readonly string[] = [
+  'Rose BD, Post TW. Clinical Physiology of Acid-Base and Electrolyte Disorders, 5th ed. New York: McGraw-Hill; 2001 (osmolalitas dan tonisitas; urea sebagai osmol tidak efektif).',
+  'Spasovski G, et al. Clinical practice guideline on diagnosis and treatment of hyponatraemia. Eur J Endocrinol 2014;170:G1–47 (hiponatremia hipotonik vs non-hipotonik; urea tidak menentukan tonisitas).',
+  'Umpierrez GE, et al. Hyperglycemic crises in adults with diabetes: a consensus report. Diabetes Care 2024;47:1257–75 (kriteria HHS memakai osmolalitas efektif).',
+];

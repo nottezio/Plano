@@ -6,6 +6,8 @@ import {
   calculateUrineOutput,
 } from '@/domain/calc/urineOutput';
 import {
+  EFFECTIVE_EXAMPLE,
+  EFFECTIVE_SOURCES,
   OSMOLALITY_SOURCES,
   UREA_DIVISOR,
   UREA_LABEL,
@@ -267,7 +269,65 @@ export function OsmolalityCard(): JSX.Element {
       ) : (
         <Empty>Isi ketiganya. Ureum ≠ BUN: ureum = BUN × 2.14.</Empty>
       )}
+      <EffectiveExplainer />
     </CalcCard>
+  );
+}
+
+/**
+ * What "efektif" means, a tap away (Avi, 2026-10-07).
+ *
+ * The card showed two numbers and called one of them effective without saying
+ * what that means or when it is the one to read. The answer is short, has a
+ * clinical consequence (a uraemic hyponatraemia looks normal on the total),
+ * and is shown with the card's own arithmetic on a worked example, tested
+ * against the formula (`EFFECTIVE_EXAMPLE`).
+ */
+function EffectiveExplainer(): JSX.Element {
+  const { sodium, glucose, urea, total, effective } = EFFECTIVE_EXAMPLE;
+  return (
+    <details className="group mt-3 rounded-xl border border-border text-xs">
+      <summary className="flex min-h-tap cursor-pointer items-center gap-2 px-3 font-medium text-accent [@media(pointer:fine)]:min-h-9">
+        <span aria-hidden="true" className="transition-transform group-open:rotate-90">›</span>
+        Apa itu osmolalitas efektif?
+      </summary>
+      <div className="space-y-2 border-t border-border px-3 py-2.5 leading-relaxed text-fg-muted">
+        <p>
+          <strong className="text-fg">Osmolalitas efektif (tonisitas)</strong> hanya menghitung zat yang
+          <em> tidak </em>bebas melewati membran sel, sehingga menarik air keluar atau masuk sel:
+          natrium (beserta anionnya, karena itu ×2) dan glukosa (tanpa insulin, glukosa tidak masuk
+          sel dengan bebas). Rumusnya: <span className="font-mono text-fg">2·Na + glukosa/18</span>.
+        </p>
+        <p>
+          <strong className="text-fg">Urea tidak ikut</strong>: urea melewati membran sel dengan bebas,
+          jadi menaikkan osmolalitas <em>total</em> tanpa menggeser air antar kompartemen
+          (osmol tidak efektif). Hal yang sama berlaku untuk etanol.
+        </p>
+        <ul className="list-disc space-y-1 pl-4">
+          <li>
+            <strong className="text-fg">Hiponatremia</strong>: yang menentukan hipotonik atau tidak adalah
+            tonisitas. Pada uremia, osmolalitas total bisa tampak normal padahal pasien tetap hipotonik,
+            dengan risiko edema otak yang sama.
+          </li>
+          <li>
+            <strong className="text-fg">Hiperglikemia (HHS)</strong>: dehidrasi sel dan penurunan kesadaran
+            mengikuti osmolalitas efektif; kriteria HHS memakai efektif &gt; 300 mOsm/kg.
+          </li>
+        </ul>
+        <p className="rounded-lg bg-bg-subtle px-2.5 py-2 font-mono text-[11px] text-fg">
+          Contoh: Na {sodium}, glukosa {glucose}, ureum {urea}
+          <br />
+          Total = 2·{sodium} + {glucose}/18 + {urea}/6 = {total} (tampak normal)
+          <br />
+          Efektif = 2·{sodium} + {glucose}/18 = {effective} (hipotonik)
+        </p>
+        <ol className="list-decimal space-y-0.5 pl-4 text-[10px] text-fg-faint">
+          {EFFECTIVE_SOURCES.map((source) => (
+            <li key={source}>{source}</li>
+          ))}
+        </ol>
+      </div>
+    </details>
   );
 }
 
