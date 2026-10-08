@@ -74,9 +74,20 @@ function titleForPrivacy(title: string, initialsOnly: boolean): string {
 export function AppShell({
   title,
   children,
+  topBar = true,
+  titleBadge,
 }: {
   title: string;
   children: ReactNode;
+  /**
+   * The phone/tablet title row. A detail screen that draws its own sticky
+   * header (the patient page) turns it off: two stacked headers cost a sixth
+   * of a phone screen and printed the patient's name twice. That screen then
+   * owns the safe-area inset and the sync state the bar carried.
+   */
+  topBar?: boolean;
+  /** A mark beside the phone title, e.g. Helper's WIP. */
+  titleBadge?: ReactNode;
 }): JSX.Element {
   usePrivacyGuard();
   useRestoreScroll();
@@ -156,9 +167,11 @@ export function AppShell({
         {/* Phone and tablet only. On desktop the sidebar carries both the
             section name and the sync state, so this row was 56 px of chrome
             saying nothing the left rail did not already say. */}
-        <div className="lg:hidden">
-          <TopBar title={title} />
-        </div>
+        {topBar ? (
+          <div className="lg:hidden">
+            <TopBar title={title} badge={titleBadge} />
+          </div>
+        ) : null}
         <main
           id="main"
           className="min-h-0 flex-1 overflow-y-auto pb-[calc(env(safe-area-inset-bottom)+64px)] sm:pb-0"

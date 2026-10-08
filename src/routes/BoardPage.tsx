@@ -722,6 +722,34 @@ export default function BoardPage(): JSX.Element {
     </label>
   );
 
+  /**
+   * The same select, as a compact button for the phone row (2026-10-08).
+   *
+   * "Urutan" plus a full-width select plus "⋯ Aksi" was a whole second row of
+   * header on a phone — 52 px of a pinned bar, above every card. The current
+   * order's name is the label; the native select sits invisibly on top of it,
+   * so the platform's own picker still opens.
+   */
+  const orderCompact = (
+    <label className={`${CONTROL} relative flex shrink-0 items-center gap-1 rounded-lg border border-border bg-surface px-2.5 text-xs font-semibold text-fg`}>
+      <span className="sr-only">Urutan</span>
+      <span aria-hidden="true">{ORDER_SHORT[order]}</span>
+      <span aria-hidden="true" className="text-[10px] text-fg-faint">▾</span>
+      <select
+        value={order}
+        onChange={(event) => changeOrder(event.target.value as BoardOrder)}
+        aria-label="Urutan kartu"
+        className="absolute inset-0 cursor-pointer opacity-0"
+      >
+        <option value="recent">Terbaru</option>
+        <option value="location">Denah</option>
+        <option value="visite">Urutan visite</option>
+        <option value="dpjp">Per DPJP</option>
+        <option value="custom">Urutan sendiri</option>
+      </select>
+    </label>
+  );
+
   return (
     <AppShell title="Aktif">
       {/*
@@ -764,7 +792,7 @@ export default function BoardPage(): JSX.Element {
             value={query}
             onChange={(event) => setQuery(event.target.value)}
             aria-label="Cari pasien"
-            placeholder="Cari nama, RM, bed, diagnosis…"
+            placeholder="Cari nama, RM, bed…"
             className="min-w-0 flex-1 bg-transparent py-1.5 text-sm outline-none"
           />
         </label>
@@ -796,6 +824,27 @@ export default function BoardPage(): JSX.Element {
         ) : null}
 
         {canvasWidth ? orderControl : null}
+
+        {/* Phone and tablet: order and the occasional actions in the SAME
+            row as search. Pilih stays visible while selecting, because it is
+            how you leave. */}
+        {!canvasWidth ? (
+          <>
+            {orderCompact}
+            {selecting ? (
+              <SelectButton selecting onToggle={leaveSelection} />
+            ) : (
+              <button
+                type="button"
+                onClick={() => setMoreOpen(true)}
+                aria-label="Aksi lain"
+                className={`${CONTROL} flex min-w-tap shrink-0 items-center justify-center rounded-lg border border-border bg-surface text-fg-muted`}
+              >
+                <IconMore width={18} height={18} />
+              </button>
+            )}
+          </>
+        ) : null}
 
         {canvasWidth ? (
           <>
@@ -838,25 +887,6 @@ export default function BoardPage(): JSX.Element {
         </button>
       </div>
 
-      {/* Phone and tablet: the occasional actions behind one button. Pilih
-          stays visible while selecting, because it is how you leave. */}
-      {!canvasWidth ? (
-        <div className="-mt-1 flex items-center gap-2 px-4 pb-2">
-          {orderControl}
-          {selecting ? (
-            <SelectButton selecting onToggle={leaveSelection} />
-          ) : (
-            <button
-              type="button"
-              onClick={() => setMoreOpen(true)}
-              aria-label="Aksi lain"
-              className="flex min-h-tap items-center gap-1 rounded-lg px-2 text-xs font-medium text-fg-muted"
-            >
-              <IconMore width={18} height={18} /> Aksi
-            </button>
-          )}
-        </div>
-      ) : null}
 
       {searching ? (
         <div className="px-4 pb-1">
@@ -1287,6 +1317,15 @@ export default function BoardPage(): JSX.Element {
  * again as tall as it needed to be.
  */
 const CONTROL = 'min-h-tap [@media(pointer:fine)]:min-h-9';
+
+/** The order's name as the compact phone control shows it. */
+const ORDER_SHORT: Record<BoardOrder, string> = {
+  recent: 'Terbaru',
+  location: 'Denah',
+  visite: 'Visite',
+  dpjp: 'DPJP',
+  custom: 'Sendiri',
+};
 
 /** Pilih / Batal: enters and leaves selection mode. */
 function SelectButton({

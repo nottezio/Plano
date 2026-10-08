@@ -71,12 +71,16 @@ export function IdentityBar({
         <span className="min-w-0 truncate text-sm font-semibold sm:shrink-0 sm:text-[15px]">
           {label}
         </span>
-        <span className="flex min-w-0 flex-wrap items-baseline gap-x-3 text-xs text-fg-muted">
+        {/* One line on a phone too (2026-10-08): wrapping put the bed on a
+            third line, and the bar sits in the sticky header, so every line
+            here is a line of note hidden on every screen of the scroll. The
+            location truncates last; RM never does. */}
+        <span className="flex min-w-0 items-baseline gap-x-2 text-xs text-fg-muted sm:flex-wrap sm:gap-x-3">
           {patient.mrn ? (
             <span className="whitespace-nowrap font-medium">RM {patient.mrn}</span>
           ) : null}
-          {patient.age !== undefined ? <span>{patient.age} th</span> : null}
-          {patient.sex ? <span>{patient.sex}</span> : null}
+          {patient.age !== undefined ? <span className="whitespace-nowrap">{patient.age} th</span> : null}
+          {patient.sex ? <span className="whitespace-nowrap">{patient.sex}</span> : null}
           {location ? <span className="min-w-0 truncate">{location}</span> : null}
         </span>
       </span>
@@ -126,7 +130,7 @@ function CopyMrn({
       }}
       title={`Salin nomor RM ${mrn}`}
       aria-label={`Salin nomor RM ${mrn}`}
-      className="mr-2 min-h-tap shrink-0 rounded-lg border border-border px-2 text-[11px] font-medium text-fg-muted"
+      className="mr-2 min-h-tap shrink-0 rounded-lg border border-border bg-surface px-2 text-[11px] font-medium text-fg-muted"
     >
       {copied ? 'Tersalin' : 'Salin RM'}
     </button>

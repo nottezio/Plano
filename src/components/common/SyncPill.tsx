@@ -5,8 +5,43 @@ import { useUI } from '@/store/useUI';
  * In P0 the state is static; P1 drives it from Firestore snapshot metadata
  * (`hasPendingWrites`) plus `navigator.onLine`.
  */
-export function SyncPill({ compact = false }: { compact?: boolean }): JSX.Element {
+export function SyncPill({
+  compact = false,
+  dot = false,
+}: {
+  compact?: boolean;
+  /**
+   * A bare dot for a crowded header (the phone patient page). Synced and
+   * saving are a dot only; offline keeps its word, because "your writes have
+   * not left this phone" is the one state that must be read, not inferred.
+   */
+  dot?: boolean;
+}): JSX.Element {
   const sync = useUI((state) => state.sync);
+
+  if (dot) {
+    const offline = sync.kind === 'offline';
+    return (
+      <span
+        role="status"
+        aria-live="polite"
+        title={offline ? `Offline — ${sync.pending} perubahan pending` : sync.kind === 'saving' ? 'Menyimpan…' : 'Synced'}
+        className={[
+          'flex shrink-0 items-center gap-1 text-[11px] font-medium',
+          offline ? 'rounded-full border border-current px-2 py-0.5 text-[var(--card-step-2-accent)]' : 'px-1',
+        ].join(' ')}
+      >
+        <span
+          aria-hidden="true"
+          className={[
+            'h-2 w-2 rounded-full',
+            offline ? 'bg-current' : sync.kind === 'saving' ? 'animate-pulse bg-accent' : 'bg-[var(--card-done-accent)]',
+          ].join(' ')}
+        />
+        {offline ? <span>Offline · {sync.pending}</span> : <span className="sr-only">{sync.kind === 'saving' ? 'Menyimpan…' : 'Synced'}</span>}
+      </span>
+    );
+  }
 
   const { label, tone } =
     sync.kind === 'saving'

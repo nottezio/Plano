@@ -5,6 +5,14 @@ Catatan teknis lengkap (akar masalah, perbaikan) ada di CHANGES.md.
 
 Entri teratas harus versi yang sedang dirilis; tes gagal bila belum ditulis.
 
+## `2026-10-08.3`
+- **Halaman pasien di HP: catatan langsung terlihat.** Sebelumnya catatan baru mulai sekitar satu layar penuh ke bawah, setelah Catatan pasien, Checklist, Custom Checklist, dan Periksa lagi. Kini ketiganya menjadi tombol ringkas di atas catatan, mis. **Catatan •**, **Checklist 0/8**, **Periksa lagi 3**. Ketuk untuk membukanya di lembar bawah. "Tampilkan" di Periksa lagi menutup lembar itu dan langsung menandai bagian catatan yang dimaksud.
+- **Satu kepala halaman saja:** judul ganda di atas halaman pasien dihapus, jadi nama pasien tidak lagi tampil dua kali. Tanggal dipersingkat (mis. "Kam, 8 Okt"), dan status Synced/Offline kini berupa titik di samping Salin. Bila offline, tulisan "Offline" tetap tampil.
+- **Baris identitas** (RM, umur, ruangan) kini satu baris di HP. **Rel tanggal** tidak lagi memotong "SOAP Awal", dan tanda titik "·" yang membingungkan diganti titik biru penanda hari yang sudah ada catatannya.
+- **Papan di HP:** pencarian, urutan (Terbaru ▾), dan ⋯ kini dalam satu baris. Diagnosis di kartu digabung dalam maksimal dua baris, sehingga lebih banyak pasien terlihat sekaligus.
+- **Lainnya:** kepala halaman sedikit lebih ramping di semua halaman. Helper tidak lagi menampilkan judulnya dua kali (tanda WIP tetap ada). Pilihan tema "Ikuti sistem" menjadi "Sistem".
+- Tablet dan laptop tidak berubah, kecuali tanggal di halaman pasien yang ikut dipersingkat di tablet.
+
 ## `2026-10-08.2`
 - **Ekspor ke Word untuk dicetak:** di menu ⋯ pasien → **Ekspor ke Word**, catatan yang sedang terbuka (SOAP hari itu, atau SOAP jaga / versi yang dibuka) diunduh sebagai file .docx A4. Isinya persis seperti yang ditulis: *tebal*, _miring_, dan ~~coret~~ menjadi format Word, poin "- " menjadi bullet, dan nomor tetap nomor Anda sendiri.
 - Tiap halaman diberi kepala (nama, RM, ruangan, tanggal, hari rawat) dan "Halaman x dari y" di bawah, supaya lembar yang terlepas tetap jelas milik siapa. File bisa diedit dulu di Word sebelum dicetak. Di HP, file langsung dibuka lewat menu Bagikan (ke Word, printer, atau WhatsApp).

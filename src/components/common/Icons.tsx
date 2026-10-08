@@ -272,6 +272,15 @@ export const IconPrinter = (props: IconProps): JSX.Element => (
   </Base>
 );
 
+/** Calendar: pick another day. Replaces the 📅 emoji, which rendered as a
+ *  coloured clip-art page on Android and ignored dark mode. */
+export const IconCalendar = (props: IconProps): JSX.Element => (
+  <Base {...props}>
+    <rect x="4" y="5.5" width="16" height="14.5" rx="2" />
+    <path d="M4 10h16M8.5 3.5v4M15.5 3.5v4" />
+  </Base>
+);
+
 /** Moon: a jaga note. */
 export const IconMoon = (props: IconProps): JSX.Element => (
   <Base {...props}>

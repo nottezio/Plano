@@ -1,3 +1,5 @@
+import type { ReactNode } from 'react';
+
 import { SyncPill } from './SyncPill';
 
 /**
@@ -8,16 +10,19 @@ import { SyncPill } from './SyncPill';
  * field. Two search affordances where only one works is worse than one, so it
  * is gone rather than hooked up — the field below it is already the answer.
  */
-export function TopBar({ title }: { title: string }): JSX.Element {
+export function TopBar({ title, badge }: { title: string; badge?: ReactNode }): JSX.Element {
   return (
     <header className="sticky top-0 z-30 border-b border-border bg-bg/95 pt-[env(safe-area-inset-top)] backdrop-blur">
-      <div className="flex items-center gap-3 px-4 py-3 lg:py-2">
+      {/* 48 px, not 56 (2026-10-08 mobile revamp): it is a label and a status
+          dot's worth of information, on every screen. */}
+      <div className="flex min-h-12 items-center gap-2 px-4 py-1.5 lg:py-2">
         {/* From lg the sidebar already shows which section is open, so the
             title here is duplication taking up a whole row. */}
-        <h1 className="mr-auto truncate text-lg font-semibold tracking-tight lg:hidden">
+        <h1 className="min-w-0 truncate text-lg font-semibold tracking-tight lg:hidden">
           {title}
         </h1>
-        <span className="mr-auto hidden lg:block" />
+        {badge ? <span className="shrink-0 lg:hidden">{badge}</span> : null}
+        <span className="mr-auto" />
         <SyncPill />
       </div>
     </header>

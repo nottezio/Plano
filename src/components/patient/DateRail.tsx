@@ -1,3 +1,4 @@
+import { IconCalendar } from '@/components/common/Icons';
 import { useEffect, useRef } from 'react';
 
 import { formatShortDate, relativeDayLabel } from '@/domain/clinicalDate';
@@ -48,17 +49,40 @@ export function DateRail({
 }): JSX.Element {
   const pickerRef = useRef<HTMLInputElement>(null);
   const selectedRef = useRef<HTMLButtonElement>(null);
+  const stripRef = useRef<HTMLDivElement>(null);
 
+  /**
+   * Centre the selected day inside the STRIP only.
+   *
+   * `scrollIntoView` scrolls every scrollable ancestor to satisfy itself, so
+   * on the phone it also nudged the page, and the strip opened scrolled so far
+   * that "SOAP Awal" was cut in half at the left edge. Setting the strip's own
+   * `scrollLeft` touches nothing else. The vertical list needs no help.
+   */
   useEffect(() => {
-    selectedRef.current?.scrollIntoView({ block: 'nearest', inline: 'center' });
-  }, [selected]);
+    const strip = stripRef.current;
+    const target = selectedRef.current;
+    if (orientation !== 'horizontal' || !strip || !target) return;
+    const max = strip.scrollWidth - strip.clientWidth;
+    // Only as far as needed to show it whole, not centred: centring the
+    // newest day pushed the start of the strip off screen for no reason.
+    const margin = 24;
+    const right = target.offsetLeft + target.offsetWidth + margin - strip.clientWidth;
+    const left = target.offsetLeft - margin;
+    const current = strip.scrollLeft;
+    const want = right > current ? right : left < current ? left : current;
+    strip.scrollLeft = Math.max(0, Math.min(max, want));
+  }, [selected, orientation]);
 
   return (
     <div
+      ref={stripRef}
       className={
         orientation === 'vertical'
           ? 'flex flex-col gap-1'
-          : 'flex items-center gap-2 overflow-x-auto border-b border-border px-4 py-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden'
+          : // The faded edges say "there is more this way"; a chip cut by a
+            // hard edge read as a rendering bug.
+            'relative flex items-center gap-1.5 overflow-x-auto border-b border-border px-4 py-1.5 [mask-image:linear-gradient(to_right,transparent,black_1rem,black_calc(100%-1rem),transparent)] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden'
       }
     >
       {/*
@@ -72,14 +96,15 @@ export function DateRail({
         onClick={() => onSelect(IGD_ENTRY)}
         aria-current={selected === IGD_ENTRY}
         className={[
-          'flex min-h-tap w-full items-center gap-2 rounded-lg border px-3 text-left text-xs',
+          'flex min-h-tap items-center gap-2 rounded-lg border px-3 text-left text-xs',
+          orientation === 'vertical' ? 'w-full' : 'shrink-0 whitespace-nowrap',
           selected === IGD_ENTRY
             ? 'border-accent bg-accent font-medium text-white'
             : 'border-border text-fg-muted',
         ].join(' ')}
       >
         <span className="flex-1">SOAP Awal</span>
-        {datesWithContent.has(IGD_ENTRY) ? <span aria-hidden="true">·</span> : null}
+        {datesWithContent.has(IGD_ENTRY) ? <ContentDot active={selected === IGD_ENTRY} /> : null}
       </button>
 
       {dates.map((date) => {
@@ -116,9 +141,9 @@ export function DateRail({
             ].join(' ')}
           >
             <span>{date === today ? 'Hari ini' : relativeDayLabel(date, today)}</span>
-            <span className={active ? 'opacity-90' : 'opacity-60'}>
+            <span className={`flex items-center gap-1 ${active ? 'opacity-90' : 'opacity-60'}`}>
               {formatShortDate(date)}
-              {hasContent ? ' ·' : ''}
+              {hasContent ? <ContentDot active={active} /> : null}
             </span>
           </button>
 
@@ -244,9 +269,9 @@ export function DateRail({
             if (typeof input.showPicker === 'function') input.showPicker();
             else input.click();
           }}
-          className="flex min-h-tap w-full items-center gap-1 rounded-lg border border-dashed border-border-strong px-3 text-xs text-fg-muted"
+          className="flex min-h-tap w-full items-center gap-1.5 whitespace-nowrap rounded-lg border border-dashed border-border-strong px-3 text-xs text-fg-muted"
         >
-          <span aria-hidden="true">📅</span>
+          <IconCalendar aria-hidden="true" width={16} height={16} />
           Tanggal lain
         </button>
         <input
@@ -261,5 +286,20 @@ export function DateRail({
         />
       </div>
     </div>
+  );
+}
+
+/**
+ * "This day has a written note." A dot, not a typed `·`: the character read as
+ * a stray separator after the date ("Rab, 7 Okt ·"), and nobody could tell what
+ * it was for. Labelled for screen readers, which never could.
+ */
+function ContentDot({ active }: { active: boolean }): JSX.Element {
+  return (
+    <span
+      role="img"
+      aria-label="ada catatan"
+      className={`inline-block h-1.5 w-1.5 shrink-0 rounded-full ${active ? 'bg-white' : 'bg-accent'}`}
+    />
   );
 }

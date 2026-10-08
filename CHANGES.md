@@ -1,5 +1,97 @@
 # Plano — CHANGES
 
+## `2026-10-08.3` — Mobile revamp: note first, one header, denser board
+
+Audited every phone screen at 390 and 360 px in a render harness: the real
+app on an in-memory Firebase stand-in with anonymised fixtures.
+
+### 1. Phone patient page: the note began ~1000 px down (Avi: "revamp mobile UI")
+**Root cause.** Two layering decisions compounded:
+- `AppShell` always drew its phone `TopBar` (title = patient name) above the
+  page's own sticky header (date · Salin · ⋯ + IdentityBar + JumpBar). That
+  gave two headers and the name twice.
+- The standing panels (Catatan pasien, Custom Checklist, daily checklist
+  pills, Periksa lagi) were written for the stacked tablet column and
+  inherited unchanged below `sm`. Each is read once on arrival, yet all were
+  stacked open above the note on every visit.
+
+**Fix.**
+- `AppShell` takes `topBar={false}`. PatientPage uses it, owns the
+  safe-area inset itself, and shows a `SyncPill dot` (Synced/saving = dot
+  only; offline keeps the words, because it is the state that must be read).
+- Below `sm`, `renderPhoneChips()` replaces the four panels with one chip row:
+  - **Catatan** with a filled/empty dot;
+  - **Checklist d/t**, daily and custom combined;
+  - **Periksa lagi n** (warn tone), or **✓ Periksa** when AI checking is on
+    and nothing is flagged.
+
+  Each chip opens a `Sheet` holding the existing component (`PatientNotes
+  bare`, vertical `ChecklistPills` + `PatientTodos compact`,
+  `renderChecker('sheet')`). No logic is duplicated.
+- The checker's jumps go through `afterPhoneSheet`: close the sheet, then
+  select. Radix returns focus to the trigger on unmount, which would undo a
+  selection made first. The sheet now closes even when the anchor is no
+  longer found (a "Tampilkan" that leaves the sheet up reads as broken).
+- `formatDayHeaderShort` ("Kam, 8 Okt · H3") is used below `lg`. The long
+  form truncated to "Kamis, 8 Oktober …" at 360 px on phones and on tablets
+  (where Lab / Format bangsal / Pembuka share the row).
+- IdentityBar keeps its details on one line on a phone, and age/sex no longer
+  wrap ("66 / th").
+- The note now starts at ~370 px on a 390×844 phone.
+- Tablet keeps the stacked panels; desktop is unchanged.
+
+### 2. Date rail (phone strip)
+**Root cause.**
+- `scrollIntoView({inline:'center'})` scrolls every scrollable ancestor and
+  centred the newest day, cutting "SOAP Awal" in half.
+- The SOAP Awal button carried `w-full`, written for the vertical list.
+- The content marker was a typed " ·", which read as a stray separator.
+
+**Fix.**
+- The strip sets its own `scrollLeft`, only as far as needed to show the
+  selected day whole.
+- `w-full` is now applied only in the vertical orientation.
+- The faded edges signal that the strip scrolls.
+- `ContentDot` (`role="img"`, "ada catatan") replaces " ·".
+- `IconCalendar` replaces the 📅 emoji (clip art on Android, ignored dark
+  mode).
+
+### 3. Board (phone)
+- The order select and ⋯ moved into the search row as `orderCompact`: the
+  current order's short name with a native select overlaid. This removes the
+  second 52 px header row. The placeholder is shortened so it does not
+  truncate.
+- Diagnoses on phone cards are joined with " · " (leading bullets/numbers
+  stripped) and `line-clamp-2`. `sm`+ keeps the full multi-line list.
+- **Correction to my own audit:** I first said ~2.5 cards fit per screen. I
+  misread a 2× screenshot; it was ~4. It is now ~4.5, mostly from the removed
+  header row.
+
+### 4. Shell and secondary screens
+- `TopBar` is 48 px instead of 56 and takes an optional `badge`. Helper passes
+  its WIP mark there and hides its in-page title row below `lg`; it had shown
+  "Helper" twice.
+- Settings theme label "Ikuti sistem" → "Sistem" (it wrapped at 360 px).
+- The Periksa count badge is dark-on-light (`bg-fg text-bg`); white on the
+  amber was ~3:1 at 10 px.
+- Arsip, Dokumen, Catatan, Kalkulator, Checklist and Pengaturan were checked
+  at 360/390 px and needed no structural change.
+
+### Not done
+- Tablet patient page still stacks the panels above the note (out of the
+  phone scope; the chip row could be extended to `<xl` if wanted).
+- Arsip's two filter rows are left as they are.
+- Not tested on a real phone. Check iOS standalone: the safe-area inset has
+  moved from the shell's TopBar into the patient header.
+- No unit tests for the chip row (render-only); verified by screenshot,
+  including the Periksa sheet closing and jumping.
+
+```
+npm run verify
+  typecheck ✓  lint ✓ (0 warnings)  test ✓ 2009 passed (137 files)
+  check:version ✓  check:contrast ✓  check:a11y ✓  build ✓
+```
+
 ## `2026-10-08.2` — Ekspor ke Word (SOAP for printing)
 
 ### 1. Export the open note as .docx (Avi)

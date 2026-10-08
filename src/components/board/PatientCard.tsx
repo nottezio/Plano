@@ -794,9 +794,17 @@ export function PatientCard({
       {/* `leading-snug`: a list of diagnoses reads fine at 1.375, and
           `relaxed` spent a fifth of the body's height between the lines. */}
       {lines.length > 0 ? (
-        <p className="mt-1 whitespace-pre-line text-xs leading-snug opacity-90">
-          {lines.join('\n')}
-        </p>
+        <>
+          {/* Phone (2026-10-08): the diagnoses run on one line each, clamped
+              to two, so a long problem list cannot make one card a screen
+              tall. The whole list is one tap away, on the patient page. */}
+          <p className="mt-1 line-clamp-2 text-xs leading-snug opacity-90 sm:hidden">
+            {lines.map((line) => line.replace(/^\s*(?:[-*•]|\d+[.)])\s+/, '')).join(' · ')}
+          </p>
+          <p className="mt-1 hidden whitespace-pre-line text-xs leading-snug opacity-90 sm:block">
+            {lines.join('\n')}
+          </p>
+        </>
       ) : (
         <p className="mt-1 text-xs italic opacity-60">Belum ada catatan hari ini.</p>
       )}

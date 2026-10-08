@@ -7,6 +7,7 @@ import {
   clinicalDate,
   daysBetween,
   formatDayHeader,
+  formatDayHeaderShort,
   formatLongDate,
   formatShortDate,
   formatShortDateNoWeekday,
@@ -122,6 +123,12 @@ describe('formatting', () => {
     expect(formatDayHeader('2026-08-06', '2026-08-03')).toBe(
       'Kamis, 6 Agustus 2026 · Hari rawat ke-4',
     );
+  });
+
+  it('has a short phone form that keeps the day and drops the year', () => {
+    expect(formatDayHeaderShort('2026-08-06', '2026-08-03')).toBe('Kam, 6 Agt · H4');
+    expect(formatDayHeaderShort('2026-08-06', '2026-08-03', false)).toBe('Kam, 6 Agt');
+    expect(formatDayHeaderShort(IGD_ENTRY, '2026-08-03')).toBe('SOAP Awal');
   });
 
   it('omits the hari rawat suffix when the setting is off', () => {

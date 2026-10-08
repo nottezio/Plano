@@ -97,9 +97,18 @@ export function HelperPage(): JSX.Element {
     closing the app.
   */
   return (
-    <AppShell title="Helper">
+    <AppShell
+      title="Helper"
+      titleBadge={
+        <span className="rounded-full border border-danger px-2 py-0.5 text-[10px] font-semibold text-danger">
+          WIP
+        </span>
+      }
+    >
       <div className="mx-auto max-w-6xl space-y-4 px-4 py-4">
-        <div className="flex flex-wrap items-center gap-2">
+        {/* Desktop only: below lg the shell's title bar already says "Helper"
+            (with the WIP mark), and this row said it a second time. */}
+        <div className="hidden flex-wrap items-center gap-2 lg:flex">
           <button
             type="button"
             onClick={goUp}

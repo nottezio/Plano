@@ -62,7 +62,7 @@ const GROUPS: ReadonlyArray<{ id: string; label: string }> = [
 ];
 
 const THEME_OPTIONS: Array<{ value: ThemePreference; label: string }> = [
-  { value: 'system', label: 'Ikuti sistem' },
+  { value: 'system', label: 'Sistem' },
   { value: 'light', label: 'Terang' },
   { value: 'dark', label: 'Gelap' },
 ];

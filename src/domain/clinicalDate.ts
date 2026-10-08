@@ -185,6 +185,23 @@ export function formatDayHeader(
   return showHariRawat ? `${day} · Hari rawat ke-${hariRawat(date, admittedAt)}` : day;
 }
 
+/**
+ * The same header for a phone's sticky bar: "Kam, 8 Okt · H3".
+ *
+ * The long form ("Kamis, 8 Oktober 2026 · Hari rawat ke-3") truncates to
+ * "Kamis, 8 Oktober …" at 360 px beside Salin and ⋯, which drops the one part
+ * that changes from day to day. The year never helps on a ward round.
+ */
+export function formatDayHeaderShort(
+  date: ClinicalDate,
+  admittedAt: ClinicalDate,
+  showHariRawat = true,
+): string {
+  if (date === IGD_ENTRY) return 'SOAP Awal';
+  const day = formatShortDate(date);
+  return showHariRawat ? `${day} · H${hariRawat(date, admittedAt)}` : day;
+}
+
 export function relativeDayLabel(date: ClinicalDate, today: ClinicalDate): string {
   const delta = daysBetween(today, date);
   if (delta === 0) return 'Hari ini';

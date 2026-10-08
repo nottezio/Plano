@@ -6,6 +6,8 @@ import { Link, useNavigate, useParams } from 'react-router-dom';
 import { BodyEditor, type BodyEditorHandle } from '@/components/patient/BodyEditor';
 import { FloatingCalculator } from '@/components/calc/FloatingCalculator';
 import { IconCalculator } from '@/components/common/Icons';
+import { Sheet } from '@/components/common/Sheet';
+import { SyncPill } from '@/components/common/SyncPill';
 import { CopySheet } from '@/components/copy/CopySheet';
 import { ChecklistPills } from '@/components/patient/ChecklistPills';
 import { CompareSheet } from '@/components/patient/CompareSheet';
@@ -88,6 +90,7 @@ import {
   formatShortDate,
   formatShortDateNoWeekday,
   formatDayHeader,
+  formatDayHeaderShort,
   previousDay,
   shouldAutoLock,
   yesterdayHint,
@@ -234,6 +237,25 @@ export default function PatientPage(): JSX.Element {
   const [copyOpen, setCopyOpen] = useState(false);
   /** The floating calculator: non-modal, so it can stay open while writing. */
   const [calcOpen, setCalcOpen] = useState(false);
+  /**
+   * Phone only: which of the patient's standing panels is open as a sheet.
+   * See the chip row above the note for why they are sheets there.
+   */
+  const [phoneSheet, setPhoneSheet] = useState<null | 'notes' | 'checklist' | 'checker'>(null);
+  /**
+   * Run an editor jump, closing the phone sheet first when one is open.
+   *
+   * Radix hands focus back to the sheet's trigger as it unmounts; a selection
+   * made before that is undone by it. So the jump waits for the close.
+   */
+  const afterPhoneSheet = (jump: () => void): void => {
+    if (phoneSheet === null) {
+      jump();
+      return;
+    }
+    setPhoneSheet(null);
+    window.setTimeout(jump, 120);
+  };
   const [actionsOpen, setActionsOpen] = useState(false);
   const [identityOpen, setIdentityOpen] = useState(false);
   const [openingOpen, setOpeningOpen] = useState(false);
@@ -1003,16 +1025,16 @@ export default function PatientPage(): JSX.Element {
    */
   const sideHosts = layout === 'panel' && paneOpen && paneView === 'pasien';
 
-  const renderChecker = (where: 'main' | 'side'): JSX.Element => (
+  const renderChecker = (where: 'main' | 'side' | 'sheet'): JSX.Element => (
     <>
         {!locked &&
         soapFindings.length === 0 &&
         aiFindings.length === 0 &&
         !aiCheckError &&
-        (aiEnabled('check') || where === 'side') ? (
+        (aiEnabled('check') || where !== 'main') ? (
           <div
             className={
-              where === 'side'
+              where !== 'main'
                 ? 'flex shrink-0 items-center gap-2 rounded-xl border border-border bg-surface px-3 py-1 text-[11px] text-fg-muted'
                 : 'mx-4 mt-1 flex items-center gap-2 text-[11px] text-fg-faint'
             }
@@ -1041,11 +1063,15 @@ export default function PatientPage(): JSX.Element {
             className={
               where === 'side'
                 ? 'shrink-0 rounded-xl border border-[var(--warn-strong)] bg-surface px-3 py-2 text-xs'
-                : 'mx-4 mt-2 rounded-xl border border-border px-3 py-2 text-xs'
+                : where === 'sheet'
+                  ? 'text-sm'
+                  : 'mx-4 mt-2 rounded-xl border border-border px-3 py-2 text-xs'
             }
           >
-            <div className="flex items-center gap-2">
-              <p className="flex flex-1 items-center gap-1.5 font-semibold">
+            {/* In the phone sheet the sheet's own title already says "Periksa
+                lagi"; only the AI button is left of this row. */}
+            <div className={`flex items-center gap-2 ${where === 'sheet' && !aiEnabled('check') ? 'hidden' : ''}`}>
+              <p className={`flex flex-1 items-center gap-1.5 font-semibold ${where === 'sheet' ? 'invisible' : ''}`}>
                 Periksa lagi
                 {soapFindings.length > 0 ? (
                   <span className="rounded-full bg-[var(--warn-soft)] px-1.5 text-[10px] font-semibold text-[var(--warn-strong)]">
@@ -1072,7 +1098,7 @@ export default function PatientPage(): JSX.Element {
               Ordered by urgency, and tagged with it, so the list reads top-down
               as "fill these in, then update what was copied, then check".
             */}
-            <ul className="mt-1 space-y-1">
+            <ul className={where === 'sheet' ? 'space-y-3' : 'mt-1 space-y-1'}>
               {soapFindings.map((finding) => (
                 <li key={finding.kind + finding.message} className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
                   <FindingTag level={finding.level} />
@@ -1095,7 +1121,11 @@ export default function PatientPage(): JSX.Element {
                         const at = exact
                           ? finding.at!
                           : editor.value.toLowerCase().indexOf(anchor.toLowerCase());
-                        if (at >= 0) editorHandle.current?.selectRange(at, at + anchor.length);
+                        // The sheet closes either way: "Tampilkan" promises the
+                        // note, and a press that leaves the sheet up reads as broken.
+                        afterPhoneSheet(() => {
+                          if (at >= 0) editorHandle.current?.selectRange(at, at + anchor.length);
+                        });
                       }}
                       className="min-h-tap shrink-0 text-accent underline decoration-dotted [@media(pointer:fine)]:min-h-0"
                     >
@@ -1107,7 +1137,9 @@ export default function PatientPage(): JSX.Element {
                       markers={finding.markers}
                       onJump={(marker, index) => {
                         const found = locateDayMarker(editor.value, marker, index);
-                        if (found) editorHandle.current?.selectRange(found.start, found.end);
+                        afterPhoneSheet(() => {
+                          if (found) editorHandle.current?.selectRange(found.start, found.end);
+                        });
                       }}
                       onBump={(marker, index) => {
                         const found = locateDayMarker(editor.value, marker, index);
@@ -1186,6 +1218,110 @@ export default function PatientPage(): JSX.Element {
 
     </>
   );
+
+  /** Periksa lagi has something to say (or an AI button to offer). */
+  const checkerFindings = soapFindings.length + aiFindings.length;
+  const checkerVisible = !locked && (checkerFindings > 0 || aiCheckError !== null || aiEnabled('check'));
+  const phoneChecklistDone = checklist.progress.doneCount + todoDone;
+  const phoneChecklistTotal = checklist.progress.total + todoViewsForSummary.length;
+
+  const renderPhoneChips = (): JSX.Element => {
+    const chip = (tone: 'plain' | 'done' | 'warn'): string =>
+      [
+        'flex min-h-tap shrink-0 items-center gap-1.5 rounded-full border px-3 text-xs font-medium',
+        tone === 'warn'
+          ? 'border-[var(--warn-strong)] bg-[var(--warn-soft)] text-fg'
+          : tone === 'done'
+            ? 'border-transparent bg-[var(--card-done-bg)] text-[var(--card-done-fg)]'
+            : 'border-border text-fg',
+      ].join(' ');
+    const notesFilled = notesSync.value.trim().length > 0;
+    return (
+      <>
+        <div className="flex gap-2 overflow-x-auto border-b border-border px-4 py-2 [scrollbar-width:none] sm:hidden [&::-webkit-scrollbar]:hidden">
+          <button type="button" onClick={() => setPhoneSheet('notes')} className={chip('plain')}>
+            Catatan
+            <span
+              aria-label={notesFilled ? 'ada isi' : 'kosong'}
+              className={`h-1.5 w-1.5 rounded-full ${notesFilled ? 'bg-accent' : 'bg-border-strong'}`}
+            />
+          </button>
+          {phoneChecklistTotal > 0 ? (
+            <button
+              type="button"
+              onClick={() => setPhoneSheet('checklist')}
+              className={chip(phoneChecklistDone === phoneChecklistTotal ? 'done' : 'plain')}
+            >
+              Checklist
+              <span className="tabular-nums text-fg-muted">
+                {phoneChecklistDone}/{phoneChecklistTotal}
+              </span>
+            </button>
+          ) : null}
+          {checkerVisible ? (
+            <button
+              type="button"
+              onClick={() => setPhoneSheet('checker')}
+              className={chip(checkerFindings > 0 || aiCheckError ? 'warn' : 'plain')}
+            >
+              {checkerFindings > 0 ? (
+                <>
+                  Periksa lagi
+                  {/* Dark-on-light, not white-on-amber: white on the amber is about
+                      3:1, under the 4.5:1 a 10 px number needs. */}
+                  <span className="rounded-full bg-fg px-1.5 text-[10px] font-semibold leading-4 text-bg">
+                    {checkerFindings}
+                  </span>
+                </>
+              ) : (
+                <>
+                  <span aria-hidden="true" className="text-accent">✓</span> Periksa
+                </>
+              )}
+            </button>
+          ) : null}
+        </div>
+
+        <Sheet
+          open={phoneSheet === 'notes'}
+          onOpenChange={(open) => setPhoneSheet(open ? 'notes' : null)}
+          title="Catatan pasien"
+          description="Berlaku untuk seluruh hari rawat dan tidak ikut tersalin ke laporan."
+        >
+          <PatientNotes sync={notesSync} bare />
+        </Sheet>
+        <Sheet
+          open={phoneSheet === 'checklist'}
+          onOpenChange={(open) => setPhoneSheet(open ? 'checklist' : null)}
+          title="Checklist"
+          description={`${formatShortDate(selected)} · ${checklist.progress.doneCount}/${checklist.progress.total} harian · ${todoSummary.text} custom`}
+        >
+          <div className="space-y-5">
+            <ChecklistPills
+              items={dayItems}
+              states={checklist.states}
+              progress={checklist.progress}
+              onToggle={checklist.toggle}
+              disabled={locked}
+              orientation="vertical"
+            />
+            <section>
+              <h3 className="mb-1.5 text-xs font-semibold text-fg-muted">Custom Checklist</h3>
+              <PatientTodos patient={patient} date={selected} compact />
+            </section>
+          </div>
+        </Sheet>
+        <Sheet
+          open={phoneSheet === 'checker'}
+          onOpenChange={(open) => setPhoneSheet(open ? 'checker' : null)}
+          title="Periksa lagi"
+          description="Yang tampak terlupa di catatan ini. Tidak ada yang diubah otomatis."
+        >
+          <div className="flex flex-col gap-2">{renderChecker('sheet')}</div>
+        </Sheet>
+      </>
+    );
+  };
 
   const renderDpjpLine = (): JSX.Element => (
     <>
@@ -1386,7 +1522,7 @@ export default function PatientPage(): JSX.Element {
   };
 
   return (
-    <AppShell title={patient.name}>
+    <AppShell title={patient.name} topBar={false}>
       {/*
         Two columns from 1280 px, one below it.
 
@@ -1443,7 +1579,7 @@ export default function PatientPage(): JSX.Element {
           also where it reads best: name and record number directly under the
           day they belong to.
         */}
-        <header id="patient-sticky-header" className="sticky top-0 z-30 border-b border-border bg-bg/95 backdrop-blur">
+        <header id="patient-sticky-header" className="sticky top-0 z-30 border-b border-border bg-bg/95 pt-[env(safe-area-inset-top)] backdrop-blur lg:pt-0">
         <div className="flex items-center gap-2 px-4 py-1.5">
           {/* Browser back exists, but on an installed PWA there is no chrome to
               show it, and on desktop the note fills the window. */}
@@ -1457,7 +1593,14 @@ export default function PatientPage(): JSX.Element {
           </button>
           <div className="min-w-0 flex-1">
             <h2 className="truncate text-sm font-semibold">
-              {formatDayHeader(selected, patient.admittedAt, settings.showHariRawat)}
+              {/* Short below lg: on a tablet the header also carries Lab,
+                  Format bangsal and Pembuka, and the long date truncated there. */}
+              <span className="lg:hidden">
+                {formatDayHeaderShort(selected, patient.admittedAt, settings.showHariRawat)}
+              </span>
+              <span className="hidden lg:inline">
+                {formatDayHeader(selected, patient.admittedAt, settings.showHariRawat)}
+              </span>
             </h2>
             {!identity ? (
               // Identity is optional metadata, not a precondition. The note is
@@ -1556,6 +1699,12 @@ export default function PatientPage(): JSX.Element {
           >
             <IconCalculator width={18} height={18} />
           </button>
+          {/* The shell's title bar is off on this screen (it repeated the
+              name), so its sync state moves here. Desktop has it in the
+              sidebar. */}
+          <span className="lg:hidden">
+            <SyncPill dot />
+          </span>
           <button
             type="button"
             onClick={() => setCopyOpen(true)}
@@ -1702,15 +1851,30 @@ export default function PatientPage(): JSX.Element {
         */}
         <div className={sideHosts ? 'xl:hidden' : ''}>{renderDpjpLine()}</div>
 
-        <div className="xl:hidden">
+        {/*
+          PHONE: THE NOTE COMES FIRST (2026-10-08 mobile revamp).
+
+          Below `sm` the standing panels — Catatan pasien, Checklist, Custom
+          Checklist and Periksa lagi — were stacked open above the note, so the
+          note began about 1000 px down: a full phone screen of furniture
+          before the thing the screen is for. They are read once on arrival
+          and then scrolled past on every visit.
+
+          Here each is a chip that answers its own question in a word ("ada",
+          "3/10", "3") and opens the full panel in a sheet. Tablet keeps the
+          stacked panels (it has the height); desktop keeps its sidebar.
+        */}
+        {renderPhoneChips()}
+
+        <div className="hidden sm:block xl:hidden">
           <PatientNotes sync={notesSync} />
         </div>
 
-        <div className="xl:hidden">
+        <div className="hidden sm:block xl:hidden">
           <PatientTodos patient={patient} date={selected} />
         </div>
 
-        <div className="xl:hidden">
+        <div className="hidden sm:block xl:hidden">
           <ChecklistPills
             items={dayItems}
             states={checklist.states}
@@ -1908,7 +2072,7 @@ export default function PatientPage(): JSX.Element {
         */}
         {/* In the panel layout on a laptop the checker lives in the sidebar, so
             it stays in view while the note scrolls; here it is the fallback. */}
-        <div className={sideHosts ? 'xl:hidden' : ''}>{renderChecker('main')}</div>
+        <div className={['hidden sm:block', sideHosts ? 'xl:hidden' : ''].join(' ')}>{renderChecker('main')}</div>
 
         {staleMarkers ? (
           <Banner tone="warn">
