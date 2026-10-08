@@ -5,6 +5,14 @@ Catatan teknis lengkap (akar masalah, perbaikan) ada di CHANGES.md.
 
 Entri teratas harus versi yang sedang dirilis; tes gagal bila belum ditulis.
 
+## `2026-10-08.1`
+- **Periksa lagi memeriksa kalimat pembuka:** "follow up" pada hari pertama pasien, atau "pasien baru" yang masih terbawa ke hari rawat berikutnya, kini ditandai. Pembuka konsul dan perpindahan tidak dinilai.
+- **Ruangan di pembuka dicocokkan dengan data pasien:** bila Lt., Kamar, atau Bed di kalimat pembuka berbeda dengan data pasien, Periksa lagi menyebut keduanya. Untuk perpindahan, yang dicocokkan adalah ruangan tujuan.
+- **Pengingat 6MWT untuk pasien trio (AFG, AFM, ZD):** sejak H-1 (dan pada hari pulang), Periksa lagi mengingatkan bila 6MWT belum ada di catatan, dan pita "PULANG BESOK · H-1" di kartu papan menampilkan tanda **6MWT**.
+- **Catatan tempel bisa diedit di HP:** mengetuk catatan tempel di papan HP kini membuka catatan yang bisa diedit (sebelumnya hanya bisa dibaca).
+- **Alat Gambar tidak lagi keluar dari layar:** di bilah papan hanya tombol ✏️ Gambar/Selesai; Pena, Stabilo, Penghapus, warna, Urungkan, dan Hapus semua kini muncul di bilah melayang di bawah layar.
+- **Penanda ikut hilang bersama kartunya:** penanda yang ditempel pada kartu pasien kini dihapus bila pasien diarsipkan, dihapus, atau dipindah ke papan lain (Titipan / Pasien saya), sehingga tidak muncul lagi bila pasien dirawat kembali.
+
 ## `2026-10-07.2`
 - **Gambar di papan pasien:** tombol **✏️ Gambar** di bilah papan (di samping Penanda) membuka mode gambar: **Pena**, **Stabilo**, dan **Penghapus** (menghapus satu garis utuh), empat warna, **Urungkan** (juga Ctrl+Z), dan **Hapus semua** (tekan dua kali). Gambar berada di belakang kartu pasien, jadi kartu tetap terbaca. Tekan **Selesai** atau Esc untuk kembali; selama mode gambar, kartu tidak terbuka saat diketuk.
 - Gambar tersimpan **di perangkat ini saja**, terpisah untuk Pasien saya dan Titipan. Tersedia di papan kanvas (laptop/layar lebar); tampilan HP tidak menampilkannya.

@@ -171,17 +171,31 @@ export function CanvasDrawing({
   const shown = erasing ?? state.strokes;
   const height = Math.max(size.height, drawingBottom(shown) + 24);
 
-  const toolbar = (
-    <span className="flex shrink-0 flex-wrap items-center gap-1">
-      <button
-        type="button"
-        onClick={() => setActive((on) => !on)}
-        aria-pressed={active}
-        title="Gambar di latar papan (tersimpan di perangkat ini)"
-        className={`${BUTTON} ${active ? 'bg-[var(--accent-soft)] text-accent' : 'text-fg'}`}
-      >
-        ✏️ {active ? 'Selesai' : 'Gambar'}
-      </button>
+  /*
+    Only the toggle goes in the board toolbar. The tools used to follow it
+    there, and that row is one line already nearly full (search, order,
+    Rapikan, Penanda, + Catatan, Format): opening Gambar pushed half of it
+    past the right edge (Avi, 2026-10-08). They now float at the bottom of
+    the screen, where they can wrap and never move the toolbar.
+  */
+  const toggle = (
+    <button
+      type="button"
+      onClick={() => setActive((on) => !on)}
+      aria-pressed={active}
+      title="Gambar di latar papan (tersimpan di perangkat ini)"
+      className={`${BUTTON} ${active ? 'bg-[var(--accent-soft)] text-accent' : 'text-fg'}`}
+    >
+      ✏️ {active ? 'Selesai' : 'Gambar'}
+    </button>
+  );
+
+  const tools = (
+    <div
+      role="toolbar"
+      aria-label="Alat gambar"
+      className="fixed bottom-4 left-1/2 z-[60] flex w-max max-w-[calc(100vw-2rem)] -translate-x-1/2 flex-wrap items-center justify-center gap-1 rounded-2xl border border-border bg-surface px-2 py-1.5 shadow-lg"
+    >
       {active ? (
         <>
           <span role="group" aria-label="Alat gambar" className="flex rounded-lg border border-border p-0.5">
@@ -237,14 +251,23 @@ export function CanvasDrawing({
           >
             {confirmClear ? 'Yakin hapus semua?' : 'Hapus semua'}
           </button>
+          <span aria-hidden="true" className="mx-0.5 h-6 w-px bg-border" />
+          <button
+            type="button"
+            onClick={() => setActive(false)}
+            className={`${BUTTON} bg-accent text-white hover:bg-accent hover:opacity-90`}
+          >
+            Selesai
+          </button>
         </>
       ) : null}
-    </span>
+    </div>
   );
 
   return (
     <>
-      {actionsSlot && enabled ? createPortal(toolbar, actionsSlot) : null}
+      {actionsSlot && enabled ? createPortal(toggle, actionsSlot) : null}
+      {active ? createPortal(tools, document.body) : null}
 
       <svg
         aria-hidden="true"

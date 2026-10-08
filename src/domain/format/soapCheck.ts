@@ -44,7 +44,10 @@ export type SoapFindingKind =
   | 'consult-not-in-dpjp'
   | 'electrolyte-corrected'
   | 'anemia-without-hb'
-  | 'balance-without-catheter';
+  | 'balance-without-catheter'
+  | 'opening-kind'
+  | 'opening-place'
+  | 'trio-6mwt';
 
 /**
  * How urgent, which is also the order they are listed in:
@@ -240,6 +243,23 @@ export interface SoapCheckInput {
   dayMarkersDismissed?: boolean;
   /** Section headings, from Settings. */
   aliases?: readonly SectionAlias[];
+  /** What the page knows about the patient that the note alone does not say. */
+  context?: SoapCheckContext | undefined;
+}
+
+/**
+ * Patient facts for the checks that compare the note with the record
+ * (2026-10-08). All optional: without them those checks simply do not run.
+ */
+export interface SoapCheckContext {
+  /** Hari rawat of the note's day: 0 (IGD / admission) or 1 means a new patient. */
+  hariRawat?: number;
+  /** Where the patient is registered. */
+  place?: { ward?: string | undefined; room?: string | undefined; bed?: string | undefined };
+  /** The DPJP's initials when it is one of the trio (AFG, AFM, ZD), else null. */
+  trio?: string | null;
+  /** Days from the note's day to the planned discharge: 1 = H-1, 0 = today. */
+  dischargeInDays?: number | null;
 }
 
 const LEVEL_ORDER: Record<SoapFindingLevel, number> = { isi: 0, kemarin: 1, cek: 2 };
@@ -490,6 +510,8 @@ export function checkSoap(input: SoapCheckInput): SoapFinding[] {
     });
   }
 
+  if (input.context) findings.push(...checkContext(body, input.context));
+
   findings.push(...checkSections(sections, previous, aliases));
   findings.push(...checkUnfilled(body));
   findings.push(...checkHariRawat(body, previous));
@@ -736,4 +758,132 @@ function checkDuplicates(sections: readonly ParsedSection[]): SoapFinding[] {
     }
   }
   return [];
+}
+
+/**
+ * The reporting line: the first of the first few lines that reports
+ * (`melapor`). The greeting may share it or sit on the line above.
+ */
+function reportingLine(body: string): { text: string; at: number } | null {
+  let offset = 0;
+  let seen = 0;
+  for (const line of body.split('\n')) {
+    if (line.trim()) {
+      seen += 1;
+      if (/melapor/i.test(line)) return { text: line, at: offset };
+      if (seen >= 4) return null;
+    }
+    offset += line.length + 1;
+  }
+  return null;
+}
+
+/** Floor, room and bed as written: `PJT Lt. 4 Kamar 420 bed 2`, `Lantai 4`, `Kamar 417`. */
+export function readPlace(text: string): { floor?: string; room?: string; bed?: string } {
+  const floor = /\b(?:lt|lantai)\.?\s*(\d+)/i.exec(text)?.[1];
+  const room = /\bkamar\s*(\d+[a-z]?)\b/i.exec(text)?.[1];
+  const bed = /\bbed\s*(\d+)\b/i.exec(text)?.[1];
+  return {
+    ...(floor ? { floor } : {}),
+    ...(room ? { room: room.toUpperCase() } : {}),
+    ...(bed ? { bed: String(Number(bed)) } : {}),
+  };
+}
+
+const PLACE_LABEL = { floor: 'Lt.', room: 'Kamar', bed: 'Bed' } as const;
+
+function describePlace(place: { floor?: string; room?: string; bed?: string }): string {
+  return (['floor', 'room', 'bed'] as const)
+    .filter((key) => place[key])
+    .map((key) => `${PLACE_LABEL[key]} ${place[key] ?? ''}`)
+    .join(' · ');
+}
+
+/**
+ * Checks that compare the note with the patient record (Avi, 2026-10-08).
+ *
+ * THE OPENING. A new patient is reported with "pasien baru", every later day
+ * with "follow up", and a carried-forward note keeps whichever it had: the
+ * day-1 sentence survives into day 2, or a follow-up template is used for an
+ * admission. Konsul and perpindahan openings are their own kinds and are not
+ * judged. The room in the opening is compared with the registered one,
+ * floor, room and bed each only where both sides have it; for a perpindahan
+ * it is the destination (after "ke") that should match.
+ *
+ * THE TRIO. AFG, AFM and ZD want a 6MWT before discharge (the standing
+ * instruction shown with their DPJP line). From H-1 the note should say so.
+ */
+function checkContext(body: string, context: SoapCheckContext): SoapFinding[] {
+  const findings: SoapFinding[] = [];
+  const opening = reportingLine(body);
+
+  if (opening && context.hariRawat !== undefined) {
+    const text = opening.text;
+    const neutral = /perpindahan|pindah|konsul/i.test(text);
+    const isNew = context.hariRawat <= 1;
+    const followUp = /follow\s*-?\s*up/i.exec(text);
+    const baru = /pasien\s+baru/i.exec(text);
+    if (!neutral && isNew && followUp) {
+      findings.push({
+        kind: 'opening-kind',
+        level: 'cek',
+        message: 'Pembuka "follow up", padahal ini hari pertama pasien. Ganti ke pembuka pasien baru?',
+        anchor: followUp[0],
+        at: opening.at + followUp.index,
+      });
+    } else if (!neutral && !isNew && baru) {
+      findings.push({
+        kind: 'opening-kind',
+        level: 'cek',
+        message: `Pembuka masih "pasien baru", padahal ini hari rawat ke-${String(context.hariRawat)}. Ganti ke follow up?`,
+        anchor: baru[0],
+        at: opening.at + baru.index,
+      });
+    }
+  }
+
+  if (opening && context.place) {
+    const destination = /perpindahan|pindah/i.test(opening.text)
+      ? opening.text.slice(opening.text.toLowerCase().lastIndexOf(' ke ') + 1)
+      : opening.text;
+    const written = readPlace(destination);
+    const registered = {
+      ...readPlace(context.place.ward ?? ''),
+      ...(context.place.room ? readPlace(`kamar ${context.place.room.replace(/^\s*kamar\s*/i, '')}`) : {}),
+      ...(context.place.bed ? readPlace(`bed ${context.place.bed.replace(/^\s*bed\s*/i, '')}`) : {}),
+    };
+    const differs = (['floor', 'room', 'bed'] as const).filter(
+      (key) => written[key] !== undefined && registered[key] !== undefined && written[key] !== registered[key],
+    );
+    if (differs.length > 0) {
+      const shown = (['floor', 'room', 'bed'] as const).filter((key) => written[key] !== undefined && registered[key] !== undefined);
+      const pick = (from: typeof written): typeof written =>
+        Object.fromEntries(shown.map((key) => [key, from[key]])) as typeof written;
+      const anchorMatch = /\b(?:kamar|bed|lt|lantai)\b[^*\n]*/i.exec(destination);
+      const anchorText = anchorMatch?.[0].trim();
+      findings.push({
+        kind: 'opening-place',
+        level: 'cek',
+        message: `Ruangan di pembuka (${describePlace(pick(written))}) beda dengan data pasien (${describePlace(pick(registered))}).`,
+        ...(anchorText ? { anchor: anchorText, at: opening.at + opening.text.indexOf(anchorText) } : {}),
+      });
+    }
+  }
+
+  if (
+    context.trio &&
+    context.dischargeInDays !== undefined &&
+    context.dischargeInDays !== null &&
+    context.dischargeInDays >= 0 &&
+    context.dischargeInDays <= 1 &&
+    !/\b6\s*-?\s*MWT\b|six[\s-]*minute|6\s*minute\s*walk|walk\s*test/i.test(body)
+  ) {
+    findings.push({
+      kind: 'trio-6mwt',
+      level: 'cek',
+      message: `Pasien ${context.trio} ${context.dischargeInDays === 0 ? 'pulang hari ini' : 'pulang besok (H-1)'}: 6MWT belum ada di catatan.`,
+    });
+  }
+
+  return findings;
 }

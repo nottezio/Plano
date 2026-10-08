@@ -19,6 +19,7 @@ import { StickyNoteCard } from '@/components/board/StickyNoteCard';
 import { CanvasStickers, CardStickers } from '@/components/board/CanvasStickers';
 import { CanvasDrawing } from '@/components/board/CanvasDrawing';
 import { useBoardStickers } from '@/hooks/useBoardStickers';
+import { pruneDetachedStickers } from '@/domain/board/stickers';
 import { useBoardDrawing } from '@/hooks/useBoardDrawing';
 import { createBoardNote } from '@/data/repositories/boardNotes.repo';
 import { activeBoardNotes, noteIdFromCanvasId, stickyCanvasId } from '@/domain/boardNotes';
@@ -89,7 +90,7 @@ export default function BoardPage(): JSX.Element {
     navigate(`/p/${id}/${today}`);
   }, [uid, today, navigate]);
   const settings = useSession((state) => state.settings());
-  const { patients, loading, error } = usePatients('active');
+  const { patients, loading, error, fromCache } = usePatients('active');
   useSlowWait('daftar pasien', loading);
 
   const [query, setQuery] = useState('');
@@ -449,6 +450,21 @@ export default function BoardPage(): JSX.Element {
     [patients, scope, order, customIds],
   );
 
+  /*
+    Stickers stuck on a card that has left this board go with it
+    (`pruneDetachedStickers`). Only against a list the SERVER confirmed: the
+    first answer can come from this device's cache, which on a fresh or
+    long-offline device may be missing patients, and pruning against it
+    would delete stickers of patients who are still here. And only once the
+    stickers loaded are this scope's, not the previous one's.
+  */
+  const { stickers: currentStickers, persist: persistStickers, loadedFor: stickersScope } = stickerState;
+  useEffect(() => {
+    if (loading || fromCache || error || stickersScope !== scope) return;
+    const next = pruneDetachedStickers(currentStickers, new Set(scopeIds));
+    if (next !== currentStickers) persistStickers(next);
+  }, [loading, fromCache, error, stickersScope, scope, scopeIds, currentStickers, persistStickers]);
+
   /** One canvas cell: a sticky note or a patient card. Shared by the laptop canvas and the phone viewer. */
   const renderCanvasItem = (
     id: string,
@@ -582,6 +598,9 @@ export default function BoardPage(): JSX.Element {
 
   /** Inputs of the phone's block canvas. */
   const phoneCards = useMemo(() => new Map(cards.map((card) => [card.patient.id, card])), [cards]);
+  /** The sticky note open for editing on the phone canvas (see PhoneCanvas → StickyBlock). */
+  const [phoneStickyId, setPhoneStickyId] = useState<string | null>(null);
+  const phoneSticky = phoneStickyId ? boardNotes.find((entry) => entry.id === phoneStickyId) ?? null : null;
   const phoneStickies = useMemo(
     () =>
       new Map<string, PhoneSticky>(
@@ -1064,6 +1083,7 @@ export default function BoardPage(): JSX.Element {
               grid={phoneGrid}
               onChange={changePhoneGrid}
               onLongPress={setQuickPatientId}
+              onOpenSticky={setPhoneStickyId}
             />
           ) : cards.length > 0 ? (
             <>
@@ -1162,6 +1182,21 @@ export default function BoardPage(): JSX.Element {
       >
         +
       </button>
+
+      {/* The phone canvas's sticky note, open in the same editor the laptop uses. */}
+      <Sheet
+        open={phoneSticky !== null && uid !== null}
+        onOpenChange={(open) => {
+          if (!open) setPhoneStickyId(null);
+        }}
+        title="Catatan tempel"
+      >
+        {phoneSticky && uid ? (
+          <div className="p-3">
+            <StickyNoteCard uid={uid} id={phoneSticky.id} note={phoneSticky.note} />
+          </div>
+        ) : null}
+      </Sheet>
 
       <Sheet open={moreOpen} onOpenChange={setMoreOpen} title="Aksi">
         <div className="space-y-2 p-4">

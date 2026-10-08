@@ -303,3 +303,26 @@ export function freeStickers(stickers: readonly BoardSticker[]): BoardSticker[] 
 export function stickersOnCard(stickers: readonly BoardSticker[], cardId: string): BoardSticker[] {
   return stickers.filter((sticker) => sticker.card?.id === cardId);
 }
+
+/**
+ * Stickers stuck on cards that have LEFT this board: archived, discharged,
+ * deleted, or moved to the other scope (Avi, 2026-10-08).
+ *
+ * They were kept and simply not drawn, so a flag put on a patient came back
+ * the day the patient was re-admitted, or reappeared beside them after a
+ * move back from Titipan, carrying a meaning from another stay. A sticker is
+ * about this patient for the next hour; when the patient goes, so does it.
+ *
+ * `present` must be the whole scope, unfiltered, and from a CONFIRMED list
+ * (see the board): pruned against a filtered or half-loaded list, this would
+ * delete stickers of patients who are still there. Free stickers are never
+ * touched. Returns the same array when nothing goes, so a caller can skip
+ * the write.
+ */
+export function pruneDetachedStickers(
+  stickers: BoardSticker[],
+  present: ReadonlySet<string>,
+): BoardSticker[] {
+  const kept = stickers.filter((sticker) => !sticker.card || present.has(sticker.card.id));
+  return kept.length === stickers.length ? stickers : kept;
+}

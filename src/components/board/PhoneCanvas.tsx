@@ -42,6 +42,7 @@ export function PhoneCanvas({
   grid,
   onChange,
   onLongPress,
+  onOpenSticky,
 }: {
   /** Patients and sticky notes, in board order (the order new blocks fill in). */
   ids: readonly string[];
@@ -50,6 +51,8 @@ export function PhoneCanvas({
   grid: PhoneGrid;
   onChange: (next: PhoneGrid, columns: number) => void;
   onLongPress: (patientId: string) => void;
+  /** Open a sticky note for editing. Without it a tap only shows the text. */
+  onOpenSticky?: ((noteId: string) => void) | undefined;
 }): JSX.Element {
   const surfaceRef = useRef<HTMLDivElement>(null);
   const [width, setWidth] = useState(0);
@@ -200,7 +203,7 @@ export function PhoneCanvas({
               {card ? (
                 <PatientBlock card={card} editing={editing} onLongPress={onLongPress} />
               ) : sticky ? (
-                <StickyBlock sticky={sticky} editing={editing} />
+                <StickyBlock sticky={sticky} editing={editing} onOpen={onOpenSticky} />
               ) : null}
             </div>
           );
@@ -282,7 +285,25 @@ function PatientBlock({
   );
 }
 
-function StickyBlock({ sticky, editing }: { sticky: PhoneSticky; editing: boolean }): JSX.Element {
+/**
+ * A sticky note on the phone canvas.
+ *
+ * A tap used to open `NotePopover`, which only SHOWS the text: on a phone the
+ * notes could be read and never edited, while the laptop canvas and the list
+ * view both render the editable `StickyNoteCard` (Avi, 2026-10-08). Now a tap
+ * hands the note to the board, which opens that same editor in a sheet, so a
+ * note is edited by one component everywhere. The popover stays only as the
+ * fallback for a caller that does not offer editing.
+ */
+function StickyBlock({
+  sticky,
+  editing,
+  onOpen,
+}: {
+  sticky: PhoneSticky;
+  editing: boolean;
+  onOpen?: ((noteId: string) => void) | undefined;
+}): JSX.Element {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLButtonElement>(null);
   const first = sticky.text.split('\n').find((line) => line.trim()) ?? '(kosong)';
@@ -292,7 +313,7 @@ function StickyBlock({ sticky, editing }: { sticky: PhoneSticky; editing: boolea
         ref={ref}
         type="button"
         disabled={editing}
-        onClick={() => setOpen(true)}
+        onClick={() => (onOpen ? onOpen(sticky.id) : setOpen(true))}
         className="flex h-full w-full flex-col overflow-hidden rounded-lg border border-[var(--warn-strong)] bg-[var(--warn-soft)] p-1.5 text-left text-fg disabled:cursor-grab"
       >
         <span className="text-[9px] font-semibold uppercase tracking-wide text-[var(--warn-strong)]">Catatan</span>

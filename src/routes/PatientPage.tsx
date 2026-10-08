@@ -49,6 +49,7 @@ import { fillPatientFromNote, healCardPreview } from '@/data/repositories/patien
 import { parsePatientFacts } from '@/domain/parsePatient';
 import { carryForward, carryForwardSummary } from '@/domain/carryForward';
 import { checkSoap } from '@/domain/format/soapCheck';
+import { migrateLegacyDischarge } from '@/domain/discharge';
 import { readReferenceRanges } from '@/components/settings/ReferenceRanges';
 import { AiError, aiEnabled, askClaudeStructured } from '@/lib/ai';
 import {
@@ -681,6 +682,21 @@ export default function PatientPage(): JSX.Element {
    * checker's version is suppressed once that has been dismissed — one
    * dismissal, not two, for the same fact.
    */
+  /**
+   * What the checker compares the note with (2026-10-08): the day of the stay
+   * (new patient or follow-up), where the patient is registered, and, for the
+   * trio, how far the planned discharge is from this note's day.
+   */
+  const plannedDischarge = patient ? migrateLegacyDischarge(patient, today) : undefined;
+  const checkContext = useMemo(
+    () => ({
+      hariRawat,
+      place: { ward: patient?.ward, room: patient?.room, bed: patient?.bed },
+      trio: isTrioDpjp(dpjp?.id) ? (dpjp?.initials ?? null) : null,
+      dischargeInDays: plannedDischarge ? daysBetween(selected, plannedDischarge) : null,
+    }),
+    [hariRawat, patient?.ward, patient?.room, patient?.bed, dpjp?.id, dpjp?.initials, plannedDischarge, selected],
+  );
   const soapFindings = useMemo(
     () =>
       checkSoap({
@@ -692,8 +708,9 @@ export default function PatientPage(): JSX.Element {
         // enabled.
         ranges: readReferenceRanges(),
         aliases: settings.sectionAliases,
+        context: checkContext,
       }),
-    [settledBody, previous.entry?.body, dayMarkersDismissed, settings.sectionAliases],
+    [settledBody, previous.entry?.body, dayMarkersDismissed, settings.sectionAliases, checkContext],
   );
 
   /**

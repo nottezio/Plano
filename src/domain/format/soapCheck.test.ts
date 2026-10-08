@@ -577,3 +577,68 @@ describe('Foley reminder: a diuretic or a balance without a catheter (2026-10-07
     expect(reminder(note('- Aspilet 80 mg', '- Monitoring', ', riwayat furosemide di RS asal'))).toEqual([]);
   });
 });
+
+describe('the note against the patient record (2026-10-08)', () => {
+  const FOLLOW_UP =
+    'Assalamualaikum Dokter. Tabe dokter, mohon izin melaporkan follow up pasien di *PJT Lt. 4 Kamar 420 bed 2* atas nama :\n\n*S:*\n- sesak berkurang';
+  const BARU =
+    'Tabe dokter, mohon izin melaporkan pasien baru dari *Poli Kardio* di *PJT Lt. 4 Kamar 420 Bed 2* atas nama :\n\n*S:*\n- sesak';
+  const PLACE = { ward: 'PJT Lt. 4', room: '420', bed: '2' };
+  const found = (body: string, context: Parameters<typeof checkSoap>[0]['context']) =>
+    checkSoap({ body, context }).filter((finding) => ['opening-kind', 'opening-place', 'trio-6mwt'].includes(finding.kind));
+
+  it('a follow-up opening on the first day', () => {
+    const [finding] = found(FOLLOW_UP, { hariRawat: 1 });
+    expect(finding?.message).toBe('Pembuka "follow up", padahal ini hari pertama pasien. Ganti ke pembuka pasien baru?');
+    expect(FOLLOW_UP.slice(finding!.at!, finding!.at! + finding!.anchor!.length)).toBe('follow up');
+  });
+
+  it('"pasien baru" carried into day 3', () => {
+    expect(found(BARU, { hariRawat: 3 })[0]?.message).toBe(
+      'Pembuka masih "pasien baru", padahal ini hari rawat ke-3. Ganti ke follow up?',
+    );
+  });
+
+  it('the right opening for the day says nothing', () => {
+    expect(found(FOLLOW_UP, { hariRawat: 5, place: PLACE })).toEqual([]);
+    expect(found(BARU, { hariRawat: 1, place: PLACE })).toEqual([]);
+  });
+
+  it('konsul and perpindahan openings are not judged by day', () => {
+    const konsul = 'Tabe dokter, mohon izin melaporkan konsul pasien dari *TS Interna* di *PJT Lt. 4 Kamar 420 Bed 2* atas nama :';
+    expect(found(konsul, { hariRawat: 1 })).toEqual([]);
+  });
+
+  it('a bed that differs from the record', () => {
+    const [finding] = found(FOLLOW_UP, { hariRawat: 5, place: { ...PLACE, bed: '3' } });
+    expect(finding?.message).toBe('Ruangan di pembuka (Lt. 4 · Kamar 420 · Bed 2) beda dengan data pasien (Lt. 4 · Kamar 420 · Bed 3).');
+  });
+
+  it('a floor that differs, written as "Lantai" in the record', () => {
+    expect(found(FOLLOW_UP, { hariRawat: 5, place: { ward: 'PJT Lantai 3', room: '420', bed: '2' } })[0]?.kind).toBe('opening-place');
+  });
+
+  it('only what both sides have is compared', () => {
+    expect(found(FOLLOW_UP, { hariRawat: 5, place: { ward: 'PJT', room: '' } })).toEqual([]);
+  });
+
+  it('a perpindahan is checked against the destination', () => {
+    const move =
+      'Tabe dokter mohon izin melaporkan follow up perpindahan pasien dari *CVCU Bed 3* ke *PJT Lt. 4 Kamar 420 Bed 2* pasien atas nama :';
+    expect(found(move, { hariRawat: 4, place: PLACE })).toEqual([]);
+    expect(found(move, { hariRawat: 4, place: { ...PLACE, room: '421' } })[0]?.kind).toBe('opening-place');
+  });
+
+  it('a trio patient from H-1 with no 6MWT in the note', () => {
+    expect(found(FOLLOW_UP, { trio: 'AFG', dischargeInDays: 1 })[0]?.message).toBe(
+      'Pasien AFG pulang besok (H-1): 6MWT belum ada di catatan.',
+    );
+    expect(found(FOLLOW_UP, { trio: 'ZD', dischargeInDays: 0 })[0]?.message).toMatch(/pulang hari ini/);
+  });
+
+  it('quiet when 6MWT is written, when not trio, or further from discharge', () => {
+    expect(found(`${FOLLOW_UP}\n\n*Plan:*\n- 6MWT besok pagi`, { trio: 'AFG', dischargeInDays: 1 })).toEqual([]);
+    expect(found(FOLLOW_UP, { trio: null, dischargeInDays: 1 })).toEqual([]);
+    expect(found(FOLLOW_UP, { trio: 'AFM', dischargeInDays: 3 })).toEqual([]);
+  });
+});

@@ -23,10 +23,17 @@ export interface BoardStickersState {
   preview: (next: BoardSticker[]) => void;
   /** Replace and store. */
   persist: (next: BoardSticker[]) => void;
+  /**
+   * The scope these stickers were loaded for. For one render after the scope
+   * changes, `stickers` still holds the PREVIOUS scope's list; anything that
+   * compares them with the new scope's cards must wait until this matches.
+   */
+  loadedFor: string | null;
 }
 
 export function useBoardStickers(scope: string): BoardStickersState {
   const [stickers, setStickers] = useState<BoardSticker[]>([]);
+  const [loadedFor, setLoadedFor] = useState<string | null>(null);
 
   useEffect(() => {
     try {
@@ -38,12 +45,14 @@ export function useBoardStickers(scope: string): BoardStickersState {
       const plan = stickerMigrationPlan(scope, scopeValue, legacyValue);
       const loaded = parseStickers(plan === 'migrate-legacy' ? legacyValue : scopeValue);
       setStickers(loaded);
+      setLoadedFor(scope);
       if (plan === 'migrate-legacy') {
         localStorage.setItem(key, JSON.stringify(loaded));
         localStorage.removeItem(LEGACY_STICKER_KEY);
       }
     } catch {
       setStickers([]);
+      setLoadedFor(scope);
     }
   }, [scope]);
 
@@ -59,5 +68,5 @@ export function useBoardStickers(scope: string): BoardStickersState {
     [scope],
   );
 
-  return { stickers, preview: setStickers, persist };
+  return { stickers, preview: setStickers, persist, loadedFor };
 }

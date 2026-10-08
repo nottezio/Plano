@@ -9,6 +9,7 @@ import { Link } from 'react-router-dom';
 import { previewLines, type BoardCard } from '@/domain/board';
 import { ProgressStrip } from './ProgressStrip';
 import { IconCar, IconCopy, IconEye } from '@/components/common/Icons';
+import { isTrioDpjp } from '@/domain/dpjp';
 import { formatLocation } from '@/domain/identity';
 import { copyText } from '@/lib/clipboard';
 import {
@@ -462,6 +463,9 @@ export function PatientCard({
         >
           <IconCar width={13} height={13} className="shrink-0" aria-hidden="true" />
           {dischargeStrip === 'today' ? 'Pulang hari ini' : 'Pulang besok · H-1'}
+          {/* AFG, AFM and ZD want a 6MWT before discharge: said where the
+              discharge is said, from H-1, so it is not found on the day. */}
+          {isTrioDpjp(card.dpjp?.id) ? <span className="ml-auto rounded bg-black/15 px-1.5">6MWT</span> : null}
         </p>
       ) : null}
       {/*

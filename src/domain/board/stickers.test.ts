@@ -8,6 +8,7 @@ import {
   clampX,
   moveSticker,
   parseStickers,
+  pruneDetachedStickers,
   removeSticker,
   STICKER_EMOJI,
   stickerTag,
@@ -172,5 +173,20 @@ describe('attaching to a card', () => {
     const [a, b] = parseStickers(raw);
     expect(a?.card).toEqual({ id: 'p1', dx: 3, dy: 4 });
     expect(b && 'card' in b).toBe(false);
+  });
+});
+
+describe('pruneDetachedStickers', () => {
+  const free = { id: 'f', emoji: '🚩', x: 0.1, y: 10 };
+  const onA = { id: 'a', emoji: 'PCI', x: 0.2, y: 20, card: { id: 'pA', dx: 4, dy: 4 } };
+  const onB = { id: 'b', emoji: '✅', x: 0.3, y: 30, card: { id: 'pB', dx: 4, dy: 4 } };
+
+  it('drops stickers whose card left the board, keeps free ones', () => {
+    expect(pruneDetachedStickers([free, onA, onB], new Set(['pA'])).map((s) => s.id)).toEqual(['f', 'a']);
+  });
+
+  it('returns the same array when nothing goes, so nothing is written', () => {
+    const all = [free, onA, onB];
+    expect(pruneDetachedStickers(all, new Set(['pA', 'pB']))).toBe(all);
   });
 });

@@ -1,5 +1,63 @@
 # Plano — CHANGES
 
+## `2026-10-08.1` — Checker reads the opening and the record; trio 6MWT; phone sticky edit; drawing toolbar; stickers leave with their card
+
+### 1. Periksa lagi: the opening line (Avi)
+New optional `SoapCheckInput.context` (`hariRawat`, `place`, `trio`,
+`dischargeInDays`), passed by PatientPage; without it these checks do not
+run. The reporting line is the first of the first four non-empty lines
+containing `melapor`.
+- `opening-kind`:
+  - "follow up" when hari rawat ≤ 1 (IGD / first day);
+  - "pasien baru" from hari rawat 2;
+  - konsul and perpindahan openings are not judged.
+- `opening-place`:
+  - Lt., Kamar and Bed in the opening against the registered ward, room and
+    bed (`readPlace`), each only where both sides have it;
+  - for a perpindahan, the destination (after "ke");
+  - the message names both, e.g. "(Lt. 4 · Kamar 420 · Bed 2) beda dengan
+    data pasien (Lt. 4 · Kamar 420 · Bed 3)".
+
+### 2. Trio (AFG, AFM, ZD): 6MWT from H-1 (Avi)
+- `trio-6mwt`: the DPJP is one of the trio, the planned discharge is today
+  or tomorrow, and no 6MWT / six-minute walk is written anywhere in the note.
+- On the board, the trio card's H-1 / hari ini strip carries a **6MWT** tag.
+
+### 3. Sticky notes not editable on a phone (Avi)
+**Root cause.** The phone canvas drew notes with its own `StickyBlock`,
+whose tap opened `NotePopover`, a read-only view. The laptop canvas and the
+list view render the editable `StickyNoteCard`; the phone had no editing
+path at all.
+**Fix.** A tap hands the note id to the board (`onOpenSticky`), which opens
+that same `StickyNoteCard` in a sheet. One editor everywhere; the popover
+remains only for a caller that offers no editing.
+
+### 4. Gambar toolbar overflowing the board header (Avi, screenshot)
+**Root cause.** The drawing tools were portalled into the board toolbar, a
+single row already nearly full, so opening Gambar pushed + Catatan and
+Format off the right edge.
+**Fix.** Only the ✏️ Gambar / Selesai toggle stays in the toolbar. The
+tools float at the bottom of the screen (`w-max`, capped at the viewport,
+wrapping if ever needed), with their own Selesai. Checked: the header no
+longer overflows and the bar is one row at 1280 px.
+
+### 5. Stickers stay behind when their card leaves (Avi)
+`pruneDetachedStickers(stickers, present)` drops stickers stuck on a card
+that is no longer on this board (archived, deleted, or moved to the other
+scope); free stickers are untouched. The board runs it only when both:
+- the patient list is SERVER-confirmed (`!loading && !fromCache`), since a
+  cache-only first answer on a fresh device can be missing patients, and
+  pruning against it would delete stickers of patients who are still there;
+- the stickers loaded belong to the scope on screen
+  (`useBoardStickers.loadedFor`). For one render after a scope switch the
+  hook still holds the previous scope's list, and pruning then would write
+  it, emptied, under the new scope's key.
+
+```
+1992 tests passed (+12)
+typecheck / lint (0 warnings) / check:version / check:contrast / check:a11y / build - clean
+```
+
 ## `2026-10-07.2` — Drawing on the board canvas (per device, per scope)
 
 Avi: "Is it possible to make the dashboard canvas background drawable?", then
