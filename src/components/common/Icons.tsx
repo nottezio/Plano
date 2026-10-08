@@ -263,6 +263,15 @@ export const IconLayers = (props: IconProps): JSX.Element => (
   </Base>
 );
 
+/** Printer: a note exported for printing. */
+export const IconPrinter = (props: IconProps): JSX.Element => (
+  <Base {...props}>
+    <path d="M7 9V4h10v5" />
+    <rect x="4" y="9" width="16" height="7" rx="1.5" />
+    <path d="M7 14h10v6H7z" />
+  </Base>
+);
+
 /** Moon: a jaga note. */
 export const IconMoon = (props: IconProps): JSX.Element => (
   <Base {...props}>

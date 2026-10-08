@@ -1,5 +1,51 @@
 # Plano — CHANGES
 
+## `2026-10-08.2` — Ekspor ke Word (SOAP for printing)
+
+### 1. Export the open note as .docx (Avi)
+Not a bug, so no RCA. Design decisions:
+- **What is exported:** the note on screen (`activeNote.body`): the day's
+  SOAP, or the jaga note / version that is open. Verbatim, line for line, the
+  same "selection, not rewrite" rule as Ringkas.
+- **Conversion** (`domain/format/soapDocx.ts`):
+  - emphasis uses the copy formatters' own patterns (`BOLD_RE`,
+    `SINGLE_BOLD_RE`, `ITALIC_RE`, `STRIKE_RE`, now exported), so a span is
+    bold in Word exactly when it is bold in WhatsApp; `2*1 g`, `hari_rawat`,
+    `TD_N_RR` stay plain;
+  - `- ` / `* ` / `•` lines become Word bullets (3 levels, by indent);
+  - numbered lines keep the note's own numbers (a plan referring to "no. 3"
+    must still point at 3), with a hanging indent;
+  - invisible characters stripped (`stripInvisible`), XML-invalid control
+    characters removed, trailing blank lines dropped.
+- **Page:** A4, 2 cm margins, Arial 11, no space after paragraphs (the
+  note's blank lines are its spacing), language id-ID. Running header on
+  every page (name, RM, place · date, hari rawat, note label), "Halaman x
+  dari y" footer. No title block in the body: the opening already carries
+  the identity.
+- **Packaging:** hand-written WordprocessingML in a stored ZIP
+  (`lib/zip.ts`, CRC-32, fixed DOS date → deterministic). No `docx`
+  dependency: it would add a few hundred KB to the offline precache for one
+  button; seven small parts suffice. Output validated with the OOXML schema
+  validator and rendered through LibreOffice (bullets, hanging numbers,
+  header/footer fields correct).
+- **Delivery** (`lib/download.ts`, `deliverFile`): share sheet on a
+  coarse-pointer device that can share files (straight to Word / printer /
+  WhatsApp); plain download otherwise. Object URL revoked after 30 s, not in
+  the same tick (Safari/Firefox).
+- **UI:** ⋯ → Catatan → **Ekspor ke Word** (`IconPrinter`). Offered on locked
+  days too; absent only when the note is empty.
+
+### Not done
+- No PDF export: Word was asked for, and the file stays editable before
+  printing (drop the greeting, add a signature).
+- Not tested on a real phone's share sheet.
+
+```
+npm run verify
+  typecheck ✓  lint ✓ (0 warnings)  test ✓ 2008 passed (137 files)
+  check:version ✓  check:contrast ✓  check:a11y ✓  build ✓
+```
+
 ## `2026-10-08.1` — Checker reads the opening and the record; trio 6MWT; phone sticky edit; drawing toolbar; stickers leave with their card
 
 ### 1. Periksa lagi: the opening line (Avi)

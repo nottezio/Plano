@@ -23,6 +23,7 @@ import {
   IconLayers,
   IconMoon,
   IconPin,
+  IconPrinter,
   IconQuote,
   IconReopen,
   IconSparkle,
@@ -66,6 +67,7 @@ export function PatientActionsSheet({
   onTidy,
   onReformat,
   onSummarise,
+  onExportWord,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -105,6 +107,12 @@ export function PatientActionsSheet({
    * out rather than editing, which is exactly when this is wanted.
    */
   onSummarise?: (() => void) | undefined;
+  /**
+   * The note on screen as a Word file, for printing. Offered on a LOCKED day
+   * too: printing an older note is reading it, not changing it. Absent only
+   * when the note is empty.
+   */
+  onExportWord?: (() => void) | undefined;
 }): JSX.Element {
   const today = useClinicalToday();
   const planned = migrateLegacyDischarge(patient, today);
@@ -133,7 +141,7 @@ export function PatientActionsSheet({
     close();
     action();
   };
-  const hasNoteTools = Boolean(onLab || onOpening || onCompare || onCalculator || onAddVersion || onAddShiftNote || onReformat);
+  const hasNoteTools = Boolean(onExportWord || onLab || onOpening || onCompare || onCalculator || onAddVersion || onAddShiftNote || onReformat);
 
   return (
     <Sheet
@@ -146,6 +154,14 @@ export function PatientActionsSheet({
         {hasNoteTools ? (
           <Section title="Catatan">
             <ListGroup>
+              {onExportWord ? (
+                <ListRow
+                  icon={<IconPrinter width={18} height={18} />}
+                  title="Ekspor ke Word"
+                  detail="Catatan yang terbuka sebagai .docx A4 untuk dicetak; tebal/miring dan poin ikut."
+                  onClick={() => run(onExportWord)}
+                />
+              ) : null}
               {onLab ? (
                 <ListRow
                   icon={<IconFlask width={18} height={18} />}

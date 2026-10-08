@@ -22,13 +22,13 @@ import type { OutputFormat } from '../types';
  * — which is exactly the hardware this app runs on. Left boundaries are
  * captured instead and re-emitted.
  */
-const BOLD_RE = /\*\*([^\n*]+?)\*\*/g;
-const STRIKE_RE = /~~([^\n~]+?)~~/g;
+export const BOLD_RE = /\*\*([^\n*]+?)\*\*/g;
+export const STRIKE_RE = /~~([^\n~]+?)~~/g;
 /**
  * Italic needs word boundaries or `TD_N_RR` and `hari_rawat` become italics.
  * `(^|[^\w*])` captures the preceding character; `(?!\w)` is a plain lookahead.
  */
-const ITALIC_RE = /(^|[^\w*])_([^\n_]+?)_(?!\w)/g;
+export const ITALIC_RE = /(^|[^\w*])_([^\n_]+?)_(?!\w)/g;
 
 /**
  * Bullets, both spellings.
@@ -64,7 +64,7 @@ const BULLET_LINE_RE = /^([ \t]*)[-*] /gm;
  * written `*Tn.  /  /  tahun / RM *` with placeholders blank, and demanding one
  * on both sides skipped exactly those.
  */
-const SINGLE_BOLD_RE = /(^|[^\w*])\*([^\s*][^\n*]*?)\*(?!\w)/g;
+export const SINGLE_BOLD_RE = /(^|[^\w*])\*([^\s*][^\n*]*?)\*(?!\w)/g;
 
 /**
  * SPEC 12.3 — WhatsApp.

@@ -69,6 +69,8 @@ import {
   locateDayMarker,
 } from '@/domain/dayMarkers';
 import { formatLocation } from '@/domain/identity';
+import { DOCX_MIME, buildSoapDocx, soapDocxFileName } from '@/domain/format/soapDocx';
+import { deliverFile } from '@/lib/download';
 import { isIgdEntry } from '@/domain/clinicalDate';
 import { describeLabPlacement, insertLabBlock, labPlacement } from '@/domain/lab/insertLab';
 import {
@@ -1363,6 +1365,26 @@ export default function PatientPage(): JSX.Element {
     );
   };
 
+  /**
+   * The note on screen — the day's SOAP, or the jaga note or version that is
+   * open — as a Word file for printing (`domain/format/soapDocx`).
+   */
+  const exportWord = (): void => {
+    const label = activeShiftNote ? noteLabel(activeShiftNote) : undefined;
+    const bytes = buildSoapDocx({
+      body: activeNote.body,
+      patientName: patient.name?.trim() || 'Tanpa nama',
+      mrn: patient.mrn ? `RM ${patient.mrn}` : undefined,
+      location: formatLocation(patient),
+      dayLabel: formatDayHeader(selected, patient.admittedAt, settings.showHariRawat),
+      noteLabel: label,
+    });
+    void deliverFile(
+      new Blob([bytes], { type: DOCX_MIME }),
+      soapDocxFileName(patient.name ?? '', isIgdEntry(selected) ? 'SOAP Awal' : selected, label),
+    );
+  };
+
   return (
     <AppShell title={patient.name}>
       {/*
@@ -2304,6 +2326,7 @@ export default function PatientPage(): JSX.Element {
             { onTidy: () => setTidyOpen(true) }
           : {})}
         {...(aiEnabled('summary') ? { onSummarise: () => setSummaryOpen(true) } : {})}
+        onExportWord={activeNote.body.trim() ? exportWord : undefined}
 
         onOpening={
           locked || headerHasTools || editor.value.trim().length === 0

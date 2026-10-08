@@ -5,6 +5,11 @@ Catatan teknis lengkap (akar masalah, perbaikan) ada di CHANGES.md.
 
 Entri teratas harus versi yang sedang dirilis; tes gagal bila belum ditulis.
 
+## `2026-10-08.2`
+- **Ekspor ke Word untuk dicetak:** di menu ⋯ pasien → **Ekspor ke Word**, catatan yang sedang terbuka (SOAP hari itu, atau SOAP jaga / versi yang dibuka) diunduh sebagai file .docx A4. Isinya persis seperti yang ditulis: *tebal*, _miring_, dan ~~coret~~ menjadi format Word, poin "- " menjadi bullet, dan nomor tetap nomor Anda sendiri.
+- Tiap halaman diberi kepala (nama, RM, ruangan, tanggal, hari rawat) dan "Halaman x dari y" di bawah, supaya lembar yang terlepas tetap jelas milik siapa. File bisa diedit dulu di Word sebelum dicetak. Di HP, file langsung dibuka lewat menu Bagikan (ke Word, printer, atau WhatsApp).
+- Tersedia juga untuk hari yang sudah terkunci.
+
 ## `2026-10-08.1`
 - **Periksa lagi memeriksa kalimat pembuka:** "follow up" pada hari pertama pasien, atau "pasien baru" yang masih terbawa ke hari rawat berikutnya, kini ditandai. Pembuka konsul dan perpindahan tidak dinilai.
 - **Ruangan di pembuka dicocokkan dengan data pasien:** bila Lt., Kamar, atau Bed di kalimat pembuka berbeda dengan data pasien, Periksa lagi menyebut keduanya. Untuk perpindahan, yang dicocokkan adalah ruangan tujuan.
