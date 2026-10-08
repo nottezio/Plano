@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { DateField } from '@/components/common/DateField';
 import { useSearchParams } from 'react-router-dom';
 import { useGoUp } from '@/lib/useGoUp';
 
@@ -7,6 +8,7 @@ import { IconBack, IconCopy } from '@/components/common/Icons';
 import { Button, Callout, ChipRow, ChoiceChip, Field, INPUT, Section, Segmented } from '@/components/common/ui';
 import { useJagaSync } from '@/hooks/useJagaSync';
 import { CensusVerifier } from '@/components/helper/CensusVerifier';
+import { SensusMaker } from '@/components/helper/SensusMaker';
 import { MorningReport } from '@/components/helper/MorningReport';
 
 import { copyText } from '@/lib/clipboard';
@@ -67,6 +69,7 @@ import { useClinicalToday } from '@/hooks/useClinicalToday';
 const HELPER_TABS = [
   { id: 'jaga', label: 'Konfirmasi Jaga' },
   { id: 'sensus', label: 'Verifikasi Sensus' },
+  { id: 'buatsensus', label: 'Buat Sensus' },
   { id: 'mr', label: 'Morning Report' },
 ] as const;
 
@@ -105,7 +108,7 @@ export function HelperPage(): JSX.Element {
         </span>
       }
     >
-      <div className="mx-auto max-w-6xl space-y-4 px-4 py-4">
+      <div className="mx-auto max-w-6xl space-y-4 px-4 pb-4 pt-0 lg:pt-4">
         {/* Desktop only: below lg the shell's title bar already says "Helper"
             (with the WIP mark), and this row said it a second time. */}
         <div className="hidden flex-wrap items-center gap-2 lg:flex">
@@ -122,7 +125,11 @@ export function HelperPage(): JSX.Element {
             Work in progress
           </span>
         </div>
-        <div role="tablist" aria-label="Fitur Helper" className="flex border-b border-border">
+        <div
+          role="tablist"
+          aria-label="Fitur Helper"
+          className="flex overflow-x-auto border-b border-border [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+        >
           {HELPER_TABS.map((entry) => (
             <button
               key={entry.id}
@@ -131,8 +138,10 @@ export function HelperPage(): JSX.Element {
               aria-selected={tab === entry.id}
               onClick={() => setParams({ tab: entry.id }, { replace: true })}
               className={[
-                // Equal thirds: three labels fit a 360 px phone without scrolling.
-                'min-h-tap flex-1 border-b-2 px-1 text-xs font-medium sm:text-sm',
+                // Four tabs no longer fit a 360 px phone as equal widths ("Verifikasi
+                // Sensus" broke onto two lines), so the row scrolls there and
+                // shares the width from sm up.
+                'min-h-tap shrink-0 whitespace-nowrap border-b-2 px-3 text-xs font-medium sm:flex-1 sm:px-1 sm:text-sm',
                 tab === entry.id
                   ? 'border-accent text-accent'
                   : 'border-transparent text-fg-muted',
@@ -143,7 +152,15 @@ export function HelperPage(): JSX.Element {
           ))}
         </div>
         <div role="tabpanel">
-          {tab === 'jaga' ? <KonfirmasiJaga /> : tab === 'sensus' ? <CensusVerifier /> : <MorningReport />}
+          {tab === 'jaga' ? (
+            <KonfirmasiJaga />
+          ) : tab === 'sensus' ? (
+            <CensusVerifier />
+          ) : tab === 'buatsensus' ? (
+            <SensusMaker />
+          ) : (
+            <MorningReport />
+          )}
         </div>
       </div>
     </AppShell>
@@ -527,13 +544,7 @@ function KonfirmasiJaga(): JSX.Element {
           >
             <span aria-hidden="true">‹</span>
           </button>
-          <input
-            type="date"
-            aria-label="Tanggal jaga"
-            value={date}
-            onChange={(event) => pickDate(event.target.value)}
-            className="min-h-tap rounded-lg border border-border bg-bg px-2 text-sm"
-          />
+          <DateField ariaLabel="Tanggal jaga" value={date} onChange={pickDate} className="w-40" />
           <button
             type="button"
             onClick={() => pickDate(nextDate(date))}

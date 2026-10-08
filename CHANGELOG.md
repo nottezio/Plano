@@ -5,6 +5,16 @@ Catatan teknis lengkap (akar masalah, perbaikan) ada di CHANGES.md.
 
 Entri teratas harus versi yang sedang dirilis; tes gagal bila belum ditulis.
 
+## `2026-10-08.4`
+- **Tanggal selalu tgl/bln/tahun:** semua kolom tanggal (Hari MR, Jaga mulai dari, Tanggal jaga, Tanggal lab, Tanggal masuk, Tanggal pulang, Jadwal operasi) kini tampil seperti **09/10/2026**. Sebelumnya, di HP berbahasa Inggris tanggal tampil bulan dulu (10/09/2026 untuk 9 Oktober). Tanggal bisa diketik langsung (mis. "9/10" atau "9-10-26"), atau dipilih lewat ikon kalender.
+- **Morning Report: pesan ke pengampu.** Di bagian Pesan ada **Ke pengampu**: permintaan kesediaan memimpin MR dan jam hadir, dengan pilihan sapaan **Dokter** atau **Prof**. Salam (pagi/siang/sore/malam) mengikuti jam, dan "besok" hanya dipakai bila MR memang besok. Isi **Perkenalan ke pengampu** (mis. PPDS Kardio Semester 1) di langkah 2.
+- **Helper baru: Buat Sensus.** Tempel list dari tiap ruangan (PJT Lantai 4, Lantai 5 dan 6, CVCU/HCU/ICU, RSWS, RSUH), lalu pilih DPJP. Sensus pasiennya tersusun per tempat beserta diagnosisnya, siap disalin.
+  - Kode DPJP dipindah ke depan baris, dan nama residen di akhir baris dibuang.
+  - Pasien Pulang/Meninggal/Pindah tidak dihitung. Pasien yang tercantum dua kali dihitung sekali.
+  - Pasien yang tidak punya kode DPJP di list ditampilkan sebagai peringatan, tidak hilang diam-diam.
+  - List hanya tersimpan di perangkat ini dan dikosongkan keesokan harinya.
+- **Buat Sensus dengan AI (opsional):** aktifkan di Pengaturan → AI → "Sensus per DPJP dengan AI". AI hanya memilih pasien dan diagnosisnya; format pesannya tetap sama. Seluruh isi list dikirim ke AI, jadi mode Aturan tetap jadi bawaan.
+
 ## `2026-10-08.3`
 - **Halaman pasien di HP: catatan langsung terlihat.** Sebelumnya catatan baru mulai sekitar satu layar penuh ke bawah, setelah Catatan pasien, Checklist, Custom Checklist, dan Periksa lagi. Kini ketiganya menjadi tombol ringkas di atas catatan, mis. **Catatan •**, **Checklist 0/8**, **Periksa lagi 3**. Ketuk untuk membukanya di lembar bawah. "Tampilkan" di Periksa lagi menutup lembar itu dan langsung menandai bagian catatan yang dimaksud.
 - **Satu kepala halaman saja:** judul ganda di atas halaman pasien dihapus, jadi nama pasien tidak lagi tampil dua kali. Tanggal dipersingkat (mis. "Kam, 8 Okt"), dan status Synced/Offline kini berupa titik di samping Salin. Bila offline, tulisan "Offline" tetap tampil.

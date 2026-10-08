@@ -1,5 +1,122 @@
 # Plano — CHANGES
 
+## `2026-10-08.4` — Dates in tgl/bln/tahun; MR pengampu invitation; Sensus maker (rules + optional AI)
+
+### 1. Dates read month-first on some phones (Avi: "the date should be tgl/bln/tahun")
+**Root cause.** Every date field was a native `<input type="date">`, which
+renders in the BROWSER's locale, not the page's. `lang="id"` does not reach
+it, and there is no attribute that sets its display order. On a phone set to
+English (US), 9 Oktober showed as "10/09/2026" (seen in the Helper → Konfirmasi
+Jaga screenshot of 08.3). The app's own text dates were already day-first;
+only the native fields were not.
+
+**Fix.**
+- `domain/dateDmy.ts`: `formatDmy` / `parseDmy`, always day first. `parseDmy`
+  accepts `/ - .` or spaces, 2-digit years, and rejects 31/02. "10/09/2026"
+  is 10 September, never October 9.
+- `components/common/DateField.tsx`: a text field showing `dd/mm/yyyy`
+  (`inputMode="numeric"`, "9/10" takes the current year). The native date
+  input is kept, hidden, ONLY for its calendar (`showPicker` from the icon
+  button). Unreadable or out-of-range text is put back on blur, never saved.
+  `allowEmpty` covers the fields that may be cleared (discharge, operation
+  date).
+- Replaced in MorningReport (×2), HelperPage (Konfirmasi Jaga), LabSheet,
+  IdentitySheet, PatientActionsSheet and ReminderPicker. DateRail's "Tanggal
+  lain" was already picker-only (its value is never shown) and is unchanged.
+
+### 2. Morning Report: invitation to the pengampu (Avi)
+- `buildPengampuInviteMessage`: Avi's text word for word (tested against it),
+  in two forms. Prof replaces every "dokter", including "Izin dok" → "Izin
+  Prof".
+- "Selamat pagi/siang/sore/malam" follows the device hour
+  (`greetingTime`). The date is zero-padded ("Jumat, 09 Oktober 2026").
+- "besok" only when the MR is tomorrow; "hari ini" when today; otherwise
+  "pada …". A fixed "besok" would name the wrong day if the message is
+  written two days ahead.
+- New `MrConfig.senderRole` ("Perkenalan ke pengampu", e.g. PPDS Kardio
+  Semester 1), synced like `sender`. It is left out of the sentence when
+  empty. The default is empty: the repo is public and other residents use
+  the app.
+- UI: Pesan → **Ke pengampu**, with a Dokter/Prof switch (`MessageBox` got
+  an `extra` slot).
+
+### 3. Sensus maker (Avi): one DPJP's patients from the ward lists
+Not a bug. `domain/census/maker.ts`, built from the five list shapes Avi
+sent (PJT Lt. 4; Lt. 5 dan 6; CVCU/HCU/ICU PJT; RSWS; RSUH) and checked
+against his sent census for Prof MZ. It reproduced every patient; the one
+CVCU patient in his sample sits under another DPJP in that day's list, so the
+sample was from another day.
+
+**Design**
+- **Source detection** from the list's own "List Pasien …" header.
+  "List Pasien Lt. 6" inside the Lt. 5 list switches floor. A 3-digit room
+  (4xx/5xx/6xx) decides the floor over the header.
+- **DPJP = the code on the patient's line, else the section header.** The
+  lists paste patients into the wrong section (a dr. ZD patient under
+  Prof PK in Lt. 4), so the header alone files them wrongly.
+  - Codes: a bare code must be capitals; with a title any case ("prof.MZ").
+  - A code must be known (registry ∪ every section header in the pasted
+    lists, so dr. TI on RSUH counts). This is what stops resident names and
+    "PCC"/"BTKV" from reading as codes.
+  - "dr.ZD-dr.AAU" belongs to both.
+- **Identity line:**
+  - hospital lists are printed as written;
+  - PJT lists move the code to the front (`MZ/417 Bed 3/…`) and drop
+    everything after a trailing code (the resident's name);
+  - CVCU takes the bed from its own line ("KosongNy." is read as the
+    patient; "Pasien dr TM", "Kosong" are skipped);
+  - a trailing capitalised "(Nickname)" is dropped, "(EP)" stays.
+- **Diagnosis:** the first "Diagnosis/Diagnosa/Mohon izin kami assess
+  dengan" block (an inline value after `:` or `;` counts), up to a blank line
+  or Terapi/Plan/Premedikasi/Selesai/TS/`A/`. Lines are verbatim; "•"/"*"
+  become "-"; invisible joiners are removed.
+- Pasien Pulang/Meninggal/Pindah are excluded. Duplicates (by RM) are kept
+  once, preferring the copy with a diagnosis and from the list body.
+- Patients with no DPJP are listed as a warning (4 in that day's CVCU list).
+- **Output** (`formatCensus`): Avi's header and TOTAL/RSWS/RSUH/PJT lines,
+  then groups in a fixed order (RSWS, RSUH, CVCU/HCU/ICU PJT, PJT Lt. 4/5/6).
+  The address is Dokter/Prof (default Dokter, as in his sample).
+- **Storage:** localStorage only (`plano.sensus.v1`), dropped when the date
+  changes. The lists hold every patient in the hospital and are worth a day;
+  syncing them through the profile doc would also risk its 1 MiB cap.
+- **UI:** Helper → **Buat Sensus**:
+  - one paste box per list, with the detected type and a manual override;
+  - DPJP chips with counts, census date, Dokter/Prof;
+  - the copyable message.
+
+  Helper tabs now scroll on a phone (4 no longer fit as equal widths), and
+  the empty band above them is gone.
+
+### 4. Optional AI mode for Sensus maker (Avi, mid-task)
+- New flag `AiFlags.sensus` with its own Settings toggle and privacy wording:
+  every pasted list is sent whole.
+- AI does extraction only (`SENSUS_AI_TOOL`, structured tool output);
+  `formatCensus` still writes the message, so both modes produce the same
+  shape. `readAiCensus` validates the output and drops anything malformed.
+- The result is tied to its inputs (stale once a list, DPJP, date or address
+  changes). The panel shows the rules' patient count beside it for
+  comparison. A truncated answer is reported.
+- Checked in the harness with the API intercepted.
+
+### Wrong turns
+- First fixtures carried the residents' nicknames from the real lists
+  (public repo). They are replaced with invented ones, and the consultant's
+  full name in an assertion is read from the registry.
+
+### Not done
+- No real-phone test of `DateField` (calendar button via `showPicker` on iOS
+  Safari standalone).
+- Sensus maker has no AI-vs-rules diff view, only the two counts.
+- Pre-existing consultant and colleague names in older fixtures
+  (`morningReport.test.ts`, jaga parsers) are untouched; see the open
+  history-rewrite item.
+
+```
+npm run verify
+  typecheck ✓  lint ✓ (0 warnings)  test ✓ 2040 passed (139 files)
+  check:version ✓  check:contrast ✓  check:a11y ✓  build ✓
+```
+
 ## `2026-10-08.3` — Mobile revamp: note first, one header, denser board
 
 Audited every phone screen at 390 and 360 px in a render harness: the real

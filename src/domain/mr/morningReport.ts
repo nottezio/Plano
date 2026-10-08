@@ -462,6 +462,56 @@ export function buildRequestMessage(input: {
   ].join('\n');
 }
 
+/** "Selamat malam": by the hour the message is written (WITA, the device's clock). */
+export function greetingTime(hour: number): string {
+  if (hour >= 4 && hour < 11) return 'pagi';
+  if (hour >= 11 && hour < 15) return 'siang';
+  if (hour >= 15 && hour < 18) return 'sore';
+  return 'malam';
+}
+
+/** `2026-10-09` → `Jumat, 09 Oktober 2026` (day zero-padded, as in Avi's message). */
+export function longDatePadded(date: string): string {
+  const at = parseIso(date);
+  if (!at) return date;
+  return `${dayName(date)}, ${String(at.getDate()).padStart(2, '0')} ${MONTH_NAMES[at.getMonth()]} ${at.getFullYear()}`;
+}
+
+export type PengampuAddress = 'dokter' | 'prof';
+
+/**
+ * To one pengampu, before the MR: will you lead it, and at what time.
+ *
+ * Two forms because the address recurs through the whole message ("dokter"
+ * five times); a Prof is addressed "Prof" throughout, including "Izin Prof"
+ * where the dokter form has the colloquial "Izin dok".
+ *
+ * "besok" / "hari ini" only when true: a message written two days ahead
+ * that said "besok" would name the wrong day.
+ */
+export function buildPengampuInviteMessage(input: {
+  sender: string;
+  senderRole: string;
+  mrDate: string;
+  today: string;
+  hour: number;
+  address: PengampuAddress;
+}): string {
+  const a = input.address === 'prof' ? 'Prof' : 'dokter';
+  const short = input.address === 'prof' ? 'Prof' : 'dok';
+  const who = [input.sender.trim() || '…', input.senderRole.trim()].filter(Boolean).join(' ');
+  const when =
+    input.mrDate === addDays(input.today, 1) ? 'besok, ' : input.mrDate === input.today ? 'hari ini, ' : 'pada ';
+  return [
+    `Assalamualaikum dan Selamat ${greetingTime(input.hour)} ${a}, tabe mohon maaf mengganggu ${a}.`,
+    `Izin ${short}, saya dengan ${who}.`,
+    '',
+    `Mohon izin petunjuk kesediaan ${a} untuk berkenan memimpin Morning Report ${when}*${longDatePadded(input.mrDate)}* ${a}.`,
+    '',
+    `Sekiranya ${a} bisa hadir di jam berapa ${a}? Mohon arahannya, terima kasih ${a}.`,
+  ].join('\n');
+}
+
 /** To Grup Prodi, the morning of. */
 export function buildProdiMessage(input: {
   mrDate: string;
@@ -505,6 +555,8 @@ export function buildPakarMessage(input: { mrDate: string; pengampu: readonly Pe
 /** Per-account settings. Every field optional: an unset one uses the default. */
 export interface MrConfig {
   sender?: string;
+  /** "PPDS Kardio Semester 1": how the sender introduces themself to a pengampu. */
+  senderRole?: string;
   /** Pasted once from the Zoom invite. Never in the repo. */
   zoom?: string;
   statuses?: string[];
@@ -541,6 +593,7 @@ export function readMrConfig(raw: unknown): Required<MrConfig> {
   const statuses = Array.isArray(source.statuses) ? source.statuses.filter(isString) : [];
   return {
     sender: isString(source.sender) ? source.sender : '',
+    senderRole: isString(source.senderRole) ? source.senderRole : '',
     zoom: isString(source.zoom) ? source.zoom : '',
     statuses:
       statuses.length > 0 && !sameList(statuses, SUPERSEDED_STATUSES)

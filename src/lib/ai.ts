@@ -61,9 +61,11 @@ export interface AiFlags {
    * different decision and it gets its own yes.
    */
   census: boolean;
+  /** Sensus maker: extract one DPJP's patients from the pasted lists. */
+  sensus: boolean;
 }
 
-const OFF: AiFlags = { lab: false, soap: false, check: false, summary: false, census: false };
+const OFF: AiFlags = { lab: false, soap: false, check: false, summary: false, census: false, sensus: false };
 
 /**
  * Does this look like an Anthropic key, at a glance?
@@ -108,6 +110,7 @@ export function readAiFlags(): AiFlags {
       // Absent on every flag set saved before this existed, which reads as
       // off: a stored "yes" to other features is not a yes to this one.
       census: parsed.census === true,
+      sensus: parsed.sensus === true,
     };
   } catch {
     return OFF;

@@ -1,4 +1,5 @@
 import { setPatientReminder, updatePatient } from '@/data/repositories/patients.repo';
+import { DateField } from '@/components/common/DateField';
 import { addDays, formatShortDate } from '@/domain/clinicalDate';
 import { DEFAULT_REMINDER_KINDS, procedureRuleFor, reminderMode } from '@/domain/reminders';
 import type { Patient } from '@/domain/types';
@@ -76,16 +77,16 @@ function OperationDate({ patient }: { patient: Patient }): JSX.Element {
     <div className="px-3 py-2">
       <label className="flex flex-wrap items-center gap-2 text-sm">
         <span className="min-w-0 flex-1 font-medium">Jadwal operasi (BTKV)</span>
-        <input
-          type="date"
+        <DateField
           value={date ?? ''}
-          onChange={(event) => {
-            const next = event.target.value;
+          allowEmpty
+          ariaLabel="Jadwal operasi"
+          onChange={(next) => {
             void updatePatient(patient.id, { operationFor: next || undefined }).catch((error: unknown) =>
               console.error('[actions] operation date rejected', error),
             );
           }}
-          className="min-h-tap rounded-xl border border-border bg-surface px-2 text-sm [@media(pointer:fine)]:min-h-9"
+          className="w-40"
         />
       </label>
       {date && rule ? (

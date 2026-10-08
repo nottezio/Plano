@@ -130,6 +130,13 @@ export function AiSettings(): JSX.Element {
           disabled={!key}
           onChange={(value) => update({ census: value })}
         />
+        <Toggle
+          label="Sensus per DPJP dengan AI"
+          detail="List ruangan yang ditempel dikirim utuh — nama, RM, tanggal lahir dan diagnosis semua pasien di dalamnya. Tanpa ini, Buat Sensus tetap berjalan dengan aturan di perangkat ini."
+          checked={flags.sensus}
+          disabled={!key}
+          onChange={(value) => update({ sensus: value })}
+        />
       </div>
 
       {/*

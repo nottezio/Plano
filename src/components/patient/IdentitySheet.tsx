@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { DateField } from '@/components/common/DateField';
 
 import { Sheet } from '@/components/common/Sheet';
 import { fillPatientFromNote } from '@/data/repositories/patients.repo';
@@ -140,16 +141,18 @@ export function IdentitySheet({
 
         <Field label="DPJP" value={patient.dpjp ?? ''} onChange={(dpjp) => patch({ dpjp })} />
 
-        <Field
-          label="Tanggal masuk"
-          type="date"
-          value={patient.admittedAt}
-          onChange={(admittedAt) => {
-            // Hari rawat counts from this, so an empty value would make every
-            // day header meaningless. Ignore clears rather than storing one.
-            if (admittedAt) patch({ admittedAt });
-          }}
-        />
+        {/* Hari rawat counts from this, so an empty value would make every
+            day header meaningless: no allowEmpty, a clear is put back. */}
+        <label className="block">
+          <span className="mb-1 block text-xs text-fg-muted">Tanggal masuk</span>
+          <DateField
+            ariaLabel="Tanggal masuk"
+            value={patient.admittedAt}
+            onChange={(admittedAt) => {
+              if (admittedAt) patch({ admittedAt });
+            }}
+          />
+        </label>
       </div>
     </Sheet>
   );

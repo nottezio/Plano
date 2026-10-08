@@ -1,4 +1,5 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { DateField } from '@/components/common/DateField';
 
 import {
   dropMrDays,
@@ -10,6 +11,8 @@ import {
 import {
   DEFAULT_STATUS,
   buildPakarMessage,
+  buildPengampuInviteMessage,
+  type PengampuAddress,
   buildProdiMessage,
   buildRequestMessage,
   coveredShifts,
@@ -37,7 +40,7 @@ import { useClinicalToday } from '@/hooks/useClinicalToday';
 import { useSyncedDraft } from '@/hooks/useSyncedDraft';
 import { copyText } from '@/lib/clipboard';
 import { useSession } from '@/store/useSession';
-import { Button, Callout, Field, INPUT, Section } from '@/components/common/ui';
+import { Button, Callout, Field, INPUT, Section, Segmented } from '@/components/common/ui';
 import { IconBack, IconCheck, IconChevronRight, IconCopy, IconPlus, IconTrash } from '@/components/common/Icons';
 
 /**
@@ -89,6 +92,8 @@ export function MorningReport(): JSX.Element {
   };
 
   const isWeekend = weekday(mrDate) === 0 || weekday(mrDate) === 6;
+  /** The invitation's address form; per visit, since it depends on who is next asked. */
+  const [inviteAddress, setInviteAddress] = useState<PengampuAddress>('dokter');
 
   const readiness = mrReadiness({
     sender: config.sender,
@@ -121,13 +126,7 @@ export function MorningReport(): JSX.Element {
                 >
                   <IconBack className="h-4 w-4" />
                 </button>
-                <input
-                  id="mr-date"
-                  type="date"
-                  value={mrDate}
-                  onChange={(event) => event.target.value && setMrDate(event.target.value)}
-                  className={`${INPUT} w-auto`}
-                />
+                <DateField id="mr-date" value={mrDate} onChange={setMrDate} className="w-40" />
                 <button
                   type="button"
                   onClick={() => setMrDate(stepMrDate(mrDate, 1))}
@@ -139,17 +138,15 @@ export function MorningReport(): JSX.Element {
               </div>
             </Field>
             <Field label="Jaga mulai dari" htmlFor="mr-start">
-              <input
+              <DateField
                 id="mr-start"
-                type="date"
                 value={start}
                 max={mrDate}
-                onChange={(event) => {
-                  if (!uid || !event.target.value) return;
-                  const value = event.target.value;
+                onChange={(value) => {
+                  if (!uid || !value) return;
                   setMrDayField(uid, mrDate, 'start', value === defaultCoverStart(mrDate) ? null : value);
                 }}
-                className={`${INPUT} w-auto`}
+                className="w-40"
               />
             </Field>
             {mrDate !== defaultMrDate(today) ? (
@@ -176,6 +173,15 @@ export function MorningReport(): JSX.Element {
                 onWrite={(value) => uid && setMrConfigField(uid, 'sender', value)}
                 placeholder="mis. Avi"
                 ariaLabel="Nama Anda"
+              />
+            </Field>
+            <Field label="Perkenalan ke pengampu">
+              <SyncedInput
+                key={`senderRole:${String(uid)}`}
+                remote={config.senderRole}
+                onWrite={(value) => uid && setMrConfigField(uid, 'senderRole', value)}
+                placeholder="mis. PPDS Kardio Semester 1"
+                ariaLabel="Perkenalan ke pengampu"
               />
             </Field>
             <Field label="List yang diminta" htmlFor="mr-target">
@@ -329,6 +335,30 @@ export function MorningReport(): JSX.Element {
               label="Ke senior"
               sub={`Minta list ${shiftLabel(target)}`}
               text={buildRequestMessage({ sender: config.sender, mrDate, shift: target })}
+            />
+            <MessageBox
+              label="Ke pengampu"
+              sub="Minta kesediaan memimpin MR dan jam hadir"
+              extra={
+                <Segmented
+                  label="Sapaan"
+                  size="sm"
+                  value={inviteAddress}
+                  onChange={setInviteAddress}
+                  options={[
+                    ['dokter', 'Dokter'],
+                    ['prof', 'Prof'],
+                  ]}
+                />
+              }
+              text={buildPengampuInviteMessage({
+                sender: config.sender,
+                senderRole: config.senderRole,
+                mrDate,
+                today,
+                hour: new Date().getHours(),
+                address: inviteAddress,
+              })}
             />
             <MessageBox
               label="Laporan Grup Prodi"
@@ -530,10 +560,13 @@ function MessageBox({
   label,
   sub,
   text,
+  extra,
 }: {
   label: string;
   sub?: string;
   text: string;
+  /** A control for the message's form, under the title row. */
+  extra?: ReactNode;
 }): JSX.Element {
   const [copied, setCopied] = useState(false);
   return (
@@ -557,6 +590,7 @@ function MessageBox({
           {copied ? 'Tersalin' : 'Salin'}
         </Button>
       </div>
+      {extra ? <div className="border-b border-border px-3 py-1.5">{extra}</div> : null}
       <p className="max-h-72 overflow-auto whitespace-pre-wrap px-3 py-2 text-[11px] leading-relaxed text-fg-muted">
         {text}
       </p>

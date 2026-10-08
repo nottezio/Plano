@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { DateField } from '@/components/common/DateField';
 import { useNavigate } from 'react-router-dom';
 
 import { Sheet } from '@/components/common/Sheet';
@@ -326,18 +327,15 @@ export function PatientActionsSheet({
           {/* The date is the stored value, so it is also editable directly —
               a discharge four days out is a real plan. */}
           <Field label="Tanggal pulang" htmlFor="discharge-date">
-            <input
+            <DateField
               id="discharge-date"
-              type="date"
               value={planned ?? ''}
-              onChange={(event) =>
+              allowEmpty
+              onChange={(next) =>
                 void updatePatient(patient.id, {
-                  dischargePlannedFor: event.target.value
-                    ? (event.target.value as typeof planned)
-                    : undefined,
+                  dischargePlannedFor: next ? (next as typeof planned) : undefined,
                 })
               }
-              className={INPUT}
             />
           </Field>
         </Section>

@@ -1,4 +1,5 @@
 import { useMemo, useRef, useState } from 'react';
+import { DateField } from '@/components/common/DateField';
 
 import { Sheet } from '@/components/common/Sheet';
 import { IconCopy, IconSparkle, IconUpload } from '@/components/common/Icons';
@@ -370,15 +371,10 @@ export function LabSheet({
               />
             </Field>
             <Field label="Tanggal lab" htmlFor="lab-date" className="w-40 shrink-0">
-              <input
+              <DateField
                 id="lab-date"
-                type="date"
                 value={labDate}
-                onChange={(event) => {
-                  const next = event.target.value;
-                  setDateOverride(isClinicalDate(next) ? next : null);
-                }}
-                className={`${INPUT} px-2`}
+                onChange={(next) => setDateOverride(isClinicalDate(next) ? next : null)}
               />
             </Field>
           </div>

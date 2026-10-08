@@ -4,6 +4,8 @@ import {
   MR_DIVIDER,
   NO_PATIENTS,
   buildPakarMessage,
+  buildPengampuInviteMessage,
+  greetingTime,
   buildProdiMessage,
   buildRequestMessage,
   coveredShifts,
@@ -317,5 +319,42 @@ describe('request to the senior', () => {
   it('names the Dinas list the same way', () => {
     const text = buildRequestMessage({ sender: 'Avi', mrDate: '2026-10-06', shift: { date: '2026-10-05', part: 'dinas' } });
     expect(text).toContain('apakah boleh meminta list Dinas Senin, 5 Oktober 2026 yang akan di MR kan dok?');
+  });
+});
+
+describe('buildPengampuInviteMessage', () => {
+  const base = { sender: 'Contoh', senderRole: 'PPDS Kardio Semester 1', mrDate: '2026-10-09', today: '2026-10-08', hour: 19 };
+
+  it('matches the message as sent, word for word (dokter form)', () => {
+    expect(buildPengampuInviteMessage({ ...base, address: 'dokter' })).toBe(
+      [
+        'Assalamualaikum dan Selamat malam dokter, tabe mohon maaf mengganggu dokter.',
+        'Izin dok, saya dengan Contoh PPDS Kardio Semester 1.',
+        '',
+        'Mohon izin petunjuk kesediaan dokter untuk berkenan memimpin Morning Report besok, *Jumat, 09 Oktober 2026* dokter.',
+        '',
+        'Sekiranya dokter bisa hadir di jam berapa dokter? Mohon arahannya, terima kasih dokter.',
+      ].join('\n'),
+    );
+  });
+
+  it('addresses a Prof as Prof throughout', () => {
+    const text = buildPengampuInviteMessage({ ...base, address: 'prof' });
+    expect(text).not.toMatch(/dok/);
+    expect(text).toContain('Izin Prof, saya dengan');
+    expect(text).toContain('Sekiranya Prof bisa hadir di jam berapa Prof?');
+  });
+
+  it('says besok only when the MR is tomorrow', () => {
+    expect(buildPengampuInviteMessage({ ...base, today: '2026-10-09', address: 'dokter' })).toContain('Report hari ini, *Jumat');
+    expect(buildPengampuInviteMessage({ ...base, today: '2026-10-06', address: 'dokter' })).toContain('Report pada *Jumat');
+  });
+
+  it('greets by the hour, and leaves the role out when empty', () => {
+    expect(greetingTime(7)).toBe('pagi');
+    expect(greetingTime(13)).toBe('siang');
+    expect(greetingTime(16)).toBe('sore');
+    expect(greetingTime(2)).toBe('malam');
+    expect(buildPengampuInviteMessage({ ...base, senderRole: '', address: 'dokter' })).toContain('saya dengan Contoh.');
   });
 });
