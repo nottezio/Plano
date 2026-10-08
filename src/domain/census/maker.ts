@@ -1,5 +1,5 @@
 import { DPJPS } from '@/domain/dpjp';
-import { MR_DIVIDER, dayName } from '@/domain/mr/morningReport';
+import { dayName } from '@/domain/mr/morningReport';
 
 /**
  * Sensus maker — one consultant's patients, pulled out of the ward lists.
@@ -28,26 +28,29 @@ import { MR_DIVIDER, dayName } from '@/domain/mr/morningReport';
 // Types
 // ───────────────────────────────────────────────────────────────
 
-export type SourceKind = 'pjt-ward' | 'pjt-icu' | 'rsws' | 'rsuh' | 'unknown';
+export type SourceKind = 'pjt-ward' | 'pjt-icu' | 'pjt-igd' | 'rsws' | 'rsuh' | 'unknown';
 
 /** Where a patient is, as the census groups them. */
-export type Place = 'RSWS' | 'RSUH' | 'CVCU' | 'LT4' | 'LT5' | 'LT6' | 'PJT';
+export type Place = 'RSWS' | 'RSUH' | 'IGD' | 'CVCU' | 'LT4' | 'LT5' | 'LT6' | 'PJT';
 
-export const PLACE_ORDER: readonly Place[] = ['RSWS', 'RSUH', 'CVCU', 'LT4', 'LT5', 'LT6', 'PJT'];
+/** The order the residents' censuses use: hospitals, then PJT from the door up. */
+export const PLACE_ORDER: readonly Place[] = ['RSWS', 'RSUH', 'IGD', 'CVCU', 'LT4', 'LT5', 'LT6', 'PJT'];
 
 export const PLACE_LABEL: Record<Place, string> = {
   RSWS: 'RSWS',
   RSUH: 'RSUH',
+  IGD: 'IGD PJT',
   CVCU: 'CVCU/HCU/ICU PJT',
-  LT4: 'PJT Lt.4',
-  LT5: 'PJT Lt.5',
-  LT6: 'PJT Lt.6',
-  PJT: 'PJT',
+  LT4: 'PJT Lt. 4',
+  LT5: 'PJT Lt. 5',
+  LT6: 'PJT Lt. 6',
+  PJT: 'PJT (lantai tidak diketahui)',
 };
 
 export const SOURCE_LABEL: Record<SourceKind, string> = {
   'pjt-ward': 'PJT bangsal',
   'pjt-icu': 'CVCU/HCU/ICU PJT',
+  'pjt-igd': 'IGD PJT',
   rsws: 'RSWS',
   rsuh: 'RSUH',
   unknown: 'Tidak dikenali',
@@ -67,7 +70,18 @@ export interface CensusEntry {
   location: string | null;
   rest: string;
   verbatim: boolean;
+  /**
+   * The line as the list wrote it: what most residents send ("414 Bed 2/AHN/
+   * Ny. …"). Only a resident's name after a trailing code is dropped, and the
+   * CVCU bed line is joined on ("CVCU Bed 15/ Tn. …").
+   */
+  asWritten: string;
   diagnoses: string[];
+  /**
+   * The "Diagnosis:" block held drug orders only (a list pasted the therapy
+   * under the wrong heading). Printed as "-" and reported, never as diagnoses.
+   */
+  dxWasTherapy: boolean;
   /** Listed under "Pasien Baru": also listed in full below, so the lesser copy. */
   fromNewList: boolean;
   /** RM digits without leading zeros, else the normalised start of the line. */
@@ -83,6 +97,12 @@ export interface ParsedSource {
   entries: CensusEntry[];
   /** DPJP codes named in the section headers, uppercase. */
   headerDpjps: string[];
+  /**
+   * The places this list reports on. A census says "0 pasien" for these and
+   * leaves out the places no pasted list covers: "RSUH: 0" when nobody pasted
+   * the RSUH list would be a claim nobody checked.
+   */
+  covers: Place[];
 }
 
 // ───────────────────────────────────────────────────────────────
@@ -163,18 +183,29 @@ export function segmentCodes(segment: string, known: ReadonlySet<string>): strin
 // Source detection
 // ───────────────────────────────────────────────────────────────
 
-export function detectSource(text: string): { kind: SourceKind; label: string; floor: Place | null } {
+export function detectSource(text: string): {
+  kind: SourceKind;
+  label: string;
+  floor: Place | null;
+  covers: Place[];
+} {
   const lines = text.split(/\r?\n/).map(plain);
   const header = lines.find((line) => /list\s+pasien/i.test(line) && !/^\d/.test(line)) ?? '';
-  if (/cvcu|hcu|icu/i.test(header)) return { kind: 'pjt-icu', label: 'CVCU/HCU/ICU PJT', floor: 'CVCU' };
-  if (/\brsuh\b/i.test(header)) return { kind: 'rsuh', label: 'RSUH', floor: 'RSUH' };
-  if (/\brsws\b/i.test(header)) return { kind: 'rsws', label: 'RSWS', floor: 'RSWS' };
+  if (/cvcu|hcu|icu/i.test(header)) return { kind: 'pjt-icu', label: 'CVCU/HCU/ICU PJT', floor: 'CVCU', covers: ['CVCU'] };
+  if (/\brsuh\b/i.test(header)) return { kind: 'rsuh', label: 'RSUH', floor: 'RSUH', covers: ['RSUH'] };
+  if (/\brsws\b/i.test(header)) return { kind: 'rsws', label: 'RSWS', floor: 'RSWS', covers: ['RSWS'] };
+  if (/\bigd\b/i.test(header)) return { kind: 'pjt-igd', label: 'IGD PJT', floor: 'IGD', covers: ['IGD'] };
   const floor = /(?:lantai|lt)\.?\s*([456])/i.exec(header);
   if (floor) {
-    const floors = [...header.matchAll(/(?:lantai|lt)\.?\s*([456])/gi)].map((m) => m[1]).join(' dan ');
-    return { kind: 'pjt-ward', label: `PJT Lt. ${floors}`, floor: `LT${floor[1]}` as Place };
+    const numbers = [...header.matchAll(/(?:lantai|lt)\.?\s*([456])/gi)].map((m) => m[1]!);
+    return {
+      kind: 'pjt-ward',
+      label: `PJT Lt. ${numbers.join(' dan ')}`,
+      floor: `LT${floor[1]}` as Place,
+      covers: [...new Set(numbers)].map((n) => `LT${n}` as Place),
+    };
   }
-  return { kind: 'unknown', label: 'Tidak dikenali', floor: null };
+  return { kind: 'unknown', label: 'Tidak dikenali', floor: null, covers: [] };
 }
 
 // ───────────────────────────────────────────────────────────────
@@ -193,6 +224,14 @@ const DX_STOP_RE =
   /^(?:mohon\s+i[zj]in|plan\b|planning\b|premedikasi|selesai|terapi\b|instruksi|ts\b|[atpid]\s*\/|tabe\b|note\b|catatan\b|diagnos)/i;
 const EXCLUDED_SECTION_RE = /^pasien\s+(?:pulang|meninggal|pindah)\b/i;
 const NEW_SECTION_RE = /^pasien\s+baru\b/i;
+/**
+ * IGD PJT: "🚑 Sisrute: 6 pasien" lists referral REQUESTS from other
+ * hospitals — not patients in the ward, and they carry no DPJP. The zone
+ * headings ("🔴 Red Zone: 4 Pasien") are what end it, and also end the
+ * summary block at the top, whose "Sisrute: 6 Pasien" line opens it too.
+ */
+const SISRUTE_RE = /^sisrute\b/i;
+const ZONE_RE = /^(?:red|yellow|green|blue|orange)\s*zone\b/i;
 
 function looksLikeLocation(segment: string): boolean {
   const text = plain(segment);
@@ -209,6 +248,15 @@ export function entryKey(line: string): string {
   const rm = /\bRM\s*:?\s*0*(\d{5,9})/i.exec(text) ?? /(?:^|[^\d-])0*(\d{6,9})(?![\d-])/.exec(text);
   if (rm) return `rm:${rm[1]}`;
   return `line:${text.toLowerCase().replace(/[^a-z]+/g, ' ').trim().slice(0, 40)}`;
+}
+
+/** "Clopidogrel 75 mg/24 jam/oral", "IVFD NaCl 500 cc/24 jam/IV": an order, not a diagnosis. */
+function looksLikeOrder(line: string): boolean {
+  const text = line.replace(/^[-\s]+/, '');
+  return (
+    /\d+(?:[.,]\d+)?\s*(?:mg|mcg|g|gr|cc|ml|iu|meq|tpm|lpm|amp|tab|caps)\b/i.test(text) &&
+    /\/\s*\d*\s*(?:jam|hari|iv|oral|sp|sc|sl|im|intravena)\b/i.test(text)
+  ) || /^ivfd\b/i.test(text);
 }
 
 function normaliseDxLine(line: string): string {
@@ -253,6 +301,23 @@ function tidy(text: string): string {
  * on its own above the patient.
  */
 function splitIdentity(
+  line: string,
+  heading: string | null,
+  known: ReadonlySet<string>,
+  hospital: boolean,
+): { codes: string[]; location: string | null; rest: string; verbatim: boolean; asWritten: string } {
+  const result = splitIdentityParts(line, heading, known, hospital);
+  const text = clean(line).replace(/^\s*kosong(?=\s*(?:tn|ny|nn|an|by)\b)/i, '').trim();
+  const segs = segments(text);
+  const tokenAt = segs.findIndex((seg) => segmentCodes(seg.text, known) !== null);
+  // A trailing code ends the line: what follows is the resident ("/naima").
+  const trailing = tokenAt > 1 && tokenAt >= segs.length - 2;
+  const own = tidy(trailing ? text.slice(0, segs[tokenAt]!.end) : text);
+  const asWritten = heading ? `${tidy(heading)}/ ${own}` : own;
+  return { ...result, asWritten };
+}
+
+function splitIdentityParts(
   line: string,
   heading: string | null,
   known: ReadonlySet<string>,
@@ -306,6 +371,8 @@ function placeFor(kind: SourceKind, location: string | null, fallback: Place | n
   if (kind === 'rsws') return 'RSWS';
   if (kind === 'rsuh') return 'RSUH';
   if (kind === 'pjt-icu') return 'CVCU';
+  if (kind === 'pjt-igd') return 'IGD';
+  if (location && /\b(?:igd|red\s*zone|yellow\s*zone|green\s*zone)\b/i.test(location)) return 'IGD';
   const room = location ? /\b([456])\d{2}\b/.exec(location) : null;
   if (room) return `LT${room[1]}` as Place;
   if (location && ICU_LOCATION_RE.test(location)) return 'CVCU';
@@ -338,7 +405,9 @@ export function parseSource(text: string, known?: ReadonlySet<string>, kindOverr
           ? 'RSUH'
           : kindOverride === 'pjt-icu'
             ? 'CVCU'
-            : null
+            : kindOverride === 'pjt-igd'
+              ? 'IGD'
+              : null
       : detected.floor;
   let section: string | null = null;
   let mode: 'normal' | 'excluded' | 'new' = 'normal';
@@ -363,8 +432,12 @@ export function parseSource(text: string, known?: ReadonlySet<string>, kindOverr
       continue;
     }
 
-    if (EXCLUDED_SECTION_RE.test(text)) {
+    if (EXCLUDED_SECTION_RE.test(text) || SISRUTE_RE.test(text)) {
       mode = 'excluded';
+      continue;
+    }
+    if (ZONE_RE.test(text)) {
+      mode = 'normal';
       continue;
     }
     if (NEW_SECTION_RE.test(text)) {
@@ -386,7 +459,9 @@ export function parseSource(text: string, known?: ReadonlySet<string>, kindOverr
     let identityLine: string | null = null;
     let heading: string | null = null;
     // Strip the number from the ORIGINAL line, so spacing inside survives.
-    const original = clean(raw).replace(/^\s*[*_\s]*\d{1,3}\s*\.+\s*/, '');
+    // Emphasis marks go: the IGD list bolds the whole line ("*IGD Red Zone
+    // Bed 3 / … / dr. ARB*", "/*Tn. …").
+    const original = clean(raw).replace(/^\s*[*_\s]*\d{1,3}\s*\.+\s*/, '').replace(/[*_]/g, '');
 
     if (kind === 'pjt-icu' && ICU_LOCATION_RE.test(body) && !body.includes('/')) {
       // The CVCU shape: the bed alone, the patient on the next line.
@@ -395,7 +470,7 @@ export function parseSource(text: string, known?: ReadonlySet<string>, kindOverr
       const next = j < lines.length ? lines[j]! : '';
       if (next.includes('/') && IDENTITY_RE.test(plain(next)) && !ENTRY_RE.test(plain(next))) {
         heading = original;
-        identityLine = next;
+        identityLine = next.replace(/[*_]/g, '');
         i = j + 1;
       } else {
         continue; // "Kosong", "Pasien dr TM", "Pasien Pediatri": nobody to list.
@@ -416,7 +491,7 @@ export function parseSource(text: string, known?: ReadonlySet<string>, kindOverr
       if (ENTRY_RE.test(flat) && (flat.includes('/') || ICU_LOCATION_RE.test(flat.replace(ENTRY_RE, '$2')))) break;
       if (isSeparator(line)) break;
       if (!/^\s*\d/.test(flat) && sectionDpjp(line)) break;
-      if (EXCLUDED_SECTION_RE.test(flat) || NEW_SECTION_RE.test(flat)) break;
+      if (EXCLUDED_SECTION_RE.test(flat) || NEW_SECTION_RE.test(flat) || SISRUTE_RE.test(flat) || ZONE_RE.test(flat)) break;
       i += 1;
       if (state === 'done') continue;
       if (state === 'before') {
@@ -441,6 +516,9 @@ export function parseSource(text: string, known?: ReadonlySet<string>, kindOverr
 
     if (mode === 'excluded') continue;
 
+    const dxWasTherapy = diagnoses.length > 0 && diagnoses.every(looksLikeOrder);
+    if (dxWasTherapy) diagnoses.length = 0;
+
     const split = splitIdentity(identityLine, heading, codes, hospital);
     const fromHeader = split.codes.length === 0;
     const dpjps = fromHeader ? (section ? [section] : []) : split.codes;
@@ -451,14 +529,24 @@ export function parseSource(text: string, known?: ReadonlySet<string>, kindOverr
       location: split.location,
       rest: split.rest,
       verbatim: split.verbatim,
+      asWritten: split.asWritten,
       diagnoses,
+      dxWasTherapy,
       fromNewList: mode === 'new',
       key: entryKey(identityLine),
       raw: clean(identityLine).trim(),
     });
   }
 
-  return { kind, label: kindOverride ? SOURCE_LABEL[kind] : detected.label, entries, headerDpjps };
+  const covers =
+    kindOverride && kindOverride !== detected.kind
+      ? kindOverride === 'pjt-ward'
+        ? [...new Set(entries.map((entry) => entry.place))]
+        : floor
+          ? [floor]
+          : []
+      : detected.covers;
+  return { kind, label: kindOverride ? SOURCE_LABEL[kind] : detected.label, entries, headerDpjps, covers };
 }
 
 // ───────────────────────────────────────────────────────────────
@@ -467,7 +555,15 @@ export function parseSource(text: string, known?: ReadonlySet<string>, kindOverr
 
 export type CensusAddress = 'dokter' | 'prof';
 
-export function identityLine(entry: CensusEntry, code: string): string {
+/**
+ * How the patient line is printed.
+ * - `asis`: as the list wrote it (what most residents send).
+ * - `front`: the DPJP code moved to the front ("MZ/417 Bed 3/…").
+ */
+export type IdentityStyle = 'asis' | 'front';
+
+export function identityLine(entry: CensusEntry, code: string, style: IdentityStyle = 'front'): string {
+  if (style === 'asis') return entry.asWritten;
   if (entry.verbatim) return entry.rest;
   return [code, entry.location, entry.rest].filter((part) => part && part.trim()).join('/');
 }
@@ -523,19 +619,20 @@ export function dpjpFullName(code: string): string {
 
 function dmy(date: string): string {
   const [year, month, day] = date.split('-');
-  return `${day}-${month}-${year}`;
+  return `${day}/${month}/${year}`;
 }
 
+/** "RSWS, CVCU/HCU/ICU PJT, PJT Lt. 4 dan PJT Lt. 5". */
 function placesText(places: readonly Place[]): string {
-  const hospitals = places.filter((place) => place === 'RSWS' || place === 'RSUH');
-  const floors = places
-    .filter((place) => place === 'LT4' || place === 'LT5' || place === 'LT6')
-    .map((place) => place.slice(2));
-  const pjt = places.some((place) => place === 'CVCU' || place === 'PJT' || place.startsWith('LT'));
-  const parts: string[] = [...hospitals];
-  if (floors.length > 0) parts.push(`PJT Lt. ${floors.join(' dan ')}`);
-  else if (pjt) parts.push('PJT');
-  return parts.join(', ');
+  const labels = places.map((place) => PLACE_LABEL[place]);
+  if (labels.length <= 1) return labels.join('');
+  return `${labels.slice(0, -1).join(', ')} dan ${labels[labels.length - 1]}`;
+}
+
+/** Every place the pasted lists report on, in census order. */
+export function coveredPlaces(sources: readonly ParsedSource[]): Place[] {
+  const set = new Set(sources.flatMap((source) => source.covers));
+  return PLACE_ORDER.filter((place) => set.has(place));
 }
 
 export interface CensusGroupInput {
@@ -543,40 +640,40 @@ export interface CensusGroupInput {
   patients: Array<{ identity: string; diagnoses: string[] }>;
 }
 
-/** The message, from groups already decided (by the rules or by AI). */
+/**
+ * The message, from groups already decided (by the rules or by AI).
+ *
+ * The shape the residents send (from their sent censuses, 2026-10-08): every
+ * place the lists cover gets a heading, "0 pasien" included — a DPJP reads
+ * "PJT Lt. 6 : 0 pasien" as "checked, nobody there", which a missing heading
+ * does not say. A blank line between patients.
+ */
 export function formatCensus(input: {
   code: string;
   date: string;
   address: CensusAddress;
   groups: readonly CensusGroupInput[];
+  /** Places to report even when empty (the pasted lists' coverage). */
+  covers?: readonly Place[];
 }): string {
+  const covered = new Set(input.covers ?? []);
   const groups = PLACE_ORDER.map((place) => ({
     place,
     patients: input.groups.filter((group) => group.place === place).flatMap((group) => group.patients),
-  })).filter((group) => group.patients.length > 0);
+  })).filter((group) => group.patients.length > 0 || covered.has(group.place));
   const total = groups.reduce((sum, group) => sum + group.patients.length, 0);
-  const count = (places: readonly Place[]): number =>
-    groups.filter((group) => places.includes(group.place)).reduce((sum, group) => sum + group.patients.length, 0);
   const addressee = input.address === 'prof' ? 'Prof' : 'Dokter';
 
   const head = [
-    `Assalamualaikum. Tabe ${addressee}, mohon izin melaporkan Sensus pasien:`,
+    `Assalamualaikum. Tabe ${addressee}, mohon izin melaporkan sensus pasien`,
     `_*${dpjpFullName(input.code)}*_`,
     `Di ${placesText(groups.map((group) => group.place)) || '-'} (${dayName(input.date)}, ${dmy(input.date)})`,
-    `*TOTAL: ${total} Pasien*`,
-  ];
-  for (const hospital of ['RSWS', 'RSUH'] as const) {
-    const n = count([hospital]);
-    if (n > 0) head.push(`*${hospital}: ${n} Pasien*`);
-  }
-  const pjt = count(['CVCU', 'LT4', 'LT5', 'LT6', 'PJT']);
-  if (pjt > 0) head.push(`*PJT: ${pjt} Pasien*`);
+    '',
+    `*Total Pasien : ${total} pasien*`,
+  ].join('\n');
 
   const blocks = groups.map((group) => {
-    const title =
-      group.place === 'RSWS' || group.place === 'RSUH'
-        ? `*${PLACE_LABEL[group.place]} ${group.patients.length} pasien*`
-        : `*${PLACE_LABEL[group.place]}, ${group.patients.length} pasien*`;
+    const title = `*${PLACE_LABEL[group.place]} : ${group.patients.length} pasien*`;
     const rows = group.patients.map((patient, index) =>
       [
         `${index + 1}. ${patient.identity}`,
@@ -584,31 +681,33 @@ export function formatCensus(input: {
         ...(patient.diagnoses.length > 0 ? patient.diagnoses : ['-']),
       ].join('\n'),
     );
-    return [title, ...rows].join('\n');
+    return [title, ...rows].join('\n\n').replace(/^(\*[^\n]*\*)\n\n/, '$1\n');
   });
 
-  return [
-    head.join('\n'),
-    ...blocks.map((block) => `${MR_DIVIDER}\n${block}`),
-    '',
-    `Tabe terima kasih ${input.address === 'prof' ? 'Prof' : 'dokter'}`,
-  ].join('\n');
+  return [head, ...blocks, `Tabe terima kasih ${input.address === 'prof' ? 'Prof' : 'dokter'}.`].join('\n\n');
 }
 
-/** The rules' census for one DPJP. */
+/** The rules' census for one DPJP. A DPJP with no patients still gets one: every place at 0. */
 export function buildCensus(input: {
   sources: readonly ParsedSource[];
   code: string;
   date: string;
   address: CensusAddress;
+  style?: IdentityStyle;
 }): { text: string; entries: CensusEntry[] } {
   const entries = entriesFor(input.sources, input.code);
   const groups: CensusGroupInput[] = entries.map((entry) => ({
     place: entry.place,
-    patients: [{ identity: identityLine(entry, input.code), diagnoses: entry.diagnoses }],
+    patients: [{ identity: identityLine(entry, input.code, input.style ?? 'asis'), diagnoses: entry.diagnoses }],
   }));
   return {
-    text: formatCensus({ code: input.code, date: input.date, address: input.address, groups }),
+    text: formatCensus({
+      code: input.code,
+      date: input.date,
+      address: input.address,
+      groups,
+      covers: coveredPlaces(input.sources),
+    }),
     entries,
   };
 }
@@ -637,8 +736,7 @@ export const SENSUS_AI_TOOL = {
             place: { type: 'string', enum: [...PLACE_ORDER] },
             identity: {
               type: 'string',
-              description:
-                'Baris identitas persis seperti ditulis. Untuk list PJT: kode DPJP di depan lalu lokasi, mis. "MZ/417 Bed 3/Ny. X / 18-11-1989/ RM 1729668". Untuk list RSWS/RSUH: baris apa adanya.',
+              description: 'Baris identitas pasien, mengikuti instruksi gaya baris di pesan.',
             },
             diagnoses: {
               type: 'array',
@@ -661,15 +759,19 @@ export function sensusAiSystem(): string {
     '- Ambil HANYA pasien milik DPJP yang diminta. Kode DPJP di baris pasien lebih menentukan daripada judul bagian (pasien bisa salah tempel di bagian DPJP lain). Pasien gabungan (mis. "dr.ZD-dr.AAU") milik keduanya.',
     '- Abaikan bagian "Pasien Pulang", "Pasien Meninggal", "Pasien Pindah". Pasien di "Pasien Baru" yang juga tercantum di bawah dihitung sekali.',
     '- Setiap pasien sekali saja walau tercantum berulang.',
-    '- Lokasi (place): RSWS dan RSUH dari list rumah sakitnya; CVCU untuk CVCU/HCU/ICU PJT; LT4/LT5/LT6 dari nomor kamar (4xx/5xx/6xx) atau judul list; PJT bila lantai tidak diketahui.',
+    '- Lokasi (place): RSWS dan RSUH dari list rumah sakitnya; IGD untuk IGD PJT; CVCU untuk CVCU/HCU/ICU PJT; LT4/LT5/LT6 dari nomor kamar (4xx/5xx/6xx) atau judul list; PJT bila lantai tidak diketahui.',
+    '- Bila blok diagnosis ternyata berisi obat/terapi, kosongkan diagnoses.',
     '- Identitas dan diagnosis disalin persis, jangan diterjemahkan, dirapikan, atau ditambah. Buang nama residen di akhir baris (mis. "/resa", "(Resa)").',
     '- Diagnosis: hanya blok "Diagnosis"/"Diagnosa"/"Mohon izin kami assess dengan" milik kardiologi, bukan blok TS lain, terapi, atau plan.',
   ].join('\n');
 }
 
-export function sensusAiPrompt(input: { code: string; texts: readonly string[] }): string {
+export function sensusAiPrompt(input: { code: string; texts: readonly string[]; style?: IdentityStyle }): string {
   return [
     `DPJP yang diminta: ${input.code.toUpperCase()} (${dpjpFullName(input.code)})`,
+    input.style === 'front'
+      ? 'Baris identitas: pindahkan kode DPJP ke depan, lalu lokasi (mis. "MZ/417 Bed 3/Ny. X/…").'
+      : 'Baris identitas: salin persis seperti di list (mis. "414 Bed 2/AHN/Ny. X/…"); untuk CVCU gabungkan baris bed dan pasien ("CVCU Bed 15/ Tn. X/…").',
     '',
     ...input.texts.map((text, index) => `=== LIST ${index + 1} ===\n${text.trim()}`),
   ].join('\n');

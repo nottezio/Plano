@@ -68,7 +68,10 @@ import { useClinicalToday } from '@/hooks/useClinicalToday';
 
 const HELPER_TABS = [
   { id: 'jaga', label: 'Konfirmasi Jaga' },
-  { id: 'sensus', label: 'Verifikasi Sensus' },
+  // "Verifikasi List" (renamed from "Verifikasi Sensus"): it checks the ward LIST against the
+  // denah, and "Sensus" read too close to "Buat Sensus" beside it. The URL id
+  // stays 'sensus' so existing bookmarks and history entries still open it.
+  { id: 'sensus', label: 'Verifikasi List' },
   { id: 'buatsensus', label: 'Buat Sensus' },
   { id: 'mr', label: 'Morning Report' },
 ] as const;
@@ -151,6 +154,21 @@ export function HelperPage(): JSX.Element {
             </button>
           ))}
         </div>
+        {/*
+          Said once, above every Helper tab: each one turns pasted text into a
+          message for a consultant or a group, and a parser — or the AI — can
+          misread a list it has not seen before.
+        */}
+        <p
+          role="note"
+          className="flex gap-2 rounded-xl border border-[var(--warn-strong)] bg-[var(--warn-soft)] px-3 py-2 text-[11px] leading-relaxed text-fg"
+        >
+          <span aria-hidden="true" className="font-semibold text-[var(--warn-strong)]">!</span>
+          <span>
+            Hasil Helper disusun otomatis dari teks yang ditempel. <b>Periksa sendiri isinya</b> — nama, RM,
+            DPJP, diagnosis, jumlah pasien — sebelum disalin atau dikirim.
+          </span>
+        </p>
         <div role="tabpanel">
           {tab === 'jaga' ? (
             <KonfirmasiJaga />

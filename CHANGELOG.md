@@ -5,6 +5,23 @@ Catatan teknis lengkap (akar masalah, perbaikan) ada di CHANGES.md.
 
 Entri teratas harus versi yang sedang dirilis; tes gagal bila belum ditulis.
 
+## `2026-10-08.6`
+- **List IGD PJT dibaca dengan benar** (format Red/Yellow/Green/Blue Zone). Pasien IGD masuk ke bagian **IGD PJT** di sensus, dari zona mana pun. Pasien **Sisrute** (permintaan rujukan dari RS lain) tidak dihitung sebagai pasien. Tanda tebal (*…*) di baris pasien IGD dibuang.
+- **"Verifikasi Sensus" menjadi "Verifikasi List"**, supaya tidak tertukar dengan "Buat Sensus".
+- **Peringatan di Helper:** hasil Helper disusun otomatis dari teks yang ditempel, jadi periksa sendiri isinya (nama, RM, DPJP, diagnosis, jumlah pasien) sebelum disalin atau dikirim.
+
+## `2026-10-08.5`
+- **Buat Sensus: DPJP saya.** Tandai DPJP yang ditugaskan ke Anda (mis. ARB) lewat "★ Jadikan … DPJP saya" atau "+ DPJP saya…". Setelah itu hanya DPJP tersebut yang tampil dan langsung terpilih, termasuk bila hari ini pasiennya 0. Tersimpan di akun, jadi sama di semua perangkat. "Semua" menampilkan seluruh DPJP lagi.
+- **Format sensus mengikuti yang biasa dikirim:**
+  - setiap tempat yang list-nya ditempel tetap dicantumkan, termasuk "0 pasien";
+  - "Total Pasien", baris kosong di antara pasien, dan tanggal ditulis 08/10/2026;
+  - urutan tempat: RSWS, RSUH, IGD PJT, CVCU/HCU/ICU PJT, PJT Lt. 4, 5, 6.
+  
+  Tempat yang list-nya tidak ditempel tidak dicantumkan, supaya tidak tertulis "0 pasien" padahal belum dicek. Daftarnya tampil di bawah DPJP ("Belum ditempel: …").
+- **Baris pasien apa adanya** (bawaan), seperti di list ruangan, mis. "414 Bed 1/ARB/Ny. …". Pilih "Kode di depan" untuk gaya "ARB/414 Bed 1/…". Nama residen di akhir baris tetap dibuang.
+- **List IGD PJT** kini dikenali sebagai tempat tersendiri.
+- **Blok "Diagnosis" yang ternyata berisi terapi** (obat dan dosis) ditulis "-" dan diberi peringatan, supaya daftar obat tidak terkirim sebagai diagnosis.
+
 ## `2026-10-08.4`
 - **Tanggal selalu tgl/bln/tahun:** semua kolom tanggal (Hari MR, Jaga mulai dari, Tanggal jaga, Tanggal lab, Tanggal masuk, Tanggal pulang, Jadwal operasi) kini tampil seperti **09/10/2026**. Sebelumnya, di HP berbahasa Inggris tanggal tampil bulan dulu (10/09/2026 untuk 9 Oktober). Tanggal bisa diketik langsung (mis. "9/10" atau "9-10-26"), atau dipilih lewat ikon kalender.
 - **Morning Report: pesan ke pengampu.** Di bagian Pesan ada **Ke pengampu**: permintaan kesediaan memimpin MR dan jam hadir, dengan pilihan sapaan **Dokter** atau **Prof**. Salam (pagi/siang/sore/malam) mengikuti jam, dan "besok" hanya dipakai bila MR memang besok. Isi **Perkenalan ke pengampu** (mis. PPDS Kardio Semester 1) di langkah 2.

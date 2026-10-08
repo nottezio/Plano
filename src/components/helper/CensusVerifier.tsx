@@ -29,7 +29,7 @@ import {
 } from '@/domain/census/history';
 
 /**
- * Verifikasi sensus bangsal — WIP.
+ * Verifikasi List (formerly "Verifikasi Sensus") — WIP.
  *
  * Two PDFs in, a transcription of each out, and the deterministic checks on
  * top — Avi's Stage 4–8 verifier (`domain/census/verifier`).
@@ -156,7 +156,7 @@ export function CensusVerifier(): JSX.Element {
         {!enabled ? (
           <Callout
             tone="accent"
-            title="Aktifkan Verifikasi sensus bangsal"
+            title="Aktifkan Verifikasi list bangsal"
             action={
               <Button size="sm" variant="primary" onClick={() => navigate('/pengaturan')}>
                 Buka Pengaturan

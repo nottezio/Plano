@@ -164,6 +164,12 @@ export interface UserSettings {
    * for those, and merges properly from then on.
    */
   seedBaseline?: SeedBaseline;
+  /**
+   * Buat Sensus: the DPJP codes this resident is assigned ("ARB"). Each
+   * resident sends the census of their own consultant(s) only, so the page
+   * shows these first. Absent: every DPJP in the pasted lists.
+   */
+  sensusDpjps?: string[];
   /** Salam presets — swapped on an existing note, per SPEC 14. */
   greetings: string[];
   /** Reporting-sentence presets ("mohon izin melaporkan …"). */

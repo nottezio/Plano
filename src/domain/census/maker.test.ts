@@ -227,8 +227,8 @@ describe('PJT Lantai 4 list', () => {
   it('moves the code to the front and keeps the rest as written', () => {
     const mz = entriesFor([lt4!], 'MZ');
     expect(mz.map((entry) => entry.place)).toEqual(['LT4', 'LT4', 'LT4']);
-    const text = buildCensus({ sources: [lt4!], code: 'MZ', date: '2026-10-08', address: 'dokter' }).text;
-    expect(text).toContain('1. MZ/417 Bed 3/Ny.Contoh Satu / 18-11-1989/ 1700001\nDiagnosis:\n- Frequent PVC post ablation H-1\n- Atrial Fibrilation Normoventricular Response\n2.');
+    const text = buildCensus({ sources: [lt4!], code: 'MZ', date: '2026-10-08', address: 'dokter', style: 'front' }).text;
+    expect(text).toContain('1. MZ/417 Bed 3/Ny.Contoh Satu / 18-11-1989/ 1700001\nDiagnosis:\n- Frequent PVC post ablation H-1\n- Atrial Fibrilation Normoventricular Response\n\n2.');
     expect(text).toContain('2. MZ/Supervip/Contoh Dua/21-01-1967/ RM 100002');
     expect(text).toContain('3. MZ/409/Ny, Contoh Tiga');
   });
@@ -254,8 +254,10 @@ describe('CVCU/HCU/ICU list', () => {
   const [icu] = parseAll(ICU);
 
   it('takes the bed from its own line and the code from the end', () => {
-    const text = buildCensus({ sources: [icu!], code: 'MZ', date: '2026-10-08', address: 'dokter' }).text;
-    expect(text).toContain('*CVCU/HCU/ICU PJT, 1 pasien*\n1. MZ/CVCU Bed 11/Tn Contoh Tujuh/15-10-1972/53 th/RM 01700007\nDiagnosis:\n- NSTEMI High Risk\n- Hypertensive Heart Disease\n');
+    const front = buildCensus({ sources: [icu!], code: 'MZ', date: '2026-10-08', address: 'dokter', style: 'front' }).text;
+    expect(front).toContain('*CVCU/HCU/ICU PJT : 1 pasien*\n1. MZ/CVCU Bed 11/Tn Contoh Tujuh/15-10-1972/53 th/RM 01700007\nDiagnosis:\n- NSTEMI High Risk\n- Hypertensive Heart Disease\n');
+    const asis = buildCensus({ sources: [icu!], code: 'MZ', date: '2026-10-08', address: 'dokter' }).text;
+    expect(asis).toContain('1. CVCU Bed 11/ Tn Contoh Tujuh/15-10-1972/53 th/RM 01700007/ Prof MZ\n');
   });
 
   it('reads "KosongNy." as the patient and skips beds with nobody listed', () => {
@@ -303,15 +305,15 @@ describe('PJT Lantai 5 dan 6 list', () => {
   });
 
   it('lists a joint patient under both DPJPs, with the census DPJP in front', () => {
-    const aau = buildCensus({ sources: [lt56!], code: 'AAU', date: '2026-10-08', address: 'dokter' }).text;
+    const aau = buildCensus({ sources: [lt56!], code: 'AAU', date: '2026-10-08', address: 'dokter', style: 'front' }).text;
     expect(aau).toContain('1. AAU/518 bed 1/Tn. Contoh Empatbelas/21-06-2001/ 25 tahun/ RM   700014\n');
   });
 
   it("drops the resident's name after a trailing code", () => {
     const mz = buildCensus({ sources: [lt56!], code: 'MZ', date: '2026-10-08', address: 'dokter' }).text;
-    expect(mz).toContain('*PJT Lt.6, 1 pasien*\n1. MZ/617 bed 1/nn. Contoh Tujuhbelas/20-10-2011/14 tahun/01700017\n');
+    expect(mz).toContain('*PJT Lt. 6 : 1 pasien*\n1. 617 bed 1/nn. Contoh Tujuhbelas/20-10-2011/14 tahun/01700017/prof.MZ\n');
     expect(mz).not.toContain('tika');
-    expect(mz).toContain('*PJT Lt.5, 1 pasien*');
+    expect(mz).toContain('*PJT Lt. 5 : 1 pasien*');
   });
 
   it('reads a diagnosis written on the heading line, after ":" or ";"', () => {
@@ -335,40 +337,142 @@ describe('RSUH list', () => {
 });
 
 describe('the whole census', () => {
-  it('matches the shape of the census sent', () => {
+  it('has the shape the residents send: every covered place, zeros included', () => {
     const sources = parseAll(LT4, ICU, RSWS, LT56, RSUH);
     const text = buildCensus({ sources, code: 'MZ', date: '2026-10-08', address: 'dokter' }).text;
     const lines = text.split('\n');
-    expect(lines.slice(0, 6)).toEqual([
-      'Assalamualaikum. Tabe Dokter, mohon izin melaporkan Sensus pasien:',
+    expect(lines.slice(0, 5)).toEqual([
+      'Assalamualaikum. Tabe Dokter, mohon izin melaporkan sensus pasien',
       `_*${dpjpFullName('MZ')}*_`,
-      'Di RSWS, PJT Lt. 4 dan 5 dan 6 (Kamis, 08-10-2026)',
-      '*TOTAL: 7 Pasien*',
-      '*RSWS: 1 Pasien*',
-      '*PJT: 6 Pasien*',
+      'Di RSWS, RSUH, CVCU/HCU/ICU PJT, PJT Lt. 4, PJT Lt. 5 dan PJT Lt. 6 (Kamis, 08/10/2026)',
+      '',
+      '*Total Pasien : 7 pasien*',
     ]);
-    const groups = lines.filter((line) => /^\*.*pasien\*$/.test(line));
-    expect(groups).toEqual([
-      '*RSWS 1 pasien*',
-      '*CVCU/HCU/ICU PJT, 1 pasien*',
-      '*PJT Lt.4, 3 pasien*',
-      '*PJT Lt.5, 1 pasien*',
-      '*PJT Lt.6, 1 pasien*',
+    expect(lines.filter((line) => /^\*.* : \d+ pasien\*$/.test(line) && !line.startsWith('*Total'))).toEqual([
+      '*RSWS : 1 pasien*',
+      '*RSUH : 0 pasien*',
+      '*CVCU/HCU/ICU PJT : 1 pasien*',
+      '*PJT Lt. 4 : 3 pasien*',
+      '*PJT Lt. 5 : 1 pasien*',
+      '*PJT Lt. 6 : 1 pasien*',
     ]);
-    expect(lines.at(-1)).toBe('Tabe terima kasih dokter');
+    expect(lines.at(-1)).toBe('Tabe terima kasih dokter.');
+  });
+
+  it('separates patients with a blank line', () => {
+    const text = buildCensus({ sources: parseAll(LT4), code: 'MZ', date: '2026-10-08', address: 'dokter' }).text;
+    expect(text).toContain('- Atrial Fibrilation Normoventricular Response\n\n2. Supervip/MZ/Contoh Dua');
+  });
+
+  it('reports only the places a pasted list covers', () => {
+    // No RSWS or RSUH list pasted: saying "RSWS : 0" would be a claim nobody checked.
+    const text = buildCensus({ sources: parseAll(LT4), code: 'MZ', date: '2026-10-08', address: 'dokter' }).text;
+    expect(text).toContain('Di PJT Lt. 4 (Kamis, 08/10/2026)');
+    expect(text).not.toContain('RSWS');
+  });
+
+  it('still writes a census for a DPJP with nobody listed', () => {
+    const text = buildCensus({ sources: parseAll(LT4, ICU), code: 'AFM', date: '2026-10-08', address: 'dokter' }).text;
+    expect(text).toContain('*Total Pasien : 0 pasien*');
+    expect(text).toContain('*CVCU/HCU/ICU PJT : 0 pasien*\n\n*PJT Lt. 4 : 0 pasien*');
   });
 
   it('addresses a Prof when asked', () => {
     const sources = parseAll(LT4);
     const text = buildCensus({ sources, code: 'MZ', date: '2026-10-08', address: 'prof' }).text;
     expect(text.startsWith('Assalamualaikum. Tabe Prof,')).toBe(true);
-    expect(text.endsWith('Tabe terima kasih Prof')).toBe(true);
+    expect(text.endsWith('Tabe terima kasih Prof.')).toBe(true);
   });
 
   it('counts every DPJP once per patient across lists', () => {
     const counts = dpjpCounts(parseAll(LT4, ICU, RSWS, LT56, RSUH));
     expect(counts.find((row) => row.code === 'ZD')?.count).toBe(5);
     expect(counts.find((row) => row.code === 'MZ')?.count).toBe(7);
+  });
+});
+
+describe('a diagnosis block that holds the therapy', () => {
+  const LIST = `Tabe dokter mohon izin mengirimkan *List Pasien PJT Lantai 4*
+*🫀 dr. AHN : 1 Pasien*
+1. 407/AHN/Ny. Contoh / 16-04-1959 / 67 Tahun / RM 1700030
+Diagnosis:
+- IVFD NaCl 500 cc/24 jam/IV
+- Clopidogrel 75 mg/24 jam/oral
+- Furosemide 40 mg/24 jam/oral (bila sesak)
+
+Plan :
+- Monitoring tanda vital`;
+
+  it('prints "-" and flags it instead of passing drugs off as diagnoses', () => {
+    const [entry] = entriesFor(parseAll(LIST), 'AHN');
+    expect(entry!.diagnoses).toEqual([]);
+    expect(entry!.dxWasTherapy).toBe(true);
+  });
+
+  it('leaves a real diagnosis that mentions a dose alone', () => {
+    const [lt4] = parseAll(LT4);
+    expect(entriesFor([lt4!], 'MZ').every((entry) => !entry.dxWasTherapy)).toBe(true);
+  });
+});
+
+describe('IGD PJT list', () => {
+  // Shape as sent (zones, bolded lines, a Sisrute block); names invented.
+  const IGD = `Tabe dokter izin mengirimkan List Pasien IGD PJT Kamis, 08-10-2026, pukul 16.00 WITA
+
+Total Pasien: 3 Pasien
+Pasien Baru: 2 Pasien
+Sisrute: 2 Pasien
+
+🔴 Red Zone: 2 Pasien
+
+1. *IGD Red Zone Bed 3 / Ny. Contoh Satu / RM 800001 / dr. ARB*
+_Sementara diterima
+
+2. *IGD Red Zone bed 4 /*\u200eTn.Contoh Dua / 01700002 / 58 tahun / RM 01700002/Prof. MZ* 
+Diagnosis
+- Congestive Heart Failure NYHA III
+- Hipokalemia (3.4)
+\u200e
+\u200e*Plan:*
+- Monitoring tanda vital dan hemodinamik
+
+🟡 Yellow Zone: 1 pasien
+
+1. *YZ Bed 8 / *Tn. Contoh Tiga / 07-01-1962 / 64 tahun / RM 1700003 / dr. ARB*
+Diagnosis
+- Chronic Coronary Syndrome Clinical Presentation Type III
+Plan:
+- Pantau tanda vital
+
+🟢 Green Zone: 0 pasien
+
+🚑 Sisrute: 2 pasien
+
+1. RSUD Contoh / Ny. Rujukan / 65 tahun/ STEMI inferior onset 24 jam / Sudah Acc
+
+2. RS Contoh Lain / Tn. Rujukan Dua / Chest Pain / Belum Acc dari Sisrute Central
+
+Tabe terima kasih, Dokter.`;
+
+  const [igd] = parseAll(IGD);
+
+  it('is its own place, every zone together', () => {
+    expect(igd!.kind).toBe('pjt-igd');
+    const text = buildCensus({ sources: [igd!], code: 'ARB', date: '2026-10-08', address: 'dokter' }).text;
+    expect(text).toContain(
+      '*IGD PJT : 2 pasien*\n1. IGD Red Zone Bed 3 / Ny. Contoh Satu / RM 800001 / dr. ARB\nDiagnosis:\n-\n\n2. YZ Bed 8 / Tn. Contoh Tiga / 07-01-1962 / 64 tahun / RM 1700003 / dr. ARB\nDiagnosis:\n- Chronic Coronary Syndrome Clinical Presentation Type III',
+    );
+  });
+
+  it('reads the DPJP at the end of a bolded line and stops the diagnosis at Plan', () => {
+    const [mz] = entriesFor([igd!], 'MZ');
+    expect(mz!.asWritten).toBe('IGD Red Zone bed 4 /Tn.Contoh Dua / 01700002 / 58 tahun / RM 01700002/Prof. MZ');
+    expect(mz!.diagnoses).toEqual(['- Congestive Heart Failure NYHA III', '- Hipokalemia (3.4)']);
+  });
+
+  it('leaves the Sisrute referrals out: they are requests, not patients', () => {
+    expect(igd!.entries).toHaveLength(3);
+    expect(unassigned([igd!])).toEqual([]);
   });
 });
 
@@ -385,7 +489,7 @@ describe('AI mode output', () => {
     });
     expect(groups).toEqual([{ place: 'LT4', patients: [{ identity: 'MZ/417 Bed 3/Ny. Contoh / RM 1700001', diagnoses: ['- CHF'] }] }]);
     const text = formatCensus({ code: 'MZ', date: '2026-10-08', address: 'dokter', groups });
-    expect(text).toContain('*PJT Lt.4, 1 pasien*\n1. MZ/417 Bed 3/Ny. Contoh / RM 1700001\nDiagnosis:\n- CHF');
+    expect(text).toContain('*PJT Lt. 4 : 1 pasien*\n1. MZ/417 Bed 3/Ny. Contoh / RM 1700001\nDiagnosis:\n- CHF');
     expect(readAiCensus(null)).toEqual([]);
   });
 });

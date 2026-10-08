@@ -1,5 +1,105 @@
 # Plano — CHANGES
 
+## `2026-10-08.6` — IGD PJT list read properly; "Verifikasi List"; Helper disclaimer
+
+### 1. IGD PJT list (Avi sent the real format)
+08.5 guessed the IGD shape from one census line. The real list adds three
+things the parser read wrongly (checked against Avi's list, sandbox only):
+- **Bolded lines.** Patient lines are wrapped in `*…*`, including "/*Tn. …".
+  The identity kept the asterisks ("1. *IGD Red Zone Bed 3 / …"). Emphasis
+  marks are now stripped from every identity line (also on the CVCU next-line
+  shape). Diagnosis lines are untouched.
+- **Sisrute.** "🚑 Sisrute: 6 pasien" lists referral requests from other
+  hospitals: "RSUD … / Ny. … / STEMI … / Sudah Acc". With slashes and names
+  they read as patients, and as DPJP-less ones they filled the "tanpa DPJP"
+  warning.
+  - `SISRUTE_RE` opens an excluded section.
+  - `ZONE_RE` ("Red/Yellow/Green/Blue Zone") ends it. This matters because
+    the summary block at the top has its own "Sisrute: 6 Pasien" line, so
+    without the reset the Red Zone patients would be excluded too.
+  - Both also stop a diagnosis block.
+- Zones are not sub-grouped in the census: every IGD patient goes under
+  "IGD PJT", as in the ZD census Avi sent.
+- Result on Avi's list: IGD has 5 patients (ARB 3, MZ 1, ZD 1); the 6
+  Sisrute referrals are excluded; no new unassigned patients.
+
+### 2. "Verifikasi Sensus" → "Verifikasi List" (Avi)
+It verifies the ward LIST against the denah. Renamed in the tab, its own
+callout and the Settings → AI toggle. The URL id stays `?tab=sensus`, so
+bookmarks and history entries still open it.
+
+### 3. Helper disclaimer (Avi)
+One note above every Helper tab (`role="note"`, warn tone): results are
+assembled from pasted text; check names, RM, DPJP, diagnoses and counts
+before copying or sending. Once, above the tabs, not per message: the
+message boxes already carry a lot.
+
+### Not done
+- The IGD "_Sementara diterima" status line is not carried into the census
+  (the patient shows "Diagnosis: -").
+
+```
+npm run verify
+  typecheck ✓  lint ✓ (0 warnings)  test ✓ 2048 passed (139 files)
+  check:version ✓  check:contrast ✓  check:a11y ✓  build ✓
+```
+
+## `2026-10-08.5` — Sensus: DPJP saya filter; the format residents actually send
+
+### 1. Each resident sends one DPJP's census (Avi: "me only ARB, so there should be a filter")
+Not a bug; the 08.4 page offered every DPJP in the lists, most first, and a
+resident had to find theirs each time.
+- `UserSettings.sensusDpjps?: string[]`, written as one leaf through
+  `updateSettings` (the array is the value, not a read-modify-write of a
+  list). Synced, so every device opens on the same DPJP.
+- With it set, the chips are those codes, **including 0 patients**: a DPJP
+  with nobody today still gets a census ("Total Pasien : 0").
+  - "DPJP saya | Semua" switches back to the full list.
+  - Codes are set with "★ Jadikan X DPJP saya" on the selected chip, or
+    from a registry select (for a DPJP absent from today's lists).
+
+### 2. Format: matched to eight censuses sent on 07–08 Oct (AHN, MZ, PT ×2, ZD, AHA ×2, KS, AFG ×2)
+08.4 was built from the MZ census alone, and it was the odd one out.
+- **Every covered place gets a heading, zeros included** (all but MZ do
+  this). "Covered" = a pasted list reports on it (`ParsedSource.covers`,
+  `coveredPlaces`). A place with no list is left out rather than written as
+  "0 pasien", because that would be a check nobody did. The page names those
+  ("Belum ditempel: …").
+- **Text and order:**
+  - "Total Pasien : n pasien" and "*PJT Lt. 4 : n pasien*" headings;
+  - a blank line between patients; no dashed rules;
+  - dd/mm/yyyy (matches the 08.4 tgl/bln/tahun request);
+  - "Di RSWS, RSUH, …, PJT Lt. 5 dan PJT Lt. 6" listing the covered places.
+- **The patient line as written is now the default** (`IdentityStyle`
+  `'asis'`; 7 of 8 senders keep "414 Bed 2/AHN/…"). `'front'` keeps the 08.4
+  MZ style.
+  - `CensusEntry.asWritten` drops only what follows a trailing code (the
+    resident).
+  - CVCU joins the bed line ("CVCU Bed 15/ Tn. …", as AFG's sender did).
+- **IGD PJT** (`pjt-igd`, place `IGD`): seen in the ZD census ("Red zone bed
+  6/…"). It is detected from a "List Pasien … IGD" header; IGD/zone
+  locations on other PJT lists file there too. No IGD list was available, so
+  the parser treats it like a ward list (tested on an anonymised imitation).
+- **Therapy pasted under "Diagnosis:"** (AHN patient #6 in the Lt. 4 list).
+  If every line in the block is a drug order (dose + `/jam|/oral|/IV…`, or
+  IVFD), `dxWasTherapy`: printed "-" and warned. The AHN sender had
+  corrected it by hand to "Diagnosis: -".
+- Re-checked on the real lists: AHN 10 patients, same as the census sent;
+  ARB 5 (RSWS 1, RSUH 1, Lt. 4 1, Lt. 5 2).
+
+### Not done
+- Diagnosis blocks stay diagnosis-only. Two senders (PT, KS) also include
+  therapy/plan; asked-for consistency won over copying them.
+- No IGD PJT list sample yet: the parser is a guess at its shape until one
+  is pasted.
+- Real-device test still pending (08.4 items).
+
+```
+npm run verify
+  typecheck ✓  lint ✓ (0 warnings)  test ✓ 2046 passed (139 files)
+  check:version ✓  check:contrast ✓  check:a11y ✓  build ✓
+```
+
 ## `2026-10-08.4` — Dates in tgl/bln/tahun; MR pengampu invitation; Sensus maker (rules + optional AI)
 
 ### 1. Dates read month-first on some phones (Avi: "the date should be tgl/bln/tahun")

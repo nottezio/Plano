@@ -1,10 +1,18 @@
 import { useEffect, useMemo, useState } from 'react';
 
 import { DateField } from '@/components/common/DateField';
+import { DPJPS } from '@/domain/dpjp';
 import { IconCheck, IconCopy, IconPlus, IconSparkle, IconTrash } from '@/components/common/Icons';
 import { Button, Callout, ChipRow, ChoiceChip, Field, Section, Segmented } from '@/components/common/ui';
+import { updateSettings } from '@/data/repositories/settings.repo';
+import { useSession } from '@/store/useSession';
 import {
   PLACE_LABEL,
+  PLACE_ORDER,
+  coveredPlaces,
+  entriesFor,
+  type IdentityStyle,
+  type Place,
   SENSUS_AI_TOOL,
   SOURCE_LABEL,
   buildCensus,
@@ -41,10 +49,11 @@ interface Stored {
   lists: Array<{ text: string; kind: SourceKind | 'auto' }>;
   code: string;
   address: CensusAddress;
+  style: IdentityStyle;
 }
 
 function load(today: string): Stored {
-  const empty: Stored = { date: today, lists: [{ text: '', kind: 'auto' }], code: '', address: 'dokter' };
+  const empty: Stored = { date: today, lists: [{ text: '', kind: 'auto' }], code: '', address: 'dokter', style: 'asis' };
   try {
     const raw = localStorage.getItem(STORE);
     if (!raw) return empty;
@@ -59,6 +68,7 @@ function load(today: string): Stored {
       lists: lists.length > 0 ? lists : empty.lists,
       code: typeof parsed.code === 'string' ? parsed.code : '',
       address: parsed.address === 'prof' ? 'prof' : 'dokter',
+      style: parsed.style === 'front' ? 'front' : 'asis',
     };
   } catch {
     return empty;
@@ -77,6 +87,7 @@ const KIND_OPTIONS: ReadonlyArray<readonly [SourceKind | 'auto', string]> = [
   ['auto', 'Otomatis'],
   ['pjt-ward', SOURCE_LABEL['pjt-ward']],
   ['pjt-icu', SOURCE_LABEL['pjt-icu']],
+  ['pjt-igd', SOURCE_LABEL['pjt-igd']],
   ['rsws', SOURCE_LABEL.rsws],
   ['rsuh', SOURCE_LABEL.rsuh],
 ];
@@ -91,6 +102,12 @@ export function SensusMaker(): JSX.Element {
   const [aiErrorText, setAiErrorText] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
   const aiOn = aiEnabled('sensus');
+  const uid = useSession((s) => s.user?.uid ?? null);
+  const mine = useSession((s) => s.settings().sensusDpjps) ?? [];
+  const [showAll, setShowAll] = useState(false);
+  const setMine = (next: string[]): void => {
+    if (uid) void updateSettings(uid, { sensusDpjps: next });
+  };
 
   useEffect(() => save(state), [state]);
 
@@ -104,17 +121,36 @@ export function SensusMaker(): JSX.Element {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [state.lists]);
 
-  const counts = useMemo(() => dpjpCounts(sources), [sources]);
+  const allCounts = useMemo(() => dpjpCounts(sources), [sources]);
+  /**
+   * Each resident sends their own DPJP's census only. With "DPJP saya" set,
+   * the chips are those codes — shown even at 0 patients, because "0 pasien"
+   * is still a census that has to go out.
+   */
+  const filtering = mine.length > 0 && !showAll;
+  const counts = filtering
+    ? mine.map((c) => ({ code: c, count: allCounts.find((row) => row.code === c)?.count ?? 0 }))
+    : allCounts;
   const missing = useMemo(() => unassigned(sources), [sources]);
-  const code = state.code && counts.some((row) => row.code === state.code) ? state.code : (counts[0]?.code ?? '');
+  const code =
+    state.code && counts.some((row) => row.code === state.code) ? state.code : (counts[0]?.code ?? '');
+  const covered = useMemo(() => coveredPlaces(sources), [sources]);
+  const notPasted = PLACE_ORDER.filter((place: Place) => place !== 'PJT' && !covered.includes(place));
+  const therapyAsDx = useMemo(
+    () => (code ? entriesFor(sources, code).filter((entry) => entry.dxWasTherapy) : []),
+    [sources, code],
+  );
 
   const rules = useMemo(
-    () => (code ? buildCensus({ sources, code, date: censusDate, address: state.address }) : null),
-    [sources, code, censusDate, state.address],
+    () =>
+      code && sources.length > 0
+        ? buildCensus({ sources, code, date: censusDate, address: state.address, style: state.style })
+        : null,
+    [sources, code, censusDate, state.address, state.style],
   );
 
   /** What the AI result was computed from; a change makes it stale. */
-  const aiKey = `${code}|${censusDate}|${state.address}|${filled.map((list) => list.text).join('\u0000')}`;
+  const aiKey = `${code}|${censusDate}|${state.address}|${state.style}|${filled.map((list) => list.text).join('\u0000')}`;
   const aiFresh = ai && ai.key === aiKey ? ai.text : null;
   const shown = mode === 'ai' && aiOn ? aiFresh : (rules?.text ?? null);
 
@@ -133,12 +169,12 @@ export function SensusMaker(): JSX.Element {
       const { input, truncated } = await askClaudeStructured({
         system: sensusAiSystem(),
         tool: SENSUS_AI_TOOL,
-        prompt: sensusAiPrompt({ code, texts: filled.map((list) => list.text) }),
+        prompt: sensusAiPrompt({ code, texts: filled.map((list) => list.text), style: state.style }),
         maxTokens: 8000,
       });
       const groups = readAiCensus(input);
       if (truncated) setAiErrorText('Jawaban AI terpotong; sebagian pasien mungkin hilang. Bandingkan dengan mode Aturan.');
-      setAi({ key: aiKey, text: formatCensus({ code, date: censusDate, address: state.address, groups }) });
+      setAi({ key: aiKey, text: formatCensus({ code, date: censusDate, address: state.address, groups, covers: covered }) });
     } catch (error) {
       setAiErrorText(error instanceof AiError ? error.message : 'Gagal memanggil AI.');
     } finally {
@@ -225,18 +261,75 @@ export function SensusMaker(): JSX.Element {
           </div>
         </Section>
 
-        <Section title="2 · DPJP">
+        <Section
+          title="2 · DPJP"
+          aside={
+            mine.length > 0 ? (
+              <Segmented
+                label="DPJP yang ditampilkan"
+                size="sm"
+                value={showAll ? 'semua' : 'saya'}
+                onChange={(value) => setShowAll(value === 'semua')}
+                options={[
+                  ['saya', 'DPJP saya'],
+                  ['semua', 'Semua'],
+                ]}
+              />
+            ) : null
+          }
+        >
           {counts.length === 0 ? (
             <p className="text-xs text-fg-faint">Tempel minimal satu list untuk melihat DPJP-nya.</p>
           ) : (
             <ChipRow>
               {counts.map((row) => (
                 <ChoiceChip key={row.code} active={row.code === code} onClick={() => update({ code: row.code })}>
+                  {mine.includes(row.code) ? <span aria-label="DPJP saya">★ </span> : null}
                   {row.code} <span className="opacity-70">· {row.count}</span>
                 </ChoiceChip>
               ))}
             </ChipRow>
           )}
+          {/* Which DPJP is "mine": synced with the account, so every device
+              opens on the same census. */}
+          <div className="flex flex-wrap items-center gap-2">
+            {code ? (
+              <Button
+                size="sm"
+                variant="ghost"
+                disabled={!uid}
+                onClick={() => setMine(mine.includes(code) ? mine.filter((c) => c !== code) : [...mine, code])}
+              >
+                {mine.includes(code) ? `Hapus ${code} dari DPJP saya` : `★ Jadikan ${code} DPJP saya`}
+              </Button>
+            ) : null}
+            <select
+              aria-label="Tambah DPJP saya"
+              value=""
+              disabled={!uid}
+              onChange={(event) => {
+                const next = event.target.value;
+                if (next && !mine.includes(next)) {
+                  setMine([...mine, next]);
+                  setShowAll(false);
+                  update({ code: next });
+                }
+              }}
+              className="min-h-tap max-w-[16rem] rounded-lg border border-border bg-surface px-2 text-xs text-fg-muted [@media(pointer:fine)]:min-h-8"
+            >
+              <option value="">+ DPJP saya…</option>
+              {DPJPS.filter((dpjp) => !mine.includes(dpjp.initials)).map((dpjp) => (
+                <option key={dpjp.id} value={dpjp.initials}>
+                  {dpjp.initials} — {dpjp.name}
+                </option>
+              ))}
+            </select>
+          </div>
+          {mine.length === 0 ? (
+            <p className="text-[11px] text-fg-faint">
+              Tandai DPJP yang ditugaskan ke Anda (mis. ARB): hanya itu yang tampil, di semua perangkat Anda.
+            </p>
+          ) : null}
           <div className="flex flex-wrap items-end gap-3">
             <Field label="Tanggal sensus">
               <DateField value={censusDate} onChange={setCensusDate} className="w-40" />
@@ -253,7 +346,31 @@ export function SensusMaker(): JSX.Element {
                 ]}
               />
             </Field>
+            <Field label="Baris pasien">
+              <Segmented
+                label="Baris pasien"
+                size="sm"
+                value={state.style}
+                onChange={(style) => update({ style })}
+                options={[
+                  ['asis', 'Apa adanya'],
+                  ['front', 'Kode di depan'],
+                ]}
+              />
+            </Field>
           </div>
+          {sources.length > 0 && notPasted.length > 0 ? (
+            <p className="text-[11px] text-fg-muted">
+              Belum ditempel: {notPasted.map((place) => PLACE_LABEL[place]).join(', ')}. Tidak dicantumkan di sensus
+              (bukan &quot;0 pasien&quot;).
+            </p>
+          ) : null}
+          {therapyAsDx.length > 0 ? (
+            <Callout tone="warn" title="Blok diagnosis berisi terapi">
+              {therapyAsDx.map((entry) => entry.asWritten).join('; ')} — ditulis &quot;-&quot;. Isi diagnosisnya
+              sebelum dikirim.
+            </Callout>
+          ) : null}
           {missing.length > 0 ? (
             <Callout tone="warn" title={`${missing.length} pasien tanpa DPJP di list`}>
               <ul className="mt-1 space-y-0.5">
