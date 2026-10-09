@@ -1,5 +1,68 @@
 # Plano — CHANGES
 
+## `2026-10-09.1` — Saved Helper results, synced to the account
+
+### Root cause (Avi: "the helper felt like a temporary program")
+No Helper tool had anywhere to keep its OUTPUT. Konfirmasi Jaga and Morning
+Report sync their working state, but the message each tool builds was only
+ever on screen: Buat Sensus keeps its pasted lists in localStorage for one
+day on one device, and Verifikasi List keeps nothing. A census sent at 07:00
+from the phone could not be found again on the PC at 10:00.
+
+### Fix
+- **`domain/helperResults.ts`**: what a saved result is (kind, the date it is
+  FOR, subject, title, text, `savedAt`/`editedAt`/`deletedAt` as ms), plus
+  defensive reading, filter/search, grouping by date, and `saveState`
+  (new / same / changed, trailing whitespace ignored).
+- **One record per (kind, date, subject).** The id is derived from those
+  three (`sensus~2026-10-09~arb`), not random. A double tap, or saving on two
+  devices offline, writes the same document instead of duplicates. Re-saving
+  after a correction updates the record in place, and saving a deleted one
+  revives it.
+- **`users/{uid}/helperResults/{id}`**, not on the profile: a few months of
+  censuses would push the profile toward its 1 MiB cap, and every settings
+  save goes through that document. Read with one `orderBy('savedAt')` +
+  `limit(300)`, so no composite index is needed. `savedAt` is the device
+  clock, not `serverTimestamp()`, which reads back null until the write
+  lands and would sort offline saves last.
+- **Rules**: owner only; text a string ≤ 100 000 chars (`MAX_RESULT_CHARS`,
+  checked by a test against the rules file); `delete: if false`. Removal is
+  soft, so Undo works on any device. **Deploys through
+  `firestore-deploy.yml` on push.** Until it runs, Tersimpan says it cannot
+  read the list, and saves are refused.
+- **`SavedResultsProvider`** (Helper page): one listener for every Simpan
+  button and the list, instead of one per message box.
+- **`SaveResultButton`** beside Salin: Buat Sensus (subject = DPJP code,
+  date = tanggal sensus), Formasi Jaga (date + shift), all four MR messages
+  (date = MR day), and the Verifikasi report (date = the PDFs' shift, else
+  today). States: Simpan / Tersimpan (opens the tab) / Perbarui.
+- **Tersimpan tab**: search over title and text (name, RM), per-tool chips
+  (a single scrolling row on a phone), sections by date (dd/mm/yyyy), cards
+  with Salin / Ubah (title + text, explicit "Simpan perubahan") / Hapus with
+  an Undo row.
+
+### Wrong turns
+- The context module was first named `savedResults.tsx` beside
+  `SavedResults.tsx`. tsc caught the case-only difference; on Windows (Avi's
+  checkout) the two files could not even coexist. Renamed to `SaveResult.tsx`.
+
+### Not done
+- Pasted ward lists still stay device-only for the day (size, and they hold
+  every patient in the hospital). Only the finished result syncs.
+- Editing a saved result is last-write-wins (explicit save, one user). There
+  is no three-way merge like SOAP bodies.
+- Pressing Perbarui in a tool overwrites an edit made on Tersimpan. The
+  tooltip says so, but nothing asks first.
+- Saved results are not in Export data yet.
+- Not tested on a real phone. The harness flow passed: save → Tersimpan →
+  edit → Perbarui shown → delete → Undo.
+
+```
+npm run verify
+  typecheck ✓  lint ✓ (0 warnings)  test ✓ 2059 passed (140 files)
+  check:version ✓  check:contrast ✓  check:a11y ✓  build ✓
+```
+
 ## `2026-10-08.6` — IGD PJT list read properly; "Verifikasi List"; Helper disclaimer
 
 ### 1. IGD PJT list (Avi sent the real format)

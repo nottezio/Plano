@@ -233,6 +233,19 @@ service cloud.firestore {
         allow delete: if false;
       }
 
+      // Saved Helper results: a finished census, Formasi or message, owner
+      // only (see src/domain/helperResults.ts). The text bound matches
+      // MAX_RESULT_CHARS, checked by a client test. No delete: removing one
+      // writes `deletedAt`, so a mistaken delete can be undone on any device.
+      match /helperResults/{resultId} {
+        allow read: if isSelf(uid) && allowed();
+        allow create, update: if isSelf(uid) && allowed()
+          && request.resource.data.text is string
+          && request.resource.data.text.size() <= 100000
+          && request.resource.data.kind is string;
+        allow delete: if false;
+      }
+
       match /templates/{templateId} {
         allow read, create, update, delete: if isSelf(uid) && allowed();
       }

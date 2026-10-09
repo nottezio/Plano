@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, type ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
 
 import { oddValues } from '@/domain/census/oddValues';
@@ -7,6 +7,8 @@ import { IconCheck, IconChevronRight, IconCopy, IconUpload } from '@/components/
 
 import { AiError, aiEnabled } from '@/lib/ai';
 import { copyText } from '@/lib/clipboard';
+import { useClinicalToday } from '@/hooks/useClinicalToday';
+import { SaveResultButton } from './SaveResult';
 import { CENSUS_MODEL, extractCensus, type CensusResult } from '@/lib/censusExtraction';
 import type { DenahExtraction, ListExtraction } from '@/domain/census/verify';
 import {
@@ -67,6 +69,7 @@ export function CensusVerifier(): JSX.Element {
   const [copied, setCopied] = useState(false);
 
   const enabled = aiEnabled('census');
+  const today = useClinicalToday();
   const navigate = useNavigate();
 
   const run = async (): Promise<void> => {
@@ -228,6 +231,17 @@ export function CensusVerifier(): JSX.Element {
                 count: listed.filter((issue) => issue.severity === id).length,
               }))}
               copied={copied}
+              save={
+                <SaveResultButton
+                  kind="verifikasi"
+                  // The shift the PDFs are dated; a date the transcription
+                  // could not read files under today rather than nowhere.
+                  forDate={report.shiftDate && /^\d{4}-\d{2}-\d{2}$/.test(report.shiftDate) ? report.shiftDate : today}
+                  subject=""
+                  title={`Verifikasi List — ${view.verdict}`}
+                  text={toMarkdown(report)}
+                />
+              }
               onCopy={() => {
                 void copyText(toMarkdown(report)).then(() => {
                   setCopied(true);
@@ -386,7 +400,9 @@ function Verdict({
   counts,
   copied,
   onCopy,
+  save,
 }: {
+  save?: ReactNode;
   verdict: VerificationReport['verdict'];
   openCount: number;
   shiftDate: string | null;
@@ -409,9 +425,12 @@ function Verdict({
             {tone.sub ? ` · ${tone.sub}` : ''}
           </p>
         </div>
-        <Button size="sm" onClick={onCopy} icon={<IconCopy className="h-4 w-4" />}>
-          {copied ? 'Tersalin' : 'Salin laporan'}
-        </Button>
+        <div className="flex flex-wrap gap-2">
+          {save}
+          <Button size="sm" onClick={onCopy} icon={<IconCopy className="h-4 w-4" />}>
+            {copied ? 'Tersalin' : 'Salin laporan'}
+          </Button>
+        </div>
       </div>
       {verdict !== 'CLEAN' ? (
         <div className="mt-2 flex flex-wrap gap-1.5">

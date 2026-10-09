@@ -61,3 +61,14 @@ export const accessConfigDoc = (): DocumentReference => doc(db(), 'config', 'acc
  */
 export const boardImageDoc = (uid: string, imageId: string): DocumentReference =>
   doc(db(), 'users', uid, 'boardImages', imageId);
+
+/**
+ * Saved Helper results (see `src/domain/helperResults.ts`), one document per
+ * (kind, date, subject). Not on the profile: a month of censuses and reports
+ * would push that one document toward its 1 MiB cap, and every settings save
+ * goes through it.
+ */
+export const helperResultsCol = (uid: string): CollectionReference =>
+  collection(db(), 'users', uid, 'helperResults');
+export const helperResultDoc = (uid: string, id: string): DocumentReference =>
+  doc(db(), 'users', uid, 'helperResults', id);

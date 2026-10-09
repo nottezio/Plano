@@ -10,6 +10,8 @@ import { useJagaSync } from '@/hooks/useJagaSync';
 import { CensusVerifier } from '@/components/helper/CensusVerifier';
 import { SensusMaker } from '@/components/helper/SensusMaker';
 import { MorningReport } from '@/components/helper/MorningReport';
+import { SavedResults } from '@/components/helper/SavedResults';
+import { SaveResultButton, SavedResultsProvider } from '@/components/helper/SaveResult';
 
 import { copyText } from '@/lib/clipboard';
 import { extractPdf } from '@/lib/pdfItems';
@@ -74,15 +76,19 @@ const HELPER_TABS = [
   { id: 'sensus', label: 'Verifikasi List' },
   { id: 'buatsensus', label: 'Buat Sensus' },
   { id: 'mr', label: 'Morning Report' },
+  // Every result saved from the four tools above, on this account.
+  { id: 'tersimpan', label: 'Tersimpan' },
 ] as const;
 
 type HelperTab = (typeof HELPER_TABS)[number]['id'];
 
 /**
- * Helper — three unrelated tools, one tab each.
+ * Helper — four unrelated tools, one tab each, and Tersimpan.
  *
  * They share a page only because they share a purpose (the ward's paperwork),
- * never data: none reads or writes another's state. Only the open tab is
+ * never data: none reads or writes another's state. The one thing they share
+ * is the saved-results listener (`SavedResultsProvider`), so every Simpan
+ * button knows what is already saved without a listener of its own. Only the open tab is
  * mounted, so Konfirmasi Jaga's sync listener runs only while that tab is
  * open, as before.
  *
@@ -169,17 +175,21 @@ export function HelperPage(): JSX.Element {
             DPJP, diagnosis, jumlah pasien — sebelum disalin atau dikirim.
           </span>
         </p>
-        <div role="tabpanel">
-          {tab === 'jaga' ? (
-            <KonfirmasiJaga />
-          ) : tab === 'sensus' ? (
-            <CensusVerifier />
-          ) : tab === 'buatsensus' ? (
-            <SensusMaker />
-          ) : (
-            <MorningReport />
-          )}
-        </div>
+        <SavedResultsProvider>
+          <div role="tabpanel">
+            {tab === 'jaga' ? (
+              <KonfirmasiJaga />
+            ) : tab === 'sensus' ? (
+              <CensusVerifier />
+            ) : tab === 'buatsensus' ? (
+              <SensusMaker />
+            ) : tab === 'mr' ? (
+              <MorningReport />
+            ) : (
+              <SavedResults />
+            )}
+          </div>
+        </SavedResultsProvider>
       </div>
     </AppShell>
   );
@@ -738,6 +748,13 @@ function KonfirmasiJaga(): JSX.Element {
                 counts={shiftEditCounts}
                 sharedDpjp={shift.shift !== 'penuh'}
                 onReset={resetFormasi}
+              />
+              <SaveResultButton
+                kind="formasi"
+                forDate={shift.date}
+                subject={shift.shift}
+                title={`Formasi Jaga ${shift.hari}${shift.shift === 'penuh' ? '' : ` (${shift.shift})`}`}
+                text={formasi}
               />
               <Button size="sm" variant="primary" icon={<IconCopy width={14} height={14} />} onClick={copyFormasi}>
                 {formasiCopied ? 'Tersalin ✓' : 'Salin Formasi'}

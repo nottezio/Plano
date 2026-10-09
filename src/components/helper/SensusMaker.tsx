@@ -32,6 +32,7 @@ import {
 import { useClinicalToday } from '@/hooks/useClinicalToday';
 import { AiError, aiEnabled, askClaudeStructured } from '@/lib/ai';
 import { copyText } from '@/lib/clipboard';
+import { SaveResultButton } from './SaveResult';
 
 /**
  * Buat Sensus — one DPJP's patients, from the lists the wards send.
@@ -40,6 +41,9 @@ import { copyText } from '@/lib/clipboard';
  * they hold every patient in the hospital, a few tens of KB each, and they
  * are worth a day. Kept so a reload or a trip to WhatsApp mid-paste loses
  * nothing; dropped once their date has passed.
+ *
+ * The finished census is what goes to the account: Simpan files it under
+ * Tersimpan (`domain/helperResults`), synced to every device.
  */
 
 const STORE = 'plano.sensus.v1';
@@ -430,6 +434,14 @@ export function SensusMaker(): JSX.Element {
                 {mode === 'ai' && aiOn ? 'Disusun AI' : `${ruleCount} pasien · disusun dengan aturan`}
               </span>
             </span>
+            <SaveResultButton
+              kind="sensus"
+              forDate={censusDate}
+              subject={code}
+              title={`Sensus ${code ? dpjpFullName(code) : ''}`.trim()}
+              text={shown ?? ''}
+              disabled={!shown || !code}
+            />
             <Button
               size="sm"
               variant={copied ? 'secondary' : 'primary'}

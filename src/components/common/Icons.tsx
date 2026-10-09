@@ -328,3 +328,10 @@ export const IconReopen = (props: IconProps): JSX.Element => (
     <path d="M4 4v4.7h4.7" />
   </Base>
 );
+
+/** Simpan (saved Helper results). */
+export const IconBookmark = (props: IconProps): JSX.Element => (
+  <Base {...props}>
+    <path d="M7 4h10a1 1 0 0 1 1 1v15l-6-4-6 4V5a1 1 0 0 1 1-1z" />
+  </Base>
+);

@@ -39,6 +39,8 @@ import {
 import { useClinicalToday } from '@/hooks/useClinicalToday';
 import { useSyncedDraft } from '@/hooks/useSyncedDraft';
 import { copyText } from '@/lib/clipboard';
+import type { HelperResultKind } from '@/domain/helperResults';
+import { SaveResultButton } from './SaveResult';
 import { useSession } from '@/store/useSession';
 import { Button, Callout, Field, INPUT, Section, Segmented } from '@/components/common/ui';
 import { IconBack, IconCheck, IconChevronRight, IconCopy, IconPlus, IconTrash } from '@/components/common/Icons';
@@ -334,11 +336,13 @@ export function MorningReport(): JSX.Element {
             <MessageBox
               label="Ke senior"
               sub={`Minta list ${shiftLabel(target)}`}
+              save={{ kind: 'mr-senior', forDate: mrDate, subject: '', title: 'MR · minta list ke senior' }}
               text={buildRequestMessage({ sender: config.sender, mrDate, shift: target })}
             />
             <MessageBox
               label="Ke pengampu"
               sub="Minta kesediaan memimpin MR dan jam hadir"
+              save={{ kind: 'mr-pengampu', forDate: mrDate, subject: '', title: 'MR · undangan pengampu' }}
               extra={
                 <Segmented
                   label="Sapaan"
@@ -363,6 +367,7 @@ export function MorningReport(): JSX.Element {
             <MessageBox
               label="Laporan Grup Prodi"
               sub="Dari langkah 3 dan 4, pagi hari MR"
+              save={{ kind: 'mr-prodi', forDate: mrDate, subject: '', title: 'MR · laporan Grup Prodi' }}
               text={buildProdiMessage({
                 mrDate,
                 shifts,
@@ -374,6 +379,7 @@ export function MorningReport(): JSX.Element {
             <MessageBox
               label="Konfirmasi Grup PAKAR"
               sub="Dari langkah 4"
+              save={{ kind: 'mr-pakar', forDate: mrDate, subject: '', title: 'MR · konfirmasi Grup PAKAR' }}
               text={buildPakarMessage({ mrDate, pengampu })}
             />
           </div>
@@ -561,10 +567,13 @@ function MessageBox({
   sub,
   text,
   extra,
+  save,
 }: {
   label: string;
   sub?: string;
   text: string;
+  /** Where Simpan files it (see `domain/helperResults`). */
+  save?: { kind: HelperResultKind; forDate: string; subject: string; title: string };
   /** A control for the message's form, under the title row. */
   extra?: ReactNode;
 }): JSX.Element {
@@ -576,6 +585,7 @@ function MessageBox({
           <span className="block truncate text-xs font-semibold">{label}</span>
           {sub ? <span className="block truncate text-[10px] text-fg-faint">{sub}</span> : null}
         </span>
+        {save ? <SaveResultButton {...save} text={text} /> : null}
         <Button
           size="sm"
           variant={copied ? 'secondary' : 'primary'}

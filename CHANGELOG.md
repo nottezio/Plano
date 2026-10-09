@@ -5,6 +5,12 @@ Catatan teknis lengkap (akar masalah, perbaikan) ada di CHANGES.md.
 
 Entri teratas harus versi yang sedang dirilis; tes gagal bila belum ditulis.
 
+## `2026-10-09.1`
+- **Hasil Helper bisa disimpan ke akun.** Tombol **Simpan** kini ada di samping **Salin** pada sensus (Buat Sensus), Formasi Jaga, keempat pesan Morning Report, dan laporan Verifikasi List. Yang disimpan tersinkron ke semua perangkat: sensus yang dibuat di HP pagi hari bisa dibuka lagi di PC.
+- **Tab baru: Tersimpan.** Semua hasil yang disimpan, dikelompokkan per tanggal. Bisa dicari (judul, nama pasien, RM), disaring per fitur, disalin, diubah, dan dihapus (dengan **Undo**).
+- **Satu simpanan per hasil.** Menyimpan lagi sensus DPJP yang sama untuk tanggal yang sama memperbarui simpanan itu, bukan membuat salinan baru. Tombol menunjukkan keadaannya: **Simpan** (belum ada), **Tersimpan** (sama persis), **Perbarui** (teksnya sudah berubah sejak disimpan).
+- Yang disimpan hanya hasil akhirnya. List ruangan yang ditempel tetap hanya di perangkat ini, untuk hari itu.
+
 ## `2026-10-08.6`
 - **List IGD PJT dibaca dengan benar** (format Red/Yellow/Green/Blue Zone). Pasien IGD masuk ke bagian **IGD PJT** di sensus, dari zona mana pun. Pasien **Sisrute** (permintaan rujukan dari RS lain) tidak dihitung sebagai pasien. Tanda tebal (*…*) di baris pasien IGD dibuang.
 - **"Verifikasi Sensus" menjadi "Verifikasi List"**, supaya tidak tertukar dengan "Buat Sensus".
