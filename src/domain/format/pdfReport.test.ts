@@ -399,3 +399,60 @@ describe('consultantReportOptions', () => {
     });
   });
 });
+
+describe('TS plans are not diagnoses (2026-10-10)', () => {
+  // The shape of the 9 October note (anonymised): cardiology assessment,
+  // then TS blocks whose plans are headed "*Plan Diagnostik*".
+  const NOTE = [
+    'Tabe dokter mohon izin melaporkan pasien atas nama :',
+    '',
+    '*Tn. Contoh / 01-01-1980 / 46 tahun / RM 1234567*',
+    '',
+    '*Mohon izin kami assess dengan:*',
+    '- Congestive Heart Failure NYHA IV',
+    '- Sirosis Hepatis',
+    '',
+    '*Mohon izin kami terapi dengan:*',
+    '- Furosemide 40 mg/12 jam/IV',
+    '',
+    'Plan:',
+    '- Monitoring tanda vital',
+    '',
+    '*TS GEH*',
+    'A/',
+    '- Ascites Grade 2 ec. cardiac asites',
+    'P/',
+    '*Plan Diagnostik*',
+    '- Aspirasi cairan asites',
+    '*Plan Monitoring*',
+    '- Monitoring Keadaan Umum',
+    '',
+    '*TS HOM*',
+    'P/',
+    '*Plan Diagnostik*',
+    '- BMP Jika KU optimal',
+    '',
+    'Tabe mohon arahanta dokter. Terima kasih dokter.',
+  ].join('\n');
+
+  const diagnosisOf = (aliases: typeof ALIASES): string =>
+    composePdfReport(NOTE, { aliases, format: 'plain' }).split('Diagnosis:')[1]?.split('Tabe')[0]?.trim() ?? '';
+
+  it('lists only the cardiology assessment', () => {
+    expect(diagnosisOf(ALIASES)).toBe('- Congestive Heart Failure NYHA IV\n- Sirosis Hepatis');
+  });
+
+  it('holds for an account whose section names predate "Plan Diagnostik"', () => {
+    const old = ALIASES.map((section) =>
+      section.sectionId === 'p'
+        ? { ...section, aliases: section.aliases.filter((alias) => !/^Plan (Monitoring|Diagnostik|Terapi)$/.test(alias)) }
+        : section,
+    );
+    expect(diagnosisOf(old)).toBe('- Congestive Heart Failure NYHA IV\n- Sirosis Hepatis');
+  });
+
+  it('still takes a heading that names the diagnosis, wherever the word "diagnosis" leads', () => {
+    const note = 'Tabe dokter\n\n*Diagnosis Kerja:*\n- STEMI\n\n*Terapi:*\n- Aspilet\n\nTerima kasih dokter.';
+    expect(composePdfReport(note, { aliases: ALIASES, format: 'plain' })).toContain('- STEMI');
+  });
+});

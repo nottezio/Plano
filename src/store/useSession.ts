@@ -478,6 +478,7 @@ async function reconcileProfileSeeds(uid: string, profile: UserProfile): Promise
       openingSentences: result.settings.openingSentences,
       closingSentences: result.settings.closingSentences,
       carryForwardClearSections: result.settings.carryForwardClearSections,
+      sectionAliases: result.settings.sectionAliases,
       seedBaseline,
     });
   } catch (error) {

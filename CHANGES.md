@@ -1,5 +1,71 @@
 # Plano — CHANGES
 
+## `2026-10-10.1` — Ringkas took TS plans for diagnoses; section names never reached existing accounts
+
+### Symptom (Avi, a CVCU → Lt. 4 transfer note with TS GEH and TS HOM)
+Ringkas listed the cardiology assessment plus "Aspirasi cairan asites",
+"Analisa dan sitologi cairan", "ADT (8/10/26)-> hari kerja" and "BMP Jika
+KU optimal": the TS GEH and TS HOM plan items under "*Plan Diagnostik*".
+
+### Root cause (two layers, both reproduced on the note)
+1. **Ringkas chose sections by substring.** `diagnosisBlock` kept any
+   section whose id or label CONTAINED `diagnos` / `assess` / `problem` /
+   `masalah`. "Plan Diagnostik" contains "diagnos". It never limited itself
+   to the cardiology part either, so a TS block's own headings were
+   candidates.
+2. **Section names were never reconciled.** `sectionAliases` was copied
+   into the profile at account creation and never updated. `reconcileSeeds`
+   covered templates and phrases only. "Plan Diagnostik / Plan Monitoring /
+   Plan Terapi" were added to the Plan seed later, so in Avi's account
+   `*Plan Diagnostik*` was its own custom section instead of part of Plan.
+   That is why the bug showed for him and not with the defaults (default
+   aliases → correct Ringkas; the same aliases without those three names →
+   his exact output).
+
+### Fundamental fix
+- **Ringkas** (`pdfReport.ts`):
+  - a section qualifies only if it is `a` or its label STARTS with the
+    diagnosis word, optionally after "Mohon izin (pasien) kami"
+    (`DIAGNOSIS_HEADING_RE`): "Diagnosis Kerja" and "Problem List" yes,
+    "Plan Diagnostik" and "Pemeriksaan Diagnostik" no;
+  - only sections before the first TS block (`custom_ts*` or a label
+    starting "TS") are considered, because a consultant's assessment is not
+    the cardiology diagnosis.
+- **Seed reconciliation** (`seedSync.ts`):
+  - `SeedSnapshot.sectionAliases` and `SeedBaseline.sectionAliases` (per
+    section id);
+  - `mergeSectionAliases` uses the same value rules as phrases: a new seeded
+    name is added unless the user already uses it for ANY section; a name
+    the seed retired is removed; the user's own names are kept;
+  - a missing seeded section is added whole unless the baseline shows the
+    user removed it;
+  - `reconcileProfileSeeds` now writes `sectionAliases`.
+  - Baselines from before this have no `sectionAliases`, so every seeded
+    name the account lacks is added once. That is the point for Avi's
+    account; the cost is that a default name someone deliberately deleted
+    before today comes back once.
+
+### Not a Temporary Workaround
+Either fix alone would have hidden this note's symptom. Both are needed:
+(1) stops any plan-like heading from ever reaching the Ringkas diagnosis,
+whatever the account's names; (2) stops old accounts from parsing notes
+differently from new ones, which also affects Salin sections, the jump bar
+and Periksa lagi.
+
+### Tests
+- `pdfReport.test.ts`: the note's shape (anonymised) with the default
+  names, and with names that predate "Plan Diagnostik"; plus "Diagnosis
+  Kerja" still taken.
+- `seedSync.test.ts`: new name added; a name the user mapped elsewhere
+  left there; a name deleted after the baseline not restored; retired name
+  removed; through `reconcileSeeds`, idempotent.
+
+```
+npm run verify
+  typecheck ✓  lint ✓ (0 warnings)  test ✓ 2100 passed (143 files)
+  check:version ✓  check:contrast ✓  check:a11y ✓  build ✓
+```
+
 ## `2026-10-09.4` — "Perlu dicek": unclear patients go to a cross-check box, not a blacklist
 
 ### Change of approach (Avi: "don't put confusing patients into a black list, put them into a separate cross-check box")

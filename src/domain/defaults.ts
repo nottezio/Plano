@@ -246,6 +246,9 @@ export const SEED_SNAPSHOT = {
   get carryForwardClearSections() {
     return SEED_CARRY_FORWARD_CLEAR;
   },
+  get sectionAliases() {
+    return DEFAULT_SECTION_ALIASES;
+  },
 };
 
 export const SEED_NOTE_TEMPLATES: readonly NoteTemplate[] = [

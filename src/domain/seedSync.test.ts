@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest';
 
-import { defaultUserSettings, SEED_SNAPSHOT } from './defaults';
+import { DEFAULT_SECTION_ALIASES, defaultUserSettings, SEED_SNAPSHOT } from './defaults';
 import {
+  mergeSectionAliases,
   mergeStringList,
   outdatedTemplates,
   reconcileSeeds,
@@ -17,6 +18,7 @@ const seeds = (over: Partial<SeedSnapshot> = {}): SeedSnapshot => ({
   openingSentences: ['Mohon izin melaporkan'],
   closingSentences: ['Terima kasih dokter'],
   carryForwardClearSections: ['s'],
+  sectionAliases: DEFAULT_SECTION_ALIASES,
   ...over,
 });
 
@@ -294,5 +296,54 @@ describe('outdatedTemplates / resetTemplateToSeed', () => {
     const local = settingsFrom(base);
     local.noteTemplates[0] = { ...local.noteTemplates[0]!, body: 'edited', order: 7 };
     expect(resetTemplateToSeed(local, base, 'followup')[0]?.order).toBe(7);
+  });
+});
+
+describe('section names (2026-10-10)', () => {
+  const plan = (aliases: string[]) => ({ sectionId: 'p' as const, label: 'Plan', order: 6, aliases });
+  const assess = (aliases: string[]) => ({ sectionId: 'a' as const, label: 'Assessment', order: 5, aliases });
+
+  it('brings a name added to the seed into an account made before it', () => {
+    // The account that read "*Plan Diagnostik*" as a section of its own.
+    const { next, changed } = mergeSectionAliases(undefined, [plan(['Plan'])], [plan(['Plan', 'Plan Diagnostik'])]);
+    expect(next[0]?.aliases).toEqual(['Plan', 'Plan Diagnostik']);
+    expect(changed).toBe(1);
+  });
+
+  it('keeps a name the user gave to another section where they put it', () => {
+    const { next } = mergeSectionAliases(
+      undefined,
+      [plan(['Plan']), assess(['Assessment', 'Plan Diagnostik'])],
+      [plan(['Plan', 'Plan Diagnostik']), assess(['Assessment'])],
+    );
+    expect(next.find((s) => s.sectionId === 'p')?.aliases).toEqual(['Plan']);
+    expect(next.find((s) => s.sectionId === 'a')?.aliases).toContain('Plan Diagnostik');
+  });
+
+  it('does not bring back a name the user removed after the baseline recorded it', () => {
+    const { next, changed } = mergeSectionAliases({ p: ['Plan', 'Rencana'] }, [plan(['Plan'])], [plan(['Plan', 'Rencana'])]);
+    expect(next[0]?.aliases).toEqual(['Plan']);
+    expect(changed).toBe(0);
+  });
+
+  it('retires a name the seed dropped, and keeps the user\'s own', () => {
+    const { next } = mergeSectionAliases({ p: ['Plan', 'Old'] }, [plan(['Plan', 'Old', 'Mine'])], [plan(['Plan'])]);
+    expect(next[0]?.aliases).toEqual(['Plan', 'Mine']);
+  });
+
+  it('runs inside reconcileSeeds, and is idempotent', () => {
+    const base = seeds();
+    const stale = settingsFrom(base, {
+      sectionAliases: DEFAULT_SECTION_ALIASES.map((s) =>
+        s.sectionId === 'p' ? { ...s, aliases: s.aliases.filter((a) => a !== 'Plan Diagnostik') } : { ...s },
+      ),
+      // A baseline from before section names were tracked.
+      seedBaseline: (({ sectionAliases: _dropped, ...rest }) => rest)(snapshotOf(base)),
+    });
+    const first = reconcileSeeds(stale, base);
+    expect(first.dirty).toBe(true);
+    expect(first.settings.sectionAliases.find((s) => s.sectionId === 'p')?.aliases).toContain('Plan Diagnostik');
+    const second = reconcileSeeds(first.settings, base);
+    expect(second.dirty).toBe(false);
   });
 });

@@ -88,9 +88,29 @@ const DIAGNOSIS_IDS = ['a'];
  */
 const DIAGNOSIS_END =
   /^\s*\*?\s*(Mohon i[zj]in (kami|pasien)?\s*(kami\s*)?(terapi|inisial terapi)|Plan|Selesai|TS |Terapi|Tabe|Selanjutnya)/im;
-// `assessment` and `assess` both appear; `izin kami assessment dengan` is the
-// heading the ward actually writes, so matching the verb alone is not enough.
-const DIAGNOSIS_KEYWORDS = ['diagnos', 'assess', 'problem', 'masalah'];
+/**
+ * A heading that NAMES the diagnosis list: it starts with the word, optionally
+ * after "Mohon izin (pasien) kami".
+ *
+ * Was a substring test (`diagnos`, `assess`, … anywhere in the label). That
+ * took "Plan Diagnostik" — a TS plan heading — for a diagnosis list, and the
+ * Ringkas of 9 October listed "Aspirasi cairan asites", "ADT …" and "BMP …"
+ * as diagnoses (2026-10-10). The word has to lead: "Diagnosis Kerja",
+ * "Problem List", "Masalah" qualify; "Plan Diagnostik", "Pemeriksaan
+ * Diagnostik" do not.
+ */
+const DIAGNOSIS_HEADING_RE =
+  /^(?:(?:mohon\s+)?i[zj]in\s+(?:pasien\s+)?kami\s+)?(?:diagnos|assess|asses|problem|masalah)/;
+
+function namesDiagnosis(label: string): boolean {
+  const flat = label.toLowerCase().replace(/[^a-z\s]/g, ' ').replace(/\s+/g, ' ').trim();
+  return DIAGNOSIS_HEADING_RE.test(flat);
+}
+
+/** A consultant's block ("TS GEH", "TS HOM"): theirs, not the cardiology diagnosis. */
+function isTsSection(section: { sectionId: string; label: string }): boolean {
+  return /^custom_ts(?:_|$)/.test(section.sectionId) || /^ts\b/i.test(section.label.trim());
+}
 
 export interface PdfReportOptions {
   aliases: readonly SectionAlias[];
@@ -184,13 +204,18 @@ function fallbackOpeningEnd(body: string): number {
 }
 
 function diagnosisBlock(body: string, aliases: readonly SectionAlias[]): string {
-  const sections = mergeSections(parseSections(body, aliases));
+  const parsed = parseSections(body, aliases);
+  /**
+   * Only what comes BEFORE the first TS block. Ringkas reports the
+   * cardiology diagnosis; a consultant's "A/" or "Diagnosis" under "TS GEH"
+   * is their assessment, and the consultant reading this did not write it.
+   */
+  const firstTs = parsed.findIndex(isTsSection);
+  const sections = mergeSections(firstTs === -1 ? parsed : parsed.slice(0, firstTs));
 
-  const matches = sections.filter((section) => {
-    if (DIAGNOSIS_IDS.includes(section.sectionId)) return true;
-    const haystack = `${section.sectionId} ${section.label}`.toLowerCase();
-    return DIAGNOSIS_KEYWORDS.some((keyword) => haystack.includes(keyword));
-  });
+  const matches = sections.filter(
+    (section) => DIAGNOSIS_IDS.includes(section.sectionId) || namesDiagnosis(section.label),
+  );
 
   return matches
     .map((section) => {

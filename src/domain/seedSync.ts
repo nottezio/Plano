@@ -1,5 +1,5 @@
 import { mergeThreeWay } from './merge/threeWayMerge';
-import type { NoteTemplate, SectionId, UserSettings } from './types';
+import type { NoteTemplate, SectionAlias, SectionId, UserSettings } from './types';
 
 /**
  * Letting a corrected seed reach a user who has edited their copy.
@@ -57,6 +57,11 @@ export interface SeedBaseline {
    * appended — the right outcome, since the user has never been offered them.
    */
   carryForwardClearSections?: SectionId[];
+  /**
+   * The seeded section NAMES, per section id (2026-10-10). Optional for the
+   * same reason: baselines written before it treat every seeded name as new.
+   */
+  sectionAliases?: Record<string, string[]>;
 }
 
 /** The seeds as this build ships them. */
@@ -66,6 +71,7 @@ export interface SeedSnapshot {
   openingSentences: readonly string[];
   closingSentences: readonly string[];
   carryForwardClearSections: readonly SectionId[];
+  sectionAliases: readonly SectionAlias[];
 }
 
 export interface SeedSyncReport {
@@ -75,6 +81,8 @@ export interface SeedSyncReport {
   conflicted: string[];
   /** Seeded phrases added or corrected in the string lists. */
   phrases: number;
+  /** Section names added or retired. */
+  aliases?: number;
 }
 
 export function snapshotOf(seeds: SeedSnapshot): SeedBaseline {
@@ -88,7 +96,62 @@ export function snapshotOf(seeds: SeedSnapshot): SeedBaseline {
     openingSentences: [...seeds.openingSentences],
     closingSentences: [...seeds.closingSentences],
     carryForwardClearSections: [...seeds.carryForwardClearSections],
+    sectionAliases: Object.fromEntries(seeds.sectionAliases.map((section) => [section.sectionId, [...section.aliases]])),
   };
+}
+
+/**
+ * Merge the section names (2026-10-10).
+ *
+ * ROOT CAUSE this closes: section aliases were copied into the profile once,
+ * like templates were before `reconcileSeeds`, and never reconciled. A name
+ * added to the seed later — `Plan Diagnostik` under Plan — never reached an
+ * account made before it. In that account `*Plan Diagnostik*` parsed as a
+ * section of its own, and Ringkas, which looks for sections named like a
+ * diagnosis, took a TS plan for the diagnosis list.
+ *
+ * Same value rules as `mergeStringList`, per section:
+ *  - a seeded name the baseline does not have is NEW → added, unless the user
+ *    already uses that name for ANY section (their mapping wins);
+ *  - a baseline name the seed dropped is RETIRED → removed from that section;
+ *  - anything else is the user's and is left alone.
+ * A seeded section the user has never had is added whole.
+ */
+export function mergeSectionAliases(
+  baseline: Record<string, string[]> | undefined,
+  local: readonly SectionAlias[],
+  seed: readonly SectionAlias[],
+): { next: SectionAlias[]; changed: number } {
+  const base = baseline ?? {};
+  const norm = (value: string): string => value.trim().toLowerCase();
+  const used = new Set(local.flatMap((section) => section.aliases.map(norm)));
+  let changed = 0;
+
+  const next = local.map((section) => {
+    const seeded = seed.find((candidate) => candidate.sectionId === section.sectionId);
+    if (!seeded) return section;
+    const before = base[section.sectionId] ?? [];
+    const inSeed = new Set(seeded.aliases.map(norm));
+    const retired = new Set(before.map(norm).filter((value) => !inSeed.has(value)));
+    const inBase = new Set(before.map(norm));
+    const added = seeded.aliases.filter((alias) => !inBase.has(norm(alias)) && !used.has(norm(alias)));
+    const kept = section.aliases.filter((alias) => !retired.has(norm(alias)));
+    if (added.length === 0 && kept.length === section.aliases.length) return section;
+    changed += added.length + (section.aliases.length - kept.length);
+    added.forEach((alias) => used.add(norm(alias)));
+    return { ...section, aliases: [...kept, ...added] };
+  });
+
+  for (const seeded of seed) {
+    if (next.some((section) => section.sectionId === seeded.sectionId)) continue;
+    if (base[seeded.sectionId]) continue; // the user removed it
+    const aliases = seeded.aliases.filter((alias) => !used.has(norm(alias)));
+    aliases.forEach((alias) => used.add(norm(alias)));
+    next.push({ ...seeded, aliases });
+    changed += 1;
+  }
+
+  return { next, changed };
 }
 
 /**
@@ -252,11 +315,14 @@ export function reconcileSeeds(
     seeds.carryForwardClearSections,
   );
 
+  const aliases = mergeSectionAliases(baseline.sectionAliases, settings.sectionAliases, seeds.sectionAliases);
+
   const phrases = greetings.changed + opening.changed + closing.changed + carry.changed;
   const report: SeedSyncReport = {
     updated: templates.updated,
     conflicted: templates.conflicted,
     phrases,
+    aliases: aliases.changed,
   };
 
   /**
@@ -270,6 +336,7 @@ export function reconcileSeeds(
    */
   const dirty =
     phrases > 0 ||
+    aliases.changed > 0 ||
     templates.updated.length > 0 ||
     templates.conflicted.length > 0 ||
     JSON.stringify(baseline) !== JSON.stringify(current);
@@ -284,6 +351,7 @@ export function reconcileSeeds(
       openingSentences: opening.next,
       closingSentences: closing.next,
       carryForwardClearSections: carry.next,
+      sectionAliases: aliases.next,
       seedBaseline: current,
     },
     report,

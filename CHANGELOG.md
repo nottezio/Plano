@@ -5,6 +5,10 @@ Catatan teknis lengkap (akar masalah, perbaikan) ada di CHANGES.md.
 
 Entri teratas harus versi yang sedang dirilis; tes gagal bila belum ditulis.
 
+## `2026-10-10.1`
+- **Ringkas (PDF) tidak lagi memasukkan plan TS sebagai diagnosis.** Di catatan dengan blok TS (mis. TS GEH, TS HOM) berjudul "*Plan Diagnostik*", isi plan itu ikut masuk ke daftar Diagnosis Ringkas: "Aspirasi cairan asites", "ADT …", "BMP …". Kini Ringkas hanya mengambil diagnosis kardiologi, yaitu yang berjudul diagnosis/assess, dan berhenti di blok TS pertama.
+- **Nama bagian bawaan yang baru kini sampai ke akun lama.** Nama seperti "Plan Diagnostik", "Plan Monitoring", dan "Plan Terapi" ditambahkan ke daftar bawaan setelah akun Anda dibuat, sehingga di akun Anda judul-judul itu terbaca sebagai bagian tersendiri. Daftar nama bagian kini diperbarui otomatis seperti template, tanpa menghapus nama yang Anda tambahkan sendiri.
+
 ## `2026-10-09.4`
 - **Buat Sensus: kotak "Perlu dicek".** Pasien yang DPJP-nya tidak jelas dari list kini dikumpulkan di satu kotak: pasien tanpa kode DPJP di barisnya, dan pasien yang membuat AI ragu (beserta alasannya). Mereka tidak masuk sensus kecuali Anda menekan **Masukkan**. Pilihan itu diingat untuk tanggal dan DPJP tersebut, dan berlaku di mode Aturan maupun AI. **Keluarkan** membatalkannya.
 - **AI tidak lagi diberi daftar larangan.** Pasien yang meragukan diminta dikembalikan sebagai "ragu" lengkap dengan alasannya, bukan dibuang dan bukan dimasukkan diam-diam. Yang memutuskan tetap Anda.
