@@ -55,8 +55,8 @@ describe('readSensusStore', () => {
 describe('withDay / dayOf / storedDays', () => {
   it('gives each date its own boxes', () => {
     let store = emptyStore();
-    store = withDay(store, '2026-10-09', { lists: [{ text: 'today', kind: 'auto' }], ai: {} });
-    store = withDay(store, '2026-10-08', { lists: [{ text: 'a', kind: 'auto' }, { text: 'b', kind: 'auto' }], ai: {} });
+    store = withDay(store, '2026-10-09', { lists: [{ text: 'today', kind: 'auto' }], ai: {}, extra: {} });
+    store = withDay(store, '2026-10-08', { lists: [{ text: 'a', kind: 'auto' }, { text: 'b', kind: 'auto' }], ai: {}, extra: {} });
     expect(dayOf(store, '2026-10-09').lists[0]?.text).toBe('today');
     expect(dayOf(store, '2026-10-10').lists).toEqual([{ text: '', kind: 'auto' }]);
     expect(storedDays(store)).toEqual([
@@ -66,8 +66,8 @@ describe('withDay / dayOf / storedDays', () => {
   });
 
   it('removes a day whose boxes were emptied', () => {
-    let store = withDay(emptyStore(), '2026-10-09', { lists: [{ text: 'x', kind: 'auto' }], ai: {} });
-    store = withDay(store, '2026-10-09', { lists: [{ text: '', kind: 'auto' }], ai: {} });
+    let store = withDay(emptyStore(), '2026-10-09', { lists: [{ text: 'x', kind: 'auto' }], ai: {}, extra: {} });
+    store = withDay(store, '2026-10-09', { lists: [{ text: '', kind: 'auto' }], ai: {}, extra: {} });
     expect(store.days).toEqual({});
   });
 });

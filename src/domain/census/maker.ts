@@ -754,8 +754,15 @@ export function buildCensus(input: {
   date: string;
   address: CensusAddress;
   style?: IdentityStyle;
+  /**
+   * Patients with no DPJP on the list that the user chose to include from
+   * the "Perlu dicek" box. Never added by the rules themselves.
+   */
+  extra?: readonly CensusEntry[];
 }): { text: string; entries: CensusEntry[] } {
-  const entries = entriesFor(input.sources, input.code);
+  const own = entriesFor(input.sources, input.code);
+  const keys = new Set(own.map((entry) => entry.key));
+  const entries = [...own, ...(input.extra ?? []).filter((entry) => !keys.has(entry.key))];
   const groups: CensusGroupInput[] = entries.map((entry) => ({
     place: entry.place,
     patients: [
@@ -832,8 +839,26 @@ export const SENSUS_AI_TOOL = {
           required: ['place', 'rm', 'source_line', 'dpjp_from', 'identity', 'diagnoses'],
         },
       },
+      uncertain: {
+        type: 'array',
+        description:
+          'Pasien yang MUNGKIN milik DPJP ini tetapi tidak pasti (tidak ada kode DPJP di barisnya, kode tidak jelas, dsb.). Jangan dimasukkan ke patients; residen yang memutuskan.',
+        items: {
+          type: 'object',
+          properties: {
+            place: { type: 'string', enum: [...PLACE_ORDER] },
+            rm: { type: 'string' },
+            source_line: { type: 'string' },
+            kjs: { type: 'string' },
+            identity: { type: 'string' },
+            diagnoses: { type: 'array', items: { type: 'string' } },
+            reason: { type: 'string', description: 'Singkat: mengapa ragu, mis. "tidak ada kode DPJP di baris; bed di antara pasien ARB".' },
+          },
+          required: ['place', 'rm', 'source_line', 'identity', 'diagnoses', 'reason'],
+        },
+      },
     },
-    required: ['patients'],
+    required: ['patients', 'uncertain'],
   },
 } as const;
 
@@ -843,8 +868,9 @@ export function sensusAiSystem(): string {
     '',
     'SIAPA PASIEN DPJP INI',
     '- Kode DPJP di BARIS pasien menentukan (mis. "…/dr.ARB", "ARB / Lontara …", "… / dr. ARB", "2 KJS Uro / ARB / …"). Pasien gabungan ("dr.ZD-dr.AAU") milik keduanya.',
-    '- Bila baris pasien TIDAK memuat kode DPJP mana pun, pasien itu milik DPJP di judul bagian tepat di atasnya ("🫀dr. ARB : 3 pasien", "*dr. ARB : 3 Pasien*") — HANYA bila ada judul bagian seperti itu. Di list CVCU/HCU/ICU tidak ada judul bagian DPJP: pasien tanpa kode di barisnya BUKAN milik siapa pun, jangan dimasukkan.',
+    '- Bila baris pasien TIDAK memuat kode DPJP mana pun, pasien itu milik DPJP di judul bagian tepat di atasnya ("🫀dr. ARB : 3 pasien", "*dr. ARB : 3 Pasien*") — HANYA bila ada judul bagian seperti itu. Di list CVCU/HCU/ICU tidak ada judul bagian DPJP: pasien tanpa kode di barisnya tidak pasti milik siapa.',
     '- Jangan menebak dari kedekatan posisi, nama, atau urutan bed.',
+    '- RAGU? Jangan masukkan ke `patients`. Masukkan ke `uncertain` beserta alasannya — mis. pasien tanpa kode DPJP di barisnya yang berada di antara pasien DPJP ini. Residen akan memeriksa dan memutuskan sendiri. `patients` hanya untuk yang pasti.',
     '',
     'YANG BUKAN PASIEN',
     '- Bagian "Pasien Pulang", "Pasien Meninggal", "Pasien Pindah" (sampai pemisah berikutnya); "Sisrute" (permintaan rujukan dari RS lain, sampai judul zona berikutnya).',
@@ -897,7 +923,7 @@ export function sensusAiPrompt(input: {
       : []),
     ...(input.noCode && input.noCode.length > 0
       ? [
-          'Pasien berikut TIDAK memuat kode DPJP di barisnya dan tidak berada di bawah judul bagian DPJP. JANGAN dimasukkan ke sensus ini kecuali list jelas menyebut DPJP-nya:',
+          'Pembaca aturan menemukan pasien berikut TANPA kode DPJP di barisnya dan tidak di bawah judul bagian DPJP. Bila menurut Anda ada yang mungkin milik DPJP ini, masukkan ke `uncertain` dengan alasannya — bukan ke `patients`:',
           ...input.noCode.map(candidateLine),
           '',
         ]
@@ -952,6 +978,38 @@ export function readAiPatients(raw: unknown): AiPatient[] {
   return out;
 }
 
+/** A patient the AI was not sure about, with its reason: shown to the user, never added by itself. */
+export interface AiUncertain extends AiPatient {
+  reason: string;
+}
+
+export function readAiUncertain(raw: unknown): AiUncertain[] {
+  const list = (raw as { uncertain?: unknown })?.uncertain;
+  if (!Array.isArray(list)) return [];
+  const read = readAiPatients({ patients: list });
+  // `readAiPatients` drops malformed items; line the reasons up by identity.
+  return read.map((patient) => {
+    const source = list.find(
+      (item) => typeof (item as { identity?: unknown })?.identity === 'string' &&
+        tidy(clean((item as { identity: string }).identity)) === patient.identity,
+    ) as { reason?: unknown } | undefined;
+    return { ...patient, reason: typeof source?.reason === 'string' ? source.reason.trim() : '' };
+  });
+}
+
+/** A rules entry as an AI patient: for adding it to the AI result by hand. */
+export function entryAsAiPatient(entry: CensusEntry, code: string, style: IdentityStyle, from: string): AiPatient {
+  return {
+    place: entry.place,
+    identity: identityLine(entry, code, style),
+    diagnoses: entry.diagnoses,
+    rm: entry.key.startsWith('rm:') ? entry.key.slice(3) : '',
+    sourceLine: entry.raw,
+    dpjpFrom: from,
+    kjs: entry.kjs ?? '',
+  };
+}
+
 /** Kept for callers of the older shape. */
 export function readAiCensus(raw: unknown): CensusGroupInput[] {
   return aiGroups(readAiPatients(raw));
@@ -964,7 +1022,7 @@ export function aiGroups(patients: readonly AiPatient[]): CensusGroupInput[] {
   }));
 }
 
-function aiKey(patient: AiPatient): string {
+export function aiPatientKey(patient: AiPatient): string {
   return patient.rm ? `rm:${patient.rm}` : entryKey(patient.sourceLine || patient.identity);
 }
 
@@ -998,8 +1056,10 @@ export function checkAiCensus(input: {
   const seen = new Set<string>();
   const check: AiCheck = { matched: 0, onlyAi: [], onlyRules: [], dxMissing: [] };
   input.ai.forEach((patient, index) => {
-    const key = aiKey(patient);
+    const key = aiPatientKey(patient);
     seen.add(key);
+    // Put in by the user from "Perlu dicek": a decision, not a disagreement.
+    if (patient.dpjpFrom === 'manual') return;
     const rules = rulesByKey.get(key);
     if (rules) {
       check.matched += 1;

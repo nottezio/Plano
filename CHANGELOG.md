@@ -5,6 +5,10 @@ Catatan teknis lengkap (akar masalah, perbaikan) ada di CHANGES.md.
 
 Entri teratas harus versi yang sedang dirilis; tes gagal bila belum ditulis.
 
+## `2026-10-09.4`
+- **Buat Sensus: kotak "Perlu dicek".** Pasien yang DPJP-nya tidak jelas dari list kini dikumpulkan di satu kotak: pasien tanpa kode DPJP di barisnya, dan pasien yang membuat AI ragu (beserta alasannya). Mereka tidak masuk sensus kecuali Anda menekan **Masukkan**. Pilihan itu diingat untuk tanggal dan DPJP tersebut, dan berlaku di mode Aturan maupun AI. **Keluarkan** membatalkannya.
+- **AI tidak lagi diberi daftar larangan.** Pasien yang meragukan diminta dikembalikan sebagai "ragu" lengkap dengan alasannya, bukan dibuang dan bukan dimasukkan diam-diam. Yang memutuskan tetap Anda.
+
 ## `2026-10-09.3`
 - **Baris pintasan bagian yang terpotong kini bisa digeser dengan mouse.** Di catatan panjang (mis. sensus), pintasan bagian di bawah tanggal melebihi lebar layar, dan di PC sisanya tidak bisa dijangkau. Kini roda mouse menggeser baris itu ke samping, sisi yang masih ada isinya memudar, dan tombol ‹ › muncul di sisi tersebut. Berlaku juga untuk tab Helper dan saringan Tersimpan.
 - **Buat Sensus menandai pasien KJS.** Dibaca dari baris pasien: "KJS Uro", "(KJS)", "- KJS BTKV", atau "(BTKV)" di depan nama. Baris yang belum menyebut KJS diberi tanda di belakangnya, mis. "(KJS BTKV)". Jumlah pasien KJS tampil di atas hasil sensus.

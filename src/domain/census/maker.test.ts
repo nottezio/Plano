@@ -603,7 +603,7 @@ describe('KJS', () => {
 });
 
 describe('AI checked against the rules', () => {
-  it('asks the AI to confirm the rules and not to claim patients without a code', async () => {
+  it('asks the AI to confirm the rules, and to put patients without a code in `uncertain`, not exclude them', async () => {
     const { sensusAiPrompt } = await import('./maker');
     const sources = [parseSource(CVCU_NO_CODE)];
     const prompt = sensusAiPrompt({
@@ -613,7 +613,8 @@ describe('AI checked against the rules', () => {
       noCode: unassigned(sources),
     });
     expect(prompt).toContain('[CVCU] RM 1700019');
-    expect(prompt).toMatch(/JANGAN dimasukkan[\s\S]*RM 2500006/);
+    expect(prompt).toMatch(/`uncertain`[\s\S]*RM 2500006/);
+    expect(prompt).not.toContain('JANGAN dimasukkan');
   });
 
   it('reads RM and source line, and shows what only one side found, with why', async () => {
@@ -641,5 +642,43 @@ describe('AI checked against the rules', () => {
     ]);
     expect(check.onlyRules.map((entry) => entry.key)).toEqual(['rm:1930011']);
     expect(check.dxMissing.map(({ entry }) => entry.key)).toEqual(['rm:1700019']);
+  });
+});
+
+describe('"Perlu dicek" (cross-check)', () => {
+  it('reads the AI\'s unsure patients with their reasons', async () => {
+    const { readAiUncertain, readAiPatients } = await import('./maker');
+    const raw = {
+      patients: [],
+      uncertain: [
+        { place: 'CVCU', rm: '2500006', source_line: 'Ny. dr. Contoh Vip/ RM 2500006', identity: 'CVCU Super VIP / Ny. dr. Contoh Vip', diagnoses: ['- APO'], reason: 'tidak ada kode DPJP; bed setelah pasien ARB' },
+        { place: 'Mars', identity: 'x', diagnoses: [], reason: 'junk' },
+      ],
+    };
+    expect(readAiPatients(raw)).toEqual([]);
+    const unsure = readAiUncertain(raw);
+    expect(unsure).toHaveLength(1);
+    expect(unsure[0]).toMatchObject({ rm: '2500006', reason: 'tidak ada kode DPJP; bed setelah pasien ARB' });
+  });
+
+  it('puts an included patient into the rules census only when chosen', () => {
+    const sources = [parseSource(CVCU_NO_CODE)];
+    const [unowned] = unassigned(sources);
+    const without = buildCensus({ sources, code: 'ARB', date: '2026-10-09', address: 'dokter' });
+    const withIt = buildCensus({ sources, code: 'ARB', date: '2026-10-09', address: 'dokter', extra: unowned ? [unowned] : [] });
+    expect(without.text).not.toContain('Contoh Vip');
+    expect(withIt.text).toContain('Contoh Vip');
+    expect(withIt.text).toContain('*Total Pasien : 2 pasien*');
+  });
+
+  it('does not report a patient the user included by hand as an AI disagreement', async () => {
+    const { checkAiCensus, entryAsAiPatient } = await import('./maker');
+    const sources = [parseSource(CVCU_NO_CODE)];
+    const [unowned] = unassigned(sources);
+    const rules = buildCensus({ sources, code: 'ARB', date: '2026-10-09', address: 'dokter', extra: [unowned!] }).entries;
+    const ai = rules.map((entry) => entryAsAiPatient(entry, 'ARB', 'asis', entry === unowned ? 'manual' : 'baris'));
+    const check = checkAiCensus({ ai, rules, sources, texts: [CVCU_NO_CODE] });
+    expect(check.onlyAi).toEqual([]);
+    expect(check.onlyRules).toEqual([]);
   });
 });

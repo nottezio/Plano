@@ -18,14 +18,16 @@ import {
   dpjpCounts,
   dpjpFullName,
   formatCensus,
-  identityLine,
   type AiCheck,
   type CensusEntry,
   knownCodes,
   parseSource,
   aiGroups,
   checkAiCensus,
+  aiPatientKey,
+  entryAsAiPatient,
   readAiPatients,
+  readAiUncertain,
   type AiPatient,
   sensusAiPrompt,
   sensusAiSystem,
@@ -143,6 +145,17 @@ export function SensusMaker(): JSX.Element {
   const code =
     state.code && counts.some((row) => row.code === state.code) ? state.code : (counts[0]?.code ?? '');
   const covered = useMemo(() => coveredPlaces(sources), [sources]);
+  /** "Perlu dicek" patients the user put into this DPJP's census (both modes). */
+  const included = useMemo(() => (code ? (day.extra[code] ?? []) : []), [day.extra, code]);
+  const extraEntries = useMemo(() => missing.filter((entry) => included.includes(entry.key)), [missing, included]);
+  const setIncluded = (key: string, on: boolean): void => {
+    if (!code) return;
+    updateDay((current) => {
+      const keys = current.extra[code] ?? [];
+      const next = on ? [...new Set([...keys, key])] : keys.filter((k) => k !== key);
+      return { ...current, extra: { ...current.extra, [code]: next } };
+    });
+  };
   const notPasted = PLACE_ORDER.filter((place: Place) => place !== 'PJT' && !covered.includes(place));
   const therapyAsDx = useMemo(
     () => (code ? entriesFor(sources, code).filter((entry) => entry.dxWasTherapy) : []),
@@ -152,9 +165,9 @@ export function SensusMaker(): JSX.Element {
   const rules = useMemo(
     () =>
       code && sources.length > 0
-        ? buildCensus({ sources, code, date: censusDate, address: state.address, style: state.style })
+        ? buildCensus({ sources, code, date: censusDate, address: state.address, style: state.style, extra: extraEntries })
         : null,
-    [sources, code, censusDate, state.address, state.style],
+    [sources, code, censusDate, state.address, state.style, extraEntries],
   );
 
   /** What the AI result was computed from; a change makes it stale. */
@@ -163,19 +176,33 @@ export function SensusMaker(): JSX.Element {
   const aiCurrent = ai && ai.key === aiKey ? ai : null;
   // Built from the stored patients when there are any, so a correction made
   // from the check below shows at once; older results kept only the text.
+  /** The AI's patients plus the ones included by hand from "Perlu dicek". */
+  const aiAll = useMemo(() => {
+    if (!aiCurrent?.patients) return null;
+    const have = new Set(aiCurrent.patients.map(aiPatientKey));
+    const added: AiPatient[] = [];
+    for (const key of included) {
+      if (have.has(key)) continue;
+      const fromAi = aiCurrent.uncertain?.find((item) => aiPatientKey(item) === key);
+      const fromRules = missing.find((entry) => entry.key === key);
+      if (fromAi) added.push({ ...fromAi, dpjpFrom: 'manual' });
+      else if (fromRules) added.push(entryAsAiPatient(fromRules, code, state.style, 'manual'));
+    }
+    return [...aiCurrent.patients, ...added];
+  }, [aiCurrent, included, missing, code, state.style]);
   const aiFresh = aiCurrent
-    ? aiCurrent.patients
-      ? formatCensus({ code, date: censusDate, address: state.address, groups: aiGroups(aiCurrent.patients), covers: covered })
+    ? aiAll
+      ? formatCensus({ code, date: censusDate, address: state.address, groups: aiGroups(aiAll), covers: covered })
       : aiCurrent.text
     : null;
   const aiCheck = useMemo(
     () =>
-      aiCurrent?.patients && rules
-        ? checkAiCensus({ ai: aiCurrent.patients, rules: rules.entries, sources, texts: filled.map((list) => list.text) })
+      aiAll && rules
+        ? checkAiCensus({ ai: aiAll, rules: rules.entries, sources, texts: filled.map((list) => list.text) })
         : null,
     // `filled` follows day.lists, which `sources` already tracks.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [aiCurrent, rules, sources],
+    [aiAll, rules, sources],
   );
   /** Change the AI's patient list for this DPJP (the check's one-tap fixes). */
   const editAi = (change: (patients: AiPatient[]) => AiPatient[]): void => {
@@ -222,10 +249,11 @@ export function SensusMaker(): JSX.Element {
         maxTokens: 8000,
       });
       const patients = readAiPatients(input);
+      const uncertain = readAiUncertain(input);
       if (truncated) setAiErrorText('Jawaban AI terpotong; sebagian pasien mungkin hilang. Bandingkan dengan mode Aturan.');
       const text = formatCensus({ code, date: censusDate, address: state.address, groups: aiGroups(patients), covers: covered });
       // Kept with the day, so leaving the tab or reloading does not lose it.
-      updateDay((current) => ({ ...current, ai: { ...current.ai, [code]: { key: aiKey, text, patients } } }));
+      updateDay((current) => ({ ...current, ai: { ...current.ai, [code]: { key: aiKey, text, patients, uncertain } } }));
     } catch (error) {
       setAiErrorText(error instanceof AiError ? error.message : 'Gagal memanggil AI.');
     } finally {
@@ -234,8 +262,43 @@ export function SensusMaker(): JSX.Element {
   };
 
   const ruleCount = rules?.entries.length ?? 0;
+
+  /**
+   * "Perlu dicek": patients whose DPJP the lists do not settle — no code on
+   * the line (rules), or ones the AI was unsure of, with its reason. Never in
+   * the census unless included here. Replaces telling the AI to exclude them:
+   * an unclear patient is a question for the resident, not a ban.
+   */
+  const crossItems = useMemo((): CrossItem[] => {
+    if (!code) return [];
+    const aiUnsure = usingAi ? (aiCurrent?.uncertain ?? []) : [];
+    const items: CrossItem[] = missing.map((entry) => {
+      const ai = aiUnsure.find((item) => aiPatientKey(item) === entry.key);
+      return {
+        key: entry.key,
+        place: entry.place,
+        line: entry.asWritten,
+        reasons: ['Tidak ada kode DPJP di barisnya', ...(ai?.reason ? [`AI: ${ai.reason}`] : [])],
+        diagnoses: entry.diagnoses.length,
+        included: included.includes(entry.key),
+      };
+    });
+    for (const item of aiUnsure) {
+      const key = aiPatientKey(item);
+      if (items.some((existing) => existing.key === key)) continue;
+      items.push({
+        key,
+        place: item.place,
+        line: item.identity,
+        reasons: [`AI: ${item.reason || 'ragu'}`],
+        diagnoses: item.diagnoses.length,
+        included: included.includes(key),
+      });
+    }
+    return items;
+  }, [code, usingAi, aiCurrent, missing, included]);
   const kjsCount = usingAi
-    ? (aiCurrent?.patients?.filter((patient) => patient.kjs).length ?? 0)
+    ? (aiAll?.filter((patient) => patient.kjs).length ?? 0)
     : (rules?.entries.filter((entry) => entry.kjs).length ?? 0);
 
   return (
@@ -457,17 +520,9 @@ export function SensusMaker(): JSX.Element {
             </Callout>
           ) : null}
           {missing.length > 0 ? (
-            <Callout tone="warn" title={`${missing.length} pasien tanpa DPJP di list`}>
-              <ul className="mt-1 space-y-0.5">
-                {missing.map((entry, index) => (
-                  <li key={`${entry.key}:${index}`} className="truncate">
-                    {PLACE_LABEL[entry.place]} · {entry.location ? `${entry.location} · ` : ''}
-                    {entry.rest}
-                  </li>
-                ))}
-              </ul>
-              <p className="mt-1">Tidak masuk sensus siapa pun. Tambahkan kode DPJP di barisnya bila perlu.</p>
-            </Callout>
+            <p className="text-[11px] text-fg-muted">
+              {missing.length} pasien tanpa DPJP di list — lihat <b>Perlu dicek</b>.
+            </p>
           ) : null}
         </Section>
       </div>
@@ -505,6 +560,11 @@ export function SensusMaker(): JSX.Element {
           </Callout>
         ) : null}
 
+        <CrossCheckBox
+          items={crossItems}
+          onToggle={setIncluded}
+        />
+
         {usingAi && aiCheck ? (
           <AiCheckPanel
             check={aiCheck}
@@ -512,15 +572,7 @@ export function SensusMaker(): JSX.Element {
             onAdd={(entry) =>
               editAi((patients) => [
                 ...patients,
-                {
-                  place: entry.place,
-                  identity: identityLine(entry, code, state.style),
-                  diagnoses: entry.diagnoses,
-                  rm: entry.key.startsWith('rm:') ? entry.key.slice(3) : '',
-                  sourceLine: entry.raw,
-                  dpjpFrom: entry.fromHeader ? 'judul_bagian' : 'baris',
-                  kjs: entry.kjs ?? '',
-                },
+                entryAsAiPatient(entry, code, state.style, entry.fromHeader ? 'judul_bagian' : 'baris'),
               ])
             }
             onUseDx={(index, entry) =>
@@ -537,7 +589,7 @@ export function SensusMaker(): JSX.Element {
               </span>
               <span className="block truncate text-[10px] text-fg-faint">
                 {usingAi
-                  ? `Disusun AI${aiCurrent?.patients ? ` · ${aiCurrent.patients.length} pasien` : ''}`
+                  ? `Disusun AI${aiAll ? ` · ${aiAll.length} pasien` : ''}`
                   : `${ruleCount} pasien · disusun dengan aturan`}
                 {kjsCount > 0 ? ` · ${kjsCount} KJS` : ''}
               </span>
@@ -730,5 +782,66 @@ function AiCheckPanel({
         ))}
       </ul>
     </div>
+  );
+}
+
+interface CrossItem {
+  key: string;
+  place: Place;
+  line: string;
+  reasons: string[];
+  diagnoses: number;
+  included: boolean;
+}
+
+/**
+ * "Perlu dicek" — the cross-check box (Avi, 2026-10-09: "don't blacklist a
+ * confusing patient, put them in a separate cross-check box").
+ *
+ * Every patient whose DPJP the lists leave open, in both modes. Each is out
+ * of the census until included here; including is remembered for the day
+ * and the DPJP, and holds whether the census is built by the rules or AI.
+ */
+function CrossCheckBox({
+  items,
+  onToggle,
+}: {
+  items: readonly CrossItem[];
+  onToggle: (key: string, on: boolean) => void;
+}): JSX.Element | null {
+  if (items.length === 0) return null;
+  const count = items.filter((item) => item.included).length;
+  return (
+    <section aria-label="Perlu dicek" className="space-y-1 rounded-xl border border-border bg-surface px-3 py-2 text-xs">
+      <p className="font-semibold">
+        Perlu dicek · {items.length} pasien{count > 0 ? ` · ${count} dimasukkan` : ''}
+      </p>
+      <p className="text-[11px] text-fg-muted">
+        DPJP-nya tidak jelas dari list. Tidak masuk sensus kecuali Anda memasukkannya — cek ke list asli atau
+        pengirimnya.
+      </p>
+      <ul>
+        {items.map((item) => (
+          <li key={item.key} className="flex items-start gap-2 border-t border-border py-1.5 first:border-t-0">
+            <span className="min-w-0 flex-1">
+              <span className="text-fg-muted">{PLACE_LABEL[item.place]} · </span>
+              {item.line}
+              <span className="block text-[11px] text-fg-muted">
+                {item.reasons.join(' · ')}
+                {item.diagnoses === 0 ? ' · diagnosis tidak terbaca' : ''}
+              </span>
+            </span>
+            <Button
+              size="sm"
+              variant={item.included ? 'secondary' : 'ghost'}
+              aria-pressed={item.included}
+              onClick={() => onToggle(item.key, !item.included)}
+            >
+              {item.included ? 'Keluarkan' : 'Masukkan'}
+            </Button>
+          </li>
+        ))}
+      </ul>
+    </section>
   );
 }

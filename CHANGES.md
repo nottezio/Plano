@@ -1,5 +1,52 @@
 # Plano — CHANGES
 
+## `2026-10-09.4` — "Perlu dicek": unclear patients go to a cross-check box, not a blacklist
+
+### Change of approach (Avi: "don't put confusing patients into a black list, put them into a separate cross-check box")
+09.3 told the AI "JANGAN dimasukkan" for every patient the rules found
+without a DPJP code. That traded one silent error for another: a patient
+who really is this DPJP's, on a line someone forgot to code, would be
+dropped by both readers with nothing on screen. An unclear patient is a
+question for the resident, not something either reader should settle.
+
+### Fix
+- **AI:** the tool has a required `uncertain` array (same fields as a
+  patient, plus `reason`). The system prompt says: unsure → `uncertain`
+  with the reason, never `patients`. The no-code list in the prompt now
+  asks for `uncertain`, not exclusion. `readAiUncertain` reads it, and it is
+  stored in `SensusAiResult.uncertain`.
+- **Decisions:** `SensusDay.extra[code]` holds the entry keys the user
+  included. It is per day and per DPJP, and the same decision applies in
+  both modes:
+  - rules: `buildCensus({ extra })` appends those unassigned entries;
+  - AI: `aiAll` = AI patients + included ones (from the AI's own
+    `uncertain` copy, else the rules entry via `entryAsAiPatient`), marked
+    `dpjpFrom: 'manual'`. `checkAiCensus` skips manual ones, so a choice is
+    not reported as a disagreement.
+- **UI:** `CrossCheckBox` ("Perlu dicek · n pasien") in the output column.
+  - Each row: the place, the line as written, and the reasons ("Tidak ada
+    kode DPJP di barisnya", plus "AI: …" when the AI was unsure too), and
+    "diagnosis tidak terbaca" when relevant.
+  - **Masukkan / Keluarkan** toggles the patient.
+  - It replaces the "n pasien tanpa DPJP" warning in step 2, which now
+    points to the box.
+
+Harness (Avi's lists, seeded AI result with the Super VIP patient in
+`uncertain`): the box lists the 4 no-code CVCU/ICU patients, the Super VIP
+one with the AI's reason. **Masukkan** puts her in the AI census, unflagged
+by the check, and in the rules census (Total 13 → she is the 13th).
+
+### Not done
+- The resident's choice is device-only like the lists (the saved result is
+  what syncs).
+- Still not run against the live API from here.
+
+```
+npm run verify
+  typecheck ✓  lint ✓ (0 warnings)  test ✓ 2092 passed (143 files)
+  check:version ✓  check:contrast ✓  check:a11y ✓  build ✓
+```
+
 ## `2026-10-09.3` — Scroll strips reachable by mouse; KJS in the census; two missed diagnoses; AI checked against the rules
 
 ### 1. Overflowing jump bar unreachable on the PC (Avi's screenshot: a census note)

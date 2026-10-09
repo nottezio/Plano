@@ -1,6 +1,6 @@
 import { addDays } from '@/domain/clinicalDate';
 import type { ClinicalDate } from '@/domain/types';
-import { PLACE_ORDER, type AiPatient, type CensusAddress, type IdentityStyle, type SourceKind } from './maker';
+import { PLACE_ORDER, type AiPatient, type AiUncertain, type CensusAddress, type IdentityStyle, type SourceKind } from './maker';
 
 /**
  * Buat Sensus, on this device: the pasted lists PER DAY, and the AI result.
@@ -43,12 +43,19 @@ export interface SensusAiResult {
    * "Pakai diagnosis Aturan"). The message is built from these.
    */
   patients?: AiPatient[];
+  /** Patients the AI was unsure of, with its reason: the "Perlu dicek" box. */
+  uncertain?: AiUncertain[];
 }
 
 export interface SensusDay {
   lists: SensusList[];
   /** By DPJP code. */
   ai: Record<string, SensusAiResult>;
+  /**
+   * By DPJP code: patients from "Perlu dicek" the user chose to include
+   * (entry keys, `rm:…`). A decision, so it holds in both modes.
+   */
+  extra: Record<string, string[]>;
 }
 
 export interface SensusStore {
@@ -62,7 +69,7 @@ export interface SensusStore {
 const EMPTY_LIST: SensusList = { text: '', kind: 'auto' };
 
 export function emptyDay(): SensusDay {
-  return { lists: [{ ...EMPTY_LIST }], ai: {} };
+  return { lists: [{ ...EMPTY_LIST }], ai: {}, extra: {} };
 }
 
 export function emptyStore(): SensusStore {
@@ -105,8 +112,28 @@ function readAi(value: unknown): Record<string, SensusAiResult> {
   for (const [code, entry] of Object.entries(value)) {
     if (isRecord(entry) && typeof entry.key === 'string' && typeof entry.text === 'string') {
       const patients = readStoredPatients(entry.patients);
-      out[code] = { key: entry.key, text: entry.text, ...(patients ? { patients } : {}) };
+      const uncertain = Array.isArray(entry.uncertain)
+        ? (readStoredPatients(entry.uncertain) ?? []).map((patient, index) => {
+            const item = (entry.uncertain as unknown[])[index];
+            return { ...patient, reason: isRecord(item) && typeof item.reason === 'string' ? item.reason : '' };
+          })
+        : undefined;
+      out[code] = {
+        key: entry.key,
+        text: entry.text,
+        ...(patients ? { patients } : {}),
+        ...(uncertain ? { uncertain } : {}),
+      };
     }
+  }
+  return out;
+}
+
+function readExtra(value: unknown): Record<string, string[]> {
+  if (!isRecord(value)) return {};
+  const out: Record<string, string[]> = {};
+  for (const [code, keys] of Object.entries(value)) {
+    if (Array.isArray(keys)) out[code] = keys.filter((key): key is string => typeof key === 'string');
   }
   return out;
 }
@@ -142,12 +169,16 @@ export function readSensusStore(v2: string | null, v1: string | null, today: Cli
       for (const [date, value] of Object.entries(raw.days)) {
         if (!ISO.test(date) || !isRecord(value)) continue;
         const lists = readLists(value.lists);
-        store.days[date] = { lists: lists.length > 0 ? lists : [{ ...EMPTY_LIST }], ai: readAi(value.ai) };
+        store.days[date] = {
+          lists: lists.length > 0 ? lists : [{ ...EMPTY_LIST }],
+          ai: readAi(value.ai),
+          extra: readExtra(value.extra),
+        };
       }
     } else if (typeof raw.date === 'string' && ISO.test(raw.date)) {
       // v1: { date, lists, code, address, style }.
       const lists = readLists(raw.lists);
-      if (lists.length > 0) store.days[raw.date] = { lists, ai: {} };
+      if (lists.length > 0) store.days[raw.date] = { lists, ai: {}, extra: {} };
     }
   } catch {
     return emptyStore();
