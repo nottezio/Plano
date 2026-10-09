@@ -1,5 +1,98 @@
 # Plano — CHANGES
 
+## `2026-10-09.3` — Scroll strips reachable by mouse; KJS in the census; two missed diagnoses; AI checked against the rules
+
+### 1. Overflowing jump bar unreachable on the PC (Avi's screenshot: a census note)
+**Root cause.** `JumpBar` (and the Helper tab row and Tersimpan chips) was
+`overflow-x-auto` with the scrollbar hidden. Touch swipes such a row; a mouse
+cannot: the wheel scrolls vertically, the scrollbar to drag is hidden, and
+nothing marks the overflow. A long note (the census, one section per place)
+pushed sections past the edge with no way to reach them.
+
+**Fix.** `components/common/ScrollStrip`, now used by all three rows:
+- a non-passive wheel listener converts a mostly-vertical wheel into
+  sideways scroll while the row can move, and hands it back to the page at
+  either end (`wheelShift`);
+- a fade on each side that has hidden content (`stripEdges`, re-measured on
+  scroll, resize and every render);
+- ‹ › page buttons on fine pointers only (`[@media(pointer:fine)]`);
+  `aria-hidden` and `tabIndex=-1`, because keyboard focus already scrolls
+  the row.
+
+Harness: strip forced to 260 px, wheel 400 → scrollLeft 0 → 17 (the end),
+right arrow then left arrow shown.
+
+### 2. KJS in the census (Avi)
+`CensusEntry.kjs` via `kjsOf`: "KJS Uro" (RSUH, before the code), "(KJS)"
+(RSWS), "- KJS BTKV" (Lt. 4, line end), and "(BTKV)" before the name
+(CVCU/HCU), which is read as KJS BTKV by analogy with Lt. 4's "KJS BTKV"
+category. `markKjs` appends " (KJS …)" only when the line does not already
+say KJS. RSWS's "KJS Kardio : 14" summary names no patients and is not
+guessed from. The output subtitle counts KJS patients.
+
+### 3. Two diagnoses not registered (Avi: "a patient that didn't register their diagnosis")
+- **RSUH "2 KJS Uro / ARB / …"**, numbered without a dot, so `ENTRY_RE` did
+  not see a patient line. Only the "Pasien Baru" copy (no diagnosis) was
+  read, and the census printed "Diagnosis: -". `ENTRY_RE` now also accepts
+  `\d{1,2}` + space when followed by "KJS" or a 2–4-capital code and a
+  slash. A bare "512 bed 2/…" stays a room (tested).
+- **"Diagnosis Utama :" / "Diagnosis Sekunder:"** inside an assess block
+  hit `DX_STOP_RE` ("diagnos…") and ended the block with nothing read.
+  `DX_SUB_RE` treats them as sub-headings, and a blank line followed by
+  one does not end the block.
+
+### 4. "Why was this registered as ARB's patient?" (CVCU Super VIP)
+**Not the rules.** On Avi's lists the rules leave that line unassigned (no
+DPJP code on it; the CVCU list has no DPJP section headers). The census in
+his screenshot was the AI's: its " / " joins are the AI rewriting identity
+lines. The AI assigned an unowned patient, and the UI had nothing to check
+its output against.
+
+**Fix: the AI becomes checkable, not trusted.**
+- The prompt now carries the rules' patients for that DPJP as a checklist,
+  plus the rules' no-code patients under "JANGAN dimasukkan…". The system
+  prompt states the ownership rule explicitly: the line's code, else a DPJP
+  section header; the CVCU list has none, and nothing is guessed from
+  position. It also covers placeholder beds ("Pasien dr. TM", "(BTKV) KJS
+  dr. MAA"), Sisrute, diagnosis sub-headings, same-line diagnoses and KJS.
+- The tool returns `rm`, `source_line`, `dpjp_from` and `kjs` per patient
+  (`readAiPatients`; RM from the line when not given).
+- `checkAiCensus` matches AI to rules by RM (else line key) and returns:
+  - `onlyAi`, with what the rules made of that patient (other DPJP / no
+    code / not read) and whether the RM is in the pasted text at all;
+  - `onlyRules`;
+  - `dxMissing`.
+- `AiCheckPanel` shows these with one-tap fixes (Buang / Tambahkan /
+  Pakai diagnosis Aturan). The AI result now stores its patients
+  (`SensusAiResult.patients`) and the message is rebuilt from them; 09.2
+  results without patients still show their text.
+
+Harness with a seeded AI result reproducing the mistake: "11 cocok · 3
+selisih" (the Super VIP patient "Hanya AI · tidak ada kode DPJP", the RSUH
+KJS patient "Hanya Aturan", BTKV patient "Diagnosis kosong di AI"). After
+the three taps: "12 pasien cocok, tidak ada selisih"; output without the
+Super VIP patient, with the RSUH one and "(KJS BTKV)".
+
+### Wrong turns
+- The first fixtures copied RMs and birth dates from Avi's list; replaced
+  before commit (public repo).
+
+### Not done
+- The new prompt has not been run against the live API from here (no key
+  in the sandbox). The check panel is what makes a remaining AI error
+  visible.
+- KJS on RSWS lines that do not say it (most RSWS patients are KJS per the
+  list summary) is not inferred.
+- Several lists pasted into ONE box are read as the first list's kind
+  (66 entries, all as PJT Lt. 6, in a test with Avi's whole file). One
+  list per box remains required; there is no warning for it yet.
+
+```
+npm run verify
+  typecheck ✓  lint ✓ (0 warnings)  test ✓ 2089 passed (143 files)
+  check:version ✓  check:contrast ✓  check:a11y ✓  build ✓
+```
+
 ## `2026-10-09.2` — Sensus lists per day, find in each list, AI result kept; Pediatri roster from WhatsApp text
 
 ### 1. Sensus boxes per day (Avi: "the sensus is made each day, so the box should be for that day only")

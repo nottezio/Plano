@@ -88,6 +88,8 @@ export interface CensusEntry {
   key: string;
   /** For warnings: the line as it was. */
   raw: string;
+  /** "KJS", "KJS Uro", "KJS BTKV" when the list marks the patient as KJS; else null. */
+  kjs: string | null;
 }
 
 export interface ParsedSource {
@@ -213,12 +215,26 @@ export function detectSource(text: string): {
 // ───────────────────────────────────────────────────────────────
 
 /** "1. …", "3..420 Bed 1/…", "1.518 bed 1/…", "🔵 4. PT / …". */
-const ENTRY_RE = /^\s*[*_\s]*(\d{1,3})\s*\.+\s*(\S.*)$/;
+/**
+ * A numbered patient line: "1. …", "1.512 bed 1/…", and — RSUH, 2026-10-09 —
+ * "2 KJS Uro / ARB / 603 Lepa B …" with no dot. The dot-less form is accepted
+ * only before "KJS" or a DPJP-like code and a slash: "512 bed 2/…" without a
+ * number must stay a room, not become patient 51 in "2 bed 2".
+ */
+const NUMBER_PREFIX = String.raw`(\d{1,3})\s*\.+\s*|(\d{1,2})\s+(?=(?:KJS\b|[A-Z]{2,4}\s*\/))`;
+const ENTRY_RE = new RegExp(String.raw`^\s*[*_\s]*(?:${NUMBER_PREFIX})(\S.*)$`);
+const NUMBER_STRIP_RE = new RegExp(String.raw`^\s*[*_\s]*(?:${NUMBER_PREFIX})`);
 /** A real patient line names a person, a record number or a birth date. */
 const IDENTITY_RE = /\b(?:RM|Tn|Ny|Nn|An|By|Sdr|Nona)\b\.?|\d{6,}|\b\d{1,2}[-/]\d{1,2}[-/]\d{4}\b|\b\d{1,2}\s+[A-Za-z]+\s+\d{4}\b/i;
 const ICU_LOCATION_RE = /^\(?\s*(?:cvcu|hcu|icu)\b/i;
 
 const DX_HEAD_RE = /^(?:diagnos[ai]s?|diagnosa)\b\s*[:;]?\s*(.*)$/i;
+/**
+ * "Diagnosis Utama :" / "Diagnosis Sekunder:" INSIDE an assessment block
+ * (2026-10-09). They read as a new heading, which ends a block, so the
+ * patient got no diagnosis at all. They are sub-headings: the block goes on.
+ */
+const DX_SUB_RE = /^diagnos[ai]s?\s+(?:utama|sekunder|tambahan|primer|banding|lain|komorbid\w*)\b\s*[:;]?\s*(.*)$/i;
 const ASSESS_HEAD_RE = /^mohon\s+i[zj]in\s+(?:pasien\s+)?kami\s+assess?\w*(?:\s+dengan)?\s*[:;]?\s*(.*)$/i;
 const DX_STOP_RE =
   /^(?:mohon\s+i[zj]in|plan\b|planning\b|premedikasi|selesai|terapi\b|instruksi|ts\b|[atpid]\s*\/|tabe\b|note\b|catatan\b|diagnos)/i;
@@ -248,6 +264,31 @@ export function entryKey(line: string): string {
   const rm = /\bRM\s*:?\s*0*(\d{5,9})/i.exec(text) ?? /(?:^|[^\d-])0*(\d{6,9})(?![\d-])/.exec(text);
   if (rm) return `rm:${rm[1]}`;
   return `line:${text.toLowerCase().replace(/[^a-z]+/g, ' ').trim().slice(0, 40)}`;
+}
+
+/**
+ * Is the patient KJS (konsul jawab sementara: another department's patient,
+ * cardiology co-managing)? Read from the patient line, the only place every
+ * list says it, in four spellings (2026-10-09):
+ *   "2 KJS Uro / ARB / …"   RSUH, before the code       → "KJS Uro"
+ *   "ZD (KJS) / Lontara …"  RSWS, after the code        → "KJS"
+ *   "… RM 01724652- KJS BTKV"  PJT Lt. 4, at the end    → "KJS BTKV"
+ *   "(BTKV) Paimin / … / ARB"  CVCU/HCU, a BTKV patient → "KJS BTKV"
+ * RSWS also prints "KJS Kardio : 14" in its summary without saying which
+ * patients; that is not guessed at.
+ */
+export function kjsOf(line: string): string | null {
+  const text = plain(line);
+  const kjs = /\bKJS\b(?:\s*[-:]?\s*(?!dr\b|prof\b|pasien\b)([A-Za-z]{2,10})\b)?/i.exec(text);
+  if (kjs) return kjs[1] ? `KJS ${kjs[1]}` : 'KJS';
+  if (/\(\s*BTKV\s*\)/i.test(text)) return 'KJS BTKV';
+  return null;
+}
+
+/** The identity line with its KJS mark, unless the line already says KJS. */
+export function markKjs(identity: string, kjs: string | null | undefined): string {
+  if (!kjs || /\bKJS\b/i.test(identity)) return identity;
+  return `${identity} (${kjs})`;
 }
 
 /** "Clopidogrel 75 mg/24 jam/oral", "IVFD NaCl 500 cc/24 jam/IV": an order, not a diagnosis. */
@@ -455,13 +496,13 @@ export function parseSource(text: string, known?: ReadonlySet<string>, kindOverr
       continue;
     }
 
-    const body = entry[2]!;
+    const body = entry[3]!;
     let identityLine: string | null = null;
     let heading: string | null = null;
     // Strip the number from the ORIGINAL line, so spacing inside survives.
     // Emphasis marks go: the IGD list bolds the whole line ("*IGD Red Zone
     // Bed 3 / … / dr. ARB*", "/*Tn. …").
-    const original = clean(raw).replace(/^\s*[*_\s]*\d{1,3}\s*\.+\s*/, '').replace(/[*_]/g, '');
+    const original = clean(raw).replace(NUMBER_STRIP_RE, '').replace(/[*_]/g, '');
 
     if (kind === 'pjt-icu' && ICU_LOCATION_RE.test(body) && !body.includes('/')) {
       // The CVCU shape: the bed alone, the patient on the next line.
@@ -488,13 +529,20 @@ export function parseSource(text: string, known?: ReadonlySet<string>, kindOverr
     while (i < lines.length) {
       const line = lines[i]!;
       const flat = plain(line);
-      if (ENTRY_RE.test(flat) && (flat.includes('/') || ICU_LOCATION_RE.test(flat.replace(ENTRY_RE, '$2')))) break;
+      if (ENTRY_RE.test(flat) && (flat.includes('/') || ICU_LOCATION_RE.test(flat.replace(ENTRY_RE, '$3')))) break;
       if (isSeparator(line)) break;
       if (!/^\s*\d/.test(flat) && sectionDpjp(line)) break;
       if (EXCLUDED_SECTION_RE.test(flat) || NEW_SECTION_RE.test(flat) || SISRUTE_RE.test(flat) || ZONE_RE.test(flat)) break;
       i += 1;
       if (state === 'done') continue;
       if (state === 'before') {
+        const sub = DX_SUB_RE.exec(flat);
+        if (sub) {
+          state = 'in';
+          const inline = (sub[1] ?? '').trim();
+          if (inline) diagnoses.push(normaliseDxLine(inline));
+          continue;
+        }
         const head = DX_HEAD_RE.exec(flat) ?? ASSESS_HEAD_RE.exec(flat);
         if (head) {
           state = 'in';
@@ -504,7 +552,18 @@ export function parseSource(text: string, known?: ReadonlySet<string>, kindOverr
         continue;
       }
       if (!flat) {
-        if (diagnoses.length > 0) state = 'done';
+        // A blank line ends the block — unless what follows it is the next
+        // sub-heading ("Diagnosis Sekunder:" after the Utama list).
+        let k = i;
+        while (k < lines.length && !plain(lines[k]!)) k += 1;
+        const nextSub = k < lines.length && DX_SUB_RE.test(plain(lines[k]!));
+        if (diagnoses.length > 0 && !nextSub) state = 'done';
+        continue;
+      }
+      const sub = DX_SUB_RE.exec(flat);
+      if (sub) {
+        const inline = (sub[1] ?? '').trim();
+        if (inline) diagnoses.push(normaliseDxLine(inline));
         continue;
       }
       if (DX_STOP_RE.test(flat.replace(/^[-•*\s]+/, '')) && !/^\s*[-•*]/.test(clean(line))) {
@@ -535,6 +594,7 @@ export function parseSource(text: string, known?: ReadonlySet<string>, kindOverr
       fromNewList: mode === 'new',
       key: entryKey(identityLine),
       raw: clean(identityLine).trim(),
+      kjs: kjsOf(`${heading ?? ''} ${identityLine}`),
     });
   }
 
@@ -698,7 +758,9 @@ export function buildCensus(input: {
   const entries = entriesFor(input.sources, input.code);
   const groups: CensusGroupInput[] = entries.map((entry) => ({
     place: entry.place,
-    patients: [{ identity: identityLine(entry, input.code, input.style ?? 'asis'), diagnoses: entry.diagnoses }],
+    patients: [
+      { identity: markKjs(identityLine(entry, input.code, input.style ?? 'asis'), entry.kjs), diagnoses: entry.diagnoses },
+    ],
   }));
   return {
     text: formatCensus({
@@ -721,6 +783,18 @@ export function buildCensus(input: {
  * are, their identity line and diagnoses. `formatCensus` still writes the
  * message, so both modes produce the same shape and the AI can never change
  * the greeting, the counts or the order of places.
+ *
+ * MADE CHECKABLE (2026-10-09). The AI put an unassigned CVCU patient (no DPJP
+ * code anywhere on the line) into ARB's census, and nothing on screen said
+ * so: its output was a finished message, with nothing to check it against.
+ * Now:
+ *   - it gets the rules' result as a checklist, plus the patients the rules
+ *     found WITHOUT a DPJP code, with the instruction not to claim those;
+ *   - it returns, per patient, the RM and the list line it took it from;
+ *   - `checkAiCensus` compares that against the rules patient by patient, and
+ *     the screen shows what only one of them found, with the reason.
+ * The AI is then a second reader whose disagreements are visible, rather
+ * than an answer to trust or not as a whole.
  */
 export const SENSUS_AI_TOOL = {
   name: 'sensus_pasien',
@@ -734,6 +808,17 @@ export const SENSUS_AI_TOOL = {
           type: 'object',
           properties: {
             place: { type: 'string', enum: [...PLACE_ORDER] },
+            rm: { type: 'string', description: 'Nomor RM pasien, angka saja (tanpa nol di depan). Kosong bila list tidak mencantumkan.' },
+            source_line: {
+              type: 'string',
+              description: 'Baris pasien PERSIS seperti di list (disalin, tidak diubah), tempat kode DPJP ditemukan.',
+            },
+            dpjp_from: {
+              type: 'string',
+              enum: ['baris', 'judul_bagian'],
+              description: '"baris" bila kode DPJP tertulis di baris pasien; "judul_bagian" bila hanya dari judul bagian DPJP di atasnya.',
+            },
+            kjs: { type: 'string', description: 'Mis. "KJS", "KJS Uro", "KJS BTKV" bila list menandai pasien KJS; kosong bila tidak.' },
             identity: {
               type: 'string',
               description: 'Baris identitas pasien, mengikuti instruksi gaya baris di pesan.',
@@ -744,7 +829,7 @@ export const SENSUS_AI_TOOL = {
               description: 'Baris diagnosis persis seperti ditulis, satu per item, diawali "- ". Tanpa terapi dan plan.',
             },
           },
-          required: ['place', 'identity', 'diagnoses'],
+          required: ['place', 'rm', 'source_line', 'dpjp_from', 'identity', 'diagnoses'],
         },
       },
     },
@@ -754,42 +839,190 @@ export const SENSUS_AI_TOOL = {
 
 export function sensusAiSystem(): string {
   return [
-    'Anda membantu residen kardiologi menyusun sensus pasien per DPJP dari beberapa list ruangan (WhatsApp).',
-    'Aturan:',
-    '- Ambil HANYA pasien milik DPJP yang diminta. Kode DPJP di baris pasien lebih menentukan daripada judul bagian (pasien bisa salah tempel di bagian DPJP lain). Pasien gabungan (mis. "dr.ZD-dr.AAU") milik keduanya.',
-    '- Abaikan bagian "Pasien Pulang", "Pasien Meninggal", "Pasien Pindah". Pasien di "Pasien Baru" yang juga tercantum di bawah dihitung sekali.',
-    '- Setiap pasien sekali saja walau tercantum berulang.',
-    '- Lokasi (place): RSWS dan RSUH dari list rumah sakitnya; IGD untuk IGD PJT; CVCU untuk CVCU/HCU/ICU PJT; LT4/LT5/LT6 dari nomor kamar (4xx/5xx/6xx) atau judul list; PJT bila lantai tidak diketahui.',
-    '- Bila blok diagnosis ternyata berisi obat/terapi, kosongkan diagnoses.',
-    '- Identitas dan diagnosis disalin persis, jangan diterjemahkan, dirapikan, atau ditambah. Buang nama residen di akhir baris (mis. "/resa", "(Resa)").',
-    '- Diagnosis: hanya blok "Diagnosis"/"Diagnosa"/"Mohon izin kami assess dengan" milik kardiologi, bukan blok TS lain, terapi, atau plan.',
+    'Anda membantu residen kardiologi menyusun sensus pasien per DPJP dari beberapa list ruangan (WhatsApp). Ketelitian lebih penting daripada kelengkapan tebakan: lebih baik melewatkan daripada memasukkan pasien yang bukan milik DPJP.',
+    '',
+    'SIAPA PASIEN DPJP INI',
+    '- Kode DPJP di BARIS pasien menentukan (mis. "…/dr.ARB", "ARB / Lontara …", "… / dr. ARB", "2 KJS Uro / ARB / …"). Pasien gabungan ("dr.ZD-dr.AAU") milik keduanya.',
+    '- Bila baris pasien TIDAK memuat kode DPJP mana pun, pasien itu milik DPJP di judul bagian tepat di atasnya ("🫀dr. ARB : 3 pasien", "*dr. ARB : 3 Pasien*") — HANYA bila ada judul bagian seperti itu. Di list CVCU/HCU/ICU tidak ada judul bagian DPJP: pasien tanpa kode di barisnya BUKAN milik siapa pun, jangan dimasukkan.',
+    '- Jangan menebak dari kedekatan posisi, nama, atau urutan bed.',
+    '',
+    'YANG BUKAN PASIEN',
+    '- Bagian "Pasien Pulang", "Pasien Meninggal", "Pasien Pindah" (sampai pemisah berikutnya); "Sisrute" (permintaan rujukan dari RS lain, sampai judul zona berikutnya).',
+    '- Bed tanpa pasien: "Kosong", "Pasien dr. TM", "pasien dr. NP", "(BTKV) KJS dr. MAA" — itu penanda bed milik dokter lain, bukan pasien.',
+    '- Baris ringkasan jumlah ("dr. ARB : 3 pasien", "KJS Kardio : 14").',
+    '- "Pasien Baru" hanya pengumuman: pasiennya juga tercantum lengkap di bawah — ambil yang lengkap, hitung sekali. Setiap pasien sekali saja (cocokkan dengan RM).',
+    '',
+    'LOKASI (place): RSWS dan RSUH dari list rumah sakitnya; IGD untuk IGD PJT; CVCU untuk CVCU/HCU/ICU PJT; LT4/LT5/LT6 dari nomor kamar (4xx/5xx/6xx) atau judul list ("List Pasien Lt. 6"); PJT bila lantai tidak diketahui.',
+    '',
+    'DIAGNOSIS',
+    '- Ambil blok "Diagnosis"/"Diagnosa"/"Mohon izin (pasien) kami assess dengan" milik kardiologi, sampai baris kosong atau blok berikutnya (terapi, plan, premedikasi, TS lain).',
+    '- "Diagnosis Utama :" dan "Diagnosis Sekunder:" adalah sub-judul di dalam blok: ambil isi keduanya.',
+    '- "Diagnosis : stenosis pulmonal" (di baris yang sama) juga diagnosis.',
+    '- Diagnosis yang ditulis dalam satu baris dipisah koma: salin sebagai satu baris, jangan dipecah.',
+    '- Bila blok berisi obat/dosis (terapi), kosongkan diagnoses.',
+    '- Salin persis: jangan diterjemahkan, dirapikan, disingkat, atau ditambah.',
+    '',
+    'KJS: isi bila baris pasien menandainya ("KJS Uro", "(KJS)", "- KJS BTKV"), atau "KJS BTKV" bila baris diawali "(BTKV)". Jangan menebak dari ringkasan jumlah.',
+    'Identitas: buang nama residen di akhir baris (mis. "/resa", "(Resa)").',
   ].join('\n');
 }
 
-export function sensusAiPrompt(input: { code: string; texts: readonly string[]; style?: IdentityStyle }): string {
+function candidateLine(entry: CensusEntry): string {
+  const rm = entry.key.startsWith('rm:') ? `RM ${entry.key.slice(3)}` : 'RM ?';
+  return `- [${entry.place}] ${rm} — ${entry.raw}${entry.diagnoses.length === 0 ? ' (diagnosis tidak terbaca)' : ''}`;
+}
+
+export function sensusAiPrompt(input: {
+  code: string;
+  texts: readonly string[];
+  style?: IdentityStyle;
+  /** The rules' patients for this DPJP: a checklist to confirm or correct. */
+  candidates?: readonly CensusEntry[];
+  /** Patients the rules found with no DPJP code: not to be claimed without evidence. */
+  noCode?: readonly CensusEntry[];
+}): string {
+  const code = input.code.toUpperCase();
   return [
-    `DPJP yang diminta: ${input.code.toUpperCase()} (${dpjpFullName(input.code)})`,
+    `DPJP yang diminta: ${code} (${dpjpFullName(input.code)})`,
     input.style === 'front'
       ? 'Baris identitas: pindahkan kode DPJP ke depan, lalu lokasi (mis. "MZ/417 Bed 3/Ny. X/…").'
       : 'Baris identitas: salin persis seperti di list (mis. "414 Bed 2/AHN/Ny. X/…"); untuk CVCU gabungkan baris bed dan pasien ("CVCU Bed 15/ Tn. X/…").',
     '',
+    ...(input.candidates
+      ? [
+          `Pembaca aturan menemukan ${input.candidates.length} pasien ${code} berikut. Bisa kurang atau salah: periksa setiap list baris demi baris, tambahkan yang terlewat, buang yang keliru.`,
+          ...(input.candidates.length > 0 ? input.candidates.map(candidateLine) : ['- (tidak ada)']),
+          '',
+        ]
+      : []),
+    ...(input.noCode && input.noCode.length > 0
+      ? [
+          'Pasien berikut TIDAK memuat kode DPJP di barisnya dan tidak berada di bawah judul bagian DPJP. JANGAN dimasukkan ke sensus ini kecuali list jelas menyebut DPJP-nya:',
+          ...input.noCode.map(candidateLine),
+          '',
+        ]
+      : []),
     ...input.texts.map((text, index) => `=== LIST ${index + 1} ===\n${text.trim()}`),
   ].join('\n');
 }
 
+/** One patient as the AI returned it, after defensive reading. */
+export interface AiPatient {
+  place: Place;
+  identity: string;
+  diagnoses: string[];
+  /** Digits, no leading zeros; '' when none was given. */
+  rm: string;
+  sourceLine: string;
+  /** 'baris' | 'judul_bagian' | '' */
+  dpjpFrom: string;
+  kjs: string;
+}
+
+function digits(value: unknown): string {
+  return typeof value === 'string' ? value.replace(/\D/g, '').replace(/^0+/, '') : '';
+}
+
 /** Defensive read of the tool output: anything malformed is dropped, not trusted. */
-export function readAiCensus(raw: unknown): CensusGroupInput[] {
+export function readAiPatients(raw: unknown): AiPatient[] {
   const patients = (raw as { patients?: unknown })?.patients;
   if (!Array.isArray(patients)) return [];
-  const out: CensusGroupInput[] = [];
+  const out: AiPatient[] = [];
   for (const item of patients) {
-    const record = item as { place?: unknown; identity?: unknown; diagnoses?: unknown };
+    const record = (item ?? {}) as Record<string, unknown>;
     const place = PLACE_ORDER.find((candidate) => candidate === record.place);
     if (!place || typeof record.identity !== 'string' || !record.identity.trim()) continue;
     const diagnoses = Array.isArray(record.diagnoses)
       ? record.diagnoses.filter((line): line is string => typeof line === 'string' && line.trim() !== '').map(normaliseDxLine)
       : [];
-    out.push({ place, patients: [{ identity: tidy(clean(record.identity)), diagnoses }] });
+    const identity = tidy(clean(record.identity));
+    const sourceLine = typeof record.source_line === 'string' ? clean(record.source_line).trim() : '';
+    const rmGiven = digits(record.rm);
+    const fromKey = entryKey(sourceLine || identity);
+    out.push({
+      place,
+      identity,
+      diagnoses,
+      rm: rmGiven || (fromKey.startsWith('rm:') ? fromKey.slice(3) : ''),
+      sourceLine,
+      dpjpFrom: typeof record.dpjp_from === 'string' ? record.dpjp_from : '',
+      kjs: typeof record.kjs === 'string' ? record.kjs.trim() : '',
+    });
   }
   return out;
+}
+
+/** Kept for callers of the older shape. */
+export function readAiCensus(raw: unknown): CensusGroupInput[] {
+  return aiGroups(readAiPatients(raw));
+}
+
+export function aiGroups(patients: readonly AiPatient[]): CensusGroupInput[] {
+  return patients.map((patient) => ({
+    place: patient.place,
+    patients: [{ identity: markKjs(patient.identity, patient.kjs || null), diagnoses: patient.diagnoses }],
+  }));
+}
+
+function aiKey(patient: AiPatient): string {
+  return patient.rm ? `rm:${patient.rm}` : entryKey(patient.sourceLine || patient.identity);
+}
+
+export interface AiCheck {
+  /** Found by both. */
+  matched: number;
+  /** Only the AI has them: each with what the rules made of that patient. */
+  onlyAi: Array<{ index: number; patient: AiPatient; rules: string; inLists: boolean }>;
+  /** Only the rules have them. */
+  onlyRules: CensusEntry[];
+  /** Both have the patient; the AI gave no diagnosis where the rules read one. */
+  dxMissing: Array<{ index: number; entry: CensusEntry }>;
+}
+
+/**
+ * The AI census against the rules', patient by patient (by RM, else the
+ * line). Disagreement is not proof either way — the rules miss shapes they
+ * have not seen, the AI invents — so both sides are shown, each with why.
+ */
+export function checkAiCensus(input: {
+  ai: readonly AiPatient[];
+  rules: readonly CensusEntry[];
+  sources: readonly ParsedSource[];
+  texts: readonly string[];
+}): AiCheck {
+  const rulesByKey = new Map(input.rules.map((entry) => [entry.key, entry]));
+  const anyByKey = new Map<string, CensusEntry>();
+  for (const source of input.sources) for (const entry of source.entries) if (!anyByKey.has(entry.key)) anyByKey.set(entry.key, entry);
+  const haystack = input.texts.map((text) => plain(text).replace(/\s+/g, ' ')).join('\n');
+
+  const seen = new Set<string>();
+  const check: AiCheck = { matched: 0, onlyAi: [], onlyRules: [], dxMissing: [] };
+  input.ai.forEach((patient, index) => {
+    const key = aiKey(patient);
+    seen.add(key);
+    const rules = rulesByKey.get(key);
+    if (rules) {
+      check.matched += 1;
+      if (patient.diagnoses.length === 0 && rules.diagnoses.length > 0) check.dxMissing.push({ index, entry: rules });
+      return;
+    }
+    const other = anyByKey.get(key);
+    const inLists = patient.rm
+      ? new RegExp(String.raw`(?:^|\D)0*${patient.rm}(?!\d)`).test(haystack)
+      : Boolean(patient.sourceLine) && haystack.includes(plain(patient.sourceLine).replace(/\s+/g, ' '));
+    check.onlyAi.push({
+      index,
+      patient,
+      inLists,
+      rules: !inLists
+        ? 'RM/baris ini tidak ada di list yang ditempel'
+        : other
+          ? other.dpjps.length > 0
+            ? `Aturan: pasien ${other.dpjps.join('/')}`
+            : 'Aturan: tidak ada kode DPJP di barisnya'
+          : 'Aturan: tidak terbaca sebagai pasien',
+    });
+  });
+  check.onlyRules = input.rules.filter((entry) => !seen.has(entry.key));
+  return check;
 }

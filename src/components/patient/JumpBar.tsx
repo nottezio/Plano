@@ -1,5 +1,6 @@
 import { useCallback } from 'react';
 
+import { ScrollStrip } from '@/components/common/ScrollStrip';
 import { jumpTargets } from '@/domain/sections/jumpTargets';
 import type { SectionAlias } from '@/domain/types';
 
@@ -100,7 +101,7 @@ export function JumpBar({
   if (targets.length < 2 && bookmarks.length === 0 && missingBookmarks === 0) return null;
 
   return (
-    <div
+    <ScrollStrip
       // Horizontal scroll rather than wrap: a second row would push the note
       // itself further down every screen, and this is furniture.
       /*
@@ -110,7 +111,10 @@ export function JumpBar({
         below it. The tap target is untouched at 44 px; what went is the empty
         space around it.
       */
-      className="flex gap-0.5 overflow-x-auto border-b border-border px-3 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+            // Through ScrollStrip, not a bare overflow row: with the scrollbar
+      // hidden, a mouse had no way to reach the sections past the right edge.
+      className="flex gap-0.5 border-b border-border px-3"
+      label="Lompat ke bagian catatan"
     >
       {targets.map((target) => (
         <button
@@ -168,6 +172,6 @@ export function JumpBar({
           {missingBookmarks} bookmark tidak ditemukan · Hapus
         </button>
       ) : null}
-    </div>
+    </ScrollStrip>
   );
 }

@@ -493,3 +493,153 @@ describe('AI mode output', () => {
     expect(readAiCensus(null)).toEqual([]);
   });
 });
+
+/*
+  2026-10-09: shapes from Avi's lists of 9 October (anonymised). A RSUH entry
+  numbered without a dot and marked KJS; an assessment block split into
+  "Diagnosis Utama" / "Diagnosis Sekunder"; a CVCU patient with no DPJP code
+  (the one the AI put into ARB's census).
+*/
+const RSUH_KJS = `*Assalamualaikum, dokter. Tabe dokter, izin mengirimkan List Pasien dan List Pemantauan RSUH Jumat, 09-10-2026 Jam 05.00 WITA*
+
+*Pasien Baru*
+1. ARB / 603 Lepa B Bed 3 / Tn. Contoh Uro/ 01-02-1962 / 63 Tahun/ RM 1930011
+============================
+*dr. ARB (2 pasien)*
+1. ARB / Katinting 502 Bed 3 / Tn. Contoh Dua/ 01-03-1974 / 52 Tahun/ RM 2000586
+Diagnosis:
+- NSTEMI High Risk
+
+2 KJS Uro / ARB / 603 Lepa B Bed 3 / Tn. Contoh Uro/ 01-02-1962 / 63 Tahun/ RM 1930011
+Diagnosis :
+- Chronic Coronary Syndrome Type 3
+- Hypertensive Heart Disease
+`;
+
+const LT5_SUBHEADINGS = `Tabe dokter izin mengirimkan List Pasien Lt. 5 dan Lt. 6  (9 oktober 2026)
+🫀Dr. AHN (1  Pasien)
+1.519 bed 1/Tn Contoh/ 01-04-1980 / 45 Tahun / RM 1700592/dr.AHN
+Mohon izin kami assess dengan:
+Diagnosis Utama : 
+- Ischemic Heart Disease 
+
+Diagnosis Sekunder:
+- Coronary Artery Disease 3 Vessel Disease
+- Heart failure reduced ejection fraction  
+
+Mohon izin kami terapi dengan:
+- Aspilet 80mg/24jam/oral
+`;
+
+const CVCU_NO_CODE = `Tabe dokter mohon izin mengirimkan
+LIST PASIEN CVCU/HCU/ICU PJT:
+Jumat, 09 Oktober 2026, Pukul 05.15 WITA
+
+12. CVCU Bed 12
+(BTKV) Contoh Btkv / 01-01-1959 / 67 tahun / RM 1700019/ ARB
+Diagnosis
+- NSTEMI High Risk
+
+18. CVCU Super VIP
+Ny. dr. Contoh Vip/ 01 Januari 1950/76 tahun/ RM 2500006
+Diagnosa:
+- Acute Pulmonary Oedema (perbaikan)
+`;
+
+describe('2026-10-09 list shapes', () => {
+  it('reads a numbered line without a dot, and keeps the full entry over the "Pasien Baru" one', async () => {
+    const { entriesFor: forCode } = await import('./maker');
+    const source = parseSource(RSUH_KJS);
+    const arb = forCode([source], 'ARB');
+    expect(arb).toHaveLength(2);
+    const uro = arb.find((entry) => entry.key === 'rm:1930011');
+    expect(uro?.asWritten).toBe('KJS Uro / ARB / 603 Lepa B Bed 3 / Tn. Contoh Uro/ 01-02-1962 / 63 Tahun/ RM 1930011');
+    expect(uro?.diagnoses).toEqual(['- Chronic Coronary Syndrome Type 3', '- Hypertensive Heart Disease']);
+  });
+
+  it('does not read a bare room number as a patient number', () => {
+    const source = parseSource('List Pasien PJT Lantai 4\n512 bed 2/Tn. Contoh/RM 1700002/dr.ARB\n');
+    expect(source.entries).toHaveLength(0);
+  });
+
+  it('reads "Diagnosis Utama" and "Diagnosis Sekunder" as one block', () => {
+    const [entry] = parseSource(LT5_SUBHEADINGS).entries;
+    expect(entry?.diagnoses).toEqual([
+      '- Ischemic Heart Disease',
+      '- Coronary Artery Disease 3 Vessel Disease',
+      '- Heart failure reduced ejection fraction',
+    ]);
+  });
+
+  it('leaves a CVCU patient without a DPJP code unassigned', () => {
+    const source = parseSource(CVCU_NO_CODE);
+    expect(entriesFor([source], 'ARB').map((entry) => entry.key)).toEqual(['rm:1700019']);
+    expect(unassigned([source]).map((entry) => entry.key)).toEqual(['rm:2500006']);
+  });
+});
+
+describe('KJS', () => {
+  it('reads the four ways the lists mark it', async () => {
+    const { kjsOf } = await import('./maker');
+    expect(kjsOf('KJS Uro / ARB / 603 Lepa B Bed 3 / Tn. X')).toBe('KJS Uro');
+    expect(kjsOf('ZD (KJS) / Lontara 1 Kamar 8 / Tn. X')).toBe('KJS');
+    expect(kjsOf('421 Bed 3/ZD/Contoh/RM 01700052- KJS BTKV')).toBe('KJS BTKV');
+    expect(kjsOf('CVCU Bed 12 (BTKV) Contoh / RM 1700019/ ARB')).toBe('KJS BTKV');
+    expect(kjsOf('ZD (UTAMA) / ICU IC Kamar 2 / Ny. X')).toBeNull();
+    expect(kjsOf('MZ/417 Bed 3/Ny. X')).toBeNull();
+  });
+
+  it('marks the census line unless it already says KJS', () => {
+    const census = buildCensus({
+      sources: [parseSource(CVCU_NO_CODE), parseSource(RSUH_KJS)],
+      code: 'ARB',
+      date: '2026-10-09',
+      address: 'dokter',
+    }).text;
+    expect(census).toContain('(BTKV) Contoh Btkv / 01-01-1959 / 67 tahun / RM 1700019/ ARB (KJS BTKV)');
+    expect(census).toContain('1. KJS Uro / ARB / 603 Lepa B');
+    expect(census).not.toContain('RM 1930011 (KJS');
+  });
+});
+
+describe('AI checked against the rules', () => {
+  it('asks the AI to confirm the rules and not to claim patients without a code', async () => {
+    const { sensusAiPrompt } = await import('./maker');
+    const sources = [parseSource(CVCU_NO_CODE)];
+    const prompt = sensusAiPrompt({
+      code: 'ARB',
+      texts: [CVCU_NO_CODE],
+      candidates: entriesFor(sources, 'ARB'),
+      noCode: unassigned(sources),
+    });
+    expect(prompt).toContain('[CVCU] RM 1700019');
+    expect(prompt).toMatch(/JANGAN dimasukkan[\s\S]*RM 2500006/);
+  });
+
+  it('reads RM and source line, and shows what only one side found, with why', async () => {
+    const { readAiPatients, checkAiCensus } = await import('./maker');
+    const sources = [parseSource(CVCU_NO_CODE), parseSource(RSUH_KJS)];
+    const rules = entriesFor(sources, 'ARB');
+    const ai = readAiPatients({
+      patients: [
+        // The one the AI invented an owner for:
+        { place: 'CVCU', rm: '2500006', source_line: 'Ny. dr. Contoh Vip/ 01 Januari 1950/76 tahun/ RM 2500006', dpjp_from: 'judul_bagian', identity: 'CVCU Super VIP / Ny. dr. Contoh Vip', diagnoses: ['- APO'] },
+        // Matched, but with no diagnosis:
+        { place: 'CVCU', rm: '01700019', source_line: '(BTKV) Contoh Btkv / RM 1700019/ ARB', dpjp_from: 'baris', kjs: 'KJS BTKV', identity: 'CVCU Bed 12/ (BTKV) Contoh Btkv', diagnoses: [] },
+        { place: 'RSUH', rm: '2000586', source_line: 'ARB / Katinting 502 Bed 3 / Tn. Contoh Dua', dpjp_from: 'baris', identity: 'ARB / Katinting 502 Bed 3 / Tn. Contoh Dua', diagnoses: ['- NSTEMI High Risk'] },
+        // Not in any pasted list:
+        { place: 'LT4', rm: '9999999', source_line: '', dpjp_from: 'baris', identity: '401/ARB/Tn. Hantu', diagnoses: [] },
+      ],
+    });
+    expect(ai[1]?.rm).toBe('1700019');
+
+    const check = checkAiCensus({ ai, rules, sources, texts: [CVCU_NO_CODE, RSUH_KJS] });
+    expect(check.matched).toBe(2);
+    expect(check.onlyAi.map((item) => [item.patient.rm, item.inLists, item.rules])).toEqual([
+      ['2500006', true, 'Aturan: tidak ada kode DPJP di barisnya'],
+      ['9999999', false, 'RM/baris ini tidak ada di list yang ditempel'],
+    ]);
+    expect(check.onlyRules.map((entry) => entry.key)).toEqual(['rm:1930011']);
+    expect(check.dxMissing.map(({ entry }) => entry.key)).toEqual(['rm:1700019']);
+  });
+});

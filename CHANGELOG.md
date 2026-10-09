@@ -5,6 +5,16 @@ Catatan teknis lengkap (akar masalah, perbaikan) ada di CHANGES.md.
 
 Entri teratas harus versi yang sedang dirilis; tes gagal bila belum ditulis.
 
+## `2026-10-09.3`
+- **Baris pintasan bagian yang terpotong kini bisa digeser dengan mouse.** Di catatan panjang (mis. sensus), pintasan bagian di bawah tanggal melebihi lebar layar, dan di PC sisanya tidak bisa dijangkau. Kini roda mouse menggeser baris itu ke samping, sisi yang masih ada isinya memudar, dan tombol ‹ › muncul di sisi tersebut. Berlaku juga untuk tab Helper dan saringan Tersimpan.
+- **Buat Sensus menandai pasien KJS.** Dibaca dari baris pasien: "KJS Uro", "(KJS)", "- KJS BTKV", atau "(BTKV)" di depan nama. Baris yang belum menyebut KJS diberi tanda di belakangnya, mis. "(KJS BTKV)". Jumlah pasien KJS tampil di atas hasil sensus.
+- **Diagnosis yang tadinya tidak terbaca:**
+  - pasien RSUH yang nomornya tanpa titik ("2 KJS Uro / ARB / …"). Sebelumnya yang terbaca hanya baris "Pasien Baru"-nya, sehingga diagnosisnya "-";
+  - blok yang dibagi "Diagnosis Utama :" dan "Diagnosis Sekunder:". Kini keduanya terbaca.
+- **Mode AI lebih bisa diandalkan:**
+  - AI kini menerima hasil Aturan sebagai daftar periksa, dan daftar pasien tanpa kode DPJP disertai larangan memasukkannya. Dari situlah pasien CVCU Super VIP sebelumnya keliru masuk ke sensus ARB: barisnya tidak memuat kode DPJP mana pun.
+  - Hasil AI dicek ulang dengan Aturan per pasien (berdasarkan RM): **Hanya AI**, **Hanya Aturan**, dan **Diagnosis kosong di AI**, masing-masing dengan alasannya. Satu ketukan memperbaiki hasil AI: **Buang**, **Tambahkan**, atau **Pakai diagnosis Aturan**.
+
 ## `2026-10-09.2`
 - **Buat Sensus: kotak list per tanggal.** Kotak list kini milik **tanggal sensus** yang dipilih. Tiap tanggal punya kotaknya sendiri, jadi list kemarin tidak tercampur dengan hari ini. Tanggal lain yang masih punya list tampil sebagai tombol di samping tanggal (mis. "08/10/2026 · 3 list"), dan bisa dibuka lagi. Tersimpan di perangkat ini 7 hari.
 - **Cari di tiap list.** Ikon kaca pembesar di tiap kotak: ketik nama, RM, atau kode DPJP. Baris yang cocok tampil di bawahnya, dan mengetuknya langsung menandai teks itu di kotak.

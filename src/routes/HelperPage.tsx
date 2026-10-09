@@ -5,6 +5,7 @@ import { useSearchParams } from 'react-router-dom';
 import { useGoUp } from '@/lib/useGoUp';
 
 import { AppShell } from '@/components/common/AppShell';
+import { ScrollStrip } from '@/components/common/ScrollStrip';
 import { IconBack, IconCopy } from '@/components/common/Icons';
 import { Button, Callout, ChipRow, ChoiceChip, Field, INPUT, Section, Segmented } from '@/components/common/ui';
 import { useJagaSync } from '@/hooks/useJagaSync';
@@ -137,11 +138,7 @@ export function HelperPage(): JSX.Element {
             Work in progress
           </span>
         </div>
-        <div
-          role="tablist"
-          aria-label="Fitur Helper"
-          className="flex overflow-x-auto border-b border-border [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
-        >
+        <ScrollStrip role="tablist" label="Fitur Helper" className="flex border-b border-border">
           {HELPER_TABS.map((entry) => (
             <button
               key={entry.id}
@@ -162,7 +159,7 @@ export function HelperPage(): JSX.Element {
               {entry.label}
             </button>
           ))}
-        </div>
+        </ScrollStrip>
         {/*
           Said once, above every Helper tab: each one turns pasted text into a
           message for a consultant or a group, and a parser — or the AI — can

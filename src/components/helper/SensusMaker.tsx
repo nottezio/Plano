@@ -18,9 +18,15 @@ import {
   dpjpCounts,
   dpjpFullName,
   formatCensus,
+  identityLine,
+  type AiCheck,
+  type CensusEntry,
   knownCodes,
   parseSource,
-  readAiCensus,
+  aiGroups,
+  checkAiCensus,
+  readAiPatients,
+  type AiPatient,
   sensusAiPrompt,
   sensusAiSystem,
   unassigned,
@@ -154,7 +160,29 @@ export function SensusMaker(): JSX.Element {
   /** What the AI result was computed from; a change makes it stale. */
   const aiKey = `${code}|${censusDate}|${state.address}|${state.style}|${filled.map((list) => list.text).join('\u0000')}`;
   const ai = code ? day.ai[code] : undefined;
-  const aiFresh = ai && ai.key === aiKey ? ai.text : null;
+  const aiCurrent = ai && ai.key === aiKey ? ai : null;
+  // Built from the stored patients when there are any, so a correction made
+  // from the check below shows at once; older results kept only the text.
+  const aiFresh = aiCurrent
+    ? aiCurrent.patients
+      ? formatCensus({ code, date: censusDate, address: state.address, groups: aiGroups(aiCurrent.patients), covers: covered })
+      : aiCurrent.text
+    : null;
+  const aiCheck = useMemo(
+    () =>
+      aiCurrent?.patients && rules
+        ? checkAiCensus({ ai: aiCurrent.patients, rules: rules.entries, sources, texts: filled.map((list) => list.text) })
+        : null,
+    // `filled` follows day.lists, which `sources` already tracks.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [aiCurrent, rules, sources],
+  );
+  /** Change the AI's patient list for this DPJP (the check's one-tap fixes). */
+  const editAi = (change: (patients: AiPatient[]) => AiPatient[]): void => {
+    if (!code || !aiCurrent?.patients) return;
+    const patients = change(aiCurrent.patients);
+    updateDay((current) => ({ ...current, ai: { ...current.ai, [code]: { ...aiCurrent, patients } } }));
+  };
   const usingAi = mode === 'ai' && aiOn;
   const shown = usingAi ? aiFresh : (rules?.text ?? null);
 
@@ -184,14 +212,20 @@ export function SensusMaker(): JSX.Element {
       const { input, truncated } = await askClaudeStructured({
         system: sensusAiSystem(),
         tool: SENSUS_AI_TOOL,
-        prompt: sensusAiPrompt({ code, texts: filled.map((list) => list.text), style: state.style }),
+        prompt: sensusAiPrompt({
+          code,
+          texts: filled.map((list) => list.text),
+          style: state.style,
+          candidates: rules?.entries ?? [],
+          noCode: missing,
+        }),
         maxTokens: 8000,
       });
-      const groups = readAiCensus(input);
+      const patients = readAiPatients(input);
       if (truncated) setAiErrorText('Jawaban AI terpotong; sebagian pasien mungkin hilang. Bandingkan dengan mode Aturan.');
-      const text = formatCensus({ code, date: censusDate, address: state.address, groups, covers: covered });
+      const text = formatCensus({ code, date: censusDate, address: state.address, groups: aiGroups(patients), covers: covered });
       // Kept with the day, so leaving the tab or reloading does not lose it.
-      updateDay((current) => ({ ...current, ai: { ...current.ai, [code]: { key: aiKey, text } } }));
+      updateDay((current) => ({ ...current, ai: { ...current.ai, [code]: { key: aiKey, text, patients } } }));
     } catch (error) {
       setAiErrorText(error instanceof AiError ? error.message : 'Gagal memanggil AI.');
     } finally {
@@ -200,6 +234,9 @@ export function SensusMaker(): JSX.Element {
   };
 
   const ruleCount = rules?.entries.length ?? 0;
+  const kjsCount = usingAi
+    ? (aiCurrent?.patients?.filter((patient) => patient.kjs).length ?? 0)
+    : (rules?.entries.filter((entry) => entry.kjs).length ?? 0);
 
   return (
     <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,28rem)] lg:items-start">
@@ -468,6 +505,30 @@ export function SensusMaker(): JSX.Element {
           </Callout>
         ) : null}
 
+        {usingAi && aiCheck ? (
+          <AiCheckPanel
+            check={aiCheck}
+            onRemove={(index) => editAi((patients) => patients.filter((_, i) => i !== index))}
+            onAdd={(entry) =>
+              editAi((patients) => [
+                ...patients,
+                {
+                  place: entry.place,
+                  identity: identityLine(entry, code, state.style),
+                  diagnoses: entry.diagnoses,
+                  rm: entry.key.startsWith('rm:') ? entry.key.slice(3) : '',
+                  sourceLine: entry.raw,
+                  dpjpFrom: entry.fromHeader ? 'judul_bagian' : 'baris',
+                  kjs: entry.kjs ?? '',
+                },
+              ])
+            }
+            onUseDx={(index, entry) =>
+              editAi((patients) => patients.map((p, i) => (i === index ? { ...p, diagnoses: entry.diagnoses } : p)))
+            }
+          />
+        ) : null}
+
         <div className="overflow-hidden rounded-xl border border-border bg-surface">
           <div className="flex items-center gap-2 border-b border-border px-3 py-1.5">
             <span className="min-w-0 flex-1">
@@ -475,7 +536,10 @@ export function SensusMaker(): JSX.Element {
                 Sensus {code ? dpjpFullName(code) : ''}
               </span>
               <span className="block truncate text-[10px] text-fg-faint">
-                {mode === 'ai' && aiOn ? 'Disusun AI' : `${ruleCount} pasien · disusun dengan aturan`}
+                {usingAi
+                  ? `Disusun AI${aiCurrent?.patients ? ` · ${aiCurrent.patients.length} pasien` : ''}`
+                  : `${ruleCount} pasien · disusun dengan aturan`}
+                {kjsCount > 0 ? ` · ${kjsCount} KJS` : ''}
               </span>
             </span>
             {/* The AI census is its own saved record ("ARB AI"), so saving it
@@ -590,6 +654,81 @@ function ListFind({
       {hits.length > shown.length ? (
         <p className="text-[10px] text-fg-faint">{hits.length - shown.length} lagi — persempit pencarian.</p>
       ) : null}
+    </div>
+  );
+}
+
+/**
+ * The AI census checked against the rules (`checkAiCensus`).
+ *
+ * Neither side is assumed right: the rules miss list shapes they have not
+ * seen, the AI can claim a patient nobody assigned. Each difference says what
+ * the other side made of that patient, and fixes the AI result in one tap —
+ * the message above is rebuilt from the corrected list.
+ */
+function AiCheckPanel({
+  check,
+  onRemove,
+  onAdd,
+  onUseDx,
+}: {
+  check: AiCheck;
+  onRemove: (index: number) => void;
+  onAdd: (entry: CensusEntry) => void;
+  onUseDx: (index: number, entry: CensusEntry) => void;
+}): JSX.Element {
+  const differences = check.onlyAi.length + check.onlyRules.length + check.dxMissing.length;
+  if (differences === 0) {
+    return (
+      <Callout tone="info" role="status" title={`Dicek dengan Aturan: ${check.matched} pasien cocok, tidak ada selisih.`}>
+        Tetap periksa diagnosisnya sebelum dikirim.
+      </Callout>
+    );
+  }
+  const row = 'flex items-start gap-2 border-t border-border py-1.5 first:border-t-0';
+  return (
+    <div role="alert" className="space-y-1 rounded-xl border border-[var(--warn-strong)] bg-[var(--warn-soft)] px-3 py-2 text-xs">
+      <p className="font-semibold">
+        Dicek dengan Aturan: {check.matched} cocok · {differences} selisih
+      </p>
+      <p className="text-[11px] text-fg-muted">
+        Belum tentu AI yang salah — Aturan juga bisa melewatkan format baru. Periksa list aslinya untuk tiap baris.
+      </p>
+      <ul>
+        {check.onlyAi.map(({ index, patient, rules, inLists }) => (
+          <li key={`ai-${index}`} className={row}>
+            <span className="min-w-0 flex-1">
+              <span className={`font-medium ${inLists ? '' : 'text-danger'}`}>Hanya AI</span> · {patient.identity}
+              <span className="block text-[11px] text-fg-muted">{rules}</span>
+            </span>
+            <Button size="sm" variant="ghost" onClick={() => onRemove(index)}>
+              Buang
+            </Button>
+          </li>
+        ))}
+        {check.onlyRules.map((entry) => (
+          <li key={`rules-${entry.key}`} className={row}>
+            <span className="min-w-0 flex-1">
+              <span className="font-medium">Hanya Aturan</span> · {entry.asWritten}
+              <span className="block text-[11px] text-fg-muted">AI tidak memasukkan pasien ini.</span>
+            </span>
+            <Button size="sm" variant="ghost" onClick={() => onAdd(entry)}>
+              Tambahkan
+            </Button>
+          </li>
+        ))}
+        {check.dxMissing.map(({ index, entry }) => (
+          <li key={`dx-${index}`} className={row}>
+            <span className="min-w-0 flex-1">
+              <span className="font-medium">Diagnosis kosong di AI</span> · {entry.asWritten}
+              <span className="block text-[11px] text-fg-muted">Aturan membaca {entry.diagnoses.length} diagnosis.</span>
+            </span>
+            <Button size="sm" variant="ghost" onClick={() => onUseDx(index, entry)}>
+              Pakai diagnosis Aturan
+            </Button>
+          </li>
+        ))}
+      </ul>
     </div>
   );
 }

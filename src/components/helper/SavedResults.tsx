@@ -1,6 +1,7 @@
 import { useState } from 'react';
 
 import { Button, Callout, ChoiceChip, INPUT } from '@/components/common/ui';
+import { ScrollStrip } from '@/components/common/ScrollStrip';
 import { IconCheck, IconCopy, IconTrash } from '@/components/common/Icons';
 import { deleteHelperResult, editHelperResult, restoreHelperResult } from '@/data/repositories/helperResults.repo';
 import { formatLongDate } from '@/domain/clinicalDate';
@@ -73,7 +74,10 @@ export function SavedResults(): JSX.Element {
         />
         {/* One scrolling row on a phone: five chips wrapped onto three rows
             and pushed the list below the fold. */}
-        <div className="-mx-4 flex gap-1.5 overflow-x-auto px-4 [scrollbar-width:none] sm:mx-0 sm:flex-wrap sm:px-0 [&::-webkit-scrollbar]:hidden [&>*]:shrink-0 [&>*]:whitespace-nowrap">
+        <ScrollStrip
+          outerClassName="-mx-4 sm:mx-0"
+          className="flex gap-1.5 px-4 sm:flex-wrap sm:px-0 [&>*]:shrink-0 [&>*]:whitespace-nowrap"
+        >
           <ChoiceChip active={group === null} onClick={() => setGroup(null)}>
             Semua · {live.length}
           </ChoiceChip>
@@ -85,7 +89,7 @@ export function SavedResults(): JSX.Element {
               </ChoiceChip>
             );
           })}
-        </div>
+        </ScrollStrip>
       </div>
 
       {undoable.map((result) => (

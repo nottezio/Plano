@@ -1,6 +1,6 @@
 import { addDays } from '@/domain/clinicalDate';
 import type { ClinicalDate } from '@/domain/types';
-import type { CensusAddress, IdentityStyle, SourceKind } from './maker';
+import { PLACE_ORDER, type AiPatient, type CensusAddress, type IdentityStyle, type SourceKind } from './maker';
 
 /**
  * Buat Sensus, on this device: the pasted lists PER DAY, and the AI result.
@@ -36,7 +36,13 @@ export interface SensusList {
 export interface SensusAiResult {
   /** What it was computed from (`aiKey` in SensusMaker); a change makes it stale. */
   key: string;
+  /** The message as first built. Shown only when `patients` is absent (stored by 09.2). */
   text: string;
+  /**
+   * The patients the AI returned, as corrected since ("Buang", "Tambahkan",
+   * "Pakai diagnosis Aturan"). The message is built from these.
+   */
+  patients?: AiPatient[];
 }
 
 export interface SensusDay {
@@ -76,12 +82,30 @@ function readLists(value: unknown): SensusList[] {
     .map((list) => ({ text: list.text as string, kind: (typeof list.kind === 'string' ? list.kind : 'auto') as SensusList['kind'] }));
 }
 
+function readStoredPatients(value: unknown): AiPatient[] | undefined {
+  if (!Array.isArray(value)) return undefined;
+  const str = (v: unknown): string => (typeof v === 'string' ? v : '');
+  return value
+    .filter((item): item is Record<string, unknown> => isRecord(item))
+    .map((item) => ({
+      place: PLACE_ORDER.find((place) => place === item.place) ?? 'PJT',
+      identity: str(item.identity),
+      diagnoses: Array.isArray(item.diagnoses) ? item.diagnoses.filter((d): d is string => typeof d === 'string') : [],
+      rm: str(item.rm),
+      sourceLine: str(item.sourceLine),
+      dpjpFrom: str(item.dpjpFrom),
+      kjs: str(item.kjs),
+    }))
+    .filter((patient) => patient.identity.trim() !== '');
+}
+
 function readAi(value: unknown): Record<string, SensusAiResult> {
   if (!isRecord(value)) return {};
   const out: Record<string, SensusAiResult> = {};
   for (const [code, entry] of Object.entries(value)) {
     if (isRecord(entry) && typeof entry.key === 'string' && typeof entry.text === 'string') {
-      out[code] = { key: entry.key, text: entry.text };
+      const patients = readStoredPatients(entry.patients);
+      out[code] = { key: entry.key, text: entry.text, ...(patients ? { patients } : {}) };
     }
   }
   return out;
