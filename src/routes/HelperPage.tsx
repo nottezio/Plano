@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { DateField } from '@/components/common/DateField';
+import { formatDmy } from '@/domain/dateDmy';
 import { useSearchParams } from 'react-router-dom';
 import { useGoUp } from '@/lib/useGoUp';
 
@@ -40,6 +41,8 @@ import { parseDpjpRoster } from '@/domain/jaga/parseDpjp';
 import { parseJagaRoster } from '@/domain/jaga/parseRoster';
 import { parseJarkom } from '@/domain/jaga/parseJarkom';
 import { parsePediatri, pediatriFor } from '@/domain/jaga/parsePediatri';
+import { parsePediatriText } from '@/domain/jaga/parsePediatriText';
+import { PARSER_VERSION } from '@/domain/jaga/reparse';
 import {
   readConfirmed,
   readDpjp,
@@ -417,6 +420,32 @@ function KonfirmasiJaga(): JSX.Element {
 
   const [formasiCopied, setFormasiCopied] = useState(false);
 
+  /**
+   * The Pediatri roster pasted as text (the WhatsApp message), not a PDF.
+   * Same rule as a PDF: only a later schedule replaces the stored one.
+   * Stamped with the current parser version so it is not mistaken for a
+   * legacy import; there are no PDF items to keep, and none are needed.
+   */
+  const applyPediatriText = (text: string): boolean => {
+    setError(null);
+    const { roster: read } = parsePediatriText(text, date);
+    if (read.shifts.length === 0) {
+      setError('Tidak ada baris jaga pediatri terbaca dari teks itu.');
+      return false;
+    }
+    const parsed = { ...read, source: { fileName: 'Teks WhatsApp' }, parser: PARSER_VERSION.pediatri };
+    const refusal = refuseOlder('pediatri', parsed, pediatri);
+    if (refusal) {
+      setError(
+        `Jadwal ini lebih lama dari yang tersimpan, jadi tidak dipakai. Teks: ${refusal.incoming}. Tersimpan: ${refusal.stored}.`,
+      );
+      return false;
+    }
+    writePediatri(parsed);
+    setPediatri(parsed);
+    return true;
+  };
+
   async function importPdf(
     file: File,
     kind: 'roster' | 'dpjp' | 'jarkom' | 'pediatri',
@@ -713,8 +742,9 @@ function KonfirmasiJaga(): JSX.Element {
             onFile={(file) => void importPdf(file, 'jarkom')}
           />
         </div>
+        <PediatriPaste viewed={date} onUse={applyPediatriText} />
         {error ? (
-          <Callout tone="danger" role="alert" title="PDF tidak dipakai">
+          <Callout tone="danger" role="alert" title="Jadwal tidak dipakai">
             {error}
           </Callout>
         ) : null}
@@ -1251,6 +1281,101 @@ function JarkomLinkControl({
  * The whole tile is the file picker, and a PDF can be dropped on it, because
  * on a laptop the file is usually already in a Downloads window.
  */
+/**
+ * Jadwal Jaga Pediatri from the WhatsApp message (2026-10-09).
+ *
+ * The roster often arrives only as a chat message, never as a PDF, and the
+ * tile above accepts PDFs. Pasted text is read by `parsePediatriText` and
+ * shown before it is used: who is pagi/malam and who is the BTKV partner are
+ * read from punctuation ("&", " - "), and that is exactly what to check.
+ */
+function PediatriPaste({
+  viewed,
+  onUse,
+}: {
+  viewed: string;
+  onUse: (text: string) => boolean;
+}): JSX.Element {
+  const [open, setOpen] = useState(false);
+  const [text, setText] = useState('');
+  const read = useMemo(() => (text.trim() ? parsePediatriText(text, viewed) : null), [text, viewed]);
+
+  if (!open) {
+    return (
+      <Button size="sm" variant="ghost" onClick={() => setOpen(true)}>
+        Tempel Jadwal Pediatri dari WhatsApp
+      </Button>
+    );
+  }
+
+  const shifts = read?.roster.shifts ?? [];
+  return (
+    <div className="space-y-2 rounded-xl border border-border bg-surface p-3">
+      <div className="flex items-center gap-2">
+        <p className="flex-1 text-xs font-semibold">Jadwal Jaga Pediatri dari teks</p>
+        <Button size="sm" variant="ghost" onClick={() => setOpen(false)}>
+          Tutup
+        </Button>
+      </div>
+      <textarea
+        value={text}
+        onChange={(event) => setText(event.target.value)}
+        rows={5}
+        spellCheck={false}
+        aria-label="Teks jadwal pediatri"
+        placeholder={'Tempel pesannya, mis.\n* Jumat, 09 Oktober: dr. …\n* Minggu, 11 Oktober: dr. … & dr. …'}
+        className="block w-full resize-y rounded-lg border border-border bg-bg-subtle px-3 py-2 font-mono text-xs leading-relaxed outline-none focus:border-accent"
+      />
+      <p className="text-[11px] leading-relaxed text-fg-faint">
+        “&amp;” = dua shift (pagi lalu malam). “A - B” = A PPDS BTKV yang jaga bersama B. Tahun diambil dari nama
+        harinya.
+      </p>
+      {read && read.weekdayMismatch.length > 0 ? (
+        <Callout tone="warn" title="Nama hari tidak cocok dengan tanggalnya">
+          {read.weekdayMismatch.join(' · ')}
+        </Callout>
+      ) : null}
+      {read && read.skipped.length > 0 ? (
+        <Callout tone="warn" title={`${read.skipped.length} baris tidak terbaca`}>
+          {read.skipped.join(' · ')}
+        </Callout>
+      ) : null}
+      {shifts.length > 0 ? (
+        <ul className="max-h-56 overflow-auto rounded-lg border border-border text-[11px]">
+          {shifts.map((entry, index) => (
+            <li
+              key={`${entry.date}:${entry.shift}:${index}`}
+              className="flex gap-2 border-b border-border px-2 py-1 last:border-b-0"
+            >
+              <span className="w-24 shrink-0 tabular-nums text-fg-muted">{formatDmy(entry.date)}</span>
+              <span className="w-12 shrink-0 text-fg-faint">{entry.shift === 'penuh' ? '' : entry.shift}</span>
+              <span className="min-w-0 flex-1 truncate">
+                {entry.name}
+                {entry.btkv ? <span className="text-fg-muted"> · BTKV {entry.btkv}</span> : null}
+              </span>
+            </li>
+          ))}
+        </ul>
+      ) : null}
+      <div className="flex justify-end">
+        <Button
+          size="sm"
+          variant="primary"
+          disabled={shifts.length === 0}
+          onClick={() => {
+            if (onUse(text)) {
+              setText('');
+              setOpen(false);
+            }
+          }}
+        >
+          {shifts.length > 0 ? `Pakai jadwal ini (${shifts.length} shift)` : 'Pakai jadwal ini'}
+        </Button>
+      </div>
+    </div>
+  );
+}
+
 function ScheduleTile({
   label,
   cadence,

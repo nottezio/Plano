@@ -5,6 +5,12 @@ Catatan teknis lengkap (akar masalah, perbaikan) ada di CHANGES.md.
 
 Entri teratas harus versi yang sedang dirilis; tes gagal bila belum ditulis.
 
+## `2026-10-09.2`
+- **Buat Sensus: kotak list per tanggal.** Kotak list kini milik **tanggal sensus** yang dipilih. Tiap tanggal punya kotaknya sendiri, jadi list kemarin tidak tercampur dengan hari ini. Tanggal lain yang masih punya list tampil sebagai tombol di samping tanggal (mis. "08/10/2026 · 3 list"), dan bisa dibuka lagi. Tersimpan di perangkat ini 7 hari.
+- **Cari di tiap list.** Ikon kaca pembesar di tiap kotak: ketik nama, RM, atau kode DPJP. Baris yang cocok tampil di bawahnya, dan mengetuknya langsung menandai teks itu di kotak.
+- **Hasil AI tidak hilang lagi.** Sensus yang disusun AI disimpan bersama tanggalnya, jadi tetap ada setelah pindah tab atau memuat ulang. **Simpan** menyimpannya ke akun sebagai simpanan tersendiri ("… (AI)"), terpisah dari versi Aturan.
+- **Jadwal Jaga Pediatri dari WhatsApp.** Di Konfirmasi Jaga, "Tempel Jadwal Pediatri dari WhatsApp": tempel pesannya, periksa daftar hasil bacaannya, lalu **Pakai jadwal ini**. "&" dibaca sebagai dua shift (pagi lalu malam), "A - B" sebagai A (PPDS BTKV) jaga bersama B. Tahun ditentukan dari nama harinya.
+
 ## `2026-10-09.1`
 - **Hasil Helper bisa disimpan ke akun.** Tombol **Simpan** kini ada di samping **Salin** pada sensus (Buat Sensus), Formasi Jaga, keempat pesan Morning Report, dan laporan Verifikasi List. Yang disimpan tersinkron ke semua perangkat: sensus yang dibuat di HP pagi hari bisa dibuka lagi di PC.
 - **Tab baru: Tersimpan.** Semua hasil yang disimpan, dikelompokkan per tanggal. Bisa dicari (judul, nama pasien, RM), disaring per fitur, disalin, diubah, dan dihapus (dengan **Undo**).

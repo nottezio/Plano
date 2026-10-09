@@ -1,5 +1,87 @@
 # Plano — CHANGES
 
+## `2026-10-09.2` — Sensus lists per day, find in each list, AI result kept; Pediatri roster from WhatsApp text
+
+### 1. Sensus boxes per day (Avi: "the sensus is made each day, so the box should be for that day only")
+**Root cause.** v1 storage (`plano.sensus.v1`) held ONE set of lists, tagged
+with the clinical date it was saved on and emptied when that date changed.
+The boxes therefore belonged to the device's notion of today, not to the
+census being made. The tanggal sensus field changed only the header text, so
+a census for another date was built from whatever lists were in the boxes,
+and a day's lists were gone the moment the date rolled over.
+
+**Fix.** `domain/census/makerStore.ts` (v2, `plano.sensus.v2`):
+`days[date] = { lists, ai }`. The tanggal sensus now selects the boxes, and
+the date field moved to the top of step 1. Every write goes through
+`withDay` for the selected date only, so a paste can never land in another
+day's boxes. Days with content stay 7 days; empty days are not stored. v1 is
+migrated once onto the date it was saved for, then removed. Chips beside the
+date list the other stored days ("08/10/2026 · 3 list"); "Hari ini" returns.
+Still device-only (whole-hospital lists).
+
+### 2. Find in each list (Avi)
+A search toggle per box (`ListFind`). Matches are case-insensitive
+(`findAll`), shown as the lines they are on (`lineAt`, up to 30), and a tap
+selects the match in the textarea and scrolls to it (approximate on wrapped
+lines; the match lands a third of the way down). One find bar at a time,
+closed on day change. Listing lines rather than only jumping keeps it usable
+on a phone without the keyboard covering the paste.
+
+### 3. AI result kept and savable (Avi: "the AI result should be saved too")
+**Root cause.** The AI census lived in `useState`. Helper renders only the
+open tab, so opening Tersimpan (to look at what was saved), any other tab,
+or a reload unmounted the component and discarded a result that cost an API
+call. Saving it from the tool also used the same record id as the rules
+census, so one overwrote the other.
+
+**Fix.** The AI result is stored in the day (`day.ai[code] = {key, text}`).
+It shows again while `key` (DPJP, date, sapaan, style, lists) still matches,
+with a "susun ulang" note when it doesn't. Mode (Aturan/AI) persists. Simpan
+in AI mode files `subject = "<code> AI"`, title "Sensus … (AI)", as its own
+record beside the rules version.
+
+### 4. Pediatri roster from WhatsApp text (Avi sent the message)
+The roster tile accepted PDFs only; the roster often exists only as a chat
+message. `domain/jaga/parsePediatriText.ts` reads it:
+- `&` (or `,`/`dan`) = shift break, pagi then malam (the PDF's comma);
+- `A - B` = A is the PPDS BTKV with B (the PDF's `(A) - B`); bracket form
+  also accepted;
+- `dr.`/`dr` prefixes, bullets and `*` stripped; names capitalised;
+- no year in the message, so it is the year (±1 around the viewed date)
+  in which that date falls on the stated weekday. A mismatch is reported and
+  the nearest year used.
+
+Avi's message: 38 lines → 44 shifts, 0 skipped, 0 weekday mismatches.
+**Assumption:** the first name in "A - B" (one name recurs in this
+position on six dates) is the BTKV partner, by analogy with the sheet. The
+preview shows "· BTKV <name>" so it can be checked before use.
+
+UI: "Tempel Jadwal Pediatri dari WhatsApp" under the schedule tiles opens
+a textarea, a live preview (dd/mm/yyyy, shift, name, BTKV), warnings for
+unreadable lines and weekday mismatches, and "Pakai jadwal ini (n shift)".
+Same newest-wins guard as a PDF (`refuseOlder`). Stamped with the current
+`PARSER_VERSION` and `source.fileName = 'Teks WhatsApp'`, so it is not
+flagged as a legacy import (there are no PDF items to keep). The import
+error callout now reads "Jadwal tidak dipakai" (it covers text too).
+
+### Wrong turns
+- The find input and its toggle shared one aria-label; Playwright's strict
+  mode caught it. The input is now "Teks yang dicari di list n".
+
+### Not done
+- Sensus lists still don't sync between devices (by design so far). Only
+  the saved result does.
+- The AI path was not run in the harness (no API). Persistence is covered by
+  the store tests, and the save path is the same button as rules.
+- A pasted Pediatri roster replaces the stored one wholesale (like a PDF).
+  Days before the message's first date are dropped.
+
+```
+npm run verify
+  typecheck ✓  lint ✓ (0 warnings)  test ✓ 2076 passed (142 files)
+  check:version ✓  check:contrast ✓  check:a11y ✓  build ✓
+```
+
 ## `2026-10-09.1` — Saved Helper results, synced to the account
 
 ### Root cause (Avi: "the helper felt like a temporary program")

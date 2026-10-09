@@ -1,8 +1,8 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 
 import { DateField } from '@/components/common/DateField';
 import { DPJPS } from '@/domain/dpjp';
-import { IconCheck, IconCopy, IconPlus, IconSparkle, IconTrash } from '@/components/common/Icons';
+import { IconCheck, IconCopy, IconPlus, IconSearch, IconSparkle, IconTrash } from '@/components/common/Icons';
 import { Button, Callout, ChipRow, ChoiceChip, Field, Section, Segmented } from '@/components/common/ui';
 import { updateSettings } from '@/data/repositories/settings.repo';
 import { useSession } from '@/store/useSession';
@@ -11,7 +11,6 @@ import {
   PLACE_ORDER,
   coveredPlaces,
   entriesFor,
-  type IdentityStyle,
   type Place,
   SENSUS_AI_TOOL,
   SOURCE_LABEL,
@@ -25,13 +24,28 @@ import {
   sensusAiPrompt,
   sensusAiSystem,
   unassigned,
-  type CensusAddress,
   type ParsedSource,
   type SourceKind,
 } from '@/domain/census/maker';
+import {
+  SENSUS_STORE_KEY,
+  SENSUS_STORE_V1_KEY,
+  dayOf,
+  emptyDay,
+  emptyStore,
+  findAll,
+  lineAt,
+  readSensusStore,
+  storedDays,
+  withDay,
+  type SensusDay,
+  type SensusList,
+  type SensusStore,
+} from '@/domain/census/makerStore';
 import { useClinicalToday } from '@/hooks/useClinicalToday';
 import { AiError, aiEnabled, askClaudeStructured } from '@/lib/ai';
 import { copyText } from '@/lib/clipboard';
+import { formatDmy } from '@/domain/dateDmy';
 import { SaveResultButton } from './SaveResult';
 
 /**
@@ -39,49 +53,30 @@ import { SaveResultButton } from './SaveResult';
  *
  * The lists stay on THIS DEVICE (localStorage), never in the synced profile:
  * they hold every patient in the hospital, a few tens of KB each, and they
- * are worth a day. Kept so a reload or a trip to WhatsApp mid-paste loses
- * nothing; dropped once their date has passed.
+ * are worth a day or two. Kept per tanggal sensus (`domain/census/makerStore`),
+ * so a reload or a trip to WhatsApp mid-paste loses nothing and each day has
+ * its own boxes; dropped after a week.
  *
  * The finished census is what goes to the account: Simpan files it under
  * Tersimpan (`domain/helperResults`), synced to every device.
  */
 
-const STORE = 'plano.sensus.v1';
-
-interface Stored {
-  date: string;
-  lists: Array<{ text: string; kind: SourceKind | 'auto' }>;
-  code: string;
-  address: CensusAddress;
-  style: IdentityStyle;
-}
-
-function load(today: string): Stored {
-  const empty: Stored = { date: today, lists: [{ text: '', kind: 'auto' }], code: '', address: 'dokter', style: 'asis' };
+function loadStore(today: string): SensusStore {
   try {
-    const raw = localStorage.getItem(STORE);
-    if (!raw) return empty;
-    const parsed = JSON.parse(raw) as Partial<Stored>;
-    // Yesterday's lists describe yesterday's patients; start clean.
-    if (parsed.date !== today || !Array.isArray(parsed.lists)) return empty;
-    const lists = parsed.lists
-      .filter((list) => list && typeof list.text === 'string')
-      .map((list) => ({ text: list.text, kind: list.kind ?? 'auto' }));
-    return {
-      date: today,
-      lists: lists.length > 0 ? lists : empty.lists,
-      code: typeof parsed.code === 'string' ? parsed.code : '',
-      address: parsed.address === 'prof' ? 'prof' : 'dokter',
-      style: parsed.style === 'front' ? 'front' : 'asis',
-    };
+    return readSensusStore(
+      localStorage.getItem(SENSUS_STORE_KEY),
+      localStorage.getItem(SENSUS_STORE_V1_KEY),
+      today,
+    );
   } catch {
-    return empty;
+    return emptyStore();
   }
 }
 
-function save(state: Stored): void {
+function saveStore(store: SensusStore): void {
   try {
-    localStorage.setItem(STORE, JSON.stringify(state));
+    localStorage.setItem(SENSUS_STORE_KEY, JSON.stringify(store));
+    localStorage.removeItem(SENSUS_STORE_V1_KEY);
   } catch {
     // Private mode or full storage: the page still works, it just forgets.
   }
@@ -98,10 +93,13 @@ const KIND_OPTIONS: ReadonlyArray<readonly [SourceKind | 'auto', string]> = [
 
 export function SensusMaker(): JSX.Element {
   const today = useClinicalToday();
-  const [state, setState] = useState<Stored>(() => load(today));
+  const [store, setStore] = useState<SensusStore>(() => loadStore(today));
+  // The boxes shown are this date's: each tanggal sensus has its own lists.
   const [censusDate, setCensusDate] = useState(today);
-  const [mode, setMode] = useState<'aturan' | 'ai'>('aturan');
-  const [ai, setAi] = useState<{ key: string; text: string } | null>(null);
+  const day = dayOf(store, censusDate);
+  const state = { ...store, lists: day.lists };
+  const mode = store.mode;
+  const setMode = (next: 'aturan' | 'ai'): void => setStore((current) => ({ ...current, mode: next }));
   const [aiRunning, setAiRunning] = useState(false);
   const [aiErrorText, setAiErrorText] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
@@ -113,7 +111,7 @@ export function SensusMaker(): JSX.Element {
     if (uid) void updateSettings(uid, { sensusDpjps: next });
   };
 
-  useEffect(() => save(state), [state]);
+  useEffect(() => saveStore(store), [store]);
 
   const filled = state.lists.filter((list) => list.text.trim());
   const sources: ParsedSource[] = useMemo(() => {
@@ -123,7 +121,7 @@ export function SensusMaker(): JSX.Element {
     return filled.map((list, index) => parseSource(list.text, known, kinds[index]));
     // `filled` is derived from state.lists on every render.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [state.lists]);
+  }, [day.lists]);
 
   const allCounts = useMemo(() => dpjpCounts(sources), [sources]);
   /**
@@ -155,15 +153,28 @@ export function SensusMaker(): JSX.Element {
 
   /** What the AI result was computed from; a change makes it stale. */
   const aiKey = `${code}|${censusDate}|${state.address}|${state.style}|${filled.map((list) => list.text).join('\u0000')}`;
+  const ai = code ? day.ai[code] : undefined;
   const aiFresh = ai && ai.key === aiKey ? ai.text : null;
-  const shown = mode === 'ai' && aiOn ? aiFresh : (rules?.text ?? null);
+  const usingAi = mode === 'ai' && aiOn;
+  const shown = usingAi ? aiFresh : (rules?.text ?? null);
 
-  const update = (patch: Partial<Stored>): void => setState((current) => ({ ...current, ...patch }));
-  const setList = (index: number, patch: Partial<Stored['lists'][number]>): void =>
-    setState((current) => ({
-      ...current,
-      lists: current.lists.map((list, i) => (i === index ? { ...list, ...patch } : list)),
-    }));
+  const update = (patch: Partial<Pick<SensusStore, 'code' | 'address' | 'style'>>): void =>
+    setStore((current) => ({ ...current, ...patch }));
+  /** Change this date's boxes (and nothing of any other date's). */
+  const updateDay = (change: (current: SensusDay) => SensusDay): void =>
+    setStore((current) => withDay(current, censusDate, change(dayOf(current, censusDate))));
+  const setLists = (change: (lists: SensusList[]) => SensusList[]): void =>
+    updateDay((current) => {
+      const lists = change(current.lists);
+      return { ...current, lists: lists.length > 0 ? lists : emptyDay().lists };
+    });
+  const setList = (index: number, patch: Partial<SensusList>): void =>
+    setLists((lists) => lists.map((list, i) => (i === index ? { ...list, ...patch } : list)));
+  const otherDays = storedDays(store).filter((entry) => entry.date !== censusDate);
+  const areas = useRef(new Map<number, HTMLTextAreaElement>());
+  // Which box's find bar is open (one at a time; reset when the day changes).
+  const [findIn, setFindIn] = useState<number | null>(null);
+  useEffect(() => setFindIn(null), [censusDate]);
 
   const runAi = async (): Promise<void> => {
     if (!code || filled.length === 0) return;
@@ -178,7 +189,9 @@ export function SensusMaker(): JSX.Element {
       });
       const groups = readAiCensus(input);
       if (truncated) setAiErrorText('Jawaban AI terpotong; sebagian pasien mungkin hilang. Bandingkan dengan mode Aturan.');
-      setAi({ key: aiKey, text: formatCensus({ code, date: censusDate, address: state.address, groups, covers: covered }) });
+      const text = formatCensus({ code, date: censusDate, address: state.address, groups, covers: covered });
+      // Kept with the day, so leaving the tab or reloading does not lose it.
+      updateDay((current) => ({ ...current, ai: { ...current.ai, [code]: { key: aiKey, text } } }));
     } catch (error) {
       setAiErrorText(error instanceof AiError ? error.message : 'Gagal memanggil AI.');
     } finally {
@@ -193,8 +206,24 @@ export function SensusMaker(): JSX.Element {
       <div className="min-w-0 space-y-6">
         <Section
           title="1 · Tempel list ruangan"
-          hint="Satu kotak per pesan: PJT Lantai 4, Lantai 5 dan 6, CVCU/HCU/ICU, RSWS, RSUH — tempel apa adanya. Jenis list dikenali dari judulnya. Tersimpan di perangkat ini saja, dan dikosongkan besok."
+          hint="Satu kotak per pesan: PJT Lantai 4, Lantai 5 dan 6, CVCU/HCU/ICU, RSWS, RSUH — tempel apa adanya. Jenis list dikenali dari judulnya. Kotak-kotak ini milik tanggal sensus di atas: tiap tanggal punya kotaknya sendiri. Tersimpan di perangkat ini saja, 7 hari."
         >
+          <div className="flex flex-wrap items-end gap-2">
+            <Field label="Tanggal sensus">
+              <DateField value={censusDate} onChange={setCensusDate} className="w-40" />
+            </Field>
+            {censusDate !== today ? (
+              <Button size="sm" variant="ghost" onClick={() => setCensusDate(today)}>
+                Hari ini
+              </Button>
+            ) : null}
+            {/* Other days that still have lists on this device. */}
+            {otherDays.map((entry) => (
+              <ChoiceChip key={entry.date} active={false} onClick={() => setCensusDate(entry.date)}>
+                {formatDmy(entry.date)} · {entry.lists} list
+              </ChoiceChip>
+            ))}
+          </div>
           <div className="space-y-3">
             {state.lists.map((list, index) => {
               const parsed = list.text.trim() ? sources[filled.indexOf(list)] : undefined;
@@ -210,6 +239,17 @@ export function SensusMaker(): JSX.Element {
                         </span>
                       ) : null}
                     </span>
+                    {list.text.trim() ? (
+                      <button
+                        type="button"
+                        aria-label={`Cari di list ${index + 1}`}
+                        aria-pressed={findIn === index}
+                        onClick={() => setFindIn(findIn === index ? null : index)}
+                        className={`flex min-h-tap min-w-tap items-center justify-center rounded-lg hover:bg-bg-subtle [@media(pointer:fine)]:min-h-8 ${findIn === index ? 'text-accent' : 'text-fg-faint'}`}
+                      >
+                        <IconSearch className="h-4 w-4" />
+                      </button>
+                    ) : null}
                     <select
                       aria-label={`Jenis list ${index + 1}`}
                       value={list.kind}
@@ -225,12 +265,7 @@ export function SensusMaker(): JSX.Element {
                     <button
                       type="button"
                       aria-label={`Hapus list ${index + 1}`}
-                      onClick={() =>
-                        setState((current) => {
-                          const lists = current.lists.filter((_, i) => i !== index);
-                          return { ...current, lists: lists.length > 0 ? lists : [{ text: '', kind: 'auto' }] };
-                        })
-                      }
+                      onClick={() => setLists((lists) => lists.filter((_, i) => i !== index))}
                       className="flex min-h-tap min-w-tap items-center justify-center rounded-lg text-fg-faint hover:bg-[var(--danger-soft)] hover:text-danger [@media(pointer:fine)]:min-h-8"
                     >
                       <IconTrash className="h-4 w-4" />
@@ -241,7 +276,19 @@ export function SensusMaker(): JSX.Element {
                       Jenis list tidak dikenali dari judulnya — pilih di kanan atas.
                     </p>
                   ) : null}
+                  {findIn === index && list.text.trim() ? (
+                    <ListFind
+                      text={list.text}
+                      area={() => areas.current.get(index) ?? null}
+                      label={`list ${index + 1}`}
+                      onClose={() => setFindIn(null)}
+                    />
+                  ) : null}
                   <textarea
+                    ref={(node) => {
+                      if (node) areas.current.set(index, node);
+                      else areas.current.delete(index);
+                    }}
                     value={list.text}
                     onChange={(event) => setList(index, { text: event.target.value })}
                     rows={list.text ? 6 : 3}
@@ -258,7 +305,7 @@ export function SensusMaker(): JSX.Element {
             <Button
               size="sm"
               icon={<IconPlus className="h-4 w-4" />}
-              onClick={() => setState((current) => ({ ...current, lists: [...current.lists, { text: '', kind: 'auto' }] }))}
+              onClick={() => setLists((lists) => [...lists, { text: '', kind: 'auto' }])}
             >
               List lain
             </Button>
@@ -335,9 +382,6 @@ export function SensusMaker(): JSX.Element {
             </p>
           ) : null}
           <div className="flex flex-wrap items-end gap-3">
-            <Field label="Tanggal sensus">
-              <DateField value={censusDate} onChange={setCensusDate} className="w-40" />
-            </Field>
             <Field label="Sapaan">
               <Segmented
                 label="Sapaan"
@@ -416,7 +460,7 @@ export function SensusMaker(): JSX.Element {
                 disabled={aiRunning || !code || filled.length === 0}
                 onClick={() => void runAi()}
               >
-                {aiRunning ? 'Menyusun…' : aiFresh ? 'Susun ulang' : 'Susun dengan AI'}
+                {aiRunning ? 'Menyusun…' : ai ? 'Susun ulang' : 'Susun dengan AI'}
               </Button>
             }
           >
@@ -434,11 +478,13 @@ export function SensusMaker(): JSX.Element {
                 {mode === 'ai' && aiOn ? 'Disusun AI' : `${ruleCount} pasien · disusun dengan aturan`}
               </span>
             </span>
+            {/* The AI census is its own saved record ("ARB AI"), so saving it
+                never overwrites the rules version, and both can be compared. */}
             <SaveResultButton
               kind="sensus"
               forDate={censusDate}
-              subject={code}
-              title={`Sensus ${code ? dpjpFullName(code) : ''}`.trim()}
+              subject={usingAi ? `${code} AI` : code}
+              title={`Sensus ${code ? dpjpFullName(code) : ''}${usingAi ? ' (AI)' : ''}`.trim()}
               text={shown ?? ''}
               disabled={!shown || !code}
             />
@@ -460,12 +506,90 @@ export function SensusMaker(): JSX.Element {
           </div>
           <p className="max-h-[70vh] overflow-auto whitespace-pre-wrap px-3 py-2 text-[11px] leading-relaxed text-fg-muted">
             {shown ??
-              (mode === 'ai' && aiOn
-                ? 'Tekan "Susun dengan AI".'
+              (usingAi
+                ? ai
+                  ? 'List, DPJP, sapaan atau tanggal berubah sejak hasil AI terakhir. Tekan "Susun ulang".'
+                  : 'Tekan "Susun dengan AI".'
                 : 'Tempel list dan pilih DPJP; sensusnya muncul di sini.')}
           </p>
         </div>
       </aside>
+    </div>
+  );
+}
+
+/**
+ * Find in one pasted list: a patient's name, an RM, a DPJP code.
+ *
+ * The matches are listed as the LINES they are on, so on a phone the answer
+ * is readable without opening the keyboard over a five-screen paste. Tapping
+ * one selects it in the box and scrolls the box to it.
+ */
+function ListFind({
+  text,
+  area,
+  label,
+  onClose,
+}: {
+  text: string;
+  area: () => HTMLTextAreaElement | null;
+  label: string;
+  onClose: () => void;
+}): JSX.Element {
+  const [query, setQuery] = useState('');
+  const hits = useMemo(() => findAll(text, query), [text, query]);
+  const shown = hits.slice(0, 30);
+
+  const jump = (start: number, end: number): void => {
+    const node = area();
+    if (!node) return;
+    node.focus({ preventScroll: true });
+    node.setSelectionRange(start, end);
+    // Lines before the match times the line height: wrapped lines make it
+    // approximate, so the match is put a third of the way down, not at the edge.
+    const lineHeight = Number.parseFloat(getComputedStyle(node).lineHeight) || 18;
+    const line = text.slice(0, start).split('\n').length - 1;
+    node.scrollTop = Math.max(0, line * lineHeight - node.clientHeight / 3);
+  };
+
+  return (
+    <div className="space-y-1 border-b border-border bg-bg-subtle px-3 py-2">
+      <div className="flex items-center gap-2">
+        <input
+          type="search"
+          autoFocus
+          value={query}
+          onChange={(event) => setQuery(event.target.value)}
+          onKeyDown={(event) => {
+            if (event.key === 'Escape') onClose();
+            if (event.key === 'Enter' && hits[0]) jump(hits[0][0], hits[0][1]);
+          }}
+          placeholder="Cari nama, RM, kode DPJP…"
+          aria-label={`Teks yang dicari di ${label}`}
+          className="min-h-tap min-w-0 flex-1 rounded-lg border border-border bg-surface px-2 text-xs outline-none focus:border-accent [@media(pointer:fine)]:min-h-8"
+        />
+        <span className="shrink-0 text-[11px] tabular-nums text-fg-muted" aria-live="polite">
+          {query.trim() ? `${hits.length} ditemukan` : ''}
+        </span>
+      </div>
+      {shown.length > 0 ? (
+        <ul className="max-h-40 overflow-auto">
+          {shown.map(([start, end]) => (
+            <li key={start}>
+              <button
+                type="button"
+                onClick={() => jump(start, end)}
+                className="block min-h-tap w-full truncate rounded px-1 text-left font-mono text-[11px] text-fg-muted hover:bg-surface hover:text-fg [@media(pointer:fine)]:min-h-8"
+              >
+                {lineAt(text, start).trim() || '(baris kosong)'}
+              </button>
+            </li>
+          ))}
+        </ul>
+      ) : null}
+      {hits.length > shown.length ? (
+        <p className="text-[10px] text-fg-faint">{hits.length - shown.length} lagi — persempit pencarian.</p>
+      ) : null}
     </div>
   );
 }
