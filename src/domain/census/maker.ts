@@ -90,6 +90,12 @@ export interface CensusEntry {
   raw: string;
   /** "KJS", "KJS Uro", "KJS BTKV" when the list marks the patient as KJS; else null. */
   kjs: string | null;
+  /**
+   * The lines of the pasted list this patient was read from, [start, end)
+   * (2026-10-11): the bed/identity line through its diagnosis block. What
+   * "Bandingkan" shows beside the census row. Absent on hand-built entries.
+   */
+  span?: { start: number; end: number };
 }
 
 export interface ParsedSource {
@@ -456,6 +462,7 @@ export function parseSource(text: string, known?: ReadonlySet<string>, kindOverr
 
   let i = 0;
   while (i < lines.length) {
+    const lineStart = i;
     const raw = lines[i]!;
     const text = plain(raw);
     i += 1;
@@ -526,6 +533,9 @@ export function parseSource(text: string, known?: ReadonlySet<string>, kindOverr
     // next block (therapy, plan, a consultant's own assessment).
     const diagnoses: string[] = [];
     let state: 'before' | 'in' | 'done' = 'before';
+    // Where this patient's block ends for "Bandingkan": the identity line and
+    // its diagnosis block, not the therapy and plan read past after it.
+    let blockEnd = i;
     while (i < lines.length) {
       const line = lines[i]!;
       const flat = plain(line);
@@ -538,6 +548,7 @@ export function parseSource(text: string, known?: ReadonlySet<string>, kindOverr
       if (state === 'before') {
         const sub = DX_SUB_RE.exec(flat);
         if (sub) {
+          blockEnd = i;
           state = 'in';
           const inline = (sub[1] ?? '').trim();
           if (inline) diagnoses.push(normaliseDxLine(inline));
@@ -545,6 +556,7 @@ export function parseSource(text: string, known?: ReadonlySet<string>, kindOverr
         }
         const head = DX_HEAD_RE.exec(flat) ?? ASSESS_HEAD_RE.exec(flat);
         if (head) {
+          blockEnd = i;
           state = 'in';
           const inline = (head[1] ?? '').trim();
           if (inline) diagnoses.push(normaliseDxLine(inline));
@@ -562,6 +574,7 @@ export function parseSource(text: string, known?: ReadonlySet<string>, kindOverr
       }
       const sub = DX_SUB_RE.exec(flat);
       if (sub) {
+        blockEnd = i;
         const inline = (sub[1] ?? '').trim();
         if (inline) diagnoses.push(normaliseDxLine(inline));
         continue;
@@ -571,6 +584,7 @@ export function parseSource(text: string, known?: ReadonlySet<string>, kindOverr
         continue;
       }
       diagnoses.push(normaliseDxLine(line));
+      blockEnd = i;
     }
 
     if (mode === 'excluded') continue;
@@ -595,6 +609,7 @@ export function parseSource(text: string, known?: ReadonlySet<string>, kindOverr
       key: entryKey(identityLine),
       raw: clean(identityLine).trim(),
       kjs: kjsOf(`${heading ?? ''} ${identityLine}`),
+      span: { start: lineStart, end: blockEnd },
     });
   }
 

@@ -56,6 +56,11 @@ export interface SensusDay {
    * (entry keys, `rm:…`). A decision, so it holds in both modes.
    */
   extra: Record<string, string[]>;
+  /**
+   * By DPJP code: patients the user ticked as checked by hand in
+   * "Bandingkan" (entry keys). Optional: older stored days have none.
+   */
+  checked?: Record<string, string[]>;
 }
 
 export interface SensusStore {
@@ -173,6 +178,7 @@ export function readSensusStore(v2: string | null, v1: string | null, today: Cli
           lists: lists.length > 0 ? lists : [{ ...EMPTY_LIST }],
           ai: readAi(value.ai),
           extra: readExtra(value.extra),
+          checked: readExtra(value.checked),
         };
       }
     } else if (typeof raw.date === 'string' && ISO.test(raw.date)) {

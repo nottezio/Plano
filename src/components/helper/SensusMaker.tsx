@@ -34,7 +34,11 @@ import {
   unassigned,
   type ParsedSource,
   type SourceKind,
+  identityLine as identityLineFor,
+  markKjs as markKjsFor,
 } from '@/domain/census/maker';
+import { compareCensus } from '@/domain/census/compare';
+import { SensusCompare } from './SensusCompare';
 import {
   SENSUS_STORE_KEY,
   SENSUS_STORE_V1_KEY,
@@ -309,7 +313,35 @@ export function SensusMaker(): JSX.Element {
     each day is recorded — the census as copied or saved, never the half-
     pasted lists — and today's is compared with the last recorded day.
   */
-  const [view, setView] = useState<'hariini' | 'riwayat'>('hariini');
+  const [view, setView] = useState<'hariini' | 'bandingkan' | 'riwayat'>('hariini');
+  /** Patients ticked as checked by hand in Bandingkan, for this DPJP and day. */
+  const checkedKeys = useMemo(() => new Set(code ? (day.checked?.[code] ?? []) : []), [day.checked, code]);
+  const setChecked = (key: string, on: boolean): void => {
+    if (!code) return;
+    updateDay((current) => {
+      const keys = current.checked?.[code] ?? [];
+      const next = on ? [...new Set([...keys, key])] : keys.filter((k) => k !== key);
+      return { ...current, checked: { ...current.checked, [code]: next } };
+    });
+  };
+  /** The census beside the lists it came from (see SensusCompare). */
+  const comparison = useMemo(() => {
+    if (!code || sources.length === 0) return null;
+    const rows = usingAi
+      ? aiAll?.map((patient) => ({
+          key: aiPatientKey(patient),
+          place: patient.place,
+          identity: markKjsFor(patient.identity, patient.kjs || null),
+          diagnoses: patient.diagnoses,
+        }))
+      : rules?.entries.map((entry) => ({
+          key: entry.key,
+          place: entry.place,
+          identity: markKjsFor(identityLineFor(entry, code, state.style), entry.kjs),
+          diagnoses: entry.diagnoses,
+        }));
+    return rows ? compareCensus({ sources, code, rows }) : null;
+  }, [code, sources, usingAi, aiAll, rules, state.style]);
   const [history, setHistory] = useState<CensusSnapshot[]>([]);
   useEffect(() => {
     if (!uid || !code) {
@@ -366,12 +398,31 @@ export function SensusMaker(): JSX.Element {
           onChange={setView}
           options={[
             ['hariini', 'Hari ini'],
+            ['bandingkan', 'Bandingkan'],
             ['riwayat', history.length > 0 ? `Riwayat · ${history.length}` : 'Riwayat'],
           ]}
         />
       </div>
 
-      {view === 'riwayat' ? (
+      {view === 'bandingkan' ? (
+        comparison ? (
+          <SensusCompare
+            comparison={comparison}
+            texts={filled.map((list) => list.text)}
+            labels={sources.map((source) => source.label)}
+            code={code}
+            message={shown}
+            checked={checkedKeys}
+            onCheck={setChecked}
+          />
+        ) : (
+          <p className="text-sm text-fg-muted">
+            {usingAi && !aiAll
+              ? 'Susun sensus dengan AI dulu (Hari ini), lalu bandingkan di sini.'
+              : 'Tempel list dan pilih DPJP dulu di Hari ini.'}
+          </p>
+        )
+      ) : view === 'riwayat' ? (
         code ? (
           <SensusHistory days={history} code={code} />
         ) : (

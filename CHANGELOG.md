@@ -5,6 +5,17 @@ Catatan teknis lengkap (akar masalah, perbaikan) ada di CHANGES.md.
 
 Entri teratas harus versi yang sedang dirilis; tes gagal bila belum ditulis.
 
+## `2026-10-11.2`
+- **Buat Sensus: tampilan baru "Bandingkan"** (di samping Hari ini dan Riwayat). Setiap list yang ditempel ditampilkan pasien demi pasien, dengan baris aslinya (identitas dan diagnosis) di kiri dan baris sensusnya di kanan (mis. "✓ PJT Lt. 4 #1", lengkap dengan diagnosisnya). Di HP keduanya bertumpuk.
+  - **Biru:** pasien DPJP ini, masuk sensus.
+  - **Merah:** pasien DPJP ini, **tidak** masuk sensus.
+  - **Oranye:** tanpa kode DPJP (lihat Perlu dicek).
+  - **Pasien DPJP lain** diringkas jadi satu baris; bisa ditampilkan.
+  - Di atas ada ringkasan jumlah yang cocok, yang di list tapi tidak di sensus, dan yang di sensus tapi tidak ditemukan di list (mis. hasil AI yang tidak ada di list).
+  - Berlaku untuk mode Aturan maupun AI.
+  - **Cek manual tetap di tangan Anda:** tiap pasien punya centang **"Sudah saya cek"**, dengan hitungan **Dicek manual 3/5** di atas. Centang tersimpan per tanggal dan per DPJP di perangkat ini.
+  - **Teks lengkap:** list yang ditempel (pilih List 1, 2, …) dan hasil sensus berdampingan di laptop, atau bertumpuk di HP, persis seperti teksnya, untuk dibaca sendiri.
+
 ## `2026-10-11.1`
 - **"Hitungan hari belum berubah" kini membandingkan baris yang sama dengan kemarin.** Sebelumnya, setelah "PPM Replacement H-1" dinaikkan menjadi H-2, tanda tetap muncul karena kemarin ada baris lain yang juga berbunyi H-2 (mis. "Ceftriaxone (H-2)"). Hanya angka yang belum dipakai di mana pun (H-3) yang menghilangkan tanda, sehingga Plano seolah meminta hari yang salah. Kini tiap hitungan hanya dibandingkan dengan baris yang sama di catatan kemarin, jadi H-2 langsung diterima.
 - **DPJP yang salah ketik kini tetap terbaca.** "_DJPJP Utama : dr. Zaenab…_" sebelumnya tidak dikenali sebagai baris DPJP, sehingga DPJP Aritmia (Prof. Muzakkir) dianggap DPJP utama. Kini salah ketik umum (DJPJP, DPJ, DJPJ, DPPJ) dibaca sebagai DPJP.

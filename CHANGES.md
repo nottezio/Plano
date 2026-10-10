@@ -1,5 +1,57 @@
 # Plano — CHANGES
 
+## `2026-10-11.2` — Sensus "Bandingkan": each list block beside its census row (Avi: "hard to compare the list and the extracted sensus")
+
+### Why it was hard
+The census is a finished message. The lists are long pastes in textareas
+capped at a few lines on a phone. Checking meant finding each patient in the
+paste by eye. The parser already knew which lines each patient came from but
+threw that away.
+
+### What
+- `CensusEntry.span` = [start, end) lines in the pasted list: the
+  bed/identity line through the diagnosis block (not the therapy and plan
+  the loop reads past). Recorded in `parseSource` and optional, so
+  hand-built entries are unaffected.
+- `domain/census/compare.ts` `compareCensus({sources, code, rows})`:
+  - each list's blocks in order, with owner (mine / other / unassigned) and
+    the census row they became, paired by the patient key the census and the
+    AI check already use;
+  - `missing` (mine, not in the census) and `unmatched` (census rows no
+    block accounts for);
+  - each row's number within its place, as the message numbers it.
+- `SensusCompare`: a third view, "Bandingkan".
+  - One row per block: the list lines verbatim on the left, the census row
+    (place #n, identity, diagnoses one per line) on the right.
+  - Coloured left bar, set inline because `divide-y` overrides border-colour
+    classes.
+  - Consecutive other-DPJP blocks fold into one line, with a toggle.
+  - Summary counts on top; unmatched rows at the end.
+  - Rows come from the rules entries or the AI patients (`aiAll`, including
+    hand-included ones), whichever mode is on.
+
+### Manual checking (Avi, mid-release: "I want to still manually check")
+The pairing is an aid, not a verdict.
+- Each census row, each of this DPJP's patients left out, and each
+  unmatched row has a "Sudah saya cek" tick. A "Dicek manual n/N" count sits
+  in the summary.
+- Ticks are stored per day and per DPJP in the sensus store
+  (`SensusDay.checked`, optional, read like `extra`; device only, pruned
+  with the day).
+- "Teks lengkap" sub-view: the raw pasted list (tabs per list) and the
+  census message as plain text, side by side on a laptop and stacked on a
+  phone, each scrolling on its own. Nothing is interpreted.
+
+### Not done
+- Lines the parser did not read as a patient at all do not appear as
+  blocks. Find in each list box is still the way to look for them.
+
+```
+npm run verify
+  typecheck ✓  lint ✓ (0 warnings)  test ✓ 2237 passed (152 files)
+  check:version ✓  check:contrast ✓  check:a11y ✓  build ✓
+```
+
 ## `2026-10-11.1` — Day counters compared by their own line; DPJP label typos; hari rawat floor (three reports on Ny. B's note)
 
 ### Root cause
