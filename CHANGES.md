@@ -1,5 +1,64 @@
 # Plano — CHANGES
 
+## `2026-10-11.1` — Day counters compared by their own line; DPJP label typos; hari rawat floor (three reports on Ny. B's note)
+
+### Root cause
+`checkSoap` flagged a counter as unchanged when today's marker TEXT
+appeared ANYWHERE in yesterday's markers. The counters were a bag of strings
+with no identity. On Ny. B's note, yesterday had "PPM Replacement H-1" and
+"Ceftriaxone (H-3)". After the ward's own +1 (H-2 for the PPM line), the PPM
+"H-2" matched any yesterday "H-2" from another counter, and the warning
+persisted. Only a value no counter had used made it go away, so Plano looked
+as if it wanted a different day.
+
+### Fix
+`unchangedDayMarkers(body, previous)` in `domain/dayMarkers.ts` gives each
+counter an identity: its LINE with the counter blanked to "§", lowercased,
+with bold/italic/underline and the bullet removed. A counter is unchanged
+only if yesterday had that same line with the same value. Duplicated lines
+(our assessment and the TS reply both list the diagnosis) are each checked.
+A line edited in any other way is not compared, because it was clearly
+touched. `checkSoap` uses this; nothing else read the old comparison.
+
+### Checked
+- On Avi's note (not committed: real patient data):
+  - unchanged: H-1, H-3, H-1 flagged;
+  - both PPM lines advanced and ceftriaxone advanced: nothing flagged;
+  - only our PPM line advanced: only the TS Aritmia copy (H-1) flagged.
+- New tests in dayMarkers.test and soapCheck.test use invented notes.
+
+### 2. Wrong primary DPJP ("DJPJP Utama")
+- **Root cause:** `detectDpjps` only considered lines containing the exact
+  letters "dpjp", and `dpjpSpecialties` used the same rule. "_DJPJP Utama :
+  dr. Zaenab …_" was skipped, so the next line ("DPJP Aritmia : Prof. …
+  Muzakkir Amir") became primary. That drove the sidebar card, the report
+  format, the poli and the reminders.
+- **Fix:** `domain/dpjpLabel.ts` `normaliseDpjpLabel`. A standalone word of
+  only d/p/j letters, length 3–5, containing both p and j, reads as DPJP.
+  Both readers use it. Real words cannot match (tested: DDP, PPD, DPP,
+  "adpjp").
+- The stored `dpjpId` updates on the next edit of the note. The page reads
+  the note directly, so it is right immediately.
+
+### 3. "Pembuka follow up, padahal hari pertama" on a patient days into the stay
+- **Root cause:** hari rawat counts from `admittedAt`, which DEFAULTS to the
+  day the patient was added to Plano (`createAndOpen`) and is never derived
+  from the note. Ny. B was added on 11 Oct, transferred from CVCU, with a
+  note already written for 10 Oct, so 11 Oct counted as "day 1" and the
+  opening check fired.
+- **Fix:** `stayStart(admittedAt, writtenDates)` in `clinicalDate.ts`. The
+  stay starts no later than the earliest written (non-IGD) day.
+  PatientPage's `hariRawat` (header, checker context) uses it.
+- Not done: `admittedAt` itself is still not inferred from the note (for
+  example "IGD PJT 07-10-2026" lines). That would be a guess; Identitas is
+  where it is set.
+
+```
+npm run verify
+  typecheck ✓  lint ✓ (0 warnings)  test ✓ 2234 passed (151 files)
+  check:version ✓  check:contrast ✓  check:a11y ✓  build ✓
+```
+
 ## `2026-10-10.11` — Warfarin initiation calculator (anticoagulation release 2); heparin card asks for the indication (VTE vs ACS)
 
 ### Warfarin: sources (every number traced)

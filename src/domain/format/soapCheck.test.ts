@@ -115,6 +115,18 @@ describe('day counters', () => {
     expect(kinds(body, `${VITALS}\nA:\n- post PPM H-2`)).not.toContain('day-marker');
   });
 
+  it('compares each counter with ITS OWN line yesterday, not with any counter of the same text', () => {
+    // Reported 2026-10-11: advancing "PPM Replacement H-1" to H-2 still
+    // flagged it, because yesterday's ceftriaxone read "(H-2)".
+    const yesterday = `${VITALS}\nA:\n- Symptomatic Bradycardia post PPM Replacement H-1\nTerapi:\n- Ceftriaxone 2gr/24jam/IV (H-2)`;
+    const advanced = `${VITALS}\nA:\n- Symptomatic Bradycardia post PPM Replacement H-2\nTerapi:\n- Ceftriaxone 2gr/24jam/IV (H-3)`;
+    expect(kinds(advanced, yesterday)).not.toContain('day-marker');
+    const half = `${VITALS}\nA:\n- Symptomatic Bradycardia post PPM Replacement H-2\nTerapi:\n- Ceftriaxone 2gr/24jam/IV (H-2)`;
+    const found = checkSoap({ body: half, previous: yesterday }).find((f) => f.kind === 'day-marker');
+    expect(found?.markers?.map((m) => m.text)).toEqual(['H-2']);
+    expect(half.slice(found!.at!, found!.at! + 20)).toBe('H-2)');
+  });
+
   it('stays quiet once the banner has been dismissed by hand', () => {
     const note = `${VITALS}\nA:\n- post PPM H-2`;
     const findings = checkSoap({ body: note, previous: note, dayMarkersDismissed: true });

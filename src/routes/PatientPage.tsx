@@ -74,7 +74,7 @@ import {
 import { formatLocation } from '@/domain/identity';
 import { DOCX_MIME, buildSoapDocx, soapDocxFileName } from '@/domain/format/soapDocx';
 import { deliverFile } from '@/lib/download';
-import { isIgdEntry } from '@/domain/clinicalDate';
+import { isIgdEntry, stayStart } from '@/domain/clinicalDate';
 import { describeLabPlacement, insertLabBlock, labPlacement } from '@/domain/lab/insertLab';
 import {
   REPORT_FORMAT_LABELS,
@@ -334,9 +334,21 @@ export default function PatientPage(): JSX.Element {
   const paneOpen = useUI((state) => state.contextPaneOpen);
   const togglePane = useUI((state) => state.toggleContextPane);
 
+  /*
+    When the stay began (2026-10-11). `admittedAt` defaults to the day the
+    patient was ADDED to Plano, not admitted to hospital, and is only right
+    if someone corrects it in Identitas. A patient added today with a note
+    already written yesterday was therefore "day 1", and the checker asked to
+    change "follow up" to "pasien baru" on a patient days into the stay (Ny.
+    B, moved from CVCU). A written day can never come before the stay, so the
+    earliest written day is a floor the record cannot argue with.
+  */
+  const stayBegan = useMemo(
+    () => (patient ? stayStart(patient.admittedAt, entryDates.datesWithBody) : null),
+    [patient, entryDates.datesWithBody],
+  );
   // The admission note has no hari rawat — it precedes the stay.
-  const hariRawat =
-    patient && !isIgdEntry(selected) ? daysBetween(patient.admittedAt, selected) + 1 : 0;
+  const hariRawat = stayBegan && !isIgdEntry(selected) ? daysBetween(stayBegan, selected) + 1 : 0;
 
   /**
    * SPEC F4 — past entries auto-lock after 48 h.

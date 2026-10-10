@@ -5,6 +5,11 @@ Catatan teknis lengkap (akar masalah, perbaikan) ada di CHANGES.md.
 
 Entri teratas harus versi yang sedang dirilis; tes gagal bila belum ditulis.
 
+## `2026-10-11.1`
+- **"Hitungan hari belum berubah" kini membandingkan baris yang sama dengan kemarin.** Sebelumnya, setelah "PPM Replacement H-1" dinaikkan menjadi H-2, tanda tetap muncul karena kemarin ada baris lain yang juga berbunyi H-2 (mis. "Ceftriaxone (H-2)"). Hanya angka yang belum dipakai di mana pun (H-3) yang menghilangkan tanda, sehingga Plano seolah meminta hari yang salah. Kini tiap hitungan hanya dibandingkan dengan baris yang sama di catatan kemarin, jadi H-2 langsung diterima.
+- **DPJP yang salah ketik kini tetap terbaca.** "_DJPJP Utama : dr. Zaenab…_" sebelumnya tidak dikenali sebagai baris DPJP, sehingga DPJP Aritmia (Prof. Muzakkir) dianggap DPJP utama. Kini salah ketik umum (DJPJP, DPJ, DJPJ, DPPJ) dibaca sebagai DPJP.
+- **Peringatan pembuka "padahal ini hari pertama" tidak muncul lagi pada pasien yang sudah punya catatan hari sebelumnya.** Hari rawat dihitung dari tanggal pasien ditambahkan ke Plano, yang belum tentu tanggal masuk RS. Kini hari rawat tidak bisa dimulai setelah hari pertama yang sudah ada catatannya. Untuk angka yang tepat, isi tanggal masuk di Identitas.
+
 ## `2026-10-10.11`
 - **Kalkulator baru: Warfarin — mulai di rawat inap** (grup Antikoagulan dan kalkulator melayang).
   - **Target INR wajib dipilih**: 2,0–3,0, 2,5–3,5, katup mekanik aorta 2,5, atau mitral/dua katup 3,0.

@@ -18,6 +18,7 @@
  * consultant is a card someone will act on.
  */
 
+import { normaliseDpjpLabel } from './dpjpLabel';
 import type { DpjpReportConfig, OutputFormat, ReportFormat } from './types';
 
 export type { ReportFormat };
@@ -170,7 +171,8 @@ export function detectDpjps(body: string): DetectedDpjp[] {
   const found: DetectedDpjp[] = [];
   const seen = new Set<string>();
 
-  for (const line of body.split('\n')) {
+  for (const raw of body.split('\n')) {
+    const line = normaliseDpjpLabel(raw);
     const flat = normalise(line);
     if (!flat.includes('dpjp')) continue;
 

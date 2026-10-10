@@ -1,5 +1,5 @@
 import { consultCovered, dpjpSpecialties } from './specialties';
-import { findDayMarkers } from '@/domain/dayMarkers';
+import { unchangedDayMarkers } from '@/domain/dayMarkers';
 import { aliasesOrDefault } from '@/domain/sections/aliases';
 import { parseSections, type ParsedSection } from '@/domain/sections/parseSections';
 import type { SectionAlias, SectionId } from '@/domain/types';
@@ -350,11 +350,7 @@ export function checkSoap(input: SoapCheckInput): SoapFinding[] {
   }
 
   if (!input.dayMarkersDismissed && previous) {
-    const markers = findDayMarkers(body);
-    const before = findDayMarkers(previous);
-    const unchanged = markers.filter((marker) =>
-      before.some((other) => other.text.toLowerCase() === marker.text.toLowerCase()),
-    );
+    const unchanged = unchangedDayMarkers(body, previous);
     if (unchanged.length > 0) {
       findings.push({
         kind: 'day-marker',

@@ -22,6 +22,8 @@
  * entry. Entries are for names that spelling alone cannot connect.
  */
 
+import { normaliseDpjpLabel } from '../dpjpLabel';
+
 interface Specialty {
   key: string;
   /** Lowercase words or phrases, as written in a TS heading or a DPJP label. */
@@ -147,7 +149,7 @@ export function specialtiesInTitles(name: string): Set<string> {
 export function dpjpSpecialties(body: string): Set<string> {
   const keys = new Set<string>();
   for (const line of body.split('\n')) {
-    const match = /DPJP([^:\n]*):?(.*)$/i.exec(line);
+    const match = /DPJP([^:\n]*):?(.*)$/i.exec(normaliseDpjpLabel(line));
     if (!match) continue;
     for (const key of specialtiesInLabel(match[1] ?? '')) keys.add(key);
     for (const key of specialtiesInTitles(match[2] ?? '')) keys.add(key);

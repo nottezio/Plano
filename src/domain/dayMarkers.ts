@@ -192,3 +192,43 @@ export function daysBetween(from: ClinicalDate, to: ClinicalDate): number | null
   if (a === null || b === null) return null;
   return Math.round((b - a) / 86_400_000);
 }
+
+/**
+ * The counters in `body` that still read what THE SAME counter read in
+ * `previous` (2026-10-11).
+ *
+ * ROOT CAUSE of the bug this replaces: counters were compared as a bag of
+ * TEXTS — today's "H-2" counted as unchanged if ANY counter yesterday read
+ * "H-2". A note with "post PPM Replacement H-1" and "Ceftriaxone (H-2)"
+ * yesterday could not be fixed by advancing the first to H-2: it then
+ * collided with yesterday's ceftriaxone H-2 and stayed flagged, and only an
+ * unused number (H-3) silenced it — so Plano appeared to demand the wrong day.
+ *
+ * A counter is identified by its LINE with the counter itself blanked out
+ * ("- symptomatic bradycardia … ppm replacement §"), formatting and bullets
+ * ignored. It is unchanged only when yesterday had that same line with the
+ * same number. A line edited in any other way is not compared — it was
+ * clearly touched.
+ */
+export function unchangedDayMarkers(body: string, previous: string): DayMarker[] {
+  const contextOf = (text: string, marker: DayMarker): string => {
+    const lineStart = text.lastIndexOf('\n', marker.start - 1) + 1;
+    const nextBreak = text.indexOf('\n', marker.end);
+    const lineEnd = nextBreak === -1 ? text.length : nextBreak;
+    const line = text.slice(lineStart, marker.start) + '§' + text.slice(marker.end, lineEnd);
+    return line
+      .replace(/[*_~]/g, '')
+      .replace(/^\s*(?:[-•]|\d+[.)])\s*/, '')
+      .replace(/\s+/g, ' ')
+      .trim()
+      .toLowerCase();
+  };
+  const before = new Map<string, Set<number>>();
+  for (const marker of findDayMarkers(previous)) {
+    const key = contextOf(previous, marker);
+    const values = before.get(key) ?? new Set<number>();
+    values.add(marker.value);
+    before.set(key, values);
+  }
+  return findDayMarkers(body).filter((marker) => before.get(contextOf(body, marker))?.has(marker.value) ?? false);
+}

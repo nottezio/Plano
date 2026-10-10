@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs';
 
 import { describe, expect, it } from 'vitest';
 
-import { bumpDayMarkers, countDayMarker, daysBetween, findDayMarker, findDayMarkers } from './dayMarkers';
+import { bumpDayMarkers, countDayMarker, daysBetween, findDayMarker, findDayMarkers, unchangedDayMarkers } from './dayMarkers';
 import type { ClinicalDate } from './types';
 
 describe('findDayMarkers', () => {
@@ -192,5 +192,26 @@ describe('one counter at a time (2026-09-30)', () => {
     const moved = `xx ${body}`;
     const again = locateDayMarker(moved, { text: 'hari ke-9', at: body.indexOf('hari ke-9') });
     expect(bumpDayMarkerAt(moved, again!)).toContain('hari ke-10');
+  });
+});
+
+describe('unchangedDayMarkers', () => {
+  const yesterday = '*Assess:*\n- post PPM Replacement H-1\n\n*Terapi:*\n- Ceftriaxone 2gr/24jam/IV (H-2)\n\n*TS Aritmia*\nA/\n- post PPM Replacement H-1';
+
+  it('ignores a counter that now reads another line’s old number', () => {
+    const today = yesterday.replace(/Replacement H-1/g, 'Replacement H-2').replace('(H-2)', '(H-3)');
+    expect(unchangedDayMarkers(today, yesterday)).toEqual([]);
+  });
+
+  it('flags each copy of a line that was not advanced, and only those', () => {
+    const today = yesterday.replace('Replacement H-1', 'Replacement H-2').replace('(H-2)', '(H-3)');
+    const found = unchangedDayMarkers(today, yesterday);
+    expect(found.map((marker) => marker.text)).toEqual(['H-1']);
+    // The TS Aritmia copy, not the advanced one in our assessment.
+    expect(found[0]!.start).toBe(today.lastIndexOf('H-1'));
+  });
+
+  it('ignores bold, italics and bullet style', () => {
+    expect(unchangedDayMarkers('* _post PPM H-2_', '- post PPM H-2').map((marker) => marker.value)).toEqual([2]);
   });
 });

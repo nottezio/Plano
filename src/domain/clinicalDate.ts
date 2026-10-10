@@ -301,3 +301,14 @@ export function shouldAutoLock(
   return daysBetween(entryDate, today) * 24 >= AUTO_LOCK_HOURS;
 }
 
+
+/**
+ * When the stay began, for counting hari rawat (2026-10-11): `admittedAt`,
+ * unless a note was already written on an earlier day. `admittedAt` defaults
+ * to the day the patient was added to Plano, and a written day cannot come
+ * before the stay. IGD entries are ids, not dates, and are ignored.
+ */
+export function stayStart(admittedAt: ClinicalDate, writtenDates: Iterable<string>): ClinicalDate {
+  const first = [...writtenDates].filter((date) => /^\d{4}-\d{2}-\d{2}$/.test(date)).sort()[0];
+  return first && first < admittedAt ? (first as ClinicalDate) : admittedAt;
+}
