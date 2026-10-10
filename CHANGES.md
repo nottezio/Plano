@@ -1,5 +1,41 @@
 # Plano — CHANGES
 
+## `2026-10-10.6` — Card proposal pieces missing on Avi's canvas board (his screenshot, Urutan sendiri)
+
+### Root causes
+1. **No "Sejak kemarin" line anywhere.** `prevPreview` was captured only
+   when the stored preview was REPLACED by a later day's
+   (`previousPreviewFields`). Every patient whose today note was written
+   before 10.5 had no "before", so the line could not appear until
+   tomorrow's note. The data source was the event, not the state: the
+   previous day's note already exists and says exactly what the line needs.
+2. **On the canvas the line would have been clipped anyway.** It sat at the
+   end of `ClampedBody`, which a capped canvas card cuts from the bottom.
+3. **Normal/Ringkas did nothing on the canvas.** `renderCanvasItem` never
+   received `dense`, while the toggle was shown in that header. A control
+   with no effect.
+
+### Fix
+- `previousFromEntry(patient, date, previous)`: builds `prevPreview` from the
+  previous day's entry body. It applies only when that day is newer than
+  the stored `prevPreviewDate`, and never from IGD or the same day, so it
+  writes once. `healCardPreview` takes the previous entry (PatientPage
+  already loads it as `previous`), prefers it over the replaced preview, and
+  leaves `updatedAt` alone when only this field changes.
+- `DxChangeLine` is the first thing in the body.
+- `dense` is passed to canvas cards; their height bounds are re-measured as
+  usual.
+
+### Not done
+- A patient whose note is not opened today still gets no line. The board
+  does not read entries (pattern 16).
+
+```
+npm run verify
+  typecheck ✓  lint ✓ (0 warnings)  test ✓ 2126 passed (146 files)
+  check:version ✓  check:contrast ✓  check:a11y ✓  build ✓
+```
+
 ## `2026-10-10.5` — Card: diagnosis change line, ⚑ check count, Status order, Normal/Ringkas, swipe (Avi: "Continue all")
 
 ### What

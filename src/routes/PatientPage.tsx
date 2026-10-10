@@ -649,12 +649,14 @@ export default function PatientPage(): JSX.Element {
     [entryDates.datesWithBody],
   );
   const storedBody = entry?.body ?? '';
+  const previousBody = previous.entry?.body ?? '';
   useEffect(() => {
     if (!patient || entryLoading || selected !== latestWritten) return;
-    void healCardPreview(patient, selected, storedBody)?.catch((error: unknown) =>
-      console.warn('[card] heal failed', error),
-    );
-  }, [patient, entryLoading, selected, latestWritten, storedBody]);
+    void healCardPreview(patient, selected, storedBody, {
+      date: previousDay(selected),
+      body: previousBody,
+    })?.catch((error: unknown) => console.warn('[card] heal failed', error));
+  }, [patient, entryLoading, selected, latestWritten, storedBody, previousBody]);
 
   const hint = useMemo(
     () =>

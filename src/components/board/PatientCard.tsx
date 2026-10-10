@@ -837,6 +837,10 @@ export function PatientCard({
         block flows exactly as it did when these four were siblings.
       */}
       <ClampedBody enabled={fitHeight} bodyRef={bodyRef}>
+      {/* First in the body, not last: on a capped canvas card the body is
+          clipped from the bottom, and what changed matters more than the
+          rest of a list you can open. */}
+      {card.dxChanges && !dense ? <DxChangeLine card={card} /> : null}
       {card.chief && !dense ? <p className="text-[11px] opacity-60">Chief {card.chief}</p> : null}
 
       {/* `leading-snug`: a list of diagnoses reads fine at 1.375, and
@@ -860,8 +864,6 @@ export function PatientCard({
       ) : (
         <p className="mt-1 text-xs italic opacity-60">Belum ada catatan hari ini.</p>
       )}
-
-      {card.dxChanges && !dense ? <DxChangeLine card={card} /> : null}
 
       {patient.labels.length > 0 && !dense ? (
         <div className="mt-2 flex flex-wrap gap-1">
@@ -1326,7 +1328,7 @@ function DxChangeLine({ card }: { card: BoardCard }): JSX.Element | null {
   const shown = parts.slice(0, 3);
   return (
     <p
-      className="mt-1 line-clamp-2 text-[11px] leading-snug opacity-75"
+      className="mb-0.5 line-clamp-2 text-[11px] leading-snug opacity-75"
       title={parts.join('\n')}
     >
       <span className="font-semibold">Sejak {when}:</span> {shown.join(' · ')}

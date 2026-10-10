@@ -360,18 +360,53 @@ export async function touchEntryMeta(
  * a rule change, a write that raced, a day deleted — heals by being looked
  * at, with no maintenance button. No write when the card is already right.
  */
-export function healCardPreview(patient: Patient, date: ClinicalDate, body: string): Promise<void> | null {
+/**
+ * The previous day's preview, read from that day's NOTE (2026-10-10).
+ *
+ * `previousPreviewFields` only captures a preview at the moment it is
+ * replaced, so a patient whose note for today was written before that
+ * existed had no "before" to compare with until the next day, and the
+ * "Sejak kemarin" line never appeared. The patient page has yesterday's entry
+ * open anyway; this fills the gap from it. Null when there is nothing newer
+ * to record, so it never writes twice.
+ */
+export function previousFromEntry(
+  patient: Pick<Patient, 'prevPreviewDate'>,
+  date: ClinicalDate,
+  previous: { date: ClinicalDate; body: string } | null | undefined,
+): { prevPreview: string; prevPreviewDate: ClinicalDate } | null {
+  if (!previous || !previous.body.trim() || isIgdEntry(previous.date) || previous.date >= date) return null;
+  if (patient.prevPreviewDate && patient.prevPreviewDate >= previous.date) return null;
+  const prevPreview = buildPreview(previous.body);
+  return prevPreview ? { prevPreview, prevPreviewDate: previous.date } : null;
+}
+
+export function healCardPreview(
+  patient: Patient,
+  date: ClinicalDate,
+  body: string,
+  previous?: { date: ClinicalDate; body: string } | null,
+): Promise<void> | null {
   if (!body.trim() || isIgdEntry(date)) return null;
   const preview = buildPreview(body);
-  if (patient.preview === preview && patient.previewDate === date) return null;
+  const moved = !(patient.preview === preview && patient.previewDate === date);
+  const fromEntry = previousFromEntry(patient, date, previous);
+  if (!moved && !fromEntry) return null;
   return trackWrite(
     updateDoc(patientDoc(patient.id), {
-      lastEntryDate: date,
-      preview,
-      previewDate: date,
-      ...previousPreviewFields(patient.previewDate, patient.preview, date),
-      updatedAt: serverTimestamp(),
-      updatedBy: getDeviceId(),
+      ...(moved
+        ? {
+            lastEntryDate: date,
+            preview,
+            previewDate: date,
+            ...previousPreviewFields(patient.previewDate, patient.preview, date),
+            updatedAt: serverTimestamp(),
+            updatedBy: getDeviceId(),
+          }
+        : {}),
+      // The note of the day before beats the stored preview it replaced:
+      // it is what that day actually said. Not an edit, so no updatedAt.
+      ...(fromEntry ?? {}),
     }),
   );
 }

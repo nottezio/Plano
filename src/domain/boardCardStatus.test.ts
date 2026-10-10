@@ -4,7 +4,7 @@ import { buildCard, previewDiff, statusRank, STATUS_LABEL } from './board';
 import { DEFAULT_CHECKLIST } from './defaults';
 import { makePatient } from './testFactories';
 import { namesDiagnosis } from './sections/diagnosisHeading';
-import { previousPreviewFields } from '@/data/repositories/patients.repo';
+import { previousFromEntry, previousPreviewFields } from '@/data/repositories/patients.repo';
 
 const ITEMS = DEFAULT_CHECKLIST.map((item) => ({ ...item }));
 const TODAY = '2026-08-06';
@@ -79,5 +79,27 @@ describe('namesDiagnosis', () => {
   it('rejects headings that only mention one', () => {
     expect(namesDiagnosis('Plan diagnostik')).toBe(false);
     expect(namesDiagnosis('Terapi')).toBe(false);
+  });
+});
+
+describe('previousFromEntry', () => {
+  const note = '*Mohon izin kami assess dengan:*\n- HF\n- AKI\n\n*Terapi:*\n- Furosemide';
+  it('fills the previous preview from yesterday’s note when none is stored', () => {
+    const filled = previousFromEntry({}, TODAY, { date: YESTERDAY, body: note });
+    expect(filled?.prevPreviewDate).toBe(YESTERDAY);
+    expect(filled?.prevPreview).toContain('AKI');
+  });
+
+  it('does nothing once that day is recorded, or without a note', () => {
+    expect(previousFromEntry({ prevPreviewDate: YESTERDAY }, TODAY, { date: YESTERDAY, body: note })).toBeNull();
+    expect(previousFromEntry({}, TODAY, { date: YESTERDAY, body: '  ' })).toBeNull();
+    expect(previousFromEntry({}, TODAY, null)).toBeNull();
+    expect(previousFromEntry({}, YESTERDAY, { date: YESTERDAY, body: note })).toBeNull();
+  });
+
+  it('replaces an older stored day with the newer one', () => {
+    expect(previousFromEntry({ prevPreviewDate: '2026-08-01' }, TODAY, { date: YESTERDAY, body: note })?.prevPreviewDate).toBe(
+      YESTERDAY,
+    );
   });
 });

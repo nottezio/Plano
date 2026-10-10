@@ -517,6 +517,7 @@ export default function BoardPage(): JSX.Element {
         fitHeight={fitHeight}
         onHeightBounds={onHeightBounds}
         maxPreviewLines={maxPreviewLines}
+        dense={dense}
         collapsed={cardsFolded.has(card.patient.id)}
         onToggleCollapsed={toggleFolded}
         onLongPress={setQuickPatientId}

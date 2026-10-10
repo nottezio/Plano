@@ -5,6 +5,11 @@ Catatan teknis lengkap (akar masalah, perbaikan) ada di CHANGES.md.
 
 Entri teratas harus versi yang sedang dirilis; tes gagal bila belum ditulis.
 
+## `2026-10-10.6`
+- **"Sejak kemarin" kini muncul hari ini juga.** Di 10.5 baris ini baru tampil besok, karena pembanding diambil saat kartu berganti hari. Kini, saat catatan hari ini dibuka, diagnosis kemarin diambil langsung dari catatan kemarin.
+- **Baris "Sejak kemarin" dipindah ke atas daftar diagnosis.** Di kartu kanvas (Urutan sendiri) yang tingginya dibatasi, bagian bawah kartu terpotong, sehingga baris ini sebelumnya hilang.
+- **Normal / Ringkas kini juga berlaku di kanvas (Urutan sendiri).** Sebelumnya tombolnya tampil di sana tetapi tidak berpengaruh.
+
 ## `2026-10-10.5`
 - **Kartu menunjukkan perubahan diagnosis sejak kemarin.** Bila SOAP hari ini sudah ditulis, di bawah diagnosis ada baris mis. **Sejak kemarin: + AF · − AKI** (yang bertambah dan yang hilang dibanding catatan sebelumnya). Bila catatan sebelumnya bukan kemarin, tanggalnya yang ditulis.
 - **Penanda ⚑ Periksa lagi di kartu.** Jumlah temuan "Periksa lagi" pada catatan hari ini (mis. **⚑ 2**) tampil di baris status. Angkanya diperbarui saat catatan dibuka, jadi papan tidak perlu memuat semua catatan.
