@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { POLI_SCHEDULE, SCHEDULE_PERIOD, nextPoli, upcomingPoli, weekdayName } from './schedule';
+import { POLI_SCHEDULE, SCHEDULE_PERIOD, nextPoli, upcomingPoli, weekPoli, weekdayName } from './schedule';
 import { DPJPS } from '../dpjp';
 import type { ClinicalDate } from '../types';
 
@@ -109,5 +109,21 @@ describe('upcomingPoli', () => {
 
   it('returns nothing for a non-positive count', () => {
     expect(upcomingPoli('ks', MONDAY, 0)).toEqual([]);
+  });
+});
+
+describe('weekPoli', () => {
+  it('lists every clinic in the next seven days, today included, in date order', () => {
+    // 2026-10-12 is a Monday; ZD sits Monday, Tuesday and Friday.
+    const week = weekPoli('zd', '2026-10-12');
+    expect(week.map((entry) => [entry.date, entry.slot.clinic])).toEqual([
+      ['2026-10-12', 'Poli Konsul & Echo IRJ'],
+      ['2026-10-13', '1 (Cardio PJT)'],
+      ['2026-10-16', '1 (Cardio PJT)'],
+    ]);
+  });
+
+  it('is empty for a consultant not on the roster', () => {
+    expect(weekPoli('nobody', '2026-10-12')).toEqual([]);
   });
 });

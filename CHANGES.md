@@ -1,5 +1,29 @@
 # Plano — CHANGES
 
+## `2026-10-10.9` — Compact DPJP side card; Poli opens the week (Avi: "the DPJP box is taking too much space")
+
+### What
+- `renderDpjpSide` now renders `DpjpSideCard`. The name moved into the
+  header row (truncated, full name in `title`), saving a line.
+- Poli + Lalu (two rows, each with clinic and hours, often wrapping to two
+  lines) became one button row: the next clinic, relative day
+  ("Hari ini" / "Besok" / "Senin 12/10") and clinic. It toggles a
+  "Poli XX · 7 hari ke depan" list with clinic and hours per slot, from the
+  new `weekPoli(dpjpId, today)` (upcomingPoli limited to `inDays < 7`).
+- Kirim / Format / Rencana / Diagnosis rows are unchanged; the 6MWT stays
+  visible.
+- Not touched: the folded DPJP line above the note (classic layout).
+
+### Not done
+- The heparin/warfarin calculators (separate request): plan sent, waiting
+  for Avi's OK, as that brief asks.
+
+```
+npm run verify
+  typecheck ✓  lint ✓ (0 warnings)  test ✓ 2139 passed (147 files)
+  check:version ✓  check:contrast ✓  check:a11y ✓  build ✓
+```
+
 ## `2026-10-10.8` — Furosemide: catheter reminder and urine-output requirement are two checks (Avi's correction of 10.7)
 
 ### What 10.7 got wrong

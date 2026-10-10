@@ -84,7 +84,7 @@ import {
   primaryDpjp,
   shortDelivery,
 } from '@/domain/dpjp';
-import { SCHEDULE_PERIOD, upcomingPoli, weekdayName } from '@/domain/poli/schedule';
+import { SCHEDULE_PERIOD, upcomingPoli, weekPoli, weekdayName } from '@/domain/poli/schedule';
 import {
   daysBetween,
   formatShortDate,
@@ -1486,50 +1486,18 @@ export default function PatientPage(): JSX.Element {
    * the next two clinics.
    */
   const renderDpjpSide = (): JSX.Element | null => {
-    const rows: Array<{ label: string; value: ReactNode; strong?: boolean }> = [];
-    if (dpjp?.delivery) rows.push({ label: 'Kirim', value: describeDelivery(dpjp.delivery) });
-    if (dpjpFormat) rows.push({ label: 'Format', value: describeConfig(dpjpFormat) });
-    if (isTrioDpjp(dpjp?.id)) rows.push({ label: 'Rencana', value: 'Rencanakan 6MWT (6 minute walk test)', strong: true });
-    if (poli) {
-      rows.push({
-        label: 'Poli',
-        value: `${weekdayName(poli.weekday)}${poli.inDays === 0 ? ' (hari ini)' : poli.inDays === 1 ? ' (besok)' : ''}, ${poli.date} · ${poli.slot.clinic} · ${poli.slot.time}`,
-      });
-    } else if (dpjp) {
-      rows.push({ label: 'Poli', value: `Tidak ada di jadwal poli ${SCHEDULE_PERIOD}` });
-    }
-    if (poliAfter) {
-      rows.push({
-        label: 'Lalu',
-        value: `${weekdayName(poliAfter.weekday)}, ${poliAfter.date} · ${poliAfter.slot.clinic} · ${poliAfter.slot.time}`,
-      });
-    }
-    if (patient.diagnoses.length > 0) rows.push({ label: 'Diagnosis', value: patient.diagnoses.join(', ') });
-    if (!dpjp && rows.length === 0) return null;
+    if (!dpjp && patient.diagnoses.length === 0) return null;
     return (
-      <section className="shrink-0 overflow-hidden rounded-xl border border-border bg-surface">
-        <div className="flex min-h-tap items-center gap-2 px-3 [@media(pointer:fine)]:min-h-10">
-          <span className="flex-1 text-[11px] font-semibold uppercase tracking-wider text-fg-faint">DPJP</span>
-          {dpjp ? (
-            <span className="rounded-md bg-[var(--accent-soft)] px-1.5 py-0.5 text-[11px] font-semibold text-accent">
-              {dpjp.initials}
-            </span>
-          ) : (
-            <span className="text-[11px] text-fg-faint">belum dikenali</span>
-          )}
-        </div>
-        {dpjp ? <p className="-mt-1 px-3 pb-1 text-xs font-medium leading-snug">{dpjp.name}</p> : null}
-        {rows.length > 0 ? (
-          <dl className="grid grid-cols-[auto_minmax(0,1fr)] gap-x-3 gap-y-1 border-t border-border px-3 py-2 text-[11px]">
-            {rows.map((row) => (
-              <div key={row.label} className="contents">
-                <dt className="text-fg-faint">{row.label}</dt>
-                <dd className={row.strong ? 'font-medium text-accent' : 'text-fg-muted'}>{row.value}</dd>
-              </div>
-            ))}
-          </dl>
-        ) : null}
-      </section>
+      <DpjpSideCard
+        dpjp={dpjp ? { id: dpjp.id, initials: dpjp.initials, name: dpjp.name } : null}
+        rows={[
+          ...(dpjp?.delivery ? [{ label: 'Kirim', value: describeDelivery(dpjp.delivery) }] : []),
+          ...(dpjpFormat ? [{ label: 'Format', value: describeConfig(dpjpFormat) }] : []),
+          ...(isTrioDpjp(dpjp?.id) ? [{ label: 'Rencana', value: 'Rencanakan 6MWT (6 minute walk test)', strong: true }] : []),
+          ...(patient.diagnoses.length > 0 ? [{ label: 'Diagnosis', value: patient.diagnoses.join(', ') }] : []),
+        ]}
+        today={today}
+      />
     );
   };
 
@@ -2995,5 +2963,106 @@ function MarkerChips({
         </span>
       ))}
     </div>
+  );
+}
+
+/**
+ * The DPJP card in the panel sidebar (compact, 2026-10-10).
+ *
+ * It had grown to seven rows: a header, the full name on its own line, Kirim,
+ * Format, Rencana, Poli and Lalu, each clinic spelled out with its hours. The
+ * name now shares the header, and the clinics are ONE line — the next one —
+ * that opens to the consultant's whole coming week (Avi). The week answers
+ * the question the two lines were read for ("can a referral still go this
+ * week?") better than two dates did, and costs nothing until it is asked.
+ */
+function DpjpSideCard({
+  dpjp,
+  rows,
+  today,
+}: {
+  dpjp: { id: string; initials: string; name: string } | null;
+  rows: ReadonlyArray<{ label: string; value: ReactNode; strong?: boolean }>;
+  today: ClinicalDate;
+}): JSX.Element {
+  const [weekOpen, setWeekOpen] = useState(false);
+  const week = useMemo(() => (dpjp ? weekPoli(dpjp.id, today) : []), [dpjp, today]);
+  const next = dpjp ? (upcomingPoli(dpjp.id, today, 1)[0] ?? null) : null;
+  const when = (entry: { weekday: number; inDays: number; date: string }): string =>
+    entry.inDays === 0
+      ? 'Hari ini'
+      : entry.inDays === 1
+        ? 'Besok'
+        : `${weekdayName(entry.weekday)} ${entry.date.slice(8)}/${entry.date.slice(5, 7)}`;
+  return (
+    <section className="shrink-0 overflow-hidden rounded-xl border border-border bg-surface">
+      <div className="flex min-h-tap items-center gap-2 px-3 [@media(pointer:fine)]:min-h-10">
+        <span className="shrink-0 text-[11px] font-semibold uppercase tracking-wider text-fg-faint">DPJP</span>
+        <span className="min-w-0 flex-1 truncate text-xs font-medium" title={dpjp?.name}>
+          {dpjp ? dpjp.name : <span className="text-fg-faint">belum dikenali</span>}
+        </span>
+        {dpjp ? (
+          <span className="shrink-0 rounded-md bg-[var(--accent-soft)] px-1.5 py-0.5 text-[11px] font-semibold text-accent">
+            {dpjp.initials}
+          </span>
+        ) : null}
+      </div>
+      {rows.length > 0 || dpjp ? (
+        <dl className="grid grid-cols-[auto_minmax(0,1fr)] gap-x-3 gap-y-1 border-t border-border px-3 py-2 text-[11px]">
+          {rows.map((row) => (
+            <div key={row.label} className="contents">
+              <dt className="text-fg-faint">{row.label}</dt>
+              <dd className={row.strong ? 'font-medium text-accent' : 'text-fg-muted'}>{row.value}</dd>
+            </div>
+          ))}
+          {dpjp ? (
+            <div className="contents">
+              <dt className="text-fg-faint">Poli</dt>
+              <dd className="min-w-0 text-fg-muted">
+                {next ? (
+                  <button
+                    type="button"
+                    aria-expanded={weekOpen}
+                    onClick={() => setWeekOpen((open) => !open)}
+                    title="Lihat jadwal poli minggu ini"
+                    className="-my-1 flex min-h-8 w-full min-w-0 items-center gap-1 text-left text-accent"
+                  >
+                    <span className="min-w-0 flex-1 truncate">
+                      {when(next)} · {next.slot.clinic}
+                    </span>
+                    <span aria-hidden="true" className={`shrink-0 transition-transform ${weekOpen ? 'rotate-90' : ''}`}>
+                      ›
+                    </span>
+                  </button>
+                ) : (
+                  `Tidak ada di jadwal poli ${SCHEDULE_PERIOD}`
+                )}
+              </dd>
+            </div>
+          ) : null}
+        </dl>
+      ) : null}
+      {weekOpen && dpjp ? (
+        <div className="border-t border-border px-3 py-2 text-[11px]">
+          <p className="mb-1 font-semibold text-fg-faint">Poli {dpjp.initials} · 7 hari ke depan</p>
+          {week.length === 0 ? (
+            <p className="text-fg-muted">Tidak ada poli dalam 7 hari ke depan.</p>
+          ) : (
+            <ul className="space-y-1">
+              {week.map((entry) => (
+                <li key={`${entry.date}-${entry.slot.clinic}`} className="grid grid-cols-[5.5rem_minmax(0,1fr)] gap-x-2">
+                  <span className={entry.inDays <= 1 ? 'font-semibold' : 'text-fg-muted'}>{when(entry)}</span>
+                  <span className="min-w-0">
+                    {entry.slot.clinic}
+                    <span className="block text-fg-faint">{entry.slot.time}</span>
+                  </span>
+                </li>
+              ))}
+            </ul>
+          )}
+          <p className="mt-1 text-[10px] text-fg-faint">Jadwal {SCHEDULE_PERIOD}</p>
+        </div>
+      ) : null}
+    </section>
   );
 }

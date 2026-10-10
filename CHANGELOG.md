@@ -5,6 +5,12 @@ Catatan teknis lengkap (akar masalah, perbaikan) ada di CHANGES.md.
 
 Entri teratas harus versi yang sedang dirilis; tes gagal bila belum ditulis.
 
+## `2026-10-10.9`
+- **Kotak DPJP di sisi kanan halaman pasien lebih ringkas.**
+  - Nama DPJP kini satu baris di judul kotak.
+  - Poli tinggal satu baris: poli berikutnya (mis. "Senin 12/10 · Poli Konsul & Echo IRJ"). **Ketuk baris itu** untuk melihat semua poli DPJP tersebut dalam 7 hari ke depan, lengkap dengan jamnya.
+  - Baris "Lalu" dihapus karena sudah tercakup di daftar mingguan.
+
 ## `2026-10-10.8`
 - **Pengingat furosemide dipisah menjadi dua, sesuai praktik bangsal.**
   - **Kateter:** bila S belum menulis cara BAK, muncul pengingat untuk menulis **"BAK per kateter"**, atau, bila pasien menolak kateter atau urin ditampung, menuliskannya. "BAK kesan normal/spontan", "ditampung", urinal, atau "menolak kateter" dianggap sudah menjawab.

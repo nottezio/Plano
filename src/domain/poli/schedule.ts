@@ -145,3 +145,13 @@ export function unregisteredNames(): string[] {
     ),
   ];
 }
+
+/**
+ * The consultant's clinics over the coming seven days, today included, in
+ * date order (2026-10-10). What the sidebar's Poli line opens to: the whole
+ * week at a glance, so "which day can this referral go" is one tap, not a
+ * printed roster.
+ */
+export function weekPoli(dpjpId: string, today: ClinicalDate): NextPoli[] {
+  return upcomingPoli(dpjpId, today, POLI_SCHEDULE.length).filter((entry) => entry.inDays < 7);
+}
