@@ -726,6 +726,21 @@ export function PatientCard({
           </span>
         ) : null}
       </div>
+      {/*
+        The chief, as a solid person tag under the location (2026-10-10). It was a
+        faint "Chief …" line in the body, where it was cut first on a short
+        card and read like part of the diagnosis list. It is who the note
+        goes to: solid, labelled, at full strength (the location row is faded).
+      */}
+      {card.chief ? (
+        <span
+          title={`Chief: ${card.chief}`}
+          className="mt-1 inline-flex max-w-full items-center gap-1 rounded-full bg-token-fg px-1.5 text-[10px] font-semibold text-token"
+        >
+          <span className="font-normal opacity-80">Chief</span>
+          <span className="truncate">{card.chief}</span>
+        </span>
+      ) : null}
       </div>
 
         {/*
@@ -841,7 +856,6 @@ export function PatientCard({
           clipped from the bottom, and what changed matters more than the
           rest of a list you can open. */}
       {card.dxChanges && !dense ? <DxChangeLine card={card} /> : null}
-      {card.chief && !dense ? <p className="text-[11px] opacity-60">Chief {card.chief}</p> : null}
 
       {/* `leading-snug`: a list of diagnoses reads fine at 1.375, and
           `relaxed` spent a fifth of the body's height between the lines. */}
@@ -1316,24 +1330,51 @@ function FlagRow({
   );
 }
 
-/** "Sejak kemarin: + A · − B" — what the diagnosis list gained and lost. */
+/**
+ * What changed in the diagnosis list since the previous day's note.
+ *
+ * Spelled out, one change per line with its own word (2026-10-10). The
+ * first version was "Sejak kemarin: + X · − Y", which Avi found unreadable:
+ * nothing said it was about the DIAGNOSIS, and "+" and "−" next to medical
+ * terms read as positive and negative, not as added and dropped.
+ */
+const DX_KIND = {
+  added: { word: 'Baru', mark: '+' },
+  changed: { word: 'Diubah', mark: '✎' },
+  removed: { word: 'Dihapus', mark: '−' },
+} as const;
 function DxChangeLine({ card }: { card: BoardCard }): JSX.Element | null {
   const changes = card.dxChanges;
   if (!changes) return null;
   const since = card.patient.prevPreviewDate;
   const today = card.patient.previewDate;
   const when =
-    since && today && daysBetween(since, today) === 1 ? 'kemarin' : since ? formatDmy(since).slice(0, 5) : 'sebelumnya';
-  const parts = [...changes.added.map((line) => `+ ${line}`), ...changes.removed.map((line) => `− ${line}`)];
-  const shown = parts.slice(0, 3);
+    since && today && daysBetween(since, today) === 1
+      ? 'kemarin'
+      : since
+        ? formatDmy(since).slice(0, 5)
+        : 'catatan sebelumnya';
+  const rows: Array<{ kind: keyof typeof DX_KIND; text: string }> = [
+    ...changes.added.map((text) => ({ kind: 'added' as const, text })),
+    ...changes.changed.map((change) => ({ kind: 'changed' as const, text: change.to })),
+    ...changes.removed.map((text) => ({ kind: 'removed' as const, text })),
+  ];
+  const shown = rows.slice(0, 3);
+  const full = rows.map((row) => `${DX_KIND[row.kind].word}: ${row.text}`).join('\n');
   return (
-    <p
-      className="mb-0.5 line-clamp-2 text-[11px] leading-snug opacity-75"
-      title={parts.join('\n')}
-    >
-      <span className="font-semibold">Sejak {when}:</span> {shown.join(' · ')}
-      {parts.length > shown.length ? ` · +${parts.length - shown.length} lagi` : ''}
-    </p>
+    <div className="mb-1 rounded-md bg-black/10 px-1.5 py-1 text-[11px] leading-snug dark:bg-white/10" title={full}>
+      <p className="text-[10px] font-semibold opacity-80">Diagnosis berubah dari {when}</p>
+      {shown.map((row, index) => (
+        <p key={index} className="line-clamp-1">
+          <span className="font-semibold">
+            <span aria-hidden="true">{DX_KIND[row.kind].mark} </span>
+            {DX_KIND[row.kind].word}:
+          </span>{' '}
+          {row.text}
+        </p>
+      ))}
+      {rows.length > shown.length ? <p className="opacity-70">+{rows.length - shown.length} perubahan lagi</p> : null}
+    </div>
   );
 }
 

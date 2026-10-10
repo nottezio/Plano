@@ -132,8 +132,21 @@ export default function PatientPage(): JSX.Element {
    * Yesterday stays one tap away on the rail, and "salin dari hari sebelumnya"
    * still offers its content on an empty day.
    */
-  const selected: ClinicalDate = routeDate ?? today;
   const { patient, loading, error } = usePatient(patientId);
+  const entryDates = useEntryDates(patientId);
+  /*
+    An ARCHIVED patient opens on its last written day, not today
+    (2026-10-10). Today is right for a patient on the round; for one who has
+    gone home, today is an empty page nobody will write, and a stray keystroke
+    there starts a note dated after discharge.
+  */
+  const archivedDay =
+    !routeDate && patient?.status === 'archived'
+      ? ([...entryDates.datesWithBody].filter((date) => !isIgdEntry(date)).sort().at(-1) ??
+        patient.lastEntryDate ??
+        null)
+      : null;
+  const selected: ClinicalDate = routeDate ?? archivedDay ?? today;
 
   /** Tells the clipboard note which patient is open, so a mismatch shows. */
   const setOpenPatient = useClipboardNote((state) => state.setOpenPatient);
@@ -148,7 +161,6 @@ export default function PatientPage(): JSX.Element {
   /** The note on screen now, for async actions to check they still apply. */
   const currentNoteKey = useRef('');
   currentNoteKey.current = `${patientId ?? ''}|${selected}`;
-  const entryDates = useEntryDates(patientId);
   const previous = useEntry(patientId, previousDay(selected));
 
   const [hintDismissed, setHintDismissed] = useState(false);

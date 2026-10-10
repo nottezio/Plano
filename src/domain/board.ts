@@ -149,19 +149,50 @@ export interface BoardCard {
    * (2026-10-10). Null when there is nothing to compare: no note today, or no
    * earlier one kept.
    */
-  dxChanges: { added: string[]; removed: string[] } | null;
+  dxChanges: DxChanges | null;
   /** "Periksa lagi" findings on today's note; null when not known for today. */
   checkCount: number | null;
 }
 
+export interface DxChanges {
+  /** Diagnoses that are new today. */
+  added: string[];
+  /** The same diagnosis, reworded or with a new value: `Hyponatremia (121) → (123)`. */
+  changed: Array<{ from: string; to: string }>;
+  /** Diagnoses no longer in today's list. */
+  removed: string[];
+}
+
 /**
  * The diagnosis lines that differ between two previews, ignoring bullets,
- * case and spacing. A line that only lost its "(perbaikan)" is a change too:
- * that is how the ward writes "improving".
+ * case and spacing.
+ *
+ * A line whose NAME is unchanged but whose bracket or qualifier is
+ * ("Hyponatremia (121)" → "Hyponatremia (121 → 123)") is one CHANGED
+ * diagnosis, not one removed and one added: shown as two it read as a
+ * diagnosis dropped and another invented (Avi, 10.6 screenshot).
  */
-export function previewDiff(previous: string, current: string): { added: string[]; removed: string[] } {
+export function previewDiff(previous: string, current: string): DxChanges {
   const clean = (line: string): string => line.replace(/^\s*(?:[-*•]|\d+[.)])\s*/, '').replace(/\s+/g, ' ').trim();
   const key = (line: string): string => clean(line).toLowerCase();
+  /*
+    The NAME of a diagnosis: up to its first bracket, dash, comma, cause
+    ("ec", "dd", "on", "post"), or first word carrying a number or a roman
+    numeral ("TIMI 4/7", "NYHA III", "stage 3a"). Those are what change from
+    day to day; the name is what stays.
+  */
+  const name = (line: string): string => {
+    const head = key(line).split(/\s*[(\[,;]|\s+-\s+|\s+(?:dd\/?|ec\.?|e\.c\.?|on|post)\s/)[0] ?? '';
+    const words: string[] = [];
+    for (const word of head.split(' ')) {
+      if (/\d/.test(word) || /^(?:i{1,3}|iv|v|vi{0,3})$/.test(word)) break;
+      words.push(word);
+    }
+    return words.join(' ').trim();
+  };
+  // Same name, or one name is the other plus more words ("NSTEMI" → "NSTEMI TIMI").
+  const sameDiagnosis = (a: string, b: string): boolean =>
+    a.length >= 4 && b.length >= 4 && (a === b || a.startsWith(`${b} `) || b.startsWith(`${a} `));
   const lines = (text: string): string[] =>
     text
       .replace(/…$/, '')
@@ -172,10 +203,18 @@ export function previewDiff(previous: string, current: string): { added: string[
   const after = lines(current);
   const had = new Set(before.map(key));
   const has = new Set(after.map(key));
-  return {
-    added: after.filter((line) => !had.has(key(line))),
-    removed: before.filter((line) => !has.has(key(line))),
-  };
+  const added = after.filter((line) => !had.has(key(line)));
+  const removed = before.filter((line) => !has.has(key(line)));
+  const changed: DxChanges['changed'] = [];
+  for (const line of [...added]) {
+    const own = name(line);
+    const match = removed.find((old) => sameDiagnosis(name(old), own));
+    if (!match) continue;
+    changed.push({ from: match, to: line });
+    added.splice(added.indexOf(line), 1);
+    removed.splice(removed.indexOf(match), 1);
+  }
+  return { added, changed, removed };
 }
 
 export function buildCard(
@@ -245,7 +284,7 @@ export function buildCard(
       patient.preview && patient.previewDate === today && patient.prevPreview && !showInitialsOnly
         ? (() => {
             const diff = previewDiff(patient.prevPreview, patient.preview);
-            return diff.added.length + diff.removed.length > 0 ? diff : null;
+            return diff.added.length + diff.removed.length + diff.changed.length > 0 ? diff : null;
           })()
         : null,
     checkCount: patient.checkDate === today && typeof patient.checkCount === 'number' ? patient.checkCount : null,

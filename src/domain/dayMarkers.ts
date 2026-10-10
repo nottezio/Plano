@@ -31,7 +31,12 @@ import type { ClinicalDate } from './types';
  * most of them, since the post-procedure lines live in the italic opening zone
  * — would have been silently skipped.
  */
-const MARKER = /(?<![A-Za-z0-9])(H\s*[-+]?\s*|hari\s+ke\s*-?\s*)(\d{1,3})(?!\d)/gi;
+/*
+ * Not after a length unit (2026-10-10): `JVP R+3 cm H20` is water typed with
+ * a zero, and was reported as a day counter "H20" that had not moved since
+ * yesterday. A counter never follows `cm` or `mm`.
+ */
+const MARKER = /(?<![A-Za-z0-9])(?<!\b[cm]m\s{0,2})(H\s*[-+]?\s*|hari\s+ke\s*-?\s*)(\d{1,3})(?!\d)/gi;
 
 export interface DayMarker {
   /** The whole matched text, e.g. `H-3`. */

@@ -1,5 +1,53 @@
 # Plano — CHANGES
 
+## `2026-10-10.7` — Periksa lagi false positives (two real notes), archived opens last SOAP, chief tag, readable diagnosis changes
+
+### Root causes
+1. **"H20" day counter.** `MARKER` accepts `H` + digits after any
+   non-alphanumeric character, so `cm H20` (H2O typed with a zero) is a
+   counter. Fix: negative lookbehind for a length unit (`cm`/`mm`). A counter
+   never follows one.
+2. **"Diagnosis menyebut Na 123, lab terbaru 121".** `readLabs` matched raw
+   text, and the ward bolds abnormal values in place
+   (`Na/K/Cl *123*/3.8/*92*`). The newest line failed the pattern and the
+   first match was an older line further down. The value was read from the
+   wrong DAY, plausibly, which is the worst kind of checker error. Fix: strip
+   `* _ ~` before reading; Hb also accepts a decimal comma.
+3. **Foley reminder on a patient who voids normally** (Tn. K: "BAK kesan
+   normal", output measured). The rule could only be silenced by a catheter
+   word. Fix: documented spontaneous voiding (`BAK … normal/spontan/lancar/
+   biasa/baik/mandiri`, urinal, pispot) also answers it.
+4. **Archived patient opened today's empty page.** `selected = routeDate ??
+   today` for every patient. Fix: without a date in the URL, an archived
+   patient opens its latest written (non-IGD) day, falling back to
+   `lastEntryDate`. `useEntryDates` moved above `selected` for this.
+5. **"Sejak kemarin: + X · − Y" unreadable.** It never said it was about
+   the diagnosis, "+/−" read as positive/negative, and a re-valued
+   diagnosis showed as one removed and one added. Fix: `previewDiff`
+   returns `changed` pairs, matched by diagnosis NAME. The name is the text
+   up to a bracket/dash/cause word or the first numbered/roman-numeral word;
+   "NSTEMI" ↔ "NSTEMI TIMI 4/7" pair by word prefix, min 4 chars. The card
+   shows a titled block "Diagnosis berubah dari kemarin" with Baru / Diubah /
+   Dihapus rows, max 3 + "n perubahan lagi".
+6. **Chief easy to miss.** It was an `opacity-60` line inside the body
+   (clipped first on a capped card). It is now an inverted pill "Chief dr. …"
+   in the identity band, outside the faded location row.
+
+### Checked
+- Both reported notes run through `checkSoap` (not committed: real patient
+  data). The H20 and Na findings are gone, and Tn. K's Foley reminder is
+  gone. New test file `soapCheckWardNotes.test.ts` uses invented values.
+
+### Not done
+- `dpjpSpecialties` fails on CRLF text (`.` does not match `\r`). It only
+  showed when the attached .txt was run directly; the editor stores LF.
+
+```
+npm run verify
+  typecheck ✓  lint ✓ (0 warnings)  test ✓ 2135 passed (147 files)
+  check:version ✓  check:contrast ✓  check:a11y ✓  build ✓
+```
+
 ## `2026-10-10.6` — Card proposal pieces missing on Avi's canvas board (his screenshot, Urutan sendiri)
 
 ### Root causes

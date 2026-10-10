@@ -5,6 +5,18 @@ Catatan teknis lengkap (akar masalah, perbaikan) ada di CHANGES.md.
 
 Entri teratas harus versi yang sedang dirilis; tes gagal bila belum ditulis.
 
+## `2026-10-10.7`
+- **Periksa lagi: dua temuan keliru diperbaiki.**
+  - "Hitungan hari belum berubah: **H20**" muncul dari "JVP R+3 cm H20" (H2O ditulis dengan angka nol). Angka setelah **cm** atau **mm** kini tidak lagi dibaca sebagai hitungan hari.
+  - "Diagnosis menyebut Na 123, lab terbaru 121" padahal lab terbaru memang 123. Nilai yang ditebalkan (mis. `Na/K/Cl *123*/3.8/*92*`) membuat baris lab terbaru terlewat, sehingga yang terbaca baris lama. Tanda tebal kini diabaikan saat membaca lab. Hb dengan koma (12,7) juga terbaca benar.
+- **Pengingat kateter urin tidak muncul lagi bila BAK spontan sudah ditulis** (mis. "BAK kesan normal", "BAK spontan", urinal). Pasien yang berkemih normal tidak perlu disarankan pasang kateter hanya karena mendapat furosemide.
+- **Pasien arsip dibuka di SOAP terakhirnya**, bukan halaman kosong hari ini. Hari lain tetap bisa dipilih seperti biasa.
+- **Chief kini tampil jelas di kartu**, sebagai label tebal **Chief dr. …** di bawah lokasi. Sebelumnya hanya teks samar di dalam isi kartu.
+- **Perubahan diagnosis kini dijelaskan.** "Sejak kemarin: + … · − …" diganti dengan kotak **Diagnosis berubah dari kemarin**, berisi satu baris per perubahan:
+  - **Baru**: diagnosis yang baru muncul;
+  - **Diubah**: diagnosis yang sama dengan nilai atau derajat berbeda (mis. NSTEMI TIMI 3/7 → 4/7), yang sebelumnya tampil sebagai satu dihapus dan satu baru;
+  - **Dihapus**: diagnosis yang tidak ada lagi.
+
 ## `2026-10-10.6`
 - **"Sejak kemarin" kini muncul hari ini juga.** Di 10.5 baris ini baru tampil besok, karena pembanding diambil saat kartu berganti hari. Kini, saat catatan hari ini dibuka, diagnosis kemarin diambil langsung dari catatan kemarin.
 - **Baris "Sejak kemarin" dipindah ke atas daftar diagnosis.** Di kartu kanvas (Urutan sendiri) yang tingginya dibatasi, bagian bawah kartu terpotong, sehingga baris ini sebelumnya hilang.

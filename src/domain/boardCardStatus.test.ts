@@ -13,18 +13,31 @@ const YESTERDAY = '2026-08-05';
 describe('previewDiff', () => {
   it('lists what was added and removed, ignoring bullets, case and spacing', () => {
     const diff = previewDiff('- CAD 3VD\n- HHD\n- AKI', '1. cad  3VD\n- HHD\n- CKD st 3');
-    expect(diff).toEqual({ added: ['CKD st 3'], removed: ['AKI'] });
+    expect(diff).toEqual({ added: ['CKD st 3'], changed: [], removed: ['AKI'] });
   });
 
-  it('counts a changed qualifier as a change', () => {
-    expect(previewDiff('- Pneumonia', '- Pneumonia (perbaikan)')).toEqual({
-      added: ['Pneumonia (perbaikan)'],
-      removed: ['Pneumonia'],
+  it('reports a new value or qualifier as ONE changed diagnosis', () => {
+    expect(previewDiff('- Pneumonia\n- Hyponatremia (121)', '- Pneumonia (perbaikan)\n- Hyponatremia (121 -> 123)')).toEqual({
+      added: [],
+      changed: [
+        { from: 'Pneumonia', to: 'Pneumonia (perbaikan)' },
+        { from: 'Hyponatremia (121)', to: 'Hyponatremia (121 -> 123)' },
+      ],
+      removed: [],
     });
   });
 
+  it('pairs a diagnosis whose score or class changed', () => {
+    expect(previewDiff('- NSTEMI (TIMI 3/7)\n- CHF NYHA III', '- NSTEMI TIMI 4/7\n- CHF NYHA IV').changed).toHaveLength(2);
+  });
+
+  it('does not pair two different diagnoses', () => {
+    expect(previewDiff('- Hypertension', '- Hypertensive heart disease').changed).toEqual([]);
+    expect(previewDiff('- AKI', '- AF')).toEqual({ added: ['AF'], changed: [], removed: ['AKI'] });
+  });
+
   it('ignores the heading line and the truncation mark', () => {
-    expect(previewDiff('Diagnosis:\n- HF', 'Mohon izin pasien kami:\n- HF…')).toEqual({ added: [], removed: [] });
+    expect(previewDiff('Diagnosis:\n- HF', 'Mohon izin pasien kami:\n- HF…')).toEqual({ added: [], changed: [], removed: [] });
   });
 });
 
@@ -36,7 +49,7 @@ describe('dxChanges on the card', () => {
       prevPreview: '- HF',
       prevPreviewDate: YESTERDAY,
     });
-    expect(buildCard(patient, ITEMS, TODAY, false).dxChanges).toEqual({ added: ['AF'], removed: [] });
+    expect(buildCard(patient, ITEMS, TODAY, false).dxChanges).toEqual({ added: ['AF'], changed: [], removed: [] });
     expect(buildCard({ ...patient, previewDate: YESTERDAY }, ITEMS, TODAY, false).dxChanges).toBeNull();
     expect(buildCard({ ...patient, prevPreview: '- HF\n- AF' }, ITEMS, TODAY, false).dxChanges).toBeNull();
   });

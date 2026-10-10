@@ -153,8 +153,17 @@ export function readFlows(body: string): Record<string, string> {
  * alone — a parser that guesses at unfamiliar lab formats produces findings
  * nobody can act on, which is worse than no finding.
  */
-export function readLabs(body: string): Record<string, number> {
+export function readLabs(note: string): Record<string, number> {
   const out: Record<string, number> = {};
+  /*
+    WhatsApp emphasis removed first (2026-10-10). The ward bolds an abnormal
+    result in place — `Na/K/Cl *123*/3.8/*92*`, `HGB *17.4*` — and with the
+    asterisks in the way the newest lab line did not match, so the reader
+    skipped to an OLDER line further down and reported its value as "lab
+    terbaru" (Ny. H: diagnosis 121 → 123 flagged against the 3 Oct 121).
+    The markers are formatting, never part of a value.
+  */
+  const body = note.replace(/[*_~]/g, '');
 
   const triple = /\bNa\s*\/\s*K\s*\/\s*Cl\s*:?\s*(\d{2,3})\s*\/\s*([\d.]+)\s*\/\s*(\d{2,3})/i.exec(body);
   if (triple) {
@@ -166,13 +175,14 @@ export function readLabs(body: string): Record<string, number> {
   for (const [key, pattern] of [
     ['K', /\bK(?:alium)?\s*:\s*([\d.]+)/i],
     ['Na', /\bNa(?:trium)?\s*:\s*(\d{2,3})/i],
-    ['Hb', /\b(?:Hb|HGB)\s*:?\s*([\d.]+)/i],
+    // A decimal comma is common here (`Hb : 12,7`); read as a point.
+    ['Hb', /\b(?:Hb|HGB)\s*:?\s*(\d+(?:[.,]\d+)?)/i],
   ] as const) {
     // The triple wins where both exist: it is the line the lab printed, and a
     // stray `K :` elsewhere in a sentence is not a result.
     if (out[key] !== undefined) continue;
     const match = pattern.exec(body);
-    if (match?.[1]) out[key] = Number(match[1]);
+    if (match?.[1]) out[key] = Number(match[1].replace(',', '.'));
   }
 
   return out;
@@ -497,8 +507,16 @@ export function checkSoap(input: SoapCheckInput): SoapFinding[] {
     /balan(?:ce|s)\s*cairan|\bbalance\b|urine?\s*output|produksi\s*urin|\bdiuresis\b|intake[\s-]*output|\bI\s*\/\s*O\b/i.test(line),
   );
   const catheter = /kateter|catheter|foley|\bDC\b|dower|urine?\s*bag/i.test(body);
+  /*
+    Voiding documented as spontaneous answers the question too (2026-10-10):
+    "BAK kesan normal" on a patient with a measured output is a decision
+    already made, and telling the writer to consider a catheter for someone
+    who voids normally is advice the note gives no reason for (Tn. K).
+  */
+  const voids =
+    /\bBAK\b[^\n]{0,30}\b(?:normal|spontan|lancar|biasa|baik|mandiri)\b|\b(?:urinal|pispot|pot\s+urin)\b/i.test(body);
   const trigger = diuretic ?? balance;
-  if (trigger && !catheter) {
+  if (trigger && !catheter && !voids) {
     const what = diuretic ? 'Furosemide diberikan' : 'Plan memantau balance cairan / urine output';
     const text = trigger.line.trim();
     findings.push({
