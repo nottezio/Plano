@@ -170,6 +170,12 @@ export interface UserSettings {
    * shows these first. Absent: every DPJP in the pasted lists.
    */
   sensusDpjps?: string[];
+  /**
+   * The "Junior :" line of Ringkas, remembered for the account (2026-10-10).
+   * Usually the same resident for every patient; the Chief is per patient
+   * (`Patient.chief`), because a chief covers only some of them.
+   */
+  ringkasJunior?: string;
   /** Salam presets — swapped on an existing note, per SPEC 14. */
   greetings: string[];
   /** Reporting-sentence presets ("mohon izin melaporkan …"). */

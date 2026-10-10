@@ -65,6 +65,24 @@ const BOUNDARY_GROUP: Partial<Record<SectionId, CopyGroupId>> = {
  */
 const CONSULT_HEADING = /^\s*[*_]*\s*TS\b/;
 
+/**
+ * Inside a TS block, the cardiology headings are the only ones that end it.
+ *
+ * ROOT CAUSE (2026-10-10, Avi: the TS plans vanished from "Terapi + TS"). A
+ * consultant's reply carries its own A/, Th/, P/, "Plan Diagnostik", "Plan
+ * Monitoring", "Planning :". Each of those parsed as a boundary, so the TS
+ * block was cut at its first plan heading and the rest of it opened a PLAN
+ * region: the GEH's ascites tap and the HOM's bone-marrow plan were copied as
+ * OUR plan and were missing from "Terapi + TS". It surfaced when 10.1 brought
+ * "Plan Diagnostik" into Plan for older accounts; before that it already
+ * happened for "Planning :" and "Plan:" written inside a TS reply.
+ *
+ * A TS block now runs to the next TS heading or the end, and is ended early
+ * only by the forms the ward writes for its OWN sections — "Mohon izin kami
+ * assess / terapi …" — which a consultant's reply never uses.
+ */
+const OWN_HEADING = /^\s*[*_]*\s*mohon\s+i[zj]in\b/i;
+
 export interface Region {
   group: CopyGroupId;
   start: number;
@@ -85,6 +103,7 @@ export function regionsOf(
 ): Region[] {
   const sections = parseSections(body, aliases);
   const starts: Array<{ group: CopyGroupId; start: number }> = [];
+  let inConsult = false;
 
   for (const section of sections) {
     if (section.headerLine === null) continue;
@@ -102,8 +121,12 @@ export function regionsOf(
      */
     if (CONSULT_HEADING.test(section.headerLine)) {
       starts.push({ group: 'terapi', start: section.start });
+      inConsult = true;
       continue;
     }
+
+    // The consultant's own A/, Th/, P/, Plan Diagnostik… stay in their block.
+    if (inConsult && !OWN_HEADING.test(section.headerLine)) continue;
 
     /**
      * A boundary heading opens a block whether or not it owns its line.
@@ -117,7 +140,10 @@ export function regionsOf(
      * inline form.
      */
     const group = BOUNDARY_GROUP[section.sectionId];
-    if (group) starts.push({ group, start: section.start });
+    if (group) {
+      starts.push({ group, start: section.start });
+      inConsult = false;
+    }
   }
 
   return starts.map((entry, index) => ({

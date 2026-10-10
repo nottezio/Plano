@@ -5,6 +5,12 @@ Catatan teknis lengkap (akar masalah, perbaikan) ada di CHANGES.md.
 
 Entri teratas harus versi yang sedang dirilis; tes gagal bila belum ditulis.
 
+## `2026-10-10.2`
+- **Plan TS kembali ke tempatnya.** Setelah 10.1, isi "*Plan Diagnostik*" dan "*Plan Monitoring*" dari blok TS (mis. TS GEH, TS HOM) pindah ke salinan **Plan**, seolah-olah plan kita, dan hilang dari **Terapi + TS**. Kini satu balasan TS (A/, Th/, P/, Plan Diagnostik, Planning, dst.) selalu disalin utuh di **Terapi + TS**, dan **Plan** hanya berisi plan kita sendiri.
+- **Ringkas mengingat Chief dan Junior.** Kolom Chief dan Junior kini ada di Salin → Ringkas (PDF).
+  - **Chief** diisi dari dan disimpan ke kolom Chief pasien itu, yang juga tampil di kartu pasien.
+  - **Junior** disimpan sekali untuk semua pasien, dan sama di semua perangkat.
+
 ## `2026-10-10.1`
 - **Ringkas (PDF) tidak lagi memasukkan plan TS sebagai diagnosis.** Di catatan dengan blok TS (mis. TS GEH, TS HOM) berjudul "*Plan Diagnostik*", isi plan itu ikut masuk ke daftar Diagnosis Ringkas: "Aspirasi cairan asites", "ADT …", "BMP …". Kini Ringkas hanya mengambil diagnosis kardiologi, yaitu yang berjudul diagnosis/assess, dan berhenti di blok TS pertama.
 - **Nama bagian bawaan yang baru kini sampai ke akun lama.** Nama seperti "Plan Diagnostik", "Plan Monitoring", dan "Plan Terapi" ditambahkan ke daftar bawaan setelah akun Anda dibuat, sehingga di akun Anda judul-judul itu terbaca sebagai bagian tersendiri. Daftar nama bagian kini diperbarui otomatis seperti template, tanpa menghapus nama yang Anda tambahkan sendiri.

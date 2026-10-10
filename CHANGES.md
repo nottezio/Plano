@@ -1,5 +1,58 @@
 # Plano — CHANGES
 
+## `2026-10-10.2` — A TS reply is one block in Salin; Ringkas remembers Chief and Junior
+
+### 1. TS plans copied as our Plan (Avi: "plan section is only for our plan")
+**Symptom.** After 10.1, Salin "Plan" for the Kahar note ended with the GEH
+and HOM "Plan Diagnostik / Plan Monitoring" items, and "Terapi + TS" showed
+each TS reply cut off at "P/".
+
+**Root cause.** `regionsOf` (Salin bagian) opens a new region at every
+boundary heading: S, O, A, Terapi, Plan, or a "TS …" heading. Inside a TS
+reply, the consultant's own "Plan Diagnostik", "Planning :" or "Plan:" is a
+Plan boundary, so the reply was cut there and the rest was handed to OUR
+Plan. 10.1 exposed it for Avi's account by (correctly) bringing "Plan
+Diagnostik / Monitoring" into Plan. It already happened for every account
+with "Planning :" / "Plan:" written inside a TS reply (e.g. the Lt. 5 list's
+"TS KGEH … Planning :").
+
+**Fix.** A TS heading opens a block that runs to the next TS heading or the
+end. It ends early only at the ward's own forms ("Mohon izin kami assess /
+terapi …", `OWN_HEADING`), which a reply never uses, so a TS block written
+mid-note still ends at our next section. Ringkas was already safe: since 10.1
+it stops at the first TS block.
+
+Tests (`sectionSlices.test.ts`, new):
+- Terapi + TS keeps "Plan Diagnostik" and "Planning :" inside each reply;
+- Plan is exactly our plan;
+- A is exactly our assessment;
+- a mid-note TS block ends at "Mohon izin kami terapi".
+
+**Known limit:** a note that puts a TS reply BEFORE our own Terapi/Plan and
+writes those headings without "Mohon izin kami …" (bare "Terapi:", "Plan:")
+would keep them in the TS block. The corpus writes TS replies at the end.
+
+### 2. Ringkas Chief/Junior remembered (Avi: "the app remembers the chief and junior")
+They were always printed blank (`composePdfReport` had `chief`/`junior`
+options nobody passed).
+- Salin → Ringkas (PDF), when the consultant's format has staffing lines:
+  Chief and Junior fields.
+- **Chief** reads and writes `Patient.chief`: the existing per-patient field
+  (Identitas, board card), because a chief covers only some patients.
+- **Junior** is `UserSettings.ringkasJunior`: one value for the account,
+  synced.
+- Both are saved on blur, not per keystroke, and re-read when the sheet
+  opens.
+
+Harness: typed both, the preview read "Chief : dr. Chief Contoh / Junior :
+dr. Junior Contoh", and the closed and reopened sheet still held both.
+
+```
+npm run verify
+  typecheck ✓  lint ✓ (0 warnings)  test ✓ 2104 passed (144 files)
+  check:version ✓  check:contrast ✓  check:a11y ✓  build ✓
+```
+
 ## `2026-10-10.1` — Ringkas took TS plans for diagnoses; section names never reached existing accounts
 
 ### Symptom (Avi, a CVCU → Lt. 4 transfer note with TS GEH and TS HOM)

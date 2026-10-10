@@ -47,6 +47,9 @@ import {
   type CopyGroupId,
 } from '@/domain/format/copyGroups';
 import { copyText } from '@/lib/clipboard';
+import { updatePatient } from '@/data/repositories/patients.repo';
+import { updateSettings } from '@/data/repositories/settings.repo';
+import { useSession } from '@/store/useSession';
 import { checkIdentity } from '@/domain/identityCheck';
 import { RenderedPreview } from './RenderedPreview';
 import type {
@@ -299,6 +302,39 @@ export function CopySheet({
   );
 
   /**
+   * Ringkas "Chief :" and "Junior :" (2026-10-10, Avi: "the app remembers
+   * the chief and junior"). They were always printed blank and typed in
+   * WhatsApp for every patient. The Chief is the patient's own field (the
+   * one in Identitas, also on the board card), so filling it here fills it
+   * there. The Junior is one value for the account. Both are saved when the
+   * field is left, not per keystroke.
+   */
+  const uid = useSession((state) => state.user?.uid ?? null);
+  const savedJunior = useSession((state) => state.settings().ringkasJunior) ?? '';
+  const [chief, setChief] = useState(patient.chief ?? '');
+  const [junior, setJunior] = useState(savedJunior);
+  useEffect(() => {
+    if (!open) return;
+    setChief(patient.chief ?? '');
+    setJunior(savedJunior);
+    // Re-read only when the sheet opens or the patient changes; while it is
+    // open the fields are the user's.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, patient.id]);
+  const saveChief = (): void => {
+    const next = chief.trim();
+    if (next === (patient.chief ?? '')) return;
+    void updatePatient(patient.id, { chief: next }).catch((error: unknown) =>
+      console.error('[copy] chief save rejected', error),
+    );
+  };
+  const saveJunior = (): void => {
+    const next = junior.trim();
+    if (!uid || next === savedJunior) return;
+    void updateSettings(uid, { ringkasJunior: next });
+  };
+
+  /**
    * A reminder, not a switch.
    *
    * The consultant's expected format is shown next to the Bentuk chips and the
@@ -460,6 +496,8 @@ export function CopySheet({
             bullet,
             asciiSymbols,
             staffing: reportStaffing,
+            chief: chief.trim(),
+            junior: junior.trim(),
             ...(reportVerificationTime ? { verificationTime: reportVerificationTime } : {}),
             closings,
           })
@@ -489,6 +527,8 @@ export function CopySheet({
       closings,
       reportFormat,
       reportStaffing,
+      chief,
+      junior,
       reportVerificationTime,
       date,
       source,
@@ -799,6 +839,31 @@ export function CopySheet({
             </ChipRow>
           </Section>
 
+          {shape === 'ringkas' && reportStaffing ? (
+            <div className="grid grid-cols-2 gap-2">
+              <Field label="Chief" htmlFor="ringkas-chief" hint="Tersimpan di pasien ini">
+                <input
+                  id="ringkas-chief"
+                  value={chief}
+                  onChange={(event) => setChief(event.target.value)}
+                  onBlur={saveChief}
+                  autoComplete="off"
+                  className={INPUT}
+                />
+              </Field>
+              <Field label="Junior" htmlFor="ringkas-junior" hint="Tersimpan untuk semua pasien">
+                <input
+                  id="ringkas-junior"
+                  value={junior}
+                  onChange={(event) => setJunior(event.target.value)}
+                  onBlur={saveJunior}
+                  autoComplete="off"
+                  className={INPUT}
+                />
+              </Field>
+            </div>
+          ) : null}
+
           {/*
             Shown only for Ringkas, and only when this consultant asks for the
             line. Everyone else gets no extra field to read past.
@@ -829,7 +894,7 @@ export function CopySheet({
 
           {pdfMode ? (
             <p className="text-[11px] leading-relaxed text-fg-faint">
-              Berisi baris Chief/Junior (dikosongkan), blok pembuka apa adanya, daftar diagnosis,
+              Berisi baris Chief/Junior (dari kolom di atas), blok pembuka apa adanya, daftar diagnosis,
               dan kalimat penutup. Tanpa S, O, terapi, dan plan.
             </p>
           ) : null}
