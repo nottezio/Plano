@@ -19,6 +19,7 @@ import { DpjpFormatEditor } from '@/components/settings/DpjpFormatEditor';
 import { TemplateEditor } from '@/components/settings/TemplateEditor';
 import { AiSettings } from '@/components/settings/AiSettings';
 import { ReferenceRangeSettings } from '@/components/settings/ReferenceRanges';
+import { HeparinSettingsEditor } from '@/components/settings/HeparinSettings';
 import { PasteInspector } from '@/components/settings/PasteInspector';
 import { RebuildCards } from '@/components/settings/RebuildCards';
 import { SessionLogPanel } from '@/components/settings/SessionLogPanel';
@@ -729,6 +730,14 @@ export default function SettingsPage(): JSX.Element {
             description="Opsional. Kosong secara bawaan — Plano tidak membawa angka rujukan."
           >
             <ReferenceRangeSettings />
+          </SettingsSection>
+          <SettingsSection
+            id="heparin"
+            keywords="heparin aptt kontrol nomogram antikoagulan kalkulator"
+            title="Heparin (aPTT)"
+            description="Kontrol aPTT lab dan target untuk kartu heparin di Kalkulator. Tersimpan di perangkat ini."
+          >
+            <HeparinSettingsEditor />
           </SettingsSection>
           <SettingsSection
             id="perbarui-kartu"

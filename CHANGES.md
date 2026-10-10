@@ -1,5 +1,91 @@
 # Plano — CHANGES
 
+## `2026-10-10.10` — Heparin (aPTT) calculator, release 1 of 2 (Avi's anticoagulation brief; warfarin waits for his confirmation)
+
+### Protocol and sources (every number traced)
+- **Nomogram:** Raschke RA et al., Ann Intern Med 1993;119:874–81, Table 2.
+  Copied from the PDF Avi supplied (page 875) into
+  `domain/calc/heparinProtocol.ts` as DATA, with the printed cells kept
+  verbatim beside the numeric fields. A test parses the printed action text
+  and checks it against the numbers.
+- **Ratio, not seconds.** The paper gives both columns. Its seconds belong to
+  its own lab (plain Dade Actin, normal 20–30 s, "control" = upper limit of
+  normal = 30 s), and its discussion recommends "APTT ratios (actual
+  APTT/control APTT), as shown in Table 2" for other labs. Avi asked for
+  this: each lab has its own control.
+- **Row edges on a bound** are decided from the paper's own text:
+  - 1.5× is NOT therapeutic: "exceeding the 'therapeutic threshold' of
+    45 seconds (1.5 times the control APTT)"; 45 s sits in "35 to 45s".
+  - 2.3× and 3× belong to the lower row: 70 s is in "46 to 70s", 90 s in
+    "71 to 90s".
+  - 1.2× is strict ("<1.2").
+- **"then 4 u/kg · h"** is read as an INCREASE, as CHEST 2012 Table 3 words
+  the same row ("then increase 4 units/kg/h").
+- **Target 1.5–2.5×** (Avi's ward) as a Settings choice beside Raschke's
+  1.5–2.3×, cited to Garcia et al., CHEST 2012 e24S ("a therapeutic aPTT
+  range of 1.5 to 2.5 times control gained wide acceptance", citing Basu
+  1972). Choosing 2.5 moves only the edge between "no change" and
+  "decrease 2"; the other rows stay Raschke's.
+- **From the paper's text:** recheck at 6 h ("'Stat' APTT levels were drawn
+  every 6 hours"); no adjustment on an aPTT drawn < 4 h after the last
+  change; actual body weight. No dose cap and no rounding: none is in the
+  source.
+- **HIT:** the stop names the 4Ts score, from the ASH 2018 HIT guideline
+  abstract (Cuker et al., Blood Adv 2018;2:3360–92).
+
+### Design
+- `domain/calc/heparin.ts`: `startDose`, `apttRatio`, `matchRow`,
+  `adjustDose` (row, bolus, hold, new rate per kg and per hour, a
+  `rateFloor` flag when a decrease would reach ≤ 0, target in seconds),
+  `adjustProblems`, `heparinStops`, and `readCoagFromNote`.
+  - `readCoagFromNote` reads the newest `PT/INR/APTT` slash group in either
+    order, `APTT … (kontrol N)`, and `BB … kg`, with bold stripped. It only
+    prefills.
+- **Hard stops are clinician ticks, not computed thresholds:** active
+  bleeding, platelets low/falling or HIT suspected, baseline INR prolonged,
+  severe liver disease. No fetchable source gave a citable cut-off for "low
+  platelets" or "prolonged INR", and an invented one would be the worst
+  number in a dosing card.
+- **Settings → Heparin (aPTT):** lab control (s) and the target choice, per
+  device in `visite.heparin`, like Rentang rujukan lab. No Firestore, rules,
+  patient fields or migration.
+- **UI:** `HeparinCard` on the Kalkulator page (new "Antikoagulan" group)
+  and in the floating calculator's Klinis tab. Units are U/kgBB/jam (Avi)
+  with U/jam beside them.
+- **Into the note:** the existing cards had no note handoff, only "Salin
+  baris". New `domain/format/insertTerapi.ts` adds the line to the FIRST
+  Terapi section (ours; TS replies come later), above a "Selesai :" list. It
+  returns null when there is no Terapi section, and the card then says to
+  use Salin baris. Wired through `FloatingCalculator` → PatientPage
+  `activeNote.apply`, so it writes to whichever note is open.
+
+### Wrong turns
+- I first planned seconds rows (CHEST Table 3 reproduces seconds only) and
+  could verify only Raschke's 1.5–2.3× target from the abstract. The other ×
+  control cut-offs were not fetchable, so I stopped and asked rather than
+  guess. Avi supplied the full text, which has both columns.
+- The CHEST "1.6-2.7 to 3.7-6.2 times control" sentence was first quoted on
+  the card without its context. It now says it refers to heparin levels of
+  0.3–0.7 U/mL anti-Xa.
+
+### Not confirmed / not done
+- **The RSWS heparin protocol has NOT been confirmed.** The defaults are
+  Raschke 1993. A local protocol is another `HeparinProtocol` data object.
+- **Note:** `CalculatorPage` says dose calculators were made links because
+  "a dose has to match a protocol only the ward owns". This card is an
+  exception, mitigated by protocol-as-data, the visible matched row, the
+  ward-set target and control, and the disclaimer. Avi should decide
+  whether that is enough.
+- No mL/jam (concentration not given).
+- No 6-hourly reminder or history: stateless by design.
+- Warfarin (release 2) not started.
+
+```
+npm run verify
+  typecheck ✓  lint ✓ (0 warnings)  test ✓ 2176 passed (149 files)
+  check:version ✓  check:contrast ✓  check:a11y ✓  build ✓
+```
+
 ## `2026-10-10.9` — Compact DPJP side card; Poli opens the week (Avi: "the DPJP box is taking too much space")
 
 ### What

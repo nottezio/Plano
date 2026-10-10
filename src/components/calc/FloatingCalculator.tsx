@@ -7,6 +7,7 @@ import {
   UrineOutputCard,
 } from '@/components/calc/ClinicalCards';
 import { IconClose, IconGrip } from '@/components/common/Icons';
+import { HeparinCard } from './HeparinCard';
 import { Segmented } from '@/components/common/ui';
 import {
   ARITHMETIC_ERROR_TEXT,
@@ -97,7 +98,17 @@ const KEYS: ReadonlyArray<readonly string[]> = [
   ['0', ',', '%', '='],
 ];
 
-export function FloatingCalculator({ onClose }: { onClose: () => void }): JSX.Element {
+export function FloatingCalculator({
+  onClose,
+  noteBody,
+  onInsertTerapi,
+}: {
+  onClose: () => void;
+  /** The open note, for cards that prefill from it (heparin). */
+  noteBody?: string | undefined;
+  /** Adds a line to the note's Terapi list; false when the note has none. */
+  onInsertTerapi?: ((line: string) => boolean) | undefined;
+}): JSX.Element {
   const desktop = useMediaQuery('(min-width: 640px)');
   const coarse = useMediaQuery('(pointer: coarse)');
   const [prefs, setPrefsState] = useState<Prefs>(readPrefs);
@@ -458,6 +469,7 @@ export function FloatingCalculator({ onClose }: { onClose: () => void }): JSX.El
           <UrineOutputCard />
           <OsmolalityCard />
           <SodiumGlucoseCard />
+          <HeparinCard noteBody={noteBody} onInsertTerapi={onInsertTerapi} />
           <UnitConverterCard />
         </div>
       </div>

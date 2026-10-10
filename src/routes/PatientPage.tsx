@@ -5,6 +5,7 @@ import { Link, useNavigate, useParams } from 'react-router-dom';
 
 import { BodyEditor, type BodyEditorHandle } from '@/components/patient/BodyEditor';
 import { FloatingCalculator } from '@/components/calc/FloatingCalculator';
+import { insertIntoTerapi } from '@/domain/format/insertTerapi';
 import { IconCalculator } from '@/components/common/Icons';
 import { Sheet } from '@/components/common/Sheet';
 import { SyncPill } from '@/components/common/SyncPill';
@@ -2501,7 +2502,18 @@ export default function PatientPage(): JSX.Element {
         {...(headerHasTools ? {} : { onCalculator: () => setCalcOpen(true) })}
       />
 
-      {calcOpen ? <FloatingCalculator onClose={() => setCalcOpen(false)} /> : null}
+      {calcOpen ? (
+        <FloatingCalculator
+          onClose={() => setCalcOpen(false)}
+          noteBody={activeNote.body}
+          onInsertTerapi={(line) => {
+            const next = insertIntoTerapi(activeNote.body, line, settings.sectionAliases);
+            if (next === null) return false;
+            activeNote.apply(next);
+            return true;
+          }}
+        />
+      ) : null}
 
         </div>
 

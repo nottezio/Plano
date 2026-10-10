@@ -1,6 +1,7 @@
 import { type ReactNode } from 'react';
 
 import { AppShell } from '@/components/common/AppShell';
+import { HeparinCard } from '@/components/calc/HeparinCard';
 import {
   LinkCard,
   OsmolalityCard,
@@ -32,6 +33,7 @@ const INFUSION_CALCULATOR_URL = 'https://nottezio.github.io/infucalc/';
  */
 const GROUPS = [
   { id: 'calc-cairan', label: 'Ginjal & cairan' },
+  { id: 'calc-antikoagulan', label: 'Antikoagulan' },
   { id: 'calc-elektrolit', label: 'Elektrolit' },
   { id: 'calc-konversi', label: 'Konversi satuan' },
   { id: 'calc-alat', label: 'Lainnya' },
@@ -65,6 +67,10 @@ export default function CalculatorPage(): JSX.Element {
         <Group id="calc-cairan" label="Ginjal & cairan">
           <UrineOutputCard />
           <OsmolalityCard />
+        </Group>
+
+        <Group id="calc-antikoagulan" label="Antikoagulan">
+          <HeparinCard />
         </Group>
 
         <Group id="calc-elektrolit" label="Elektrolit">

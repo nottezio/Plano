@@ -5,6 +5,15 @@ Catatan teknis lengkap (akar masalah, perbaikan) ada di CHANGES.md.
 
 Entri teratas harus versi yang sedang dirilis; tes gagal bila belum ditulis.
 
+## `2026-10-10.10`
+- **Kalkulator baru: Heparin (UFH) — aPTT**, di grup **Antikoagulan** pada halaman Kalkulator dan di tab Klinis kalkulator melayang.
+  - **Mulai:** dari BB aktual menghitung bolus 80 U/kg dan laju 18 U/kgBB/jam (beserta total U/jam).
+  - **Sesuaikan (aPTT):** dari aPTT, kontrol lab, dan laju sekarang. Kartu menunjukkan rasio × kontrol, baris nomogram yang cocok (stop/bolus/naik/turun), laju baru dalam U/kgBB/jam dan U/jam, serta kapan aPTT dicek ulang.
+  - Nomogram dari **Raschke 1993 (Tabel 2)**, dalam **× kontrol**, sehingga berlaku untuk reagen lab mana pun. Kontrol lab dan target (**1,5–2,3** Raschke atau **1,5–2,5** CHEST) diatur di **Pengaturan → Heparin (aPTT)**.
+  - **Dosis tidak ditampilkan** bila dicentang: perdarahan aktif, trombosit rendah/turun atau curiga HIT, INR awal memanjang, atau penyakit hati berat.
+  - Di halaman pasien, aPTT, kontrol, dan BB diisi dari lab terbaru di catatan (tetap bisa diubah). **Sisipkan ke Terapi** menambahkan barisnya ke daftar Terapi kita, di atas "Selesai".
+  - Ini saran hitungan, bukan instruksi. Protokol heparin RSWS belum dicocokkan.
+
 ## `2026-10-10.9`
 - **Kotak DPJP di sisi kanan halaman pasien lebih ringkas.**
   - Nama DPJP kini satu baris di judul kotak.
