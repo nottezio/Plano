@@ -6,7 +6,7 @@ import { NotePopover } from './NotePopover';
 import { useClipboardNote } from '@/store/useClipboardNote';
 import { Link } from 'react-router-dom';
 
-import { previewLines, type BoardCard } from '@/domain/board';
+import { previewLines, shortStepLabel, soapState, type BoardCard } from '@/domain/board';
 import { ProgressStrip } from './ProgressStrip';
 import { IconCar, IconCopy, IconEye } from '@/components/common/Icons';
 import { isTrioDpjp } from '@/domain/dpjp';
@@ -95,7 +95,7 @@ export function PatientCard({
   collapsed?: boolean;
   onToggleCollapsed?: ((patientId: string) => void) | undefined;
 }): JSX.Element {
-  const { patient, progress } = card;
+  const { patient } = card;
   const lines = previewLines(card.preview, maxPreviewLines);
 
   const rootRef = useRef<HTMLDivElement>(null);
@@ -614,12 +614,6 @@ export function PatientCard({
           Word, not icon. A tracing symbol at 10px is a squiggle, and the
           reader of this badge is deciding whether to walk back with a machine.
         */}
-        {card.reminders.map((reminder) => (
-          <ReminderChip key={reminder.id} patient={card.patient} reminder={reminder} />
-        ))}
-
-        {card.discharge && !dischargeStrip ? <DischargeChip stage={card.discharge} /> : null}
-
       </div>
 
       {/*
@@ -674,23 +668,6 @@ export function PatientCard({
           filled badge because it is the rarer and more easily mis-read of the
           two, but the badge is readable with the fill ignored.
         */}
-        {card.kjs === 'kardio' ? (
-          <span
-            title="KJS — pasien TS lain, kita konsulen kardiologi. DPJP utama bukan kita."
-            // Inverted: the one mark on the card that changes how you act on
-            // it (the plan is a recommendation, the discharge is not ours).
-            className="rounded-sm bg-token-fg px-1 text-[10px] font-bold uppercase tracking-wide text-token"
-          >
-            KJS · Kardio
-          </span>
-        ) : card.kjs === 'ts' ? (
-          <span
-            title="KJS — pasien kita, rawat bersama TS lain"
-            className="rounded-sm border border-current px-1 text-[10px] font-bold uppercase tracking-wide"
-          >
-            KJS · TS
-          </span>
-        ) : null}
         {patient.pinned ? (
           <span aria-label="Pinned" className="text-xs">
             ★
@@ -768,6 +745,16 @@ export function PatientCard({
       </div>
       </div>
       {/*
+        THE STATUS RAIL (2026-10-10). What is left to do on this patient, on
+        one line under the name, where the eye already is:
+          ● SOAP hari ini / ○ SOAP kemarin / ○ Belum ada SOAP
+          the checklist strip with its count, and the next step, short.
+        It replaces "Belum: Visite pasien + TTV + EKG sesuai kebutuhan" at the
+        bottom, which was the longest line on every card and identical on all
+        of them each morning: the information is HOW FAR each patient is.
+      */}
+      <StatusRail card={card} />
+      {/*
         Hari rawat removed from the card.
         
         It is the same count the header setting already made optional, and on a
@@ -809,9 +796,6 @@ export function PatientCard({
         <p className="mt-1 text-xs italic opacity-60">Belum ada catatan hari ini.</p>
       )}
 
-      {card.previewIsStale ? (
-        <p className="mt-1 text-[10px] opacity-60">Catatan dari hari sebelumnya</p>
-      ) : null}
 
       {patient.labels.length > 0 ? (
         <div className="mt-2 flex flex-wrap gap-1">
@@ -828,14 +812,14 @@ export function PatientCard({
 
       </ClampedBody>
 
-      <div className={fitHeight ? 'mt-2 shrink-0' : 'mt-2'}>
-        <ProgressStrip progress={progress} />
-        <p className="mt-1 text-[11px] font-medium opacity-80">
-          {progress.complete
-            ? 'Semua selesai'
-            : `Belum: ${progress.pendingLabel ?? '—'}`}
-        </p>
-      </div>
+      {/*
+        ONE FLAG ROW (2026-10-10): reminders, discharge, EKG, KJS — the marks
+        that change what is done on this round. They were scattered over the
+        name row (reminder, discharge) and the location row (KJS), each
+        spending the name's width. Never clipped: outside the body that gives
+        way on a short canvas card.
+      */}
+      <FlagRow card={card} dischargeStrip={dischargeStrip} className={fitHeight ? 'shrink-0' : ''} />
     </Link>
 
       {note ? (
@@ -1164,5 +1148,85 @@ function ReminderChip({
         {reminder.mode === 'harian' ? <span className="font-normal opacity-70">/hari</span> : null}
       </span>
     </button>
+  );
+}
+
+function StatusRail({ card }: { card: BoardCard }): JSX.Element {
+  const { progress } = card;
+  const soap = soapState(card);
+  const next = shortStepLabel(progress.pendingLabel);
+  return (
+    <div className="mb-1 flex items-center gap-2 text-[11px]">
+      <span
+        className={`flex shrink-0 items-center gap-1 ${soap === 'today' ? 'font-medium' : 'opacity-70'}`}
+        title={
+          soap === 'today'
+            ? 'SOAP hari ini sudah ditulis'
+            : soap === 'stale'
+              ? 'Catatan terakhir dari hari sebelumnya — SOAP hari ini belum ditulis'
+              : 'Belum ada catatan'
+        }
+      >
+        <span aria-hidden="true">{soap === 'today' ? '●' : '○'}</span>
+        {soap === 'today' ? 'SOAP hari ini' : soap === 'stale' ? 'SOAP kemarin' : 'Belum ada SOAP'}
+      </span>
+      {progress.total > 0 ? (
+        <>
+          <span className="min-w-6 flex-1">
+            <ProgressStrip progress={progress} />
+          </span>
+          <span className="shrink-0 tabular-nums opacity-80" title={progress.pendingLabel ?? 'Semua selesai'}>
+            {progress.complete ? '✓ selesai' : `${progress.doneCount}/${progress.total}${next ? ` · ${next}` : ''}`}
+          </span>
+        </>
+      ) : null}
+    </div>
+  );
+}
+
+function FlagRow({
+  card,
+  dischargeStrip,
+  className = '',
+}: {
+  card: BoardCard;
+  dischargeStrip: DischargeStage | null;
+  className?: string;
+}): JSX.Element | null {
+  const showDischarge = card.discharge !== null && !dischargeStrip;
+  const any = card.reminders.length > 0 || showDischarge || card.ekg !== null || card.kjs !== null;
+  if (!any) return null;
+  return (
+    <div className={`mt-1.5 flex flex-wrap items-center gap-1 ${className}`}>
+      {card.reminders.map((reminder) => (
+        <ReminderChip key={reminder.id} patient={card.patient} reminder={reminder} />
+      ))}
+      {showDischarge && card.discharge ? <DischargeChip stage={card.discharge} /> : null}
+      {card.ekg ? (
+        <span
+          title={card.ekg === 'harian' ? 'EKG setiap hari' : 'EKG hari ini'}
+          className="rounded-sm border border-current px-1 text-[10px] font-semibold"
+        >
+          {card.ekg === 'harian' ? 'EKG harian' : 'EKG hari ini'}
+        </span>
+      ) : null}
+        {card.kjs === 'kardio' ? (
+          <span
+            title="KJS — pasien TS lain, kita konsulen kardiologi. DPJP utama bukan kita."
+            // Inverted: the one mark on the card that changes how you act on
+            // it (the plan is a recommendation, the discharge is not ours).
+            className="rounded-sm bg-token-fg px-1 text-[10px] font-bold uppercase tracking-wide text-token"
+          >
+            KJS · Kardio
+          </span>
+        ) : card.kjs === 'ts' ? (
+          <span
+            title="KJS — pasien kita, rawat bersama TS lain"
+            className="rounded-sm border border-current px-1 text-[10px] font-bold uppercase tracking-wide"
+          >
+            KJS · TS
+          </span>
+        ) : null}
+    </div>
   );
 }

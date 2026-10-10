@@ -618,3 +618,21 @@ describe('the card preview only moves forward', () => {
     expect(previewMovesTo(undefined, '2026-09-29')).toBe(true);
   });
 });
+
+describe('card status rail (2026-10-10)', () => {
+  it('reads the SOAP state from the preview alone', async () => {
+    const { soapState } = await import('./board');
+    expect(soapState({ preview: 'CHF', previewIsStale: false })).toBe('today');
+    expect(soapState({ preview: 'CHF', previewIsStale: true })).toBe('stale');
+    expect(soapState({ preview: '  ', previewIsStale: false })).toBe('none');
+  });
+
+  it('shortens the next step to its first part', async () => {
+    const { shortStepLabel } = await import('./board');
+    expect(shortStepLabel('Visite pasien + TTV + EKG sesuai kebutuhan')).toBe('Visite pasien');
+    expect(shortStepLabel('Kirim ke Chief')).toBe('Kirim ke Chief');
+    expect(shortStepLabel('Update SOAP (pagi), sebelum visite')).toBe('Update SOAP');
+    expect(shortStepLabel(null)).toBe('');
+    expect(shortStepLabel('Satu langkah dengan nama yang sangat panjang sekali')).toMatch(/…$/);
+  });
+});

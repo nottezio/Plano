@@ -595,3 +595,31 @@ export function kjsRole(text: string): KjsRole | null {
   if (/\bKJS\b/i.test(text)) return 'ts';
   return null;
 }
+
+/**
+ * Is today's SOAP written? (2026-10-10, the card's status rail.)
+ *
+ *   today  the board preview is from today's note
+ *   stale  the newest note is from an earlier day (carried forward, not yet updated)
+ *   none   no note at all
+ *
+ * Read from what the card already holds (`preview`, `previewIsStale`), so the
+ * board does not have to load a single note body to answer it.
+ */
+export type SoapState = 'today' | 'stale' | 'none';
+
+export function soapState(card: Pick<BoardCard, 'preview' | 'previewIsStale'>): SoapState {
+  if (!card.preview.trim()) return 'none';
+  return card.previewIsStale ? 'stale' : 'today';
+}
+
+/**
+ * The next checklist step, short enough for one line of a card:
+ * "Visite pasien + TTV + EKG sesuai kebutuhan" → "Visite pasien".
+ * The full label stays on the patient page and in the quick checklist.
+ */
+export function shortStepLabel(label: string | null): string {
+  if (!label) return '';
+  const first = label.split(/\s+\+\s+|\s*[,;(]\s*/)[0]?.trim() ?? label;
+  return first.length > 28 ? `${first.slice(0, 27).trimEnd()}…` : first;
+}

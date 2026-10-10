@@ -5,6 +5,14 @@ Catatan teknis lengkap (akar masalah, perbaikan) ada di CHANGES.md.
 
 Entri teratas harus versi yang sedang dirilis; tes gagal bila belum ditulis.
 
+## `2026-10-10.4`
+- **Kartu pasien di papan lebih ringkas dan langsung menunjukkan status hari ini.** Di bawah nama kini ada satu baris status:
+  - **● SOAP hari ini**, **○ SOAP kemarin** (catatan terakhir dari hari sebelumnya), atau **○ Belum ada SOAP**;
+  - bilah checklist dengan hitungannya (mis. **3/8**), ditambah langkah berikutnya dalam bentuk singkat (mis. "Visite pasien").
+- **Baris "Belum: Visite pasien + TTV + EKG sesuai kebutuhan" di bawah kartu dihapus.** Isinya sama di semua kartu tiap pagi; yang penting adalah sejauh mana tiap pasien.
+- **Satu baris penanda** di bawah diagnosis: pengingat (mis. konsul ICU H-1), rencana pulang, EKG harian/hari ini, dan KJS. Sebelumnya tersebar di baris nama dan baris lokasi sehingga memakan tempat nama pasien. Pemantauan dan pulang H-1/hari ini tetap berupa strip di atas kartu.
+- Di HP sekarang muat sekitar 5 kartu per layar (sebelumnya sekitar 4).
+
 ## `2026-10-10.3`
 - **Buat Sensus kini mengikuti satu DPJP dari hari ke hari.** Di bagian atas ada judul **Sensus ARB** (DPJP yang dipilih) dengan dua tampilan: **Hari ini** dan **Riwayat**.
 - **Riwayat sensus, tersinkron ke akun.** Sensus hari itu dicatat saat Anda menekan **Salin** atau **Simpan**. Yang dicatat hanya pasien DPJP tersebut, bukan seluruh list ruangan. Dua tampilan:

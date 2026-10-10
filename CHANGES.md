@@ -1,5 +1,48 @@
 # Plano — CHANGES
 
+## `2026-10-10.4` — Patient card: status rail, one flag row (Avi accepted the 1 + 2 + 4 proposal; no hari rawat)
+
+### What was wrong with the card
+- "Belum: Visite pasien + TTV + EKG sesuai kebutuhan" was the longest line
+  and identical on every card each morning. It showed the NAME of the first
+  open step, not how far each patient was.
+- Whether today's SOAP was written was a 10 px line at the bottom of the
+  body ("Catatan dari hari sebelumnya"), and absent when it WAS written.
+- Reminders and the discharge chip sat in the name row and KJS in the
+  location row, each spending the name's width; EKG harian was computed
+  (`card.ekg`) and never shown.
+
+### What
+- **`StatusRail`** under the identity band: SOAP state (`soapState`: today
+  / stale / none, from `preview` + `previewIsStale`, so no note bodies are
+  loaded), then the checklist `ProgressStrip`, then `done/total · next step`
+  (`shortStepLabel`: the label up to its first " + ", ",", ";" or "(", max
+  28 chars). The full label is in the title, the patient page and the quick
+  checklist.
+- **`FlagRow`** after the body: reminders, discharge chip (stages without
+  the strip), EKG harian / hari ini, KJS · Kardio / KJS · TS. It is outside
+  `ClampedBody`, so it is never clipped on a short canvas card. Pemantauan
+  and pulang H-1/hari ini keep their full-width strips.
+- **Removed:** the bottom "Belum:" block and the "Catatan dari hari
+  sebelumnya" line (both now in the rail). Name row: name only (plus the
+  select box and drag handle). Location row: location, RM, DPJP, pin.
+- **Not changed:** hari rawat (Avi doesn't want it); the folded card; card
+  colours (still checklist progress); the canvas `fitHeight` measurement (the
+  rail is part of the fixed top, the flag row of the fixed bottom).
+
+### Not done (from the proposal)
+- "Periksa lagi" count on the card: it needs the full note body per card,
+  which the board does not load (it holds the preview only). Doing it would
+  be one note read per patient per board visit (recurring pattern 16), so it
+  waits for a precomputed field.
+- Phone: about 5 cards per screen with the test patients (was about 4).
+
+```
+npm run verify
+  typecheck ✓  lint ✓ (0 warnings)  test ✓ 2114 passed (145 files)
+  check:version ✓  check:contrast ✓  check:a11y ✓  build ✓
+```
+
 ## `2026-10-10.3` — Sensus history: one DPJP followed day by day
 
 ### Why (Avi: "1 resident holds 1 DPJP's census for a certain time, so the list evolves; there needs to be a way to see the evolution each day")
