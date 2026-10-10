@@ -1,4 +1,5 @@
 import { mergeSections, parseSections } from '../sections/parseSections';
+import { namesDiagnosis } from '../sections/diagnosisHeading';
 import { formatBody, type BulletStyle } from './formatters';
 import { findOpeningLine } from '../opening';
 import { isClosingLine, noteAddress } from '../address';
@@ -88,25 +89,6 @@ const DIAGNOSIS_IDS = ['a'];
  */
 const DIAGNOSIS_END =
   /^\s*\*?\s*(Mohon i[zj]in (kami|pasien)?\s*(kami\s*)?(terapi|inisial terapi)|Plan|Selesai|TS |Terapi|Tabe|Selanjutnya)/im;
-/**
- * A heading that NAMES the diagnosis list: it starts with the word, optionally
- * after "Mohon izin (pasien) kami".
- *
- * Was a substring test (`diagnos`, `assess`, … anywhere in the label). That
- * took "Plan Diagnostik" — a TS plan heading — for a diagnosis list, and the
- * Ringkas of 9 October listed "Aspirasi cairan asites", "ADT …" and "BMP …"
- * as diagnoses (2026-10-10). The word has to lead: "Diagnosis Kerja",
- * "Problem List", "Masalah" qualify; "Plan Diagnostik", "Pemeriksaan
- * Diagnostik" do not.
- */
-const DIAGNOSIS_HEADING_RE =
-  /^(?:(?:mohon\s+)?i[zj]in\s+(?:pasien\s+)?kami\s+)?(?:diagnos|assess|asses|problem|masalah)/;
-
-function namesDiagnosis(label: string): boolean {
-  const flat = label.toLowerCase().replace(/[^a-z\s]/g, ' ').replace(/\s+/g, ' ').trim();
-  return DIAGNOSIS_HEADING_RE.test(flat);
-}
-
 /** A consultant's block ("TS GEH", "TS HOM"): theirs, not the cardiology diagnosis. */
 function isTsSection(section: { sectionId: string; label: string }): boolean {
   return /^custom_ts(?:_|$)/.test(section.sectionId) || /^ts\b/i.test(section.label.trim());

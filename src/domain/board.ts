@@ -144,6 +144,38 @@ export interface BoardCard {
   chief: string | null;
   preview: string;
   previewIsStale: boolean;
+  /**
+   * What the diagnosis list gained and lost since the previous day's note
+   * (2026-10-10). Null when there is nothing to compare: no note today, or no
+   * earlier one kept.
+   */
+  dxChanges: { added: string[]; removed: string[] } | null;
+  /** "Periksa lagi" findings on today's note; null when not known for today. */
+  checkCount: number | null;
+}
+
+/**
+ * The diagnosis lines that differ between two previews, ignoring bullets,
+ * case and spacing. A line that only lost its "(perbaikan)" is a change too:
+ * that is how the ward writes "improving".
+ */
+export function previewDiff(previous: string, current: string): { added: string[]; removed: string[] } {
+  const clean = (line: string): string => line.replace(/^\s*(?:[-*•]|\d+[.)])\s*/, '').replace(/\s+/g, ' ').trim();
+  const key = (line: string): string => clean(line).toLowerCase();
+  const lines = (text: string): string[] =>
+    text
+      .replace(/…$/, '')
+      .split('\n')
+      .map(clean)
+      .filter((line) => line.length > 0 && !/^(?:mohon\s+i[zj]in|diagnos)/i.test(line));
+  const before = lines(previous);
+  const after = lines(current);
+  const had = new Set(before.map(key));
+  const has = new Set(after.map(key));
+  return {
+    added: after.filter((line) => !had.has(key(line))),
+    removed: before.filter((line) => !has.has(key(line))),
+  };
 }
 
 export function buildCard(
@@ -209,8 +241,31 @@ export function buildCard(
     // Falling back to an older day is fine, but the card says so rather than
     // implying the note was written today.
     previewIsStale: Boolean(patient.preview) && patient.previewDate !== today,
+    dxChanges:
+      patient.preview && patient.previewDate === today && patient.prevPreview && !showInitialsOnly
+        ? (() => {
+            const diff = previewDiff(patient.prevPreview, patient.preview);
+            return diff.added.length + diff.removed.length > 0 ? diff : null;
+          })()
+        : null,
+    checkCount: patient.checkDate === today && typeof patient.checkCount === 'number' ? patient.checkCount : null,
   };
 }
+
+/**
+ * "Status" order (2026-10-10): what still needs doing first.
+ *   0 no note at all · 1 SOAP still yesterday's · 2 SOAP today, checklist open
+ *   · 3 everything done
+ * The board sorts by this, then by location, and heads each group.
+ */
+export function statusRank(card: Pick<BoardCard, 'preview' | 'previewIsStale' | 'progress'>): number {
+  const soap = soapState(card);
+  if (soap === 'none') return 0;
+  if (soap === 'stale') return 1;
+  return card.progress.complete ? 3 : 2;
+}
+
+export const STATUS_LABEL = ['Belum ada SOAP', 'SOAP belum diperbarui', 'SOAP hari ini · checklist belum selesai', 'Selesai'] as const;
 
 /** First N lines of the preview, for the card body. */
 export function previewLines(preview: string, max = 4): string[] {
@@ -383,7 +438,7 @@ function compareLocation(a: Patient, b: Patient): number {
   return aBedText.localeCompare(bBedText, 'id');
 }
 
-export type BoardOrder = 'recent' | 'location' | 'visite' | 'dpjp' | 'custom';
+export type BoardOrder = 'recent' | 'location' | 'visite' | 'dpjp' | 'status' | 'custom';
 
 /**
  * "Urutan visite": the order the round walks, from the ward's visit route

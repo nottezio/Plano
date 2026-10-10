@@ -28,6 +28,7 @@ import { isIgdEntry } from '@/domain/clinicalDate';
 import { parsePatientFacts } from '@/domain/parsePatient';
 import { konsulPreview } from '@/domain/konsulReply';
 import { parseSections } from '@/domain/sections/parseSections';
+import { namesDiagnosis } from '@/domain/sections/diagnosisHeading';
 import { DEFAULT_SECTION_ALIASES } from '@/domain/sections/aliases';
 import type { SectionAlias } from '@/domain/types';
 import type { LineBookmark } from '@/domain/bookmarks';
@@ -168,11 +169,9 @@ export function buildPreview(body: string, aliases?: readonly SectionAlias[]): s
   const resolved = aliases ?? DEFAULT_SECTION_ALIASES;
   const sections = parseSections(body, resolved);
 
-  const assessment = sections.find((section) => {
-    if (section.sectionId === 'a') return true;
-    const haystack = `${section.sectionId} ${section.label}`.toLowerCase();
-    return /diagnos|assess|problem/.test(haystack);
-  });
+  // The heading must NAME the diagnosis ("Plan Diagnostik" does not): the
+  // same rule Ringkas uses (`namesDiagnosis`).
+  const assessment = sections.find((section) => section.sectionId === 'a' || namesDiagnosis(section.label));
 
   /*
     A consult reply's assessment is its cardiology conclusion, a heading whose
@@ -281,6 +280,28 @@ export function fillPatientFromNote(patient: Patient, body: string): Promise<voi
  * (and `lastEntryDate` step back), until today's note was typed into again.
  * That stale card is what "Perbarui kartu pasien" was being run to fix.
  */
+/**
+ * When the preview moves to a LATER day, the one it leaves becomes the
+ * "previous" preview (2026-10-10, the card's "since yesterday" line). On the
+ * same day nothing moves: today's edits must keep comparing against
+ * yesterday, not against this morning's first draft.
+ */
+export function previousPreviewFields(
+  storedDate: ClinicalDate | undefined,
+  storedPreview: string | undefined,
+  date: ClinicalDate,
+): { prevPreview: string; prevPreviewDate: ClinicalDate } | Record<string, never> {
+  if (!storedDate || !storedPreview || storedDate >= date || isIgdEntry(storedDate)) return {};
+  return { prevPreview: storedPreview, prevPreviewDate: storedDate };
+}
+
+/** The checker's count on the latest note, for the board (see `Patient.checkCount`). */
+export function writeCheckCount(patientId: string, date: ClinicalDate, count: number): Promise<void> {
+  return trackWrite(
+    updateDoc(patientDoc(patientId), { checkCount: count, checkDate: date }),
+  );
+}
+
 export function previewMovesTo(stored: ClinicalDate | undefined, date: ClinicalDate): boolean {
   if (isIgdEntry(date)) return false;
   return !stored || date >= stored;
@@ -304,14 +325,22 @@ export async function touchEntryMeta(
    * there. When it is not, the write goes ahead as before.
    */
   let stored: ClinicalDate | undefined;
+  let storedPreview: string | undefined;
   try {
     const cached = await getDocFromCache(patientDoc(patientId));
-    stored = (cached.data() as Patient | undefined)?.previewDate;
+    const data = cached.data() as Patient | undefined;
+    stored = data?.previewDate;
+    storedPreview = data?.preview;
   } catch {
     stored = undefined;
   }
   const previewFields: DocumentData = previewMovesTo(stored, date)
-    ? { lastEntryDate: date, preview: buildPreview(body), previewDate: date }
+    ? {
+        lastEntryDate: date,
+        preview: buildPreview(body),
+        previewDate: date,
+        ...previousPreviewFields(stored, storedPreview, date),
+      }
     : {};
 
   return trackWrite(
@@ -340,6 +369,7 @@ export function healCardPreview(patient: Patient, date: ClinicalDate, body: stri
       lastEntryDate: date,
       preview,
       previewDate: date,
+      ...previousPreviewFields(patient.previewDate, patient.preview, date),
       updatedAt: serverTimestamp(),
       updatedBy: getDeviceId(),
     }),

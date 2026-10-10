@@ -50,6 +50,8 @@ import {
   hasActiveFilters,
   groupLabel,
   orderPatients,
+  STATUS_LABEL,
+  statusRank,
   reorderBoard,
   sortPatients,
   EMPTY_FILTERS,
@@ -166,7 +168,7 @@ export default function BoardPage(): JSX.Element {
   const [order, setOrder] = useState<BoardOrder>(() => {
     try {
       const stored = localStorage.getItem('visite.boardOrder');
-      return stored === 'location' || stored === 'visite' || stored === 'dpjp' || stored === 'custom'
+      return stored === 'location' || stored === 'visite' || stored === 'dpjp' || stored === 'status' || stored === 'custom'
         ? stored
         : 'recent';
     } catch {
@@ -366,6 +368,22 @@ export default function BoardPage(): JSX.Element {
       return 'canvas';
     }
   });
+  /** Normal or Ringkas cards (2026-10-10), per device. */
+  const [dense, setDenseState] = useState<boolean>(() => {
+    try {
+      return localStorage.getItem('visite.board.density') === 'ringkas';
+    } catch {
+      return false;
+    }
+  });
+  const setDense = (next: boolean): void => {
+    setDenseState(next);
+    try {
+      localStorage.setItem('visite.board.density', next ? 'ringkas' : 'normal');
+    } catch {
+      // Per-device convenience only.
+    }
+  };
   const setPhoneView = (next: 'canvas' | 'list'): void => {
     setPhoneViewState(next);
     try {
@@ -580,9 +598,18 @@ export default function BoardPage(): JSX.Element {
       items,
       today,
     );
-    return orderPatients(matched, order, customIds).map((patient) =>
+    const built = orderPatients(matched, order, customIds).map((patient) =>
       buildCard(patient, items, today, settings.privacy.boardShowInitialsOnly, reminderKinds),
     );
+    // "Status hari ini": what still needs doing first, in walking order
+    // within each status (orderPatients already sorted by location). Pinned
+    // cards stay on top, as in every order. `sort` is stable.
+    if (order === 'status') {
+      return built.sort((a, b) =>
+        a.patient.pinned !== b.patient.pinned ? (a.patient.pinned ? -1 : 1) : statusRank(a) - statusRank(b),
+      );
+    }
+    return built;
   }, [
     patients,
     scope,
@@ -650,7 +677,11 @@ export default function BoardPage(): JSX.Element {
 
     const result: Array<{ label: string; cards: typeof cards }> = [];
     for (const card of cards) {
-      const label = card.patient.pinned ? 'Pinned' : groupLabel(card.patient, order);
+      const label = card.patient.pinned
+        ? 'Pinned'
+        : order === 'status'
+          ? (STATUS_LABEL[statusRank(card)] ?? '')
+          : groupLabel(card.patient, order);
       const last = result[result.length - 1];
       if (last && last.label === label) last.cards.push(card);
       else result.push({ label, cards: [card] });
@@ -717,6 +748,7 @@ export default function BoardPage(): JSX.Element {
         <option value="location">Denah</option>
         <option value="visite">Urutan visite</option>
         <option value="dpjp">Per DPJP</option>
+        <option value="status">Status hari ini</option>
         <option value="custom">Urutan sendiri</option>
       </select>
     </label>
@@ -745,6 +777,7 @@ export default function BoardPage(): JSX.Element {
         <option value="location">Denah</option>
         <option value="visite">Urutan visite</option>
         <option value="dpjp">Per DPJP</option>
+        <option value="status">Status hari ini</option>
         <option value="custom">Urutan sendiri</option>
       </select>
     </label>
@@ -870,6 +903,15 @@ export default function BoardPage(): JSX.Element {
               className={`${CONTROL} shrink-0 rounded-lg px-2.5 text-xs font-medium text-fg hover:bg-bg-subtle`}
             >
               Format lab
+            </button>
+            <button
+              type="button"
+              aria-pressed={dense}
+              onClick={() => setDense(!dense)}
+              title="Kartu ringkas: satu baris diagnosis"
+              className={`${CONTROL} shrink-0 rounded-lg px-2.5 text-xs font-medium hover:bg-bg-subtle ${dense ? 'bg-bg-subtle text-accent' : 'text-fg'}`}
+            >
+              {dense ? 'Ringkas' : 'Normal'}
             </button>
             <SelectButton selecting={selecting} onToggle={() => (selecting ? leaveSelection() : setSelecting(true))} />
           </>
@@ -1134,7 +1176,7 @@ export default function BoardPage(): JSX.Element {
             ) : null}
             {groups.map((group) => (
               <section key={group.label || 'all'}>
-                {group.label ? <SectionHeading label={group.label} /> : null}
+                {group.label ? <SectionHeading label={`${group.label} · ${group.cards.length}`} /> : null}
                 {/* Grid masonry rather than CSS multi-column, so a card with
                     its note open can span two columns and grow to the RIGHT.
                     Nothing inside a multicol column can be wider than the
@@ -1151,6 +1193,11 @@ export default function BoardPage(): JSX.Element {
                         order === 'custom' && !selecting ? onDragHandleDown : undefined
                       }
                       dragging={draggingId === card.patient.id}
+                      dense={dense}
+                      // Phone and tablet list only: on a laptop a sideways
+                      // drag is a text selection, and in custom order it is
+                      // the drag handle's.
+                      swipe={!canvasWidth && !selecting && order !== 'custom'}
                       selectable={selecting}
                       checked={selected.has(card.patient.id)}
                       onToggleSelected={toggleSelected}
@@ -1233,6 +1280,7 @@ export default function BoardPage(): JSX.Element {
           {[
             ['+ Catatan tempel', () => addSticky()],
             ['Format lab', () => setLabOpen(true)],
+            [dense ? 'Kartu: Normal (tampilkan diagnosis lengkap)' : 'Kartu: Ringkas (satu baris diagnosis)', () => setDense(!dense)],
             ['Pilih pasien (arsipkan / sampah)', () => setSelecting(true)],
           ].map(([label, run]) => (
             <button
@@ -1324,6 +1372,7 @@ const ORDER_SHORT: Record<BoardOrder, string> = {
   location: 'Denah',
   visite: 'Visite',
   dpjp: 'DPJP',
+  status: 'Status',
   custom: 'Sendiri',
 };
 

@@ -119,6 +119,8 @@ export interface ChecklistProgress {
   segments: ProgressSegment[];
   /** Short label of what is still pending — the non-colour signal (SPEC 9.3). */
   pendingLabel: string | null;
+  /** Its id: what a swipe on the card ticks (2026-10-10). */
+  pendingItemId: string | null;
 }
 
 /**
@@ -146,6 +148,7 @@ export function checklistProgress(
     complete: segments.length > 0 && doneCount === segments.length,
     segments,
     pendingLabel: pending ? pending.label : null,
+    pendingItemId: pending ? pending.id : null,
   };
 }
 

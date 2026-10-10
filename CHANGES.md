@@ -1,5 +1,57 @@
 # Plano — CHANGES
 
+## `2026-10-10.5` — Card: diagnosis change line, ⚑ check count, Status order, Normal/Ringkas, swipe (Avi: "Continue all")
+
+### What
+- **Diagnosis change line.** `Patient.prevPreview` / `prevPreviewDate` hold
+  the card preview of the day before the current one. `previousPreviewFields`
+  copies them when the preview moves to a LATER day (in `touchEntryMeta` and
+  `healCardPreview`); it never copies from the same day or from IGD.
+  `buildCard` derives `dxChanges` with `previewDiff`, which compares lines
+  without bullets, case or spacing, and skips heading and "…" lines. The
+  line shows only for today's note and is never in initials-only mode. The
+  card renders at most 3 parts with "+n lagi"; the full list is in the title.
+- **Shared diagnosis heading rule.** `domain/sections/diagnosisHeading.ts`
+  (`namesDiagnosis`) is now used by both `pdfReport` and `buildPreview`, so
+  Ringkas and the card agree on which heading is the diagnosis
+  ("Mohon izin pasien kami assess…" included, "Plan diagnostik" excluded).
+- **⚑ check count.** The board holds previews only, so it cannot run the
+  checker per card (recurring pattern 16). Instead PatientPage writes
+  `checkCount` / `checkDate` for the latest written day. The write is
+  debounced 1.5 s, skipped when the value is unchanged, and leaves
+  `updatedAt` alone (it is not an edit). The card shows the count only when
+  `checkDate === today`.
+- **Status order.** `statusRank` (0 no SOAP, 1 stale, 2 today with the
+  checklist open, 3 complete) and `STATUS_LABEL`. Pinned cards stay first.
+  Every group heading now shows its count.
+- **Normal / Ringkas.** Stored in `visite.board.density` per device. Ringkas
+  shows one line of diagnoses and `p-2`, and hides the chief, labels and
+  change line. Not applied on the canvas, whose cards have user-set heights.
+- **Swipe** (`useSwipe` in PatientCard).
+  - Touch only, on the phone/tablet list; off in custom order and while
+    selecting.
+  - It locks horizontal only when |dx| > 2|dy| after 12 px, so vertical
+    scrolling never ticks.
+  - It commits at 96 px. Right ticks `progress.pendingItemId` via `setTick`
+    with the full done map for today. Left opens the preview.
+  - The click after a swipe is swallowed (`onClickCapture`), and the
+    long-press timer is cancelled.
+  - "Urungkan" shows for 5 s and unticks with the same map.
+  - `ChecklistProgress.pendingItemId` was added for the tick.
+- StatusRail: the count/next label truncates instead of overflowing when
+  ⚑ is present (seen in the harness on a 4-column laptop board).
+
+### Not done
+- Swipe on the laptop (mouse drags are text selection there).
+- A ⚑ count for notes that have not been opened since this release: the
+  count appears once each patient's note is opened.
+
+```
+npm run verify
+  typecheck ✓  lint ✓ (0 warnings)  test ✓ 2123 passed (146 files)
+  check:version ✓  check:contrast ✓  check:a11y ✓  build ✓
+```
+
 ## `2026-10-10.4` — Patient card: status rail, one flag row (Avi accepted the 1 + 2 + 4 proposal; no hari rawat)
 
 ### What was wrong with the card

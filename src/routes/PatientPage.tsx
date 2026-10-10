@@ -47,7 +47,7 @@ import { useGoUp } from '@/lib/useGoUp';
 import { clearEntry, fetchEntryBodies, setEntryLocked } from '@/data/repositories/entries.repo';
 import { updateArchiveNote, updatePatient } from '@/data/repositories/patients.repo';
 import { archiveSummary } from '@/domain/archive';
-import { fillPatientFromNote, healCardPreview } from '@/data/repositories/patients.repo';
+import { fillPatientFromNote, healCardPreview, writeCheckCount } from '@/data/repositories/patients.repo';
 import { parsePatientFacts } from '@/domain/parsePatient';
 import { carryForward, carryForwardSummary } from '@/domain/carryForward';
 import { checkSoap } from '@/domain/format/soapCheck';
@@ -736,6 +736,24 @@ export default function PatientPage(): JSX.Element {
       }),
     [settledBody, previous.entry?.body, dayMarkersDismissed, settings.sectionAliases, checkContext],
   );
+
+  /**
+   * "Periksa lagi" on the board card (2026-10-10): the count of the latest
+   * written day, stored on the patient so the board never runs the checker
+   * over every note. Written after the note has been still for a moment, and
+   * only when it changed, so typing costs no writes.
+   */
+  const checkCountNow = soapFindings.length;
+  useEffect(() => {
+    if (!patient || entryLoading || selected !== latestWritten) return;
+    if (patient.checkCount === checkCountNow && patient.checkDate === selected) return;
+    const timer = window.setTimeout(() => {
+      void writeCheckCount(patient.id, selected, checkCountNow).catch((error: unknown) =>
+        console.warn('[card] check count failed', error),
+      );
+    }, 1500);
+    return () => window.clearTimeout(timer);
+  }, [patient, entryLoading, selected, latestWritten, checkCountNow]);
 
   /**
    * The optional AI pass, ON DEMAND.

@@ -608,6 +608,21 @@ export interface Patient {
    */
   preview?: string;
   previewDate?: ClinicalDate;
+  /**
+   * The preview of the EARLIER day, kept when the preview moves to a new day
+   * (2026-10-10). The card compares the two to say what changed since
+   * yesterday ("+ Hipokalemia"), without reading either note.
+   */
+  prevPreview?: string;
+  prevPreviewDate?: ClinicalDate;
+  /**
+   * "Periksa lagi" findings on the latest day's note, written by the patient
+   * page whenever its checker's count changes. The board shows it only while
+   * `checkDate` is today; it cannot run the checker itself without loading
+   * every note.
+   */
+  checkCount?: number;
+  checkDate?: ClinicalDate;
   boardChecklist?: { date: ClinicalDate; done: Record<string, boolean> };
   /**
    * The id this patient had in the account it was IMPORTED from. Set only by

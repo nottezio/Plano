@@ -5,6 +5,16 @@ Catatan teknis lengkap (akar masalah, perbaikan) ada di CHANGES.md.
 
 Entri teratas harus versi yang sedang dirilis; tes gagal bila belum ditulis.
 
+## `2026-10-10.5`
+- **Kartu menunjukkan perubahan diagnosis sejak kemarin.** Bila SOAP hari ini sudah ditulis, di bawah diagnosis ada baris mis. **Sejak kemarin: + AF · − AKI** (yang bertambah dan yang hilang dibanding catatan sebelumnya). Bila catatan sebelumnya bukan kemarin, tanggalnya yang ditulis.
+- **Penanda ⚑ Periksa lagi di kartu.** Jumlah temuan "Periksa lagi" pada catatan hari ini (mis. **⚑ 2**) tampil di baris status. Angkanya diperbarui saat catatan dibuka, jadi papan tidak perlu memuat semua catatan.
+- **Urutan baru: Status hari ini.** Pasien dikelompokkan berdasarkan apa yang belum dikerjakan: **Belum ada SOAP**, **SOAP belum diperbarui**, **SOAP hari ini · checklist belum selesai**, lalu **Selesai**. Tiap judul kelompok kini juga menampilkan jumlah pasiennya.
+- **Kartu Normal / Ringkas.** Tampilan Ringkas menampilkan diagnosis dalam satu baris, tanpa Chief, label, dan baris perubahan. Di laptop pakai tombol di samping Format lab; di HP lewat menu **⋯ Aksi**. Pilihan ini diingat per perangkat.
+- **Geser kartu di HP.**
+  - **Geser ke kanan** mencentang langkah checklist berikutnya, dengan tombol **Urungkan** selama 5 detik.
+  - **Geser ke kiri** membuka preview catatan.
+  - Gerakan menggulir ke atas/bawah tidak ikut terhitung. Tidak aktif di Urutan sendiri dan saat memilih pasien.
+
 ## `2026-10-10.4`
 - **Kartu pasien di papan lebih ringkas dan langsung menunjukkan status hari ini.** Di bawah nama kini ada satu baris status:
   - **● SOAP hari ini**, **○ SOAP kemarin** (catatan terakhir dari hari sebelumnya), atau **○ Belum ada SOAP**;

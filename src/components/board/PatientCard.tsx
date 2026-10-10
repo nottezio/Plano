@@ -1,6 +1,10 @@
 import { useClinicalToday } from '@/hooks/useClinicalToday';
 import { toggleReminderDone, type ActiveReminder } from '@/domain/reminders';
 import { setReminderDone } from '@/data/repositories/patients.repo';
+import { setTick } from '@/data/repositories/checklist.repo';
+import { clinicalDate, daysBetween } from '@/domain/clinicalDate';
+import { formatDmy } from '@/domain/dateDmy';
+import { useSession } from '@/store/useSession';
 import { useEffect, useRef, useState } from 'react';
 import { NotePopover } from './NotePopover';
 import { useClipboardNote } from '@/store/useClipboardNote';
@@ -39,8 +43,22 @@ export function PatientCard({
   checked,
   onToggleSelected,
   onPreview,
+  dense = false,
+  swipe = false,
 }: {
   card: BoardCard;
+  /**
+   * Ringkas (2026-10-10): one line of diagnoses, no chief, labels or change
+   * line. For a long round on a phone, where the question is "who is left",
+   * not "what do they have".
+   */
+  dense?: boolean;
+  /**
+   * Phone list only: swipe right ticks the next checklist item (with undo),
+   * swipe left opens the preview. Never on the canvas or while selecting,
+   * where a horizontal drag already means something.
+   */
+  swipe?: boolean;
   onLongPress: (patientId: string) => void;
   /**
    * Present only while the board is in hand-made order.
@@ -199,6 +217,38 @@ export function PatientCard({
   };
   const cancelPress = (): void => window.clearTimeout(pressTimer.current);
 
+  const gesture = useSwipe({
+    enabled: swipe && !selectable,
+    onStart: cancelPress,
+    onRight: () => tickNext(),
+    onLeft: onPreview ? () => onPreview(patient.id) : null,
+  });
+  const [undo, setUndo] = useState<{ itemId: string; label: string; date: string } | null>(null);
+  const undoTimer = useRef(0);
+  useEffect(() => () => window.clearTimeout(undoTimer.current), []);
+  const doneMap = (): Record<string, boolean> =>
+    Object.fromEntries(card.progress.segments.map((segment) => [segment.itemId, segment.done]));
+  const tickNext = (): void => {
+    const itemId = card.progress.pendingItemId;
+    if (!itemId) return;
+    const settings = useSession.getState().settings();
+    const today = clinicalDate(new Date(), settings.timezone, settings.dayRolloverHour);
+    void setTick(patient.id, today, itemId, true, { ...doneMap(), [itemId]: true }, true).catch((error: unknown) =>
+      console.warn('[board] swipe tick failed', error),
+    );
+    setUndo({ itemId, label: card.progress.pendingLabel ?? 'Item', date: today });
+    window.clearTimeout(undoTimer.current);
+    undoTimer.current = window.setTimeout(() => setUndo(null), 5000);
+  };
+  const undoTick = (): void => {
+    if (!undo) return;
+    window.clearTimeout(undoTimer.current);
+    void setTick(patient.id, undo.date, undo.itemId, false, { ...doneMap(), [undo.itemId]: false }, true).catch(
+      (error: unknown) => console.warn('[board] swipe undo failed', error),
+    );
+    setUndo(null);
+  };
+
   const note = patient.notes.trim();
 
   /*
@@ -313,7 +363,7 @@ export function PatientCard({
       stuck to the card rather than as another field inside it, which was the
       actual objection to keeping it inside.
     */
-    <div ref={rootRef} className={fitHeight ? 'flex h-full flex-col' : undefined}>
+    <div ref={rootRef} className={fitHeight ? 'flex h-full flex-col' : undefined} {...gesture.handlers}>
     <Link
       ref={linkRef}
       to={`/p/${patient.id}`}
@@ -344,10 +394,12 @@ export function PatientCard({
         event.preventDefault();
         onLongPress(patient.id);
       }}
+      style={gesture.style}
       className={[
         // `p-2.5`, not `p-3`: part of the compact pass — with twelve cards on a
         // board every pixel of padding is paid twelve times.
-        'block min-w-0 border border-black/5 bg-token p-2.5 text-token-fg shadow-sm transition-shadow hover:shadow-md dark:border-white/10',
+        'block min-w-0 border border-black/5 bg-token text-token-fg shadow-sm transition-shadow hover:shadow-md dark:border-white/10',
+        dense ? 'p-2' : 'p-2.5',
         // `min-h-0` is what lets the middle actually shrink: a flex child
         // defaults to `min-height: auto`, which refuses to go below its content
         // and would push the progress strip out of the bottom of the card
@@ -754,6 +806,15 @@ export function PatientCard({
         of them each morning: the information is HOW FAR each patient is.
       */}
       <StatusRail card={card} />
+      {gesture.hint ? (
+        <p aria-hidden="true" className="mb-1 text-[11px] font-semibold">
+          {gesture.hint === 'right'
+            ? card.progress.pendingLabel
+              ? `→ Centang: ${shortStepLabel(card.progress.pendingLabel) ?? card.progress.pendingLabel}`
+              : 'Checklist sudah selesai'
+            : '← Preview catatan'}
+        </p>
+      ) : null}
       {/*
         Hari rawat removed from the card.
         
@@ -776,11 +837,15 @@ export function PatientCard({
         block flows exactly as it did when these four were siblings.
       */}
       <ClampedBody enabled={fitHeight} bodyRef={bodyRef}>
-      {card.chief ? <p className="text-[11px] opacity-60">Chief {card.chief}</p> : null}
+      {card.chief && !dense ? <p className="text-[11px] opacity-60">Chief {card.chief}</p> : null}
 
       {/* `leading-snug`: a list of diagnoses reads fine at 1.375, and
           `relaxed` spent a fifth of the body's height between the lines. */}
-      {lines.length > 0 ? (
+      {lines.length > 0 && dense ? (
+        <p className="mt-0.5 line-clamp-1 text-xs leading-snug opacity-90">
+          {lines.map((line) => line.replace(/^\s*(?:[-*•]|\d+[.)])\s+/, '')).join(' · ')}
+        </p>
+      ) : lines.length > 0 ? (
         <>
           {/* Phone (2026-10-08): the diagnoses run on one line each, clamped
               to two, so a long problem list cannot make one card a screen
@@ -796,8 +861,9 @@ export function PatientCard({
         <p className="mt-1 text-xs italic opacity-60">Belum ada catatan hari ini.</p>
       )}
 
+      {card.dxChanges && !dense ? <DxChangeLine card={card} /> : null}
 
-      {patient.labels.length > 0 ? (
+      {patient.labels.length > 0 && !dense ? (
         <div className="mt-2 flex flex-wrap gap-1">
           {patient.labels.map((label) => (
             <span
@@ -821,6 +887,15 @@ export function PatientCard({
       */}
       <FlagRow card={card} dischargeStrip={dischargeStrip} className={fitHeight ? 'shrink-0' : ''} />
     </Link>
+
+      {undo ? (
+        <div role="status" className="mt-1 flex items-center gap-2 rounded-lg bg-surface px-3 py-1 text-xs shadow-sm">
+          <span className="min-w-0 flex-1 truncate">✓ {undo.label}</span>
+          <button type="button" onClick={undoTick} className="min-h-tap shrink-0 px-2 font-semibold text-accent">
+            Urungkan
+          </button>
+        </div>
+      ) : null}
 
       {note ? (
         // Measured on its own: it sits outside the link, and a minimum that
@@ -1170,12 +1245,20 @@ function StatusRail({ card }: { card: BoardCard }): JSX.Element {
         <span aria-hidden="true">{soap === 'today' ? '●' : '○'}</span>
         {soap === 'today' ? 'SOAP hari ini' : soap === 'stale' ? 'SOAP kemarin' : 'Belum ada SOAP'}
       </span>
+      {card.checkCount ? (
+        <span
+          className="shrink-0 rounded-sm border border-current px-1 text-[10px] font-semibold"
+          title={`${card.checkCount} hal perlu diperiksa lagi di catatan hari ini`}
+        >
+          ⚑ {card.checkCount}
+        </span>
+      ) : null}
       {progress.total > 0 ? (
         <>
           <span className="min-w-6 flex-1">
             <ProgressStrip progress={progress} />
           </span>
-          <span className="shrink-0 tabular-nums opacity-80" title={progress.pendingLabel ?? 'Semua selesai'}>
+          <span className="min-w-0 max-w-[60%] truncate tabular-nums opacity-80" title={progress.pendingLabel ?? 'Semua selesai'}>
             {progress.complete ? '✓ selesai' : `${progress.doneCount}/${progress.total}${next ? ` · ${next}` : ''}`}
           </span>
         </>
@@ -1229,4 +1312,113 @@ function FlagRow({
         ) : null}
     </div>
   );
+}
+
+/** "Sejak kemarin: + A · − B" — what the diagnosis list gained and lost. */
+function DxChangeLine({ card }: { card: BoardCard }): JSX.Element | null {
+  const changes = card.dxChanges;
+  if (!changes) return null;
+  const since = card.patient.prevPreviewDate;
+  const today = card.patient.previewDate;
+  const when =
+    since && today && daysBetween(since, today) === 1 ? 'kemarin' : since ? formatDmy(since).slice(0, 5) : 'sebelumnya';
+  const parts = [...changes.added.map((line) => `+ ${line}`), ...changes.removed.map((line) => `− ${line}`)];
+  const shown = parts.slice(0, 3);
+  return (
+    <p
+      className="mt-1 line-clamp-2 text-[11px] leading-snug opacity-75"
+      title={parts.join('\n')}
+    >
+      <span className="font-semibold">Sejak {when}:</span> {shown.join(' · ')}
+      {parts.length > shown.length ? ` · +${parts.length - shown.length} lagi` : ''}
+    </p>
+  );
+}
+
+/**
+ * The horizontal swipe on a phone card (2026-10-10).
+ *
+ * Touch only, and only when clearly sideways (|dx| > 2|dy|), so a vertical
+ * scroll never turns into a tick. The card follows the finger; past 96 px it
+ * commits on release. A swipe swallows the click that follows it, so it never
+ * also opens the patient.
+ */
+const SWIPE_COMMIT = 96;
+function useSwipe({
+  enabled,
+  onStart,
+  onRight,
+  onLeft,
+}: {
+  enabled: boolean;
+  onStart: () => void;
+  onRight: () => void;
+  onLeft: (() => void) | null;
+}): {
+  handlers: React.HTMLAttributes<HTMLDivElement>;
+  style: React.CSSProperties | undefined;
+  hint: 'left' | 'right' | null;
+} {
+  const start = useRef<{ x: number; y: number } | null>(null);
+  const horizontal = useRef(false);
+  const swallow = useRef(false);
+  const [dx, setDx] = useState(0);
+  if (!enabled) return { handlers: {}, style: undefined, hint: null };
+  const clamp = (value: number): number => (value < 0 && !onLeft ? 0 : Math.max(-140, Math.min(140, value)));
+  return {
+    handlers: {
+      onTouchStart: (event) => {
+        const touch = event.touches[0];
+        if (!touch || event.touches.length > 1) return;
+        start.current = { x: touch.clientX, y: touch.clientY };
+        horizontal.current = false;
+      },
+      onTouchMove: (event) => {
+        const from = start.current;
+        const touch = event.touches[0];
+        if (!from || !touch) return;
+        const moveX = touch.clientX - from.x;
+        const moveY = touch.clientY - from.y;
+        if (!horizontal.current) {
+          if (Math.abs(moveY) > 12 && Math.abs(moveY) > Math.abs(moveX)) {
+            start.current = null;
+            return;
+          }
+          if (Math.abs(moveX) > 12 && Math.abs(moveX) > 2 * Math.abs(moveY)) {
+            horizontal.current = true;
+            onStart();
+          } else return;
+        }
+        setDx(clamp(moveX));
+      },
+      onTouchEnd: () => {
+        const was = horizontal.current;
+        start.current = null;
+        horizontal.current = false;
+        if (!was) return;
+        swallow.current = true;
+        window.setTimeout(() => (swallow.current = false), 400);
+        if (dx >= SWIPE_COMMIT) onRight();
+        else if (dx <= -SWIPE_COMMIT && onLeft) onLeft();
+        setDx(0);
+      },
+      onTouchCancel: () => {
+        start.current = null;
+        horizontal.current = false;
+        setDx(0);
+      },
+      onClickCapture: (event) => {
+        if (!swallow.current) return;
+        swallow.current = false;
+        event.preventDefault();
+        event.stopPropagation();
+      },
+    },
+    style: {
+      touchAction: 'pan-y',
+      transform: dx ? `translateX(${dx}px)` : undefined,
+      transition: dx ? 'none' : 'transform 150ms ease-out',
+    },
+    hint: dx >= SWIPE_COMMIT ? 'right' : dx <= -SWIPE_COMMIT ? 'left' : null,
+  };
 }
