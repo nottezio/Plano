@@ -5,6 +5,18 @@ Catatan teknis lengkap (akar masalah, perbaikan) ada di CHANGES.md.
 
 Entri teratas harus versi yang sedang dirilis; tes gagal bila belum ditulis.
 
+## `2026-10-10.11`
+- **Kalkulator baru: Warfarin — mulai di rawat inap** (grup Antikoagulan dan kalkulator melayang).
+  - **Target INR wajib dipilih**: 2,0–3,0, 2,5–3,5, katup mekanik aorta 2,5, atau mitral/dua katup 3,0.
+  - **Dosis harian dari nomogram 5 mg** (Crowther, Harrison & Hirsh 1997), hari ke-1 sampai ke-6, berdasarkan INR pagi. Nomogram ini hanya untuk target 2,0–3,0; target lain tidak dihitung.
+  - Bila tabel memberi rentang (mis. 5–7,5 mg), rentang itu yang ditampilkan.
+  - Bila INR jatuh di antara dua baris tabel (mis. 1,95), kedua baris ditampilkan.
+  - **Dosis tidak ditampilkan** bila dicentang: perdarahan aktif, INR awal memanjang, atau penyakit hati berat.
+  - **Pengingat dosis awal lebih rendah** (lansia, nutrisi buruk, penyakit hati, gagal jantung, risiko perdarahan; 2–3 mg untuk penggantian katup).
+  - **Daftar obat yang menguatkan efek warfarin**; obat yang tertulis di catatan ditandai.
+  - Panduan **overlap heparin** (minimal 5 hari dan INR ≥ 2,0 selama 24 jam) dan **bridging katup mekanik**, beserta rujukannya.
+- **Kartu Heparin kini meminta indikasi**: **VTE** (nomogram Raschke) atau **SKA** (ESC 2023: bolus 70–100 U/kg, lalu infus dititrasi ke aPTT 60–80 detik). ESC 2023 tidak mencantumkan batas bolus 5.000 U maupun laju awal infus, jadi kartu SKA tidak menghitungnya.
+
 ## `2026-10-10.10`
 - **Kalkulator baru: Heparin (UFH) — aPTT**, di grup **Antikoagulan** pada halaman Kalkulator dan di tab Klinis kalkulator melayang.
   - **Mulai:** dari BB aktual menghitung bolus 80 U/kg dan laju 18 U/kgBB/jam (beserta total U/jam).

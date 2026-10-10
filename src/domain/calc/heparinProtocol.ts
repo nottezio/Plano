@@ -148,3 +148,24 @@ export function withTargetHigh(protocol: HeparinProtocol, high: TargetHigh): Hep
     rows: protocol.rows.map((row) => (row.therapeutic ? { ...row, maxRatio: high } : row)),
   };
 }
+
+/**
+ * Acute coronary syndrome, ESC 2023 (2026-10-10).
+ *
+ * Byrne RA et al., 2023 ESC Guidelines for the management of acute coronary
+ * syndromes, Eur Heart J 2023;44:3720–826, Table 6 (p. 3751–2), UFH row,
+ * verbatim: "Initial treatment: i.v. bolus 70–100 U/kg followed by i.v.
+ * infusion titrated to achieve an aPTT of 60–80 s." Read from the PDF Avi
+ * supplied.
+ *
+ * Note what it does NOT say: no maximum bolus, no starting infusion rate,
+ * and no adjustment table. The card shows exactly that — a bolus RANGE, the
+ * aPTT window, and whether a result is below, in or above it — and does not
+ * borrow Raschke's per-kg steps for a regimen they were not written for.
+ */
+export const ESC_2023_ACS = {
+  bolusPerKg: { min: 70, max: 100 },
+  apttSeconds: { low: 60, high: 80 },
+  printed:
+    'Initial treatment: i.v. bolus 70–100 U/kg followed by i.v. infusion titrated to achieve an aPTT of 60–80 s.',
+} as const;

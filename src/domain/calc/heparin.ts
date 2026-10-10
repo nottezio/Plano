@@ -1,4 +1,4 @@
-import { RASCHKE_1993, type HeparinProtocol, type HeparinRow } from './heparinProtocol';
+import { ESC_2023_ACS, RASCHKE_1993, type HeparinProtocol, type HeparinRow } from './heparinProtocol';
 
 /**
  * Unfractionated heparin by aPTT (2026-10-10).
@@ -16,6 +16,7 @@ import { RASCHKE_1993, type HeparinProtocol, type HeparinRow } from './heparinPr
 export const HEPARIN_SOURCES: readonly string[] = [
   'Raschke RA, Reilly BM, Guidry JR, Fontana JR, Srinivas S. The weight-based heparin dosing nomogram compared with a "standard care" nomogram. Ann Intern Med 1993;119:874–81. Tabel 2 (nomogram, dalam detik dan × kontrol); dosis awal 80 U/kg bolus lalu 18 U/kg/jam; dosis memakai berat badan aktual; aPTT tiap 6 jam; tidak menyesuaikan dosis bila sampel aPTT diambil < 4 jam setelah perubahan terakhir; kontrol = batas atas rentang normal aPTT lab.',
   'Garcia DA, Baglin TP, Weitz JI, Samama MM. Parenteral anticoagulants. Chest 2012;141(2 Suppl):e24S–e43S. Tabel 3 (nomogram Raschke: "then increase"); rentang 1,5–2,5 × kontrol "gained wide acceptance" (Basu et al. 1972); rentang aPTT harus disesuaikan dengan reagen dan alat lab setempat.',
+  'Byrne RA, Rossello X, Coughlan JJ, et al. 2023 ESC Guidelines for the management of acute coronary syndromes. Eur Heart J 2023;44:3720–826. Tabel 6, UFH: "Initial treatment: i.v. bolus 70–100 U/kg followed by i.v. infusion titrated to achieve an aPTT of 60–80 s." (tanpa batas bolus maksimal dan tanpa laju awal).',
   'Cuker A, et al. American Society of Hematology 2018 guidelines for management of venous thromboembolism: heparin-induced thrombocytopenia. Blood Adv 2018;2:3360–92. Skor 4Ts untuk probabilitas HIT.',
 ];
 
@@ -221,4 +222,35 @@ export function readCoagFromNote(note: string): CoagReading {
   const weight = new RegExp(String.raw`\bBB\s*:?\s*${NUM}\s*kg`, 'i').exec(body);
   if (weight?.[1]) out.weightKg = toNumber(weight[1]);
   return out;
+}
+
+export type ApttPosition = 'below' | 'in' | 'above';
+
+export interface AcsDose {
+  bolusMinUnits: number;
+  bolusMaxUnits: number;
+  line: string;
+}
+
+/** ESC 2023 ACS initial UFH: a bolus RANGE, then an infusion titrated to aPTT 60–80 s. */
+export function acsStart(weightKg: number): AcsDose | null {
+  if (!positive(weightKg)) return null;
+  const bolusMinUnits = ESC_2023_ACS.bolusPerKg.min * weightKg;
+  const bolusMaxUnits = ESC_2023_ACS.bolusPerKg.max * weightKg;
+  return {
+    bolusMinUnits,
+    bolusMaxUnits,
+    line:
+      `- Heparin bolus ${formatUnits(bolusMinUnits)}–${formatUnits(bolusMaxUnits)} U IV ` +
+      `(${ESC_2023_ACS.bolusPerKg.min}–${ESC_2023_ACS.bolusPerKg.max} U/kg, BB ${formatKg(weightKg)} kg), ` +
+      `lanjut infus IV titrasi ke aPTT ${ESC_2023_ACS.apttSeconds.low}–${ESC_2023_ACS.apttSeconds.high} dtk`,
+  };
+}
+
+/** Where an aPTT sits against the ESC 2023 window (inclusive at both ends). */
+export function acsApttPosition(aptt: number): ApttPosition | null {
+  if (!positive(aptt)) return null;
+  if (aptt < ESC_2023_ACS.apttSeconds.low) return 'below';
+  if (aptt > ESC_2023_ACS.apttSeconds.high) return 'above';
+  return 'in';
 }

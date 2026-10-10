@@ -8,6 +8,7 @@ import {
 } from '@/components/calc/ClinicalCards';
 import { IconClose, IconGrip } from '@/components/common/Icons';
 import { HeparinCard } from './HeparinCard';
+import { WarfarinCard } from './WarfarinCard';
 import { Segmented } from '@/components/common/ui';
 import {
   ARITHMETIC_ERROR_TEXT,
@@ -470,6 +471,7 @@ export function FloatingCalculator({
           <OsmolalityCard />
           <SodiumGlucoseCard />
           <HeparinCard noteBody={noteBody} onInsertTerapi={onInsertTerapi} />
+          <WarfarinCard noteBody={noteBody} onInsertTerapi={onInsertTerapi} />
           <UnitConverterCard />
         </div>
       </div>

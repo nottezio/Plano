@@ -3,6 +3,8 @@ import { describe, expect, it } from 'vitest';
 import {
   HEPARIN_SOURCES,
   NO_STOPS,
+  acsApttPosition,
+  acsStart,
   adjustDose,
   adjustProblems,
   apttRatio,
@@ -11,7 +13,7 @@ import {
   readCoagFromNote,
   startDose,
 } from './heparin';
-import { RASCHKE_1993, TARGET_HIGH_CHOICES, withTargetHigh } from './heparinProtocol';
+import { ESC_2023_ACS, RASCHKE_1993, TARGET_HIGH_CHOICES, withTargetHigh } from './heparinProtocol';
 
 const CONTROL = 30; // Raschke's own control: the upper limit of a 20–30 s normal range.
 const row = (ratio: number, protocol = RASCHKE_1993) => matchRow(ratio, protocol).id;
@@ -183,5 +185,30 @@ describe('reading the note', () => {
 
   it('returns nothing it cannot read', () => {
     expect(readCoagFromNote('Sesak berkurang')).toEqual({});
+  });
+});
+
+describe('ACS (ESC 2023)', () => {
+  it('gives the bolus as the published range, with no cap', () => {
+    expect(acsStart(70)).toMatchObject({ bolusMinUnits: 4900, bolusMaxUnits: 7000 });
+    expect(acsStart(120)).toMatchObject({ bolusMinUnits: 8400, bolusMaxUnits: 12000 });
+    expect(acsStart(70)?.line).toBe(
+      '- Heparin bolus 4.900–7.000 U IV (70–100 U/kg, BB 70 kg), lanjut infus IV titrasi ke aPTT 60–80 dtk',
+    );
+    expect(acsStart(0)).toBeNull();
+  });
+
+  it('places an aPTT against 60–80 s, inclusive', () => {
+    expect(acsApttPosition(59.9)).toBe('below');
+    expect(acsApttPosition(60)).toBe('in');
+    expect(acsApttPosition(80)).toBe('in');
+    expect(acsApttPosition(80.1)).toBe('above');
+    expect(acsApttPosition(0)).toBeNull();
+  });
+
+  it('quotes Table 6 verbatim', () => {
+    expect(ESC_2023_ACS.printed).toBe(
+      'Initial treatment: i.v. bolus 70–100 U/kg followed by i.v. infusion titrated to achieve an aPTT of 60–80 s.',
+    );
   });
 });

@@ -1,5 +1,88 @@
 # Plano — CHANGES
 
+## `2026-10-10.11` — Warfarin initiation calculator (anticoagulation release 2); heparin card asks for the indication (VTE vs ACS)
+
+### Warfarin: sources (every number traced)
+- **Nomogram:** Crowther MA, Harrison L, Hirsh J, "In response",
+  Ann Intern Med 1997;127:332–3, Figure "Dosing nomograms for 5-mg and
+  10-mg warfarin doses". Read from the PDF Avi supplied (page 333).
+  - Getting it took three PDFs. Crowther 1999 (Arch Intern Med 159:46–8)
+    only cites "published warfarin dosing algorithms (ref 6)". Ref 6 is
+    the letters page; the authors' reply prints the Figure.
+  - Only the 5-mg table is used (Ageno 2012: ≤ 5 mg for the patients a ward
+    mostly holds; Crowther 1999: 5 mg at least as effective).
+  - Data in `domain/calc/warfarinProtocol.ts`, with printed cells verbatim
+    and a test that parses them against the numbers.
+- **Target:** the 1999 trial enrolled "target INR of 2.0 to 3.0", so the
+  nomogram is offered only for that target. Target INR is a REQUIRED
+  choice with no default (Avi's rule 4). The other targets show guidance
+  only.
+- **From the 1999 paper:** evening dose and morning INR; daily INR until
+  2.0–3.0 on 2 consecutive days.
+- **From the reply:** the day-2 dose is reduced only for an excess effect
+  12–16 h after the first dose.
+- **Ageno et al., Chest 2012 e44S** (PMC3278051):
+  - starting doses 5–10 mg;
+  - "≤ 5 mg might be appropriate" in the elderly, impaired nutrition, liver
+    disease, heart failure and high bleeding risk;
+  - "An initial dose of 2 to 3 mg seems to be appropriate" for valve
+    replacement;
+  - daily INR in hospitalised patients;
+  - Table 1 potentiators, cardiology-relevant subset, levels kept.
+- **Kearon et al., Chest 2012 e419S, Rec 2.4 (1B):** heparin/warfarin
+  overlap.
+- **Whitlock et al., Chest 2012 e576S** abstract: mechanical-valve bridging
+  (2C); INR 2.5 aortic (1B), 3.0 mitral/double (2C).
+
+### Warfarin: design
+- `dayDose(day, inr)`: bounds as printed. "< 1.5" and "> x" are strict;
+  "a - b" is inclusive. Day 3's "2.0 - 2.5" and "2.5 - 3.0" share 2.5
+  with the same dose.
+- An INR in a printed gap (1.9 < INR < 2.0) returns BOTH neighbour rows
+  and the combined range. Rounding a dosing input would be a guess.
+- A range in the table ("5.0 - 7.5 mg") stays a range; Plano never averages
+  it. 0 is written as "tunda".
+- Day > 6: outside the table.
+- **Hard stops (ticks):** active bleeding, baseline INR prolonged, severe
+  liver disease.
+- **Lower-start factors:** ticks that print the Ageno sentence; no computed
+  dose. "Frailty" from the brief is not in Ageno's list, so it is not
+  offered.
+- **Interacting drugs:** chips from Ageno Table 1; any found in the open
+  note are highlighted and the list opens. No dose change: the table gives
+  none.
+- Same note handoff as heparin (prefill INR, Sisipkan ke Terapi). Stateless.
+
+### Heparin: the 5,000 U cap (Avi's question)
+- **Raschke 1993:** no cap; doses on actual body weight.
+- **ESC 2023 ACS** (Byrne et al., Eur Heart J 2023;44:3720–826, Table 6,
+  PDF supplied), verbatim: "Initial treatment: i.v. bolus 70–100 U/kg
+  followed by i.v. infusion titrated to achieve an aPTT of 60–80 s." There
+  is NO maximum bolus, NO starting infusion rate and NO adjustment table
+  there. The "max 5000 U / max 1000 U/h" Avi remembers is from earlier
+  guidance I could not open, so it is not used.
+- **Fix:** the card now REQUIRES an indication.
+  - VTE: Raschke, unchanged.
+  - SKA: bolus range 70–100 U/kg (no cap), infusion "titrasi ke aPTT
+    60–80 dtk", and an optional aPTT shown as below / in / above 60–80 s
+    (inclusive).
+  - Raschke's per-kg steps are NOT borrowed for ACS.
+  - Before this, the card gave the VTE bolus to every patient, ACS
+    included, without saying so.
+
+### Not done
+- ESC 2020 NSTE-ACS caps: only with that PDF.
+- RSWS protocols: neither the heparin nor the warfarin protocol is
+  confirmed.
+- The 10-mg warfarin nomogram: not offered.
+- Outpatient INR adjustment: out of scope by the brief.
+
+```
+npm run verify
+  typecheck ✓  lint ✓ (0 warnings)  test ✓ 2219 passed (150 files)
+  check:version ✓  check:contrast ✓  check:a11y ✓  build ✓
+```
+
 ## `2026-10-10.10` — Heparin (aPTT) calculator, release 1 of 2 (Avi's anticoagulation brief; warfarin waits for his confirmation)
 
 ### Protocol and sources (every number traced)

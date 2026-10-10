@@ -2,6 +2,7 @@ import { type ReactNode } from 'react';
 
 import { AppShell } from '@/components/common/AppShell';
 import { HeparinCard } from '@/components/calc/HeparinCard';
+import { WarfarinCard } from '@/components/calc/WarfarinCard';
 import {
   LinkCard,
   OsmolalityCard,
@@ -71,6 +72,7 @@ export default function CalculatorPage(): JSX.Element {
 
         <Group id="calc-antikoagulan" label="Antikoagulan">
           <HeparinCard />
+          <WarfarinCard />
         </Group>
 
         <Group id="calc-elektrolit" label="Elektrolit">

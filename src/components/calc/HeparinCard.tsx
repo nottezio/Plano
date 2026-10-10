@@ -3,6 +3,8 @@ import { useMemo, useState } from 'react';
 import {
   HEPARIN_SOURCES,
   NO_STOPS,
+  acsApttPosition,
+  acsStart,
   adjustDose,
   adjustProblems,
   formatRatio,
@@ -12,7 +14,7 @@ import {
   startDose,
   type HeparinStops,
 } from '@/domain/calc/heparin';
-import { RASCHKE_1993, withTargetHigh, type HeparinRow } from '@/domain/calc/heparinProtocol';
+import { ESC_2023_ACS, RASCHKE_1993, withTargetHigh, type HeparinRow } from '@/domain/calc/heparinProtocol';
 import { readHeparinSettings } from '@/components/settings/HeparinSettings';
 import { Big, CalcCard, Empty, NumberField, ResultBlock, Segmented } from './ClinicalCards';
 
@@ -66,6 +68,9 @@ export function HeparinCard({
   const fromNote = useMemo(() => (noteBody ? readCoagFromNote(noteBody) : {}), [noteBody]);
   const protocol = useMemo(() => withTargetHigh(RASCHKE_1993, settings.targetHigh), [settings.targetHigh]);
 
+  // Required, like the INR target on the warfarin card: the two regimens give
+  // different boluses, and a default would pick one silently.
+  const [indication, setIndication] = useState<'vte' | 'ska' | null>(null);
   const [mode, setMode] = useState<'mulai' | 'sesuaikan'>(fromNote.aptt !== undefined ? 'sesuaikan' : 'mulai');
   const [weight, setWeight] = useState(show(fromNote.weightKg));
   const [aptt, setAptt] = useState(show(fromNote.aptt));
@@ -75,11 +80,14 @@ export function HeparinCard({
   const [inserted, setInserted] = useState<'ok' | 'none' | null>(null);
 
   const warnings = heparinStops(stops);
-  const start = mode === 'mulai' ? startDose(num(weight), protocol) : null;
+  const vte = indication === 'vte';
+  const start = vte && mode === 'mulai' ? startDose(num(weight), protocol) : null;
+  const acs = indication === 'ska' ? acsStart(num(weight)) : null;
+  const acsPosition = indication === 'ska' ? acsApttPosition(num(aptt)) : null;
   const input = { weightKg: num(weight), aptt: num(aptt), control: num(control), currentRatePerKg: num(rate) };
-  const adjustment = mode === 'sesuaikan' ? adjustDose(input, protocol) : null;
-  const problems = mode === 'sesuaikan' ? adjustProblems(input) : [];
-  const line = warnings.length > 0 ? undefined : (start?.line ?? adjustment?.line);
+  const adjustment = vte && mode === 'sesuaikan' ? adjustDose(input, protocol) : null;
+  const problems = vte && mode === 'sesuaikan' ? adjustProblems(input) : [];
+  const line = warnings.length > 0 ? undefined : (start?.line ?? adjustment?.line ?? acs?.line);
   const prefilled = [
     fromNote.aptt !== undefined ? `aPTT ${one(fromNote.aptt)}` : '',
     fromNote.control !== undefined ? `kontrol ${one(fromNote.control)}` : '',
@@ -90,12 +98,43 @@ export function HeparinCard({
   return (
     <CalcCard
       title="Heparin (UFH) — aPTT"
-      formula={`Raschke 1993 · mulai 80 U/kg bolus → 18 U/kgBB/jam · target ${targetLabel}`}
+      formula={
+        indication === 'ska'
+          ? 'ESC 2023 (SKA) · bolus 70–100 U/kg → infus titrasi ke aPTT 60–80 dtk'
+          : `VTE: Raschke 1993 · 80 U/kg bolus → 18 U/kgBB/jam · target ${targetLabel}`
+      }
       sources={HEPARIN_SOURCES}
     >
       <p className="mb-2 rounded-lg bg-bg-subtle px-2 py-1.5 text-[11px] leading-snug text-fg-muted">
         Saran hitungan, bukan instruksi. Cocokkan dengan protokol RS dan rentang aPTT lab Anda.
       </p>
+      <p className="mb-1 text-[11px] font-medium text-fg-muted">Indikasi (wajib dipilih)</p>
+      <div role="group" aria-label="Indikasi heparin" className="mb-2 grid grid-cols-2 gap-1">
+        {(
+          [
+            ['vte', 'VTE / tromboemboli', 'Raschke 1993'],
+            ['ska', 'SKA', 'ESC 2023'],
+          ] as const
+        ).map(([value, label, source]) => (
+          <button
+            key={value}
+            type="button"
+            aria-pressed={indication === value}
+            onClick={() => {
+              setIndication(value);
+              setInserted(null);
+            }}
+            className={[
+              'min-h-tap rounded-lg border px-2 py-1 text-left text-xs',
+              indication === value ? 'border-accent font-semibold text-accent' : 'border-border text-fg-muted',
+            ].join(' ')}
+          >
+            {label}
+            <span className="block text-[10px] font-normal text-fg-faint">{source}</span>
+          </button>
+        ))}
+      </div>
+      {vte ? (
       <Segmented
         label="Tahap"
         value={mode}
@@ -108,9 +147,11 @@ export function HeparinCard({
           { value: 'sesuaikan', label: 'Sesuaikan (aPTT)' },
         ]}
       />
-      <div className={`mt-2 grid gap-2 ${mode === 'sesuaikan' ? 'grid-cols-2' : 'grid-cols-1'}`}>
+      ) : null}
+      <div className={`mt-2 grid gap-2 ${indication === 'ska' || (vte && mode === 'sesuaikan') ? 'grid-cols-2' : 'grid-cols-1'}`}>
         <NumberField label="BB aktual (kg)" value={weight} onChange={setWeight} />
-        {mode === 'sesuaikan' ? (
+        {indication === 'ska' ? <NumberField label="aPTT (detik, opsional)" value={aptt} onChange={setAptt} /> : null}
+        {vte && mode === 'sesuaikan' ? (
           <>
             <NumberField label="Laju sekarang (U/kgBB/jam)" value={rate} onChange={setRate} />
             <NumberField label="aPTT (detik)" value={aptt} onChange={setAptt} />
@@ -150,6 +191,31 @@ export function HeparinCard({
             ))}
           </ul>
         </div>
+      ) : indication === null ? (
+        <Empty>Pilih indikasi: VTE (nomogram Raschke) atau SKA (ESC 2023).</Empty>
+      ) : acs ? (
+        <ResultBlock line={acs.line}>
+          <Big
+            value={`${formatUnits(acs.bolusMinUnits)}–${formatUnits(acs.bolusMaxUnits)}`}
+            unit="U bolus IV"
+            caption="70–100 U/kg · ESC 2023 tidak memberi batas maksimal"
+          />
+          <p className="mt-2 text-xs">
+            Lanjut infus IV, <b>titrasi ke aPTT 60–80 dtk</b>. ESC 2023 tidak mencantumkan laju awal maupun tabel penyesuaian:
+            pakai protokol RS.
+          </p>
+          {acsPosition ? (
+            <p
+              className={`mt-2 text-xs font-semibold ${acsPosition === 'in' ? 'text-accent' : 'text-[var(--warn-strong)]'}`}
+            >
+              aPTT {aptt} dtk:{' '}
+              {acsPosition === 'in' ? 'dalam target 60–80 dtk' : acsPosition === 'below' ? 'di bawah 60 dtk' : 'di atas 80 dtk'}
+            </p>
+          ) : null}
+          <p className="mt-1 text-[10px] text-fg-faint">ESC 2023 Tabel 6, UFH: {ESC_2023_ACS.printed}</p>
+        </ResultBlock>
+      ) : indication === 'ska' ? (
+        <Empty>Isi berat badan aktual (kg).</Empty>
       ) : start ? (
         <ResultBlock line={start.line}>
           <div className="grid grid-cols-2 gap-3">
