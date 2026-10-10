@@ -55,6 +55,9 @@ import { AiError, aiEnabled, askClaudeStructured } from '@/lib/ai';
 import { copyText } from '@/lib/clipboard';
 import { formatDmy } from '@/domain/dateDmy';
 import { SaveResultButton } from './SaveResult';
+import { ChangeSummary, SensusHistory } from './SensusHistory';
+import { saveSensusDay, subscribeSensusDays } from '@/data/repositories/sensusDays.repo';
+import { snapFromAi, snapFromEntry, type CensusSnapshot } from '@/domain/census/evolution';
 
 /**
  * Buat Sensus — one DPJP's patients, from the lists the wards send.
@@ -301,7 +304,80 @@ export function SensusMaker(): JSX.Element {
     ? (aiAll?.filter((patient) => patient.kjs).length ?? 0)
     : (rules?.entries.filter((entry) => entry.kjs).length ?? 0);
 
+  /*
+    RIWAYAT (2026-10-10). One resident holds one DPJP's census for weeks, so
+    each day is recorded — the census as copied or saved, never the half-
+    pasted lists — and today's is compared with the last recorded day.
+  */
+  const [view, setView] = useState<'hariini' | 'riwayat'>('hariini');
+  const [history, setHistory] = useState<CensusSnapshot[]>([]);
+  useEffect(() => {
+    if (!uid || !code) {
+      setHistory([]);
+      return;
+    }
+    return subscribeSensusDays(uid, code, setHistory, (error) => console.error('[sensusDays] listener failed', error));
+  }, [uid, code]);
+
+  const currentSnapshot = useMemo((): CensusSnapshot | null => {
+    if (!code) return null;
+    const patients = usingAi
+      ? aiAll?.map((patient) => snapFromAi(patient, code))
+      : rules?.entries.map((entry) => snapFromEntry(entry, code));
+    if (!patients || filled.length === 0) return null;
+    return { code: code.toUpperCase(), date: censusDate, patients, covers: covered, savedAt: 0, source: usingAi ? 'ai' : 'aturan' };
+    // `filled` follows day.lists, which `rules` already tracks.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [code, usingAi, aiAll, rules, censusDate, covered]);
+  const previousDay = useMemo(
+    () => history.filter((recorded) => recorded.date < censusDate).pop() ?? null,
+    [history, censusDate],
+  );
+  const recorded = history.find((entry) => entry.date === censusDate) ?? null;
+  const recordedSame =
+    recorded && currentSnapshot ? JSON.stringify(recorded.patients) === JSON.stringify(currentSnapshot.patients) : false;
+  const recordDay = (): void => {
+    if (!uid || !currentSnapshot) return;
+    void saveSensusDay(uid, { ...currentSnapshot, savedAt: Date.now() }).catch((error: unknown) =>
+      console.error('[sensusDays] save rejected', error),
+    );
+  };
+
   return (
+    <div className="space-y-4">
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-2 rounded-2xl border border-border bg-surface px-3 py-2.5">
+        <div className="min-w-0 flex-1">
+          <p className="text-sm font-semibold">Sensus {code || '—'}</p>
+          <p className="truncate text-[11px] text-fg-muted">
+            {code ? dpjpFullName(code) : 'Pilih DPJP di langkah 2'}
+            {code && currentSnapshot
+              ? recorded
+                ? recordedSame
+                  ? ` · ${formatDmy(censusDate)} tercatat di riwayat`
+                  : ` · riwayat ${formatDmy(censusDate)} berbeda — Salin/Simpan untuk memperbarui`
+                : ` · ${formatDmy(censusDate)} belum tercatat — masuk riwayat saat Salin/Simpan`
+              : ''}
+          </p>
+        </div>
+        <Segmented
+          label="Tampilan sensus"
+          size="sm"
+          value={view}
+          onChange={setView}
+          options={[
+            ['hariini', 'Hari ini'],
+            ['riwayat', history.length > 0 ? `Riwayat · ${history.length}` : 'Riwayat'],
+          ]}
+        />
+      </div>
+
+      {view === 'riwayat' ? (
+        code ? (
+          <SensusHistory days={history} code={code} />
+        ) : (
+          <p className="text-sm text-fg-muted">Pilih DPJP dulu di Hari ini, langkah 2.</p>
+        )
+      ) : (
     <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,28rem)] lg:items-start">
       <div className="min-w-0 space-y-6">
         <Section
@@ -603,6 +679,7 @@ export function SensusMaker(): JSX.Element {
               title={`Sensus ${code ? dpjpFullName(code) : ''}${usingAi ? ' (AI)' : ''}`.trim()}
               text={shown ?? ''}
               disabled={!shown || !code}
+              onSaved={recordDay}
             />
             <Button
               size="sm"
@@ -612,6 +689,7 @@ export function SensusMaker(): JSX.Element {
               onClick={() =>
                 shown &&
                 void copyText(shown).then((ok) => {
+                  if (ok) recordDay();
                   setCopied(ok);
                   if (ok) window.setTimeout(() => setCopied(false), 1500);
                 })
@@ -629,7 +707,11 @@ export function SensusMaker(): JSX.Element {
                 : 'Tempel list dan pilih DPJP; sensusnya muncul di sini.')}
           </p>
         </div>
+
+        {currentSnapshot ? <ChangeSummary current={currentSnapshot} previous={previousDay} /> : null}
       </aside>
+    </div>
+      )}
     </div>
   );
 }

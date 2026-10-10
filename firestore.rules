@@ -246,6 +246,20 @@ service cloud.firestore {
         allow delete: if false;
       }
 
+      // Sensus history: one DPJP's census per day (see
+      // src/domain/census/evolution.ts), owner only. Bounded so a write can
+      // never approach the document cap. No delete: a day is replaced by
+      // re-copying it.
+      match /sensusDays/{dayId} {
+        allow read: if isSelf(uid) && allowed();
+        allow create, update: if isSelf(uid) && allowed()
+          && request.resource.data.code is string
+          && request.resource.data.date is string
+          && request.resource.data.patients is list
+          && request.resource.data.patients.size() <= 300;
+        allow delete: if false;
+      }
+
       match /templates/{templateId} {
         allow read, create, update, delete: if isSelf(uid) && allowed();
       }

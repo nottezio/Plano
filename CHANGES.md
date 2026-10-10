@@ -1,5 +1,70 @@
 # Plano — CHANGES
 
+## `2026-10-10.3` — Sensus history: one DPJP followed day by day
+
+### Why (Avi: "1 resident holds 1 DPJP's census for a certain time, so the list evolves; there needs to be a way to see the evolution each day")
+Each census was built from that morning's lists and forgotten. Who came in,
+who left, who moved from CVCU to the ward, whose diagnosis list changed:
+none of it was recorded anywhere but the WhatsApp scroll-back.
+
+Avi chose: both views, synced to the account, message unchanged.
+
+### What
+- **`domain/census/evolution.ts`**
+  - `CensusSnapshot`: one DPJP, one date; its patients (`SnapPatient`: RM
+    key, name, place, location, identity, diagnoses, KJS), the places the
+    day's lists `covers`, and the source (aturan/ai).
+  - `patientName` / `patientLocation` read the line shapes (Tn./Ny.;
+    "H. …" and "(BTKV) …" via a fallback at the first date/RM/age segment;
+    the DPJP code and "KJS …" labels are dropped from the location).
+  - `diffSnapshots`:
+    - **baru**, **keluar**, **pindah** (place or location changed, from →
+      to), **dx** (lines added/removed, ignoring bullets and spacing);
+    - **tidak-dicek** when the patient is missing but today's lists did not
+      cover their place: never reported as gone.
+  - `evolution` compares each day with the previous RECORDED day (a day
+    nobody sent is skipped, not "everyone left").
+  - `evolutionGrid`: patients × dates, current first, with H-days and the
+    place path (`PLACE_SHORT`: "CVCU → Lt. 4").
+- **Storage:** `users/{uid}/sensusDays/{CODE~date}`, whole-document set; the
+  same day re-copied replaces itself. Queried with a single equality filter
+  (no composite index). Rules: owner only, `patients` is a list ≤ 300, no
+  delete. **Deploys with the push.** Until then, saving the day is refused
+  and Riwayat stays empty.
+- **When a day is recorded:** on Salin (successful copy) or Simpan of the
+  census, never while lists are being pasted. A half-pasted morning would
+  record the missing list's patients as gone. AI mode records the AI census
+  as corrected (`snapFromAi`, same RM keys).
+- **UI**
+  - Header "Sensus ARB · dr. …" with the day's status (tercatat / berbeda —
+    Salin/Simpan untuk memperbarui / belum tercatat), and **Hari ini |
+    Riwayat · n**.
+  - `ChangeSummary` under the census: today against the last recorded day,
+    before sending.
+  - `SensusHistory`: Perubahan (per day, newest first) and Tabel (sticky
+    name column, last 14 days, inside a ScrollStrip).
+  - `SaveResultButton` gained `onSaved`.
+
+### Checked on Avi's real lists (8 → 9 October, ARB; scratchpad only)
+12 patients. Tn. Andi Tongkeng (Pasien Meninggal on the 9th) → Keluar. Ny.
+Kamsiani (Lt. 4, not pasted on the 9th) → Tidak dicek. Tn. Aris Riman →
+Pindah "RSUH IGD RSUH Bed 3 → RSUH Katinting 502 Bed 3". Two diagnosis
+updates (POH-2 → POH-3, Konstipasi added). The harness flow recorded both
+days via Simpan, then showed Riwayat · 2 in both views, on laptop and phone.
+
+### Not done
+- No assignment period ("from … to …"): the history is everything recorded
+  for that DPJP. A second resident's later stint on the same DPJP would
+  continue the same history.
+- Snapshots are never pruned (a few KB a day).
+- Not tested on a real phone.
+
+```
+npm run verify
+  typecheck ✓  lint ✓ (0 warnings)  test ✓ 2112 passed (145 files)
+  check:version ✓  check:contrast ✓  check:a11y ✓  build ✓
+```
+
 ## `2026-10-10.2` — A TS reply is one block in Salin; Ringkas remembers Chief and Junior
 
 ### 1. TS plans copied as our Plan (Avi: "plan section is only for our plan")

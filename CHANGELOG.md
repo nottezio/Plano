@@ -5,6 +5,14 @@ Catatan teknis lengkap (akar masalah, perbaikan) ada di CHANGES.md.
 
 Entri teratas harus versi yang sedang dirilis; tes gagal bila belum ditulis.
 
+## `2026-10-10.3`
+- **Buat Sensus kini mengikuti satu DPJP dari hari ke hari.** Di bagian atas ada judul **Sensus ARB** (DPJP yang dipilih) dengan dua tampilan: **Hari ini** dan **Riwayat**.
+- **Riwayat sensus, tersinkron ke akun.** Sensus hari itu dicatat saat Anda menekan **Salin** atau **Simpan**. Yang dicatat hanya pasien DPJP tersebut, bukan seluruh list ruangan. Dua tampilan:
+  - **Perubahan**: per hari, siapa yang **Baru**, **Keluar** (tidak ada lagi di list), **Pindah** (mis. CVCU Bed 5 → PJT Lt. 4 420 Bed 4), dan **Diagnosis** yang bertambah atau hilang. Pasien yang list tempatnya belum ditempel hari itu ditandai **Tidak dicek**, bukan Keluar.
+  - **Tabel**: pasien × tanggal (● ada, ? belum dicek), dengan lama dirawat (H…) dan perjalanan tempatnya (mis. CVCU → Lt. 4).
+- **Sebelum dikirim**, di bawah hasil sensus tampil perbedaannya dengan hari terakhir yang tercatat, jadi perubahan bisa dicek dulu.
+- Pesan sensus yang dikirim tidak berubah.
+
 ## `2026-10-10.2`
 - **Plan TS kembali ke tempatnya.** Setelah 10.1, isi "*Plan Diagnostik*" dan "*Plan Monitoring*" dari blok TS (mis. TS GEH, TS HOM) pindah ke salinan **Plan**, seolah-olah plan kita, dan hilang dari **Terapi + TS**. Kini satu balasan TS (A/, Th/, P/, Plan Diagnostik, Planning, dst.) selalu disalin utuh di **Terapi + TS**, dan **Plan** hanya berisi plan kita sendiri.
 - **Ringkas mengingat Chief dan Junior.** Kolom Chief dan Junior kini ada di Salin → Ringkas (PDF).

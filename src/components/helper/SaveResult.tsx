@@ -88,6 +88,7 @@ export function SaveResultButton({
   title,
   text,
   disabled = false,
+  onSaved,
 }: {
   kind: HelperResultKind;
   forDate: string;
@@ -95,6 +96,8 @@ export function SaveResultButton({
   title: string;
   text: string;
   disabled?: boolean;
+  /** Also done when saving: the Sensus maker records the day in its history. */
+  onSaved?: () => void;
 }): JSX.Element {
   const { uid, byId } = useSavedResults();
   const [, setParams] = useSearchParams();
@@ -132,6 +135,7 @@ export function SaveResultButton({
         void saveHelperResult(uid, { kind, forDate, subject, title, text }).written.catch(
           (error: unknown) => console.error('[helperResults] save rejected', error),
         );
+        onSaved?.();
       }}
     >
       {state === 'changed' ? 'Perbarui' : 'Simpan'}

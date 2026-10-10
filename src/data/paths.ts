@@ -72,3 +72,13 @@ export const helperResultsCol = (uid: string): CollectionReference =>
   collection(db(), 'users', uid, 'helperResults');
 export const helperResultDoc = (uid: string, id: string): DocumentReference =>
   doc(db(), 'users', uid, 'helperResults', id);
+
+/**
+ * One DPJP's census per day (`domain/census/evolution`): the history the
+ * Sensus maker's Riwayat is drawn from. One document per (DPJP, date), so a
+ * re-copy that morning replaces it rather than adding a second.
+ */
+export const sensusDaysCol = (uid: string): CollectionReference =>
+  collection(db(), 'users', uid, 'sensusDays');
+export const sensusDayDoc = (uid: string, id: string): DocumentReference =>
+  doc(db(), 'users', uid, 'sensusDays', id);
