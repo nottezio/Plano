@@ -45,6 +45,7 @@ export type SoapFindingKind =
   | 'electrolyte-corrected'
   | 'anemia-without-hb'
   | 'balance-without-catheter'
+  | 'urine-not-measured'
   | 'opening-kind'
   | 'opening-place'
   | 'trio-6mwt';
@@ -508,24 +509,43 @@ export function checkSoap(input: SoapCheckInput): SoapFinding[] {
   );
   const catheter = /kateter|catheter|foley|\bDC\b|dower|urine?\s*bag/i.test(body);
   /*
-    Voiding documented as spontaneous answers the question too (2026-10-10):
-    "BAK kesan normal" on a patient with a measured output is a decision
-    already made, and telling the writer to consider a catheter for someone
-    who voids normally is advice the note gives no reason for (Tn. K).
+    How the ward reads it (Avi, 2026-10-10): on a diuretic the S is expected
+    to say "BAK per kateter". "BAK kesan normal / spontan" means the patient
+    refused the catheter or voids into a container — a decision already made,
+    so no catheter advice. But in EVERY case the urine is measured per day.
+
+      catheter written                → no catheter reminder
+      voiding written as spontaneous  → no catheter reminder
+      neither                         → catheter reminder
+      and, separately: no urine output with a volume → "belum diukur"
   */
   const voids =
-    /\bBAK\b[^\n]{0,30}\b(?:normal|spontan|lancar|biasa|baik|mandiri)\b|\b(?:urinal|pispot|pot\s+urin)\b/i.test(body);
+    /\bBAK\b[^\n]{0,30}\b(?:normal|spontan|lancar|biasa|baik|mandiri|ditampung|tampung)\b|\b(?:urinal|pispot|pot\s+urin|menolak\s+(?:kateter|DC|foley))\b/i.test(
+      body,
+    );
   const trigger = diuretic ?? balance;
-  if (trigger && !catheter && !voids) {
+  if (trigger) {
     const what = diuretic ? 'Furosemide diberikan' : 'Plan memantau balance cairan / urine output';
     const text = trigger.line.trim();
-    findings.push({
-      kind: 'balance-without-catheter',
-      level: 'cek',
-      message: `${what}, tapi kateter urin (Foley) belum tercatat. Pertimbangkan pemasangan, atau tulis bila sudah terpasang.`,
-      anchor: text,
-      at: trigger.offset + trigger.line.indexOf(text),
-    });
+    const at = trigger.offset + trigger.line.indexOf(text);
+    if (!catheter && !voids) {
+      findings.push({
+        kind: 'balance-without-catheter',
+        level: 'cek',
+        message: `${what}, tapi kateter urin (Foley) belum tercatat. Tulis "BAK per kateter", atau bila pasien menolak / urin ditampung, tulis begitu.`,
+        anchor: text,
+        at,
+      });
+    }
+    if (!readUrineOutput(body)) {
+      findings.push({
+        kind: 'urine-not-measured',
+        level: 'cek',
+        message: `${what}, tapi urine output belum tercatat. Urin harus diukur per hari${voids && !catheter ? ' (ditampung bila tanpa kateter)' : ''}.`,
+        anchor: text,
+        at,
+      });
+    }
   }
 
   if (input.context) findings.push(...checkContext(body, input.context));

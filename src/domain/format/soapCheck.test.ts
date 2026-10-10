@@ -293,6 +293,8 @@ const GOOD_YESTERDAY = [
   'Pernapasan : 20 kali/menit',
   'Suhu : 36.6 derajat Celcius',
   'SpO2 : 97 % on room air',
+  // On furosemide, so the urine is measured every day (2026-10-10).
+  'Urine output 1400 cc/24 jam',
   '',
   '*A:*',
   '- ADHF ec CAD',
@@ -306,7 +308,8 @@ const GOOD_TODAY = GOOD_YESTERDAY
   .replace('Sesak berkurang, nyeri dada tidak ada.', 'Sesak tidak ada, bisa tidur telentang.')
   .replace('hari perawatan ke 4', 'hari perawatan ke 5')
   .replace('118/76', '112/70')
-  .replace('Nadi : 84', 'Nadi : 78');
+  .replace('Nadi : 84', 'Nadi : 78')
+  .replace('1400 cc', '1650 cc');
 
 describe('a good note', () => {
   it('produces no findings at all', () => {
@@ -558,7 +561,7 @@ describe('Foley reminder: a diuretic or a balance without a catheter (2026-10-07
   it('furosemide with no catheter written: remind, pointing at the drug', () => {
     const found = reminder(note('- Furosemide 40 mg/8 jam/IV', '- Monitoring tanda vital'));
     expect(found).toHaveLength(1);
-    expect(found[0]?.message).toMatch(/^Furosemide diberikan, tapi kateter urin \(Foley\)/);
+    expect(found[0]?.message).toMatch(/^Furosemide diberikan, tapi kateter urin \(Foley\) belum tercatat\. Tulis "BAK per kateter"/);
     expect(found[0]?.anchor).toBe('- Furosemide 40 mg/8 jam/IV');
   });
 

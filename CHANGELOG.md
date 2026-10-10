@@ -5,6 +5,11 @@ Catatan teknis lengkap (akar masalah, perbaikan) ada di CHANGES.md.
 
 Entri teratas harus versi yang sedang dirilis; tes gagal bila belum ditulis.
 
+## `2026-10-10.8`
+- **Pengingat furosemide dipisah menjadi dua, sesuai praktik bangsal.**
+  - **Kateter:** bila S belum menulis cara BAK, muncul pengingat untuk menulis **"BAK per kateter"**, atau, bila pasien menolak kateter atau urin ditampung, menuliskannya. "BAK kesan normal/spontan", "ditampung", urinal, atau "menolak kateter" dianggap sudah menjawab.
+  - **Urine output:** pasien dengan furosemide atau plan balance cairan **harus** punya urine output yang tercatat, dengan atau tanpa kateter. Bila tidak ada, muncul "urine output belum tercatat, urin harus diukur per hari".
+
 ## `2026-10-10.7`
 - **Periksa lagi: dua temuan keliru diperbaiki.**
   - "Hitungan hari belum berubah: **H20**" muncul dari "JVP R+3 cm H20" (H2O ditulis dengan angka nol). Angka setelah **cm** atau **mm** kini tidak lagi dibaca sebagai hitungan hari.

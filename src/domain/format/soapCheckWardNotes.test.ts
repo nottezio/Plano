@@ -52,24 +52,38 @@ describe('day counters', () => {
   });
 });
 
-describe('furosemide without a catheter', () => {
-  const base = (subjective: string): string =>
+describe('furosemide: catheter and urine output', () => {
+  const note = (subjective: string, objective = ''): string =>
     [
       '*S:*',
       `- ${subjective}`,
       '*O:*',
       'Tekanan Darah : 89/55 mmHg',
+      objective,
       '*Mohon izin kami terapi dengan:*',
       '- Furosemide 40mg/12 jam/IV',
     ].join('\n');
-  const flagged = (body: string): boolean =>
-    checkSoap({ body }).some((finding) => finding.kind === 'balance-without-catheter');
+  const kinds = (body: string): string[] =>
+    checkSoap({ body })
+      .map((finding) => finding.kind)
+      .filter((kind) => kind === 'balance-without-catheter' || kind === 'urine-not-measured');
+  const OUTPUT = '_Urine output 1600 cc/12 jam/50kg: 2.67 cc/kgbb/jam_';
 
-  it('stays quiet when spontaneous voiding is documented', () => {
-    expect(flagged(base('BAB hari ini, BAK kesan normal.'))).toBe(false);
+  it('spontaneous voiding with a measured output: nothing to say', () => {
+    expect(kinds(note('BAB hari ini, BAK kesan normal.', OUTPUT))).toEqual([]);
   });
 
-  it('still reminds when nothing is said about voiding', () => {
-    expect(flagged(base('Sesak berkurang.'))).toBe(true);
+  it('spontaneous voiding without an output: the urine must still be measured', () => {
+    const found = checkSoap({ body: note('BAK kesan normal.') }).filter((finding) => finding.kind === 'urine-not-measured');
+    expect(found[0]?.message).toMatch(/Urin harus diukur per hari \(ditampung bila tanpa kateter\)/);
+    expect(kinds(note('BAK kesan normal.'))).toEqual(['urine-not-measured']);
+  });
+
+  it('catheter written with an output: nothing to say', () => {
+    expect(kinds(note('BAK per kateter.', OUTPUT))).toEqual([]);
+  });
+
+  it('nothing about voiding and no output: both reminders', () => {
+    expect(kinds(note('Sesak berkurang.'))).toEqual(['balance-without-catheter', 'urine-not-measured']);
   });
 });

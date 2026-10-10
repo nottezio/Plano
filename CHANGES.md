@@ -1,5 +1,37 @@
 # Plano — CHANGES
 
+## `2026-10-10.8` — Furosemide: catheter reminder and urine-output requirement are two checks (Avi's correction of 10.7)
+
+### What 10.7 got wrong
+10.7 let "BAK kesan normal" silence the reminder entirely. Avi's rule:
+- the S is expected to read "BAK per kateter";
+- "BAK kesan normal" means the patient refused the catheter or the urine is
+  collected manually;
+- in EVERY case the urine is measured per day.
+
+So spontaneous voiding answers the CATHETER question. It does not answer the
+MEASUREMENT one, and one finding was carrying both.
+
+### Fix
+- `balance-without-catheter`: fires when neither a catheter nor a voiding
+  status is written. Voiding status: BAK normal/spontan/lancar/biasa/baik/
+  mandiri/ditampung, urinal, pispot, "menolak kateter". The message now says
+  what to write: "BAK per kateter", or that the patient refuses / the urine
+  is collected.
+- New `urine-not-measured`: with a furosemide or balance trigger,
+  `readUrineOutput(body)` must find a volume. Catheter or not, it fires
+  otherwise. Without a catheter it adds "(ditampung bila tanpa kateter)".
+- The "good note" fixture now carries a urine output: a complete note on
+  furosemide has one.
+- Both reported notes: no findings (Ny. H: per kateter + output; Tn. K:
+  spontaneous + output).
+
+```
+npm run verify
+  typecheck ✓  lint ✓ (0 warnings)  test ✓ 2137 passed (147 files)
+  check:version ✓  check:contrast ✓  check:a11y ✓  build ✓
+```
+
 ## `2026-10-10.7` — Periksa lagi false positives (two real notes), archived opens last SOAP, chief tag, readable diagnosis changes
 
 ### Root causes
