@@ -1,5 +1,37 @@
 # Plano — CHANGES
 
+## `2026-10-11.5` — AI requests: one builder, no sampling parameters
+
+### Census transcription 400 (bug)
+- **Symptom:** with 11.4's error reasons, the failure read
+  "400 — invalid_request_error: `temperature` is deprecated for this model"
+  (model `claude-sonnet-5`).
+- **Root cause:** `askClaude`, `askClaudeTool` and `askClaudeStructured` each
+  built the request body by hand, and the two tool callers hard-coded
+  `temperature: 0` for "determinism". Whether a model accepts a sampling
+  parameter is the model's decision; when the census moved to a newer model
+  the parameter became an error. The duplication also meant the 11.4 error
+  fix had to be applied three times.
+- **Fundamental fix:**
+  - one `postMessages(body)` sends every request (headers, offline, 401/413/429,
+    `failure()` live there once); `toolInput()` reads the forced tool's input;
+  - the body type `MessagesRequest` has no sampling fields, so TypeScript's
+    excess-property check rejects `temperature`/`top_p`/`top_k` at compile time;
+  - no sampling parameter is sent. Temperature 0 never guaranteed identical
+    output; the forced tool, the schema, `selfCheckProblems` and the person's
+    check are what the results rely on.
+- Test: all three callers' bodies carry no `temperature`/`top_p`/`top_k`.
+- `src/lib/ai.ts` is the only file that calls `api.anthropic.com` (grepped).
+
+### Verify
+```
+npm run verify → typecheck, lint, 153 files / 2261 tests, version, contrast, a11y, build: all green
+```
+
+### Not done
+- Models differ per feature (census `claude-sonnet-5`, others
+  `claude-sonnet-4-5`); not unified, since nothing is broken there.
+
 ## `2026-10-11.4` — Census jump scroll fix; Table 15 weekly adjustment; AI error reasons
 
 ### Census jump scrolled short (bug)

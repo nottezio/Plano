@@ -5,6 +5,9 @@ Catatan teknis lengkap (akar masalah, perbaikan) ada di CHANGES.md.
 
 Entri teratas harus versi yang sedang dirilis; tes gagal bila belum ditulis.
 
+## `2026-10-11.5`
+- **Verifikasi List (transkripsi PDF) kembali berfungsi.** Pesan "Gagal memanggil AI (400) — `temperature` is deprecated for this model" muncul karena Plano mengirim pengaturan yang tidak lagi diterima model terbaru. Pengaturan itu kini tidak dikirim sama sekali, di semua fitur AI.
+
 ## `2026-10-11.4`
 - **Bandingkan → Teks lengkap: gulir ke gedung kini pas.** Mengklik IGD (atau gedung lain) sebelumnya menggulir terlalu sedikit, sehingga bagian IGD tertinggal di bawah kotak dan tidak terlihat. Kini judul gedung yang dipilih berada di atas kotak.
 - **Warfarin RSWS: saran dari Tabel 15** ("Maintenance warfarin dosing for out-of-therapeutic-range INR"), hanya untuk target INR 2,0–3,0:

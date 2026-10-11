@@ -147,37 +147,12 @@ export async function askClaude(
   prompt: string,
   options: { system?: string; maxTokens?: number } = {},
 ): Promise<string> {
-  const key = readApiKey();
-  if (!key) throw new AiError('Belum ada API key.');
-
-  let response: Response;
-  try {
-    response = await fetch('https://api.anthropic.com/v1/messages', {
-      method: 'POST',
-      headers: {
-        'content-type': 'application/json',
-        'x-api-key': key,
-        'anthropic-version': '2023-06-01',
-        'anthropic-dangerous-direct-browser-access': 'true',
-      },
-      body: JSON.stringify({
-        model: 'claude-sonnet-4-5',
-        max_tokens: options.maxTokens ?? 1500,
-        ...(options.system ? { system: options.system } : {}),
-        messages: [{ role: 'user', content: prompt }],
-      }),
-    });
-  } catch {
-    // Offline is the normal case on a ward, not an exception. Named as itself
-    // so nobody goes looking for a broken key.
-    throw new AiError('Tidak ada koneksi ke server AI.');
-  }
-
-  if (response.status === 401) throw new AiError('API key ditolak. Periksa kembali key-nya.');
-  if (response.status === 429) throw new AiError('Kuota API sedang penuh. Coba lagi nanti.');
-  if (!response.ok) throw await failure(response);
-
-  const data = (await response.json()) as { content?: Array<{ type?: string; text?: string }> };
+  const data = await postMessages({
+    model: DEFAULT_MODEL,
+    max_tokens: options.maxTokens ?? 1500,
+    ...(options.system ? { system: options.system } : {}),
+    messages: [{ role: 'user', content: prompt }],
+  });
   const text = (data.content ?? [])
     .filter((block) => block.type === 'text')
     .map((block) => block.text ?? '')
@@ -194,11 +169,11 @@ export async function askClaude(
  *
  * Separate from `askClaude` rather than an option on it: that one returns
  * text and every existing caller relies on that, while this returns the
- * tool's INPUT as data. Folding both into one function would give every text
- * caller a code path it can never take.
+ * tool's INPUT as data.
  *
- * `temperature: 0` and a forced tool, as in `extraction.ts`: a transcription
- * that varies between identical runs is not a transcription.
+ * A forced tool and a schema keep the output's SHAPE fixed; the content is
+ * checked on this device (`selfCheckProblems`) and by the person reading it.
+ * No sampling parameter is sent — see `postMessages`.
  */
 export async function askClaudeTool(options: {
   model: string;
@@ -208,63 +183,28 @@ export async function askClaudeTool(options: {
   instruction: string;
   maxTokens: number;
 }): Promise<{ input: unknown; truncated: boolean }> {
-  const key = readApiKey();
-  if (!key) throw new AiError('Belum ada API key.');
-
-  let response: Response;
-  try {
-    response = await fetch('https://api.anthropic.com/v1/messages', {
-      method: 'POST',
-      headers: {
-        'content-type': 'application/json',
-        'x-api-key': key,
-        'anthropic-version': '2023-06-01',
-        'anthropic-dangerous-direct-browser-access': 'true',
-      },
-      body: JSON.stringify({
-        model: options.model,
-        max_tokens: options.maxTokens,
-        temperature: 0,
-        system: options.system,
-        tools: [options.tool],
-        tool_choice: { type: 'tool', name: options.tool.name },
-        messages: [
-          {
-            role: 'user',
-            content: [
-              {
-                type: 'document',
-                source: { type: 'base64', media_type: 'application/pdf', data: options.pdfBase64 },
-              },
-              { type: 'text', text: options.instruction },
-            ],
-          },
+  const data = await postMessages({
+    model: options.model,
+    max_tokens: options.maxTokens,
+    system: options.system,
+    tools: [options.tool],
+    tool_choice: { type: 'tool', name: options.tool.name },
+    messages: [
+      {
+        role: 'user',
+        content: [
+          { type: 'document', source: { type: 'base64', media_type: 'application/pdf', data: options.pdfBase64 } },
+          { type: 'text', text: options.instruction },
         ],
-      }),
-    });
-  } catch {
-    throw new AiError('Tidak ada koneksi ke server AI.');
-  }
-
-  if (response.status === 401) throw new AiError('API key ditolak. Periksa kembali key-nya.');
-  if (response.status === 429) throw new AiError('Kuota API sedang penuh. Coba lagi nanti.');
-  if (response.status === 413) throw new AiError('PDF terlalu besar untuk dikirim.');
-  if (!response.ok) throw await failure(response);
-
-  const data = (await response.json()) as {
-    stop_reason?: string;
-    content?: Array<{ type?: string; input?: unknown }>;
-  };
-  const block = (data.content ?? []).find((candidate) => candidate.type === 'tool_use');
-  if (!block) throw new AiError('AI tidak mengembalikan hasil transkripsi.');
-  return { input: block.input, truncated: data.stop_reason === 'max_tokens' };
+      },
+    ],
+  });
+  return toolInput(data, 'AI tidak mengembalikan hasil transkripsi.');
 }
 
 /**
  * One forced tool call on TEXT: the shape every checker that must return
- * structured, verifiable findings needs. `temperature: 0` for the same
- * reason as the PDF transcription: a check whose findings vary between
- * identical runs cannot be trusted by the run.
+ * structured, verifiable findings needs. Same contract as `askClaudeTool`.
  */
 export async function askClaudeStructured(options: {
   system: string;
@@ -273,6 +213,55 @@ export async function askClaudeStructured(options: {
   maxTokens: number;
   model?: string;
 }): Promise<{ input: unknown; truncated: boolean }> {
+  const data = await postMessages({
+    model: options.model ?? DEFAULT_MODEL,
+    max_tokens: options.maxTokens,
+    system: options.system,
+    tools: [options.tool],
+    tool_choice: { type: 'tool', name: options.tool.name },
+    messages: [{ role: 'user', content: options.prompt }],
+  });
+  return toolInput(data, 'AI tidak mengembalikan hasil pemeriksaan.');
+}
+
+const DEFAULT_MODEL = 'claude-sonnet-4-5';
+
+/**
+ * The request body Plano is allowed to send. Deliberately has NO sampling
+ * fields (`temperature`, `top_p`, `top_k`): the type itself refuses them.
+ *
+ * WHY (2026-10-11): census transcription failed with "400 —
+ * invalid_request_error: `temperature` is deprecated for this model". Each of
+ * the three callers built its own body by hand, and two hard-coded
+ * `temperature: 0` for "determinism" — a parameter whose support is the
+ * MODEL'S to decide, so the call broke the moment a caller moved to a newer
+ * model. Temperature 0 never guaranteed identical output anyway; what makes
+ * these results trustworthy is the forced tool, the schema, the on-device
+ * self-check and the person checking the result.
+ */
+interface MessagesRequest {
+  model: string;
+  max_tokens: number;
+  system?: string;
+  tools?: unknown[];
+  tool_choice?: { type: 'tool'; name: string };
+  messages: Array<{ role: 'user'; content: unknown }>;
+}
+
+interface MessagesResponse {
+  stop_reason?: string;
+  content?: Array<{ type?: string; text?: string; input?: unknown }>;
+}
+
+/**
+ * The ONE place a request leaves for the API: headers, offline and error
+ * translation live here once, so a fix to any of them reaches every feature.
+ *
+ * `anthropic-dangerous-direct-browser-access` is required for a browser
+ * origin. The name is fair: it means the key is in the page, which is exactly
+ * why it has to be the user's own and why it never syncs.
+ */
+async function postMessages(body: MessagesRequest): Promise<MessagesResponse> {
   const key = readApiKey();
   if (!key) throw new AiError('Belum ada API key.');
 
@@ -286,30 +275,24 @@ export async function askClaudeStructured(options: {
         'anthropic-version': '2023-06-01',
         'anthropic-dangerous-direct-browser-access': 'true',
       },
-      body: JSON.stringify({
-        model: options.model ?? 'claude-sonnet-4-5',
-        max_tokens: options.maxTokens,
-        temperature: 0,
-        system: options.system,
-        tools: [options.tool],
-        tool_choice: { type: 'tool', name: options.tool.name },
-        messages: [{ role: 'user', content: options.prompt }],
-      }),
+      body: JSON.stringify(body),
     });
   } catch {
+    // Offline is the normal case on a ward, not an exception. Named as itself
+    // so nobody goes looking for a broken key.
     throw new AiError('Tidak ada koneksi ke server AI.');
   }
 
   if (response.status === 401) throw new AiError('API key ditolak. Periksa kembali key-nya.');
   if (response.status === 429) throw new AiError('Kuota API sedang penuh. Coba lagi nanti.');
+  if (response.status === 413) throw new AiError('Dokumen terlalu besar untuk dikirim.');
   if (!response.ok) throw await failure(response);
+  return (await response.json()) as MessagesResponse;
+}
 
-  const data = (await response.json()) as {
-    stop_reason?: string;
-    content?: Array<{ type?: string; input?: unknown }>;
-  };
+function toolInput(data: MessagesResponse, missing: string): { input: unknown; truncated: boolean } {
   const block = (data.content ?? []).find((candidate) => candidate.type === 'tool_use');
-  if (!block) throw new AiError('AI tidak mengembalikan hasil pemeriksaan.');
+  if (!block) throw new AiError(missing);
   return { input: block.input, truncated: data.stop_reason === 'max_tokens' };
 }
 

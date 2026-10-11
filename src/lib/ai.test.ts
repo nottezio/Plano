@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { aiEnabled, askClaudeTool, looksLikeApiKey, readAiFlags, readApiKey, writeAiFlags, writeApiKey } from './ai';
+import { aiEnabled, askClaude, askClaudeStructured, askClaudeTool, looksLikeApiKey, readAiFlags, readApiKey, writeAiFlags, writeApiKey } from './ai';
 
 const store = new Map<string, string>();
 
@@ -105,5 +105,34 @@ describe('a failed call says why', () => {
     await expect(
       askClaudeTool({ model: 'x', system: '', tool: { name: 't', description: '', input_schema: {} }, pdfBase64: '', instruction: '', maxTokens: 10 }),
     ).rejects.toThrow('Gagal memanggil AI (400) — invalid_request_error: model: unknown model.');
+  });
+});
+
+describe('the request body', () => {
+  it('never carries a sampling parameter, for any caller', async () => {
+    // A model may reject temperature outright (400, 2026-10-11). Whether a
+    // model accepts it is the model's business; Plano does not send it.
+    writeApiKey('sk-ant-abc');
+    const bodies: Array<Record<string, unknown>> = [];
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (_url: string, init: { body: string }) => {
+        bodies.push(JSON.parse(init.body) as Record<string, unknown>);
+        return new Response(
+          JSON.stringify({ content: [{ type: 'text', text: 'ok' }, { type: 'tool_use', input: {} }] }),
+          { status: 200 },
+        );
+      }),
+    );
+    const tool = { name: 't', description: '', input_schema: {} };
+    await askClaude('hi');
+    await askClaudeTool({ model: 'm', system: '', tool, pdfBase64: '', instruction: '', maxTokens: 10 });
+    await askClaudeStructured({ system: '', tool, prompt: 'p', maxTokens: 10 });
+    expect(bodies).toHaveLength(3);
+    for (const body of bodies) {
+      expect(body).not.toHaveProperty('temperature');
+      expect(body).not.toHaveProperty('top_p');
+      expect(body).not.toHaveProperty('top_k');
+    }
   });
 });
