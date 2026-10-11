@@ -175,7 +175,7 @@ export async function askClaude(
 
   if (response.status === 401) throw new AiError('API key ditolak. Periksa kembali key-nya.');
   if (response.status === 429) throw new AiError('Kuota API sedang penuh. Coba lagi nanti.');
-  if (!response.ok) throw new AiError(`Gagal memanggil AI (${response.status}).`);
+  if (!response.ok) throw await failure(response);
 
   const data = (await response.json()) as { content?: Array<{ type?: string; text?: string }> };
   const text = (data.content ?? [])
@@ -249,7 +249,7 @@ export async function askClaudeTool(options: {
   if (response.status === 401) throw new AiError('API key ditolak. Periksa kembali key-nya.');
   if (response.status === 429) throw new AiError('Kuota API sedang penuh. Coba lagi nanti.');
   if (response.status === 413) throw new AiError('PDF terlalu besar untuk dikirim.');
-  if (!response.ok) throw new AiError(`Gagal memanggil AI (${String(response.status)}).`);
+  if (!response.ok) throw await failure(response);
 
   const data = (await response.json()) as {
     stop_reason?: string;
@@ -302,7 +302,7 @@ export async function askClaudeStructured(options: {
 
   if (response.status === 401) throw new AiError('API key ditolak. Periksa kembali key-nya.');
   if (response.status === 429) throw new AiError('Kuota API sedang penuh. Coba lagi nanti.');
-  if (!response.ok) throw new AiError(`Gagal memanggil AI (${String(response.status)}).`);
+  if (!response.ok) throw await failure(response);
 
   const data = (await response.json()) as {
     stop_reason?: string;
@@ -311,4 +311,24 @@ export async function askClaudeStructured(options: {
   const block = (data.content ?? []).find((candidate) => candidate.type === 'tool_use');
   if (!block) throw new AiError('AI tidak mengembalikan hasil pemeriksaan.');
   return { input: block.input, truncated: data.stop_reason === 'max_tokens' };
+}
+
+/**
+ * A failed call, with the API's OWN reason (2026-10-11).
+ *
+ * "Gagal memanggil AI (400)" told nobody anything: a 400 is a wrong model
+ * name, an unsupported parameter, a PDF over the page limit — each fixed
+ * differently, and the body that says which was thrown away. The message is
+ * the API's text (it never contains the key), cut to a readable length.
+ */
+async function failure(response: Response): Promise<AiError> {
+  let reason = '';
+  try {
+    const body = (await response.json()) as { error?: { type?: string; message?: string } };
+    reason = [body.error?.type, body.error?.message].filter(Boolean).join(': ');
+  } catch {
+    // Not JSON: the status is all there is.
+  }
+  const short = reason.length > 240 ? `${reason.slice(0, 240)}…` : reason;
+  return new AiError(`Gagal memanggil AI (${String(response.status)})${short ? ` — ${short}` : ''}.`);
 }

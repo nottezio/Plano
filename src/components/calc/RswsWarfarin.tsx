@@ -1,9 +1,11 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 
 import type { InrTarget } from '@/domain/calc/warfarin';
 import {
+  HOLD_TEXT,
   RSWS_INR_EVERY_DAYS,
   RSWS_START_MG,
+  weeklyAdjustFor,
   WEEKDAYS,
   describeSchedule,
   rswsScheduleLine,
@@ -27,7 +29,7 @@ const RANGE: Partial<Record<InrTarget, [number, number]>> = {
   '2-3': [2, 3],
   '2.5-3.5': [2.5, 3.5],
 };
-const CHANGES = [-20, -10, -5, 0, 5, 10, 20] as const;
+const CHANGES = [-20, -15, -10, -5, 0, 5, 10, 15, 20] as const;
 const mg = (value: number): string => new Intl.NumberFormat('id-ID', { maximumFractionDigits: 2 }).format(value);
 const dateText = (date: string): string => `${formatShortDate(date).split(',')[0] ?? ''}, ${formatDmy(date)}`;
 
@@ -48,6 +50,8 @@ export function RswsWarfarin({
   const [step, setStep] = useState<'1' | '0.5'>('1');
   const [inserted, setInserted] = useState<'ok' | 'none' | null>(null);
 
+  // A new INR is a new decision: the table's row is suggested again.
+  useEffect(() => setChange(null), [inr]);
   const doses = current.map((text) => (text.trim() === '' ? Number.NaN : Number(text)));
   const scheduleValid = doses.every((dose) => Number.isFinite(dose) && dose >= 0);
   const total = scheduleValid ? weeklyTotal(doses) : null;
@@ -55,22 +59,31 @@ export function RswsWarfarin({
   const inrKnown = Number.isFinite(inr) && inr > 0;
   const position = range && inrKnown ? (inr < range[0] ? 'below' : inr > range[1] ? 'above' : 'in') : null;
 
+  /*
+    The ward's weekly table (Table 15) for a 2.0–3.0 target: its row is the
+    suggestion, pre-selected until the doctor picks something else. In a
+    printed gap, both rows show and nothing is pre-selected.
+  */
+  const tableRows = target === '2-3' && inrKnown ? weeklyAdjustFor(inr) : [];
+  const suggestion = tableRows.length === 1 ? tableRows[0]! : null;
+  const chosen = change ?? suggestion?.percent ?? null;
+  const hold = suggestion && chosen === suggestion.percent ? HOLD_TEXT[suggestion.hold] : '';
   const wanted =
-    customTotal.trim() !== '' ? Number(customTotal) : total !== null && change !== null ? total * (1 + change / 100) : null;
+    customTotal.trim() !== '' ? Number(customTotal) : total !== null && chosen !== null ? total * (1 + chosen / 100) : null;
   const next = wanted !== null && Number.isFinite(wanted) && wanted >= 0 ? spreadWeekly(wanted, Number(step)) : null;
   const line =
     stage === 'mulai'
       ? rswsStartLine(today, dateText)
       : next
-        ? rswsScheduleLine(next, inrKnown ? inr : null, today, dateText)
+        ? rswsScheduleLine(next, inrKnown ? inr : null, today, dateText, customTotal.trim() === '' ? hold : '')
         : null;
 
   return (
     <div className="mt-3 space-y-2">
       <p className="rounded-lg border border-[var(--warn-strong)] px-2 py-1.5 text-[11px] leading-snug">
-        <b>Protokol RSWS — tidak resmi.</b> Dari praktik bangsal (mulai 1 × 2 mg, INR tiap {RSWS_INR_EVERY_DAYS} hari, dosis
-        ditulis per minggu); belum ada dokumen protokolnya. Besar penyesuaian ditentukan dokter — kartu ini hanya menghitung
-        dan menulis jadwalnya.
+        <b>Protokol RSWS — tidak resmi.</b> Dari praktik bangsal: mulai 1 × 2 mg, INR tiap {RSWS_INR_EVERY_DAYS} hari, dosis
+        ditulis per minggu, dan penyesuaian mingguan menurut Tabel 15 yang dipakai bangsal (★ = saran tabel). Keputusan
+        tetap di dokter.
       </p>
       <Segmented
         label="Tahap RSWS"
@@ -124,6 +137,22 @@ export function RswsWarfarin({
             <Empty>Isi INR hari ini di atas.</Empty>
           ) : null}
 
+          {tableRows.length > 0 ? (
+            <div className="rounded-lg bg-bg-subtle px-2 py-1.5 text-[11px] leading-snug">
+              <p className="font-semibold">Tabel penyesuaian mingguan (protokol bangsal)</p>
+              {tableRows.map((row) => (
+                <p key={row.printed.inr}>
+                  INR {row.printed.inr} → {row.printed.action}
+                </p>
+              ))}
+              {tableRows.length > 1 ? (
+                <p className="text-[var(--warn-strong)]">INR di antara dua baris tabel — pilih sendiri.</p>
+              ) : null}
+            </div>
+          ) : target !== '2-3' && inrKnown ? (
+            <p className="text-[11px] text-fg-faint">Tabel penyesuaian mingguan berlaku untuk target 2,0–3,0; pilih perubahan sendiri.</p>
+          ) : null}
+
           <div>
             <p className="mb-1 text-[11px] font-medium text-fg-muted">Ubah total mingguan (keputusan dokter)</p>
             <div className="flex flex-wrap gap-1">
@@ -131,17 +160,18 @@ export function RswsWarfarin({
                 <button
                   key={value}
                   type="button"
-                  aria-pressed={customTotal === '' && change === value}
+                  aria-pressed={customTotal === '' && chosen === value}
                   onClick={() => {
                     setChange(value);
                     setCustomTotal('');
                     setInserted(null);
                   }}
                   className={`min-h-tap rounded-lg border px-2 text-xs [@media(pointer:fine)]:min-h-8 ${
-                    customTotal === '' && change === value ? 'border-accent font-semibold text-accent' : 'border-border text-fg-muted'
+                    customTotal === '' && chosen === value ? 'border-accent font-semibold text-accent' : 'border-border text-fg-muted'
                   }`}
                 >
                   {value > 0 ? `+${value}%` : value === 0 ? 'Tetap' : `${value}%`}
+                  {suggestion?.percent === value ? ' ★' : ''}
                 </button>
               ))}
             </div>

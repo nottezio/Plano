@@ -89,10 +89,75 @@ export function rswsScheduleLine(
   inr: number | null,
   today: ClinicalDate,
   formatDate: (date: ClinicalDate) => string,
+  /** "tunda 1 dosis, lalu " when the table says to hold first. */
+  holdPrefix = '',
 ): string {
   const inrText = inr !== null && Number.isFinite(inr) ? ` (INR ${new Intl.NumberFormat('id-ID', { maximumFractionDigits: 2 }).format(inr)})` : '';
   return (
-    `- Warfarin ${describeSchedule(schedule)}/oral (${mg(weeklyTotal(schedule))} mg/minggu)${inrText}; ` +
+    `- Warfarin ${holdPrefix}${describeSchedule(schedule)}/oral (${mg(weeklyTotal(schedule))} mg/minggu)${inrText}; ` +
     `cek INR ${RSWS_INR_EVERY_DAYS} hari lagi (${formatDate(nextInrDate(today))})`
   );
 }
+
+/**
+ * The weekly adjustment table the ward uses (Avi, 11-10-2026: "We use this
+ * protocol"), copied from the photo he sent:
+ *
+ *   Table 15 "Maintenance warfarin dosing for out-of-therapeutic-range
+ *   international normalized ratio" — "Suggested dose adjustment in case of
+ *   out-of-therapeutic-range INR (ref 556). Importantly, dosing is optimized
+ *   not using daily dose adjustments but adjustments based on the weekly
+ *   intake in warfarin."
+ *
+ * Its "Unchanged" row is 2–2.9, so it is a table for a 2.0–3.0 target and is
+ * offered only there. The bands are printed to one decimal and leave gaps
+ * (1.5–1.6, 1.9–2.0 …); an INR in a gap gets BOTH neighbouring rows and no
+ * pre-selected change, rather than a rounded guess.
+ */
+export interface WeeklyAdjustRow {
+  low: number | null;
+  high: number | null;
+  /** Weekly change, percent. */
+  percent: number;
+  hold: 'none' | 'one-dose' | 'until-2-3';
+  printed: { inr: string; action: string };
+}
+
+export const WEEKLY_ADJUST_TABLE: readonly WeeklyAdjustRow[] = [
+  { low: null, high: 1.5, percent: 15, hold: 'none', printed: { inr: '≤1.5', action: '↑ by 15%/week' } },
+  { low: 1.6, high: 1.9, percent: 10, hold: 'none', printed: { inr: '1.6–1.9', action: '↑ by 10%/week' } },
+  { low: 2, high: 2.9, percent: 0, hold: 'none', printed: { inr: '2–2.9', action: 'Unchanged' } },
+  { low: 3, high: 3.9, percent: -10, hold: 'none', printed: { inr: '3–3.9', action: '↓ by 10%/week' } },
+  {
+    low: 4,
+    high: 4.9,
+    percent: -10,
+    hold: 'one-dose',
+    printed: { inr: '4–4.9', action: 'Hold 1 dose, then restart with dose ↓ by 10%/week' },
+  },
+  {
+    low: 5,
+    high: null,
+    percent: -15,
+    hold: 'until-2-3',
+    printed: { inr: '≥5', action: 'Hold until INR is 2–3, then restart with dose ↓ by 15%/week' },
+  },
+];
+
+/** The row(s) for an INR: one, or the two neighbours when it falls in a printed gap. */
+export function weeklyAdjustFor(inr: number): WeeklyAdjustRow[] {
+  if (!(Number.isFinite(inr) && inr > 0)) return [];
+  const inside = WEEKLY_ADJUST_TABLE.filter(
+    (row) => (row.low === null || inr >= row.low) && (row.high === null || inr <= row.high),
+  );
+  if (inside.length > 0) return inside;
+  const below = [...WEEKLY_ADJUST_TABLE].reverse().find((row) => row.high !== null && inr > row.high);
+  const above = WEEKLY_ADJUST_TABLE.find((row) => row.low !== null && inr < row.low);
+  return [below, above].filter((row): row is WeeklyAdjustRow => row !== undefined);
+}
+
+export const HOLD_TEXT: Record<WeeklyAdjustRow['hold'], string> = {
+  none: '',
+  'one-dose': 'tunda 1 dosis, lalu ',
+  'until-2-3': 'tunda sampai INR 2–3, lalu ',
+};

@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { aiEnabled, looksLikeApiKey, readAiFlags, readApiKey, writeAiFlags, writeApiKey } from './ai';
+import { aiEnabled, askClaudeTool, looksLikeApiKey, readAiFlags, readApiKey, writeAiFlags, writeApiKey } from './ai';
 
 const store = new Map<string, string>();
 
@@ -88,5 +88,22 @@ describe('census switch', () => {
     localStorage.setItem('visite.ai.flags', JSON.stringify({ lab: true, soap: true, check: true, summary: true }));
     writeApiKey('sk-ant-abc');
     expect(aiEnabled('census')).toBe(false);
+  });
+});
+
+describe('a failed call says why', () => {
+  it('carries the API’s own error type and message', async () => {
+    writeApiKey('sk-ant-abc');
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () =>
+        new Response(JSON.stringify({ type: 'error', error: { type: 'invalid_request_error', message: 'model: unknown model' } }), {
+          status: 400,
+        }),
+      ),
+    );
+    await expect(
+      askClaudeTool({ model: 'x', system: '', tool: { name: 't', description: '', input_schema: {} }, pdfBase64: '', instruction: '', maxTokens: 10 }),
+    ).rejects.toThrow('Gagal memanggil AI (400) — invalid_request_error: model: unknown model.');
   });
 });

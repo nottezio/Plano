@@ -5,6 +5,16 @@ Catatan teknis lengkap (akar masalah, perbaikan) ada di CHANGES.md.
 
 Entri teratas harus versi yang sedang dirilis; tes gagal bila belum ditulis.
 
+## `2026-10-11.4`
+- **Bandingkan → Teks lengkap: gulir ke gedung kini pas.** Mengklik IGD (atau gedung lain) sebelumnya menggulir terlalu sedikit, sehingga bagian IGD tertinggal di bawah kotak dan tidak terlihat. Kini judul gedung yang dipilih berada di atas kotak.
+- **Warfarin RSWS: saran dari Tabel 15** ("Maintenance warfarin dosing for out-of-therapeutic-range INR"), hanya untuk target INR 2,0–3,0:
+  - ≤1,5: naik 15% per minggu · 1,6–1,9: naik 10% · 2,0–2,9: tetap
+  - 3,0–3,9: turun 10% · 4,0–4,9: **tunda 1 dosis**, lalu turun 10% · ≥5: **tunda sampai INR 2–3**, lalu turun 15%
+  - Pilihan yang sesuai tabel ditandai ★; dokter tetap bisa memilih persentase lain. Bila memakai saran, instruksi tunda ikut ditulis di baris Terapi.
+  - INR di antara dua baris tabel (mis. 1,55) menampilkan kedua baris; tidak ada ★ otomatis.
+- **Heparin:** nomogram aPTT yang dipakai dikonfirmasi sama dengan ESC 2019 Emboli Paru, Web Table 2; rujukan itu kini tercantum di daftar Rujukan.
+- **Pesan gagal AI kini menyebut alasannya** (mis. "Gagal memanggil AI (400) — invalid_request_error: …"), bukan hanya kode angka.
+
 ## `2026-10-11.3`
 - **Hasil sensus kini berwarna per gedung**, seperti bagian SOAP: RSWS, RSUH, IGD, CVCU, PJT Lt. 4/5/6 masing-masing punya judul berwarna yang tetap terlihat saat digulir. Di atasnya ada deretan tombol (mis. "PJT Lt. 4 · 3") untuk langsung lompat ke gedung itu. Berlaku di Hari ini dan di Bandingkan → Teks lengkap.
 - **Gulir otomatis di Teks lengkap:** saat memilih list (mis. List 5 · RSWS), hasil sensus di kanan langsung bergulir ke bagian RSWS.

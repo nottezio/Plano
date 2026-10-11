@@ -1,5 +1,54 @@
 # Plano — CHANGES
 
+## `2026-10-11.4` — Census jump scroll fix; Table 15 weekly adjustment; AI error reasons
+
+### Census jump scrolled short (bug)
+- **Root cause:** `jump` computed `head.offsetTop - container.offsetTop`. The
+  scroll container is the heading's `offsetParent`, so `offsetTop` is
+  already relative to it; subtracting the container's own offset made the
+  target too small by that amount, and the section landed below the fold.
+  The ref also sat on the sticky `<h4>`, whose `offsetTop` is wrong once it
+  is stuck.
+- **Fix:** the ref is on the `<section>`, and the target is measured with
+  `getBoundingClientRect` relative to the container plus its `scrollTop`.
+  That is independent of offsetParent chains and sticky state.
+
+### Warfarin RSWS: Table 15
+- Source: Table 15 "Maintenance warfarin dosing for out-of-therapeutic-range
+  international normalized ratio" (ESC guideline, its ref. 556), from Avi's
+  photo. **Guideline title not yet confirmed**; the Rujukan entry says so.
+- `WEEKLY_ADJUST_TABLE` holds the printed rows verbatim; `weeklyAdjustFor`
+  returns both neighbours for an INR in a gap (e.g. 1.55, 2.95).
+- Suggestion applies only to target 2,0–3,0 (the table's target). The chip is
+  starred; the doctor still chooses. The hold text goes into the Terapi line
+  only when the chosen % equals the suggestion.
+- Tests at every boundary (1.5, 1.6, 1.9, 2.0, 2.9, 3.0, 3.9, 4.0, 4.9, 5.0)
+  and gaps.
+
+### Heparin
+- `HEPARIN_SOURCES` adds Konstantinides 2019 ESC PE (Eur Heart J
+  2020;41:543–603), Web Addenda Web Table 2. Its aPTT adjustment table is
+  identical to Raschke 1993, already the default; no numbers changed.
+
+### AI errors (diagnostic)
+- **Root cause of the opaque "Gagal memanggil AI (400)":** on a non-OK
+  response the body (which carries `error.type` and `error.message`) was
+  discarded. `failure()` in `lib/ai.ts` now reads it and appends it
+  (truncated to 240 chars). Tested.
+- The 400 itself is not fixed: the likely cause is the census model id
+  (`CENSUS_MODEL` in `lib/censusExtraction.ts`) but it is unconfirmed until
+  the next failure shows the reason.
+
+### Verify
+```
+npm run verify → typecheck, lint, 153 files / 2260 tests, version, contrast, a11y, build: all green
+```
+
+### Not done
+- Confirm Table 15's guideline title.
+- Helper data on logout is cleared by design (`clearDeviceUserState`); no
+  change.
+
 ## `2026-10-11.3` — Coloured, jumpable census message; RSWS (unofficial) warfarin tab
 
 ### Census message

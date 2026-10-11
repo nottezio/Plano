@@ -36,11 +36,20 @@ export function CensusMessage({
   const box = useRef<HTMLDivElement>(null);
   const heads = useRef(new Map<Place, HTMLElement>());
 
+  /*
+    Measured with getBoundingClientRect, against the SECTION (2026-10-11).
+    The first version used the sticky heading's offsetTop minus the box's own
+    offsetTop. Both were wrong: the box is the heading's offsetParent, so
+    subtracting the box's offset from the page under-scrolled by exactly that
+    much (IGD landed below the visible area), and a sticky heading that is
+    currently stuck reports where it is stuck, not where its section starts.
+  */
   const jump = (place: Place): void => {
     const container = box.current;
-    const head = heads.current.get(place);
-    if (!container || !head) return;
-    container.scrollTo({ top: head.offsetTop - container.offsetTop, behavior: 'smooth' });
+    const section = heads.current.get(place);
+    if (!container || !section) return;
+    const top = container.scrollTop + section.getBoundingClientRect().top - container.getBoundingClientRect().top;
+    container.scrollTo({ top, behavior: 'smooth' });
   };
   useEffect(() => {
     // `jump` reads refs only, so it is not a dependency.
@@ -67,12 +76,15 @@ export function CensusMessage({
       <div ref={box} className="relative max-h-[70vh] overflow-auto">
         <pre className="whitespace-pre-wrap break-words px-3 py-2 font-mono text-[11px] leading-relaxed text-fg-muted">{intro}</pre>
         {parts.map((part) => (
-          <section key={part.place} style={{ backgroundColor: PLACE_TINT[part.place] }}>
+          <section
+            key={part.place}
+            ref={(node) => {
+              if (node) heads.current.set(part.place, node);
+              else heads.current.delete(part.place);
+            }}
+            style={{ backgroundColor: PLACE_TINT[part.place] }}
+          >
             <h4
-              ref={(node) => {
-                if (node) heads.current.set(part.place, node);
-                else heads.current.delete(part.place);
-              }}
               style={{ backgroundColor: PLACE_TINT[part.place] }}
               className="sticky top-0 z-[1] border-y border-border px-3 py-1 font-mono text-[11px] font-semibold"
             >
