@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
-import { compareCensus } from './compare';
-import { buildCensus, entryKey, parseSource } from './maker';
+import { compareCensus, splitCensusMessage } from './compare';
+import { PLACE_LABEL, buildCensus, entryKey, parseSource } from './maker';
 
 // Invented patients; the list shape is the PJT ward list's.
 const LIST = [
@@ -54,5 +54,32 @@ describe('compareCensus', () => {
     const result = compareCensus({ sources: [source], code: 'ARB', rows });
     expect(result.missing.map((block) => block.entry.key)).toEqual(['rm:3456789']);
     expect(result.unmatched.map((row) => row.identity)).toEqual(['Tn. Tidak Ada']);
+  });
+});
+
+describe('splitCensusMessage', () => {
+  it('cuts the message at its place headings', () => {
+    const message = [
+      'Assalamualaikum. Tabe Dokter',
+      '',
+      '*Total Pasien : 2 pasien*',
+      '',
+      '*RSWS : 1 pasien*',
+      '1. ARB / Tn. Contoh',
+      'Diagnosis:',
+      '- HHD',
+      '',
+      '*PJT Lt. 4 : 1 pasien*',
+      '1. 401 Bed 1/ARB/Tn. Contoh Dua',
+      '',
+      'Tabe terima kasih dokter.',
+    ].join('\n');
+    const { intro, parts } = splitCensusMessage(message, PLACE_LABEL);
+    expect(intro).toBe('Assalamualaikum. Tabe Dokter\n\n*Total Pasien : 2 pasien*');
+    expect(parts.map((part) => [part.place, part.count])).toEqual([
+      ['RSWS', 1],
+      ['LT4', 1],
+    ]);
+    expect(parts[1]!.body).toBe('1. 401 Bed 1/ARB/Tn. Contoh Dua\n\nTabe terima kasih dokter.');
   });
 });

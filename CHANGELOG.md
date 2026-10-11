@@ -5,6 +5,15 @@ Catatan teknis lengkap (akar masalah, perbaikan) ada di CHANGES.md.
 
 Entri teratas harus versi yang sedang dirilis; tes gagal bila belum ditulis.
 
+## `2026-10-11.3`
+- **Hasil sensus kini berwarna per gedung**, seperti bagian SOAP: RSWS, RSUH, IGD, CVCU, PJT Lt. 4/5/6 masing-masing punya judul berwarna yang tetap terlihat saat digulir. Di atasnya ada deretan tombol (mis. "PJT Lt. 4 · 3") untuk langsung lompat ke gedung itu. Berlaku di Hari ini dan di Bandingkan → Teks lengkap.
+- **Gulir otomatis di Teks lengkap:** saat memilih list (mis. List 5 · RSWS), hasil sensus di kanan langsung bergulir ke bagian RSWS.
+- **Warfarin: tab baru "RSWS (tidak resmi)"**, di samping nomogram publikasi:
+  - **Mulai:** 1 × 2 mg malam, cek INR 3 hari lagi (tanggalnya ditulis).
+  - **Sesuaikan:** isi dosis minggu ini per hari (Sen–Min), dan INR dibandingkan dengan target. **Dokter memilih** perubahan total mingguan (−20% sampai +20%, atau total baru). Kartu menyusun jadwal baru, mis. **"Senin–Jumat 2 mg, Sabtu–Minggu 3 mg (16 mg/minggu)"**, beserta tanggal cek INR berikutnya, dan bisa disisipkan ke Terapi.
+  - Langkah dosis 1 mg (½ tablet 2 mg) atau 0,5 mg. Bila hasil dibulatkan, persentase sebenarnya ditampilkan (mis. +10% → +7,1%).
+  - Tab ini ditandai **tidak resmi**: dari praktik bangsal, belum ada dokumen protokolnya.
+
 ## `2026-10-11.2`
 - **Buat Sensus: tampilan baru "Bandingkan"** (di samping Hari ini dan Riwayat). Setiap list yang ditempel ditampilkan pasien demi pasien, dengan baris aslinya (identitas dan diagnosis) di kiri dan baris sensusnya di kanan (mis. "✓ PJT Lt. 4 #1", lengkap dengan diagnosisnya). Di HP keduanya bertumpuk.
   - **Biru:** pasien DPJP ini, masuk sensus.

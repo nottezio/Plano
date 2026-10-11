@@ -86,3 +86,35 @@ export function compareCensus(input: {
     unmatched: rows.filter((row) => !row.found),
   };
 }
+
+/**
+ * The census message cut at its place headings ("*PJT Lt. 4 : 3 pasien*"),
+ * for the coloured, jumpable result box (2026-10-11). `intro` is the greeting
+ * and totals; the closing line stays in the last part.
+ */
+export interface MessagePart {
+  place: Place;
+  count: number;
+  heading: string;
+  body: string;
+}
+
+export function splitCensusMessage(message: string, labels: Readonly<Record<Place, string>>): { intro: string; parts: MessagePart[] } {
+  const byLabel = new Map(Object.entries(labels).map(([place, label]) => [label, place as Place]));
+  const lines = message.split('\n');
+  const intro: string[] = [];
+  const parts: MessagePart[] = [];
+  for (const line of lines) {
+    const head = /^\*(.+?)\s*:\s*(\d+)\s*pasien\*\s*$/.exec(line.trim());
+    const place = head ? byLabel.get(head[1]!.trim()) : undefined;
+    if (head && place) {
+      parts.push({ place, count: Number(head[2]), heading: line, body: '' });
+      continue;
+    }
+    const current = parts[parts.length - 1];
+    if (current) current.body += (current.body ? '\n' : '') + line;
+    else intro.push(line);
+  }
+  for (const part of parts) part.body = part.body.replace(/^\n+/, '').replace(/\s+$/, '');
+  return { intro: intro.join('\n').replace(/\s+$/, ''), parts };
+}

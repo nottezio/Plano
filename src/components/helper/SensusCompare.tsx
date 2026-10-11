@@ -1,7 +1,8 @@
 import { useState } from 'react';
 
 import type { CensusComparison, CompareBlock } from '@/domain/census/compare';
-import { PLACE_LABEL } from '@/domain/census/maker';
+import { PLACE_LABEL, type Place } from '@/domain/census/maker';
+import { CensusMessage } from './CensusMessage';
 import { Segmented } from '@/components/common/ui';
 
 /**
@@ -36,6 +37,7 @@ export function SensusCompare({
   comparison,
   texts,
   labels,
+  covers,
   code,
   message,
   checked,
@@ -44,6 +46,8 @@ export function SensusCompare({
   comparison: CensusComparison;
   texts: readonly string[];
   labels: readonly string[];
+  /** Per list, the places it reports on: where the result box scrolls to. */
+  covers: readonly (readonly Place[])[];
   code: string;
   /** The census message as it will be copied, for the full-text view. */
   message: string | null;
@@ -73,7 +77,7 @@ export function SensusCompare({
         ]}
       />
       {view === 'teks' ? (
-        <FullText texts={texts} labels={labels} message={message} />
+        <FullText texts={texts} labels={labels} covers={covers} message={message} />
       ) : (
       <>
       <div className="flex flex-wrap items-center gap-2 rounded-xl border border-border bg-surface px-3 py-2 text-xs">
@@ -195,13 +199,18 @@ export function SensusCompare({
 function FullText({
   texts,
   labels,
+  covers,
   message,
 }: {
   texts: readonly string[];
   labels: readonly string[];
+  covers: readonly (readonly Place[])[];
   message: string | null;
 }): JSX.Element {
   const [list, setList] = useState(0);
+  // Reading the RSWS list scrolls the census to RSWS: the two sides stay on
+  // the same building without scrolling twice.
+  const focus = covers[list]?.[0] ?? null;
   return (
     <div className="grid gap-3 lg:grid-cols-2">
       <section aria-label="List yang ditempel" className="min-w-0 overflow-hidden rounded-xl border border-border bg-surface">
@@ -224,9 +233,11 @@ function FullText({
       </section>
       <section aria-label="Hasil sensus" className="min-w-0 overflow-hidden rounded-xl border border-border bg-surface">
         <p className="border-b border-border px-3 py-2 text-xs font-semibold">Hasil sensus</p>
-        <pre className="max-h-[70vh] overflow-auto whitespace-pre-wrap break-words px-3 py-2 font-mono text-[11px] leading-relaxed">
-          {message ?? 'Belum ada hasil sensus.'}
-        </pre>
+        {message ? (
+          <CensusMessage message={message} focus={focus} />
+        ) : (
+          <p className="px-3 py-2 text-xs text-fg-muted">Belum ada hasil sensus.</p>
+        )}
       </section>
     </div>
   );

@@ -17,7 +17,8 @@ import {
   type LowerStartKey,
   type WarfarinStops,
 } from '@/domain/calc/warfarin';
-import { Big, CalcCard, Empty, NumberField, ResultBlock } from './ClinicalCards';
+import { Big, CalcCard, Empty, NumberField, ResultBlock, Segmented } from './ClinicalCards';
+import { RswsWarfarin } from './RswsWarfarin';
 
 /**
  * Warfarin, inpatient initiation (2026-10-10). See domain/calc/warfarin.
@@ -58,6 +59,8 @@ export function WarfarinCard({
   const [stops, setStops] = useState<WarfarinStops>(NO_WARFARIN_STOPS);
   const [lower, setLower] = useState<Set<LowerStartKey>>(new Set());
   const [inserted, setInserted] = useState<'ok' | 'none' | null>(null);
+  // Published nomogram, or the ward's own way (unofficial; see warfarinRsws).
+  const [protocol, setProtocol] = useState<'crowther' | 'rsws'>('crowther');
 
   const dayNumber = Math.trunc(num(day));
   const problems = warfarinProblems({ target, day: dayNumber, inr: num(inr) });
@@ -68,8 +71,12 @@ export function WarfarinCard({
 
   return (
     <CalcCard
-      title="Warfarin — mulai di rawat inap"
-      formula="Nomogram 5 mg (Crowther, Harrison & Hirsh 1997) · target INR 2,0–3,0 · hari 1–6"
+      title="Warfarin"
+      formula={
+        protocol === 'rsws'
+          ? 'Protokol RSWS (tidak resmi) · mulai 1 × 2 mg · INR tiap 3 hari · dosis mingguan'
+          : 'Nomogram 5 mg (Crowther, Harrison & Hirsh 1997) · target INR 2,0–3,0 · hari 1–6'
+      }
       sources={WARFARIN_SOURCES}
     >
       <p className="mb-2 rounded-lg bg-bg-subtle px-2 py-1.5 text-[11px] leading-snug text-fg-muted">
@@ -77,7 +84,19 @@ export function WarfarinCard({
         jalan.
       </p>
 
-      <p className="mb-1 text-[11px] font-medium text-fg-muted">Target INR (wajib dipilih)</p>
+      <Segmented
+        label="Protokol warfarin"
+        value={protocol}
+        onChange={(next) => {
+          setProtocol(next);
+          setInserted(null);
+        }}
+        options={[
+          { value: 'crowther', label: 'Nomogram (publikasi)' },
+          { value: 'rsws', label: 'RSWS (tidak resmi)' },
+        ]}
+      />
+      <p className="mb-1 mt-2 text-[11px] font-medium text-fg-muted">Target INR (wajib dipilih)</p>
       <div role="group" aria-label="Target INR" className="grid grid-cols-2 gap-1">
         {INR_TARGETS.map((option) => (
           <button
@@ -96,7 +115,7 @@ export function WarfarinCard({
       </div>
 
       <div className="mt-2 grid grid-cols-2 gap-2">
-        <NumberField label="Hari ke- (1–6)" value={day} onChange={setDay} />
+        {protocol === 'crowther' ? <NumberField label="Hari ke- (1–6)" value={day} onChange={setDay} /> : null}
         <NumberField label="INR pagi ini" value={inr} onChange={setInr} />
       </div>
       {fromNote.inr !== undefined ? (
@@ -169,7 +188,22 @@ export function WarfarinCard({
         </p>
       </details>
 
-      {warnings.length > 0 ? (
+      {protocol === 'rsws' ? (
+        warnings.length > 0 ? (
+          <div role="alert" className="mt-3 rounded-xl border border-[var(--danger)] p-3 text-xs">
+            <p className="font-semibold text-[var(--danger)]">Dosis tidak ditampilkan</p>
+            <ul className="mt-1 list-disc space-y-1 pl-4">
+              {warnings.map((warning) => (
+                <li key={warning}>{warning}</li>
+              ))}
+            </ul>
+          </div>
+        ) : target === null ? (
+          <Empty>Pilih target INR.</Empty>
+        ) : (
+          <RswsWarfarin target={target} inr={num(inr)} onInsertTerapi={onInsertTerapi} />
+        )
+      ) : warnings.length > 0 ? (
         <div role="alert" className="mt-3 rounded-xl border border-[var(--danger)] p-3 text-xs">
           <p className="font-semibold text-[var(--danger)]">Dosis tidak ditampilkan</p>
           <ul className="mt-1 list-disc space-y-1 pl-4">
@@ -218,7 +252,7 @@ export function WarfarinCard({
         </Empty>
       )}
 
-      {result && warnings.length === 0 && onInsertTerapi ? (
+      {protocol === 'crowther' && result && warnings.length === 0 && onInsertTerapi ? (
         <div className="mt-2 flex items-center gap-2">
           <button
             type="button"

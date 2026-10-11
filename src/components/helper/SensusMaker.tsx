@@ -39,6 +39,7 @@ import {
 } from '@/domain/census/maker';
 import { compareCensus } from '@/domain/census/compare';
 import { SensusCompare } from './SensusCompare';
+import { CensusMessage } from './CensusMessage';
 import {
   SENSUS_STORE_KEY,
   SENSUS_STORE_V1_KEY,
@@ -410,6 +411,9 @@ export function SensusMaker(): JSX.Element {
             comparison={comparison}
             texts={filled.map((list) => list.text)}
             labels={sources.map((source) => source.label)}
+            covers={sources.map((source) =>
+              source.covers.length > 0 ? source.covers : [...new Set(source.entries.map((entry) => entry.place))],
+            )}
             code={code}
             message={shown}
             checked={checkedKeys}
@@ -749,14 +753,17 @@ export function SensusMaker(): JSX.Element {
               {copied ? 'Tersalin' : 'Salin'}
             </Button>
           </div>
-          <p className="max-h-[70vh] overflow-auto whitespace-pre-wrap px-3 py-2 text-[11px] leading-relaxed text-fg-muted">
-            {shown ??
-              (usingAi
+          {shown ? (
+            <CensusMessage message={shown} />
+          ) : (
+            <p className="px-3 py-2 text-[11px] leading-relaxed text-fg-muted">
+              {usingAi
                 ? ai
                   ? 'List, DPJP, sapaan atau tanggal berubah sejak hasil AI terakhir. Tekan "Susun ulang".'
                   : 'Tekan "Susun dengan AI".'
-                : 'Tempel list dan pilih DPJP; sensusnya muncul di sini.')}
-          </p>
+                : 'Tempel list dan pilih DPJP; sensusnya muncul di sini.'}
+            </p>
+          )}
         </div>
 
         {currentSnapshot ? <ChangeSummary current={currentSnapshot} previous={previousDay} /> : null}

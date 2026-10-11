@@ -1,5 +1,50 @@
 # Plano — CHANGES
 
+## `2026-10-11.3` — Coloured, jumpable census message; RSWS (unofficial) warfarin tab
+
+### Census message
+- `splitCensusMessage` (`domain/census/compare.ts`) cuts the message at its
+  "*<place label> : n pasien*" headings, matched against `PLACE_LABEL`, so
+  only real place headings split. Tested.
+- `CensusMessage` renders:
+  - the intro;
+  - one section per place, tinted with the SOAP section tokens
+    (`--sec-*`), with a sticky heading;
+  - a chip row to jump to each place.
+  The text is unchanged; the copy still uses the raw message.
+- Used in Hari ini's result box and in Bandingkan → Teks lengkap.
+- In Teks lengkap, choosing a list scrolls the result to that list's first
+  covered place (`ParsedSource.covers`, else its entries' places).
+
+### Warfarin "RSWS (tidak resmi)"
+- **Source:** Avi's description of ward practice (11 Oct): start 1 × 2 mg,
+  INR every 3 days, dose given as a weekly schedule ("Senin–Jumat 2 mg,
+  Sabtu–Minggu 3 mg"). His "start heparin on 1x2 mg" is read as warfarin
+  (2 mg is a warfarin dose). No protocol document seen; the tab says so.
+- **What is NOT stated, so NOT suggested:** how much to change the weekly
+  total for a given INR. The doctor picks −20…+20% or types a total.
+  `domain/calc/warfarinRsws.ts`:
+  - `spreadWeekly(total, step)` rounds to the step and spreads evenly, extra
+    steps on Sunday, Saturday, then back through the week. It reproduces the
+    ward's 16 mg example exactly (tested).
+  - `describeSchedule` groups runs of consecutive equal days.
+  - The Terapi line carries the weekly total and the next INR date.
+- `RswsWarfarin` panel:
+  - Mulai / Sesuaikan;
+  - 7 day inputs;
+  - INR position for the 2–3 and 2.5–3.5 targets;
+  - the actual % after rounding is shown;
+  - the target stays required; hard stops still replace the dose.
+
+### Not done
+- A written RSWS protocol, if one exists, would replace "tidak resmi".
+
+```
+npm run verify
+  typecheck ✓  lint ✓ (0 warnings)  test ✓ 2243 passed (153 files)
+  check:version ✓  check:contrast ✓  check:a11y ✓  build ✓
+```
+
 ## `2026-10-11.2` — Sensus "Bandingkan": each list block beside its census row (Avi: "hard to compare the list and the extracted sensus")
 
 ### Why it was hard
