@@ -5,6 +5,10 @@ Catatan teknis lengkap (akar masalah, perbaikan) ada di CHANGES.md.
 
 Entri teratas harus versi yang sedang dirilis; tes gagal bila belum ditulis.
 
+## `2026-10-12.2`
+- **Buat Sensus: list CVCU/HCU/ICU kini terbaca lengkap.** List yang menulis bed tanpa nomor ("CVCU Bed 1", "HCU Bed 3", "ICU bed 4", "CVCU Super VIP", "CVCU Isolasi") sebelumnya hanya terbaca satu pasien (yang bernomor, "1. ICU 5"); pasien lain dianggap bagian plan pasien tersebut. Kini setiap bed terbaca. Pada list 12-10, 16 pasien terbaca (sebelumnya 1). Bed "Kosong", "pasien dr. NP" dan "Pediatri" tetap dilewati.
+- **Pergantian DPJP di baris pasien** ("AHA->AHN") dibaca sebagai DPJP sesudah tanda panah (AHN). Barisnya tetap ditulis seperti aslinya.
+
 ## `2026-10-12.1`
 - **Salin → Konsul "Echocardiography full study" diperbaiki:**
   - **DPJP Utama tidak lagi hilang** bila labelnya salah ketik ("_DJPJP Utama_"); terkirim sebagai "_DPJP Utama : …_".

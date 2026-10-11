@@ -682,3 +682,91 @@ describe('"Perlu dicek" (cross-check)', () => {
     expect(check.onlyRules).toEqual([]);
   });
 });
+
+/*
+  The CVCU/HCU/ICU list as sent on 12-10-2026: bed lines NOT numbered, the
+  patient on the next line with the DPJP at the end. Names invented.
+*/
+const ICU_UNNUMBERED = [
+  'Tabe dokter mohon izin mengirimkan',
+  'LIST PASIEN CVCU/HCU/ICU PJT:',
+  'Senin, 12 Oktober 2026, Pukul 05.00 WITA',
+  '',
+  'Pasien CVCU/HCU Cardio: 4 Pasien',
+  'Total Pasien CVCU/HCU/ICU: 5 Pasien',
+  '',
+  'CVCU Bed 1',
+  'Ny. Satu / 31-12-1967 / 58 tahun / RM 8100001 / dr. ARB',
+  'Diagnosis:',
+  '- STEMI Inferior',
+  '- Hypertensive Heart Disease',
+  'Plan:',
+  '- Monitoring tanda vital',
+  '',
+  'CVCU Bed 2',
+  'Kosong',
+  '',
+  'CVCU Bed 3',
+  'pasien dr. NP',
+  '',
+  ' CVCU Bed 4',
+  'Tn. Dua/76 tahun/01-07-1950/RM 8100002/Prof MZ',
+  'Diagnosis :',
+  '•⁠  ⁠NSTEMI High Risk',
+  'Plan :',
+  '- Cek APTT/hari',
+  'CVCU Super VIP',
+  'Ny. Tiga/ 05 September 1950/76 tahun/ RM 8100003/ AHA->AHN',
+  'Diagnosa:',
+  '- Acute Pulmonary Oedema (perbaikan)',
+  '',
+  ' HCU Bed 1',
+  'Pediatri',
+  '',
+  '1. ICU 5',
+  'Tn. Empat / 05-07-1963 / 63 tahun / RM 8100004/ dr. AHA',
+  'Diagnosis : ',
+  '- Severe Aortic Stenosis',
+  '',
+  'ICU Bed 7',
+  '(BTKV) Lima / 5-09-1959 / 67 tahun / RM 8100005/ ARB',
+  'Diagnosis',
+  '- CAD 3VD pro CABG',
+].join('\n');
+
+describe('CVCU list with unnumbered bed lines (2026-10-12)', () => {
+  const src = parseSource(ICU_UNNUMBERED);
+  const rms = src.entries.map((entry) => entry.key);
+
+  it('reads every occupied bed, numbered or not', () => {
+    // Before: only "1. ICU 5" was read; the rest became its plan.
+    expect(rms).toEqual(['rm:8100001', 'rm:8100002', 'rm:8100003', 'rm:8100004', 'rm:8100005']);
+  });
+
+  it('skips empty and other-doctor beds', () => {
+    expect(src.entries.some((entry) => /kosong|pasien dr|pediatri/i.test(entry.asWritten))).toBe(false);
+  });
+
+  it('keeps each patient to their own diagnoses', () => {
+    expect(src.entries[0]?.diagnoses).toEqual(['- STEMI Inferior', '- Hypertensive Heart Disease']);
+    expect(src.entries[1]?.diagnoses).toHaveLength(1);
+    expect(src.entries[1]?.asWritten).toBe('CVCU Bed 4/ Tn. Dua/76 tahun/01-07-1950/RM 8100002/Prof MZ');
+  });
+
+  it('reads the DPJP at the end of the line, and a handover as its target', () => {
+    expect(src.entries.map((entry) => entry.dpjps.join('+'))).toEqual(['ARB', 'MZ', 'AHN', 'AHA', 'ARB']);
+    expect(src.entries[4]?.kjs).toBe('KJS BTKV');
+  });
+});
+
+describe('segmentCodes handover', () => {
+  const known = new Set(['AHA', 'AHN', 'MZ']);
+  it('takes the DPJP after the arrow', () => {
+    expect(segmentCodes('AHA->AHN', known)).toEqual(['AHN']);
+    expect(segmentCodes('AHA → AHN', known)).toEqual(['AHN']);
+  });
+  it('ignores arrows that are not between two codes', () => {
+    expect(segmentCodes('5.9 -> 5.6', known)).toBeNull();
+    expect(segmentCodes('AHA -> Pulang', known)).toBeNull();
+  });
+});

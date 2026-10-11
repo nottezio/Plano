@@ -1,0 +1,5 @@
+e858c56da93e122073a012f9e3c2a94e  CHANGELOG.md
+d942f668c359084ff22d141931382fba  CHANGES.md
+e32b0962512dfbb15736c2ee3d4898b9  src/domain/census/maker.test.ts
+326b0abd7cbf1b05685f0a7969790f30  src/domain/census/maker.ts
+18e279a20aa5691c50009ea77a680d19  src/version.js

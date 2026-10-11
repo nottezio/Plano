@@ -1,5 +1,29 @@
 # Plano — CHANGES
 
+## `2026-10-12.2` — Sensus maker: unnumbered CVCU/HCU/ICU bed lines; DPJP handover arrow
+
+### CVCU list read as one patient (bug)
+- **Root cause:** `parseSource` admitted a line as a patient only through
+  `ENTRY_RE`, which requires a list number. The CVCU bed-line shape was
+  handled inside that branch ("1. CVCU Bed 15" → bed, patient on the next
+  line), so it assumed numbered beds, the shape of the list it was built
+  from. The 12-10 list writes "CVCU Bed 1" unnumbered: every bed but "1. ICU
+  5" was skipped, and since the diagnosis loop stopped only at numbered
+  entries, all later patients were swallowed as that patient's plan.
+- **Fix:** `isIcuBedLine` (CVCU/HCU/ICU start, no "/", short, no identity)
+  recognises a bed line numbered or not, in `pjt-icu` lists, both to open an
+  entry and to end the previous one.
+- **Handover:** `segmentCodes` reads "AHA->AHN" / "→" / "=>" as the code after
+  the arrow, only when both sides are codes ("5.9 -> 5.6" stays nothing).
+- **Checked:** the 12-10 paste (5 lists) parsed before/after: only the CVCU
+  list changed (1 → 16). The six earlier real samples (lt4, lt56, icu, igd,
+  rsws, rsuh): identical. Tests: 6 (invented names).
+
+### Verify
+```
+npm run verify → typecheck, lint, 155 files / 2297 tests, version, contrast, a11y, build: all green
+```
+
 ## `2026-10-12.1` — Konsul DPJP/BB-TB/wording; checker: block-scoped duplicates, duplicate headings, Terapi vs Selesai, EKG ticked; CRLF
 
 ### Konsul echo full study (bugs)

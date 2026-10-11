@@ -171,6 +171,18 @@ const CODE_RE = new RegExp(
  */
 export function segmentCodes(segment: string, known: ReadonlySet<string>): string[] | null {
   const text = plain(segment);
+  /*
+    A handover written in the line (2026-10-12): "AHA->AHN", "AHA → AHN". The
+    patient now belongs to the DPJP after the arrow; the line keeps the arrow
+    as written. Only when BOTH sides are codes, so an arrow in a diagnosis
+    ("5.9 -> 5.6") never reads as a DPJP.
+  */
+  const handover = /^(.+?)\s*(?:-+>|→|=>)\s*(.+)$/.exec(text);
+  if (handover) {
+    const from = segmentCodes(handover[1] ?? '', known);
+    const to = segmentCodes(handover[2] ?? '', known);
+    return from && to ? to : null;
+  }
   const match = CODE_RE.exec(text);
   if (!match) return null;
   const out: string[] = [];
@@ -233,6 +245,21 @@ const NUMBER_STRIP_RE = new RegExp(String.raw`^\s*[*_\s]*(?:${NUMBER_PREFIX})`);
 /** A real patient line names a person, a record number or a birth date. */
 const IDENTITY_RE = /\b(?:RM|Tn|Ny|Nn|An|By|Sdr|Nona)\b\.?|\d{6,}|\b\d{1,2}[-/]\d{1,2}[-/]\d{4}\b|\b\d{1,2}\s+[A-Za-z]+\s+\d{4}\b/i;
 const ICU_LOCATION_RE = /^\(?\s*(?:cvcu|hcu|icu)\b/i;
+
+/**
+ * A CVCU/HCU/ICU bed line standing alone: "CVCU Bed 1", "HCU Bed 3", "ICU
+ * bed 4", "CVCU VIP 1", "CVCU Super VIP", "CVCU Isolasi", "1. ICU 5".
+ *
+ * Numbered OR not (2026-10-12). The parser took a bed line only when it was
+ * numbered ("1. CVCU Bed 15", the list it was written from); the 12-10 list
+ * writes "CVCU Bed 1" with no number, so every bed but the one numbered
+ * "1. ICU 5" was skipped, and the patients under them were read as that
+ * patient's plan. The patient is on the next line, so a bed line has no "/".
+ */
+function isIcuBedLine(text: string): boolean {
+  const body = text.replace(NUMBER_STRIP_RE, '').trim();
+  return ICU_LOCATION_RE.test(body) && !body.includes('/') && body.length <= 40 && !IDENTITY_RE.test(body);
+}
 
 const DX_HEAD_RE = /^(?:diagnos[ai]s?|diagnosa)\b\s*[:;]?\s*(.*)$/i;
 /**
@@ -493,7 +520,8 @@ export function parseSource(text: string, known?: ReadonlySet<string>, kindOverr
       continue;
     }
 
-    const entry = ENTRY_RE.exec(text);
+    const icuBed = kind === 'pjt-icu' && isIcuBedLine(text);
+    const entry = ENTRY_RE.exec(text) ?? (icuBed ? ([text, undefined, undefined, text] as unknown as RegExpExecArray) : null);
     if (!entry) {
       const code = sectionDpjp(raw);
       if (code) {
@@ -511,7 +539,7 @@ export function parseSource(text: string, known?: ReadonlySet<string>, kindOverr
     // Bed 3 / … / dr. ARB*", "/*Tn. …").
     const original = clean(raw).replace(NUMBER_STRIP_RE, '').replace(/[*_]/g, '');
 
-    if (kind === 'pjt-icu' && ICU_LOCATION_RE.test(body) && !body.includes('/')) {
+    if (icuBed || (kind === 'pjt-icu' && ICU_LOCATION_RE.test(body) && !body.includes('/'))) {
       // The CVCU shape: the bed alone, the patient on the next line.
       let j = i;
       while (j < lines.length && !plain(lines[j]!)) j += 1;
@@ -540,6 +568,8 @@ export function parseSource(text: string, known?: ReadonlySet<string>, kindOverr
       const line = lines[i]!;
       const flat = plain(line);
       if (ENTRY_RE.test(flat) && (flat.includes('/') || ICU_LOCATION_RE.test(flat.replace(ENTRY_RE, '$3')))) break;
+      // The next bed, numbered or not, ends this patient.
+      if (kind === 'pjt-icu' && isIcuBedLine(flat)) break;
       if (isSeparator(line)) break;
       if (!/^\s*\d/.test(flat) && sectionDpjp(line)) break;
       if (EXCLUDED_SECTION_RE.test(flat) || NEW_SECTION_RE.test(flat) || SISRUTE_RE.test(flat) || ZONE_RE.test(flat)) break;
