@@ -1,5 +1,33 @@
 # Plano — CHANGES
 
+## `2026-10-11.6` — Census transcription: both PDFs at once, per-document progress
+
+### Why it was slow
+- **Root cause:** `CensusVerifier.run` awaited DENAH, then LIST PASIEN, so
+  the wait was the SUM of two long calls. Each call is dominated by output
+  (the whole ward re-written as tool input), and the self-check retry can
+  repeat either one. The sequential order was chosen to avoid 429s on
+  low-quota keys; it charged every user for that edge case.
+- **Fix:** `lib/sideBySide.ts` runs both at once; a call refused with 429
+  (`AiError.rateLimited`, new) is re-run once after the other finishes, i.e.
+  the old sequential behaviour only when actually needed. Any other failure
+  is thrown unchanged. 5 tests (concurrency, missing doc, quota retry, no
+  retry on 400, no loop on a second 429).
+- **Progress:** `extractCensus` takes an `onAttempt` callback; the panel shows
+  one line per document with elapsed seconds, attempt 2/2, done/failed, and
+  the quota wait.
+
+### Verify
+```
+npm run verify → typecheck, lint, 154 files / 2266 tests, version, contrast, a11y, build: all green
+```
+
+### Not done
+- Streaming the transcription (patients appearing as written): larger change,
+  and partial output must never be checked as if complete.
+- The result screen's wording and grouping (Avi: "too confusing"): waiting on
+  an example from the Residency Helper project, which this project cannot read.
+
 ## `2026-10-11.5` — AI requests: one builder, no sampling parameters
 
 ### Census transcription 400 (bug)

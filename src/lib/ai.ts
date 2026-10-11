@@ -130,7 +130,17 @@ export function aiEnabled(feature: keyof AiFlags): boolean {
   return readApiKey().length > 0 && readAiFlags()[feature];
 }
 
-export class AiError extends Error {}
+export class AiError extends Error {
+  /**
+   * True for a 429: the key's per-minute quota is full, not a broken request.
+   * A caller running calls side by side can retry these one at a time.
+   */
+  readonly rateLimited: boolean;
+  constructor(message: string, rateLimited = false) {
+    super(message);
+    this.rateLimited = rateLimited;
+  }
+}
 
 /**
  * One call to the Anthropic messages API, from the browser.
@@ -284,7 +294,7 @@ async function postMessages(body: MessagesRequest): Promise<MessagesResponse> {
   }
 
   if (response.status === 401) throw new AiError('API key ditolak. Periksa kembali key-nya.');
-  if (response.status === 429) throw new AiError('Kuota API sedang penuh. Coba lagi nanti.');
+  if (response.status === 429) throw new AiError('Kuota API sedang penuh. Coba lagi nanti.', true);
   if (response.status === 413) throw new AiError('Dokumen terlalu besar untuk dikirim.');
   if (!response.ok) throw await failure(response);
   return (await response.json()) as MessagesResponse;

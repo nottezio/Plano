@@ -5,6 +5,11 @@ Catatan teknis lengkap (akar masalah, perbaikan) ada di CHANGES.md.
 
 Entri teratas harus versi yang sedang dirilis; tes gagal bila belum ditulis.
 
+## `2026-10-11.6`
+- **Verifikasi List kini lebih cepat:** DENAH dan LIST PASIEN dibaca **bersamaan**, bukan bergantian, sehingga waktu tunggu kira-kira separuhnya.
+- **Kemajuan per dokumen:** di bawah tombol tampil baris untuk DENAH dan LIST, masing-masing dengan detik yang sudah berjalan, "percobaan 2/2" bila AI mengulang, dan "selesai · 48 dtk" saat selesai.
+- Bila kuota API Anda menolak dua dokumen sekaligus, dokumen kedua otomatis dibaca setelah yang pertama selesai (tertulis "kuota penuh, menunggu yang lain selesai").
+
 ## `2026-10-11.5`
 - **Verifikasi List (transkripsi PDF) kembali berfungsi.** Pesan "Gagal memanggil AI (400) — `temperature` is deprecated for this model" muncul karena Plano mengirim pengaturan yang tidak lagi diterima model terbaru. Pengaturan itu kini tidak dikirim sama sekali, di semua fitur AI.
 

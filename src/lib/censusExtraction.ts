@@ -34,21 +34,26 @@ export async function extractCensus(
   file: File,
   kind: 'DENAH',
   maxAttempts?: number,
+  onAttempt?: (attempt: number) => void,
 ): Promise<CensusResult<DenahExtraction>>;
 export async function extractCensus(
   file: File,
   kind: 'LIST_PASIEN',
   maxAttempts?: number,
+  onAttempt?: (attempt: number) => void,
 ): Promise<CensusResult<ListExtraction>>;
 export async function extractCensus(
   file: File,
   kind: CensusKind,
   maxAttempts = 2,
+  /** Told each attempt as it starts, so the screen can say "percobaan 2/2". */
+  onAttempt?: (attempt: number) => void,
 ): Promise<CensusResult<DenahExtraction | ListExtraction>> {
   const tool = kind === 'DENAH' ? DENAH_TOOL : LIST_TOOL;
   const pdfBase64 = await fileToBase64(file);
 
   for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+    onAttempt?.(attempt);
     const { input, truncated } = await askClaudeTool({
       model: CENSUS_MODEL,
       system: buildSystemPrompt(kind),

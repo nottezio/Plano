@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
 
 import { oddValues } from '@/domain/census/oddValues';
@@ -10,6 +10,7 @@ import { copyText } from '@/lib/clipboard';
 import { useClinicalToday } from '@/hooks/useClinicalToday';
 import { SaveResultButton } from './SaveResult';
 import { CENSUS_MODEL, extractCensus, type CensusResult } from '@/lib/censusExtraction';
+import { sideBySide } from '@/lib/sideBySide';
 import type { DenahExtraction, ListExtraction } from '@/domain/census/verify';
 import {
   DEFAULT_CONFIG,
@@ -57,12 +58,21 @@ function writeHistory(history: CensusHistory): void {
     // No storage: this run still works; the next one just cannot diff.
   }
 }
+type DocKey = 'DENAH' | 'LIST';
+interface DocProgress {
+  phase: 'membaca' | 'antre' | 'selesai' | 'gagal';
+  attempt: number;
+  startedAt: number;
+  endedAt: number | null;
+}
+
 export function CensusVerifier(): JSX.Element {
   const [denahFile, setDenahFile] = useState<File | null>(null);
   const [listFile, setListFile] = useState<File | null>(null);
   const [denah, setDenah] = useState<CensusResult<DenahExtraction> | null>(null);
   const [list, setList] = useState<CensusResult<ListExtraction> | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
+  const [progress, setProgress] = useState<Partial<Record<DocKey, DocProgress>>>({});
   const [error, setError] = useState<string | null>(null);
   const [report, setReport] = useState<VerificationReport | null>(null);
   const [history, setHistory] = useState<CensusHistory | null>(() => readHistory());
@@ -79,22 +89,39 @@ export function CensusVerifier(): JSX.Element {
     setReport(null);
     let denahResult: CensusResult<DenahExtraction> | null = null;
     let listResult: CensusResult<ListExtraction> | null = null;
+    setProgress({});
+    setBusy('Membaca PDF…');
+    const mark = (key: DocKey, change: Partial<DocProgress>): void =>
+      setProgress((current) => ({
+        ...current,
+        [key]: { phase: 'membaca', attempt: 1, startedAt: Date.now(), endedAt: null, ...current[key], ...change },
+      }));
+    /** One document, its progress reported as it goes. */
+    const tracked = <T,>(key: DocKey, call: (onAttempt: (attempt: number) => void) => Promise<T>) =>
+      async (): Promise<T> => {
+        mark(key, { phase: 'membaca', attempt: 1, startedAt: Date.now(), endedAt: null });
+        try {
+          const result = await call((attempt) => mark(key, { attempt }));
+          mark(key, { phase: 'selesai', endedAt: Date.now() });
+          return result;
+        } catch (cause) {
+          // A quota refusal is retried after the other document: say so.
+          mark(key, cause instanceof AiError && cause.rateLimited ? { phase: 'antre' } : { phase: 'gagal', endedAt: Date.now() });
+          throw cause;
+        }
+      };
     try {
-      /*
-        One document at a time, not both in parallel. Each is a long call
-        with a large PDF, and two at once doubles the chance of the quota
-        error with nothing gained — the checks need both anyway.
-      */
-      if (denahFile) {
-        setBusy('Mentranskripsi DENAH…');
-        denahResult = await extractCensus(denahFile, 'DENAH');
-        setDenah(denahResult);
-      }
-      if (listFile) {
-        setBusy('Mentranskripsi LIST PASIEN…');
-        listResult = await extractCensus(listFile, 'LIST_PASIEN');
-        setList(listResult);
-      }
+      // Both documents at once (2026-10-11): they do not depend on each other,
+      // so the wait is the longer of the two, not their sum. A key whose quota
+      // refuses the second call gets it re-run after the first (`sideBySide`).
+      [denahResult, listResult] = await sideBySide(
+        denahFile ? tracked('DENAH', (onAttempt) => extractCensus(denahFile, 'DENAH', 2, onAttempt)) : null,
+        listFile ? tracked('LIST', (onAttempt) => extractCensus(listFile, 'LIST_PASIEN', 2, onAttempt)) : null,
+        (cause) => cause instanceof AiError && cause.rateLimited,
+      );
+      setDenah(denahResult);
+      setList(listResult);
+      setBusy('Memeriksa…');
 
       // Stages 4–8, against the last run on this device.
       const previous = readHistory();
@@ -191,7 +218,7 @@ export function CensusVerifier(): JSX.Element {
             >
               {busy ?? 'Transkripsi dan periksa'}
             </Button>
-            {busy ? <RunSteps busy={busy} hasDenah={denahFile !== null} hasList={listFile !== null} /> : null}
+            {busy || Object.keys(progress).length > 0 ? <RunSteps progress={progress} running={busy !== null} /> : null}
           </Section>
         )}
         {history && !report ? (
@@ -322,34 +349,51 @@ export function CensusVerifier(): JSX.Element {
   );
 }
 
-/** What the run is doing, so a 40-second wait reads as progress. */
-function RunSteps({ busy, hasDenah, hasList }: { busy: string; hasDenah: boolean; hasList: boolean }): JSX.Element {
-  const steps = [
-    ...(hasDenah ? [{ key: 'DENAH', label: 'Transkripsi DENAH' }] : []),
-    ...(hasList ? [{ key: 'LIST', label: 'Transkripsi LIST PASIEN' }] : []),
-    { key: 'periksa', label: 'Pemeriksaan' },
-  ];
-  const current = steps.findIndex((step) => busy.includes(step.key));
+const DOC_LABEL: Record<DocKey, string> = { DENAH: 'DENAH PASIEN', LIST: 'LIST PASIEN' };
+
+/**
+ * Each document's own line, with the seconds it has taken: the two run at
+ * the same time, so one shared "Mentranskripsi…" could not say which is still
+ * going, or that a second attempt started.
+ */
+function RunSteps({ progress, running }: { progress: Partial<Record<DocKey, DocProgress>>; running: boolean }): JSX.Element {
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    if (!running) return undefined;
+    const timer = window.setInterval(() => setNow(Date.now()), 1000);
+    return () => window.clearInterval(timer);
+  }, [running]);
+  const keys = (['DENAH', 'LIST'] as const).filter((key) => progress[key]);
   return (
-    <ol className="space-y-1 text-[11px]" aria-label="Kemajuan">
-      {steps.map((step, index) => {
-        const state = index < current ? 'done' : index === current ? 'now' : 'next';
+    <ol className="space-y-1 text-[11px]" aria-label="Kemajuan" aria-live="polite">
+      {keys.map((key) => {
+        const doc = progress[key]!;
+        const seconds = Math.max(0, Math.round(((doc.endedAt ?? now) - doc.startedAt) / 1000));
+        const status =
+          doc.phase === 'selesai'
+            ? `selesai · ${seconds} dtk`
+            : doc.phase === 'gagal'
+              ? 'gagal'
+              : doc.phase === 'antre'
+                ? 'kuota penuh, menunggu yang lain selesai'
+                : `dibaca${doc.attempt > 1 ? ` · percobaan ${doc.attempt}/2` : ''} · ${seconds} dtk`;
         return (
-          <li key={step.key} className="flex items-center gap-2">
+          <li key={key} className="flex items-center gap-2">
             <span
               aria-hidden="true"
               className={[
-                'flex h-4 w-4 items-center justify-center rounded-full text-[9px]',
-                state === 'done'
+                'flex h-4 w-4 shrink-0 items-center justify-center rounded-full text-[9px]',
+                doc.phase === 'selesai'
                   ? 'bg-accent text-white'
-                  : state === 'now'
-                    ? 'animate-pulse bg-[var(--accent-soft)] ring-1 ring-accent'
-                    : 'ring-1 ring-border',
+                  : doc.phase === 'gagal'
+                    ? 'bg-danger text-white'
+                    : 'animate-pulse bg-[var(--accent-soft)] ring-1 ring-accent',
               ].join(' ')}
             >
-              {state === 'done' ? '✓' : ''}
+              {doc.phase === 'selesai' ? '✓' : doc.phase === 'gagal' ? '!' : ''}
             </span>
-            <span className={state === 'next' ? 'text-fg-faint' : 'text-fg'}>{step.label}</span>
+            <span className="font-medium">{DOC_LABEL[key]}</span>
+            <span className="text-fg-muted">{status}</span>
           </li>
         );
       })}
