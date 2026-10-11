@@ -24,7 +24,7 @@ import {
   findNonAsciiChars,
   type BulletStyle,
 } from '@/domain/format/formatters';
-import { formatDayNoWeekday } from '@/domain/clinicalDate';
+import { formatDayMonthYear } from '@/domain/clinicalDate';
 import { composeInvasif } from '@/domain/format/composeInvasif';
 import { composeKonsul, missingKonsulMeasurements } from '@/domain/format/composeKonsul';
 import {
@@ -481,7 +481,7 @@ export function CopySheet({
             purpose: konsulEffective.purpose,
             listStyle: konsulEffective.listStyle,
             listFrom: patient.ward ?? '',
-            listDate: formatDayNoWeekday(date),
+            listDate: formatDayMonthYear(date),
             format,
             bullet,
             asciiSymbols,

@@ -283,6 +283,11 @@ export function formatDayNoWeekday(date: ClinicalDate): string {
   return format(shiftUtcToLocalFields(date), 'd MMMM', { locale: localeId });
 }
 
+/** "8 Oktober 2026": the date as a konsul list writes it. */
+export function formatDayMonthYear(date: ClinicalDate): string {
+  return format(shiftUtcToLocalFields(date), 'd MMMM yyyy', { locale: localeId });
+}
+
 /**
  * SPEC F4 — past entries auto-lock after 48 h.
  *

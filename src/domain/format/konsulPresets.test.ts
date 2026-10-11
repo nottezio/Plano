@@ -70,7 +70,7 @@ describe('presets drive composeKonsul', () => {
   it('6MWT composes a letter about one patient', () => {
     const out = compose('6mwt');
     expect(out).toContain('konsul pasien rencana 6MWT');
-    expect(out).not.toContain('list pasien');
+    expect(out).not.toContain('rencana pasien');
     // The measurements a 6MWT request is sent back without.
     expect(out).toContain('TB : 165 cm');
     expect(out).toContain('BB : 60 kg');
@@ -78,7 +78,9 @@ describe('presets drive composeKonsul', () => {
 
   it('echo full study composes a numbered list entry', () => {
     const out = compose('echo-full');
-    expect(out).toContain('list pasien Echocardiography full study');
-    expect(out).toContain('1. *Tn. Bakri / 12-03-1970 / 56 tahun / RM 8000007*');
+    expect(out).toContain('rencana pasien Echocardiography full study');
+    expect(out).toMatch(/^1\. \*Tn\. Bakri \/ 12-03-1970 \/ 56 tahun \/ RM 8000007/m);
+    // Echo is not sent with TB/BB; 6MWT is.
+    expect(out).not.toContain('TB : 165 cm');
   });
 });

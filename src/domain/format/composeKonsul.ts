@@ -1,5 +1,6 @@
 import { parseSections } from '../sections/parseSections';
 import { formatLocation } from '../identity';
+import { normaliseDpjpLabel } from '../dpjpLabel';
 import { formatBody, type BulletStyle } from './formatters';
 import type { OutputFormat, Patient, SectionAlias } from '../types';
 
@@ -85,9 +86,16 @@ export function identityLineFrom(body: string, patient: Patient): string {
  * handling.
  */
 export function dpjpLinesFrom(body: string): string[] {
+  /*
+    Through `normaliseDpjpLabel` (2026-10-12): this was a second DPJP reader
+    keyed on the exact letters, so a note's "_DJPJP Utama : dr. …_" — the
+    typo 11.1 taught the parser — was dropped from the konsul, and the
+    referral went out without the main DPJP. The label is sent corrected
+    ("DPJP Utama"); the name after it is untouched.
+  */
   return body
     .split('\n')
-    .map((line) => line.trim())
+    .map((line) => normaliseDpjpLabel(line.trim()))
     .filter((line) => /^_.*DPJP.*_$/i.test(line));
 }
 
@@ -118,15 +126,50 @@ export function measurementsFrom(body: string): string[] {
  * A reminder, never a block: a consult sent without them is still a consult,
  * and a copy button that refused would be worked around within a day.
  */
+/**
+ * Whether a konsul for this purpose carries TB and BB (2026-10-12).
+ *
+ * One answer for both the reminder and the message: they used to disagree —
+ * the reminder asked only for 6MWT, the message added TB/BB to EVERY konsul,
+ * echo full study included, where Avi's ward does not send them.
+ */
+export function konsulNeedsMeasurements(purpose: string): boolean {
+  // `6 MWT`, `6mwt`, `Tes 6MWT`, `six minute walk test`.
+  return /6\s*-?\s*mwt|six\s*minute/i.test(purpose);
+}
+
 export function missingKonsulMeasurements(purpose: string, body: string): Array<'TB' | 'BB'> {
-  // Only for purposes that actually need them. `6 MWT`, `6mwt`, `Tes 6MWT`.
-  if (!/6\s*-?\s*mwt|six\s*minute/i.test(purpose)) return [];
+  if (!konsulNeedsMeasurements(purpose)) return [];
 
   const present = measurementsFrom(body);
   const has = (label: 'TB' | 'BB'): boolean =>
     present.some((line) => new RegExp(`^${label}\\s*[:=]\\s*\\S`, 'i').test(line));
 
   return (['TB', 'BB'] as const).filter((label) => !has(label));
+}
+
+/** "PJT Lt 4", "PJT Lt. 4" → "PJT Lantai 4", as the list is written. */
+function longWard(ward: string): string {
+  return ward.trim().replace(/\b(?:lt\.?|lantai)\s*(\d+)/i, 'Lantai $1');
+}
+
+/**
+ * The identity line with the room added inside the bold: "*… / RM 1738411 /
+ * Kamar 406 Bed 1*". From the patient record, else the note's opening line
+ * ("di *PJT Lt 4 Kamar 421 Bed 4*"); unchanged when it already names a room.
+ */
+function withRoom(identity: string, patient: Patient, body: string): string {
+  if (/\bkamar\b/i.test(identity)) return identity;
+  let room = patient.room?.trim();
+  let bed = patient.bed?.trim();
+  if (!room) {
+    const opening = /\bKamar\s+([\w-]+)(?:\s+Bed\s+([\w-]+))?/i.exec(body.split('\n').slice(0, 3).join(' '));
+    room = opening?.[1];
+    bed = opening?.[2];
+  }
+  if (!room) return identity;
+  const place = `Kamar ${room}${bed ? ` Bed ${bed}` : ''}`;
+  return identity.replace(/\*$/, ` / ${place}*`);
 }
 
 export function composeKonsul(
@@ -157,15 +200,21 @@ export function composeKonsul(
   const identity = identityLineFrom(body, patient);
 
   if (options.listStyle) {
+    /*
+      Worded as the ward's own list (Avi's example, 2026-10-12): "rencana
+      pasien … tanggal *8 Oktober 2026* dari *PJT Lantai 4* atas nama:", and
+      the room on the patient's line, since the echo team walks to the bed.
+    */
+    const from = longWard(options.listFrom || patient.ward || '');
     lines.push(
-      `Assalamualaikum dokter dan selamat pagi dokter. Tabe dokter, mohon izin mengirimkan list pasien ${
-        options.purpose
-      } dari ${options.listFrom ?? location}${options.listDate ? `, ${options.listDate}` : ''}`,
+      `${options.greeting ?? DEFAULT_GREETING} mohon izin mengirimkan rencana pasien ${options.purpose}${
+        options.listDate ? ` tanggal *${options.listDate}*` : ''
+      }${from ? ` dari *${from}*` : ''} atas nama:`,
     );
     lines.push('');
     // Numbered, because this is one entry in a list several people add to.
     if (identity) {
-      lines.push(`1. ${identity}`);
+      lines.push(`1. ${withRoom(identity, patient, body)}`);
     }
   } else {
     lines.push(
@@ -191,7 +240,7 @@ export function composeKonsul(
     lines.push('');
   }
 
-  const measurements = measurementsFrom(body);
+  const measurements = konsulNeedsMeasurements(options.purpose) ? measurementsFrom(body) : [];
   if (measurements.length > 0) {
     lines.push(...measurements);
     lines.push('');

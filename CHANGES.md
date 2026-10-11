@@ -1,5 +1,96 @@
 # Plano — CHANGES
 
+## `2026-10-12.1` — Konsul DPJP/BB-TB/wording; checker: block-scoped duplicates, duplicate headings, Terapi vs Selesai, EKG ticked; CRLF
+
+### Konsul echo full study (bugs)
+- **DPJP Utama missing. Root cause:** `dpjpLinesFrom` in `composeKonsul.ts`
+  was a second DPJP-line reader keyed on the exact letters "DPJP"; 11.1's
+  `normaliseDpjpLabel` fixed the parser, not this copy, so "_DJPJP Utama_"
+  was dropped. **Fix:** the reader goes through `normaliseDpjpLabel` and
+  emits the corrected label. (`specialties.ts` already did; `markdownLite`
+  matches `DPJP` only as a fragment fallback.)
+- **BB/TB on an echo request. Root cause:** two decisions about measurements:
+  `missingKonsulMeasurements` asked only for 6MWT, `composeKonsul` added them
+  to every konsul. **Fix:** one predicate, `konsulNeedsMeasurements`, for both.
+- **Wording:** list style now matches Avi's example: "rencana pasien … tanggal
+  *d MMMM yyyy* dari *PJT Lantai n* atas nama:", with "/ Kamar r Bed b"
+  inside the bold identity (record, else the opening line). `CopySheet` passes
+  `formatDayMonthYear` (new). Preset note updated.
+
+### SOAP checker
+- **False "Baris ganda". Root cause:** duplicates were sought across a whole
+  section, and the O section holds many dated investigations; a paced
+  patient's identical EKG on two days was "pasted twice". **Fix:**
+  `isBlockHeading` (bold line, or a dated non-list line) resets the scope.
+- **CRLF. Root cause:** rules written with `.`/`$` fail on "\r" (noted in 10-10,
+  not fixed): no DPJP line matched → "TS HOM / TS Aritmia belum ada di daftar
+  DPJP" on a note listing both, and headings unseen. **Fix:** `checkSoap`
+  turns "\r" into a space at entry (offsets unchanged).
+- **New `duplicate-heading`:** the same dated heading twice (AGD 09-10 ×2).
+- **New `therapy-also-finished`:** a drug (name up to its first number) both
+  in our running Terapi and under "Selesai :". `SELESAI_HEADING` is now shared
+  with `insertTerapi`; a "Selesai :" parsed as its own section still counts.
+- **New `ekg-ticked-missing`:** context gains `date` and `ekgDone`
+  (PatientPage: `reminderDone` for the note's day includes `ekg`); fires when
+  no line has "EKG" and that date (d-m-yyyy, zero-padded or not).
+- Tests: 9 checker cases from the real note (anonymised), mutation-checked
+  (block reset, CRLF); 5 konsul cases incl. the DJPJP typo.
+
+### Verify
+```
+npm run verify → typecheck, lint, 155 files / 2291 tests, version, contrast, a11y, build: all green
+```
+
+### Not done
+- `therapy-also-finished` also fires when it is correct (first dose done,
+  second running): it asks, as every rule here does.
+
+## `2026-10-11.7` — Verifikasi List result regrouped per patient (Residency Helper format)
+
+### Why it was confusing
+- **Root cause:** the screen rendered the verifier's issues as they come out
+  of `runChecks`: one card per RULE, titled in the rule's English, grouped by
+  severity. A patient missing from three places was three cards (O1, O2, O3)
+  in one section and their count consequences in another; "room grid",
+  "views", "minitable" are the program's words. The spec §7 layout was
+  faithful to the rules and not to how the ward reads a census.
+- **Model:** Avi's Residency Helper report (pasted 11 Oct): one numbered item
+  per patient with a one-line verdict, the raw line, where absent, and what it
+  probably means; counts reconciled once with the patients behind them; the
+  clean count; closing advice.
+
+### Fix
+- `domain/census/readable.ts` (new, pure): `readableReport()` folds the OPEN
+  issues per matched patient into `PatientFinding`s (kind: hanya-denah,
+  kurang-di-bagian, sisa, hilang, beda-data), builds one `CountFinding` from
+  C1/C2/C3/C3T with per-DPJP rows and related names, words the remaining
+  rules (C5–C10, P1/P2) in Indonesian with their numbers, separates
+  cosmetic-only patients, counts clean patients (+ new ones vs the last run),
+  and writes advice. `readableText()` is the WhatsApp copy.
+  `transcriptionWarning()` translates the self-check strings.
+- **Rules untouched.** `verifier.ts` issues, ids, severities and history are
+  unchanged; answers still close only 🟡 items. "Meaning" lines say
+  "kemungkinan": they are the usual explanation, not a finding.
+- `CensusVerifier` renders the readable report; `IssueCard`, the severity
+  sections and the English markdown copy are gone from the screen
+  (`toMarkdown` stays exported, unused).
+- Tests: 12 (one item per patient not three, stale carry-over + advice, count
+  block + odd value + related names, header vs own breakdown, room mismatch
+  odd marking, cosmetic apart, new admissions, no jargon in the copy, weekday
+  label, ordering by kind, C8 linked, warnings). Invented names only.
+- Checked end to end in the harness with a stubbed API (both PDFs requested
+  at once; screenshots at 1280 and 390 px).
+
+### Verify
+```
+npm run verify → typecheck, lint, 155 files / 2278 tests, version, contrast, a11y, build: all green
+```
+
+### Not done
+- Severity order is the verifier's: a stale LIST entry (O4, medium) sorts
+  after high items, while Avi's example put it second.
+- Not run against real PDFs since the change.
+
 ## `2026-10-11.6` — Census transcription: both PDFs at once, per-document progress
 
 ### Why it was slow

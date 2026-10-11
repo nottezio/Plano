@@ -58,7 +58,7 @@ export const KONSUL_PRESETS: readonly KonsulPreset[] = [
     label: 'Echocardiography full study',
     purpose: 'Echocardiography full study',
     listStyle: true,
-    note: 'Dikirim sebagai list pasien bernomor, bukan surat konsul.',
+    note: 'Dikirim sebagai list pasien bernomor dengan kamar pasien, tanpa TB/BB.',
   },
 ];
 

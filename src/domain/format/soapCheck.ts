@@ -1,4 +1,5 @@
 import { consultCovered, dpjpSpecialties } from './specialties';
+import { SELESAI_HEADING } from './insertTerapi';
 import { unchangedDayMarkers } from '@/domain/dayMarkers';
 import { aliasesOrDefault } from '@/domain/sections/aliases';
 import { parseSections, type ParsedSection } from '@/domain/sections/parseSections';
@@ -48,7 +49,10 @@ export type SoapFindingKind =
   | 'urine-not-measured'
   | 'opening-kind'
   | 'opening-place'
-  | 'trio-6mwt';
+  | 'trio-6mwt'
+  | 'duplicate-heading'
+  | 'therapy-also-finished'
+  | 'ekg-ticked-missing';
 
 /**
  * How urgent, which is also the order they are listed in:
@@ -271,12 +275,24 @@ export interface SoapCheckContext {
   trio?: string | null;
   /** Days from the note's day to the planned discharge: 1 = H-1, 0 = today. */
   dischargeInDays?: number | null;
+  /** The note's clinical day (ISO), for checks about "today's" entries. */
+  date?: string;
+  /** The board's "EKG" reminder is ticked done for the note's day. */
+  ekgDone?: boolean;
 }
 
 const LEVEL_ORDER: Record<SoapFindingLevel, number> = { isi: 0, kemarin: 1, cek: 2 };
 
 export function checkSoap(input: SoapCheckInput): SoapFinding[] {
-  const { body, previous } = input;
+  /*
+    CR → space (2026-10-12): a note with Windows line endings ("\r\n") broke
+    every rule written with `.` and `$` — `.` does not match "\r", so a DPJP
+    line or a heading never matched and, e.g., "TS HOM not in the DPJP list"
+    fired on a note that listed DPJP HOM. A space, not deletion, so every
+    offset (`at`) still points at the same character in the editor.
+  */
+  const body = input.body.replace(/\r/g, ' ');
+  const previous = input.previous?.replace(/\r/g, ' ');
   const findings: SoapFinding[] = [];
   if (!body.trim()) return findings;
 
@@ -550,6 +566,9 @@ export function checkSoap(input: SoapCheckInput): SoapFinding[] {
   findings.push(...checkUnfilled(body));
   findings.push(...checkHariRawat(body, previous));
   findings.push(...checkDuplicates(sections));
+  findings.push(...checkDuplicateHeadings(body));
+  findings.push(...checkTherapyFinished(body, sections));
+  if (input.context?.ekgDone && input.context.date) findings.push(...checkEkgToday(body, input.context.date));
 
   return findings
     .map((finding, index) => ({ finding, index }))
@@ -773,8 +792,12 @@ function checkDuplicates(sections: readonly ParsedSection[]): SoapFinding[] {
     const contentStart = section.start + (section.headerLine?.length ?? 0);
     let offset = contentStart;
     for (const line of section.text.split('\n')) {
+      // Each dated investigation is its own block (2026-10-12): the same EKG
+      // reading under "EKG (12-10)" and "EKG (11-10)" is two tracings, not a
+      // line pasted twice, and was reported as "Baris ganda".
+      if (isBlockHeading(line)) seen.clear();
       const key = line.replace(/^[\s\-•*_>]+/, '').replace(/\s+/g, ' ').trim().toLowerCase();
-      if (key.length >= 15) {
+      if (key.length >= 15 && !isBlockHeading(line)) {
         if (seen.has(key)) {
           return [
             {
@@ -792,6 +815,123 @@ function checkDuplicates(sections: readonly ParsedSection[]): SoapFinding[] {
     }
   }
   return [];
+}
+
+const DATE_IN_LINE = /\b\d{1,2}[-/]\d{1,2}[-/]\d{4}\b/;
+
+/**
+ * A line that opens a block: a bold line (`*EKG PJT Lt. 4 (12-10-2026)*`), or
+ * a plain dated one that is not a list item (`EKG PJT Lt. 4 (09-10-2026;
+ * 05.25)`, `Analisis Gas Darah PJT (10-10-2026)`).
+ */
+function isBlockHeading(line: string): boolean {
+  const trimmed = line.trim();
+  if (!trimmed) return false;
+  if (/^\*[^*]+\*$/.test(trimmed)) return true;
+  return DATE_IN_LINE.test(trimmed) && !/^([-•>]|\d+[.)]\s)/.test(trimmed) && trimmed.length <= 80 && !/[:=]\s*\S+\s*[:=]/.test(trimmed);
+}
+
+/**
+ * The same dated heading twice (2026-10-12): "Analisis Gas Darah PJT
+ * (09-10-2026)" written for two samples on one day reads as one result
+ * repeated; they need merging or a time each.
+ */
+function checkDuplicateHeadings(body: string): SoapFinding[] {
+  const seen = new Map<string, number>();
+  let offset = 0;
+  for (const line of body.split('\n')) {
+    if (isBlockHeading(line) && DATE_IN_LINE.test(line)) {
+      const label = line.replace(/[*_]/g, '').replace(/\s+/g, ' ').trim();
+      const key = label.toLowerCase();
+      const count = (seen.get(key) ?? 0) + 1;
+      seen.set(key, count);
+      if (count === 2) {
+        return [
+          {
+            kind: 'duplicate-heading',
+            level: 'cek',
+            message: `Judul ganda: “${label}” muncul dua kali. Gabungkan, atau tulis jam pada masing-masing.`,
+            anchor: line.trim(),
+            at: offset + line.indexOf(line.trim()),
+          },
+        ];
+      }
+    }
+    offset += line.length + 1;
+  }
+  return [];
+}
+
+/** "KCl 25 mEq dalam…" → "kcl": the drug, read up to its first number. */
+function drugKey(line: string): string {
+  const text = line.replace(/^[\s\-•*_>]+/, '').trim().toLowerCase();
+  const name = (/^[^\d(]+/.exec(text)?.[0] ?? '').replace(/\s+/g, ' ').trim();
+  return name.length >= 3 ? name : '';
+}
+
+/**
+ * A drug in OUR running Terapi list that is also under "Selesai :"
+ * (2026-10-12). Sometimes right (a first dose done, the second running), often
+ * a line that was moved without being removed: worth a look either way.
+ */
+function checkTherapyFinished(body: string, sections: readonly ParsedSection[]): SoapFinding[] {
+  const index = sections.findIndex((section) => section.sectionId === 'terapi');
+  const terapi = sections[index];
+  if (!terapi) return [];
+  // "Selesai :" is read as a section of its own when it has a colon; it still
+  // belongs to the Terapi just above it.
+  const next = sections[index + 1];
+  const end = next && SELESAI_HEADING.test(body.slice(next.start, next.textStart)) ? next.end : terapi.end;
+  const content = body.slice(terapi.textStart, end);
+  const done = SELESAI_HEADING.exec(content);
+  if (!done) return [];
+  const running = new Map<string, string>();
+  for (const line of content.slice(0, done.index).split('\n')) {
+    const key = drugKey(line);
+    if (key) running.set(key, line.trim());
+  }
+  let offset = terapi.textStart + done.index + done[0].length + 1;
+  for (const line of content.slice(done.index + done[0].length + 1).split('\n')) {
+    if (!line.trim()) break; // The sub-list ends at the first blank line.
+    const key = drugKey(line);
+    const runningLine = key ? running.get(key) : undefined;
+    if (runningLine) {
+      const name = /^[\s\-•*_>]*([^\d(]+)/.exec(line)?.[1]?.trim() ?? key;
+      return [
+        {
+          kind: 'therapy-also-finished',
+          level: 'cek',
+          message: `${name} ada di Terapi dan juga di Selesai. Pastikan mana yang masih berjalan.`,
+          anchor: line.trim(),
+          at: offset + line.indexOf(line.trim()),
+        },
+      ];
+    }
+    offset += line.length + 1;
+  }
+  return [];
+}
+
+/**
+ * The board's EKG reminder is ticked for this day, but the note has no EKG
+ * dated this day (2026-10-12): the tracing was done and its reading not
+ * written in yet.
+ */
+function checkEkgToday(body: string, date: string): SoapFinding[] {
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(date);
+  if (!match) return [];
+  const [, y, m, d] = match;
+  const dated = new RegExp(`\\b0?${String(Number(d))}[-/]0?${String(Number(m))}[-/]${y ?? ''}\\b`);
+  const has = body.split('\n').some((line) => /\bEKG\b/i.test(line) && dated.test(line));
+  if (has) return [];
+  const label = `${d ?? ''}-${m ?? ''}-${y ?? ''}`;
+  return [
+    {
+      kind: 'ekg-ticked-missing',
+      level: 'isi',
+      message: `EKG hari ini sudah dicentang, tapi belum ada EKG tanggal ${label} di catatan.`,
+    },
+  ];
 }
 
 /**

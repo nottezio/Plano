@@ -5,6 +5,29 @@ Catatan teknis lengkap (akar masalah, perbaikan) ada di CHANGES.md.
 
 Entri teratas harus versi yang sedang dirilis; tes gagal bila belum ditulis.
 
+## `2026-10-12.1`
+- **Salin → Konsul "Echocardiography full study" diperbaiki:**
+  - **DPJP Utama tidak lagi hilang** bila labelnya salah ketik ("_DJPJP Utama_"); terkirim sebagai "_DPJP Utama : …_".
+  - **Tanpa BB/TB.** BB dan TB kini hanya ikut pada konsul 6MWT.
+  - **Kalimat pembuka mengikuti list bangsal:** "mohon izin mengirimkan rencana pasien Echocardiography full study tanggal *12 Oktober 2026* dari *PJT Lantai 4* atas nama:".
+  - **Kamar ikut di baris pasien:** "1. *Ny. … / RM … / Kamar 421 Bed 4*".
+- **Periksa lagi (SOAP checker):**
+  - **Tidak lagi salah menandai "Baris ganda"** untuk hasil EKG yang sama di dua tanggal berbeda (mis. pacing rhythm 11-10 dan 12-10). Baris ganda kini hanya dicari di dalam satu blok pemeriksaan.
+  - **Baru: judul ganda.** Mis. "Analisis Gas Darah PJT (09-10-2026)" tertulis dua kali: gabungkan, atau tulis jamnya.
+  - **Baru: obat di Terapi dan di Selesai sekaligus.** Mis. "KCl ada di Terapi dan juga di Selesai. Pastikan mana yang masih berjalan."
+  - **Baru: EKG sudah dicentang, tapi belum ditulis.** Bila pengingat EKG di kartu pasien sudah dicentang untuk hari itu dan catatan belum punya EKG bertanggal hari itu, Plano mengingatkan.
+  - Catatan yang ditempel dari Windows tidak lagi memicu peringatan palsu "TS … belum ada di daftar DPJP".
+
+## `2026-10-11.7`
+- **Hasil Verifikasi List kini dibaca per pasien**, mengikuti format laporan Residency Helper:
+  - **Satu nomor per pasien**, dengan satu kalimat masalahnya, mis. "Tn. X · 420/2 · IM — **Hanya ada di denah kamar, tidak ada di bagian lain**". Sebelumnya satu pasien bisa muncul sebagai tiga kartu terpisah.
+  - Tanda **✓/✗ per bagian** (denah kamar, tabel DPJP, holder list, LIST PASIEN), nilai yang berbeda ditandai merah (mis. kamar 405/3 vs 402/3), **baris aslinya** seperti tertulis, dan **artinya** ("Kemungkinan sudah pulang/pindah, tetapi LIST PASIEN belum diperbarui").
+  - **Jumlah pasien dalam satu kotak:** denah kamar, header LIST, jumlah per DPJP, isi LIST berdampingan, plus DPJP yang tidak cocok dan pasien yang kemungkinan menjadi penyebabnya.
+  - **"Cocok di semua bagian: n pasien"**, termasuk pasien baru yang cocok.
+  - **Saran** di akhir: apa yang perlu ditanyakan ke siapa.
+  - Semua dalam bahasa Indonesia; istilah aturan ("Orphaned", "room grid") tidak tampil lagi. Peringatan transkripsi juga dalam kalimat biasa.
+- **Salin laporan** menyalin format yang sama, siap ditempel ke WhatsApp.
+
 ## `2026-10-11.6`
 - **Verifikasi List kini lebih cepat:** DENAH dan LIST PASIEN dibaca **bersamaan**, bukan bergantian, sehingga waktu tunggu kira-kira separuhnya.
 - **Kemajuan per dokumen:** di bawah tombol tampil baris untuk DENAH dan LIST, masing-masing dengan detik yang sudah berjalan, "percobaan 2/2" bila AI mengulang, dan "selesai · 48 dtk" saat selesai.

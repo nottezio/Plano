@@ -2,6 +2,12 @@ import { parseSections } from '../sections/parseSections';
 import type { SectionAlias } from '../types';
 
 /**
+ * The "Selesai :" line that opens the stopped-drugs sub-list of Terapi.
+ * Shared with the SOAP checker, so both read the sub-list the same way.
+ */
+export const SELESAI_HEADING = /^[ \t]*[*_]*selesai[*_]*[ \t]*:?[ \t]*[*_]*[ \t]*$/im;
+
+/**
  * Add a line to the end of OUR Terapi list (2026-10-10, heparin card).
  *
  * The first Terapi section in the note is ours: consult replies (TS …) come
@@ -17,7 +23,7 @@ export function insertIntoTerapi(body: string, line: string, aliases?: readonly 
   const terapi = parseSections(body, aliases).find((section) => section.sectionId === 'terapi');
   if (!terapi) return null;
   const content = body.slice(terapi.textStart, terapi.end);
-  const done = /^[ \t]*[*_]*selesai[*_]*[ \t]*:?[ \t]*[*_]*[ \t]*$/im.exec(content);
+  const done = SELESAI_HEADING.exec(content);
   const at = done ? terapi.textStart + done.index : terapi.end;
   const before = body.slice(0, at).replace(/\s*$/, '');
   const after = body.slice(at).replace(/^\s*/, '');

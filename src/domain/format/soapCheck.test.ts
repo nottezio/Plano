@@ -657,3 +657,129 @@ describe('the note against the patient record (2026-10-08)', () => {
     expect(found(FOLLOW_UP, { trio: 'AFM', dischargeInDays: 3 })).toEqual([]);
   });
 });
+
+/*
+  From a real follow-up note (2026-10-12), names removed. Paced patient: the
+  same EKG reading on two days is two tracings, not a pasted line.
+*/
+const PACED = [
+  'Tabe dokter, mohon izin melaporkan follow up pasien di *PJT Lt 4 Kamar 421 Bed 4* atas nama :',
+  '',
+  '*Ny. Contoh / 31-12-1957 / 68 tahun / RM 8000001*',
+  '',
+  '_DJPJP Utama : dr. Utama, SpPD, SpJP_',
+  '_DPJP Aritmia : Prof. Aritmia, Sp.JP(K)_',
+  '_DPJP HOM : Prof. Hemato, Sp. PD, KHOM_',
+  '',
+  '*O:*',
+  'Compos Mentis',
+  '',
+  '*EKG PJT LT 4 (12-10-2026)*',
+  'Pacing rhythm, HR 63 bpm, reguler, normoaxis, LBBB pattern.',
+  '',
+  '*EKG PJT LT 4 (11-10-2026)*',
+  'Pacing rhythm, HR 63 bpm, reguler, normoaxis, LBBB pattern.',
+  '',
+  'EKG PJT Lt. 4 (09-10-2026; 05.25)',
+  'AV disosiasi, atrial rate 70 bpm, ventricular rate 40 bpm.',
+  '',
+  'EKG PJT Lt. 4 (09-10-2026; 04.40)',
+  'AV disosiasi, atrial rate 70 bpm, ventricular rate 40 bpm.',
+  '',
+  'Analisis Gas Darah PJT (09-10-2026)',
+  'PH : 7.483 , PO2 : 194.2, pCO2 : 28.1',
+  '',
+  'Analisis Gas Darah PJT (09-10-2026)',
+  'PH : 7.335, PO2 : 202.2, pCO2 : 37.2',
+  '',
+  '*Mohon izin kami assess dengan :*',
+  '- Symptomatic Bradycardia ec TAVB post PPM Replacement H-3',
+  '',
+  '*Mohon izin kami terapi dengan :*',
+  '- KCl 25 mEq dalam NaCl 0,9% 500 cc habis dalam 12 jam (pemberian kedua)',
+  '- Clopidogrel 75mg/24jam/oral',
+  '',
+  'Selesai :',
+  '- KCl 25 mEq dalam NaCl 0,9% 500 cc habis dalam 12 jam (I)',
+  '- Ceftriaxone 2gr/24jam/IV (H-3)',
+  '',
+  '*Plan :*',
+  '- EKG/hari',
+  '',
+  '*TS Divisi Aritmia*',
+  'A/',
+  '- Symptomatic Bradycardia',
+  '',
+  '*TS HOM*',
+  'A/',
+  '- Anemia normositik normokrom',
+].join('\n');
+
+describe('duplicates (2026-10-12)', () => {
+  it('does not call the same reading under two dated headings a duplicate line', () => {
+    expect(kinds(PACED)).not.toContain('duplicate-line');
+    // Not even when the dated headings are plain text, not bold.
+    const plain = 'Compos Mentis\n\nEKG PJT (11-10-2026)\nPacing rhythm, HR 63 bpm, reguler.\n\nEKG PJT (12-10-2026)\nPacing rhythm, HR 63 bpm, reguler.';
+    expect(kinds(`*O:*\n${plain}`)).not.toContain('duplicate-line');
+  });
+
+  it('still catches a line pasted twice inside one block', () => {
+    const body = '*O:*\n*EKG PJT (12-10-2026)*\nPacing rhythm, HR 63 bpm, reguler.\nPacing rhythm, HR 63 bpm, reguler.';
+    expect(kinds(body)).toContain('duplicate-line');
+  });
+
+  it('flags the same dated heading written twice', () => {
+    const found = checkSoap({ body: PACED }).find((finding) => finding.kind === 'duplicate-heading');
+    expect(found?.message).toBe('Judul ganda: “Analisis Gas Darah PJT (09-10-2026)” muncul dua kali. Gabungkan, atau tulis jam pada masing-masing.');
+    // Pointing at the SECOND one.
+    expect(found?.at).toBe(PACED.lastIndexOf('Analisis Gas Darah PJT (09-10-2026)'));
+  });
+
+  it('two tracings with their times are not a duplicate heading', () => {
+    expect(checkSoap({ body: PACED }).filter((f) => f.kind === 'duplicate-heading')).toHaveLength(1);
+  });
+});
+
+describe('a drug in Terapi and under Selesai (2026-10-12)', () => {
+  it('is pointed out, at the Selesai line', () => {
+    const found = checkSoap({ body: PACED }).find((finding) => finding.kind === 'therapy-also-finished');
+    expect(found?.message).toBe('KCl ada di Terapi dan juga di Selesai. Pastikan mana yang masih berjalan.');
+    expect(found?.at).toBe(PACED.indexOf('- KCl 25 mEq dalam NaCl 0,9% 500 cc habis dalam 12 jam (I)'));
+  });
+
+  it('is silent when the finished drug is not running', () => {
+    const body = PACED.replace('- KCl 25 mEq dalam NaCl 0,9% 500 cc habis dalam 12 jam (pemberian kedua)\n', '');
+    expect(kinds(body)).not.toContain('therapy-also-finished');
+  });
+});
+
+describe('EKG reminder ticked but not written (2026-10-12)', () => {
+  const run = (body: string, date: string, ekgDone: boolean): string[] =>
+    checkSoap({ body, context: { date, ekgDone } }).map((finding) => finding.kind);
+
+  it('reminds when today has no EKG in the note', () => {
+    const withoutToday = PACED.replace('*EKG PJT LT 4 (12-10-2026)*', '*EKG PJT LT 4 (10-10-2026)*');
+    expect(run(withoutToday, '2026-10-12', true)).toContain('ekg-ticked-missing');
+    const found = checkSoap({ body: withoutToday, context: { date: '2026-10-12', ekgDone: true } }).find((f) => f.kind === 'ekg-ticked-missing');
+    expect(found?.message).toBe('EKG hari ini sudah dicentang, tapi belum ada EKG tanggal 12-10-2026 di catatan.');
+  });
+
+  it('is silent when today’s EKG is there, in any date spelling', () => {
+    expect(run(PACED, '2026-10-12', true)).not.toContain('ekg-ticked-missing');
+    expect(run('*EKG di PJT Lt 4 2-10-2026*\nSinus', '2026-10-02', true)).not.toContain('ekg-ticked-missing');
+  });
+
+  it('is silent when the reminder is not ticked', () => {
+    expect(run('*O:*\nCompos Mentis', '2026-10-12', false)).not.toContain('ekg-ticked-missing');
+  });
+});
+
+describe('Windows line endings (2026-10-12)', () => {
+  it('read the same as the editor’s', () => {
+    // With "\r\n" no DPJP line matched, so both TS services "were not in the
+    // DPJP list", and the dated headings were not seen as headings.
+    const crlf = PACED.replace(/\n/g, '\r\n');
+    expect(kinds(crlf).sort()).toEqual(kinds(PACED).sort());
+    expect(kinds(crlf)).not.toContain('consult-not-in-dpjp');
+  });
+});

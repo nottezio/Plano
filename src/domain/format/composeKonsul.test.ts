@@ -130,17 +130,32 @@ describe('composeKonsul list style', () => {
     purpose: 'Echocardiography full study',
     listStyle: true,
     listFrom: 'PJT Lt. 4',
-    listDate: 'Senin, 31-08-2026',
+    listDate: '8 Oktober 2026',
   });
 
-  it('opens with the list sentence, not the referral one', () => {
-    expect(out).toContain('mohon izin mengirimkan list pasien Echocardiography full study');
-    expect(out).toContain('dari PJT Lt. 4, Senin, 31-08-2026');
+  it('opens as the ward writes the list (Avi, 2026-10-12)', () => {
+    expect(out.split('\n')[0]).toBe(
+      'Assalamualaikum dokter. Tabe dokter, mohon izin mengirimkan rencana pasien Echocardiography full study tanggal *8 Oktober 2026* dari *PJT Lantai 4* atas nama:',
+    );
     expect(out).not.toContain('konsul pasien rencana');
   });
 
-  it('numbers the patient', () => {
-    expect(out).toContain('1. *Tn. Muh. Darman Dahlan');
+  it('numbers the patient and adds the room inside the bold', () => {
+    expect(out).toContain('1. *Tn. Muh. Darman Dahlan/01-02-1973/53 tahun/RM 800008 / Kamar 402*');
+  });
+
+  it('does not send TB/BB with an echo request', () => {
+    expect(out).not.toContain('TB : 160 cm');
+    expect(out).not.toContain('BB : 78 kg');
+  });
+
+  it('takes the room from the opening line when the record has none', () => {
+    const body = `Tabe dokter, mohon izin melaporkan follow up pasien di *PJT Lt 4 Kamar 421 Bed 4* atas nama :\n\n${BODY}`;
+    const bare = composeKonsul(body, makePatient({ name: 'Tn. Muh. Darman Dahlan', ward: 'PJT Lt 4' }), ALIASES, {
+      purpose: 'Echocardiography full study',
+      listStyle: true,
+    });
+    expect(bare).toContain('RM 800008 / Kamar 421 Bed 4*');
   });
 
   it('keeps the DPJP and diagnosis blocks identical to a referral', () => {
@@ -151,6 +166,16 @@ describe('composeKonsul list style', () => {
 
   it('uses the shorter closing', () => {
     expect(out.trimEnd().endsWith('Tabe terima kasih dokter')).toBe(true);
+  });
+});
+
+describe('DPJP lines with the label mistyped (2026-10-12)', () => {
+  it('keeps "_DJPJP Utama" and sends it as DPJP Utama', () => {
+    // The real note's typo: the main DPJP vanished from the konsul.
+    const body = BODY.replace('_DPJP Kardio:', '_DJPJP Utama :');
+    const out = composeKonsul(body, PATIENT, ALIASES, { purpose: 'Echocardiography full study', listStyle: true });
+    expect(out).toContain('_DPJP Utama : dr. Aussie Fitriani Ghaznawie, Sp.JP, Subsp.Eko(K)_');
+    expect(out.indexOf('_DPJP Utama')).toBeLessThan(out.indexOf('_DPJP Tindakan'));
   });
 });
 

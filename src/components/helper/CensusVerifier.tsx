@@ -1,7 +1,7 @@
 import { useEffect, useState, type ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
 
-import { oddValues } from '@/domain/census/oddValues';
+import { readableReport, readableText, transcriptionWarning, type PatientFinding, type ReadableReport } from '@/domain/census/readable';
 import { Button, Callout, Section } from '@/components/common/ui';
 import { IconCheck, IconChevronRight, IconCopy, IconUpload } from '@/components/common/Icons';
 
@@ -15,7 +15,6 @@ import type { DenahExtraction, ListExtraction } from '@/domain/census/verify';
 import {
   DEFAULT_CONFIG,
   flatten,
-  toMarkdown,
   verify,
   type Issue,
   type Severity,
@@ -77,6 +76,8 @@ export function CensusVerifier(): JSX.Element {
   const [report, setReport] = useState<VerificationReport | null>(null);
   const [history, setHistory] = useState<CensusHistory | null>(() => readHistory());
   const [copied, setCopied] = useState(false);
+  /** The ward before this run, for "pasien baru"; captured when the run starts. */
+  const [previousRms, setPreviousRms] = useState<Set<string> | null>(null);
 
   const enabled = aiEnabled('census');
   const today = useClinicalToday();
@@ -125,6 +126,7 @@ export function CensusVerifier(): JSX.Element {
 
       // Stages 4–8, against the last run on this device.
       const previous = readHistory();
+      setPreviousRms(previous ? new Set(previous.activeRms) : null);
       const result = verify(
         denahResult,
         listResult,
@@ -168,16 +170,26 @@ export function CensusVerifier(): JSX.Element {
 
   const view = report ? applyResolutions(report, history?.resolutions ?? {}) : null;
   const warnings = [
-    ...(denah?._extractionWarnings ?? []).map((warning) => `DENAH: ${warning}`),
-    ...(list?._extractionWarnings ?? []).map((warning) => `LIST: ${warning}`),
+    ...(denah?._extractionWarnings ?? []).map((warning) => transcriptionWarning(`DENAH: ${warning}`)),
+    ...(list?._extractionWarnings ?? []).map((warning) => transcriptionWarning(`LIST: ${warning}`)),
   ];
   const notes = [
     ...(denah?.extractionNotes ?? []).map((note) => `DENAH: ${note}`),
     ...(list?.extractionNotes ?? []).map((note) => `LIST: ${note}`),
   ];
 
-  const listed = view ? view.open.filter((issue) => issue.ruleId !== 'P1' && issue.ruleId !== 'P2') : [];
-  const preflight = report ? report.issues.filter((issue) => issue.ruleId === 'P1' || issue.ruleId === 'P2') : [];
+  // The findings regrouped per patient, in the ward's words (`readable.ts`).
+  // Built from the OPEN issues, so an answered item leaves the list.
+  const readable =
+    report && view
+      ? readableReport({
+          issues: view.open,
+          denah,
+          list,
+          shiftDate: report.shiftDate,
+          ...(previousRms ? { previousRms } : {}),
+        })
+      : null;
 
   return (
     <div className="grid gap-5 lg:grid-cols-[minmax(0,19rem)_minmax(0,1fr)] lg:items-start">
@@ -237,26 +249,17 @@ export function CensusVerifier(): JSX.Element {
           </Callout>
         ) : null}
 
-        {report && view ? (
+        {report && view && readable ? (
           <>
-            {/* Pre-flight first (spec §7.2): a missing document or a date
-                mismatch changes how everything below should be read. */}
-            {preflight.map((issue) => (
-              <Callout key={issue.id} tone="danger" title={issue.title} role="alert">
-                {issue.detail}
+            {readable.preflight.map((item) => (
+              <Callout key={item.title} tone="danger" title={item.title} role="alert">
+                {item.detail}
               </Callout>
             ))}
 
             <Verdict
               verdict={view.verdict}
-              openCount={view.open.length}
-              shiftDate={report.shiftDate}
-              patientCount={report.patientCount}
-              counts={SEVERITIES.map(({ id, short }) => ({
-                id,
-                short,
-                count: listed.filter((issue) => issue.severity === id).length,
-              }))}
+              report={readable}
               copied={copied}
               save={
                 <SaveResultButton
@@ -265,12 +268,12 @@ export function CensusVerifier(): JSX.Element {
                   // could not read files under today rather than nowhere.
                   forDate={report.shiftDate && /^\d{4}-\d{2}-\d{2}$/.test(report.shiftDate) ? report.shiftDate : today}
                   subject=""
-                  title={`Verifikasi List — ${view.verdict}`}
-                  text={toMarkdown(report)}
+                  title={`Verifikasi List — ${readable.headline}`}
+                  text={readableText(readable)}
                 />
               }
               onCopy={() => {
-                void copyText(toMarkdown(report)).then(() => {
+                void copyText(readableText(readable)).then(() => {
                   setCopied(true);
                   window.setTimeout(() => setCopied(false), 1500);
                 });
@@ -289,27 +292,84 @@ export function CensusVerifier(): JSX.Element {
               </Callout>
             ) : null}
 
-            {SEVERITIES.map(({ id, label }) => {
-              const group = listed.filter((issue) => issue.severity === id);
-              if (group.length === 0) return null;
-              return (
-                <Section key={id} title={label} aside={<span className="text-[11px] text-fg-faint">{group.length}</span>}>
-                  <div className="space-y-2">
-                    {group.map((issue) => (
-                      <IssueCard key={issue.id} issue={issue} onAnswer={answer} />
+            <ol className="space-y-2">
+              {readable.patients.map((patient, index) => (
+                <PatientCard key={patient.key} number={index + 1} patient={patient} onAnswer={answer} />
+              ))}
+              {readable.counts ? (
+                <li className={`rounded-xl border border-l-4 border-border bg-surface px-3 py-2.5 text-xs ${SEVERITY_EDGE.high}`}>
+                  <CardHead number={readable.patients.length + 1} title={readable.counts.title} />
+                  <dl className="mt-2 grid grid-cols-[auto_minmax(0,1fr)] gap-x-3 overflow-hidden rounded-lg border border-border text-[11px]">
+                    {readable.counts.rows.map((row, index) => (
+                      <Row key={row.label} label={row.label} value={row.value} odd={row.odd} first={index === 0} />
                     ))}
-                  </div>
-                </Section>
-              );
-            })}
+                  </dl>
+                  {readable.counts.perDpjp.length > 0 ? (
+                    <ul className="mt-2 space-y-1">
+                      {readable.counts.perDpjp.map((line) => (
+                        <li key={line.dpjp}>
+                          <span className="font-medium">DPJP {line.dpjp}:</span>{' '}
+                          {line.cells.map((cell, index) => (
+                            <span key={cell.label}>
+                              {index > 0 ? ' · ' : ''}
+                              {cell.label}{' '}
+                              <span className={`font-mono ${cell.odd ? 'font-semibold text-danger' : ''}`}>{cell.value}</span>
+                            </span>
+                          ))}
+                        </li>
+                      ))}
+                    </ul>
+                  ) : null}
+                  {readable.counts.notes.map((note) => (
+                    <p key={note} className="mt-1.5 text-fg-muted">{note}</p>
+                  ))}
+                  {readable.counts.relatedNames.length > 0 ? (
+                    <p className="mt-1.5 italic text-fg-muted">
+                      Kemungkinan terkait {readable.counts.relatedNames.join(', ')} di atas.
+                    </p>
+                  ) : null}
+                </li>
+              ) : null}
+              {readable.other.map((item, index) => (
+                <li key={item.title} className={`rounded-xl border border-l-4 border-border bg-surface px-3 py-2.5 text-xs ${SEVERITY_EDGE[item.severity]}`}>
+                  <CardHead number={readable.patients.length + (readable.counts ? 1 : 0) + index + 1} title={item.title} />
+                  <p className="mt-0.5 text-fg-muted">{item.detail}</p>
+                </li>
+              ))}
+            </ol>
+
+            {readable.advice.length > 0 ? (
+              <Section title="Saran">
+                <ul className="list-disc space-y-1 pl-4 text-xs">
+                  {readable.advice.map((line) => (
+                    <li key={line}>{line}</li>
+                  ))}
+                </ul>
+              </Section>
+            ) : null}
 
             <div className="space-y-2">
+              <Disclosure title={`Cocok di semua bagian · ${readable.clean.count} pasien`}>
+                {readable.clean.newNames.length > 0 ? (
+                  <li className="text-fg-muted">Pasien baru: {readable.clean.newNames.join(', ')}</li>
+                ) : null}
+                <li>{readable.clean.names.join(', ') || '—'}</li>
+              </Disclosure>
+              {readable.minor.length > 0 ? (
+                <Disclosure title={`Perbedaan kecil · ${readable.minor.length}`}>
+                  {readable.minor.map((item) => (
+                    <li key={item.title}>
+                      <span className="font-medium">{item.title}</span> <span className="text-fg-muted">{item.detail}</span>
+                    </li>
+                  ))}
+                </Disclosure>
+              ) : null}
               {report.resolvedSinceLastRun.length > 0 ? (
                 <Disclosure title={`Selesai sejak pemeriksaan terakhir · ${report.resolvedSinceLastRun.length}`}>
                   {report.resolvedSinceLastRun.map((issue) => (
                     <li key={issue.id}>
                       <span aria-hidden="true" className="mr-1 text-accent">✓</span>
-                      {issue.title}
+                      {issue.patients[0]?.name ?? issue.title}
                     </li>
                   ))}
                 </Disclosure>
@@ -318,7 +378,7 @@ export function CensusVerifier(): JSX.Element {
                 <Disclosure title={`Sudah dijawab · ${view.answered.length}`}>
                   {view.answered.map((issue) => (
                     <li key={issue.id}>
-                      {issue.title} <span className="text-fg-muted">· {RESOLUTION_LABEL[issue.resolution]}</span>
+                      {issue.title.replace(/^Patient vanished:?\s*/, '')} <span className="text-fg-muted">· {RESOLUTION_LABEL[issue.resolution]}</span>
                     </li>
                   ))}
                 </Disclosure>
@@ -426,47 +486,34 @@ function EmptyResult(): JSX.Element {
 }
 
 const VERDICT_TONE = {
-  CLEAN: { box: 'border-accent bg-[var(--accent-soft)]', text: 'text-accent', title: 'CLEAN', sub: 'Tidak ada masalah.' },
-  NOT_CLEAN: { box: 'border-danger bg-[var(--danger-soft)]', text: 'text-danger', title: 'NOT CLEAN', sub: '' },
-  PARTIAL: {
-    box: 'border-[var(--warn-strong)] bg-[var(--warn-soft)]',
-    text: 'text-[var(--warn-strong)]',
-    title: 'PARTIAL',
-    sub: 'Satu dokumen tidak ada, jadi hanya sebagian yang diperiksa.',
-  },
+  CLEAN: { box: 'border-accent bg-[var(--accent-soft)]', text: 'text-accent' },
+  NOT_CLEAN: { box: 'border-danger bg-[var(--danger-soft)]', text: 'text-danger' },
+  PARTIAL: { box: 'border-[var(--warn-strong)] bg-[var(--warn-soft)]', text: 'text-[var(--warn-strong)]' },
 } as const;
 
 function Verdict({
   verdict,
-  openCount,
-  shiftDate,
-  patientCount,
-  counts,
+  report,
   copied,
   onCopy,
   save,
 }: {
-  save?: ReactNode;
   verdict: VerificationReport['verdict'];
-  openCount: number;
-  shiftDate: string | null;
-  patientCount: number;
-  counts: Array<{ id: Severity; short: string; count: number }>;
+  report: ReadableReport;
   copied: boolean;
   onCopy: () => void;
+  save?: ReactNode;
 }): JSX.Element {
-  const tone = VERDICT_TONE[verdict];
+  const tone = VERDICT_TONE[report.total === 0 && verdict !== 'PARTIAL' ? 'CLEAN' : verdict];
   return (
     <div className={`rounded-xl border px-4 py-3 ${tone.box}`}>
       <div className="flex flex-wrap items-start gap-3">
         <div className="min-w-0 flex-1">
-          <p className={`text-lg font-semibold tracking-tight ${tone.text}`}>
-            {tone.title}
-            {verdict === 'NOT_CLEAN' ? <span className="ml-2 text-sm font-medium">{openCount} masalah</span> : null}
-          </p>
+          <p className="text-xs text-fg-muted">Verifikasi {report.dateLabel ?? '(tanggal tidak terbaca)'}</p>
+          <p className={`text-lg font-semibold tracking-tight ${tone.text}`}>{report.headline}</p>
           <p className="text-xs text-fg-muted">
-            Shift {shiftDate ?? 'tanggal tidak terbaca'} · {patientCount} pasien
-            {tone.sub ? ` · ${tone.sub}` : ''}
+            {report.patientCount} pasien di denah kamar · {report.clean.count} cocok di semua bagian
+            {verdict === 'PARTIAL' ? ' · satu dokumen tidak ada, hanya sebagian diperiksa' : ''}
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
@@ -476,22 +523,6 @@ function Verdict({
           </Button>
         </div>
       </div>
-      {verdict !== 'CLEAN' ? (
-        <div className="mt-2 flex flex-wrap gap-1.5">
-          {counts.map(({ id, short, count }) => (
-            <span
-              key={id}
-              className={[
-                'inline-flex items-center gap-1.5 rounded-full bg-surface px-2 py-0.5 text-[11px] ring-1 ring-border',
-                count === 0 ? 'text-fg-faint' : 'font-medium text-fg',
-              ].join(' ')}
-            >
-              <span aria-hidden="true" className={`h-2 w-2 rounded-full ${SEVERITY_DOT[id]}`} />
-              {short} {count}
-            </span>
-          ))}
-        </div>
-      ) : null}
     </div>
   );
 }
@@ -508,13 +539,6 @@ function Disclosure({ title, children }: { title: string; children: React.ReactN
   );
 }
 
-const SEVERITIES: ReadonlyArray<{ id: Severity; label: string; short: string }> = [
-  { id: 'high', label: 'High', short: 'High' },
-  { id: 'medium', label: 'Medium', short: 'Medium' },
-  { id: 'confirm', label: 'Perlu konfirmasi Anda', short: 'Konfirmasi' },
-  { id: 'cosmetic', label: 'Kosmetik', short: 'Kosmetik' },
-];
-
 /** One colour per severity: red, amber, the accent for "your answer", grey. */
 const SEVERITY_EDGE: Record<Severity, string> = {
   high: 'border-l-danger',
@@ -522,73 +546,116 @@ const SEVERITY_EDGE: Record<Severity, string> = {
   confirm: 'border-l-accent',
   cosmetic: 'border-l-[var(--border-strong)]',
 };
-const SEVERITY_DOT: Record<Severity, string> = {
-  high: 'bg-danger',
-  medium: 'bg-[var(--warn-strong)]',
-  confirm: 'bg-accent',
-  cosmetic: 'bg-[var(--border-strong)]',
-};
+function CardHead({ number, title, badge }: { number: number; title: ReactNode; badge?: ReactNode }): JSX.Element {
+  return (
+    <div className="flex flex-wrap items-start gap-2">
+      <span className="flex h-5 min-w-5 shrink-0 items-center justify-center rounded-full bg-bg-subtle px-1 text-[11px] font-semibold">
+        {number}
+      </span>
+      <p className="min-w-0 flex-1 text-[13px] font-medium leading-snug">{title}</p>
+      {badge}
+    </div>
+  );
+}
 
-const VIEW_LABEL: Record<string, string> = {
-  roomGrid: 'Denah kamar',
-  dpjpTable: 'Tabel DPJP',
-  holderList: 'Holder list',
-  listPasien: 'LIST PASIEN',
-  header: 'Header',
-  footer: 'Footer',
-};
+function Row({ label, value, odd, first }: { label: string; value: string; odd: boolean; first: boolean }): JSX.Element {
+  return (
+    <div className={`contents ${first ? '' : '[&>*]:border-t [&>*]:border-border'}`}>
+      <dt className="bg-bg-subtle px-2 py-1 text-fg-muted">{label}</dt>
+      <dd className={`px-2 py-1 font-mono ${odd ? 'font-semibold text-danger' : ''}`}>
+        {value}
+        {odd ? <span className="sr-only"> (berbeda)</span> : null}
+      </dd>
+    </div>
+  );
+}
 
 /**
- * One issue: what is wrong, the values each view holds (spec §7.5 — a table,
- * not prose), and, for 🟡 items only, the three answers.
+ * One patient: what is wrong in one line, where they are and are not, the
+ * values that differ, the line as written, and what it probably means. For a
+ * patient who vanished, the three answers.
  */
-function IssueCard({
-  issue,
+function PatientCard({
+  number,
+  patient,
   onAnswer,
 }: {
-  issue: Issue;
+  number: number;
+  patient: PatientFinding;
   onAnswer: (issue: Issue, resolution: Resolution) => void;
 }): JSX.Element {
-  const rows = Object.entries(issue.comparison ?? {}).filter((entry): entry is [string, string] => Boolean(entry[1]));
-  const odd = oddValues(rows.map(([, value]) => value));
+  const confirm = patient.issues.find((issue) => issue.severity === 'confirm');
   return (
-    <div className={`rounded-xl border border-l-4 border-border bg-surface px-3 py-2.5 text-xs ${SEVERITY_EDGE[issue.severity]}`}>
-      <div className="flex flex-wrap items-start gap-2">
-        <p className="min-w-0 flex-1 text-[13px] font-medium leading-snug">{issue.title}</p>
-        {issue.status === 'persisting' ? (
-          <span className="shrink-0 rounded-full bg-bg-subtle px-2 py-0.5 text-[10px] font-medium text-fg-muted">
-            masih ada
-          </span>
-        ) : issue.status === 'new' ? (
-          <span className="shrink-0 rounded-full bg-[var(--accent-soft)] px-2 py-0.5 text-[10px] font-medium text-accent">
-            baru
-          </span>
-        ) : null}
-      </div>
-      <p className="mt-0.5 leading-relaxed text-fg-muted">{issue.detail}</p>
-      {rows.length > 0 ? (
+    <li className={`rounded-xl border border-l-4 border-border bg-surface px-3 py-2.5 text-xs ${SEVERITY_EDGE[patient.severity]}`}>
+      <CardHead
+        number={number}
+        title={
+          <>
+            {patient.name}
+            {patient.place ? <span className="font-normal text-fg-muted"> · {patient.place}</span> : null}
+            {patient.dpjp ? <span className="font-normal text-fg-muted"> · {patient.dpjp}</span> : null}
+            <span className="block font-normal">{patient.summary.charAt(0).toUpperCase() + patient.summary.slice(1)}</span>
+          </>
+        }
+        badge={
+          patient.status === 'persisting' ? (
+            <span className="shrink-0 rounded-full bg-bg-subtle px-2 py-0.5 text-[10px] font-medium text-fg-muted">masih ada</span>
+          ) : null
+        }
+      />
+      {patient.presence.length > 0 ? (
+        <ul className="mt-2 flex flex-wrap gap-1.5" aria-label="Ada di bagian">
+          {patient.presence.map((cell) => (
+            <li
+              key={cell.label}
+              className={[
+                'rounded-full px-2 py-0.5 text-[11px] ring-1',
+                cell.present === true
+                  ? 'text-accent ring-accent/40'
+                  : cell.present === false
+                    ? 'bg-[var(--danger-soft)] font-medium text-danger ring-danger/40'
+                    : 'text-fg-faint ring-border',
+              ].join(' ')}
+            >
+              {cell.present === true ? '✓' : cell.present === false ? '✗' : '–'} {cell.label}
+            </li>
+          ))}
+        </ul>
+      ) : null}
+      {patient.mismatches.length > 0 ? (
         <dl className="mt-2 grid grid-cols-[auto_minmax(0,1fr)] gap-x-3 overflow-hidden rounded-lg border border-border text-[11px]">
-          {rows.map(([key, value], index) => (
-            <div key={key} className={`contents ${index > 0 ? '[&>*]:border-t [&>*]:border-border' : ''}`}>
-              <dt className="bg-bg-subtle px-2 py-1 text-fg-muted">{VIEW_LABEL[key] ?? key}</dt>
-              <dd className={`px-2 py-1 font-mono ${odd.has(value) ? 'font-semibold text-danger' : ''}`}>
-                {value}
-                {odd.has(value) ? <span className="sr-only"> (berbeda)</span> : null}
+          {patient.mismatches.map((item, index) => (
+            <div key={item.label} className={`contents ${index > 0 ? '[&>*]:border-t [&>*]:border-border' : ''}`}>
+              <dt className="bg-bg-subtle px-2 py-1 text-fg-muted">{item.label}</dt>
+              <dd className="px-2 py-1">
+                {item.values.map((value, i) => (
+                  <span key={value.where}>
+                    {i > 0 ? ' · ' : ''}
+                    <span className="text-fg-muted">{value.where}</span>{' '}
+                    <span className={`font-mono ${value.odd ? 'font-semibold text-danger' : ''}`}>{value.value}</span>
+                  </span>
+                ))}
               </dd>
             </div>
           ))}
         </dl>
       ) : null}
-      {issue.severity === 'confirm' ? (
+      {patient.source ? (
+        <p className="mt-2 break-words rounded-lg bg-bg-subtle px-2 py-1 font-mono text-[11px] text-fg-muted">
+          <span className="font-sans">Tertulis di {patient.source.where}:</span> {patient.source.text}
+        </p>
+      ) : null}
+      <p className="mt-1.5 italic text-fg-muted">{patient.meaning}</p>
+      {confirm ? (
         <div className="mt-2.5 flex flex-wrap gap-1.5">
           {(Object.keys(RESOLUTION_LABEL) as Resolution[]).map((resolution) => (
-            <Button key={resolution} size="sm" onClick={() => onAnswer(issue, resolution)}>
+            <Button key={resolution} size="sm" onClick={() => onAnswer(confirm, resolution)}>
               {RESOLUTION_LABEL[resolution]}
             </Button>
           ))}
         </div>
       ) : null}
-    </div>
+    </li>
   );
 }
 
