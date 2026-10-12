@@ -1,5 +1,38 @@
 # Plano — CHANGES
 
+## `2026-10-13.2` — Bare TS headings are sections (Salin Plan no longer carries consultants' orders); bare Plan past Selesai
+
+Audit (Avi: "have you learnt the SOAP for section recognition — Salin by
+section, header section?"): 517 reports (Lt 4 Sept, Lt 5 Oct, Avi's 13-10
+note) through `parseSections` → `regionsOf` (Salin per bagian) and
+`jumpTargets` (header bar).
+
+- **Bug — consultants' A/P/I copied as OUR Plan.** 496 of 500 TS heading
+  lines were not headings; in 328 of 517 reports the Plan region ran on into
+  the TS blocks. **Root cause:** a TS heading was a section only when bolded
+  (`*TS BTKV*`, wrapped-header rule) or with a colon; the corpus writes it
+  bare ("TS Neuro", "Ts EMD", "TS GH/"). The copy slicer, jump bar, tints and
+  frozen-text ranges all key off parser sections, so all four missed them.
+  **Fix:** `TS_BARE_RE` in `parseSections` — the whole line, "TS" + ≤6 words,
+  no digits, optional trailing ":" or "/", no bullet (a "- TS Gizi" item stays
+  a plan line). `CONSULT_HEADING` (slicer) and `TS_BLOCK_RE` (jump bar) are
+  now case-insensitive ("Ts EMD"). After: TS headings missed 496 → 0, Plan
+  regions containing TS text 328 → 0.
+- **Bare "Plan" after our Terapi/A** now also when a "Selesai :" or other
+  custom heading sits between them, but never inside a TS block (tracked as
+  last-own-heading + in-consult). Plan regions missing 33 → 5 (the rest have
+  their only "Plan" in odd places, e.g. after O).
+- Remaining (measured, not fixed): S missing 12, O missing 24 (notes that
+  start straight from the identity/DPJP lines into the exam), A missing 4,
+  Terapi missing 4 — the copy still works for the groups that exist.
+- Tests: bare/lowercase/slashed TS headings; bullet "- TS" not a heading;
+  Salin Plan stops at "TS Neuro" and Terapi + TS carries it.
+
+### Verify
+```
+npm run verify → typecheck, lint, 163 files / 2397 tests, version, contrast, a11y, build: all green
+```
+
 ## `2026-10-13.1` — Frozen counters (Selesai, STOP, TS blocks) out of the day-marker check; List Maker imports a sent List Pasien
 
 - **Bug — "3 hitungan hari belum berubah" on a note with one counter of

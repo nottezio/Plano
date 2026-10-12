@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import { availableGroups, stripTrailingClosing } from './copyGroups';
 import { DEFAULT_SECTION_ALIASES as ALIASES } from '../defaults';
+import { sliceGroups } from './sectionSlices';
 
 const BODY = [
   '*S:*',
@@ -73,5 +74,13 @@ describe('stripTrailingClosing', () => {
     expect(stripTrailingClosing(items, [])).toBe(items);
     const opening = 'Tabe dokter, mohon izin melaporkan pasien, terima kasih dokter';
     expect(stripTrailingClosing(opening, [])).toBe(opening);
+  });
+});
+
+describe('Salin Plan stops at a bare TS heading (12.12)', () => {
+  it("the consultant's A/ P/ go with Terapi + TS, not into our Plan", () => {
+    const body = 'Mohon izin kami terapi dengan:\n- Furosemide\n\nPlan:\n- Monitoring\n\nTS Neuro\nA/\n- Stroke\nP/\n- MRI kepala';
+    expect(sliceGroups(body, ALIASES, ['plan'])).toBe('Plan:\n- Monitoring');
+    expect(sliceGroups(body, ALIASES, ['terapi'])).toContain('TS Neuro\nA/\n- Stroke');
   });
 });

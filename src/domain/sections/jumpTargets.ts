@@ -182,6 +182,6 @@ export function jumpTargets(
 }
 
 /** A consulting service's block: `TS` then the service. */
-const TS_BLOCK_RE = /^TS\s+\S/;
+const TS_BLOCK_RE = /^TS\s+\S/i;
 /** `TS Bedah Digestif` is 17; the bar scrolls, but a button is not a sentence. */
 const MAX_TS_LABEL = 14;

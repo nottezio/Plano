@@ -179,6 +179,24 @@ const MAX_CUSTOM_WORDS = 3;
  */
 const WRAPPED_HEADER_RE = /^[ \t]*(\*{1,2})([^*\n][^\n]*?)\1[ \t]*$/;
 
+/**
+ * A consulting team's block heading written bare: `TS Neuro`, `TS GH/`,
+ * `TS Divisi Aritmia :` alone on its line (12.12).
+ *
+ * ROOT CAUSE of consultants' orders being copied as OUR plan: only the
+ * bolded form (`*TS BTKV*`, via the wrapped-header rule) or a colon form was a
+ * heading. In the Lt 4 / Lt 5 exports 496 of 500 TS headings are bare, so in
+ * 328 of 517 reports the TS A/ P/ I/ ran on inside our Plan block — "Salin
+ * Plan" pasted the neurologist's and the surgeon's orders as ours, the jump
+ * bar had no TS buttons, and the TS block was tinted as Plan.
+ *
+ * Literal and short: the whole line, starting with `TS` (no bullet — a "- TS
+ * Gizi" list item is a plan line, not a heading), at most five words after
+ * it, no digits, an optional trailing `:` or `/`.
+ */
+const TS_BARE_RE = /^[ \t*_]{0,4}(TS[ \t]+[A-Za-z][A-Za-z .&()'-]{0,40}?)[ \t*_]*[:/]?[ \t*_]*$/i;
+const MAX_TS_WORDS = 6;
+
 /** Long enough for `*Laporan Angiografi Koroner RS Pelamonia 23/06/2026*`. */
 const MAX_WRAPPED_HEADER_LENGTH = 72;
 
@@ -375,6 +393,17 @@ function detectHeader(
     };
   }
 
+  const consult = TS_BARE_RE.exec(line.text);
+  if (consult?.[1] && consult[1].trim().split(/\s+/).length <= MAX_TS_WORDS) {
+    const label = consult[1].trim();
+    return {
+      start: line.start,
+      headerEnd: line.start + line.text.length,
+      sectionId: customSectionId(label),
+      label,
+    };
+  }
+
   const custom = new RegExp(CUSTOM_HEADER_SOURCE).exec(line.text);
   if (!custom) return null;
 
@@ -440,12 +469,22 @@ export function parseSections(
   const hits: HeaderHit[] = [];
   /** Inside the O block: from an O/TTV heading until the next known heading. */
   let inObjective = false;
+  /*
+    The last of OUR headings, and whether a TS block has opened since: a
+    "Selesai :" or an EKG heading between Terapi and a bare "Plan" must not
+    stop it being our Plan, but a TS block must.
+  */
+  let lastOwn: SectionId | null = null;
+  let inConsult = false;
   for (const line of splitLines(body)) {
-    const last = hits.at(-1)?.sectionId;
-    const hit =
+    const hit: HeaderHit | null =
       detectHeader(line, matcher, table) ??
-      (barePlan && (last === 'terapi' || last === 'a') ? detectHeader(line, barePlan, table) : null);
+      (barePlan && !inConsult && (lastOwn === 'terapi' || lastOwn === 'a') ? detectHeader(line, barePlan, table) : null);
     if (!hit) continue;
+    if (!hit.sectionId.startsWith('custom_')) {
+      lastOwn = hit.sectionId;
+      inConsult = false;
+    } else if (/^TS\s/i.test(hit.label)) inConsult = true;
     if (inObjective && isVitalField(line, hit)) continue;
     if (hit.sectionId === 'o' || hit.sectionId === 'ttv') inObjective = true;
     else if (!hit.sectionId.startsWith('custom_')) inObjective = false;

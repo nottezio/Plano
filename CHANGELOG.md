@@ -5,6 +5,12 @@ Catatan teknis lengkap (akar masalah, perbaikan) ada di CHANGES.md.
 
 Entri teratas harus versi yang sedang dirilis; tes gagal bila belum ditulis.
 
+## `2026-10-13.2`
+- **Blok TS kini dikenali walau tidak ditebalkan.** Rekan biasa menulis "TS Neuro", "Ts EMD", atau "TS GH/" pada barisnya sendiri. Sebelumnya hanya "*TS BTKV*" (tebal) yang terbaca sebagai judul. Pada 328 dari 517 laporan di grup Lt 4/Lt 5, isi TS (A/, P/, I/) ikut terbaca sebagai **Plan kita**. Sekarang:
+  - **Salin → Plan** tidak lagi ikut menyalin rencana konsulen; isi TS masuk ke **Terapi + TS**.
+  - Tombol lompat di header dan pewarnaan bagian juga menampilkan setiap blok TS.
+- **"Plan" tanpa titik dua** tetap dikenali sebagai Plan kita walau sesudah Terapi ada "Selesai :" atau judul lain. Plan yang tidak terbaca turun dari 33 ke 5 laporan.
+
 ## `2026-10-13.1`
 - **Pemeriksa SOAP: hitungan hari yang dibekukan tidak lagi diingatkan.** "H-3" pada obat di bawah **Selesai**, pada baris yang di-**STOP**, dan di dalam blok **TS** (disalin apa adanya dari SOAP konsulen) tidak lagi dianggap "belum berubah dari kemarin". Hanya hitungan hari milik kita yang diperiksa.
 - **List Maker: impor list dari rekan di luar Plano.** Tempel pesan **List Pasien** yang mereka kirim ke grup di tab Tempel, maka pasiennya terbaca: kamar/bed, DPJP, identitas, junior/chief, serta diagnosis, terapi dan plan.

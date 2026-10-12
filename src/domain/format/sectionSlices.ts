@@ -63,7 +63,7 @@ const BOUNDARY_GROUP: Partial<Record<SectionId, CopyGroupId>> = {
  * would cut the objective block into a dozen fragments and force each one to be
  * placed by name again, which is the problem this exists to remove.
  */
-const CONSULT_HEADING = /^\s*[*_]*\s*TS\b/;
+const CONSULT_HEADING = /^\s*[*_]*\s*TS\b/i;
 
 /**
  * Inside a TS block, the cardiology headings are the only ones that end it.

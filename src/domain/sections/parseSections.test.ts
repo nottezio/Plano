@@ -454,3 +454,32 @@ describe('colleague report headings (12.12, Lt 4 / Lt 5 exports)', () => {
     expect(ids('S:\n- minum obat\nObat\n- teratur')).toEqual(['s']);
   });
 });
+
+describe('bare TS headings (12.12): "TS Neuro" alone on its line opens the consultant block', () => {
+  const body = [
+    'Mohon izin kami terapi dengan:',
+    '- Furosemide',
+    '',
+    'Plan:',
+    '- Monitoring',
+    '',
+    'TS Neuro',
+    'A/',
+    '- Stroke iskemik',
+    'P/',
+    '- MRI kepala',
+    '',
+    'Ts EMD',
+    'A/',
+    '- DM tipe 2',
+    '',
+    'TS GH/',
+    '- CKD',
+  ].join('\n');
+
+  it('each TS line is its own section; a bullet "- TS Gizi" is not', () => {
+    const labels = parseSections(body).filter((s) => s.ownsLine).map((s) => s.label);
+    expect(labels).toEqual(['Terapi', 'Plan', 'TS Neuro', 'Ts EMD', 'TS GH']);
+    expect(parseSections('Plan:\n- Konsul\n- TS Gizi\n').map((s) => s.sectionId)).toEqual(['p']);
+  });
+});
