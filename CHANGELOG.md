@@ -5,6 +5,13 @@ Catatan teknis lengkap (akar masalah, perbaikan) ada di CHANGES.md.
 
 Entri teratas harus versi yang sedang dirilis; tes gagal bila belum ditulis.
 
+## `2026-10-12.4`
+- **Konfirmasi Jaga: Formasi kini memuat DPJP Onsite IGD (14.00–21.00)**, sesuai jadwal: Senin dr. KS, Selasa dr. ZD, Rabu dr. AHN, Kamis dr. MAA, Jumat dr. AHA, Sabtu Prof. MZ. Hari Minggu dan tim malam tidak diberi baris onsite.
+- **Format Formasi mengikuti contoh terbaru:**
+  - bila DPJP Utama dan Tindakan orang yang sama, ditulis satu baris: "_DPJP Utama dan Tindakan: …_";
+  - "_DPJP Onsite: …_" tepat di bawahnya;
+  - blok "DPJP Utama dan Tindakan setelah Pk. 00.00 WITA" kini **sebelum** "Mohon arahannya dokter".
+
 ## `2026-10-12.3`
 - **Periksa lagi: "Tampilkan" berpindah dari satu tempat ke tempat berikutnya.** Untuk temuan yang muncul di beberapa tempat (judul ganda, baris ganda, terapi ganda), tombolnya bertuliskan **Tampilkan (2)**:
   - tekan pertama ke tempat pertama;

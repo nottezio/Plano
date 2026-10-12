@@ -93,7 +93,7 @@ describe('buildFormasi', () => {
   it('takes the post-midnight DPJP from the NEXT calendar day', () => {
     // The consultant on call changes at 00.00 WITA, which is a date boundary
     // — not a second column of the same row.
-    expect(text).toContain('_DPJP Utama : dr. Asrul_');
+    expect(text).toContain('_DPJP Utama dan Tindakan: dr. Asrul_');
     expect(text).toContain('*DPJP Utama dan Tindakan setelah Pk. 00.00 WITA*');
     expect(text).toContain('_DPJP Utama : dr. Pendrik_');
   });
@@ -261,7 +261,7 @@ describe('DPJP swaps', () => {
     const text = buildFormasi(SHIFT, posts, null, at, new Set(), {
       '2026-09-17': { utama: 'dr. Sendiri', tindakan: 'dr. Sendiri' },
     });
-    expect(text).toContain('_DPJP Utama : dr. Sendiri_');
+    expect(text).toContain('_DPJP Utama dan Tindakan: dr. Sendiri_');
   });
 });
 
@@ -410,7 +410,7 @@ describe('weekend shifts (Pagi / Malam)', () => {
   it('prints the post-midnight DPJP for the night team only', () => {
     const posts = resolveShift(pagi, { ...ROSTER, shifts: [pagi, malam] }, JARKOM);
     const morning = buildFormasi(pagi, posts, weekendDpjp, at);
-    expect(morning).toContain('_DPJP Utama : Prof. A_');
+    expect(morning).toContain('_DPJP Utama dan Tindakan: Prof. A_');
     expect(morning).not.toContain('setelah Pk. 00.00');
     expect(morning).not.toContain('dr. B');
     const night = buildFormasi(malam, posts, weekendDpjp, at);
@@ -431,5 +431,44 @@ describe('weekend shifts (Pagi / Malam)', () => {
         'Mohon maaf mengganggu. Saya Avi, yang bertugas jaga di Bangsal PJT A pada _Sabtu Pagi, 5 September 2026_. Saya ingin mengonfirmasi apakah dokter bertugas sebagai *Chief Jaga PJT* pada hari tersebut. Mohon arahan dan bimbingannya. Terima kasih, dokter.',
       ].join('\n'),
     );
+  });
+});
+
+describe('Formasi in Avi\u2019s format (2026-10-12)', () => {
+  const friday: JagaShift = { date: '2026-10-09', shift: 'penuh', hari: 'Jumat', posts: { chiefPjt: 'HM' } };
+  const roster: DpjpRoster = {
+    title: 'OKTOBER 2026',
+    days: [
+      { date: '2026-10-09', utama: 'Dr. dr. Utama Satu', tindakan: 'Dr. dr. Utama Satu' },
+      { date: '2026-10-10', utama: 'dr. Malam Utama', tindakan: 'dr. Malam Tindakan' },
+    ],
+    importedAt: '',
+  };
+  const text = buildFormasi(friday, resolveShift(friday, { ...ROSTER, shifts: [friday] }, JARKOM), roster, new Date(2026, 9, 9, 13, 0));
+  const lines = text.split('\n');
+
+  it('one line when one consultant is Utama and Tindakan, then the onsite DPJP', () => {
+    const at = lines.indexOf('_DPJP Utama dan Tindakan: Dr. dr. Utama Satu_');
+    expect(at).toBeGreaterThan(-1);
+    // Friday: dr. AHA, 14.00–21.00.
+    expect(lines[at + 1]).toBe('_DPJP Onsite: Dr. dr. Abdul Hakim Alkatiri, Sp.JP(K)_');
+  });
+
+  it('puts the post-midnight pair before the closing', () => {
+    expect(text.indexOf('*DPJP Utama dan Tindakan setelah Pk. 00.00 WITA*')).toBeLessThan(text.indexOf('Mohon arahannya dokter'));
+    expect(lines.at(-1)).toBe('Mohon arahannya dokter. Terima kasih dokter.');
+  });
+
+  it('two lines when Utama and Tindakan differ', () => {
+    const saturday: JagaShift = { ...friday, date: '2026-10-10', hari: 'Sabtu', shift: 'pagi' };
+    const out = buildFormasi(saturday, [], roster, new Date());
+    expect(out).toContain('_DPJP Utama : dr. Malam Utama_\n_DPJP Tindakan : dr. Malam Tindakan_\n_DPJP Onsite: Prof. Dr. dr. Muzakkir Amir, Sp.JP(K)_');
+  });
+
+  it('no onsite line on Sunday, nor for the night team', () => {
+    const sunday: JagaShift = { ...friday, date: '2026-10-11', hari: 'Minggu', shift: 'pagi' };
+    expect(buildFormasi(sunday, [], roster, new Date())).not.toContain('Onsite');
+    const night: JagaShift = { ...friday, date: '2026-10-10', hari: 'Sabtu Malam', shift: 'malam' };
+    expect(buildFormasi(night, [], roster, new Date())).not.toContain('Onsite');
   });
 });

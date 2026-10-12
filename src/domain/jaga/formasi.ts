@@ -1,6 +1,7 @@
 import { expandOpeningTokens, timeOfDayWord } from '@/domain/opening';
 
 import { jarkomFor } from './match';
+import { onsiteFor } from './onsite';
 import { JAGA_POSTS, type JagaPostId } from './types';
 import type { DpjpDay, DpjpRoster, JagaRoster, JagaShift, JarkomDirectory, JarkomEntry } from './types';
 
@@ -311,8 +312,18 @@ export function buildFormasi(
   ];
 
   if (today) {
-    lines.push(`_DPJP Utama : ${today.utama}_`, `_DPJP Tindakan : ${today.tindakan}_`, '');
+    // One line when one consultant holds both (Avi's format, 2026-10-12).
+    const same = today.utama.trim().toLowerCase() === today.tindakan.trim().toLowerCase();
+    if (same) lines.push(`_DPJP Utama dan Tindakan: ${today.utama}_`);
+    else lines.push(`_DPJP Utama : ${today.utama}_`, `_DPJP Tindakan : ${today.tindakan}_`);
   }
+  /*
+    DPJP Onsite IGD 14.00–21.00 (2026-10-12), from the weekday schedule in
+    `onsite.ts`. Not for a MALAM team: it comes on after the onsite hours.
+  */
+  const onsite = shift.shift === 'malam' ? null : onsiteFor(shift.date);
+  if (onsite) lines.push(`_DPJP Onsite: ${onsite.name}_`);
+  if (today || onsite) lines.push('');
 
   lines.push(`*Hari/Tanggal : ${shiftDateLabel(shift.date, shift.shift)}*`, '');
 
@@ -337,8 +348,7 @@ export function buildFormasi(
     lines.push(`${post.label} : ${who}${pending}`);
   }
 
-  lines.push('', 'Mohon arahannya dokter. Terima kasih dokter.');
-
+  // The post-midnight pair comes BEFORE the closing (Avi's format, 2026-10-12).
   if (tomorrow) {
     lines.push(
       '',
@@ -347,6 +357,8 @@ export function buildFormasi(
       `_DPJP Tindakan : ${tomorrow.tindakan}_`,
     );
   }
+
+  lines.push('', 'Mohon arahannya dokter. Terima kasih dokter.');
 
   return lines.join('\n');
 }

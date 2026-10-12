@@ -1,5 +1,28 @@
 # Plano — CHANGES
 
+## `2026-10-12.4` — Formasi Jaga: DPJP Onsite IGD; one-line Utama dan Tindakan; post-midnight block before closing
+
+- `domain/jaga/onsite.ts` (new): `ONSITE_IGD` weekday → registry id (Avi,
+  12-10: Sen KS, Sel ZD, Rab AHN, Kam MAA, Jum AHA, Sab MZ; Minggu none),
+  `onsiteFor(date)`. The name printed is the registry's.
+- `buildFormasi`:
+  - "_DPJP Utama dan Tindakan: X_" when both names are equal (case/space
+    insensitive), else the two lines as before;
+  - "_DPJP Onsite: …_" after them, for `penuh` and `pagi` teams;
+  - the post-midnight block moved before "Mohon arahannya dokter" (Avi's
+    example).
+- **Decision:** no onsite line for a `malam` team (assumed to start after
+  21.00). If the Saturday night team should carry it, it is one condition.
+- Tests: onsite per weekday, Sunday, the Friday example's line order, the
+  split pair, the night team; three expectations updated to the new format.
+- Not done: the onsite schedule is code, not a Setting; a swap needs a
+  release (or a later edit field like the DPJP swaps).
+
+### Verify
+```
+npm run verify → typecheck, lint, 156 files / 2303 tests, version, contrast, a11y, build: all green
+```
+
 ## `2026-10-12.3` — Findings step through their occurrences; Terapi/Selesai compares identical lines
 
 ### Stepping through a finding's places
