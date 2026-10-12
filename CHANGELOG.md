@@ -5,6 +5,15 @@ Catatan teknis lengkap (akar masalah, perbaikan) ada di CHANGES.md.
 
 Entri teratas harus versi yang sedang dirilis; tes gagal bila belum ditulis.
 
+## `2026-10-13.3`
+- **Sensus: DPJP di list IGD dan CVCU/HCU/ICU kini terbaca.** Sebelumnya pasien dengan tulisan seperti di bawah ini masuk **Perlu dicek**:
+  - "/DPJP Prof PK" (dengan kata DPJP);
+  - "RM 1724699 dr. AHN" (kode sesudah RM tanpa garis miring);
+  - "dr. KS (KJS BTKV) (Haliim - Malik)" (lebih dari satu kurung).
+
+  Pada list IGD dan CVCU yang Anda kirim, semua 30 pasien kini mendapat DPJP-nya; 6 pasien tadi tidak lagi masuk Perlu dicek.
+- **Nama residen dalam kurung** ("(Haliim - Hendra)", "(Arago - dr. Hendra)") tidak lagi ikut tercetak di sensus. Catatan seperti "(KJS BTKV)" tetap ada.
+
 ## `2026-10-13.2`
 - **Blok TS kini dikenali walau tidak ditebalkan.** Rekan biasa menulis "TS Neuro", "Ts EMD", atau "TS GH/" pada barisnya sendiri. Sebelumnya hanya "*TS BTKV*" (tebal) yang terbaca sebagai judul. Pada 328 dari 517 laporan di grup Lt 4/Lt 5, isi TS (A/, P/, I/) ikut terbaca sebagai **Plan kita**. Sekarang:
   - **Salin → Plan** tidak lagi ikut menyalin rencana konsulen; isi TS masuk ke **Terapi + TS**.

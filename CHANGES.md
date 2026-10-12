@@ -1,5 +1,29 @@
 # Plano — CHANGES
 
+## `2026-10-13.3` — Sensus: DPJP codes on the IGD and CVCU/HCU/ICU lists
+
+- **Bug — 6 of 30 patients on today's IGD + CVCU lists in "Perlu dicek"
+  (no DPJP).** Root cause: `segmentCodes` accepted a slash segment that is
+  exactly a code with an optional title and ONE bracket. The two lists also
+  write (a) the word DPJP before it ("/DPJP Prof PK", "DPJP Prof MZ"), (b) the
+  code after the RM with a space, not a slash ("RM 1724699 dr. AHN (Firah
+  -Malik)"), (c) several brackets after the code ("dr. KS (KJS BTKV) (Haliim
+  - Malik)", "(Arago- Malik) (Pemantauan)"). Fix: `CODE_RE` takes an optional
+  "DPJP" word and any number of brackets; `slashBeforeCode` turns "<RM
+  number> <title> CODE" into a segment (only after a 4+ digit number and only
+  with a title/DPJP word, so "(Ara - dr. Malik)" never moves). After: 30/30
+  assigned.
+- **Printed line:** `tidy` drops the CVCU resident pair "(Name - [dr.] Name)"
+  on the bed line and after the code; "(KJS BTKV)" stays.
+- Bed-only rows ("HCU Bed 1 / Pasien Pedi", "ICU bed 3 / BTKV Pedi",
+  "IGD Redzone bed 5 / pasien GH") stay out: no identity to list.
+- Tests: the three shapes (anonymised), resident-pair stripping.
+
+### Verify
+```
+npm run verify → typecheck, lint, 163 files / 2399 tests, version, contrast, a11y, build: all green
+```
+
 ## `2026-10-13.2` — Bare TS headings are sections (Salin Plan no longer carries consultants' orders); bare Plan past Selesai
 
 Audit (Avi: "have you learnt the SOAP for section recognition — Salin by

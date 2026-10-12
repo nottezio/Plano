@@ -146,6 +146,8 @@ export function knownCodes(sources: readonly ParsedSource[]): Set<string> {
 }
 
 const TITLE = String.raw`(?:(?:dr|prof|dokter)\.?\s*)`;
+/** "DPJP Prof PK", "DPJP prof PK" (12.12: the IGD list writes the word). */
+const DPJP_WORD = String.raw`(?:dpjp\s*:?\s*)?`;
 const SECTION_RE = new RegExp(String.raw`^${TITLE}+([A-Za-z]{2,4})\b\s*(?:[:(]|$)`, 'i');
 
 /** "*🫀 dr. KS : 2 pasien*", "Prof.MZ (1 Pasien)" → "KS" / "MZ". */
@@ -156,10 +158,27 @@ export function sectionDpjp(line: string): string | null {
   return match ? match[1]!.toUpperCase() : null;
 }
 
+/*
+  12.12 (Avi, "frequently mis-parses the DPJP name" on the IGD and CVCU
+  lists): the segment may start with the word "DPJP" ("/DPJP Prof PK"), and
+  may carry more than one bracket after the code — "dr. KS (KJS BTKV) (Haliim
+  - Malik)", "Prof MZ (Arago- Malik) (Pemantauan)".
+*/
 const CODE_RE = new RegExp(
-  String.raw`^(${TITLE}*)([A-Za-z]{2,4})(?:\s*\([^)]*\))?(?:\s*-\s*(${TITLE}*)([A-Za-z]{2,4}))?\s*\*?$`,
+  String.raw`^${DPJP_WORD}(${TITLE}*)([A-Za-z]{2,4})(?:\s*\([^)]*\))*(?:\s*-\s*(${TITLE}*)([A-Za-z]{2,4}))?(?:\s*\([^)]*\))*\s*\*?$`,
   'i',
 );
+
+/**
+ * The code written after the RM with a space, not a slash: "RM 1724699 dr.
+ * AHN (Firah - Malik)", "RM 1743458 Prof MZ (Ara - dr. Malik)" (CVCU list,
+ * 12.12). A slash is put in its place so the code is a segment like any
+ * other. Only after a number (the RM) and only with a title or the word DPJP,
+ * so a resident in brackets ("Ara - dr. Malik") is never moved.
+ */
+function slashBeforeCode(text: string): string {
+  return text.replace(/(\d{4,})\s+((?:dpjp\s*:?\s*)?(?:dr|prof)\.?\s*[A-Za-z]{2,4}\b)/gi, '$1/ $2');
+}
 
 /**
  * The DPJP codes a slash segment names, or null.
@@ -365,6 +384,11 @@ function tidy(text: string): string {
     // is for the ward, not the consultant. Capitalised words only: "(EP)"
     // and "(KJS …)" say something about the patient and stay.
     .replace(/\s*\(\s*[A-Z][a-z]{2,10}\s*\)\s*$/, '')
+    // The CVCU list's resident pair, after the code or on the bed line —
+    // "(Haliim - Hendra)", "(Arago - dr. Hendra)", "(Findy-Angga)" (12.12) —
+    // is the ward's, like the single nickname above.
+    .replace(/\s*\(\s*(?:dr\.?\s*)?[A-Z][a-z]{2,12}\s*-\s*(?:dr\.?\s*)?[A-Z][a-z]{2,12}\s*\)/g, '')
+    .replace(/\s*\(\s*[A-Z][a-z]{2,10}\s*\)\s*$/, '')
     .replace(/[\s/*]+$/, '');
 }
 
@@ -381,7 +405,7 @@ function splitIdentity(
   hospital: boolean,
 ): { codes: string[]; location: string | null; rest: string; verbatim: boolean; asWritten: string } {
   const result = splitIdentityParts(line, heading, known, hospital);
-  const text = clean(line).replace(/^\s*kosong(?=\s*(?:tn|ny|nn|an|by)\b)/i, '').trim();
+  const text = slashBeforeCode(clean(line).replace(/^\s*kosong(?=\s*(?:tn|ny|nn|an|by)\b)/i, '').trim());
   const segs = segments(text);
   const tokenAt = segs.findIndex((seg) => segmentCodes(seg.text, known) !== null);
   // A trailing code ends the line: what follows is the resident ("/naima").
@@ -397,7 +421,7 @@ function splitIdentityParts(
   known: ReadonlySet<string>,
   hospital: boolean,
 ): { codes: string[]; location: string | null; rest: string; verbatim: boolean } {
-  const text = clean(line).replace(/^\s*kosong(?=\s*(?:tn|ny|nn|an|by)\b)/i, '').trim();
+  const text = slashBeforeCode(clean(line).replace(/^\s*kosong(?=\s*(?:tn|ny|nn|an|by)\b)/i, '').trim());
   const segs = segments(text);
   let tokenAt = -1;
   let codes: string[] = [];

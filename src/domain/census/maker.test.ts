@@ -770,3 +770,61 @@ describe('segmentCodes handover', () => {
     expect(segmentCodes('AHA -> Pulang', known)).toBeNull();
   });
 });
+
+describe('IGD and CVCU list shapes (12.12, Avi: DPJP often not read)', () => {
+  const igd = [
+    'Tabe dokter izin mengirimkan List Pasien IGD PJT *Selasa, 13-10-2026, pukul 07.00 WITA*',
+    '',
+    ' Red Zone: 2 Pasien',
+    '',
+    '1. IGD Red Zone Bed 1/ Tn. Contoh Satu/ 25-08-1970/56 Tahun/RM 1700001 /DPJP Prof PK',
+    'Diagnosis:',
+    '- NSTEMI',
+    '',
+    '2. IGD Red Zone Bed 6/Tn. Contoh Dua/05-12-1965/60 tahun/RM 1700002/DPJP prof PK',
+    'Diagnosis:',
+    '- Cardiogenic shock',
+  ].join('\n');
+  const cvcu = [
+    'Tabe dokter mohon izin mengirimkan',
+    'LIST PASIEN CVCU/HCU/ICU PJT:',
+    'Selasa, 13 Oktober 2026, Pukul 07.00 WITA',
+    '',
+    '*3. CVCU Bed 3*',
+    'Tn. Contoh Tiga/ 49 tahun / 31-12-1976/ RM 1700003/ *DPJP Prof MZ* (Arago- Malik) ( *Pemantauan* )',
+    'Diagnosis :',
+    '- STEMI',
+    '',
+    '13. CVCU Bed 13',
+    'Tn. Contoh Empat/ 09-06-1969/ 57 Tahun / RM 1700004 dr. AHN (Firah -Malik)',
+    'Diagnosis',
+    '- CCS',
+    '',
+    '15. CVCU Bed 15 (Ara - dr. Malik)',
+    'Tn.Contoh Lima / 56 tahun / 20-05-1970/ RM 1700005 Prof MZ (Ara - dr. Malik)',
+    '*Diagnosa*',
+    '- NSTEMI',
+    '',
+    '3. HCU Bed 3',
+    '*Nn. Contoh Enam / 12-06-2007 / 19 tahun / RM 1700006/dr. KS (KJS BTKV)* (Haliim - Malik)',
+    'Diagnosis',
+    '- POD-3 AVR',
+  ].join('\n');
+
+  it('reads "DPJP Prof PK", a code after the RM with a space, and codes followed by several brackets', () => {
+    const sources = [parseSource(igd), parseSource(cvcu)];
+    const known = knownCodes(sources);
+    const all = [parseSource(igd, known), parseSource(cvcu, known)].flatMap((s) => s.entries);
+    expect(all.map((e) => e.dpjps.join('+'))).toEqual(['PK', 'PK', 'MZ', 'AHN', 'MZ', 'KS']);
+  });
+
+  it('drops the resident pair, keeps the KJS note', () => {
+    const entries = parseSource(cvcu).entries;
+    expect(entries.map((e) => e.asWritten)).toEqual([
+      'CVCU Bed 3/ Tn. Contoh Tiga/ 49 tahun / 31-12-1976/ RM 1700003/ DPJP Prof MZ',
+      'CVCU Bed 13/ Tn. Contoh Empat/ 09-06-1969/ 57 Tahun / RM 1700004/ dr. AHN',
+      'CVCU Bed 15/ Tn.Contoh Lima / 56 tahun / 20-05-1970/ RM 1700005/ Prof MZ',
+      'HCU Bed 3/ Nn. Contoh Enam / 12-06-2007 / 19 tahun / RM 1700006/dr. KS (KJS BTKV)',
+    ]);
+  });
+});
