@@ -1,5 +1,39 @@
 # Plano — CHANGES
 
+## `2026-10-12.3` — Findings step through their occurrences; Terapi/Selesai compares identical lines
+
+### Stepping through a finding's places
+- `SoapFinding.occurrences` (new): every place a finding is about, in note
+  order. `duplicate-heading` now emits one finding PER heading with all its
+  places (was: the first pair only); `duplicate-line` and
+  `therapy-also-finished` carry both places.
+- PatientPage: a finding with ≥2 occurrences gets a cycling button:
+  "Tampilkan (n)" → place 1, "Berikutnya (k/n)" → place k, "Ke atas" →
+  `BodyEditorHandle.scrollToTop()` (new: caret to 0, `main` to top), then
+  the round restarts. Step state per finding (kind+message). Each place is
+  re-checked against the live text and searched for if it moved.
+- Checked in the harness: 3-occurrence heading → scrollTop 0 (first in view),
+  1656, 2888, 0, and the heading selected each time.
+
+### Terapi vs Selesai (Avi: false positive)
+- **Root cause:** 12.1 matched by DRUG (name up to the first number), so a
+  repeat course, e.g. "KCl … (pemberian kedua)" running and "KCl … (I)"
+  finished, which is a new order, was flagged.
+- **Fix:** compare the whole LINE (no bullet, single spaces, any case). Only
+  a line moved to Selesai without being removed above is reported. The
+  message names the line; `drugKey` removed.
+- Tests updated: the KCl repeat no longer fires; an identical Ceftriaxone line
+  does, with both places.
+
+### Verify
+```
+npm run verify → typecheck, lint, 155 files / 2297 tests, version, contrast, a11y, build: all green
+```
+
+### Housekeeping
+- The stray `new.md5.txt` committed in 12.2 is deleted from Avi's folder in
+  this delivery (his commit removes it).
+
 ## `2026-10-12.2` — Sensus maker: unnumbered CVCU/HCU/ICU bed lines; DPJP handover arrow
 
 ### CVCU list read as one patient (bug)

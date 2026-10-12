@@ -56,6 +56,8 @@ export interface BodyEditorHandle {
    * would raise the phone keyboard over the very line it jumped to.
    */
   revealLine: (start: number, end: number) => void;
+  /** Back to the top of the page, caret at the start (end of a "Tampilkan" round). */
+  scrollToTop: () => void;
 }
 
 export const METRICS =
@@ -468,7 +470,14 @@ export function BodyEditor({
     ];
   }, []);
 
-  useImperativeHandle(handleRef, () => ({ selectRange, revealLine }), [selectRange, revealLine]);
+  const scrollToTop = useCallback(() => {
+    const node = ref.current;
+    if (!node) return;
+    node.setSelectionRange(0, 0);
+    node.closest('main')?.scrollTo({ top: 0, behavior: 'smooth' });
+  }, []);
+
+  useImperativeHandle(handleRef, () => ({ selectRange, revealLine, scrollToTop }), [selectRange, revealLine, scrollToTop]);
 
   const applyEdit = useCallback(
     (edit: TextEdit) => {

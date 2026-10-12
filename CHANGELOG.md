@@ -5,6 +5,14 @@ Catatan teknis lengkap (akar masalah, perbaikan) ada di CHANGES.md.
 
 Entri teratas harus versi yang sedang dirilis; tes gagal bila belum ditulis.
 
+## `2026-10-12.3`
+- **Periksa lagi: "Tampilkan" berpindah dari satu tempat ke tempat berikutnya.** Untuk temuan yang muncul di beberapa tempat (judul ganda, baris ganda, terapi ganda), tombolnya bertuliskan **Tampilkan (2)**:
+  - tekan pertama ke tempat pertama;
+  - lalu **Berikutnya (2/2)** ke tempat berikutnya;
+  - lalu **Ke atas** kembali ke awal catatan, dan putarannya mulai lagi.
+  - Setiap judul ganda kini menjadi temuan tersendiri.
+- **Terapi ganda direvisi:** obat yang diberikan lagi setelah pemberian sebelumnya selesai (mis. "KCl … (pemberian kedua)" di Terapi dan "KCl … (I)" di Selesai) **tidak lagi** ditandai. Yang ditandai hanya baris yang **sama persis** di Terapi dan di Selesai.
+
 ## `2026-10-12.2`
 - **Buat Sensus: list CVCU/HCU/ICU kini terbaca lengkap.** List yang menulis bed tanpa nomor ("CVCU Bed 1", "HCU Bed 3", "ICU bed 4", "CVCU Super VIP", "CVCU Isolasi") sebelumnya hanya terbaca satu pasien (yang bernomor, "1. ICU 5"); pasien lain dianggap bagian plan pasien tersebut. Kini setiap bed terbaca. Pada list 12-10, 16 pasien terbaca (sebelumnya 1). Bed "Kosong", "pasien dr. NP" dan "Pediatri" tetap dilewati.
 - **Pergantian DPJP di baris pasien** ("AHA->AHN") dibaca sebagai DPJP sesudah tanda panah (AHN). Barisnya tetap ditulis seperti aslinya.

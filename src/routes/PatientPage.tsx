@@ -751,6 +751,8 @@ export default function PatientPage(): JSX.Element {
     }),
     [hariRawat, patient?.ward, patient?.room, patient?.bed, patient?.reminderDone, dpjp?.id, dpjp?.initials, plannedDischarge, selected],
   );
+  /** Per finding with several places: which one "Tampilkan" goes to next. */
+  const [occurrenceStep, setOccurrenceStep] = useState<Record<string, number>>({});
   const soapFindings = useMemo(
     () =>
       checkSoap({
@@ -1151,7 +1153,39 @@ export default function PatientPage(): JSX.Element {
                 <li key={finding.kind + finding.message} className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
                   <FindingTag level={finding.level} />
                   <span className="min-w-0 flex-1 text-fg">{finding.message}</span>
-                  {finding.anchor ? (
+                  {finding.occurrences && finding.occurrences.length > 1 ? (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        /*
+                          Several places (2026-10-12): each press goes to the
+                          next one, and the press after the last goes back to
+                          the top; the round then starts again.
+                        */
+                        const key = finding.kind + finding.message;
+                        const places = finding.occurrences!;
+                        const step = occurrenceStep[key] ?? 0;
+                        setOccurrenceStep((current) => ({ ...current, [key]: (step + 1) % (places.length + 1) }));
+                        afterPhoneSheet(() => {
+                          if (step >= places.length) {
+                            editorHandle.current?.scrollToTop();
+                            return;
+                          }
+                          const place = places[step]!;
+                          const exact = editor.value.slice(place.at, place.at + place.text.length) === place.text;
+                          const at = exact ? place.at : editor.value.indexOf(place.text, step > 0 ? (places[step - 1]?.at ?? 0) + 1 : 0);
+                          if (at >= 0) editorHandle.current?.selectRange(at, at + place.text.length);
+                        });
+                      }}
+                      className="min-h-tap shrink-0 text-accent underline decoration-dotted [@media(pointer:fine)]:min-h-0"
+                    >
+                      {(() => {
+                        const step = occurrenceStep[finding.kind + finding.message] ?? 0;
+                        const count = finding.occurrences.length;
+                        return step === 0 ? `Tampilkan (${count})` : step < count ? `Berikutnya (${step + 1}/${count})` : 'Ke atas';
+                      })()}
+                    </button>
+                  ) : finding.anchor ? (
                     <button
                       type="button"
                       onClick={() => {

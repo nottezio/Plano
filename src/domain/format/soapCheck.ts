@@ -77,6 +77,12 @@ export interface SoapFinding {
    * each jumpable and each can be advanced by one on its own.
    */
   markers?: Array<{ text: string; value: number; at: number }>;
+  /**
+   * Every place the finding is about, in note order (2026-10-12): a heading
+   * written twice is two places. "Tampilkan" steps through them, then back
+   * to the top.
+   */
+  occurrences?: Array<{ at: number; text: string }>;
 }
 
 /**
@@ -788,7 +794,7 @@ function checkHariRawat(body: string, previous: string | undefined): SoapFinding
  */
 function checkDuplicates(sections: readonly ParsedSection[]): SoapFinding[] {
   for (const section of sections) {
-    const seen = new Map<string, number>();
+    const seen = new Map<string, { at: number; text: string }>();
     const contentStart = section.start + (section.headerLine?.length ?? 0);
     let offset = contentStart;
     for (const line of section.text.split('\n')) {
@@ -798,18 +804,21 @@ function checkDuplicates(sections: readonly ParsedSection[]): SoapFinding[] {
       if (isBlockHeading(line)) seen.clear();
       const key = line.replace(/^[\s\-•*_>]+/, '').replace(/\s+/g, ' ').trim().toLowerCase();
       if (key.length >= 15 && !isBlockHeading(line)) {
-        if (seen.has(key)) {
+        const here = { at: offset + line.indexOf(line.trim()), text: line.trim() };
+        const first = seen.get(key);
+        if (first) {
           return [
             {
               kind: 'duplicate-line',
               level: 'cek',
               message: `Baris ganda: “${line.trim().slice(0, 50)}${line.trim().length > 50 ? '…' : ''}”.`,
               anchor: line.trim(),
-              at: offset + line.indexOf(line.trim()),
+              at: here.at,
+              occurrences: [first, here],
             },
           ];
         }
-        seen.set(key, offset);
+        seen.set(key, here);
       }
       offset += line.length + 1;
     }
@@ -837,42 +846,43 @@ function isBlockHeading(line: string): boolean {
  * repeated; they need merging or a time each.
  */
 function checkDuplicateHeadings(body: string): SoapFinding[] {
-  const seen = new Map<string, number>();
+  const seen = new Map<string, { label: string; places: Array<{ at: number; text: string }> }>();
   let offset = 0;
   for (const line of body.split('\n')) {
     if (isBlockHeading(line) && DATE_IN_LINE.test(line)) {
       const label = line.replace(/[*_]/g, '').replace(/\s+/g, ' ').trim();
       const key = label.toLowerCase();
-      const count = (seen.get(key) ?? 0) + 1;
-      seen.set(key, count);
-      if (count === 2) {
-        return [
-          {
-            kind: 'duplicate-heading',
-            level: 'cek',
-            message: `Judul ganda: “${label}” muncul dua kali. Gabungkan, atau tulis jam pada masing-masing.`,
-            anchor: line.trim(),
-            at: offset + line.indexOf(line.trim()),
-          },
-        ];
-      }
+      const entry = seen.get(key) ?? { label, places: [] };
+      entry.places.push({ at: offset + line.indexOf(line.trim()), text: line.trim() });
+      seen.set(key, entry);
     }
     offset += line.length + 1;
   }
-  return [];
+  // One finding per heading, each with every place it is written.
+  return [...seen.values()]
+    .filter((entry) => entry.places.length > 1)
+    .map((entry) => ({
+      kind: 'duplicate-heading' as const,
+      level: 'cek' as const,
+      message: `Judul ganda: “${entry.label}” muncul ${entry.places.length === 2 ? 'dua' : String(entry.places.length)} kali. Gabungkan, atau tulis jam pada masing-masing.`,
+      anchor: entry.places[0]!.text,
+      at: entry.places[0]!.at,
+      occurrences: entry.places,
+    }));
 }
 
-/** "KCl 25 mEq dalam…" → "kcl": the drug, read up to its first number. */
-function drugKey(line: string): string {
-  const text = line.replace(/^[\s\-•*_>]+/, '').trim().toLowerCase();
-  const name = (/^[^\d(]+/.exec(text)?.[0] ?? '').replace(/\s+/g, ' ').trim();
-  return name.length >= 3 ? name : '';
+/** A therapy line compared as written: no bullet, single spaces, any case. */
+function therapyKey(line: string): string {
+  return line.replace(/^[\s\-•*_>]+/, '').replace(/\s+/g, ' ').trim().toLowerCase();
 }
 
 /**
- * A drug in OUR running Terapi list that is also under "Selesai :"
- * (2026-10-12). Sometimes right (a first dose done, the second running), often
- * a line that was moved without being removed: worth a look either way.
+ * The SAME therapy line in our running Terapi list and under "Selesai :"
+ * (2026-10-12): a line moved to Selesai without being removed above.
+ *
+ * Compared line to line, not drug to drug (Avi, 12-10): a drug given again
+ * after a finished course ("KCl … (pemberian kedua)" running, "KCl … (I)"
+ * finished) is a new order, not a double. Only an identical line is.
  */
 function checkTherapyFinished(body: string, sections: readonly ParsedSection[]): SoapFinding[] {
   const index = sections.findIndex((section) => section.sectionId === 'terapi');
@@ -885,31 +895,33 @@ function checkTherapyFinished(body: string, sections: readonly ParsedSection[]):
   const content = body.slice(terapi.textStart, end);
   const done = SELESAI_HEADING.exec(content);
   if (!done) return [];
-  const running = new Map<string, string>();
+  const running = new Map<string, { at: number; text: string }>();
+  let offset = terapi.textStart;
   for (const line of content.slice(0, done.index).split('\n')) {
-    const key = drugKey(line);
-    if (key) running.set(key, line.trim());
+    const key = therapyKey(line);
+    if (key.length >= 3 && !running.has(key)) running.set(key, { at: offset + line.indexOf(line.trim()), text: line.trim() });
+    offset += line.length + 1;
   }
-  let offset = terapi.textStart + done.index + done[0].length + 1;
+  offset = terapi.textStart + done.index + done[0].length + 1;
+  const findings: SoapFinding[] = [];
   for (const line of content.slice(done.index + done[0].length + 1).split('\n')) {
     if (!line.trim()) break; // The sub-list ends at the first blank line.
-    const key = drugKey(line);
-    const runningLine = key ? running.get(key) : undefined;
-    if (runningLine) {
-      const name = /^[\s\-•*_>]*([^\d(]+)/.exec(line)?.[1]?.trim() ?? key;
-      return [
-        {
-          kind: 'therapy-also-finished',
-          level: 'cek',
-          message: `${name} ada di Terapi dan juga di Selesai. Pastikan mana yang masih berjalan.`,
-          anchor: line.trim(),
-          at: offset + line.indexOf(line.trim()),
-        },
-      ];
+    const first = running.get(therapyKey(line));
+    if (first) {
+      const here = { at: offset + line.indexOf(line.trim()), text: line.trim() };
+      const shown = line.trim().replace(/^[-•*]\s*/, '');
+      findings.push({
+        kind: 'therapy-also-finished',
+        level: 'cek',
+        message: `“${shown.slice(0, 50)}${shown.length > 50 ? '…' : ''}” tertulis sama di Terapi dan di Selesai. Hapus salah satunya.`,
+        anchor: here.text,
+        at: here.at,
+        occurrences: [first, here],
+      });
     }
     offset += line.length + 1;
   }
-  return [];
+  return findings;
 }
 
 /**

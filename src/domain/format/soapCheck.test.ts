@@ -731,8 +731,12 @@ describe('duplicates (2026-10-12)', () => {
   it('flags the same dated heading written twice', () => {
     const found = checkSoap({ body: PACED }).find((finding) => finding.kind === 'duplicate-heading');
     expect(found?.message).toBe('Judul ganda: “Analisis Gas Darah PJT (09-10-2026)” muncul dua kali. Gabungkan, atau tulis jam pada masing-masing.');
-    // Pointing at the SECOND one.
-    expect(found?.at).toBe(PACED.lastIndexOf('Analisis Gas Darah PJT (09-10-2026)'));
+    // Every place it is written, in order, for "Tampilkan" to step through.
+    expect(found?.occurrences?.map((o) => o.at)).toEqual([
+      PACED.indexOf('Analisis Gas Darah PJT (09-10-2026)'),
+      PACED.lastIndexOf('Analisis Gas Darah PJT (09-10-2026)'),
+    ]);
+    expect(found?.at).toBe(found?.occurrences?.[0]?.at);
   });
 
   it('two tracings with their times are not a duplicate heading', () => {
@@ -740,16 +744,20 @@ describe('duplicates (2026-10-12)', () => {
   });
 });
 
-describe('a drug in Terapi and under Selesai (2026-10-12)', () => {
-  it('is pointed out, at the Selesai line', () => {
-    const found = checkSoap({ body: PACED }).find((finding) => finding.kind === 'therapy-also-finished');
-    expect(found?.message).toBe('KCl ada di Terapi dan juga di Selesai. Pastikan mana yang masih berjalan.');
-    expect(found?.at).toBe(PACED.indexOf('- KCl 25 mEq dalam NaCl 0,9% 500 cc habis dalam 12 jam (I)'));
+describe('a therapy line in Terapi and under Selesai (2026-10-12)', () => {
+  it('a drug given again after a finished course is NOT a double (Avi)', () => {
+    // KCl (pemberian kedua) running, KCl (I) finished: a new order.
+    expect(kinds(PACED)).not.toContain('therapy-also-finished');
   });
 
-  it('is silent when the finished drug is not running', () => {
-    const body = PACED.replace('- KCl 25 mEq dalam NaCl 0,9% 500 cc habis dalam 12 jam (pemberian kedua)\n', '');
-    expect(kinds(body)).not.toContain('therapy-also-finished');
+  it('the same line in both is pointed out, with both places', () => {
+    const body = PACED.replace('- Clopidogrel 75mg/24jam/oral', '- Clopidogrel 75mg/24jam/oral\n- Ceftriaxone 2gr/24jam/IV (H-3)');
+    const found = checkSoap({ body }).find((finding) => finding.kind === 'therapy-also-finished');
+    expect(found?.message).toBe('“Ceftriaxone 2gr/24jam/IV (H-3)” tertulis sama di Terapi dan di Selesai. Hapus salah satunya.');
+    expect(found?.occurrences?.map((o) => o.at)).toEqual([
+      body.indexOf('- Ceftriaxone 2gr/24jam/IV (H-3)'),
+      body.lastIndexOf('- Ceftriaxone 2gr/24jam/IV (H-3)'),
+    ]);
   });
 });
 
