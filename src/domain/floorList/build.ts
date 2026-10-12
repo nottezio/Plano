@@ -111,10 +111,22 @@ function dpjpOrder(patients: readonly FloorPatient[]): string[] {
   return [...LIST_DPJP_ORDER, ...new Set(extra), ...PEDIATRI_DPJP_IDS];
 }
 
-function countLabel(n: number, extra: { btkv: number; kjs: number }): string {
-  const btkv = extra.btkv > 0 ? ` (${extra.btkv} BTKV)` : '';
-  const kjs = extra.kjs > 0 ? ` + ${extra.kjs} KJS` : '';
-  return `${n} pasien${kjs}${btkv}`;
+/**
+ * "dr. AFG : 2 pasien (1 kardio, 1 KJS BTKV)" (12.12). It read "1 pasien
+ * (1 BTKV)", which Avi pointed out reads as TWO patients — one kardio and one
+ * BTKV — when the BTKV patient is one of the n. Now the split is spelled out,
+ * and a DPJP whose patients are all BTKV reads "1 pasien KJS BTKV". "+ n KJS"
+ * stays: those are patients filed under another DPJP, added on top.
+ */
+export function countLabel(n: number, extra: { btkv: number; kjs: number }): string {
+  const kardio = n - extra.btkv;
+  const own =
+    extra.btkv === 0
+      ? `${n} pasien`
+      : kardio === 0
+        ? `${n} pasien KJS BTKV`
+        : `${n} pasien (${kardio} kardio, ${extra.btkv} KJS BTKV)`;
+  return extra.kjs > 0 ? `${own} + ${extra.kjs} KJS` : own;
 }
 
 export function buildFloorList(patients: readonly FloorPatient[], options: ListOptions): string {

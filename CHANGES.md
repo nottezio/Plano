@@ -1,5 +1,40 @@
 # Plano — CHANGES
 
+## `2026-10-12.15` — List Maker: per-list panel state, batched paste, legacy callout only with legacy data; SOAP box jump row; clearer per-DPJP counts
+
+- **Bug — "Menghapus…" shown on the next list after a delete.** Root cause:
+  the tab panels (Anggota, List, Tempel, Riwayat) were rendered at the same
+  position for every list, so React kept one instance and its state across
+  a list change — the delete confirmation, a half-read paste, a typed
+  edition time. Fix: every list-scoped panel is keyed by `floor.id`, so a
+  different list is a fresh panel. (The delete box itself was right; it was
+  the wrong list's box.)
+- **Bug — a saved paste "appears only after switching tabs".** Root cause:
+  `PastePanel` awaited each write in turn; with the offline cache every
+  await is a server round trip plus the rules' `get()` of the floor, so a
+  full export (~120 patients) kept "Menyimpan…" up for most of a minute
+  while the denah had already filled in from the cache. Fix:
+  `writeRosterBatch` — the whole paste as batched writes (≤400 per batch):
+  one round trip, all-or-nothing; the panel clears before the commit. The
+  legacy move uses it too. Harness: 120 patients from the Lt 4 export → one
+  batch call.
+- **Legacy callout** ("Pindahkan data lama") now appears only when
+  `readLegacy` finds old data (read once per empty list); it showed on every
+  new list.
+- **SOAP box jump row** (`soapParts` + `SoapParts`): parts at S, O, A,
+  Terapi, Plan (parser sections that own their line) and at each bare
+  "TS …" line (the parser does not read those as headings); an early short
+  "Diagnosis :" keeps its name. Tinted sticky headings, census-style chips.
+  Parts join back to the text unchanged (tested).
+- **Counts:** `countLabel` → "n pasien (k kardio, b KJS BTKV)", "n pasien
+  KJS BTKV" when all are BTKV, "+ n KJS" unchanged.
+- Not done: the delete flow is still untested against the live rules.
+
+### Verify
+```
+npm run verify → typecheck, lint, 163 files / 2389 tests, version, contrast, a11y, build: all green
+```
+
 ## `2026-10-12.14` — Parser hardening from two new exports (Lt 4 Sept, Lt 5 Oct): A/T heading spellings, floor/room reading, Super VIP, IGD, TS Lain; section parser coverage; specialty spellings
 
 Corpus: Lt 4 1–22 Sept (678 messages, 402 reports, 122 patients) and Lt 5

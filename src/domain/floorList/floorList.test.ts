@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { splitChat } from './chat';
-import { buildFloorList, patientLine, splitFloorList } from './build';
+import { buildFloorList, countLabel, patientLine, splitFloorList } from './build';
 import { effective, newRosterPatient } from './floor';
 import { dischargeFlag, latestPatients, listBody, manualPatient, nicknameOf, onFloorNumber, otherDepartmentUtama, readReport } from './report';
 
@@ -259,7 +259,10 @@ describe('buildFloorList', () => {
     expect(lines).toContain('🤕KJS BTKV: LT 4 (1)');
     expect(lines).toContain('🫀 dr. PT : 0 pasien');
     expect(lines).toContain('🫀 Prof. MZ : 0 pasien + 1 KJS');
-    expect(lines).toContain('🫀 dr. AFG : 1 pasien (1 BTKV)');
+    expect(lines).toContain('🫀 dr. AFG : 1 pasien KJS BTKV');
+    expect(countLabel(2, { btkv: 1, kjs: 0 })).toBe('2 pasien (1 kardio, 1 KJS BTKV)');
+    expect(countLabel(5, { btkv: 0, kjs: 2 })).toBe('5 pasien + 2 KJS');
+    expect(countLabel(0, { btkv: 0, kjs: 1 })).toBe('0 pasien + 1 KJS');
     expect(lines).toContain('👶🏻 dr. YP : 0 pasien');
   });
 

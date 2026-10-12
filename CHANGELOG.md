@@ -5,6 +5,14 @@ Catatan teknis lengkap (akar masalah, perbaikan) ada di CHANGES.md.
 
 Entri teratas harus versi yang sedang dirilis; tes gagal bila belum ditulis.
 
+## `2026-10-12.15`
+- **List Maker, perbaikan:**
+  - **Setelah menghapus list**, list berikutnya tidak lagi menampilkan kotak "Menghapus…". Begitu pula isian di tab lain (Tempel, List, Riwayat) tidak terbawa saat berpindah list.
+  - **Menyimpan hasil Tempel (termasuk file export WhatsApp) kini langsung selesai**, tidak perlu pindah tab dulu. Semua pasien disimpan sekaligus dalam satu kali kirim.
+  - Kotak **"Ada data lama"** hanya muncul bila list itu memang punya data dari sebelum versi 12.12. Di list baru tidak muncul lagi.
+- **Kotak SOAP di denah: lompat ke bagian.** Ada deretan tombol (Diagnosis, S, O, Assessment, Terapi, Plan, TS …) dan judul berwarna yang tetap terlihat saat digulir, seperti di hasil sensus.
+- **Jumlah per DPJP lebih jelas:** "dr. AFG : 2 pasien (1 kardio, 1 KJS BTKV)". Bila semua pasiennya BTKV: "1 pasien KJS BTKV". Sebelumnya "1 pasien (1 BTKV)" terbaca seperti 2 pasien.
+
 ## `2026-10-12.14`
 - **Pembacaan SOAP lebih andal**, diuji pada contoh baru: grup Lt 4 (1–22 September, 402 laporan) dan Lt 5 (5–12 Oktober, 114 laporan).
   - **List Maker**: semua laporan Lt 4 kini terbaca lengkap. Sebelumnya 29 laporan kosong Diagnosis/Terapi-nya karena judulnya berbeda, mis. "Mohon izin dok, pasien kami diagnosis dengan", "Mohon izin kami asses pasien dengan", atau "Mohon Izin Kami Asses:".

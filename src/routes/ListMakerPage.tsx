@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 
 import { AppShell } from '@/components/common/AppShell';
@@ -9,7 +9,7 @@ import { ListPanel } from '@/components/floor/ListPanel';
 import { MembersPanel } from '@/components/floor/MembersPanel';
 import { PastePanel } from '@/components/floor/PastePanel';
 import { SoapFloat } from '@/components/floor/SoapFloat';
-import { acceptInvite, addRosterPatient, createFloor, readLegacy, writeChiefs } from '@/data/repositories/floors.repo';
+import { acceptInvite, createFloor, readLegacy, writeChiefs, writeRosterBatch } from '@/data/repositories/floors.repo';
 import { wardPlan } from '@/domain/denahPlan';
 import { canEdit, chiefsOf, isOwner, newRosterPatient, rosterView, type FloorDoc } from '@/domain/floorList/floor';
 import { ChiefsField } from '@/components/floor/ChiefsField';
@@ -103,13 +103,37 @@ export default function ListMakerPage(): JSX.Element {
     automatic, and only while the roster is empty.
   */
   const [migrating, setMigrating] = useState(false);
+  /*
+    Only offered when there IS old data (12.12): the callout showed on every
+    new, empty list, where the button did nothing. Read once per empty list.
+  */
+  const [legacyFor, setLegacyFor] = useState<{ floorId: string; count: number } | null>(null);
+  const rosterEmpty = editable && rosterState === 'ready' && roster.length === 0;
+  useEffect(() => {
+    if (!floor || !rosterEmpty || legacyFor?.floorId === floor.id) return;
+    let live = true;
+    readLegacy(floor.id)
+      .then(({ reports, manual }) => {
+        if (live) setLegacyFor({ floorId: floor.id, count: latestOf([...reports, ...manual]).length });
+      })
+      .catch(() => {
+        if (live) setLegacyFor({ floorId: floor.id, count: 0 });
+      });
+    return () => {
+      live = false;
+    };
+  }, [floor, rosterEmpty, legacyFor]);
+  const legacyCount = floor && legacyFor?.floorId === floor.id ? legacyFor.count : 0;
   const migrate = async (): Promise<void> => {
     if (!floor) return;
     setMigrating(true);
     try {
       const { reports, manual } = await readLegacy(floor.id);
       const at = new Date().toISOString();
-      for (const report of latestOf([...reports, ...manual])) await addRosterPatient(floor.id, newRosterPatient(report, at, myName));
+      await writeRosterBatch(
+        floor.id,
+        latestOf([...reports, ...manual]).map((report) => ({ kind: 'add' as const, patient: newRosterPatient(report, at, myName) })),
+      );
     } finally {
       setMigrating(false);
     }
@@ -203,11 +227,12 @@ export default function ListMakerPage(): JSX.Element {
 
             <Segmented label="Tampilan" value={tab} onChange={setTab} options={tabs} />
 
-            {editable && rosterState === 'ready' && roster.length === 0 ? (
-              <Callout title="List masih kosong">
+            {rosterEmpty && legacyCount > 0 ? (
+              <Callout title="Ada data lama">
                 <div className="flex flex-wrap items-center gap-2">
                   <span className="flex-1">
-                    Tempel SOAP di tab Tempel. Bila list ini sudah diisi sebelum pembaruan 12.12, pindahkan datanya ke list baru.
+                    List ini diisi sebelum pembaruan 12.12 ({legacyCount} pasien). Pindahkan ke daftar pasien yang baru, lalu
+                    periksa warnanya.
                   </span>
                   <Button size="sm" onClick={() => void migrate()} disabled={migrating}>
                     {migrating ? 'Memindahkan…' : 'Pindahkan data lama'}
@@ -225,6 +250,7 @@ export default function ListMakerPage(): JSX.Element {
             ) : null}
             {tab === 'list' ? (
               <ListPanel
+                key={floor.id}
                 floor={floor}
                 roster={roster}
                 view={view}
@@ -235,10 +261,10 @@ export default function ListMakerPage(): JSX.Element {
                 editions={editions}
               />
             ) : null}
-            {tab === 'tempel' && editable ? <PastePanel floor={floor} roster={roster} myName={myName} /> : null}
-            {tab === 'riwayat' ? <EditionsPanel floor={floor} editions={editions} /> : null}
+            {tab === 'tempel' && editable ? <PastePanel key={floor.id} floor={floor} roster={roster} myName={myName} /> : null}
+            {tab === 'riwayat' ? <EditionsPanel key={floor.id} floor={floor} editions={editions} /> : null}
             {tab === 'anggota' && uid ? (
-              <MembersPanel floor={floor} uid={uid} patients={[...view.active, ...view.left.map((p) => p.report)]} />
+              <MembersPanel key={floor.id} floor={floor} uid={uid} patients={[...view.active, ...view.left.map((p) => p.report)]} />
             ) : null}
             {isOwner(floor, uid) ? null : (
               <p className="text-[11px] text-fg-faint">

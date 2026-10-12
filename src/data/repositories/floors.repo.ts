@@ -226,6 +226,41 @@ export function addRosterPatient(floorId: string, patient: RosterPatient): Promi
   return trackWrite(setDoc(floorPatientDoc(floorId, key), { ...plain(data), updatedAt: serverTimestamp() }));
 }
 
+export type RosterChange =
+  | { kind: 'add'; patient: RosterPatient }
+  | { kind: 'report'; key: string; report: FloorPatient; log?: StatusChange | undefined }
+  | { kind: 'fields'; key: string; fields: Partial<Pick<RosterPatient, 'status' | 'pindahKe' | 'leftAt'>>; log?: StatusChange | undefined };
+
+/**
+ * A whole paste (or the legacy move) as batched writes (12.12).
+ *
+ * WHY: the paste awaited one write at a time, and with the offline cache each
+ * await is a server round trip (plus the rules' get() of the floor). A full
+ * WhatsApp export is ~120 patients, so "Menyimpan…" sat there for the better
+ * part of a minute while the denah behind it had long filled in from the local
+ * cache — Avi saw "it only appears after switching tabs". One batch per 400
+ * writes: a single round trip, and all-or-nothing, so a dropped connection
+ * cannot leave half a paste behind.
+ */
+export async function writeRosterBatch(floorId: string, changes: readonly RosterChange[]): Promise<void> {
+  for (let i = 0; i < changes.length; i += 400) {
+    const batch = writeBatch(floorDoc(floorId).firestore);
+    for (const change of changes.slice(i, i + 400)) {
+      if (change.kind === 'add') {
+        const { key, ...data } = change.patient;
+        batch.set(floorPatientDoc(floorId, key), { ...plain(data), updatedAt: serverTimestamp() });
+      } else {
+        batch.update(floorPatientDoc(floorId, change.key), {
+          ...(change.kind === 'report' ? { report: plain(change.report) } : plain(change.fields)),
+          ...(change.log ? { log: arrayUnion(plain(change.log)) } : {}),
+          updatedAt: serverTimestamp(),
+        });
+      }
+    }
+    await trackWrite(batch.commit());
+  }
+}
+
 /** A newer SOAP for a patient: only the report changes, never the status. */
 export function writeRosterReport(floorId: string, key: string, report: FloorPatient, log?: StatusChange): Promise<void> {
   return trackWrite(

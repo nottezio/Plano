@@ -7,6 +7,7 @@ import { readReports, type FloorPatient } from '@/domain/floorList/report';
 import { copyText } from '@/lib/clipboard';
 import { useBackToClose } from '@/lib/useBackToClose';
 import { useMediaQuery } from '@/hooks/useMediaQuery';
+import { SoapParts } from './SoapParts';
 
 /**
  * A patient's full SOAP in a floating box (12.8), for the DPJP visit.
@@ -252,9 +253,7 @@ export function SoapFloat({
           </div>
         </div>
       ) : (
-        <pre className="min-h-0 flex-1 overflow-y-auto whitespace-pre-wrap break-words px-4 py-3 font-sans text-[13px] leading-relaxed">
-          {patient.full}
-        </pre>
+        <SoapParts text={patient.full} />
       )}
 
       {floating ? (

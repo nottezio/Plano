@@ -1,7 +1,7 @@
 import { useState } from 'react';
 
 import { Button, Callout } from '@/components/common/ui';
-import { addRosterPatient, writeRosterFields, writeRosterReport } from '@/data/repositories/floors.repo';
+import { writeRosterBatch, type RosterChange } from '@/data/repositories/floors.repo';
 import { formatDmy } from '@/domain/dateDmy';
 import { newRosterPatient, pasteDiff, updatedReport, type FloorDoc, type PasteDiff, type RosterPatient } from '@/domain/floorList/floor';
 import { splitChat } from '@/domain/floorList/chat';
@@ -78,26 +78,30 @@ export function PastePanel({ floor, roster, myName }: { floor: FloorDoc; roster:
     const log = (what: string) => ({ at, by: myName, what });
     try {
       const fresh = reading.diff.fresh.filter((p) => !skipFresh.has(p.key));
-      for (const report of fresh) await addRosterPatient(floor.id, newRosterPatient(report, at, myName));
       const moved = new Set(reading.diff.moved.map((m) => m.before.key));
-      for (const { before, report } of reading.diff.updated) {
-        const acceptMove = moved.has(before.key) && !skipMove.has(before.key);
-        // Not a confirmed move: the stored room/bed stays (it may have been set by hand).
-        await writeRosterReport(
-          floor.id,
-          before.key,
-          updatedReport(before.report, report, acceptMove),
-          acceptMove ? log(`Pindah kamar ${where(before.report)} → ${where(report)}`) : undefined,
-        );
-      }
       const back = reading.diff.readmit.filter((r) => readmit.has(r.before.key));
-      for (const { before, report } of back) {
-        await writeRosterReport(floor.id, before.key, report);
-        await writeRosterFields(floor.id, before.key, { status: 'dirawat', leftAt: '', pindahKe: '' }, log('Masuk lagi (dari Tempel)'));
-      }
-      setSaved(`${fresh.length} pasien baru, ${reading.diff.updated.length} SOAP diperbarui${back.length ? `, ${back.length} masuk lagi` : ''}.`);
+      const changes: RosterChange[] = [
+        ...fresh.map((report): RosterChange => ({ kind: 'add', patient: newRosterPatient(report, at, myName) })),
+        ...reading.diff.updated.map(({ before, report }): RosterChange => {
+          const acceptMove = moved.has(before.key) && !skipMove.has(before.key);
+          // Not a confirmed move: the stored room/bed stays (it may have been set by hand).
+          return {
+            kind: 'report',
+            key: before.key,
+            report: updatedReport(before.report, report, acceptMove),
+            log: acceptMove ? log(`Pindah kamar ${where(before.report)} → ${where(report)}`) : undefined,
+          };
+        }),
+        ...back.flatMap(({ before, report }): RosterChange[] => [
+          { kind: 'report', key: before.key, report },
+          { kind: 'fields', key: before.key, fields: { status: 'dirawat', leftAt: '', pindahKe: '' }, log: log('Masuk lagi (dari Tempel)') },
+        ]),
+      ];
+      // Cleared first: the cache shows the result at once, the server confirms after.
       setReading(null);
       setText('');
+      await writeRosterBatch(floor.id, changes);
+      setSaved(`${fresh.length} pasien baru, ${reading.diff.updated.length} SOAP diperbarui${back.length ? `, ${back.length} masuk lagi` : ''}.`);
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Gagal menyimpan.');
     } finally {
