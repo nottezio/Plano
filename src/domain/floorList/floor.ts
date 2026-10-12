@@ -73,6 +73,12 @@ export interface RosterPatient {
   chief: string;
   /** `report.sentAt` whose suggestion was dismissed. */
   dismissed: string;
+  /**
+   * When the room/bed was last set by hand (local "YYYY-MM-DDTHH:MM", the
+   * same clock as `report.sentAt`). A SOAP sent before it still carries the
+   * old room and must not move the patient back.
+   */
+  placedAt: string;
   addedAt: string;
   log: StatusChange[];
 }
@@ -175,6 +181,7 @@ export function newRosterPatient(report: FloorPatient, at: string, by: string): 
     junior: '',
     chief: '',
     dismissed: '',
+    placedAt: '',
     addedAt: at,
     log: [{ at, by, what: 'Masuk list' }],
   };
@@ -227,7 +234,9 @@ export function pasteDiff(roster: readonly RosterPatient[], reports: readonly Fl
       continue;
     }
     diff.updated.push({ before, report });
-    if (report.room && (report.room !== stored.room || (report.bed || '') !== (stored.bed || ''))) diff.moved.push({ before, report });
+    const placeDiffers = report.room && (report.room !== stored.room || (report.bed || '') !== (stored.bed || ''));
+    // A SOAP written before the hand move still names the old room: not a move.
+    if (placeDiffers && report.sentAt > before.placedAt) diff.moved.push({ before, report });
   }
   return diff;
 }
@@ -238,6 +247,12 @@ export function pasteDiff(roster: readonly RosterPatient[], reports: readonly Fl
  */
 export function updatedReport(stored: FloorPatient, report: FloorPatient, acceptMove: boolean): FloorPatient {
   return acceptMove ? report : { ...report, room: stored.room, bed: stored.bed };
+}
+
+/** Local wall-clock stamp, the clock WhatsApp exports use ("2026-10-12T07:05"). */
+export function localStamp(at: Date): string {
+  const pad = (n: number): string => String(n).padStart(2, '0');
+  return `${at.getFullYear()}-${pad(at.getMonth() + 1)}-${pad(at.getDate())}T${pad(at.getHours())}:${pad(at.getMinutes())}`;
 }
 
 /** Patients who left since `since` (ISO), for the separate Pindah/Pulang note. */

@@ -156,3 +156,29 @@ export function buildFloorList(patients: readonly FloorPatient[], options: ListO
 
   return out.join('\n').replace(/\n{3,}/g, '\n\n').trimEnd();
 }
+
+export interface ListPart {
+  /** "🫀 dr. KS : 2 pasien" (bold stars removed). */
+  heading: string;
+  /** The patients under it (the text as copied, minus the heading). */
+  body: string;
+  /** Patients in the part, own + KJS (0 = an empty DPJP). */
+  count: number;
+}
+
+/**
+ * The list message cut at its separators, for the coloured view (12.12, Avi:
+ * "colour the list by section (DPJP) like the sensus result"). Display only:
+ * the copied text is `buildFloorList` unchanged.
+ */
+export function splitFloorList(text: string): { intro: string; parts: ListPart[] } {
+  const [intro = '', ...chunks] = text.split(`\n${SEPARATOR}\n`);
+  const parts = chunks.map((chunk) => {
+    const [first = '', ...rest] = chunk.split('\n');
+    const body = rest.join('\n').trim();
+    const count = body.split('\n').filter((line) => /^\*?\d+\.\s/.test(line)).length;
+    return { heading: first.replace(/^\*|\*$/g, ''), body, count };
+  });
+  return { intro: intro.trimEnd(), parts };
+}
+

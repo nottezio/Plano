@@ -3,6 +3,9 @@ import {
   arrayRemove,
   getDoc,
   getDocs,
+  getDocsFromServer,
+  deleteDoc,
+  writeBatch,
   limit,
   orderBy,
   arrayUnion,
@@ -129,6 +132,7 @@ export function readRosterPatient(key: string, data: DocumentData): RosterPatien
     junior: str(data.junior),
     chief: str(data.chief),
     dismissed: str(data.dismissed),
+    placedAt: str(data.placedAt),
     addedAt: str(data.addedAt),
     log: readLog(data.log),
   };
@@ -250,6 +254,48 @@ export function writeRosterFields(
       updatedAt: serverTimestamp(),
     }),
   );
+}
+
+/**
+ * Room/bed changed by hand (moved within the floor, 12.12). Leaf writes into
+ * the report, so a concurrent status change is not overwritten.
+ */
+export function writeRosterPlace(floorId: string, key: string, room: string, bed: string, placedAt: string, log: StatusChange): Promise<void> {
+  return trackWrite(
+    updateDoc(
+      floorPatientDoc(floorId, key),
+      new FieldPath('report', 'room'),
+      room,
+      new FieldPath('report', 'bed'),
+      bed,
+      'placedAt',
+      placedAt,
+      'log',
+      arrayUnion(plain(log)),
+      'updatedAt',
+      serverTimestamp(),
+    ),
+  );
+}
+
+/**
+ * The owner deletes a list (12.12): every roster patient, edition and
+ * pre-12.12 day first, then the floor document — in that order, because the
+ * rules check ownership through the parent document. Read from the SERVER so
+ * a partial offline cache cannot leave patient data behind; offline → throws.
+ */
+export async function deleteFloor(floorId: string): Promise<void> {
+  const refs = [];
+  for (const col of [floorPatientsCol(floorId), floorEditionsCol(floorId), floorDaysCol(floorId)]) {
+    const snapshot = await getDocsFromServer(col);
+    refs.push(...snapshot.docs.map((d) => d.ref));
+  }
+  for (let i = 0; i < refs.length; i += 400) {
+    const batch = writeBatch(floorDoc(floorId).firestore);
+    for (const ref of refs.slice(i, i + 400)) batch.delete(ref);
+    await trackWrite(batch.commit());
+  }
+  await trackWrite(deleteDoc(floorDoc(floorId)));
 }
 
 export function saveEdition(floorId: string, edition: Omit<Edition, 'id'>): Promise<string> {

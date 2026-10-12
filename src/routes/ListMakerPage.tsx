@@ -193,7 +193,7 @@ export default function ListMakerPage(): JSX.Element {
                 + List baru
               </ChoiceChip>
               <span className="flex-1" />
-              <Field label="Tanggal list (warna rencana pulang)">
+              <Field label="Tanggal list">
                 <DateField value={date} onChange={setDate} className="w-40" />
               </Field>
               {editable ? (

@@ -30,7 +30,23 @@ export function weeklyTotal(schedule: readonly number[]): number {
   return schedule.reduce((sum, dose) => sum + (Number.isFinite(dose) ? dose : 0), 0);
 }
 
-const round = (value: number, step: number): number => Math.round(value / step) * step;
+/** How a weekly total that is not a whole number of steps is rounded (12.12: chosen by the doctor). */
+export type RoundMode = 'nearest' | 'down' | 'up';
+
+const round = (value: number, step: number, mode: RoundMode = 'nearest'): number => {
+  // fix() first, so 17.6000000001 / 0.5 is not pushed up a step by float noise.
+  const steps = Math.round((value / step) * 1e6) / 1e6;
+  return (mode === 'down' ? Math.floor(steps) : mode === 'up' ? Math.ceil(steps) : Math.round(steps)) * step;
+};
+
+/** The weekly total `spreadWeekly` would write, for each rounding. */
+export function roundedTotals(total: number, step = 1): Record<RoundMode, number> {
+  return {
+    nearest: fix(Math.max(0, round(total, step, 'nearest'))),
+    down: fix(Math.max(0, round(total, step, 'down'))),
+    up: fix(Math.max(0, round(total, step, 'up'))),
+  };
+}
 const fix = (value: number): number => Math.round(value * 100) / 100;
 
 /**
@@ -38,10 +54,11 @@ const fix = (value: number): number => Math.round(value * 100) / 100;
  * tablet). Evenly, with the extra steps on the weekend first and then back
  * through the week — the shape of the ward's example (16 mg: Senin–Jumat 2,
  * Sabtu–Minggu 3). A total that is not a whole number of steps is rounded to
- * the nearest one, and the caller shows the rounded total.
+ * the nearest one — or down / up when the doctor chooses (12.12) — and the
+ * caller shows the rounded total.
  */
-export function spreadWeekly(total: number, step = 1): WeekSchedule {
-  const weekly = Math.max(0, round(total, step));
+export function spreadWeekly(total: number, step = 1, mode: RoundMode = 'nearest'): WeekSchedule {
+  const weekly = Math.max(0, round(total, step, mode));
   const base = Math.floor(fix(weekly / 7 / step)) * step;
   let extra = Math.round(fix((weekly - base * 7) / step));
   const days = Array.from({ length: 7 }, () => base);

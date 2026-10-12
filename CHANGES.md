@@ -1,5 +1,58 @@
 # Plano — CHANGES
 
+## `2026-10-12.13` — Anticoagulant monitoring check; warfarin rounding; sidebar DPJP card removed; List Maker: room/bed move, tinted cards, coloured list, any-DPJP manual patient, chief field, delete list
+
+- **SOAP checker — heparin/warfarin without monitoring** (Avi, 12-12).
+  `checkAnticoagulantMonitoring`: a RUNNING Plan/Terapi line with heparin/UFH
+  (not LMWH, flush or lock) and no APTT anywhere in Plan/Terapi →
+  `heparin-without-aptt` "Cek APTT/hari"; warfarin/Simarc/Notisil and no INR
+  → `warfarin-without-inr` "Cek INR/3 hari". Stopped lines and the
+  "Selesai :" sub-list are excluded. Wrong turn: Selesai with a colon is
+  parsed as its own section, so its heading never reaches `planLines`; the
+  sub-list is located in the body by offset instead (test caught it).
+- **Warfarin RSWS — rounding.** `spreadWeekly(total, step, mode)` with
+  `RoundMode` nearest/down/up and `roundedTotals()`; the card offers the
+  choice only when down ≠ up, labelled with each resulting weekly total.
+  Rounding is applied to the weekly total in the chosen step, so the ward's
+  weekend-first spread is kept.
+- **Sidebar DPJP card removed.** Root cause of the duplicate: the patient
+  page published `dpjpHint` to the shell AND renders the same facts itself
+  (`renderDpjpLine` above the note at every width, `DpjpSideCard` in the
+  panel layout). Two sources for one fact; the shell copy is gone with its
+  store field and effect.
+- **List Maker — room/bed move within the floor.** `writeRosterPlace` (leaf
+  writes `report.room`/`report.bed` via FieldPath, `placedAt`, log).
+  **Root cause it had to handle:** a colleague's later SOAP still carries
+  the old room, and `pasteDiff` would have proposed (ticked) moving the
+  patient back. `RosterPatient.placedAt` (local wall clock, the same clock
+  as `sentAt` — not ISO/UTC, which would compare 8 h off) suppresses the
+  move for SOAPs written before it; PastePanel now keeps the stored place
+  unless a move is confirmed (it used to take the report's place whenever
+  the move was not flagged).
+- **Tinted patient cards** (red/green by `discharge`, plus an sr-only label);
+  **coloured list** — `splitFloorList()` + `ListMessage` (checkbox "Warnai
+  per DPJP", jump chips, census tints; preference in localStorage; display
+  only).
+- **Manual patient for any DPJP:** no pediatri preselection or ordering;
+  DPJP required.
+- **Chief field:** chips inside one fixed-height box. Root cause of the row
+  shifting: `INPUT` carries `w-full`, which beat `w-28`, so the input wrapped
+  under the chips and grew the header row. Same class clash fixed on the
+  Pindah/Kamar inputs (`!w-*`).
+- **Delete list (owner):** `deleteFloor` reads patients/editions/days FROM
+  THE SERVER (an offline cache could miss documents and orphan patient data),
+  deletes them in batches of 400, then the floor doc. Rules: owner may delete
+  the floor and its subcollection docs (checked via the parent, hence the
+  order). **Needs the push.**
+- Tests: anticoagulant rule (fires, silences), rounding modes, hand placement
+  vs older/newer SOAP, `localStamp`, `splitFloorList`.
+- Not done: delete is not undoable; rules not run against the emulator.
+
+### Verify
+```
+npm run verify → typecheck, lint, 162 files / 2379 tests, version, contrast, a11y, build: all green
+```
+
 ## `2026-10-12.12` — List Maker: explicit roster; status by hand; SOAP only suggests; editions with free-text time; Pulang/Pindah note
 
 - **Design flaw — status was inferred from free text** (Avi, 12-12: "too

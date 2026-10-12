@@ -5,6 +5,18 @@ Catatan teknis lengkap (akar masalah, perbaikan) ada di CHANGES.md.
 
 Entri teratas harus versi yang sedang dirilis; tes gagal bila belum ditulis.
 
+## `2026-10-12.13`
+- **Pemeriksa SOAP: pengingat pemantauan antikoagulan.** Bila Terapi berisi heparin tapi Plan belum ada APTT, muncul saran **"Cek APTT/hari"**; bila warfarin (termasuk Simarc/Notisil) tapi belum ada INR, saran **"Cek INR/3 hari"**. Tidak muncul untuk LMWH, heparin flush, obat yang di-stop, atau yang ada di bawah "Selesai".
+- **Warfarin (protokol RSWS): pilih pembulatan dosis.** Bila total mingguan hasil hitungan jatuh di antara dua langkah dosis, pilih **Ke bawah / Terdekat / Ke atas**; total tiap pilihan langsung terlihat.
+- **Kotak DPJP di sidebar dihapus.** Isinya sudah tampil di halaman pasien (di atas catatan atau di panel samping).
+- **List Maker:**
+  - **Pindah kamar/bed di lantai yang sama**: tombol **Kamar/bed…** di tiap pasien. Tercatat siapa dan kapan; SOAP lama yang masih menulis kamar sebelumnya tidak memindahkan pasien kembali.
+  - **Kotak pasien ikut berwarna**: merah untuk H-1, hijau untuk pulang hari ini.
+  - **Warnai per DPJP**: centang di atas pesan list untuk mewarnai tiap bagian DPJP (seperti hasil sensus), dengan tombol lompat ke tiap DPJP. Yang disalin tetap teks biasa.
+  - **Pasien manual tidak harus pediatri**: semua DPJP bisa dipilih.
+  - **Kolom chief lebih rapi**: nama chief kini di dalam satu kotak, tidak lagi menggeser baris atas.
+  - **Hapus list** (khusus pemilik): di tab Anggota, **Hapus list…** lalu konfirmasi. Menghapus pasien, SOAP, dan riwayat edisi untuk semua anggota; perlu koneksi internet.
+
 ## `2026-10-12.12`
 - **List Maker: status pasien kini diatur tangan, tidak lagi ditebak dari SOAP.** Merah (H-1), hijau (pulang hari ini), pulang dan pindah dulu dibaca otomatis dari isi Plan — terlalu berisiko salah. Sekarang:
   - Lantai punya **daftar pasien tetap**. Menempel pesan baru hanya **memperbarui SOAP dan mengusulkan pasien baru**; tidak ada pasien yang keluar dari list karena tempel.

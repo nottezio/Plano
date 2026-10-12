@@ -791,3 +791,24 @@ describe('Windows line endings (2026-10-12)', () => {
     expect(kinds(crlf)).not.toContain('consult-not-in-dpjp');
   });
 });
+
+describe('anticoagulant monitoring (12.12)', () => {
+  const note = (terapi: string, plan: string) => `*S:*\n- baik\n\n*Mohon izin kami terapi dengan:*\n${terapi}\n\n*Plan:*\n${plan}`;
+  const kinds = (body: string) => checkSoap({ body }).map((finding) => finding.kind);
+
+  it('heparin without APTT and warfarin without INR: remind, pointing at the drug', () => {
+    const found = checkSoap({ body: note('- Heparin 1000 IU/jam/SP\n- Warfarin 2 mg/24 jam/oral', '- Monitoring tanda vital') });
+    const heparin = found.find((f) => f.kind === 'heparin-without-aptt');
+    expect(heparin?.message).toMatch(/Cek APTT\/hari/);
+    expect(heparin?.anchor).toBe('- Heparin 1000 IU/jam/SP');
+    expect(found.find((f) => f.kind === 'warfarin-without-inr')?.message).toMatch(/Cek INR\/3 hari/);
+  });
+
+  it('silent once the monitoring is written, for LMWH / flush, a stopped drug, or one under Selesai', () => {
+    expect(kinds(note('- Heparin 1000 IU/jam/SP', '- Cek APTT/hari'))).not.toContain('heparin-without-aptt');
+    expect(kinds(note('- Simarc 2 mg/24 jam/oral', '- Cek INR/3 hari'))).not.toContain('warfarin-without-inr');
+    expect(kinds(note('- Low molecular weight heparin 0,6 cc/12 jam/SC', '- Monitoring'))).not.toContain('heparin-without-aptt');
+    expect(kinds(note('- Heparin stop', '- Monitoring'))).not.toContain('heparin-without-aptt');
+    expect(kinds(note('- Aspilet 80 mg/24 jam/oral\nSelesai :\n- Heparin 1000 IU/jam/SP', '- Monitoring'))).not.toContain('heparin-without-aptt');
+  });
+});

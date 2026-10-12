@@ -9,8 +9,10 @@ import {
   WEEKDAYS,
   describeSchedule,
   rswsScheduleLine,
+  roundedTotals,
   rswsStartLine,
   spreadWeekly,
+  type RoundMode,
   weeklyTotal,
 } from '@/domain/calc/warfarinRsws';
 import { formatDmy } from '@/domain/dateDmy';
@@ -48,6 +50,7 @@ export function RswsWarfarin({
   const [change, setChange] = useState<number | null>(null);
   const [customTotal, setCustomTotal] = useState('');
   const [step, setStep] = useState<'1' | '0.5'>('1');
+  const [rounding, setRounding] = useState<RoundMode>('nearest');
   const [inserted, setInserted] = useState<'ok' | 'none' | null>(null);
 
   // A new INR is a new decision: the table's row is suggested again.
@@ -70,7 +73,11 @@ export function RswsWarfarin({
   const hold = suggestion && chosen === suggestion.percent ? HOLD_TEXT[suggestion.hold] : '';
   const wanted =
     customTotal.trim() !== '' ? Number(customTotal) : total !== null && chosen !== null ? total * (1 + chosen / 100) : null;
-  const next = wanted !== null && Number.isFinite(wanted) && wanted >= 0 ? spreadWeekly(wanted, Number(step)) : null;
+  const valid = wanted !== null && Number.isFinite(wanted) && wanted >= 0;
+  const totals = valid ? roundedTotals(wanted, Number(step)) : null;
+  // Only a choice when the total falls between two steps.
+  const roundingMatters = totals !== null && totals.down !== totals.up;
+  const next = valid ? spreadWeekly(wanted, Number(step), roundingMatters ? rounding : 'nearest') : null;
   const line =
     stage === 'mulai'
       ? rswsStartLine(today, dateText)
@@ -199,6 +206,27 @@ export function RswsWarfarin({
               />
             </div>
           </div>
+
+          {roundingMatters && totals && wanted !== null ? (
+            <div>
+              <p className="mb-1 text-[11px] font-medium text-fg-muted">
+                Hasil {mg(Math.round(wanted * 100) / 100)} mg/minggu — bulatkan dosis harian
+              </p>
+              <Segmented
+                label="Pembulatan dosis"
+                value={rounding}
+                onChange={(value) => {
+                  setRounding(value);
+                  setInserted(null);
+                }}
+                options={[
+                  { value: 'down', label: `Ke bawah (${mg(totals.down)} mg)` },
+                  { value: 'nearest', label: `Terdekat (${mg(totals.nearest)} mg)` },
+                  { value: 'up', label: `Ke atas (${mg(totals.up)} mg)` },
+                ]}
+              />
+            </div>
+          ) : null}
 
           {next && line ? (
             <ResultBlock line={line}>

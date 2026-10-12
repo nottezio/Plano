@@ -2,15 +2,16 @@ import { useMemo, useState } from 'react';
 
 import { DateField } from '@/components/common/DateField';
 import { Button, Callout, INPUT } from '@/components/common/ui';
-import { saveEdition, writeRosterFields } from '@/data/repositories/floors.repo';
+import { saveEdition, writeRosterFields, writeRosterPlace } from '@/data/repositories/floors.repo';
 import { formatDmy } from '@/domain/dateDmy';
 import { buildFloorList, byRoute, patientLine } from '@/domain/floorList/build';
 import { buildDenahDocx, buildListDocx, DOCX_MIME, floorFileName } from '@/domain/floorList/docx';
-import { wardPlan } from '@/domain/denahPlan';
+import { planRooms, wardPlan } from '@/domain/denahPlan';
 import {
   chiefsOf,
   leftNote,
   leftSince,
+  localStamp,
   suggestionFor,
   type ColourMark,
   type Edition,
@@ -22,6 +23,7 @@ import {
 import type { FloorPatient } from '@/domain/floorList/report';
 import { copyText } from '@/lib/clipboard';
 import { deliverFile } from '@/lib/download';
+import { ListMessage } from './ListMessage';
 import { ManualPatientSheet } from './ManualPatientSheet';
 
 const COLOUR_OPTIONS: ReadonlyArray<readonly [ColourMark, string]> = [
@@ -30,6 +32,13 @@ const COLOUR_OPTIONS: ReadonlyArray<readonly [ColourMark, string]> = [
   ['today', 'Pulang hari ini (hijau)'],
 ];
 const PINDAH_CHIPS = ['ICU', 'CVCU', 'HCU', 'ICCU', 'Lantai lain'];
+
+/** The patient card's tint by its colour on this list (12.12): red H-1, green pulang hari ini. */
+const FLAG_STYLE = {
+  tomorrow: { borderColor: 'var(--note-red)', borderLeftWidth: 4, backgroundColor: 'color-mix(in srgb, var(--note-red) 8%, var(--surface))' },
+  today: { borderColor: 'var(--note-green)', borderLeftWidth: 4, backgroundColor: 'color-mix(in srgb, var(--note-green) 8%, var(--surface))' },
+} as const;
+const FLAG_TEXT = { tomorrow: 'var(--note-red)', today: 'var(--note-green)' } as const;
 
 /** A prefill only (free text): the usual send times of the floor. */
 function defaultTime(now: Date): string {
@@ -69,6 +78,11 @@ export function ListPanel({
   const [editing, setEditing] = useState<FloorPatient | null>(null);
   const [pindahFor, setPindahFor] = useState<string | null>(null);
   const [pindahTo, setPindahTo] = useState('');
+  const [placeFor, setPlaceFor] = useState<string | null>(null);
+  const [placeRoom, setPlaceRoom] = useState('');
+  const [placeBed, setPlaceBed] = useState('');
+  const plan = wardPlan(floor.ward);
+  const rooms = plan ? planRooms(plan).map((slot) => slot.room).sort() : [];
   const chiefs = chiefsOf(floor.chiefs);
   const byKey = useMemo(() => new Map(roster.map((p) => [p.key, p])), [roster]);
   const text = useMemo(() => buildFloorList(view.active, { ward: floor.ward, date, time }), [view.active, floor.ward, date, time]);
@@ -112,7 +126,7 @@ export function ListPanel({
                 setManualOpen(true);
               }}
             >
-              + Pasien manual (pediatri)
+              + Pasien manual
             </Button>
           ) : null}
         </div>
@@ -141,9 +155,19 @@ export function ListPanel({
             if (!entry) return null;
             const suggestion = suggestionFor(entry, date);
             return (
-              <li key={patient.key} className="rounded-xl border border-border bg-surface p-2 text-xs">
-                <button type="button" onClick={() => onOpen(patient)} className="block text-left font-semibold hover:underline">
+              <li
+                key={patient.key}
+                className="rounded-xl border border-border bg-surface p-2 text-xs"
+                style={patient.discharge ? FLAG_STYLE[patient.discharge] : undefined}
+              >
+                <button
+                  type="button"
+                  onClick={() => onOpen(patient)}
+                  className="block text-left font-semibold hover:underline"
+                  style={patient.discharge ? { color: FLAG_TEXT[patient.discharge] } : undefined}
+                >
                   {patientLine(patient)}
+                  {patient.discharge ? <span className="sr-only"> ({patient.discharge === 'tomorrow' ? 'H-1' : 'pulang hari ini'})</span> : null}
                 </button>
                 <p className="mt-0.5 text-[11px] text-fg-faint">
                   {patient.manual ? 'Diinput manual' : 'Laporan'}{' '}
@@ -221,9 +245,21 @@ export function ListPanel({
                       onClick={() => {
                         setPindahFor(pindahFor === patient.key ? null : patient.key);
                         setPindahTo('');
+                        setPlaceFor(null);
                       }}
                     >
                       Pindah…
+                    </Button>
+                    <Button
+                      size="sm"
+                      onClick={() => {
+                        setPlaceFor(placeFor === patient.key ? null : patient.key);
+                        setPlaceRoom(patient.room);
+                        setPlaceBed(patient.bed);
+                        setPindahFor(null);
+                      }}
+                    >
+                      Kamar/bed…
                     </Button>
                     {patient.manual ? (
                       <Button
@@ -239,6 +275,50 @@ export function ListPanel({
                   </div>
                 ) : null}
 
+                {placeFor === patient.key ? (
+                  <div className="mt-2 flex flex-wrap items-center gap-1.5">
+                    <span className="text-fg-muted">Pindah di lantai ini:</span>
+                    {rooms.length > 0 ? (
+                      <select
+                        aria-label="Kamar baru"
+                        value={placeRoom}
+                        onChange={(e) => setPlaceRoom(e.target.value)}
+                        className={`${INPUT} !w-24 text-xs`}
+                      >
+                        {rooms.includes(placeRoom) ? null : <option value={placeRoom}>{placeRoom || '—'}</option>}
+                        {rooms.map((room) => (
+                          <option key={room} value={room}>
+                            {room}
+                          </option>
+                        ))}
+                      </select>
+                    ) : (
+                      <input aria-label="Kamar baru" value={placeRoom} onChange={(e) => setPlaceRoom(e.target.value)} className={`${INPUT} !w-24 text-xs`} />
+                    )}
+                    <input
+                      aria-label="Bed baru"
+                      value={placeBed}
+                      onChange={(e) => setPlaceBed(e.target.value.trim())}
+                      inputMode="numeric"
+                      placeholder="Bed"
+                      className={`${INPUT} !w-20 text-xs`}
+                    />
+                    <Button
+                      size="sm"
+                      variant="primary"
+                      disabled={!placeRoom.trim() || (placeRoom === patient.room && placeBed === patient.bed)}
+                      onClick={() => {
+                        const from = `${patient.room}${patient.bed ? `/${patient.bed}` : ''}`;
+                        const to = `${placeRoom.trim()}${placeBed ? `/${placeBed}` : ''}`;
+                        void writeRosterPlace(floor.id, patient.key, placeRoom.trim(), placeBed, localStamp(new Date()), stamp(`Pindah kamar ${from} → ${to}`));
+                        setPlaceFor(null);
+                      }}
+                    >
+                      Simpan kamar
+                    </Button>
+                  </div>
+                ) : null}
+
                 {pindahFor === patient.key ? (
                   <div className="mt-2 flex flex-wrap items-center gap-1.5">
                     {PINDAH_CHIPS.map((chip) => (
@@ -251,7 +331,7 @@ export function ListPanel({
                       onChange={(e) => setPindahTo(e.target.value)}
                       placeholder="Tujuan"
                       aria-label="Tujuan pindah"
-                      className={`${INPUT} w-32 text-xs`}
+                      className={`${INPUT} !w-32 text-xs`}
                     />
                     <Button
                       size="sm"
@@ -343,9 +423,7 @@ export function ListPanel({
           </div>
         ) : null}
 
-        <pre className="max-h-[70dvh] overflow-y-auto whitespace-pre-wrap break-words rounded-xl border border-border bg-bg-subtle p-3 font-sans text-xs leading-relaxed">
-          {text}
-        </pre>
+        <ListMessage text={text} />
       </div>
     </div>
   );

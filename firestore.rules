@@ -303,7 +303,9 @@ service cloud.firestore {
      * - an invitee may accept: add THEMSELVES, with exactly the invited role,
      *   and remove their own invite — nothing else;
      * - any member may leave (remove only themselves);
-     * - days: members read, edit members (and the owner) write. No deletes.
+     * - days: members read, edit members (and the owner) write;
+     * - the OWNER may delete the list (12.12): its patients, editions and
+     *   days first (checked through this document), then the document.
      */
     match /floors/{floorId} {
       function myEmail() {
@@ -363,10 +365,10 @@ service cloud.firestore {
         || acceptsInvite()
         || leaves()
       );
-      allow delete: if false;
+      allow delete: if allowed() && isFloorOwner();
 
       // The roster (12.12): one document per patient. Members read; edit
-      // members add and update (SOAP, status, residents). No deletes: a
+      // members add and update (SOAP, status, residents). Not deleted one by one: a
       // patient who leaves keeps the record with status pulang/pindah.
       match /patients/{key} {
         function floorP() {
@@ -378,7 +380,8 @@ service cloud.firestore {
             || (request.auth.uid in floorP().roles && floorP().roles[request.auth.uid] == 'edit'))
           && request.resource.data.report is map
           && request.resource.data.status in ['dirawat', 'pulang', 'pindah'];
-        allow delete: if false;
+        // Only when the owner deletes the whole list.
+        allow delete: if allowed() && request.auth.uid == floorP().ownerUid;
       }
 
       // Sent lists (12.12): written once by an edit member, never changed.
@@ -392,7 +395,8 @@ service cloud.firestore {
             || (request.auth.uid in floorE().roles && floorE().roles[request.auth.uid] == 'edit'))
           && request.resource.data.text is string
           && request.resource.data.patients is list;
-        allow update, delete: if false;
+        allow update: if false;
+        allow delete: if allowed() && request.auth.uid == floorE().ownerUid;
       }
 
       match /days/{date} {
@@ -405,7 +409,7 @@ service cloud.firestore {
           && request.resource.data.date == date
           && (request.auth.uid == floor().ownerUid
             || (request.auth.uid in floor().roles && floor().roles[request.auth.uid] == 'edit'));
-        allow delete: if false;
+        allow delete: if allowed() && request.auth.uid == floor().ownerUid;
       }
     }
 

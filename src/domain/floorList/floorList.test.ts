@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { splitChat } from './chat';
-import { buildFloorList, patientLine } from './build';
+import { buildFloorList, patientLine, splitFloorList } from './build';
 import { effective, newRosterPatient } from './floor';
 import { dischargeFlag, latestPatients, listBody, manualPatient, nicknameOf, readReport } from './report';
 
@@ -321,5 +321,19 @@ describe('manualPatient (pediatri, entered by hand)', () => {
     expect(p.key).toBe('manual:421:contoh-bayi');
     expect(p.body).toBe('Diagnosis:\n- X');
     expect(manualPatient({ room: '420', bed: '1', dpjpId: 'aau', identity: 'Contoh Bayi', fields: { diagnosis: '- Y', terapi: '', plan: '' }, sentAt: '', sender: '', key: p.key }).key).toBe(p.key);
+  });
+});
+
+describe('splitFloorList (coloured view, 12.12)', () => {
+  it('cuts at the separators: heading, body and patient count per DPJP; the intro before', () => {
+    const patients = latestPatients(splitChat(EXPORT)).map((p) => effective(newRosterPatient(p, '', ''), { nicknames: {}, chiefs: '' }, '2026-10-12'));
+    const text = buildFloorList(patients, { ward: 'PJT Lantai 4', date: '2026-10-12', time: '04.00' });
+    const { intro, parts } = splitFloorList(text);
+    expect(intro.split('\n')[0]).toMatch(/^Tabe dokter/);
+    const ks = parts.find((p) => p.heading.includes('dr. KS'))!;
+    expect(ks.heading).toBe('🫀 dr. KS : 1 pasien');
+    expect(ks.count).toBe(1);
+    expect(parts.find((p) => p.heading.includes('dr. PT'))!.count).toBe(0);
+    expect(parts.reduce((n, p) => n + p.count, 0)).toBeGreaterThanOrEqual(patients.length);
   });
 });

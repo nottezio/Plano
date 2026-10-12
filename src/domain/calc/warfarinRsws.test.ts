@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import {
   HOLD_TEXT,
+  roundedTotals,
   RSWS_INR_EVERY_DAYS,
   WEEKLY_ADJUST_TABLE,
   weeklyAdjustFor,
@@ -98,5 +99,19 @@ describe('weekly adjustment table (Table 15)', () => {
     expect(rswsScheduleLine([2, 2, 2, 2, 2, 2, 2], 4.3, '2026-10-11', fmt, HOLD_TEXT['one-dose'])).toMatch(
       /^- Warfarin tunda 1 dosis, lalu setiap hari 2 mg\/oral/,
     );
+  });
+});
+
+describe('rounding the weekly total (12.12)', () => {
+  it('down / nearest / up, in the chosen step', () => {
+    expect(roundedTotals(17.6)).toEqual({ nearest: 18, down: 17, up: 18 });
+    expect(roundedTotals(17.6, 0.5)).toEqual({ nearest: 17.5, down: 17.5, up: 18 });
+    expect(weeklyTotal(spreadWeekly(17.6, 1, 'down'))).toBe(17);
+    expect(weeklyTotal(spreadWeekly(17.6, 1, 'up'))).toBe(18);
+    expect(spreadWeekly(17.6, 1, 'down')).toEqual([2, 2, 2, 2, 3, 3, 3]);
+  });
+
+  it('an exact total is the same every way', () => {
+    expect(roundedTotals(16)).toEqual({ nearest: 16, down: 16, up: 16 });
   });
 });

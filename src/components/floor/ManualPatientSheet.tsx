@@ -6,16 +6,16 @@ import { addRosterPatient, writeRosterReport } from '@/data/repositories/floors.
 import { newRosterPatient } from '@/domain/floorList/floor';
 import { DPJPS } from '@/domain/dpjp';
 import { planRooms, wardPlan } from '@/domain/denahPlan';
-import { PEDIATRI_DPJP_IDS } from '@/domain/floorList/build';
 import { manualPatient, type FloorPatient } from '@/domain/floorList/report';
 
 const TEXTAREA = 'w-full rounded-lg border border-border bg-surface p-2 text-sm';
 
 /**
  * Tambah / Ubah pasien manual (12.10). For patients with no SOAP in the floor
- * group — the pediatri patients. Avi (12-12): the user fills only the
- * diagnosis, therapy and plan (plus who and where), and the patient is then
- * on the denah and the list like any other, until removed.
+ * group — pediatri, but any patient (12.12, Avi: "it doesn't have to be a
+ * pediatric patient"): every DPJP, none preselected. The user fills only the
+ * diagnosis, therapy and plan (plus who and where), and the patient is then on
+ * the denah and the list like any other, until marked Pulang/Pindah.
  */
 export function ManualPatientSheet({
   open,
@@ -39,7 +39,7 @@ export function ManualPatientSheet({
   const rooms = plan ? planRooms(plan).map((slot) => slot.room).sort() : [];
   const [room, setRoom] = useState('');
   const [bed, setBed] = useState('');
-  const [dpjpId, setDpjpId] = useState<string>(PEDIATRI_DPJP_IDS[0]);
+  const [dpjpId, setDpjpId] = useState('');
   const [identity, setIdentity] = useState('');
   const [diagnosis, setDiagnosis] = useState('');
   const [terapi, setTerapi] = useState('');
@@ -52,7 +52,7 @@ export function ManualPatientSheet({
     setError('');
     setRoom(editing?.room ?? '');
     setBed(editing?.bed ?? '');
-    setDpjpId(editing?.dpjpId ?? PEDIATRI_DPJP_IDS[0]);
+    setDpjpId(editing?.dpjpId ?? '');
     setIdentity(editing?.identity ?? '');
     setDiagnosis(editing?.manualFields?.diagnosis ?? '');
     setTerapi(editing?.manualFields?.terapi ?? '');
@@ -62,6 +62,10 @@ export function ManualPatientSheet({
   const save = async (): Promise<void> => {
     if (!identity.trim()) {
       setError('Isi identitas pasien (nama / tanggal lahir / umur / RM).');
+      return;
+    }
+    if (!dpjpId) {
+      setError('Pilih DPJP.');
       return;
     }
     if (!diagnosis.trim()) {
@@ -95,10 +99,6 @@ export function ManualPatientSheet({
     }
   };
 
-  const dpjpOptions = [
-    ...PEDIATRI_DPJP_IDS.map((id) => DPJPS.find((d) => d.id === id)).filter((d): d is (typeof DPJPS)[number] => !!d),
-    ...DPJPS.filter((d) => !(PEDIATRI_DPJP_IDS as readonly string[]).includes(d.id)),
-  ];
 
   return (
     <Sheet
@@ -136,7 +136,8 @@ export function ManualPatientSheet({
           </Field>
           <Field label="DPJP" htmlFor="manual-dpjp">
             <select id="manual-dpjp" value={dpjpId} onChange={(e) => setDpjpId(e.target.value)} className={INPUT}>
-              {dpjpOptions.map((d) => (
+              <option value="">—</option>
+              {DPJPS.map((d) => (
                 <option key={d.id} value={d.id}>
                   {d.initials}
                 </option>

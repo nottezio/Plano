@@ -17,7 +17,6 @@ import {
   IconNote,
   IconSettings,
 } from './Icons';
-import { useUI } from '@/store/useUI';
 
 /**
  * SPEC 11.1 / 11.2: three layouts, one component.
@@ -153,7 +152,6 @@ function GroupLabel({ children }: { children: string }): JSX.Element {
 }
 
 export function TabBar(): JSX.Element {
-  const hint = useUI((state) => state.dpjpHint);
   const hasClipboard = useClipboardNote((state) => state.last !== null);
   const [moreOpen, setMoreOpen] = useState(false);
   const { pathname } = useLocation();
@@ -224,32 +222,13 @@ export function TabBar(): JSX.Element {
 
       <div className="mt-auto hidden pt-2 sm:block">
         {/*
-          THE CONTEXT DOCK, desktop only: one card for the ambient facts about
-          what is open (the DPJP's reporting format, what was last copied).
-          One card with compact rows keeps the sidebar's foot a fixed, small
-          size even on a patient page with a clipboard entry.
+          THE CONTEXT DOCK, desktop only: what was last copied. The DPJP card
+          that used to sit here (12.12 and before) repeated the DPJP line the
+          patient page already shows — above the note, or in its side panel —
+          so it was removed (Avi, 12-12).
         */}
-        {hint || hasClipboard ? (
-          <div className="mb-2 hidden space-y-0.5 rounded-xl border border-border bg-bg-subtle p-1 lg:block">
-            {hint ? (
-              <div
-                title={`${hint.name}${hint.poli ? ` · Poli ${hint.poli}` : ''}${hint.poliAfter ? ` · lalu ${hint.poliAfter}` : ''}`}
-                className="px-1.5 py-1 text-[11px] leading-tight"
-              >
-                <p className="truncate font-medium">
-                  <span className="mr-1 rounded bg-surface px-1 text-[10px] font-semibold text-fg-muted">DPJP</span>
-                  {hint.initials}
-                  <span className="ml-1 font-normal text-fg-muted">{hint.description}</span>
-                </p>
-                {hint.poli ? (
-                  <p className="mt-0.5 truncate text-fg-muted">
-                    Poli {hint.poli}
-                    {hint.poliAfter ? <span className="text-fg-faint"> · lalu {hint.poliAfter}</span> : null}
-                  </p>
-                ) : null}
-              </div>
-            ) : null}
-            {hint && hasClipboard ? <div className="mx-1.5 h-px bg-border" /> : null}
+        {hasClipboard ? (
+          <div className="mb-2 hidden rounded-xl border border-border bg-bg-subtle p-1 lg:block">
             <ClipboardPill variant="row" />
           </div>
         ) : null}

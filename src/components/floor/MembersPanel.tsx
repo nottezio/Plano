@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { Button, Callout } from '@/components/common/ui';
 import {
   cancelInvite,
+  deleteFloor,
   inviteMember,
   removeMember,
   setMemberRole,
@@ -36,6 +37,25 @@ export function MembersPanel({
   const [email, setEmail] = useState('');
   const [role, setRole] = useState<FloorRole>('view');
   const [error, setError] = useState('');
+  const [confirmDelete, setConfirmDelete] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState('');
+  const remove = async (): Promise<void> => {
+    setDeleting(true);
+    setDeleteError('');
+    try {
+      await deleteFloor(floor.id);
+    } catch (e) {
+      setDeleteError(
+        e instanceof Error && /offline|unavailable/i.test(e.message)
+          ? 'Butuh koneksi internet untuk menghapus list.'
+          : e instanceof Error
+            ? e.message
+            : 'Gagal menghapus.',
+      );
+      setDeleting(false);
+    }
+  };
   const senders = [...new Set(patients.map((p) => p.sender).filter(Boolean))].sort();
 
   const invite = async (): Promise<void> => {
@@ -173,6 +193,30 @@ export function MembersPanel({
           })}
         </ul>
       </section>
+      {owner ? (
+        <section className="space-y-2 rounded-xl border border-danger p-3">
+          <h3 className="text-xs font-semibold uppercase tracking-wide text-danger">Hapus list</h3>
+          <p className="text-xs text-fg-muted">
+            Menghapus list ini untuk semua anggota: daftar pasien, SOAP, dan riwayat edisi. Tidak bisa dibatalkan.
+          </p>
+          {confirmDelete ? (
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="text-xs font-semibold">Hapus &quot;{floor.name}&quot;?</span>
+              <Button variant="danger" size="sm" onClick={() => void remove()} disabled={deleting}>
+                {deleting ? 'Menghapus…' : 'Ya, hapus'}
+              </Button>
+              <Button size="sm" onClick={() => setConfirmDelete(false)} disabled={deleting}>
+                Batal
+              </Button>
+            </div>
+          ) : (
+            <Button variant="danger" size="sm" onClick={() => setConfirmDelete(true)}>
+              Hapus list…
+            </Button>
+          )}
+          {deleteError ? <Callout tone="warn">{deleteError}</Callout> : null}
+        </section>
+      ) : null}
     </div>
   );
 }

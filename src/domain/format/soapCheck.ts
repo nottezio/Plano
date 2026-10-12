@@ -52,7 +52,9 @@ export type SoapFindingKind =
   | 'trio-6mwt'
   | 'duplicate-heading'
   | 'therapy-also-finished'
-  | 'ekg-ticked-missing';
+  | 'ekg-ticked-missing'
+  | 'heparin-without-aptt'
+  | 'warfarin-without-inr';
 
 /**
  * How urgent, which is also the order they are listed in:
@@ -566,6 +568,8 @@ export function checkSoap(input: SoapCheckInput): SoapFinding[] {
     }
   }
 
+  findings.push(...checkAnticoagulantMonitoring(body, plan));
+
   if (input.context) findings.push(...checkContext(body, input.context));
 
   findings.push(...checkSections(sections, previous, aliases));
@@ -920,6 +924,60 @@ function checkTherapyFinished(body: string, sections: readonly ParsedSection[]):
       });
     }
     offset += line.length + 1;
+  }
+  return findings;
+}
+
+/**
+ * An anticoagulant running without its monitoring in the Plan (Avi, 12-12):
+ * heparin (UFH) → "Cek APTT/hari", warfarin → "Cek INR/3 hari".
+ *
+ * Only running lines count: a line that stops the drug, and the "Selesai :"
+ * sub-list (finished therapy, up to its first blank line), do not. LMWH and
+ * heparin flush/lock are not UFH infusions and do not trigger it. Any APTT /
+ * INR written anywhere in Plan/Terapi silences it — the reminder is for a
+ * monitoring line that is missing, not for its exact wording.
+ */
+function checkAnticoagulantMonitoring(body: string, plan: ReadonlyArray<{ line: string; offset: number }>): SoapFinding[] {
+  const stopped = /\b(?:stop|aff|hentikan|dihentikan|tunda|ditunda|off)\b/i;
+  // "Selesai :" may be parsed as a heading of its own (so not in `plan`):
+  // find each in the body, up to its first blank line.
+  const finished: Array<[number, number]> = [];
+  let offset = 0;
+  let from = -1;
+  for (const line of body.split('\n')) {
+    if (SELESAI_HEADING.test(line)) from = offset;
+    else if (from >= 0 && !line.trim()) {
+      finished.push([from, offset]);
+      from = -1;
+    }
+    offset += line.length + 1;
+  }
+  if (from >= 0) finished.push([from, offset]);
+  const running = plan.filter(
+    (entry) => !stopped.test(entry.line) && !SELESAI_HEADING.test(entry.line) && !finished.some(([a, b]) => entry.offset >= a && entry.offset < b),
+  );
+  const all = plan.map(({ line }) => line).join('\n');
+  const findings: SoapFinding[] = [];
+  const rules = [
+    {
+      kind: 'heparin-without-aptt' as const,
+      drug: (line: string) => /\b(?:heparin|UFH)\b/i.test(line) && !/low[\s-]*molecular|\bLMWH\b|flush|\block\b/i.test(line),
+      monitored: /\ba?PTT\b/i,
+      message: 'Heparin diberikan, tapi pemantauan APTT belum ada di Plan. Tambahkan "Cek APTT/hari".',
+    },
+    {
+      kind: 'warfarin-without-inr' as const,
+      drug: (line: string) => /\b(?:warfarin|simarc|notisil)\b/i.test(line),
+      monitored: /\bINR\b/i,
+      message: 'Warfarin diberikan, tapi pemantauan INR belum ada di Plan. Tambahkan "Cek INR/3 hari".',
+    },
+  ];
+  for (const rule of rules) {
+    const hit = running.find(({ line }) => rule.drug(line));
+    if (!hit || rule.monitored.test(all)) continue;
+    const text = hit.line.trim();
+    findings.push({ kind: rule.kind, level: 'cek', message: rule.message, anchor: text, at: hit.offset + hit.line.indexOf(text) });
   }
   return findings;
 }

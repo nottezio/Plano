@@ -8,6 +8,7 @@ import {
   isOwner,
   leftNote,
   leftSince,
+  localStamp,
   newRosterPatient,
   pasteDiff,
   rosterView,
@@ -171,6 +172,16 @@ describe('pasteDiff (nobody is removed by a paste)', () => {
     expect(updatedReport(roster[0]!.report, moved, true)).toMatchObject({ room: '420', bed: '2' });
   });
 
+  it('a room/bed set by hand is not undone by a SOAP written before it; a later SOAP with another room asks again', () => {
+    const placed = [rostered({ key: 'rm:1', room: '419', bed: '3', sentAt: '2026-10-12T07:00' }, { placedAt: '2026-10-12T10:00' })];
+    const stale = patient({ key: 'rm:1', room: '417', bed: '1', sentAt: '2026-10-12T09:00', full: 'b' });
+    const stalediff = pasteDiff(placed, [stale]);
+    expect(stalediff.moved).toEqual([]);
+    expect(updatedReport(placed[0]!.report, stale, false)).toMatchObject({ room: '419', bed: '3' });
+    const later = patient({ key: 'rm:1', room: '420', bed: '1', sentAt: '2026-10-12T11:00', full: 'c' });
+    expect(pasteDiff(placed, [later]).moved).toHaveLength(1);
+  });
+
   it('an edit (Ubah SOAP) survives a re-paste of the same message; a newer message replaces it', () => {
     const edited = [rostered({ key: 'rm:1', sentAt: '2026-10-12T07:00', full: 'diubah', edited: true })];
     expect(pasteDiff(edited, [patient({ key: 'rm:1', sentAt: '2026-10-12T07:00', full: 'asli' })]).unchanged).toBe(1);
@@ -193,6 +204,7 @@ describe('leftSince / leftNote', () => {
     ];
     const left = leftSince(roster, '2026-10-12T04:00');
     expect(left.map((p) => p.key)).toEqual(['rm:2', 'rm:3']);
+    expect(localStamp(new Date(2026, 9, 12, 7, 5))).toBe('2026-10-12T07:05');
     const note = leftNote(left, (p) => `${p.room}/${p.name}${p.junior ? ` - ${p.junior}` : ''}`);
     expect(note).toBe('Pulang: 417/Tn. Dua\nPindah ke CVCU: 417/Tn. Tiga');
   });

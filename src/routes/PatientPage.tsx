@@ -598,49 +598,6 @@ export default function PatientPage(): JSX.Element {
 
   const poliAfter = poliUpcoming[1] ?? null;
 
-  /**
-   * Publish the reporting format to the sidebar while this patient is open.
-   *
-   * Cleared on unmount so the rail never shows a format belonging to a patient
-   * that is no longer on screen — a stale reminder is worse than none, because
-   * it is indistinguishable from a current one.
-   */
-  const setDpjpHint = useUI((state) => state.setDpjpHint);
-  useEffect(() => {
-    /**
-     * A recognised DPJP always gets the panel, configured format or not.
-     *
-     * It required `dpjpFormat`, so a consultant with no entry in Settings —
-     * Peter Kabo among them — got no panel at all, and with it no poli line and
-     * no format reminder. The format is the optional part; the consultant being
-     * recognised is not.
-     */
-    if (dpjp) {
-      setDpjpHint({
-        initials: dpjp.initials,
-        name: dpjp.name,
-        description: dpjpFormat
-          ? describeConfig(dpjpFormat)
-          : // Unset means the standard daily handover — say so rather than
-            // leaving a blank where a format should be.
-            'Laporan harian',
-        ...(poli
-          ? {
-              poli: `${weekdayName(poli.weekday)}, ${poli.date} · ${poli.slot.clinic} · ${poli.slot.time}`,
-              period: SCHEDULE_PERIOD,
-              ...(poliAfter
-                ? {
-                    poliAfter: `${weekdayName(poliAfter.weekday)}, ${poliAfter.date} · ${poliAfter.slot.clinic} · ${poliAfter.slot.time}`,
-                  }
-                : {}),
-            }
-          : {}),
-      });
-    } else {
-      setDpjpHint(null);
-    }
-    return () => setDpjpHint(null);
-  }, [dpjp, dpjpFormat, poli, poliAfter, setDpjpHint]);
 
   const railDates = useMemo(
     () =>

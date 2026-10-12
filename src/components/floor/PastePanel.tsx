@@ -82,10 +82,11 @@ export function PastePanel({ floor, roster, myName }: { floor: FloorDoc; roster:
       const moved = new Set(reading.diff.moved.map((m) => m.before.key));
       for (const { before, report } of reading.diff.updated) {
         const acceptMove = moved.has(before.key) && !skipMove.has(before.key);
+        // Not a confirmed move: the stored room/bed stays (it may have been set by hand).
         await writeRosterReport(
           floor.id,
           before.key,
-          updatedReport(before.report, report, !moved.has(before.key) || acceptMove),
+          updatedReport(before.report, report, acceptMove),
           acceptMove ? log(`Pindah kamar ${where(before.report)} → ${where(report)}`) : undefined,
         );
       }

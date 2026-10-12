@@ -43,31 +43,6 @@ interface UIState {
    */
   nonAsciiPreview: boolean;
   setNonAsciiPreview: (on: boolean) => void;
-  /**
-   * The reporting format expected for the patient currently open.
-   *
-   * Lives in the store rather than being passed down because the sidebar and
-   * the patient page are siblings under the shell, and threading a prop through
-   * `AppShell` would make every screen carry a field only one of them uses.
-   * Set by the patient page, cleared when it unmounts.
-   */
-  dpjpHint: {
-    initials: string;
-    name: string;
-    description: string;
-    poli?: string;
-    /**
-     * The clinic AFTER the next one.
-     *
-     * A second field rather than a joined string, so the rail can render it
-     * dimmer and on its own line: the next clinic is the one being planned
-     * around, and the one after it is the fallback. Flattening both into
-     * `poli` would give them equal weight in a panel that is read in a glance.
-     */
-    poliAfter?: string;
-    period?: string;
-  } | null;
-  setDpjpHint: (hint: UIState['dpjpHint']) => void;
   /** Desktop context sidebar on the patient page. Expanded by default. */
   contextPaneOpen: boolean;
   toggleContextPane: () => void;
@@ -131,8 +106,6 @@ export const useUI = create<UIState>((set, get) => ({
   nonAsciiPreview: false,
   setNonAsciiPreview: (on) => set({ nonAsciiPreview: on }),
   theme: readStoredTheme(),
-  dpjpHint: null,
-  setDpjpHint: (dpjpHint) => set({ dpjpHint }),
   registerFlush: (key, flush) => {
     FLUSHERS.set(key, flush);
     return () => {
