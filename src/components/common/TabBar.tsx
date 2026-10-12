@@ -62,6 +62,7 @@ const TOOLS: readonly Destination[] = [
   { to: '/kalkulator', label: 'Kalkulator', Icon: IconCalculator },
   { to: '/checklist', label: 'Checklist', Icon: IconChecklist },
   { to: '/helper', label: 'Helper', Icon: IconClipboard, wip: true },
+  { to: '/list', label: 'List Maker', Icon: IconBoard, wip: true },
 ];
 
 const SETTINGS: Destination = { to: '/pengaturan', label: 'Pengaturan', Icon: IconSettings };

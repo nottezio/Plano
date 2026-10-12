@@ -1,5 +1,110 @@
 # Plano — CHANGES
 
+## `2026-10-12.9` — List Maker → Word: List Pasien (3 columns) and Denah
+
+- **Request:** the 12.8 "Not done" Word export, laid out like Avi's printed
+  LIST and DENAH (31-08-2026).
+- **`domain/floorList/docx.ts`** (hand-written WordprocessingML in a stored
+  ZIP, reusing `escapeXml`/`inlineRuns`/`storeZip` from `soapDocx`):
+  - `buildListDocx(text)`: the `buildFloorList` message, A4, Arial 7.5 pt,
+    `<w:cols w:num="3">`, `*bold*` → bold, page number in the footer.
+  - `buildDenahDocx({ward, date, plan, patients})`: page 1 = one floor table
+    on a 4-column grid (420 | 421 across the top; left rooms | nurse station
+    (amber fill, vMerge) / 411 | right rooms; the shorter side stretches its
+    last room down) + DPJP tables three to a row (KJS under its DPJP);
+    rooms not on the plan under "Di luar denah"; page 2 (pageBreakBefore) =
+    chief counts, a block per junior, "Operkan ke Tmn Lain", "Ganti Chief".
+    Legend "Merah H-1 – Hijau Pulang Hari ini." in the footer.
+  - `patientRuns`: red FF0000 / green 00B050 text, amber FFC000 pediatri
+    code, residents bold black.
+- **`domain/floorList/beds.ts` `placeBeds`:** moved out of `FloorDenah`, so
+  the screen and the Word denah place patients identically (bed n, free slot,
+  overflow kept).
+- **Page:** "Word: List Pasien" / "Word: Denah" above the tabs
+  (`deliverFile`: share sheet on a phone, download otherwise).
+- **Checked:** both files from the real export rendered through LibreOffice →
+  PDF: denah page 1 fits one page, page 2 matches the reference, list flows
+  in three columns (4 pages for 14 patients with full TS blocks).
+- Tests: bed placement, run colours, 3 columns + bold, zip parts, every
+  vMerge continue follows a restart, legend, strays, page 2 blocks.
+- Not done: Word output untested in Microsoft Word itself (LibreOffice
+  only); "Operkan"/"Ganti Chief" are blank blocks to fill by hand; no PDF.
+
+### Verify
+```
+npm run verify → typecheck, lint, 162 files / 2362 tests, version, contrast, a11y, build: all green
+```
+
+## `2026-10-12.8` — List Maker: floor list + interactive denah from the WhatsApp SOAPs, shared by role
+
+- **Request (Avi, 12-12):** a new full page that turns the floor group's SOAP
+  messages into the List Pasien (format of his 31-08 list: black text, bold
+  patient line "- dr. Junior / dr. Chief") and the DENAH (red H-1, green
+  pulang hari ini, pediatri code amber); tap a patient on the denah → full
+  SOAP in a floating box for the DPJP visit; shared with colleagues on their
+  own Plano accounts, each **View only** or **View and Edit**. Residents:
+  prefilled and editable.
+- **Source studied:** the group's export (4 days, 92 messages: 69 single-
+  patient follow-ups, 5 sent lists, chat) — kept in the scratchpad only;
+  fixtures are invented (patients AND resident nicknames).
+- **Domain (`domain/floorList/`):**
+  - `chat.ts` `splitChat`: iOS/Android/copied/markdown export headers (stamp
+    → ISO, never guessed), header-less pastes split at report openings (a
+    "Chief :" header stays with its report).
+  - `report.ts` `readReport`: place = LAST "Kamar" after "ke" (transfers);
+    identity = line after "atas nama"; RM labelled or bare 6+ digits (not a
+    date); DPJP filed = cardiology Utama → role Kardio → other (BTKV surgeons
+    never filed); KJS = Aritmia/Eko/Intervensi roles; BTKV = BTKV DPJP line,
+    "KJS TS BTKV"/"TS BTKV" in the opening, or any "DPJP … BTKV" line; body =
+    from the LAST assess heading ("Mohon izin [pasien] kami assess(t)") — else
+    a Diagnosis followed by therapy — to the first non-bulleted sign-off,
+    renamed "Diagnosis:"/"Terapi:", TS blocks kept; red/green from Plan lines
+    only. `latestOf`: latest per patient (RM leading zeros ignored), residents
+    carried from an earlier report. `onFloor(D)`: gone = 'pulang' (earlier
+    report said hari ini) or 'tanpa-laporan' (nothing since D-1); "H-1"
+    written on D-1 shows green on D.
+  - `build.ts` `buildFloorList`: group format (counts, every DPJP incl. 0,
+    blocks, `*KJS*` under the KJS DPJP), visit-route order.
+  - `floor.ts`: `FloorDoc`/`FloorDay`, `withEdits` (junior: edit > "Junior :"
+    > floor nickname > derived; chief: edit > message > day chief),
+    `dayView` (days D-2…D), `pastePlan` (per date latest, counts unique
+    patients, re-paste writes nothing).
+- **Data:** `floors/{id}` (owner, memberIds, roles, names, invites keyed by
+  email via FieldPath, inviteEmails, nicknames) and `floors/{id}/days/{date}`
+  (`patients.<key>` filed under the SENT date, `edits.<key>`, time, chief) —
+  all leaf writes (`floors.repo.ts`). On the real export a day is
+  125–185 KB.
+- **Rules:** read = members or invited email; owner manages the floor doc
+  (cannot transfer it); edit members may change only `nicknames`; an invitee
+  may add only themselves with exactly the invited role and remove only their
+  own invite; members may leave; days read by members, written by owner/edit
+  members; no deletes.
+- **UI:** `/list` (TabBar "List Maker", WIP): invites to accept, create a
+  floor, date/time/"Chief hari ini", tabs Denah | List | Tempel (editors) |
+  Anggota. `FloorDenah` (plan + DPJP tables + resident split + legend),
+  `SoapFloat` (non-modal floating panel; phone bottom panel; Back/Esc close),
+  `ListPanel` (corrections + message + Salin), `PastePanel` (textarea or
+  .zip/.txt via `lib/unzip.ts` — central directory + `DecompressionStream`),
+  `MembersPanel` (invite/role/remove/leave, sender nicknames).
+- **Render check** (scratch harness, real data, desktop 1366 + phone 390):
+  denah, floating SOAP beside the denah / bottom panel on phone, list tab.
+  Fixed from it: patient text inherited the faint bed-number colour; a
+  yesterday "H-1" showed red instead of green.
+- **Wrong turns:** first filing reports as "added" per message (70 for 31
+  patients) — now unique per patient; nickname from the sender's first
+  given name is wrong for some residents, hence the editable map.
+- **Not done:** Word export (List 3 columns, Denah) — next; Pediatri
+  patients (no SOAP in this group) can't be added by hand yet; "Operkan ke
+  Tmn Lain"/"Ganti Chief" blocks; only Lantai 4 has a drawn plan (other wards
+  list "Pasien <ward>"); multi-patient messages read the first patient only;
+  rules not tested in an emulator; untested on a real phone. **Rules deploy
+  on push before the page works.**
+
+### Verify
+```
+npm run verify → typecheck, lint, 161 files / 2353 tests, version, contrast, a11y, build: all green
+```
+
 ## `2026-10-12.7` — Pediatri "A - B" printed as two names; trio 6MWT confirmed
 
 - **Root cause:** 09.2 read the WhatsApp "A - B" as "(A) - B" (A = PPDS BTKV

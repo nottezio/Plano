@@ -94,3 +94,13 @@ export const sensusInputDoc = (uid: string, date: string): DocumentReference =>
 
 /** The account's Anthropic key and AI switches (12.6). One document, `ai`. */
 export const aiPrivateDoc = (uid: string): DocumentReference => doc(db(), 'users', uid, 'private', 'ai');
+
+/**
+ * List Maker floors (12.8): a shared floor list, its members and roles, and
+ * one document per day of reports and edits (`domain/floorList/floor.ts`).
+ */
+export const floorsCol = (): CollectionReference => collection(db(), 'floors');
+export const floorDoc = (floorId: string): DocumentReference => doc(db(), 'floors', floorId);
+export const floorDaysCol = (floorId: string): CollectionReference => collection(db(), 'floors', floorId, 'days');
+export const floorDayDoc = (floorId: string, date: string): DocumentReference =>
+  doc(db(), 'floors', floorId, 'days', date);

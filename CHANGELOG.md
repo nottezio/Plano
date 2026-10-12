@@ -5,6 +5,24 @@ Catatan teknis lengkap (akar masalah, perbaikan) ada di CHANGES.md.
 
 Entri teratas harus versi yang sedang dirilis; tes gagal bila belum ditulis.
 
+## `2026-10-12.9`
+- **List Maker: ekspor Word.** Dua tombol di atas tab: **Word: List Pasien** dan **Word: Denah**, untuk dicetak (mis. di ruang MR).
+  - **List Pasien**: A4, tiga kolom, huruf kecil, teks hitam; yang bertanda *…* jadi tebal; nomor halaman di bawah.
+  - **Denah**: halaman 1 berisi denah lantai (420 dan 421 di atas, kamar kiri, Nurse Station dan 411 di tengah, kamar kanan) lalu tabel per DPJP (tiga per baris, pasien KJS di bawah DPJP-nya). Halaman 2 berisi jumlah pasien per chief, blok tiap junior, lalu "Operkan ke Tmn Lain" dan "Ganti Chief" untuk diisi tangan.
+  - Warna sama seperti di layar: **merah** H-1, **hijau** pulang hari ini, kode DPJP pediatri oranye; keterangan warna ada di kaki setiap halaman.
+- **Hanya anggota yang diundang** yang bisa melihat denah dan list sebuah lantai; pengguna Plano lain tidak.
+
+## `2026-10-12.8`
+- **Baru: List Maker** (menu **List Maker**, WIP) — list pasien dan denah lantai dibuat otomatis dari pesan SOAP di grup WhatsApp, dan bisa dibagikan ke tim lantai.
+  - **Tempel**: tempel pesan SOAP (boleh banyak sekaligus) atau buka file **Export chat** WhatsApp (.zip/.txt). Laporan terbaru tiap pasien yang dipakai; pesan List, obrolan, dan pasien lantai lain dilewati.
+  - **Denah**: denah PJT Lantai 4 dengan semua bed, tabel per DPJP, dan pembagian residen (chief dan junior). **Ketuk pasien untuk melihat SOAP lengkapnya** di kotak mengambang — di tablet/laptop denah tetap terlihat di sampingnya.
+  - **Merah = H-1, Hijau = pulang hari ini**, dibaca dari Plan (bukan dari diagnosis), dan dihitung dari tanggal laporannya: "H-1 hari ini" kemarin menjadi hijau hari ini.
+  - **List**: pesan List Pasien siap disalin (format grup: jumlah pasien, per DPJP, Diagnosis/Terapi/Selesai/Plan dan blok TS, pasien KJS di bawah DPJP-nya), teks hitam. Junior, chief, merah/hijau bisa dikoreksi per pasien; pasien bisa dikeluarkan/dimasukkan.
+  - Pasien yang sudah pulang (menurut Plan) atau **tidak ada laporan sejak kemarin** otomatis tidak masuk list, tetapi tetap ditampilkan untuk dimasukkan kembali.
+  - **Anggota**: undang rekan dengan email akun Plano-nya, sebagai **Lihat saja** atau **Lihat dan edit**. Undangan diterima di halaman List Maker mereka. Semua anggota bisa melihat SOAP lengkap pasien lantai ini.
+  - Junior diambil dari baris "Junior :" atau nama pengirim WhatsApp (bisa diganti di Anggota → Nama panggilan); chief dari baris "Chief :" atau **Chief hari ini**.
+  - Ekspor Word (List 3 kolom dan Denah) menyusul.
+
 ## `2026-10-12.7`
 - **Jadwal Pediatri dari teks WhatsApp: "dr. A - dr. B" kini ditulis sebagai dua nama**, "A / B", tanpa label BTKV. Sebelumnya A dianggap residen BTKV; anggapan itu belum pasti, jadi kini keduanya ditulis apa adanya. Bentuk dalam kurung dari PDF, "(A) - B", tetap dibaca A sebagai BTKV.
   - Jadwal yang sudah ditempel sebelum pembaruan ini masih memakai cara lama: **tempel ulang teks WhatsApp-nya** di Konfirmasi Jaga → Pediatri.

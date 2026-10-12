@@ -11,6 +11,7 @@ import SettingsPage from '@/routes/SettingsPage';
 import PatientPage from '@/routes/PatientPage';
 import NotFoundPage from '@/routes/NotFoundPage';
 import AdminPage from '@/routes/AdminPage';
+import ListMakerPage from '@/routes/ListMakerPage';
 import { useAiKeySync } from '@/hooks/useAiKeySync';
 
 /**
@@ -31,6 +32,7 @@ export default function App(): JSX.Element {
       <Route path="/kalkulator" element={<CalculatorPage />} />
       <Route path="/checklist" element={<ChecklistsPage />} />
       <Route path="/helper" element={<HelperPage />} />
+      <Route path="/list" element={<ListMakerPage />} />
       <Route path="/pengaturan" element={<SettingsPage />} />
       <Route path="/p/:patientId" element={<PatientPage />} />
       <Route path="/p/:patientId/:date" element={<PatientPage />} />
