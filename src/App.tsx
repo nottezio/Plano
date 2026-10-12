@@ -11,6 +11,7 @@ import SettingsPage from '@/routes/SettingsPage';
 import PatientPage from '@/routes/PatientPage';
 import NotFoundPage from '@/routes/NotFoundPage';
 import AdminPage from '@/routes/AdminPage';
+import { useAiKeySync } from '@/hooks/useAiKeySync';
 
 /**
  * Route table (SPEC 4 / 5). Paths are user-visible Bahasa Indonesia; the
@@ -18,6 +19,8 @@ import AdminPage from '@/routes/AdminPage';
  * survive every later phase.
  */
 export default function App(): JSX.Element {
+  // The AI key follows the account (12.6).
+  useAiKeySync();
   return (
     <Routes>
       <Route path="/" element={<BoardPage />} />

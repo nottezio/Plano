@@ -10,17 +10,18 @@
  *
  * WHERE IT IS KEPT
  *
- * localStorage on that device, and nowhere else. NOT in Firestore, not in the
- * user profile, not in the export: those sync, and a credential that syncs is
- * a credential on every device that has ever signed in. It is deliberately
- * lost when the browser data is cleared — that is the correct behaviour for a
- * secret, and re-pasting it takes ten seconds.
+ * localStorage on the device is the working copy. Since 12.6 the ACCOUNT
+ * holds it too (`users/{uid}/private/ai`, owner-only, its own document —
+ * not the profile, not the export), by Avi's choice (2026-10-12): pasting
+ * it on every device and after every sign-out cost more than it protected.
+ * The trade-off, accepted: any device signed in to the account can read the
+ * key. Sign-out still clears the device copy and the offline cache.
  *
  * WHAT LEAVES THE DEVICE
  *
  * Every AI call sends the text it is given to Anthropic. That text is clinical.
  * The features are therefore off unless a key is present AND the feature is
- * switched on, both per device, and each call site says what it is about to
+ * switched on (both follow the account since 12.6), and each call site says what it is about to
  * send. This is a hospital-policy question as much as a technical one, which
  * is why nothing here is on by default.
  */

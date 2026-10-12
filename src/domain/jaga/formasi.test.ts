@@ -8,6 +8,7 @@ import {
   resolveShift,
   shiftDateLabel,
 } from './formasi';
+import { onsiteSchedule } from './onsite';
 import type { DpjpRoster, JagaRoster, JagaShift, JarkomDirectory } from './types';
 
 const SHIFT: JagaShift = {
@@ -312,6 +313,13 @@ describe('the paediatrics post', () => {
     expect(text).toContain('Pediatri : Raden (BTKV)/ Ken');
   });
 
+  it('prints a WhatsApp "A - B" pair as both names, no BTKV label (12.7)', () => {
+    const posts = resolveShift(SHIFT, ROSTER, JARKOM, {}, {}, {}, { name: 'Raden / Ken' });
+    const text = buildFormasi(SHIFT, posts, DPJP, new Date(), new Set());
+    expect(text).toContain('Pediatri : Raden / Ken (belum konfirmasi)');
+    expect(text).not.toContain('(BTKV)');
+  });
+
   it('confirms the cardiology resident, not the BTKV one', () => {
     // A BTKV resident cannot answer whether somebody is on a cardiology post,
     // and their own confirmation goes through Kardio.
@@ -465,10 +473,26 @@ describe('Formasi in Avi\u2019s format (2026-10-12)', () => {
     expect(out).toContain('_DPJP Utama : dr. Malam Utama_\n_DPJP Tindakan : dr. Malam Tindakan_\n_DPJP Onsite: Prof. Dr. dr. Muzakkir Amir, Sp.JP(K)_');
   });
 
-  it('no onsite line on Sunday, nor for the night team', () => {
+  it('no onsite line on Sunday', () => {
     const sunday: JagaShift = { ...friday, date: '2026-10-11', hari: 'Minggu', shift: 'pagi' };
     expect(buildFormasi(sunday, [], roster, new Date())).not.toContain('Onsite');
+  });
+
+  it('the Saturday MALAM team carries the onsite line (Avi, 2026-10-12)', () => {
     const night: JagaShift = { ...friday, date: '2026-10-10', hari: 'Sabtu Malam', shift: 'malam' };
+    expect(buildFormasi(night, [], roster, new Date())).toContain('_DPJP Onsite: Prof. Dr. dr. Muzakkir Amir, Sp.JP(K)_');
+  });
+
+  it('a MALAM team on a day not flagged for it does not', () => {
+    const night: JagaShift = { ...friday, date: '2026-10-09', hari: 'Jumat Malam', shift: 'malam' };
     expect(buildFormasi(night, [], roster, new Date())).not.toContain('Onsite');
+  });
+
+  it('follows the account schedule when one is passed', () => {
+    const edited = onsiteSchedule({ '5': { id: 'mz', malam: false } });
+    const text = buildFormasi(friday, [], roster, new Date(), new Set(), undefined, edited);
+    expect(text).toContain('_DPJP Onsite: Prof. Dr. dr. Muzakkir Amir, Sp.JP(K)_');
+    const none = onsiteSchedule({ '5': { id: '', malam: false } });
+    expect(buildFormasi(friday, [], roster, new Date(), new Set(), undefined, none)).not.toContain('Onsite');
   });
 });

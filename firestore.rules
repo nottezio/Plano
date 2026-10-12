@@ -263,6 +263,32 @@ service cloud.firestore {
       match /templates/{templateId} {
         allow read, create, update, delete: if isSelf(uid) && allowed();
       }
+
+      // Buat Sensus input per tanggal sensus (12.6): the pasted lists, AI
+      // results and ticks (src/domain/census/makerSync.ts), owner only.
+      // Transient working data, so delete IS allowed: a day emptied by the
+      // user or older than a week is removed. Firestore's own 1 MiB cap
+      // bounds the size; the client keeps an oversized day local.
+      match /sensusInput/{date} {
+        allow read, delete: if isSelf(uid) && allowed();
+        allow create, update: if isSelf(uid) && allowed()
+          && date.matches('^[0-9]{4}-[0-9]{2}-[0-9]{2}$')
+          && request.resource.data.date == date
+          && (!('lists' in request.resource.data) || (request.resource.data.lists is list
+            && request.resource.data.lists.size() <= 30));
+      }
+
+      // The account's Anthropic key and AI switches (12.6, Avi's choice),
+      // owner only, one document. Not part of the profile so it never enters
+      // Export data. No delete: clearing writes an empty key.
+      match /private/{docId} {
+        allow read: if isSelf(uid) && allowed() && docId == 'ai';
+        allow create, update: if isSelf(uid) && allowed() && docId == 'ai'
+          && request.resource.data.key is string
+          && request.resource.data.key.size() <= 400
+          && request.resource.data.flags is map;
+        allow delete: if false;
+      }
     }
 
     /*

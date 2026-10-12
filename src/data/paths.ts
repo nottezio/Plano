@@ -82,3 +82,15 @@ export const sensusDaysCol = (uid: string): CollectionReference =>
   collection(db(), 'users', uid, 'sensusDays');
 export const sensusDayDoc = (uid: string, id: string): DocumentReference =>
   doc(db(), 'users', uid, 'sensusDays', id);
+
+/**
+ * Buat Sensus input per tanggal sensus (12.6): the pasted lists, AI results
+ * and ticks (`domain/census/makerSync`). Transient: pruned after a week.
+ */
+export const sensusInputCol = (uid: string): CollectionReference =>
+  collection(db(), 'users', uid, 'sensusInput');
+export const sensusInputDoc = (uid: string, date: string): DocumentReference =>
+  doc(db(), 'users', uid, 'sensusInput', date);
+
+/** The account's Anthropic key and AI switches (12.6). One document, `ai`. */
+export const aiPrivateDoc = (uid: string): DocumentReference => doc(db(), 'users', uid, 'private', 'ai');

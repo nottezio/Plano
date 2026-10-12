@@ -12,10 +12,16 @@ import type { PediatriRoster, PediatriShift } from './types';
  *
  *   PDF                     WhatsApp            meaning
  *   `Fatur, Galih`          `B & C`             two SHIFTS: pagi B, malam C
- *   `(Kifli) - Dira`        `D - B`             D is the PPDS BTKV with B
- *   `(Kifli) - Galih, Dira` `D - E & F`         pagi E (with BTKV D), malam F
+ *   `(Kifli) - Dira`        —                   Kifli is the PPDS BTKV with Dira
+ *   —                       `D - B`             D AND B on the shift, roles unknown
+ *   —                       `D - E & F`         pagi "D / E", malam F
  *
- * The bracket form is accepted too, in case someone copies the sheet's text.
+ * "A - B" in the message is NOT read as "(A) - B" (12.7). That mapping was an
+ * analogy with the sheet that Avi could not confirm ("I don't know for now,
+ * just make the name multiple"), so both names are printed — "Dodi / Bela" —
+ * and neither is labelled BTKV. Printing a role nobody stated is worse than
+ * printing two names. The bracket form keeps its meaning: that one IS the
+ * sheet's, copied as text.
  *
  * NO YEAR. The message names the weekday, so the year is the one, nearest to
  * the date being viewed, in which that date falls on that weekday. A weekday
@@ -71,12 +77,18 @@ function cleanName(raw: string): string {
   return name ? name.charAt(0).toUpperCase() + name.slice(1) : '';
 }
 
-/** One shift's text → the cardiology name and, when written, the BTKV partner. */
+/**
+ * One shift's text → the name(s) on it and, only for the sheet's bracket form,
+ * the BTKV partner. "A - B" → "A / B": both on, roles not stated.
+ */
 function readPart(part: string): { name: string; btkv: string } {
   const bracket = /\(([^)]+)\)\s*[-–—]?\s*(.*)$/.exec(part);
   if (bracket) return { btkv: cleanName(bracket[1] ?? ''), name: cleanName(bracket[2] ?? '') };
   const dash = /^(.+?)\s+[-–—]\s+(.+)$/.exec(part) ?? /^(.+?)[-–—]\s*(dr\.?.+)$/i.exec(part);
-  if (dash) return { btkv: cleanName(dash[1] ?? ''), name: cleanName(dash[2] ?? '') };
+  if (dash) {
+    const names = [cleanName(dash[1] ?? ''), cleanName(dash[2] ?? '')].filter(Boolean);
+    return { btkv: '', name: names.join(' / ') };
+  }
   return { btkv: '', name: cleanName(part) };
 }
 

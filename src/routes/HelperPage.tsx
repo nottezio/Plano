@@ -13,6 +13,9 @@ import { CensusVerifier } from '@/components/helper/CensusVerifier';
 import { SensusMaker } from '@/components/helper/SensusMaker';
 import { MorningReport } from '@/components/helper/MorningReport';
 import { SavedResults } from '@/components/helper/SavedResults';
+import { OnsiteScheduleEditor } from '@/components/helper/OnsiteSchedule';
+import { onsiteSchedule } from '@/domain/jaga/onsite';
+import { useSession } from '@/store/useSession';
 import { SaveResultButton, SavedResultsProvider } from '@/components/helper/SaveResult';
 
 import { copyText } from '@/lib/clipboard';
@@ -279,6 +282,9 @@ function KonfirmasiJaga(): JSX.Element {
     Record<string, { utama?: string; tindakan?: string }>
   >({});
   const [editKey, setEditKey] = useState('');
+  /** DPJP Onsite IGD, from the account (12.5). */
+  const savedOnsite = useSession((s) => s.settings().onsiteIgd);
+  const onsite = useMemo(() => onsiteSchedule(savedOnsite), [savedOnsite]);
 
   /** Swaps re-read against the directory, so a corrected person shows corrected. */
   const livePosts = useMemo(
@@ -407,9 +413,10 @@ function KonfirmasiJaga(): JSX.Element {
             new Date(),
             confirmed as ReadonlySet<JagaPostId>,
             dpjpEdits,
+            onsite,
           )
         : '',
-    [shift, posts, dpjp, confirmed, dpjpEdits],
+    [shift, posts, dpjp, confirmed, dpjpEdits, onsite],
   );
 
   const staffed = posts.filter((post) => post.initials || post.swapped);
@@ -862,6 +869,8 @@ function KonfirmasiJaga(): JSX.Element {
                 <p className="text-[11px] text-fg-faint">Kosongkan untuk memakai jadwal yang diimpor.</p>
               </div>
             </details>
+
+            <OnsiteScheduleEditor schedule={onsite} />
           </section>
 
           <section aria-labelledby="konfirmasi-title" className="space-y-3 rounded-2xl border border-border bg-surface p-4">

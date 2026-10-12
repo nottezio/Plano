@@ -5,6 +5,25 @@ Catatan teknis lengkap (akar masalah, perbaikan) ada di CHANGES.md.
 
 Entri teratas harus versi yang sedang dirilis; tes gagal bila belum ditulis.
 
+## `2026-10-12.7`
+- **Jadwal Pediatri dari teks WhatsApp: "dr. A - dr. B" kini ditulis sebagai dua nama**, "A / B", tanpa label BTKV. Sebelumnya A dianggap residen BTKV; anggapan itu belum pasti, jadi kini keduanya ditulis apa adanya. Bentuk dalam kurung dari PDF, "(A) - B", tetap dibaca A sebagai BTKV.
+  - Jadwal yang sudah ditempel sebelum pembaruan ini masih memakai cara lama: **tempel ulang teks WhatsApp-nya** di Konfirmasi Jaga → Pediatri.
+
+## `2026-10-12.6`
+- **Buat Sensus kini tersimpan di akun.** List yang ditempel, hasil AI, pasien "Perlu dicek" yang dimasukkan, dan centang **Sudah saya cek** di Bandingkan kini Synced ke akun:
+  - **tidak hilang lagi setelah Keluar**: masuk lagi, semuanya kembali;
+  - **sama di HP dan laptop**: tempel di satu perangkat, lanjutkan di perangkat lain;
+  - tetap per tanggal sensus, disimpan 7 hari lalu dihapus otomatis.
+  - Bila list satu hari terlalu besar (sangat jarang), list itu tetap di perangkat saja dan ada pemberitahuannya.
+- **API key AI dan sakelar fitur AI kini mengikuti akun.** Cukup tempel sekali di Pengaturan → AI; semua perangkat yang masuk dengan akun Anda langsung memakainya, juga setelah Keluar lalu masuk lagi. Key tidak ikut dalam ekspor data.
+
+## `2026-10-12.5`
+- **Formasi Jaga: tim malam hari Sabtu kini ikut memuat baris "_DPJP Onsite: …_".** Tim malam hari lain tetap tanpa baris onsite.
+- **Jadwal DPJP Onsite IGD kini bisa diubah sendiri:** Helper → Konfirmasi Jaga → di bawah Formasi, buka **Jadwal DPJP Onsite IGD**.
+  - pilih DPJP untuk tiap hari (atau "tidak ada");
+  - centang **Tim malam juga** bila tim malam hari itu ikut diberi baris onsite (awalnya hanya Sabtu);
+  - tersimpan di akun, jadi sama di semua perangkat; **Kembalikan jadwal awal** memulihkan jadwal Senin KS … Sabtu Prof. MZ.
+
 ## `2026-10-12.4`
 - **Konfirmasi Jaga: Formasi kini memuat DPJP Onsite IGD (14.00–21.00)**, sesuai jadwal: Senin dr. KS, Selasa dr. ZD, Rabu dr. AHN, Kamis dr. MAA, Jumat dr. AHA, Sabtu Prof. MZ. Hari Minggu dan tim malam tidak diberi baris onsite.
 - **Format Formasi mengikuti contoh terbaru:**

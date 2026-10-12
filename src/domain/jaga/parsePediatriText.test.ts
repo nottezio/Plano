@@ -28,20 +28,23 @@ describe('parsePediatriText', () => {
     ]);
   });
 
-  it('reads "A - B" as A the BTKV partner of B, like "(A) - B" on the sheet', () => {
+  it('reads "A - B" as both names on the shift, with no BTKV role (Avi, 2026-10-12)', () => {
     expect(roster.shifts.find((s) => s.date === '2026-10-15')).toEqual({
       date: '2026-10-15',
       shift: 'penuh',
-      name: 'Bela',
-      btkv: 'Dodi',
+      name: 'Dodi / Bela',
     });
     // No space after "dr." and a lower-case name.
-    expect(roster.shifts.find((s) => s.date === '2026-10-19')).toMatchObject({ name: 'Eka', btkv: 'Dodi' });
+    expect(roster.shifts.find((s) => s.date === '2026-10-19')).toEqual({
+      date: '2026-10-19',
+      shift: 'penuh',
+      name: 'Dodi / Eka',
+    });
   });
 
-  it('keeps the BTKV partner on the shift it is written on', () => {
+  it('keeps the pair on the shift it is written on', () => {
     expect(roster.shifts.filter((s) => s.date === '2026-11-15')).toEqual([
-      { date: '2026-11-15', shift: 'pagi', name: 'Fajar', btkv: 'Dodi' },
+      { date: '2026-11-15', shift: 'pagi', name: 'Dodi / Fajar' },
       { date: '2026-11-15', shift: 'malam', name: 'Eka' },
     ]);
   });

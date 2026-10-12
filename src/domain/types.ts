@@ -176,6 +176,12 @@ export interface UserSettings {
    * (`Patient.chief`), because a chief covers only some of them.
    */
   ringkasJunior?: string;
+  /**
+   * DPJP Onsite IGD by weekday ('0' = Minggu), for the Formasi Jaga (12.5).
+   * Read through `onsiteSchedule`, which fills missing days from Avi's
+   * default; written one weekday leaf at a time.
+   */
+  onsiteIgd?: Record<string, import('./jaga/onsite').OnsiteDay>;
   /** Salam presets — swapped on an existing note, per SPEC 14. */
   greetings: string[];
   /** Reporting-sentence presets ("mohon izin melaporkan …"). */

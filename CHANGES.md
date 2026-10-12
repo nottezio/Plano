@@ -1,5 +1,112 @@
 # Plano — CHANGES
 
+## `2026-10-12.7` — Pediatri "A - B" printed as two names; trio 6MWT confirmed
+
+- **Root cause:** 09.2 read the WhatsApp "A - B" as "(A) - B" (A = PPDS BTKV
+  with B) by analogy with the PDF sheet. Never confirmed; Avi (12-10): "I
+  don't know for now, just make the name multiple". A role nobody stated was
+  printed as "A (BTKV)/ B" in every Formasi.
+- **Fix:** `parsePediatriText.readPart`: the dash form gives `name: "A / B"`
+  and no `btkv`. The bracket form "(A) - B" (the sheet's own notation,
+  copied as text) keeps A as BTKV. Formasi prints "Pediatri : A / B"; the
+  Jarkom nickname match fails on a pair, so the Konfirmasi greeting is the
+  neutral one, which is right while the person is unknown.
+- **Not bumped:** `PARSER_VERSION.pediatri`. A text roster has no PDF items to
+  re-read, and a bump would only mark it legacy; Avi re-pastes instead
+  (said in CHANGELOG).
+- **Trio 6MWT** (`trio-6mwt`): confirmed by Avi (12-10); comment added at
+  the rule. No behaviour change.
+- Tests: the pair on a whole day and on a pagi shift; Formasi prints both
+  names with no "(BTKV)".
+
+### Verify
+```
+npm run verify → typecheck, lint, 158 files / 2328 tests, version, contrast, a11y, build: all green
+```
+
+## `2026-10-12.6` — Sensus input and the AI key follow the account
+
+- **Root cause:** both were device-only by design, and sign-out clears every
+  device key (`clearDeviceUserState`, inverted allow-list). So the pasted
+  lists, AI results, "Perlu dicek" choices and Bandingkan ticks
+  (`plano.sensus.v2`) and the Anthropic key + switches (`visite.ai.*`) were
+  lost at every sign-out and never reached another device. Avi (12-10):
+  keep the sensus lists and ticks; sync the AI key too.
+- **Fix — keep sign-out clearing the device, move the durable copy to the
+  account** (not the reverse: leaving data behind at sign-out is what the
+  inverted allow-list exists to prevent):
+  - `users/{uid}/sensusInput/{date}` — one doc per tanggal sensus.
+    `domain/census/makerSync.ts` (pure): `dayPatch` writes `lists` whole
+    and `ai/extra/checked.<CODE>` as leaves (`null` → `deleteField`), drops
+    `undefined` (Firestore rejects it); `mergeRemoteDays` = account wins
+    except a dirty date, a `known` date missing remotely is removed, a local
+    never-synced date is kept for upload; `expiredDates` (> 7 days, deleted);
+    `tooBigToSync` (> 900 000 chars stays local, Callout shown).
+  - `hooks/useSensusInputSync.ts`: base = last server copy per date; writes
+    debounced 1.2 s per date; snapshots with pending writes ignored and dirty
+    dates never overwritten (echo of an older write would undo typing);
+    nothing uploaded before the first server-confirmed snapshot; pre-12.6
+    local days uploaded once after it; flush on unmount and on
+    `visibilitychange` hidden.
+  - `users/{uid}/private/ai` — `{key, flags}`, its own doc (not the profile:
+    stays out of Export data and of every screen's profile read).
+    `lib/aiSync.ts` (`scheduleAiPush`, 0.8 s debounce, `isAiPushPending`),
+    `hooks/useAiKeySync.ts` mounted once in `App` (refills localStorage,
+    fires `plano:ai-changed`; `AiSettings` re-reads on it). First server
+    answer with no doc uploads this device's key once.
+  - `firestore.rules`: `sensusInput/{date}` (owner, ISO id = `date` field,
+    ≤ 30 lists, delete allowed: transient) and `private/ai` (owner, key ≤
+    400 chars, flags map, no delete).
+- **Trade-off, stated to Avi:** any device signed in to the account can read
+  the key. Sign-out still clears the device copy and the offline cache.
+- **Interpretation:** "sync between accounts" read as "between my devices on
+  the same account". Sharing a key across different Google accounts would
+  need a shared store and is not done.
+- Not done: Sensus code/address/style/mode and heparin settings still
+  device-only (cleared at sign-out); no render check on the real app
+  harness; **the rules must be deployed (push triggers
+  `firestore-deploy.yml`) before the sync works** — until then writes are
+  refused and the Callout "List belum Synced" shows; local use is
+  unaffected.
+
+### Verify
+```
+npm run verify → typecheck, lint, 158 files / 2327 tests, version, contrast, a11y, build: all green
+```
+
+## `2026-10-12.5` — Formasi: Saturday MALAM onsite line; onsite schedule is an account setting
+
+- **Root cause (both items):** 12.4 hardcoded two decisions in code: the
+  weekday → consultant map (`ONSITE_IGD`) and "never for a MALAM team". Avi
+  answered (12-10): the Saturday night team DOES carry the line, and the
+  schedule must be editable. A rota is configuration; a release is the wrong
+  unit of change for it.
+- **Fix:**
+  - `domain/jaga/onsite.ts`: `OnsiteDay {id, malam}`, `DEFAULT_ONSITE_IGD`
+    keyed by weekday string ('0' = Minggu), Avi's schedule with Saturday
+    `malam: true`; `onsiteSchedule(saved)` merges per day AND per field over
+    the default; `onsiteFor(date, shift, schedule)` returns null for a MALAM
+    team unless that day is flagged, and for an id not in the registry.
+  - `UserSettings.onsiteIgd` (synced on `users/{uid}`). Written one weekday
+    leaf at a time (`updateSettings` merges), never the whole map (pattern 5).
+  - `buildFormasi(..., onsite?)`; HelperPage reads the setting and passes it.
+  - `components/helper/OnsiteSchedule.tsx`: a `<details>` under "Ubah DPJP",
+    one row per weekday (Senin first): DPJP select (registry, or "tidak
+    ada") + "Tim malam juga"; "Kembalikan jadwal awal" when edited.
+- **Wrong turn avoided:** storing names as free text. The registry id keeps
+  the printed name identical to the rest of Plano; a consultant outside the
+  registry would need a registry entry first.
+- Tests: Saturday malam has the line, Friday malam doesn't, an edited
+  schedule is followed and an emptied day prints nothing, merge per field,
+  unknown id → null.
+- Not done: no render check of the editor (plain select/checkbox rows);
+  untested on a phone; consultants outside `DPJPS` can't be picked.
+
+### Verify
+```
+npm run verify → typecheck, lint, 156 files / 2310 tests, version, contrast, a11y, build: all green
+```
+
 ## `2026-10-12.4` — Formasi Jaga: DPJP Onsite IGD; one-line Utama dan Tindakan; post-midnight block before closing
 
 - `domain/jaga/onsite.ts` (new): `ONSITE_IGD` weekday → registry id (Avi,

@@ -20,8 +20,10 @@ import { PLACE_ORDER, type AiPatient, type AiUncertain, type CensusAddress, type
  * DPJP, with the key of what it was computed from, so it shows again only
  * while it still matches the lists.
  *
- * Still device-only, for the reasons in SensusMaker: whole-hospital lists,
- * tens of KB each. Kept `KEEP_DAYS` days, then dropped.
+ * Kept `KEEP_DAYS` days, then dropped. Since 12.6 each day is ALSO synced to
+ * the account (`makerSync.ts`, `users/{uid}/sensusInput/{date}`), so the
+ * lists, AI results and ticks survive sign-out and reach every device; this
+ * localStorage copy is the offline cache and is still cleared at sign-out.
  */
 
 export const SENSUS_STORE_KEY = 'plano.sensus.v2';
@@ -74,7 +76,7 @@ export interface SensusStore {
 const EMPTY_LIST: SensusList = { text: '', kind: 'auto' };
 
 export function emptyDay(): SensusDay {
-  return { lists: [{ ...EMPTY_LIST }], ai: {}, extra: {} };
+  return { lists: [{ ...EMPTY_LIST }], ai: {}, extra: {}, checked: {} };
 }
 
 export function emptyStore(): SensusStore {
@@ -143,7 +145,19 @@ function readExtra(value: unknown): Record<string, string[]> {
   return out;
 }
 
-function hasContent(day: SensusDay): boolean {
+/** One stored day (local JSON or a synced document), or null if it holds nothing readable. */
+export function readDay(value: unknown): SensusDay | null {
+  if (!isRecord(value)) return null;
+  const lists = readLists(value.lists);
+  return {
+    lists: lists.length > 0 ? lists : [{ ...EMPTY_LIST }],
+    ai: readAi(value.ai),
+    extra: readExtra(value.extra),
+    checked: readExtra(value.checked),
+  };
+}
+
+export function hasContent(day: SensusDay): boolean {
   return day.lists.some((list) => list.text.trim()) || Object.keys(day.ai).length > 0;
 }
 
@@ -172,14 +186,9 @@ export function readSensusStore(v2: string | null, v1: string | null, today: Cli
 
     if (isRecord(raw.days)) {
       for (const [date, value] of Object.entries(raw.days)) {
-        if (!ISO.test(date) || !isRecord(value)) continue;
-        const lists = readLists(value.lists);
-        store.days[date] = {
-          lists: lists.length > 0 ? lists : [{ ...EMPTY_LIST }],
-          ai: readAi(value.ai),
-          extra: readExtra(value.extra),
-          checked: readExtra(value.checked),
-        };
+        if (!ISO.test(date)) continue;
+        const day = readDay(value);
+        if (day) store.days[date] = day;
       }
     } else if (typeof raw.date === 'string' && ISO.test(raw.date)) {
       // v1: { date, lists, code, address, style }.

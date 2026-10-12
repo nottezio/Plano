@@ -56,6 +56,7 @@ import {
   type SensusStore,
 } from '@/domain/census/makerStore';
 import { useClinicalToday } from '@/hooks/useClinicalToday';
+import { useSensusInputSync } from '@/hooks/useSensusInputSync';
 import { AiError, aiEnabled, askClaudeStructured } from '@/lib/ai';
 import { copyText } from '@/lib/clipboard';
 import { formatDmy } from '@/domain/dateDmy';
@@ -67,11 +68,13 @@ import { snapFromAi, snapFromEntry, type CensusSnapshot } from '@/domain/census/
 /**
  * Buat Sensus — one DPJP's patients, from the lists the wards send.
  *
- * The lists stay on THIS DEVICE (localStorage), never in the synced profile:
- * they hold every patient in the hospital, a few tens of KB each, and they
- * are worth a day or two. Kept per tanggal sensus (`domain/census/makerStore`),
- * so a reload or a trip to WhatsApp mid-paste loses nothing and each day has
- * its own boxes; dropped after a week.
+ * The lists are kept per tanggal sensus (`domain/census/makerStore`), so a
+ * reload or a trip to WhatsApp mid-paste loses nothing and each day has its
+ * own boxes; dropped after a week. Since 12.6 they are also synced to the
+ * account (`useSensusInputSync`, `users/{uid}/sensusInput/{date}`) with the AI
+ * result and the ticks, so sign-out or another device no longer loses them
+ * (Avi, 2026-10-12). Never in the profile document: a day can be hundreds of
+ * KB.
  *
  * The finished census is what goes to the account: Simpan files it under
  * Tersimpan (`domain/helperResults`), synced to every device.
@@ -128,6 +131,7 @@ export function SensusMaker(): JSX.Element {
   };
 
   useEffect(() => saveStore(store), [store]);
+  const inputSync = useSensusInputSync(uid, store, setStore, today);
 
   const filled = state.lists.filter((list) => list.text.trim());
   const sources: ParsedSource[] = useMemo(() => {
@@ -437,7 +441,7 @@ export function SensusMaker(): JSX.Element {
       <div className="min-w-0 space-y-6">
         <Section
           title="1 · Tempel list ruangan"
-          hint="Satu kotak per pesan: PJT Lantai 4, Lantai 5 dan 6, CVCU/HCU/ICU, RSWS, RSUH — tempel apa adanya. Jenis list dikenali dari judulnya. Kotak-kotak ini milik tanggal sensus di atas: tiap tanggal punya kotaknya sendiri. Tersimpan di perangkat ini saja, 7 hari."
+          hint="Satu kotak per pesan: PJT Lantai 4, Lantai 5 dan 6, CVCU/HCU/ICU, RSWS, RSUH — tempel apa adanya. Jenis list dikenali dari judulnya. Kotak-kotak ini milik tanggal sensus di atas: tiap tanggal punya kotaknya sendiri. Tersimpan di akun (Synced ke semua perangkat, tetap ada setelah keluar), 7 hari."
         >
           <div className="flex flex-wrap items-end gap-2">
             <Field label="Tanggal sensus">
@@ -448,13 +452,23 @@ export function SensusMaker(): JSX.Element {
                 Hari ini
               </Button>
             ) : null}
-            {/* Other days that still have lists on this device. */}
+            {/* Other days that still have lists (synced with the account). */}
             {otherDays.map((entry) => (
               <ChoiceChip key={entry.date} active={false} onClick={() => setCensusDate(entry.date)}>
                 {formatDmy(entry.date)} · {entry.lists} list
               </ChoiceChip>
             ))}
           </div>
+          {inputSync.tooBig.includes(censusDate) ? (
+            <Callout tone="warn" title="List hari ini terlalu besar untuk disinkronkan">
+              Tetap tersimpan di perangkat ini, tetapi tidak ikut ke akun. Hapus list yang tidak dipakai agar
+              bisa Synced lagi.
+            </Callout>
+          ) : inputSync.status === 'error' ? (
+            <Callout tone="warn" title="List belum Synced ke akun">
+              Tersimpan di perangkat ini. Coba buka ulang halaman saat Online.
+            </Callout>
+          ) : null}
           <div className="space-y-3">
             {state.lists.map((list, index) => {
               const parsed = list.text.trim() ? sources[filled.indexOf(list)] : undefined;

@@ -1056,6 +1056,10 @@ function checkContext(body: string, context: SoapCheckContext): SoapFinding[] {
     }
   }
 
+  /*
+    Trio DPJP (AFG, AFM, ZD): a patient going home today or tomorrow needs a
+    6MWT in the note. Confirmed by Avi, 2026-10-12.
+  */
   if (
     context.trio &&
     context.dischargeInDays !== undefined &&

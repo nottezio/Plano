@@ -1,7 +1,7 @@
 import { expandOpeningTokens, timeOfDayWord } from '@/domain/opening';
 
 import { jarkomFor } from './match';
-import { onsiteFor } from './onsite';
+import { onsiteFor, type OnsiteSchedule } from './onsite';
 import { JAGA_POSTS, type JagaPostId } from './types';
 import type { DpjpDay, DpjpRoster, JagaRoster, JagaShift, JarkomDirectory, JarkomEntry } from './types';
 
@@ -268,6 +268,8 @@ export function buildFormasi(
   confirmed: ReadonlySet<JagaPostId> = new Set(),
   /** Consultant swaps, by date. See `store.setDpjpEdit`. */
   edits?: Readonly<Record<string, { utama?: string; tindakan?: string }>>,
+  /** The account's onsite schedule (`onsiteSchedule(settings.onsiteIgd)`); default if absent. */
+  onsite?: OnsiteSchedule,
 ): string {
   /*
     Consultants swap too, and the published roster is a month old by the time
@@ -318,12 +320,13 @@ export function buildFormasi(
     else lines.push(`_DPJP Utama : ${today.utama}_`, `_DPJP Tindakan : ${today.tindakan}_`);
   }
   /*
-    DPJP Onsite IGD 14.00–21.00 (2026-10-12), from the weekday schedule in
-    `onsite.ts`. Not for a MALAM team: it comes on after the onsite hours.
+    DPJP Onsite IGD 14.00–21.00, from the account's weekday schedule
+    (`onsite.ts`). A MALAM team gets it only on a day flagged for it —
+    Saturday by default (Avi, 2026-10-12).
   */
-  const onsite = shift.shift === 'malam' ? null : onsiteFor(shift.date);
-  if (onsite) lines.push(`_DPJP Onsite: ${onsite.name}_`);
-  if (today || onsite) lines.push('');
+  const onsiteDpjp = onsiteFor(shift.date, shift.shift, onsite);
+  if (onsiteDpjp) lines.push(`_DPJP Onsite: ${onsiteDpjp.name}_`);
+  if (today || onsiteDpjp) lines.push('');
 
   lines.push(`*Hari/Tanggal : ${shiftDateLabel(shift.date, shift.shift)}*`, '');
 

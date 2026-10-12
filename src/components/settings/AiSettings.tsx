@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 
 import {
   looksLikeApiKey,
@@ -8,11 +8,14 @@ import {
   writeApiKey,
   type AiFlags,
 } from '@/lib/ai';
+import { AI_CHANGED_EVENT, scheduleAiPush } from '@/lib/aiSync';
+import { useSession } from '@/store/useSession';
 
 /**
  * The AI switches, and the key they run on.
  *
- * Everything here is per device and nothing is on by default. Two separate
+ * Since 12.6 the key and switches follow the ACCOUNT (`useAiKeySync`): set
+ * once, present on every device signed in to it. Nothing is on by default. Two separate
  * conditions have to be met before a single byte of a note leaves the phone: a
  * key is present, and that feature's switch is on. Two rather than one because
  * they answer different questions — "can this app call the API" and "should it
@@ -22,18 +25,31 @@ export function AiSettings(): JSX.Element {
   const [key, setKey] = useState(() => readApiKey());
   const [flags, setFlags] = useState<AiFlags>(() => readAiFlags());
   const [reveal, setReveal] = useState(false);
+  const uid = useSession((state) => state.user?.uid ?? null);
+
+  // Another device changed them: re-read what `useAiKeySync` wrote here.
+  useEffect(() => {
+    const reread = (): void => {
+      setKey(readApiKey());
+      setFlags(readAiFlags());
+    };
+    window.addEventListener(AI_CHANGED_EVENT, reread);
+    return () => window.removeEventListener(AI_CHANGED_EVENT, reread);
+  }, []);
 
   const update = (next: Partial<AiFlags>): void => {
     const merged = { ...flags, ...next };
     setFlags(merged);
     writeAiFlags(merged);
+    scheduleAiPush(uid);
   };
 
   return (
     <div className="space-y-3 text-xs">
       <p className="text-fg-muted">
-        Fitur AI memakai API key Anda sendiri, bukan kuota bersama. Key disimpan hanya di
-        perangkat ini — tidak di-sync, tidak ikut dalam ekspor.
+        Fitur AI memakai API key Anda sendiri, bukan kuota bersama. Key dan sakelar di bawah
+        tersimpan di akun Anda (Synced ke semua perangkat yang masuk dengan akun ini), tidak ikut
+        dalam ekspor.
       </p>
 
       {/*
@@ -61,6 +77,7 @@ export function AiSettings(): JSX.Element {
           onChange={(event) => {
             setKey(event.target.value);
             writeApiKey(event.target.value);
+            scheduleAiPush(uid);
           }}
           placeholder="sk-ant-…"
           autoComplete="off"
