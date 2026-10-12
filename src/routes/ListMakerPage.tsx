@@ -218,7 +218,7 @@ export default function ListMakerPage(): JSX.Element {
               )
             ) : null}
             {tab === 'list' ? (
-              <ListPanel floorId={floor.id} ward={floor.ward} date={date} day={day} view={view} editable={editable} onOpen={setOpen} />
+              <ListPanel floorId={floor.id} ward={floor.ward} date={date} day={day} view={view} editable={editable} onOpen={setOpen} myName={myName} />
             ) : null}
             {tab === 'tempel' && editable ? <PastePanel floor={floor} days={days} date={date} myName={myName} /> : null}
             {tab === 'anggota' && uid ? (

@@ -14,6 +14,7 @@ const FLOOR: FloorDoc = {
   invites: {},
   inviteEmails: [],
   nicknames: { 'dr. Muh Bima Contoh': 'Dani' },
+  manual: {},
 };
 
 function patient(over: Partial<FloorPatient>): FloorPatient {
@@ -112,5 +113,22 @@ describe('pastePlan', () => {
     expect(pastePlan(stored, [older], '2026-10-12').unchanged).toBe(1);
     const undated = patient({ key: 'rm:5', sentAt: '' });
     expect([...pastePlan(stored, [undated], '2026-10-12').byDate.keys()]).toEqual(['2026-10-12']);
+  });
+});
+
+describe('dayView with hand-entered patients', () => {
+  const manual = patient({ key: 'manual:421:anak', room: '421', dpjpId: 'yp', sentAt: '2026-10-08T08:00', manual: true });
+  const floor = { ...FLOOR, manual: { [manual.key]: manual } };
+
+  it('stays on every later list without daily reports, but not on lists before it was entered', () => {
+    expect(dayView(floor, [], '2026-10-12').present.map((p) => p.key)).toEqual(['manual:421:anak']);
+    expect(dayView(floor, [], '2026-10-07').present).toEqual([]);
+  });
+
+  it('a later SOAP for the same RM replaces it', () => {
+    const withRm = { ...manual, key: 'rm:77', rm: '77' };
+    const soap = patient({ key: 'rm:77', rm: '77', sentAt: '2026-10-12T07:00', body: 'dari SOAP' });
+    const view = dayView({ ...FLOOR, manual: { 'rm:77': withRm } }, [day('2026-10-12', [soap])], '2026-10-12');
+    expect(view.present.map((p) => [p.key, p.body, p.manual ?? false])).toEqual([['rm:77', 'dari SOAP', false]]);
   });
 });

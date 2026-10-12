@@ -1,5 +1,44 @@
 # Plano — CHANGES
 
+## `2026-10-12.10` — List Maker: hand-entered (pediatri) patients; every report in a message is read
+
+- **Pediatri by hand (Avi, 12-12: "user will only add the diagnosis and
+  treatment and plan"):** the floor group has no pediatric SOAPs, so those
+  patients could not reach the list.
+  - `report.ts` `manualPatient({room, bed, dpjpId, identity, fields, sentAt,
+    sender, key?})` → a `FloorPatient` with `manual: true`, `manualFields`
+    {diagnosis, terapi, plan}, body "Diagnosis:/Terapi:/Plan:", red/green from
+    the plan, key `rm:<RM>` or `manual:<room>:<name>` (kept on edit).
+  - Stored on the FLOOR doc (`manual.<key>`, `writeManual`/`removeManual`,
+    FieldPath leaves), not a day: a day is read only for D-2…D and a manual
+    patient gets no daily report. `dayView` adds them from the day they were
+    entered; `onFloor` never drops a manual patient as 'tanpa-laporan'; a
+    later SOAP with the same RM replaces it (latest wins). Rules: edit
+    members may change `nicknames` and `manual`.
+  - `ManualPatientSheet` (Kamar from the plan, Bed, DPJP with pediatri first,
+    Identitas, three textareas); ListPanel: "+ Pasien manual (pediatri)",
+    "Ubah isi", "Hapus pasien manual"; "Diinput manual" in the row meta.
+- **Several openings in one message:** `readReports` splits a message at every
+  "atas nama" opening and reads each part (`latestOf` keeps the later part for
+  the same patient; `full` = the whole message). The one case in the floor's
+  chat (a summary then the full SOAP of the same patient) already came out
+  right because the body starts at the LAST assess heading; two different
+  patients in one message would have lost the second. PastePanel and
+  `latestPatients` use it.
+- **Answered (Avi, 12-12):** "Operkan ke Tmn Lain"/"Ganti Chief" stay blank
+  reminder blocks in the Word denah; Lantai 4 only for now.
+- Render check (scratch harness): sheet prefilled on "Ubah isi", save →
+  `writeManual` leaf; the patient on 421 bed 6 with the amber YP code. A
+  manual patient whose plan said "pulang hari ini" yesterday is correctly
+  gone today (caught while setting up the check).
+- Not done: no manual patient for other DPJPs' non-SOAP cases beyond the same
+  form (works for any DPJP); untested on a real phone.
+
+### Verify
+```
+npm run verify → typecheck, lint, 162 files / 2368 tests, version, contrast, a11y, build: all green
+```
+
 ## `2026-10-12.9` — List Maker → Word: List Pasien (3 columns) and Denah
 
 - **Request:** the 12.8 "Not done" Word export, laid out like Avi's printed

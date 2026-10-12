@@ -1,7 +1,8 @@
 import { useMemo, useState } from 'react';
 
 import { Button } from '@/components/common/ui';
-import { writeEdit } from '@/data/repositories/floors.repo';
+import { removeManual, writeEdit } from '@/data/repositories/floors.repo';
+import { ManualPatientSheet } from './ManualPatientSheet';
 import { formatDmy } from '@/domain/dateDmy';
 import { buildFloorList, byRoute, patientLine } from '@/domain/floorList/build';
 import type { DayView, FloorDay } from '@/domain/floorList/floor';
@@ -28,6 +29,7 @@ export function ListPanel({
   view,
   editable,
   onOpen,
+  myName,
 }: {
   floorId: string;
   ward: string;
@@ -36,8 +38,15 @@ export function ListPanel({
   view: DayView;
   editable: boolean;
   onOpen: (patient: FloorPatient) => void;
+  myName: string;
 }): JSX.Element {
   const [copied, setCopied] = useState(false);
+  const [manualOpen, setManualOpen] = useState(false);
+  const [editing, setEditing] = useState<FloorPatient | null>(null);
+  const openManual = (patient: FloorPatient | null): void => {
+    setEditing(patient);
+    setManualOpen(true);
+  };
   const text = useMemo(
     () => buildFloorList(view.present, { ward, date, time: day.time }),
     [view.present, ward, date, day.time],
@@ -50,9 +59,25 @@ export function ListPanel({
   return (
     <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
       <div className="min-w-0 space-y-3">
-        <h3 className="text-xs font-semibold uppercase tracking-wide text-fg-faint">
-          Pasien ({view.present.length})
-        </h3>
+        <div className="flex flex-wrap items-center gap-2">
+          <h3 className="flex-1 text-xs font-semibold uppercase tracking-wide text-fg-faint">
+            Pasien ({view.present.length})
+          </h3>
+          {editable ? (
+            <Button size="sm" onClick={() => openManual(null)}>
+              + Pasien manual (pediatri)
+            </Button>
+          ) : null}
+        </div>
+        <ManualPatientSheet
+          open={manualOpen}
+          onOpenChange={setManualOpen}
+          floorId={floorId}
+          ward={ward}
+          date={date}
+          myName={myName}
+          editing={editing}
+        />
         {sorted.length === 0 ? <p className="text-xs text-fg-muted">Belum ada laporan untuk tanggal ini. Buka Tempel.</p> : null}
         <ul className="space-y-2">
           {sorted.map((patient) => {
@@ -63,7 +88,8 @@ export function ListPanel({
                   {patientLine(patient)}
                 </button>
                 <p className="mt-0.5 text-[11px] text-fg-faint">
-                  Laporan {patient.sentAt ? `${formatDmy(patient.sentAt.slice(0, 10))} ${patient.sentAt.slice(11, 16)}` : '—'}
+                  {patient.manual ? 'Diinput manual' : 'Laporan'}{' '}
+                  {patient.sentAt ? `${formatDmy(patient.sentAt.slice(0, 10))} ${patient.sentAt.slice(11, 16)}` : '—'}
                   {patient.body ? '' : ' · tanpa Diagnosis/Terapi'}
                 </p>
                 {editable ? (
@@ -99,6 +125,16 @@ export function ListPanel({
                     <Button size="sm" onClick={() => edit(patient.key, { hidden: true })}>
                       Keluarkan
                     </Button>
+                    {patient.manual ? (
+                      <>
+                        <Button size="sm" onClick={() => openManual(patient)}>
+                          Ubah isi
+                        </Button>
+                        <Button size="sm" variant="danger" onClick={() => void removeManual(floorId, patient.key)}>
+                          Hapus pasien manual
+                        </Button>
+                      </>
+                    ) : null}
                   </div>
                 ) : null}
               </li>

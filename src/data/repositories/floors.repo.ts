@@ -59,6 +59,7 @@ export function readFloor(id: string, data: DocumentData): FloorDoc {
     invites: record(data.invites, role),
     inviteEmails: Array.isArray(data.inviteEmails) ? data.inviteEmails.filter((v: unknown): v is string => typeof v === 'string') : [],
     nicknames: record(data.nicknames, text),
+    manual: record(data.manual, readPatient),
   };
 }
 
@@ -87,6 +88,16 @@ function readPatient(raw: unknown): FloorPatient | null {
     sentAt: str(p.sentAt),
     index: typeof p.index === 'number' ? p.index : 0,
     discharge,
+    ...(p.manual === true ? { manual: true } : {}),
+    ...(p.manualFields && typeof p.manualFields === 'object'
+      ? {
+          manualFields: {
+            diagnosis: str((p.manualFields as Record<string, unknown>).diagnosis),
+            terapi: str((p.manualFields as Record<string, unknown>).terapi),
+            plan: str((p.manualFields as Record<string, unknown>).plan),
+          },
+        }
+      : {}),
   };
 }
 
@@ -151,6 +162,7 @@ export async function createFloor(uid: string, myName: string, name: string, war
       invites: {},
       inviteEmails: [],
       nicknames: {},
+      manual: {},
       createdAt: serverTimestamp(),
       updatedAt: serverTimestamp(),
     }),
@@ -179,6 +191,15 @@ export function writeEdit(floorId: string, date: string, key: string, edit: Reco
 
 export function writeDayFields(floorId: string, date: string, fields: { time?: string; chief?: string }): Promise<void> {
   return trackWrite(setDoc(floorDayDoc(floorId, date), { date, updatedAt: serverTimestamp(), ...fields }, { merge: true }));
+}
+
+/** A hand-entered patient (12.10): one leaf on the floor document. */
+export function writeManual(floorId: string, patient: FloorPatient): Promise<void> {
+  return trackWrite(updateDoc(floorDoc(floorId), new FieldPath('manual', patient.key), plain(patient), 'updatedAt', serverTimestamp()));
+}
+
+export function removeManual(floorId: string, key: string): Promise<void> {
+  return trackWrite(updateDoc(floorDoc(floorId), new FieldPath('manual', key), deleteField(), 'updatedAt', serverTimestamp()));
 }
 
 export function writeNickname(floorId: string, sender: string, nickname: string): Promise<void> {

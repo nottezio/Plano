@@ -5,6 +5,12 @@ Catatan teknis lengkap (akar masalah, perbaikan) ada di CHANGES.md.
 
 Entri teratas harus versi yang sedang dirilis; tes gagal bila belum ditulis.
 
+## `2026-10-12.10`
+- **List Maker: pasien manual (pediatri).** Di tab List, **+ Pasien manual (pediatri)**: pilih kamar, bed dan DPJP (pediatri di urutan atas), tulis identitas, lalu **Diagnosis, Terapi, Plan**. Pasien langsung muncul di denah (kode DPJP pediatri oranye), di tabel DPJP, di pesan List, dan di Word.
+  - Pasien manual **tetap di list setiap hari** tanpa perlu laporan harian, sampai dihapus (**Hapus pasien manual**) atau Plan-nya menulis pulang hari ini. **Ubah isi** untuk memperbarui diagnosis/terapi/plan.
+  - Bisa ditambah oleh anggota "Lihat dan edit".
+- **Pesan yang berisi lebih dari satu laporan** (mis. ringkasan lalu SOAP lengkap pasien yang sama, atau dua pasien dalam satu pesan) kini dibaca semua; tidak ada pasien yang terlewat.
+
 ## `2026-10-12.9`
 - **List Maker: ekspor Word.** Dua tombol di atas tab: **Word: List Pasien** dan **Word: Denah**, untuk dicetak (mis. di ruang MR).
   - **List Pasien**: A4, tiga kolom, huruf kecil, teks hitam; yang bertanda *…* jadi tebal; nomor halaman di bawah.

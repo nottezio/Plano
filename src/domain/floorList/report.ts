@@ -49,6 +49,19 @@ export interface FloorPatient {
   sentAt: string;
   index: number;
   discharge: DischargeFlag;
+  /**
+   * Entered by hand (pediatri patients have no SOAP in the floor group).
+   * Stays on the list without daily reports until removed.
+   */
+  manual?: boolean | undefined;
+  /** The three fields of a hand-entered patient, for editing it again. */
+  manualFields?: ManualFields | undefined;
+}
+
+export interface ManualFields {
+  diagnosis: string;
+  terapi: string;
+  plan: string;
 }
 
 /** Surgeons: never the cardiology DPJP a patient is filed under. */
@@ -267,7 +280,7 @@ export function onFloor(
   for (const patient of patients) {
     const day = patient.sentAt.slice(0, 10);
     if (day && day < date && patient.discharge === 'today') gone.push({ patient, reason: 'pulang' });
-    else if (day && day < oldest) gone.push({ patient, reason: 'tanpa-laporan' });
+    else if (day && day < oldest && !patient.manual) gone.push({ patient, reason: 'tanpa-laporan' });
     else if (day && day === oldest && patient.discharge === 'tomorrow') present.push({ ...patient, discharge: 'today' });
     else present.push(patient);
   }
@@ -279,7 +292,84 @@ export function onFloor(
  * RM leading zeros are ignored for matching ("01720060" = "1720060").
  */
 export function latestPatients(messages: readonly ChatMessage[]): FloorPatient[] {
-  return latestOf(messages.map(readReport).filter((patient): patient is FloorPatient => patient !== null));
+  return latestOf(messages.flatMap(readReports));
+}
+
+/**
+ * Every report in one message. A message can hold more than one opening
+ * ("… atas nama:"): a short summary followed by the full SOAP of the same
+ * patient (seen once in the floor's chat), or — possible, not yet seen — two
+ * patients. Each part is read on its own; for the same patient the later part
+ * wins (`latestOf`), so nobody after the first is lost.
+ */
+export function readReports(message: ChatMessage): FloorPatient[] {
+  const lines = message.text.split('\n');
+  const openings = lines.map((line, i) => (/\batas\s+nama\b/i.test(line) ? i : -1)).filter((i) => i >= 0);
+  if (openings.length <= 1) {
+    const one = readReport(message);
+    return one ? [one] : [];
+  }
+  const parts = openings.map((at, k) => {
+    // The first part keeps anything above its opening ("Chief :" headers).
+    const from = k === 0 ? 0 : at;
+    const to = openings[k + 1] ?? lines.length;
+    return lines.slice(from, to).join('\n');
+  });
+  return parts
+    .map((text, k) => readReport({ ...message, text, index: message.index + k / parts.length }))
+    .filter((patient): patient is FloorPatient => patient !== null)
+    // Every part is part of one message: the denah shows the whole of it.
+    .map((patient) => ({ ...patient, full: message.text.trim() }));
+}
+
+/** A hand-entered patient (12.10): the same shape as a read report. */
+export function manualPatient(input: {
+  room: string;
+  bed: string;
+  dpjpId: string | null;
+  identity: string;
+  fields: ManualFields;
+  sentAt: string;
+  sender: string;
+  /** Kept when editing, so the patient stays the same entry. */
+  key?: string | undefined;
+}): FloorPatient {
+  const identity = input.identity.replace(/\s+/g, ' ').trim();
+  const rm = readRm(identity);
+  const name = readName(identity) || identity;
+  const section = (label: string, text: string): string => (text.trim() ? `${label}:\n${text.trim()}` : '');
+  const body = [
+    section('Diagnosis', input.fields.diagnosis),
+    section('Terapi', input.fields.terapi),
+    section('Plan', input.fields.plan),
+  ]
+    .filter(Boolean)
+    .join('\n\n');
+  const place = input.room ? `Kamar ${input.room}${input.bed ? ` Bed ${input.bed}` : ''}` : '';
+  const slug = name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+  return {
+    key: input.key ?? (rm ? `rm:${rm.replace(/^0+/, '')}` : `manual:${input.room}:${slug}`),
+    rm,
+    name,
+    identity,
+    room: input.room,
+    bed: input.bed,
+    floor: '',
+    dpjpId: input.dpjpId,
+    kjsDpjpIds: [],
+    btkv: false,
+    body,
+    full: [`Diinput manual oleh ${input.sender || 'anggota'}${place ? ` · ${place}` : ''}`, '', identity, '', body].join('\n'),
+    chief: '',
+    junior: '',
+    senderNick: '',
+    sender: input.sender,
+    sentAt: input.sentAt,
+    index: 0,
+    discharge: dischargeFlag(body),
+    manual: true,
+    manualFields: { ...input.fields },
+  };
 }
 
 /** The same rule over reports already read (stored ones). */

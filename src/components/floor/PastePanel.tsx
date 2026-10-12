@@ -5,7 +5,7 @@ import { writeReports } from '@/data/repositories/floors.repo';
 import { formatDmy } from '@/domain/dateDmy';
 import { pastePlan, type FloorDay, type FloorDoc } from '@/domain/floorList/floor';
 import { splitChat } from '@/domain/floorList/chat';
-import { readReport, type FloorPatient } from '@/domain/floorList/report';
+import { readReports, type FloorPatient } from '@/domain/floorList/report';
 import { chatFromZip } from '@/lib/unzip';
 
 interface Reading {
@@ -42,7 +42,7 @@ export function PastePanel({
     setError('');
     setSaved('');
     const messages = splitChat(raw).map((m) => (m.sender === 'You' ? { ...m, sender: myName } : m));
-    const all = messages.map(readReport).filter((p): p is FloorPatient => p !== null);
+    const all = messages.flatMap(readReports);
     // A report from another floor (moved out, CVCU) is shown, not filed.
     const reports = all.filter((p) => !floorNumber || !p.floor || p.floor === floorNumber);
     const otherFloor = all.filter((p) => !reports.includes(p));

@@ -32,6 +32,12 @@ export interface FloorDoc {
   inviteEmails: string[];
   /** WhatsApp sender as exported → nickname printed in the list ("Bima" → "Dani"). */
   nicknames: Record<string, string>;
+  /**
+   * Hand-entered patients (12.10), key → patient. On the floor document, not
+   * a day, so they stay on every day's list until removed (they get no daily
+   * report to keep them there).
+   */
+  manual: Record<string, FloorPatient>;
 }
 
 export interface PatientEdit {
@@ -104,11 +110,14 @@ export function dayView(floor: FloorDoc, days: readonly FloorDay[], date: string
   const today = days.find((day) => day.date === date) ?? emptyDay(date);
   const window = new Set(previousDates(date, LOOKBACK_DAYS));
   const patients = latestOf(
-    days
-      .filter((day) => window.has(day.date))
-      .flatMap((day) => Object.values(day.patients))
+    [
+      ...days.filter((day) => window.has(day.date)).flatMap((day) => Object.values(day.patients)),
+      // Hand-entered patients, from the day they were entered on.
+      ...Object.values(floor.manual ?? {}).filter((patient) => !patient.sentAt || patient.sentAt.slice(0, 10) <= date),
+    ]
       // Stored reports from different pastes: order by stamp only.
-      .map((patient) => ({ ...patient, index: 0 })),
+      .map((patient) => ({ ...patient, index: 0 }))
+      .sort((a, b) => (a.sentAt < b.sentAt ? -1 : a.sentAt > b.sentAt ? 1 : 0)),
   );
 
   const edited = patients.map((patient) => withEdits(patient, floor, today));

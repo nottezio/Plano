@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest';
 import { splitChat } from './chat';
 import { buildFloorList, patientLine } from './build';
 import { emptyDay, withEdits } from './floor';
-import { dischargeFlag, latestPatients, listBody, nicknameOf, onFloor, readReport } from './report';
+import { dischargeFlag, latestPatients, listBody, manualPatient, nicknameOf, onFloor, readReport } from './report';
 
 /*
   The floor's WhatsApp group, re-typed with invented patients and residents
@@ -282,5 +282,57 @@ describe('buildFloorList', () => {
   it('patientLine marks KJS BTKV before the residents', () => {
     const p = present.find((x) => x.btkv)!;
     expect(patientLine(p)).toBe('415 Bed 1/AFG/Tn. H. Contoh Keempat/08-02-1963/63 tahun/RM 01720061 (KJS BTKV) - dr. Contoh');
+  });
+});
+
+describe('readReports (several openings in one message)', () => {
+  const opening = (room: string, who: string) =>
+    `Assalamualaikum. Tabe Prof, mohon izin melaporkan follow up pasien di PJT Lantai 4 Kamar ${room} atas nama:\n\n${who}\n\nDPJP Utama : Prof. Dr. dr. Muzakkir Amir, Sp.JP(K)\n`;
+
+  it('a summary then the full SOAP of the SAME patient: one patient, the full A/P', () => {
+    const text = [
+      opening('415 bed 2', 'Tn. Contoh Lima / 06-05-1987 / 39 Tahun / RM 1730002'),
+      'Diagnosis :\n- Ringkas\n\nSelanjutnya mohon arahan prof. Terima kasih prof\n',
+      opening('415 bed 2', 'Tn. Contoh Lima / 06-05-1987 / 39 Tahun / RM 1730002'),
+      'Mohon izin kami assess dengan\n- Lengkap\n\nMohon izin kami terapi dengan\n- Obat\n\nSelanjutnya mohon arahan prof.',
+    ].join('\n');
+    const patients = latestPatients([{ sentAt: '2026-10-10T10:58', sender: 'dr. A', text, index: 0 }]);
+    expect(patients).toHaveLength(1);
+    expect(patients[0]!.body).toContain('- Lengkap');
+    expect(patients[0]!.full).toContain('- Ringkas');
+  });
+
+  it('two DIFFERENT patients in one message: both are read', () => {
+    const text = [
+      opening('401', 'Tn. Contoh Enam / 01-01-1960 / 66 tahun / RM 1111112'),
+      'Mohon izin kami assess dengan\n- A\n\nTerima kasih dok\n',
+      opening('402', 'Ny. Contoh Tujuh / 02-02-1970 / 56 tahun / RM 2222223'),
+      'Mohon izin kami assess dengan\n- B\n\nTerima kasih dok',
+    ].join('\n');
+    const patients = latestPatients([{ sentAt: '2026-10-10T10:58', sender: 'dr. A', text, index: 0 }]);
+    expect(patients.map((p) => [p.room, p.rm]).sort()).toEqual([
+      ['401', '1111112'],
+      ['402', '2222223'],
+    ]);
+  });
+});
+
+describe('manualPatient (pediatri, entered by hand)', () => {
+  it('builds a report from the three fields; stays on the floor without reports', () => {
+    const p = manualPatient({
+      room: '421', bed: '6', dpjpId: 'yp', identity: 'An. Contoh Anak / 15-05-2008 / 18 tahun / RM 1516148',
+      fields: { diagnosis: '- VSD', terapi: '- Furosemide', plan: '- Pulang hari ini' }, sentAt: '2026-10-10T08:00', sender: 'dr. Saya',
+    });
+    expect(p).toMatchObject({ key: 'rm:1516148', manual: true, dpjpId: 'yp', room: '421', bed: '6', discharge: 'today' });
+    expect(p.body).toBe('Diagnosis:\n- VSD\n\nTerapi:\n- Furosemide\n\nPlan:\n- Pulang hari ini');
+    const quiet = { ...p, discharge: null };
+    expect(onFloor([quiet], '2026-10-14').present).toHaveLength(1);
+  });
+
+  it('without an RM the key is room + name, and editing keeps the key', () => {
+    const p = manualPatient({ room: '421', bed: '', dpjpId: 'aau', identity: 'Contoh Bayi / 2026', fields: { diagnosis: '- X', terapi: '', plan: '' }, sentAt: '', sender: '' });
+    expect(p.key).toBe('manual:421:contoh-bayi');
+    expect(p.body).toBe('Diagnosis:\n- X');
+    expect(manualPatient({ room: '420', bed: '1', dpjpId: 'aau', identity: 'Contoh Bayi', fields: { diagnosis: '- Y', terapi: '', plan: '' }, sentAt: '', sender: '', key: p.key }).key).toBe(p.key);
   });
 });
