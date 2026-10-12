@@ -5,6 +5,13 @@ Catatan teknis lengkap (akar masalah, perbaikan) ada di CHANGES.md.
 
 Entri teratas harus versi yang sedang dirilis; tes gagal bila belum ditulis.
 
+## `2026-10-13.1`
+- **Pemeriksa SOAP: hitungan hari yang dibekukan tidak lagi diingatkan.** "H-3" pada obat di bawah **Selesai**, pada baris yang di-**STOP**, dan di dalam blok **TS** (disalin apa adanya dari SOAP konsulen) tidak lagi dianggap "belum berubah dari kemarin". Hanya hitungan hari milik kita yang diperiksa.
+- **List Maker: impor list dari rekan di luar Plano.** Tempel pesan **List Pasien** yang mereka kirim ke grup di tab Tempel, maka pasiennya terbaca: kamar/bed, DPJP, identitas, junior/chief, serta diagnosis, terapi dan plan.
+  - Tiga bentuk list yang ada di grup Lt 4 dan Lt 5 terbaca, termasuk list pendek ("🫀 dr. ZD — 2 pasien").
+  - Baris di bawah judul **KJS** dilewati, karena pasien yang sama sudah tercantum di bawah DPJP-nya sendiri.
+  - **SOAP selalu didahulukan**: baris dari list tidak pernah menimpa SOAP, sedangkan SOAP selalu menggantikan baris list. Pasien dari list ditandai "dari list" di Tempel.
+
 ## `2026-10-12.15`
 - **List Maker, perbaikan:**
   - **Setelah menghapus list**, list berikutnya tidak lagi menampilkan kotak "Menghapus…". Begitu pula isian di tab lain (Tempel, List, Riwayat) tidak terbawa saat berpindah list.

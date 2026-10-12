@@ -211,7 +211,9 @@ export function pasteDiff(roster: readonly RosterPatient[], reports: readonly Fl
   const latest = new Map<string, FloorPatient>();
   for (const report of reports) {
     const before = latest.get(report.key);
-    if (!before || report.sentAt >= before.sentAt) latest.set(report.key, report);
+    // Within one paste a SOAP outranks a sent list's line, whatever the time.
+    const outranks = before && Boolean(before.fromList) !== Boolean(report.fromList) ? !report.fromList : undefined;
+    if (!before || (outranks ?? report.sentAt >= before.sentAt)) latest.set(report.key, report);
   }
   const byKey = new Map(roster.map((p) => [p.key, p]));
   const diff: PasteDiff = { fresh: [], updated: [], moved: [], readmit: [], unchanged: 0 };
@@ -224,8 +226,10 @@ export function pasteDiff(roster: readonly RosterPatient[], reports: readonly Fl
     const stored = before.report;
     // An edit made in Plano survives a re-paste of the same message; only a newer one replaces it.
     const newer =
+      (stored.fromList && !report.fromList) ||
       report.sentAt > stored.sentAt || (report.sentAt === stored.sentAt && stored.edited !== true && report.full !== stored.full);
-    if (!newer || stored.manual) {
+    // A list line never replaces a real SOAP; a SOAP always replaces a list line.
+    if (!newer || stored.manual || (report.fromList && !stored.fromList)) {
       diff.unchanged += 1;
       continue;
     }

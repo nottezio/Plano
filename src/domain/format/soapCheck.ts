@@ -1,4 +1,5 @@
 import { consultCovered, dpjpSpecialties } from './specialties';
+import { frozenRanges, isFrozen } from './frozenText';
 import { SELESAI_HEADING } from './insertTerapi';
 import { unchangedDayMarkers } from '@/domain/dayMarkers';
 import { aliasesOrDefault } from '@/domain/sections/aliases';
@@ -374,7 +375,10 @@ export function checkSoap(input: SoapCheckInput): SoapFinding[] {
   }
 
   if (!input.dayMarkersDismissed && previous) {
-    const unchanged = unchangedDayMarkers(body, previous);
+    // Finished therapy and consultants' pasted blocks are frozen text: their
+    // counters are not ours to advance (frozenText.ts).
+    const frozen = frozenRanges(body, aliases);
+    const unchanged = unchangedDayMarkers(body, previous).filter((marker) => !isFrozen(frozen, marker.start));
     if (unchanged.length > 0) {
       findings.push({
         kind: 'day-marker',

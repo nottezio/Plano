@@ -188,6 +188,13 @@ describe('pasteDiff (nobody is removed by a paste)', () => {
     expect(pasteDiff(edited, [patient({ key: 'rm:1', sentAt: '2026-10-12T09:00', full: 'baru' })]).updated).toHaveLength(1);
   });
 
+  it('a list line never replaces a stored SOAP; a SOAP replaces a stored list line even if older', () => {
+    const soap = [rostered({ key: 'rm:1', sentAt: '2026-10-12T07:00', full: 'soap' })];
+    expect(pasteDiff(soap, [patient({ key: 'rm:1', sentAt: '2026-10-12T09:00', full: 'list', fromList: true })]).unchanged).toBe(1);
+    const listed = [rostered({ key: 'rm:1', sentAt: '2026-10-12T09:00', full: 'list', fromList: true })];
+    expect(pasteDiff(listed, [patient({ key: 'rm:1', sentAt: '2026-10-12T07:00', full: 'soap' })]).updated).toHaveLength(1);
+  });
+
   it('a hand-entered patient is not overwritten by a paste', () => {
     const manual = [rostered({ key: 'rm:77', sentAt: '2026-10-10T08:00', manual: true })];
     expect(pasteDiff(manual, [patient({ key: 'rm:77', sentAt: '2026-10-12T07:00', full: 'soap' })]).unchanged).toBe(1);

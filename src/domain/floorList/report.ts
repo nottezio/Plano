@@ -57,6 +57,11 @@ export interface FloorPatient {
   manual?: boolean | undefined;
   /** The stored WhatsApp text was edited in Plano ("Ubah SOAP", 12.11). */
   edited?: boolean | undefined;
+  /**
+   * Read from a sent LIST, not a SOAP (12.12: a list from a colleague outside
+   * Plano). Only A/Terapi/Plan, so it never replaces a real SOAP.
+   */
+  fromList?: boolean | undefined;
   /** The three fields of a hand-entered patient, for editing it again. */
   manualFields?: ManualFields | undefined;
 }
@@ -311,6 +316,7 @@ export function latestPatients(messages: readonly ChatMessage[]): FloorPatient[]
  * wins (`latestOf`), so nobody after the first is lost.
  */
 export function readReports(message: ChatMessage): FloorPatient[] {
+  if (isListMessage(message.text)) return readListMessage(message);
   const lines = message.text.split('\n');
   const openings = lines.map((line, i) => (/\batas\s+nama\b/i.test(line) ? i : -1)).filter((i) => i >= 0);
   if (openings.length <= 1) {
@@ -328,6 +334,174 @@ export function readReports(message: ChatMessage): FloorPatient[] {
     .filter((patient): patient is FloorPatient => patient !== null)
     // Every part is part of one message: the denah shows the whole of it.
     .map((patient) => ({ ...patient, full: message.text.trim() }));
+}
+
+/*
+  A sent List Pasien comes in (at least) three shapes in the Lt 4 / Lt 5
+  exports (12.12):
+    A  "*1. 419 bed 4/KS/Tn. X / 01-07-1960 / 66 tahun / RM 1607407 (KJS BTKV) - dr. Ari / dr. Gaby*"
+       then the A/Terapi/Plan, DPJP sections between dashed lines;
+    B  "1.510 bed 6/Tn. X/ 29-05-73/ 53 Tahun/ RM 1733993/dr.KS/naima" — the DPJP
+       code and the resident's nickname at the END, sections between "_____";
+    C  the short list: "🫀 dr. ZD — 2 pasien" then "1. 414 bed 1/ Ny. X/ dr. Qalby/dr. Mirna".
+  So the reader does not rely on a layout: a DPJP heading line sets the
+  current DPJP; a numbered line that starts with a room ("419 bed 4/",
+  "508 A/", "410/") or a DPJP code ("ZD/") starts a patient; the lines under
+  it are its A/Terapi/Plan until the next patient, heading, separator or
+  sign-off. A numbered diagnosis or drug ("1. Gagal napas …") never starts with
+  a room and a slash, so it stays in the body.
+*/
+const LIST_PATIENT = /^[\s*_]*(?:\d{1,2}\s*\.\s*)?(.+?)[\s*_]*$/;
+/** An unnumbered line counts only when it reads like an identity. */
+const LOOKS_LIKE_IDENTITY = /\bRM\b|\d{1,2}[-/]\d{1,2}[-/]\d{2,4}|\b(?:Tn|Ny|Nn|An|By)\b\.?/i;
+const LIST_ROOM = /^(\d{3}[A-Za-z]?)(?:\s*(?:bed|be|b)\.?\s*(\w+)|\s+([A-Za-z]))?\s*\/+\s*(.*)$/i;
+const LIST_SEPARATOR = /^\s*[-_=]{5,}\s*$/;
+const LIST_KJS_HEAD = /^[\s*_]*KJS[\s*_:]*$/i;
+const LIST_DPJP_HEAD = /^[\s*_]*(?:\p{Extended_Pictographic}|\u200d|\ufe0f|\p{Emoji_Modifier})*\s*(?:dr|prof)\.?\s*([A-Za-z]{2,4})\s*(?::|—|–|-)?\s*\d*\s*pas(?:i)?en/iu;
+
+function dpjpByCode(code: string): (typeof DPJPS)[number] | null {
+  const wanted = code.trim().toLowerCase();
+  return DPJPS.find((d) => d.initials.toLowerCase() === wanted) ?? null;
+}
+
+/** "dr.ZD", "prof.MZ", "PT", "dr.ZD-dr.AAU" → the (first) DPJP named. */
+function codeSegment(segment: string): (typeof DPJPS)[number] | null {
+  const match = /^(?:dr|prof)?\.?\s*([A-Za-z]{2,4})(?:\s*-.*)?$/i.exec(segment.trim());
+  return match?.[1] ? dpjpByCode(match[1]) : null;
+}
+
+export function isListMessage(text: string): boolean {
+  return /mengirimkan\s+\*?list\b/i.test(text.slice(0, 200));
+}
+
+/**
+ * A sent List Pasien, read back into patients (12.12, Avi: "import a list
+ * from people outside Plano"): a colleague without Plano sends the list to
+ * the group; pasted into Tempel, each patient becomes a report (room/bed,
+ * DPJP, identity, residents, and the A/Terapi/Plan printed under it). Lines
+ * under a "KJS" heading are skipped: the same patient is listed in full under
+ * its own DPJP.
+ */
+export function readListMessage(message: ChatMessage): FloorPatient[] {
+  const patients: FloorPatient[] = [];
+  let section: string | null = null;
+  let inKjs = false;
+  let current: { line: string; rest: string; room: string; bed: string; dpjp: string | null; body: string[] } | null = null;
+  const flush = (): void => {
+    if (current) {
+      const patient = listPatient(current, message, patients.length);
+      if (patient) patients.push(patient);
+    }
+    current = null;
+  };
+  for (const line of message.text.split('\n')) {
+    if (LIST_SEPARATOR.test(line)) {
+      flush();
+      inKjs = false;
+      continue;
+    }
+    if (LIST_KJS_HEAD.test(line)) {
+      flush();
+      inKjs = true;
+      continue;
+    }
+    const head = LIST_DPJP_HEAD.exec(line);
+    if (head?.[1] && dpjpByCode(head[1])) {
+      flush();
+      section = dpjpByCode(head[1])!.id;
+      inKjs = false;
+      continue;
+    }
+    const isNumbered = /^[\s*_]*\d{1,2}\s*\./.test(line);
+    const numbered = LIST_PATIENT.exec(line)?.[1] ?? '';
+    const room = LIST_ROOM.exec(numbered);
+    const codeFirst = !room && isNumbered ? /^([A-Za-z]{2,4})\s*\/\s*(.*)$/.exec(numbered) : null;
+    const startsPatient = (room && (isNumbered || LOOKS_LIKE_IDENTITY.test(room[4] ?? ''))) || (codeFirst?.[1] && dpjpByCode(codeFirst[1]));
+    if (startsPatient) {
+      flush();
+      if (!inKjs) {
+        current = room
+          ? { line, rest: room[4] ?? '', room: room[1] ?? '', bed: room[2] ?? room[3] ?? '', dpjp: section, body: [] }
+          : { line, rest: numbered, room: '', bed: '', dpjp: section, body: [] };
+      }
+      continue;
+    }
+    if (CLOSING.test(line)) {
+      flush();
+      continue;
+    }
+    current?.body.push(line);
+  }
+  flush();
+  return patients;
+}
+
+function listPatient(
+  input: { line: string; rest: string; room: string; bed: string; dpjp: string | null; body: string[] },
+  message: ChatMessage,
+  n: number,
+): FloorPatient | null {
+  const btkv = /\bBTKV\b/i.test(input.rest);
+  // "(KJS BTKV)", "(KJS Aritmia)": notes, not identity.
+  let rest = clean(input.rest.replace(/\(\s*KJS[^)]*\)/gi, ''));
+  let residents: string[] = [];
+  // "… - dr. Ari / dr. Gaby", "… - dr. Yudi - dr. Gabi", "…/dr. Avi - dr. Arya".
+  const dash = /\s+-\s+(?=dr\.?\s)/i.exec(rest);
+  let dashed: string[] = [];
+  if (dash) {
+    dashed = rest.slice(dash.index + dash[0].length).split(/\s*(?:\/|\s-\s)\s*(?=dr\.?\s)/i);
+    rest = rest.slice(0, dash.index);
+  }
+  const segments = rest.split('/').map((part) => part.trim()).filter(Boolean);
+  let dpjpId = input.dpjp;
+  // Shape A: the code first ("KS/Tn. …").
+  const first = segments[0] ? codeSegment(segments[0]) : null;
+  if (first && segments[0]!.trim().length <= 4) {
+    dpjpId = first.id;
+    segments.shift();
+  } else {
+    // Shape B: "…/dr.ZD/naima" — the code, then the resident's nickname.
+    const at = segments.findIndex((part, i) => i > 0 && codeSegment(part) !== null);
+    if (at > 0) {
+      dpjpId = codeSegment(segments[at]!)!.id;
+      residents = segments.slice(at + 1).filter((part) => !/tindakan|kjs/i.test(part));
+      segments.splice(at);
+    }
+  }
+  // Shape C: "Ny. X/ dr. Qalby/dr. Mirna" — residents written as "dr. Name".
+  if (residents.length === 0) {
+    const firstDoctor = segments.findIndex((part, i) => i > 0 && /^dr\.?\s*\S/i.test(part));
+    if (firstDoctor > 0) residents = segments.splice(firstDoctor);
+  }
+  residents = [...residents, ...dashed];
+  const identity = segments.join(' / ');
+  const rm = readRm(identity);
+  const name = readName(identity) || clean(segments[0] ?? '');
+  if (!rm && !name) return null;
+  const [junior = '', chief = ''] = residents.map((who) => clean(who).replace(/^(?:dr\.?\s*)+/i, ''));
+  const text = input.body.join('\n').replace(/^\n+|\s+$/g, '');
+  return {
+    key: rm ? `rm:${rm.replace(/^0+/, '')}` : `name:${input.room}:${name.toLowerCase()}`,
+    rm,
+    name,
+    identity,
+    room: input.room,
+    bed: input.bed,
+    floor: input.room.charAt(0),
+    dpjpId,
+    kjsDpjpIds: [],
+    btkv,
+    body: listBody(text) || text,
+    full: `${clean(input.line)}\n${text}`.trim(),
+    chief: chief.charAt(0).toUpperCase() + chief.slice(1),
+    junior: junior.charAt(0).toUpperCase() + junior.slice(1),
+    senderNick: nicknameOf(message.sender),
+    sender: message.sender,
+    sentAt: message.sentAt,
+    index: message.index + n / 1000,
+    discharge: null,
+    fromList: true,
+  };
 }
 
 /** A hand-entered patient (12.10): the same shape as a read report. */
@@ -385,9 +559,15 @@ export function latestOf(reports: readonly FloorPatient[]): FloorPatient[] {
   const byKey = new Map<string, FloorPatient>();
   for (const patient of reports) {
     const previous = byKey.get(patient.key);
+    // A real SOAP always outranks a line read from a sent list (12.12).
+    const rank = previous && Boolean(patient.fromList) !== Boolean(previous.fromList) ? (patient.fromList ? -1 : 1) : 0;
     const later =
       !previous ||
-      (patient.sentAt && previous.sentAt ? patient.sentAt > previous.sentAt || (patient.sentAt === previous.sentAt && patient.index > previous.index) : patient.index > previous.index);
+      rank > 0 ||
+      (rank === 0 &&
+        (patient.sentAt && previous.sentAt
+          ? patient.sentAt > previous.sentAt || (patient.sentAt === previous.sentAt && patient.index > previous.index)
+          : patient.index > previous.index));
     if (later) {
       // Residents written once (a "Chief :" header) carry over to a later report without one.
       byKey.set(patient.key, {

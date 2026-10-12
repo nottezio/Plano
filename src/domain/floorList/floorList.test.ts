@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest';
 import { splitChat } from './chat';
 import { buildFloorList, countLabel, patientLine, splitFloorList } from './build';
 import { effective, newRosterPatient } from './floor';
-import { dischargeFlag, latestPatients, listBody, manualPatient, nicknameOf, onFloorNumber, otherDepartmentUtama, readReport } from './report';
+import { dischargeFlag, latestOf, latestPatients, listBody, manualPatient, nicknameOf, onFloorNumber, otherDepartmentUtama, readReport, readReports } from './report';
 
 /*
   The floor's WhatsApp group, re-typed with invented patients and residents
@@ -378,5 +378,58 @@ describe('report variants from the Lt 4 (Sept) / Lt 5 (Oct) exports, 12.12', () 
     expect(otherDepartmentUtama('DPJP Utama : Dr. dr. Khalid Saleh, Sp.PD-KKV')).toBe(false);
     expect(otherDepartmentUtama('DPJP BTKV (Utama) : dr. Contoh Tiga, Sp.BTKV')).toBe(false);
     expect(otherDepartmentUtama('- Rawat jalan mengikuti DPJP Utama')).toBe(false);
+  });
+});
+
+describe('a sent List Pasien, read back (12.12)', () => {
+  const msg = (text: string) => ({ sentAt: '2026-10-12T04:00', sender: 'dr. Luar', text, index: 0 });
+
+  it('shape A: code after the room, residents after " - ", A/T/P under each; KJS lines skipped', () => {
+    const text = [
+      'Tabe dokter mohon izin mengirimkan *List Pasien PJT Lantai 4, Senin, 12 Oktober 2026, 04.00 WITA*',
+      '🟡JUMLAH PASIEN : 2',
+      '🫀 dr. KS : 1 pasien',
+      '',
+      '-------------------------------------',
+      '*🫀 dr. KS : 1 pasien*',
+      '*1. 419 bed 4/KS/Tn. Contoh Satu / 01-07-1960 / 66 tahun / RM 1600001 (KJS BTKV) - dr. Bima / dr. Kepala*',
+      'Diagnosis:',
+      '- 1. Post MVR H-9',
+      '',
+      'Mohon izin kami terapi dengan:',
+      '- Furosemide',
+      '',
+      '-------------------------------------',
+      '*🫀 Prof. MZ : 1 pasien + 1 KJS*',
+      '*1. 415 Bed 2/MZ/Ny. Contoh Dua / 02-02-1970 / 56 tahun / RM 1600002 - dr. Dani / dr. Kepala*',
+      'Diagnosis:',
+      '- VT',
+      '',
+      '*KJS*',
+      '1. 419 bed 4/KS/Tn. Contoh Satu / 01-07-1960 / 66 tahun / RM 1600001 - dr. Bima / dr. Kepala',
+    ].join('\n');
+    const patients = readReports(msg(text));
+    expect(patients.map((p) => [p.room, p.bed, p.dpjpId, p.name, p.rm, p.junior, p.chief, p.btkv, p.fromList])).toEqual([
+      ['419', '4', 'ks', 'Tn. Contoh Satu', '1600001', 'Bima', 'Kepala', true, true],
+      ['415', '2', 'mz', 'Ny. Contoh Dua', '1600002', 'Dani', 'Kepala', false, true],
+    ]);
+    expect(patients[0]!.body).toBe('Diagnosis:\n- 1. Post MVR H-9\n\nTerapi:\n- Furosemide');
+  });
+
+  it('shape B (code and nickname at the end) and shape C (short list under a DPJP heading)', () => {
+    const b = readReports(msg('Tabe dokter izin mengirimkan List Pasien Lt. 5\n__________\n🫀dr. KS : 1 pasien\n1.510 bed 6/Tn. Contoh Tiga/ 29-05-73/ 53 Tahun/ RM 1600003/dr.KS/bima\nMohon izin pasien kami assess dengan :\n* CCS'));
+    expect(b.map((p) => [p.room, p.bed, p.dpjpId, p.name, p.junior])).toEqual([['510', '6', 'ks', 'Tn. Contoh Tiga', 'Bima']]);
+    const c = readReports(msg('Tabe dokter, izin mengirimkan list pasien pendek\n\n🫀 dr. ZD — 2 pasien\n1. 414 bed 1/ Ny. Contoh Empat/ dr. Bima/dr. Kepala\n2. 410/ Tn. Contoh Lima/ dr. Dani/dr. Kepala (KJS Aritmia)'));
+    expect(c.map((p) => [p.room, p.bed, p.dpjpId, p.name, p.junior, p.chief])).toEqual([
+      ['414', '1', 'zd', 'Ny. Contoh Empat', 'Bima', 'Kepala'],
+      ['410', '', 'zd', 'Tn. Contoh Lima', 'Dani', 'Kepala'],
+    ]);
+  });
+
+  it('a real SOAP outranks a list line for the same patient, whichever came later', () => {
+    const fromList = { ...readReports(msg('mengirimkan List Pasien\n---------\n🫀 dr. KS : 1 pasien\n1. 419 bed 4/KS/Tn. Contoh Satu / RM 1600001'))[0]!, sentAt: '2026-10-12T09:00' };
+    const soap = { ...fromList, fromList: undefined, sentAt: '2026-10-12T07:00', full: 'SOAP lengkap' };
+    expect(latestOf([soap, fromList])[0]!.full).toBe('SOAP lengkap');
+    expect(latestOf([fromList, soap])[0]!.full).toBe('SOAP lengkap');
   });
 });

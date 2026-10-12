@@ -97,6 +97,7 @@ export function readPatient(raw: unknown): FloorPatient | null {
     discharge,
     ...(p.manual === true ? { manual: true } : {}),
     ...(p.edited === true ? { edited: true } : {}),
+    ...(p.fromList === true ? { fromList: true } : {}),
     ...(p.manualFields && typeof p.manualFields === 'object'
       ? {
           manualFields: {

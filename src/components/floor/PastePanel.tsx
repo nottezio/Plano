@@ -115,8 +115,9 @@ export function PastePanel({ floor, roster, myName }: { floor: FloorDoc; roster:
   return (
     <div className="space-y-3">
       <p className="text-xs text-fg-muted">
-        Tempel pesan SOAP dari grup WhatsApp (boleh banyak sekaligus), atau buka file <strong>Export chat</strong> (.zip
-        atau .txt). Perubahan ditampilkan dulu sebelum disimpan. <strong>Tidak ada pasien yang dikeluarkan</strong> oleh
+        Tempel pesan SOAP dari grup WhatsApp (boleh banyak sekaligus), <strong>list pasien yang dikirim rekan</strong>, atau
+        buka file <strong>Export chat</strong> (.zip atau .txt). SOAP selalu didahulukan; dari list hanya diagnosis,
+        terapi dan plan. Perubahan ditampilkan dulu sebelum disimpan. <strong>Tidak ada pasien yang dikeluarkan</strong> oleh
         tempel — pulang/pindah hanya lewat tab List.
       </p>
       <textarea
@@ -170,7 +171,7 @@ export function PastePanel({ floor, roster, myName }: { floor: FloorDoc; roster:
                 <label key={p.key} className="flex min-h-9 items-center gap-2">
                   <input type="checkbox" checked={!skipFresh.has(p.key)} onChange={() => toggle(skipFresh, p.key, setSkipFresh)} />
                   <span>
-                    {where(p)} {p.name} <span className="text-fg-faint">· {when(p)}</span>
+                    {where(p)} {p.name} <span className="text-fg-faint">· {when(p)}{p.fromList ? ' · dari list' : ''}</span>
                   </span>
                 </label>
               ))}

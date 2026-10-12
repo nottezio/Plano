@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
+import { frozenRanges } from './frozenText';
 import { checkSoap, readLabs, readVitals } from './soapCheck';
 
 const VITALS = [
@@ -810,5 +811,53 @@ describe('anticoagulant monitoring (12.12)', () => {
     expect(kinds(note('- Low molecular weight heparin 0,6 cc/12 jam/SC', '- Monitoring'))).not.toContain('heparin-without-aptt');
     expect(kinds(note('- Heparin stop', '- Monitoring'))).not.toContain('heparin-without-aptt');
     expect(kinds(note('- Aspilet 80 mg/24 jam/oral\nSelesai :\n- Heparin 1000 IU/jam/SP', '- Monitoring'))).not.toContain('heparin-without-aptt');
+  });
+});
+
+describe('frozen counters: Selesai, stopped drugs and TS blocks (12.12)', () => {
+  const note = (ours: number) =>
+    [
+      '*S:*',
+      '- baik',
+      '',
+      '*Mohon izin kami assess dengan :*',
+      `- Symptomatic Bradycardia post PPM Replacement H-${ours}`,
+      '',
+      '*Mohon izin kami terapi dengan :*',
+      '- Clopidogrel 75mg/24jam/oral',
+      '',
+      'Selesai :',
+      '- Ceftriaxone 2gr/24jam/IV (H-3)',
+      '',
+      '*Plan :*',
+      '- EKG/hari',
+      '',
+      '*TS Divisi Aritmia*',
+      'A/',
+      'Symptomatic Bradycardia Post PPM Replacement H-3',
+      'I/',
+      '- Ceftriaxone 2 gr/24 jam/IV (H-3) --> STOP',
+      '',
+      '*TS HOM*',
+      'A/',
+      '- Anemia (H-2)',
+    ].join('\n');
+  const markers = (today: string, yesterday: string) =>
+    checkSoap({ body: today, previous: yesterday }).find((f) => f.kind === 'day-marker')?.markers?.map((m) => m.text) ?? [];
+
+  it('only our own counter is checked', () => {
+    expect(markers(note(3), note(3))).toEqual(['H-3']);
+    expect(markers(note(4), note(3))).toEqual([]);
+  });
+
+  it('frozenRanges marks Selesai, the stopped line and both TS blocks', () => {
+    const body = note(4);
+    const whys = frozenRanges(body).map((r) => [r.why, body.slice(r.start, r.end).split('\n')[0]]);
+    expect(whys).toEqual([
+      ['selesai', 'Selesai :'],
+      ['stop', '- Ceftriaxone 2 gr/24 jam/IV (H-3) --> STOP'],
+      ['ts', '*TS Divisi Aritmia*'],
+    ]);
+    expect(body.slice(frozenRanges(body).at(-1)!.start)).toContain('TS HOM');
   });
 });

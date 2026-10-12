@@ -1,5 +1,40 @@
 # Plano — CHANGES
 
+## `2026-10-13.1` — Frozen counters (Selesai, STOP, TS blocks) out of the day-marker check; List Maker imports a sent List Pasien
+
+- **Bug — "3 hitungan hari belum berubah" on a note with one counter of
+  ours** (Avi's note, 13-10: our A "post PPM Replacement H-4" advanced; the
+  three flagged H-3 were "Ceftriaxone (H-3)" under Selesai, and TS Aritmia's
+  "Post PPM Replacement H-3" and "Ceftriaxone (H-3) --> STOP").
+  **Root cause:** the day-marker check treated every counter in the note as
+  a running count to advance. Finished therapy (how long it RAN) and a
+  consultant's pasted block (their count, their day) are frozen text by
+  design. **Fix:** `format/frozenText.ts` `frozenRanges()` — the Selesai
+  sub-list to its first blank line, any stopped line (`--> STOP`, `aff`,
+  `dihentikan`), and each TS block from its heading to our next S/O/A/Terapi
+  heading or the end; `checkSoap` drops counters inside them. Reusable for
+  any later check that must leave quoted text alone.
+- **List import (Avi: lists from people outside Plano).** `readListMessage`
+  (via `readReports`, so Tempel and exports get it for free), layout-free:
+  a DPJP heading sets the DPJP; a line starting with a room ("419 bed 4/",
+  "508 A/", "410/") — numbered, or unnumbered when it reads like an identity
+  — or a numbered DPJP code ("ZD/") starts a patient; residents from " - dr.
+  A / dr. B", "/dr. A - dr. B", "/dr.KS/nick" or "/ dr. A/dr. B"; KJS lines
+  skipped. Validated on all 22 list messages in the two exports: read counts
+  within 0–3 of each list's own JUMLAH header (the gap: KJS-only and garbled
+  lines), every patient with a DPJP.
+- **Precedence:** `FloorPatient.fromList`; in `latestOf` and `pasteDiff` a
+  SOAP outranks a list line whatever the time (a list line has A/T/P only).
+- Not changed: "Judul ganda: Analisis Gas Darah PJT (09-10-2026)" on the same
+  note is a genuine duplicate heading (two AGDs that day, no times).
+- Tests: frozen ranges + day-marker on the reported shape; list shapes A/B/C,
+  KJS skip, SOAP-over-list in `latestOf` and `pasteDiff`.
+
+### Verify
+```
+npm run verify → typecheck, lint, 163 files / 2395 tests, version, contrast, a11y, build: all green
+```
+
 ## `2026-10-12.15` — List Maker: per-list panel state, batched paste, legacy callout only with legacy data; SOAP box jump row; clearer per-DPJP counts
 
 - **Bug — "Menghapus…" shown on the next list after a delete.** Root cause:
