@@ -55,7 +55,11 @@ export interface FloorDay {
   date: string;
   /** Time printed on the list ("04.00"). */
   time: string;
-  /** The day's chief, used for every patient without one. */
+  /**
+   * The day's chief(s), comma-separated ("Didi, Malik" — 12.11: a floor can
+   * have several). With ONE chief every patient without one gets it; with
+   * several each patient is assigned (`edits.<key>.chief`).
+   */
   chief: string;
   patients: Record<string, FloorPatient>;
   edits: Record<string, PatientEdit>;
@@ -63,6 +67,11 @@ export interface FloorDay {
 
 export function emptyDay(date: string): FloorDay {
   return { date, time: '04.00', chief: '', patients: {}, edits: {} };
+}
+
+/** The day's chiefs as a list. */
+export function chiefsOf(day: Pick<FloorDay, 'chief'>): string[] {
+  return [...new Set(day.chief.split(/[,;\n]/).map((name) => name.trim()).filter(Boolean))];
 }
 
 export function canEdit(floor: FloorDoc, uid: string | null | undefined): boolean {
@@ -99,7 +108,9 @@ export function withEdits(patient: FloorPatient, floor: Pick<FloorDoc, 'nickname
   // A "Junior :" line, else the floor's nickname for the sender, else the derived one.
   const junior = edit.junior ?? (patient.junior || floor.nicknames[patient.sender] || patient.senderNick || '');
   const discharge = edit.discharge === undefined ? patient.discharge : edit.discharge === 'none' ? null : edit.discharge;
-  return { ...patient, junior, chief: edit.chief ?? (patient.chief || day.chief), discharge };
+  const chiefs = chiefsOf(day);
+  const chief = edit.chief ?? (patient.chief || (chiefs.length === 1 ? chiefs[0]! : ''));
+  return { ...patient, junior, chief, discharge };
 }
 
 /**
@@ -163,7 +174,13 @@ export function pastePlan(
   for (const [id, report] of perDate) {
     const date = id.slice(0, id.indexOf('|'));
     const before = stored.get(report.key);
-    if (before && (before.sentAt > report.sentAt || (before.sentAt === report.sentAt && before.full === report.full))) {
+    // An edit made in Plano survives a re-paste of the same message; only a
+    // newer message replaces it.
+    if (
+      before &&
+      (before.sentAt > report.sentAt ||
+        (before.sentAt === report.sentAt && (before.full === report.full || before.edited === true)))
+    ) {
       unchangedKeys.add(report.key);
       continue;
     }

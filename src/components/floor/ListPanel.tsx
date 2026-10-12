@@ -5,7 +5,7 @@ import { removeManual, writeEdit } from '@/data/repositories/floors.repo';
 import { ManualPatientSheet } from './ManualPatientSheet';
 import { formatDmy } from '@/domain/dateDmy';
 import { buildFloorList, byRoute, patientLine } from '@/domain/floorList/build';
-import type { DayView, FloorDay } from '@/domain/floorList/floor';
+import { chiefsOf, type DayView, type FloorDay } from '@/domain/floorList/floor';
 import type { FloorPatient } from '@/domain/floorList/report';
 import { copyText } from '@/lib/clipboard';
 
@@ -79,6 +79,16 @@ export function ListPanel({
           editing={editing}
         />
         {sorted.length === 0 ? <p className="text-xs text-fg-muted">Belum ada laporan untuk tanggal ini. Buka Tempel.</p> : null}
+        <datalist id={`chiefs-${date}`}>
+          {chiefsOf(day).map((name) => (
+            <option key={name} value={name} />
+          ))}
+        </datalist>
+        {chiefsOf(day).length > 1 && sorted.some((p) => !p.chief) ? (
+          <p className="text-xs text-fg-muted">
+            {sorted.filter((p) => !p.chief).length} pasien belum ada chief — pilih di kolom Chief.
+          </p>
+        ) : null}
         <ul className="space-y-2">
           {sorted.map((patient) => {
             const e = day.edits[patient.key] ?? {};
@@ -106,7 +116,8 @@ export function ListPanel({
                       key={`c-${e.chief ?? ''}`}
                       aria-label={`Chief ${patient.name}`}
                       defaultValue={e.chief ?? ''}
-                      placeholder={`Chief: ${patient.chief || '—'}`}
+                      placeholder={`Chief: ${patient.chief || (chiefsOf(day).length > 1 ? 'pilih' : '—')}`}
+                      list={`chiefs-${date}`}
                       onBlur={(event) => edit(patient.key, { chief: event.target.value.trim() || null })}
                       className="min-h-tap rounded-lg border border-border bg-surface px-2"
                     />

@@ -13,7 +13,8 @@ import { acceptInvite, createFloor, writeDayFields } from '@/data/repositories/f
 import { wardPlan } from '@/domain/denahPlan';
 import { buildFloorList } from '@/domain/floorList/build';
 import { buildDenahDocx, buildListDocx, DOCX_MIME, floorFileName } from '@/domain/floorList/docx';
-import { canEdit, dayView, emptyDay, isOwner, type FloorDoc } from '@/domain/floorList/floor';
+import { canEdit, chiefsOf, dayView, emptyDay, isOwner, type FloorDoc } from '@/domain/floorList/floor';
+import { ChiefsField } from '@/components/floor/ChiefsField';
 import { deliverFile } from '@/lib/download';
 import type { FloorPatient } from '@/domain/floorList/report';
 import { useClinicalToday } from '@/hooks/useClinicalToday';
@@ -54,11 +55,24 @@ export default function ListMakerPage(): JSX.Element {
   const { days } = useFloorDays(floor?.id ?? null, date);
   const day = days.find((d) => d.date === date) ?? emptyDay(date);
   const view = useMemo(() => (floor ? dayView(floor, days, date) : { present: [], gone: [], hidden: [] }), [floor, days, date]);
-  const [open, setOpen] = useState<FloorPatient | null>(null);
+  // The OPEN patient is kept by key and read from the live view, so an edit
+  // (Ubah SOAP, another member's paste) shows in the open box at once.
+  const [openKey, setOpenKey] = useState<string | null>(null);
+  const setOpen = (patient: FloorPatient | null): void => setOpenKey(patient?.key ?? null);
+  const open: FloorPatient | null =
+    openKey === null
+      ? null
+      : (view.present.find((p) => p.key === openKey) ??
+        view.gone.find((g) => g.patient.key === openKey)?.patient ??
+        view.hidden.find((p) => p.key === openKey) ??
+        null);
   const editable = floor ? canEdit(floor, uid) : false;
 
   // New floor form.
   const [name, setName] = useState('PJT Lantai 4');
+  const [ward, setWard] = useState('PJT Lantai 4');
+  // A user can keep several lists (12.11): "+ List baru" opens the form again.
+  const [showCreate, setShowCreate] = useState(false);
   const [creating, setCreating] = useState(false);
   const [createError, setCreateError] = useState('');
 
@@ -67,10 +81,11 @@ export default function ListMakerPage(): JSX.Element {
     setCreating(true);
     setCreateError('');
     try {
-      const id = await createFloor(uid, myName, name.trim() || 'PJT Lantai 4', name.trim() || 'PJT Lantai 4');
+      const id = await createFloor(uid, myName, name.trim() || ward, ward);
       const p = new URLSearchParams(params);
       p.set('f', id);
       setParams(p, { replace: true });
+      setShowCreate(false);
     } catch (e) {
       setCreateError(e instanceof Error ? e.message : 'Gagal membuat list.');
     } finally {
@@ -113,18 +128,26 @@ export default function ListMakerPage(): JSX.Element {
           </Callout>
         ) : null}
 
-        {state === 'ready' && floors.length === 0 ? (
+        {state === 'ready' && (floors.length === 0 || showCreate) ? (
           <section className="max-w-md space-y-3 rounded-2xl border border-border bg-surface p-4">
-            <h2 className="text-sm font-semibold">Buat list lantai</h2>
+            <h2 className="text-sm font-semibold">Buat list baru</h2>
             <p className="text-xs text-fg-muted">
-              Satu list per lantai. Setelah dibuat, undang anggota tim di tab Anggota.
+              Boleh lebih dari satu list (mis. per lantai atau per tim). Setelah dibuat, undang anggota di tab Anggota.
             </p>
-            <Field label="Nama lantai" htmlFor="floor-name">
+            <Field label="Nama list" htmlFor="floor-name">
               <input id="floor-name" value={name} onChange={(e) => setName(e.target.value)} className={INPUT} />
             </Field>
-            <Button variant="primary" onClick={() => void create()} disabled={creating}>
-              {creating ? 'Membuat…' : 'Buat list'}
-            </Button>
+            <Field label="Denah" htmlFor="floor-ward">
+              <select id="floor-ward" value={ward} onChange={(e) => setWard(e.target.value)} className={INPUT}>
+                <option value="PJT Lantai 4">PJT Lantai 4</option>
+              </select>
+            </Field>
+            <div className="flex gap-2">
+              <Button variant="primary" onClick={() => void create()} disabled={creating}>
+                {creating ? 'Membuat…' : 'Buat list'}
+              </Button>
+              {floors.length > 0 ? <Button onClick={() => setShowCreate(false)}>Batal</Button> : null}
+            </div>
             {createError ? <Callout tone="warn">{createError}</Callout> : null}
           </section>
         ) : null}
@@ -132,21 +155,28 @@ export default function ListMakerPage(): JSX.Element {
         {floor ? (
           <>
             <div className="flex flex-wrap items-end gap-2">
-              {floors.length > 1
-                ? floors.map((f) => (
-                    <ChoiceChip
-                      key={f.id}
-                      active={f.id === floor.id}
-                      onClick={() => {
-                        const p = new URLSearchParams(params);
-                        p.set('f', f.id);
-                        setParams(p, { replace: true });
-                      }}
-                    >
-                      {f.name}
-                    </ChoiceChip>
-                  ))
-                : <h2 className="text-sm font-semibold">{floor.name}</h2>}
+              {floors.map((f) => (
+                <ChoiceChip
+                  key={f.id}
+                  active={f.id === floor.id}
+                  onClick={() => {
+                    const p = new URLSearchParams(params);
+                    p.set('f', f.id);
+                    setParams(p, { replace: true });
+                  }}
+                >
+                  {f.name}
+                </ChoiceChip>
+              ))}
+              <ChoiceChip
+                active={false}
+                onClick={() => {
+                  setName('');
+                  setShowCreate(true);
+                }}
+              >
+                + List baru
+              </ChoiceChip>
               <span className="flex-1" />
               <Field label="Tanggal list">
                 <DateField value={date} onChange={setDate} className="w-40" />
@@ -165,19 +195,10 @@ export default function ListMakerPage(): JSX.Element {
                       className={`${INPUT} w-20`}
                     />
                   </Field>
-                  <Field label="Chief hari ini" htmlFor="list-chief">
-                    <input
-                      id="list-chief"
-                      key={`c-${day.chief}`}
-                      defaultValue={day.chief}
-                      placeholder="Nama"
-                      onBlur={(e) => {
-                        const next = e.target.value.trim();
-                        if (next !== day.chief) void writeDayFields(floor.id, date, { chief: next });
-                      }}
-                      className={`${INPUT} w-32`}
-                    />
-                  </Field>
+                  <ChiefsField
+                    chiefs={chiefsOf(day)}
+                    onChange={(next) => void writeDayFields(floor.id, date, { chief: next.join(', ') })}
+                  />
                 </>
               ) : null}
             </div>
@@ -232,7 +253,7 @@ export default function ListMakerPage(): JSX.Element {
           </>
         ) : null}
       </div>
-      <SoapFloat patient={open} onClose={() => setOpen(null)} />
+      <SoapFloat patient={open} onClose={() => setOpenKey(null)} floorId={floor?.id} editable={editable} />
     </AppShell>
   );
 }

@@ -89,6 +89,7 @@ function readPatient(raw: unknown): FloorPatient | null {
     index: typeof p.index === 'number' ? p.index : 0,
     discharge,
     ...(p.manual === true ? { manual: true } : {}),
+    ...(p.edited === true ? { edited: true } : {}),
     ...(p.manualFields && typeof p.manualFields === 'object'
       ? {
           manualFields: {

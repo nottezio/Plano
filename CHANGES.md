@@ -1,5 +1,59 @@
 # Plano — CHANGES
 
+## `2026-10-12.11` — Scroll-past-the-shell fix; several lists; draggable/resizable SOAP box; Ubah SOAP; several chiefs; symmetric denah
+
+- **Bug — the page scrolled past the app into blank space** (Avi's
+  screenshot: sidebar lifted, empty area below).
+  - **Root cause:** the shell's root and `#main` were not positioned. Every
+    `position: absolute` descendant without a positioned ancestor is laid
+    out against the DOCUMENT; the denah's `sr-only` "(H-1)/(pulang hari
+    ini)" labels sit deep in `#main`'s content, so the document grew to the
+    content's height (measured: 2247 px in a 900 px window) and wheel scroll
+    chained from `#main` to the document. Only screens with such labels deep
+    down showed it — hence "sometimes".
+  - **Fix:** `relative` on the AppShell root and on `#main`, so every
+    absolute descendant on every screen is contained in the scroller.
+    Verified: document height = viewport on the denah, the open SOAP box and
+    the list (harness measuring `documentElement.scrollHeight`).
+  - **Wrong turn:** a minimal static reproduction did not grow the document;
+    only measuring the real components found it.
+  - New pattern #24: an absolutely positioned element with no positioned
+    ancestor inside a scroll container.
+- **Several lists per user:** the create form now opens from "+ List baru"
+  beside the list chips (name + denah ward), not only when there is none.
+- **SoapFloat (≥640 px):** drag by the header (pointer capture; buttons
+  excluded), resize from the bottom-right corner, min 320×220, clamped wholly
+  inside the window (the first clamp only kept the header visible; a box
+  moved down lost its resize corner off-screen — found in the render check);
+  geometry in localStorage `plano.listmaker.float`. Phone: bottom panel as
+  before. The page now keeps the OPEN patient by key and reads it from the
+  live view, so an edit shows in the open box at once.
+- **Ubah SOAP (edit members, not manual patients):** textarea over the
+  stored text → `readReports` again (same key and stamp, `edited: true`) →
+  `writeReports` to the report's sent date. `pastePlan` treats an edited
+  report as unchanged against a re-paste of the same stamp; a newer message
+  still replaces it.
+- **Several chiefs:** `FloorDay.chief` stays one string, comma-separated
+  (no migration); `chiefsOf(day)`; `withEdits`: one chief → every patient
+  without one, several → per patient (`edits.<key>.chief`). `ChiefsField`
+  chips; ListPanel datalist of the day's chiefs + "n pasien belum ada chief".
+- **Symmetric denah:** `domain/floorList/layout.ts` `planLayout` (left room i
+  and right room i share row i; the shorter side's last room spans to the
+  bottom; centre rooms get ≤3 rows at the bottom, the landmark the rest) —
+  used by the screen (CSS grid at ≥md, rows `minmax(3.5rem, auto)`) and the
+  Word denah (replacing its own row arithmetic), so the two cannot drift.
+- **Answered:** invites use the Google email the colleague signs in to Plano
+  with (matched case-insensitively against the sign-in token's email).
+- Tests: chiefs (one/several/edit/message), edited report vs re-paste and
+  newer message; Word denah vMerge test still green on the shared layout.
+- Not done: geometry is per device, not per account; the phone keeps a fixed
+  bottom panel; untested on a real phone/tablet.
+
+### Verify
+```
+npm run verify → typecheck, lint, 162 files / 2370 tests, version, contrast, a11y, build: all green
+```
+
 ## `2026-10-12.10` — List Maker: hand-entered (pediatri) patients; every report in a message is read
 
 - **Pediatri by hand (Avi, 12-12: "user will only add the diagnosis and

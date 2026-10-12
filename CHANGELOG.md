@@ -5,6 +5,14 @@ Catatan teknis lengkap (akar masalah, perbaikan) ada di CHANGES.md.
 
 Entri teratas harus versi yang sedang dirilis; tes gagal bila belum ditulis.
 
+## `2026-10-12.11`
+- **Perbaikan: halaman bisa digulir melewati batas** (layar kosong di bawah, sidebar ikut terangkat). Terjadi di denah List Maker yang punya pasien merah/hijau; kini tidak lagi, di semua halaman.
+- **List Maker: bisa membuat lebih dari satu list.** Pilih **+ List baru** di samping nama list; tiap list punya anggota dan isinya sendiri.
+- **Kotak SOAP bisa digeser dan diubah ukurannya** (tablet/laptop): tarik bagian judulnya untuk memindahkan, tarik sudut kanan bawah untuk mengubah ukuran. Posisi dan ukurannya diingat di perangkat ini.
+- **Ubah SOAP**: anggota "Lihat dan edit" bisa memperbaiki SOAP yang ditempel dari WhatsApp langsung di kotak SOAP. Diagnosis, terapi, DPJP, dan merah/hijau mengikuti hasil ubahan. Menempel ulang pesan yang sama tidak menimpa ubahan; pesan baru dari grup tetap menggantikannya.
+- **Chief lebih dari satu**: di **Chief hari ini** tambahkan beberapa nama (Enter atau koma). Bila hanya satu chief, semua pasien otomatis memakainya; bila lebih, pilih chief tiap pasien di tab List (ada pengingat jumlah pasien yang belum ada chief).
+- **Denah simetris**: kamar kiri dan kanan kini sejajar per baris (tablet/laptop), sama seperti di Word.
+
 ## `2026-10-12.10`
 - **List Maker: pasien manual (pediatri).** Di tab List, **+ Pasien manual (pediatri)**: pilih kamar, bed dan DPJP (pediatri di urutan atas), tulis identitas, lalu **Diagnosis, Terapi, Plan**. Pasien langsung muncul di denah (kode DPJP pediatri oranye), di tabel DPJP, di pesan List, dan di Word.
   - Pasien manual **tetap di list setiap hari** tanpa perlu laporan harian, sampai dihapus (**Hapus pasien manual**) atau Plan-nya menulis pulang hari ini. **Ubah isi** untuk memperbarui diagnosis/terapi/plan.

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { canEdit, dayView, emptyDay, isOwner, pastePlan, withEdits, type FloorDay, type FloorDoc } from './floor';
+import { canEdit, chiefsOf, dayView, emptyDay, isOwner, pastePlan, withEdits, type FloorDay, type FloorDoc } from './floor';
 import type { FloorPatient } from './report';
 
 const FLOOR: FloorDoc = {
@@ -130,5 +130,27 @@ describe('dayView with hand-entered patients', () => {
     const soap = patient({ key: 'rm:77', rm: '77', sentAt: '2026-10-12T07:00', body: 'dari SOAP' });
     const view = dayView({ ...FLOOR, manual: { 'rm:77': withRm } }, [day('2026-10-12', [soap])], '2026-10-12');
     expect(view.present.map((p) => [p.key, p.body, p.manual ?? false])).toEqual([['rm:77', 'dari SOAP', false]]);
+  });
+});
+
+describe('several chiefs (12.11)', () => {
+  it('lists them; one chief fills every patient, several leave the choice per patient', () => {
+    expect(chiefsOf({ chief: 'Kepala, Ketua ; Kepala' })).toEqual(['Kepala', 'Ketua']);
+    const one = { ...emptyDay('2026-10-12'), chief: 'Kepala' };
+    const two = { ...emptyDay('2026-10-12'), chief: 'Kepala, Ketua' };
+    expect(withEdits(patient({}), FLOOR, one).chief).toBe('Kepala');
+    expect(withEdits(patient({}), FLOOR, two).chief).toBe('');
+    two.edits['rm:1'] = { chief: 'Ketua' };
+    expect(withEdits(patient({}), FLOOR, two).chief).toBe('Ketua');
+    expect(withEdits(patient({ key: 'rm:2', chief: 'Dari Pesan' }), FLOOR, two).chief).toBe('Dari Pesan');
+  });
+});
+
+describe('edited reports (Ubah SOAP, 12.11)', () => {
+  it('a re-paste of the same message does not undo the edit; a newer message replaces it', () => {
+    const edited = patient({ key: 'rm:1', sentAt: '2026-10-12T07:00', full: 'diubah', edited: true });
+    const stored = [day('2026-10-12', [edited])];
+    expect(pastePlan(stored, [patient({ key: 'rm:1', sentAt: '2026-10-12T07:00', full: 'asli' })], '2026-10-12').byDate.size).toBe(0);
+    expect(pastePlan(stored, [patient({ key: 'rm:1', sentAt: '2026-10-12T09:00', full: 'baru' })], '2026-10-12').updated).toBe(1);
   });
 });

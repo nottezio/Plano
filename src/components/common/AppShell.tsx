@@ -146,7 +146,12 @@ export function AppShell({
   return (
     <div
       className={[
-        'flex h-[100dvh] w-full overflow-hidden bg-bg',
+        // `relative` (with the one on #main): an absolutely positioned
+        // descendant with no positioned ancestor — every `sr-only` label —
+        // is laid out against the DOCUMENT, and one deep in a long screen
+        // made the whole page scrollable past the shell into blank space
+        // (List Maker denah, 12.11). Here and on #main it is contained.
+        'relative flex h-[100dvh] w-full overflow-hidden bg-bg',
         obscured ? 'privacy-blur' : '',
       ].join(' ')}
     >
@@ -174,7 +179,7 @@ export function AppShell({
         ) : null}
         <main
           id="main"
-          className="min-h-0 flex-1 overflow-y-auto pb-[calc(env(safe-area-inset-bottom)+64px)] sm:pb-0"
+          className="relative min-h-0 flex-1 overflow-y-auto pb-[calc(env(safe-area-inset-bottom)+64px)] sm:pb-0"
         >
           <IosInstallHint />
           {/* A second boundary inside the shell: a crash in one route leaves

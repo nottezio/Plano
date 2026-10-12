@@ -54,6 +54,8 @@ export interface FloorPatient {
    * Stays on the list without daily reports until removed.
    */
   manual?: boolean | undefined;
+  /** The stored WhatsApp text was edited in Plano ("Ubah SOAP", 12.11). */
+  edited?: boolean | undefined;
   /** The three fields of a hand-entered patient, for editing it again. */
   manualFields?: ManualFields | undefined;
 }

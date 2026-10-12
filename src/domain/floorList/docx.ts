@@ -4,6 +4,7 @@ import { planRooms, type DenahRoomSlot, type WardPlan } from '@/domain/denahPlan
 import { escapeXml, inlineRuns, DOCX_MIME, type Run } from '@/domain/format/soapDocx';
 import { storeZip } from '@/lib/zip';
 import { placeBeds } from './beds';
+import { planLayout, type RoomCell } from './layout';
 import { byRoute, dpjpTitle, isPediatri, LIST_DPJP_ORDER, PEDIATRI_DPJP_IDS } from './build';
 import type { FloorPatient } from './report';
 
@@ -200,53 +201,48 @@ const TEXT_WIDTH = PAGE.width - 2 * 720;
 
 function floorTable(plan: WardPlan, ward: string, inRoom: (room: string) => FloorPatient[]): string {
   // L | centre (two grid columns, so 420/421 can split the centre) | R.
-  const side = Math.round(TEXT_WIDTH * 0.39);
-  const half = Math.round((TEXT_WIDTH - 2 * side) / 2);
-  const grid = [side, half, TEXT_WIDTH - 2 * side - half, side];
-  const left = plan.columns[0].flatMap((b) => b.rooms ?? []);
-  const right = plan.columns[2].flatMap((b) => b.rooms ?? []);
-  const centre = plan.columns[1];
-  const n = Math.max(left.length, right.length, 1);
+  const sideWidth = Math.round(TEXT_WIDTH * 0.39);
+  const half = Math.round((TEXT_WIDTH - 2 * sideWidth) / 2);
+  const grid = [sideWidth, half, TEXT_WIDTH - 2 * sideWidth - half, sideWidth];
+  const layout = planLayout(plan);
 
-  // Centre rows: each room below the landmark takes 3 rows (or fewer), the landmark the rest.
-  const centreRooms = centre.flatMap((b) => b.rooms ?? []);
-  const perRoom = Math.max(1, Math.min(3, Math.floor((n - 1) / Math.max(centreRooms.length, 1))));
-  const landmark = centre.find((b) => b.landmark)?.landmark;
-  const landmarkRows = Math.max(1, n - perRoom * centreRooms.length);
-
-  const header = plan.header;
   const rows: Cell[][] = [];
+  const header = plan.header;
   if (header.length > 0) {
     rows.push([
       { width: grid[0]! + grid[1]!, span: 2, content: header[0] ? roomContent(header[0], inRoom(header[0].room)) : '' },
       { width: grid[2]! + grid[3]!, span: 2, content: header[1] ? roomContent(header[1], inRoom(header[1].room)) : '' },
     ]);
   }
-  for (let i = 0; i < n; i += 1) {
-    const centreCell: Cell = { width: grid[1]! + grid[2]!, span: 2, content: '' };
-    if (landmark && i < landmarkRows) {
-      if (i === 0) {
-        centreCell.vMerge = 'restart';
-        centreCell.fill = ORANGE_FILL;
-        centreCell.vCenter = true;
-        centreCell.content = para([{ text: landmark, bold: true }], { center: true }) + para([{ text: ward.toUpperCase(), bold: true }], { center: true });
-      } else centreCell.vMerge = 'continue';
-    } else {
-      const k = i - (landmark ? landmarkRows : 0);
-      const roomIndex = Math.floor(k / perRoom);
-      const slot = centreRooms[roomIndex];
-      if (slot && k % perRoom === 0) {
-        centreCell.vMerge = 'restart';
-        centreCell.content = roomContent(slot, inRoom(slot.room));
-      } else if (slot) centreCell.vMerge = 'continue';
+
+  /** The cell of one column at row i: its start (restart if it spans), a continuation, or empty. */
+  const at = (cells: readonly RoomCell[], i: number, width: number, span = 1): Cell => {
+    const cell = cells.find((c) => i >= c.row && i < c.row + c.span);
+    if (!cell) return { width, span, content: '' };
+    if (cell.row === i) {
+      return { width, span, content: roomContent(cell.slot, inRoom(cell.slot.room)), ...(cell.span > 1 ? { vMerge: 'restart' as const } : {}) };
     }
-    // The shorter side column stretches its last room down to the bottom.
-    const sideCell = (slots: DenahRoomSlot[], width: number): Cell => {
-      const slot = slots[i];
-      if (!slot) return { width, content: '', ...(slots.length > 0 ? { vMerge: 'continue' as const } : {}) };
-      return { width, content: roomContent(slot, inRoom(slot.room)), ...(i === slots.length - 1 && n > slots.length ? { vMerge: 'restart' as const } : {}) };
-    };
-    rows.push([sideCell(left, grid[0]!), centreCell, sideCell(right, grid[3]!)]);
+    return { width, span, content: '', vMerge: 'continue' };
+  };
+
+  for (let i = 0; i < layout.rows; i += 1) {
+    const centreWidth = grid[1]! + grid[2]!;
+    const mark = layout.landmark;
+    let centre: Cell;
+    if (mark && i >= mark.row && i < mark.row + mark.span) {
+      centre =
+        i === mark.row
+          ? {
+              width: centreWidth,
+              span: 2,
+              fill: ORANGE_FILL,
+              vCenter: true,
+              ...(mark.span > 1 ? { vMerge: 'restart' as const } : {}),
+              content: para([{ text: mark.label, bold: true }], { center: true }) + para([{ text: ward.toUpperCase(), bold: true }], { center: true }),
+            }
+          : { width: centreWidth, span: 2, content: '', vMerge: 'continue' };
+    } else centre = at(layout.centre, i, centreWidth, 2);
+    rows.push([at(layout.left, i, grid[0]!), centre, at(layout.right, i, grid[3]!)]);
   }
   return tableXml(grid, rows);
 }

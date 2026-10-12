@@ -1,10 +1,11 @@
-import type { ReactNode } from 'react';
+import type { CSSProperties, ReactNode } from 'react';
 
 import { dpjpById } from '@/domain/dpjp';
 import { planRooms, type DenahColumn, type DenahRoomSlot, type WardPlan } from '@/domain/denahPlan';
 import { byRoute, dpjpTitle, isPediatri, LIST_DPJP_ORDER, PEDIATRI_DPJP_IDS } from '@/domain/floorList/build';
 import type { FloorPatient } from '@/domain/floorList/report';
 import { placeBeds } from '@/domain/floorList/beds';
+import { planLayout } from '@/domain/floorList/layout';
 
 /**
  * The List Maker denah (12.8): the floor plan with every bed, the DPJP tables
@@ -162,11 +163,56 @@ export function FloorDenah({
               <RoomBox key={slot.room} slot={slot} patients={inRoom(slot.room)} onOpen={onOpen} />
             ))}
           </div>
-          <div className="grid grid-cols-1 gap-2 md:grid-cols-[1fr_0.7fr_1fr]">
+          {/* Phone: the columns stacked. */}
+          <div className="grid grid-cols-1 gap-2 md:hidden">
             {column(plan.columns[0], 'left')}
             {column(plan.columns[1], 'centre')}
             {column(plan.columns[2], 'right')}
           </div>
+          {/*
+            Tablet and up: one grid, left room i level with right room i
+            (12.11, Avi: "not symmetrical, see the left rooms"). Same rows as
+            the Word denah (`planLayout`).
+          */}
+          {(() => {
+            const layout = planLayout(plan);
+            const place = (row: number, span: number, column: number): CSSProperties => ({
+              gridRow: `${row + 1} / span ${span}`,
+              gridColumn: String(column),
+            });
+            return (
+              <div
+                className="hidden gap-2 md:grid md:grid-cols-[1fr_0.7fr_1fr]"
+                style={{ gridTemplateRows: `repeat(${layout.rows}, minmax(3.5rem, auto))` }}
+              >
+                {layout.left.map((cell) => (
+                  <div key={cell.slot.room} style={place(cell.row, cell.span, 1)} className="flex [&>*]:flex-1">
+                    <RoomBox slot={cell.slot} patients={inRoom(cell.slot.room)} onOpen={onOpen} />
+                  </div>
+                ))}
+                {layout.landmark ? (
+                  <div
+                    style={place(layout.landmark.row, layout.landmark.span, 2)}
+                    className="flex items-center justify-center rounded-lg bg-[var(--warn-strong)] p-2 text-center text-[11px] font-bold uppercase leading-tight tracking-wide text-white"
+                  >
+                    {layout.landmark.label}
+                    <br />
+                    {ward}
+                  </div>
+                ) : null}
+                {layout.centre.map((cell) => (
+                  <div key={cell.slot.room} style={place(cell.row, cell.span, 2)} className="flex [&>*]:flex-1">
+                    <RoomBox slot={cell.slot} patients={inRoom(cell.slot.room)} onOpen={onOpen} />
+                  </div>
+                ))}
+                {layout.right.map((cell) => (
+                  <div key={cell.slot.room} style={place(cell.row, cell.span, 3)} className="flex [&>*]:flex-1">
+                    <RoomBox slot={cell.slot} patients={inRoom(cell.slot.room)} onOpen={onOpen} />
+                  </div>
+                ))}
+              </div>
+            );
+          })()}
         </Section>
       ) : null}
 
