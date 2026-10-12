@@ -1,7 +1,7 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 
-import { subscribeDays, subscribeInvites, subscribeMyFloors } from '@/data/repositories/floors.repo';
-import { LOOKBACK_DAYS, previousDates, type FloorDay, type FloorDoc } from '@/domain/floorList/floor';
+import { subscribeEditions, subscribeInvites, subscribeMyFloors, subscribeRoster } from '@/data/repositories/floors.repo';
+import type { Edition, FloorDoc, RosterPatient } from '@/domain/floorList/floor';
 import { useSession } from '@/store/useSession';
 
 export type LoadState = 'loading' | 'ready' | 'error';
@@ -40,28 +40,34 @@ export function useMyFloors(): { floors: FloorDoc[]; invites: FloorDoc[]; state:
   return { floors, invites, state, error };
 }
 
-/** The stored days a list of `date` reads (D-2…D). */
-export function useFloorDays(floorId: string | null, date: string): { days: FloorDay[]; state: LoadState } {
-  const [days, setDays] = useState<FloorDay[]>([]);
+/** The floor's roster (12.12). */
+export function useRoster(floorId: string | null): { roster: RosterPatient[]; state: LoadState } {
+  const [roster, setRoster] = useState<RosterPatient[]>([]);
   const [state, setState] = useState<LoadState>('loading');
-  const dates = useMemo(() => previousDates(date, LOOKBACK_DAYS), [date]);
-
   useEffect(() => {
     if (!floorId) return undefined;
     setState('loading');
-    return subscribeDays(
+    return subscribeRoster(
       floorId,
-      dates,
       (list) => {
-        setDays(list);
+        setRoster(list);
         setState('ready');
       },
       (e) => {
-        console.error('[floors] days', e);
+        console.error('[floors] roster', e);
         setState('error');
       },
     );
-  }, [floorId, dates]);
+  }, [floorId]);
+  return { roster, state };
+}
 
-  return { days, state };
+/** Sent lists, newest first (12.12). */
+export function useEditions(floorId: string | null): Edition[] {
+  const [editions, setEditions] = useState<Edition[]>([]);
+  useEffect(() => {
+    if (!floorId) return undefined;
+    return subscribeEditions(floorId, setEditions, (e) => console.error('[floors] editions', e));
+  }, [floorId]);
+  return editions;
 }

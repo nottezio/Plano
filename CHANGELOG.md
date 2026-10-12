@@ -5,6 +5,17 @@ Catatan teknis lengkap (akar masalah, perbaikan) ada di CHANGES.md.
 
 Entri teratas harus versi yang sedang dirilis; tes gagal bila belum ditulis.
 
+## `2026-10-12.12`
+- **List Maker: status pasien kini diatur tangan, tidak lagi ditebak dari SOAP.** Merah (H-1), hijau (pulang hari ini), pulang dan pindah dulu dibaca otomatis dari isi Plan — terlalu berisiko salah. Sekarang:
+  - Lantai punya **daftar pasien tetap**. Menempel pesan baru hanya **memperbarui SOAP dan mengusulkan pasien baru**; tidak ada pasien yang keluar dari list karena tempel.
+  - Di **Tempel**, perubahan ditampilkan dulu: pasien baru (centang untuk masuk), kamar/bed berubah (centang untuk ikut pindah), dan pasien yang sudah keluar tapi ada SOAP baru (tidak masuk lagi kecuali dicentang).
+  - Di **List**, tiap pasien: junior, chief, **warna** (tanpa / H-1 / pulang hari ini) atau **tanggal rencana pulang** (merah sehari sebelumnya, hijau pada harinya), tombol **Pulang** dan **Pindah…** (ICU, CVCU, HCU, ICCU, lantai lain, atau tulis sendiri). Semua tercatat siapa dan kapan, dan bisa **Kembalikan**.
+  - Bila Plan menyebut H-1 / pulang hari ini, muncul **saran** — tekan **Tandai** atau **Abaikan**; tidak pernah diterapkan sendiri.
+  - Anggota "Lihat dan edit" bisa mengubah status.
+- **Jam list bebas ditulis** (04.00, 16.00, 19.00, atau jam lain). **Simpan edisi** menyimpan pesan dan denah saat dikirim; lihat dan unduh Word-nya lagi di tab baru **Riwayat**.
+- **Catatan pulang / pindah** terpisah dari list: siapa yang pulang atau pindah sejak edisi terakhir, siap disalin.
+- **Data lama:** list yang dibuat sebelum versi ini muncul kosong; tekan **Pindahkan data lama** sekali untuk memasukkan pasien terakhirnya. Setelah itu periksa warnanya — warna dari versi lama tidak ikut.
+
 ## `2026-10-12.11`
 - **Perbaikan: halaman bisa digulir melewati batas** (layar kosong di bawah, sidebar ikut terangkat). Terjadi di denah List Maker yang punya pasien merah/hijau; kini tidak lagi, di semua halaman.
 - **List Maker: bisa membuat lebih dari satu list.** Pilih **+ List baru** di samping nama list; tiap list punya anggota dan isinya sendiri.

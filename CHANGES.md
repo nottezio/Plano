@@ -1,5 +1,65 @@
 # Plano — CHANGES
 
+## `2026-10-12.12` — List Maker: explicit roster; status by hand; SOAP only suggests; editions with free-text time; Pulang/Pindah note
+
+- **Design flaw — status was inferred from free text** (Avi, 12-12: "too
+  risky, high chance of mis-parse").
+  - **Root cause:** 12.8–12.11 had no notion of WHO is on the floor. The
+    view was recomputed from the reports of the last three days: red/green
+    from `dischargeFlag(plan)`, a patient dropped when the plan said
+    "pulang" or reports stopped. A proposal ("usul H-1") therefore read as a
+    decision, a late SOAP silently dropped a patient, and a transfer to
+    ICU/CVCU had no representation at all. Any regex fix would only move the
+    error; the missing piece was state owned by a person.
+  - **Fundamental fix:** an explicit roster, `floors/{id}/patients/{key}`
+    (`RosterPatient`: latest `report` + `status` dirawat/pulang/pindah,
+    `pindahKe`, `leftAt`, `colour` none/h1/today, `dischargeDate`, resident
+    overrides, `dismissed`, `log`). Every decision is a leaf write by a
+    person, logged with `arrayUnion`, undoable (Kembalikan). `effective()`
+    derives the list line; colour comes only from `colourOn()` (hand mark, or
+    planned date: red the day before, green from the day).
+  - **Paste is a reviewed diff** (`pasteDiff`): fresh (proposed, ticked),
+    updated (applied), moved room/bed (confirm, else `updatedReport` keeps
+    the old place), readmit for patients who left (unticked). A paste never
+    removes anyone. Edited reports survive a re-paste of the same stamp;
+    hand-entered patients are never overwritten.
+  - **SOAP as suggestion only:** `suggestionFor()` reads the Plan relative to
+    the report's day (yesterday's "H-1" → today; yesterday's "pulang hari
+    ini" → nothing), shown as a Tandai/Abaikan chip; dismissal is per report
+    stamp, so a newer SOAP can suggest again. `readReport`/`manualPatient`
+    now always set `discharge: null`.
+- **Editions:** `floors/{id}/editions/{id}` = date, free-text time (prefill
+  04.00/16.00/19.00 by hour), the message and the active patients as sent;
+  tab **Riwayat** re-exports Word from the snapshot. Rules: create only, no
+  update/delete.
+- **Pulang/Pindah note** (`leftSince` last edition → `leftNote`), separate
+  from the list, without residents.
+- **Chiefs** moved from the per-day doc to `floor.chiefs` (editor-writable
+  field list in rules now includes `chiefs`); per-patient choice via the
+  roster's `chief`.
+- **Migration:** a roster-less floor shows **Pindahkan data lama**:
+  `readLegacy` (days + `floor.manual`) → `latestOf` → `addRosterPatient`.
+  Colours and per-day resident edits are deliberately NOT carried over (they
+  were the inferred state this release removes). Old `days` docs are left in
+  place, read-only to the app.
+- Removed: `dayView`, `emptyDay`, `pastePlan`, `withEdits`, `FloorDay`,
+  `onFloor`, `GonePatient`, the day-doc writers.
+- **Rules:** `patients/{key}` (members read; owner/edit create+update;
+  `report is map`; status enum; no delete) and `editions/{id}` (members read;
+  owner/edit create; no update/delete). **Need the push to take effect.**
+- Tests: floor.test.ts rewritten for the roster (roles, chiefs, effective,
+  colourOn, rosterView, suggestionFor incl. relative day and dismissal,
+  pasteDiff fresh/updated/moved/readmit/edited/manual, leftSince/leftNote);
+  floorList.test.ts: colour no longer from the SOAP.
+- Not done: no confirm on Pulang (Kembalikan undoes it); the log is shown
+  only as "by" on left patients; editions are capped at the latest 60 in the
+  view; untested against the live rules emulator.
+
+### Verify
+```
+npm run verify → typecheck, lint, 162 files / 2373 tests, version, contrast, a11y, build: all green
+```
+
 ## `2026-10-12.11` — Scroll-past-the-shell fix; several lists; draggable/resizable SOAP box; Ubah SOAP; several chiefs; symmetric denah
 
 - **Bug — the page scrolled past the app into blank space** (Avi's

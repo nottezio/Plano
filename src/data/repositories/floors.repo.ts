@@ -1,6 +1,10 @@
 import {
   addDoc,
   arrayRemove,
+  getDoc,
+  getDocs,
+  limit,
+  orderBy,
   arrayUnion,
   deleteField,
   FieldPath,
@@ -14,9 +18,9 @@ import {
   type Unsubscribe,
 } from 'firebase/firestore';
 
-import { floorDayDoc, floorDaysCol, floorDoc, floorsCol } from '../paths';
+import { floorDaysCol, floorDoc, floorEditionsCol, floorPatientDoc, floorPatientsCol, floorsCol } from '../paths';
 import { trackWrite } from '../syncStatus';
-import type { FloorDay, FloorDoc, FloorRole, PatientEdit } from '@/domain/floorList/floor';
+import type { Edition, FloorDoc, FloorRole, RosterPatient, StatusChange } from '@/domain/floorList/floor';
 import type { FloorPatient } from '@/domain/floorList/report';
 
 /**
@@ -59,11 +63,11 @@ export function readFloor(id: string, data: DocumentData): FloorDoc {
     invites: record(data.invites, role),
     inviteEmails: Array.isArray(data.inviteEmails) ? data.inviteEmails.filter((v: unknown): v is string => typeof v === 'string') : [],
     nicknames: record(data.nicknames, text),
-    manual: record(data.manual, readPatient),
+    chiefs: str(data.chiefs),
   };
 }
 
-function readPatient(raw: unknown): FloorPatient | null {
+export function readPatient(raw: unknown): FloorPatient | null {
   if (!raw || typeof raw !== 'object') return null;
   const p = raw as Record<string, unknown>;
   if (typeof p.key !== 'string' || typeof p.full !== 'string') return null;
@@ -102,26 +106,52 @@ function readPatient(raw: unknown): FloorPatient | null {
   };
 }
 
-function readEdit(raw: unknown): PatientEdit | null {
-  if (!raw || typeof raw !== 'object') return null;
-  const e = raw as Record<string, unknown>;
-  const out: PatientEdit = {};
-  if (typeof e.junior === 'string') out.junior = e.junior;
-  if (typeof e.chief === 'string') out.chief = e.chief;
-  if (e.discharge === 'today' || e.discharge === 'tomorrow' || e.discharge === 'none') out.discharge = e.discharge;
-  if (e.hidden === true) out.hidden = true;
-  if (e.keep === true) out.keep = true;
-  return out;
+function readLog(raw: unknown): StatusChange[] {
+  if (!Array.isArray(raw)) return [];
+  return raw
+    .filter((e): e is Record<string, unknown> => !!e && typeof e === 'object')
+    .map((e) => ({ at: str(e.at), by: str(e.by), what: str(e.what) }));
 }
 
-export function readDay(date: string, data: DocumentData): FloorDay {
+export function readRosterPatient(key: string, data: DocumentData): RosterPatient | null {
+  const report = readPatient(data.report);
+  if (!report) return null;
+  const status = data.status === 'pulang' || data.status === 'pindah' ? data.status : 'dirawat';
+  const colour = data.colour === 'h1' || data.colour === 'today' ? data.colour : 'none';
   return {
-    date,
-    time: str(data.time) || '04.00',
+    key,
+    report: { ...report, key },
+    status,
+    pindahKe: str(data.pindahKe),
+    leftAt: str(data.leftAt),
+    colour,
+    dischargeDate: str(data.dischargeDate),
+    junior: str(data.junior),
     chief: str(data.chief),
-    patients: record(data.patients, readPatient),
-    edits: record(data.edits, readEdit),
+    dismissed: str(data.dismissed),
+    addedAt: str(data.addedAt),
+    log: readLog(data.log),
   };
+}
+
+export function readEdition(id: string, data: DocumentData): Edition {
+  return {
+    id,
+    date: str(data.date),
+    time: str(data.time),
+    text: str(data.text),
+    patients: Array.isArray(data.patients) ? data.patients.map(readPatient).filter((p): p is FloorPatient => p !== null) : [],
+    createdAt: str(data.createdAt),
+    createdBy: str(data.createdBy),
+  };
+}
+
+/** Pre-12.12 storage, read once to move it onto the roster. */
+export async function readLegacy(floorId: string): Promise<{ reports: FloorPatient[]; manual: FloorPatient[] }> {
+  const [days, floor] = await Promise.all([getDocs(floorDaysCol(floorId)), getDoc(floorDoc(floorId))]);
+  const reports = days.docs.flatMap((d) => Object.values(record(d.data().patients, readPatient)));
+  const manual = Object.values(record(floor.data()?.manual, readPatient));
+  return { reports, manual };
 }
 
 /** Floors I belong to. */
@@ -142,11 +172,21 @@ export function subscribeInvites(email: string, callback: (floors: FloorDoc[]) =
   );
 }
 
-/** The days a list reads (D-2…D). `in` holds at most 30 values; 3 are used. */
-export function subscribeDays(floorId: string, dates: string[], callback: (days: FloorDay[]) => void, onError: (e: Error) => void): Unsubscribe {
+/** The floor's roster: every patient document, on the floor or gone. */
+export function subscribeRoster(floorId: string, callback: (roster: RosterPatient[]) => void, onError: (e: Error) => void): Unsubscribe {
   return onSnapshot(
-    query(floorDaysCol(floorId), where('date', 'in', dates)),
-    (snapshot) => callback(snapshot.docs.map((d) => readDay(d.id, d.data()))),
+    floorPatientsCol(floorId),
+    (snapshot) =>
+      callback(snapshot.docs.map((d) => readRosterPatient(d.id, d.data())).filter((p): p is RosterPatient => p !== null)),
+    onError,
+  );
+}
+
+/** The latest sent editions (newest first). */
+export function subscribeEditions(floorId: string, callback: (editions: Edition[]) => void, onError: (e: Error) => void): Unsubscribe {
+  return onSnapshot(
+    query(floorEditionsCol(floorId), orderBy('createdAt', 'desc'), limit(60)),
+    (snapshot) => callback(snapshot.docs.map((d) => readEdition(d.id, d.data()))),
     onError,
   );
 }
@@ -163,7 +203,7 @@ export async function createFloor(uid: string, myName: string, name: string, war
       invites: {},
       inviteEmails: [],
       nicknames: {},
-      manual: {},
+      chiefs: '',
       createdAt: serverTimestamp(),
       updatedAt: serverTimestamp(),
     }),
@@ -176,31 +216,48 @@ function plain<T>(value: T): T {
   return JSON.parse(JSON.stringify(value)) as T;
 }
 
-/** File reports under their sent date, one patient leaf each. */
-export function writeReports(floorId: string, date: string, patients: readonly FloorPatient[]): Promise<void> {
-  const data: DocumentData = { date, updatedAt: serverTimestamp(), patients: {} };
-  for (const patient of patients) (data.patients as DocumentData)[patient.key] = plain(patient);
-  return trackWrite(setDoc(floorDayDoc(floorId, date), data, { merge: true }));
+/** A new patient on the roster (whole document: it did not exist). */
+export function addRosterPatient(floorId: string, patient: RosterPatient): Promise<void> {
+  const { key, ...data } = patient;
+  return trackWrite(setDoc(floorPatientDoc(floorId, key), { ...plain(data), updatedAt: serverTimestamp() }));
 }
 
-/** One patient's edit for one day: merged field by field; `null` clears a field. */
-export function writeEdit(floorId: string, date: string, key: string, edit: Record<string, string | boolean | null>): Promise<void> {
-  const fields: DocumentData = {};
-  for (const [name, value] of Object.entries(edit)) fields[name] = value === null ? deleteField() : value;
-  return trackWrite(setDoc(floorDayDoc(floorId, date), { date, updatedAt: serverTimestamp(), edits: { [key]: fields } }, { merge: true }));
+/** A newer SOAP for a patient: only the report changes, never the status. */
+export function writeRosterReport(floorId: string, key: string, report: FloorPatient, log?: StatusChange): Promise<void> {
+  return trackWrite(
+    updateDoc(floorPatientDoc(floorId, key), {
+      report: plain(report),
+      ...(log ? { log: arrayUnion(plain(log)) } : {}),
+      updatedAt: serverTimestamp(),
+    }),
+  );
 }
 
-export function writeDayFields(floorId: string, date: string, fields: { time?: string; chief?: string }): Promise<void> {
-  return trackWrite(setDoc(floorDayDoc(floorId, date), { date, updatedAt: serverTimestamp(), ...fields }, { merge: true }));
+/**
+ * A decision by hand: status, colour, discharge date, residents, dismissal.
+ * Fields merged one by one; `log` appended (arrayUnion — never rewritten).
+ */
+export function writeRosterFields(
+  floorId: string,
+  key: string,
+  fields: Partial<Pick<RosterPatient, 'status' | 'pindahKe' | 'leftAt' | 'colour' | 'dischargeDate' | 'junior' | 'chief' | 'dismissed'>>,
+  log?: StatusChange,
+): Promise<void> {
+  return trackWrite(
+    updateDoc(floorPatientDoc(floorId, key), {
+      ...plain(fields),
+      ...(log ? { log: arrayUnion(plain(log)) } : {}),
+      updatedAt: serverTimestamp(),
+    }),
+  );
 }
 
-/** A hand-entered patient (12.10): one leaf on the floor document. */
-export function writeManual(floorId: string, patient: FloorPatient): Promise<void> {
-  return trackWrite(updateDoc(floorDoc(floorId), new FieldPath('manual', patient.key), plain(patient), 'updatedAt', serverTimestamp()));
+export function saveEdition(floorId: string, edition: Omit<Edition, 'id'>): Promise<string> {
+  return trackWrite(addDoc(floorEditionsCol(floorId), { ...plain(edition), savedAt: serverTimestamp() })).then((ref) => ref.id);
 }
 
-export function removeManual(floorId: string, key: string): Promise<void> {
-  return trackWrite(updateDoc(floorDoc(floorId), new FieldPath('manual', key), deleteField(), 'updatedAt', serverTimestamp()));
+export function writeChiefs(floorId: string, chiefs: string): Promise<void> {
+  return trackWrite(updateDoc(floorDoc(floorId), 'chiefs', chiefs, 'updatedAt', serverTimestamp()));
 }
 
 export function writeNickname(floorId: string, sender: string, nickname: string): Promise<void> {

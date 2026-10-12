@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react';
 
-import { writeReports } from '@/data/repositories/floors.repo';
+import { writeRosterReport } from '@/data/repositories/floors.repo';
 import { dpjpById } from '@/domain/dpjp';
 import { formatDmy } from '@/domain/dateDmy';
 import { readReports, type FloorPatient } from '@/domain/floorList/report';
@@ -129,10 +129,9 @@ export function SoapFloat({
 
   const save = async (): Promise<void> => {
     if (!floorId) return;
-    const date = patient.sentAt.slice(0, 10);
     const parts = readReports({ sentAt: patient.sentAt, sender: patient.sender, text: draft, index: 0 });
     const read = parts.find((p) => p.key === patient.key) ?? parts.at(-1);
-    if (!read || !date) {
+    if (!read) {
       setError('Identitas pasien tidak terbaca (baris "… atas nama:" dan identitas di bawahnya harus ada).');
       return;
     }
@@ -140,7 +139,12 @@ export function SoapFloat({
     setError('');
     try {
       // Same key and stamp: it replaces this report, nothing else.
-      await writeReports(floorId, date, [{ ...read, key: patient.key, sentAt: patient.sentAt, edited: true }]);
+      await writeRosterReport(floorId, patient.key, {
+        ...read,
+        key: patient.key,
+        sentAt: patient.sentAt,
+        edited: true,
+      });
       setEditing(false);
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Gagal menyimpan.');

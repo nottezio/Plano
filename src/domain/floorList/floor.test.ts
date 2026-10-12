@@ -1,6 +1,21 @@
 import { describe, expect, it } from 'vitest';
 
-import { canEdit, chiefsOf, dayView, emptyDay, isOwner, pastePlan, withEdits, type FloorDay, type FloorDoc } from './floor';
+import {
+  canEdit,
+  chiefsOf,
+  colourOn,
+  effective,
+  isOwner,
+  leftNote,
+  leftSince,
+  newRosterPatient,
+  pasteDiff,
+  rosterView,
+  suggestionFor,
+  updatedReport,
+  type FloorDoc,
+  type RosterPatient,
+} from './floor';
 import type { FloorPatient } from './report';
 
 const FLOOR: FloorDoc = {
@@ -14,7 +29,7 @@ const FLOOR: FloorDoc = {
   invites: {},
   inviteEmails: [],
   nicknames: { 'dr. Muh Bima Contoh': 'Dani' },
-  manual: {},
+  chiefs: '',
 };
 
 function patient(over: Partial<FloorPatient>): FloorPatient {
@@ -42,8 +57,8 @@ function patient(over: Partial<FloorPatient>): FloorPatient {
   };
 }
 
-function day(date: string, patients: FloorPatient[], over: Partial<FloorDay> = {}): FloorDay {
-  return { ...emptyDay(date), ...over, patients: Object.fromEntries(patients.map((p) => [p.key, p])) };
+function rostered(over: Partial<FloorPatient> = {}, state: Partial<RosterPatient> = {}): RosterPatient {
+  return { ...newRosterPatient(patient(over), '2026-10-12T00:00:00.000Z', 'Saya'), ...state };
 }
 
 describe('roles', () => {
@@ -55,102 +70,130 @@ describe('roles', () => {
   });
 });
 
-describe('withEdits', () => {
-  it('junior: edit > Junior line > floor nickname > derived; chief: edit > message > day chief', () => {
-    const d = emptyDay('2026-10-12');
-    d.chief = 'Kepala';
-    expect(withEdits(patient({}), FLOOR, d)).toMatchObject({ junior: 'Dani', chief: 'Kepala' });
-    expect(withEdits(patient({ junior: 'Muda', chief: 'Lain' }), FLOOR, d)).toMatchObject({ junior: 'Muda', chief: 'Lain' });
-    expect(withEdits(patient({ sender: 'x', senderNick: 'Xe' }), FLOOR, d).junior).toBe('Xe');
-    d.edits['rm:1'] = { junior: 'Ganti', chief: 'Ganti2', discharge: 'tomorrow' };
-    expect(withEdits(patient({ junior: 'Muda' }), FLOOR, d)).toMatchObject({ junior: 'Ganti', chief: 'Ganti2', discharge: 'tomorrow' });
-    d.edits['rm:1'] = { discharge: 'none' };
-    expect(withEdits(patient({ discharge: 'today' }), FLOOR, d).discharge).toBeNull();
+describe('chiefsOf / effective', () => {
+  it('lists several chiefs once each', () => {
+    expect(chiefsOf('Kepala, Ketua ; Kepala')).toEqual(['Kepala', 'Ketua']);
+    expect(chiefsOf('')).toEqual([]);
+  });
+
+  it('junior: override > Junior line > floor nickname > derived; chief: override > message > the single floor chief', () => {
+    const one = { ...FLOOR, chiefs: 'Kepala' };
+    const two = { ...FLOOR, chiefs: 'Kepala, Ketua' };
+    expect(effective(rostered(), one, '2026-10-12')).toMatchObject({ junior: 'Dani', chief: 'Kepala' });
+    expect(effective(rostered(), two, '2026-10-12').chief).toBe('');
+    expect(effective(rostered({ junior: 'Muda', chief: 'Lain' }), one, '2026-10-12')).toMatchObject({ junior: 'Muda', chief: 'Lain' });
+    expect(effective(rostered({ sender: 'x', senderNick: 'Xe' }), FLOOR, '2026-10-12').junior).toBe('Xe');
+    expect(effective(rostered({ junior: 'Muda' }, { junior: 'Ganti', chief: 'Ketua' }), two, '2026-10-12')).toMatchObject({
+      junior: 'Ganti',
+      chief: 'Ketua',
+    });
   });
 });
 
-describe('dayView', () => {
-  const a1 = patient({ key: 'rm:1', sentAt: '2026-10-11T07:00', body: 'lama' });
-  const a2 = patient({ key: 'rm:1', sentAt: '2026-10-12T07:00', body: 'baru' });
-  const b = patient({ key: 'rm:2', rm: '2', room: '418', sentAt: '2026-10-11T07:00', discharge: 'today' });
-  const c = patient({ key: 'rm:3', rm: '3', room: '419', sentAt: '2026-10-10T07:00' });
-  const old = patient({ key: 'rm:4', rm: '4', room: '401', sentAt: '2026-10-08T07:00' });
-  const days = [day('2026-10-08', [old]), day('2026-10-10', [c]), day('2026-10-11', [a1, b]), day('2026-10-12', [a2])];
-
-  it('reads D-2…D, keeps the latest report, and drops who went home or went quiet', () => {
-    const view = dayView(FLOOR, days, '2026-10-12');
-    expect(view.present.map((p) => [p.key, p.body])).toEqual([['rm:1', 'baru']]);
-    expect(view.gone.map((g) => [g.patient.key, g.reason]).sort()).toEqual([
-      ['rm:2', 'pulang'],
-      ['rm:3', 'tanpa-laporan'],
+describe('colourOn (set by hand, never read from the SOAP)', () => {
+  it('a hand mark wins; else the planned date: red the day before, green on and after', () => {
+    expect(colourOn({ colour: 'h1', dischargeDate: '' }, '2026-10-12')).toBe('tomorrow');
+    expect(colourOn({ colour: 'today', dischargeDate: '2026-10-20' }, '2026-10-12')).toBe('today');
+    const planned = { colour: 'none' as const, dischargeDate: '2026-10-14' };
+    expect(['2026-10-12', '2026-10-13', '2026-10-14', '2026-10-15'].map((d) => colourOn(planned, d))).toEqual([
+      null, 'tomorrow', 'today', 'today',
     ]);
   });
 
-  it('keep puts a dropped patient back; hidden takes one off', () => {
-    const withEditsDay = day('2026-10-12', [a2], { edits: { 'rm:3': { keep: true }, 'rm:1': { hidden: true } } });
-    const view = dayView(FLOOR, [...days.slice(0, 3), withEditsDay], '2026-10-12');
-    expect(view.present.map((p) => p.key)).toEqual(['rm:3']);
-    expect(view.hidden.map((p) => p.key)).toEqual(['rm:1']);
-    expect(view.gone.map((g) => g.patient.key)).toEqual(['rm:2']);
+  it('a SOAP saying "pulang hari ini" does not colour the patient', () => {
+    expect(effective(rostered({ body: 'Plan:\n- Pulang hari ini' }), FLOOR, '2026-10-12').discharge).toBeNull();
   });
 });
 
-describe('pastePlan', () => {
-  const stored = [day('2026-10-11', [patient({ key: 'rm:1', sentAt: '2026-10-11T07:00', full: 'a' })])];
+describe('rosterView', () => {
+  it('only patients still dirawat are on the list; who left is listed newest first', () => {
+    const roster = [
+      rostered({ key: 'rm:1' }),
+      rostered({ key: 'rm:2' }, { status: 'pulang', leftAt: '2026-10-12T05:00' }),
+      rostered({ key: 'rm:3' }, { status: 'pindah', pindahKe: 'ICU', leftAt: '2026-10-12T09:00' }),
+    ];
+    const view = rosterView(FLOOR, roster, '2026-10-12');
+    expect(view.active.map((p) => p.key)).toEqual(['rm:1']);
+    expect(view.left.map((p) => p.key)).toEqual(['rm:3', 'rm:2']);
+  });
+});
 
-  it('files new and later reports under their sent date; the same paste twice writes nothing', () => {
+describe('suggestionFor (a chip, never applied by itself)', () => {
+  it('offers what the Plan says, relative to the day the SOAP was sent', () => {
+    expect(suggestionFor(rostered({ body: 'Plan:\n- Usul H-1 hari ini' }), '2026-10-12')).toBe('h1');
+    // Written yesterday, "H-1" means today.
+    expect(suggestionFor(rostered({ body: 'Plan:\n- Usul H-1 hari ini', sentAt: '2026-10-11T07:00' }), '2026-10-12')).toBe('today');
+    // Yesterday's "pulang hari ini" is stale: nothing.
+    expect(suggestionFor(rostered({ body: 'Plan:\n- Pulang hari ini', sentAt: '2026-10-11T07:00' }), '2026-10-12')).toBeNull();
+    expect(suggestionFor(rostered({ body: 'Diagnosis:\n- post PPM (H-1)' }), '2026-10-12')).toBeNull();
+  });
+
+  it('not offered once dismissed for this SOAP, when already set, or for who left', () => {
+    const body = 'Plan:\n- Pulang hari ini';
+    expect(suggestionFor(rostered({ body }, { dismissed: '2026-10-12T07:00' }), '2026-10-12')).toBeNull();
+    expect(suggestionFor(rostered({ body }, { colour: 'today' }), '2026-10-12')).toBeNull();
+    expect(suggestionFor(rostered({ body }, { status: 'pulang' }), '2026-10-12')).toBeNull();
+    // A newer SOAP after a dismissal is offered again.
+    expect(suggestionFor(rostered({ body, sentAt: '2026-10-12T09:00' }, { dismissed: '2026-10-12T07:00' }), '2026-10-12')).toBe('today');
+  });
+});
+
+describe('pasteDiff (nobody is removed by a paste)', () => {
+  const roster = [
+    rostered({ key: 'rm:1', sentAt: '2026-10-11T07:00', full: 'a' }),
+    rostered({ key: 'rm:2', rm: '2', room: '418', sentAt: '2026-10-11T07:00' }, { status: 'pindah', pindahKe: 'ICU' }),
+  ];
+
+  it('new patients are proposed, newer SOAPs update, a patient who left is only offered back', () => {
     const later = patient({ key: 'rm:1', sentAt: '2026-10-12T07:00', full: 'b' });
-    const fresh = patient({ key: 'rm:9', sentAt: '2026-10-12T08:00' });
-    const plan = pastePlan(stored, [later, fresh], '2026-10-12');
-    expect([plan.added, plan.updated, plan.unchanged]).toEqual([1, 1, 0]);
-    expect(plan.byDate.get('2026-10-12')?.map((p) => p.key)).toEqual(['rm:1', 'rm:9']);
-    const again = pastePlan([...stored, day('2026-10-12', [later, fresh])], [later, fresh], '2026-10-12');
-    expect([again.added, again.updated, again.unchanged, again.byDate.size]).toEqual([0, 0, 2, 0]);
+    const fresh = patient({ key: 'rm:9', rm: '9', sentAt: '2026-10-12T08:00' });
+    const back = patient({ key: 'rm:2', rm: '2', room: '418', sentAt: '2026-10-12T07:00' });
+    const diff = pasteDiff(roster, [later, fresh, back]);
+    expect(diff.fresh.map((p) => p.key)).toEqual(['rm:9']);
+    expect(diff.updated.map((u) => u.report.full)).toEqual(['b']);
+    expect(diff.readmit.map((r) => r.before.key)).toEqual(['rm:2']);
+    expect(diff.moved).toEqual([]);
   });
 
-  it('an older report than the stored one is not filed; undated reports go to the list date', () => {
+  it('the latest report within one paste counts; the same or an older one changes nothing', () => {
     const older = patient({ key: 'rm:1', sentAt: '2026-10-10T07:00' });
-    expect(pastePlan(stored, [older], '2026-10-12').unchanged).toBe(1);
-    const undated = patient({ key: 'rm:5', sentAt: '' });
-    expect([...pastePlan(stored, [undated], '2026-10-12').byDate.keys()]).toEqual(['2026-10-12']);
+    const same = patient({ key: 'rm:1', sentAt: '2026-10-11T07:00', full: 'a' });
+    expect(pasteDiff(roster, [older, same]).unchanged).toBe(1);
+    const twice = pasteDiff([], [patient({ key: 'rm:5', sentAt: '2026-10-12T09:00', full: 'x' }), patient({ key: 'rm:5', sentAt: '2026-10-12T07:00' })]);
+    expect(twice.fresh.map((p) => p.full)).toEqual(['x']);
+  });
+
+  it('a room/bed change is flagged; kept unless the move is confirmed', () => {
+    const moved = patient({ key: 'rm:1', room: '420', bed: '2', sentAt: '2026-10-12T07:00' });
+    const diff = pasteDiff(roster, [moved]);
+    expect(diff.moved.map((m) => m.report.room)).toEqual(['420']);
+    expect(updatedReport(roster[0]!.report, moved, false)).toMatchObject({ room: '417', bed: '1', sentAt: '2026-10-12T07:00' });
+    expect(updatedReport(roster[0]!.report, moved, true)).toMatchObject({ room: '420', bed: '2' });
+  });
+
+  it('an edit (Ubah SOAP) survives a re-paste of the same message; a newer message replaces it', () => {
+    const edited = [rostered({ key: 'rm:1', sentAt: '2026-10-12T07:00', full: 'diubah', edited: true })];
+    expect(pasteDiff(edited, [patient({ key: 'rm:1', sentAt: '2026-10-12T07:00', full: 'asli' })]).unchanged).toBe(1);
+    expect(pasteDiff(edited, [patient({ key: 'rm:1', sentAt: '2026-10-12T09:00', full: 'baru' })]).updated).toHaveLength(1);
+  });
+
+  it('a hand-entered patient is not overwritten by a paste', () => {
+    const manual = [rostered({ key: 'rm:77', sentAt: '2026-10-10T08:00', manual: true })];
+    expect(pasteDiff(manual, [patient({ key: 'rm:77', sentAt: '2026-10-12T07:00', full: 'soap' })]).unchanged).toBe(1);
   });
 });
 
-describe('dayView with hand-entered patients', () => {
-  const manual = patient({ key: 'manual:421:anak', room: '421', dpjpId: 'yp', sentAt: '2026-10-08T08:00', manual: true });
-  const floor = { ...FLOOR, manual: { [manual.key]: manual } };
-
-  it('stays on every later list without daily reports, but not on lists before it was entered', () => {
-    expect(dayView(floor, [], '2026-10-12').present.map((p) => p.key)).toEqual(['manual:421:anak']);
-    expect(dayView(floor, [], '2026-10-07').present).toEqual([]);
-  });
-
-  it('a later SOAP for the same RM replaces it', () => {
-    const withRm = { ...manual, key: 'rm:77', rm: '77' };
-    const soap = patient({ key: 'rm:77', rm: '77', sentAt: '2026-10-12T07:00', body: 'dari SOAP' });
-    const view = dayView({ ...FLOOR, manual: { 'rm:77': withRm } }, [day('2026-10-12', [soap])], '2026-10-12');
-    expect(view.present.map((p) => [p.key, p.body, p.manual ?? false])).toEqual([['rm:77', 'dari SOAP', false]]);
-  });
-});
-
-describe('several chiefs (12.11)', () => {
-  it('lists them; one chief fills every patient, several leave the choice per patient', () => {
-    expect(chiefsOf({ chief: 'Kepala, Ketua ; Kepala' })).toEqual(['Kepala', 'Ketua']);
-    const one = { ...emptyDay('2026-10-12'), chief: 'Kepala' };
-    const two = { ...emptyDay('2026-10-12'), chief: 'Kepala, Ketua' };
-    expect(withEdits(patient({}), FLOOR, one).chief).toBe('Kepala');
-    expect(withEdits(patient({}), FLOOR, two).chief).toBe('');
-    two.edits['rm:1'] = { chief: 'Ketua' };
-    expect(withEdits(patient({}), FLOOR, two).chief).toBe('Ketua');
-    expect(withEdits(patient({ key: 'rm:2', chief: 'Dari Pesan' }), FLOOR, two).chief).toBe('Dari Pesan');
-  });
-});
-
-describe('edited reports (Ubah SOAP, 12.11)', () => {
-  it('a re-paste of the same message does not undo the edit; a newer message replaces it', () => {
-    const edited = patient({ key: 'rm:1', sentAt: '2026-10-12T07:00', full: 'diubah', edited: true });
-    const stored = [day('2026-10-12', [edited])];
-    expect(pastePlan(stored, [patient({ key: 'rm:1', sentAt: '2026-10-12T07:00', full: 'asli' })], '2026-10-12').byDate.size).toBe(0);
-    expect(pastePlan(stored, [patient({ key: 'rm:1', sentAt: '2026-10-12T09:00', full: 'baru' })], '2026-10-12').updated).toBe(1);
+describe('leftSince / leftNote', () => {
+  it('lists who left since the last edition, oldest first, without residents', () => {
+    const roster = [
+      rostered({ key: 'rm:1' }),
+      rostered({ key: 'rm:2', name: 'Tn. Dua' }, { status: 'pulang', leftAt: '2026-10-12T05:00' }),
+      rostered({ key: 'rm:3', name: 'Tn. Tiga' }, { status: 'pindah', pindahKe: 'CVCU', leftAt: '2026-10-12T09:00' }),
+      rostered({ key: 'rm:4', name: 'Tn. Empat' }, { status: 'pulang', leftAt: '2026-10-11T20:00' }),
+    ];
+    const left = leftSince(roster, '2026-10-12T04:00');
+    expect(left.map((p) => p.key)).toEqual(['rm:2', 'rm:3']);
+    const note = leftNote(left, (p) => `${p.room}/${p.name}${p.junior ? ` - ${p.junior}` : ''}`);
+    expect(note).toBe('Pulang: 417/Tn. Dua\nPindah ke CVCU: 417/Tn. Tiga');
   });
 });

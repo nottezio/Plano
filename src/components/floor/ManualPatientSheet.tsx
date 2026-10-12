@@ -2,7 +2,8 @@ import { useEffect, useState } from 'react';
 
 import { Sheet } from '@/components/common/Sheet';
 import { Button, Callout, Field, INPUT } from '@/components/common/ui';
-import { writeManual } from '@/data/repositories/floors.repo';
+import { addRosterPatient, writeRosterReport } from '@/data/repositories/floors.repo';
+import { newRosterPatient } from '@/domain/floorList/floor';
 import { DPJPS } from '@/domain/dpjp';
 import { planRooms, wardPlan } from '@/domain/denahPlan';
 import { PEDIATRI_DPJP_IDS } from '@/domain/floorList/build';
@@ -83,7 +84,9 @@ export function ManualPatientSheet({
         sender: myName,
         key: editing?.key,
       });
-      await writeManual(floorId, patient);
+      // A new hand-entered patient joins the roster; an edit replaces only its SOAP.
+      if (editing) await writeRosterReport(floorId, editing.key, patient);
+      else await addRosterPatient(floorId, newRosterPatient(patient, now.toISOString(), myName));
       onOpenChange(false);
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Gagal menyimpan.');
@@ -102,7 +105,7 @@ export function ManualPatientSheet({
       open={open}
       onOpenChange={onOpenChange}
       title={editing ? 'Ubah pasien manual' : 'Tambah pasien manual'}
-      description="Untuk pasien tanpa SOAP di grup (mis. pediatri). Tetap di list sampai dihapus."
+      description="Untuk pasien tanpa SOAP di grup (mis. pediatri). Tetap di list sampai ditandai Pulang/Pindah."
       footer={
         <div className="flex justify-end gap-2">
           <Button onClick={() => onOpenChange(false)}>Batal</Button>
@@ -160,7 +163,7 @@ export function ManualPatientSheet({
           <textarea id="manual-plan" rows={3} value={planText} onChange={(e) => setPlanText(e.target.value)} placeholder="- …" className={TEXTAREA} />
         </Field>
         <p className="text-[11px] text-fg-faint">
-          Tulis &quot;pulang hari ini&quot; atau &quot;H-1&quot; di Plan agar warnanya hijau/merah di denah.
+          Warna merah (H-1) / hijau (pulang hari ini) diatur di tab List, bukan dari isi Plan.
         </p>
         {error ? <Callout tone="warn">{error}</Callout> : null}
       </div>

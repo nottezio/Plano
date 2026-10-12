@@ -241,52 +241,10 @@ export function readReport(message: ChatMessage): FloorPatient | null {
     sender: message.sender,
     sentAt: message.sentAt,
     index: message.index,
-    discharge: dischargeFlag(body),
+    // Colour is decided on the roster by hand (12.12); the Plan is read only
+    // for a suggestion (`floor.ts` `suggestionFor`).
+    discharge: null,
   };
-}
-
-export type GoneReason = 'pulang' | 'tanpa-laporan';
-
-export interface GonePatient {
-  patient: FloorPatient;
-  reason: GoneReason;
-}
-
-function dayBefore(date: string): string {
-  const at = new Date(`${date}T00:00:00Z`);
-  at.setUTCDate(at.getUTCDate() - 1);
-  return at.toISOString().slice(0, 10);
-}
-
-/**
- * The patients still on the floor for the list of `date`.
- *
- * - `pulang`: the last report, from an earlier day, said they go home that day.
- * - `tanpa-laporan`: no report since the day before the list. Every patient
- *   gets a follow-up every day, so silence means they left (or moved) without
- *   a message saying so — on the 4 days of the floor's chat this matched the
- *   sent lists. Not dropped silently: the page lists them to put back.
- *
- * A report with no readable date is kept (nothing to judge it by).
- *
- * Red/green are read RELATIVE TO THE REPORT: "H-1" / "pulang besok" written
- * yesterday is "pulang hari ini" on today's list.
- */
-export function onFloor(
-  patients: readonly FloorPatient[],
-  date: string,
-): { present: FloorPatient[]; gone: GonePatient[] } {
-  const present: FloorPatient[] = [];
-  const gone: GonePatient[] = [];
-  const oldest = dayBefore(date);
-  for (const patient of patients) {
-    const day = patient.sentAt.slice(0, 10);
-    if (day && day < date && patient.discharge === 'today') gone.push({ patient, reason: 'pulang' });
-    else if (day && day < oldest && !patient.manual) gone.push({ patient, reason: 'tanpa-laporan' });
-    else if (day && day === oldest && patient.discharge === 'tomorrow') present.push({ ...patient, discharge: 'today' });
-    else present.push(patient);
-  }
-  return { present, gone };
 }
 
 /**
@@ -368,7 +326,7 @@ export function manualPatient(input: {
     sender: input.sender,
     sentAt: input.sentAt,
     index: 0,
-    discharge: dischargeFlag(body),
+    discharge: null,
     manual: true,
     manualFields: { ...input.fields },
   };

@@ -9,19 +9,17 @@ import { ListPanel } from '@/components/floor/ListPanel';
 import { MembersPanel } from '@/components/floor/MembersPanel';
 import { PastePanel } from '@/components/floor/PastePanel';
 import { SoapFloat } from '@/components/floor/SoapFloat';
-import { acceptInvite, createFloor, writeDayFields } from '@/data/repositories/floors.repo';
+import { acceptInvite, addRosterPatient, createFloor, readLegacy, writeChiefs } from '@/data/repositories/floors.repo';
 import { wardPlan } from '@/domain/denahPlan';
-import { buildFloorList } from '@/domain/floorList/build';
-import { buildDenahDocx, buildListDocx, DOCX_MIME, floorFileName } from '@/domain/floorList/docx';
-import { canEdit, chiefsOf, dayView, emptyDay, isOwner, type FloorDoc } from '@/domain/floorList/floor';
+import { canEdit, chiefsOf, isOwner, newRosterPatient, rosterView, type FloorDoc } from '@/domain/floorList/floor';
 import { ChiefsField } from '@/components/floor/ChiefsField';
-import { deliverFile } from '@/lib/download';
-import type { FloorPatient } from '@/domain/floorList/report';
+import { EditionsPanel } from '@/components/floor/EditionsPanel';
+import { latestOf, type FloorPatient } from '@/domain/floorList/report';
 import { useClinicalToday } from '@/hooks/useClinicalToday';
-import { useFloorDays, useMyFloors } from '@/hooks/useFloor';
+import { useEditions, useMyFloors, useRoster } from '@/hooks/useFloor';
 import { useSession } from '@/store/useSession';
 
-type Tab = 'denah' | 'list' | 'tempel' | 'anggota';
+type Tab = 'denah' | 'list' | 'tempel' | 'riwayat' | 'anggota';
 
 const WIP = (
   <span className="rounded-full border border-danger px-2 py-0.5 text-[10px] font-semibold text-danger">WIP</span>
@@ -52,9 +50,9 @@ export default function ListMakerPage(): JSX.Element {
     p.set('tab', next);
     setParams(p, { replace: true });
   };
-  const { days } = useFloorDays(floor?.id ?? null, date);
-  const day = days.find((d) => d.date === date) ?? emptyDay(date);
-  const view = useMemo(() => (floor ? dayView(floor, days, date) : { present: [], gone: [], hidden: [] }), [floor, days, date]);
+  const { roster, state: rosterState } = useRoster(floor?.id ?? null);
+  const editions = useEditions(floor?.id ?? null);
+  const view = useMemo(() => (floor ? rosterView(floor, roster, date) : { active: [], left: [] }), [floor, roster, date]);
   // The OPEN patient is kept by key and read from the live view, so an edit
   // (Ubah SOAP, another member's paste) shows in the open box at once.
   const [openKey, setOpenKey] = useState<string | null>(null);
@@ -62,10 +60,7 @@ export default function ListMakerPage(): JSX.Element {
   const open: FloorPatient | null =
     openKey === null
       ? null
-      : (view.present.find((p) => p.key === openKey) ??
-        view.gone.find((g) => g.patient.key === openKey)?.patient ??
-        view.hidden.find((p) => p.key === openKey) ??
-        null);
+      : (view.active.find((p) => p.key === openKey) ?? view.left.find((p) => p.key === openKey)?.report ?? null);
   const editable = floor ? canEdit(floor, uid) : false;
 
   // New floor form.
@@ -97,8 +92,28 @@ export default function ListMakerPage(): JSX.Element {
     ['denah', 'Denah'],
     ['list', 'List'],
     ...(editable ? ([['tempel', 'Tempel']] as const) : []),
+    ['riwayat', 'Riwayat'],
     ['anggota', 'Anggota'],
   ];
+
+  /*
+    One-time move from the pre-12.12 storage (reports per day, hand-entered
+    patients on the floor document) onto the roster: the latest report of
+    each patient becomes a roster patient, status Dirawat. Offered, never
+    automatic, and only while the roster is empty.
+  */
+  const [migrating, setMigrating] = useState(false);
+  const migrate = async (): Promise<void> => {
+    if (!floor) return;
+    setMigrating(true);
+    try {
+      const { reports, manual } = await readLegacy(floor.id);
+      const at = new Date().toISOString();
+      for (const report of latestOf([...reports, ...manual])) await addRosterPatient(floor.id, newRosterPatient(report, at, myName));
+    } finally {
+      setMigrating(false);
+    }
+  };
 
   return (
     <AppShell title="List Maker" titleBadge={WIP}>
@@ -178,72 +193,52 @@ export default function ListMakerPage(): JSX.Element {
                 + List baru
               </ChoiceChip>
               <span className="flex-1" />
-              <Field label="Tanggal list">
+              <Field label="Tanggal list (warna rencana pulang)">
                 <DateField value={date} onChange={setDate} className="w-40" />
               </Field>
               {editable ? (
-                <>
-                  <Field label="Jam" htmlFor="list-time">
-                    <input
-                      id="list-time"
-                      key={`t-${day.time}`}
-                      defaultValue={day.time}
-                      onBlur={(e) => {
-                        const next = e.target.value.trim();
-                        if (next && next !== day.time) void writeDayFields(floor.id, date, { time: next });
-                      }}
-                      className={`${INPUT} w-20`}
-                    />
-                  </Field>
-                  <ChiefsField
-                    chiefs={chiefsOf(day)}
-                    onChange={(next) => void writeDayFields(floor.id, date, { chief: next.join(', ') })}
-                  />
-                </>
+                <ChiefsField chiefs={chiefsOf(floor.chiefs)} onChange={(next) => void writeChiefs(floor.id, next.join(', '))} />
               ) : null}
             </div>
 
             <Segmented label="Tampilan" value={tab} onChange={setTab} options={tabs} />
 
-            {view.present.length > 0 ? (
-              <div className="flex flex-wrap gap-2">
-                <Button
-                  size="sm"
-                  onClick={() => {
-                    const text = buildFloorList(view.present, { ward: floor.ward, date, time: day.time });
-                    void deliverFile(new Blob([buildListDocx(text)], { type: DOCX_MIME }), floorFileName('List Pasien', floor.ward, date));
-                  }}
-                >
-                  Word: List Pasien
-                </Button>
-                <Button
-                  size="sm"
-                  onClick={() => {
-                    const bytes = buildDenahDocx({ ward: floor.ward, date, plan: wardPlan(floor.ward), patients: view.present });
-                    void deliverFile(new Blob([bytes], { type: DOCX_MIME }), floorFileName('Denah', floor.ward, date));
-                  }}
-                >
-                  Word: Denah
-                </Button>
-              </div>
+            {editable && rosterState === 'ready' && roster.length === 0 ? (
+              <Callout title="List masih kosong">
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="flex-1">
+                    Tempel SOAP di tab Tempel. Bila list ini sudah diisi sebelum pembaruan 12.12, pindahkan datanya ke list baru.
+                  </span>
+                  <Button size="sm" onClick={() => void migrate()} disabled={migrating}>
+                    {migrating ? 'Memindahkan…' : 'Pindahkan data lama'}
+                  </Button>
+                </div>
+              </Callout>
             ) : null}
 
             {tab === 'denah' ? (
-              view.present.length === 0 ? (
-                <p className="text-sm text-fg-muted">
-                  Belum ada pasien untuk {date === today ? 'hari ini' : 'tanggal ini'}.
-                  {editable ? ' Tempel pesan SOAP di tab Tempel.' : ''}
-                </p>
+              view.active.length === 0 ? (
+                <p className="text-sm text-fg-muted">Belum ada pasien di list.{editable ? ' Tempel pesan SOAP di tab Tempel.' : ''}</p>
               ) : (
-                <FloorDenah plan={wardPlan(floor.ward)} ward={floor.ward} patients={view.present} onOpen={setOpen} />
+                <FloorDenah plan={wardPlan(floor.ward)} ward={floor.ward} patients={view.active} onOpen={setOpen} />
               )
             ) : null}
             {tab === 'list' ? (
-              <ListPanel floorId={floor.id} ward={floor.ward} date={date} day={day} view={view} editable={editable} onOpen={setOpen} myName={myName} />
+              <ListPanel
+                floor={floor}
+                roster={roster}
+                view={view}
+                date={date}
+                editable={editable}
+                onOpen={setOpen}
+                myName={myName}
+                editions={editions}
+              />
             ) : null}
-            {tab === 'tempel' && editable ? <PastePanel floor={floor} days={days} date={date} myName={myName} /> : null}
+            {tab === 'tempel' && editable ? <PastePanel floor={floor} roster={roster} myName={myName} /> : null}
+            {tab === 'riwayat' ? <EditionsPanel floor={floor} editions={editions} /> : null}
             {tab === 'anggota' && uid ? (
-              <MembersPanel floor={floor} uid={uid} patients={[...view.present, ...view.gone.map((g) => g.patient)]} />
+              <MembersPanel floor={floor} uid={uid} patients={[...view.active, ...view.left.map((p) => p.report)]} />
             ) : null}
             {isOwner(floor, uid) ? null : (
               <p className="text-[11px] text-fg-faint">

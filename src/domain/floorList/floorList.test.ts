@@ -2,8 +2,8 @@ import { describe, expect, it } from 'vitest';
 
 import { splitChat } from './chat';
 import { buildFloorList, patientLine } from './build';
-import { emptyDay, withEdits } from './floor';
-import { dischargeFlag, latestPatients, listBody, manualPatient, nicknameOf, onFloor, readReport } from './report';
+import { effective, newRosterPatient } from './floor';
+import { dischargeFlag, latestPatients, listBody, manualPatient, nicknameOf, readReport } from './report';
 
 /*
   The floor's WhatsApp group, re-typed with invented patients and residents
@@ -186,12 +186,15 @@ describe('readReport', () => {
     expect(p.body).toContain('- Mohon arahan DPJP untuk rencana pulang');
     expect(p.body).toContain('TS Pulmo\nA/\n- Efusi pleura dextra');
     expect(p.body).not.toMatch(/Selanjutnya|Compos mentis|Sesak tidak ada/);
-    expect(p.discharge).toBe('tomorrow');
+    // Colour is never taken from the SOAP (12.12); the Plan only feeds a suggestion chip.
+    expect(p.discharge).toBeNull();
+    expect(dischargeFlag(p.body)).toBe('tomorrow');
   });
 
   it('takes the room after "ke" on a transfer, and a name with no space after Tn.', () => {
     const p = readReport(messages[2]!)!;
-    expect(p).toMatchObject({ room: '408', bed: '', rm: '01733961', key: 'rm:1733961', dpjpId: 'mz', discharge: 'today' });
+    expect(p).toMatchObject({ room: '408', bed: '', rm: '01733961', key: 'rm:1733961', dpjpId: 'mz', discharge: null });
+    expect(dischargeFlag(p.body)).toBe('today');
     expect(p.body.split('\n')[0]).toBe('Diagnosis:');
   });
 
@@ -201,7 +204,7 @@ describe('readReport', () => {
     expect(p.body).toContain('post PPM Implantation (H-1)');
     expect(p.body).not.toContain('Jam Verifikasi');
     // "(H-1)" in a diagnosis is not a discharge plan.
-    expect(p.discharge).toBeNull();
+    expect(dischargeFlag(p.body)).toBeNull();
   });
 
   it('files a BTKV patient under the cardiology DPJP and marks KJS BTKV', () => {
@@ -210,28 +213,13 @@ describe('readReport', () => {
   });
 });
 
-describe('latestPatients / onFloor', () => {
-  const messages = splitChat(EXPORT);
-
+describe('latestPatients', () => {
   it('keeps the latest report per patient (RM leading zeros ignored)', () => {
-    const patients = latestPatients(messages);
+    const patients = latestPatients(splitChat(EXPORT));
     expect(patients).toHaveLength(4);
     const first = patients.find((p) => p.rm === '1234567')!;
     expect(first.sentAt).toBe('2026-10-12T06:35');
     expect(first.body).toContain('121->123->130');
-  });
-
-  it('drops who went home on an earlier day, and who has had no report since the day before', () => {
-    const { present, gone } = onFloor(latestPatients(messages), '2026-10-12');
-    expect(present.map((p) => p.room).sort()).toEqual(['415', '417', '421']);
-    expect(gone.map((g) => [g.patient.room, g.reason])).toEqual([['408', 'pulang']]);
-    // "Usul H-1 hari ini" written on the 11th is "pulang hari ini" on the 12th.
-    const h1 = readReport(messages[1]!)!;
-    expect(h1.discharge).toBe('tomorrow');
-    expect(onFloor([h1], '2026-10-12').present[0]!.discharge).toBe('today');
-    expect(onFloor([h1], '2026-10-11').present[0]!.discharge).toBe('tomorrow');
-    const later = onFloor(latestPatients(messages), '2026-10-13');
-    expect(later.gone.map((g) => g.reason).sort()).toEqual(['pulang', 'pulang', 'tanpa-laporan', 'tanpa-laporan']);
   });
 });
 
@@ -254,9 +242,10 @@ describe('helpers', () => {
 });
 
 describe('buildFloorList', () => {
-  const present = onFloor(latestPatients(splitChat(EXPORT)), '2026-10-12').present.map((p) =>
-    withEdits(p, { nicknames: {} }, emptyDay('2026-10-12')),
-  );
+  // The roster minus the patient who went home (marked Pulang by hand).
+  const present = latestPatients(splitChat(EXPORT))
+    .filter((p) => p.room !== '408')
+    .map((p) => effective(newRosterPatient(p, '', ''), { nicknames: {}, chiefs: '' }, '2026-10-12'));
   const text = buildFloorList(present, { ward: 'PJT Lantai 4', date: '2026-10-12', time: '04.00' });
   const lines = text.split('\n');
 
@@ -318,15 +307,13 @@ describe('readReports (several openings in one message)', () => {
 });
 
 describe('manualPatient (pediatri, entered by hand)', () => {
-  it('builds a report from the three fields; stays on the floor without reports', () => {
+  it('builds a report from the three fields; no colour from its Plan', () => {
     const p = manualPatient({
       room: '421', bed: '6', dpjpId: 'yp', identity: 'An. Contoh Anak / 15-05-2008 / 18 tahun / RM 1516148',
       fields: { diagnosis: '- VSD', terapi: '- Furosemide', plan: '- Pulang hari ini' }, sentAt: '2026-10-10T08:00', sender: 'dr. Saya',
     });
-    expect(p).toMatchObject({ key: 'rm:1516148', manual: true, dpjpId: 'yp', room: '421', bed: '6', discharge: 'today' });
+    expect(p).toMatchObject({ key: 'rm:1516148', manual: true, dpjpId: 'yp', room: '421', bed: '6', discharge: null });
     expect(p.body).toBe('Diagnosis:\n- VSD\n\nTerapi:\n- Furosemide\n\nPlan:\n- Pulang hari ini');
-    const quiet = { ...p, discharge: null };
-    expect(onFloor([quiet], '2026-10-14').present).toHaveLength(1);
   });
 
   it('without an RM the key is room + name, and editing keeps the key', () => {

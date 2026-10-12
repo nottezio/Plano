@@ -102,5 +102,9 @@ export const aiPrivateDoc = (uid: string): DocumentReference => doc(db(), 'users
 export const floorsCol = (): CollectionReference => collection(db(), 'floors');
 export const floorDoc = (floorId: string): DocumentReference => doc(db(), 'floors', floorId);
 export const floorDaysCol = (floorId: string): CollectionReference => collection(db(), 'floors', floorId, 'days');
-export const floorDayDoc = (floorId: string, date: string): DocumentReference =>
-  doc(db(), 'floors', floorId, 'days', date);
+/** The floor's roster (12.12): one document per patient, key = patient key. */
+export const floorPatientsCol = (floorId: string): CollectionReference => collection(db(), 'floors', floorId, 'patients');
+export const floorPatientDoc = (floorId: string, key: string): DocumentReference =>
+  doc(db(), 'floors', floorId, 'patients', key);
+/** Sent lists (12.12): message + roster snapshot, free-text time. */
+export const floorEditionsCol = (floorId: string): CollectionReference => collection(db(), 'floors', floorId, 'editions');

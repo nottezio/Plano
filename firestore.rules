@@ -298,8 +298,8 @@ service cloud.firestore {
      * - read: members, and anyone whose email is invited (to see the invite);
      * - the OWNER manages everything on the floor document (name, roles,
      *   invites, members) but cannot hand the floor to someone else;
-     * - an EDIT member may change only the nicknames and the hand-entered
-     *   (pediatri) patients;
+     * - an EDIT member may change only the nicknames, the chiefs and the
+     *   (pre-12.12) hand-entered patients;
      * - an invitee may accept: add THEMSELVES, with exactly the invited role,
      *   and remove their own invite — nothing else;
      * - any member may leave (remove only themselves);
@@ -359,11 +359,41 @@ service cloud.firestore {
           && request.auth.uid in request.resource.data.memberIds
           && request.resource.data.roles[request.auth.uid] == 'edit'
           && request.resource.data.memberIds.size() <= 60)
-        || (isFloorEditor() && changed().hasOnly(['nicknames', 'manual', 'updatedAt']))
+        || (isFloorEditor() && changed().hasOnly(['nicknames', 'manual', 'chiefs', 'updatedAt']))
         || acceptsInvite()
         || leaves()
       );
       allow delete: if false;
+
+      // The roster (12.12): one document per patient. Members read; edit
+      // members add and update (SOAP, status, residents). No deletes: a
+      // patient who leaves keeps the record with status pulang/pindah.
+      match /patients/{key} {
+        function floorP() {
+          return get(/databases/$(database)/documents/floors/$(floorId)).data;
+        }
+        allow read: if allowed() && request.auth.uid in floorP().memberIds;
+        allow create, update: if allowed()
+          && (request.auth.uid == floorP().ownerUid
+            || (request.auth.uid in floorP().roles && floorP().roles[request.auth.uid] == 'edit'))
+          && request.resource.data.report is map
+          && request.resource.data.status in ['dirawat', 'pulang', 'pindah'];
+        allow delete: if false;
+      }
+
+      // Sent lists (12.12): written once by an edit member, never changed.
+      match /editions/{editionId} {
+        function floorE() {
+          return get(/databases/$(database)/documents/floors/$(floorId)).data;
+        }
+        allow read: if allowed() && request.auth.uid in floorE().memberIds;
+        allow create: if allowed()
+          && (request.auth.uid == floorE().ownerUid
+            || (request.auth.uid in floorE().roles && floorE().roles[request.auth.uid] == 'edit'))
+          && request.resource.data.text is string
+          && request.resource.data.patients is list;
+        allow update, delete: if false;
+      }
 
       match /days/{date} {
         function floor() {
