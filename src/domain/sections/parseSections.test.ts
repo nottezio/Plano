@@ -436,3 +436,21 @@ describe('one-letter vitals inside O (audit 2026-09-29)', () => {
     expect(plan?.text).not.toContain('20');
   });
 });
+
+describe('colleague report headings (12.12, Lt 4 / Lt 5 exports)', () => {
+  const ids = (body: string) => parseSections(body).map((s) => s.sectionId);
+
+  it('a "Mohon izin kami … dengan" line is a heading with no colon', () => {
+    const body = 'S:\n- baik\n\nMohon izin kami assesst dengan\n- CHF\n\nMohon izin kami terapi pasien dengan\n- Furosemide';
+    expect(ids(body)).toEqual(['s', 'a', 'terapi']);
+  });
+
+  it('a bare "Plan" line is the Plan right after Terapi/A, but not inside a TS block', () => {
+    expect(ids('Mohon izin kami terapi dengan:\n- Furosemide\n\nPlan\n- Monitoring')).toEqual(['terapi', 'p']);
+    expect(ids('*TS EMD*\nA/\n- DM\nPlan\n- HbA1c')).not.toContain('p');
+  });
+
+  it('a short word alone on a line is still not a heading', () => {
+    expect(ids('S:\n- minum obat\nObat\n- teratur')).toEqual(['s']);
+  });
+});

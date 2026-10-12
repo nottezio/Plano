@@ -5,6 +5,14 @@ Catatan teknis lengkap (akar masalah, perbaikan) ada di CHANGES.md.
 
 Entri teratas harus versi yang sedang dirilis; tes gagal bila belum ditulis.
 
+## `2026-10-12.14`
+- **Pembacaan SOAP lebih andal**, diuji pada contoh baru: grup Lt 4 (1–22 September, 402 laporan) dan Lt 5 (5–12 Oktober, 114 laporan).
+  - **List Maker**: semua laporan Lt 4 kini terbaca lengkap. Sebelumnya 29 laporan kosong Diagnosis/Terapi-nya karena judulnya berbeda, mis. "Mohon izin dok, pasien kami diagnosis dengan", "Mohon izin kami asses pasien dengan", atau "Mohon Izin Kami Asses:".
+  - **Kamar**: "Lt .4" dan "PJT Kamar 417" (tanpa nomor lantai) kini terbaca lantai 4. "Kamar Super VIP" / "Supervip" dikenali sebagai **411**. Laporan pasien yang masih di **IGD** tidak lagi masuk list lantai; namanya ditampilkan terpisah di Tempel.
+  - **KJS TS Lain** juga dihitung bila DPJP Utama dari bagian lain (mis. "DPJP Urologi (Utama)", "DPJP GH (Utama)"), walau pesannya tidak menulis "KJS".
+- **Bagian catatan lebih sering dikenali** (dipakai Pemeriksa SOAP, Salin, Ringkas): judul "Mohon izin kami … dengan" tanpa titik dua, berbagai ejaan *assess/assesst/assesment*, dan baris "Plan" saja tepat setelah Terapi. Dari 516 laporan rekan, Assessment yang tidak terbaca turun dari 171 ke 3, Terapi dari 144 ke 5, dan Plan dari 120 ke 17.
+- **Pemeriksa SOAP: konsul TS** kini mengenali "Rheumatologi" = "Rheuma", "GH" / "Ginjal-HT", "Endrokrin" = EMD, dan "Infeksi Tropis" = PTI, sehingga tidak lagi salah mengingatkan.
+
 ## `2026-10-12.13`
 - **Pemeriksa SOAP: pengingat pemantauan antikoagulan.** Bila Terapi berisi heparin tapi Plan belum ada APTT, muncul saran **"Cek APTT/hari"**; bila warfarin (termasuk Simarc/Notisil) tapi belum ada INR, saran **"Cek INR/3 hari"**. Tidak muncul untuk LMWH, heparin flush, obat yang di-stop, atau yang ada di bawah "Selesai".
 - **Warfarin (protokol RSWS): pilih pembulatan dosis.** Bila total mingguan hasil hitungan jatuh di antara dua langkah dosis, pilih **Ke bawah / Terdekat / Ke atas**; total tiap pilihan langsung terlihat.

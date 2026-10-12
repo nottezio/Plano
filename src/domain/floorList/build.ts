@@ -1,7 +1,7 @@
 import { formatLongDate } from '@/domain/clinicalDate';
 import { dpjpById } from '@/domain/dpjp';
 import { visitIndex } from '@/domain/denahPlan';
-import type { FloorPatient } from './report';
+import { otherDepartmentUtama, type FloorPatient } from './report';
 
 /**
  * List Maker, step 3: the patients → the List Pasien message (12.8).
@@ -59,7 +59,8 @@ export interface FloorCounts {
 
 /** KJS TS Lain: cardiology as the consulting side for a non-BTKV specialty. */
 function isTsLain(patient: FloorPatient): boolean {
-  return !patient.btkv && /\bKJS\b/i.test(patient.full.slice(0, 400)) && !isPediatri(patient.dpjpId);
+  if (patient.btkv || isPediatri(patient.dpjpId)) return false;
+  return /\bKJS\b/i.test(patient.full.slice(0, 400)) || otherDepartmentUtama(patient.full);
 }
 
 export function floorCounts(patients: readonly FloorPatient[]): FloorCounts {

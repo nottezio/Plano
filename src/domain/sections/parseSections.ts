@@ -223,6 +223,17 @@ function buildMatcher(aliases: readonly SectionAlias[]): AliasMatcher {
   const delimited: string[] = [];
   const selfDelimited: string[] = [];
   const shortDelimited: string[] = [];
+  /**
+   * The "Mohon izin kami … dengan" headings stand on their own line with no
+   * colon in the colleague reports (12.12: 80 Terapi and ~90 Assessment
+   * headings of 516 reports in the Lt 4/Lt 5 exports were missed for want of
+   * a colon). Only these sentence-headings, and only as the whole line: they
+   * never occur in prose or inside a TS block. A bare "Plan" was tried too and
+   * dropped — TS blocks carry "Plan diagnostik" / "Plan Monitoring" lines of
+   * their own, and reading those as the patient's Plan split the TS block
+   * (konsulReply jump-bar test).
+   */
+  const wholeLine: string[] = [];
 
   const tokens = aliases.flatMap((alias) =>
     alias.aliases
@@ -240,6 +251,7 @@ function buildMatcher(aliases: readonly SectionAlias[]): AliasMatcher {
     if (token.endsWith('/')) selfDelimited.push(escapeRegExp(token));
     else if (token.length <= SHORT_TOKEN) shortDelimited.push(escapeRegExp(token));
     else delimited.push(escapeRegExp(token));
+    if (/^mohon\s/i.test(token)) wholeLine.push(escapeRegExp(token));
   }
 
   const branches: string[] = [];
@@ -252,6 +264,9 @@ function buildMatcher(aliases: readonly SectionAlias[]): AliasMatcher {
     branches.push(
       `(?:${shortDelimited.join('|')})${TRAILING_MARKERS}[ \\t]*${SHORT_DELIMITERS}${TRAILING_MARKERS}`,
     );
+  }
+  if (wholeLine.length > 0) {
+    branches.push(`(?:${wholeLine.join('|')})${TRAILING_MARKERS}[ \\t]*$`);
   }
   if (selfDelimited.length > 0) {
     branches.push(
@@ -411,12 +426,25 @@ export function parseSections(
 ): ParsedSection[] {
   const table = aliasesOrDefault(aliases);
   const matcher = buildMatcher(table);
+  /*
+    A bare "Plan" / "Planning" line, no colon (12.12: ~60 of 516 colleague
+    reports write it so). Accepted ONLY right after the patient's own Terapi
+    or Assessment — the place the SOAP's Plan comes — because TS blocks carry
+    bare "Plan diagnostik" / "Plan Monitoring" lines of their own, and a
+    context-free rule split those (konsulReply jump-bar test).
+  */
+  const barePlan = table.some((alias) => alias.sectionId === 'p')
+    ? { pattern: new RegExp(`^(${DECORATION})((?:Planning|Plan)${TRAILING_MARKERS}[ \\t]*$)`, 'i'), lookup: new Map<string, SectionId>([['plan', 'p'], ['planning', 'p']]) }
+    : null;
 
   const hits: HeaderHit[] = [];
   /** Inside the O block: from an O/TTV heading until the next known heading. */
   let inObjective = false;
   for (const line of splitLines(body)) {
-    const hit = detectHeader(line, matcher, table);
+    const last = hits.at(-1)?.sectionId;
+    const hit =
+      detectHeader(line, matcher, table) ??
+      (barePlan && (last === 'terapi' || last === 'a') ? detectHeader(line, barePlan, table) : null);
     if (!hit) continue;
     if (inObjective && isVitalField(line, hit)) continue;
     if (hit.sectionId === 'o' || hit.sectionId === 'ttv') inObjective = true;

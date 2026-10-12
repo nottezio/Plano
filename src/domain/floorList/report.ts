@@ -1,3 +1,4 @@
+import { roomNamed } from '@/domain/denahPlan';
 import { DPJPS, detectDpjps } from '@/domain/dpjp';
 import type { ChatMessage } from './chat';
 
@@ -69,9 +70,19 @@ export interface ManualFields {
 /** Surgeons: never the cardiology DPJP a patient is filed under. */
 const BTKV_IDS = new Set(DPJPS.filter((d) => /BTKV/i.test(d.name)).map((d) => d.id));
 
-const ASSESS = /^\W*mohon\s+(?:izin|ijin)\s+(?:pasien\s+)?(?:kami\s+)?asses+t?\w*\s+dengan\b/i;
-const DX = /^\W*(?:diagnos[ai]s?|diagnosa)\W*$/i;
-const TERAPI = /^\W*mohon\s+(?:izin|ijin)\s+(?:pasien\s+)?(?:kami\s+)?terapi\s+dengan\b/i;
+/*
+  The A and T headings, every spelling in the Lt 4 (Sept) and Lt 5 (Oct)
+  exports (12.12): "Mohon izin kami assess/asses/assesst/assessment/
+  assesstment dengan", "… asses pasien dengan", "Mohon izin dok, pasien kami
+  diagnosis dengan", "Mohon Izin Kami Asses:" (no "dengan"), and the same for
+  "terapi" ("… terapi pasien dengan", "… inisial terapi dengan",
+  "Mohon izin kami Terapi:"). 29 of 402 Lt 4 reports had an empty list body
+  with the old, narrower pattern.
+*/
+const ASSESS =
+  /^\W*mohon\s+(?:izin|ijin)\b[^\n]{0,24}?\b(?:asses+t?\w*|diagnos[ai]s?)\b(?:[^\n]{0,16}\bdengan\b|\s*:)/i;
+const DX = /^\W*(?:diagnos[ai]s?|diagnosa|asses+t?ment)\W*$/i;
+const TERAPI = /^\W*mohon\s+(?:izin|ijin)\b[^\n]{0,24}?\b(?:inisial\s+)?terapi\b(?:[^\n]{0,16}\bdengan\b|\s*:)/i;
 /**
  * A sign-off ends the tail. Never a bulleted line: "- Mohon arahan DPJP" in a
  * plan is an instruction, not the closing.
@@ -96,8 +107,14 @@ function readPlace(opening: string): { room: string; bed: string; floor: string 
   const room = [...after.matchAll(/\bkamar\s*:?\s*(\d{3}[A-Za-z]?)/gi)].at(-1);
   const tail = room ? after.slice((room.index ?? 0) + room[0].length) : after;
   const bed = /\bbed\s*:?\s*(\w+)/i.exec(tail);
-  const floor = /\b(?:lantai|lt)\.?\s*(\d+)/i.exec(after);
-  return { room: room?.[1] ?? '', bed: bed?.[1] ?? '', floor: floor?.[1] ?? '' };
+  // "Lt .4", "Lt.4", "Lantai 4" (12.12: "Lt .4" was missed).
+  const written = /\b(?:lantai|lt)\s*\.?\s*(\d+)/i.exec(after)?.[1] ?? '';
+  let number = room?.[1] ?? '';
+  // A room named, not numbered: "Kamar Super VIP", "Lt.4 Supervip".
+  if (!number && /\bsuper\s*-?\s*vip\b/i.test(after)) number = roomNamed(written, 'Super VIP');
+  // "PJT Kamar 417": the floor is the room's first digit.
+  const floor = written || (/^\d{3}/.test(number) ? number.charAt(0) : '');
+  return { room: number, bed: bed?.[1] ?? '', floor };
 }
 
 function readIdentity(lines: string[], opening: number): string {
@@ -153,6 +170,37 @@ function fileDpjp(text: string): { dpjpId: string | null; kjs: string[]; btkvDpj
     .filter((d) => d !== filed && /aritmia|eko\b|intervensi|kjs/.test(role(d)) && !/tindakan|utama|pelimpahan/.test(role(d)))
     .map((d) => d.id);
   return { dpjpId: filed?.id ?? null, kjs, btkvDpjp: detected.some((d) => BTKV_IDS.has(d.id)) };
+}
+
+/**
+ * Whether a report is for this floor (12.12). The floor written, or read from
+ * the room ("PJT Kamar 417"). A report with neither — "pasien baru di IGD
+ * PJT Redzone" — is not on any floor yet and is not filed: it used to slip
+ * in, with no room, because a missing floor counted as a match.
+ */
+export function onFloorNumber(report: Pick<FloorPatient, 'floor'>, floor: string): boolean {
+  return !floor || report.floor === floor;
+}
+
+/**
+ * The patient belongs to another department (12.12): a "DPJP … Utama" line
+ * names a doctor who is neither one of our cardiology DPJPs nor BTKV —
+ * "DPJP Urologi (Utama)", "DPJP GH (Utama)", "DPJP Bedah Onkologi (Utama)".
+ * Counted as KJS TS Lain even when the message never says "KJS".
+ */
+export function otherDepartmentUtama(text: string): boolean {
+  for (const line of text.split('\n')) {
+    const flat = clean(line);
+    const match = /^-?\s*DPJP\b([^:]*)\butama\b([^:]*):\s*(.+)$/i.exec(flat);
+    if (!match) continue;
+    const label = `${match[1]} ${match[2]}`;
+    const who = match[3] ?? '';
+    if (/BTKV|\bBKV\b/i.test(label + who)) continue;
+    if (detectDpjps(flat).length > 0) continue;
+    if (/kardio/i.test(label)) continue;
+    return true;
+  }
+  return false;
 }
 
 /** The A/P tail, with the two headings renamed. */

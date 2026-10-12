@@ -193,3 +193,21 @@ export function visitIndex(ward: string | undefined, room: string | undefined): 
   const at = route.indexOf(key);
   return at >= 0 ? at : null;
 }
+
+/**
+ * A room the reports name instead of numbering ("Kamar Super VIP",
+ * "PJT Lt.4 Supervip", 12.12): the plan's room on that floor whose subtitle
+ * is that name. '' when the floor has no plan or no such room.
+ */
+export function roomNamed(floor: string, name: string): string {
+  const squash = (value: string): string => value.toLowerCase().replace(/[^a-z]/g, '');
+  const wanted = squash(name);
+  if (!wanted) return '';
+  for (const plan of PLANS) {
+    if (floor && !new RegExp(`\\b(?:lantai|lt)\\.?\\s*${floor}\\b`, 'i').test(plan.ward)) continue;
+    const slot = planRooms(plan).find((room) => room.subtitle && squash(room.subtitle) === wanted);
+    if (slot) return slot.room;
+  }
+  return '';
+}
+

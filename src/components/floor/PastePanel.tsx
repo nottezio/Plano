@@ -5,7 +5,7 @@ import { addRosterPatient, writeRosterFields, writeRosterReport } from '@/data/r
 import { formatDmy } from '@/domain/dateDmy';
 import { newRosterPatient, pasteDiff, updatedReport, type FloorDoc, type PasteDiff, type RosterPatient } from '@/domain/floorList/floor';
 import { splitChat } from '@/domain/floorList/chat';
-import { readReports, type FloorPatient } from '@/domain/floorList/report';
+import { onFloorNumber, readReports, type FloorPatient } from '@/domain/floorList/report';
 import { chatFromZip } from '@/lib/unzip';
 
 interface Reading {
@@ -48,8 +48,8 @@ export function PastePanel({ floor, roster, myName }: { floor: FloorDoc; roster:
     setReadmit(new Set());
     const messages = splitChat(raw).map((m) => (m.sender === 'You' ? { ...m, sender: myName } : m));
     const all = messages.flatMap(readReports);
-    // A report from another floor (moved out, CVCU) is shown, not filed.
-    const reports = all.filter((p) => !floorNumber || !p.floor || p.floor === floorNumber);
+    // Another floor (moved out, CVCU) or no floor yet (IGD) is shown, not filed.
+    const reports = all.filter((p) => onFloorNumber(p, floorNumber));
     const otherFloor = all.filter((p) => !reports.includes(p));
     setReading({ diff: pasteDiff(roster, reports), otherFloor, messages: messages.length });
   };
@@ -210,7 +210,7 @@ export function PastePanel({ floor, roster, myName }: { floor: FloorDoc; roster:
 
           {reading!.otherFloor.length > 0 ? (
             <p className="text-fg-muted">
-              Lantai lain, tidak dimasukkan: {reading!.otherFloor.map((p) => `${p.name} (Lt ${p.floor})`).join(', ')}
+              Lantai lain / IGD, tidak dimasukkan: {reading!.otherFloor.map((p) => `${p.name} (${p.floor ? `Lt ${p.floor}` : 'tanpa lantai'})`).join(', ')}
             </p>
           ) : null}
 

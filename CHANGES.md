@@ -1,5 +1,52 @@
 # Plano — CHANGES
 
+## `2026-10-12.14` — Parser hardening from two new exports (Lt 4 Sept, Lt 5 Oct): A/T heading spellings, floor/room reading, Super VIP, IGD, TS Lain; section parser coverage; specialty spellings
+
+Corpus: Lt 4 1–22 Sept (678 messages, 402 reports, 122 patients) and Lt 5
+5–12 Oct (145 messages, 114 reports). Kept in the session scratchpad only;
+nothing from them is committed — every new test fixture is invented.
+
+- **List Maker — empty Diagnosis/Terapi on 29 of 402 Lt 4 reports.** Root
+  cause: `ASSESS`/`TERAPI` were enumerations of word orders ("mohon izin
+  (pasien) (kami) assess dengan"), and the corpus has more — "Mohon izin dok,
+  pasien kami diagnosis dengan", "… asses pasien dengan", "assesstment",
+  "Mohon Izin Kami Asses:" with no "dengan". Fix: one pattern — "mohon
+  izin/ijin", up to 24 chars, an assess/diagnosis (or terapi / inisial
+  terapi) word, then "dengan" or a colon. After: 0 empty bodies on Lt 4, 1 on
+  Lt 5 (a consult with no A at all); 516/517 bodies start "Diagnosis:".
+- **Floor/room.** "Lt .4" (space before the dot) missed; "PJT Kamar 417"
+  has no floor word → floor from the room's first digit; "Kamar Super VIP" /
+  "Supervip" → `roomNamed(floor, 'Super VIP')` reads the plan's subtitle
+  (411 on Lt 4) instead of hardcoding it. **IGD reports** (no floor, no room)
+  used to pass the paste filter because a missing floor counted as a match —
+  `onFloorNumber` now requires the floor, and Tempel lists them as "tanpa
+  lantai".
+- **KJS TS Lain** was only "KJS" in the first 400 chars; 7 patients whose
+  DPJP Utama is Urologi / GH / Bedah Onkologi / KGEH / GER / Neuro / Bedah
+  Saraf were counted as Kardio FU. `otherDepartmentUtama`: a "DPJP … Utama"
+  line naming no cardiology DPJP and no BTKV.
+- **Section parser (Plano's own notes, checker, copy):** measured on the
+  same 516 reports — A missing 171 → 3, Terapi 144 → 5, Plan 120 → 17.
+  (1) new alias spellings; (2) "Mohon …" aliases accepted as a whole line
+  without a delimiter; (3) a bare "Plan"/"Planning" line only right after the
+  patient's Terapi/A. **Wrong turn:** a general "whole-line alias ≥5 letters"
+  rule split TS blocks at their own bare "Plan diagnostik" lines (konsulReply
+  jump-bar test caught it); narrowed to the two rules above. New aliases
+  reach existing users through seedSync's three-way merge.
+- **Specialties:** rheumatologi, gh/kgh/ginjal ht/interna gh, emd/endrokrin,
+  infeksi tropis/tropis, ger/kger. consult-not-in-dpjp on the corpus 130 →
+  122; the rest are TS answers genuinely missing from the DPJP list.
+- Corpus run of the 12.13 anticoagulant rule: 21 of 74 warfarin reports and
+  6 of 141 heparin-mentioning reports lack INR/APTT monitoring in the Plan;
+  spot-checked, all genuine (INR values in O only).
+- Not done: no Lt 5 denah (no plan drawn; List Maker stays Lt 4); 11 bare
+  "Plan" lines after other sections remain unread on purpose.
+
+### Verify
+```
+npm run verify → typecheck, lint, 162 files / 2386 tests, version, contrast, a11y, build: all green
+```
+
 ## `2026-10-12.13` — Anticoagulant monitoring check; warfarin rounding; sidebar DPJP card removed; List Maker: room/bed move, tinted cards, coloured list, any-DPJP manual patient, chief field, delete list
 
 - **SOAP checker — heparin/warfarin without monitoring** (Avi, 12-12).

@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest';
 import { splitChat } from './chat';
 import { buildFloorList, patientLine, splitFloorList } from './build';
 import { effective, newRosterPatient } from './floor';
-import { dischargeFlag, latestPatients, listBody, manualPatient, nicknameOf, readReport } from './report';
+import { dischargeFlag, latestPatients, listBody, manualPatient, nicknameOf, onFloorNumber, otherDepartmentUtama, readReport } from './report';
 
 /*
   The floor's WhatsApp group, re-typed with invented patients and residents
@@ -335,5 +335,45 @@ describe('splitFloorList (coloured view, 12.12)', () => {
     expect(ks.count).toBe(1);
     expect(parts.find((p) => p.heading.includes('dr. PT'))!.count).toBe(0);
     expect(parts.reduce((n, p) => n + p.count, 0)).toBeGreaterThanOrEqual(patients.length);
+  });
+});
+
+describe('report variants from the Lt 4 (Sept) / Lt 5 (Oct) exports, 12.12', () => {
+  const msg = (text: string) => ({ sentAt: '2026-10-12T07:00', sender: 'dr. A', text, index: 0 });
+  const report = (opening: string, middle: string) =>
+    readReport(
+      msg(
+        `${opening} atas nama:\n\nTn. Contoh Delapan / 01-01-1960 / 66 tahun / RM 1234500\n\nDPJP Utama : Dr. dr. Khalid Saleh, Sp.PD-KKV\n\nS:\n- baik\n\n${middle}\n\nTabe mohon arahannya dokter. Terima kasih dokter.`,
+      ),
+    )!;
+
+  it('reads every A/T heading spelling, with or without "dengan" or a colon', () => {
+    const variants = [
+      ['Mohon izin dok, pasien kami diagnosis dengan:', 'Mohon Izin dok, pasien kami terapi dengan:'],
+      ['Mohon izin kami asses pasien dengan:', 'Mohon izin kami terapi pasien dengan:'],
+      ['Mohon izin kami assesstment dengan:', 'Mohon izin kami inisial terapi dengan :'],
+      ['Mohon Izin Kami Asses:', 'Mohon izin kami Terapi:'],
+    ];
+    for (const [a, t] of variants) {
+      const p = report('Tabe dokter, mohon izin melaporkan follow up pasien di PJT Lantai 4 Kamar 417 Bed 1', `${a}\n- CHF\n\n${t}\n- Furosemide\n\nPlan:\n- Monitoring`);
+      expect(p.body).toBe('Diagnosis:\n- CHF\n\nTerapi:\n- Furosemide\n\nPlan:\n- Monitoring');
+    }
+  });
+
+  it('floor from "Lt .4" or from the room; Super VIP is room 411 on Lt 4; IGD has no floor', () => {
+    expect(report('mohon izin melaporkan pasien di Lt .4 Kamar 421 Bed 1', 'Mohon izin kami assess dengan\n- X')).toMatchObject({ floor: '4', room: '421' });
+    expect(report('mohon izin melaporkan pasien di PJT Kamar 417 Bed 1', 'Mohon izin kami assess dengan\n- X')).toMatchObject({ floor: '4', room: '417' });
+    expect(report('mohon izin melaporkan pasien di Lantai 4 Kamar Super VIP', 'Mohon izin kami assess dengan\n- X')).toMatchObject({ floor: '4', room: '411' });
+    expect(report('mohon izin melaporkan perpindahan pasien dari CVCU Bed 9 ke PJT Lt.4 Supervip', 'Mohon izin kami assess dengan\n- X').room).toBe('411');
+    const igd = report('mohon izin melaporkan pasien baru di IGD PJT Redzone bed 1', 'Mohon izin kami assess dengan\n- X');
+    expect([igd.floor, igd.room, onFloorNumber(igd, '4')]).toEqual(['', '', false]);
+  });
+
+  it('a non-cardiology DPJP Utama makes it KJS TS Lain; cardiology or BTKV Utama does not', () => {
+    expect(otherDepartmentUtama('DPJP Urologi (Utama) : dr. Contoh Satu, Sp.U\nDPJP Kardio : Dr. dr. Khalid Saleh, Sp.PD-KKV')).toBe(true);
+    expect(otherDepartmentUtama('DPJP GH (Utama): dr. Contoh Dua, Sp.PD K GH')).toBe(true);
+    expect(otherDepartmentUtama('DPJP Utama : Dr. dr. Khalid Saleh, Sp.PD-KKV')).toBe(false);
+    expect(otherDepartmentUtama('DPJP BTKV (Utama) : dr. Contoh Tiga, Sp.BTKV')).toBe(false);
+    expect(otherDepartmentUtama('- Rawat jalan mengikuti DPJP Utama')).toBe(false);
   });
 });

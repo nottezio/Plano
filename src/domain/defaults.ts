@@ -106,6 +106,14 @@ export const DEFAULT_SECTION_ALIASES: readonly SectionAlias[] = [
       'Mohon izin pasien kami assess dengan', 'Mohon ijin kami assess dengan',
       'Mohon izin kami asses dengan', 'Mohon izin kami assest dengan',
       'Mohon ijin kami assest dengan', 'Mohon izin kami Assess dengan',
+      // 12.12, from the Lt 4 (Sept) and Lt 5 (Oct) exports: 171 of 516
+      // colleague reports had no A found. `assesst` alone is ~130 headings.
+      'Assesment', 'Mohon izin kami assesst dengan', 'Mohon ijin kami assesst dengan',
+      'Mohon izin pasien kami assesst dengan', 'Mohon izin kami asses pasien dengan',
+      'Mohon izin kami assess pasien dengan', 'Mohon izin dok, pasien kami diagnosis dengan',
+      'Mohon izin kami diagnosis dengan', 'Mohon izin kami asses', 'Mohon izin kami assess',
+      'Mohon izin pasien kami assessment dengan', 'Mohon izin kami assesstment dengan',
+      'Mohon izin pasien kami assesment dengan', 'Mohon izin kami assesment dengan',
     ],
   },
   {
@@ -135,6 +143,9 @@ export const DEFAULT_SECTION_ALIASES: readonly SectionAlias[] = [
       'Mohon izin kami terapi dengan', 'Mohon izin pasien kami terapi dengan',
       'Mohon ijin pasien kami terapi dengan', 'Mohon ijin kami terapi dengan',
       'Mohon izin kami inisial terapi dengan',
+      // 12.12, same exports (144 of 516 reports had no Terapi found).
+      'Mohon izin kami terapi pasien dengan', 'Mohon izin dok, pasien kami terapi dengan',
+      'Mohon izin kami terapi', 'Mohon izin pasien kami terapi',
     ],
   },
 ] as const;

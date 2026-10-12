@@ -77,3 +77,21 @@ describe('spelling variants still meet', () => {
     expect(consultCovered('Rehab', dpjpSpecialties('*Tn. X/RM 1000001*\n_DPJP Utama : dr. Y, Sp.JP_'))).toBe(false);
   });
 });
+
+describe('spellings from the Lt 4 / Lt 5 exports (12.12)', () => {
+  it('Rheumatologi, GH, Endrokrin and Infeksi Tropis meet their DPJP lines', () => {
+    const covered = dpjpSpecialties(
+      [
+        'DPJP Rheuma : dr. Konsulen G, Sp.PD',
+        'DPJP Ginjal-HT : dr. Konsulen H, Sp.PD',
+        'DPJP Endrokrin : dr. Konsulen I, Sp.PD',
+        'DPJP PTI : dr. Konsulen J, Sp.PD',
+      ].join('\n'),
+    );
+    expect(consultCovered('Rheumatologi', covered)).toBe(true);
+    expect(consultCovered('Interna GH', covered)).toBe(true);
+    expect(consultCovered('EMD', covered)).toBe(true);
+    expect(consultCovered('Infeksi Tropis', covered)).toBe(true);
+    expect(consultCovered('Neuro', covered)).toBe(false);
+  });
+});
