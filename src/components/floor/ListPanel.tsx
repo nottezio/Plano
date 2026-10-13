@@ -20,9 +20,12 @@ import {
   type RosterView,
   type StatusChange,
 } from '@/domain/floorList/floor';
+import { MARK_COLORS, MARK_PREFIX, markCss } from '@/domain/floorList/marks';
 import type { FloorPatient } from '@/domain/floorList/report';
+import { matchesSearch } from '@/domain/floorList/search';
 import { copyText } from '@/lib/clipboard';
 import { deliverFile } from '@/lib/download';
+import { DeletePatient } from './DeletePatient';
 import { ListMessage } from './ListMessage';
 import { ManualPatientSheet } from './ManualPatientSheet';
 
@@ -34,11 +37,18 @@ const COLOUR_OPTIONS: ReadonlyArray<readonly [ColourMark, string]> = [
 const PINDAH_CHIPS = ['ICU', 'CVCU', 'HCU', 'ICCU', 'Lantai lain'];
 
 /** The patient card's tint by its colour on this list (12.12): red H-1, green pulang hari ini. */
-const FLAG_STYLE = {
-  tomorrow: { borderColor: 'var(--note-red)', borderLeftWidth: 4, backgroundColor: 'color-mix(in srgb, var(--note-red) 8%, var(--surface))' },
-  today: { borderColor: 'var(--note-green)', borderLeftWidth: 4, backgroundColor: 'color-mix(in srgb, var(--note-green) 8%, var(--surface))' },
-} as const;
 const FLAG_TEXT = { tomorrow: 'var(--note-red)', today: 'var(--note-green)' } as const;
+
+/** Red/green first; a floor mark (13.7) tints the card the same way in its own colour. */
+function cardColour(patient: FloorPatient): string | null {
+  if (patient.discharge) return FLAG_TEXT[patient.discharge];
+  return patient.mark ? markCss(patient.mark.color) : null;
+}
+const tinted = (colour: string) => ({
+  borderColor: colour,
+  borderLeftWidth: 4,
+  backgroundColor: `color-mix(in srgb, ${colour} 8%, var(--surface))`,
+});
 
 /** A prefill only (free text): the usual send times of the floor. */
 function defaultTime(now: Date): string {
@@ -61,6 +71,7 @@ export function ListPanel({
   onOpen,
   myName,
   editions,
+  words = [],
 }: {
   floor: FloorDoc;
   roster: readonly RosterPatient[];
@@ -70,6 +81,8 @@ export function ListPanel({
   onOpen: (patient: FloorPatient) => void;
   myName: string;
   editions: readonly Edition[];
+  /** The page's search (13.7): only matching cards are shown. */
+  words?: readonly string[];
 }): JSX.Element {
   const [copied, setCopied] = useState('');
   const [time, setTime] = useState(() => defaultTime(new Date()));
@@ -87,7 +100,12 @@ export function ListPanel({
   const juniors = chiefsOf(floor.juniors);
   const byKey = useMemo(() => new Map(roster.map((p) => [p.key, p])), [roster]);
   const text = useMemo(() => buildFloorList(view.active, { ward: floor.ward, date, time }), [view.active, floor.ward, date, time]);
-  const sorted = [...view.active].sort(byRoute(floor.ward));
+  const all = [...view.active].sort(byRoute(floor.ward));
+  const sorted = words.length > 0 ? all.filter((p) => matchesSearch(p, words)) : all;
+  const colourOptions: ReadonlyArray<readonly [ColourMark, string]> = [
+    ...COLOUR_OPTIONS,
+    ...floor.marks.map((m) => [`${MARK_PREFIX}${m.id}` as ColourMark, `${m.label} (${MARK_COLORS[m.color].name.toLowerCase()})`] as const),
+  ];
   const lastEdition = editions[0];
   const gone = leftSince(roster, lastEdition?.createdAt ?? '');
   const note = leftNote(gone, patientLine);
@@ -117,7 +135,7 @@ export function ListPanel({
       <div className="min-w-0 space-y-3">
         <div className="flex flex-wrap items-center gap-2">
           <h3 className="flex-1 text-xs font-semibold uppercase tracking-wide text-fg-faint">
-            Di lantai ({view.active.length})
+            Di lantai ({words.length > 0 ? `${sorted.length} dari ${all.length}` : all.length})
           </h3>
           {editable ? (
             <Button
@@ -153,27 +171,34 @@ export function ListPanel({
         {chiefs.length > 1 && sorted.some((p) => !p.chief) ? (
           <p className="text-xs text-fg-muted">{sorted.filter((p) => !p.chief).length} pasien belum ada chief — pilih di kolom Chief.</p>
         ) : null}
-        {sorted.length === 0 ? <p className="text-xs text-fg-muted">Belum ada pasien. Buka Tempel.</p> : null}
+        {all.length === 0 ? <p className="text-xs text-fg-muted">Belum ada pasien. Buka Tempel.</p> : null}
+        {all.length > 0 && sorted.length === 0 ? <p className="text-xs text-fg-muted">Tidak ada pasien yang cocok.</p> : null}
 
         <ul className="space-y-2">
           {sorted.map((patient) => {
             const entry = byKey.get(patient.key);
             if (!entry) return null;
             const suggestion = suggestionFor(entry, date);
+            const colour = cardColour(patient);
             return (
               <li
                 key={patient.key}
                 className="rounded-xl border border-border bg-surface p-2 text-xs"
-                style={patient.discharge ? FLAG_STYLE[patient.discharge] : undefined}
+                style={colour ? tinted(colour) : undefined}
               >
                 <button
                   type="button"
                   onClick={() => onOpen(patient)}
                   className="block text-left font-semibold hover:underline"
-                  style={patient.discharge ? { color: FLAG_TEXT[patient.discharge] } : undefined}
+                  style={colour ? { color: colour } : undefined}
                 >
                   {patientLine(patient)}
                   {patient.discharge ? <span className="sr-only"> ({patient.discharge === 'tomorrow' ? 'H-1' : 'pulang hari ini'})</span> : null}
+                  {!patient.discharge && patient.mark ? (
+                    <span className="ml-1 inline-block rounded-full border px-1.5 text-[10px] font-semibold" style={{ borderColor: colour ?? undefined }}>
+                      {patient.mark.label}
+                    </span>
+                  ) : null}
                 </button>
                 <p className="mt-0.5 text-[11px] text-fg-faint">
                   {patient.manual ? 'Diinput manual' : 'Laporan'}{' '}
@@ -224,14 +249,14 @@ export function ListPanel({
                     />
                     <select
                       aria-label={`Warna ${patient.name}`}
-                      value={entry.colour}
+                      value={colourOptions.some(([v]) => v === entry.colour) ? entry.colour : 'none'}
                       onChange={(e) => {
                         const next = e.target.value as ColourMark;
-                        set(patient.key, { colour: next }, COLOUR_OPTIONS.find(([v]) => v === next)?.[1] ?? next);
+                        set(patient.key, { colour: next }, colourOptions.find(([v]) => v === next)?.[1] ?? next);
                       }}
                       className={`${INPUT} text-xs`}
                     >
-                      {COLOUR_OPTIONS.map(([value, label]) => (
+                      {colourOptions.map(([value, label]) => (
                         <option key={value} value={value}>
                           {label}
                         </option>
@@ -279,6 +304,7 @@ export function ListPanel({
                         Ubah isi
                       </Button>
                     ) : null}
+                    <DeletePatient floorId={floor.id} patientKey={patient.key} name={patient.name} />
                   </div>
                 ) : null}
 

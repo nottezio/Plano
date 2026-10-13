@@ -105,6 +105,13 @@ describe('Denah docx', () => {
     expect(text).toContain('Pasien PJT Lantai 4:');
   });
 
+  it('a floor mark prints in its Word colour and joins the legend', () => {
+    const marked = [{ ...patients[0]!, discharge: null, mark: { label: 'Pre-op', color: 'purple' as const } }];
+    expect(patientRuns(marked[0]!).some((r) => r.color === '7030A0')).toBe(true);
+    const text = new TextDecoder().decode(buildDenahDocx({ ward: 'PJT Lantai 4', date: '2026-10-12', plan: null, patients: marked }));
+    expect(text).toContain('Pre-op');
+  });
+
   it('file names are Windows-safe', () => {
     expect(floorFileName('Denah', 'PJT Lantai 4/5', '2026-10-12')).toBe('Denah PJT Lantai 4 5 2026-10-12.docx');
   });

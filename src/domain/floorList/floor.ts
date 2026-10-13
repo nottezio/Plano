@@ -1,3 +1,4 @@
+import { markOf, type FloorMark } from './marks';
 import { dischargeFlag, type DischargeFlag, type FloorPatient } from './report';
 
 /**
@@ -48,13 +49,18 @@ export interface FloorDoc {
    * roster spelling).
    */
   juniors: string;
+  /** The floor's own colours besides red/green (13.7, `marks.ts`). */
+  marks: FloorMark[];
 }
 
 /** On the floor, or gone (and how). */
 export type RosterStatus = 'dirawat' | 'pulang' | 'pindah';
 
-/** The colour set by hand: none, red (H-1), green (pulang hari ini). */
-export type ColourMark = 'none' | 'h1' | 'today';
+/**
+ * The colour set by hand: none, red (H-1), green (pulang hari ini), or one of
+ * the floor's own marks ("m:<id>", 13.7).
+ */
+export type ColourMark = 'none' | 'h1' | 'today' | `m:${string}`;
 
 export interface StatusChange {
   at: string;
@@ -128,6 +134,8 @@ function addDays(date: string, n: number): string {
 export function colourOn(patient: Pick<RosterPatient, 'colour' | 'dischargeDate'>, date: string): DischargeFlag {
   if (patient.colour === 'h1') return 'tomorrow';
   if (patient.colour === 'today') return 'today';
+  // A floor mark set by hand is the decision shown; it wins over the date.
+  if (patient.colour.startsWith('m:')) return null;
   const due = patient.dischargeDate;
   if (!due) return null;
   if (date >= due) return 'today';
@@ -186,7 +194,7 @@ function oneEditApart(a: string, b: string): boolean {
 
 export function effective(
   patient: RosterPatient,
-  floor: Pick<FloorDoc, 'nicknames' | 'chiefs'> & { juniors?: string | undefined },
+  floor: Pick<FloorDoc, 'nicknames' | 'chiefs'> & { juniors?: string | undefined; marks?: readonly FloorMark[] | undefined },
   date: string,
 ): FloorPatient {
   const report = patient.report;
@@ -197,7 +205,9 @@ export function effective(
   const junior = rosterName(patient.junior || report.junior || floor.nicknames[report.sender] || report.senderNick || '', juniors.length > 0 ? everyone : []);
   const written = patient.chief || report.chief;
   const chief = written ? rosterName(written, chiefs.length > 0 ? everyone : []) : chiefs.length === 1 ? chiefs[0]! : '';
-  return { ...report, junior, chief, discharge: colourOn(patient, date) };
+  const mark = markOf(patient.colour, floor.marks ?? []);
+  const { mark: _stored, ...rest } = report;
+  return { ...rest, junior, chief, discharge: colourOn(patient, date), ...(mark ? { mark: { label: mark.label, color: mark.color } } : {}) };
 }
 
 export interface RosterView {
@@ -263,6 +273,42 @@ export interface PasteDiff {
   readmit: Array<{ before: RosterPatient; report: FloorPatient }>;
   /** Same or older than what is stored. */
   unchanged: number;
+  /**
+   * Of `fresh`, key → why the patient has probably already gone (13.7):
+   * proposed UNticked. An export spans days, so its oldest SOAPs belong to
+   * patients discharged since.
+   */
+  doubt: Record<string, string>;
+}
+
+const HOUR = 3_600_000;
+const stampMs = (stamp: string): number => Date.parse(`${stamp.length === 16 ? stamp : stamp.slice(0, 16)}:00Z`);
+const dmy = (day: string): string => `${day.slice(8, 10)}/${day.slice(5, 7)}`;
+
+/**
+ * Why a patient new to the roster has probably left already, or '' (13.7).
+ * Read against the paste itself — its newest message is "now" — so an old
+ * export is judged on its own days:
+ *
+ * - a newer sent list (any list message in the paste after the patient's last
+ *   report) does not have the patient;
+ * - the Plan said "pulang hari ini" on an earlier day, or "H-1" two days
+ *   earlier or more;
+ * - no report for 36 hours while others kept coming (a daily SOAP missed).
+ *
+ * Being on the newest list clears the last two: the list maker kept them.
+ */
+function doubtFor(report: FloorPatient, seenAt: string, newest: string, list: { at: string; keys: Set<string> } | null): string {
+  const onList = list !== null && list.keys.has(report.key);
+  if (list && !onList && seenAt < list.at) return `tidak ada di list ${dmy(list.at)} ${list.at.slice(11, 16)}`;
+  if (onList) return '';
+  const day = report.sentAt.slice(0, 10);
+  const newestDay = newest.slice(0, 10);
+  const plan = report.fromList ? null : dischargeFlag(report.body);
+  if (plan === 'today' && day < newestDay) return `plan pulang ${dmy(day)}`;
+  if (plan === 'tomorrow' && addDays(day, 1) < newestDay) return `plan pulang ${dmy(addDays(day, 1))}`;
+  if (stampMs(newest) - stampMs(seenAt) > 36 * HOUR) return `SOAP terakhir ${dmy(day)}`;
+  return '';
 }
 
 /**
@@ -272,18 +318,34 @@ export interface PasteDiff {
  */
 export function pasteDiff(roster: readonly RosterPatient[], reports: readonly FloorPatient[]): PasteDiff {
   const latest = new Map<string, FloorPatient>();
+  // When each patient was last mentioned at all (SOAP or list line).
+  const seen = new Map<string, string>();
+  let newest = '';
   for (const report of reports) {
+    if (report.sentAt > (seen.get(report.key) ?? '')) seen.set(report.key, report.sentAt);
+    if (report.sentAt > newest) newest = report.sentAt;
     const before = latest.get(report.key);
     // Within one paste a SOAP outranks a sent list's line, whatever the time.
     const outranks = before && Boolean(before.fromList) !== Boolean(report.fromList) ? !report.fromList : undefined;
     if (!before || (outranks ?? report.sentAt >= before.sentAt)) latest.set(report.key, report);
   }
+  // The newest sent list: every line of the list messages within 3 hours of
+  // the last one (a list split over several messages is one list).
+  const listAt = reports.reduce((at, r) => (r.fromList && r.sentAt > at ? r.sentAt : at), '');
+  const list = listAt
+    ? {
+        at: listAt,
+        keys: new Set(reports.filter((r) => r.fromList && stampMs(listAt) - stampMs(r.sentAt) <= 3 * HOUR).map((r) => r.key)),
+      }
+    : null;
   const byKey = new Map(roster.map((p) => [p.key, p]));
-  const diff: PasteDiff = { fresh: [], updated: [], moved: [], readmit: [], unchanged: 0 };
+  const diff: PasteDiff = { fresh: [], updated: [], moved: [], readmit: [], unchanged: 0, doubt: {} };
   for (const report of latest.values()) {
     const before = byKey.get(report.key);
     if (!before) {
       diff.fresh.push(report);
+      const why = doubtFor(report, seen.get(report.key) ?? report.sentAt, newest, list);
+      if (why) diff.doubt[report.key] = why;
       continue;
     }
     const stored = before.report;

@@ -6,6 +6,7 @@ import { storeZip } from '@/lib/zip';
 import { placeBeds } from './beds';
 import { planLayout, type RoomCell } from './layout';
 import { byRoute, dpjpTitle, isPediatri, LIST_DPJP_ORDER, PEDIATRI_DPJP_IDS } from './build';
+import { MARK_COLORS } from './marks';
 import type { FloorPatient } from './report';
 
 /**
@@ -57,7 +58,8 @@ const fromRuns = (runs: readonly Run[]): Styled[] => runs.map((r) => ({ text: r.
 
 /** One patient as styled runs: colour for H-1/pulang, amber pediatri code, bold residents. */
 export function patientRuns(patient: FloorPatient, options: { number?: number | undefined; place?: boolean } = {}): Styled[] {
-  const color = patient.discharge === 'tomorrow' ? RED : patient.discharge === 'today' ? GREEN : undefined;
+  const color =
+    patient.discharge === 'tomorrow' ? RED : patient.discharge === 'today' ? GREEN : patient.mark ? MARK_COLORS[patient.mark.color].docx : undefined;
   const tint = (s: Styled): Styled => (color ? { ...s, color } : s);
   const code = patient.dpjpId ? (dpjpById(patient.dpjpId)?.initials ?? '') : '';
   const place = options.place !== false && patient.room ? `${patient.room}${patient.bed ? ` Bed ${patient.bed}` : ''}/` : '';
@@ -320,11 +322,15 @@ export function denahDocumentXml(input: DenahDocInput): string {
 }
 
 export function buildDenahDocx(input: DenahDocInput): Uint8Array<ArrayBuffer> {
+  // The floor's own marks on this sheet (13.7), in their Word colours.
+  const marks = [...new Map(input.patients.filter((p) => p.mark && !p.discharge).map((p) => [p.mark!.label, p.mark!])).values()];
   const legend = para([
     { text: 'Merah', color: RED },
     { text: ' H-1 – ' },
     { text: 'Hijau', color: GREEN },
-    { text: ' Pulang Hari ini.' },
+    { text: marks.length > 0 ? ' Pulang Hari ini' : ' Pulang Hari ini.' },
+    ...marks.flatMap((m): Styled[] => [{ text: ' – ' }, { text: m.label, color: MARK_COLORS[m.color].docx }]),
+    ...(marks.length > 0 ? [{ text: '.' }] : []),
   ]);
   return pack(denahDocumentXml(input), footer(legend), 15);
 }

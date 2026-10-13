@@ -1,5 +1,78 @@
 # Plano — CHANGES
 
+## `2026-10-13.7` — Delete a patient; doubtful patients in a pasted export; floor colours; search; Per DPJP as cards; phone sideways scroll
+
+- **Phone: the page scrolled sideways in "Perbesar" (Avi's screenshots).**
+  Root cause: the patients' sr-only colour labels are absolutely positioned,
+  and the denah's zoom scroller had no positioned ancestor, so they were laid
+  out against `#main` at their x in the 880 px plan and `#main` grew
+  sideways (pattern #24, one level deeper). Fix: the DenahCanvas scroller is
+  `relative` (the containing block) plus `overscroll-x-contain`. Measured at
+  390 px: `#main.scrollWidth` 757 → 390, zoomed and fitted. The new Anggota
+  colour rows hit the related flex min-content trap (an input with
+  `width:auto` contributes its intrinsic ~218 px to the grid track): flexible
+  inputs are `w-0 flex-1 min-w-0`; measured 437 → 390.
+- **Hapus pasien.** `DeletePatient` (two taps: "Hapus" → "Hapus {nama} dari
+  list? Ya, hapus / Batal") on each List card and in the SOAP window header;
+  `deleteRosterPatient(floorId, key)`. Rules: `patients/{key}` delete was
+  owner-only, now owner **or edit member** — **needs the push**. Pulang still
+  keeps the record; delete is for duplicates and mistakes. The SOAP window's
+  actions moved to their own row so the confirm never squeezes the title.
+- **Tempel: patients already gone, from an export spanning days.** Root
+  cause: `pasteDiff` treated everyone in the paste as on the floor now, and
+  proposed every unknown patient ticked. An export of three days carries
+  SOAPs of patients discharged since. Fix: `PasteDiff.doubt` (key → reason),
+  judged against the paste itself (its newest message is "now"):
+  1. a newer sent list in the paste (list messages within 3 h of the last
+     one = one list) does not include the patient;
+  2. the Plan said pulang/rawat jalan hari ini on an earlier day, or H-1 two
+     days or more before;
+  3. no report for > 36 h while others kept coming.
+  Being on the newest list clears 2 and 3. Doubtful patients are proposed
+  **unticked** with the reason shown. On the Lt 4 export (9–12 Oct) the 20
+  flagged patients are exactly those with no SOAP on the 12th and absent
+  from the 12th 04.12 list; every patient on that list stays ticked.
+- **Floor colours (Avi: "more customizable colour options").** Red/green
+  stay fixed (everyone reads them the same). `FloorDoc.marks: {id, label,
+  color}[]` edited in Anggota → "Warna list"; `colour` on a patient may be
+  `m:<id>`. Colours come from a fixed palette (`floorList/marks.ts`: blue,
+  purple, orange, pink, teal, brown, grey) — each with light/dark CSS tokens
+  `--mark-*` and a Word colour; `check-contrast.mjs` now checks each as text
+  on its 8 % tinted card in both modes (all ≥ 4.9:1). A hand-set mark wins
+  over the planned discharge date, like a hand-set red/green. Shown on the
+  List card (tint + label chip), the denah (colour + [label]), the Word
+  denah (colour + legend) and the in-app legend. A deleted mark shows
+  nothing. Rules: `marks` added to the editor's allowed fields — **needs the
+  push**. Readers validate (`readMarks`, `readRosterPatient` accepts
+  `m:\w+`, `readPatient` reads a stored edition's mark).
+- **Search on List and Denah.** One box above both tabs (kept when
+  switching). `searchWords`/`matchesSearch`: every term must start a word in
+  name, identity, RM, room/bed ("417", "417/2", "417 bed 2", "4172"), DPJP
+  code, residents, KJS BTKV, colour word (H-1, pulang, a mark label) or the
+  diagnosis/plan; digits match anywhere; a hyphen/slash term is a phrase
+  ("pre-op" never matches "Prednison … operasi"). List: only matching cards,
+  "n dari m". Denah: the plan keeps every bed but dims the rest and outlines
+  the matches; a "Hasil cari" block on top (tappable — the phone plan is
+  small); Per DPJP and Residen show matches only.
+- **Per DPJP like the Residen cards (Avi's image).** One card per DPJP with a
+  patient: name bold top-left with the count ("8 + 2 KJS"), then each line
+  with room/bed prefix, as the Residen section. DPJPs without patients are
+  one line ("Tanpa pasien: …") instead of a wall of empty boxes. The Word
+  denah's DPJP tables are unchanged (the printed sheet).
+- **Wrong turns:** search first split "pre-op" into two loose words — 6/34
+  hits on the real export, mostly "operasi"; now a phrase. The mark row's
+  first layout overflowed at 390 px (above).
+- **Not done:** the Word denah does not hide empty DPJP tables; marks are not
+  carried into the WhatsApp text (it has no colour).
+- Tests: doubt reasons (plan pulang, H-1, silence, newer list incl. a list
+  split over two messages, SOAP after the list), marks (read, ids, effective,
+  wins over date), Word mark colour and legend, search terms.
+
+### Verify
+```
+npm run verify → typecheck, lint, 165 files / 2414 tests, version, contrast, a11y, build: all green
+```
+
 ## `2026-10-13.6` — Floor junior roster; resident names normalised to it
 
 - **Why:** lists and SOAPs spell residents freely (a name split by a space,

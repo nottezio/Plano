@@ -362,15 +362,15 @@ service cloud.firestore {
           && request.auth.uid in request.resource.data.memberIds
           && request.resource.data.roles[request.auth.uid] == 'edit'
           && request.resource.data.memberIds.size() <= 60)
-        || (isFloorEditor() && changed().hasOnly(['nicknames', 'manual', 'chiefs', 'juniors', 'updatedAt']))
+        || (isFloorEditor() && changed().hasOnly(['nicknames', 'manual', 'chiefs', 'juniors', 'marks', 'updatedAt']))
         || acceptsInvite()
         || leaves()
       );
       allow delete: if allowed() && isFloorOwner();
 
       // The roster (12.12): one document per patient. Members read; edit
-      // members add and update (SOAP, status, residents). Not deleted one by one: a
-      // patient who leaves keeps the record with status pulang/pindah.
+      // members add and update (SOAP, status, residents). A patient who leaves
+      // keeps the record with status pulang/pindah; deleting is for mistakes.
       match /patients/{key} {
         function floorP() {
           return get(/databases/$(database)/documents/floors/$(floorId)).data;
@@ -381,8 +381,11 @@ service cloud.firestore {
             || (request.auth.uid in floorP().roles && floorP().roles[request.auth.uid] == 'edit'))
           && request.resource.data.report is map
           && request.resource.data.status in ['dirawat', 'pulang', 'pindah'];
-        // Only when the owner deletes the whole list.
-        allow delete: if allowed() && request.auth.uid == floorP().ownerUid;
+        // The owner (deleting the list) or an edit member erasing one patient
+        // entered by mistake (12.12). A patient who went home is "pulang".
+        allow delete: if allowed()
+          && (request.auth.uid == floorP().ownerUid
+            || (request.auth.uid in floorP().roles && floorP().roles[request.auth.uid] == 'edit'));
       }
 
       // Sent lists (12.12): written once by an edit member, never changed.

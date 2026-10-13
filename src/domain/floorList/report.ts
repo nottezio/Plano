@@ -1,6 +1,7 @@
 import { roomNamed } from '@/domain/denahPlan';
 import { DPJPS, detectDpjps } from '@/domain/dpjp';
 import type { ChatMessage } from './chat';
+import type { MarkColor } from './marks';
 
 /**
  * List Maker, step 2: one follow-up message → one patient on the floor (12.8).
@@ -64,6 +65,8 @@ export interface FloorPatient {
   fromList?: boolean | undefined;
   /** The three fields of a hand-entered patient, for editing it again. */
   manualFields?: ManualFields | undefined;
+  /** The floor's own colour set on this patient (13.7, `marks.ts`); list only, never from a SOAP. */
+  mark?: { label: string; color: MarkColor } | undefined;
 }
 
 export interface ManualFields {

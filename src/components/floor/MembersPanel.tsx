@@ -12,6 +12,7 @@ import {
 } from '@/data/repositories/floors.repo';
 import { canEdit, chiefsOf, isOwner, type FloorDoc, type FloorRole } from '@/domain/floorList/floor';
 import { ChiefsField } from './ChiefsField';
+import { MarksField } from './MarksField';
 import type { FloorPatient } from '@/domain/floorList/report';
 
 const ROLE_LABEL: Record<FloorRole, string> = { edit: 'Lihat dan edit', view: 'Lihat saja' };
@@ -182,6 +183,15 @@ export function MembersPanel({
         ) : (
           <p className="text-xs">{chiefsOf(floor.juniors).join(', ') || '—'}</p>
         )}
+      </section>
+
+      <section className="space-y-2">
+        <h3 className="text-xs font-semibold uppercase tracking-wide text-fg-faint">Warna list</h3>
+        <p className="text-xs text-fg-muted">
+          Merah dan hijau tetap. Tambahkan warna lain yang dipakai lantai ini (mis. pre-op, tunggu ICU), lalu pilih di tab
+          List pada kolom warna pasien. Ikut tampil di denah dan Word.
+        </p>
+        <MarksField floorId={floor.id} marks={floor.marks} editable={canEdit(floor, uid)} />
       </section>
 
       <section className="space-y-3">

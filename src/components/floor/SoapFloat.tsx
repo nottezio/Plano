@@ -7,6 +7,7 @@ import { readReports, type FloorPatient } from '@/domain/floorList/report';
 import { copyText } from '@/lib/clipboard';
 import { useBackToClose } from '@/lib/useBackToClose';
 import { useMediaQuery } from '@/hooks/useMediaQuery';
+import { DeletePatient } from './DeletePatient';
 import { SoapParts } from './SoapParts';
 
 /**
@@ -176,7 +177,7 @@ export function SoapFloat({
         onPointerMove={move}
         onPointerUp={end}
         onPointerCancel={end}
-        className={`flex items-start gap-2 border-b border-border px-4 py-3 ${floating ? 'cursor-move select-none touch-none' : ''}`}
+        className={`flex flex-wrap items-start gap-2 border-b border-border px-4 py-3 ${floating ? 'cursor-move select-none touch-none' : ''}`}
       >
         <div className="min-w-0 flex-1">
           <p className="text-sm font-semibold leading-snug">
@@ -196,29 +197,6 @@ export function SoapFloat({
             </p>
           ) : null}
         </div>
-        {editable && floorId && !patient.manual && !editing ? (
-          <button
-            type="button"
-            onClick={() => {
-              setDraft(patient.full);
-              setEditing(true);
-            }}
-            className="min-h-tap rounded-lg border border-border px-3 text-xs font-medium"
-          >
-            Ubah SOAP
-          </button>
-        ) : null}
-        {!editing ? (
-          <button
-            type="button"
-            onClick={() => {
-              void copyText(patient.full).then((ok) => setCopied(ok));
-            }}
-            className="min-h-tap rounded-lg border border-border px-3 text-xs font-medium"
-          >
-            {copied ? 'Tersalin' : 'Salin'}
-          </button>
-        ) : null}
         <button
           type="button"
           onClick={onClose}
@@ -227,6 +205,35 @@ export function SoapFloat({
         >
           ×
         </button>
+        {/* The actions on their own row (13.7): on a phone the title keeps the width. */}
+        {!editing ? (
+          <div className="flex basis-full flex-wrap items-center gap-2">
+            {editable && floorId && !patient.manual ? (
+              <button
+                type="button"
+                onClick={() => {
+                  setDraft(patient.full);
+                  setEditing(true);
+                }}
+                className="min-h-tap rounded-lg border border-border px-3 text-xs font-medium"
+              >
+                Ubah SOAP
+              </button>
+            ) : null}
+            <button
+              type="button"
+              onClick={() => {
+                void copyText(patient.full).then((ok) => setCopied(ok));
+              }}
+              className="min-h-tap rounded-lg border border-border px-3 text-xs font-medium"
+            >
+              {copied ? 'Tersalin' : 'Salin'}
+            </button>
+            {editable && floorId ? (
+              <DeletePatient floorId={floorId} patientKey={patient.key} name={patient.name} onDeleted={onClose} compact />
+            ) : null}
+          </div>
+        ) : null}
       </header>
 
       {editing ? (

@@ -5,6 +5,19 @@ Catatan teknis lengkap (akar masalah, perbaikan) ada di CHANGES.md.
 
 Entri teratas harus versi yang sedang dirilis; tes gagal bila belum ditulis.
 
+## `2026-10-13.7`
+- **Hapus pasien.** Pasien yang salah masuk atau dobel bisa dihapus dari list dan denah: tombol **Hapus** di kartu tab List dan di jendela SOAP, lalu konfirmasi **Ya, hapus**. Pasien yang pulang tetap pakai **Pulang** agar tercatat.
+- **Tempel export chat lebih aman.** Export chat mencakup beberapa hari, jadi bisa berisi pasien yang sudah pulang kemarin. Pasien baru yang kemungkinan sudah keluar kini **tidak dicentang**, dengan alasannya:
+  - tidak ada di list terbaru dalam chat itu;
+  - Plan menyebut pulang pada hari sebelumnya;
+  - tidak ada SOAP lebih dari 36 jam.
+
+  Centang bila pasien memang masih dirawat.
+- **Warna list sendiri.** Merah (H-1) dan hijau (pulang hari ini) tetap. Di tab **Anggota → Warna list**, tambahkan warna lain untuk lantai ini (mis. Pre-op, Tunggu ICU) dari 7 pilihan warna, lalu pilih di kolom warna pasien. Warna dan namanya tampil di kartu, denah, dan Word.
+- **Cari pasien** di tab List dan Denah: nama, RM, kamar (417/2), residen, DPJP, atau diagnosis. Di denah, hasil ditandai dan sisanya diredupkan, plus daftar hasil di atas yang bisa diketuk.
+- **Per DPJP** di denah kini berbentuk kartu seperti bagian Residen: nama DPJP tebal di atas, lalu pasien dengan kamar/bed. DPJP tanpa pasien cukup disebut dalam satu baris.
+- **HP: halaman tidak lagi bergeser ke samping** saat denah diperbesar.
+
 ## `2026-10-13.6`
 - **List Maker: roster junior lantai.** Di tab **Anggota**, isi nama junior yang bertugas di lantai . Nama junior/chief yang tertulis sedikit berbeda di SOAP atau list (berspasi, huruf kecil, salah satu huruf, atau disingkat) ditampilkan sesuai ejaan roster:
   - di denah, blok Residen, pesan List, dan Word;

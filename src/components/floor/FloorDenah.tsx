@@ -3,7 +3,9 @@ import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from 
 import { dpjpById } from '@/domain/dpjp';
 import { planRooms, type DenahRoomSlot, type WardPlan } from '@/domain/denahPlan';
 import { byRoute, dpjpTitle, isPediatri, LIST_DPJP_ORDER, PEDIATRI_DPJP_IDS } from '@/domain/floorList/build';
+import { markCss, type FloorMark } from '@/domain/floorList/marks';
 import type { FloorPatient } from '@/domain/floorList/report';
+import { matchesSearch } from '@/domain/floorList/search';
 import { placeBeds } from '@/domain/floorList/beds';
 import { planLayout } from '@/domain/floorList/layout';
 
@@ -19,27 +21,36 @@ import { planLayout } from '@/domain/floorList/layout';
 const FLAG_COLOR = { tomorrow: 'var(--note-red)', today: 'var(--note-green)' } as const;
 const FLAG_LABEL = { tomorrow: 'H-1', today: 'pulang hari ini' } as const;
 
+/** While searching (13.7): a match is highlighted, the rest dimmed — the plan keeps every bed in place. */
+type Found = 'hit' | 'dim' | undefined;
+
 function PatientButton({
   patient,
   number,
   onOpen,
   showPlace = true,
+  found,
 }: {
   patient: FloorPatient;
   number?: number | undefined;
   onOpen: (patient: FloorPatient) => void;
   showPlace?: boolean;
+  found?: Found;
 }): JSX.Element {
   const code = patient.dpjpId ? (dpjpById(patient.dpjpId)?.initials ?? '') : '';
   const place = showPlace && patient.room ? `${patient.room}${patient.bed ? ` Bed ${patient.bed}` : ''}/` : '';
   const residents = [patient.junior, patient.chief].filter(Boolean).map((n) => `dr. ${n}`).join(' / ');
   const flag = patient.discharge;
+  // Red/green first; else the floor's own mark (13.7).
+  const colour = flag ? FLAG_COLOR[flag] : patient.mark ? markCss(patient.mark.color) : undefined;
   return (
     <button
       type="button"
       onClick={() => onOpen(patient)}
-      className="block w-full rounded-md px-1 py-0.5 text-left text-[12px] leading-snug text-fg hover:bg-bg-subtle focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent"
-      style={flag ? { color: FLAG_COLOR[flag] } : undefined}
+      className={`block w-full rounded-md px-1 py-0.5 text-left text-[12px] leading-snug text-fg hover:bg-bg-subtle focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent ${
+        found === 'dim' ? 'opacity-30' : found === 'hit' ? 'outline outline-2 outline-accent' : ''
+      }`}
+      style={colour ? { color: colour } : undefined}
     >
       {number !== undefined ? `${number}. ` : ''}
       {place}
@@ -50,6 +61,7 @@ function PatientButton({
       {patient.btkv ? <strong> (KJS BTKV)</strong> : null}
       {residents ? <strong className="text-fg"> - {residents}</strong> : null}
       {flag ? <span className="sr-only"> ({FLAG_LABEL[flag]})</span> : null}
+      {!flag && patient.mark ? <span className="font-semibold"> [{patient.mark.label}]</span> : null}
     </button>
   );
 }
@@ -58,10 +70,12 @@ function RoomBox({
   slot,
   patients,
   onOpen,
+  find,
 }: {
   slot: DenahRoomSlot;
   patients: FloorPatient[];
   onOpen: (patient: FloorPatient) => void;
+  find: (patient: FloorPatient) => Found;
 }): JSX.Element {
   const { beds, loose } = placeBeds(slot, patients);
   return (
@@ -74,7 +88,7 @@ function RoomBox({
         {beds.map((patient, i) => (
           <li key={i} className="min-h-5 text-[12px] text-fg-faint">
             {patient ? (
-              <PatientButton patient={patient} number={slot.beds > 1 ? i + 1 : undefined} onOpen={onOpen} showPlace={false} />
+              <PatientButton patient={patient} number={slot.beds > 1 ? i + 1 : undefined} onOpen={onOpen} showPlace={false} found={find(patient)} />
             ) : slot.beds > 1 ? (
               <span className="px-1">{i + 1}.</span>
             ) : null}
@@ -82,7 +96,7 @@ function RoomBox({
         ))}
         {loose.map((patient) => (
           <li key={patient.key}>
-            <PatientButton patient={patient} onOpen={onOpen} showPlace={false} />
+            <PatientButton patient={patient} onOpen={onOpen} showPlace={false} found={find(patient)} />
           </li>
         ))}
       </ol>
@@ -157,7 +171,19 @@ function DenahCanvas({ children }: { children: ReactNode }): JSX.Element {
           </button>
         </div>
       ) : null}
-      <div ref={outer} className={narrow && zoomed ? 'overflow-x-auto' : 'overflow-hidden'} style={narrow && !zoomed ? { height: height * scale } : undefined}>
+      {/*
+        `relative`: the scroller must be the containing block of the patients'
+        sr-only colour labels (absolutely positioned). Without it they were
+        laid out against #main, at their place in the 880 px plan, and #main
+        itself scrolled sideways on a phone (13.6, Avi's screenshots) — the
+        same pattern as #24, one level down. `overscroll-x-contain` keeps a
+        sideways swipe at the plan's edge from moving the page.
+      */}
+      <div
+        ref={outer}
+        className={`relative ${narrow && zoomed ? 'overflow-x-auto overscroll-x-contain' : 'overflow-hidden'}`}
+        style={narrow && !zoomed ? { height: height * scale } : undefined}
+      >
         <div
           ref={inner}
           style={{
@@ -178,13 +204,25 @@ export function FloorDenah({
   ward,
   patients,
   onOpen,
+  words = [],
+  marks = [],
 }: {
   plan: WardPlan | null;
   ward: string;
   patients: readonly FloorPatient[];
   onOpen: (patient: FloorPatient) => void;
+  /** The page's search (13.7). */
+  words?: readonly string[];
+  /** The floor's own colours, for the legend. */
+  marks?: readonly FloorMark[];
 }): JSX.Element {
   const sorted = [...patients].sort(byRoute(ward));
+  const searching = words.length > 0;
+  const hits = searching ? sorted.filter((p) => matchesSearch(p, words)) : [];
+  const hitKeys = new Set(hits.map((p) => p.key));
+  const find = (p: FloorPatient): Found => (!searching ? undefined : hitKeys.has(p.key) ? 'hit' : 'dim');
+  // The lists below the plan show the matches only; the plan dims the rest.
+  const shown = searching ? hits : sorted;
   const rooms = plan ? planRooms(plan) : [];
   const known = new Set(rooms.map((slot) => slot.room));
   const inRoom = (room: string): FloorPatient[] => sorted.filter((p) => p.room === room);
@@ -199,7 +237,7 @@ export function FloorDenah({
   // Residents: chief counts, then one block per junior.
   const chiefs = new Map<string, number>();
   const juniors = new Map<string, FloorPatient[]>();
-  for (const p of sorted) {
+  for (const p of shown) {
     if (p.chief) chiefs.set(p.chief, (chiefs.get(p.chief) ?? 0) + 1);
     const key = p.junior || '(belum diisi)';
     juniors.set(key, [...(juniors.get(key) ?? []), p]);
@@ -207,12 +245,25 @@ export function FloorDenah({
 
   return (
     <div className="space-y-6">
+      {searching ? (
+        <Section title={`Hasil cari (${hits.length})`}>
+          {hits.length === 0 ? (
+            <p className="text-[12px] text-fg-muted">Tidak ada pasien yang cocok.</p>
+          ) : (
+            <div className="rounded-lg border border-border bg-surface p-2">
+              {hits.map((p) => (
+                <PatientButton key={p.key} patient={p} onOpen={onOpen} />
+              ))}
+            </div>
+          )}
+        </Section>
+      ) : null}
       {plan ? (
         <Section title={`Denah ${ward}`}>
           <DenahCanvas>
             <div className="grid grid-cols-2 gap-2">
               {plan.header.map((slot) => (
-                <RoomBox key={slot.room} slot={slot} patients={inRoom(slot.room)} onOpen={onOpen} />
+                <RoomBox key={slot.room} slot={slot} patients={inRoom(slot.room)} onOpen={onOpen} find={find} />
               ))}
             </div>
             {/*
@@ -234,7 +285,7 @@ export function FloorDenah({
                 >
                   {layout.left.map((cell) => (
                     <div key={cell.slot.room} style={place(cell.row, cell.span, 1)} className="flex [&>*]:flex-1">
-                      <RoomBox slot={cell.slot} patients={inRoom(cell.slot.room)} onOpen={onOpen} />
+                      <RoomBox slot={cell.slot} patients={inRoom(cell.slot.room)} onOpen={onOpen} find={find} />
                     </div>
                   ))}
                   {layout.landmark ? (
@@ -249,12 +300,12 @@ export function FloorDenah({
                   ) : null}
                   {layout.centre.map((cell) => (
                     <div key={cell.slot.room} style={place(cell.row, cell.span, 2)} className="flex [&>*]:flex-1">
-                      <RoomBox slot={cell.slot} patients={inRoom(cell.slot.room)} onOpen={onOpen} />
+                      <RoomBox slot={cell.slot} patients={inRoom(cell.slot.room)} onOpen={onOpen} find={find} />
                     </div>
                   ))}
                   {layout.right.map((cell) => (
                     <div key={cell.slot.room} style={place(cell.row, cell.span, 3)} className="flex [&>*]:flex-1">
-                      <RoomBox slot={cell.slot} patients={inRoom(cell.slot.room)} onOpen={onOpen} />
+                      <RoomBox slot={cell.slot} patients={inRoom(cell.slot.room)} onOpen={onOpen} find={find} />
                     </div>
                   ))}
                 </div>
@@ -268,37 +319,50 @@ export function FloorDenah({
         <Section title={plan ? 'Di luar denah' : `Pasien ${ward}`}>
           <div className="rounded-lg border border-border bg-surface p-2">
             {strays.map((p) => (
-              <PatientButton key={p.key} patient={p} onOpen={onOpen} />
+              <PatientButton key={p.key} patient={p} onOpen={onOpen} found={find(p)} />
             ))}
           </div>
         </Section>
       ) : null}
 
+      {/*
+        Per DPJP (13.7, Avi: "like the Residen view"): one card per DPJP who has
+        a patient — the name bold on top, then each patient's line with its
+        room and bed — the same table of cards as the Residen section. DPJPs
+        with nobody today are one line underneath, not a wall of empty boxes.
+      */}
       <Section title="Per DPJP">
         <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3">
           {order.map((id) => {
-            const own = sorted.filter((p) => p.dpjpId === id);
-            const kjs = sorted.filter((p) => p.kjsDpjpIds.includes(id));
+            const own = shown.filter((p) => p.dpjpId === id);
+            const kjs = shown.filter((p) => p.kjsDpjpIds.includes(id));
+            if (own.length + kjs.length === 0) return null;
             return (
-              <div key={id} className="rounded-lg border border-border bg-surface">
-                <p className="border-b border-border px-2 py-1 text-center text-[12px] font-bold">{dpjpTitle(id)}</p>
-                <div className="min-h-10 p-1">
-                  {own.map((p, i) => (
-                    <PatientButton key={p.key} patient={p} number={i + 1} onOpen={onOpen} />
-                  ))}
-                  {kjs.length > 0 ? (
-                    <>
-                      <p className="px-1 pt-1 text-[11px] font-semibold text-fg-muted">KJS:</p>
-                      {kjs.map((p, i) => (
-                        <PatientButton key={p.key} patient={p} number={i + 1} onOpen={onOpen} />
-                      ))}
-                    </>
-                  ) : null}
-                </div>
+              <div key={id} className="rounded-lg border border-border bg-surface p-2">
+                <p className="text-[12px] font-bold">
+                  {dpjpTitle(id)} <span className="font-normal text-fg-muted">({own.length}{kjs.length > 0 ? ` + ${kjs.length} KJS` : ''})</span>
+                </p>
+                {own.map((p) => (
+                  <PatientButton key={p.key} patient={p} onOpen={onOpen} />
+                ))}
+                {kjs.length > 0 ? (
+                  <>
+                    <p className="px-1 pt-1 text-[11px] font-semibold text-fg-muted">KJS:</p>
+                    {kjs.map((p) => (
+                      <PatientButton key={p.key} patient={p} onOpen={onOpen} />
+                    ))}
+                  </>
+                ) : null}
               </div>
             );
           })}
         </div>
+        {(() => {
+          const idle = order.filter((id) => !shown.some((p) => p.dpjpId === id || p.kjsDpjpIds.includes(id)));
+          return idle.length > 0 && !searching ? (
+            <p className="text-[11px] text-fg-muted">Tanpa pasien: {idle.map((id) => dpjpById(id)?.initials ?? id).join(', ')}</p>
+          ) : null;
+        })()}
       </Section>
 
       <Section title="Residen">
@@ -321,7 +385,14 @@ export function FloorDenah({
 
       <p className="text-[11px] text-fg-muted">
         <span style={{ color: 'var(--note-red)' }}>Merah</span> H-1 ·{' '}
-        <span style={{ color: 'var(--note-green)' }}>Hijau</span> Pulang hari ini · Ketuk pasien untuk SOAP lengkap.
+        <span style={{ color: 'var(--note-green)' }}>Hijau</span> Pulang hari ini
+        {marks.map((m) => (
+          <span key={m.id}>
+            {' · '}
+            <span style={{ color: markCss(m.color) }}>{m.label}</span>
+          </span>
+        ))}{' '}
+        · Ketuk pasien untuk SOAP lengkap.
       </p>
     </div>
   );

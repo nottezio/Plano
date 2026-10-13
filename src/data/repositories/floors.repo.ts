@@ -24,6 +24,7 @@ import {
 import { floorDaysCol, floorDoc, floorEditionsCol, floorPatientDoc, floorPatientsCol, floorsCol } from '../paths';
 import { trackWrite } from '../syncStatus';
 import type { Edition, FloorDoc, FloorRole, RosterPatient, StatusChange } from '@/domain/floorList/floor';
+import { isMarkColor, readMarks, type FloorMark } from '@/domain/floorList/marks';
 import type { FloorPatient } from '@/domain/floorList/report';
 
 /**
@@ -68,6 +69,7 @@ export function readFloor(id: string, data: DocumentData): FloorDoc {
     nicknames: record(data.nicknames, text),
     chiefs: str(data.chiefs),
     juniors: str(data.juniors),
+    marks: readMarks(data.marks),
   };
 }
 
@@ -99,6 +101,9 @@ export function readPatient(raw: unknown): FloorPatient | null {
     ...(p.manual === true ? { manual: true } : {}),
     ...(p.edited === true ? { edited: true } : {}),
     ...(p.fromList === true ? { fromList: true } : {}),
+    ...(p.mark && typeof p.mark === 'object' && isMarkColor((p.mark as Record<string, unknown>).color)
+      ? { mark: { label: str((p.mark as Record<string, unknown>).label), color: (p.mark as { color: FloorMark['color'] }).color } }
+      : {}),
     ...(p.manualFields && typeof p.manualFields === 'object'
       ? {
           manualFields: {
@@ -122,7 +127,8 @@ export function readRosterPatient(key: string, data: DocumentData): RosterPatien
   const report = readPatient(data.report);
   if (!report) return null;
   const status = data.status === 'pulang' || data.status === 'pindah' ? data.status : 'dirawat';
-  const colour = data.colour === 'h1' || data.colour === 'today' ? data.colour : 'none';
+  const colour: RosterPatient['colour'] =
+    data.colour === 'h1' || data.colour === 'today' || (typeof data.colour === 'string' && /^m:\w+$/.test(data.colour)) ? data.colour : 'none';
   return {
     key,
     report: { ...report, key },
@@ -211,6 +217,7 @@ export async function createFloor(uid: string, myName: string, name: string, war
       nicknames: {},
       chiefs: '',
       juniors: '',
+      marks: [],
       createdAt: serverTimestamp(),
       updatedAt: serverTimestamp(),
     }),
@@ -340,8 +347,18 @@ export function saveEdition(floorId: string, edition: Omit<Edition, 'id'>): Prom
   return trackWrite(addDoc(floorEditionsCol(floorId), { ...plain(edition), savedAt: serverTimestamp() })).then((ref) => ref.id);
 }
 
+/** Erase one patient from the roster (12.12; Pulang keeps the record instead). */
+export function deleteRosterPatient(floorId: string, key: string): Promise<void> {
+  return trackWrite(deleteDoc(floorPatientDoc(floorId, key)));
+}
+
 export function writeJuniors(floorId: string, juniors: string): Promise<void> {
   return trackWrite(updateDoc(floorDoc(floorId), 'juniors', juniors, 'updatedAt', serverTimestamp()));
+}
+
+/** The floor's own colours (13.7): the whole list, small and edited in one place. */
+export function writeMarks(floorId: string, marks: readonly FloorMark[]): Promise<void> {
+  return trackWrite(updateDoc(floorDoc(floorId), 'marks', plain(marks), 'updatedAt', serverTimestamp()));
 }
 
 export function writeChiefs(floorId: string, chiefs: string): Promise<void> {

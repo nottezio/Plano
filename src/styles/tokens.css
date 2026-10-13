@@ -89,6 +89,15 @@
   --note-amber: #b45309;
   --note-green: #15803d;
   --note-blue: #1d4ed8;
+  /* The floor's own marks (13.7, floorList/marks.ts): text on a card tinted 8%
+     with the same colour; >= 4.5:1, checked by scripts/check-contrast.mjs. */
+  --mark-blue: #1d4ed8;
+  --mark-purple: #7e22ce;
+  --mark-orange: #ad3a0a;
+  --mark-pink: #be185d;
+  --mark-teal: #0f766e;
+  --mark-brown: #92400e;
+  --mark-grey: #475569;
   --card-neutral-bg: #f4f6f8;
   --card-neutral-accent: #64748b;
 
@@ -174,6 +183,13 @@
   --note-amber: #fbbf24;
   --note-green: #4ade80;
   --note-blue: #60a5fa;
+  --mark-blue: #60a5fa;
+  --mark-purple: #c084fc;
+  --mark-orange: #fb923c;
+  --mark-pink: #f472b6;
+  --mark-teal: #2dd4bf;
+  --mark-brown: #d6a76b;
+  --mark-grey: #94a3b8;
   --card-neutral-bg: #161c24;
   --card-neutral-accent: #94a3b8;
 

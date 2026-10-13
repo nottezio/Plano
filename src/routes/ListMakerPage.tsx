@@ -12,6 +12,7 @@ import { SoapFloat } from '@/components/floor/SoapFloat';
 import { acceptInvite, createFloor, readLegacy, writeChiefs, writeRosterBatch } from '@/data/repositories/floors.repo';
 import { wardPlan } from '@/domain/denahPlan';
 import { canEdit, chiefsOf, isOwner, newRosterPatient, rosterView, type FloorDoc } from '@/domain/floorList/floor';
+import { searchWords } from '@/domain/floorList/search';
 import { ChiefsField } from '@/components/floor/ChiefsField';
 import { EditionsPanel } from '@/components/floor/EditionsPanel';
 import { latestOf, type FloorPatient } from '@/domain/floorList/report';
@@ -53,6 +54,9 @@ export default function ListMakerPage(): JSX.Element {
   const { roster, state: rosterState } = useRoster(floor?.id ?? null);
   const editions = useEditions(floor?.id ?? null);
   const view = useMemo(() => (floor ? rosterView(floor, roster, date) : { active: [], left: [] }), [floor, roster, date]);
+  // One search for the list and the denah (13.7): switching tabs keeps it.
+  const [search, setSearch] = useState('');
+  const words = useMemo(() => searchWords(search), [search]);
   // The OPEN patient is kept by key and read from the live view, so an edit
   // (Ubah SOAP, another member's paste) shows in the open box at once.
   const [openKey, setOpenKey] = useState<string | null>(null);
@@ -241,11 +245,34 @@ export default function ListMakerPage(): JSX.Element {
               </Callout>
             ) : null}
 
+            {(tab === 'denah' || tab === 'list') && view.active.length > 0 ? (
+              <div className="relative">
+                <input
+                  type="search"
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  placeholder="Cari nama, RM, kamar (417/2), residen, diagnosis…"
+                  aria-label="Cari pasien"
+                  className={`${INPUT} pr-10`}
+                />
+                {search ? (
+                  <button
+                    type="button"
+                    onClick={() => setSearch('')}
+                    aria-label="Hapus pencarian"
+                    className="absolute right-0 top-0 h-full min-w-tap text-fg-muted hover:text-fg"
+                  >
+                    ×
+                  </button>
+                ) : null}
+              </div>
+            ) : null}
+
             {tab === 'denah' ? (
               view.active.length === 0 ? (
                 <p className="text-sm text-fg-muted">Belum ada pasien di list.{editable ? ' Tempel pesan SOAP di tab Tempel.' : ''}</p>
               ) : (
-                <FloorDenah plan={wardPlan(floor.ward)} ward={floor.ward} patients={view.active} onOpen={setOpen} />
+                <FloorDenah plan={wardPlan(floor.ward)} ward={floor.ward} patients={view.active} onOpen={setOpen} words={words} marks={floor.marks} />
               )
             ) : null}
             {tab === 'list' ? (
@@ -259,6 +286,7 @@ export default function ListMakerPage(): JSX.Element {
                 onOpen={setOpen}
                 myName={myName}
                 editions={editions}
+                words={words}
               />
             ) : null}
             {tab === 'tempel' && editable ? <PastePanel key={floor.id} floor={floor} roster={roster} myName={myName} /> : null}

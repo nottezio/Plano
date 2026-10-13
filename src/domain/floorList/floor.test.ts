@@ -33,6 +33,7 @@ const FLOOR: FloorDoc = {
   nicknames: { 'dr. Muh Bima Contoh': 'Dani' },
   chiefs: '',
   juniors: '',
+  marks: [],
 };
 
 function patient(over: Partial<FloorPatient>): FloorPatient {
@@ -141,6 +142,23 @@ describe('suggestionFor (a chip, never applied by itself)', () => {
   });
 });
 
+describe('floor marks (13.7)', () => {
+  const marks = [{ id: 'k1', label: 'Pre-op', color: 'purple' as const }];
+
+  it('a mark set by hand is shown with its label and colour, and wins over the planned date', () => {
+    const entry = rostered({ key: 'rm:1' }, { colour: 'm:k1', dischargeDate: '2026-10-12' });
+    const seen = effective(entry, { ...FLOOR, marks }, '2026-10-12');
+    expect(seen.mark).toEqual({ label: 'Pre-op', color: 'purple' });
+    expect(seen.discharge).toBeNull();
+  });
+
+  it('a mark the floor deleted shows nothing; red/green carry no mark', () => {
+    expect(effective(rostered({ key: 'rm:1' }, { colour: 'm:k9' }), { ...FLOOR, marks }, '2026-10-12').mark).toBeUndefined();
+    expect(effective(rostered({ key: 'rm:1' }, { colour: 'h1' }), { ...FLOOR, marks }, '2026-10-12')).toMatchObject({ discharge: 'tomorrow' });
+    expect(effective(rostered({ key: 'rm:1' }, { colour: 'h1' }), { ...FLOOR, marks }, '2026-10-12').mark).toBeUndefined();
+  });
+});
+
 describe('pasteDiff (nobody is removed by a paste)', () => {
   const roster = [
     rostered({ key: 'rm:1', sentAt: '2026-10-11T07:00', full: 'a' }),
@@ -195,6 +213,31 @@ describe('pasteDiff (nobody is removed by a paste)', () => {
     expect(pasteDiff(soap, [patient({ key: 'rm:1', sentAt: '2026-10-12T09:00', full: 'list', fromList: true })]).unchanged).toBe(1);
     const listed = [rostered({ key: 'rm:1', sentAt: '2026-10-12T09:00', full: 'list', fromList: true })];
     expect(pasteDiff(listed, [patient({ key: 'rm:1', sentAt: '2026-10-12T07:00', full: 'soap' })]).updated).toHaveLength(1);
+  });
+
+  it('a new patient who has probably gone already is flagged (unticked), with the reason', () => {
+    const today = patient({ key: 'rm:10', rm: '10', sentAt: '2026-10-13T07:00' });
+    const wentHome = patient({ key: 'rm:11', rm: '11', sentAt: '2026-10-12T07:00', body: 'Plan:\n- Rawat jalan hari ini' });
+    const saidH1 = patient({ key: 'rm:12', rm: '12', sentAt: '2026-10-11T07:00', body: 'Plan:\n- Usul H-1' });
+    const silent = patient({ key: 'rm:13', rm: '13', sentAt: '2026-10-11T06:00' });
+    const yesterday = patient({ key: 'rm:14', rm: '14', sentAt: '2026-10-12T07:00' });
+    const diff = pasteDiff([], [today, wentHome, saidH1, silent, yesterday]);
+    expect(diff.fresh).toHaveLength(5);
+    expect(diff.doubt).toEqual({ 'rm:11': 'plan pulang 12/10', 'rm:12': 'plan pulang 12/10', 'rm:13': 'SOAP terakhir 11/10' });
+  });
+
+  it('a newer sent list decides: missing from it → doubtful, on it → kept whatever the SOAP said', () => {
+    const wentHome = patient({ key: 'rm:11', rm: '11', sentAt: '2026-10-12T07:00', body: 'Plan:\n- Pulang hari ini' });
+    const stays = patient({ key: 'rm:15', rm: '15', sentAt: '2026-10-12T07:00', body: 'Plan:\n- Pulang hari ini' });
+    const quiet = patient({ key: 'rm:16', rm: '16', sentAt: '2026-10-12T20:00' });
+    // The list goes out in two messages a few minutes apart: one list.
+    const listA = patient({ key: 'rm:15', rm: '15', sentAt: '2026-10-13T04:00', fromList: true });
+    const listB = patient({ key: 'rm:17', rm: '17', sentAt: '2026-10-13T04:05', fromList: true });
+    const diff = pasteDiff([], [wentHome, stays, quiet, listA, listB]);
+    expect(diff.doubt).toEqual({ 'rm:11': 'tidak ada di list 13/10 04:05', 'rm:16': 'tidak ada di list 13/10 04:05' });
+    // A SOAP written after the list is not judged by it.
+    const after = patient({ key: 'rm:18', rm: '18', sentAt: '2026-10-13T07:00' });
+    expect(pasteDiff([], [listA, after]).doubt).toEqual({});
   });
 
   it('a hand-entered patient is not overwritten by a paste', () => {

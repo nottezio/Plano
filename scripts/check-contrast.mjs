@@ -45,5 +45,19 @@ for (const selector of [':root', '.dark']) {
     );
   }
 }
+// Floor marks (13.7): the mark colour as text on a card tinted 8% with itself.
+const mix = (fg, bg, t) =>
+  '#' + [1, 3, 5].map((i) => Math.round(parseInt(fg.slice(i, i + 2), 16) * t + parseInt(bg.slice(i, i + 2), 16) * (1 - t)).toString(16).padStart(2, '0')).join('');
+for (const selector of [':root', '.dark']) {
+  const map = vars(blockOf(selector));
+  const surface = map.get('surface');
+  for (const [name, value] of map) {
+    if (!name.startsWith('mark-')) continue;
+    const r = ratio(value, mix(value, surface, 0.08));
+    const ok = r >= 4.5;
+    if (!ok) failures++;
+    console.log(`${ok ? 'PASS' : 'FAIL'} ${selector.padEnd(6)} ${name.padEnd(16)} ${r.toFixed(2)}:1`);
+  }
+}
 console.log(failures === 0 ? '\nAll card colours meet 4.5:1.' : `\n${failures} failing pair(s).`);
 process.exit(failures === 0 ? 0 : 1);

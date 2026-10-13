@@ -21,7 +21,9 @@ const when = (p: FloorPatient): string => (p.sentAt ? `${formatDmy(p.sentAt.slic
  * Tempel (12.12): paste WhatsApp messages (or open an "Export chat"
  * .zip/.txt) and review what changes BEFORE anything is saved:
  *
- * - new patients — ticked to add (untick to leave out);
+ * - new patients — ticked to add (untick to leave out); unticked when they
+ *   have probably gone already (13.7: not on a newer sent list, Plan said
+ *   pulang on an earlier day, or no SOAP for 36 h), with the reason;
  * - newer SOAPs of patients on the floor — applied; a changed room/bed is
  *   asked (ticked);
  * - SOAPs of patients who already left (Pulang/Pindah) — NOT re-added unless
@@ -51,7 +53,10 @@ export function PastePanel({ floor, roster, myName }: { floor: FloorDoc; roster:
     // Another floor (moved out, CVCU) or no floor yet (IGD) is shown, not filed.
     const reports = all.filter((p) => onFloorNumber(p, floorNumber));
     const otherFloor = all.filter((p) => !reports.includes(p));
-    setReading({ diff: pasteDiff(roster, reports), otherFloor, messages: messages.length });
+    const diff = pasteDiff(roster, reports);
+    // Probably gone already (an export spans days): proposed unticked.
+    setSkipFresh(new Set(Object.keys(diff.doubt)));
+    setReading({ diff, otherFloor, messages: messages.length });
   };
 
   const openFile = async (file: File): Promise<void> => {
@@ -167,11 +172,18 @@ export function PastePanel({ floor, roster, myName }: { floor: FloorDoc; roster:
           {d.fresh.length > 0 ? (
             <fieldset className="space-y-1">
               <legend className="font-semibold">Pasien baru — centang untuk masuk list</legend>
+              {Object.keys(d.doubt).length > 0 ? (
+                <p className="text-fg-muted">
+                  Yang <strong>tidak dicentang</strong> kemungkinan sudah pulang/pindah (chat export mencakup beberapa hari). Centang bila
+                  memang masih dirawat.
+                </p>
+              ) : null}
               {d.fresh.map((p) => (
                 <label key={p.key} className="flex min-h-9 items-center gap-2">
                   <input type="checkbox" checked={!skipFresh.has(p.key)} onChange={() => toggle(skipFresh, p.key, setSkipFresh)} />
                   <span>
                     {where(p)} {p.name} <span className="text-fg-faint">· {when(p)}{p.fromList ? ' · dari list' : ''}</span>
+                    {d.doubt[p.key] ? <span className="font-medium text-danger"> · {d.doubt[p.key]}</span> : null}
                   </span>
                 </label>
               ))}
