@@ -5,6 +5,9 @@ Catatan teknis lengkap (akar masalah, perbaikan) ada di CHANGES.md.
 
 Entri teratas harus versi yang sedang dirilis; tes gagal bila belum ditulis.
 
+## `2026-10-13.13`
+- **SOAP dari grup kini memperbarui pasien manual tanpa RM.** Pasien manual yang diinput tanpa RM sebelumnya muncul dua kali saat SOAP-nya ditempel. Sekarang SOAP itu dicocokkan dengan nama pasien di kamar yang sama dan menggantikan isi pasien manual tersebut. SOAP berikutnya dicocokkan lewat RM.
+
 ## `2026-10-13.12`
 - **Pasien manual kini tampil sama dengan pasien dari WhatsApp.** Isinya ditulis seperti laporan dari grup: pembuka dengan kamar/bed, identitas, DPJP Utama, lalu assess/terapi/plan. Jendela SOAP, tombol lompat, dan salin per bagian kini bekerja sama persis. Pasien manual yang sudah tersimpan ikut tampil dengan bentuk baru.
 - **Tag yang tidak ikut dicetak.** Di **Anggota → Warna list**, hilangkan centang **Ikut dicetak di Word/PDF** untuk tag kerja (mis. tanda SOAP sudah diperbarui). Tag tersebut hanya tampil di layar. Label **SOAP baru** juga tidak pernah ikut dicetak.

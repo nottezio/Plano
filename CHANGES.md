@@ -1,5 +1,26 @@
 # Plano — CHANGES
 
+## `2026-10-13.13` — A pasted SOAP finds a hand-entered patient without an RM
+
+- **Avi: "can a pasted WhatsApp SOAP update a manually entered patient?"**
+  Since 13.11 yes — when the hand entry had an RM (both are filed under
+  "rm:<n>"). Root cause of the gap: a hand entry WITHOUT an RM is filed under
+  "manual:<room>:<name>", so the group's SOAP (filed under "rm:<n>") never
+  met it and Tempel proposed a second patient. Fix: `pasteDiff` finds the
+  roster entry by key, else by RM (an updated entry keeps its first key, so
+  the next SOAP is found by its RM), else — for hand entries without an RM
+  only, and never from a list line — by name (titles ignored, `nameKey`) in
+  the same room.
+- Tags: unchanged — every floor tag prints in Word/PDF unless its "Ikut
+  dicetak" box is unticked; the blue "SOAP baru" badge never prints.
+- Test: found by name in its room, then by RM; another room or a list line
+  is not matched by name.
+
+### Verify
+```
+npm run verify → typecheck, lint, 169 files / 2441 tests, version, contrast, a11y, build: all green
+```
+
 ## `2026-10-13.12` — Manual patients look like reports; screen-only marks; Denah + List PDF; Analisis tab; slaber check
 
 - **Why manual patients looked different (Avi).** Root cause: a hand entry

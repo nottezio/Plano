@@ -1,4 +1,5 @@
 import { tagsOf, type FloorMark } from './marks';
+import { nameKey } from './slaber';
 import { dischargeFlag, type DischargeFlag, type FloorPatient } from './report';
 
 /**
@@ -425,9 +426,25 @@ export function pasteDiff(roster: readonly RosterPatient[], reports: readonly Fl
       }
     : null;
   const byKey = new Map(roster.map((p) => [p.key, p]));
+  /*
+    A patient entered by hand without an RM is filed under "manual:<room>:<name>",
+    so the group's SOAP for them (filed under "rm:<n>") never met it: the paste
+    proposed a second patient (13.13, Avi: "can a pasted SOAP update a manual
+    patient?"). Also found by RM (the entry, once updated, keeps its first key)
+    and, for hand entries only, by name in the same room.
+  */
+  const rmOf = (rm: string): string => rm.replace(/\D/g, '').replace(/^0+/, '');
+  const byRm = new Map(roster.filter((p) => p.report.rm).map((p) => [rmOf(p.report.rm), p]));
+  const handByName = new Map(roster.filter((p) => p.report.manual && !p.report.rm).map((p) => [nameKey(p.report.name), p]));
+  const find = (report: FloorPatient): RosterPatient | undefined => {
+    const direct = byKey.get(report.key) ?? (report.rm ? byRm.get(rmOf(report.rm)) : undefined);
+    if (direct || report.fromList) return direct;
+    const hand = handByName.get(nameKey(report.name));
+    return hand && (!hand.report.room || !report.room || hand.report.room === report.room) ? hand : undefined;
+  };
   const diff: PasteDiff = { fresh: [], updated: [], moved: [], readmit: [], unchanged: 0, doubt: {} };
   for (const report of latest.values()) {
-    const before = byKey.get(report.key);
+    const before = find(report);
     if (!before) {
       diff.fresh.push(report);
       const why = doubtFor(report, seen.get(report.key) ?? report.sentAt, newest, list);

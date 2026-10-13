@@ -296,6 +296,20 @@ describe('pasteDiff (nobody is removed by a paste)', () => {
     expect(pasteDiff(manual, [patient({ key: 'rm:77', sentAt: '2026-10-12T09:00', full: 'list', fromList: true })]).unchanged).toBe(1);
   });
 
+  it('a hand entry without RM is found by name in its room, and by RM once it has one (13.13)', () => {
+    const hand = rostered({ key: 'manual:421:contoh-anak', rm: '', name: 'An. Contoh Anak', room: '421', bed: '6', manual: true, sentAt: '2026-10-12T08:00' });
+    const soap = patient({ key: 'rm:1516148', rm: '1516148', name: 'An. Contoh Anak', room: '421', bed: '6', sentAt: '2026-10-13T07:00', full: 'soap' });
+    const diff = pasteDiff([hand], [soap]);
+    expect(diff.fresh).toEqual([]);
+    expect(diff.updated.map((u) => u.before.key)).toEqual(['manual:421:contoh-anak']);
+    // Updated, it keeps its first key; the next SOAP is found by RM.
+    const after = { ...hand, report: { ...soap, key: hand.key, manual: undefined } };
+    expect(pasteDiff([after], [{ ...soap, sentAt: '2026-10-14T07:00', full: 'soap 2' }]).updated).toHaveLength(1);
+    // Another room, or a list line: not the same patient by name alone.
+    expect(pasteDiff([hand], [{ ...soap, room: '417' }]).fresh).toHaveLength(1);
+    expect(pasteDiff([hand], [{ ...soap, fromList: true }]).fresh).toHaveLength(1);
+  });
+
   it('the same text again changes nothing, whatever its time (a copied message is stamped "now")', () => {
     const stored = [rostered({ key: 'rm:1', sentAt: '2026-10-12T07:00', full: 'sama' })];
     expect(pasteDiff(stored, [patient({ key: 'rm:1', sentAt: '2026-10-13T14:10', full: 'sama' })]).unchanged).toBe(1);
