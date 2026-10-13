@@ -1,0 +1,22 @@
+# Never committed. Without this file, anything that appeared in the folder
+# was offered for commit — on 2026-10-14 a delivered release zip in
+# "Claude outputs/" was committed and failed the deploy (check:version
+# rejects files outside src/, public/, scripts/, .github/).
+
+# Release zips delivered by Claude, extracted in place.
+Claude outputs/
+
+# Build output and dependencies.
+node_modules/
+dist/
+coverage/
+
+# Local environment (Firebase config lives in repository variables).
+.env
+.env.*
+*.local
+
+# OS and editor clutter.
+.DS_Store
+Thumbs.db
+desktop.ini

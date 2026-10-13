@@ -1,5 +1,17 @@
 # Plano — CHANGES
 
+## `.gitignore` (no version bump — nothing shipped)
+
+- **Deploy failed after 2026-10-14.2 (Avi: "failed to push").** The push
+  went through; the GitHub Pages build failed at `check:version`, whose
+  stray-file guard rejected `Claude outputs/plano-2026-10-14.2.zip`. Root
+  cause: the repo had no `.gitignore`, so the delivery zip (left in place
+  when deleting it was not permitted) was offered and committed like any
+  other file. Fix: `.gitignore` for `Claude outputs/`, `node_modules/`,
+  `dist/`, `coverage/`, `.env*`, OS clutter. The zip is removed from the
+  folder; its deletion goes in the same commit.
+- The guard did its job: a stray file stopped the deploy instead of shipping.
+
 ## `2026-10-14.2` — Sensus & List Maker: heading shapes of the 14-10 Lt. 5-6 list
 
 Avi (Sensus): "Diagnosis and plan doesn't get parsed, check also from
