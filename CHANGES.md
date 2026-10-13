@@ -1,5 +1,26 @@
 # Plano — CHANGES
 
+## `2026-10-13.8` — Word denah: residents as a table; in-app Per DPJP reverted
+
+- **Misread request (13.7).** Avi's image meant the **Word** denah's residents
+  page, not the in-app Per DPJP section. The 13.7 Per DPJP card restyle is
+  reverted: every DPJP box again, centred title, numbered lines. Search still
+  filters the lines.
+- **Word denah, page 2:** the residents were a list of blocks separated by
+  "=====" lines. Now a three-column table, one cell per junior: the name and
+  count in bold on top, then each patient's line (room/bed, DPJP code,
+  identity, residents, colours as before). The chiefs line stays above; the
+  hand-filled "Operkan ke Tmn Lain" and "Ganti Chief" blocks stay under it.
+  The page break sits on the chiefs line, or on an empty paragraph when there
+  is none (a table cannot carry it). Checked by rendering a denah from the
+  Lt 4 export through LibreOffice: 8 juniors in 3 rows, each row kept whole.
+- Test: the residents page holds a table with each junior and the count.
+
+### Verify
+```
+npm run verify → typecheck, lint, 165 files / 2414 tests, version, contrast, a11y, build: all green
+```
+
 ## `2026-10-13.7` — Delete a patient; doubtful patients in a pasted export; floor colours; search; Per DPJP as cards; phone sideways scroll
 
 - **Phone: the page scrolled sideways in "Perbesar" (Avi's screenshots).**

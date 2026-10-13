@@ -92,8 +92,11 @@ describe('Denah docx', () => {
     expect(xml).toContain('KJS:');
     expect(xml).toContain('Di luar denah:');
     expect(xml).toContain('<w:pageBreakBefore/>');
-    expect(xml).toContain('*Muda*');
-    expect(xml).toContain('*(belum diisi)*');
+    // Residents: a table, one cell per junior with the count (13.7).
+    const residents = xml.slice(xml.lastIndexOf('<w:pageBreakBefore/>'));
+    expect(residents).toContain('<w:tbl>');
+    expect(residents).toContain('Muda (');
+    expect(residents).toContain('(belum diisi) (');
     expect(xml).toContain('Operkan ke Tmn Lain:');
     expect(xml).toContain('Ganti Chief:');
     expect(xml).toContain('dr. Kepala  3');

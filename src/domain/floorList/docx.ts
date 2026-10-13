@@ -275,6 +275,25 @@ function dpjpTables(sorted: readonly FloorPatient[]): string {
   return out.join('');
 }
 
+/** The residents' page: three juniors to a row, name on top, then each patient's line. */
+function residentTables(juniors: ReadonlyArray<readonly [string, readonly FloorPatient[]]>): string {
+  const third = Math.floor(TEXT_WIDTH / 3);
+  const grid = [third, third, TEXT_WIDTH - 2 * third];
+  const rows: Cell[][] = [];
+  for (let i = 0; i < juniors.length; i += 3) {
+    const group = juniors.slice(i, i + 3);
+    rows.push(
+      grid.map((width, k) => {
+        const entry = group[k];
+        if (!entry) return { width, content: '' };
+        const [name, list] = entry;
+        return { width, content: para([{ text: `${name} (${list.length})`, bold: true }]) + list.map((p) => para(patientRuns(p))).join('') };
+      }),
+    );
+  }
+  return rows.length > 0 ? `${tableXml(grid, rows)}<w:p/>` : '';
+}
+
 export interface DenahDocInput {
   ward: string;
   date: string;
@@ -298,8 +317,9 @@ export function denahDocumentXml(input: DenahDocInput): string {
   }
   parts.push(dpjpTables(sorted));
 
-  // Page 2: residents.
-  const separator = '=================================';
+  // Page 2: residents — a table of three columns, one cell per junior (13.7,
+  // Avi: "a table, not a list", as the Residen cards in the app), with the
+  // hand-filled blocks under it.
   const chiefs = new Map<string, number>();
   const juniors = new Map<string, FloorPatient[]>();
   for (const p of sorted) {
@@ -307,16 +327,14 @@ export function denahDocumentXml(input: DenahDocInput): string {
     const key = p.junior || '(belum diisi)';
     juniors.set(key, [...(juniors.get(key) ?? []), p]);
   }
-  const page2: string[] = [];
-  for (const [name, n] of chiefs) page2.push(para([{ text: `dr. ${name}  ${n}` }]));
-  for (const [name, list] of juniors) {
-    page2.push(para([{ text: separator }]), para([{ text: `*${name}*`, bold: true }]));
-    list.forEach((p) => page2.push(para(patientRuns(p))));
-    page2.push('<w:p/>');
-  }
-  page2.push(para([{ text: separator }]), para([{ text: 'Operkan ke Tmn Lain:', bold: true }]), '<w:p/>', '<w:p/>', para([{ text: '=====' }]), para([{ text: 'Ganti Chief:', bold: true }]));
-  const [first, ...rest] = page2;
-  if (first) parts.push(first.replace('<w:p>', '<w:p><w:pPr><w:pageBreakBefore/></w:pPr>'), ...rest);
+  const page2: string[] = [...chiefs].map(([name, n]) => para([{ text: `dr. ${name}  ${n}` }]));
+  page2.push(residentTables([...juniors]), para([{ text: 'Operkan ke Tmn Lain:', bold: true }]), '<w:p/>', '<w:p/>', para([{ text: '=====' }]), para([{ text: 'Ganti Chief:', bold: true }]));
+  // Page 2 starts on a new page: the break goes on its first paragraph (the
+  // chiefs line), or on an empty one before the table.
+  const BREAK = '<w:p><w:pPr><w:pageBreakBefore/></w:pPr>';
+  if (chiefs.size > 0) page2[0] = page2[0]!.replace('<w:p>', BREAK);
+  else page2.unshift(`${BREAK}</w:p>`);
+  parts.push(...page2);
 
   return documentXml(parts.join(''), { top: 288, side: 720, bottom: 720 });
 }

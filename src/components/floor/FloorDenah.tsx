@@ -325,44 +325,31 @@ export function FloorDenah({
         </Section>
       ) : null}
 
-      {/*
-        Per DPJP (13.7, Avi: "like the Residen view"): one card per DPJP who has
-        a patient — the name bold on top, then each patient's line with its
-        room and bed — the same table of cards as the Residen section. DPJPs
-        with nobody today are one line underneath, not a wall of empty boxes.
-      */}
       <Section title="Per DPJP">
         <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3">
           {order.map((id) => {
             const own = shown.filter((p) => p.dpjpId === id);
             const kjs = shown.filter((p) => p.kjsDpjpIds.includes(id));
-            if (own.length + kjs.length === 0) return null;
             return (
-              <div key={id} className="rounded-lg border border-border bg-surface p-2">
-                <p className="text-[12px] font-bold">
-                  {dpjpTitle(id)} <span className="font-normal text-fg-muted">({own.length}{kjs.length > 0 ? ` + ${kjs.length} KJS` : ''})</span>
-                </p>
-                {own.map((p) => (
-                  <PatientButton key={p.key} patient={p} onOpen={onOpen} />
-                ))}
-                {kjs.length > 0 ? (
-                  <>
-                    <p className="px-1 pt-1 text-[11px] font-semibold text-fg-muted">KJS:</p>
-                    {kjs.map((p) => (
-                      <PatientButton key={p.key} patient={p} onOpen={onOpen} />
-                    ))}
-                  </>
-                ) : null}
+              <div key={id} className="rounded-lg border border-border bg-surface">
+                <p className="border-b border-border px-2 py-1 text-center text-[12px] font-bold">{dpjpTitle(id)}</p>
+                <div className="min-h-10 p-1">
+                  {own.map((p, i) => (
+                    <PatientButton key={p.key} patient={p} number={i + 1} onOpen={onOpen} />
+                  ))}
+                  {kjs.length > 0 ? (
+                    <>
+                      <p className="px-1 pt-1 text-[11px] font-semibold text-fg-muted">KJS:</p>
+                      {kjs.map((p, i) => (
+                        <PatientButton key={p.key} patient={p} number={i + 1} onOpen={onOpen} />
+                      ))}
+                    </>
+                  ) : null}
+                </div>
               </div>
             );
           })}
         </div>
-        {(() => {
-          const idle = order.filter((id) => !shown.some((p) => p.dpjpId === id || p.kjsDpjpIds.includes(id)));
-          return idle.length > 0 && !searching ? (
-            <p className="text-[11px] text-fg-muted">Tanpa pasien: {idle.map((id) => dpjpById(id)?.initials ?? id).join(', ')}</p>
-          ) : null;
-        })()}
       </Section>
 
       <Section title="Residen">
