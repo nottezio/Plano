@@ -442,8 +442,13 @@ function listPatient(
   n: number,
 ): FloorPatient | null {
   const btkv = /\bBTKV\b/i.test(input.rest);
-  // "(KJS BTKV)", "(KJS Aritmia)": notes, not identity.
-  let rest = clean(input.rest.replace(/\(\s*KJS[^)]*\)/gi, ''));
+  /*
+    "(KJS BTKV)", "(KJS Aritmia)", and the bare " - KJS BTKV" written after
+    the residents ("…/dr. Didi/FU Ari - KJS BTKV", 13-10 list): notes about
+    the patient, never part of a name. Left in, "Ari - KJS BTKV" became a
+    resident of its own on the denah's Residen blocks.
+  */
+  let rest = clean(input.rest.replace(/\(\s*KJS[^)]*\)/gi, '').replace(/\s+-\s*KJS\b[^/]*$/i, ''));
   let residents: string[] = [];
   // "… - dr. Ari / dr. Gaby", "… - dr. Yudi - dr. Gabi", "…/dr. Avi - dr. Arya".
   const dash = /\s+-\s+(?=dr\.?\s)/i.exec(rest);

@@ -1,5 +1,24 @@
 # Plano — CHANGES
 
+## `2026-10-13.5` — List import: a trailing " - KJS BTKV" is a note, not part of the resident
+
+- **Bug (Avi's 13-10 04.00 list):** "…/RM x/dr. Didi/FU Ari - KJS BTKV" gave
+  junior "Ari - KJS BTKV", so the denah's Residen section split Ari, Imelda,
+  Indah and Qalb Y into a second "- KJS BTKV" block each. Root cause: the
+  note-stripper removed only bracketed "(KJS …)"; this list writes the note
+  bare after the residents. Fix: a trailing " - KJS …" (to the end of the
+  line, no slash) is removed before the line is split; `btkv` is still read
+  from the original text. On that list: 13/13 patients with the right room,
+  DPJP, junior and chief as written (chief left empty where the line names
+  none, so the floor's single chief fills it).
+- "Qalb Y" is how the list spells the resident; it is kept as written.
+- Test: both shapes from the list, anonymised.
+
+### Verify
+```
+npm run verify → typecheck, lint, 163 files / 2401 tests, version, contrast, a11y, build: all green
+```
+
 ## `2026-10-13.4` — Phone denah drawn as the plan (scaled), not a stacked list; "FU" marks the junior in list import
 
 - **Phone denah** (Avi: "I want the view to be exactly like the denah on

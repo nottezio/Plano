@@ -5,6 +5,9 @@ Catatan teknis lengkap (akar masalah, perbaikan) ada di CHANGES.md.
 
 Entri teratas harus versi yang sedang dirilis; tes gagal bila belum ditulis.
 
+## `2026-10-13.5`
+- **Impor list: nama residen tidak lagi tercampur catatan.** Pada baris seperti "…/dr. Didi/FU Ari - KJS BTKV", tambahan "- KJS BTKV" sebelumnya ikut terbaca sebagai bagian nama junior. Akibatnya muncul blok residen palsu "Ari - KJS BTKV", "Imelda - KJS BTKV", dan "Indah - KJS BTKV". Sekarang catatan itu dibuang dari nama, sedangkan pasien tetap ditandai KJS BTKV.
+
 ## `2026-10-13.4`
 - **List Maker: denah di HP kini benar-benar denah.** Sebelumnya di HP kamar ditampilkan sebagai daftar bertumpuk. Sekarang tata letaknya sama dengan di laptop, dan diperkecil agar seluruh lantai muat di layar:
   - 420 dan 421 di atas;

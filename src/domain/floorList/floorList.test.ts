@@ -438,6 +438,18 @@ describe('a sent List Pasien, read back (12.12)', () => {
     ]);
   });
 
+  it('a trailing " - KJS BTKV" is a note, not part of the junior\'s name', () => {
+    const list = readReports(
+      msg(
+        'mengirimkan List Pasien\n---------\n*🫀 dr. AHA : 1 pasien (1 BTKV)*\n1. 413/AHA/Tn. Contoh Satu/15-07-1982/44 tahun/RM 1600001/dr. Kepala/FU Bima - KJS BTKV\n2. 420 Bed 6/AHA/Tn. Contoh Dua/RM 1600002/FU Dani - KJS BTKV',
+      ),
+    );
+    expect(list.map((p) => [p.identity, p.junior, p.chief, p.btkv])).toEqual([
+      ['Tn. Contoh Satu / 15-07-1982 / 44 tahun / RM 1600001', 'Bima', 'Kepala', true],
+      ['Tn. Contoh Dua / RM 1600002', 'Dani', '', true],
+    ]);
+  });
+
   it('a real SOAP outranks a list line for the same patient, whichever came later', () => {
     const fromList = { ...readReports(msg('mengirimkan List Pasien\n---------\n🫀 dr. KS : 1 pasien\n1. 419 bed 4/KS/Tn. Contoh Satu / RM 1600001'))[0]!, sentAt: '2026-10-12T09:00' };
     const soap = { ...fromList, fromList: undefined, sentAt: '2026-10-12T07:00', full: 'SOAP lengkap' };
