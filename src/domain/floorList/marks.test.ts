@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { autoMatches, newMarkId, readMarks } from './marks';
+import { autoMatches, newMarkId, printedTags, readMarks, tagsOf } from './marks';
 
 describe('floor marks', () => {
   it('reads only well-formed marks: known colour, a label, a unique id', () => {
@@ -28,6 +28,14 @@ describe('floor marks', () => {
     expect(autoMatches({ kind: 'btkv' }, facts)).toBe(true);
     expect(autoMatches({ kind: 'tanpa-junior' }, facts)).toBe(true);
     expect(autoMatches({ kind: 'tanpa-junior' }, { ...facts, division: true })).toBe(false);
+  });
+
+  it('a screen-only mark keeps its flag through reading and onto the tag (13.12)', () => {
+    const marks = readMarks([{ id: 'k1', label: 'Cek SOAP', color: 'grey', print: false }, { id: 'k2', label: 'Pre-op', color: 'purple' }]);
+    expect(marks.map((m) => m.print)).toEqual([false, undefined]);
+    const facts = { isNew: false, dpjpId: null, btkv: false, kjs: false, division: false, junior: '' };
+    const tags = tagsOf(marks, ['k1', 'k2'], [], facts);
+    expect(printedTags(tags).map((t) => t.label)).toEqual(['Pre-op']);
   });
 
   it('makes ids that are not taken', () => {

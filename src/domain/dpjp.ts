@@ -190,6 +190,25 @@ export function detectDpjps(body: string): DetectedDpjp[] {
   return found;
 }
 
+/**
+ * Our DPJPs named anywhere in a text, line by line, with no "DPJP" label
+ * needed (13.12: the nurses' handover sheet writes "DPJP" on one line and the
+ * name on the next). In the order found, each once.
+ */
+export function dpjpsNamedIn(text: string): string[] {
+  const out: string[] = [];
+  for (const raw of text.split('\n')) {
+    const flat = normalise(raw);
+    for (const [token, id] of TOKENS) {
+      if (flat.includes(token) && !out.includes(id)) {
+        out.push(id);
+        break;
+      }
+    }
+  }
+  return out;
+}
+
 /** The consultant a patient is filed under: the first DPJP line in the note. */
 export function primaryDpjp(body: string): Dpjp | null {
   const detected = detectDpjps(body);

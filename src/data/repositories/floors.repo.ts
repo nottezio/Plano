@@ -25,7 +25,7 @@ import { floorDaysCol, floorDoc, floorEditionsCol, floorPatientDoc, floorPatient
 import { trackWrite } from '../syncStatus';
 import type { Edition, FloorDoc, FloorRole, RosterPatient, StatusChange } from '@/domain/floorList/floor';
 import { isMarkColor, MARK_PREFIX, readMarks, type FloorMark, type PatientTag } from '@/domain/floorList/marks';
-import type { FloorPatient } from '@/domain/floorList/report';
+import { manualFullText, type FloorPatient } from '@/domain/floorList/report';
 
 /**
  * Firestore access for List Maker floors (12.8). See `domain/floorList/floor.ts`
@@ -78,7 +78,7 @@ export function readPatient(raw: unknown): FloorPatient | null {
   const p = raw as Record<string, unknown>;
   if (typeof p.key !== 'string' || typeof p.full !== 'string') return null;
   const discharge = p.discharge === 'today' || p.discharge === 'tomorrow' ? p.discharge : null;
-  return {
+  const patient: FloorPatient = {
     key: p.key,
     rm: str(p.rm),
     name: str(p.name),
@@ -114,6 +114,11 @@ export function readPatient(raw: unknown): FloorPatient | null {
       : {}),
     ...(typeof p.division === 'string' && p.division ? { division: p.division } : {}),
   };
+  // A hand entry stored before 13.12 has its own text shape: shown as a ward report.
+  if (patient.manual && patient.manualFields && !/\batas\s+nama\b/i.test(patient.full)) {
+    patient.full = manualFullText({ ...patient, fields: patient.manualFields });
+  }
+  return patient;
 }
 
 /** Tags of a stored (edition) patient; 13.7 stored one as `mark`. */

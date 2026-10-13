@@ -319,6 +319,17 @@ describe('manualPatient (pediatri, entered by hand)', () => {
     expect(p.body).toBe('Diagnosis:\n- VSD\n\nTerapi:\n- Furosemide\n\nPlan:\n- Pulang hari ini');
   });
 
+  it('its text is a ward report: read back like a SOAP from the group (13.12)', () => {
+    const p = manualPatient({
+      room: '421', bed: '6', dpjpId: 'yp', identity: 'An. Contoh Anak / 15-05-2008 / 18 tahun / RM 1516148',
+      fields: { diagnosis: '- VSD', terapi: '- Furosemide', plan: '- Echo' }, sentAt: '2026-10-10T08:00', sender: 'dr. Saya',
+    });
+    expect(p.full).toContain('Mohon izin kami assess dengan:\n- VSD');
+    const read = readReport({ sentAt: p.sentAt, sender: p.sender, text: p.full, index: 0 });
+    expect(read).toMatchObject({ key: p.key, room: '421', bed: '6', dpjpId: 'yp', name: p.name });
+    expect(read!.body).toBe(p.body);
+  });
+
   it('without an RM the key is room + name, and editing keeps the key', () => {
     const p = manualPatient({ room: '421', bed: '', dpjpId: 'aau', identity: 'Contoh Bayi / 2026', fields: { diagnosis: '- X', terapi: '', plan: '' }, sentAt: '', sender: '' });
     expect(p.key).toBe('manual:421:contoh-bayi');

@@ -20,8 +20,8 @@ async function inflate(data: Uint8Array<ArrayBuffer>): Promise<Uint8Array<ArrayB
   return new Uint8Array(await new Response(stream).arrayBuffer());
 }
 
-/** Every `.txt` / `.md` in the archive, decoded as UTF-8. */
-export async function zipTexts(buffer: ArrayBuffer): Promise<ZipText[]> {
+/** Every `.txt` / `.md` in the archive (or the files `wanted` matches), decoded as UTF-8. */
+export async function zipTexts(buffer: ArrayBuffer, wanted: RegExp = /\.(txt|md)$/i): Promise<ZipText[]> {
   const view = new DataView(buffer);
   const bytes = new Uint8Array(buffer);
   // End of central directory: signature 0x06054b50, searched from the end (comment ≤ 64 KB).
@@ -47,7 +47,7 @@ export async function zipTexts(buffer: ArrayBuffer): Promise<ZipText[]> {
     const local = u32(view, at + 42);
     const name = decoder.decode(bytes.subarray(at + 46, at + 46 + nameLength));
     at += 46 + nameLength + extraLength + commentLength;
-    if (!/\.(txt|md)$/i.test(name) || name.startsWith('__MACOSX')) continue;
+    if (!wanted.test(name) || name.startsWith('__MACOSX')) continue;
     const start = local + 30 + u16(view, local + 26) + u16(view, local + 28);
     const raw = bytes.slice(start, start + size);
     const data = method === 0 ? raw : method === 8 ? await inflate(raw) : null;
@@ -62,4 +62,11 @@ export async function chatFromZip(buffer: ArrayBuffer): Promise<string> {
   const chat = texts.find((t) => /\.txt$/i.test(t.name)) ?? texts[0];
   if (!chat) throw new Error('Tidak ada file teks di dalam zip.');
   return chat.text;
+}
+
+/** The body of a Word file (.docx): `word/document.xml` (13.12, the nurses' handover sheet). */
+export async function docxDocumentXml(buffer: ArrayBuffer): Promise<string> {
+  const [doc] = await zipTexts(buffer, /^word\/document\.xml$/);
+  if (!doc) throw new Error('Bukan file Word (.docx).');
+  return doc.text;
 }

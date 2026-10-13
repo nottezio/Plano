@@ -5,7 +5,7 @@ import { storeZip } from '@/lib/zip';
 import { placeBeds } from './beds';
 import { planLayout, type RoomCell } from './layout';
 import { byRoute, dpjpCodeOf, dpjpTitle, isPediatri, LIST_DPJP_ORDER, PEDIATRI_DPJP_IDS } from './build';
-import { MARK_COLORS } from './marks';
+import { MARK_COLORS, printedTags } from './marks';
 import { residentGroups } from './residents';
 import type { FloorPatient } from './report';
 
@@ -73,7 +73,7 @@ export function patientRuns(patient: FloorPatient, options: { number?: number | 
   out.push(tint({ text: patient.identity }));
   if (patient.btkv) out.push(tint({ text: ' (KJS BTKV)', bold: true }));
   if (residents) out.push({ text: ` - ${residents}`, bold: true });
-  for (const tag of patient.tags ?? []) out.push({ text: ` [${tag.label}]`, bold: true, color: MARK_COLORS[tag.color].docx });
+  for (const tag of printedTags(patient.tags)) out.push({ text: ` [${tag.label}]`, bold: true, color: MARK_COLORS[tag.color].docx });
   return out;
 }
 
@@ -355,7 +355,7 @@ export function denahDocumentXml(input: DenahDocInput): string {
 
 export function buildDenahDocx(input: DenahDocInput): Uint8Array<ArrayBuffer> {
   // The floor's tags on this sheet, in their Word colours.
-  const marks = [...new Map(input.patients.flatMap((p) => p.tags ?? []).map((t) => [t.label, t])).values()];
+  const marks = [...new Map(input.patients.flatMap((p) => printedTags(p.tags)).map((t) => [t.label, t])).values()];
   const legend = para([
     { text: 'Merah', color: RED },
     { text: ' H-1 – ' },

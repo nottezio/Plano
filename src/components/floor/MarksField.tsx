@@ -141,6 +141,27 @@ export function MarksField({ floorId, marks, editable }: { floorId: string; mark
             {editable ? <AutoRule mark={mark} onChange={(auto) => save(marks.map((m) => (m.id === mark.id ? withAuto(m, auto) : m)))} /> : mark.auto ? (
               <p className="pl-5 text-[11px] text-fg-muted">Otomatis: {describeAuto(mark.auto)}</p>
             ) : null}
+            {editable ? (
+              // Screen only (13.12): a working mark stays off the Word/PDF sent to consultants.
+              <label className="ml-5 inline-flex min-h-8 items-center gap-1.5 text-[11px] text-fg-muted">
+                <input
+                  type="checkbox"
+                  checked={mark.print !== false}
+                  onChange={(e) =>
+                    save(
+                      marks.map((m) => {
+                        if (m.id !== mark.id) return m;
+                        const { print: _old, ...rest } = m;
+                        return e.target.checked ? rest : { ...rest, print: false as const };
+                      }),
+                    )
+                  }
+                />
+                Ikut dicetak di Word/PDF
+              </label>
+            ) : mark.print === false ? (
+              <p className="pl-5 text-[11px] text-fg-muted">Hanya di layar</p>
+            ) : null}
           </li>
         ))}
       </ul>

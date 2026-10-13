@@ -1,5 +1,5 @@
 import { roomNamed } from '@/domain/denahPlan';
-import { DPJPS, detectDpjps } from '@/domain/dpjp';
+import { DPJPS, detectDpjps, dpjpById } from '@/domain/dpjp';
 import type { ChatMessage } from './chat';
 import type { PatientTag } from './marks';
 
@@ -579,6 +579,41 @@ function listPatient(input: ListLine, message: ChatMessage, n: number): FloorPat
   };
 }
 
+/**
+ * The text a hand-entered patient shows (13.12, Avi: "why is the UI of a
+ * manual patient different from a WhatsApp one?"). It was a private shape —
+ * "Diinput manual oleh …", the identity, then "Diagnosis:/Terapi:/Plan:" —
+ * so the SOAP window read it as other sections, with other jump chips, than
+ * every report from the group. Now it is written as a ward report: the
+ * opening with room/bed, the identity, the DPJP Utama line, and the group's
+ * own headings. Everything that reads a SOAP reads it the same way.
+ */
+export function manualFullText(input: {
+  room: string;
+  bed: string;
+  dpjpId: string | null;
+  identity: string;
+  fields: ManualFields;
+  sender: string;
+}): string {
+  const place = input.room ? ` Kamar ${input.room}${input.bed ? ` Bed ${input.bed}` : ''}` : '';
+  const dpjp = input.dpjpId ? dpjpById(input.dpjpId)?.name : undefined;
+  const block = (heading: string, text: string): string[] => (text.trim() ? [heading, text.trim(), ''] : []);
+  return [
+    `Diinput manual oleh ${input.sender || 'anggota'}.`,
+    `Mohon izin melaporkan pasien${place} atas nama:`,
+    '',
+    input.identity.replace(/\s+/g, ' ').trim(),
+    '',
+    ...(dpjp ? [`DPJP Utama : ${dpjp}`, ''] : []),
+    ...block('Mohon izin kami assess dengan:', input.fields.diagnosis),
+    ...block('Mohon izin kami terapi dengan:', input.fields.terapi),
+    ...block('Plan:', input.fields.plan),
+  ]
+    .join('\n')
+    .trimEnd();
+}
+
 /** A hand-entered patient (12.10): the same shape as a read report. */
 export function manualPatient(input: {
   room: string;
@@ -602,7 +637,6 @@ export function manualPatient(input: {
   ]
     .filter(Boolean)
     .join('\n\n');
-  const place = input.room ? `Kamar ${input.room}${input.bed ? ` Bed ${input.bed}` : ''}` : '';
   const slug = name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
   return {
     key: input.key ?? (rm ? `rm:${rm.replace(/^0+/, '')}` : `manual:${input.room}:${slug}`),
@@ -616,7 +650,7 @@ export function manualPatient(input: {
     kjsDpjpIds: [],
     btkv: false,
     body,
-    full: [`Diinput manual oleh ${input.sender || 'anggota'}${place ? ` · ${place}` : ''}`, '', identity, '', body].join('\n'),
+    full: manualFullText({ ...input, identity }),
     chief: '',
     junior: '',
     senderNick: '',

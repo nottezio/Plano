@@ -15,6 +15,7 @@ import { acceptInvite, createFloor, readLegacy, writeChiefs, writeRosterBatch } 
 import { wardPlan } from '@/domain/denahPlan';
 import { canEdit, chiefsOf, isOwner, localStamp, newRosterPatient, rosterView, type FloorDoc } from '@/domain/floorList/floor';
 import { searchWords } from '@/domain/floorList/search';
+import { AnalysisPanel } from '@/components/floor/AnalysisPanel';
 import { ChiefsField } from '@/components/floor/ChiefsField';
 import { EditionsPanel } from '@/components/floor/EditionsPanel';
 import { latestOf, type FloorPatient } from '@/domain/floorList/report';
@@ -22,7 +23,7 @@ import { useClinicalToday } from '@/hooks/useClinicalToday';
 import { useEditions, useMyFloors, useRoster } from '@/hooks/useFloor';
 import { useSession } from '@/store/useSession';
 
-type Tab = 'denah' | 'list' | 'tempel' | 'riwayat' | 'anggota';
+type Tab = 'denah' | 'list' | 'tempel' | 'analisis' | 'riwayat' | 'anggota';
 
 const WIP = (
   <span className="rounded-full border border-danger px-2 py-0.5 text-[10px] font-semibold text-danger">WIP</span>
@@ -110,6 +111,7 @@ export default function ListMakerPage(): JSX.Element {
     ['denah', 'Denah'],
     ['list', 'List'],
     ...(editable ? ([['tempel', 'Tempel']] as const) : []),
+    ['analisis', 'Analisis'],
     ['riwayat', 'Riwayat'],
     ['anggota', 'Anggota'],
   ];
@@ -304,6 +306,7 @@ export default function ListMakerPage(): JSX.Element {
               />
             ) : null}
             {tab === 'tempel' && editable ? <PastePanel key={floor.id} floor={floor} roster={roster} myName={myName} /> : null}
+            {tab === 'analisis' ? <AnalysisPanel key={floor.id} roster={roster} view={view} date={date} editions={editions} onOpen={setOpen} /> : null}
             {tab === 'riwayat' ? <EditionsPanel key={floor.id} floor={floor} editions={editions} /> : null}
             {tab === 'anggota' && uid ? (
               <MembersPanel key={floor.id} floor={floor} uid={uid} patients={[...view.active, ...view.left.map((p) => p.report)]} />

@@ -51,12 +51,19 @@ export interface FloorMark {
   label: string;
   color: MarkColor;
   auto?: MarkAuto | undefined;
+  /**
+   * false: on screen only, never printed (13.12, Avi: a working mark like
+   * "SOAP sudah update" must not appear in the Word sent to consultants).
+   */
+  print?: false | undefined;
 }
 
 /** A tag as shown on a patient. */
 export interface PatientTag {
   label: string;
   color: MarkColor;
+  /** false: screen only (not in Word/PDF). */
+  print?: false | undefined;
 }
 
 function readAuto(raw: unknown): MarkAuto | undefined {
@@ -105,13 +112,16 @@ export function autoMatches(auto: MarkAuto | undefined, facts: AutoFacts): boole
 export function tagsOf(marks: readonly FloorMark[], hand: readonly string[], off: readonly string[], facts: AutoFacts): PatientTag[] {
   return marks
     .filter((m) => hand.includes(m.id) || (autoMatches(m.auto, facts) && !off.includes(m.id)))
-    .map((m) => ({ label: m.label, color: m.color }));
+    .map((m) => ({ label: m.label, color: m.color, ...(m.print === false ? { print: false as const } : {}) }));
 }
 
 /** 13.7 stored a hand mark as `colour` = "m:<id>"; read as a tag since 13.10. */
 export const MARK_PREFIX = 'm:';
 
 export const isMarkColor = (value: unknown): value is MarkColor => typeof value === 'string' && Object.hasOwn(MARK_COLORS, value);
+
+/** The tags that go on paper (Word, PDF). */
+export const printedTags = (tags: readonly PatientTag[] | undefined): PatientTag[] => (tags ?? []).filter((t) => t.print !== false);
 
 /** The CSS colour of a mark (follows light/dark mode). */
 export const markCss = (color: MarkColor): string => `var(--mark-${color})`;
@@ -127,7 +137,8 @@ export function readMarks(raw: unknown): FloorMark[] {
     if (typeof id !== 'string' || !id || seen.has(id) || typeof label !== 'string' || !label.trim() || !isMarkColor(color)) continue;
     seen.add(id);
     const auto = readAuto((entry as Record<string, unknown>).auto);
-    out.push({ id, label: label.trim(), color, ...(auto ? { auto } : {}) });
+    const print = (entry as Record<string, unknown>).print === false ? { print: false as const } : {};
+    out.push({ id, label: label.trim(), color, ...(auto ? { auto } : {}), ...print });
   }
   return out;
 }

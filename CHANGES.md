@@ -1,5 +1,56 @@
 # Plano — CHANGES
 
+## `2026-10-13.12` — Manual patients look like reports; screen-only marks; Denah + List PDF; Analisis tab; slaber check
+
+- **Why manual patients looked different (Avi).** Root cause: a hand entry
+  had its own text shape — "Diinput manual oleh …", the identity, then
+  "Diagnosis:/Terapi:/Plan:" — so the SOAP window read other sections and
+  jump chips than for every report from the group. Fix: `manualFullText`
+  writes it as a ward report (opening with room/bed "… atas nama:",
+  identity, "DPJP Utama :", the group's assess/terapi/plan headings);
+  `readReport` reads it back to the same key, room, DPJP and body (tested).
+  Entries stored before are shown in the new shape when read (`readPatient`),
+  no migration. "Diinput manual" stays as provenance.
+- **A mark that must not be printed.** Root cause: every floor mark went to
+  Word. A working mark (Avi's "SOAP updated" mark) was printed for the
+  consultants. Fix: `FloorMark.print: false` ("Ikut dicetak di Word/PDF"
+  in Anggota → Warna list); `printedTags()` is what Word and the PDF use.
+  The 13.11 "SOAP baru" badge is screen-only by construction (never in
+  `patientRuns` or the print page).
+- **PDF: Denah + List** (List tab). `denahListHtml()` builds one printable
+  page — floor plan, DPJP boxes (KJS references), legend; residents table
+  on a new page; the list message in three columns on the next — and
+  `printDocument()` prints it from a hidden frame: the browser's "Save as
+  PDF" makes the single file. No PDF library. Checked with Chromium's print
+  engine on the Lt 4 data: 9 A4 pages, layout as the Word files.
+- **Analisis tab** (new). Read only from what Plano keeps (roster logs,
+  status, leftAt, editions): tiles (di lantai, masuk, pulang, pindah
+  ruangan, rencana pulang hari ini, H-1); lists for the date (rencana pulang
+  hari ini / H-1 still on the floor, sudah pulang, pindah ruangan, pindah
+  kamar, masuk); 7-day counts with the census of each day's last saved list;
+  change history (7 days, filter by kind). `domain/floorList/analysis.ts`.
+- **Cek dengan slaber perawat** (in Analisis). Opens the nurses' handover
+  Word file (`docxDocumentXml`, the zip reader's new file filter) and
+  `readSlaber` reads its table: date, shift, rows (room/bed, name, RM, DPJP
+  column; our DPJPs by name via the new `dpjpsNamedIn`, or any Sp.JP =
+  cardiology). Two traps found on the real sheet: vital-sign tables nested
+  in cells ended rows early (nesting-aware `topLevel` parsing), and rows
+  merge cells differently so a column number drifts (cells found by
+  content: the RM/TTL cell, the "DPJP" cell). Summary rows without an RM are
+  skipped. `checkSlaber` (by RM, else name without titles): cardiology on the
+  sheet but not on the list (with "di Plano: pulang/pindah" when known), on
+  the list but not on the sheet, room/bed differs. On the 12-10 night sheet:
+  41 patients read, 16 cardiology.
+- Tests: manual text round-trip; screen-only mark; print page (colour,
+  printed tags only, no SOAP mark, escaping, order); analysis (kinds, day,
+  week); slaber (nested table, drifting cells, summary row, RM spellings,
+  comparison) — fixtures invented.
+
+### Verify
+```
+npm run verify → typecheck, lint, 169 files / 2440 tests, version, contrast, a11y, build: all green
+```
+
 ## `2026-10-13.11` — A single copied SOAP is read; hand-entered patients take SOAPs; "SOAP baru" marks
 
 - **Baca "had no response" (Avi's attachment: one SOAP copied on its own).**

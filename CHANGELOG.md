@@ -5,6 +5,20 @@ Catatan teknis lengkap (akar masalah, perbaikan) ada di CHANGES.md.
 
 Entri teratas harus versi yang sedang dirilis; tes gagal bila belum ditulis.
 
+## `2026-10-13.12`
+- **Pasien manual kini tampil sama dengan pasien dari WhatsApp.** Isinya ditulis seperti laporan dari grup: pembuka dengan kamar/bed, identitas, DPJP Utama, lalu assess/terapi/plan. Jendela SOAP, tombol lompat, dan salin per bagian kini bekerja sama persis. Pasien manual yang sudah tersimpan ikut tampil dengan bentuk baru.
+- **Tag yang tidak ikut dicetak.** Di **Anggota → Warna list**, hilangkan centang **Ikut dicetak di Word/PDF** untuk tag kerja (mis. tanda SOAP sudah diperbarui). Tag tersebut hanya tampil di layar. Label **SOAP baru** juga tidak pernah ikut dicetak.
+- **PDF: Denah + List** (tab List) membuat satu file berisi denah, kotak DPJP, tabel residen, dan list. Pilih **Simpan sebagai PDF** di jendela cetak.
+- **Tab baru: Analisis.** Menampilkan pergerakan pasien di lantai:
+  - pasien masuk, sudah pulang, pindah ruangan, dan pindah kamar pada tanggal list;
+  - rencana pulang hari ini dan rencana H-1;
+  - jumlah per hari selama 7 hari;
+  - riwayat semua perubahan (siapa, kapan).
+- **Cek dengan slaber perawat** (di tab Analisis). Buka file Word laporan dinas/timbang terima perawat. List dicocokkan berdasarkan RM, lalu ditampilkan:
+  - pasien kardiologi yang ada di slaber tapi belum ada di list;
+  - pasien di list yang tidak ada di slaber;
+  - pasien dengan kamar/bed yang berbeda.
+
 ## `2026-10-13.11`
 - **Tempel: SOAP yang disalin satu per satu kini terbaca.** Pesan yang disalin sendiri (tahan → Salin) tidak membawa jam kirim. Akibatnya SOAP itu tidak pernah dianggap lebih baru dan tombol **Baca** seperti tidak merespons. Sekarang pesan tanpa jam dianggap terkirim saat ditempel. Baca juga selalu memberi jawaban: ada perubahan, semua sudah sama, atau tidak ada pasien yang terbaca.
 - **Pasien manual bisa diperbarui.** SOAP dari grup kini menggantikan isi pasien yang diinput manual. Dari denah, buka pasien lalu **Ubah isi** untuk mengubahnya.

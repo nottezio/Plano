@@ -17,10 +17,12 @@ import {
   type StatusChange,
 } from '@/domain/floorList/floor';
 import { markCss } from '@/domain/floorList/marks';
+import { denahListHtml } from '@/domain/floorList/printHtml';
 import type { FloorPatient } from '@/domain/floorList/report';
 import { matchesSearch } from '@/domain/floorList/search';
 import { copyText } from '@/lib/clipboard';
 import { deliverFile } from '@/lib/download';
+import { printDocument } from '@/lib/printPage';
 import { DeletePatient } from './DeletePatient';
 import { SoapBadge } from './SoapBadge';
 import { PatientControls } from './PatientControls';
@@ -246,6 +248,14 @@ export function ListPanel({
             }
           >
             Word: Denah
+          </Button>
+          <Button
+            size="sm"
+            onClick={() =>
+              printDocument(denahListHtml({ ward: floor.ward, date, plan: wardPlan(floor.ward), patients: view.active, listText: text }))
+            }
+          >
+            PDF: Denah + List
           </Button>
           {editable ? (
             <Button size="sm" variant="primary" onClick={() => void saveThisEdition()} disabled={view.active.length === 0}>
