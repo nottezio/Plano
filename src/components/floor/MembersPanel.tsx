@@ -4,12 +4,14 @@ import { Button, Callout } from '@/components/common/ui';
 import {
   cancelInvite,
   deleteFloor,
+  writeJuniors,
   inviteMember,
   removeMember,
   setMemberRole,
   writeNickname,
 } from '@/data/repositories/floors.repo';
-import { canEdit, isOwner, type FloorDoc, type FloorRole } from '@/domain/floorList/floor';
+import { canEdit, chiefsOf, isOwner, type FloorDoc, type FloorRole } from '@/domain/floorList/floor';
+import { ChiefsField } from './ChiefsField';
 import type { FloorPatient } from '@/domain/floorList/report';
 
 const ROLE_LABEL: Record<FloorRole, string> = { edit: 'Lihat dan edit', view: 'Lihat saja' };
@@ -160,6 +162,25 @@ export function MembersPanel({
           <Button variant="danger" onClick={() => void removeMember(floor.id, uid)}>
             Keluar dari list ini
           </Button>
+        )}
+      </section>
+
+      <section className="space-y-2">
+        <h3 className="text-xs font-semibold uppercase tracking-wide text-fg-faint">Roster junior lantai</h3>
+        <p className="text-xs text-fg-muted">
+          Nama junior yang bertugas di lantai ini. Nama dari SOAP atau list yang ditulis sedikit berbeda (berspasi, huruf
+          kecil, salah satu huruf) ditampilkan sesuai ejaan di sini. Chief diisi di atas, di kolom Chief.
+        </p>
+        {canEdit(floor, uid) ? (
+          <ChiefsField
+            label="Junior"
+            id="floor-junior-input"
+            noun="junior"
+            chiefs={chiefsOf(floor.juniors)}
+            onChange={(next) => void writeJuniors(floor.id, next.join(', '))}
+          />
+        ) : (
+          <p className="text-xs">{chiefsOf(floor.juniors).join(', ') || '—'}</p>
         )}
       </section>
 

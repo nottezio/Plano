@@ -11,6 +11,7 @@ import {
   localStamp,
   newRosterPatient,
   pasteDiff,
+  rosterName,
   rosterView,
   suggestionFor,
   updatedReport,
@@ -31,6 +32,7 @@ const FLOOR: FloorDoc = {
   inviteEmails: [],
   nicknames: { 'dr. Muh Bima Contoh': 'Dani' },
   chiefs: '',
+  juniors: '',
 };
 
 function patient(over: Partial<FloorPatient>): FloorPatient {
@@ -214,5 +216,30 @@ describe('leftSince / leftNote', () => {
     expect(localStamp(new Date(2026, 9, 12, 7, 5))).toBe('2026-10-12T07:05');
     const note = leftNote(left, (p) => `${p.room}/${p.name}${p.junior ? ` - ${p.junior}` : ''}`);
     expect(note).toBe('Pulang: 417/Tn. Dua\nPindah ke CVCU: 417/Tn. Tiga');
+  });
+});
+
+describe('rosterName / the junior roster (12.12)', () => {
+  const roster = ['Kirana', 'Gemilang', 'Sekar', 'Sekti', 'Danu', 'Dana'];
+
+  it('matches spacing, case, one-letter typos and short forms to the roster spelling', () => {
+    expect(rosterName('Kiran A', roster)).toBe('Kirana');
+    expect(rosterName('kirana', roster)).toBe('Kirana');
+    expect(rosterName('Gemilan', roster)).toBe('Gemilang');
+    expect(rosterName('Gemillang', roster)).toBe('Gemilang');
+    expect(rosterName('Gem', roster)).toBe('Gemilang');
+  });
+
+  it('keeps the name as written when nothing or more than one roster name fits', () => {
+    expect(rosterName('Yoga', roster)).toBe('Yoga');
+    expect(rosterName('Sek', roster)).toBe('Sek');
+    expect(rosterName('Danu', roster)).toBe('Danu');
+    expect(rosterName('Kiran A', [])).toBe('Kiran A');
+  });
+
+  it('effective() shows the roster spelling for the junior and the chief', () => {
+    const floor = { ...FLOOR, chiefs: 'Kepala', juniors: 'Kirana, Sekar' };
+    expect(effective(rostered({ junior: 'Kiran A', chief: 'kepala' }), floor, '2026-10-12')).toMatchObject({ junior: 'Kirana', chief: 'Kepala' });
+    expect(effective(rostered({ junior: 'Kiran A' }), FLOOR, '2026-10-12').junior).toBe('Kiran A');
   });
 });

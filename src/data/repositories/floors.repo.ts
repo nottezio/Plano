@@ -67,6 +67,7 @@ export function readFloor(id: string, data: DocumentData): FloorDoc {
     inviteEmails: Array.isArray(data.inviteEmails) ? data.inviteEmails.filter((v: unknown): v is string => typeof v === 'string') : [],
     nicknames: record(data.nicknames, text),
     chiefs: str(data.chiefs),
+    juniors: str(data.juniors),
   };
 }
 
@@ -209,6 +210,7 @@ export async function createFloor(uid: string, myName: string, name: string, war
       inviteEmails: [],
       nicknames: {},
       chiefs: '',
+      juniors: '',
       createdAt: serverTimestamp(),
       updatedAt: serverTimestamp(),
     }),
@@ -336,6 +338,10 @@ export async function deleteFloor(floorId: string): Promise<void> {
 
 export function saveEdition(floorId: string, edition: Omit<Edition, 'id'>): Promise<string> {
   return trackWrite(addDoc(floorEditionsCol(floorId), { ...plain(edition), savedAt: serverTimestamp() })).then((ref) => ref.id);
+}
+
+export function writeJuniors(floorId: string, juniors: string): Promise<void> {
+  return trackWrite(updateDoc(floorDoc(floorId), 'juniors', juniors, 'updatedAt', serverTimestamp()));
 }
 
 export function writeChiefs(floorId: string, chiefs: string): Promise<void> {

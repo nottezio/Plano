@@ -8,7 +8,20 @@ import { useState } from 'react';
  * minimum height, same label and height as the date field beside it, keeps the
  * row aligned; only a long list of chiefs makes it wrap, inside the box.
  */
-export function ChiefsField({ chiefs, onChange }: { chiefs: string[]; onChange: (next: string[]) => void }): JSX.Element {
+export function ChiefsField({
+  chiefs,
+  onChange,
+  label = 'Chief',
+  id = 'floor-chief-input',
+  noun = 'chief',
+}: {
+  chiefs: string[];
+  onChange: (next: string[]) => void;
+  /** The same field holds the junior roster (12.12): "Junior", "junior". */
+  label?: string;
+  id?: string;
+  noun?: string;
+}): JSX.Element {
   const [draft, setDraft] = useState('');
   const add = (): void => {
     const name = draft.trim().replace(/,$/, '');
@@ -17,8 +30,8 @@ export function ChiefsField({ chiefs, onChange }: { chiefs: string[]; onChange: 
   };
   return (
     <div className="min-w-0">
-      <label htmlFor="floor-chief-input" className="mb-1 block text-xs font-medium text-fg-muted">
-        Chief
+      <label htmlFor={id} className="mb-1 block text-xs font-medium text-fg-muted">
+        {label}
       </label>
       <div className="flex min-h-tap w-72 max-w-full flex-wrap items-center gap-1 rounded-xl border border-border bg-surface px-1.5 py-1 focus-within:border-accent [@media(pointer:fine)]:min-h-10">
         {chiefs.map((name) => (
@@ -26,7 +39,7 @@ export function ChiefsField({ chiefs, onChange }: { chiefs: string[]; onChange: 
             {name}
             <button
               type="button"
-              aria-label={`Hapus chief ${name}`}
+              aria-label={`Hapus ${noun} ${name}`}
               onClick={() => onChange(chiefs.filter((c) => c !== name))}
               className="h-7 w-7 rounded-full text-fg-muted hover:text-fg"
             >
@@ -35,7 +48,7 @@ export function ChiefsField({ chiefs, onChange }: { chiefs: string[]; onChange: 
           </span>
         ))}
         <input
-          id="floor-chief-input"
+          id={id}
           value={draft}
           onChange={(e) => setDraft(e.target.value)}
           onKeyDown={(e) => {
@@ -45,8 +58,8 @@ export function ChiefsField({ chiefs, onChange }: { chiefs: string[]; onChange: 
             }
           }}
           onBlur={add}
-          placeholder={chiefs.length > 0 ? '+ chief' : 'Nama chief'}
-          aria-label="Tambah chief"
+          placeholder={chiefs.length > 0 ? `+ ${noun}` : `Nama ${noun}`}
+          aria-label={`Tambah ${noun}`}
           className="h-7 min-w-[5rem] flex-1 bg-transparent px-1 text-sm text-fg outline-none placeholder:text-fg-faint"
         />
       </div>

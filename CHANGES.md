@@ -1,5 +1,30 @@
 # Plano — CHANGES
 
+## `2026-10-13.6` — Floor junior roster; resident names normalised to it
+
+- **Why:** lists and SOAPs spell residents freely (a name split by a space,
+  one letter off, short forms, case), and the denah's Residen blocks
+  grouped by the raw string, so one person became two blocks. A parser can't
+  know the right spelling; the floor can. **Fix:** `FloorDoc.juniors`
+  (comma-separated, like `chiefs`), edited in Anggota → "Roster junior
+  lantai" (owner and edit members; rules: `juniors` added to the editor's
+  allowed fields — **needs the push**). `rosterName(name, roster)`: equal
+  ignoring case/spaces/punctuation; else a prefix (3+ letters) or one edit
+  apart (5+ letters); applied only when exactly one roster name fits.
+  `effective()` maps the junior against juniors ∪ chiefs and the written chief
+  against the same, so it is display-time: stored reports are untouched and
+  existing patients are corrected immediately. The chief fallback (single
+  floor chief) is unchanged.
+- ListPanel: junior input gets a `floor-juniors` datalist.
+- `ChiefsField` takes label/id/noun so the same chips box serves both.
+- Tests: matching (spacing, case, typo, prefix), refusal on ambiguity or no
+  match, `effective()` with and without a roster.
+
+### Verify
+```
+npm run verify → typecheck, lint, 163 files / 2404 tests, version, contrast, a11y, build: all green
+```
+
 ## `2026-10-13.5` — List import: a trailing " - KJS BTKV" is a note, not part of the resident
 
 - **Bug (Avi's 13-10 04.00 list):** "…/RM x/dr. Didi/FU Ari - KJS BTKV" gave

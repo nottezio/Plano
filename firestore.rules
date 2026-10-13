@@ -298,7 +298,8 @@ service cloud.firestore {
      * - read: members, and anyone whose email is invited (to see the invite);
      * - the OWNER manages everything on the floor document (name, roles,
      *   invites, members) but cannot hand the floor to someone else;
-     * - an EDIT member may change only the nicknames, the chiefs and the
+     * - an EDIT member may change only the nicknames, the chiefs, the
+     *   junior roster (12.12) and the
      *   (pre-12.12) hand-entered patients;
      * - an invitee may accept: add THEMSELVES, with exactly the invited role,
      *   and remove their own invite — nothing else;
@@ -361,7 +362,7 @@ service cloud.firestore {
           && request.auth.uid in request.resource.data.memberIds
           && request.resource.data.roles[request.auth.uid] == 'edit'
           && request.resource.data.memberIds.size() <= 60)
-        || (isFloorEditor() && changed().hasOnly(['nicknames', 'manual', 'chiefs', 'updatedAt']))
+        || (isFloorEditor() && changed().hasOnly(['nicknames', 'manual', 'chiefs', 'juniors', 'updatedAt']))
         || acceptsInvite()
         || leaves()
       );

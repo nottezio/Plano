@@ -41,6 +41,13 @@ export interface FloorDoc {
   nicknames: Record<string, string>;
   /** The floor's chiefs now, comma-separated (several allowed, 12.11). */
   chiefs: string;
+  /**
+   * The floor's junior residents, comma-separated (12.12, Avi: "a floor
+   * roster so the app recognises the residents' names"). Names read from a
+   * SOAP or a sent list are matched to it (a split or mistyped name → the
+   * roster spelling).
+   */
+  juniors: string;
 }
 
 /** On the floor, or gone (and how). */
@@ -129,11 +136,67 @@ export function colourOn(patient: Pick<RosterPatient, 'colour' | 'dischargeDate'
 }
 
 /** What the roster entry looks like on the list: residents and colour applied. */
-export function effective(patient: RosterPatient, floor: Pick<FloorDoc, 'nicknames' | 'chiefs'>, date: string): FloorPatient {
+/**
+ * A resident's name as the roster spells it (12.12). Lists are typed in a
+ * hurry: a name split by a space, lower case, one letter off, a short form —
+ * the same person. A name
+ * matches a roster name when they are equal ignoring case, spaces and
+ * punctuation, or (5+ letters) one letter apart, or one is the start of the
+ * other (3+ letters) — and only when exactly ONE roster name matches, so two
+ * similar residents are never merged. No roster, or no match: as written.
+ */
+export function rosterName(name: string, roster: readonly string[]): string {
+  const squash = (value: string): string => value.toLowerCase().replace(/[^a-z]/g, '');
+  const key = squash(name);
+  if (!key || roster.length === 0) return name;
+  const exact = roster.filter((entry) => squash(entry) === key);
+  if (exact.length === 1) return exact[0]!;
+  if (exact.length > 1) return name;
+  const near = roster.filter((entry) => {
+    const other = squash(entry);
+    if (!other) return false;
+    if (key.length >= 3 && other.length >= 3 && (other.startsWith(key) || key.startsWith(other))) return true;
+    return Math.min(key.length, other.length) >= 5 && oneEditApart(key, other);
+  });
+  return near.length === 1 ? near[0]! : name;
+}
+
+function oneEditApart(a: string, b: string): boolean {
+  if (Math.abs(a.length - b.length) > 1) return false;
+  let i = 0;
+  let j = 0;
+  let edits = 0;
+  while (i < a.length && j < b.length) {
+    if (a[i] === b[j]) {
+      i += 1;
+      j += 1;
+      continue;
+    }
+    edits += 1;
+    if (edits > 1) return false;
+    if (a.length > b.length) i += 1;
+    else if (b.length > a.length) j += 1;
+    else {
+      i += 1;
+      j += 1;
+    }
+  }
+  return edits + (a.length - i) + (b.length - j) <= 1;
+}
+
+export function effective(
+  patient: RosterPatient,
+  floor: Pick<FloorDoc, 'nicknames' | 'chiefs'> & { juniors?: string | undefined },
+  date: string,
+): FloorPatient {
   const report = patient.report;
   const chiefs = chiefsOf(floor.chiefs);
-  const junior = patient.junior || report.junior || floor.nicknames[report.sender] || report.senderNick || '';
-  const chief = patient.chief || report.chief || (chiefs.length === 1 ? chiefs[0]! : '');
+  const juniors = chiefsOf(floor.juniors ?? '');
+  // Either roster may hold the name: a chief writes himself as "FU" at times.
+  const everyone = [...juniors, ...chiefs];
+  const junior = rosterName(patient.junior || report.junior || floor.nicknames[report.sender] || report.senderNick || '', juniors.length > 0 ? everyone : []);
+  const written = patient.chief || report.chief;
+  const chief = written ? rosterName(written, chiefs.length > 0 ? everyone : []) : chiefs.length === 1 ? chiefs[0]! : '';
   return { ...report, junior, chief, discharge: colourOn(patient, date) };
 }
 

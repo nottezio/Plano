@@ -84,6 +84,7 @@ export function ListPanel({
   const plan = wardPlan(floor.ward);
   const rooms = plan ? planRooms(plan).map((slot) => slot.room).sort() : [];
   const chiefs = chiefsOf(floor.chiefs);
+  const juniors = chiefsOf(floor.juniors);
   const byKey = useMemo(() => new Map(roster.map((p) => [p.key, p])), [roster]);
   const text = useMemo(() => buildFloorList(view.active, { ward: floor.ward, date, time }), [view.active, floor.ward, date, time]);
   const sorted = [...view.active].sort(byRoute(floor.ward));
@@ -139,6 +140,11 @@ export function ListPanel({
           myName={myName}
           editing={editing}
         />
+        <datalist id="floor-juniors">
+          {juniors.map((name) => (
+            <option key={name} value={name} />
+          ))}
+        </datalist>
         <datalist id="floor-chiefs">
           {chiefs.map((name) => (
             <option key={name} value={name} />
@@ -196,6 +202,7 @@ export function ListPanel({
                       key={`j-${entry.junior}`}
                       aria-label={`Junior ${patient.name}`}
                       defaultValue={entry.junior}
+                      list="floor-juniors"
                       placeholder={`Junior: ${patient.junior || '—'}`}
                       onBlur={(e) => {
                         const next = e.target.value.trim();
