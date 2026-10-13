@@ -115,6 +115,15 @@ describe('Denah docx', () => {
     expect(text).toContain('Pre-op');
   });
 
+  it('residents are numbered; a division patient gets its own cell and no chief count', () => {
+    const held = { ...patients[0]!, key: 'rm:9', junior: '', chief: '', division: 'Aritmia' };
+    const out = denahDocumentXml({ ward: 'PJT Lantai 4', date: '2026-10-12', plan: null, patients: [...patients, held] });
+    const residents = out.slice(out.lastIndexOf('<w:pageBreakBefore/>'));
+    expect(residents).toContain('Divisi Aritmia (1, tidak di-FU)');
+    expect(residents).toMatch(/<w:t xml:space="preserve">1\. /);
+    expect(residents).toContain('dr. Kepala  3');
+  });
+
   it('file names are Windows-safe', () => {
     expect(floorFileName('Denah', 'PJT Lantai 4/5', '2026-10-12')).toBe('Denah PJT Lantai 4 5 2026-10-12.docx');
   });

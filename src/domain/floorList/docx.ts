@@ -7,6 +7,7 @@ import { placeBeds } from './beds';
 import { planLayout, type RoomCell } from './layout';
 import { byRoute, dpjpTitle, isPediatri, LIST_DPJP_ORDER, PEDIATRI_DPJP_IDS } from './build';
 import { MARK_COLORS } from './marks';
+import { residentGroups } from './residents';
 import type { FloorPatient } from './report';
 
 /**
@@ -287,7 +288,9 @@ function residentTables(juniors: ReadonlyArray<readonly [string, readonly FloorP
         const entry = group[k];
         if (!entry) return { width, content: '' };
         const [name, list] = entry;
-        return { width, content: para([{ text: `${name} (${list.length})`, bold: true }]) + list.map((p) => para(patientRuns(p))).join('') };
+        // Numbered (13.9): how many each holds is read at a glance.
+        const title = name.startsWith('Divisi ') ? `${name} (${list.length}, tidak di-FU)` : `${name} (${list.length})`;
+        return { width, content: para([{ text: title, bold: true }]) + list.map((p, n) => para(patientRuns(p, { number: n + 1 }))).join('') };
       }),
     );
   }
@@ -320,19 +323,13 @@ export function denahDocumentXml(input: DenahDocInput): string {
   // Page 2: residents — a table of three columns, one cell per junior (13.7,
   // Avi: "a table, not a list", as the Residen cards in the app), with the
   // hand-filled blocks under it.
-  const chiefs = new Map<string, number>();
-  const juniors = new Map<string, FloorPatient[]>();
-  for (const p of sorted) {
-    if (p.chief) chiefs.set(p.chief, (chiefs.get(p.chief) ?? 0) + 1);
-    const key = p.junior || '(belum diisi)';
-    juniors.set(key, [...(juniors.get(key) ?? []), p]);
-  }
-  const page2: string[] = [...chiefs].map(([name, n]) => para([{ text: `dr. ${name}  ${n}` }]));
-  page2.push(residentTables([...juniors]), para([{ text: 'Operkan ke Tmn Lain:', bold: true }]), '<w:p/>', '<w:p/>', para([{ text: '=====' }]), para([{ text: 'Ganti Chief:', bold: true }]));
+  const { chiefs, juniors, divisions } = residentGroups(sorted);
+  const page2: string[] = chiefs.map(([name, n]) => para([{ text: `dr. ${name}  ${n}` }]));
+  page2.push(residentTables([...juniors, ...divisions]), para([{ text: 'Operkan ke Tmn Lain:', bold: true }]), '<w:p/>', '<w:p/>', para([{ text: '=====' }]), para([{ text: 'Ganti Chief:', bold: true }]));
   // Page 2 starts on a new page: the break goes on its first paragraph (the
   // chiefs line), or on an empty one before the table.
   const BREAK = '<w:p><w:pPr><w:pageBreakBefore/></w:pPr>';
-  if (chiefs.size > 0) page2[0] = page2[0]!.replace('<w:p>', BREAK);
+  if (chiefs.length > 0) page2[0] = page2[0]!.replace('<w:p>', BREAK);
   else page2.unshift(`${BREAK}</w:p>`);
   parts.push(...page2);
 

@@ -67,6 +67,8 @@ export interface FloorPatient {
   manualFields?: ManualFields | undefined;
   /** The floor's own colour set on this patient (13.7, `marks.ts`); list only, never from a SOAP. */
   mark?: { label: string; color: MarkColor } | undefined;
+  /** Held by a cardiology division, not the ward residents (13.9, `divisionOf`). */
+  division?: string | undefined;
 }
 
 export interface ManualFields {

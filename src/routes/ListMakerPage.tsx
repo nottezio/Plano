@@ -8,6 +8,7 @@ import { FloorDenah } from '@/components/floor/FloorDenah';
 import { ListPanel } from '@/components/floor/ListPanel';
 import { MembersPanel } from '@/components/floor/MembersPanel';
 import { PastePanel } from '@/components/floor/PastePanel';
+import { RosterDatalists } from '@/components/floor/PatientControls';
 import { SoapFloat } from '@/components/floor/SoapFloat';
 import { acceptInvite, createFloor, readLegacy, writeChiefs, writeRosterBatch } from '@/data/repositories/floors.repo';
 import { wardPlan } from '@/domain/denahPlan';
@@ -302,7 +303,17 @@ export default function ListMakerPage(): JSX.Element {
           </>
         ) : null}
       </div>
-      <SoapFloat patient={open} onClose={() => setOpenKey(null)} floorId={floor?.id} editable={editable} />
+      {floor ? <RosterDatalists floor={floor} /> : null}
+      <SoapFloat
+        patient={open}
+        onClose={() => setOpenKey(null)}
+        floorId={floor?.id}
+        editable={editable}
+        control={(() => {
+          const entry = open && floor ? roster.find((p) => p.key === open.key && p.status === 'dirawat') : undefined;
+          return entry && floor ? { floor, entry, date, myName } : undefined;
+        })()}
+      />
     </AppShell>
   );
 }

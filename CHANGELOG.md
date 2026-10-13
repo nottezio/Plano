@@ -5,6 +5,12 @@ Catatan teknis lengkap (akar masalah, perbaikan) ada di CHANGES.md.
 
 Entri teratas harus versi yang sedang dirilis; tes gagal bila belum ditulis.
 
+## `2026-10-13.9`
+- **Pasien yang dipegang divisi.** Contohnya konsul dari bagian lain ke divisi Aritmia: pasien tetap masuk list, tetapi tidak di-FU residen bangsal. Pasien seperti ini kini masuk blok sendiri, **"Divisi Aritmia (tidak di-FU)"**, dan tidak lagi muncul sebagai "(belum diisi)" atau ikut terhitung untuk chief. Tulisan "KJS ARITMIA" dikenali otomatis. Bisa juga diatur manual lewat kolom **Pemegang** di kartu pasien.
+- **Residen bernomor.** Di tabel residen Word dan di denah, pasien tiap residen kini bernomor, dan jumlahnya tertulis di samping nama.
+- **Tombol Hapus diperkecil** agar tidak tertekan tidak sengaja. Tetap perlu konfirmasi.
+- **Atur pasien dari denah.** Ketuk pasien di denah, lalu **Atur pasien**. Isinya sama dengan kartu di tab List: junior, chief, warna, rencana pulang, pemegang, Pulang, Pindah, Kamar/bed.
+
 ## `2026-10-13.8`
 - **Word: Denah.** Halaman residen kini berbentuk **tabel**, tiga kolom. Tiap kotak berisi satu junior: nama dan jumlah pasien di atas, lalu daftar pasiennya. Bagian "Operkan ke Tmn Lain" dan "Ganti Chief" tetap ada di bawahnya.
 - **Per DPJP** di denah aplikasi kembali seperti sebelumnya.

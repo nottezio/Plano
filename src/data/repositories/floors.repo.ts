@@ -113,6 +113,7 @@ export function readPatient(raw: unknown): FloorPatient | null {
           },
         }
       : {}),
+    ...(typeof p.division === 'string' && p.division ? { division: p.division } : {}),
   };
 }
 
@@ -141,6 +142,7 @@ export function readRosterPatient(key: string, data: DocumentData): RosterPatien
     chief: str(data.chief),
     dismissed: str(data.dismissed),
     placedAt: str(data.placedAt),
+    division: str(data.division),
     addedAt: str(data.addedAt),
     log: readLog(data.log),
   };
@@ -289,7 +291,7 @@ export function writeRosterReport(floorId: string, key: string, report: FloorPat
 export function writeRosterFields(
   floorId: string,
   key: string,
-  fields: Partial<Pick<RosterPatient, 'status' | 'pindahKe' | 'leftAt' | 'colour' | 'dischargeDate' | 'junior' | 'chief' | 'dismissed'>>,
+  fields: Partial<Pick<RosterPatient, 'status' | 'pindahKe' | 'leftAt' | 'colour' | 'dischargeDate' | 'junior' | 'chief' | 'dismissed' | 'division'>>,
   log?: StatusChange,
 ): Promise<void> {
   return trackWrite(

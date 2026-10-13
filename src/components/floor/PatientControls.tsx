@@ -1,0 +1,279 @@
+import { useState } from 'react';
+
+import { DateField } from '@/components/common/DateField';
+import { Button, INPUT } from '@/components/common/ui';
+import { writeRosterFields, writeRosterPlace } from '@/data/repositories/floors.repo';
+import { planRooms, wardPlan } from '@/domain/denahPlan';
+import { formatDmy } from '@/domain/dateDmy';
+import {
+  chiefsOf,
+  DIVISIONS,
+  divisionOf,
+  localStamp,
+  suggestionFor,
+  type ColourMark,
+  type FloorDoc,
+  type RosterPatient,
+  type StatusChange,
+} from '@/domain/floorList/floor';
+import { MARK_COLORS, MARK_PREFIX } from '@/domain/floorList/marks';
+import type { FloorPatient } from '@/domain/floorList/report';
+
+const COLOUR_OPTIONS: ReadonlyArray<readonly [ColourMark, string]> = [
+  ['none', 'Tanpa warna'],
+  ['h1', 'H-1 (merah)'],
+  ['today', 'Pulang hari ini (hijau)'],
+];
+const PINDAH_CHIPS = ['ICU', 'CVCU', 'HCU', 'ICCU', 'Lantai lain'];
+
+/** The datalists the junior/chief inputs offer; rendered once per page. */
+export function RosterDatalists({ floor }: { floor: FloorDoc }): JSX.Element {
+  return (
+    <>
+      <datalist id="floor-juniors">
+        {chiefsOf(floor.juniors).map((name) => (
+          <option key={name} value={name} />
+        ))}
+      </datalist>
+      <datalist id="floor-chiefs">
+        {chiefsOf(floor.chiefs).map((name) => (
+          <option key={name} value={name} />
+        ))}
+      </datalist>
+    </>
+  );
+}
+
+/**
+ * Every hand decision on one patient (13.9): residents, holder, colour,
+ * planned discharge, Pulang / Pindah / Kamar-bed, the Plan suggestion. One
+ * component for the List card and the SOAP window opened from the denah
+ * (Avi: "a control panel for a clicked patient on the denah"), so the two
+ * never drift apart. Every change is a logged leaf write.
+ */
+export function PatientControls({
+  floor,
+  entry,
+  patient,
+  date,
+  myName,
+  onEditManual,
+  onGone,
+  narrow = false,
+}: {
+  floor: FloorDoc;
+  entry: RosterPatient;
+  /** As shown on this list date (residents and colour applied). */
+  patient: FloorPatient;
+  date: string;
+  myName: string;
+  onEditManual?: ((patient: FloorPatient) => void) | undefined;
+  /** After Pulang / Pindah (the SOAP window closes). */
+  onGone?: (() => void) | undefined;
+  /** In the SOAP window (a 480 px box even on a wide screen): two columns. */
+  narrow?: boolean;
+}): JSX.Element {
+  const [open, setOpen] = useState<'pindah' | 'place' | null>(null);
+  const [pindahTo, setPindahTo] = useState('');
+  const [placeRoom, setPlaceRoom] = useState('');
+  const [placeBed, setPlaceBed] = useState('');
+  const plan = wardPlan(floor.ward);
+  const rooms = plan ? planRooms(plan).map((slot) => slot.room).sort() : [];
+  const chiefs = chiefsOf(floor.chiefs);
+  const suggestion = suggestionFor(entry, date);
+  const colourOptions: ReadonlyArray<readonly [ColourMark, string]> = [
+    ...COLOUR_OPTIONS,
+    ...floor.marks.map((m) => [`${MARK_PREFIX}${m.id}` as ColourMark, `${m.label} (${MARK_COLORS[m.color].name.toLowerCase()})`] as const),
+  ];
+  const detected = divisionOf({ division: '', report: entry.report });
+
+  const stamp = (what: string): StatusChange => ({ at: new Date().toISOString(), by: myName, what });
+  const set = (fields: Parameters<typeof writeRosterFields>[2], what?: string): void => {
+    void writeRosterFields(floor.id, entry.key, fields, what ? stamp(what) : undefined);
+  };
+
+  return (
+    <div className="text-xs">
+      {suggestion ? (
+        <div className="mt-1.5 flex flex-wrap items-center gap-1.5 rounded-lg bg-bg-subtle px-2 py-1">
+          <span className="flex-1">
+            Plan menyebut <strong>{suggestion === 'h1' ? 'H-1' : 'pulang hari ini'}</strong>. Tandai?
+          </span>
+          <Button size="sm" onClick={() => set({ colour: suggestion }, suggestion === 'h1' ? 'H-1 (dari saran Plan)' : 'Pulang hari ini (dari saran Plan)')}>
+            Tandai
+          </Button>
+          <Button size="sm" variant="ghost" onClick={() => set({ dismissed: entry.report.sentAt })}>
+            Abaikan
+          </Button>
+        </div>
+      ) : null}
+
+      <div className={`mt-2 grid grid-cols-2 gap-1.5 ${narrow ? '' : 'sm:grid-cols-4'}`}>
+        <input
+          key={`j-${entry.junior}`}
+          aria-label={`Junior ${patient.name}`}
+          defaultValue={entry.junior}
+          list="floor-juniors"
+          placeholder={`Junior: ${patient.junior || '—'}`}
+          onBlur={(e) => {
+            const next = e.target.value.trim();
+            if (next !== entry.junior) set({ junior: next });
+          }}
+          className={`${INPUT} text-xs`}
+        />
+        <input
+          key={`c-${entry.chief}`}
+          aria-label={`Chief ${patient.name}`}
+          defaultValue={entry.chief}
+          list="floor-chiefs"
+          placeholder={`Chief: ${patient.chief || (chiefs.length > 1 && !patient.division ? 'pilih' : '—')}`}
+          onBlur={(e) => {
+            const next = e.target.value.trim();
+            if (next !== entry.chief) set({ chief: next });
+          }}
+          className={`${INPUT} text-xs`}
+        />
+        <select
+          aria-label={`Warna ${patient.name}`}
+          value={colourOptions.some(([v]) => v === entry.colour) ? entry.colour : 'none'}
+          onChange={(e) => {
+            const next = e.target.value as ColourMark;
+            set({ colour: next }, colourOptions.find(([v]) => v === next)?.[1] ?? next);
+          }}
+          className={`${INPUT} text-xs`}
+        >
+          {colourOptions.map(([value, label]) => (
+            <option key={value} value={value}>
+              {label}
+            </option>
+          ))}
+        </select>
+        <DateField
+          value={entry.dischargeDate}
+          allowEmpty
+          ariaLabel={`Rencana pulang ${patient.name}`}
+          onChange={(next) => set({ dischargeDate: next }, next ? `Rencana pulang ${formatDmy(next)}` : 'Rencana pulang dihapus')}
+          className="w-full"
+        />
+        {/*
+          Who holds the patient (13.9): a consult from another department to
+          a cardiology division (Aritmia…) is held by that division's
+          resident — listed, not followed up by the ward, counted for nobody.
+        */}
+        <select
+          aria-label={`Pemegang ${patient.name}`}
+          value={entry.division}
+          onChange={(e) => {
+            const next = e.target.value;
+            set({ division: next }, next === '-' ? 'Dipegang residen bangsal' : next ? `Dipegang divisi ${next}` : 'Pemegang otomatis');
+          }}
+          title="Pemegang pasien"
+          className={`${INPUT} text-xs`}
+        >
+          <option value="">{detected ? `Div. ${detected} (otomatis)` : 'Residen bangsal'}</option>
+          <option value="-">Residen bangsal</option>
+          {DIVISIONS.map((d) => (
+            <option key={d} value={d}>
+              Div. {d} (tidak di-FU)
+            </option>
+          ))}
+        </select>
+        <Button
+          size="sm"
+          onClick={() => {
+            set({ status: 'pulang', leftAt: new Date().toISOString() }, 'Pulang');
+            onGone?.();
+          }}
+        >
+          Pulang
+        </Button>
+        <Button
+          size="sm"
+          onClick={() => {
+            setOpen(open === 'pindah' ? null : 'pindah');
+            setPindahTo('');
+          }}
+        >
+          Pindah…
+        </Button>
+        <Button
+          size="sm"
+          onClick={() => {
+            setOpen(open === 'place' ? null : 'place');
+            setPlaceRoom(patient.room);
+            setPlaceBed(patient.bed);
+          }}
+        >
+          Kamar/bed…
+        </Button>
+        {patient.manual && onEditManual ? (
+          <Button size="sm" onClick={() => onEditManual(patient)}>
+            Ubah isi
+          </Button>
+        ) : null}
+      </div>
+
+      {open === 'place' ? (
+        <div className="mt-2 flex flex-wrap items-center gap-1.5">
+          <span className="text-fg-muted">Pindah di lantai ini:</span>
+          {rooms.length > 0 ? (
+            <select aria-label="Kamar baru" value={placeRoom} onChange={(e) => setPlaceRoom(e.target.value)} className={`${INPUT} !w-24 text-xs`}>
+              {rooms.includes(placeRoom) ? null : <option value={placeRoom}>{placeRoom || '—'}</option>}
+              {rooms.map((room) => (
+                <option key={room} value={room}>
+                  {room}
+                </option>
+              ))}
+            </select>
+          ) : (
+            <input aria-label="Kamar baru" value={placeRoom} onChange={(e) => setPlaceRoom(e.target.value)} className={`${INPUT} !w-24 text-xs`} />
+          )}
+          <input
+            aria-label="Bed baru"
+            value={placeBed}
+            onChange={(e) => setPlaceBed(e.target.value.trim())}
+            inputMode="numeric"
+            placeholder="Bed"
+            className={`${INPUT} !w-20 text-xs`}
+          />
+          <Button
+            size="sm"
+            variant="primary"
+            disabled={!placeRoom.trim() || (placeRoom === patient.room && placeBed === patient.bed)}
+            onClick={() => {
+              const from = `${patient.room}${patient.bed ? `/${patient.bed}` : ''}`;
+              const to = `${placeRoom.trim()}${placeBed ? `/${placeBed}` : ''}`;
+              void writeRosterPlace(floor.id, entry.key, placeRoom.trim(), placeBed, localStamp(new Date()), stamp(`Pindah kamar ${from} → ${to}`));
+              setOpen(null);
+            }}
+          >
+            Simpan kamar
+          </Button>
+        </div>
+      ) : null}
+
+      {open === 'pindah' ? (
+        <div className="mt-2 flex flex-wrap items-center gap-1.5">
+          {PINDAH_CHIPS.map((chip) => (
+            <Button key={chip} size="sm" variant={pindahTo === chip ? 'primary' : 'secondary'} onClick={() => setPindahTo(chip)}>
+              {chip}
+            </Button>
+          ))}
+          <input value={pindahTo} onChange={(e) => setPindahTo(e.target.value)} placeholder="Tujuan" aria-label="Tujuan pindah" className={`${INPUT} !w-32 text-xs`} />
+          <Button
+            size="sm"
+            variant="primary"
+            disabled={!pindahTo.trim()}
+            onClick={() => {
+              set({ status: 'pindah', pindahKe: pindahTo.trim(), leftAt: new Date().toISOString() }, `Pindah ke ${pindahTo.trim()}`);
+              setOpen(null);
+              onGone?.();
+            }}
+          >
+            Simpan pindah
+          </Button>
+        </div>
+      ) : null}
+    </div>
+  );
+}

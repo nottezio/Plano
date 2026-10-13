@@ -1,5 +1,44 @@
 # Plano — CHANGES
 
+## `2026-10-13.9` — Patients held by a division; numbered residents; small delete; control panel on the denah
+
+- **"(belum diisi)" for a division consult (Avi's screenshots).** Root cause:
+  the model knew only two holders — a ward junior or nobody. A patient of
+  another department consulted to a cardiology DIVISION (e.g. KJS Aritmia)
+  is held by that division's resident, is listed but not followed up by the
+  ward, so it fell into "(belum diisi)" and the single-chief fallback added
+  it to the chief's count. Fix: `RosterPatient.division` ('' = read from
+  the text, '-' = ward residents, else the division). `divisionOf` reads
+  "KJS [divisi] Aritmia|Intervensi|Imaging|Vaskular|Prevensi|Pediatri" in
+  the identity/opening (KJS BTKV is not a division). `effective()` gives a
+  division patient no ward junior/chief (only what is set by hand).
+  `residentGroups()` (new, shared by the app and Word) puts them in their own
+  "Divisi Aritmia (n, tidak di-FU)" block, counted for no junior or chief;
+  the "belum ada chief" hint skips them. Set or override per patient in the
+  new "Pemegang" select.
+- **Residents numbered** (Word residents table and the app's Residen cards):
+  "1. …", "2. …", the count beside the name.
+- **Delete is small.** The 13.7 full-width red button sat beside Pulang;
+  now a small grey "Hapus" text button at the card's meta line / far right of
+  the SOAP window's actions. Still two taps.
+- **Control panel for a patient tapped on the denah.** The List card's
+  controls moved into `PatientControls` (junior, chief, colour, planned
+  discharge, holder, Pulang, Pindah…, Kamar/bed…, Plan suggestion), used by
+  the List card and by the SOAP window ("Atur pasien", two columns there);
+  Pulang/Pindah close the window. The junior/chief datalists render once per
+  page (`RosterDatalists`) instead of inside the List tab.
+- Checked by render: phone and desk SOAP window with the panel, list cards,
+  Residen with a division block; Word residents page via LibreOffice.
+- **Not done:** the WhatsApp list text does not mark division patients
+  specially (their identity already says "KJS ARITMIA").
+- Tests: divisionOf (text, by hand both ways, BTKV), effective for a division
+  patient, residentGroups, Word numbering and division cell.
+
+### Verify
+```
+npm run verify → typecheck, lint, 166 files / 2418 tests, version, contrast, a11y, build: all green
+```
+
 ## `2026-10-13.8` — Word denah: residents as a table; in-app Per DPJP reverted
 
 - **Misread request (13.7).** Avi's image meant the **Word** denah's residents

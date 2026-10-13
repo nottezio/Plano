@@ -25,8 +25,15 @@ export function DeletePatient({
   const [busy, setBusy] = useState(false);
   const base = 'min-h-tap rounded-lg border px-3 text-xs font-medium [@media(pointer:fine)]:min-h-8';
   if (!asking) {
+    // Small and quiet on purpose (13.9, Avi): a big red button beside Pulang
+    // was easy to hit by accident. Still two taps.
     return (
-      <button type="button" onClick={() => setAsking(true)} className={`${base} border-danger text-danger`}>
+      <button
+        type="button"
+        onClick={() => setAsking(true)}
+        aria-label={`Hapus ${name} dari list`}
+        className="h-7 shrink-0 rounded px-1.5 text-[11px] text-fg-faint underline-offset-2 hover:text-danger hover:underline"
+      >
         Hapus
       </button>
     );

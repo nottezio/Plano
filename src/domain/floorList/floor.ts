@@ -92,6 +92,13 @@ export interface RosterPatient {
    * old room and must not move the patient back.
    */
   placedAt: string;
+  /**
+   * Who holds the patient (13.9): '' = read from the text (`divisionOf`),
+   * '-' = the ward residents, else a division ("Aritmia"). A patient of
+   * another department consulted to a cardiology DIVISION is held by that
+   * division's resident: listed, not followed up by the floor's residents.
+   */
+  division: string;
   addedAt: string;
   log: StatusChange[];
 }
@@ -192,12 +199,36 @@ function oneEditApart(a: string, b: string): boolean {
   return edits + (a.length - i) + (b.length - j) <= 1;
 }
 
+/** Cardiology divisions a consult can go to instead of the ward (13.9). */
+export const DIVISIONS = ['Aritmia', 'Intervensi', 'Imaging', 'Vaskular', 'Prevensi', 'Pediatri'] as const;
+const DIVISION_RE = new RegExp(`\\bKJS\\s+(?:divisi\\s+)?(${DIVISIONS.join('|')})\\b`, 'i');
+
+/**
+ * The division holding this patient, or '' (the ward residents). Set by hand,
+ * else read from the identity/first lines ("… / RM 00554408 - KJS ARITMIA").
+ * KJS BTKV is not a division: the ward residents follow those patients.
+ */
+export function divisionOf(patient: Pick<RosterPatient, 'division' | 'report'>): string {
+  if (patient.division === '-') return '';
+  if (patient.division) return patient.division;
+  const found = DIVISION_RE.exec(`${patient.report.identity}\n${patient.report.full.slice(0, 600)}`);
+  if (!found) return '';
+  return DIVISIONS.find((d) => d.toLowerCase() === found[1]!.toLowerCase()) ?? '';
+}
+
 export function effective(
   patient: RosterPatient,
   floor: Pick<FloorDoc, 'nicknames' | 'chiefs'> & { juniors?: string | undefined; marks?: readonly FloorMark[] | undefined },
   date: string,
 ): FloorPatient {
   const report = patient.report;
+  const mark = markOf(patient.colour, floor.marks ?? []);
+  const { mark: _stored, division: _was, ...rest } = report;
+  const division = divisionOf(patient);
+  if (division) {
+    // Held by the division's resident: no ward junior or chief unless set by hand.
+    return { ...rest, junior: patient.junior, chief: patient.chief, discharge: colourOn(patient, date), division, ...(mark ? { mark: { label: mark.label, color: mark.color } } : {}) };
+  }
   const chiefs = chiefsOf(floor.chiefs);
   const juniors = chiefsOf(floor.juniors ?? '');
   // Either roster may hold the name: a chief writes himself as "FU" at times.
@@ -205,8 +236,6 @@ export function effective(
   const junior = rosterName(patient.junior || report.junior || floor.nicknames[report.sender] || report.senderNick || '', juniors.length > 0 ? everyone : []);
   const written = patient.chief || report.chief;
   const chief = written ? rosterName(written, chiefs.length > 0 ? everyone : []) : chiefs.length === 1 ? chiefs[0]! : '';
-  const mark = markOf(patient.colour, floor.marks ?? []);
-  const { mark: _stored, ...rest } = report;
   return { ...rest, junior, chief, discharge: colourOn(patient, date), ...(mark ? { mark: { label: mark.label, color: mark.color } } : {}) };
 }
 
@@ -255,6 +284,7 @@ export function newRosterPatient(report: FloorPatient, at: string, by: string): 
     chief: '',
     dismissed: '',
     placedAt: '',
+    division: '',
     addedAt: at,
     log: [{ at, by, what: 'Masuk list' }],
   };

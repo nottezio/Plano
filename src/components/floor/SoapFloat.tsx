@@ -7,7 +7,9 @@ import { readReports, type FloorPatient } from '@/domain/floorList/report';
 import { copyText } from '@/lib/clipboard';
 import { useBackToClose } from '@/lib/useBackToClose';
 import { useMediaQuery } from '@/hooks/useMediaQuery';
+import type { FloorDoc, RosterPatient } from '@/domain/floorList/floor';
 import { DeletePatient } from './DeletePatient';
+import { PatientControls } from './PatientControls';
 import { SoapParts } from './SoapParts';
 
 /**
@@ -69,17 +71,21 @@ export function SoapFloat({
   onClose,
   floorId,
   editable,
+  control,
 }: {
   patient: FloorPatient | null;
   onClose: () => void;
   floorId?: string | undefined;
   editable?: boolean | undefined;
+  /** The roster entry and what the controls need (13.9): "Atur" opens the patient's control panel. */
+  control?: { floor: FloorDoc; entry: RosterPatient; date: string; myName: string } | undefined;
 }): JSX.Element | null {
   const [copied, setCopied] = useState(false);
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState('');
   const [error, setError] = useState('');
   const [saving, setSaving] = useState(false);
+  const [atur, setAtur] = useState(false);
   const floating = useMediaQuery('(min-width: 640px)');
   const [geometry, setGeometry] = useState<Geometry | null>(null);
   const drag = useRef<{ kind: 'move' | 'resize'; startX: number; startY: number; from: Geometry } | null>(null);
@@ -229,12 +235,30 @@ export function SoapFloat({
             >
               {copied ? 'Tersalin' : 'Salin'}
             </button>
+            {editable && control ? (
+              <button
+                type="button"
+                onClick={() => setAtur((now) => !now)}
+                aria-expanded={atur}
+                className={`min-h-tap rounded-lg border px-3 text-xs font-medium ${atur ? 'border-accent bg-accent text-white' : 'border-border'}`}
+              >
+                Atur pasien
+              </button>
+            ) : null}
+            <span className="flex-1" />
             {editable && floorId ? (
               <DeletePatient floorId={floorId} patientKey={patient.key} name={patient.name} onDeleted={onClose} compact />
             ) : null}
           </div>
         ) : null}
       </header>
+      {atur && editable && control && !editing ? (
+        // The control panel (13.9): the same controls as the List card, here
+        // for a patient tapped on the denah.
+        <div className="max-h-[40dvh] shrink-0 overflow-y-auto border-b border-border px-4 pb-3">
+          <PatientControls floor={control.floor} entry={control.entry} patient={patient} date={control.date} myName={control.myName} onGone={onClose} narrow />
+        </div>
+      ) : null}
 
       {editing ? (
         <div className="flex min-h-0 flex-1 flex-col gap-2 p-3">

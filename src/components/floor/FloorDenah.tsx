@@ -5,6 +5,7 @@ import { planRooms, type DenahRoomSlot, type WardPlan } from '@/domain/denahPlan
 import { byRoute, dpjpTitle, isPediatri, LIST_DPJP_ORDER, PEDIATRI_DPJP_IDS } from '@/domain/floorList/build';
 import { markCss, type FloorMark } from '@/domain/floorList/marks';
 import type { FloorPatient } from '@/domain/floorList/report';
+import { residentGroups } from '@/domain/floorList/residents';
 import { matchesSearch } from '@/domain/floorList/search';
 import { placeBeds } from '@/domain/floorList/beds';
 import { planLayout } from '@/domain/floorList/layout';
@@ -234,14 +235,8 @@ export function FloorDenah({
   );
   const order = [...LIST_DPJP_ORDER, ...extra, ...PEDIATRI_DPJP_IDS];
 
-  // Residents: chief counts, then one block per junior.
-  const chiefs = new Map<string, number>();
-  const juniors = new Map<string, FloorPatient[]>();
-  for (const p of shown) {
-    if (p.chief) chiefs.set(p.chief, (chiefs.get(p.chief) ?? 0) + 1);
-    const key = p.junior || '(belum diisi)';
-    juniors.set(key, [...(juniors.get(key) ?? []), p]);
-  }
+  // Residents: chief counts, one block per junior, then division patients (13.9).
+  const { chiefs, juniors, divisions } = residentGroups(shown);
 
   return (
     <div className="space-y-6">
@@ -353,17 +348,15 @@ export function FloorDenah({
       </Section>
 
       <Section title="Residen">
-        {chiefs.size > 0 ? (
-          <p className="text-[12px]">
-            {[...chiefs].map(([name, n]) => `dr. ${name} ${n}`).join(' · ')}
-          </p>
-        ) : null}
+        {chiefs.length > 0 ? <p className="text-[12px]">{chiefs.map(([name, n]) => `dr. ${name} ${n}`).join(' · ')}</p> : null}
         <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3">
-          {[...juniors].map(([name, list]) => (
+          {[...juniors, ...divisions].map(([name, list]) => (
             <div key={name} className="rounded-lg border border-border bg-surface p-2">
-              <p className="text-[12px] font-bold">{name}</p>
-              {list.map((p) => (
-                <PatientButton key={p.key} patient={p} onOpen={onOpen} />
+              <p className="text-[12px] font-bold">
+                {name} <span className="font-normal text-fg-muted">({list.length}{name.startsWith('Divisi ') ? ', tidak di-FU' : ''})</span>
+              </p>
+              {list.map((p, i) => (
+                <PatientButton key={p.key} patient={p} number={i + 1} onOpen={onOpen} />
               ))}
             </div>
           ))}

@@ -4,6 +4,7 @@ import {
   canEdit,
   chiefsOf,
   colourOn,
+  divisionOf,
   effective,
   isOwner,
   leftNote,
@@ -139,6 +140,23 @@ describe('suggestionFor (a chip, never applied by itself)', () => {
     expect(suggestionFor(rostered({ body }, { status: 'pulang' }), '2026-10-12')).toBeNull();
     // A newer SOAP after a dismissal is offered again.
     expect(suggestionFor(rostered({ body, sentAt: '2026-10-12T09:00' }, { dismissed: '2026-10-12T07:00' }), '2026-10-12')).toBe('today');
+  });
+});
+
+describe('division patients (13.9)', () => {
+  const one = { ...FLOOR, chiefs: 'Kepala' };
+
+  it('"KJS ARITMIA" in the identity: held by the division, no ward junior or chief', () => {
+    const entry = rostered({ identity: 'Ny. Contoh / RM 00554408 - KJS ARITMIA', junior: '', senderNick: '' });
+    expect(divisionOf(entry)).toBe('Aritmia');
+    expect(effective(entry, one, '2026-10-12')).toMatchObject({ division: 'Aritmia', junior: '', chief: '' });
+  });
+
+  it('set by hand either way; KJS BTKV is not a division', () => {
+    expect(divisionOf(rostered({}, { division: 'Intervensi' }))).toBe('Intervensi');
+    expect(divisionOf(rostered({ identity: 'X - KJS Aritmia' }, { division: '-' }))).toBe('');
+    expect(effective(rostered({ identity: 'X - KJS Aritmia' }, { division: '-' }), one, '2026-10-12')).toMatchObject({ chief: 'Kepala' });
+    expect(divisionOf(rostered({ identity: 'Tn. Contoh (KJS BTKV)' }))).toBe('');
   });
 });
 
