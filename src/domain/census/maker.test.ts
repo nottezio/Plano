@@ -7,8 +7,11 @@ import {
   dpjpFullName,
   entriesFor,
   knownCodes,
+  parseLists,
   parseSource,
+  patientCount,
   segmentCodes,
+  splitLists,
   unassigned,
   type ParsedSource,
 } from './maker';
@@ -558,8 +561,10 @@ describe('2026-10-09 list shapes', () => {
   });
 
   it('does not read a bare room number as a patient number', () => {
+    // Since 2026-10-14 an unnumbered patient line is read (lists do send
+    // them); what must not happen is "512" becoming patient 51 in "2 bed 2".
     const source = parseSource('List Pasien PJT Lantai 4\n512 bed 2/Tn. Contoh/RM 1700002/dr.ARB\n');
-    expect(source.entries).toHaveLength(0);
+    expect(source.entries.map((entry) => [entry.place, entry.asWritten])).toEqual([['LT5', '512 bed 2/Tn. Contoh/RM 1700002/dr.ARB']]);
   });
 
   it('reads "Diagnosis Utama" and "Diagnosis Sekunder" as one block', () => {
@@ -826,5 +831,167 @@ describe('IGD and CVCU list shapes (12.12, Avi: DPJP often not read)', () => {
       'CVCU Bed 15/ Tn.Contoh Lima / 56 tahun / 20-05-1970/ RM 1700005/ Prof MZ',
       'HCU Bed 3/ Nn. Contoh Enam / 12-06-2007 / 19 tahun / RM 1700006/dr. KS (KJS BTKV)',
     ]);
+  });
+});
+
+/*
+  2026-10-14 (Avi: "the sensus maker can't detect this format"). Three shapes
+  of the 14-10 lists, invented names and RMs:
+  - the morning lists pasted into ONE box, hospital lists with their
+    "Pasien Baru / Pulang" block above the greeting;
+  - the IGD list with no numbers on its patient lines;
+  - a two-letter resident tag "(Ai)" after the RSWS line.
+*/
+const IGD_BARE = `Tabe dokter izin mengirimkan List Pasien IGD PJT *Rabu, 14-10-2026, pukul 06.00 WITA*
+
+Total Pasien: 2 Pasien
+
+🔴 Red Zone: 2 Pasien
+
+IGD Redzone Bed 1 Ny. Contoh Igd / 15-08-1957 / 69 tahun / RM 1700101 / dr MAA -> dr AHA
+_Sementara diterima_
+Diagnosis:
+- NSTEMI Very High Risk
+- Acute Lung Edema
+Plan:
+- Rawat CVCU
+
+IGD Redzone bed 3/ Ny Contoh Dua/RM 1700102 / Prof IM
+Diagnosis:
+- Hypertensive Urgency
+Plan
+- Pindah perawatan HCU
+
+🟡 Yellow zone : 1 pasien
+
+Bed 10/ Pasien Pulmo
+
+🚑 Sisrute: 1 pasien
+1. RS Contoh/Ny Rujukan/NSTEACS/sudah acc
+
+Tabe terima kasih, Dokter.`;
+
+const RSWS_14 = `*Pasien Baru*
+1. IM / Lontara 4 Belakang, Kamar 4 Bed 3 / Ny. Contoh Baru / 31-12-1950 / 75 tahun / 1700201
+
+*Pasien Pulang / Lepas Rawat*
+1. AHA/ PCC 304/ Ny. Contoh Pulang / 19-04-1984/ 42 tahun/ 1700202 /  Pulang
+
+*Pasien Pindah*
+-
+
+============================
+
+*Assalamualaikum, dokter. Tabe dokter, izin mengirimkan List Pasien dan List Pemantauan RSWS Rabu, 14-10-2026 Jam 05.00 WITA*
+
+Total Jumlah Pasien : 3
+
+============================
+*dr. KS : 1 Pasien*
+1. PCC Lt4 Kamar 402 / Ny Contoh Tiga / 28-09-1982 / 44thn / 1700203 (Ai)
+Diagnosis:
+VES Lown Grade 2
+
+============================
+*dr.  PT : 1 Pasien*
+🔵 1. PT / IC Lt.1 K4B1 / Tn. Contoh Empat / 21-01-1981 / 45 Tahun / 01700204 (Ai)
+Diagnosis:
+- Congestive Heart Failure (HFrEF)
+
+============================
+*Prof. IM : 1 Pasien*
+1 IM / Lontara 4 Belakang, Kamar 4 Bed 3 / Ny. Contoh Baru / 31-12-1950 / 75 tahun / 1700201 (Iska)
+Diagnosis:
+- Moderate Aortic Stenosis
+
+============================
+
+dr. AHN : 0 Pasien / dr. AFM : 0 Paisen
+
+Tabe terima kasih dokter.`;
+
+const LT6_BARE = `Tabe dokter izin mengirimkan List Pasien Lt. 5 dan Lt. 6  (14 oktober 2026) Pukul :04.00 WITA
+______________________________
+ dr. YP : 1  Pasien
+511 bed 3/ny.Contoh Lima/7-3-1990/
+Compos Mentis
+TD : 102/71 mmhg
+______________________________
+List Pasien Lt. 6  0  pasien`;
+
+describe('lists of 14-10-2026', () => {
+  it('reads IGD patient lines that carry no number, and not the empty bed or the referral', () => {
+    const [igd] = parseAll(IGD_BARE);
+    expect(igd!.entries.map((entry) => entry.key)).toEqual(['rm:1700101', 'rm:1700102']);
+    expect(entriesFor([igd!], 'AHA')[0]).toMatchObject({ place: 'IGD', diagnoses: ['- NSTEMI Very High Risk', '- Acute Lung Edema'] });
+    expect(entriesFor([igd!], 'IM')).toHaveLength(1);
+  });
+
+  it('reads an unnumbered ward patient line, and ends it at a vitals line', () => {
+    const [ward] = parseAll(LT6_BARE);
+    const yp = entriesFor([ward!], 'YP');
+    expect(yp.map((entry) => [entry.place, entry.asWritten])).toEqual([['LT5', '511 bed 3/ny.Contoh Lima/7-3-1990']]);
+    expect(yp[0]!.diagnoses).toEqual([]);
+  });
+
+  it('drops a two-letter resident tag and counts a "Pasien Baru" patient once', () => {
+    const [rsws] = parseAll(RSWS_14);
+    expect(entriesFor([rsws!], 'KS').map((entry) => entry.asWritten)).toEqual([
+      'PCC Lt4 Kamar 402 / Ny Contoh Tiga / 28-09-1982 / 44thn / 1700203',
+    ]);
+    expect(entriesFor([rsws!], 'PT')[0]!.asWritten).toBe('PT / IC Lt.1 K4B1 / Tn. Contoh Empat / 21-01-1981 / 45 Tahun / 01700204');
+    expect(entriesFor([rsws!], 'AHA')).toHaveLength(0); // pulang
+    expect(rsws!.entries).toHaveLength(4);
+    expect(patientCount(rsws!)).toBe(3);
+  });
+
+  describe('several lists pasted into one box', () => {
+    const joined = [IGD_BARE, RSWS_14, LT6_BARE].join('\n\n');
+
+    it('cuts at each list, keeping a hospital list\'s "Pasien Baru" block with it', () => {
+      const parts = splitLists(joined);
+      expect(parts).toHaveLength(3);
+      expect(parts[0]).toMatch(/^Tabe dokter izin mengirimkan List Pasien IGD/);
+      expect(parts[0]).toMatch(/Tabe terima kasih, Dokter\.\s*$/);
+      expect(parts[1]).toMatch(/^\*Pasien Baru\*/);
+      expect(parts[2]).toMatch(/^Tabe dokter izin mengirimkan List Pasien Lt\. 5/);
+      // The Lt. 6 section is part of the Lt. 5 and 6 list, not a list of its own.
+      expect(parts[2]).toContain('List Pasien Lt. 6  0  pasien');
+    });
+
+    it('files each patient under its own list', () => {
+      const sources = parseLists(joined);
+      expect(sources.map((source) => [source.kind, patientCount(source)])).toEqual([
+        ['pjt-igd', 2],
+        ['rsws', 3],
+        ['pjt-ward', 1],
+      ]);
+      expect(entriesFor(sources, 'IM').map((entry) => entry.place)).toEqual(['IGD', 'RSWS']);
+      const text = buildCensus({ sources, code: 'IM', date: '2026-10-14', address: 'prof' }).text;
+      expect(text).toContain('*RSWS : 1 pasien*');
+      expect(text).toContain('*IGD PJT : 1 pasien*');
+    });
+
+    it('cuts without a closing line by walking back to the "Pasien Baru" heading', () => {
+      const noClosing = [IGD_BARE.replace(/\nTabe terima kasih, Dokter\.$/, '\n- Konsul TS lain'), RSWS_14].join('\n\n');
+      const parts = splitLists(noClosing);
+      expect(parts).toHaveLength(2);
+      expect(parts[0]).toMatch(/- Konsul TS lain\s*$/);
+      expect(parts[1]).toMatch(/^\*Pasien Baru\*/);
+    });
+
+    it('cuts at a hand separator or a WhatsApp message stamp', () => {
+      expect(splitLists([IGD_BARE, '///////////', RSWS_14].join('\n'))[1]).toMatch(/^\*Pasien Baru\*/);
+      const stamped = [`[14/10/26 06.10] Kirana: ${IGD_BARE}`, `[14/10/26 05.12] Bima: ${RSWS_14}`].join('\n');
+      expect(splitLists(stamped)[1]).toMatch(/^\[14\/10\/26 05\.12\] Bima: \*Pasien Baru\*/);
+    });
+
+    it('keeps one list whole, so its line numbers do not move', () => {
+      expect(splitLists(RSWS_14)).toEqual([RSWS_14]);
+    });
+
+    it('treats a box whose kind was chosen by hand as one list', () => {
+      expect(parseLists(joined, undefined, 'rsws')).toHaveLength(1);
+    });
   });
 });

@@ -1,5 +1,61 @@
 # Plano — CHANGES
 
+## `2026-10-14.1` — Sensus: several lists in one box; unnumbered patient lines
+
+Avi: "the sensus maker can't detect this format" (the RSWS list of 14-10,
+then the six morning lists as one text).
+
+- **Root cause 1 — a box was assumed to be one list.** `parseSource` takes
+  the kind and the place from the FIRST "List Pasien" header it finds. With
+  IGD, RSUH, RSWS, Lt. 5-6, CVCU and Lt. 4 pasted into one box, all 73
+  patients were filed as "IGD PJT", and the census covered only IGD. Each
+  list read alone was correct (RSWS 19 = its own "Total : 19"), which is why
+  the RSWS list by itself looked fine in tests and wrong in use.
+  **Fix:** `splitLists` cuts a box at each list header before parsing;
+  `SensusMaker` parses every part as its own source, keeps `texts[i]` beside
+  `sources[i]` so "Bandingkan" still points at the right lines, and the box
+  header shows "6 list dalam satu kotak" with a per-list line under it. The
+  cut is placed, in order of trust: at a WhatsApp message stamp or a hand
+  "/////" break; after the previous list's "Tabe terima kasih" line; else by
+  walking back from the header over blanks, separators, "-", section
+  headings, patient lines and greetings to the first heading — so the
+  RSWS/RSUH "Pasien Baru / Pulang / Pindah / Meninggal" block, which sits
+  ABOVE their greeting, stays with its list. "List Pasien Lt. 6 0 pasien"
+  inside the Lt. 5-6 list is a floor section, not a new list. A box whose
+  kind was chosen by hand is not split (the choice says what it is); a box
+  with one list comes back unchanged, so stored line spans don't move.
+- **Root cause 2 — a patient was only ever read from a numbered line.** The
+  14-10 IGD list numbers none ("IGD Redzone Bed 1 Ny. … / RM … / dr MAA ->
+  dr AHA"): 0 of 4 patients read. The Lt. 6 dr. YP patient ("511 bed 3/ny.…/
+  7-3-1990/") was lost the same way. **Fix:** `isBareEntry` — a line that
+  starts with a place (room number, IGD, zone, bed, kamar, Lontara, PCC,
+  CVCU/HCU/ICU), has a "/" and names a person, RM or birth date is a patient;
+  it also ends the previous patient's diagnosis block. "Bed 10/ Pasien
+  Pulmo", doses and vitals do not qualify.
+- **Box count.** It showed entries (RSWS 20: one patient is in "Pasien Baru"
+  and again below). Now `patientCount` counts by RM: 19, as the list says.
+- **"(Ai)"** — a two-letter resident tag was kept on the census line (the
+  nickname rule wanted 3+ letters). Now 2+.
+- Checked against the real 14-10 paste (scratchpad only, not committed):
+  IGD 4, RSUH 6, RSWS 19, Lt. 5-6 21, CVCU 22, Lt. 4 20 — matching each
+  list's own totals; CVCU's "26" includes 4 Pedi/BTKV-Pedi beds with no
+  patient line. Same result with the "/////" breaks removed.
+
+Wrong turns: first ran the RSWS list alone through `parseSource` — it read
+all 19, so the bug looked like it was elsewhere; the combined paste Avi sent
+next showed the one-box assumption. One old test asserted that an
+unnumbered "512 bed 2/Tn…/dr.ARB" line yields NO patient; its purpose was
+to stop "512" reading as patient 51, and the zero was the side-effect that
+dropped the YP patient. Rewritten to assert the room stays "512 bed 2".
+
+Not done: a WhatsApp multi-message copy prefixes each message's first line
+with "[stamp] Name:"; the split handles it, but a "Pasien Baru" heading on a
+stamped line is not recognised as a heading inside the parser (none of the
+current lists hit this).
+
+Verify: typecheck, lint (0 warnings), 2452 tests (169 files), version,
+contrast, a11y, build — green.
+
 ## `2026-10-13.15` — List Maker revamp (phone head, readable List, export card, grouped controls); colour palettes
 
 - **Phone layout broken (Avi).** Root cause: one wrapping flex row held the

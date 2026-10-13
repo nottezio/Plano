@@ -22,6 +22,8 @@ import {
   type CensusEntry,
   knownCodes,
   parseSource,
+  patientCount,
+  splitLists,
   aiGroups,
   checkAiCensus,
   aiPatientKey,
@@ -134,11 +136,24 @@ export function SensusMaker(): JSX.Element {
   const inputSync = useSensusInputSync(uid, store, setStore, today);
 
   const filled = state.lists.filter((list) => list.text.trim());
-  const sources: ParsedSource[] = useMemo(() => {
+  /**
+   * Every list in every box, in order (2026-10-14): a box may hold several —
+   * the morning lists pasted together — and each is parsed as its own list.
+   * `texts[i]` is the text `sources[i]` was read from, so "Bandingkan" points
+   * at the right lines; `boxOf[i]` is the box it came from.
+   */
+  const { sources, texts, boxOf } = useMemo(() => {
     const kinds = filled.map((list) => (list.kind === 'auto' ? undefined : list.kind));
-    const first = filled.map((list, index) => parseSource(list.text, undefined, kinds[index]));
-    const known = knownCodes(first);
-    return filled.map((list, index) => parseSource(list.text, known, kinds[index]));
+    const parts = filled.flatMap((list, box) =>
+      (kinds[box] ? [list.text] : splitLists(list.text)).map((text) => ({ text, box })),
+    );
+    const parse = (known?: ReadonlySet<string>): ParsedSource[] =>
+      parts.map((part) => parseSource(part.text, known, kinds[part.box]));
+    return {
+      sources: parse(knownCodes(parse())),
+      texts: parts.map((part) => part.text),
+      boxOf: parts.map((part) => part.box),
+    };
     // `filled` is derived from state.lists on every render.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [day.lists]);
@@ -210,11 +225,9 @@ export function SensusMaker(): JSX.Element {
   const aiCheck = useMemo(
     () =>
       aiAll && rules
-        ? checkAiCensus({ ai: aiAll, rules: rules.entries, sources, texts: filled.map((list) => list.text) })
+        ? checkAiCensus({ ai: aiAll, rules: rules.entries, sources, texts })
         : null,
-    // `filled` follows day.lists, which `sources` already tracks.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [aiAll, rules, sources],
+    [aiAll, rules, sources, texts],
   );
   /** Change the AI's patient list for this DPJP (the check's one-tap fixes). */
   const editAi = (change: (patients: AiPatient[]) => AiPatient[]): void => {
@@ -253,7 +266,7 @@ export function SensusMaker(): JSX.Element {
         tool: SENSUS_AI_TOOL,
         prompt: sensusAiPrompt({
           code,
-          texts: filled.map((list) => list.text),
+          texts,
           style: state.style,
           candidates: rules?.entries ?? [],
           noCode: missing,
@@ -413,7 +426,7 @@ export function SensusMaker(): JSX.Element {
         comparison ? (
           <SensusCompare
             comparison={comparison}
-            texts={filled.map((list) => list.text)}
+            texts={texts}
             labels={sources.map((source) => source.label)}
             covers={sources.map((source) =>
               source.covers.length > 0 ? source.covers : [...new Set(source.entries.map((entry) => entry.place))],
@@ -441,7 +454,7 @@ export function SensusMaker(): JSX.Element {
       <div className="min-w-0 space-y-6">
         <Section
           title="1 · Tempel list ruangan"
-          hint="Satu kotak per pesan: PJT Lantai 4, Lantai 5 dan 6, CVCU/HCU/ICU, RSWS, RSUH — tempel apa adanya. Jenis list dikenali dari judulnya. Kotak-kotak ini milik tanggal sensus di atas: tiap tanggal punya kotaknya sendiri. Tersimpan di akun (Synced ke semua perangkat, tetap ada setelah keluar), 7 hari."
+          hint="Tempel list PJT Lantai 4, Lantai 5 dan 6, CVCU/HCU/ICU, IGD, RSWS, RSUH apa adanya — satu kotak per pesan, atau semuanya sekaligus dalam satu kotak: tiap list dipisah dan dikenali dari judulnya. Kotak-kotak ini milik tanggal sensus di atas: tiap tanggal punya kotaknya sendiri. Tersimpan di akun (Synced ke semua perangkat, tetap ada setelah keluar), 7 hari."
         >
           <div className="flex flex-wrap items-end gap-2">
             <Field label="Tanggal sensus">
@@ -471,16 +484,19 @@ export function SensusMaker(): JSX.Element {
           ) : null}
           <div className="space-y-3">
             {state.lists.map((list, index) => {
-              const parsed = list.text.trim() ? sources[filled.indexOf(list)] : undefined;
+              const box = filled.indexOf(list);
+              const parsedAll = box >= 0 ? sources.filter((_, i) => boxOf[i] === box) : [];
               return (
                 <div key={index} className="overflow-hidden rounded-xl border border-border bg-surface">
                   <div className="flex flex-wrap items-center gap-2 border-b border-border px-3 py-1.5">
                     <span className="min-w-0 flex-1 truncate text-xs">
                       <span className="font-semibold">List {index + 1}</span>
-                      {parsed ? (
+                      {parsedAll.length > 0 ? (
                         <span className="text-fg-muted">
                           {' '}
-                          · {parsed.label} · {parsed.entries.length} pasien
+                          {parsedAll.length > 1
+                            ? `· ${parsedAll.length} list dalam satu kotak`
+                            : `· ${parsedAll[0]!.label} · ${patientCount(parsedAll[0]!)} pasien`}
                         </span>
                       ) : null}
                     </span>
@@ -516,7 +532,16 @@ export function SensusMaker(): JSX.Element {
                       <IconTrash className="h-4 w-4" />
                     </button>
                   </div>
-                  {parsed && parsed.kind === 'unknown' ? (
+                  {parsedAll.length > 1 ? (
+                    <ul className="flex flex-wrap gap-x-3 gap-y-0.5 border-b border-border px-3 py-1 text-[11px] text-fg-muted">
+                      {parsedAll.map((one, i) => (
+                        <li key={i}>
+                          <span className="font-medium text-fg">{one.label}</span> · {patientCount(one)} pasien
+                        </li>
+                      ))}
+                    </ul>
+                  ) : null}
+                  {parsedAll.some((one) => one.kind === 'unknown') ? (
                     <p className="border-b border-border bg-[var(--warn-soft)] px-3 py-1 text-[11px]">
                       Jenis list tidak dikenali dari judulnya — pilih di kanan atas.
                     </p>

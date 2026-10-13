@@ -248,6 +248,119 @@ export function detectSource(text: string): {
 }
 
 // ───────────────────────────────────────────────────────────────
+// Several lists in one box
+// ───────────────────────────────────────────────────────────────
+
+/*
+  2026-10-14 (Avi: "the sensus maker can't detect this format"). The six
+  morning lists were pasted into ONE box. A box was taken to be one list:
+  `detectSource` read the first header (IGD) and filed all 68 patients —
+  RSWS, RSUH, CVCU, Lt. 4-6 — under "IGD PJT", covering only IGD. So a box
+  is now cut into lists at each list header before it is parsed.
+
+  Where one list ends and the next begins is not always the header line: the
+  hospital lists put their "Pasien Baru / Pulang / Pindah / Meninggal" block
+  ABOVE the greeting. The cut is, in order of trust:
+    1. a break the paste itself carries: a WhatsApp message stamp
+       ("[14/10/26 05.12] Nama: …", "14/10/26 05.12 - Nama: …") or a hand
+       separator ("///////");
+    2. after the previous list's closing line ("Tabe terima kasih dokter");
+    3. else walking back from the header over blank lines, separators, "-",
+       section headings, patient lines and greetings, to the first section
+       heading or greeting — never over a diagnosis or plan line, which
+       belongs to the list above.
+*/
+const SLASH_BREAK_RE = /^\s*\/{5,}\s*$/;
+const STAMP_RE = /^\s*(?:\[\d{1,2}[./-]\d{1,2}(?:[./-]\d{2,4})?,?\s+\d{1,2}[.:]\d{2}(?:[.:]\d{2})?\s*\]|\d{1,2}[./-]\d{1,2}[./-]\d{2,4},?\s+\d{1,2}[.:]\d{2}\s+-\s)/;
+const CLOSING_RE = /^(?:tabe\b.*\bterima\s*kasih|terima\s*kasih\b)/i;
+const GREETING_RE = /^(?:assalamu|tabe\s+dok|mohon\s+i[zj]in\s+mengirim)/i;
+/** "List Pasien Lt. 6  0 pasien" inside the Lt. 5 and 6 list: a section of that list, not a new one. */
+const FLOOR_SECTION_RE = /^list\s+pasien\s+(?:lantai|lt)\.?\s*[456]\b/i;
+
+function headerKind(line: string): SourceKind | null {
+  const text = plain(line).replace(STAMP_RE, '');
+  if (!/list\s+pasien/i.test(text) || /^\d/.test(text)) return null;
+  const kind = detectSource(text).kind;
+  return kind === 'unknown' ? null : kind;
+}
+
+/**
+ * One box's text cut into lists. A box with one list (or none recognised)
+ * comes back whole, so its line numbers — what "Bandingkan" points at — are
+ * unchanged.
+ */
+export function splitLists(text: string): string[] {
+  const lines = text.split(/\r?\n/);
+  const headers: number[] = [];
+  let lastKind: SourceKind | null = null;
+  lines.forEach((line, index) => {
+    const kind = headerKind(line);
+    if (!kind) return;
+    if (lastKind === 'pjt-ward' && kind === 'pjt-ward' && FLOOR_SECTION_RE.test(plain(line))) return;
+    headers.push(index);
+    lastKind = kind;
+  });
+  if (headers.length < 2) return [text];
+
+  const cuts = [0];
+  for (let h = 1; h < headers.length; h += 1) {
+    const from = headers[h - 1]! + 1;
+    const at = headers[h]!;
+    let cut = -1;
+    for (let k = at; k >= from; k -= 1) {
+      if (STAMP_RE.test(lines[k]!)) {
+        cut = k;
+        break;
+      }
+      if (k < at && SLASH_BREAK_RE.test(lines[k]!)) {
+        cut = k + 1;
+        break;
+      }
+    }
+    if (cut < 0) {
+      for (let k = at - 1; k >= from; k -= 1) {
+        if (CLOSING_RE.test(plain(lines[k]!))) {
+          cut = k + 1;
+          break;
+        }
+      }
+    }
+    if (cut < 0) {
+      cut = at;
+      for (let k = at - 1; k >= from; k -= 1) {
+        const raw = lines[k]!;
+        const flat = plain(raw);
+        const heading = EXCLUDED_SECTION_RE.test(flat) || NEW_SECTION_RE.test(flat) || GREETING_RE.test(flat);
+        if (heading) {
+          cut = k;
+          continue;
+        }
+        if (!flat || flat === '-' || isSeparator(raw) || ENTRY_RE.test(flat)) continue;
+        break;
+      }
+    }
+    while (cut < at && !lines[cut]!.trim()) cut += 1;
+    cuts.push(cut);
+  }
+  cuts.push(lines.length);
+  return cuts.slice(0, -1).map((start, index) => lines.slice(start, cuts[index + 1]).join('\n'));
+}
+
+/**
+ * Every list in one box. A box whose kind the user chose by hand is one list
+ * of that kind, as before: the choice says what the box is.
+ */
+export function parseLists(text: string, known?: ReadonlySet<string>, kindOverride?: SourceKind): ParsedSource[] {
+  if (kindOverride) return [parseSource(text, known, kindOverride)];
+  return splitLists(text).map((part) => parseSource(part, known));
+}
+
+/** Patients in a list, each once ("Pasien Baru" names some twice). What the box header counts. */
+export function patientCount(source: ParsedSource): number {
+  return new Set(source.entries.map((entry) => entry.key)).size;
+}
+
+// ───────────────────────────────────────────────────────────────
 // Parsing one list
 // ───────────────────────────────────────────────────────────────
 
@@ -275,6 +388,22 @@ const ICU_LOCATION_RE = /^\(?\s*(?:cvcu|hcu|icu)\b/i;
  * "1. ICU 5" was skipped, and the patients under them were read as that
  * patient's plan. The patient is on the next line, so a bed line has no "/".
  */
+/**
+ * A patient line with NO number (2026-10-14). The parser took a patient only
+ * from a numbered line, so a list that does not number them lost them all:
+ * the IGD list of 14-10 ("IGD Redzone Bed 1 Ny. … / RM … / dr MAA -> dr AHA",
+ * 4 patients, 0 read) and the one dr. YP patient of Lt. 6 ("511 bed 3/ny.…/
+ * 7-3-1990/"). It must start with a place — a room number, IGD, a zone, a
+ * bed, a ward — and name a person, an RM or a birth date, so a dose ("500
+ * cc/24 jam"), a blood pressure or "Bed 10/ Pasien Pulmo" never reads as one.
+ */
+const BARE_PLACE_RE =
+  /^(?:\d{3}\b|igd\b|(?:red|yellow|green|blue|orange)\s*zone\b|bed\s*\d|kamar\s*\d|lontara\b|pcc\b|cvcu\b|hcu\b|icu\b)/i;
+
+function isBareEntry(flat: string): boolean {
+  return BARE_PLACE_RE.test(flat) && flat.includes('/') && IDENTITY_RE.test(flat);
+}
+
 function isIcuBedLine(text: string): boolean {
   const body = text.replace(NUMBER_STRIP_RE, '').trim();
   return ICU_LOCATION_RE.test(body) && !body.includes('/') && body.length <= 40 && !IDENTITY_RE.test(body);
@@ -380,15 +509,16 @@ function segments(line: string): Segment[] {
 function tidy(text: string): string {
   return text
     .replace(/^[\s/]+|[\s/*]+$/g, '')
-    // A resident's nickname in brackets at the end — "(Resa)", "(Tika)" —
-    // is for the ward, not the consultant. Capitalised words only: "(EP)"
-    // and "(KJS …)" say something about the patient and stay.
-    .replace(/\s*\(\s*[A-Z][a-z]{2,10}\s*\)\s*$/, '')
+    // A resident's nickname in brackets at the end — "(Resa)", "(Tika)",
+    // "(Ai)" (RSWS 14-10: two letters, which the old {2,} lower-case bound
+    // kept) — is for the ward, not the consultant. Capitalised words only:
+    // "(EP)" and "(KJS …)" say something about the patient and stay.
+    .replace(/\s*\(\s*[A-Z][a-z]{1,10}\s*\)\s*$/, '')
     // The CVCU list's resident pair, after the code or on the bed line —
     // "(Haliim - Hendra)", "(Arago - dr. Hendra)", "(Findy-Angga)" (12.12) —
     // is the ward's, like the single nickname above.
     .replace(/\s*\(\s*(?:dr\.?\s*)?[A-Z][a-z]{2,12}\s*-\s*(?:dr\.?\s*)?[A-Z][a-z]{2,12}\s*\)/g, '')
-    .replace(/\s*\(\s*[A-Z][a-z]{2,10}\s*\)\s*$/, '')
+    .replace(/\s*\(\s*[A-Z][a-z]{1,10}\s*\)\s*$/, '')
     .replace(/[\s/*]+$/, '');
 }
 
@@ -545,7 +675,9 @@ export function parseSource(text: string, known?: ReadonlySet<string>, kindOverr
     }
 
     const icuBed = kind === 'pjt-icu' && isIcuBedLine(text);
-    const entry = ENTRY_RE.exec(text) ?? (icuBed ? ([text, undefined, undefined, text] as unknown as RegExpExecArray) : null);
+    const entry =
+      ENTRY_RE.exec(text) ??
+      (icuBed || isBareEntry(text) ? ([text, undefined, undefined, text] as unknown as RegExpExecArray) : null);
     if (!entry) {
       const code = sectionDpjp(raw);
       if (code) {
@@ -594,6 +726,7 @@ export function parseSource(text: string, known?: ReadonlySet<string>, kindOverr
       if (ENTRY_RE.test(flat) && (flat.includes('/') || ICU_LOCATION_RE.test(flat.replace(ENTRY_RE, '$3')))) break;
       // The next bed, numbered or not, ends this patient.
       if (kind === 'pjt-icu' && isIcuBedLine(flat)) break;
+      if (isBareEntry(flat)) break;
       if (isSeparator(line)) break;
       if (!/^\s*\d/.test(flat) && sectionDpjp(line)) break;
       if (EXCLUDED_SECTION_RE.test(flat) || NEW_SECTION_RE.test(flat) || SISRUTE_RE.test(flat) || ZONE_RE.test(flat)) break;

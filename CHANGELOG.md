@@ -5,6 +5,12 @@ Catatan teknis lengkap (akar masalah, perbaikan) ada di CHANGES.md.
 
 Entri teratas harus versi yang sedang dirilis; tes gagal bila belum ditulis.
 
+## `2026-10-14.1`
+- **Buat Sensus: semua list boleh ditempel sekaligus dalam satu kotak.** Sebelumnya satu kotak dianggap satu list, sehingga bila IGD, RSUH, RSWS, Lantai 5–6, CVCU, dan Lantai 4 ditempel bersama, semua pasien masuk ke "IGD PJT". Kini tiap list dipisah dan dikenali dari judulnya, termasuk bagian "Pasien Baru / Pulang" yang ada di atas salam list RSWS dan RSUH. Di atas kotak tampil rincian tiap list dan jumlah pasiennya.
+- **List IGD tanpa nomor pasien kini terbaca.** Baris seperti "IGD Redzone Bed 1 Ny. … / RM … / dr MAA -> dr AHA" sebelumnya terlewat semua (0 pasien). Hal yang sama berlaku untuk pasien Lantai 5–6 yang ditulis tanpa nomor ("511 bed 3/ny.…").
+- **Jumlah pasien di kotak kini dihitung sekali per pasien.** Pasien yang tercantum di "Pasien Baru" dan juga di bawahnya tidak lagi terhitung dua kali (RSWS: 19, sesuai list).
+- Tanda residen dua huruf seperti "(Ai)" kini dibuang dari baris sensus, sama seperti "(Iska)".
+
 ## `2026-10-13.15`
 - **Tampilan List Maker diperbarui.**
   - **HP:** tanggal dan chief tidak lagi berantakan, dan keenam tab muat di layar.
