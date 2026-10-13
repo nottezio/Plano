@@ -426,6 +426,18 @@ describe('a sent List Pasien, read back (12.12)', () => {
     ]);
   });
 
+  it('"FU" marks the junior wherever it is written', () => {
+    const list = readReports(
+      msg(
+        'mengirimkan List Pasien\n---------\n🫀 dr. KS : 2 pasien\n1. 420 bed 2/KS/Tn. Contoh Satu / RM 1600001 / FU Bima - dr. Kepala\n2. 420 bed 4/KS/Tn. Contoh Dua / RM 1600002 - dr. Kepala / dr. FU Dani',
+      ),
+    );
+    expect(list.map((p) => [p.identity, p.junior, p.chief])).toEqual([
+      ['Tn. Contoh Satu / RM 1600001', 'Bima', 'Kepala'],
+      ['Tn. Contoh Dua / RM 1600002', 'Dani', 'Kepala'],
+    ]);
+  });
+
   it('a real SOAP outranks a list line for the same patient, whichever came later', () => {
     const fromList = { ...readReports(msg('mengirimkan List Pasien\n---------\n🫀 dr. KS : 1 pasien\n1. 419 bed 4/KS/Tn. Contoh Satu / RM 1600001'))[0]!, sentAt: '2026-10-12T09:00' };
     const soap = { ...fromList, fromList: undefined, sentAt: '2026-10-12T07:00', full: 'SOAP lengkap' };

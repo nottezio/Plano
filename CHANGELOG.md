@@ -5,6 +5,15 @@ Catatan teknis lengkap (akar masalah, perbaikan) ada di CHANGES.md.
 
 Entri teratas harus versi yang sedang dirilis; tes gagal bila belum ditulis.
 
+## `2026-10-13.4`
+- **List Maker: denah di HP kini benar-benar denah.** Sebelumnya di HP kamar ditampilkan sebagai daftar bertumpuk. Sekarang tata letaknya sama dengan di laptop, dan diperkecil agar seluruh lantai muat di layar:
+  - 420 dan 421 di atas;
+  - kamar kiri dan kanan sejajar per baris;
+  - Nurse Station dan 411 di tengah.
+
+  Ketuk pasien untuk membuka SOAP lengkap. Tombol **Perbesar** menampilkan denah ukuran penuh untuk digeser ke samping, dan **Muat di layar** mengecilkannya kembali. Pilihan ini diingat di perangkat.
+- **Impor list: "FU" menandai junior.** "… / FU Ari - dr. Didi" dan "dr. Didi / dr. FU Avi" kini terbaca junior Ari/Avi dengan chief Didi. "FU Ari" tidak lagi ikut tercetak di identitas pasien.
+
 ## `2026-10-13.3`
 - **Sensus: DPJP di list IGD dan CVCU/HCU/ICU kini terbaca.** Sebelumnya pasien dengan tulisan seperti di bawah ini masuk **Perlu dicek**:
   - "/DPJP Prof PK" (dengan kata DPJP);

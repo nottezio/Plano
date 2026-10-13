@@ -1,5 +1,29 @@
 # Plano — CHANGES
 
+## `2026-10-13.4` — Phone denah drawn as the plan (scaled), not a stacked list; "FU" marks the junior in list import
+
+- **Phone denah** (Avi: "I want the view to be exactly like the denah on
+  the desktop"). Below `md` the plan used to render its columns stacked —
+  a list of rooms, no floor shape. Now one rendering for every width:
+  header rooms + the `planLayout` grid, inside `DenahCanvas`, which draws it
+  at a fixed desk width (880 px) and, on a narrower screen, scales it to fit
+  (`transform: scale`, height measured with a ResizeObserver so the page
+  below does not overlap). "Perbesar" switches to full size with horizontal
+  scroll; preference in localStorage (`plano.listmaker.denahZoom`). Tap
+  targets keep working when scaled; the SOAP box opens at full size. The
+  stacked-column code is removed. Checked at 390 px (fit and zoomed) and
+  1366 px; no horizontal page scroll.
+- **List import — "FU" marks the junior**: "… / RM x / FU Ari - dr. Didi" and
+  "- dr. Didi / dr. FU Avi" (chief written first). The FU segment is moved out
+  of the identity; when a "FU" name is present it is the junior and the other
+  name the chief, otherwise junior then chief as before.
+- Tests: both FU shapes.
+
+### Verify
+```
+npm run verify → typecheck, lint, 163 files / 2400 tests, version, contrast, a11y, build: all green
+```
+
 ## `2026-10-13.3` — Sensus: DPJP codes on the IGD and CVCU/HCU/ICU lists
 
 - **Bug — 6 of 30 patients on today's IGD + CVCU lists in "Perlu dicek"

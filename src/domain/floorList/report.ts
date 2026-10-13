@@ -473,12 +473,22 @@ function listPatient(
     const firstDoctor = segments.findIndex((part, i) => i > 0 && /^dr\.?\s*\S/i.test(part));
     if (firstDoctor > 0) residents = segments.splice(firstDoctor);
   }
+  // "… / FU Ari - dr. Didi": the follow-up resident named in the identity.
+  const fu = segments.findIndex((part, i) => i > 0 && /^(?:dr\.?\s*)?FU\s+\S/i.test(part));
+  if (fu > 0) residents = [...segments.splice(fu, 1), ...residents];
   residents = [...residents, ...dashed];
   const identity = segments.join(' / ');
   const rm = readRm(identity);
   const name = readName(identity) || clean(segments[0] ?? '');
   if (!rm && !name) return null;
-  const [junior = '', chief = ''] = residents.map((who) => clean(who).replace(/^(?:dr\.?\s*)+/i, ''));
+  /*
+    "FU" marks the junior wherever it is written (12.12: "dr. Didi / dr. FU
+    Avi" puts the chief first); without it, junior then chief.
+  */
+  const names = residents.map((who) => clean(who).replace(/^(?:dr\.?\s*)+/i, '')).filter(Boolean);
+  const fuAt = names.findIndex((who) => /^FU\s+/i.test(who));
+  const [junior = '', chief = ''] =
+    fuAt >= 0 ? [names[fuAt]!.replace(/^FU\s+/i, ''), names.find((_, i) => i !== fuAt) ?? ''] : names;
   const text = input.body.join('\n').replace(/^\n+|\s+$/g, '');
   return {
     key: rm ? `rm:${rm.replace(/^0+/, '')}` : `name:${input.room}:${name.toLowerCase()}`,

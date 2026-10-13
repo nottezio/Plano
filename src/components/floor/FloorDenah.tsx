@@ -1,7 +1,7 @@
-import type { CSSProperties, ReactNode } from 'react';
+import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react';
 
 import { dpjpById } from '@/domain/dpjp';
-import { planRooms, type DenahColumn, type DenahRoomSlot, type WardPlan } from '@/domain/denahPlan';
+import { planRooms, type DenahRoomSlot, type WardPlan } from '@/domain/denahPlan';
 import { byRoute, dpjpTitle, isPediatri, LIST_DPJP_ORDER, PEDIATRI_DPJP_IDS } from '@/domain/floorList/build';
 import type { FloorPatient } from '@/domain/floorList/report';
 import { placeBeds } from '@/domain/floorList/beds';
@@ -99,6 +99,80 @@ function Section({ title, children }: { title: string; children: ReactNode }): J
   );
 }
 
+/** The width the plan is drawn at: the desk layout, room text at full size. */
+const DESK_WIDTH = 880;
+const ZOOM_KEY = 'plano.listmaker.denahZoom';
+
+/**
+ * The plan at its desk width, everywhere (12.12). Narrower than that (a
+ * phone), it is scaled down to fit — the whole floor at a glance, rooms where
+ * they are on the ward — and "Perbesar" shows it at full size to scroll
+ * sideways. Tapping a patient still opens the SOAP, which is full size.
+ * The choice is remembered on this device.
+ */
+function DenahCanvas({ children }: { children: ReactNode }): JSX.Element {
+  const outer = useRef<HTMLDivElement>(null);
+  const inner = useRef<HTMLDivElement>(null);
+  const [width, setWidth] = useState(DESK_WIDTH);
+  const [height, setHeight] = useState(0);
+  const [zoomed, setZoomed] = useState(() => {
+    try {
+      return localStorage.getItem(ZOOM_KEY) === '1';
+    } catch {
+      return false;
+    }
+  });
+  useEffect(() => {
+    const box = outer.current;
+    const content = inner.current;
+    if (!box || !content) return undefined;
+    const measure = (): void => {
+      setWidth(box.clientWidth);
+      setHeight(content.offsetHeight);
+    };
+    measure();
+    const observer = new ResizeObserver(measure);
+    observer.observe(box);
+    observer.observe(content);
+    return () => observer.disconnect();
+  }, []);
+  const narrow = width < DESK_WIDTH;
+  const scale = narrow && !zoomed ? width / DESK_WIDTH : 1;
+  const toggle = (): void => {
+    setZoomed((now) => {
+      try {
+        localStorage.setItem(ZOOM_KEY, now ? '0' : '1');
+      } catch {
+        // Not remembered in a private window; still works.
+      }
+      return !now;
+    });
+  };
+  return (
+    <div>
+      {narrow ? (
+        <div className="mb-1 flex justify-end">
+          <button type="button" onClick={toggle} className="min-h-tap rounded-lg border border-border px-3 text-xs font-medium">
+            {zoomed ? 'Muat di layar' : 'Perbesar'}
+          </button>
+        </div>
+      ) : null}
+      <div ref={outer} className={narrow && zoomed ? 'overflow-x-auto' : 'overflow-hidden'} style={narrow && !zoomed ? { height: height * scale } : undefined}>
+        <div
+          ref={inner}
+          style={{
+            width: narrow ? DESK_WIDTH : undefined,
+            transform: scale < 1 ? `scale(${scale})` : undefined,
+            transformOrigin: 'top left',
+          }}
+        >
+          {children}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export function FloorDenah({
   plan,
   ward,
@@ -115,29 +189,6 @@ export function FloorDenah({
   const known = new Set(rooms.map((slot) => slot.room));
   const inRoom = (room: string): FloorPatient[] => sorted.filter((p) => p.room === room);
   const strays = sorted.filter((p) => !known.has(p.room));
-
-  const column = (blocks: DenahColumn[], key: string): JSX.Element => (
-    <div key={key} className="flex min-w-0 flex-col gap-2">
-      {blocks.map((block, index) =>
-        block.landmark ? (
-          <div
-            key={`${key}-${index}`}
-            className="flex min-h-[96px] flex-1 items-center justify-center rounded-lg bg-[var(--warn-strong)] p-2 text-center text-[11px] font-bold uppercase leading-tight tracking-wide text-white"
-          >
-            {block.landmark}
-            <br />
-            {ward}
-          </div>
-        ) : (
-          <div key={`${key}-${index}`} className="flex flex-col gap-2">
-            {(block.rooms ?? []).map((slot) => (
-              <RoomBox key={slot.room} slot={slot} patients={inRoom(slot.room)} onOpen={onOpen} />
-            ))}
-          </div>
-        ),
-      )}
-    </div>
-  );
 
   // DPJP tables: the floor's order, then anyone else with a patient, then pediatri.
   const extra = [...new Set(sorted.map((p) => p.dpjpId).filter((id): id is string => !!id))].filter(
@@ -158,61 +209,58 @@ export function FloorDenah({
     <div className="space-y-6">
       {plan ? (
         <Section title={`Denah ${ward}`}>
-          <div className="grid grid-cols-1 gap-2 md:grid-cols-2">
-            {plan.header.map((slot) => (
-              <RoomBox key={slot.room} slot={slot} patients={inRoom(slot.room)} onOpen={onOpen} />
-            ))}
-          </div>
-          {/* Phone: the columns stacked. */}
-          <div className="grid grid-cols-1 gap-2 md:hidden">
-            {column(plan.columns[0], 'left')}
-            {column(plan.columns[1], 'centre')}
-            {column(plan.columns[2], 'right')}
-          </div>
-          {/*
-            Tablet and up: one grid, left room i level with right room i
-            (12.11, Avi: "not symmetrical, see the left rooms"). Same rows as
-            the Word denah (`planLayout`).
-          */}
-          {(() => {
-            const layout = planLayout(plan);
-            const place = (row: number, span: number, column: number): CSSProperties => ({
-              gridRow: `${row + 1} / span ${span}`,
-              gridColumn: String(column),
-            });
-            return (
-              <div
-                className="hidden gap-2 md:grid md:grid-cols-[1fr_0.7fr_1fr]"
-                style={{ gridTemplateRows: `repeat(${layout.rows}, minmax(3.5rem, auto))` }}
-              >
-                {layout.left.map((cell) => (
-                  <div key={cell.slot.room} style={place(cell.row, cell.span, 1)} className="flex [&>*]:flex-1">
-                    <RoomBox slot={cell.slot} patients={inRoom(cell.slot.room)} onOpen={onOpen} />
-                  </div>
-                ))}
-                {layout.landmark ? (
-                  <div
-                    style={place(layout.landmark.row, layout.landmark.span, 2)}
-                    className="flex items-center justify-center rounded-lg bg-[var(--warn-strong)] p-2 text-center text-[11px] font-bold uppercase leading-tight tracking-wide text-white"
-                  >
-                    {layout.landmark.label}
-                    <br />
-                    {ward}
-                  </div>
-                ) : null}
-                {layout.centre.map((cell) => (
-                  <div key={cell.slot.room} style={place(cell.row, cell.span, 2)} className="flex [&>*]:flex-1">
-                    <RoomBox slot={cell.slot} patients={inRoom(cell.slot.room)} onOpen={onOpen} />
-                  </div>
-                ))}
-                {layout.right.map((cell) => (
-                  <div key={cell.slot.room} style={place(cell.row, cell.span, 3)} className="flex [&>*]:flex-1">
-                    <RoomBox slot={cell.slot} patients={inRoom(cell.slot.room)} onOpen={onOpen} />
-                  </div>
-                ))}
-              </div>
-            );
-          })()}
+          <DenahCanvas>
+            <div className="grid grid-cols-2 gap-2">
+              {plan.header.map((slot) => (
+                <RoomBox key={slot.room} slot={slot} patients={inRoom(slot.room)} onOpen={onOpen} />
+              ))}
+            </div>
+            {/*
+              One grid on every screen (12.12, Avi: the phone showed a stacked
+              list, not a denah): left room i level with right room i, the
+              same rows as the Word denah (`planLayout`). On a phone the whole
+              plan is drawn at its desk width and scaled to fit (DenahCanvas).
+            */}
+            {(() => {
+              const layout = planLayout(plan);
+              const place = (row: number, span: number, column: number): CSSProperties => ({
+                gridRow: `${row + 1} / span ${span}`,
+                gridColumn: String(column),
+              });
+              return (
+                <div
+                  className="mt-2 grid grid-cols-[1fr_0.7fr_1fr] gap-2"
+                  style={{ gridTemplateRows: `repeat(${layout.rows}, minmax(3.5rem, auto))` }}
+                >
+                  {layout.left.map((cell) => (
+                    <div key={cell.slot.room} style={place(cell.row, cell.span, 1)} className="flex [&>*]:flex-1">
+                      <RoomBox slot={cell.slot} patients={inRoom(cell.slot.room)} onOpen={onOpen} />
+                    </div>
+                  ))}
+                  {layout.landmark ? (
+                    <div
+                      style={place(layout.landmark.row, layout.landmark.span, 2)}
+                      className="flex items-center justify-center rounded-lg bg-[var(--warn-strong)] p-2 text-center text-[11px] font-bold uppercase leading-tight tracking-wide text-white"
+                    >
+                      {layout.landmark.label}
+                      <br />
+                      {ward}
+                    </div>
+                  ) : null}
+                  {layout.centre.map((cell) => (
+                    <div key={cell.slot.room} style={place(cell.row, cell.span, 2)} className="flex [&>*]:flex-1">
+                      <RoomBox slot={cell.slot} patients={inRoom(cell.slot.room)} onOpen={onOpen} />
+                    </div>
+                  ))}
+                  {layout.right.map((cell) => (
+                    <div key={cell.slot.room} style={place(cell.row, cell.span, 3)} className="flex [&>*]:flex-1">
+                      <RoomBox slot={cell.slot} patients={inRoom(cell.slot.room)} onOpen={onOpen} />
+                    </div>
+                  ))}
+                </div>
+              );
+            })()}
+          </DenahCanvas>
         </Section>
       ) : null}
 
