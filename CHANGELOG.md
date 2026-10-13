@@ -5,6 +5,11 @@ Catatan teknis lengkap (akar masalah, perbaikan) ada di CHANGES.md.
 
 Entri teratas harus versi yang sedang dirilis; tes gagal bila belum ditulis.
 
+## `2026-10-14.2`
+- **Buat Sensus: diagnosis dari list Lantai 5–6 kini terbaca.** Judul diagnosis seperti "- Mohon izin pasien kami assess dengan :" (diawali tanda strip), "Mohon Izin prof, pasien kami assest dengan:", dan "A/" sebelumnya tidak dikenali, sehingga diagnosis pasien tampil "-". Diagnosis yang ditulis langsung di bawah baris pasien tanpa judul (seperti di list CVCU) kini juga terbaca.
+- **Buat Sensus: pasien kini masuk ke DPJP yang benar.** Judul seperti "Prof. IM 1 Pasien" dan "Prof. PK 3 Pasien" sebelumnya tidak dikenali, sehingga pasien Prof. IM masuk ke Prof. MZ dan pasien Prof. PK masuk ke dr. AHN.
+- **List Maker (Tempel list):** judul "Dr.AHA (1 pasien)" dan "Prof. MZ ( 3 Pasien)" kini dikenali (sebelumnya pasiennya masuk ke DPJP di atasnya). Pasien bernomor "1..519" juga tidak lagi terlewat. Diagnosis tanpa judul kini tampil sebagai bagian Diagnosis.
+
 ## `2026-10-14.1`
 - **Buat Sensus: semua list boleh ditempel sekaligus dalam satu kotak.** Sebelumnya satu kotak dianggap satu list, sehingga bila IGD, RSUH, RSWS, Lantai 5–6, CVCU, dan Lantai 4 ditempel bersama, semua pasien masuk ke "IGD PJT". Kini tiap list dipisah dan dikenali dari judulnya, termasuk bagian "Pasien Baru / Pulang" yang ada di atas salam list RSWS dan RSUH. Di atas kotak tampil rincian tiap list dan jumlah pasiennya.
 - **List IGD tanpa nomor pasien kini terbaca.** Baris seperti "IGD Redzone Bed 1 Ny. … / RM … / dr MAA -> dr AHA" sebelumnya terlewat semua (0 pasien). Hal yang sama berlaku untuk pasien Lantai 5–6 yang ditulis tanpa nomor ("511 bed 3/ny.…").

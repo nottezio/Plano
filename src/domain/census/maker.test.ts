@@ -10,6 +10,7 @@ import {
   parseLists,
   parseSource,
   patientCount,
+  sectionDpjp,
   segmentCodes,
   splitLists,
   unassigned,
@@ -993,5 +994,98 @@ describe('lists of 14-10-2026', () => {
     it('treats a box whose kind was chosen by hand as one list', () => {
       expect(parseLists(joined, undefined, 'rsws')).toHaveLength(1);
     });
+  });
+});
+
+/*
+  2026-10-14, Avi: "Diagnosis and plan doesn't get parsed" and "Prof. IM 1
+  Pasien … gets recognized as Prof MZ patient" (Lt. 5-6 list). Invented names.
+*/
+const LT56_14 = `Tabe dokter izin mengirimkan List Pasien Lt. 5 dan Lt. 6  (14 oktober 2026) Pukul :04.00 WITA
+______________________________
+dr. KS   : 1  pasien
+1.510 bed 6/Tn. Contoh Satu/ 29-05-73/ 53 Tahun/ RM 1600201/dr.KS/tindakan dr. AHA
+-  Mohon izin pasien kami assess dengan :
+-  Chronic Coronary Syndrome CS Type I
+-  Coronary Artery Disease 2 Vessel Disease
+
+-  Mohon izin pasien kami terapi dengan :
+-  Aspilet 80 mg/24 jam/oral
+_________________
+Prof. MZ ( 1 Pasien)
+
+2..516 Bed 1/Ny. Contoh Dua/17-01-1993/33 tahun/ RM 01600202
+*Mohon Izin prof, pasien kami assest dengan:*
+-  PVC Bigemini Suggestive RVOT Origin
+
+*Mohon Izin prof, pasien kami terapi dengan:*
+-  IVFD NaCL 0.9% 500cc/24 jam/IV
+_____________________
+
+Prof. IM 1 Pasien
+1. 501/Contoh Tiga / 17-07-1956 / 70 tahun / RM 1600203
+
+Pasien dikonsul untuk evaluasi kelayakan operasi
+_____________________
+Prof. PK 1 Pasien
+1. 506/ Tn. Contoh Empat/07 November 1954/71 tahun/RM 1600204/LUMMI
+
+Mohon izin kami assesst dengan
+-  Generalized Weakness`;
+
+const CVCU_HEADLESS = `Tabe dokter mohon izin mengirimkan
+LIST PASIEN CVCU/HCU/ICU PJT:
+1. CVCU Bed 1 (Bima - dr. Dani)
+Tn. Contoh Lima /03-04-1976/50 tahun/RM 1600205/Prof. PK
+- STEMI Inferior onset 6 hour KILLIP I
+- Heart failure reduced ejection fraction
+Plan :
+- Cek APTT/Hari
+
+2. CVCU Bed 2
+Tn. Contoh Enam / 05-10-1966/ RM 1600206 / Prof PK
+_Sementara diterima_
+- Monitoring tanda vital`;
+
+describe('Lt. 5-6 list of 14-10-2026', () => {
+  const [ward] = parseAll(LT56_14);
+
+  it('reads a heading with the count right after the code ("Prof. IM 1 Pasien")', () => {
+    expect(sectionDpjp('Prof. IM 1 Pasien')).toBe('IM');
+    expect(sectionDpjp('Prof. PK 3 Pasien')).toBe('PK');
+    expect(entriesFor([ward!], 'IM').map((entry) => entry.key)).toEqual(['rm:1600203']);
+    expect(entriesFor([ward!], 'MZ').map((entry) => entry.key)).toEqual(['rm:1600202']);
+    expect(entriesFor([ward!], 'PK').map((entry) => entry.key)).toEqual(['rm:1600204']);
+  });
+
+  it('reads a bulleted assess heading and stops at the bulleted terapi heading', () => {
+    expect(entriesFor([ward!], 'KS')[0]!.diagnoses).toEqual(['- Chronic Coronary Syndrome CS Type I', '- Coronary Artery Disease 2 Vessel Disease']);
+  });
+
+  it('reads "Mohon Izin prof, pasien kami assest dengan:"', () => {
+    expect(entriesFor([ward!], 'MZ')[0]!.diagnoses).toEqual(['- PVC Bigemini Suggestive RVOT Origin']);
+    expect(entriesFor([ward!], 'PK')[0]!.diagnoses).toEqual(['- Generalized Weakness']);
+  });
+
+  it('leaves a patient with only a consult note without a diagnosis', () => {
+    expect(entriesFor([ward!], 'IM')[0]!.diagnoses).toEqual([]);
+  });
+
+  it('takes bullets right under the patient as the diagnosis, but not after other text', () => {
+    const [icu] = parseAll(CVCU_HEADLESS);
+    const pk = entriesFor([icu!], 'PK');
+    expect(pk[0]!.diagnoses).toEqual(['- STEMI Inferior onset 6 hour KILLIP I', '- Heart failure reduced ejection fraction']);
+    expect(pk[1]!.diagnoses).toEqual([]);
+  });
+
+  it('reads "A/" as the heading only when it comes first', () => {
+    const [lt4] = parseAll(`List Pasien PJT Lantai 4
+🫀 dr. ZD : 1 pasien
+1. 421 Bed 4/ZD/Ny. Contoh Tujuh / 31-12-1957 / RM 1600207
+A/
+- Symptomatic Bradycardia
+P/
+- EKG/hari`);
+    expect(entriesFor([lt4!], 'ZD')[0]!.diagnoses).toEqual(['- Symptomatic Bradycardia']);
   });
 });

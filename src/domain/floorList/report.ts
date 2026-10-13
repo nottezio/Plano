@@ -372,13 +372,20 @@ export function readReports(message: ChatMessage): FloorPatient[] {
   sign-off. A numbered diagnosis or drug ("1. Gagal napas …") never starts with
   a room and a slash, so it stays in the body.
 */
-const LIST_PATIENT = /^[\s*_]*(?:\d{1,2}\s*\.\s*)?(.+?)[\s*_]*$/;
+/** "1. …", and "1..519 Bed 2/…" with the dot doubled (Lt. 5-6, 2026-10-14: those patients were lost). */
+const LIST_PATIENT = /^[\s*_]*(?:\d{1,2}\s*\.+\s*)?(.+?)[\s*_]*$/;
 /** An unnumbered line counts only when it reads like an identity. */
 const LOOKS_LIKE_IDENTITY = /\bRM\b|\d{1,2}[-/]\d{1,2}[-/]\d{2,4}|\b(?:Tn|Ny|Nn|An|By)\b\.?/i;
 const LIST_ROOM = /^(\d{3}[A-Za-z]?)(?:\s*(?:bed|be|b)\.?\s*(\w+)|\s+([A-Za-z]))?\s*\/+\s*(.*)$/i;
 const LIST_SEPARATOR = /^\s*[-_=]{5,}\s*$/;
 const LIST_KJS_HEAD = /^[\s*_]*KJS[\s*_:]*$/i;
-const LIST_DPJP_HEAD = /^[\s*_]*(?:\p{Extended_Pictographic}|\u200d|\ufe0f|\p{Emoji_Modifier})*\s*(?:dr|prof)\.?\s*([A-Za-z]{2,4})\s*(?::|—|–|-)?\s*\d*\s*pas(?:i)?en/iu;
+/**
+ * "🫀 dr. ZD — 2 pasien", "Prof. PK 3 Pasien", and (2026-10-14) the count in
+ * brackets: "Dr.AHA  (1 pasien)", "Prof. MZ ( 3 Pasien)". The bracket form
+ * was missed, so the patients under it stayed with the heading above (AHA's
+ * under AFG, MZ's under PK).
+ */
+const LIST_DPJP_HEAD = /^[\s*_]*(?:\p{Extended_Pictographic}|\u200d|\ufe0f|\p{Emoji_Modifier})*\s*(?:dr|prof)\.?\s*([A-Za-z]{2,4})\s*(?::|—|–|-|\()?\s*\d*\s*pas(?:i)?en/iu;
 
 function dpjpByCode(code: string): (typeof DPJPS)[number] | null {
   const wanted = code.trim().toLowerCase();
@@ -462,6 +469,23 @@ export function readListMessage(message: ChatMessage): FloorPatient[] {
   }
   flush();
   return mergeKjs(patients);
+}
+
+/**
+ * A list block whose diagnoses stand right under the patient line with no
+ * heading (Lt. 4 lists of 09-10 and 11-10: "- STEMI Inferoposterior …" then
+ * "Mohon izin kami terapi dengan:"). `listBody` found no A, so the block came
+ * through as raw text with no Diagnosis section. The heading is put in when
+ * the first line is a bullet; a list block has no S/O, so a first bullet
+ * there is the A. A SOAP never comes here.
+ */
+function headlessDx(text: string): string {
+  const lines = text.split('\n');
+  const at = lines.findIndex((line) => line.trim());
+  const first = lines[at] ?? '';
+  // "A/" written as the heading (Lt. 4, 11-10 evening): the A of the block.
+  if (/^\W*A\s*\/\s*$/.test(first)) return ['Diagnosis:', ...lines.slice(at + 1)].join('\n');
+  return /^\s*[-•]\s*\S/.test(first) ? `Diagnosis:\n${text}` : '';
 }
 
 interface ListLine {
@@ -569,7 +593,7 @@ function listPatient(input: ListLine, message: ChatMessage, n: number): FloorPat
     kjsDpjpIds: input.kjsOf ? [input.kjsOf] : [],
     ...(dpjpCode ? { dpjpCode } : {}),
     btkv,
-    body: listBody(text) || text,
+    body: listBody(text) || listBody(headlessDx(text)) || text,
     full: `${clean(input.line)}\n${text}`.trim(),
     chief: chief.charAt(0).toUpperCase() + chief.slice(1),
     junior: junior.charAt(0).toUpperCase() + junior.slice(1),

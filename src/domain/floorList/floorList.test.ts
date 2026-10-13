@@ -493,3 +493,49 @@ describe('a sent List Pasien, read back (12.12)', () => {
     expect(latestOf([fromList, soap])[0]!.full).toBe('SOAP lengkap');
   });
 });
+
+describe('a sent Lt. 5-6 list of 14-10-2026 (headings in brackets, "1..", no A heading)', () => {
+  const msg = (text: string) => ({ sentAt: '2026-10-14T04:00', sender: 'dr. Luar', text, index: 0 });
+  const text = [
+    'Tabe dokter izin mengirimkan List Pasien Lt. 5 dan Lt. 6  (14 oktober 2026) Pukul :04.00 WITA',
+    '_________________________',
+    'Dr. AFG (1 pasien)',
+    '1. 513 bed 1/Tn. Contoh Satu/01-02-1973/53 tahun/RM 1600101',
+    'Mohon izin pasien kami assess dengan',
+    '-  Chronic Coronary Syndrome',
+    '_____________',
+    'Dr.AHA  (1 pasien)',
+    '1.509/Tn. Contoh Dua/22-02-1971/55 tahun/RM 1600102',
+    '-  Coronary Artery Disease 3 Vessels Disease',
+    '',
+    'Mohon ijin kami terapi dengan:',
+    '-  Aspilet 80 mg/24jam/oral',
+    '',
+    'Plan',
+    '-  Pro CABG',
+    '_________________',
+    'Prof. MZ ( 1 Pasien)',
+    '',
+    '1..519 Bed 2/Tn. Contoh Tiga / 07-05-1962 / 64 Tahun / RM 1600103',
+    '*Mohon Izin prof, pasien kami assest dengan:*',
+    '-  Symptomatic Bradycardia',
+  ].join('\n');
+
+  it('files each patient under its own bracketed heading and reads "1..519"', () => {
+    expect(readReports(msg(text)).map((p) => [p.room, p.bed, p.dpjpId])).toEqual([
+      ['513', '1', 'afg'],
+      ['509', '', 'aha'],
+      ['519', '2', 'mz'],
+    ]);
+  });
+
+  it('gives diagnoses written with no heading a Diagnosis section', () => {
+    const aha = readReports(msg(text))[1]!;
+    expect(aha.body).toBe('Diagnosis:\n-  Coronary Artery Disease 3 Vessels Disease\n\nTerapi:\n-  Aspilet 80 mg/24jam/oral\n\nPlan\n-  Pro CABG');
+  });
+
+  it('reads "A/" as the diagnosis heading of a list block', () => {
+    const one = readReports(msg(['Tabe dokter mohon izin mengirimkan *List Pasien PJT Lantai 4*', '🫀 dr. ZD : 1 pasien', '1. 421 Bed 4/ZD/Ny. Contoh Empat / 31-12-1957 / RM 1600104', 'A/', '- Symptomatic Bradycardia', 'P/', '- EKG/hari'].join('\n')))[0]!;
+    expect(one.body.startsWith('Diagnosis:\n- Symptomatic Bradycardia')).toBe(true);
+  });
+});

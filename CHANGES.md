@@ -1,5 +1,55 @@
 # Plano — CHANGES
 
+## `2026-10-14.2` — Sensus & List Maker: heading shapes of the 14-10 Lt. 5-6 list
+
+Avi (Sensus): "Diagnosis and plan doesn't get parsed, check also from
+previously sent"; "Prof. IM 1 Pasien … gets recognized as Prof MZ patient".
+
+- **Root cause — the readers match headings by a closed set of spellings.**
+  Each list writes them its own way; every new spelling is silently treated
+  as body text. In the 14-10 Lt. 5-6 list:
+  - DPJP heading with the count right after the code: "Prof. IM 1 Pasien",
+    "Prof. PK 3 Pasien". `SECTION_RE` wanted ":" or "(" after the code, so
+    the heading was missed and the patients stayed with the heading above:
+    IM's patient under MZ, PK's two under AHN. Now "<code> <n> pasien" too.
+  - Assessment heading bulleted ("-  Mohon izin pasien kami assess dengan :")
+    or with words between "izin" and "kami" ("Mohon Izin prof, pasien kami
+    assest dengan:"). `ASSESS_HEAD_RE` was anchored to "mohon izin (pasien)
+    kami assess": KS and MZ patients printed "Diagnosis: -". Now a leading
+    bullet and up to 30 characters between are allowed. A bulleted
+    "- Mohon izin … terapi" heading also ends the block (bullets were never
+    a stop, so it would have been read as a diagnosis).
+  - No heading at all: CVCU Bed 1 writes the bullets straight under the
+    patient. Taken as the diagnoses only when they are the first lines under
+    the patient and not drug orders (a bullet after "_Sementara diterima_"
+    is not).
+  - "A/" as the heading (Lt. 4, 11-10 evening, from the chat export): read
+    only as the first line under the patient, so a consultant's "TS … A/"
+    block further down is never taken as cardiology's diagnosis.
+- **List Maker, same cause.** `LIST_DPJP_HEAD` missed the count in brackets
+  ("Dr.AHA  (1 pasien)", "Prof. MZ ( 3 Pasien)"): AHA's patient filed under
+  AFG, MZ's third under PK. `LIST_PATIENT` took one dot only, so "1..519",
+  "2..516" (two MZ patients) were lost. A block with diagnoses and no
+  heading (Lt. 4, 09-10 and 11-10) came through as raw text with no
+  Diagnosis section: `headlessDx` puts the heading in when the block starts
+  with a bullet or "A/".
+- **Audit** (real lists, scratchpad only): today's six lists and the five
+  Lt. 4 lists in the chat export. Every patient left without a diagnosis now
+  has none in the source: IM 501 (an operative-risk note only), drug orders
+  written under "Diagnosis:" (reported as before), a pediatri line with
+  nothing under it, and a short "Pasien Baru" copy whose full block is
+  read. List Maker: Lt. 5-6 now 21 patients (was 19), all on the right DPJP.
+- **Plan is not in the census.** By design since 2026-10-08: the census
+  shape follows the residents' sent censuses (identity + diagnosis). Not
+  changed here.
+
+Wrong turns: first assumed "diagnosis and plan" meant the List Maker (the
+census never prints a plan) and audited that first; Avi then said it is the
+Sensus. Both readers had the same blind spots, so both are fixed.
+
+Verify: typecheck, lint (0 warnings), 2461 tests (169 files), version, contrast, a11y,
+build — green.
+
 ## `2026-10-14.1` — Sensus: several lists in one box; unnumbered patient lines
 
 Avi: "the sensus maker can't detect this format" (the RSWS list of 14-10,

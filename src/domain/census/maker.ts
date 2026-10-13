@@ -148,7 +148,13 @@ export function knownCodes(sources: readonly ParsedSource[]): Set<string> {
 const TITLE = String.raw`(?:(?:dr|prof|dokter)\.?\s*)`;
 /** "DPJP Prof PK", "DPJP prof PK" (12.12: the IGD list writes the word). */
 const DPJP_WORD = String.raw`(?:dpjp\s*:?\s*)?`;
-const SECTION_RE = new RegExp(String.raw`^${TITLE}+([A-Za-z]{2,4})\b\s*(?:[:(]|$)`, 'i');
+/*
+  The count may follow the code with nothing between (2026-10-14, Lt. 5-6:
+  "Prof. IM 1 Pasien", "Prof. PK 3 Pasien"). Without that shape the heading
+  was missed and IM's patient stayed under the heading above (Prof. MZ),
+  PK's under dr. AHN.
+*/
+const SECTION_RE = new RegExp(String.raw`^${TITLE}+([A-Za-z]{2,4})\b\s*(?:[:(]|\d+\s*pas|$)`, 'i');
 
 /** "*🫀 dr. KS : 2 pasien*", "Prof.MZ (1 Pasien)" → "KS" / "MZ". */
 export function sectionDpjp(line: string): string | null {
@@ -416,7 +422,15 @@ const DX_HEAD_RE = /^(?:diagnos[ai]s?|diagnosa)\b\s*[:;]?\s*(.*)$/i;
  * patient got no diagnosis at all. They are sub-headings: the block goes on.
  */
 const DX_SUB_RE = /^diagnos[ai]s?\s+(?:utama|sekunder|tambahan|primer|banding|lain|komorbid\w*)\b\s*[:;]?\s*(.*)$/i;
-const ASSESS_HEAD_RE = /^mohon\s+i[zj]in\s+(?:pasien\s+)?kami\s+assess?\w*(?:\s+dengan)?\s*[:;]?\s*(.*)$/i;
+/*
+  2026-10-14, Lt. 5-6: "*Mohon Izin prof, pasien kami assest dengan:*" (words
+  between "izin" and "kami") and "-  Mohon izin pasien kami assess dengan :"
+  (the heading itself bulleted). Up to 30 characters may stand between "izin"
+  and the assess word; a leading bullet is allowed.
+*/
+const ASSESS_HEAD_RE = /^[-•*\s]*mohon\s+i[zj]in\b[^\n]{0,30}?\bass?es+t?\w*(?:\s+dengan)?\s*[:;]?\s*(.*)$/i;
+/** A block heading written as a bullet ("-  Mohon izin pasien kami terapi dengan :"): it still ends the diagnoses. */
+const BULLET_HEAD_RE = /^mohon\s+i[zj]in\b[^\n]{0,30}?\b(?:terapi|plan)\b/i;
 const DX_STOP_RE =
   /^(?:mohon\s+i[zj]in|plan\b|planning\b|premedikasi|selesai|terapi\b|instruksi|ts\b|[atpid]\s*\/|tabe\b|note\b|catatan\b|diagnos)/i;
 const EXCLUDED_SECTION_RE = /^pasien\s+(?:pulang|meninggal|pindah)\b/i;
@@ -717,6 +731,8 @@ export function parseSource(text: string, known?: ReadonlySet<string>, kindOverr
     // next block (therapy, plan, a consultant's own assessment).
     const diagnoses: string[] = [];
     let state: 'before' | 'in' | 'done' = 'before';
+    /** A non-blank line has been seen under the patient line (so a later bullet is not a headless diagnosis). */
+    let seenText = false;
     // Where this patient's block ends for "Bandingkan": the identity line and
     // its diagnosis block, not the therapy and plan read past after it.
     let blockEnd = i;
@@ -741,13 +757,29 @@ export function parseSource(text: string, known?: ReadonlySet<string>, kindOverr
           if (inline) diagnoses.push(normaliseDxLine(inline));
           continue;
         }
-        const head = DX_HEAD_RE.exec(flat) ?? ASSESS_HEAD_RE.exec(flat);
+        // "A/" as the heading (Lt. 4, 11-10 evening): only as the first line
+        // under the patient — later, "A/" is a consultant's (TS) assessment.
+        const head = DX_HEAD_RE.exec(flat) ?? ASSESS_HEAD_RE.exec(flat) ?? (seenText ? null : /^a\s*\/\s*(.*)$/i.exec(flat));
         if (head) {
           blockEnd = i;
           state = 'in';
           const inline = (head[1] ?? '').trim();
           if (inline) diagnoses.push(normaliseDxLine(inline));
+          continue;
         }
+        /*
+          No heading at all (2026-10-14, CVCU Bed 1): the bullets right under
+          the patient line ARE the diagnoses, up to "Plan :". Only when they
+          come first — a bullet after other text ("_Sementara diterima_") is
+          not taken — and only when they are not drug orders.
+        */
+        if (flat && !seenText && /^\s*[-•]/.test(clean(line)) && !looksLikeOrder(clean(line))) {
+          blockEnd = i;
+          state = 'in';
+          diagnoses.push(normaliseDxLine(line));
+          continue;
+        }
+        if (flat) seenText = true;
         continue;
       }
       if (!flat) {
@@ -766,7 +798,8 @@ export function parseSource(text: string, known?: ReadonlySet<string>, kindOverr
         if (inline) diagnoses.push(normaliseDxLine(inline));
         continue;
       }
-      if (DX_STOP_RE.test(flat.replace(/^[-•*\s]+/, '')) && !/^\s*[-•*]/.test(clean(line))) {
+      const unbulleted = flat.replace(/^[-•*\s]+/, '');
+      if ((DX_STOP_RE.test(unbulleted) && !/^\s*[-•*]/.test(clean(line))) || BULLET_HEAD_RE.test(unbulleted)) {
         state = 'done';
         continue;
       }
