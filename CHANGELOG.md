@@ -5,6 +5,11 @@ Catatan teknis lengkap (akar masalah, perbaikan) ada di CHANGES.md.
 
 Entri teratas harus versi yang sedang dirilis; tes gagal bila belum ditulis.
 
+## `2026-10-13.11`
+- **Tempel: SOAP yang disalin satu per satu kini terbaca.** Pesan yang disalin sendiri (tahan → Salin) tidak membawa jam kirim. Akibatnya SOAP itu tidak pernah dianggap lebih baru dan tombol **Baca** seperti tidak merespons. Sekarang pesan tanpa jam dianggap terkirim saat ditempel. Baca juga selalu memberi jawaban: ada perubahan, semua sudah sama, atau tidak ada pasien yang terbaca.
+- **Pasien manual bisa diperbarui.** SOAP dari grup kini menggantikan isi pasien yang diinput manual. Dari denah, buka pasien lalu **Ubah isi** untuk mengubahnya.
+- **Tanda SOAP terbaru.** Label **SOAP baru** (dengan jam) muncul bila SOAP masuk setelah list terakhir disimpan. Label abu-abu **SOAP tgl/bln** muncul bila belum ada SOAP pada tanggal list. Label tampil di kartu List, di denah, dan di jendela SOAP.
+
 ## `2026-10-13.10`
 - **Warna list kini berupa tag.** Warna tambahan tampil sebagai label berwarna, mis. **[Pasien NP]**, di belakang baris pasien, dan tidak lagi mewarnai seluruh identitas. Pasien H-1 tetap merah (pulang hari ini tetap hijau) dan tetap membawa tagnya. Satu pasien bisa punya beberapa tag. Pasang atau lepas tag di **Atur pasien** atau di kartu tab List.
 - **Tag otomatis.** Di **Anggota → Warna list**, tiap warna bisa dipasang otomatis untuk:

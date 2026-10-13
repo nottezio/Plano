@@ -22,6 +22,7 @@ import { matchesSearch } from '@/domain/floorList/search';
 import { copyText } from '@/lib/clipboard';
 import { deliverFile } from '@/lib/download';
 import { DeletePatient } from './DeletePatient';
+import { SoapBadge } from './SoapBadge';
 import { PatientControls } from './PatientControls';
 import { ListMessage } from './ListMessage';
 import { ManualPatientSheet } from './ManualPatientSheet';
@@ -157,6 +158,7 @@ export function ListPanel({
                 >
                   {patientLine(patient)}
                   {patient.discharge ? <span className="sr-only"> ({patient.discharge === 'tomorrow' ? 'H-1' : 'pulang hari ini'})</span> : null}
+                  <SoapBadge patient={patient} />
                   {(patient.tags ?? []).map((tag) => (
                     <span
                       key={tag.label}

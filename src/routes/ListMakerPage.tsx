@@ -7,12 +7,13 @@ import { Button, Callout, ChoiceChip, Field, INPUT, Segmented } from '@/componen
 import { FloorDenah } from '@/components/floor/FloorDenah';
 import { ListPanel } from '@/components/floor/ListPanel';
 import { MembersPanel } from '@/components/floor/MembersPanel';
+import { ManualPatientSheet } from '@/components/floor/ManualPatientSheet';
 import { PastePanel } from '@/components/floor/PastePanel';
 import { RosterDatalists } from '@/components/floor/PatientControls';
 import { SoapFloat } from '@/components/floor/SoapFloat';
 import { acceptInvite, createFloor, readLegacy, writeChiefs, writeRosterBatch } from '@/data/repositories/floors.repo';
 import { wardPlan } from '@/domain/denahPlan';
-import { canEdit, chiefsOf, isOwner, newRosterPatient, rosterView, type FloorDoc } from '@/domain/floorList/floor';
+import { canEdit, chiefsOf, isOwner, localStamp, newRosterPatient, rosterView, type FloorDoc } from '@/domain/floorList/floor';
 import { searchWords } from '@/domain/floorList/search';
 import { ChiefsField } from '@/components/floor/ChiefsField';
 import { EditionsPanel } from '@/components/floor/EditionsPanel';
@@ -59,9 +60,16 @@ export default function ListMakerPage(): JSX.Element {
     const last = editions.find((e) => e.date < date);
     return last ? new Set(last.patients.map((p) => p.key)) : null;
   }, [editions, date]);
-  const view = useMemo(() => (floor ? rosterView(floor, roster, date, previous) : { active: [], left: [] }), [floor, roster, date, previous]);
+  // SOAPs that came after the last sent list are marked "SOAP baru" (13.11).
+  const lastSent = editions[0] ? localStamp(new Date(editions[0].createdAt)) : '';
+  const view = useMemo(
+    () => (floor ? rosterView(floor, roster, date, previous, lastSent) : { active: [], left: [] }),
+    [floor, roster, date, previous, lastSent],
+  );
   // One search for the list and the denah (13.7): switching tabs keeps it.
   const [search, setSearch] = useState('');
+  // A hand-entered patient opened from the denah is edited here (13.11).
+  const [manualFor, setManualFor] = useState<FloorPatient | null>(null);
   const words = useMemo(() => searchWords(search), [search]);
   // The OPEN patient is kept by key and read from the live view, so an edit
   // (Ubah SOAP, another member's paste) shows in the open box at once.
@@ -309,11 +317,25 @@ export default function ListMakerPage(): JSX.Element {
         ) : null}
       </div>
       {floor ? <RosterDatalists floor={floor} /> : null}
+      {floor ? (
+        <ManualPatientSheet
+          open={manualFor !== null}
+          onOpenChange={(next) => {
+            if (!next) setManualFor(null);
+          }}
+          floorId={floor.id}
+          ward={floor.ward}
+          date={date}
+          myName={myName}
+          editing={manualFor}
+        />
+      ) : null}
       <SoapFloat
         patient={open}
         onClose={() => setOpenKey(null)}
         floorId={floor?.id}
         editable={editable}
+        onEditManual={setManualFor}
         control={(() => {
           const entry = open && floor ? roster.find((p) => p.key === open.key && p.status === 'dirawat') : undefined;
           return entry && floor ? { floor, entry, date, myName } : undefined;

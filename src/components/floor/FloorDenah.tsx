@@ -7,6 +7,7 @@ import type { FloorPatient } from '@/domain/floorList/report';
 import { residentGroups } from '@/domain/floorList/residents';
 import { matchesSearch } from '@/domain/floorList/search';
 import { placeBeds } from '@/domain/floorList/beds';
+import { SoapBadge } from './SoapBadge';
 import { planLayout } from '@/domain/floorList/layout';
 
 /**
@@ -62,6 +63,7 @@ function PatientButton({
       {residents ? <strong className="text-fg"> - {residents}</strong> : null}
       {flag ? <span className="sr-only"> ({FLAG_LABEL[flag]})</span> : null}
       <Tags patient={patient} />
+      <SoapBadge patient={patient} />
     </button>
   );
 }

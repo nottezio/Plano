@@ -15,6 +15,7 @@ import {
   pasteDiff,
   rosterName,
   rosterView,
+  soapState,
   suggestionFor,
   updatedReport,
   type FloorDoc,
@@ -217,7 +218,7 @@ describe('pasteDiff (nobody is removed by a paste)', () => {
   it('new patients are proposed, newer SOAPs update, a patient who left is only offered back', () => {
     const later = patient({ key: 'rm:1', sentAt: '2026-10-12T07:00', full: 'b' });
     const fresh = patient({ key: 'rm:9', rm: '9', sentAt: '2026-10-12T08:00' });
-    const back = patient({ key: 'rm:2', rm: '2', room: '418', sentAt: '2026-10-12T07:00' });
+    const back = patient({ key: 'rm:2', rm: '2', room: '418', sentAt: '2026-10-12T07:00', full: 'SOAP baru' });
     const diff = pasteDiff(roster, [later, fresh, back]);
     expect(diff.fresh.map((p) => p.key)).toEqual(['rm:9']);
     expect(diff.updated.map((u) => u.report.full)).toEqual(['b']);
@@ -289,9 +290,30 @@ describe('pasteDiff (nobody is removed by a paste)', () => {
     expect(pasteDiff([], [listA, after]).doubt).toEqual({});
   });
 
-  it('a hand-entered patient is not overwritten by a paste', () => {
-    const manual = [rostered({ key: 'rm:77', sentAt: '2026-10-10T08:00', manual: true })];
-    expect(pasteDiff(manual, [patient({ key: 'rm:77', sentAt: '2026-10-12T07:00', full: 'soap' })]).unchanged).toBe(1);
+  it('a SOAP replaces a hand-entered patient; a list line does not (13.11)', () => {
+    const manual = [rostered({ key: 'rm:77', sentAt: '2026-10-12T08:00', manual: true })];
+    expect(pasteDiff(manual, [patient({ key: 'rm:77', sentAt: '2026-10-12T07:00', full: 'soap' })]).updated).toHaveLength(1);
+    expect(pasteDiff(manual, [patient({ key: 'rm:77', sentAt: '2026-10-12T09:00', full: 'list', fromList: true })]).unchanged).toBe(1);
+  });
+
+  it('the same text again changes nothing, whatever its time (a copied message is stamped "now")', () => {
+    const stored = [rostered({ key: 'rm:1', sentAt: '2026-10-12T07:00', full: 'sama' })];
+    expect(pasteDiff(stored, [patient({ key: 'rm:1', sentAt: '2026-10-13T14:10', full: 'sama' })]).unchanged).toBe(1);
+  });
+
+  it('an update with no sender keeps the stored sender (the junior read from it stays)', () => {
+    const stored = patient({ sender: 'dr. Muh Bima Contoh', senderNick: 'Bima' });
+    expect(updatedReport(stored, patient({ sender: '', senderNick: '', full: 'baru' }), true)).toMatchObject({ sender: 'dr. Muh Bima Contoh', senderNick: 'Bima', full: 'baru' });
+  });
+});
+
+describe('soapState (13.11)', () => {
+  it('"baru" after the last sent list; "lama" when none yet on the list date; nothing for hand entries and list lines', () => {
+    expect(soapState(patient({ sentAt: '2026-10-13T11:20' }), '2026-10-13', '2026-10-13T04:05')).toBe('baru');
+    expect(soapState(patient({ sentAt: '2026-10-13T03:50' }), '2026-10-13', '2026-10-13T04:05')).toBeNull();
+    expect(soapState(patient({ sentAt: '2026-10-12T07:00' }), '2026-10-13', '2026-10-13T04:05')).toBe('lama');
+    expect(soapState(patient({ sentAt: '2026-10-12T07:00', manual: true }), '2026-10-13', '')).toBeNull();
+    expect(soapState(patient({ sentAt: '2026-10-13T09:00', fromList: true }), '2026-10-13', '2026-10-13T04:05')).toBeNull();
   });
 });
 

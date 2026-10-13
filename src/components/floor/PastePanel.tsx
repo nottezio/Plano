@@ -3,7 +3,7 @@ import { useState } from 'react';
 import { Button, Callout } from '@/components/common/ui';
 import { writeRosterBatch, type RosterChange } from '@/data/repositories/floors.repo';
 import { formatDmy } from '@/domain/dateDmy';
-import { newRosterPatient, pasteDiff, updatedReport, type FloorDoc, type PasteDiff, type RosterPatient } from '@/domain/floorList/floor';
+import { localStamp, newRosterPatient, pasteDiff, updatedReport, type FloorDoc, type PasteDiff, type RosterPatient } from '@/domain/floorList/floor';
 import { splitChat } from '@/domain/floorList/chat';
 import { onFloorNumber, readReports, type FloorPatient } from '@/domain/floorList/report';
 import { chatFromZip } from '@/lib/unzip';
@@ -12,6 +12,10 @@ interface Reading {
   diff: PasteDiff;
   otherFloor: FloorPatient[];
   messages: number;
+  /** Messages with no time line, taken as sent now. */
+  untimed: number;
+  /** Patients read at all (this floor or another). */
+  found: number;
 }
 
 const where = (p: FloorPatient): string => `${p.room}${p.bed ? `/${p.bed}` : ''}`;
@@ -48,7 +52,14 @@ export function PastePanel({ floor, roster, myName }: { floor: FloorDoc; roster:
     setSkipFresh(new Set());
     setSkipMove(new Set());
     setReadmit(new Set());
-    const messages = splitChat(raw).map((m) => (m.sender === 'You' ? { ...m, sender: myName } : m));
+    // A message copied on its own (long-press → Salin) has no "[time] name:"
+    // line. Without a time it could never be newer than the stored SOAP, so
+    // Baca showed nothing to save (13.11, Avi: "Baca has no response"). It is
+    // taken as sent now.
+    const now = localStamp(new Date());
+    const parsed = splitChat(raw);
+    const untimed = parsed.filter((m) => !m.sentAt).length;
+    const messages = parsed.map((m) => ({ ...m, sender: m.sender === 'You' ? myName : m.sender, sentAt: m.sentAt || now }));
     const all = messages.flatMap(readReports);
     // Another floor (moved out, CVCU) or no floor yet (IGD) is shown, not filed.
     const reports = all.filter((p) => onFloorNumber(p, floorNumber));
@@ -56,7 +67,7 @@ export function PastePanel({ floor, roster, myName }: { floor: FloorDoc; roster:
     const diff = pasteDiff(roster, reports);
     // Probably gone already (an export spans days): proposed unticked.
     setSkipFresh(new Set(Object.keys(diff.doubt)));
-    setReading({ diff, otherFloor, messages: messages.length });
+    setReading({ diff, otherFloor, messages: messages.length, untimed, found: reports.length + otherFloor.length });
   };
 
   const openFile = async (file: File): Promise<void> => {
@@ -168,6 +179,18 @@ export function PastePanel({ floor, roster, myName }: { floor: FloorDoc; roster:
             {reading!.messages} pesan · {d.fresh.length} baru · {d.updated.length} diperbarui · {d.readmit.length} sudah keluar ·{' '}
             {d.unchanged} tidak berubah
           </p>
+          {reading!.found === 0 ? (
+            <Callout tone="warn" title="Tidak ada pasien terbaca">
+              Pesan harus berisi baris pembuka laporan ("… atas nama:") dan identitas pasien (nama/RM) di bawahnya.
+            </Callout>
+          ) : nothing && reading!.otherFloor.length === 0 ? (
+            <p className="font-medium">Semua pasien sudah sama dengan yang tersimpan — tidak ada yang perlu disimpan.</p>
+          ) : null}
+          {reading!.untimed > 0 ? (
+            <p className="text-fg-muted">
+              {reading!.untimed} pesan tanpa jam (disalin satu per satu) dianggap terkirim sekarang.
+            </p>
+          ) : null}
 
           {d.fresh.length > 0 ? (
             <fieldset className="space-y-1">

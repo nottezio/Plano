@@ -72,6 +72,7 @@ export function SoapFloat({
   floorId,
   editable,
   control,
+  onEditManual,
 }: {
   patient: FloorPatient | null;
   onClose: () => void;
@@ -79,6 +80,8 @@ export function SoapFloat({
   editable?: boolean | undefined;
   /** The roster entry and what the controls need (13.9): "Atur" opens the patient's control panel. */
   control?: { floor: FloorDoc; entry: RosterPatient; date: string; myName: string } | undefined;
+  /** A hand-entered patient is changed in its own form (13.11: there was no way from here). */
+  onEditManual?: ((patient: FloorPatient) => void) | undefined;
 }): JSX.Element | null {
   const [copied, setCopied] = useState(false);
   const [editing, setEditing] = useState(false);
@@ -200,6 +203,7 @@ export function SoapFloat({
               {patient.manual ? 'Diinput manual' : 'Laporan'} {sent}
               {patient.sender ? ` · ${patient.sender}` : ''}
               {patient.edited ? ' · diubah' : ''}
+              {patient.soap === 'baru' ? ' · SOAP baru (setelah list terakhir)' : patient.soap === 'lama' ? ' · belum ada SOAP hari ini' : ''}
             </p>
           ) : null}
         </div>
@@ -214,6 +218,11 @@ export function SoapFloat({
         {/* The actions on their own row (13.7): on a phone the title keeps the width. */}
         {!editing ? (
           <div className="flex basis-full flex-wrap items-center gap-2">
+            {editable && patient.manual && onEditManual ? (
+              <button type="button" onClick={() => onEditManual(patient)} className="min-h-tap rounded-lg border border-border px-3 text-xs font-medium">
+                Ubah isi
+              </button>
+            ) : null}
             {editable && floorId && !patient.manual ? (
               <button
                 type="button"

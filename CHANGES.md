@@ -1,5 +1,40 @@
 # Plano — CHANGES
 
+## `2026-10-13.11` — A single copied SOAP is read; hand-entered patients take SOAPs; "SOAP baru" marks
+
+- **Baca "had no response" (Avi's attachment: one SOAP copied on its own).**
+  The message was read fine (Tn. …, 415/2, floor 4, DPJP ARB) — the bug was
+  after it. Root cause: a message copied by itself (long-press → Salin) has
+  no "[time] name:" line, so `sentAt` was ''. `pasteDiff` only replaces a
+  stored SOAP with a NEWER one; '' is never newer, so a patient already on the
+  roster counted as "tidak berubah", Simpan stayed disabled, and nothing
+  visibly happened. Fix: an untimed message is taken as sent now (stated in
+  the result); the same text again is "unchanged" whatever its time (so a
+  re-paste does not churn); an update with no sender keeps the stored sender
+  (the junior read from the sender's nickname does not go blank). Baca now
+  always answers: "Tidak ada pasien terbaca" (with what is needed) or
+  "Semua pasien sudah sama dengan yang tersimpan".
+- **Hand-entered patients could not take a SOAP.** Root cause: `pasteDiff`
+  treated `stored.manual` as "never replace" (meant for pediatri patients
+  without reports), so a real SOAP pasted later was ignored; and the SOAP
+  window had no edit for them ("Ubah SOAP" is for WhatsApp text). Fix: a SOAP
+  replaces a hand entry (a list line still does not); the SOAP window shows
+  "Ubah isi" for a hand entry, opening the same form as the List tab.
+- **"SOAP baru" (Avi: mid-day re-paste, need to see which SOAPs are now the
+  newest).** `soapState(report, date, lastSent)`: "SOAP baru HH:MM" when the
+  SOAP arrived after the last saved edition; "SOAP dd/mm" (grey) when there
+  is none yet on the list date. Not for hand entries or list lines. On List
+  cards, denah lines and in the SOAP window. `rosterView` takes the last
+  edition's time (local stamp).
+- Tests: manual replaced by a SOAP not by a list line; same text unchanged;
+  sender kept; soapState cases; the readmit fixture now has new text (its
+  identical text is, correctly, unchanged).
+
+### Verify
+```
+npm run verify → typecheck, lint, 166 files / 2430 tests, version, contrast, a11y, build: all green
+```
+
 ## `2026-10-13.10` — Floor marks become tags (auto rules); one full line per patient in Per DPJP; KJS-only patients kept
 
 - **Tags, not line colour (Avi).** 13.7 let a floor mark colour the whole

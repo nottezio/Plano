@@ -67,6 +67,8 @@ export interface FloorPatient {
   manualFields?: ManualFields | undefined;
   /** The floor's own marks on this patient (13.10, `marks.ts`); list only, never from a SOAP. */
   tags?: PatientTag[] | undefined;
+  /** On the list view only: the SOAP arrived after the last sent list, or is from before today (13.11). */
+  soap?: 'baru' | 'lama' | undefined;
   /** A DPJP code written on a sent list that is not one of ours ("TM/…", 13.10): printed as written. */
   dpjpCode?: string | undefined;
   /** Held by a cardiology division, not the ward residents (13.9, `divisionOf`). */

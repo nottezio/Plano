@@ -261,6 +261,20 @@ export function effective(
   return { ...rest, junior, chief, discharge: colourOn(patient, date), ...(division ? { division } : {}), ...(tags.length > 0 ? { tags } : {}) };
 }
 
+/**
+ * Whether the SOAP on the list is current (13.11, Avi: mid-day the list maker
+ * re-pastes to bring the SOAPs up to date, and needs to see which are):
+ * 'baru' — a SOAP from the group arrived after the last list was sent;
+ * 'lama' — the latest SOAP is from before the list date (none today yet).
+ * Hand entries and list lines are neither: they are not SOAPs.
+ */
+export function soapState(report: FloorPatient, date: string, lastSent: string): 'baru' | 'lama' | null {
+  if (report.manual || report.fromList || !report.sentAt) return null;
+  if (lastSent && report.sentAt > lastSent) return 'baru';
+  if (report.sentAt.slice(0, 10) < date) return 'lama';
+  return null;
+}
+
 export interface RosterView {
   /** On the floor, residents and colour applied. */
   active: FloorPatient[];
@@ -272,10 +286,23 @@ export interface RosterView {
  * `previous`: the keys on the last list sent before this date (the
  * "pasien baru" rule); without one, a patient added on this date is new.
  */
-export function rosterView(floor: FloorDoc, roster: readonly RosterPatient[], date: string, previous?: ReadonlySet<string> | null): RosterView {
+export function rosterView(
+  floor: FloorDoc,
+  roster: readonly RosterPatient[],
+  date: string,
+  previous?: ReadonlySet<string> | null,
+  /** When the last list was sent (local stamp): SOAPs after it are marked (13.11). */
+  lastSent?: string,
+): RosterView {
   const isNew = (p: RosterPatient): boolean => (previous ? !previous.has(p.key) : p.addedAt.slice(0, 10) === date);
   return {
-    active: roster.filter((p) => p.status === 'dirawat').map((p) => effective(p, floor, date, isNew(p))),
+    active: roster
+      .filter((p) => p.status === 'dirawat')
+      .map((p) => {
+        const seen = effective(p, floor, date, isNew(p));
+        const soap = soapState(p.report, date, lastSent ?? '');
+        return soap ? { ...seen, soap } : seen;
+      }),
     left: roster.filter((p) => p.status !== 'dirawat').sort((a, b) => (a.leftAt < b.leftAt ? 1 : -1)),
   };
 }
@@ -411,9 +438,14 @@ export function pasteDiff(roster: readonly RosterPatient[], reports: readonly Fl
     // An edit made in Plano survives a re-paste of the same message; only a newer one replaces it.
     const newer =
       (stored.fromList && !report.fromList) ||
+      // A SOAP replaces a hand-entered patient (13.11: the pediatri patient
+      // who later gets reports in the group was frozen at the hand entry).
+      (stored.manual && !report.fromList) ||
       report.sentAt > stored.sentAt || (report.sentAt === stored.sentAt && stored.edited !== true && report.full !== stored.full);
-    // A list line never replaces a real SOAP; a SOAP always replaces a list line.
-    if (!newer || stored.manual || (report.fromList && !stored.fromList)) {
+    // The same text again (a re-paste, or a copied message stamped "now") changes nothing.
+    const same = report.full === stored.full && !stored.manual;
+    // A list line never replaces a real SOAP or a hand entry; a SOAP always replaces a list line.
+    if (!newer || same || (report.fromList && (!stored.fromList || stored.manual))) {
       diff.unchanged += 1;
       continue;
     }
@@ -434,7 +466,10 @@ export function pasteDiff(roster: readonly RosterPatient[], reports: readonly Fl
  * they were unless the move was confirmed.
  */
 export function updatedReport(stored: FloorPatient, report: FloorPatient, acceptMove: boolean): FloorPatient {
-  return acceptMove ? report : { ...report, room: stored.room, bed: stored.bed };
+  // A message copied on its own has no sender line: keep who wrote the last
+  // one, so the junior read from the sender's nickname does not go blank.
+  const who = report.sender ? {} : { sender: stored.sender, senderNick: stored.senderNick };
+  return { ...report, ...who, ...(acceptMove ? {} : { room: stored.room, bed: stored.bed }) };
 }
 
 /** Local wall-clock stamp, the clock WhatsApp exports use ("2026-10-12T07:05"). */
