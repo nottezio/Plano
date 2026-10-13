@@ -1,5 +1,53 @@
 # Plano — CHANGES
 
+## `2026-10-13.15` — List Maker revamp (phone head, readable List, export card, grouped controls); colour palettes
+
+- **Phone layout broken (Avi).** Root cause: one wrapping flex row held the
+  floor chips, the date (fixed 10 rem) and the chief box (fixed 18 rem), and
+  the six tabs were equal flex items in one row — on 390 px the last tab was
+  cut off and the date/chief wrapped unevenly. Fix: `ListMakerHeader` — the
+  lists in a scroll strip, date + chiefs in a grid that fits any width
+  (stacked under 420 px), tabs that keep their word width and scroll only
+  when they cannot fit (all six fit at 390 px). Measured: page width = screen
+  width at 390 px in every view checked.
+- **List tab, "a headache to see".** Root cause: every patient card carried
+  its full set of controls (≈12 inputs and buttons) at all times, so the
+  list could not be read as a list. Now one compact row per patient — room/bed
+  chip, DPJP code chip, identity (red/green), residents, notes, SOAP badge,
+  tags — and ONE "Atur" button that opens that patient's controls under the
+  row (one at a time). Tapping the row opens the SOAP, as on the denah.
+- **Export UI.** One card: Jam list + Simpan edisi first, then "Kirim /
+  ekspor" as four labelled tiles with icons (Salin teks — untuk WhatsApp,
+  Word: List, Word: Denah, PDF — denah + list). The WhatsApp preview is a
+  collapsible "Pratinjau pesan WhatsApp". Sticky beside the list on a wide
+  screen.
+- **Controls grouped by purpose** (`PatientControls`): Residen (Junior,
+  Chief, Pemegang, Operkan ke, Ganti chief — each with a visible label),
+  Rencana pulang (Warna, Tanggal), Tag, Status pasien. The status actions
+  each have their own colour: green "✓ Pulang", amber "↗ Pindah ruangan…",
+  accent "⇄ Kamar/bed…"; Hapus stays small at the end. Same component in the
+  SOAP window's "Atur pasien".
+- **"Anggota" → "Setelan"**: the tab holds members, the junior roster, the
+  floor's colours, nicknames and delete.
+- **Colour palettes** (Pengaturan → Tampilan → Warna aplikasi): accent
+  Biru, Toska, Ungu, Hijau, Oranye, Merah muda, Grafit; background Standar,
+  Kertas hangat (light), Hitam pekat (dark, OLED). `data-palette` /
+  `data-surface` on <html>, set before first paint (index.html) and by the
+  store; tokens in tokens.css; `check-contrast.mjs` checks every palette
+  (text on accent, accent as text) and background in both modes — all
+  ≥ 4.5:1. Found on the way: in dark mode every primary button was white
+  text on #5b9cff (2.8:1). New `--on-accent` token (white in light,
+  near-black in dark) replaces `text-white` on all 53 accent fills. The
+  default light accent is a shade darker (#0b5ed7) so it reads as text on
+  the subtle grey and on warm paper (the old #0d6efd was 4.2:1 on grey).
+- Checked by render at 390 px and 1440 px, dark/light, Toska and
+  Ungu + Hitam pekat.
+
+### Verify
+```
+npm run verify → typecheck, lint, 169 files / 2443 tests, version, contrast, a11y, build: all green
+```
+
 ## `2026-10-13.14` — Local save time; delete a saved list; handover boxes; "Tidak ada yang pegang"; division patients as KJS
 
 - **"disimpan 10:56" for a list saved at 18:56 (Avi).** Root cause: stored

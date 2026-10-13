@@ -588,7 +588,7 @@ export function PatientCard({
             className={[
               'mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded border text-[11px]',
               checked
-                ? 'border-transparent bg-accent text-white'
+                ? 'border-transparent bg-accent text-on-accent'
                 : 'border-current opacity-40',
             ].join(' ')}
           >

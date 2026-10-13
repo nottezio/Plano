@@ -99,7 +99,7 @@ export function DateRail({
           'flex min-h-tap items-center gap-2 rounded-lg border px-3 text-left text-xs',
           orientation === 'vertical' ? 'w-full' : 'shrink-0 whitespace-nowrap',
           selected === IGD_ENTRY
-            ? 'border-accent bg-accent font-medium text-white'
+            ? 'border-accent bg-accent font-medium text-on-accent'
             : 'border-border text-fg-muted',
         ].join(' ')}
       >
@@ -137,7 +137,7 @@ export function DateRail({
                 // at all — which is why it never appeared.
                 ? 'min-w-0 flex-1 flex-row items-center justify-between gap-2 text-left'
                 : 'flex-col items-center justify-center',
-              active ? 'bg-accent font-medium text-white' : 'text-fg-muted',
+              active ? 'bg-accent font-medium text-on-accent' : 'text-fg-muted',
             ].join(' ')}
           >
             <span>{date === today ? 'Hari ini' : relativeDayLabel(date, today)}</span>

@@ -135,7 +135,7 @@ export function PhoneCanvas({
           onClick={() => setEditing((current) => !current)}
           className={[
             'min-h-tap rounded-lg border px-3 text-xs font-semibold',
-            editing ? 'border-accent bg-accent text-white' : 'border-border bg-surface text-fg',
+            editing ? 'border-accent bg-accent text-on-accent' : 'border-border bg-surface text-fg',
           ].join(' ')}
         >
           {editing ? 'Selesai' : 'Atur'}

@@ -17,6 +17,7 @@ export default {
         'fg-muted': 'var(--fg-muted)',
         'fg-faint': 'var(--fg-faint)',
         accent: 'var(--accent)',
+        'on-accent': 'var(--on-accent)',
         danger: 'var(--danger)',
         // Resolved checklist token trio (see [data-color-token] in tokens.css)
         token: 'var(--token-bg)',

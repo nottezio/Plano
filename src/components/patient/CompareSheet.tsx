@@ -445,7 +445,7 @@ function OptionList({
                   >
                     <span className="truncate">{option.name}</span>
                     {option.open ? (
-                      <span className="shrink-0 rounded bg-accent px-1 text-[10px] font-semibold text-white">
+                      <span className="shrink-0 rounded bg-accent px-1 text-[10px] font-semibold text-on-accent">
                         dibuka
                       </span>
                     ) : null}

@@ -255,7 +255,7 @@ export function CanvasDrawing({
           <button
             type="button"
             onClick={() => setActive(false)}
-            className={`${BUTTON} bg-accent text-white hover:bg-accent hover:opacity-90`}
+            className={`${BUTTON} bg-accent text-on-accent hover:bg-accent hover:opacity-90`}
           >
             Selesai
           </button>

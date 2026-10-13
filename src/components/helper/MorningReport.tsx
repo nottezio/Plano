@@ -316,7 +316,7 @@ export function MorningReport(): JSX.Element {
                   aria-hidden="true"
                   className={[
                     'flex h-4 w-4 shrink-0 items-center justify-center rounded-full text-[9px]',
-                    item.ok ? 'bg-accent text-white' : 'ring-1 ring-border-strong',
+                    item.ok ? 'bg-accent text-on-accent' : 'ring-1 ring-border-strong',
                   ].join(' ')}
                 >
                   {item.ok ? '✓' : ''}

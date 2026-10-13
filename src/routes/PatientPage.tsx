@@ -1715,7 +1715,7 @@ export default function PatientPage(): JSX.Element {
           <button
             type="button"
             onClick={() => setCopyOpen(true)}
-            className="min-h-tap shrink-0 rounded-lg bg-accent px-3 text-xs font-medium text-white"
+            className="min-h-tap shrink-0 rounded-lg bg-accent px-3 text-xs font-medium text-on-accent"
           >
             Salin
           </button>

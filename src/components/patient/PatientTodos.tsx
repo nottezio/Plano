@@ -141,7 +141,7 @@ export function PatientTodos({
                   aria-hidden="true"
                   className={[
                     'mt-1.5 flex h-4 w-4 shrink-0 items-center justify-center rounded border text-[10px]',
-                    todo.done ? 'border-accent bg-accent text-white' : 'border-border-strong',
+                    todo.done ? 'border-accent bg-accent text-on-accent' : 'border-border-strong',
                   ].join(' ')}
                 >
                   {todo.done ? '✓' : ''}

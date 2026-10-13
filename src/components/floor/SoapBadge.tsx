@@ -12,7 +12,7 @@ export function SoapBadge({ patient }: { patient: FloorPatient }): JSX.Element |
     return (
       <span
         title={`SOAP diperbarui ${patient.sentAt.slice(11, 16)}, setelah list terakhir dikirim`}
-        className="ml-1 inline-block rounded-full bg-accent px-1.5 align-middle text-[10px] font-semibold leading-4 text-white"
+        className="ml-1 inline-block rounded-full bg-accent px-1.5 align-middle text-[10px] font-semibold leading-4 text-on-accent"
       >
         SOAP baru {patient.sentAt.slice(11, 16)}
       </span>

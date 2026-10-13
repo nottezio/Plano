@@ -45,6 +45,7 @@ import { useSession } from '@/store/useSession';
 import { SignOutButton } from '@/components/auth/SignOutButton';
 import { resetSettings } from '@/data/repositories/settings.repo';
 import { useUI, type ThemePreference } from '@/store/useUI';
+import { PALETTES, SURFACES } from '@/domain/palette';
 import type { NoteTemplate } from '@/domain/types';
 import { APP_VERSION } from '@/version.js';
 import { UpdateControls } from '@/components/common/UpdateControls';
@@ -71,6 +72,10 @@ const THEME_OPTIONS: Array<{ value: ThemePreference; label: string }> = [
 export default function SettingsPage(): JSX.Element {
   const theme = useUI((state) => state.theme);
   const setTheme = useUI((state) => state.setTheme);
+  const palette = useUI((state) => state.palette);
+  const surface = useUI((state) => state.surface);
+  const setPalette = useUI((state) => state.setPalette);
+  const setSurface = useUI((state) => state.setSurface);
   const user = useSession((state) => state.user);
   const persistence = useSession((state) => state.storagePersistence);
   const settings = useSession((state) => state.settings());
@@ -187,6 +192,52 @@ export default function SettingsPage(): JSX.Element {
                   {option.label}
                 </button>
               ))}
+            </div>
+          </SettingsSection>
+          <SettingsSection
+            id="warna"
+            keywords="warna palet tema aksen latar oled hitam kertas theme palette colour color"
+            title="Warna aplikasi"
+            description="Warna tombol dan pilihan, serta latar. Tersimpan di perangkat ini."
+          >
+            <div className="space-y-3">
+              <div className="grid grid-cols-2 gap-2 min-[420px]:grid-cols-4">
+                {PALETTES.map((p) => (
+                  <button
+                    key={p.id}
+                    type="button"
+                    aria-pressed={palette === p.id}
+                    onClick={() => setPalette(p.id)}
+                    className={[
+                      'flex min-h-tap items-center gap-2 rounded-lg border px-2.5 text-sm',
+                      palette === p.id ? 'border-accent font-medium text-accent' : 'border-border text-fg-muted',
+                    ].join(' ')}
+                  >
+                    <span aria-hidden="true" className="flex shrink-0 overflow-hidden rounded-full border border-border">
+                      <span className="h-5 w-2.5" style={{ background: p.swatch[0] }} />
+                      <span className="h-5 w-2.5" style={{ background: p.swatch[1] }} />
+                    </span>
+                    {p.name}
+                  </button>
+                ))}
+              </div>
+              <div className="grid gap-2 sm:grid-cols-3">
+                {SURFACES.map((option) => (
+                  <button
+                    key={option.id}
+                    type="button"
+                    aria-pressed={surface === option.id}
+                    onClick={() => setSurface(option.id)}
+                    className={[
+                      'min-h-tap rounded-lg border px-3 py-1.5 text-left text-sm',
+                      surface === option.id ? 'border-accent font-medium text-accent' : 'border-border text-fg-muted',
+                    ].join(' ')}
+                  >
+                    {option.name}
+                    <span className="block text-[11px] font-normal text-fg-faint">{option.note}</span>
+                  </button>
+                ))}
+              </div>
             </div>
           </SettingsSection>
           <SettingsSection

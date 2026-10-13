@@ -80,7 +80,7 @@ export function LockScreen(): JSX.Element {
           type="button"
           onClick={submit}
           disabled={pin.length < PIN_MIN_LENGTH || checking}
-          className="mt-4 min-h-tap w-40 rounded-lg bg-accent text-sm font-medium text-white disabled:opacity-40"
+          className="mt-4 min-h-tap w-40 rounded-lg bg-accent text-sm font-medium text-on-accent disabled:opacity-40"
         >
           {checking ? 'Memeriksa…' : 'Buka'}
         </button>

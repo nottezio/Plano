@@ -163,7 +163,7 @@ export default function ArchivePage(): JSX.Element {
                   className={[
                     'min-h-tap shrink-0 whitespace-nowrap rounded-full border px-3 text-xs',
                     active
-                      ? 'border-accent bg-accent font-semibold text-white'
+                      ? 'border-accent bg-accent font-semibold text-on-accent'
                       : 'border-border text-fg-muted hover:bg-bg-subtle',
                   ].join(' ')}
                 >
@@ -493,7 +493,7 @@ function TrashButton({
         className="relative flex min-h-tap min-w-tap shrink-0 items-center justify-center rounded-lg border border-border text-fg-muted"
       >
         <IconTrash width={18} height={18} />
-        <span className="absolute -right-1 -top-1 rounded-full bg-accent px-1.5 text-[10px] font-medium text-white">
+        <span className="absolute -right-1 -top-1 rounded-full bg-accent px-1.5 text-[10px] font-medium text-on-accent">
           {trashed.length}
         </span>
       </button>

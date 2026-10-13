@@ -257,7 +257,7 @@ export function WarfarinCard({
           <button
             type="button"
             onClick={() => setInserted(onInsertTerapi(result.line) ? 'ok' : 'none')}
-            className="min-h-tap rounded-lg bg-accent px-3 text-xs font-medium text-white"
+            className="min-h-tap rounded-lg bg-accent px-3 text-xs font-medium text-on-accent"
           >
             Sisipkan ke Terapi
           </button>

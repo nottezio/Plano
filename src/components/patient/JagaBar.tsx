@@ -36,7 +36,7 @@ export function JagaBar({
   const chip = (active: boolean): string =>
     [
       'min-h-tap shrink-0 rounded-full border px-3 text-xs [@media(pointer:fine)]:min-h-8',
-      active ? 'border-accent bg-accent font-semibold text-white' : 'border-border text-fg-muted hover:bg-bg-subtle',
+      active ? 'border-accent bg-accent font-semibold text-on-accent' : 'border-border text-fg-muted hover:bg-bg-subtle',
     ].join(' ');
 
   return (

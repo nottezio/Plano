@@ -64,7 +64,7 @@ export function NewVersionSheet({
         <button
           type="button"
           onClick={create}
-          className="min-h-tap w-full rounded-lg bg-accent px-4 text-sm font-semibold text-white"
+          className="min-h-tap w-full rounded-lg bg-accent px-4 text-sm font-semibold text-on-accent"
         >
           Buat versi
         </button>

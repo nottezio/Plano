@@ -138,7 +138,7 @@ export function ImportData({ uid }: { uid: string }): JSX.Element {
             <button
               type="button"
               onClick={() => start(state.plan)}
-              className="min-h-tap flex-1 rounded-lg bg-accent px-3 text-sm font-medium text-white"
+              className="min-h-tap flex-1 rounded-lg bg-accent px-3 text-sm font-medium text-on-accent"
             >
               Impor
             </button>

@@ -45,7 +45,7 @@ export function PinSetupSheet({
           type="button"
           onClick={submit}
           disabled={!valid || busy}
-          className="min-h-tap w-full rounded-lg bg-accent px-4 text-sm font-medium text-white disabled:opacity-40"
+          className="min-h-tap w-full rounded-lg bg-accent px-4 text-sm font-medium text-on-accent disabled:opacity-40"
         >
           Simpan PIN
         </button>

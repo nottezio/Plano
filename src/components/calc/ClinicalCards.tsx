@@ -132,7 +132,7 @@ export function Segmented<T extends string>({
           onClick={() => onChange(option.value)}
           className={[
             'min-h-tap flex-1 px-2',
-            value === option.value ? 'bg-accent font-semibold text-white' : 'text-fg-muted',
+            value === option.value ? 'bg-accent font-semibold text-on-accent' : 'text-fg-muted',
           ].join(' ')}
         >
           {option.label}

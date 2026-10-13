@@ -426,7 +426,7 @@ function ChecklistDetail({
                   aria-hidden="true"
                   className={[
                     'mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-md border-2 text-xs font-bold',
-                    checked ? 'border-accent bg-accent text-white' : 'border-fg-faint',
+                    checked ? 'border-accent bg-accent text-on-accent' : 'border-fg-faint',
                   ].join(' ')}
                 >
                   {checked ? '✓' : ''}

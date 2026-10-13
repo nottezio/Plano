@@ -14,6 +14,7 @@ export function ChiefsField({
   label = 'Chief',
   id = 'floor-chief-input',
   noun = 'chief',
+  wide = false,
 }: {
   chiefs: string[];
   onChange: (next: string[]) => void;
@@ -21,6 +22,8 @@ export function ChiefsField({
   label?: string;
   id?: string;
   noun?: string;
+  /** Fill the column it sits in (the List Maker head, 13.15) instead of 18 rem. */
+  wide?: boolean;
 }): JSX.Element {
   const [draft, setDraft] = useState('');
   const add = (): void => {
@@ -33,7 +36,7 @@ export function ChiefsField({
       <label htmlFor={id} className="mb-1 block text-xs font-medium text-fg-muted">
         {label}
       </label>
-      <div className="flex min-h-tap w-72 max-w-full flex-wrap items-center gap-1 rounded-xl border border-border bg-surface px-1.5 py-1 focus-within:border-accent [@media(pointer:fine)]:min-h-10">
+      <div className={`flex min-h-tap ${wide ? 'w-full' : 'w-72'} max-w-full flex-wrap items-center gap-1 rounded-xl border border-border bg-surface px-1.5 py-1 focus-within:border-accent [@media(pointer:fine)]:min-h-10`}>
         {chiefs.map((name) => (
           <span key={name} className="inline-flex h-7 items-center gap-0.5 rounded-full bg-bg-subtle pl-2.5 text-sm">
             {name}

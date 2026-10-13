@@ -177,7 +177,7 @@ export function AnalysisPanel({
               type="button"
               aria-pressed={filter === f}
               onClick={() => setFilter(f)}
-              className={`min-h-8 rounded-full border px-2.5 text-[11px] font-semibold ${filter === f ? 'border-accent bg-accent text-white' : 'border-border text-fg-muted'}`}
+              className={`min-h-8 rounded-full border px-2.5 text-[11px] font-semibold ${filter === f ? 'border-accent bg-accent text-on-accent' : 'border-border text-fg-muted'}`}
             >
               {f === 'semua' ? 'Semua' : MOVE_LABEL[f]}
             </button>

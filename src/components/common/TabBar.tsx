@@ -178,7 +178,7 @@ export function TabBar(): JSX.Element {
       <div className="hidden items-center gap-2.5 px-1 pb-2 sm:flex sm:justify-center lg:justify-start lg:px-2.5 lg:pb-1">
         <span
           aria-hidden="true"
-          className="flex h-8 w-8 items-center justify-center rounded-lg bg-accent text-sm font-bold text-white"
+          className="flex h-8 w-8 items-center justify-center rounded-lg bg-accent text-sm font-bold text-on-accent"
         >
           P
         </span>

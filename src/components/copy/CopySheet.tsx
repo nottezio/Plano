@@ -700,7 +700,7 @@ export function CopySheet({
       type="button"
       onClick={onCopy}
       disabled={!output.trim()}
-      className="flex min-h-tap w-full items-center gap-3 rounded-xl bg-accent px-4 py-2 text-left text-white transition-opacity hover:opacity-90 disabled:opacity-40"
+      className="flex min-h-tap w-full items-center gap-3 rounded-xl bg-accent px-4 py-2 text-left text-on-accent transition-opacity hover:opacity-90 disabled:opacity-40"
     >
       <IconCopy width={20} height={20} className="shrink-0" />
       <span className="min-w-0 flex-1">

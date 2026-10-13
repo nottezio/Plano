@@ -60,7 +60,7 @@ function AutoRule({ mark, onChange }: { mark: FloorMark; onChange: (auto: MarkAu
                   const next = on ? ids.filter((x) => x !== id) : [...ids, id];
                   onChange(next.length > 0 ? { kind: 'dpjp', ids: next } : undefined);
                 }}
-                className={`min-h-8 rounded-full border px-2 text-[11px] font-semibold ${on ? 'border-accent bg-accent text-white' : 'border-border text-fg-muted'}`}
+                className={`min-h-8 rounded-full border px-2 text-[11px] font-semibold ${on ? 'border-accent bg-accent text-on-accent' : 'border-border text-fg-muted'}`}
               >
                 {code(id)}
               </button>

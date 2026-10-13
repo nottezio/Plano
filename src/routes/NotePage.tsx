@@ -230,7 +230,7 @@ export default function NotePage(): JSX.Element {
           type="button"
           onClick={addNote}
           disabled={!uid}
-          className="flex min-h-tap shrink-0 items-center gap-1 rounded-xl bg-accent px-3 text-sm font-semibold text-white disabled:opacity-50"
+          className="flex min-h-tap shrink-0 items-center gap-1 rounded-xl bg-accent px-3 text-sm font-semibold text-on-accent disabled:opacity-50"
         >
           <IconPlus width="18" height="18" />
           Baru

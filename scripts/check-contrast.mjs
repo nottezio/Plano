@@ -59,5 +59,34 @@ for (const selector of [':root', '.dark']) {
     console.log(`${ok ? 'PASS' : 'FAIL'} ${selector.padEnd(6)} ${name.padEnd(16)} ${r.toFixed(2)}:1`);
   }
 }
+// Palettes (13.15): on-accent text on the accent, and the accent as text on
+// the surface, in both modes; the warm/black backgrounds keep the text tokens.
+for (const [, mode, name, body] of css.matchAll(/(:root|\.dark)\[data-palette='(\w+)'\]\s*\{([^}]*)\}/g)) {
+  const accent = /--accent:\s*(#[0-9a-fA-F]{6})/.exec(body)?.[1];
+  const base = vars(blockOf(mode));
+  const pairs = [
+    ['on-accent', base.get('on-accent'), accent],
+    ['accent text', accent, base.get('surface')],
+  ];
+  for (const [what, fg, bg] of pairs) {
+    const r = ratio(fg, bg);
+    const ok = r >= 4.5;
+    if (!ok) failures++;
+    console.log(`${ok ? 'PASS' : 'FAIL'} ${mode.padEnd(6)} ${name.padEnd(7)} ${what.padEnd(12)} ${r.toFixed(2)}:1`);
+  }
+}
+for (const [, mode, name, body] of css.matchAll(/(:root|\.dark)\[data-surface='(\w+)'\][^{]*\{([^}]*)\}/g)) {
+  const base = vars(blockOf(mode));
+  const surface = /--surface:\s*(#[0-9a-fA-F]{6})/.exec(body)?.[1];
+  const bg = /--bg:\s*(#[0-9a-fA-F]{6})/.exec(body)?.[1];
+  for (const [label, fg] of [['fg', base.get('fg')], ['fg-muted', base.get('fg-muted')], ['accent', base.get('accent')]]) {
+    for (const back of [surface, bg]) {
+      const r = ratio(fg, back);
+      const ok = r >= 4.5;
+      if (!ok) failures++;
+      console.log(`${ok ? 'PASS' : 'FAIL'} ${mode.padEnd(6)} ${name.padEnd(7)} ${label.padEnd(12)} ${r.toFixed(2)}:1`);
+    }
+  }
+}
 console.log(failures === 0 ? '\nAll card colours meet 4.5:1.' : `\n${failures} failing pair(s).`);
 process.exit(failures === 0 ? 0 : 1);

@@ -166,7 +166,7 @@ function AdminConsole({ adminUid }: { adminUid: string }): JSX.Element {
               <span
                 className={[
                   'rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide',
-                  enforce ? 'bg-accent text-white' : 'border border-border text-fg-muted',
+                  enforce ? 'bg-accent text-on-accent' : 'border border-border text-fg-muted',
                 ].join(' ')}
               >
                 {enforce === null ? '…' : enforce ? 'Aktif' : 'Nonaktif'}
@@ -211,7 +211,7 @@ function AdminConsole({ adminUid }: { adminUid: string }): JSX.Element {
                   onClick={() => setFilter(value)}
                   className={[
                     'min-h-tap rounded-full border px-3 text-xs font-medium [@media(pointer:fine)]:min-h-8',
-                    shown === value ? 'border-accent bg-accent text-white' : 'border-border text-fg-muted',
+                    shown === value ? 'border-accent bg-accent text-on-accent' : 'border-border text-fg-muted',
                   ].join(' ')}
                 >
                   {value === 'all' ? 'Semua' : STATUS_LABEL[value]}{' '}
@@ -319,7 +319,7 @@ function AccountRow({
   const name = record.displayName || record.email || '(belum tercatat)';
   const initial = (name.trim()[0] ?? '?').toUpperCase();
   const tone = admin
-    ? 'bg-accent text-white'
+    ? 'bg-accent text-on-accent'
     : record.status === 'approved'
       ? 'bg-[var(--accent-soft)] text-accent'
       : record.status === 'revoked'
@@ -366,7 +366,7 @@ function AccountRow({
               <button
                 type="button"
                 onClick={() => onStatus('approved')}
-                className="min-h-tap rounded-lg bg-accent px-3 text-xs font-medium text-white [@media(pointer:fine)]:min-h-8"
+                className="min-h-tap rounded-lg bg-accent px-3 text-xs font-medium text-on-accent [@media(pointer:fine)]:min-h-8"
               >
                 {record.status === 'revoked' ? 'Setujui lagi' : 'Setujui'}
               </button>

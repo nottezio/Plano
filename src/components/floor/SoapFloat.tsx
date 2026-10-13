@@ -249,7 +249,7 @@ export function SoapFloat({
                 type="button"
                 onClick={() => setAtur((now) => !now)}
                 aria-expanded={atur}
-                className={`min-h-tap rounded-lg border px-3 text-xs font-medium ${atur ? 'border-accent bg-accent text-white' : 'border-border'}`}
+                className={`min-h-tap rounded-lg border px-3 text-xs font-medium ${atur ? 'border-accent bg-accent text-on-accent' : 'border-border'}`}
               >
                 Atur pasien
               </button>
@@ -286,7 +286,7 @@ export function SoapFloat({
               type="button"
               onClick={() => void save()}
               disabled={saving}
-              className="min-h-tap rounded-lg bg-accent px-3 text-sm font-medium text-white disabled:opacity-40"
+              className="min-h-tap rounded-lg bg-accent px-3 text-sm font-medium text-on-accent disabled:opacity-40"
             >
               {saving ? 'Menyimpan…' : 'Simpan'}
             </button>

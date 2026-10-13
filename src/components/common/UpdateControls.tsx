@@ -46,7 +46,7 @@ export function UpdateControls(): JSX.Element {
             type="button"
             disabled={update === 'applying'}
             onClick={() => afterSaving(() => void applyUpdate())}
-            className="min-h-tap flex-1 rounded-lg bg-accent px-3 text-sm font-medium text-white disabled:opacity-60"
+            className="min-h-tap flex-1 rounded-lg bg-accent px-3 text-sm font-medium text-on-accent disabled:opacity-60"
           >
             {update === 'applying' ? 'Memuat…' : 'Pasang versi baru'}
           </button>
@@ -89,7 +89,7 @@ export function UpdateControls(): JSX.Element {
                   }),
               )
             }
-            className="mt-2 min-h-tap w-full rounded-lg bg-accent px-3 text-sm font-medium text-white"
+            className="mt-2 min-h-tap w-full rounded-lg bg-accent px-3 text-sm font-medium text-on-accent"
           >
             Hard refresh sekarang
           </button>

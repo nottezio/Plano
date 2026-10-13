@@ -307,7 +307,7 @@ export function Callout({
 }
 
 const BUTTON_VARIANT = {
-  primary: 'bg-accent text-white hover:opacity-90 disabled:opacity-40',
+  primary: 'bg-accent text-on-accent hover:opacity-90 disabled:opacity-40',
   secondary:
     'border border-border bg-surface text-fg hover:bg-bg-subtle disabled:opacity-40',
   ghost: 'text-accent hover:bg-[var(--accent-soft)] disabled:opacity-40',

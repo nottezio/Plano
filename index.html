@@ -37,6 +37,11 @@
           var prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
           var dark = stored === 'dark' || ((!stored || stored === 'system') && prefersDark);
           if (dark) document.documentElement.classList.add('dark');
+          // Palette and background (13.15), before first paint as well.
+          var palette = localStorage.getItem('plano.palette');
+          var surface = localStorage.getItem('plano.surface');
+          document.documentElement.setAttribute('data-palette', /^(biru|toska|ungu|hijau|oranye|rose|grafit)$/.test(palette || '') ? palette : 'biru');
+          document.documentElement.setAttribute('data-surface', /^(standar|hangat|pekat)$/.test(surface || '') ? surface : 'standar');
         } catch (err) {
           // localStorage can throw in private mode; light theme is a safe default.
           console.warn('[theme] preference unavailable, defaulting to light', err);

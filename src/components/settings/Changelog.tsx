@@ -70,7 +70,7 @@ export function Changelog(): JSX.Element {
                 <span>{describeVersion(entry.version)}</span>
                 {entry.title ? <span className="font-normal text-fg-muted">— {entry.title}</span> : null}
                 {current ? (
-                  <span className="rounded-full bg-accent px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-white">
+                  <span className="rounded-full bg-accent px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-on-accent">
                     Versi ini
                   </span>
                 ) : null}

@@ -47,7 +47,7 @@ export class ErrorBoundary extends Component<Props, State> {
         <button
           type="button"
           onClick={() => window.location.reload()}
-          className="min-h-tap rounded-lg bg-accent px-4 text-sm font-medium text-white"
+          className="min-h-tap rounded-lg bg-accent px-4 text-sm font-medium text-on-accent"
         >
           Muat ulang
         </button>

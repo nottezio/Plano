@@ -2,8 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 
 import { AppShell } from '@/components/common/AppShell';
-import { DateField } from '@/components/common/DateField';
-import { Button, Callout, ChoiceChip, Field, INPUT, Segmented } from '@/components/common/ui';
+import { Button, Callout, Field, INPUT } from '@/components/common/ui';
 import { FloorDenah } from '@/components/floor/FloorDenah';
 import { ListPanel } from '@/components/floor/ListPanel';
 import { MembersPanel } from '@/components/floor/MembersPanel';
@@ -16,7 +15,7 @@ import { wardPlan } from '@/domain/denahPlan';
 import { canEdit, chiefsOf, isOwner, localStamp, newRosterPatient, rosterView, type FloorDoc } from '@/domain/floorList/floor';
 import { searchWords } from '@/domain/floorList/search';
 import { AnalysisPanel } from '@/components/floor/AnalysisPanel';
-import { ChiefsField } from '@/components/floor/ChiefsField';
+import { ListMakerHeader } from '@/components/floor/ListMakerHeader';
 import { EditionsPanel } from '@/components/floor/EditionsPanel';
 import { latestOf, type FloorPatient } from '@/domain/floorList/report';
 import { useClinicalToday } from '@/hooks/useClinicalToday';
@@ -113,7 +112,9 @@ export default function ListMakerPage(): JSX.Element {
     ...(editable ? ([['tempel', 'Tempel']] as const) : []),
     ['analisis', 'Analisis'],
     ['riwayat', 'Riwayat'],
-    ['anggota', 'Anggota'],
+    // Members, the junior roster, the floor's colours, nicknames, delete:
+    // the list's settings, not only its members (13.15).
+    ['anggota', 'Setelan'],
   ];
 
   /*
@@ -191,7 +192,7 @@ export default function ListMakerPage(): JSX.Element {
           <section className="max-w-md space-y-3 rounded-2xl border border-border bg-surface p-4">
             <h2 className="text-sm font-semibold">Buat list baru</h2>
             <p className="text-xs text-fg-muted">
-              Boleh lebih dari satu list (mis. per lantai atau per tim). Setelah dibuat, undang anggota di tab Anggota.
+              Boleh lebih dari satu list (mis. per lantai atau per tim). Setelah dibuat, undang anggota di tab Setelan.
             </p>
             <Field label="Nama list" htmlFor="floor-name">
               <input id="floor-name" value={name} onChange={(e) => setName(e.target.value)} className={INPUT} />
@@ -213,39 +214,26 @@ export default function ListMakerPage(): JSX.Element {
 
         {floor ? (
           <>
-            <div className="flex flex-wrap items-end gap-2">
-              {floors.map((f) => (
-                <ChoiceChip
-                  key={f.id}
-                  active={f.id === floor.id}
-                  onClick={() => {
-                    const p = new URLSearchParams(params);
-                    p.set('f', f.id);
-                    setParams(p, { replace: true });
-                  }}
-                >
-                  {f.name}
-                </ChoiceChip>
-              ))}
-              <ChoiceChip
-                active={false}
-                onClick={() => {
-                  setName('');
-                  setShowCreate(true);
-                }}
-              >
-                + List baru
-              </ChoiceChip>
-              <span className="flex-1" />
-              <Field label="Tanggal list">
-                <DateField value={date} onChange={setDate} className="w-40" />
-              </Field>
-              {editable ? (
-                <ChiefsField chiefs={chiefsOf(floor.chiefs)} onChange={(next) => void writeChiefs(floor.id, next.join(', '))} />
-              ) : null}
-            </div>
-
-            <Segmented label="Tampilan" value={tab} onChange={setTab} options={tabs} />
+            <ListMakerHeader
+              floors={floors}
+              floorId={floor.id}
+              onPickFloor={(id) => {
+                const p = new URLSearchParams(params);
+                p.set('f', id);
+                setParams(p, { replace: true });
+              }}
+              onNewFloor={() => {
+                setName('');
+                setShowCreate(true);
+              }}
+              date={date}
+              onDate={setDate}
+              chiefs={editable ? chiefsOf(floor.chiefs) : null}
+              onChiefs={(next) => void writeChiefs(floor.id, next.join(', '))}
+              tab={tab}
+              tabs={tabs}
+              onTab={setTab}
+            />
 
             {rosterEmpty && legacyCount > 0 ? (
               <Callout title="Ada data lama">

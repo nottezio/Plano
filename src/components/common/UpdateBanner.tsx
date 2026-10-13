@@ -59,7 +59,7 @@ export function UpdateBanner(): JSX.Element | null {
         type="button"
         onClick={onReload}
         disabled={saving || applying}
-        className="min-h-tap shrink-0 rounded-lg bg-accent px-3 text-sm font-medium text-white disabled:opacity-60"
+        className="min-h-tap shrink-0 rounded-lg bg-accent px-3 text-sm font-medium text-on-accent disabled:opacity-60"
       >
         {applying ? 'Memuat…' : saving ? 'Menyimpan…' : 'Muat ulang'}
       </button>

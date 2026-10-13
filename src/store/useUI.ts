@@ -1,5 +1,24 @@
 import { create } from 'zustand';
 
+import { applyPalette, isPalette, isSurface, PALETTE_KEY, SURFACE_KEY, type PaletteId, type SurfaceId } from '@/domain/palette';
+
+function readStored<T>(key: string, valid: (v: unknown) => v is T, fallback: T): T {
+  try {
+    const raw = localStorage.getItem(key);
+    return valid(raw) ? raw : fallback;
+  } catch {
+    return fallback;
+  }
+}
+
+function store(key: string, value: string): void {
+  try {
+    localStorage.setItem(key, value);
+  } catch (error) {
+    console.warn('[ui] preference not persisted', error);
+  }
+}
+
 export type ThemePreference = 'system' | 'light' | 'dark';
 
 /**
@@ -14,6 +33,11 @@ export type SyncState =
 interface UIState {
   theme: ThemePreference;
   setTheme: (theme: ThemePreference) => void;
+  /** Accent palette and background (13.15), on this device. */
+  palette: PaletteId;
+  surface: SurfaceId;
+  setPalette: (palette: PaletteId) => void;
+  setSurface: (surface: SurfaceId) => void;
   /**
    * Force-save callbacks from every live editor.
    *
@@ -132,6 +156,18 @@ export const useUI = create<UIState>((set, get) => ({
       }
       return { contextPaneOpen: next };
     }),
+  palette: readStored<PaletteId>(PALETTE_KEY, isPalette, 'biru'),
+  surface: readStored<SurfaceId>(SURFACE_KEY, isSurface, 'standar'),
+  setPalette: (palette) => {
+    store(PALETTE_KEY, palette);
+    applyPalette(palette, get().surface);
+    set({ palette });
+  },
+  setSurface: (surface) => {
+    store(SURFACE_KEY, surface);
+    applyPalette(get().palette, surface);
+    set({ surface });
+  },
   setTheme: (theme) => {
     try {
       localStorage.setItem(THEME_STORAGE_KEY, theme);

@@ -29,11 +29,13 @@
   --fg: #0b0f14;
   --fg-muted: #5b6672;
   --fg-faint: #8b95a1;
-  --accent: #0d6efd;
+  --accent: #0b5ed7;
+  /* Text on an accent fill (13.15): white on the light accents… */
+  --on-accent: #ffffff;
   --danger: #dc2626;
   /* Tinted fills. Tailwind's `bg-accent/15` emits NO CSS for a colour that is a
      CSS variable, so every such tint in the app was silently transparent. */
-  --accent-soft: #0d6efd1f;
+  --accent-soft: #0b5ed71f;
   --danger-soft: #dc26261f;
   /**
    * Pemantauan — a patient under closer watch.
@@ -132,6 +134,8 @@
   --fg-muted: #9aa7b4;
   --fg-faint: #6f7d8b;
   --accent: #5b9cff;
+  /* …near-black on the bright dark-mode accents (white on #5b9cff was 2.8:1). */
+  --on-accent: #0b0f14;
   --danger: #f87171;
   --accent-soft: #5b9cff2e;
   --danger-soft: #f8717129;
@@ -233,3 +237,41 @@
 [data-color-token='step-12'] { --token-bg: var(--card-step-12-bg); --token-accent: var(--card-step-12-accent); --token-fg: var(--card-step-12-fg); }
 [data-color-token='neutral'] { --token-bg: var(--card-neutral-bg); --token-accent: var(--card-neutral-accent); --token-fg: var(--card-neutral-fg); }
 [data-color-token='done'] { --token-bg: var(--card-done-bg); --token-accent: var(--card-done-accent); --token-fg: var(--card-done-fg); }
+
+/* ---- Colour palettes (13.15, Avi: "more themes, a colour palette") ----
+   An accent family per palette, light and dark, on <html data-palette>. Each
+   light accent carries white text at >= 4.5:1 and each dark accent is read
+   as text on the dark surface at >= 4.5:1 (scripts/check-contrast.mjs).
+   "biru" is the default above. */
+:root[data-palette='toska'] { --accent: #0f766e; --accent-soft: #0f766e1f; --focus-ring: #0f766e; }
+.dark[data-palette='toska'] { --accent: #2dd4bf; --accent-soft: #2dd4bf2e; --focus-ring: #2dd4bf; }
+:root[data-palette='ungu'] { --accent: #6d28d9; --accent-soft: #6d28d91f; --focus-ring: #6d28d9; }
+.dark[data-palette='ungu'] { --accent: #a78bfa; --accent-soft: #a78bfa2e; --focus-ring: #a78bfa; }
+:root[data-palette='hijau'] { --accent: #15803d; --accent-soft: #15803d1f; --focus-ring: #15803d; }
+.dark[data-palette='hijau'] { --accent: #4ade80; --accent-soft: #4ade802e; --focus-ring: #4ade80; }
+:root[data-palette='oranye'] { --accent: #c2410c; --accent-soft: #c2410c1f; --focus-ring: #c2410c; }
+.dark[data-palette='oranye'] { --accent: #fb923c; --accent-soft: #fb923c2e; --focus-ring: #fb923c; }
+:root[data-palette='rose'] { --accent: #be123c; --accent-soft: #be123c1f; --focus-ring: #be123c; }
+.dark[data-palette='rose'] { --accent: #fb7185; --accent-soft: #fb71852e; --focus-ring: #fb7185; }
+:root[data-palette='grafit'] { --accent: #334155; --accent-soft: #3341551f; --focus-ring: #334155; }
+.dark[data-palette='grafit'] { --accent: #cbd5e1; --accent-soft: #cbd5e12e; --focus-ring: #cbd5e1; }
+
+/* ---- Backgrounds ----
+   "hangat": warm paper in light mode; "pekat": true black in dark mode
+   (OLED, night shifts). Each applies only in its own mode. */
+:root[data-surface='hangat']:not(.dark) {
+  --bg: #fbf7f0;
+  --bg-subtle: #f3ede3;
+  --surface: #fffdf9;
+  --surface-raised: #fffdf9;
+  --border: #e6dccd;
+  --border-strong: #d2c4ae;
+}
+.dark[data-surface='pekat'] {
+  --bg: #000000;
+  --bg-subtle: #0a0a0a;
+  --surface: #0f0f10;
+  --surface-raised: #161618;
+  --border: #222226;
+  --border-strong: #303036;
+}

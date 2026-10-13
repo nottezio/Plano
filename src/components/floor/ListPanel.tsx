@@ -1,14 +1,16 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useState, type ReactNode } from 'react';
 
-import { Button, Callout, INPUT } from '@/components/common/ui';
+import { IconCopy, IconDocuments, IconLayers, IconPrinter } from '@/components/common/Icons';
+import { Button, INPUT } from '@/components/common/ui';
 import { saveEdition, writeRosterFields } from '@/data/repositories/floors.repo';
 import { formatDmy } from '@/domain/dateDmy';
-import { buildFloorList, byRoute, patientLine } from '@/domain/floorList/build';
+import { buildFloorList, byRoute, dpjpCodeOf, patientLine } from '@/domain/floorList/build';
 import { buildDenahDocx, buildListDocx, DOCX_MIME, floorFileName } from '@/domain/floorList/docx';
 import { wardPlan } from '@/domain/denahPlan';
 import {
   chiefsOf,
   leftNote,
+  holderLabel,
   leftSince,
   localOf,
   type Edition,
@@ -24,7 +26,6 @@ import { matchesSearch } from '@/domain/floorList/search';
 import { copyText } from '@/lib/clipboard';
 import { deliverFile } from '@/lib/download';
 import { printDocument } from '@/lib/printPage';
-import { DeletePatient } from './DeletePatient';
 import { SoapBadge } from './SoapBadge';
 import { PatientControls } from './PatientControls';
 import { ListMessage } from './ListMessage';
@@ -33,16 +34,6 @@ import { ManualPatientSheet } from './ManualPatientSheet';
 
 /** The patient card's tint by its colour on this list (12.12): red H-1, green pulang hari ini. */
 const FLAG_TEXT = { tomorrow: 'var(--note-red)', today: 'var(--note-green)' } as const;
-
-/** Red/green tint the card; a floor tag only colours its own chip (13.10). */
-function cardColour(patient: FloorPatient): string | null {
-  return patient.discharge ? FLAG_TEXT[patient.discharge] : null;
-}
-const tinted = (colour: string) => ({
-  borderColor: colour,
-  borderLeftWidth: 4,
-  backgroundColor: `color-mix(in srgb, ${colour} 8%, var(--surface))`,
-});
 
 /** A prefill only (free text): the usual send times of the floor. */
 function defaultTime(now: Date): string {
@@ -101,6 +92,8 @@ export function ListPanel({
   };
 
   const [savingEdition, setSavingEdition] = useState(false);
+  /** The one patient whose controls are open (13.15). */
+  const [openKey, setOpenKey] = useState<string | null>(null);
   const saveThisEdition = (): void => {
     /*
       Saved once (13.14: Riwayat showed the 19.00 list twice — a double tap).
@@ -128,9 +121,15 @@ export function ListPanel({
     setSaved(`Edisi ${formatDmy(date)} ${time} tersimpan.`);
   };
 
+  const exportDenah = (): void =>
+    void deliverFile(
+      new Blob([buildDenahDocx({ ward: floor.ward, date, plan: wardPlan(floor.ward), patients: view.active })], { type: DOCX_MIME }),
+      floorFileName('Denah', floor.ward, date),
+    );
+
   return (
-    <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
-      <div className="min-w-0 space-y-3">
+    <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_24rem]">
+      <div className="min-w-0 space-y-2">
         <div className="flex flex-wrap items-center gap-2">
           <h3 className="flex-1 text-xs font-semibold uppercase tracking-wide text-fg-faint">
             Di lantai ({words.length > 0 ? `${sorted.length} dari ${all.length}` : all.length})
@@ -157,61 +156,58 @@ export function ListPanel({
           editing={editing}
         />
         {chiefs.length > 1 && sorted.some((p) => !p.chief && !p.division) ? (
-          <p className="text-xs text-fg-muted">{sorted.filter((p) => !p.chief && !p.division).length} pasien belum ada chief — pilih di kolom Chief.</p>
+          <p className="text-xs text-fg-muted">{sorted.filter((p) => !p.chief && !p.division).length} pasien belum ada chief — buka Atur pada pasiennya.</p>
         ) : null}
         {all.length === 0 ? <p className="text-xs text-fg-muted">Belum ada pasien. Buka Tempel.</p> : null}
         {all.length > 0 && sorted.length === 0 ? <p className="text-xs text-fg-muted">Tidak ada pasien yang cocok.</p> : null}
 
-        <ul className="space-y-2">
+        {/*
+          A list to READ (13.15, Avi: "too many buttons, a headache to see"):
+          one compact row per patient — place, DPJP, identity, residents,
+          marks — and ONE "Atur" that opens that patient's controls. Tapping
+          the row opens the SOAP, as on the denah.
+        */}
+        <ul className="divide-y divide-border overflow-hidden rounded-xl border border-border bg-surface">
           {sorted.map((patient) => {
             const entry = byKey.get(patient.key);
             if (!entry) return null;
-            const colour = cardColour(patient);
+            const isOpen = openKey === patient.key;
             return (
-              <li key={patient.key} className="rounded-xl border border-border bg-surface p-2 text-xs" style={colour ? tinted(colour) : undefined}>
-                <button
-                  type="button"
-                  onClick={() => onOpen(patient)}
-                  className="block text-left font-semibold hover:underline"
-                  style={colour ? { color: colour } : undefined}
-                >
-                  {patientLine(patient)}
-                  {patient.discharge ? <span className="sr-only"> ({patient.discharge === 'tomorrow' ? 'H-1' : 'pulang hari ini'})</span> : null}
-                  <SoapBadge patient={patient} />
-                  {(patient.tags ?? []).map((tag) => (
-                    <span
-                      key={tag.label}
-                      className="ml-1 inline-block rounded-full border px-1.5 text-[10px] font-semibold"
-                      style={{ borderColor: markCss(tag.color), color: markCss(tag.color) }}
+              <li key={patient.key} style={{ boxShadow: patient.discharge ? `inset 4px 0 0 ${FLAG_TEXT[patient.discharge]}` : undefined }}>
+                <div className="flex items-start gap-2 py-1.5 pl-3 pr-2">
+                  <button type="button" onClick={() => onOpen(patient)} className="min-w-0 flex-1 text-left">
+                    <PatientRowText patient={patient} />
+                  </button>
+                  {editable ? (
+                    <button
+                      type="button"
+                      aria-expanded={isOpen}
+                      aria-label={`Atur ${patient.name}`}
+                      onClick={() => setOpenKey(isOpen ? null : patient.key)}
+                      className={`min-h-tap shrink-0 rounded-lg border px-2.5 text-xs font-semibold [@media(pointer:fine)]:min-h-8 ${
+                        isOpen ? 'border-accent bg-[var(--accent-soft)] text-accent' : 'border-border text-fg-muted hover:text-fg'
+                      }`}
                     >
-                      {tag.label}
-                    </span>
-                  ))}
-                </button>
-                <div className="mt-0.5 flex flex-wrap items-center gap-x-1">
-                  <p className="min-w-0 flex-1 text-[11px] text-fg-faint">
-                    {patient.manual ? 'Diinput manual' : 'Laporan'}{' '}
-                    {patient.sentAt ? `${formatDmy(patient.sentAt.slice(0, 10))} ${patient.sentAt.slice(11, 16)}` : '—'}
-                    {patient.body ? '' : ' · tanpa Diagnosis/Terapi'}
-                    {entry.dischargeDate ? ` · rencana pulang ${formatDmy(entry.dischargeDate)}` : ''}
-                    {patient.division ? ` · dipegang divisi ${patient.division}, tidak di-FU` : ''}
-                    {patient.operkan ? ` · operkan ke dr. ${patient.operkan.replace(/^dr\.?\s*/i, '')}` : ''}
-                    {patient.gantiChief ? ` · ganti chief: dr. ${patient.gantiChief.replace(/^dr\.?\s*/i, '')}` : ''}
-                  </p>
-                  {editable ? <DeletePatient floorId={floor.id} patientKey={patient.key} name={patient.name} compact /> : null}
+                      Atur {isOpen ? '▴' : '▾'}
+                    </button>
+                  ) : null}
                 </div>
-                {editable ? (
-                  <PatientControls
-                    floor={floor}
-                    entry={entry}
-                    patient={patient}
-                    date={date}
-                    myName={myName}
-                    onEditManual={(p) => {
-                      setEditing(p);
-                      setManualOpen(true);
-                    }}
-                  />
+                {isOpen && editable ? (
+                  <div className="border-t border-border bg-bg-subtle px-3 py-2">
+                    <PatientControls
+                      floor={floor}
+                      entry={entry}
+                      patient={patient}
+                      date={date}
+                      myName={myName}
+                      allowDelete
+                      onGone={() => setOpenKey(null)}
+                      onEditManual={(p) => {
+                        setEditing(p);
+                        setManualOpen(true);
+                      }}
+                    />
+                  </div>
                 ) : null}
               </li>
             );
@@ -241,48 +237,47 @@ export function ListPanel({
         ) : null}
       </div>
 
-      <div className="min-w-0 space-y-3">
-        <div className="flex flex-wrap items-end gap-2">
-          <label className="block">
-            <span className="mb-1 block text-xs text-fg-muted">Jam list</span>
-            <input value={time} onChange={(e) => setTime(e.target.value)} aria-label="Jam list" className={`${INPUT} w-28`} />
-          </label>
-          <span className="flex-1" />
-          <Button size="sm" onClick={() => copy(text, 'list')}>
-            {copied === 'list' ? 'Tersalin' : 'Salin'}
-          </Button>
-          <Button
-            size="sm"
-            onClick={() => void deliverFile(new Blob([buildListDocx(text)], { type: DOCX_MIME }), floorFileName('List Pasien', floor.ward, date))}
-          >
-            Word: List
-          </Button>
-          <Button
-            size="sm"
-            onClick={() =>
-              void deliverFile(
-                new Blob([buildDenahDocx({ ward: floor.ward, date, plan: wardPlan(floor.ward), patients: view.active })], { type: DOCX_MIME }),
-                floorFileName('Denah', floor.ward, date),
-              )
-            }
-          >
-            Word: Denah
-          </Button>
-          <Button
-            size="sm"
-            onClick={() =>
-              printDocument(denahListHtml({ ward: floor.ward, date, plan: wardPlan(floor.ward), patients: view.active, listText: text }))
-            }
-          >
-            PDF: Denah + List
-          </Button>
-          {editable ? (
-            <Button size="sm" variant="primary" onClick={saveThisEdition} disabled={view.active.length === 0 || savingEdition}>
-              {savingEdition ? 'Tersimpan' : 'Simpan edisi'}
-            </Button>
-          ) : null}
-        </div>
-        {saved ? <Callout title="Tersimpan">{saved} Lihat di tab Riwayat.</Callout> : null}
+      <div className="min-w-0 space-y-3 lg:sticky lg:top-2 lg:self-start">
+        {/*
+          Send and export (13.15, Avi: "the export UI is weird"): one card —
+          the list's time and Simpan edisi first (what the list maker does),
+          then the four outputs as labelled tiles.
+        */}
+        <section className="space-y-3 rounded-2xl border border-border bg-surface p-3">
+          <div className="flex items-end gap-2">
+            <label className="block">
+              <span className="mb-1 block text-xs text-fg-muted">Jam list</span>
+              <input value={time} onChange={(e) => setTime(e.target.value)} aria-label="Jam list" className={`${INPUT} !w-24`} />
+            </label>
+            {editable ? (
+              <Button variant="primary" onClick={saveThisEdition} disabled={view.active.length === 0 || savingEdition}>
+                {savingEdition ? 'Tersimpan ✓' : 'Simpan edisi'}
+              </Button>
+            ) : null}
+          </div>
+          {saved ? <p className="text-xs text-fg-muted">{saved} Lihat di tab Riwayat.</p> : null}
+          <div>
+            <p className="mb-1.5 text-[10px] font-semibold uppercase tracking-wide text-fg-faint">Kirim / ekspor</p>
+            <div className="grid grid-cols-2 gap-2">
+              <ExportTile icon={<IconCopy width={18} height={18} />} title={copied === 'list' ? 'Tersalin ✓' : 'Salin teks'} note="untuk WhatsApp" onClick={() => copy(text, 'list')} />
+              <ExportTile
+                icon={<IconDocuments width={18} height={18} />}
+                title="Word: List"
+                note="pesan, 3 kolom"
+                onClick={() => void deliverFile(new Blob([buildListDocx(text)], { type: DOCX_MIME }), floorFileName('List Pasien', floor.ward, date))}
+              />
+              <ExportTile icon={<IconLayers width={18} height={18} />} title="Word: Denah" note="denah, DPJP, residen" onClick={exportDenah} />
+              <ExportTile
+                icon={<IconPrinter width={18} height={18} />}
+                title="PDF"
+                note="denah + list, 1 file"
+                onClick={() =>
+                  printDocument(denahListHtml({ ward: floor.ward, date, plan: wardPlan(floor.ward), patients: view.active, listText: text }))
+                }
+              />
+            </div>
+          </div>
+        </section>
 
         {gone.length > 0 ? (
           <div className="space-y-1 rounded-xl border border-border bg-surface p-3 text-xs">
@@ -298,8 +293,75 @@ export function ListPanel({
           </div>
         ) : null}
 
-        <ListMessage text={text} />
+        <details className="rounded-xl border border-border bg-surface">
+          <summary className="cursor-pointer px-3 py-2 text-xs font-semibold">Pratinjau pesan WhatsApp</summary>
+          <div className="border-t border-border">
+            <ListMessage text={text} />
+          </div>
+        </details>
       </div>
     </div>
+  );
+}
+
+/** One export as a tile: icon, what it is, what it holds. */
+function ExportTile({ icon, title, note, onClick }: { icon: ReactNode; title: string; note: string; onClick: () => void }): JSX.Element {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="flex min-h-tap items-center gap-2 rounded-xl border border-border bg-bg-subtle px-2.5 py-2 text-left hover:border-accent"
+    >
+      <span className="shrink-0 text-accent">{icon}</span>
+      <span className="min-w-0">
+        <span className="block text-xs font-semibold">{title}</span>
+        <span className="block text-[10px] text-fg-muted">{note}</span>
+      </span>
+    </button>
+  );
+}
+
+/**
+ * A patient as one easy line: place and DPJP code as small chips, the
+ * identity (red/green when H-1 / pulang), then residents and marks below.
+ */
+function PatientRowText({ patient }: { patient: FloorPatient }): JSX.Element {
+  const colour = patient.discharge ? FLAG_TEXT[patient.discharge] : undefined;
+  const code = dpjpCodeOf(patient);
+  const residents = [patient.junior, patient.chief].filter(Boolean).map((n) => `dr. ${n}`).join(' / ');
+  const notes = [
+    patient.btkv ? 'KJS BTKV' : '',
+    patient.division ? `${holderLabel(patient.division)} · tidak di-FU` : '',
+    patient.operkan ? `operkan → dr. ${patient.operkan.replace(/^dr\.?\s*/i, '')}` : '',
+    patient.gantiChief ? `ganti chief → dr. ${patient.gantiChief.replace(/^dr\.?\s*/i, '')}` : '',
+  ].filter(Boolean);
+  return (
+    <span className="block text-xs leading-snug">
+      <span className="mr-1 inline-block rounded bg-bg-subtle px-1.5 font-semibold tabular-nums">
+        {patient.room || '—'}
+        {patient.bed ? `/${patient.bed}` : ''}
+      </span>
+      {code ? <span className="mr-1 inline-block rounded border border-border px-1 text-[10px] font-semibold text-fg-muted">{code}</span> : null}
+      <span className="font-semibold" style={colour ? { color: colour } : undefined}>
+        {patient.identity}
+      </span>
+      {patient.discharge ? <span className="sr-only"> ({patient.discharge === 'tomorrow' ? 'H-1' : 'pulang hari ini'})</span> : null}
+      <span className="mt-0.5 block text-[11px] text-fg-muted">
+        {residents || <span className="text-fg-faint">belum ada residen</span>}
+        {notes.map((n) => (
+          <span key={n}> · {n}</span>
+        ))}
+        <SoapBadge patient={patient} />
+        {(patient.tags ?? []).map((tag) => (
+          <span
+            key={tag.label}
+            className="ml-1 inline-block rounded-full border px-1.5 text-[10px] font-semibold"
+            style={{ borderColor: markCss(tag.color), color: markCss(tag.color) }}
+          >
+            {tag.label}
+          </span>
+        ))}
+      </span>
+    </span>
   );
 }

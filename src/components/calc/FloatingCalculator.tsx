@@ -406,7 +406,7 @@ export function FloatingCalculator({
                   className={[
                     'min-h-tap rounded-lg border text-sm font-medium tabular-nums transition-colors [@media(pointer:fine)]:min-h-9',
                     key === '='
-                      ? 'border-accent bg-accent text-white hover:opacity-90'
+                      ? 'border-accent bg-accent text-on-accent hover:opacity-90'
                       : operator
                       ? 'border-border bg-bg-subtle text-accent hover:bg-surface'
                       : key === 'C'

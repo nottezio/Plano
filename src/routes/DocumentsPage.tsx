@@ -155,7 +155,7 @@ export default function DocumentsPage(): JSX.Element {
             <button
               type="button"
               onClick={() => setCreateOpen(true)}
-              className="hidden min-h-tap shrink-0 items-center gap-1.5 rounded-lg bg-accent px-3 text-sm font-medium text-white sm:flex"
+              className="hidden min-h-tap shrink-0 items-center gap-1.5 rounded-lg bg-accent px-3 text-sm font-medium text-on-accent sm:flex"
             >
               <span aria-hidden="true" className="text-base leading-none">+</span>
               Dokumen baru
@@ -183,7 +183,7 @@ export default function DocumentsPage(): JSX.Element {
                     className={[
                       'min-h-tap shrink-0 whitespace-nowrap rounded-full border px-3 text-xs',
                       selected
-                        ? 'border-accent bg-accent font-semibold text-white'
+                        ? 'border-accent bg-accent font-semibold text-on-accent'
                         : 'border-border text-fg-muted hover:bg-bg-subtle',
                     ].join(' ')}
                   >
@@ -237,7 +237,7 @@ export default function DocumentsPage(): JSX.Element {
         type="button"
         onClick={() => setCreateOpen(true)}
         aria-label="Dokumen baru"
-        className="fixed bottom-[calc(env(safe-area-inset-bottom)+76px)] right-4 z-30 flex h-14 w-14 items-center justify-center rounded-full bg-accent text-2xl text-white shadow-lg sm:hidden"
+        className="fixed bottom-[calc(env(safe-area-inset-bottom)+76px)] right-4 z-30 flex h-14 w-14 items-center justify-center rounded-full bg-accent text-2xl text-on-accent shadow-lg sm:hidden"
       >
         +
       </button>
@@ -421,7 +421,7 @@ function CreateDocumentSheet({
           type="button"
           onClick={submit}
           disabled={!title.trim()}
-          className="min-h-tap w-full rounded-lg bg-accent px-4 text-sm font-medium text-white disabled:opacity-40"
+          className="min-h-tap w-full rounded-lg bg-accent px-4 text-sm font-medium text-on-accent disabled:opacity-40"
         >
           Buat
         </button>

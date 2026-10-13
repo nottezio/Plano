@@ -5,6 +5,16 @@ Catatan teknis lengkap (akar masalah, perbaikan) ada di CHANGES.md.
 
 Entri teratas harus versi yang sedang dirilis; tes gagal bila belum ditulis.
 
+## `2026-10-13.15`
+- **Tampilan List Maker diperbarui.**
+  - **HP:** tanggal dan chief tidak lagi berantakan, dan keenam tab muat di layar.
+  - **Tab List kini enak dibaca.** Satu baris per pasien berisi kamar/bed, kode DPJP, identitas, residen, dan tanda. Tombolnya cukup satu, **Atur**, yang membuka pengaturan pasien itu. Ketuk baris pasien untuk membuka SOAP.
+  - **Ekspor dalam satu kotak:** Jam list dan **Simpan edisi**, lalu **Salin teks**, **Word: List**, **Word: Denah**, dan **PDF**. Pratinjau pesan WhatsApp bisa dibuka-tutup.
+  - **Atur pasien dikelompokkan:** Residen, Rencana pulang, Tag, dan Status pasien. Tiap tombol status punya warna sendiri: Pulang hijau, Pindah ruangan oranye, Kamar/bed biru.
+  - Tab **Anggota** kini bernama **Setelan**.
+- **Warna aplikasi.** Di Pengaturan → Tampilan → **Warna aplikasi** tersedia 7 pilihan warna: Biru, Toska, Ungu, Hijau, Oranye, Merah muda, Grafit. Latar bisa dipilih: Standar, Kertas hangat, atau Hitam pekat (untuk layar OLED saat jaga malam). Pengaturan ini tersimpan di perangkat masing-masing.
+- **Tombol utama di mode gelap kini lebih jelas** (teks gelap di atas warna terang).
+
 ## `2026-10-13.14`
 - **Jam "disimpan" di Riwayat kini sesuai jam HP.** Sebelumnya tampil dalam jam UTC, terlambat 8 jam. Jam pada daftar "Sudah keluar" juga diperbaiki.
 - **Edisi bisa dihapus.** Di tab Riwayat, tekan **Hapus edisi** lalu konfirmasi. Tombol **Simpan edisi** kini tidak menyimpan dua kali bila tertekan dua kali.

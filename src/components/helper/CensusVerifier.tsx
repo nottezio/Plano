@@ -444,7 +444,7 @@ function RunSteps({ progress, running }: { progress: Partial<Record<DocKey, DocP
               className={[
                 'flex h-4 w-4 shrink-0 items-center justify-center rounded-full text-[9px]',
                 doc.phase === 'selesai'
-                  ? 'bg-accent text-white'
+                  ? 'bg-accent text-on-accent'
                   : doc.phase === 'gagal'
                     ? 'bg-danger text-white'
                     : 'animate-pulse bg-[var(--accent-soft)] ring-1 ring-accent',
@@ -696,7 +696,7 @@ function PdfSlot({
         aria-hidden="true"
         className={[
           'flex h-8 w-8 shrink-0 items-center justify-center rounded-lg',
-          file ? 'bg-accent text-white' : 'bg-bg-subtle text-fg-muted',
+          file ? 'bg-accent text-on-accent' : 'bg-bg-subtle text-fg-muted',
         ].join(' ')}
       >
         {file ? <IconCheck className="h-4 w-4" /> : <IconUpload className="h-4 w-4" />}

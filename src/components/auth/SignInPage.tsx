@@ -42,7 +42,7 @@ export function SignInPage(): JSX.Element {
             type="button"
             onClick={() => void onGoogle()}
             disabled={busy}
-            className="mt-6 min-h-tap w-full rounded-lg bg-accent px-4 text-sm font-medium text-white disabled:opacity-50"
+            className="mt-6 min-h-tap w-full rounded-lg bg-accent px-4 text-sm font-medium text-on-accent disabled:opacity-50"
           >
             {busy ? 'Membuka Google…' : 'Masuk dengan Google'}
           </button>

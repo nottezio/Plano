@@ -923,7 +923,7 @@ export default function BoardPage(): JSX.Element {
         <button
           type="button"
           onClick={createAndOpen}
-          className={`${CONTROL} hidden shrink-0 items-center gap-1.5 rounded-lg bg-accent px-3 text-sm font-medium text-white sm:flex lg:ml-auto`}
+          className={`${CONTROL} hidden shrink-0 items-center gap-1.5 rounded-lg bg-accent px-3 text-sm font-medium text-on-accent sm:flex lg:ml-auto`}
         >
           <span aria-hidden="true" className="text-base leading-none">+</span>
           Pasien baru
@@ -1059,7 +1059,7 @@ export default function BoardPage(): JSX.Element {
                     onClick={() => setPhoneView(value)}
                     className={[
                       'min-h-tap px-3',
-                      phoneView === value ? 'bg-accent font-semibold text-white' : 'text-fg-muted',
+                      phoneView === value ? 'bg-accent font-semibold text-on-accent' : 'text-fg-muted',
                     ].join(' ')}
                   >
                     {label}
@@ -1256,7 +1256,7 @@ export default function BoardPage(): JSX.Element {
         onClick={createAndOpen}
         aria-label="Pasien baru"
         // Phone only — the tablet/desktop equivalent lives beside the search box.
-        className="fixed bottom-[calc(env(safe-area-inset-bottom)+76px)] right-4 z-30 flex h-14 w-14 items-center justify-center rounded-full bg-accent text-2xl text-white shadow-lg sm:hidden"
+        className="fixed bottom-[calc(env(safe-area-inset-bottom)+76px)] right-4 z-30 flex h-14 w-14 items-center justify-center rounded-full bg-accent text-2xl text-on-accent shadow-lg sm:hidden"
       >
         +
       </button>
@@ -1392,7 +1392,7 @@ function SelectButton({
       aria-pressed={selecting}
       className={[
         `${CONTROL} shrink-0 rounded-lg px-2.5 text-xs font-medium`,
-        selecting ? 'bg-accent text-white' : 'text-fg hover:bg-bg-subtle',
+        selecting ? 'bg-accent text-on-accent' : 'text-fg hover:bg-bg-subtle',
       ].join(' ')}
     >
       {selecting ? 'Batal' : 'Pilih'}
