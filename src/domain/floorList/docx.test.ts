@@ -96,7 +96,7 @@ describe('Denah docx', () => {
     const residents = xml.slice(xml.lastIndexOf('<w:pageBreakBefore/>'));
     expect(residents).toContain('<w:tbl>');
     expect(residents).toContain('Muda (');
-    expect(residents).toContain('(belum diisi) (');
+    expect(residents).toContain('Tidak ada yang pegang (');
     expect(xml).toContain('Operkan ke Tmn Lain:');
     expect(xml).toContain('Ganti Chief:');
     expect(xml).toContain('dr. Kepala  3');
@@ -130,6 +130,14 @@ describe('Denah docx', () => {
     expect(kjsReferenceRuns({ ...patients[0]!, room: '420', bed: '2', name: 'Tn. Contoh', dpjpId: 'zd' }, 1)).toEqual([
       { text: '1. 420 Bed 2/Tn. Contoh → ZD', color: '7F7F7F' },
     ]);
+  });
+
+  it('handover notes fill the "Operkan" and "Ganti Chief" boxes; holders printed larger (13.14)', () => {
+    const noted = [{ ...patients[0]!, room: '420', bed: '2', name: 'Tn. Contoh', operkan: 'Bima', gantiChief: 'dr. Kirana' }];
+    const out = denahDocumentXml({ ward: 'PJT Lantai 4', date: '2026-10-12', plan: null, patients: noted });
+    expect(out).toContain('1. 420 Bed 2/Tn. Contoh → dr. Bima');
+    expect(out).toContain('1. 420 Bed 2/Tn. Contoh → dr. Kirana');
+    expect(out).toContain('<w:sz w:val="20"/>');
   });
 
   it('file names are Windows-safe', () => {

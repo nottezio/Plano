@@ -5,6 +5,14 @@ Catatan teknis lengkap (akar masalah, perbaikan) ada di CHANGES.md.
 
 Entri teratas harus versi yang sedang dirilis; tes gagal bila belum ditulis.
 
+## `2026-10-13.14`
+- **Jam "disimpan" di Riwayat kini sesuai jam HP.** Sebelumnya tampil dalam jam UTC, terlambat 8 jam. Jam pada daftar "Sudah keluar" juga diperbaiki.
+- **Edisi bisa dihapus.** Di tab Riwayat, tekan **Hapus edisi** lalu konfirmasi. Tombol **Simpan edisi** kini tidak menyimpan dua kali bila tertekan dua kali.
+- **Operkan ke teman lain & ganti chief per pasien.** Isi di **Atur pasien**. Isian ini tampil di kartu pasien dan di dua kotak terpisah pada halaman residen (Word, PDF, dan aplikasi).
+- **Nama residen** di tabel residen kini lebih besar daripada baris pasiennya.
+- **"(belum diisi)"** diganti menjadi **"Tidak ada yang pegang"**.
+- **Pasien bagian lain yang dikonsulkan ke divisi** (mis. KJS Aritmia ke Prof. MZ) kini masuk bagian **KJS** di kotak DPJP tersebut, bukan sebagai pasien utamanya. Tulisan "KJS ARITMIA" tanpa junior bangsal dikenali otomatis, atau atur lewat **Pemegang → Div. Aritmia**.
+
 ## `2026-10-13.13`
 - **SOAP dari grup kini memperbarui pasien manual tanpa RM.** Pasien manual yang diinput tanpa RM sebelumnya muncul dua kali saat SOAP-nya ditempel. Sekarang SOAP itu dicocokkan dengan nama pasien di kamar yang sama dan menggantikan isi pasien manual tersebut. SOAP berikutnya dicocokkan lewat RM.
 

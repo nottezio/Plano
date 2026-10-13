@@ -1,5 +1,46 @@
 # Plano — CHANGES
 
+## `2026-10-13.14` — Local save time; delete a saved list; handover boxes; "Tidak ada yang pegang"; division patients as KJS
+
+- **"disimpan 10:56" for a list saved at 18:56 (Avi).** Root cause: stored
+  times are ISO UTC ("…T10:56:…Z") and the panel sliced the text as if it
+  were local. Same slice on "Sudah keluar" (leftAt). Fix: `localOf(iso)`
+  (floor.ts) converts to the device clock; both places use it.
+- **A saved list could not be deleted; the 19.00 list was saved twice.**
+  Riwayat had no delete, and rules allowed it to the owner only. Fix:
+  "Hapus edisi" (two taps, small) for the owner and edit members — rules
+  updated, **needs the push**; `deleteEdition`. The duplicate came from a
+  second tap while the first write was pending: "Simpan edisi" now rests
+  2.5 s after a save and refuses a list identical (date, time, text) to the
+  last edition ("sudah tersimpan"). The write is not awaited (offline it
+  resolves only on server ack).
+- **Two cardiology DPJPs on one patient (utama ZD + KJS Aritmia MZ)** are
+  not duplicated: one roster patient; full line under the utama, a grey
+  reference in the consultant's KJS part (app, Word, PDF), "+ 1 KJS" in the
+  consultant's count; the WhatsApp list keeps its KJS line as sent.
+- **A patient of another department held by a division** (Papalangi,
+  Manutte in Prof. MZ's box — the list writes "MZ/…" but MZ is the
+  consultant): `effective()` now files a division-held patient as the
+  KJS of the DPJP on its line (`dpjpId` null, that DPJP in `kjsDpjpIds`,
+  code kept in `dpjpCode` so the line still reads "MZ/…"). They leave MZ's
+  own list for its KJS part and count "+ n KJS". Input: any line or hand
+  entry with "KJS ARITMIA" and no ward junior is held by Divisi Aritmia
+  automatically; otherwise Atur pasien → Pemegang → Div. Aritmia.
+- **Operkan ke Tmn Lain / Ganti Chief.** Per patient now
+  (`RosterPatient.operkan`, `gantiChief`; Atur pasien inputs with the
+  roster names), shown on the List card. Word residents page: the two
+  hand-written blocks became a two-box table filled from those notes, with
+  room to write; same in the PDF and under the app's Residen section.
+- **Holders stand out:** the junior's name in the residents table is 10 pt
+  (patients 7.5 pt) in Word and PDF, 14 px in the app.
+- **"(belum diisi)" → "Tidak ada yang pegang"** (`NO_JUNIOR`).
+- Tests: division filing, handover lines and holder size in Word, label.
+
+### Verify
+```
+npm run verify → typecheck, lint, 169 files / 2443 tests, version, contrast, a11y, build: all green
+```
+
 ## `2026-10-13.13` — A pasted SOAP finds a hand-entered patient without an RM
 
 - **Avi: "can a pasted WhatsApp SOAP update a manually entered patient?"**

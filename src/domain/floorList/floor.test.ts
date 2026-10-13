@@ -166,6 +166,13 @@ describe('division patients (13.9, 13.10)', () => {
     expect(holderLabel('Aritmia')).toBe('Divisi Aritmia');
   });
 
+  it('held by a division: the DPJP on the line is the consultant — filed as that DPJP\'s KJS, code still printed (13.14)', () => {
+    const seen = effective(rostered({ ...listed, dpjpId: 'mz', identity: 'Ny. Contoh / RM 1 - KJS ARITMIA' }), one, '2026-10-12');
+    expect(seen).toMatchObject({ dpjpId: null, kjsDpjpIds: ['mz'], dpjpCode: 'MZ', division: 'Aritmia' });
+    // A ward patient (a SOAP from the group) keeps its own DPJP.
+    expect(effective(rostered({ dpjpId: 'mz' }), one, '2026-10-12')).toMatchObject({ dpjpId: 'mz', kjsDpjpIds: [] });
+  });
+
   it('set by hand either way; KJS BTKV is not a division', () => {
     expect(divisionOf(rostered({}, { division: 'Intervensi' }))).toBe('Intervensi');
     expect(divisionOf(rostered({ ...listed, identity: 'X - KJS Aritmia' }, { division: '-' }))).toBe('');

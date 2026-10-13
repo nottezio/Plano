@@ -2,6 +2,7 @@ import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from 
 
 import { planRooms, type DenahRoomSlot, type WardPlan } from '@/domain/denahPlan';
 import { byRoute, dpjpCodeOf, dpjpTitle, isPediatri, LIST_DPJP_ORDER, PEDIATRI_DPJP_IDS } from '@/domain/floorList/build';
+import { handoverLine } from '@/domain/floorList/docx';
 import { markCss, type FloorMark } from '@/domain/floorList/marks';
 import type { FloorPatient } from '@/domain/floorList/report';
 import { residentGroups } from '@/domain/floorList/residents';
@@ -390,11 +391,30 @@ export function FloorDenah({
         <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3">
           {[...juniors, ...divisions].map(([name, list]) => (
             <div key={name} className="rounded-lg border border-border bg-surface p-2">
-              <p className="text-[12px] font-bold">
-                {name} <span className="font-normal text-fg-muted">({list.length}{held.has(name) ? ', tidak di-FU' : ''})</span>
+              <p className="text-[14px] font-bold">
+                {name} <span className="text-[12px] font-normal text-fg-muted">({list.length}{held.has(name) ? ', tidak di-FU' : ''})</span>
               </p>
               {list.map((p, i) => (
                 <PatientButton key={p.key} patient={p} number={i + 1} onOpen={onOpen} />
+              ))}
+            </div>
+          ))}
+        </div>
+        {/* The handover notes set on the patients (13.14), as on the Word residents page. */}
+        <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+          {(
+            [
+              ['Operkan ke Tmn Lain', shown.filter((p) => p.operkan), (p: FloorPatient) => p.operkan!],
+              ['Ganti Chief', shown.filter((p) => p.gantiChief), (p: FloorPatient) => p.gantiChief!],
+            ] as const
+          ).map(([title, list, to]) => (
+            <div key={title} className="rounded-lg border border-border bg-surface p-2">
+              <p className="text-[14px] font-bold">{title}</p>
+              {list.length === 0 ? <p className="text-[12px] text-fg-faint">— (isi di Atur pasien)</p> : null}
+              {list.map((p, i) => (
+                <button key={p.key} type="button" onClick={() => onOpen(p)} className="block w-full px-1 py-0.5 text-left text-[12px] hover:underline">
+                  {handoverLine(p, to(p), i + 1)}
+                </button>
               ))}
             </div>
           ))}

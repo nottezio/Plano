@@ -400,7 +400,11 @@ service cloud.firestore {
           && request.resource.data.text is string
           && request.resource.data.patients is list;
         allow update: if false;
-        allow delete: if allowed() && request.auth.uid == floorE().ownerUid;
+        // The owner or an edit member deletes a list saved twice or by
+        // mistake (13.14); the roster is separate and untouched.
+        allow delete: if allowed()
+          && (request.auth.uid == floorE().ownerUid
+            || (request.auth.uid in floorE().roles && floorE().roles[request.auth.uid] == 'edit'));
       }
 
       match /days/{date} {

@@ -161,6 +161,31 @@ export function PatientControls({
           onChange={(next) => set({ dischargeDate: next }, next ? `Rencana pulang ${formatDmy(next)}` : 'Rencana pulang dihapus')}
           className="w-full"
         />
+        {/* Handover notes (13.14): printed in the Word/PDF "Operkan" and "Ganti Chief" boxes. */}
+        <input
+          key={`o-${entry.operkan}`}
+          aria-label={`Operkan ${patient.name} ke`}
+          defaultValue={entry.operkan}
+          list="floor-juniors"
+          placeholder="Operkan ke…"
+          onBlur={(e) => {
+            const next = e.target.value.trim();
+            if (next !== entry.operkan) set({ operkan: next }, next ? `Operkan ke ${next}` : 'Operkan dihapus');
+          }}
+          className={`${INPUT} text-xs`}
+        />
+        <input
+          key={`g-${entry.gantiChief}`}
+          aria-label={`Ganti chief ${patient.name}`}
+          defaultValue={entry.gantiChief}
+          list="floor-chiefs"
+          placeholder="Ganti chief…"
+          onBlur={(e) => {
+            const next = e.target.value.trim();
+            if (next !== entry.gantiChief) set({ gantiChief: next }, next ? `Ganti chief ke ${next}` : 'Ganti chief dihapus');
+          }}
+          className={`${INPUT} text-xs`}
+        />
         {/*
           Who holds the patient (13.9): a consult from another department to
           a cardiology division (Aritmia…) is held by that division's

@@ -42,11 +42,13 @@ interface Styled {
   text: string;
   bold?: boolean;
   color?: string;
+  /** Half-points (Word's unit); the document default otherwise. */
+  size?: number;
 }
 
-function run({ text, bold, color }: Styled): string {
+function run({ text, bold, color, size }: Styled): string {
   if (!text) return '';
-  const props = `${bold ? '<w:b/><w:bCs/>' : ''}${color ? `<w:color w:val="${color}"/>` : ''}`;
+  const props = `${bold ? '<w:b/><w:bCs/>' : ''}${color ? `<w:color w:val="${color}"/>` : ''}${size ? `<w:sz w:val="${size}"/><w:szCs w:val="${size}"/>` : ''}`;
   return `<w:r>${props ? `<w:rPr>${props}</w:rPr>` : ''}<w:t xml:space="preserve">${escapeXml(text)}</w:t></w:r>`;
 }
 
@@ -307,11 +309,32 @@ function residentTables(juniors: ReadonlyArray<readonly [string, readonly FloorP
         const [name, list] = entry;
         // Numbered (13.9): how many each holds is read at a glance.
         const title = held.has(name) ? `${name} (${list.length}, tidak di-FU)` : `${name} (${list.length})`;
-        return { width, content: para([{ text: title, bold: true }]) + list.map((p, n) => para(patientRuns(p, { number: n + 1 }))).join('') };
+        // The holder larger than the patients under them (13.14).
+        return { width, content: para([{ text: title, bold: true, size: 20 }]) + list.map((p, n) => para(patientRuns(p, { number: n + 1 }))).join('') };
       }),
     );
   }
   return rows.length > 0 ? `${tableXml(grid, rows)}<w:p/>` : '';
+}
+
+/** One handover line: "1. 420 Bed 2/Tn. X → dr. Y". */
+export function handoverLine(patient: FloorPatient, to: string, n: number): string {
+  const place = patient.room ? `${patient.room}${patient.bed ? ` Bed ${patient.bed}` : ''}/` : '';
+  return `${n}. ${place}${patient.name} → dr. ${to.replace(/^dr\.?\s*/i, '')}`;
+}
+
+/**
+ * "Operkan ke Tmn Lain" and "Ganti Chief" as two boxes (13.14, Avi): filled
+ * from the notes set on the patients, with room left to write by hand.
+ */
+function handoverTable(sorted: readonly FloorPatient[]): string {
+  const half = Math.floor(TEXT_WIDTH / 2);
+  const grid = [half, TEXT_WIDTH - half];
+  const box = (title: string, lines: string[]): string =>
+    para([{ text: title, bold: true, size: 20 }]) + lines.map((text) => para([{ text }])).join('') + '<w:p/><w:p/><w:p/>';
+  const operkan = sorted.filter((p) => p.operkan).map((p, n) => handoverLine(p, p.operkan!, n + 1));
+  const ganti = sorted.filter((p) => p.gantiChief).map((p, n) => handoverLine(p, p.gantiChief!, n + 1));
+  return tableXml(grid, [[{ width: grid[0]!, content: box('Operkan ke Tmn Lain:', operkan) }, { width: grid[1]!, content: box('Ganti Chief:', ganti) }]]);
 }
 
 export interface DenahDocInput {
@@ -342,7 +365,7 @@ export function denahDocumentXml(input: DenahDocInput): string {
   // hand-filled blocks under it.
   const { chiefs, juniors, divisions } = residentGroups(sorted);
   const page2: string[] = chiefs.map(([name, n]) => para([{ text: `dr. ${name}  ${n}` }]));
-  page2.push(residentTables([...juniors, ...divisions], new Set(divisions.map(([name]) => name))), para([{ text: 'Operkan ke Tmn Lain:', bold: true }]), '<w:p/>', '<w:p/>', para([{ text: '=====' }]), para([{ text: 'Ganti Chief:', bold: true }]));
+  page2.push(residentTables([...juniors, ...divisions], new Set(divisions.map(([name]) => name))), handoverTable(sorted));
   // Page 2 starts on a new page: the break goes on its first paragraph (the
   // chiefs line), or on an empty one before the table.
   const BREAK = '<w:p><w:pPr><w:pageBreakBefore/></w:pPr>';

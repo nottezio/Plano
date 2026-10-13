@@ -7,6 +7,7 @@ import { planLayout, type RoomCell } from './layout';
 import { MARK_COLORS, printedTags } from './marks';
 import type { FloorPatient } from './report';
 import { residentGroups } from './residents';
+import { handoverLine } from './docx';
 
 /**
  * Denah + List as ONE printable page (13.12, Avi: "export both as a single
@@ -120,16 +121,22 @@ function residentsHtml(sorted: readonly FloorPatient[]): string {
   const held = new Set(divisions.map(([name]) => name));
   const cells = [...juniors, ...divisions].map(
     ([name, list]) =>
-      `<td><div class="head left">${esc(name)} (${list.length}${held.has(name) ? ', tidak di-FU' : ''})</div>${list.map((p, n) => line(patientHtml(p, { number: n + 1 }))).join('')}</td>`,
+      `<td><div class="holder">${esc(name)} (${list.length}${held.has(name) ? ', tidak di-FU' : ''})</div>${list.map((p, n) => line(patientHtml(p, { number: n + 1 }))).join('')}</td>`,
   );
   return (
     chiefs.map(([name, n]) => line(`dr. ${esc(name)}&nbsp;&nbsp;${n}`)).join('') +
     grid(cells) +
-    line('<b>Operkan ke Tmn Lain:</b>') +
-    '<div class="gap"></div>' +
-    line('=====') +
-    line('<b>Ganti Chief:</b>')
+    handoverHtml(sorted)
   );
+}
+
+/** "Operkan ke Tmn Lain" and "Ganti Chief" as two boxes, from the patients' notes (13.14). */
+function handoverHtml(sorted: readonly FloorPatient[]): string {
+  const box = (title: string, lines: string[]): string =>
+    `<td><div class="holder">${title}</div>${lines.map((l) => line(esc(l))).join('')}<div class="gap"></div></td>`;
+  const operkan = sorted.filter((p) => p.operkan).map((p, n) => handoverLine(p, p.operkan!, n + 1));
+  const ganti = sorted.filter((p) => p.gantiChief).map((p, n) => handoverLine(p, p.gantiChief!, n + 1));
+  return `<table class="grid"><tr>${box('Operkan ke Tmn Lain:', operkan)}${box('Ganti Chief:', ganti)}</tr></table>`;
 }
 
 function listHtml(text: string): string {
@@ -166,7 +173,7 @@ table { border-collapse: collapse; width: 100%; table-layout: fixed; margin-bott
 td { border: 0.75pt solid #000; vertical-align: top; padding: 2px 4px; }
 tr { page-break-inside: avoid; break-inside: avoid; }
 .room, .head { font-weight: bold; text-align: center; margin-bottom: 2px; }
-.head.left { text-align: left; }
+.holder { font-weight: bold; font-size: 10pt; margin-bottom: 2px; }
 .landmark { background: #ffc000; font-weight: bold; text-align: center; vertical-align: middle; }
 .p { margin: 0 0 1px; }
 .blank { height: 6px; }

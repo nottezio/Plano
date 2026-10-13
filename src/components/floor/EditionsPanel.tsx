@@ -4,7 +4,8 @@ import { Button } from '@/components/common/ui';
 import { formatDmy } from '@/domain/dateDmy';
 import { wardPlan } from '@/domain/denahPlan';
 import { buildDenahDocx, buildListDocx, DOCX_MIME, floorFileName } from '@/domain/floorList/docx';
-import type { Edition, FloorDoc } from '@/domain/floorList/floor';
+import { localOf, type Edition, type FloorDoc } from '@/domain/floorList/floor';
+import { deleteEdition } from '@/data/repositories/floors.repo';
 import { copyText } from '@/lib/clipboard';
 import { deliverFile } from '@/lib/download';
 
@@ -13,10 +14,11 @@ import { deliverFile } from '@/lib/download';
  * resident, 19.00 or any time typed. Each keeps its message and the roster
  * as it stood, so its Word files are the ones that went out, not today's.
  */
-export function EditionsPanel({ floor, editions }: { floor: FloorDoc; editions: readonly Edition[] }): JSX.Element {
+export function EditionsPanel({ floor, editions, editable = false }: { floor: FloorDoc; editions: readonly Edition[]; editable?: boolean }): JSX.Element {
   const [openId, setOpenId] = useState<string | null>(editions[0]?.id ?? null);
   const [copied, setCopied] = useState(false);
-  const open = editions.find((e) => e.id === openId) ?? null;
+  const [asking, setAsking] = useState(false);
+  const open = editions.find((e) => e.id === openId) ?? editions[0] ?? null;
 
   if (editions.length === 0) {
     return <p className="text-sm text-fg-muted">Belum ada edisi. Di tab List, isi jam lalu tekan Simpan edisi.</p>;
@@ -32,15 +34,16 @@ export function EditionsPanel({ floor, editions }: { floor: FloorDoc; editions: 
               onClick={() => {
                 setOpenId(e.id);
                 setCopied(false);
+                setAsking(false);
               }}
-              className={`w-full rounded-lg border px-3 py-2 text-left text-sm ${e.id === openId ? 'border-accent bg-[var(--accent-soft)]' : 'border-border bg-surface'}`}
+              className={`w-full rounded-lg border px-3 py-2 text-left text-sm ${e.id === open?.id ? 'border-accent bg-[var(--accent-soft)]' : 'border-border bg-surface'}`}
             >
               <span className="font-semibold">
                 {formatDmy(e.date)} · {e.time}
               </span>
               <span className="block text-[11px] text-fg-muted">
                 {e.patients.length} pasien · {e.createdBy}
-                {e.createdAt ? ` · disimpan ${e.createdAt.slice(11, 16)}` : ''}
+                {e.createdAt ? ` · disimpan ${localOf(e.createdAt).slice(11, 16)}` : ''}
               </span>
             </button>
           </li>
@@ -71,6 +74,31 @@ export function EditionsPanel({ floor, editions }: { floor: FloorDoc; editions: 
             >
               Word: Denah
             </Button>
+            {editable ? (
+              // A list saved twice, or by mistake (13.14). Two taps; the roster is not touched.
+              asking ? (
+                <span className="inline-flex flex-wrap items-center gap-1.5 text-xs">
+                  Hapus edisi {formatDmy(open.date)} {open.time}?
+                  <Button
+                    size="sm"
+                    variant="danger"
+                    onClick={() => {
+                      setAsking(false);
+                      void deleteEdition(floor.id, open.id);
+                    }}
+                  >
+                    Ya, hapus
+                  </Button>
+                  <Button size="sm" variant="ghost" onClick={() => setAsking(false)}>
+                    Batal
+                  </Button>
+                </span>
+              ) : (
+                <button type="button" onClick={() => setAsking(true)} className="h-7 rounded px-1.5 text-[11px] text-fg-faint hover:text-danger hover:underline">
+                  Hapus edisi
+                </button>
+              )
+            ) : null}
           </div>
           <pre className="max-h-[70dvh] overflow-y-auto whitespace-pre-wrap break-words rounded-xl border border-border bg-bg-subtle p-3 font-sans text-xs leading-relaxed">
             {open.text}

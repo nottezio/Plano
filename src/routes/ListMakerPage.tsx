@@ -307,7 +307,7 @@ export default function ListMakerPage(): JSX.Element {
             ) : null}
             {tab === 'tempel' && editable ? <PastePanel key={floor.id} floor={floor} roster={roster} myName={myName} /> : null}
             {tab === 'analisis' ? <AnalysisPanel key={floor.id} roster={roster} view={view} date={date} editions={editions} onOpen={setOpen} /> : null}
-            {tab === 'riwayat' ? <EditionsPanel key={floor.id} floor={floor} editions={editions} /> : null}
+            {tab === 'riwayat' ? <EditionsPanel key={floor.id} floor={floor} editions={editions} editable={editable} /> : null}
             {tab === 'anggota' && uid ? (
               <MembersPanel key={floor.id} floor={floor} uid={uid} patients={[...view.active, ...view.left.map((p) => p.report)]} />
             ) : null}

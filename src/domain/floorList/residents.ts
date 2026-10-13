@@ -10,7 +10,7 @@ export interface ResidentGroups {
   divisions: Array<[string, FloorPatient[]]>;
 }
 
-export const NO_JUNIOR = '(belum diisi)';
+export const NO_JUNIOR = 'Tidak ada yang pegang';
 
 /**
  * Who holds which patient, for the Residen section and the Word residents

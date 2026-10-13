@@ -21,7 +21,7 @@ import {
   type Unsubscribe,
 } from 'firebase/firestore';
 
-import { floorDaysCol, floorDoc, floorEditionsCol, floorPatientDoc, floorPatientsCol, floorsCol } from '../paths';
+import { floorDaysCol, floorDoc, floorEditionDoc, floorEditionsCol, floorPatientDoc, floorPatientsCol, floorsCol } from '../paths';
 import { trackWrite } from '../syncStatus';
 import type { Edition, FloorDoc, FloorRole, RosterPatient, StatusChange } from '@/domain/floorList/floor';
 import { isMarkColor, MARK_PREFIX, readMarks, type FloorMark, type PatientTag } from '@/domain/floorList/marks';
@@ -103,6 +103,8 @@ export function readPatient(raw: unknown): FloorPatient | null {
     ...(p.fromList === true ? { fromList: true } : {}),
     ...readTags(p.tags, p.mark),
     ...(typeof p.dpjpCode === 'string' && p.dpjpCode ? { dpjpCode: p.dpjpCode } : {}),
+    ...(typeof p.operkan === 'string' && p.operkan ? { operkan: p.operkan } : {}),
+    ...(typeof p.gantiChief === 'string' && p.gantiChief ? { gantiChief: p.gantiChief } : {}),
     ...(p.manualFields && typeof p.manualFields === 'object'
       ? {
           manualFields: {
@@ -160,6 +162,8 @@ export function readRosterPatient(key: string, data: DocumentData): RosterPatien
     division: str(data.division),
     tags: [...new Set([...ids(data.tags), ...legacy])],
     tagsOff: ids(data.tagsOff),
+    operkan: str(data.operkan),
+    gantiChief: str(data.gantiChief),
     addedAt: str(data.addedAt),
     log: readLog(data.log),
   };
@@ -308,7 +312,7 @@ export function writeRosterReport(floorId: string, key: string, report: FloorPat
 export function writeRosterFields(
   floorId: string,
   key: string,
-  fields: Partial<Pick<RosterPatient, 'status' | 'pindahKe' | 'leftAt' | 'colour' | 'dischargeDate' | 'junior' | 'chief' | 'dismissed' | 'division' | 'tags' | 'tagsOff'>>,
+  fields: Partial<Pick<RosterPatient, 'status' | 'pindahKe' | 'leftAt' | 'colour' | 'dischargeDate' | 'junior' | 'chief' | 'dismissed' | 'division' | 'tags' | 'tagsOff' | 'operkan' | 'gantiChief'>>,
   log?: StatusChange,
 ): Promise<void> {
   return trackWrite(
@@ -364,6 +368,11 @@ export async function deleteFloor(floorId: string): Promise<void> {
 
 export function saveEdition(floorId: string, edition: Omit<Edition, 'id'>): Promise<string> {
   return trackWrite(addDoc(floorEditionsCol(floorId), { ...plain(edition), savedAt: serverTimestamp() })).then((ref) => ref.id);
+}
+
+/** Delete a saved list (13.14: saved twice, or by mistake). The roster is not touched. */
+export function deleteEdition(floorId: string, editionId: string): Promise<void> {
+  return trackWrite(deleteDoc(floorEditionDoc(floorId, editionId)));
 }
 
 /** Erase one patient from the roster (12.12; Pulang keeps the record instead). */

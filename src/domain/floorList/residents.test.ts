@@ -18,7 +18,7 @@ describe('residentGroups', () => {
     expect(groups.juniors.map(([n, l]) => [n, l.map((x) => x.key)])).toEqual([
       ['Bima', ['a', 'd']],
       ['Sari', ['b']],
-      ['(belum diisi)', ['e']],
+      ['Tidak ada yang pegang', ['e']],
     ]);
     expect(groups.divisions.map(([n, l]) => [n, l.length])).toEqual([['Divisi Aritmia', 1]]);
   });

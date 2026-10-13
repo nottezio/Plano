@@ -1,3 +1,4 @@
+import { dpjpById } from '@/domain/dpjp';
 import { tagsOf, type FloorMark } from './marks';
 import { nameKey } from './slaber';
 import { dischargeFlag, type DischargeFlag, type FloorPatient } from './report';
@@ -104,6 +105,13 @@ export interface RosterPatient {
    */
   tags: string[];
   tagsOff: string[];
+  /**
+   * The residents' handover notes (13.14, Avi: "Operkan ke tmn lain" and
+   * "Ganti chief" in the Word residents page, noted on the patient): to whom
+   * the patient is handed over, and the new chief. '' = none.
+   */
+  operkan: string;
+  gantiChief: string;
   addedAt: string;
   log: StatusChange[];
 }
@@ -259,7 +267,35 @@ export function effective(
     division: Boolean(division),
     junior,
   });
-  return { ...rest, junior, chief, discharge: colourOn(patient, date), ...(division ? { division } : {}), ...(tags.length > 0 ? { tags } : {}) };
+  /*
+    Held by a division (13.14, Avi: Papalangi and Manutte in Prof. MZ's box —
+    utama of another department, MZ only as KJS Aritmia): the cardiologist
+    written on the line is the CONSULTANT, not the utama. Filed as that
+    DPJP's KJS — the KJS part of the box, counted "+ n KJS" — with the code
+    still printed on the line as written.
+  */
+  const filing =
+    division && report.dpjpId
+      ? {
+          dpjpId: null,
+          kjsDpjpIds: [report.dpjpId, ...report.kjsDpjpIds.filter((id) => id !== report.dpjpId)],
+          dpjpCode: report.dpjpCode || (dpjpById(report.dpjpId)?.initials ?? ''),
+        }
+      : {};
+  const notes = {
+    ...(patient.operkan ? { operkan: patient.operkan } : {}),
+    ...(patient.gantiChief ? { gantiChief: patient.gantiChief } : {}),
+  };
+  return {
+    ...rest,
+    ...filing,
+    junior,
+    chief,
+    discharge: colourOn(patient, date),
+    ...(division ? { division } : {}),
+    ...(tags.length > 0 ? { tags } : {}),
+    ...notes,
+  };
 }
 
 /**
@@ -342,6 +378,8 @@ export function newRosterPatient(report: FloorPatient, at: string, by: string): 
     division: '',
     tags: [],
     tagsOff: [],
+    operkan: '',
+    gantiChief: '',
     addedAt: at,
     log: [{ at, by, what: 'Masuk list' }],
   };
@@ -487,6 +525,16 @@ export function updatedReport(stored: FloorPatient, report: FloorPatient, accept
   // one, so the junior read from the sender's nickname does not go blank.
   const who = report.sender ? {} : { sender: stored.sender, senderNick: stored.senderNick };
   return { ...report, ...who, ...(acceptMove ? {} : { room: stored.room, bed: stored.bed }) };
+}
+
+/**
+ * A stored ISO time (UTC, "2026-10-13T10:56:…Z") on the local clock
+ * (13.14: "disimpan 10:56" for a list saved at 18:56 in Makassar — the UTC
+ * text was sliced as if it were local). '' when unreadable.
+ */
+export function localOf(iso: string): string {
+  const at = new Date(iso);
+  return iso && !Number.isNaN(at.getTime()) ? localStamp(at) : '';
 }
 
 /** Local wall-clock stamp, the clock WhatsApp exports use ("2026-10-12T07:05"). */

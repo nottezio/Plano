@@ -108,3 +108,4 @@ export const floorPatientDoc = (floorId: string, key: string): DocumentReference
   doc(db(), 'floors', floorId, 'patients', key);
 /** Sent lists (12.12): message + roster snapshot, free-text time. */
 export const floorEditionsCol = (floorId: string): CollectionReference => collection(db(), 'floors', floorId, 'editions');
+export const floorEditionDoc = (floorId: string, editionId: string): DocumentReference => doc(db(), 'floors', floorId, 'editions', editionId);

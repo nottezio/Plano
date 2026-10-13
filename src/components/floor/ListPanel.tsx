@@ -10,6 +10,7 @@ import {
   chiefsOf,
   leftNote,
   leftSince,
+  localOf,
   type Edition,
   type FloorDoc,
   type RosterPatient,
@@ -99,8 +100,24 @@ export function ListPanel({
     void copyText(value).then((ok) => setCopied(ok ? label : ''));
   };
 
-  const saveThisEdition = async (): Promise<void> => {
-    await saveEdition(floor.id, {
+  const [savingEdition, setSavingEdition] = useState(false);
+  const saveThisEdition = (): void => {
+    /*
+      Saved once (13.14: Riwayat showed the 19.00 list twice — a double tap).
+      The same list as the last edition is not saved again (the local copy of
+      a new edition arrives at once, offline too), and the button rests for a
+      moment so a double tap never reaches it. Not awaited: offline, the write
+      resolves only when the server confirms.
+    */
+    const last = editions[0];
+    if (savingEdition) return;
+    if (last && last.date === date && last.time === (time.trim() || '—') && last.text === text) {
+      setSaved(`Edisi ${formatDmy(date)} ${time} sudah tersimpan.`);
+      return;
+    }
+    setSavingEdition(true);
+    window.setTimeout(() => setSavingEdition(false), 2500);
+    void saveEdition(floor.id, {
       date,
       time: time.trim() || '—',
       text,
@@ -178,6 +195,8 @@ export function ListPanel({
                     {patient.body ? '' : ' · tanpa Diagnosis/Terapi'}
                     {entry.dischargeDate ? ` · rencana pulang ${formatDmy(entry.dischargeDate)}` : ''}
                     {patient.division ? ` · dipegang divisi ${patient.division}, tidak di-FU` : ''}
+                    {patient.operkan ? ` · operkan ke dr. ${patient.operkan.replace(/^dr\.?\s*/i, '')}` : ''}
+                    {patient.gantiChief ? ` · ganti chief: dr. ${patient.gantiChief.replace(/^dr\.?\s*/i, '')}` : ''}
                   </p>
                   {editable ? <DeletePatient floorId={floor.id} patientKey={patient.key} name={patient.name} compact /> : null}
                 </div>
@@ -207,7 +226,7 @@ export function ListPanel({
                 <li key={p.key} className="flex flex-wrap items-center gap-2">
                   <button type="button" onClick={() => onOpen(p.report)} className="min-w-0 flex-1 text-left hover:underline">
                     {p.report.room} {p.report.name} — {p.status === 'pindah' ? `pindah ke ${p.pindahKe}` : 'pulang'}
-                    {p.leftAt ? ` · ${formatDmy(p.leftAt.slice(0, 10))} ${p.leftAt.slice(11, 16)}` : ''}
+                    {p.leftAt ? ` · ${formatDmy(localOf(p.leftAt).slice(0, 10))} ${localOf(p.leftAt).slice(11, 16)}` : ''}
                     {p.log.at(-1)?.by ? ` · ${p.log.at(-1)!.by}` : ''}
                   </button>
                   {editable ? (
@@ -258,8 +277,8 @@ export function ListPanel({
             PDF: Denah + List
           </Button>
           {editable ? (
-            <Button size="sm" variant="primary" onClick={() => void saveThisEdition()} disabled={view.active.length === 0}>
-              Simpan edisi
+            <Button size="sm" variant="primary" onClick={saveThisEdition} disabled={view.active.length === 0 || savingEdition}>
+              {savingEdition ? 'Tersimpan' : 'Simpan edisi'}
             </Button>
           ) : null}
         </div>
