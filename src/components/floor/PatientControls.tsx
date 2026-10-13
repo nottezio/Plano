@@ -16,7 +16,7 @@ import {
   type RosterPatient,
   type StatusChange,
 } from '@/domain/floorList/floor';
-import { MARK_COLORS, MARK_PREFIX } from '@/domain/floorList/marks';
+import { markCss } from '@/domain/floorList/marks';
 import type { FloorPatient } from '@/domain/floorList/report';
 
 const COLOUR_OPTIONS: ReadonlyArray<readonly [ColourMark, string]> = [
@@ -81,11 +81,17 @@ export function PatientControls({
   const rooms = plan ? planRooms(plan).map((slot) => slot.room).sort() : [];
   const chiefs = chiefsOf(floor.chiefs);
   const suggestion = suggestionFor(entry, date);
-  const colourOptions: ReadonlyArray<readonly [ColourMark, string]> = [
-    ...COLOUR_OPTIONS,
-    ...floor.marks.map((m) => [`${MARK_PREFIX}${m.id}` as ColourMark, `${m.label} (${MARK_COLORS[m.color].name.toLowerCase()})`] as const),
-  ];
-  const detected = divisionOf({ division: '', report: entry.report });
+  const colourOptions = COLOUR_OPTIONS;
+  const detected = divisionOf({ ...entry, division: '' });
+  const shown = new Set((patient.tags ?? []).map((t) => t.label));
+  /** On → off: off for this patient even if a rule puts it on; off → on: set by hand. */
+  const toggleTag = (id: string, label: string): void => {
+    if (shown.has(label)) {
+      set({ tags: entry.tags.filter((t) => t !== id), tagsOff: [...new Set([...entry.tagsOff, id])] }, `Tag ${label} dilepas`);
+    } else {
+      set({ tags: [...new Set([...entry.tags, id])], tagsOff: entry.tagsOff.filter((t) => t !== id) }, `Tag ${label}`);
+    }
+  };
 
   const stamp = (what: string): StatusChange => ({ at: new Date().toISOString(), by: myName, what });
   const set = (fields: Parameters<typeof writeRosterFields>[2], what?: string): void => {
@@ -170,7 +176,7 @@ export function PatientControls({
           title="Pemegang pasien"
           className={`${INPUT} text-xs`}
         >
-          <option value="">{detected ? `Div. ${detected} (otomatis)` : 'Residen bangsal'}</option>
+          <option value="">{detected ? `${detected === 'KJS' ? 'KJS' : `Div. ${detected}`} (otomatis)` : 'Residen bangsal'}</option>
           <option value="-">Residen bangsal</option>
           {DIVISIONS.map((d) => (
             <option key={d} value={d}>
@@ -212,6 +218,35 @@ export function PatientControls({
           </Button>
         ) : null}
       </div>
+
+      {floor.marks.length > 0 ? (
+        // The floor's tags (13.10): tap to set or remove on this patient; a
+        // rule-set tag removed here stays off for this patient.
+        <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
+          <span className="text-fg-muted">Tag:</span>
+          {floor.marks.map((mark) => {
+            const on = shown.has(mark.label);
+            return (
+              <button
+                key={mark.id}
+                type="button"
+                aria-pressed={on}
+                onClick={() => toggleTag(mark.id, mark.label)}
+                className="min-h-8 rounded-full border px-2.5 text-[11px] font-semibold"
+                style={
+                  on
+                    ? { borderColor: markCss(mark.color), color: markCss(mark.color), backgroundColor: `color-mix(in srgb, ${markCss(mark.color)} 12%, var(--surface))` }
+                    : { borderColor: 'var(--border)', color: 'var(--fg-muted)' }
+                }
+              >
+                {on ? '✓ ' : '+ '}
+                {mark.label}
+                {mark.auto ? <span className="font-normal"> · otomatis</span> : null}
+              </button>
+            );
+          })}
+        </div>
+      ) : null}
 
       {open === 'place' ? (
         <div className="mt-2 flex flex-wrap items-center gap-1.5">

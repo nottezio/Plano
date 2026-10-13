@@ -372,6 +372,17 @@ describe('report variants from the Lt 4 (Sept) / Lt 5 (Oct) exports, 12.12', () 
     expect([igd.floor, igd.room, onFloorNumber(igd, '4')]).toEqual(['', '', false]);
   });
 
+  it('utama of another department with our DPJP only as a consultant: no own DPJP, the consultant\'s KJS (13.10)', () => {
+    const text = [
+      'Mohon izin melaporkan pasien KJS di PJT Lantai 4 Kamar 416 Bed 3 atas nama:',
+      'Tn. Contoh Tujuh / 01-01-1960 / 66 tahun / RM 1600007',
+      'DPJP Penyakit Dalam (Utama) : dr. Contoh Internis, Sp.PD',
+      'DPJP KJS Aritmia : Prof. Dr. dr. Muzakkir Amir, Sp.JP(K)',
+    ].join('\n');
+    const p = readReport({ sentAt: '2026-10-12T07:00', sender: 'dr. Bima', text, index: 0 });
+    expect(p).toMatchObject({ dpjpId: null, kjsDpjpIds: ['mz'] });
+  });
+
   it('a non-cardiology DPJP Utama makes it KJS TS Lain; cardiology or BTKV Utama does not', () => {
     expect(otherDepartmentUtama('DPJP Urologi (Utama) : dr. Contoh Satu, Sp.U\nDPJP Kardio : Dr. dr. Khalid Saleh, Sp.PD-KKV')).toBe(true);
     expect(otherDepartmentUtama('DPJP GH (Utama): dr. Contoh Dua, Sp.PD K GH')).toBe(true);
@@ -384,7 +395,7 @@ describe('report variants from the Lt 4 (Sept) / Lt 5 (Oct) exports, 12.12', () 
 describe('a sent List Pasien, read back (12.12)', () => {
   const msg = (text: string) => ({ sentAt: '2026-10-12T04:00', sender: 'dr. Luar', text, index: 0 });
 
-  it('shape A: code after the room, residents after " - ", A/T/P under each; KJS lines skipped', () => {
+  it('shape A: code after the room, residents after " - ", A/T/P under each; a KJS line joins its own line', () => {
     const text = [
       'Tabe dokter mohon izin mengirimkan *List Pasien PJT Lantai 4, Senin, 12 Oktober 2026, 04.00 WITA*',
       '🟡JUMLAH PASIEN : 2',
@@ -414,6 +425,20 @@ describe('a sent List Pasien, read back (12.12)', () => {
       ['415', '2', 'mz', 'Ny. Contoh Dua', '1600002', 'Dani', 'Kepala', false, true],
     ]);
     expect(patients[0]!.body).toBe('Diagnosis:\n- 1. Post MVR H-9\n\nTerapi:\n- Furosemide');
+    expect(patients[0]!.kjsDpjpIds).toEqual(['mz']);
+  });
+
+  it('a KJS line with no own line (utama of another department, "TM/…") is kept, filed as the KJS of that DPJP (13.10)', () => {
+    const text = [
+      'Tabe dokter mohon izin mengirimkan *List Pasien PJT Lantai 4*',
+      '-------------------------------------',
+      '*🫀 Prof. MZ : 0 pasien + 1 KJS*',
+      '*KJS*',
+      '1. 416 Bed 3/TM/Tn. Contoh Enam / 01-01-1960 / 66 tahun / RM 1600006',
+    ].join('\n');
+    const [p] = readReports(msg(text));
+    expect(p).toMatchObject({ room: '416', bed: '3', dpjpId: null, dpjpCode: 'TM', kjsDpjpIds: ['mz'], name: 'Tn. Contoh Enam', fromList: true });
+    expect(patientLine(p!)).toBe('416 Bed 3/TM/Tn. Contoh Enam / 01-01-1960 / 66 tahun / RM 1600006');
   });
 
   it('shape B (code and nickname at the end) and shape C (short list under a DPJP heading)', () => {

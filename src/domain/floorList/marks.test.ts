@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { markOf, newMarkId, readMarks } from './marks';
+import { autoMatches, newMarkId, readMarks } from './marks';
 
 describe('floor marks', () => {
   it('reads only well-formed marks: known colour, a label, a unique id', () => {
@@ -15,11 +15,23 @@ describe('floor marks', () => {
     expect(readMarks(undefined)).toEqual([]);
   });
 
-  it('finds the mark a colour names, and makes ids that are not taken', () => {
+  it('reads a rule; a DPJP rule without DPJPs is dropped', () => {
+    expect(readMarks([{ id: 'k1', label: 'NP', color: 'teal', auto: { kind: 'dpjp', ids: ['np'] } }])[0]!.auto).toEqual({ kind: 'dpjp', ids: ['np'] });
+    expect(readMarks([{ id: 'k1', label: 'NP', color: 'teal', auto: { kind: 'dpjp', ids: [] } }])[0]!.auto).toBeUndefined();
+    expect(readMarks([{ id: 'k1', label: 'X', color: 'teal', auto: { kind: 'apa' } }])[0]!.auto).toBeUndefined();
+  });
+
+  it('rules match their facts', () => {
+    const facts = { isNew: false, dpjpId: 'yp', btkv: true, kjs: false, division: false, junior: '' };
+    expect(autoMatches({ kind: 'dpjp', ids: ['yp', 'aau'] }, facts)).toBe(true);
+    expect(autoMatches({ kind: 'baru' }, facts)).toBe(false);
+    expect(autoMatches({ kind: 'btkv' }, facts)).toBe(true);
+    expect(autoMatches({ kind: 'tanpa-junior' }, facts)).toBe(true);
+    expect(autoMatches({ kind: 'tanpa-junior' }, { ...facts, division: true })).toBe(false);
+  });
+
+  it('makes ids that are not taken', () => {
     const marks = readMarks([{ id: 'k2', label: 'Konsul', color: 'teal' }]);
-    expect(markOf('m:k2', marks)?.label).toBe('Konsul');
-    expect(markOf('h1', marks)).toBeNull();
-    expect(markOf('m:k5', marks)).toBeNull();
     expect(newMarkId(marks)).toBe('k3');
     expect(newMarkId([{ id: 'k1', label: 'a', color: 'grey' }, { id: 'k2', label: 'b', color: 'grey' }])).toBe('k3');
   });

@@ -1,4 +1,4 @@
-import { markOf, type FloorMark } from './marks';
+import { tagsOf, type FloorMark } from './marks';
 import { dischargeFlag, type DischargeFlag, type FloorPatient } from './report';
 
 /**
@@ -56,11 +56,8 @@ export interface FloorDoc {
 /** On the floor, or gone (and how). */
 export type RosterStatus = 'dirawat' | 'pulang' | 'pindah';
 
-/**
- * The colour set by hand: none, red (H-1), green (pulang hari ini), or one of
- * the floor's own marks ("m:<id>", 13.7).
- */
-export type ColourMark = 'none' | 'h1' | 'today' | `m:${string}`;
+/** The colour set by hand: none, red (H-1), green (pulang hari ini). Floor marks are tags (13.10). */
+export type ColourMark = 'none' | 'h1' | 'today';
 
 export interface StatusChange {
   at: string;
@@ -99,6 +96,13 @@ export interface RosterPatient {
    * division's resident: listed, not followed up by the floor's residents.
    */
   division: string;
+  /**
+   * The floor's marks (ids) set on this patient by hand, and the automatic
+   * ones turned off for it (13.10). A tag never colours the identity: red /
+   * green stay the discharge colour, the tag carries its own colour.
+   */
+  tags: string[];
+  tagsOff: string[];
   addedAt: string;
   log: StatusChange[];
 }
@@ -141,8 +145,6 @@ function addDays(date: string, n: number): string {
 export function colourOn(patient: Pick<RosterPatient, 'colour' | 'dischargeDate'>, date: string): DischargeFlag {
   if (patient.colour === 'h1') return 'tomorrow';
   if (patient.colour === 'today') return 'today';
-  // A floor mark set by hand is the decision shown; it wins over the date.
-  if (patient.colour.startsWith('m:')) return null;
   const due = patient.dischargeDate;
   if (!due) return null;
   if (date >= due) return 'today';
@@ -204,39 +206,59 @@ export const DIVISIONS = ['Aritmia', 'Intervensi', 'Imaging', 'Vaskular', 'Preve
 const DIVISION_RE = new RegExp(`\\bKJS\\s+(?:divisi\\s+)?(${DIVISIONS.join('|')})\\b`, 'i');
 
 /**
- * The division holding this patient, or '' (the ward residents). Set by hand,
- * else read from the identity/first lines ("… / RM 00554408 - KJS ARITMIA").
- * KJS BTKV is not a division: the ward residents follow those patients.
+ * The division holding this patient, or '' (the ward residents). Set by hand;
+ * else (13.10) only for a patient the ward does NOT report on — known from a
+ * sent list or entered by hand, with no ward junior written — whose text
+ * names the division ("… - KJS ARITMIA"); or "KJS" for a patient whose only
+ * cardiology DPJP is a consultant (utama of another department, listed only
+ * under a KJS heading). A SOAP from the floor group means the ward follows
+ * the patient: never a division by itself (13.9 read it from any text, so a
+ * ward patient of ZD with a KJS Aritmia consult was taken off the ward).
  */
-export function divisionOf(patient: Pick<RosterPatient, 'division' | 'report'>): string {
+export function divisionOf(patient: Pick<RosterPatient, 'division' | 'report' | 'junior'>): string {
   if (patient.division === '-') return '';
   if (patient.division) return patient.division;
-  const found = DIVISION_RE.exec(`${patient.report.identity}\n${patient.report.full.slice(0, 600)}`);
-  if (!found) return '';
-  return DIVISIONS.find((d) => d.toLowerCase() === found[1]!.toLowerCase()) ?? '';
+  const report = patient.report;
+  if (!report.fromList && !report.manual) return '';
+  if (patient.junior || report.junior) return '';
+  const found = DIVISION_RE.exec(`${report.identity}\n${report.full.slice(0, 600)}`);
+  if (found) return DIVISIONS.find((d) => d.toLowerCase() === found[1]!.toLowerCase()) ?? '';
+  return !report.dpjpId && report.kjsDpjpIds.length > 0 ? 'KJS' : '';
 }
+
+/** "Divisi Aritmia", or "KJS" as it is. */
+export const holderLabel = (division: string): string => ((DIVISIONS as readonly string[]).includes(division) ? `Divisi ${division}` : division);
 
 export function effective(
   patient: RosterPatient,
   floor: Pick<FloorDoc, 'nicknames' | 'chiefs'> & { juniors?: string | undefined; marks?: readonly FloorMark[] | undefined },
   date: string,
+  /** Not on the previous day's list (13.10, the "pasien baru" rule). */
+  isNew = false,
 ): FloorPatient {
   const report = patient.report;
-  const mark = markOf(patient.colour, floor.marks ?? []);
-  const { mark: _stored, division: _was, ...rest } = report;
+  const { tags: _stored, division: _was, ...rest } = report;
   const division = divisionOf(patient);
-  if (division) {
-    // Held by the division's resident: no ward junior or chief unless set by hand.
-    return { ...rest, junior: patient.junior, chief: patient.chief, discharge: colourOn(patient, date), division, ...(mark ? { mark: { label: mark.label, color: mark.color } } : {}) };
+  let junior = patient.junior;
+  let chief = patient.chief;
+  if (!division) {
+    const chiefs = chiefsOf(floor.chiefs);
+    const juniors = chiefsOf(floor.juniors ?? '');
+    // Either roster may hold the name: a chief writes himself as "FU" at times.
+    const everyone = [...juniors, ...chiefs];
+    junior = rosterName(patient.junior || report.junior || floor.nicknames[report.sender] || report.senderNick || '', juniors.length > 0 ? everyone : []);
+    const written = patient.chief || report.chief;
+    chief = written ? rosterName(written, chiefs.length > 0 ? everyone : []) : chiefs.length === 1 ? chiefs[0]! : '';
   }
-  const chiefs = chiefsOf(floor.chiefs);
-  const juniors = chiefsOf(floor.juniors ?? '');
-  // Either roster may hold the name: a chief writes himself as "FU" at times.
-  const everyone = [...juniors, ...chiefs];
-  const junior = rosterName(patient.junior || report.junior || floor.nicknames[report.sender] || report.senderNick || '', juniors.length > 0 ? everyone : []);
-  const written = patient.chief || report.chief;
-  const chief = written ? rosterName(written, chiefs.length > 0 ? everyone : []) : chiefs.length === 1 ? chiefs[0]! : '';
-  return { ...rest, junior, chief, discharge: colourOn(patient, date), ...(mark ? { mark: { label: mark.label, color: mark.color } } : {}) };
+  const tags = tagsOf(floor.marks ?? [], patient.tags, patient.tagsOff, {
+    isNew,
+    dpjpId: report.dpjpId,
+    btkv: report.btkv,
+    kjs: report.kjsDpjpIds.length > 0,
+    division: Boolean(division),
+    junior,
+  });
+  return { ...rest, junior, chief, discharge: colourOn(patient, date), ...(division ? { division } : {}), ...(tags.length > 0 ? { tags } : {}) };
 }
 
 export interface RosterView {
@@ -246,9 +268,14 @@ export interface RosterView {
   left: RosterPatient[];
 }
 
-export function rosterView(floor: FloorDoc, roster: readonly RosterPatient[], date: string): RosterView {
+/**
+ * `previous`: the keys on the last list sent before this date (the
+ * "pasien baru" rule); without one, a patient added on this date is new.
+ */
+export function rosterView(floor: FloorDoc, roster: readonly RosterPatient[], date: string, previous?: ReadonlySet<string> | null): RosterView {
+  const isNew = (p: RosterPatient): boolean => (previous ? !previous.has(p.key) : p.addedAt.slice(0, 10) === date);
   return {
-    active: roster.filter((p) => p.status === 'dirawat').map((p) => effective(p, floor, date)),
+    active: roster.filter((p) => p.status === 'dirawat').map((p) => effective(p, floor, date, isNew(p))),
     left: roster.filter((p) => p.status !== 'dirawat').sort((a, b) => (a.leftAt < b.leftAt ? 1 : -1)),
   };
 }
@@ -285,6 +312,8 @@ export function newRosterPatient(report: FloorPatient, at: string, by: string): 
     dismissed: '',
     placedAt: '',
     division: '',
+    tags: [],
+    tagsOff: [],
     addedAt: at,
     log: [{ at, by, what: 'Masuk list' }],
   };

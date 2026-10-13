@@ -1,7 +1,7 @@
 import { roomNamed } from '@/domain/denahPlan';
 import { DPJPS, detectDpjps } from '@/domain/dpjp';
 import type { ChatMessage } from './chat';
-import type { MarkColor } from './marks';
+import type { PatientTag } from './marks';
 
 /**
  * List Maker, step 2: one follow-up message → one patient on the floor (12.8).
@@ -65,8 +65,10 @@ export interface FloorPatient {
   fromList?: boolean | undefined;
   /** The three fields of a hand-entered patient, for editing it again. */
   manualFields?: ManualFields | undefined;
-  /** The floor's own colour set on this patient (13.7, `marks.ts`); list only, never from a SOAP. */
-  mark?: { label: string; color: MarkColor } | undefined;
+  /** The floor's own marks on this patient (13.10, `marks.ts`); list only, never from a SOAP. */
+  tags?: PatientTag[] | undefined;
+  /** A DPJP code written on a sent list that is not one of ours ("TM/…", 13.10): printed as written. */
+  dpjpCode?: string | undefined;
   /** Held by a cardiology division, not the ward residents (13.9, `divisionOf`). */
   division?: string | undefined;
 }
@@ -176,10 +178,19 @@ function fileDpjp(text: string): { dpjpId: string | null; kjs: string[]; btkvDpj
     cardio.find((d) => !/aritmia|eko|intervensi/.test(role(d))) ??
     cardio[0] ??
     null;
-  const kjs = cardio
-    .filter((d) => d !== filed && /aritmia|eko\b|intervensi|kjs/.test(role(d)) && !/tindakan|utama|pelimpahan/.test(role(d)))
-    .map((d) => d.id);
-  return { dpjpId: filed?.id ?? null, kjs, btkvDpjp: detected.some((d) => BTKV_IDS.has(d.id)) };
+  const consult = (d: { role: string | null }): boolean => /aritmia|eko\b|intervensi|kjs/.test(role(d)) && !/tindakan|utama|pelimpahan/.test(role(d));
+  const btkvDpjp = detected.some((d) => BTKV_IDS.has(d.id));
+  /*
+    Utama of another department and our DPJPs only as consultants ("DPJP
+    Utama: dr. X, Sp.PD" + "DPJP KJS Aritmia: Prof. MZ", 13.10): no own
+    cardiology DPJP. It used to be filed as MZ's own patient (the first
+    cardiologist found); now MZ's KJS, so it shows once, in MZ's KJS part.
+  */
+  if (cardio.length > 0 && cardio.every(consult) && otherDepartmentUtama(text)) {
+    return { dpjpId: null, kjs: [...new Set(cardio.map((d) => d.id))], btkvDpjp };
+  }
+  const kjs = cardio.filter((d) => d !== filed && consult(d)).map((d) => d.id);
+  return { dpjpId: filed?.id ?? null, kjs, btkvDpjp };
 }
 
 /**
@@ -386,12 +397,19 @@ export function isListMessage(text: string): boolean {
  * DPJP, identity, residents, and the A/Terapi/Plan printed under it). Lines
  * under a "KJS" heading are skipped: the same patient is listed in full under
  * its own DPJP.
+ *
+ * 13.10: lines under a KJS heading are READ, not skipped. The skip assumed the
+ * patient is also listed under its own DPJP — false when the utama is of
+ * another department (or a DPJP not ours, "TM/…"): there is no own section,
+ * and the patient vanished. A KJS line is merged into the patient's own line
+ * when there is one (the consultant joins `kjsDpjpIds`), else kept as a
+ * patient whose only cardiology DPJP is the consultant.
  */
 export function readListMessage(message: ChatMessage): FloorPatient[] {
   const patients: FloorPatient[] = [];
   let section: string | null = null;
   let inKjs = false;
-  let current: { line: string; rest: string; room: string; bed: string; dpjp: string | null; body: string[] } | null = null;
+  let current: ListLine | null = null;
   const flush = (): void => {
     if (current) {
       const patient = listPatient(current, message, patients.length);
@@ -424,11 +442,11 @@ export function readListMessage(message: ChatMessage): FloorPatient[] {
     const startsPatient = (room && (isNumbered || LOOKS_LIKE_IDENTITY.test(room[4] ?? ''))) || (codeFirst?.[1] && dpjpByCode(codeFirst[1]));
     if (startsPatient) {
       flush();
-      if (!inKjs) {
-        current = room
-          ? { line, rest: room[4] ?? '', room: room[1] ?? '', bed: room[2] ?? room[3] ?? '', dpjp: section, body: [] }
-          : { line, rest: numbered, room: '', bed: '', dpjp: section, body: [] };
-      }
+      const dpjp = inKjs ? null : section;
+      const kjsOf = inKjs ? section : null;
+      current = room
+        ? { line, rest: room[4] ?? '', room: room[1] ?? '', bed: room[2] ?? room[3] ?? '', dpjp, kjsOf, body: [] }
+        : { line, rest: numbered, room: '', bed: '', dpjp, kjsOf, body: [] };
       continue;
     }
     if (CLOSING.test(line)) {
@@ -438,14 +456,41 @@ export function readListMessage(message: ChatMessage): FloorPatient[] {
     current?.body.push(line);
   }
   flush();
-  return patients;
+  return mergeKjs(patients);
 }
 
-function listPatient(
-  input: { line: string; rest: string; room: string; bed: string; dpjp: string | null; body: string[] },
-  message: ChatMessage,
-  n: number,
-): FloorPatient | null {
+interface ListLine {
+  line: string;
+  rest: string;
+  room: string;
+  bed: string;
+  /** The DPJP section the line is in (null under a KJS heading). */
+  dpjp: string | null;
+  /** Under a KJS heading: the DPJP whose KJS it is. */
+  kjsOf: string | null;
+  body: string[];
+}
+
+/** One patient per key: a KJS line joins the patient's own line (13.10). */
+function mergeKjs(patients: FloorPatient[]): FloorPatient[] {
+  const byKey = new Map<string, FloorPatient>();
+  const out: FloorPatient[] = [];
+  // Own lines first, so a KJS line listed before its own DPJP still merges.
+  const ordered = [...patients.filter((p) => p.kjsDpjpIds.length === 0), ...patients.filter((p) => p.kjsDpjpIds.length > 0)];
+  for (const patient of ordered) {
+    const seen = byKey.get(patient.key);
+    if (!seen) {
+      byKey.set(patient.key, patient);
+      out.push(patient);
+      continue;
+    }
+    const kjs = patient.kjsDpjpIds.filter((id) => id !== seen.dpjpId && !seen.kjsDpjpIds.includes(id));
+    seen.kjsDpjpIds.push(...kjs);
+  }
+  return out.sort((a, b) => a.index - b.index);
+}
+
+function listPatient(input: ListLine, message: ChatMessage, n: number): FloorPatient | null {
   const btkv = /\bBTKV\b/i.test(input.rest);
   /*
     "(KJS BTKV)", "(KJS Aritmia)", and the bare " - KJS BTKV" written after
@@ -464,11 +509,17 @@ function listPatient(
   }
   const segments = rest.split('/').map((part) => part.trim()).filter(Boolean);
   let dpjpId = input.dpjp;
+  let dpjpCode = '';
   // Shape A: the code first ("KS/Tn. …").
   const first = segments[0] ? codeSegment(segments[0]) : null;
   if (first && segments[0]!.trim().length <= 4) {
     dpjpId = first.id;
     segments.shift();
+  } else if (segments.length > 1 && /^[A-Z]{2,4}$/.test(segments[0]!.trim()) && readName(segments.slice(1).join(' / '))) {
+    // A code that is not one of ours ("TM/HENDRA …", the utama of another
+    // department): kept to print, never a DPJP box of its own (13.10).
+    dpjpCode = segments.shift()!.trim();
+    if (input.kjsOf) dpjpId = null;
   } else {
     // Shape B: "…/dr.ZD/naima" — the code, then the resident's nickname.
     const at = segments.findIndex((part, i) => i > 0 && codeSegment(part) !== null);
@@ -508,8 +559,10 @@ function listPatient(
     room: input.room,
     bed: input.bed,
     floor: input.room.charAt(0),
-    dpjpId,
-    kjsDpjpIds: [],
+    // Under a KJS heading the code (if ours) is the utama; the section's DPJP is the consultant.
+    dpjpId: input.kjsOf && dpjpId === input.kjsOf ? null : dpjpId,
+    kjsDpjpIds: input.kjsOf ? [input.kjsOf] : [],
+    ...(dpjpCode ? { dpjpCode } : {}),
     btkv,
     body: listBody(text) || text,
     full: `${clean(input.line)}\n${text}`.trim(),

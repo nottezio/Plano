@@ -29,9 +29,14 @@ export function isPediatri(id: string | null): boolean {
 }
 
 /** "417 Bed 4/KS/<identity> (KJS BTKV) - dr. Junior / dr. Chief". */
+/** The DPJP code printed on a line: ours, or the one written on a sent list ("TM", 13.10). */
+export function dpjpCodeOf(patient: Pick<FloorPatient, 'dpjpId' | 'dpjpCode'>): string {
+  return patient.dpjpId ? (dpjpById(patient.dpjpId)?.initials ?? '') : (patient.dpjpCode ?? '');
+}
+
 export function patientLine(patient: FloorPatient): string {
   const place = patient.room ? `${patient.room}${patient.bed ? ` Bed ${patient.bed}` : ''}` : '';
-  const code = patient.dpjpId ? (dpjpById(patient.dpjpId)?.initials ?? '') : '';
+  const code = dpjpCodeOf(patient);
   const head = [place, code, patient.identity].filter(Boolean).join('/');
   const residents = [patient.junior, patient.chief].filter(Boolean).map((name) => `dr. ${name}`).join(' / ');
   return `${head}${patient.btkv ? ' (KJS BTKV)' : ''}${residents ? ` - ${residents}` : ''}`;

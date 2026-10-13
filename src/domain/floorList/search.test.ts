@@ -23,7 +23,7 @@ const P: FloorPatient = {
   sentAt: '2026-10-13T07:00',
   index: 0,
   discharge: 'tomorrow',
-  mark: { label: 'Pre-op', color: 'purple' },
+  tags: [{ label: 'Pre-op', color: 'purple' }],
 };
 
 const hit = (q: string): boolean => matchesSearch(P, searchWords(q));
@@ -50,7 +50,7 @@ describe('list / denah search', () => {
     expect(hit('contoh dua')).toBe(false);
     expect(hit('ntoh')).toBe(false);
     // A hyphenated term is one phrase, not two loose words.
-    expect(matchesSearch({ ...P, mark: undefined, body: 'Plan:\n- Prednison\n- Rencana operasi' }, searchWords('pre-op'))).toBe(false);
+    expect(matchesSearch({ ...P, tags: undefined, body: 'Plan:\n- Prednison\n- Rencana operasi' }, searchWords('pre-op'))).toBe(false);
     expect(hit('')).toBe(true);
   });
 });

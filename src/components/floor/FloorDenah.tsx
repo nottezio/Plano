@@ -1,8 +1,7 @@
 import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react';
 
-import { dpjpById } from '@/domain/dpjp';
 import { planRooms, type DenahRoomSlot, type WardPlan } from '@/domain/denahPlan';
-import { byRoute, dpjpTitle, isPediatri, LIST_DPJP_ORDER, PEDIATRI_DPJP_IDS } from '@/domain/floorList/build';
+import { byRoute, dpjpCodeOf, dpjpTitle, isPediatri, LIST_DPJP_ORDER, PEDIATRI_DPJP_IDS } from '@/domain/floorList/build';
 import { markCss, type FloorMark } from '@/domain/floorList/marks';
 import type { FloorPatient } from '@/domain/floorList/report';
 import { residentGroups } from '@/domain/floorList/residents';
@@ -38,12 +37,12 @@ function PatientButton({
   showPlace?: boolean;
   found?: Found;
 }): JSX.Element {
-  const code = patient.dpjpId ? (dpjpById(patient.dpjpId)?.initials ?? '') : '';
+  const code = dpjpCodeOf(patient);
   const place = showPlace && patient.room ? `${patient.room}${patient.bed ? ` Bed ${patient.bed}` : ''}/` : '';
   const residents = [patient.junior, patient.chief].filter(Boolean).map((n) => `dr. ${n}`).join(' / ');
   const flag = patient.discharge;
-  // Red/green first; else the floor's own mark (13.7).
-  const colour = flag ? FLAG_COLOR[flag] : patient.mark ? markCss(patient.mark.color) : undefined;
+  // Red/green colour the line; a floor tag only colours itself (13.10).
+  const colour = flag ? FLAG_COLOR[flag] : undefined;
   return (
     <button
       type="button"
@@ -62,7 +61,39 @@ function PatientButton({
       {patient.btkv ? <strong> (KJS BTKV)</strong> : null}
       {residents ? <strong className="text-fg"> - {residents}</strong> : null}
       {flag ? <span className="sr-only"> ({FLAG_LABEL[flag]})</span> : null}
-      {!flag && patient.mark ? <span className="font-semibold"> [{patient.mark.label}]</span> : null}
+      <Tags patient={patient} />
+    </button>
+  );
+}
+
+/** The floor's tags after a line, each in its own colour (13.10). */
+function Tags({ patient }: { patient: FloorPatient }): JSX.Element | null {
+  if (!patient.tags?.length) return null;
+  return (
+    <>
+      {patient.tags.map((tag) => (
+        <strong key={tag.label} style={{ color: markCss(tag.color) }}>
+          {' '}
+          [{tag.label}]
+        </strong>
+      ))}
+    </>
+  );
+}
+
+/**
+ * A KJS patient whose full line is in its own DPJP's box (13.10, Avi: the
+ * same patient in two boxes): a short grey reference, still tappable.
+ */
+function KjsReference({ patient, number, onOpen }: { patient: FloorPatient; number: number; onOpen: (patient: FloorPatient) => void }): JSX.Element {
+  return (
+    <button
+      type="button"
+      onClick={() => onOpen(patient)}
+      className="block w-full rounded-md px-1 py-0.5 text-left text-[12px] leading-snug text-fg-muted hover:bg-bg-subtle"
+    >
+      {number}. {patient.room}
+      {patient.bed ? ` Bed ${patient.bed}` : ''}/{patient.name} → {dpjpCodeOf(patient)}
     </button>
   );
 }
@@ -237,6 +268,7 @@ export function FloorDenah({
 
   // Residents: chief counts, one block per junior, then division patients (13.9).
   const { chiefs, juniors, divisions } = residentGroups(shown);
+  const held = new Set(divisions.map(([name]) => name));
 
   return (
     <div className="space-y-6">
@@ -335,9 +367,13 @@ export function FloorDenah({
                   {kjs.length > 0 ? (
                     <>
                       <p className="px-1 pt-1 text-[11px] font-semibold text-fg-muted">KJS:</p>
-                      {kjs.map((p, i) => (
-                        <PatientButton key={p.key} patient={p} number={i + 1} onOpen={onOpen} />
-                      ))}
+                      {kjs.map((p, i) =>
+                        p.dpjpId ? (
+                          <KjsReference key={p.key} patient={p} number={i + 1} onOpen={onOpen} />
+                        ) : (
+                          <PatientButton key={p.key} patient={p} number={i + 1} onOpen={onOpen} />
+                        ),
+                      )}
                     </>
                   ) : null}
                 </div>
@@ -353,7 +389,7 @@ export function FloorDenah({
           {[...juniors, ...divisions].map(([name, list]) => (
             <div key={name} className="rounded-lg border border-border bg-surface p-2">
               <p className="text-[12px] font-bold">
-                {name} <span className="font-normal text-fg-muted">({list.length}{name.startsWith('Divisi ') ? ', tidak di-FU' : ''})</span>
+                {name} <span className="font-normal text-fg-muted">({list.length}{held.has(name) ? ', tidak di-FU' : ''})</span>
               </p>
               {list.map((p, i) => (
                 <PatientButton key={p.key} patient={p} number={i + 1} onOpen={onOpen} />

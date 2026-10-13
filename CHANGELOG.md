@@ -5,6 +5,25 @@ Catatan teknis lengkap (akar masalah, perbaikan) ada di CHANGES.md.
 
 Entri teratas harus versi yang sedang dirilis; tes gagal bila belum ditulis.
 
+## `2026-10-13.10`
+- **Warna list kini berupa tag.** Warna tambahan tampil sebagai label berwarna, mis. **[Pasien NP]**, di belakang baris pasien, dan tidak lagi mewarnai seluruh identitas. Pasien H-1 tetap merah (pulang hari ini tetap hijau) dan tetap membawa tagnya. Satu pasien bisa punya beberapa tag. Pasang atau lepas tag di **Atur pasien** atau di kartu tab List.
+- **Tag otomatis.** Di **Anggota → Warna list**, tiap warna bisa dipasang otomatis untuk:
+  - pasien baru (belum ada di list hari sebelumnya);
+  - pasien DPJP tertentu, mis. NP, atau YP dan AAU;
+  - KJS BTKV;
+  - konsul/KJS;
+  - pasien yang dipegang divisi;
+  - pasien yang belum ada junior.
+
+  Tag otomatis bisa dilepas per pasien.
+- **Pasien dengan dua DPJP** (mis. utama ZD, KJS Aritmia MZ) kini ditulis lengkap hanya di kotak DPJP utama. Di bagian KJS kotak MZ cukup ditulis singkat dan abu-abu, mis. "420 Bed 2/Tn. X → ZD", di denah maupun Word. Pasien tetap terhitung "+ KJS".
+- **Pasien dengan DPJP utama dari bagian lain** (mis. TM) yang masuk list karena KJS Aritmia MZ:
+  - dari list rekan: baris di bawah judul "KJS" kini dibaca, tidak lagi dilewati;
+  - dari SOAP: dicatat sebagai KJS MZ, bukan pasien MZ sendiri.
+
+  Bila tidak ada junior bangsal yang tertulis, pasien ini otomatis masuk blok "tidak di-FU".
+- **Divisi lebih tepat.** Pasien yang punya SOAP dari grup lantai, atau yang junior-nya tertulis, tetap dipegang residen bangsal, walaupun ada konsul KJS Aritmia.
+
 ## `2026-10-13.9`
 - **Pasien yang dipegang divisi.** Contohnya konsul dari bagian lain ke divisi Aritmia: pasien tetap masuk list, tetapi tidak di-FU residen bangsal. Pasien seperti ini kini masuk blok sendiri, **"Divisi Aritmia (tidak di-FU)"**, dan tidak lagi muncul sebagai "(belum diisi)" atau ikut terhitung untuk chief. Tulisan "KJS ARITMIA" dikenali otomatis. Bisa juga diatur manual lewat kolom **Pemegang** di kartu pasien.
 - **Residen bernomor.** Di tabel residen Word dan di denah, pasien tiap residen kini bernomor, dan jumlahnya tertulis di samping nama.

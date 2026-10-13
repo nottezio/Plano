@@ -30,10 +30,9 @@ import { ManualPatientSheet } from './ManualPatientSheet';
 /** The patient card's tint by its colour on this list (12.12): red H-1, green pulang hari ini. */
 const FLAG_TEXT = { tomorrow: 'var(--note-red)', today: 'var(--note-green)' } as const;
 
-/** Red/green first; a floor mark (13.7) tints the card the same way in its own colour. */
+/** Red/green tint the card; a floor tag only colours its own chip (13.10). */
 function cardColour(patient: FloorPatient): string | null {
-  if (patient.discharge) return FLAG_TEXT[patient.discharge];
-  return patient.mark ? markCss(patient.mark.color) : null;
+  return patient.discharge ? FLAG_TEXT[patient.discharge] : null;
 }
 const tinted = (colour: string) => ({
   borderColor: colour,
@@ -158,11 +157,15 @@ export function ListPanel({
                 >
                   {patientLine(patient)}
                   {patient.discharge ? <span className="sr-only"> ({patient.discharge === 'tomorrow' ? 'H-1' : 'pulang hari ini'})</span> : null}
-                  {!patient.discharge && patient.mark ? (
-                    <span className="ml-1 inline-block rounded-full border px-1.5 text-[10px] font-semibold" style={{ borderColor: colour ?? undefined }}>
-                      {patient.mark.label}
+                  {(patient.tags ?? []).map((tag) => (
+                    <span
+                      key={tag.label}
+                      className="ml-1 inline-block rounded-full border px-1.5 text-[10px] font-semibold"
+                      style={{ borderColor: markCss(tag.color), color: markCss(tag.color) }}
+                    >
+                      {tag.label}
                     </span>
-                  ) : null}
+                  ))}
                 </button>
                 <div className="mt-0.5 flex flex-wrap items-center gap-x-1">
                   <p className="min-w-0 flex-1 text-[11px] text-fg-faint">

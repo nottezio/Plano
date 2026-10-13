@@ -1,11 +1,10 @@
 import { formatDmy } from '@/domain/dateDmy';
-import { dpjpById } from '@/domain/dpjp';
 import { planRooms, type DenahRoomSlot, type WardPlan } from '@/domain/denahPlan';
 import { escapeXml, inlineRuns, DOCX_MIME, type Run } from '@/domain/format/soapDocx';
 import { storeZip } from '@/lib/zip';
 import { placeBeds } from './beds';
 import { planLayout, type RoomCell } from './layout';
-import { byRoute, dpjpTitle, isPediatri, LIST_DPJP_ORDER, PEDIATRI_DPJP_IDS } from './build';
+import { byRoute, dpjpCodeOf, dpjpTitle, isPediatri, LIST_DPJP_ORDER, PEDIATRI_DPJP_IDS } from './build';
 import { MARK_COLORS } from './marks';
 import { residentGroups } from './residents';
 import type { FloorPatient } from './report';
@@ -36,6 +35,7 @@ const PAGE = { width: 11906, height: 16838 };
 const RED = 'FF0000';
 const GREEN = '00B050';
 const AMBER = 'FFC000';
+const GREY = '7F7F7F';
 const ORANGE_FILL = 'FFC000';
 
 interface Styled {
@@ -57,12 +57,15 @@ function para(runs: readonly Styled[], options: { center?: boolean; pageBreakBef
 
 const fromRuns = (runs: readonly Run[]): Styled[] => runs.map((r) => ({ text: r.text, ...(r.bold ? { bold: true } : {}) }));
 
-/** One patient as styled runs: colour for H-1/pulang, amber pediatri code, bold residents. */
+/**
+ * One patient as styled runs: colour for H-1/pulang, amber pediatri code, bold
+ * residents, then the floor's tags each in its own colour (13.10: a tag never
+ * colours the identity).
+ */
 export function patientRuns(patient: FloorPatient, options: { number?: number | undefined; place?: boolean } = {}): Styled[] {
-  const color =
-    patient.discharge === 'tomorrow' ? RED : patient.discharge === 'today' ? GREEN : patient.mark ? MARK_COLORS[patient.mark.color].docx : undefined;
+  const color = patient.discharge === 'tomorrow' ? RED : patient.discharge === 'today' ? GREEN : undefined;
   const tint = (s: Styled): Styled => (color ? { ...s, color } : s);
-  const code = patient.dpjpId ? (dpjpById(patient.dpjpId)?.initials ?? '') : '';
+  const code = dpjpCodeOf(patient);
   const place = options.place !== false && patient.room ? `${patient.room}${patient.bed ? ` Bed ${patient.bed}` : ''}/` : '';
   const residents = [patient.junior, patient.chief].filter(Boolean).map((n) => `dr. ${n}`).join(' / ');
   const out: Styled[] = [tint({ text: `${options.number !== undefined ? `${options.number}. ` : ''}${place}` })];
@@ -70,7 +73,17 @@ export function patientRuns(patient: FloorPatient, options: { number?: number | 
   out.push(tint({ text: patient.identity }));
   if (patient.btkv) out.push(tint({ text: ' (KJS BTKV)', bold: true }));
   if (residents) out.push({ text: ` - ${residents}`, bold: true });
+  for (const tag of patient.tags ?? []) out.push({ text: ` [${tag.label}]`, bold: true, color: MARK_COLORS[tag.color].docx });
   return out;
+}
+
+/**
+ * A KJS patient filed under another DPJP (13.10, Avi: the same patient in two
+ * DPJP boxes): a short grey reference to where the full line is.
+ */
+export function kjsReferenceRuns(patient: FloorPatient, number: number): Styled[] {
+  const place = patient.room ? `${patient.room}${patient.bed ? ` Bed ${patient.bed}` : ''}/` : '';
+  return [{ text: `${number}. ${place}${patient.name} → ${dpjpCodeOf(patient)}`, color: GREY }];
 }
 
 // ── package ────────────────────────────────────────────────────────────────
@@ -268,7 +281,11 @@ function dpjpTables(sorted: readonly FloorPatient[]): string {
       const kjs = sorted.filter((p) => p.kjsDpjpIds.includes(id));
       const content =
         (own.length > 0 ? own.map((p, n) => para(patientRuns(p, { number: n + 1 }))).join('') : para([{ text: '1.' }])) +
-        (kjs.length > 0 ? para([{ text: 'KJS:', bold: true }]) + kjs.map((p, n) => para(patientRuns(p, { number: n + 1 }))).join('') : '');
+        (kjs.length > 0
+          ? para([{ text: 'KJS:', bold: true }]) +
+            // Full line only when this box is the patient's only one (utama of another department).
+            kjs.map((p, n) => para(p.dpjpId ? kjsReferenceRuns(p, n + 1) : patientRuns(p, { number: n + 1 }))).join('')
+          : '');
       return { width: grid[k]!, content };
     });
     out.push(tableXml(grid, [head, body]), '<w:p/>');
@@ -277,7 +294,7 @@ function dpjpTables(sorted: readonly FloorPatient[]): string {
 }
 
 /** The residents' page: three juniors to a row, name on top, then each patient's line. */
-function residentTables(juniors: ReadonlyArray<readonly [string, readonly FloorPatient[]]>): string {
+function residentTables(juniors: ReadonlyArray<readonly [string, readonly FloorPatient[]]>, held: ReadonlySet<string>): string {
   const third = Math.floor(TEXT_WIDTH / 3);
   const grid = [third, third, TEXT_WIDTH - 2 * third];
   const rows: Cell[][] = [];
@@ -289,7 +306,7 @@ function residentTables(juniors: ReadonlyArray<readonly [string, readonly FloorP
         if (!entry) return { width, content: '' };
         const [name, list] = entry;
         // Numbered (13.9): how many each holds is read at a glance.
-        const title = name.startsWith('Divisi ') ? `${name} (${list.length}, tidak di-FU)` : `${name} (${list.length})`;
+        const title = held.has(name) ? `${name} (${list.length}, tidak di-FU)` : `${name} (${list.length})`;
         return { width, content: para([{ text: title, bold: true }]) + list.map((p, n) => para(patientRuns(p, { number: n + 1 }))).join('') };
       }),
     );
@@ -325,7 +342,7 @@ export function denahDocumentXml(input: DenahDocInput): string {
   // hand-filled blocks under it.
   const { chiefs, juniors, divisions } = residentGroups(sorted);
   const page2: string[] = chiefs.map(([name, n]) => para([{ text: `dr. ${name}  ${n}` }]));
-  page2.push(residentTables([...juniors, ...divisions]), para([{ text: 'Operkan ke Tmn Lain:', bold: true }]), '<w:p/>', '<w:p/>', para([{ text: '=====' }]), para([{ text: 'Ganti Chief:', bold: true }]));
+  page2.push(residentTables([...juniors, ...divisions], new Set(divisions.map(([name]) => name))), para([{ text: 'Operkan ke Tmn Lain:', bold: true }]), '<w:p/>', '<w:p/>', para([{ text: '=====' }]), para([{ text: 'Ganti Chief:', bold: true }]));
   // Page 2 starts on a new page: the break goes on its first paragraph (the
   // chiefs line), or on an empty one before the table.
   const BREAK = '<w:p><w:pPr><w:pageBreakBefore/></w:pPr>';
@@ -337,8 +354,8 @@ export function denahDocumentXml(input: DenahDocInput): string {
 }
 
 export function buildDenahDocx(input: DenahDocInput): Uint8Array<ArrayBuffer> {
-  // The floor's own marks on this sheet (13.7), in their Word colours.
-  const marks = [...new Map(input.patients.filter((p) => p.mark && !p.discharge).map((p) => [p.mark!.label, p.mark!])).values()];
+  // The floor's tags on this sheet, in their Word colours.
+  const marks = [...new Map(input.patients.flatMap((p) => p.tags ?? []).map((t) => [t.label, t])).values()];
   const legend = para([
     { text: 'Merah', color: RED },
     { text: ' H-1 – ' },

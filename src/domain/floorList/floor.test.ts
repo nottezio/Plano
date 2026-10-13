@@ -6,6 +6,7 @@ import {
   colourOn,
   divisionOf,
   effective,
+  holderLabel,
   isOwner,
   leftNote,
   leftSince,
@@ -143,37 +144,67 @@ describe('suggestionFor (a chip, never applied by itself)', () => {
   });
 });
 
-describe('division patients (13.9)', () => {
+describe('division patients (13.9, 13.10)', () => {
   const one = { ...FLOOR, chiefs: 'Kepala' };
+  const listed = { fromList: true as const, junior: '', senderNick: '' };
 
-  it('"KJS ARITMIA" in the identity: held by the division, no ward junior or chief', () => {
-    const entry = rostered({ identity: 'Ny. Contoh / RM 00554408 - KJS ARITMIA', junior: '', senderNick: '' });
+  it('a sent-list line "- KJS ARITMIA" with no ward junior: held by the division, no ward junior or chief', () => {
+    const entry = rostered({ ...listed, identity: 'Ny. Contoh / RM 00554408 - KJS ARITMIA' });
     expect(divisionOf(entry)).toBe('Aritmia');
     expect(effective(entry, one, '2026-10-12')).toMatchObject({ division: 'Aritmia', junior: '', chief: '' });
   });
 
+  it('a SOAP from the floor group, or a junior written: the ward follows it (a ZD patient with a KJS Aritmia consult)', () => {
+    expect(divisionOf(rostered({ identity: 'Tn. Contoh', full: 'DPJP KJS Aritmia: Prof. X' }))).toBe('');
+    expect(divisionOf(rostered({ ...listed, junior: 'Bima', identity: 'Tn. Contoh (KJS Aritmia)' }))).toBe('');
+  });
+
+  it('only a consultant DPJP (utama of another department), from a list: held as KJS', () => {
+    expect(divisionOf(rostered({ ...listed, dpjpId: null, kjsDpjpIds: ['mz'] }))).toBe('KJS');
+    expect(holderLabel('KJS')).toBe('KJS');
+    expect(holderLabel('Aritmia')).toBe('Divisi Aritmia');
+  });
+
   it('set by hand either way; KJS BTKV is not a division', () => {
     expect(divisionOf(rostered({}, { division: 'Intervensi' }))).toBe('Intervensi');
-    expect(divisionOf(rostered({ identity: 'X - KJS Aritmia' }, { division: '-' }))).toBe('');
-    expect(effective(rostered({ identity: 'X - KJS Aritmia' }, { division: '-' }), one, '2026-10-12')).toMatchObject({ chief: 'Kepala' });
-    expect(divisionOf(rostered({ identity: 'Tn. Contoh (KJS BTKV)' }))).toBe('');
+    expect(divisionOf(rostered({ ...listed, identity: 'X - KJS Aritmia' }, { division: '-' }))).toBe('');
+    expect(effective(rostered({ ...listed, identity: 'X - KJS Aritmia' }, { division: '-' }), one, '2026-10-12')).toMatchObject({ chief: 'Kepala' });
+    expect(divisionOf(rostered({ ...listed, identity: 'Tn. Contoh (KJS BTKV)' }))).toBe('');
   });
 });
 
-describe('floor marks (13.7)', () => {
-  const marks = [{ id: 'k1', label: 'Pre-op', color: 'purple' as const }];
+describe('floor tags (13.10)', () => {
+  const marks = [
+    { id: 'k1', label: 'Pre-op', color: 'purple' as const },
+    { id: 'k2', label: 'Pasien NP', color: 'teal' as const, auto: { kind: 'dpjp' as const, ids: ['np'] } },
+    { id: 'k3', label: 'Baru', color: 'blue' as const, auto: { kind: 'baru' as const } },
+  ];
+  const floor = { ...FLOOR, marks };
 
-  it('a mark set by hand is shown with its label and colour, and wins over the planned date', () => {
-    const entry = rostered({ key: 'rm:1' }, { colour: 'm:k1', dischargeDate: '2026-10-12' });
-    const seen = effective(entry, { ...FLOOR, marks }, '2026-10-12');
-    expect(seen.mark).toEqual({ label: 'Pre-op', color: 'purple' });
-    expect(seen.discharge).toBeNull();
+  it('a tag never colours the line: an H-1 patient keeps red and carries its tag', () => {
+    const seen = effective(rostered({ key: 'rm:1' }, { colour: 'h1', tags: ['k1'] }), floor, '2026-10-12');
+    expect(seen.discharge).toBe('tomorrow');
+    expect(seen.tags).toEqual([{ label: 'Pre-op', color: 'purple' }]);
   });
 
-  it('a mark the floor deleted shows nothing; red/green carry no mark', () => {
-    expect(effective(rostered({ key: 'rm:1' }, { colour: 'm:k9' }), { ...FLOOR, marks }, '2026-10-12').mark).toBeUndefined();
-    expect(effective(rostered({ key: 'rm:1' }, { colour: 'h1' }), { ...FLOOR, marks }, '2026-10-12')).toMatchObject({ discharge: 'tomorrow' });
-    expect(effective(rostered({ key: 'rm:1' }, { colour: 'h1' }), { ...FLOOR, marks }, '2026-10-12').mark).toBeUndefined();
+  it('rules: the DPJP\'s patients and new patients get the tag by themselves; turned off per patient', () => {
+    expect(effective(rostered({ dpjpId: 'np' }), floor, '2026-10-12').tags?.map((t) => t.label)).toEqual(['Pasien NP']);
+    expect(effective(rostered({ dpjpId: 'np' }), floor, '2026-10-12', true).tags?.map((t) => t.label)).toEqual(['Pasien NP', 'Baru']);
+    expect(effective(rostered({ dpjpId: 'np' }, { tagsOff: ['k2'] }), floor, '2026-10-12').tags).toBeUndefined();
+  });
+
+  it('new = not on the last list before this date; without one, added on this date', () => {
+    const fresh = rostered({ key: 'rm:5', rm: '5' }, { addedAt: '2026-10-12T03:00:00.000Z' });
+    const old = rostered({ key: 'rm:6', rm: '6' }, { addedAt: '2026-10-10T03:00:00.000Z' });
+    const label = (v: ReturnType<typeof rosterView>, key: string) => v.active.find((p) => p.key === key)?.tags?.map((t) => t.label) ?? [];
+    const plain = rosterView(floor, [fresh, old], '2026-10-12');
+    expect([label(plain, 'rm:5'), label(plain, 'rm:6')]).toEqual([['Baru'], []]);
+    const sent = rosterView(floor, [fresh, old], '2026-10-12', new Set(['rm:5']));
+    expect([label(sent, 'rm:5'), label(sent, 'rm:6')]).toEqual([[], ['Baru']]);
+  });
+
+  it('a mark the floor deleted shows nothing', () => {
+    expect(effective(rostered({}, { tags: ['k9'] }), floor, '2026-10-12').tags).toBeUndefined();
   });
 });
 

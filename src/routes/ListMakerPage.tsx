@@ -54,7 +54,12 @@ export default function ListMakerPage(): JSX.Element {
   };
   const { roster, state: rosterState } = useRoster(floor?.id ?? null);
   const editions = useEditions(floor?.id ?? null);
-  const view = useMemo(() => (floor ? rosterView(floor, roster, date) : { active: [], left: [] }), [floor, roster, date]);
+  // "Pasien baru" (13.10): not on the last list sent before this date.
+  const previous = useMemo(() => {
+    const last = editions.find((e) => e.date < date);
+    return last ? new Set(last.patients.map((p) => p.key)) : null;
+  }, [editions, date]);
+  const view = useMemo(() => (floor ? rosterView(floor, roster, date, previous) : { active: [], left: [] }), [floor, roster, date, previous]);
   // One search for the list and the denah (13.7): switching tabs keeps it.
   const [search, setSearch] = useState('');
   const words = useMemo(() => searchWords(search), [search]);

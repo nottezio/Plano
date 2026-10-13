@@ -24,13 +24,91 @@ export const MARK_COLORS = {
 
 export type MarkColor = keyof typeof MARK_COLORS;
 
+/**
+ * Put a mark on patients by itself (13.10, Avi: "apply this colour to every
+ * new patient, or NP patients, or YP and AAU patients"). Turned off for one
+ * patient by tapping its tag.
+ */
+export type MarkAuto =
+  | { kind: 'baru' }
+  | { kind: 'dpjp'; ids: string[] }
+  | { kind: 'btkv' }
+  | { kind: 'kjs' }
+  | { kind: 'divisi' }
+  | { kind: 'tanpa-junior' };
+
+export const AUTO_LABEL: Record<MarkAuto['kind'], string> = {
+  baru: 'Pasien baru (belum ada di list kemarin)',
+  dpjp: 'DPJP tertentu',
+  btkv: 'KJS BTKV',
+  kjs: 'Konsul / KJS dari DPJP lain',
+  divisi: 'Dipegang divisi (tidak di-FU)',
+  'tanpa-junior': 'Belum ada junior',
+};
+
 export interface FloorMark {
   id: string;
   label: string;
   color: MarkColor;
+  auto?: MarkAuto | undefined;
 }
 
-/** A floor mark as set on a patient: `colour` = "m:<id>". */
+/** A tag as shown on a patient. */
+export interface PatientTag {
+  label: string;
+  color: MarkColor;
+}
+
+function readAuto(raw: unknown): MarkAuto | undefined {
+  if (!raw || typeof raw !== 'object') return undefined;
+  const { kind, ids } = raw as Record<string, unknown>;
+  if (kind === 'dpjp') {
+    const list = Array.isArray(ids) ? ids.filter((id): id is string => typeof id === 'string' && id.length > 0) : [];
+    return list.length > 0 ? { kind, ids: list } : undefined;
+  }
+  return kind === 'baru' || kind === 'btkv' || kind === 'kjs' || kind === 'divisi' || kind === 'tanpa-junior' ? { kind } : undefined;
+}
+
+/** What an automatic rule looks at. */
+export interface AutoFacts {
+  isNew: boolean;
+  dpjpId: string | null;
+  btkv: boolean;
+  kjs: boolean;
+  division: boolean;
+  junior: string;
+}
+
+export function autoMatches(auto: MarkAuto | undefined, facts: AutoFacts): boolean {
+  if (!auto) return false;
+  switch (auto.kind) {
+    case 'baru':
+      return facts.isNew;
+    case 'dpjp':
+      return facts.dpjpId !== null && auto.ids.includes(facts.dpjpId);
+    case 'btkv':
+      return facts.btkv;
+    case 'kjs':
+      return facts.kjs;
+    case 'divisi':
+      return facts.division;
+    case 'tanpa-junior':
+      return !facts.division && !facts.junior;
+  }
+}
+
+/**
+ * The tags on a patient: the floor's marks set by hand (`tags`), or matched
+ * by a rule and not turned off for this patient (`tagsOff`). In the floor's
+ * order. A deleted mark shows nothing.
+ */
+export function tagsOf(marks: readonly FloorMark[], hand: readonly string[], off: readonly string[], facts: AutoFacts): PatientTag[] {
+  return marks
+    .filter((m) => hand.includes(m.id) || (autoMatches(m.auto, facts) && !off.includes(m.id)))
+    .map((m) => ({ label: m.label, color: m.color }));
+}
+
+/** 13.7 stored a hand mark as `colour` = "m:<id>"; read as a tag since 13.10. */
 export const MARK_PREFIX = 'm:';
 
 export const isMarkColor = (value: unknown): value is MarkColor => typeof value === 'string' && Object.hasOwn(MARK_COLORS, value);
@@ -48,16 +126,10 @@ export function readMarks(raw: unknown): FloorMark[] {
     const { id, label, color } = entry as Record<string, unknown>;
     if (typeof id !== 'string' || !id || seen.has(id) || typeof label !== 'string' || !label.trim() || !isMarkColor(color)) continue;
     seen.add(id);
-    out.push({ id, label: label.trim(), color });
+    const auto = readAuto((entry as Record<string, unknown>).auto);
+    out.push({ id, label: label.trim(), color, ...(auto ? { auto } : {}) });
   }
   return out;
-}
-
-/** The mark a patient's `colour` names, if the floor still has it. */
-export function markOf(colour: string, marks: readonly FloorMark[]): FloorMark | null {
-  if (!colour.startsWith(MARK_PREFIX)) return null;
-  const id = colour.slice(MARK_PREFIX.length);
-  return marks.find((m) => m.id === id) ?? null;
 }
 
 /** A new id that is not taken (short: it is stored on every marked patient). */

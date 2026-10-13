@@ -1,3 +1,4 @@
+import { holderLabel } from './floor';
 import type { FloorPatient } from './report';
 
 export interface ResidentGroups {
@@ -24,7 +25,7 @@ export function residentGroups(sorted: readonly FloorPatient[]): ResidentGroups 
   const divisions = new Map<string, FloorPatient[]>();
   for (const p of sorted) {
     if (p.division) {
-      const key = `Divisi ${p.division}`;
+      const key = holderLabel(p.division);
       divisions.set(key, [...(divisions.get(key) ?? []), p]);
       continue;
     }

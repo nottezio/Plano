@@ -24,7 +24,7 @@ import {
 import { floorDaysCol, floorDoc, floorEditionsCol, floorPatientDoc, floorPatientsCol, floorsCol } from '../paths';
 import { trackWrite } from '../syncStatus';
 import type { Edition, FloorDoc, FloorRole, RosterPatient, StatusChange } from '@/domain/floorList/floor';
-import { isMarkColor, readMarks, type FloorMark } from '@/domain/floorList/marks';
+import { isMarkColor, MARK_PREFIX, readMarks, type FloorMark, type PatientTag } from '@/domain/floorList/marks';
 import type { FloorPatient } from '@/domain/floorList/report';
 
 /**
@@ -101,9 +101,8 @@ export function readPatient(raw: unknown): FloorPatient | null {
     ...(p.manual === true ? { manual: true } : {}),
     ...(p.edited === true ? { edited: true } : {}),
     ...(p.fromList === true ? { fromList: true } : {}),
-    ...(p.mark && typeof p.mark === 'object' && isMarkColor((p.mark as Record<string, unknown>).color)
-      ? { mark: { label: str((p.mark as Record<string, unknown>).label), color: (p.mark as { color: FloorMark['color'] }).color } }
-      : {}),
+    ...readTags(p.tags, p.mark),
+    ...(typeof p.dpjpCode === 'string' && p.dpjpCode ? { dpjpCode: p.dpjpCode } : {}),
     ...(p.manualFields && typeof p.manualFields === 'object'
       ? {
           manualFields: {
@@ -117,6 +116,15 @@ export function readPatient(raw: unknown): FloorPatient | null {
   };
 }
 
+/** Tags of a stored (edition) patient; 13.7 stored one as `mark`. */
+function readTags(raw: unknown, legacy: unknown): { tags?: PatientTag[] } {
+  const list = (Array.isArray(raw) ? raw : legacy ? [legacy] : []).filter(
+    (t): t is { label: string; color: PatientTag['color'] } =>
+      !!t && typeof t === 'object' && typeof (t as Record<string, unknown>).label === 'string' && isMarkColor((t as Record<string, unknown>).color),
+  );
+  return list.length > 0 ? { tags: list.map((t) => ({ label: t.label, color: t.color })) } : {};
+}
+
 function readLog(raw: unknown): StatusChange[] {
   if (!Array.isArray(raw)) return [];
   return raw
@@ -128,8 +136,10 @@ export function readRosterPatient(key: string, data: DocumentData): RosterPatien
   const report = readPatient(data.report);
   if (!report) return null;
   const status = data.status === 'pulang' || data.status === 'pindah' ? data.status : 'dirawat';
-  const colour: RosterPatient['colour'] =
-    data.colour === 'h1' || data.colour === 'today' || (typeof data.colour === 'string' && /^m:\w+$/.test(data.colour)) ? data.colour : 'none';
+  const colour: RosterPatient['colour'] = data.colour === 'h1' || data.colour === 'today' ? data.colour : 'none';
+  const ids = (v: unknown): string[] => (Array.isArray(v) ? v.filter((x): x is string => typeof x === 'string' && x.length > 0) : []);
+  // 13.7 stored a hand mark as colour "m:<id>": read as a tag (13.10).
+  const legacy = typeof data.colour === 'string' && data.colour.startsWith(MARK_PREFIX) ? [data.colour.slice(MARK_PREFIX.length)] : [];
   return {
     key,
     report: { ...report, key },
@@ -143,6 +153,8 @@ export function readRosterPatient(key: string, data: DocumentData): RosterPatien
     dismissed: str(data.dismissed),
     placedAt: str(data.placedAt),
     division: str(data.division),
+    tags: [...new Set([...ids(data.tags), ...legacy])],
+    tagsOff: ids(data.tagsOff),
     addedAt: str(data.addedAt),
     log: readLog(data.log),
   };
@@ -291,7 +303,7 @@ export function writeRosterReport(floorId: string, key: string, report: FloorPat
 export function writeRosterFields(
   floorId: string,
   key: string,
-  fields: Partial<Pick<RosterPatient, 'status' | 'pindahKe' | 'leftAt' | 'colour' | 'dischargeDate' | 'junior' | 'chief' | 'dismissed' | 'division'>>,
+  fields: Partial<Pick<RosterPatient, 'status' | 'pindahKe' | 'leftAt' | 'colour' | 'dischargeDate' | 'junior' | 'chief' | 'dismissed' | 'division' | 'tags' | 'tagsOff'>>,
   log?: StatusChange,
 ): Promise<void> {
   return trackWrite(

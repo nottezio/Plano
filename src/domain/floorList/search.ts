@@ -1,4 +1,4 @@
-import { dpjpById } from '@/domain/dpjp';
+import { dpjpCodeOf } from './build';
 import type { FloorPatient } from './report';
 
 /**
@@ -29,10 +29,10 @@ export function searchWords(query: string): string[] {
 }
 
 function haystack(p: FloorPatient): string {
-  const code = p.dpjpId ? (dpjpById(p.dpjpId)?.initials ?? '') : '';
+  const code = dpjpCodeOf(p);
   const colour = p.discharge === 'tomorrow' ? 'h-1 h1 merah' : p.discharge === 'today' ? 'pulang hari ini hijau' : '';
   return ` ${squash(
-    [p.name, p.identity, p.rm, p.room, p.bed, `${p.room}${p.bed}`, code, p.junior, p.chief, p.btkv ? 'kjs btkv' : '', colour, p.mark?.label ?? '', p.body].join(' '),
+    [p.name, p.identity, p.rm, p.room, p.bed, `${p.room}${p.bed}`, code, p.junior, p.chief, p.btkv ? 'kjs btkv' : '', colour, ...(p.tags ?? []).map((t) => t.label), p.division ? `divisi ${p.division}` : '', p.body].join(' '),
   )} `;
 }
 

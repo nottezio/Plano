@@ -1,5 +1,53 @@
 # Plano — CHANGES
 
+## `2026-10-13.10` — Floor marks become tags (auto rules); one full line per patient in Per DPJP; KJS-only patients kept
+
+- **Tags, not line colour (Avi).** 13.7 let a floor mark colour the whole
+  identity, so a mark and red/green competed for the same text: one won, the
+  other was lost. Root cause: marks were stored in the discharge-colour field
+  (`colour = "m:<id>"`). Fix: `colour` is red/green only again; marks are
+  `RosterPatient.tags` (set by hand) + `tagsOff` (a rule-set tag removed for
+  this patient), shown as `[label]` in the mark's colour after the line
+  (List chip, denah, Word run, legend). Any number per patient. Readers turn
+  a 13.7 `colour: "m:<id>"` into a tag; edition patients' `mark` is read as a
+  tag.
+- **Auto rules (Avi: "every new patient, NP patients, YP and AAU…").**
+  `FloorMark.auto`: `baru` (not on the last edition dated before the list
+  date; without one, added on that date), `dpjp` (chosen DPJPs), `btkv`,
+  `kjs` (has a KJS DPJP), `divisi`, `tanpa-junior`. Edited per
+  mark in Anggota → Warna list (DPJP chips for `dpjp`). `tagsOf()` resolves
+  hand ∪ (rule − off) in the floor's order.
+- **Same patient in two DPJP boxes.** A KJS patient whose own DPJP is ours
+  is now a short grey reference in the consultant's KJS part
+  ("420 Bed 2/Tn. X → ZD"), app and Word; full line only when the KJS box is
+  the patient's only box. Counts unchanged ("+ n KJS"); the WhatsApp list
+  keeps its KJS lines as sent.
+- **KJS-only patients vanished (point 5).** Two root causes:
+  1. the list reader skipped every line under a "KJS" heading, assuming
+     the patient also appears under its own DPJP — not so when the utama is
+     another department ("TM/…"). Now KJS lines are read: merged into the
+     patient's own line (consultant added to `kjsDpjpIds`) or kept with
+     `dpjpId: null` and the consultant as KJS. An unknown leading code is
+     kept as `dpjpCode` and printed (`dpjpCodeOf`), never a DPJP box;
+  2. a SOAP with an other-department utama and our DPJP only as a consultant
+     ("DPJP KJS Aritmia: Prof. MZ") was filed as MZ's own patient (first
+     cardiologist found). Now `dpjpId: null`, `kjsDpjpIds: [mz]`.
+- **Division holder narrowed.** 13.9 read "KJS Aritmia" from any text, so a
+  ward patient of ZD with an Aritmia consult would have left the ward's
+  blocks. Now automatic only for a patient the ward does not report on
+  (from a sent list or entered by hand) with no junior written: "KJS
+  <divisi>" → that division; only a consultant DPJP → "KJS". A SOAP from the
+  floor group = the ward follows it. Hand setting unchanged.
+- Tests: tags (H-1 keeps red, rules, per-patient off, "baru" with and
+  without a previous list, deleted mark), rules parsing/matching, division
+  rules (list vs SOAP vs junior), KJS line kept/merged, unknown code,
+  other-department SOAP filing, Word tag run and KJS reference.
+
+### Verify
+```
+npm run verify → typecheck, lint, 166 files / 2427 tests, version, contrast, a11y, build: all green
+```
+
 ## `2026-10-13.9` — Patients held by a division; numbered residents; small delete; control panel on the denah
 
 - **"(belum diisi)" for a division consult (Avi's screenshots).** Root cause:

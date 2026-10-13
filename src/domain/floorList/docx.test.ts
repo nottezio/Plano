@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import { wardPlan } from '@/domain/denahPlan';
 import { placeBeds } from './beds';
-import { buildDenahDocx, buildListDocx, denahDocumentXml, floorFileName, listDocumentXml, patientRuns } from './docx';
+import { buildDenahDocx, buildListDocx, denahDocumentXml, floorFileName, kjsReferenceRuns, listDocumentXml, patientRuns } from './docx';
 import type { FloorPatient } from './report';
 
 function patient(over: Partial<FloorPatient>): FloorPatient {
@@ -108,9 +108,11 @@ describe('Denah docx', () => {
     expect(text).toContain('Pasien PJT Lantai 4:');
   });
 
-  it('a floor mark prints in its Word colour and joins the legend', () => {
-    const marked = [{ ...patients[0]!, discharge: null, mark: { label: 'Pre-op', color: 'purple' as const } }];
-    expect(patientRuns(marked[0]!).some((r) => r.color === '7030A0')).toBe(true);
+  it('a tag prints after the line in its own Word colour (the line keeps red/green) and joins the legend', () => {
+    const marked = [{ ...patients[0]!, discharge: 'tomorrow' as const, tags: [{ label: 'Pre-op', color: 'purple' as const }] }];
+    const runs = patientRuns(marked[0]!);
+    expect(runs.at(-1)).toEqual({ text: ' [Pre-op]', bold: true, color: '7030A0' });
+    expect(runs.find((r) => r.text.includes('RM'))?.color).toBe('FF0000');
     const text = new TextDecoder().decode(buildDenahDocx({ ward: 'PJT Lantai 4', date: '2026-10-12', plan: null, patients: marked }));
     expect(text).toContain('Pre-op');
   });
@@ -122,6 +124,12 @@ describe('Denah docx', () => {
     expect(residents).toContain('Divisi Aritmia (1, tidak di-FU)');
     expect(residents).toMatch(/<w:t xml:space="preserve">1\. /);
     expect(residents).toContain('dr. Kepala  3');
+  });
+
+  it('a KJS patient filed under another DPJP is a short grey reference in the KJS box', () => {
+    expect(kjsReferenceRuns({ ...patients[0]!, room: '420', bed: '2', name: 'Tn. Contoh', dpjpId: 'zd' }, 1)).toEqual([
+      { text: '1. 420 Bed 2/Tn. Contoh → ZD', color: '7F7F7F' },
+    ]);
   });
 
   it('file names are Windows-safe', () => {
