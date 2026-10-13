@@ -1,5 +1,34 @@
 # Plano — CHANGES
 
+## `2026-10-14.3` — Sensus AI: a stored result goes stale when the rules or the prompt change
+
+Avi: "The Sensus Maker AI still [puts] 4. 501/… RM 1739354 as prof MZ
+patient" (after 2026-10-14.2 fixed the rules).
+
+- **Root cause — the AI cache key covered only part of the AI's input.**
+  The AI result is stored per DPJP under a key of code, date, address,
+  style and the pasted text. But the prompt also carries the rules' patients
+  for that DPJP and the patients with no DPJP code, as a checklist. Before
+  2026-10-14.2 the rules put IM's 501 under MZ; an AI run then got 501 on
+  MZ's checklist and confirmed it. After the fix, the text was the same, so
+  that stored result kept being shown as current.
+  **Fix:** the key now also holds the rules' patient keys for the DPJP, the
+  no-code patient keys, and `SENSUS_AI_REVISION` (bumped whenever the
+  instructions change). Any of them changing makes the result stale: the
+  page shows its "berubah sejak hasil AI terakhir — Susun ulang" notice
+  (wording now names the app's reading of the list as a reason).
+- **Prompt:** the heading rule gave two examples, both "dr. X : n pasien".
+  It now lists the spellings seen ("Prof. IM 1 Pasien", "Dr.AHA  (1 pasien)",
+  "Prof. MZ ( 3 Pasien)", "dr.AFG: 2  pasien"), says each DPJP heading ENDS
+  the section above, and that the summary counts at the top are not headings.
+- **Safety net, now tested on this case:** if the AI still files 501 under
+  MZ, `checkAiCensus` lists it as "Hanya AI · Aturan: pasien IM".
+- Not verified against the live model (no key in this environment); the
+  cache fix does not depend on the model.
+
+Verify: typecheck, lint (0 warnings), 2463 tests (169 files), version, contrast, a11y,
+build — green.
+
 ## `.gitignore` (no version bump — nothing shipped)
 
 - **Deploy failed after 2026-10-14.2 (Avi: "failed to push").** The push

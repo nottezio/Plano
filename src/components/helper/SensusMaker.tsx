@@ -13,6 +13,7 @@ import {
   entriesFor,
   type Place,
   SENSUS_AI_TOOL,
+  SENSUS_AI_REVISION,
   SOURCE_LABEL,
   buildCensus,
   dpjpCounts,
@@ -198,7 +199,23 @@ export function SensusMaker(): JSX.Element {
   );
 
   /** What the AI result was computed from; a change makes it stale. */
-  const aiKey = `${code}|${censusDate}|${state.address}|${state.style}|${filled.map((list) => list.text).join('\u0000')}`;
+  /*
+    What the AI result was computed from (2026-10-14). The AI is also given
+    the rules' patients for this DPJP and the patients with no DPJP code, as
+    a checklist — so those are part of its input too. Keyed on the text only,
+    a result made while the rules misfiled a patient (Prof. IM's 501 under
+    Prof. MZ, before the heading fix of the same day) was shown unchanged after the rules were
+    fixed. Now a change in the rules' answer, or in the AI's instructions,
+    makes the stored result stale and asks for a new run.
+  */
+  const aiRulesKey = useMemo(
+    () =>
+      code
+        ? [...entriesFor(sources, code).map((entry) => entry.key), '|', ...missing.map((entry) => entry.key)].join(',')
+        : '',
+    [sources, code, missing],
+  );
+  const aiKey = `v${SENSUS_AI_REVISION}|${code}|${censusDate}|${state.address}|${state.style}|${aiRulesKey}|${filled.map((list) => list.text).join('\u0000')}`;
   const ai = code ? day.ai[code] : undefined;
   const aiCurrent = ai && ai.key === aiKey ? ai : null;
   // Built from the stored patients when there are any, so a correction made
@@ -798,7 +815,7 @@ export function SensusMaker(): JSX.Element {
             <p className="px-3 py-2 text-[11px] leading-relaxed text-fg-muted">
               {usingAi
                 ? ai
-                  ? 'List, DPJP, sapaan atau tanggal berubah sejak hasil AI terakhir. Tekan "Susun ulang".'
+                  ? 'List, DPJP, sapaan, tanggal, atau cara aplikasi membaca list berubah sejak hasil AI terakhir. Tekan "Susun ulang".'
                   : 'Tekan "Susun dengan AI".'
                 : 'Tempel list dan pilih DPJP; sensusnya muncul di sini.'}
             </p>

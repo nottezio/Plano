@@ -1097,13 +1097,22 @@ export const SENSUS_AI_TOOL = {
   },
 } as const;
 
+/**
+ * Bump when the AI's instructions change (2026-10-14: heading spellings). A
+ * stored AI census made under older instructions is then no longer current
+ * and has to be run again, like one made from other lists.
+ */
+export const SENSUS_AI_REVISION = 2;
+
 export function sensusAiSystem(): string {
   return [
     'Anda membantu residen kardiologi menyusun sensus pasien per DPJP dari beberapa list ruangan (WhatsApp). Ketelitian lebih penting daripada kelengkapan tebakan: lebih baik melewatkan daripada memasukkan pasien yang bukan milik DPJP.',
     '',
     'SIAPA PASIEN DPJP INI',
     '- Kode DPJP di BARIS pasien menentukan (mis. "…/dr.ARB", "ARB / Lontara …", "… / dr. ARB", "2 KJS Uro / ARB / …"). Pasien gabungan ("dr.ZD-dr.AAU") milik keduanya.',
-    '- Bila baris pasien TIDAK memuat kode DPJP mana pun, pasien itu milik DPJP di judul bagian tepat di atasnya ("🫀dr. ARB : 3 pasien", "*dr. ARB : 3 Pasien*") — HANYA bila ada judul bagian seperti itu. Di list CVCU/HCU/ICU tidak ada judul bagian DPJP: pasien tanpa kode di barisnya tidak pasti milik siapa.',
+    '- Bila baris pasien TIDAK memuat kode DPJP mana pun, pasien itu milik DPJP di judul bagian tepat di atasnya — HANYA bila ada judul bagian seperti itu. Di list CVCU/HCU/ICU tidak ada judul bagian DPJP: pasien tanpa kode di barisnya tidak pasti milik siapa.',
+    '- Judul bagian DPJP ditulis dengan banyak cara, semuanya judul: "🫀dr. ARB : 3 pasien", "*dr. ARB : 3 Pasien*", "Prof. IM 1 Pasien", "Prof. PK 3 Pasien", "Dr.AHA  (1 pasien)", "Prof. MZ ( 3 Pasien)", "dr.AFG: 2  pasien". Setiap judul DPJP MENGAKHIRI bagian DPJP sebelumnya: pasien di bawah "Prof. IM 1 Pasien" adalah pasien Prof. IM, bukan pasien DPJP di atasnya.',
+    '- Pengecualian: ringkasan jumlah di awal list ("dr. KS : 1 pasien" berderet tanpa pasien di bawahnya) bukan judul bagian.',
     '- Jangan menebak dari kedekatan posisi, nama, atau urutan bed.',
     '- RAGU? Jangan masukkan ke `patients`. Masukkan ke `uncertain` beserta alasannya — mis. pasien tanpa kode DPJP di barisnya yang berada di antara pasien DPJP ini. Residen akan memeriksa dan memutuskan sendiri. `patients` hanya untuk yang pasti.',
     '',

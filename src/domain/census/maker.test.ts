@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import {
   buildCensus,
+  checkAiCensus,
   detectSource,
   dpjpCounts,
   dpjpFullName,
@@ -10,8 +11,10 @@ import {
   parseLists,
   parseSource,
   patientCount,
+  readAiPatients,
   sectionDpjp,
   segmentCodes,
+  sensusAiSystem,
   splitLists,
   unassigned,
   type ParsedSource,
@@ -1087,5 +1090,28 @@ A/
 P/
 - EKG/hari`);
     expect(entriesFor([lt4!], 'ZD')[0]!.diagnoses).toEqual(['- Symptomatic Bradycardia']);
+  });
+});
+
+describe('AI mode and the 14-10 headings', () => {
+  it('tells the AI that "Prof. IM 1 Pasien" is a heading that ends the section above', () => {
+    const system = sensusAiSystem();
+    expect(system).toContain('"Prof. IM 1 Pasien"');
+    expect(system).toContain('"Dr.AHA  (1 pasien)"');
+    expect(system).toMatch(/MENGAKHIRI bagian DPJP sebelumnya/);
+  });
+
+  it('flags an AI census that still puts IM\'s patient under MZ', () => {
+    const sources = parseAll(LT56_14);
+    const rules = entriesFor(sources, 'MZ');
+    const ai = readAiPatients({
+      patients: [
+        { place: 'LT5', rm: '1600202', source_line: '2..516 Bed 1/Ny. Contoh Dua/17-01-1993/33 tahun/ RM 01600202', dpjp_from: 'judul_bagian', identity: '516 Bed 1/Ny. Contoh Dua', diagnoses: ['- PVC Bigemini Suggestive RVOT Origin'] },
+        { place: 'LT5', rm: '1600203', source_line: '1. 501/Contoh Tiga / 17-07-1956 / 70 tahun / RM 1600203', dpjp_from: 'judul_bagian', identity: '501/Contoh Tiga', diagnoses: [] },
+      ],
+    });
+    const check = checkAiCensus({ ai, rules, sources, texts: [LT56_14] });
+    expect(check.matched).toBe(1);
+    expect(check.onlyAi.map((row) => [row.patient.rm, row.rules])).toEqual([['1600203', 'Aturan: pasien IM']]);
   });
 });

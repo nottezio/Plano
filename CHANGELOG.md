@@ -5,6 +5,11 @@ Catatan teknis lengkap (akar masalah, perbaikan) ada di CHANGES.md.
 
 Entri teratas harus versi yang sedang dirilis; tes gagal bila belum ditulis.
 
+## `2026-10-14.3`
+- **Buat Sensus (mode AI): hasil AI lama tidak lagi dipakai setelah aplikasi diperbarui.** Hasil AI disimpan per DPJP. Sebelumnya, hasil yang dibuat saat aplikasi masih salah membaca list (misalnya pasien Prof. IM masuk ke Prof. MZ) tetap tampil setelah perbaikan. Kini hasil seperti itu ditandai usang dan perlu **Susun ulang**.
+- **AI kini diberi tahu bentuk-bentuk judul DPJP** seperti "Prof. IM 1 Pasien" dan "Dr.AHA (1 pasien)". Setiap judul DPJP mengakhiri bagian DPJP di atasnya.
+- Bila AI tetap memasukkan pasien ke DPJP yang salah, pemeriksaan di bawah hasil AI akan menandainya sebagai **Hanya AI** beserta DPJP menurut aturan.
+
 ## `2026-10-14.2`
 - **Buat Sensus: diagnosis dari list Lantai 5–6 kini terbaca.** Judul diagnosis seperti "- Mohon izin pasien kami assess dengan :" (diawali tanda strip), "Mohon Izin prof, pasien kami assest dengan:", dan "A/" sebelumnya tidak dikenali, sehingga diagnosis pasien tampil "-". Diagnosis yang ditulis langsung di bawah baris pasien tanpa judul (seperti di list CVCU) kini juga terbaca.
 - **Buat Sensus: pasien kini masuk ke DPJP yang benar.** Judul seperti "Prof. IM 1 Pasien" dan "Prof. PK 3 Pasien" sebelumnya tidak dikenali, sehingga pasien Prof. IM masuk ke Prof. MZ dan pasien Prof. PK masuk ke dr. AHN.
