@@ -1,5 +1,74 @@
 # Plano — CHANGES
 
+## `2026-10-14.7` — PDF list: fill columns top to bottom on the last page; 2026-10-14.6 reverted
+
+Avi: "it doesn't matter if the column falls in the middle of a SOAP. The
+last page spread the SOAP evenly through the 4 columns, which is wrong; it
+should continue to the bottom like a normal column."
+
+- **I misread the complaint in 2026-10-14.6.** I took "misleading" to mean
+  "a column must never begin mid-SOAP" and built whole-patient blocks with
+  "↳ lanjutan" pieces. That was not the problem, and it cost 2 extra pages.
+  Reverted: `listBlocks.ts` and its test removed; `docx.ts`, `printHtml.ts`,
+  `build.ts` and their tests back to 2026-10-14.5.
+- **Root cause of the real complaint:** CSS multi-column defaults to
+  `column-fill: balance`; in print the last page's remaining text is
+  balanced across all four columns, so a short tail of one patient became
+  four thin slivers. **Fix:** `column-fill: auto` on `.list`: every page,
+  the last included, fills column 1 to the bottom, then column 2, and so on.
+- Word never balanced (a single section with columns fills in order), so
+  the Word list needs nothing; it is as in 2026-10-14.5.
+- 2026-10-14.6 was never committed in Avi's repo (his last commit was
+  2026-10-14.5), so its "Yang baru" entry is removed: it described a change
+  no user ever had. Its CHANGES.md entry stays as the record.
+- Checked: the real Lt. 4 list printed by Chromium — 3 portrait + 6
+  landscape pages (as before 2026-10-14.6); the last page fills column 1 and
+  2 to the bottom, ends part-way down column 3, column 4 empty.
+
+Verify: typecheck, lint (0 warnings), 2470 tests (170 files), version, contrast, a11y,
+build — green.
+
+## `2026-10-14.6` — List printouts: a patient's SOAP never starts a column without its patient
+
+Avi (PDF, last page): "why does it go like that? very misleading and prone
+to misread SOAP".
+
+- **Root cause.** The printouts flowed the list message line by line into
+  4 columns; nothing tied a patient's lines together. Any column or page
+  break could fall mid-SOAP, and on the PDF's last page the browser
+  *balances* the columns (CSS default `column-fill: balance`), spreading one
+  patient's Plan / TS BTKV / TS Kardiologi / I across all four. Columns 2–4
+  began "- Pro AVR…", "- Omeprazole…", "- Heparin…" with no patient line —
+  the last one directly above "dr. AAU : 0 pasien". Word had the same
+  splits (it does not balance, but breaks wherever the column ends).
+- **Fix: print blocks, not lines** (`domain/floorList/listBlocks.ts`).
+  - The message is cut into blocks: the opening; one per patient (from its
+    "*n. …*" line); the KJS list.
+  - A DPJP heading is merged INTO its first patient's block. "Keep with
+    next" was tried first: two empty headings in a row (Prof. IM 0, Prof.
+    PK 1) chained the requests and Chrome broke inside the patient instead.
+    Only merged into a block still starting with its own patient line (a
+    first version cascaded several empty headings onto one patient — caught
+    by a test). Empty DPJPs (0 pasien) stay their own block.
+  - A patient over 52 estimated printed lines (≈ 55 characters per line at
+    6.5 pt; a column holds ≈ 65) is cut into pieces; every piece after the
+    first starts "↳ lanjutan 406/PT/Tn. X" (grey, italic in the PDF).
+  - The KJS list is labelled "↳ lanjutan 🫀 Prof. MZ : …": "KJS" at the
+    top of a column did not say whose consultations they were.
+  - PDF: `.blk { break-inside: avoid }`, `column-fill: auto` (fill in
+    reading order). Word: every paragraph of a block but its last
+    `keepNext`, all `keepLines`; one empty paragraph between blocks.
+- **Checked on the real Lt. 4 list** (scratchpad only): the first line of
+  every column of every list page, extracted from the printed PDF (31
+  columns) and the Word file rendered by LibreOffice (32 columns) — 0 begin
+  mid-SOAP; each begins with the opening, a DPJP heading, a patient line or
+  "↳ lanjutan". Cost: more white space at column bottoms (PDF list 6 → 8
+  landscape pages, Word 6 → 8). A "lanjutan" label can fall mid-column
+  where a piece ends early; it is redundant there, never wrong.
+
+Verify: typecheck, lint (0 warnings), 2477 tests (171 files), version, contrast, a11y,
+build — green.
+
 ## `2026-10-14.5` — List printouts landscape; Analisis day summary as a WhatsApp message
 
 Avi: "the exported Word and PDF for the LIST PASIEN in landscape, smaller

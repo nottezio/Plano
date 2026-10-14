@@ -39,6 +39,8 @@ describe('Denah + List as one printable page (13.12)', () => {
     expect(html).toContain('@page { size: A4; margin: 10mm; }');
     expect(html).toContain('@page listpage { size: A4 landscape;');
     expect(html).toMatch(/\.list \{ page: listpage; columns: 4;[^}]*font-size: 6\.5pt; \}/);
+    // Columns fill top to bottom, the last page too (2026-10-14): not balanced across all four.
+    expect(html).toContain('column-fill: auto');
     expect(html).toContain('<div class="page list">');
   });
 });

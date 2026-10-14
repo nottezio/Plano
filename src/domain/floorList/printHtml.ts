@@ -15,6 +15,9 @@ import { handoverLine } from './docx';
  * library, the same on a phone and a laptop. The content is the Word denah's
  * (floor plan, DPJP tables, residents table) followed by the list message in
  * four columns on a landscape page (CSS named page `listpage`, 2026-10-14),
+ * filled top to bottom like a newspaper (`column-fill: auto`): the browser
+ * otherwise BALANCES the last page, spreading its text evenly over all four
+ * columns,
  * as the Word list. Colours as on paper: red H-1, green
  * pulang, amber pediatri code; only tags marked for print. The SOAP-update
  * marks are screen-only and never here.
@@ -181,7 +184,7 @@ tr { page-break-inside: avoid; break-inside: avoid; }
 .blank { height: 6px; }
 .gap { height: 24px; }
 .page { break-before: page; page-break-before: always; }
-.list { page: listpage; columns: 4; column-gap: 6mm; font-size: 6.5pt; }
+.list { page: listpage; columns: 4; column-gap: 6mm; column-fill: auto; font-size: 6.5pt; }
 .legend { margin-top: 4px; }
 </style></head><body>
 <h1>${esc(title)}</h1>

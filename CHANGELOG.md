@@ -5,6 +5,9 @@ Catatan teknis lengkap (akar masalah, perbaikan) ada di CHANGES.md.
 
 Entri teratas harus versi yang sedang dirilis; tes gagal bila belum ditulis.
 
+## `2026-10-14.7`
+- **Halaman terakhir list di PDF kini terisi seperti kolom biasa.** Teks mengalir dari atas ke bawah kolom 1, lalu kolom 2, dan seterusnya. Sebelumnya halaman terakhir dibagi rata ke 4 kolom sehingga SOAP satu pasien tersebar tipis.
+
 ## `2026-10-14.5`
 - **Word List dan PDF kini memakai halaman mendatar (landscape).** Bagian LIST PASIEN tercetak dalam 4 kolom dengan huruf lebih kecil (6,5 pt, sebelumnya 7,5 pt), sehingga lebih banyak isi per halaman. Di PDF, halaman denah tetap tegak; hanya halaman list yang mendatar.
 - **Analisis: tombol "Salin ringkasan untuk WhatsApp".** Menyalin ringkasan hari itu (rencana pulang hari ini, H-1, sudah pulang, pindah ruangan, pindah kamar, masuk list) dengan kode DPJP tiap pasien, tanpa jam, siap ditempel di grup.
