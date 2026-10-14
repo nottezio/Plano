@@ -1,5 +1,38 @@
 # Plano — CHANGES
 
+## `2026-10-14.4` — Denah: pinch to zoom the plan only (phone)
+
+Avi: "make the denah zoomable by finger without clicking Muat di layar, …
+without zooming all the page, so only the denah gets zoomed".
+
+- **Root cause:** the plan had two fixed sizes (fit, or desk size via the
+  button) and nothing handled a pinch, so the browser's own pinch zoomed the
+  whole page (header, tabs, everything) and the plan stayed at fit inside it.
+- **Fix:** `DenahCanvas` handles the pinch itself.
+  - The plan box sets `touch-action: pan-x pan-y`: one finger scrolls as
+    before; a pinch that starts on the plan is no longer the page's.
+    `touchmove` (non-passive) and Safari's `gesturestart/change` are
+    cancelled during a two-finger gesture.
+  - Scale is continuous from fit to `MAX_ZOOM` = 2× desk size, anchored at
+    the fingers' midpoint: sideways scroll of the plan box, vertical scroll
+    of the page's scroller (#main), applied after layout. At a limit, the
+    two-finger pan is applied directly (no re-render happens to apply it).
+  - The box holds a sizer of `880·scale × height·scale`, so the page's
+    layout follows the zoom; `relative` stays (the sr-only labels, 13.6).
+  - The buttons stay as shortcuts (Perbesar = full size, Muat di layar =
+    fit); a hint "Cubit dua jari untuk memperbesar" beside them.
+  - Stored as the scale ('0' = fit); old '1'/'0' values still read.
+  - Pure maths in `domain/floorList/pinch.ts` (clamp, stored value, anchor),
+    unit-tested.
+- **Checked** in Chromium at 390 px with real touch events (CDP): spreading
+  the fingers 3× took the plan from 0.41 to 1.22; `visualViewport.scale`
+  stayed 1 (page not zoomed); #main stayed 390 px wide; the anchor scroll
+  matched the formula (400 px sideways, 240 px down). "Muat di layar"
+  returned to fit. Not tried on a physical iPhone.
+
+Verify: typecheck, lint (0 warnings), 2468 tests (170 files), version,
+contrast, a11y, build — green.
+
 ## `2026-10-14.3` — Sensus AI: a stored result goes stale when the rules or the prompt change
 
 Avi: "The Sensus Maker AI still [puts] 4. 501/… RM 1739354 as prof MZ

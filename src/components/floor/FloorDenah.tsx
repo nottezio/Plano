@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react';
 
 import { planRooms, type DenahRoomSlot, type WardPlan } from '@/domain/denahPlan';
 import { byRoute, dpjpCodeOf, dpjpTitle, isPediatri, LIST_DPJP_ORDER, PEDIATRI_DPJP_IDS } from '@/domain/floorList/build';
@@ -10,6 +10,7 @@ import { matchesSearch } from '@/domain/floorList/search';
 import { placeBeds } from '@/domain/floorList/beds';
 import { SoapBadge } from './SoapBadge';
 import { planLayout } from '@/domain/floorList/layout';
+import { clampZoom, pinchStart, pinchStep, readStoredZoom, type PinchStart } from '@/domain/floorList/pinch';
 
 /**
  * The List Maker denah (12.8): the floor plan with every bed, the DPJP tables
@@ -154,21 +155,28 @@ const ZOOM_KEY = 'plano.listmaker.denahZoom';
 
 /**
  * The plan at its desk width, everywhere (12.12). Narrower than that (a
- * phone), it is scaled down to fit — the whole floor at a glance, rooms where
- * they are on the ward — and "Perbesar" shows it at full size to scroll
- * sideways. Tapping a patient still opens the SOAP, which is full size.
- * The choice is remembered on this device.
+ * phone), it starts scaled down to fit — the whole floor at a glance, rooms
+ * where they are on the ward.
+ *
+ * Pinch to zoom (2026-10-14, Avi): two fingers on the plan zoom the PLAN
+ * only, from fit up to twice full size, keeping the spot under the fingers
+ * in place; one finger scrolls as before. The plan box sets `touch-action:
+ * pan-x pan-y`, so the browser no longer zooms the whole page for a pinch
+ * that starts on it. "Perbesar" / "Muat di layar" stay as one-tap shortcuts
+ * (full size / fit). Tapping a patient still opens the SOAP. The zoom is
+ * remembered on this device.
  */
 function DenahCanvas({ children }: { children: ReactNode }): JSX.Element {
   const outer = useRef<HTMLDivElement>(null);
   const inner = useRef<HTMLDivElement>(null);
   const [width, setWidth] = useState(DESK_WIDTH);
   const [height, setHeight] = useState(0);
-  const [zoomed, setZoomed] = useState(() => {
+  /** null = fit to the screen (follows its width); a number = that scale. */
+  const [zoom, setZoom] = useState<number | null>(() => {
     try {
-      return localStorage.getItem(ZOOM_KEY) === '1';
+      return readStoredZoom(localStorage.getItem(ZOOM_KEY));
     } catch {
-      return false;
+      return null;
     }
   });
   useEffect(() => {
@@ -186,23 +194,106 @@ function DenahCanvas({ children }: { children: ReactNode }): JSX.Element {
     return () => observer.disconnect();
   }, []);
   const narrow = width < DESK_WIDTH;
-  const scale = narrow && !zoomed ? width / DESK_WIDTH : 1;
-  const toggle = (): void => {
-    setZoomed((now) => {
-      try {
-        localStorage.setItem(ZOOM_KEY, now ? '0' : '1');
-      } catch {
-        // Not remembered in a private window; still works.
-      }
-      return !now;
-    });
+  const fit = narrow ? width / DESK_WIDTH : 1;
+  const scale = narrow ? clampZoom(zoom ?? fit, fit) : 1;
+  const atFit = scale <= fit + 0.001;
+
+  const remember = (next: number | null): void => {
+    try {
+      localStorage.setItem(ZOOM_KEY, next === null ? '0' : String(Math.round(next * 100) / 100));
+    } catch {
+      // Not remembered in a private window; still works.
+    }
   };
+  const toggle = (): void => {
+    const next = atFit ? 1 : null;
+    setZoom(next);
+    remember(next);
+  };
+
+  // The scroll to apply once the new scale is laid out (see pinchStep).
+  const pending = useRef<{ scrollLeft: number; scrollBy: number } | null>(null);
+  useLayoutEffect(() => {
+    const box = outer.current;
+    const move = pending.current;
+    if (!box || !move) return;
+    pending.current = null;
+    box.scrollLeft = move.scrollLeft;
+    if (Math.abs(move.scrollBy) >= 1) scrollParentOf(box).scrollBy(0, move.scrollBy);
+  }, [scale]);
+
+  // Two-finger pinch. Listeners are attached by hand: React's touch handlers
+  // are passive, and the move must be able to cancel the page's own zoom.
+  const live = useRef({ fit, scale });
+  live.current = { fit, scale };
+  useEffect(() => {
+    const box = outer.current;
+    if (!box || !narrow) return undefined;
+    let start: PinchStart | null = null;
+    let last: number | null = null;
+    const point = (touch: Touch): { x: number; y: number } => ({ x: touch.clientX, y: touch.clientY });
+    const onStart = (event: TouchEvent): void => {
+      if (event.touches.length !== 2) return;
+      const rect = box.getBoundingClientRect();
+      start = pinchStart(
+        point(event.touches[0]!),
+        point(event.touches[1]!),
+        { left: rect.left, top: rect.top, scrollLeft: box.scrollLeft },
+        live.current.scale,
+      );
+    };
+    const onMove = (event: TouchEvent): void => {
+      if (!start || event.touches.length !== 2) return;
+      event.preventDefault();
+      const rect = box.getBoundingClientRect();
+      const step = pinchStep(start, point(event.touches[0]!), point(event.touches[1]!), rect, live.current.fit);
+      last = step.scale;
+      if (step.scale === live.current.scale) {
+        // At a limit (fit or 2×) the scale does not change, so no layout
+        // effect runs: the two-finger pan is applied here instead.
+        box.scrollLeft = step.scrollLeft;
+        if (Math.abs(step.scrollBy) >= 1) scrollParentOf(box).scrollBy(0, step.scrollBy);
+        return;
+      }
+      pending.current = { scrollLeft: step.scrollLeft, scrollBy: step.scrollBy };
+      setZoom(step.scale);
+    };
+    const onEnd = (event: TouchEvent): void => {
+      if (!start || event.touches.length >= 2) return;
+      start = null;
+      if (last !== null) {
+        // Back at (or very near) fit: store "fit", so it follows the screen.
+        const next = last <= live.current.fit * 1.02 ? null : last;
+        if (next === null) setZoom(null);
+        remember(next);
+      }
+      last = null;
+    };
+    // Safari's own pinch events: cancelled so the page never zooms from here.
+    const noGesture = (event: Event): void => event.preventDefault();
+    box.addEventListener('touchstart', onStart, { passive: true });
+    box.addEventListener('touchmove', onMove, { passive: false });
+    box.addEventListener('touchend', onEnd);
+    box.addEventListener('touchcancel', onEnd);
+    box.addEventListener('gesturestart', noGesture);
+    box.addEventListener('gesturechange', noGesture);
+    return () => {
+      box.removeEventListener('touchstart', onStart);
+      box.removeEventListener('touchmove', onMove);
+      box.removeEventListener('touchend', onEnd);
+      box.removeEventListener('touchcancel', onEnd);
+      box.removeEventListener('gesturestart', noGesture);
+      box.removeEventListener('gesturechange', noGesture);
+    };
+  }, [narrow]);
+
   return (
     <div>
       {narrow ? (
-        <div className="mb-1 flex justify-end">
+        <div className="mb-1 flex items-center justify-end gap-2">
+          <span className="text-[11px] text-fg-faint">Cubit dua jari untuk memperbesar</span>
           <button type="button" onClick={toggle} className="min-h-tap rounded-lg border border-border px-3 text-xs font-medium">
-            {zoomed ? 'Muat di layar' : 'Perbesar'}
+            {atFit ? 'Perbesar' : 'Muat di layar'}
           </button>
         </div>
       ) : null}
@@ -216,22 +307,33 @@ function DenahCanvas({ children }: { children: ReactNode }): JSX.Element {
       */}
       <div
         ref={outer}
-        className={`relative ${narrow && zoomed ? 'overflow-x-auto overscroll-x-contain' : 'overflow-hidden'}`}
-        style={narrow && !zoomed ? { height: height * scale } : undefined}
+        className={`relative ${narrow && !atFit ? 'overflow-x-auto overscroll-x-contain' : 'overflow-hidden'}`}
+        style={narrow ? { height: height * scale, touchAction: 'pan-x pan-y' } : undefined}
       >
-        <div
-          ref={inner}
-          style={{
-            width: narrow ? DESK_WIDTH : undefined,
-            transform: scale < 1 ? `scale(${scale})` : undefined,
-            transformOrigin: 'top left',
-          }}
-        >
-          {children}
+        <div style={narrow ? { width: DESK_WIDTH * scale, height: height * scale } : undefined}>
+          <div
+            ref={inner}
+            style={{
+              width: narrow ? DESK_WIDTH : undefined,
+              transform: narrow && scale !== 1 ? `scale(${scale})` : undefined,
+              transformOrigin: 'top left',
+            }}
+          >
+            {children}
+          </div>
         </div>
       </div>
     </div>
   );
+}
+
+/** The element that scrolls the page vertically around `node` (#main in the app). */
+function scrollParentOf(node: HTMLElement): Element {
+  for (let at = node.parentElement; at; at = at.parentElement) {
+    const { overflowY } = getComputedStyle(at);
+    if ((overflowY === 'auto' || overflowY === 'scroll') && at.scrollHeight > at.clientHeight) return at;
+  }
+  return document.scrollingElement ?? document.documentElement;
 }
 
 export function FloorDenah({
