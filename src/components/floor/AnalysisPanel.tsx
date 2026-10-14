@@ -1,8 +1,9 @@
 import { useMemo, useState, type ReactNode } from 'react';
 
-import { Callout } from '@/components/common/ui';
+import { Button, Callout } from '@/components/common/ui';
+import { copyText } from '@/lib/clipboard';
 import { formatDmy } from '@/domain/dateDmy';
-import { daySummary, MOVE_LABEL, movements, weekCounts, type MoveKind } from '@/domain/floorList/analysis';
+import { daySummary, daySummaryText, MOVE_LABEL, movements, weekCounts, type MoveKind } from '@/domain/floorList/analysis';
 import { localStamp, type Edition, type RosterPatient, type RosterView } from '@/domain/floorList/floor';
 import type { FloorPatient } from '@/domain/floorList/report';
 import { checkSlaber, readSlaber, type Slaber } from '@/domain/floorList/slaber';
@@ -62,7 +63,10 @@ export function AnalysisPanel({
   date,
   editions,
   onOpen,
+  ward,
 }: {
+  /** The floor's ward name, for the WhatsApp summary's heading. */
+  ward: string;
   roster: readonly RosterPatient[];
   view: RosterView;
   date: string;
@@ -73,6 +77,13 @@ export function AnalysisPanel({
   const day = useMemo(() => daySummary(date, roster, view.active, moves), [date, roster, view.active, moves]);
   const week = useMemo(() => weekCounts(date, moves, editions), [date, moves, editions]);
   const [filter, setFilter] = useState<MoveKind | 'semua'>('semua');
+  const [copied, setCopied] = useState(false);
+  const copySummary = (): void => {
+    void copyText(daySummaryText(day, ward)).then((ok) => {
+      setCopied(ok);
+      if (ok) window.setTimeout(() => setCopied(false), 2000);
+    });
+  };
   const from = week[0]?.date ?? date;
   const history = moves.filter((m) => m.at.slice(0, 10) >= from && m.at.slice(0, 10) <= date && (filter === 'semua' || m.kind === filter)).slice(0, 150);
 
@@ -102,6 +113,12 @@ export function AnalysisPanel({
         <Tile label="Pindah ruangan" value={day.pindah.length} />
         <Tile label="Rencana pulang hari ini" value={day.pulangHariIni.length} tone="var(--note-green)" />
         <Tile label="Rencana H-1" value={day.rencanaH1.length} tone="var(--note-red)" />
+      </div>
+
+      <div className="flex justify-end">
+        <Button size="sm" onClick={copySummary}>
+          {copied ? 'Tersalin ✓' : 'Salin ringkasan untuk WhatsApp'}
+        </Button>
       </div>
 
       <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">

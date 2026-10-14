@@ -1,4 +1,5 @@
 import { localStamp, type Edition, type RosterPatient } from './floor';
+import { dpjpById } from '@/domain/dpjp';
 import type { FloorPatient } from './report';
 
 /**
@@ -118,4 +119,39 @@ export function daysOnList(patient: RosterPatient, date: string): number | null 
   const from = local(patient.addedAt).slice(0, 10);
   if (!from) return null;
   return Math.round((Date.parse(`${date}T00:00:00Z`) - Date.parse(`${from}T00:00:00Z`)) / 86_400_000);
+}
+
+/**
+ * The day's summary as a WhatsApp message (2026-10-14, Avi: "copy this list
+ * into a WhatsApp message — add DPJP and remove the time"). Same sections and
+ * order as the panel; each patient as "420/4 KS/Tn. Kahar", the ward lists'
+ * own shape, with what happened after a dash ("ke CVCU", "baru",
+ * "dikembalikan ke list", "417/1 → 420/2"). No clock times: the group reads
+ * the day, not the minute. Empty sections keep their heading with "-", so
+ * "0" is stated, not missing.
+ */
+export function daySummaryText(day: DaySummary, ward: string): string {
+  const code = (p: FloorPatient): string => {
+    const own = p.dpjpId ? (dpjpById(p.dpjpId)?.initials ?? '') : (p.dpjpCode ?? '');
+    return own || (p.kjsDpjpIds[0] ? (dpjpById(p.kjsDpjpIds[0])?.initials ?? '') : '');
+  };
+  const line = (p: FloorPatient, note = ''): string => {
+    const place = p.room ? `${p.room}${p.bed ? `/${p.bed}` : ''} ` : '';
+    const who = [code(p), p.name].filter(Boolean).join('/');
+    return `${place}${who}${note ? ` - ${note}` : ''}`;
+  };
+  const block = (title: string, lines: readonly string[]): string[] => [`*${title} (${lines.length})*`, ...(lines.length > 0 ? lines : ['-'])];
+  const [y, m, d] = day.date.split('-');
+  return [
+    `*Ringkasan ${ward} — ${d}/${m}/${y}*`,
+    '',
+    ...block('Rencana pulang hari ini (masih di lantai)', day.pulangHariIni.map((p) => line(p))),
+    ...block('Rencana H-1 (pulang besok)', day.rencanaH1.map((p) => line(p))),
+    '',
+    ...block('Sudah pulang', day.pulang.map((p) => line(p.report))),
+    ...block('Pindah ruangan', day.pindah.map((p) => line(p.report, `ke ${p.pindahKe || '…'}`))),
+    ...block('Pindah kamar (di lantai ini)', day.kamar.map((mv) => line(mv.patient, mv.what.replace(/^Pindah kamar\s*/i, '')))),
+    '',
+    ...block('Masuk list', day.masuk.map((mv) => line(mv.patient, mv.what === 'Masuk list' ? 'baru' : mv.what.toLowerCase()))),
+  ].join('\n');
 }

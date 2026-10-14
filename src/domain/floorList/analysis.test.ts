@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { daySummary, moveKind, movements, weekCounts } from './analysis';
+import { daySummary, daySummaryText, moveKind, movements, weekCounts } from './analysis';
 import { localStamp, newRosterPatient, type Edition, type RosterPatient } from './floor';
 import type { FloorPatient } from './report';
 
@@ -53,5 +53,44 @@ describe('Analisis (13.12)', () => {
       { date: '2026-10-13', masuk: 1, pulang: 1, pindah: 0, kamar: 0, census: 2 },
     ]);
     expect(localStamp(new Date(iso('2026-10-13T10:00')))).toBe('2026-10-13T10:00');
+  });
+
+  it('the day as a WhatsApp message: DPJP added, no clock times (2026-10-14)', () => {
+    const roster = [
+      rostered('a', [['2026-10-13T10:13', 'Pulang']], { status: 'pulang', leftAt: iso('2026-10-13T10:13'), report: p('a', { name: 'Tn. Satu', room: '413', bed: '2', dpjpId: 'aha' }) }),
+      rostered('c', [['2026-10-13T13:28', 'Pindah ke CVCU'], ['2026-10-13T13:30', 'Dikembalikan ke list']], {
+        status: 'pindah',
+        pindahKe: 'CVCU',
+        leftAt: iso('2026-10-13T13:28'),
+        report: p('c', { name: 'Ny. Dua', room: '421', bed: '1', dpjpId: 'zd' }),
+      }),
+      rostered('n', [['2026-10-13T14:23', 'Masuk list']], { report: p('n', { name: 'Tn. Tiga', room: '413', bed: '1', dpjpCode: 'TM' }) }),
+    ];
+    const active = [
+      p('g', { name: 'Tn. Empat', room: '420', bed: '4', dpjpId: null, kjsDpjpIds: ['mz'], discharge: 'today' }),
+    ];
+    const text = daySummaryText(daySummary('2026-10-13', roster, active, movements(roster)), 'PJT Lantai 4');
+    expect(text).toBe(
+      [
+        '*Ringkasan PJT Lantai 4 — 13/10/2026*',
+        '',
+        '*Rencana pulang hari ini (masih di lantai) (1)*',
+        '420/4 MZ/Tn. Empat',
+        '*Rencana H-1 (pulang besok) (0)*',
+        '-',
+        '',
+        '*Sudah pulang (1)*',
+        '413/2 AHA/Tn. Satu',
+        '*Pindah ruangan (1)*',
+        '421/1 ZD/Ny. Dua - ke CVCU',
+        '*Pindah kamar (di lantai ini) (0)*',
+        '-',
+        '',
+        '*Masuk list (2)*',
+        '413/1 TM/Tn. Tiga - baru',
+        '421/1 ZD/Ny. Dua - dikembalikan ke list',
+      ].join('\n'),
+    );
+    expect(text).not.toMatch(/\d{1,2}:\d{2}/);
   });
 });

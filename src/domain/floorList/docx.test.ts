@@ -39,9 +39,10 @@ describe('patientRuns', () => {
 });
 
 describe('List docx', () => {
-  it('three columns, bold from *…*, emoji kept', () => {
+  it('landscape, four columns, bold from *…*, emoji kept', () => {
     const xml = listDocumentXml('Tabe dokter *List Pasien*\n🫀 dr. KS : 1 pasien\n\n*1. 417 Bed 4/KS/Tn. A*');
-    expect(xml).toContain('<w:cols w:num="3" w:space="425"/>');
+    expect(xml).toContain('<w:pgSz w:w="16838" w:h="11906" w:orient="landscape"/>');
+    expect(xml).toContain('<w:cols w:num="4" w:space="425"/>');
     expect(xml).toContain('<w:b/><w:bCs/></w:rPr><w:t xml:space="preserve">List Pasien</w:t>');
     expect(xml).toContain('🫀 dr. KS : 1 pasien');
     expect(xml).toContain('<w:p/>');

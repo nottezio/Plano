@@ -1,5 +1,34 @@
 # Plano — CHANGES
 
+## `2026-10-14.5` — List printouts landscape; Analisis day summary as a WhatsApp message
+
+Avi: "the exported Word and PDF for the LIST PASIEN in landscape, smaller
+font to fit more content"; "copy this list into a WhatsApp message (add DPJP
+and remove the time)".
+
+- **List printouts.** Word list: A4 landscape (`w:orient="landscape"`),
+  4 columns, 6.5 pt (`LIST_FONT_HALF_POINTS` = 13, was 15), margins 700
+  twips (was 1000). PDF: the list page uses a CSS named page
+  `@page listpage { size: A4 landscape }` (`.list { page: listpage }`),
+  4 columns, 6.5 pt; the denah/residents pages stay portrait in the same
+  file. A landscape column (≈ 6.6 cm) is about as wide as the old portrait
+  one (≈ 6.3 cm), so lines wrap as before; the fourth column and smaller type
+  are the gain. Checked: Chromium print of a real Lt. 4 list → 3 portrait +
+  6 landscape pages; the Word file through LibreOffice → landscape, 4
+  columns. Named pages need Chrome/Edge 85+ or Safari 18.2+; an older
+  browser prints the list page portrait in 4 columns (still readable).
+- **WhatsApp summary.** `daySummaryText(day, ward)` in `analysis.ts`: the
+  panel's sections in the panel's order, each patient "420/4 KS/Tn. X" (the
+  ward lists' shape) with what happened after a dash ("ke CVCU", "baru",
+  "dikembalikan ke list", "417/1 → 420/2"); no clock times; empty sections
+  keep their heading with "-". DPJP code: the patient's own, else the code
+  written on the list (TM/…), else the first KJS consultant (a division-held
+  patient). Button "Salin ringkasan untuk WhatsApp" above the blocks;
+  `AnalysisPanel` takes `ward`.
+
+Verify: typecheck, lint (0 warnings), 2470 tests (170 files), version, contrast, a11y,
+build — green.
+
 ## `2026-10-14.4` — Denah: pinch to zoom the plan only (phone)
 
 Avi: "make the denah zoomable by finger without clicking Muat di layar, …

@@ -33,4 +33,12 @@ describe('Denah + List as one printable page (13.12)', () => {
     expect(html).toContain('<b>Judul</b>');
     expect(html.indexOf('Operkan ke Tmn Lain')).toBeLessThan(html.indexOf('<b>Judul</b>'));
   });
+
+  it('prints the list on a landscape page in four columns, the denah in portrait (2026-10-14)', () => {
+    const html = denahListHtml({ ward: 'PJT Lantai 4', date: '2026-10-13', plan: null, patients: [p({})], listText: '1. baris' });
+    expect(html).toContain('@page { size: A4; margin: 10mm; }');
+    expect(html).toContain('@page listpage { size: A4 landscape;');
+    expect(html).toMatch(/\.list \{ page: listpage; columns: 4;[^}]*font-size: 6\.5pt; \}/);
+    expect(html).toContain('<div class="page list">');
+  });
 });

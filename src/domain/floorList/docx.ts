@@ -127,11 +127,19 @@ function footer(content: string): string {
   return `${HEAD}<w:ftr xmlns:w="${W_NS}" xmlns:r="${R_NS}">${content}</w:ftr>`;
 }
 
-function documentXml(body: string, margins: { top: number; side: number; bottom: number }, columns = 1): string {
+function documentXml(
+  body: string,
+  margins: { top: number; side: number; bottom: number },
+  columns = 1,
+  landscape = false,
+): string {
+  const size = landscape
+    ? `<w:pgSz w:w="${PAGE.height}" w:h="${PAGE.width}" w:orient="landscape"/>`
+    : `<w:pgSz w:w="${PAGE.width}" w:h="${PAGE.height}"/>`;
   return (
     `${HEAD}<w:document xmlns:w="${W_NS}" xmlns:r="${R_NS}"><w:body>${body}` +
     `<w:sectPr><w:footerReference w:type="default" r:id="rIdFooter"/>` +
-    `<w:pgSz w:w="${PAGE.width}" w:h="${PAGE.height}"/>` +
+    size +
     `<w:pgMar w:top="${margins.top}" w:right="${margins.side}" w:bottom="${margins.bottom}" w:left="${margins.side}" w:header="400" w:footer="400" w:gutter="0"/>` +
     (columns > 1 ? `<w:cols w:num="${columns}" w:space="425"/>` : '') +
     `</w:sectPr></w:body></w:document>`
@@ -154,18 +162,28 @@ function pack(document: string, footerXml: string, size: number): Uint8Array<Arr
 
 // ── LIST ───────────────────────────────────────────────────────────────────
 
-/** The List Pasien message (from `buildFloorList`) as the 3-column printout. */
+/**
+ * The List Pasien message (from `buildFloorList`) as the printout.
+ *
+ * Landscape, 4 columns, 6.5 pt (2026-10-14, Avi: "landscape and decrease the
+ * font to fit more content"). Was A4 portrait, 3 columns, 7.5 pt. A landscape
+ * column (≈ 6.6 cm) is as wide as a portrait one was (≈ 6.3 cm), so lines
+ * wrap as before; the fourth column and the smaller type carry the gain.
+ */
+export const LIST_FONT_HALF_POINTS = 13;
+export const LIST_COLUMNS = 4;
+
 export function listDocumentXml(text: string): string {
   const body = text
     .split('\n')
     .map((line) => (line.trim() ? para(fromRuns(inlineRuns(line))) : '<w:p/>'))
     .join('');
-  return documentXml(body, { top: 1000, side: 1000, bottom: 900 }, 3);
+  return documentXml(body, { top: 700, side: 700, bottom: 700 }, LIST_COLUMNS, true);
 }
 
 export function buildListDocx(text: string): Uint8Array<ArrayBuffer> {
   const pageNumber = `<w:p><w:fldSimple w:instr=" PAGE "><w:r><w:t>1</w:t></w:r></w:fldSimple></w:p>`;
-  return pack(listDocumentXml(text), footer(pageNumber), 15);
+  return pack(listDocumentXml(text), footer(pageNumber), LIST_FONT_HALF_POINTS);
 }
 
 // ── DENAH ──────────────────────────────────────────────────────────────────

@@ -5,6 +5,10 @@ Catatan teknis lengkap (akar masalah, perbaikan) ada di CHANGES.md.
 
 Entri teratas harus versi yang sedang dirilis; tes gagal bila belum ditulis.
 
+## `2026-10-14.5`
+- **Word List dan PDF kini memakai halaman mendatar (landscape).** Bagian LIST PASIEN tercetak dalam 4 kolom dengan huruf lebih kecil (6,5 pt, sebelumnya 7,5 pt), sehingga lebih banyak isi per halaman. Di PDF, halaman denah tetap tegak; hanya halaman list yang mendatar.
+- **Analisis: tombol "Salin ringkasan untuk WhatsApp".** Menyalin ringkasan hari itu (rencana pulang hari ini, H-1, sudah pulang, pindah ruangan, pindah kamar, masuk list) dengan kode DPJP tiap pasien, tanpa jam, siap ditempel di grup.
+
 ## `2026-10-14.4`
 - **Denah di HP bisa dicubit untuk memperbesar.** Cubit dengan dua jari di denah untuk memperbesar atau memperkecil. Yang membesar hanya denahnya, bukan seluruh halaman, dan bagian di bawah jari tetap di tempatnya. Pembesaran bisa sampai 2× ukuran penuh. Geser dengan satu jari seperti biasa.
 - Tombol **Perbesar / Muat di layar** tetap ada sebagai jalan pintas. Tingkat pembesaran terakhir diingat di perangkat ini.

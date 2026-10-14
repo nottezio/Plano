@@ -14,7 +14,8 @@ import { handoverLine } from './docx';
  * PDF"). The browser's own print → "Save as PDF" makes the file: no PDF
  * library, the same on a phone and a laptop. The content is the Word denah's
  * (floor plan, DPJP tables, residents table) followed by the list message in
- * three columns, as the Word list. Colours as on paper: red H-1, green
+ * four columns on a landscape page (CSS named page `listpage`, 2026-10-14),
+ * as the Word list. Colours as on paper: red H-1, green
  * pulang, amber pediatri code; only tags marked for print. The SOAP-update
  * marks are screen-only and never here.
  */
@@ -166,6 +167,7 @@ export function denahListHtml(input: PrintInput): string {
     .join('');
   return `<!doctype html><html lang="id"><head><meta charset="utf-8"><title>${esc(`Denah dan List ${input.ward} ${input.date}`)}</title><style>
 @page { size: A4; margin: 10mm; }
+@page listpage { size: A4 landscape; margin: 8mm; }
 * { box-sizing: border-box; }
 body { font-family: Arial, Helvetica, sans-serif; font-size: 7.5pt; color: #000; margin: 0; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
 h1 { font-size: 9pt; margin: 0 0 4px; }
@@ -179,7 +181,7 @@ tr { page-break-inside: avoid; break-inside: avoid; }
 .blank { height: 6px; }
 .gap { height: 24px; }
 .page { break-before: page; page-break-before: always; }
-.list { columns: 3; column-gap: 8mm; font-size: 7.5pt; }
+.list { page: listpage; columns: 4; column-gap: 6mm; font-size: 6.5pt; }
 .legend { margin-top: 4px; }
 </style></head><body>
 <h1>${esc(title)}</h1>
