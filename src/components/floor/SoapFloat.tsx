@@ -20,6 +20,15 @@ import { SoapParts } from './SoapParts';
  * where it was left is remembered on this device. On a phone it stays a
  * bottom panel (dragging a box with a thumb over a list is worse than none).
  *
+ * Several at once on a wide screen (2026-10-16, Avi): each patient opened
+ * from the denah or list gets its own box, cascaded from the last; a click
+ * brings a box to the front; Esc closes the front one. A phone keeps one.
+ *
+ * "Atur pasien" opens BESIDE the SOAP on a wide screen (2026-10-16: stacked
+ * under the header it took the height the SOAP needs): the box grows to the
+ * left by the panel's width. On a phone it takes the SOAP's place, with a
+ * button back.
+ *
  * "Ubah SOAP" (edit members): the stored WhatsApp text is edited and read
  * again — the A/P, DPJP, red/green all follow the edit. Saved as an edited
  * report with the same stamp, so re-pasting the same message does not undo
@@ -37,6 +46,10 @@ interface Geometry {
 
 const MIN_W = 320;
 const MIN_H = 220;
+/** The Atur pasien panel beside the SOAP. */
+const PANEL_W = 340;
+/** Each further box sits this far down and left of the one before. */
+const CASCADE = 32;
 
 function defaultGeometry(): Geometry {
   const w = Math.min(480, window.innerWidth - 32);
@@ -56,7 +69,12 @@ function clamp(g: Geometry): Geometry {
   return { x, y, w, h };
 }
 
-function readGeometry(): Geometry {
+function readGeometry(slot = 0): Geometry {
+  const base = readStoredGeometry();
+  return slot === 0 ? base : clamp({ ...base, x: base.x - slot * CASCADE, y: base.y + slot * CASCADE });
+}
+
+function readStoredGeometry(): Geometry {
   try {
     const raw = JSON.parse(localStorage.getItem(GEOMETRY_KEY) ?? 'null') as Partial<Geometry> | null;
     if (raw && [raw.x, raw.y, raw.w, raw.h].every((v) => typeof v === 'number')) return clamp(raw as Geometry);
@@ -73,6 +91,7 @@ export function SoapFloat({
   editable,
   control,
   onEditManual,
+  stack,
 }: {
   patient: FloorPatient | null;
   onClose: () => void;
@@ -82,6 +101,11 @@ export function SoapFloat({
   control?: { floor: FloorDoc; entry: RosterPatient; date: string; myName: string } | undefined;
   /** A hand-entered patient is changed in its own form (13.11: there was no way from here). */
   onEditManual?: ((patient: FloorPatient) => void) | undefined;
+  /**
+   * Its place among several open boxes (2026-10-16): `slot` cascades a new box
+   * from the last; `front` is the one Esc closes; `onFocus` brings it forward.
+   */
+  stack?: { slot: number; layer: number; front: boolean; onFocus: () => void } | undefined;
 }): JSX.Element | null {
   const [copied, setCopied] = useState(false);
   const [editing, setEditing] = useState(false);
@@ -100,15 +124,16 @@ export function SoapFloat({
     setError('');
     if (!patient) return undefined;
     const onKey = (event: KeyboardEvent): void => {
-      if (event.key === 'Escape') onClose();
+      // With several boxes open, Esc closes the front one only.
+      if (event.key === 'Escape' && (stack?.front ?? true)) onClose();
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [patient, onClose]);
+  }, [patient, onClose, stack?.front]);
 
   useEffect(() => {
-    if (patient && floating && !geometry) setGeometry(readGeometry());
-  }, [patient, floating, geometry]);
+    if (patient && floating && !geometry) setGeometry(readGeometry(stack?.slot ?? 0));
+  }, [patient, floating, geometry, stack?.slot]);
 
   if (!patient) return null;
 
@@ -132,7 +157,8 @@ export function SoapFloat({
     if (!drag.current) return;
     drag.current = null;
     try {
-      if (geometry) localStorage.setItem(GEOMETRY_KEY, JSON.stringify(geometry));
+      // Remembered without the side panel: the next box opens at the SOAP's own size.
+      if (geometry) localStorage.setItem(GEOMETRY_KEY, JSON.stringify(sideOpen ? { ...geometry, x: geometry.x + PANEL_W, w: geometry.w - PANEL_W } : geometry));
     } catch {
       // Not remembered: fine.
     }
@@ -164,10 +190,21 @@ export function SoapFloat({
     }
   };
 
+  const canAtur = Boolean(editable && control);
+  /** Beside the SOAP (wide screen) or in its place (phone). */
+  const sideOpen = atur && canAtur && !editing && floating;
+  const toggleAtur = (): void => {
+    const next = !atur;
+    setAtur(next);
+    // The box grows to the left by the panel (and back), so the SOAP keeps its place and size.
+    if (floating && geometry) setGeometry(clamp(next ? { ...geometry, x: geometry.x - PANEL_W, w: geometry.w + PANEL_W } : { ...geometry, x: geometry.x + PANEL_W, w: geometry.w - PANEL_W }));
+  };
+
   const dpjp = patient.dpjpId ? dpjpById(patient.dpjpId) : undefined;
   const sent = patient.sentAt ? `${formatDmy(patient.sentAt.slice(0, 10))} ${patient.sentAt.slice(11, 16)}` : '';
+  const layer = 40 + (stack?.layer ?? 0);
   const style =
-    floating && geometry ? { left: geometry.x, top: geometry.y, width: geometry.w, height: geometry.h } : undefined;
+    floating && geometry ? { left: geometry.x, top: geometry.y, width: geometry.w, height: geometry.h, zIndex: layer } : { zIndex: layer };
 
   return (
     <section
@@ -175,10 +212,11 @@ export function SoapFloat({
       aria-modal="false"
       aria-label={`SOAP ${patient.name}`}
       style={style}
+      onPointerDownCapture={() => stack?.onFocus()}
       className={
         floating
-          ? 'fixed z-40 flex flex-col rounded-2xl border border-border bg-surface shadow-2xl'
-          : 'fixed inset-x-0 bottom-0 z-40 flex max-h-[80dvh] flex-col rounded-t-2xl border border-border bg-surface shadow-2xl'
+          ? `fixed flex flex-col rounded-2xl border bg-surface shadow-2xl ${stack && !stack.front ? 'border-border' : 'border-border-strong'}`
+          : 'fixed inset-x-0 bottom-0 flex max-h-[80dvh] flex-col rounded-t-2xl border border-border bg-surface shadow-2xl'
       }
     >
       <header
@@ -244,14 +282,14 @@ export function SoapFloat({
             >
               {copied ? 'Tersalin' : 'Salin'}
             </button>
-            {editable && control ? (
+            {canAtur ? (
               <button
                 type="button"
-                onClick={() => setAtur((now) => !now)}
+                onClick={toggleAtur}
                 aria-expanded={atur}
                 className={`min-h-tap rounded-lg border px-3 text-xs font-medium ${atur ? 'border-accent bg-accent text-on-accent' : 'border-border'}`}
               >
-                Atur pasien
+                {atur && !floating ? 'Kembali ke SOAP' : 'Atur pasien'}
               </button>
             ) : null}
             <span className="flex-1" />
@@ -261,14 +299,6 @@ export function SoapFloat({
           </div>
         ) : null}
       </header>
-      {atur && editable && control && !editing ? (
-        // The control panel (13.9): the same controls as the List card, here
-        // for a patient tapped on the denah.
-        <div className="max-h-[40dvh] shrink-0 overflow-y-auto border-b border-border px-4 pb-3">
-          <PatientControls floor={control.floor} entry={control.entry} patient={patient} date={control.date} myName={control.myName} onGone={onClose} narrow />
-        </div>
-      ) : null}
-
       {editing ? (
         <div className="flex min-h-0 flex-1 flex-col gap-2 p-3">
           <textarea
@@ -291,6 +321,26 @@ export function SoapFloat({
               {saving ? 'Menyimpan…' : 'Simpan'}
             </button>
           </div>
+        </div>
+      ) : atur && canAtur && control ? (
+        /*
+          The control panel (13.9): the same controls as the List card. Wide
+          screen: a column beside the SOAP. Phone: in the SOAP's place (the
+          bottom sheet has no width to spare and stacking took its height).
+        */
+        <div className="flex min-h-0 flex-1">
+          <aside
+            aria-label="Atur pasien"
+            className={`min-h-0 overflow-y-auto px-4 pb-3 ${sideOpen ? 'shrink-0 border-r border-border' : 'flex-1'}`}
+            style={sideOpen ? { width: PANEL_W } : undefined}
+          >
+            <PatientControls floor={control.floor} entry={control.entry} patient={patient} date={control.date} myName={control.myName} onGone={onClose} narrow />
+          </aside>
+          {sideOpen ? (
+            <div className="flex min-h-0 min-w-0 flex-1 flex-col">
+              <SoapParts text={patient.full} />
+            </div>
+          ) : null}
         </div>
       ) : (
         <SoapParts text={patient.full} />

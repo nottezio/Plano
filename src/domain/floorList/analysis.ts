@@ -155,3 +155,16 @@ export function daySummaryText(day: DaySummary, ward: string): string {
     ...block('Masuk list', day.masuk.map((mv) => line(mv.patient, mv.what === 'Masuk list' ? 'baru' : mv.what.toLowerCase()))),
   ].join('\n');
 }
+
+/**
+ * Changes grouped by day, newest day first, each day newest first (2026-10-16,
+ * Avi: the history "should be lined by days for ease of categorizing").
+ */
+export function movesByDay(moves: readonly Movement[]): Array<{ date: string; moves: Movement[] }> {
+  const days = new Map<string, Movement[]>();
+  for (const move of [...moves].sort((a, b) => (a.at < b.at ? 1 : -1))) {
+    const day = move.at.slice(0, 10);
+    days.set(day, [...(days.get(day) ?? []), move]);
+  }
+  return [...days.entries()].sort(([a], [b]) => (a < b ? 1 : -1)).map(([date, list]) => ({ date, moves: list }));
+}

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { daySummary, daySummaryText, moveKind, movements, weekCounts } from './analysis';
+import { daySummary, daySummaryText, moveKind, movesByDay, movements, weekCounts } from './analysis';
 import { localStamp, newRosterPatient, type Edition, type RosterPatient } from './floor';
 import type { FloorPatient } from './report';
 
@@ -92,5 +92,17 @@ describe('Analisis (13.12)', () => {
       ].join('\n'),
     );
     expect(text).not.toMatch(/\d{1,2}:\d{2}/);
+  });
+
+  it('groups the history by day, newest day first, each day newest first (2026-10-16)', () => {
+    const roster = [
+      rostered('a', [['2026-10-12T08:00', 'Masuk list'], ['2026-10-13T10:00', 'Pulang']]),
+      rostered('b', [['2026-10-13T07:00', 'Masuk list'], ['2026-10-12T21:00', 'H-1 (merah)']]),
+    ];
+    const days = movesByDay(movements(roster));
+    expect(days.map((d) => [d.date, d.moves.map((m) => m.at.slice(11))])).toEqual([
+      ['2026-10-13', ['10:00', '07:00']],
+      ['2026-10-12', ['21:00', '08:00']],
+    ]);
   });
 });

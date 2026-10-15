@@ -5,6 +5,16 @@ Catatan teknis lengkap (akar masalah, perbaikan) ada di CHANGES.md.
 
 Entri teratas harus versi yang sedang dirilis; tes gagal bila belum ditulis.
 
+## `2026-10-16.1`
+- **Beberapa jendela SOAP sekaligus (laptop/desktop).** Tiap pasien yang dibuka dari denah atau list mendapat jendelanya sendiri, tersusun bertumpuk. Klik sebuah jendela untuk membawanya ke depan; Esc menutup jendela paling depan. Paling banyak 4 jendela; yang paling lama tertutup lebih dulu. Di HP tetap satu.
+- **Atur pasien kini terbuka di samping SOAP** (laptop/desktop). Jendela melebar ke kiri sehingga teks SOAP tetap setinggi semula. Di HP, Atur pasien menggantikan teks SOAP, dengan tombol **Kembali ke SOAP**.
+- **Analisis → Riwayat perubahan dikelompokkan per hari.** Tiap hari punya judul dan jumlah perubahannya. Hari terbaru terbuka; hari sebelumnya tertutup dan bisa dibuka. Riwayat kini bergulir di dalam kotaknya sendiri, tidak lagi memanjangkan halaman.
+- **Tag otomatis "Pasien baru" kini benar untuk pasien yang ditambahkan dini hari.** Pasien yang ditambahkan antara pukul 00.00–08.00 WITA sebelumnya dianggap pasien kemarin.
+- **Pembacaan SOAP diperbaiki:**
+  - "Kamar 510 Bed bed 4" kini terbaca bed 4.
+  - Karakter tak terlihat di depan nama pasien dibuang.
+  - Laporan konsul tanpa judul diagnosis (misalnya konsul echo) kini membawa paragraf "Saat ini evaluasi kardiologi …" ke list.
+
 ## `2026-10-14.7`
 - **Halaman terakhir list di PDF kini terisi seperti kolom biasa.** Teks mengalir dari atas ke bawah kolom 1, lalu kolom 2, dan seterusnya. Sebelumnya halaman terakhir dibagi rata ke 4 kolom sehingga SOAP satu pasien tersebar tipis.
 

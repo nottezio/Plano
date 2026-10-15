@@ -211,6 +211,13 @@ describe('floor tags (13.10)', () => {
     expect([label(sent, 'rm:5'), label(sent, 'rm:6')]).toEqual([[], ['Baru']]);
   });
 
+  it('"added on this date" is the local date: 04:30 WITA is 20:30 UTC the day before (2026-10-16)', () => {
+    // An ISO time whose LOCAL clock reads 04:30 on the list date, whatever zone the tests run in.
+    const early = rostered({ key: 'rm:7', rm: '7' }, { addedAt: new Date('2026-10-12T04:30:00').toISOString() });
+    const view = rosterView(floor, [early], '2026-10-12');
+    expect(view.active[0]!.tags?.map((t) => t.label)).toEqual(['Baru']);
+  });
+
   it('a mark the floor deleted shows nothing', () => {
     expect(effective(rostered({}, { tags: ['k9'] }), floor, '2026-10-12').tags).toBeUndefined();
   });

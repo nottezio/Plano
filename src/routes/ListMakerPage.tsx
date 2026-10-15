@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 
 import { AppShell } from '@/components/common/AppShell';
@@ -19,6 +19,10 @@ import { ListMakerHeader } from '@/components/floor/ListMakerHeader';
 import { EditionsPanel } from '@/components/floor/EditionsPanel';
 import { latestOf, type FloorPatient } from '@/domain/floorList/report';
 import { useClinicalToday } from '@/hooks/useClinicalToday';
+import { useMediaQuery } from '@/hooks/useMediaQuery';
+
+/** Patient boxes open at once on a wide screen; the oldest closes first. */
+const MAX_OPEN = 4;
 import { useEditions, useMyFloors, useRoster } from '@/hooks/useFloor';
 import { useSession } from '@/store/useSession';
 
@@ -73,12 +77,32 @@ export default function ListMakerPage(): JSX.Element {
   const words = useMemo(() => searchWords(search), [search]);
   // The OPEN patient is kept by key and read from the live view, so an edit
   // (Ubah SOAP, another member's paste) shows in the open box at once.
-  const [openKey, setOpenKey] = useState<string | null>(null);
-  const setOpen = (patient: FloorPatient | null): void => setOpenKey(patient?.key ?? null);
-  const open: FloorPatient | null =
-    openKey === null
-      ? null
-      : (view.active.find((p) => p.key === openKey) ?? view.left.find((p) => p.key === openKey)?.report ?? null);
+  /*
+    Several boxes on a wide screen (2026-10-16, Avi): the keys of the open
+    patients, front-most last. Opening a patient already open brings it to
+    the front; at most MAX_OPEN, the oldest closing first. A phone keeps one
+    (a bottom sheet).
+  */
+  const wide = useMediaQuery('(min-width: 640px)');
+  const [openKeys, setOpenKeys] = useState<string[]>([]);
+  const setOpen = (patient: FloorPatient | null): void => {
+    if (!patient) return setOpenKeys([]);
+    setOpenKeys((keys) => (wide ? [...keys.filter((k) => k !== patient.key), patient.key].slice(-MAX_OPEN) : [patient.key]));
+  };
+  const closeOpen = (key: string): void => setOpenKeys((keys) => keys.filter((k) => k !== key));
+  const toFront = (key: string): void => setOpenKeys((keys) => (keys.at(-1) === key ? keys : [...keys.filter((k) => k !== key), key]));
+  // A box keeps its cascade slot while it is open, whatever the front order does.
+  const slots = useRef(new Map<string, number>());
+  for (const key of [...slots.current.keys()]) if (!openKeys.includes(key)) slots.current.delete(key);
+  for (const key of openKeys) {
+    if (slots.current.has(key)) continue;
+    const used = new Set(slots.current.values());
+    let slot = 0;
+    while (used.has(slot)) slot += 1;
+    slots.current.set(key, slot);
+  }
+  const patientOf = (key: string): FloorPatient | null =>
+    view.active.find((p) => p.key === key) ?? view.left.find((p) => p.key === key)?.report ?? null;
   const editable = floor ? canEdit(floor, uid) : false;
 
   // New floor form.
@@ -321,17 +345,26 @@ export default function ListMakerPage(): JSX.Element {
           editing={manualFor}
         />
       ) : null}
-      <SoapFloat
-        patient={open}
-        onClose={() => setOpenKey(null)}
-        floorId={floor?.id}
-        editable={editable}
-        onEditManual={setManualFor}
-        control={(() => {
-          const entry = open && floor ? roster.find((p) => p.key === open.key && p.status === 'dirawat') : undefined;
-          return entry && floor ? { floor, entry, date, myName } : undefined;
-        })()}
-      />
+      {/* Rendered in a fixed order (by slot) and layered by z-index: re-ordering
+          the elements on a click would move the DOM node and drop the drag
+          that click just started. */}
+      {[...openKeys].sort((a, b) => (slots.current.get(a) ?? 0) - (slots.current.get(b) ?? 0)).map((key) => {
+        const layer = openKeys.indexOf(key);
+        const open = patientOf(key);
+        const entry = open && floor ? roster.find((p) => p.key === key && p.status === 'dirawat') : undefined;
+        return (
+          <SoapFloat
+            key={key}
+            patient={open}
+            onClose={() => closeOpen(key)}
+            floorId={floor?.id}
+            editable={editable}
+            onEditManual={setManualFor}
+            control={entry && floor ? { floor, entry, date, myName } : undefined}
+            stack={{ slot: slots.current.get(key) ?? 0, layer, front: layer === openKeys.length - 1, onFocus: () => toFront(key) }}
+          />
+        );
+      })}
     </AppShell>
   );
 }

@@ -107,10 +107,15 @@ const TERAPI = /^\W*mohon\s+(?:izin|ijin)\b[^\n]{0,24}?\b(?:inisial\s+)?terapi\b
 const CLOSING =
   /^\s*[*_]*(?:tabe\b[^\n]*?)?(?:selanjutnya\s+)?mohon\s+arahan|^\s*[*_]*tabe[,.]?\s+(?:dokter[,.]?\s+)?terima\s+kasih|^\s*[*_]*terima\s*kasih|^\s*[*_]*jam\s+verifikasi/i;
 const PLAN = /^\W*(?:plan|p)\W*(?:\s|$)/i;
+/** "Saat ini evaluasi kardiologi berdasarkan …", "Kesimpulan :": a consultation's own assessment. */
+const EVALUATION = /^\W*(?:saat\s+ini\s+)?(?:hasil\s+)?evaluasi\s+kardiologi\b|^\W*kesimpulan\s*(?:kardiologi\s*)?:/i;
 const TS_HEAD = /^\W*TS\s+\S/;
 
+/** Zero-width characters WhatsApp keeps from copied text (U+2060 before "Tn." in a Lt. 4 SOAP, 2026-10-16). */
+const INVISIBLE = /[\u200B-\u200F\u2060\uFEFF\u00AD]/g;
+
 function clean(line: string): string {
-  return line.replace(/[*_~]/g, '').replace(/\s+/g, ' ').trim();
+  return line.replace(INVISIBLE, '').replace(/[*_~]/g, '').replace(/\s+/g, ' ').trim();
 }
 
 function findOpening(lines: string[]): number {
@@ -123,7 +128,8 @@ function readPlace(opening: string): { room: string; bed: string; floor: string 
   const after = /\bke\s+(.*)$/i.exec(flat)?.[1] ?? flat;
   const room = [...after.matchAll(/\bkamar\s*:?\s*(\d{3}[A-Za-z]?)/gi)].at(-1);
   const tail = room ? after.slice((room.index ?? 0) + room[0].length) : after;
-  const bed = /\bbed\s*:?\s*(\w+)/i.exec(tail);
+  // "Bed bed 4" (Lt. 5, 2026-10-12): the word typed twice is still bed 4.
+  const bed = /\bbed\s*:?\s*(?:bed\s*:?\s*)?(\w+)/i.exec(tail);
   // "Lt .4", "Lt.4", "Lantai 4" (12.12: "Lt .4" was missed).
   const written = /\b(?:lantai|lt)\s*\.?\s*(\d+)/i.exec(after)?.[1] ?? '';
   let number = room?.[1] ?? '';
@@ -241,6 +247,15 @@ export function listBody(text: string): string {
     // A diagnosis block that is followed by therapy is the A of the SOAP.
     start = dx.reverse().find((i) => lines.slice(i).some((line) => TERAPI.test(line) || /^\W*terapi\W*$/i.test(line))) ?? dx.at(-1) ?? -1;
   }
+  /*
+    A consultation answered with an echo or a pre-operative evaluation (Lt. 5,
+    2026-10-05: "konsul byname dari TS Geriatri … Pasien dikonsulkan untuk
+    evaluasi echocardiography") has no Diagnosis/assess heading: its A is the
+    paragraph "Saat ini evaluasi kardiologi berdasarkan …, pasien dengan …".
+    The list carried nothing for it. That paragraph (to the sign-off) is the
+    A/P now, as written.
+  */
+  if (start === -1) start = lines.findIndex((line) => EVALUATION.test(line));
   if (start === -1) return '';
   let end = lines.length;
   for (let i = start + 1; i < lines.length; i += 1) {

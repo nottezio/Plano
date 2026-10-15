@@ -331,7 +331,13 @@ export function rosterView(
   /** When the last list was sent (local stamp): SOAPs after it are marked (13.11). */
   lastSent?: string,
 ): RosterView {
-  const isNew = (p: RosterPatient): boolean => (previous ? !previous.has(p.key) : p.addedAt.slice(0, 10) === date);
+  /*
+    Without a previous list, "new" = added on the list date — on the LOCAL
+    clock (2026-10-16). `addedAt` is UTC: a patient added 00:00–08:00 WITA
+    (the 04:00 list-making hours) carried yesterday's UTC date and never got
+    the "Pasien baru" tag.
+  */
+  const isNew = (p: RosterPatient): boolean => (previous ? !previous.has(p.key) : localOf(p.addedAt).slice(0, 10) === date);
   return {
     active: roster
       .filter((p) => p.status === 'dirawat')

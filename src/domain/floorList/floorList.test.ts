@@ -539,3 +539,36 @@ describe('a sent Lt. 5-6 list of 14-10-2026 (headings in brackets, "1..", no A h
     expect(one.body.startsWith('Diagnosis:\n- Symptomatic Bradycardia')).toBe(true);
   });
 });
+
+describe('SOAP reader, 2026-10-16 audit of the Lt. 4 and Lt. 5 exports', () => {
+  const msg = (text: string) => ({ sentAt: '2026-10-12T14:13', sender: 'dr. Contoh', text, index: 0 });
+
+  it('reads "Bed bed 4" as bed 4', () => {
+    const r = readReport(msg(['Assalamualaikum dokter, mohon izin melaporkan konsul kelayakan tindakan dari TS Bedah Saraf di PJT lantai 5 Kamar 510 Bed bed 4 atas nama :', '', 'tn. Contoh Satu/01-07-1955/71 tahun/ RM 01600601', '', 'DPJP Kardio : Prof. dr. Peter Kabo, Ph.D, Sp.FK, Sp.JP(K)', '', 'Diagnosis:', '- CCS', '', 'Plan:', '- Echo'].join('\n')))!;
+    expect([r.room, r.bed, r.dpjpId]).toEqual(['510', '4', 'pk']);
+  });
+
+  it('drops zero-width characters from the identity and name', () => {
+    const r = readReport(msg(['Selamat pagi dokter, mohon izin melaporkan pasien PJT Lt 4 Kamar 410 atas nama:', '', '⁠Tn. Contoh Dua/13-06-1972/53 tahun/RM 1600602', '', 'DPJP Utama : Dr. dr. Abdul Hakim Alkatiri, Sp.JP(K)', '', 'Diagnosis:', '- HF'].join('\n')))!;
+    expect(r.name).toBe('Tn. Contoh Dua');
+    expect(r.identity.startsWith('Tn.')).toBe(true);
+  });
+
+  it('takes a consultation\'s "Saat ini evaluasi kardiologi …" paragraph as its A when it has no Diagnosis heading', () => {
+    const r = readReport(msg([
+      'Selamat siang dokter, tabe dokter izin melaporkan pasien konsul byname dari TS Geriatri di PJT Lt 5 Kamar 503, atas nama:',
+      '',
+      'Tn. Contoh Tiga/ 69 th/ 25-12-1956/ RM 1600603',
+      '',
+      'Pasien dikonsulkan untuk evaluasi echocardiography',
+      '',
+      'Echocardiography bedside (05-10-2026)',
+      'Mildly Abnormal LV systolic function, EF 42%',
+      '',
+      'Saat ini evaluasi kardiologi berdasarkan echocardiography bedside, pasien dengan mildly abnormal LV systolic function.',
+      '',
+      'Tabe mohon arahan ta dokter, terima kasih dokter.',
+    ].join('\n')))!;
+    expect(r.body).toBe('Saat ini evaluasi kardiologi berdasarkan echocardiography bedside, pasien dengan mildly abnormal LV systolic function.');
+  });
+});

@@ -1,5 +1,57 @@
 # Plano — CHANGES
 
+## `2026-10-16.1` — Several SOAP boxes; Atur beside the SOAP; history by day; "baru" on the local date; SOAP-reader fixes
+
+Avi: (1) "the automatic tag doesn't work on manually inputted patients";
+(2) "improve the SOAP parser of List Maker"; (3) Atur pasien takes too much
+height — open it to the side; (4) several floating SOAP boxes on desktop;
+(5) Riwayat perubahan needs a height limit and grouping by day.
+
+- **(1) Auto tags on manual patients.** Avi named the DPJP rule (YP/AAU). Not
+  reproduced: a hand-entered patient with DPJP YP gets the rule's tag in a
+  unit test, through `rosterView`, and in the rendered List Maker; the
+  manual form stores `dpjpId`, `readPatient`/`readMarks`/`writeMarks` keep
+  it. Asked Avi for a screenshot. Found and fixed on the way, same area: the
+  "Pasien baru" rule (no previous list) compared `addedAt` — UTC — with the
+  list date. A patient added 00:00–08:00 WITA (the 04:00 list-making hours)
+  carried the day before and never got "Baru". Now `localOf(addedAt)`. The
+  new test fails on the old code under TZ=Asia/Makassar and passes now.
+- **(2) SOAP reader audit.** Every SOAP in the Lt. 4 (Sept, 402) and Lt. 5
+  (Oct, 114) exports through `readReports` (scratchpad only): all have RM,
+  name, DPJP; the DPJP agrees with the report's own "DPJP …" line in all
+  516. Three defects, fixed with invented-fixture tests:
+  - "Kamar 510 Bed bed 4" read bed "bed" → a doubled "bed" is skipped.
+  - U+2060 (word joiner) kept before "Tn." in the identity and name →
+    `clean()` strips zero-width characters (as the Sensus maker does).
+  - A consultation answered with an echo ("konsul byname dari TS Geriatri …
+    Pasien dikonsulkan untuk evaluasi echocardiography") has no
+    Diagnosis/assess heading → empty A/P on the list. `listBody` now falls
+    back to the "Saat ini evaluasi kardiologi …" / "Kesimpulan:" paragraph.
+  False alarms checked and left: names written without Tn/Ny (read
+  correctly), "Kesadaran menurun …" as a diagnosis (not S/O leaking).
+- **(3) Atur pasien beside the SOAP.** Wide screen: the box grows to the left
+  by 340 px and the controls are a column beside the SOAP (which keeps its
+  height); closing shrinks it back; the remembered size is the SOAP's own.
+  Phone: the controls take the SOAP's place, button "Kembali ke SOAP".
+- **(4) Several boxes.** `ListMakerPage` keeps `openKeys` (front-most last,
+  at most 4 — the oldest closes); a phone keeps one. Each box: a cascade
+  slot (32 px down-left per slot, kept while open), z-index by front order,
+  pointer-down brings it forward, Esc closes the front one only; the
+  back button closes them one by one (the overlay stack). Boxes render in a
+  fixed order (by slot): re-ordering elements on a click would move the DOM
+  node and drop the drag that click started.
+- **(5) History by day.** `movesByDay` (tested): days newest first, each
+  newest first. Each day a `<details>` with a sticky heading ("Senin,
+  12/10/2026 · 39 perubahan"); the newest open, older folded; the whole list
+  in a box of `max-h-[60vh]` that scrolls by itself. The 150-row cap is gone
+  (folded days keep it short).
+- Checked in the harness (Chromium): 3 boxes open, focus/z-order and Esc
+  behave; Atur beside the SOAP at 1440 px; the phone swap at 390 px; the
+  grouped history box at 540 px of a 900 px screen.
+
+Verify: typecheck, lint (0 warnings), 2475 tests (170 files), version, contrast, a11y,
+build — green.
+
 ## `2026-10-14.7` — PDF list: fill columns top to bottom on the last page; 2026-10-14.6 reverted
 
 Avi: "it doesn't matter if the column falls in the middle of a SOAP. The

@@ -3,14 +3,14 @@ import { useMemo, useState, type ReactNode } from 'react';
 import { Button, Callout } from '@/components/common/ui';
 import { copyText } from '@/lib/clipboard';
 import { formatDmy } from '@/domain/dateDmy';
-import { daySummary, daySummaryText, MOVE_LABEL, movements, weekCounts, type MoveKind } from '@/domain/floorList/analysis';
+import { dayName } from '@/domain/mr/morningReport';
+import { daySummary, daySummaryText, MOVE_LABEL, movesByDay, movements, weekCounts, type MoveKind } from '@/domain/floorList/analysis';
 import { localStamp, type Edition, type RosterPatient, type RosterView } from '@/domain/floorList/floor';
 import type { FloorPatient } from '@/domain/floorList/report';
 import { checkSlaber, readSlaber, type Slaber } from '@/domain/floorList/slaber';
 import { docxDocumentXml } from '@/lib/unzip';
 
 const hm = (stamp: string): string => stamp.slice(11, 16);
-const dm = (stamp: string): string => formatDmy(stamp.slice(0, 10)).slice(0, 5);
 const place = (p: FloorPatient): string => `${p.room}${p.bed ? `/${p.bed}` : ''}`;
 const localOf = (iso: string): string => {
   const at = new Date(iso);
@@ -85,7 +85,7 @@ export function AnalysisPanel({
     });
   };
   const from = week[0]?.date ?? date;
-  const history = moves.filter((m) => m.at.slice(0, 10) >= from && m.at.slice(0, 10) <= date && (filter === 'semua' || m.kind === filter)).slice(0, 150);
+  const history = moves.filter((m) => m.at.slice(0, 10) >= from && m.at.slice(0, 10) <= date && (filter === 'semua' || m.kind === filter));
 
   const [sheet, setSheet] = useState<Slaber | null>(null);
   const [sheetError, setSheetError] = useState('');
@@ -201,19 +201,34 @@ export function AnalysisPanel({
           ))}
         </div>
         {history.length === 0 ? <p className="text-xs text-fg-faint">Tidak ada perubahan.</p> : null}
-        <ol className="space-y-0.5 text-xs">
-          {history.map((m) => (
-            <li key={`${m.key}-${m.at}-${m.what}`} className="flex gap-2">
-              <span className="w-20 shrink-0 tabular-nums text-fg-muted">
-                {dm(m.at)} {hm(m.at)}
-              </span>
-              <button type="button" onClick={() => onOpen(m.patient)} className="min-w-0 flex-1 text-left hover:underline">
-                <strong>{m.what}</strong> — {place(m.patient)} {m.patient.name}
-                <span className="text-fg-faint"> · {m.by}</span>
-              </button>
-            </li>
+        {/*
+          By day (2026-10-16, Avi): a heading per day with its count, the
+          newest day open, older days folded; the whole history scrolls
+          inside a box of at most 60% of the screen, not the page.
+        */}
+        <div className="max-h-[60vh] space-y-1 overflow-y-auto overscroll-contain rounded-lg border border-border">
+          {movesByDay(history).map((day, i) => (
+            <details key={day.date} open={i === 0} className="group">
+              <summary className="sticky top-0 z-10 flex min-h-8 cursor-pointer items-center gap-2 border-b border-border bg-bg-subtle px-2 text-xs font-semibold">
+                <span>
+                  {dayName(day.date)}, {formatDmy(day.date)}
+                </span>
+                <span className="font-normal text-fg-muted">· {day.moves.length} perubahan</span>
+              </summary>
+              <ol className="space-y-0.5 px-2 py-1 text-xs">
+                {day.moves.map((m) => (
+                  <li key={`${m.key}-${m.at}-${m.what}`} className="flex gap-2">
+                    <span className="w-10 shrink-0 tabular-nums text-fg-muted">{hm(m.at)}</span>
+                    <button type="button" onClick={() => onOpen(m.patient)} className="min-w-0 flex-1 text-left hover:underline">
+                      <strong>{m.what}</strong> — {place(m.patient)} {m.patient.name}
+                      <span className="text-fg-faint"> · {m.by}</span>
+                    </button>
+                  </li>
+                ))}
+              </ol>
+            </details>
           ))}
-        </ol>
+        </div>
       </section>
 
       <section className="space-y-2 rounded-xl border border-border p-3">
