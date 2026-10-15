@@ -55,6 +55,15 @@ export default defineConfig({
         scope: base,
         display: 'standalone',
         /**
+         * Window Controls Overlay (2026-10-16): on a desktop the installed app
+         * may draw in its own title bar, where `DesktopTabs` puts its tab strip
+         * beside the window buttons, like a browser. Chrome shows a chevron in
+         * the title bar to switch it on or off; off (or any other browser), it
+         * is plain `standalone` and the strip sits under the system title bar.
+         * Phones ignore it.
+         */
+        display_override: ['window-controls-overlay'],
+        /**
          * `orientation` is deliberately ABSENT.
          *
          * It used to say `'any'`, which reads like "no preference" and is not.

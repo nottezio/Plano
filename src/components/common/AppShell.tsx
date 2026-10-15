@@ -151,7 +151,7 @@ export function AppShell({
         // is laid out against the DOCUMENT, and one deep in a long screen
         // made the whole page scrollable past the shell into blank space
         // (List Maker denah, 12.11). Here and on #main it is contained.
-        'relative flex h-[100dvh] w-full overflow-hidden bg-bg',
+        'relative flex h-[var(--app-h,100dvh)] w-full overflow-hidden bg-bg',
         obscured ? 'privacy-blur' : '',
       ].join(' ')}
     >

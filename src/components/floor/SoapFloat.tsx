@@ -62,9 +62,11 @@ function defaultGeometry(): Geometry {
  * text instead (found in the render check).
  */
 function clamp(g: Geometry): Geometry {
+  // Below the desktop tab strip when there is one (2026-10-16): it draws above the boxes.
+  const top = (document.querySelector('[data-app-tabs]')?.getBoundingClientRect().bottom ?? 0) + 8;
   const w = Math.min(Math.max(g.w, MIN_W), window.innerWidth - 16);
   const x = Math.min(Math.max(g.x, 8), window.innerWidth - w - 8);
-  const y = Math.min(Math.max(g.y, 8), window.innerHeight - MIN_H - 8);
+  const y = Math.min(Math.max(g.y, top), window.innerHeight - MIN_H - 8);
   const h = Math.min(Math.max(g.h, MIN_H), window.innerHeight - y - 8);
   return { x, y, w, h };
 }

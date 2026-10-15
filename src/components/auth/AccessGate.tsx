@@ -90,7 +90,7 @@ export function AccessGate({ children }: { children: ReactNode }): JSX.Element {
 
 function Screen({ title, children }: { title: string; children: ReactNode }): JSX.Element {
   return (
-    <div className="flex min-h-[100dvh] flex-col">
+    <div className="flex min-h-[var(--app-h,100dvh)] flex-col">
       <div className="flex flex-1 items-center justify-center px-6">
         <div className="max-w-sm text-center">
           <h1 className="text-lg font-semibold">{title}</h1>

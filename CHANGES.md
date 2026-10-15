@@ -1,5 +1,47 @@
 # Plano — CHANGES
 
+## `2026-10-16.2` — Browser-like tabs in the installed desktop app
+
+Avi (screenshot of Plano installed from Chrome on Windows): "I want it to
+have a tab like a browser (only for installed app desktop)".
+
+- **Why not Chrome's own tabs.** Tabbed application mode for installed apps
+  (`display_override: ["tabbed"]`) shipped in Chrome 126 on ChromeOS only;
+  the Intent to Ship says other platforms are not planned (low on the
+  backlog). On Windows the app window has one page, so the tabs are Plano's.
+- **Model** (`domain/appTabs.ts`, tested): a tab is a place in the app (path
+  + query); the active one is what the router shows; switching is a
+  navigation (`replace`, so Back stays inside the tab's page). Open after the
+  active tab; Ctrl/⌘+click and middle-click open behind; closing activates the
+  right neighbour (else the left), the last tab goes back to the board;
+  Ctrl+Tab / Ctrl+Shift+Tab cycle; at most 12. Named by the page's title
+  (`AppShell` already sets it, initials-only privacy included), and by the
+  page (Aktif, List Maker, Pasien…) until the page has been shown. Stored per
+  device (`plano.desktopTabs`), read defensively. On launch: at the board the
+  stored tabs; at a page a tab already shows (a reload) that tab; a link from
+  elsewhere a new tab.
+- **Strip** (`components/common/DesktopTabs.tsx`, around the app in
+  main.tsx): only when installed (`display-mode: standalone` or
+  `window-controls-overlay`) with a mouse and ≥ 900 px; a browser tab or a
+  phone renders the app as before. The manifest now offers
+  `display_override: ["window-controls-overlay"]`: with Chrome's title-bar
+  chevron on, the strip sits IN the title bar (`env(titlebar-area-*)`),
+  empty space drags the window (`app-region: drag`, tabs `no-drag`); off, a
+  36 px bar under the system title bar.
+- **Height.** Every full-height screen used a bare `100dvh`; now
+  `var(--app-h, 100dvh)` (AppShell, ErrorBoundary, PatientPage panel, the
+  auth screens), and the strip sets `--app-h: calc(100dvh - var(--tabs-h))`
+  only while it is shown. SOAP boxes (List Maker) are kept below the strip.
+- Checked in Chromium (strip forced on; a headless browser cannot be
+  installed): open / Ctrl+click / middle-click / switch / Ctrl+Tab / close /
+  reload behave as above; the app box runs from 36 px to the bottom edge.
+  Not checked: the title-bar placement on a real installed window — Avi's
+  install may need Chrome to pick up the new manifest (it re-reads it on
+  launch, throttled; reinstalling forces it).
+
+Verify: typecheck, lint (0 warnings), 2484 tests (171 files), version, contrast, a11y,
+build — green.
+
 ## `2026-10-16.1` — Several SOAP boxes; Atur beside the SOAP; history by day; "baru" on the local date; SOAP-reader fixes
 
 Avi: (1) "the automatic tag doesn't work on manually inputted patients";

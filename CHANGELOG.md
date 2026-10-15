@@ -5,6 +5,14 @@ Catatan teknis lengkap (akar masalah, perbaikan) ada di CHANGES.md.
 
 Entri teratas harus versi yang sedang dirilis; tes gagal bila belum ditulis.
 
+## `2026-10-16.2`
+- **Tab seperti browser di aplikasi Plano terpasang (desktop).** Fitur ini hanya untuk Plano yang diinstal di laptop/PC, tidak di tab browser atau HP.
+  - Tiap tab memuat satu halaman Plano (Aktif, List Maker, Helper, pasien, dan lainnya).
+  - **+** membuka tab baru. Ctrl+klik atau klik tengah pada menu atau tautan membuka halamannya di tab baru di belakang.
+  - **×** atau klik tengah pada tab menutupnya. Ctrl+Tab dan Ctrl+Shift+Tab berpindah antar-tab.
+  - Tab tetap tersimpan setelah aplikasi ditutup.
+- **Tab bisa diletakkan di baris judul jendela**, di samping tombol tutup/perkecil. Klik tanda panah (˄) di baris judul untuk menyalakan atau mematikannya. Bila dimatikan, tab tampil tepat di bawah baris judul.
+
 ## `2026-10-16.1`
 - **Beberapa jendela SOAP sekaligus (laptop/desktop).** Tiap pasien yang dibuka dari denah atau list mendapat jendelanya sendiri, tersusun bertumpuk. Klik sebuah jendela untuk membawanya ke depan; Esc menutup jendela paling depan. Paling banyak 4 jendela; yang paling lama tertutup lebih dulu. Di HP tetap satu.
 - **Atur pasien kini terbuka di samping SOAP** (laptop/desktop). Jendela melebar ke kiri sehingga teks SOAP tetap setinggi semula. Di HP, Atur pasien menggantikan teks SOAP, dengan tombol **Kembali ke SOAP**.

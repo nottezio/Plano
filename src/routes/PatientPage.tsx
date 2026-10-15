@@ -2543,7 +2543,7 @@ export default function PatientPage(): JSX.Element {
             // content until that content exceeds the viewport, and an expanded
             // panel in the middle of a long stack could then run past the
             // bottom with the scroll belonging to the page instead.
-            layout === 'panel' ? 'h-[100dvh] gap-3' : 'max-h-[100dvh]',
+            layout === 'panel' ? 'h-[var(--app-h,100dvh)] gap-3' : 'max-h-[var(--app-h,100dvh)]',
             // The scrollbar's space is reserved whether or not it is showing.
             // Without this the column lost ~15px the moment a panel was
             // expanded enough to overflow, so every card reflowed and the

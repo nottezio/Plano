@@ -21,7 +21,7 @@ export function AuthGate({ children }: { children: ReactNode }): JSX.Element {
 
   if (status === 'unconfigured') {
     return (
-      <div className="flex min-h-[100dvh] flex-col">
+      <div className="flex min-h-[var(--app-h,100dvh)] flex-col">
         <div className="flex flex-1 items-center justify-center px-6">
           <div className="max-w-sm text-center">
             <h1 className="text-lg font-semibold">Konfigurasi Firebase belum lengkap</h1>
@@ -68,7 +68,7 @@ function Booting(): JSX.Element {
   }, []);
 
   return (
-    <div className="flex min-h-[100dvh] flex-col items-center justify-center gap-3 px-6 text-center text-sm text-fg-muted">
+    <div className="flex min-h-[var(--app-h,100dvh)] flex-col items-center justify-center gap-3 px-6 text-center text-sm text-fg-muted">
       <p>Memuat…</p>
       {slow ? (
         <>

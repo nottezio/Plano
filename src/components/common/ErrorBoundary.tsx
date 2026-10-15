@@ -37,7 +37,7 @@ export class ErrorBoundary extends Component<Props, State> {
         role="alert"
         className={[
           'flex flex-col items-center justify-center gap-3 px-6 text-center',
-          this.props.variant === 'inline' ? 'py-16' : 'h-[100dvh]',
+          this.props.variant === 'inline' ? 'py-16' : 'h-[var(--app-h,100dvh)]',
         ].join(' ')}
       >
         <h1 className="text-lg font-semibold">Terjadi kesalahan</h1>

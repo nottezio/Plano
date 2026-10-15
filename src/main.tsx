@@ -1,6 +1,7 @@
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { unstable_HistoryRouter as HistoryRouter } from 'react-router-dom';
+import { DesktopTabs } from '@/components/common/DesktopTabs';
 
 import App from './App';
 import { AuthGate } from '@/components/auth/AuthGate';
@@ -39,9 +40,12 @@ createRoot(container).render(
     <ErrorBoundary>
       {/* basename lets the same bundle serve "/" and "/<repo>/" on Pages. */}
       <HistoryRouter history={appRouterHistory} basename={import.meta.env.BASE_URL}>
-        <AuthGate>
-          <App />
-        </AuthGate>
+        {/* Browser-like tabs, installed desktop app only (2026-10-16). */}
+        <DesktopTabs>
+          <AuthGate>
+            <App />
+          </AuthGate>
+        </DesktopTabs>
       </HistoryRouter>
     </ErrorBoundary>
   </StrictMode>,
