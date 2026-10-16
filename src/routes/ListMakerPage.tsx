@@ -23,7 +23,7 @@ import { useMediaQuery } from '@/hooks/useMediaQuery';
 
 /** Patient boxes open at once on a wide screen; the oldest closes first. */
 const MAX_OPEN = 4;
-import { useEditions, useMyFloors, useRoster } from '@/hooks/useFloor';
+import { useEditions, useMyFloors, useRestorePoints, useRoster } from '@/hooks/useFloor';
 import { useSession } from '@/store/useSession';
 
 type Tab = 'denah' | 'list' | 'tempel' | 'analisis' | 'riwayat' | 'anggota';
@@ -59,6 +59,8 @@ export default function ListMakerPage(): JSX.Element {
   };
   const { roster, state: rosterState } = useRoster(floor?.id ?? null);
   const editions = useEditions(floor?.id ?? null);
+  // Read only where they can be used: an edit member on Riwayat.
+  const restorePoints = useRestorePoints(tab === 'riwayat' && floor && canEdit(floor, uid) ? floor.id : null);
   // "Pasien baru" (13.10): not on the last list sent before this date.
   const previous = useMemo(() => {
     const last = editions.find((e) => e.date < date);
@@ -319,7 +321,9 @@ export default function ListMakerPage(): JSX.Element {
             ) : null}
             {tab === 'tempel' && editable ? <PastePanel key={floor.id} floor={floor} roster={roster} myName={myName} /> : null}
             {tab === 'analisis' ? <AnalysisPanel key={floor.id} ward={floor.ward || floor.name} roster={roster} view={view} date={date} editions={editions} onOpen={setOpen} /> : null}
-            {tab === 'riwayat' ? <EditionsPanel key={floor.id} floor={floor} editions={editions} editable={editable} /> : null}
+            {tab === 'riwayat' ? (
+              <EditionsPanel key={floor.id} floor={floor} editions={editions} editable={editable} roster={roster} points={restorePoints} myName={myName} />
+            ) : null}
             {tab === 'anggota' && uid ? (
               <MembersPanel key={floor.id} floor={floor} uid={uid} patients={[...view.active, ...view.left.map((p) => p.report)]} />
             ) : null}

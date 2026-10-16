@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import { wardPlan } from '@/domain/denahPlan';
 import { placeBeds } from './beds';
 import { buildDenahDocx, buildListDocx, denahDocumentXml, floorFileName, kjsReferenceRuns, listDocumentXml, patientRuns } from './docx';
+import { DEFAULT_PRINT } from './printSettings';
 import type { FloorPatient } from './report';
 
 function patient(over: Partial<FloorPatient>): FloorPatient {
@@ -87,14 +88,15 @@ describe('Denah docx', () => {
     }
   });
 
-  it('green for pulang, DPJP tables with KJS, strays listed, residents on page 2 with the hand-filled blocks', () => {
+  it('green for pulang, DPJP tables with KJS, strays listed, residents after the DPJP boxes with the hand-filled blocks', () => {
     expect(xml).toContain('w:color w:val="00B050"');
     expect(xml).toContain('Prof. MZ');
     expect(xml).toContain('KJS:');
     expect(xml).toContain('Di luar denah:');
-    expect(xml).toContain('<w:pageBreakBefore/>');
+    // Not on a page of their own unless asked (2026-10-16): no empty page 2.
+    expect(xml).not.toContain('<w:pageBreakBefore/>');
     // Residents: a table, one cell per junior with the count (13.7).
-    const residents = xml.slice(xml.lastIndexOf('<w:pageBreakBefore/>'));
+    const residents = xml.slice(xml.indexOf('dr. Kepala'));
     expect(residents).toContain('<w:tbl>');
     expect(residents).toContain('Muda (');
     expect(residents).toContain('Tidak ada yang pegang (');
@@ -121,7 +123,7 @@ describe('Denah docx', () => {
   it('residents are numbered; a division patient gets its own cell and no chief count', () => {
     const held = { ...patients[0]!, key: 'rm:9', junior: '', chief: '', division: 'Aritmia' };
     const out = denahDocumentXml({ ward: 'PJT Lantai 4', date: '2026-10-12', plan: null, patients: [...patients, held] });
-    const residents = out.slice(out.lastIndexOf('<w:pageBreakBefore/>'));
+    const residents = out.slice(out.indexOf('dr. Kepala'));
     expect(residents).toContain('Divisi Aritmia (1, tidak di-FU)');
     expect(residents).toMatch(/<w:t xml:space="preserve">1\. /);
     expect(residents).toContain('dr. Kepala  3');
@@ -143,5 +145,28 @@ describe('Denah docx', () => {
 
   it('file names are Windows-safe', () => {
     expect(floorFileName('Denah', 'PJT Lantai 4/5', '2026-10-12')).toBe('Denah PJT Lantai 4 5 2026-10-12.docx');
+  });
+
+  it('follows the print setup: residents on a new page, landscape, font size (2026-10-16)', () => {
+    const own = denahDocumentXml(
+      { ward: 'PJT Lantai 4', date: '2026-10-12', plan: wardPlan('PJT Lantai 4'), patients },
+      { landscape: true, fontPt: 9, residentsNewPage: true },
+    );
+    expect(own).toContain('<w:pageBreakBefore/>');
+    expect(own.slice(own.indexOf('<w:pageBreakBefore/>'))).toContain('dr. Kepala  3');
+    expect(own).toContain('w:orient="landscape"');
+    // Holders 2.5 pt above the text: 9 pt → 11.5 pt = 23 half-points.
+    expect(own).toContain('<w:sz w:val="23"/>');
+    const file = new TextDecoder().decode(buildDenahDocx({ ward: 'PJT Lantai 4', date: '2026-10-12', plan: null, patients }, { ...DEFAULT_PRINT.denah, fontPt: 9 }));
+    expect(file).toContain('<w:sz w:val="18"/>');
+  });
+
+  it('the list follows the print setup: portrait, two columns', () => {
+    const own = listDocumentXml('*Judul*\nisi', { landscape: false, columns: 2, fontPt: 8 });
+    expect(own).toContain('<w:pgSz w:w="11906" w:h="16838"/>');
+    expect(own).toContain('<w:cols w:num="2" w:space="425"/>');
+    const file = new TextDecoder().decode(buildListDocx('isi', { landscape: false, columns: 1, fontPt: 8 }));
+    expect(file).toContain('<w:sz w:val="16"/>');
+    expect(file).not.toContain('<w:cols');
   });
 });

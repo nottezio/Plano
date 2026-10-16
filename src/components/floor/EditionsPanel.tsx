@@ -3,28 +3,61 @@ import { useState } from 'react';
 import { Button } from '@/components/common/ui';
 import { formatDmy } from '@/domain/dateDmy';
 import { wardPlan } from '@/domain/denahPlan';
-import { buildDenahDocx, buildListDocx, DOCX_MIME, floorFileName } from '@/domain/floorList/docx';
-import { localOf, type Edition, type FloorDoc } from '@/domain/floorList/floor';
+import { localOf, type Edition, type FloorDoc, type RosterPatient } from '@/domain/floorList/floor';
+import type { RestorePointMeta } from '@/domain/floorList/restore';
 import { deleteEdition } from '@/data/repositories/floors.repo';
 import { copyText } from '@/lib/clipboard';
-import { deliverFile } from '@/lib/download';
+import { usePrintSettings } from '@/hooks/usePrintSettings';
+import { RestoreDialog, RestorePointList } from './RestoreDialog';
+import { exportDenah, exportList, PrintSetup } from './PrintSetup';
 
 /**
  * Riwayat (12.12): the lists as they were sent — 04.00, 16.00 for the shift
  * resident, 19.00 or any time typed. Each keeps its message and the roster
  * as it stood, so its Word files are the ones that went out, not today's.
  */
-export function EditionsPanel({ floor, editions, editable = false }: { floor: FloorDoc; editions: readonly Edition[]; editable?: boolean }): JSX.Element {
+export function EditionsPanel({
+  floor,
+  editions,
+  editable = false,
+  roster = [],
+  points = [],
+  myName = '',
+}: {
+  floor: FloorDoc;
+  editions: readonly Edition[];
+  editable?: boolean;
+  /** For restoring (2026-10-16). */
+  roster?: readonly RosterPatient[];
+  points?: readonly RestorePointMeta[];
+  myName?: string;
+}): JSX.Element {
   const [openId, setOpenId] = useState<string | null>(editions[0]?.id ?? null);
+  const [restoring, setRestoring] = useState<RestorePointMeta | null>(null);
+  const printSettings = usePrintSettings();
+  const [setupOpen, setSetupOpen] = useState(false);
+  const restoreDialog = <RestoreDialog floor={floor} roster={roster} meta={restoring} myName={myName} onClose={() => setRestoring(null)} />;
   const [copied, setCopied] = useState(false);
   const [asking, setAsking] = useState(false);
   const open = editions.find((e) => e.id === openId) ?? editions[0] ?? null;
 
+  const pointList = <RestorePointList points={points} editable={editable} onPick={setRestoring} />;
   if (editions.length === 0) {
-    return <p className="text-sm text-fg-muted">Belum ada edisi. Di tab List, isi jam lalu tekan Simpan edisi.</p>;
+    return (
+      <div className="space-y-3">
+        <p className="text-sm text-fg-muted">Belum ada edisi. Di tab List, isi jam lalu tekan Simpan edisi.</p>
+        {pointList}
+        {restoreDialog}
+      </div>
+    );
   }
+  const openPoint = open ? points.find((p) => p.editionId === open.id) : undefined;
+  // The edition as it was sent, printed with this device's setup (2026-10-16).
+  const printInput = open ? { ward: floor.ward, date: open.date, plan: wardPlan(floor.ward), patients: open.patients, listText: open.text } : null;
+  const stamp = open ? `${open.date} ${open.time}` : '';
 
   return (
+    <div className="space-y-3">
     <div className="grid gap-4 lg:grid-cols-[18rem_minmax(0,1fr)]">
       <ul className="space-y-1">
         {editions.map((e) => (
@@ -55,25 +88,22 @@ export function EditionsPanel({ floor, editions, editable = false }: { floor: Fl
             <Button size="sm" onClick={() => void copyText(open.text).then(setCopied)}>
               {copied ? 'Tersalin' : 'Salin'}
             </Button>
-            <Button
-              size="sm"
-              onClick={() =>
-                void deliverFile(new Blob([buildListDocx(open.text)], { type: DOCX_MIME }), floorFileName('List Pasien', floor.ward, `${open.date} ${open.time}`))
-              }
-            >
+            <Button size="sm" onClick={() => printInput && exportList(printInput, printSettings, stamp)}>
               Word: List
             </Button>
-            <Button
-              size="sm"
-              onClick={() =>
-                void deliverFile(
-                  new Blob([buildDenahDocx({ ward: floor.ward, date: open.date, plan: wardPlan(floor.ward), patients: open.patients })], { type: DOCX_MIME }),
-                  floorFileName('Denah', floor.ward, `${open.date} ${open.time}`),
-                )
-              }
-            >
+            <Button size="sm" onClick={() => printInput && exportDenah(printInput, printSettings, stamp)}>
               Word: Denah
             </Button>
+            <Button size="sm" onClick={() => setSetupOpen(true)}>
+              Atur cetak…
+            </Button>
+            {printInput ? <PrintSetup open={setupOpen} onOpenChange={setSetupOpen} input={printInput} stamp={stamp} /> : null}
+            {editable && openPoint ? (
+              // The roster as it stood with this list (2026-10-16): undo a mis-import.
+              <Button size="sm" onClick={() => setRestoring(openPoint)}>
+                Pulihkan list ke edisi ini…
+              </Button>
+            ) : null}
             {editable ? (
               // A list saved twice, or by mistake (13.14). Two taps; the roster is not touched.
               asking ? (
@@ -105,6 +135,9 @@ export function EditionsPanel({ floor, editions, editable = false }: { floor: Fl
           </pre>
         </div>
       ) : null}
+    </div>
+    {pointList}
+    {restoreDialog}
     </div>
   );
 }

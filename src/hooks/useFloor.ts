@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react';
 
-import { subscribeEditions, subscribeInvites, subscribeMyFloors, subscribeRoster } from '@/data/repositories/floors.repo';
+import { subscribeEditions, subscribeInvites, subscribeMyFloors, subscribeRestorePoints, subscribeRoster } from '@/data/repositories/floors.repo';
 import type { Edition, FloorDoc, RosterPatient } from '@/domain/floorList/floor';
+import type { RestorePointMeta } from '@/domain/floorList/restore';
 import { useSession } from '@/store/useSession';
 
 export type LoadState = 'loading' | 'ready' | 'error';
@@ -70,4 +71,14 @@ export function useEditions(floorId: string | null): Edition[] {
     return subscribeEditions(floorId, setEditions, (e) => console.error('[floors] editions', e));
   }, [floorId]);
   return editions;
+}
+
+/** The list's restore points, newest first (2026-10-16). */
+export function useRestorePoints(floorId: string | null): RestorePointMeta[] {
+  const [points, setPoints] = useState<RestorePointMeta[]>([]);
+  useEffect(() => {
+    if (!floorId) return undefined;
+    return subscribeRestorePoints(floorId, setPoints, (e) => console.error('[floors] restore points', e));
+  }, [floorId]);
+  return points;
 }

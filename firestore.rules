@@ -407,6 +407,34 @@ service cloud.firestore {
             || (request.auth.uid in floorE().roles && floorE().roles[request.auth.uid] == 'edit'));
       }
 
+      // Restore points (2026-10-16): the roster as it was before a paste and
+      // with each edition, so a bad import can be undone. Written once by an
+      // edit member, never changed; deleted when pruned (newest 30 kept).
+      // The patients are JSON text in `parts` (a full floor can pass 1 MiB).
+      match /restores/{pointId} {
+        function floorR() {
+          return get(/databases/$(database)/documents/floors/$(floorId)).data;
+        }
+        function editsR() {
+          return request.auth.uid == floorR().ownerUid
+            || (request.auth.uid in floorR().roles && floorR().roles[request.auth.uid] == 'edit');
+        }
+        allow read: if allowed() && request.auth.uid in floorR().memberIds;
+        allow create: if allowed() && editsR()
+          && request.resource.data.kind in ['tempel', 'edisi', 'pulihkan']
+          && request.resource.data.createdAt is string
+          && request.resource.data.parts is int;
+        allow update: if false;
+        allow delete: if allowed() && editsR();
+
+        match /parts/{n} {
+          allow read: if allowed() && request.auth.uid in floorR().memberIds;
+          allow create: if allowed() && editsR() && request.resource.data.json is string;
+          allow update: if false;
+          allow delete: if allowed() && editsR();
+        }
+      }
+
       match /days/{date} {
         function floor() {
           return get(/databases/$(database)/documents/floors/$(floorId)).data;

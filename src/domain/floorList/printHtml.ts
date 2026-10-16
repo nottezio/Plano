@@ -8,13 +8,15 @@ import { MARK_COLORS, printedTags } from './marks';
 import type { FloorPatient } from './report';
 import { residentGroups } from './residents';
 import { handoverLine } from './docx';
+import { contentBox, DEFAULT_PRINT, DENAH_MARGIN_MM, LIST_GAP_MM, LIST_MARGIN_MM, type PrintSettings } from './printSettings';
 
 /**
  * Denah + List as ONE printable page (13.12, Avi: "export both as a single
  * PDF"). The browser's own print → "Save as PDF" makes the file: no PDF
  * library, the same on a phone and a laptop. The content is the Word denah's
  * (floor plan, DPJP tables, residents table) followed by the list message in
- * four columns on a landscape page (CSS named page `listpage`, 2026-10-14),
+ * four columns on a landscape page (CSS named page `listpage`, 2026-10-14;
+ * orientation, columns and sizes now from the print setup, 2026-10-16),
  * filled top to bottom like a newspaper (`column-fill: auto`): the browser
  * otherwise BALANCES the last page, spreading its text evenly over all four
  * columns,
@@ -159,7 +161,30 @@ export interface PrintInput {
   listText: string;
 }
 
-export function denahListHtml(input: PrintInput): string {
+const pt = (n: number): string => `${n}pt`;
+
+/** Type and tables, shared by the printout and the preview. */
+function baseCss(settings: PrintSettings): string {
+  const size = settings.denah.fontPt;
+  return `* { box-sizing: border-box; }
+body { font-family: Arial, Helvetica, sans-serif; font-size: ${pt(size)}; color: #000; margin: 0; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+h1 { font-size: ${pt(size + 1.5)}; margin: 0 0 4px; }
+table { border-collapse: collapse; width: 100%; table-layout: fixed; margin-bottom: 6px; }
+td { border: 0.75pt solid #000; vertical-align: top; padding: 2px 4px; }
+tr { page-break-inside: avoid; break-inside: avoid; }
+.room, .head { font-weight: bold; text-align: center; margin-bottom: 2px; }
+.holder { font-weight: bold; font-size: ${pt(size + 2.5)}; margin-bottom: 2px; }
+.landmark { background: #ffc000; font-weight: bold; text-align: center; vertical-align: middle; }
+.p { margin: 0 0 1px; }
+.blank { height: 6px; }
+.gap { height: 24px; }
+.page { break-before: page; page-break-before: always; }
+.after { margin-top: 10px; }
+.legend { margin-top: 4px; }`;
+}
+
+/** The denah, its DPJP boxes and legend, then the residents (on a new page only if asked). */
+function denahBody(input: PrintInput, settings: PrintSettings): string {
   const sorted = [...input.patients].sort(byRoute(input.ward));
   const known = new Set(input.plan ? planRooms(input.plan).map((s) => s.room) : []);
   const inRoom = (room: string): FloorPatient[] => sorted.filter((p) => p.room === room);
@@ -168,31 +193,51 @@ export function denahListHtml(input: PrintInput): string {
   const legendTags = [...new Map(sorted.flatMap((p) => printedTags(p.tags)).map((t) => [t.label, t])).values()]
     .map((t) => ` – <span style="color:${hex(MARK_COLORS[t.color].docx)}">${esc(t.label)}</span>`)
     .join('');
-  return `<!doctype html><html lang="id"><head><meta charset="utf-8"><title>${esc(`Denah dan List ${input.ward} ${input.date}`)}</title><style>
-@page { size: A4; margin: 10mm; }
-@page listpage { size: A4 landscape; margin: 8mm; }
-* { box-sizing: border-box; }
-body { font-family: Arial, Helvetica, sans-serif; font-size: 7.5pt; color: #000; margin: 0; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-h1 { font-size: 9pt; margin: 0 0 4px; }
-table { border-collapse: collapse; width: 100%; table-layout: fixed; margin-bottom: 6px; }
-td { border: 0.75pt solid #000; vertical-align: top; padding: 2px 4px; }
-tr { page-break-inside: avoid; break-inside: avoid; }
-.room, .head { font-weight: bold; text-align: center; margin-bottom: 2px; }
-.holder { font-weight: bold; font-size: 10pt; margin-bottom: 2px; }
-.landmark { background: #ffc000; font-weight: bold; text-align: center; vertical-align: middle; }
-.p { margin: 0 0 1px; }
-.blank { height: 6px; }
-.gap { height: 24px; }
-.page { break-before: page; page-break-before: always; }
-.list { page: listpage; columns: 4; column-gap: 6mm; column-fill: auto; font-size: 6.5pt; }
-.legend { margin-top: 4px; }
-</style></head><body>
-<h1>${esc(title)}</h1>
+  return `<h1>${esc(title)}</h1>
 ${input.plan ? floorHtml(input.plan, input.ward, inRoom) : ''}
 ${strays.length > 0 ? line(`<b>${input.plan ? 'Di luar denah:' : `Pasien ${esc(input.ward)}:`}</b>`) + strays.map((p, n) => line(patientHtml(p, { number: n + 1 }))).join('') : ''}
 ${dpjpHtml(sorted)}
 <div class="legend"><span style="color:${RED}">Merah</span> H-1 – <span style="color:${GREEN}">Hijau</span> Pulang Hari ini${legendTags}.</div>
-<div class="page">${residentsHtml(sorted)}</div>
+<div class="${settings.denah.residentsNewPage ? 'page' : 'after'}" data-residents="">${residentsHtml(sorted)}</div>`;
+}
+
+const listCss = (list: PrintSettings['list']): string =>
+  `columns: ${list.columns}; column-gap: ${LIST_GAP_MM}mm; column-fill: auto; font-size: ${pt(list.fontPt)};`;
+
+/**
+ * The printout: denah pages, then the list on its own pages (CSS named page
+ * `listpage`). Orientation, columns and sizes from the print setup
+ * (2026-10-16); the defaults are the layout described above.
+ */
+export function denahListHtml(input: PrintInput, settings: PrintSettings = DEFAULT_PRINT): string {
+  const { denah, list } = settings;
+  return `<!doctype html><html lang="id"><head><meta charset="utf-8"><title>${esc(`Denah dan List ${input.ward} ${input.date}`)}</title><style>
+@page { size: A4${denah.landscape ? ' landscape' : ''}; margin: ${DENAH_MARGIN_MM}mm; }
+@page listpage { size: A4 ${list.landscape ? 'landscape' : 'portrait'}; margin: ${LIST_MARGIN_MM}mm; }
+${baseCss(settings)}
+.list { page: listpage; ${listCss(list)} }
+</style></head><body>
+${denahBody(input, settings)}
 <div class="page list">${listHtml(input.listText)}</div>
 </body></html>`;
+}
+
+/**
+ * The same content for the on-screen preview (2026-10-16): one page's text
+ * box wide, no @page rules. The list is a single box one page tall whose
+ * columns run on to the right; the preview cuts both into pages
+ * (`components/floor/PrintSetup`).
+ */
+export function previewHtml(kind: 'denah' | 'list', input: PrintInput, settings: PrintSettings): string {
+  const box = kind === 'denah' ? contentBox(settings.denah.landscape, DENAH_MARGIN_MM) : contentBox(settings.list.landscape, LIST_MARGIN_MM);
+  const body =
+    kind === 'denah'
+      ? `<div class="sheet" style="width:${box.width}mm">${denahBody(input, settings)}</div>`
+      : `<div class="list" style="width:${box.width}mm;height:${box.height}mm;${listCss(settings.list)}">${listHtml(input.listText)}</div>`;
+  return `<!doctype html><html lang="id"><head><meta charset="utf-8"><style>
+${baseCss(settings)}
+/* The desk the pages lie on (an iframe paints its own canvas). */
+html, body { background: #7d828a; }
+.page { break-before: auto; }
+</style></head><body>${body}</body></html>`;
 }

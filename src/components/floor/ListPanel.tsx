@@ -2,10 +2,9 @@ import { useMemo, useState, type ReactNode } from 'react';
 
 import { IconCopy, IconDocuments, IconLayers, IconPrinter } from '@/components/common/Icons';
 import { Button, INPUT } from '@/components/common/ui';
-import { saveEdition, writeRosterFields } from '@/data/repositories/floors.repo';
+import { saveEdition, saveRestorePoint, writeRosterFields } from '@/data/repositories/floors.repo';
 import { formatDmy } from '@/domain/dateDmy';
 import { buildFloorList, byRoute, dpjpCodeOf, patientLine } from '@/domain/floorList/build';
-import { buildDenahDocx, buildListDocx, DOCX_MIME, floorFileName } from '@/domain/floorList/docx';
 import { wardPlan } from '@/domain/denahPlan';
 import {
   chiefsOf,
@@ -20,16 +19,17 @@ import {
   type StatusChange,
 } from '@/domain/floorList/floor';
 import { markCss } from '@/domain/floorList/marks';
-import { denahListHtml } from '@/domain/floorList/printHtml';
+import { editionPoint } from '@/domain/floorList/restore';
 import type { FloorPatient } from '@/domain/floorList/report';
 import { matchesSearch } from '@/domain/floorList/search';
 import { copyText } from '@/lib/clipboard';
-import { deliverFile } from '@/lib/download';
-import { printDocument } from '@/lib/printPage';
+import { usePrintSettings } from '@/hooks/usePrintSettings';
 import { SoapBadge } from './SoapBadge';
 import { PatientControls } from './PatientControls';
 import { ListMessage } from './ListMessage';
 import { ManualPatientSheet } from './ManualPatientSheet';
+import { PasteFloat } from './PasteFloat';
+import { exportDenah, exportList, exportPdf, PrintSetup } from './PrintSetup';
 
 
 /** The patient card's tint by its colour on this list (12.12): red H-1, green pulang hari ini. */
@@ -73,6 +73,8 @@ export function ListPanel({
   const [time, setTime] = useState(() => defaultTime(new Date()));
   const [saved, setSaved] = useState('');
   const [manualOpen, setManualOpen] = useState(false);
+  // Tempel over the list (2026-10-16).
+  const [pasteOpen, setPasteOpen] = useState(false);
   const [editing, setEditing] = useState<FloorPatient | null>(null);
   const chiefs = chiefsOf(floor.chiefs);
   const byKey = useMemo(() => new Map(roster.map((p) => [p.key, p])), [roster]);
@@ -110,22 +112,24 @@ export function ListPanel({
     }
     setSavingEdition(true);
     window.setTimeout(() => setSavingEdition(false), 2500);
-    void saveEdition(floor.id, {
+    const createdAt = new Date().toISOString();
+    const editionId = saveEdition(floor.id, {
       date,
       time: time.trim() || '—',
       text,
       patients: view.active,
-      createdAt: new Date().toISOString(),
+      createdAt,
       createdBy: myName,
     });
+    // The roster as it stands with this list (2026-10-16): restorable from Riwayat.
+    saveRestorePoint(floor.id, editionPoint(roster, { label: `Edisi ${formatDmy(date)} ${time.trim() || '—'}`, createdAt, createdBy: myName, editionId }));
     setSaved(`Edisi ${formatDmy(date)} ${time} tersimpan.`);
   };
 
-  const exportDenah = (): void =>
-    void deliverFile(
-      new Blob([buildDenahDocx({ ward: floor.ward, date, plan: wardPlan(floor.ward), patients: view.active })], { type: DOCX_MIME }),
-      floorFileName('Denah', floor.ward, date),
-    );
+  // The print setup on this device (2026-10-16): every export uses it.
+  const printSettings = usePrintSettings();
+  const [setupOpen, setSetupOpen] = useState(false);
+  const printInput = { ward: floor.ward, date, plan: wardPlan(floor.ward), patients: view.active, listText: text };
 
   return (
     <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_24rem]">
@@ -134,6 +138,11 @@ export function ListPanel({
           <h3 className="flex-1 text-xs font-semibold uppercase tracking-wide text-fg-faint">
             Di lantai ({words.length > 0 ? `${sorted.length} dari ${all.length}` : all.length})
           </h3>
+          {editable ? (
+            <Button size="sm" variant={pasteOpen ? 'primary' : 'secondary'} onClick={() => setPasteOpen((v) => !v)} aria-pressed={pasteOpen}>
+              Tempel
+            </Button>
+          ) : null}
           {editable ? (
             <Button
               size="sm"
@@ -145,6 +154,7 @@ export function ListPanel({
               + Pasien manual
             </Button>
           ) : null}
+          {pasteOpen && editable ? <PasteFloat floor={floor} roster={roster} myName={myName} onClose={() => setPasteOpen(false)} /> : null}
         </div>
         <ManualPatientSheet
           open={manualOpen}
@@ -263,19 +273,20 @@ export function ListPanel({
               <ExportTile
                 icon={<IconDocuments width={18} height={18} />}
                 title="Word: List"
-                note="pesan, 3 kolom"
-                onClick={() => void deliverFile(new Blob([buildListDocx(text)], { type: DOCX_MIME }), floorFileName('List Pasien', floor.ward, date))}
+                note={`${printSettings.list.columns} kolom, ${printSettings.list.fontPt} pt`}
+                onClick={() => exportList(printInput, printSettings, date)}
               />
-              <ExportTile icon={<IconLayers width={18} height={18} />} title="Word: Denah" note="denah, DPJP, residen" onClick={exportDenah} />
-              <ExportTile
-                icon={<IconPrinter width={18} height={18} />}
-                title="PDF"
-                note="denah + list, 1 file"
-                onClick={() =>
-                  printDocument(denahListHtml({ ward: floor.ward, date, plan: wardPlan(floor.ward), patients: view.active, listText: text }))
-                }
-              />
+              <ExportTile icon={<IconLayers width={18} height={18} />} title="Word: Denah" note="denah, DPJP, residen" onClick={() => exportDenah(printInput, printSettings, date)} />
+              <ExportTile icon={<IconPrinter width={18} height={18} />} title="PDF" note="denah + list, 1 file" onClick={() => exportPdf(printInput, printSettings)} />
             </div>
+            <button
+              type="button"
+              onClick={() => setSetupOpen(true)}
+              className="mt-2 flex min-h-tap w-full items-center justify-center rounded-xl border border-dashed border-border text-xs font-semibold text-fg-muted hover:border-accent hover:text-fg [@media(pointer:fine)]:min-h-9"
+            >
+              Atur cetak — orientasi, huruf, pratinjau
+            </button>
+            <PrintSetup open={setupOpen} onOpenChange={setSetupOpen} input={printInput} stamp={date} />
           </div>
         </section>
 

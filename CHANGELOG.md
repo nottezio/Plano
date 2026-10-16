@@ -5,6 +5,13 @@ Catatan teknis lengkap (akar masalah, perbaikan) ada di CHANGES.md.
 
 Entri teratas harus versi yang sedang dirilis; tes gagal bila belum ditulis.
 
+## `2026-10-16.5`
+- **List Maker: bisa dipulihkan bila tempel salah.** Sebelum setiap Simpan di Tempel, dan setiap kali Simpan edisi, keadaan list disimpan otomatis. Setelah tempel ada tombol **Batalkan tempel ini**; di tab Riwayat ada **Pulihkan list ke edisi ini** dan daftar **Titik pulih**. Sebelum memulihkan, ditampilkan dulu pasien mana yang dikembalikan dan mana yang dihapus. Pemulihan itu sendiri juga bisa dibatalkan.
+- **Tombol Tempel di tab List.** Membuka kotak tempel melayang di atas list; list di belakangnya langsung berubah setelah disimpan.
+- **Atur cetak untuk PDF dan Word.** Di tab List (dan Riwayat): pilih orientasi, jumlah kolom list, dan ukuran huruf untuk list dan denah, dengan pratinjau halaman. Disimpan di perangkat ini.
+- **Tabel residen kini langsung di bawah kotak DPJP**, tidak lagi selalu di halaman baru — bila denah panjang, tidak ada lagi halaman yang hampir kosong. Bisa dikembalikan ke halaman baru di Atur cetak.
+- **Rak di papan (urutan sendiri).** Tombol **+ Rak** membuat laci di papan. Seret kartu ke rak untuk menyimpannya, mis. pasien pulang yang berkasnya belum selesai. Rak bisa diberi nama, ditutup, digeser, dan kartunya dikeluarkan lagi.
+
 ## `2026-10-16.4`
 - **Tab desktop diperbaiki.** Tab kini mengisi seluruh tinggi bilah, jadi bisa diklik di bagian mana pun (sebelumnya hanya separuh bawah; bagian atasnya malah menggeser jendela). Tab yang tidak aktif tampil sebagai blok abu-abu lembut, bukan garis putih terang; tab yang aktif menyatu dengan halaman di bawahnya.
 - **Beberapa warna yang selama ini tidak tampil kini muncul sesuai rancangan.** Header atas dan toolbar format kini semi-transparan dengan benar; di kartu pasien, teks keterangan sekunder sedikit lebih redup dan garis pemisah serta jalur progres kini terlihat; beberapa garis tepi merah/aksen kini berwarna benar.

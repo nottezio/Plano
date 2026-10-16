@@ -7,6 +7,7 @@ import { planLayout, type RoomCell } from './layout';
 import { byRoute, dpjpCodeOf, dpjpTitle, isPediatri, LIST_DPJP_ORDER, PEDIATRI_DPJP_IDS } from './build';
 import { MARK_COLORS, printedTags } from './marks';
 import { residentGroups } from './residents';
+import { DEFAULT_PRINT, halfPoints, type DenahPrint, type ListPrint } from './printSettings';
 import type { FloorPatient } from './report';
 
 /**
@@ -17,8 +18,9 @@ import type { FloorPatient } from './report';
  *   bold; page number at the foot.
  * - DENAH: page 1 the floor plan as one table (420 | 421 across the top,
  *   then left rooms | nurse station / 411 | right rooms), then the DPJP tables
- *   three to a row; page 2 the chief counts and the juniors' blocks, then
- *   "Operkan ke Tmn Lain" and "Ganti Chief" to fill in by hand. Red = H-1,
+ *   three to a row; then the chief counts and the juniors' blocks (on a new
+ *   page only if the print setup asks, 2026-10-16), then "Operkan ke Tmn
+ *   Lain" and "Ganti Chief" to fill in by hand. Red = H-1,
  *   green = pulang hari ini, the pediatri DPJP code amber; the legend is in
  *   the footer of every page.
  *
@@ -170,20 +172,21 @@ function pack(document: string, footerXml: string, size: number): Uint8Array<Arr
  * column (≈ 6.6 cm) is as wide as a portrait one was (≈ 6.3 cm), so lines
  * wrap as before; the fourth column and the smaller type carry the gain.
  */
-export const LIST_FONT_HALF_POINTS = 13;
-export const LIST_COLUMNS = 4;
+export const LIST_FONT_HALF_POINTS = halfPoints(DEFAULT_PRINT.list.fontPt);
+export const LIST_COLUMNS = DEFAULT_PRINT.list.columns;
 
-export function listDocumentXml(text: string): string {
+/** Orientation, columns and size from the print setup (2026-10-16); the defaults are the layout above. */
+export function listDocumentXml(text: string, print: ListPrint = DEFAULT_PRINT.list): string {
   const body = text
     .split('\n')
     .map((line) => (line.trim() ? para(fromRuns(inlineRuns(line))) : '<w:p/>'))
     .join('');
-  return documentXml(body, { top: 700, side: 700, bottom: 700 }, LIST_COLUMNS, true);
+  return documentXml(body, { top: 700, side: 700, bottom: 700 }, print.columns, print.landscape);
 }
 
-export function buildListDocx(text: string): Uint8Array<ArrayBuffer> {
+export function buildListDocx(text: string, print: ListPrint = DEFAULT_PRINT.list): Uint8Array<ArrayBuffer> {
   const pageNumber = `<w:p><w:fldSimple w:instr=" PAGE "><w:r><w:t>1</w:t></w:r></w:fldSimple></w:p>`;
-  return pack(listDocumentXml(text), footer(pageNumber), LIST_FONT_HALF_POINTS);
+  return pack(listDocumentXml(text, print), footer(pageNumber), halfPoints(print.fontPt));
 }
 
 // ── DENAH ──────────────────────────────────────────────────────────────────
@@ -233,13 +236,14 @@ function roomContent(slot: DenahRoomSlot, patients: readonly FloorPatient[]): st
   );
 }
 
-const TEXT_WIDTH = PAGE.width - 2 * 720;
+/** The text width of a denah page: A4 less 1.27 cm each side, portrait or landscape. */
+const textWidth = (landscape: boolean): number => (landscape ? PAGE.height : PAGE.width) - 2 * 720;
 
-function floorTable(plan: WardPlan, ward: string, inRoom: (room: string) => FloorPatient[]): string {
+function floorTable(plan: WardPlan, ward: string, inRoom: (room: string) => FloorPatient[], textW: number): string {
   // L | centre (two grid columns, so 420/421 can split the centre) | R.
-  const sideWidth = Math.round(TEXT_WIDTH * 0.39);
-  const half = Math.round((TEXT_WIDTH - 2 * sideWidth) / 2);
-  const grid = [sideWidth, half, TEXT_WIDTH - 2 * sideWidth - half, sideWidth];
+  const sideWidth = Math.round(textW * 0.39);
+  const half = Math.round((textW - 2 * sideWidth) / 2);
+  const grid = [sideWidth, half, textW - 2 * sideWidth - half, sideWidth];
   const layout = planLayout(plan);
 
   const rows: Cell[][] = [];
@@ -283,13 +287,13 @@ function floorTable(plan: WardPlan, ward: string, inRoom: (room: string) => Floo
   return tableXml(grid, rows);
 }
 
-function dpjpTables(sorted: readonly FloorPatient[]): string {
+function dpjpTables(sorted: readonly FloorPatient[], textW: number): string {
   const extra = [...new Set(sorted.map((p) => p.dpjpId).filter((id): id is string => !!id))].filter(
     (id) => !(LIST_DPJP_ORDER as readonly string[]).includes(id) && !isPediatri(id),
   );
   const order = [...LIST_DPJP_ORDER, ...extra, ...PEDIATRI_DPJP_IDS];
-  const third = Math.floor(TEXT_WIDTH / 3);
-  const grid = [third, third, TEXT_WIDTH - 2 * third];
+  const third = Math.floor(textW / 3);
+  const grid = [third, third, textW - 2 * third];
   const out: string[] = [];
   for (let i = 0; i < order.length; i += 3) {
     const ids = order.slice(i, i + 3);
@@ -314,9 +318,14 @@ function dpjpTables(sorted: readonly FloorPatient[]): string {
 }
 
 /** The residents' page: three juniors to a row, name on top, then each patient's line. */
-function residentTables(juniors: ReadonlyArray<readonly [string, readonly FloorPatient[]]>, held: ReadonlySet<string>): string {
-  const third = Math.floor(TEXT_WIDTH / 3);
-  const grid = [third, third, TEXT_WIDTH - 2 * third];
+function residentTables(
+  juniors: ReadonlyArray<readonly [string, readonly FloorPatient[]]>,
+  held: ReadonlySet<string>,
+  textW: number,
+  holderSize: number,
+): string {
+  const third = Math.floor(textW / 3);
+  const grid = [third, third, textW - 2 * third];
   const rows: Cell[][] = [];
   for (let i = 0; i < juniors.length; i += 3) {
     const group = juniors.slice(i, i + 3);
@@ -328,7 +337,7 @@ function residentTables(juniors: ReadonlyArray<readonly [string, readonly FloorP
         // Numbered (13.9): how many each holds is read at a glance.
         const title = held.has(name) ? `${name} (${list.length}, tidak di-FU)` : `${name} (${list.length})`;
         // The holder larger than the patients under them (13.14).
-        return { width, content: para([{ text: title, bold: true, size: 20 }]) + list.map((p, n) => para(patientRuns(p, { number: n + 1 }))).join('') };
+        return { width, content: para([{ text: title, bold: true, size: holderSize }]) + list.map((p, n) => para(patientRuns(p, { number: n + 1 }))).join('') };
       }),
     );
   }
@@ -345,11 +354,11 @@ export function handoverLine(patient: FloorPatient, to: string, n: number): stri
  * "Operkan ke Tmn Lain" and "Ganti Chief" as two boxes (13.14, Avi): filled
  * from the notes set on the patients, with room left to write by hand.
  */
-function handoverTable(sorted: readonly FloorPatient[]): string {
-  const half = Math.floor(TEXT_WIDTH / 2);
-  const grid = [half, TEXT_WIDTH - half];
+function handoverTable(sorted: readonly FloorPatient[], textW: number, holderSize: number): string {
+  const half = Math.floor(textW / 2);
+  const grid = [half, textW - half];
   const box = (title: string, lines: string[]): string =>
-    para([{ text: title, bold: true, size: 20 }]) + lines.map((text) => para([{ text }])).join('') + '<w:p/><w:p/><w:p/>';
+    para([{ text: title, bold: true, size: holderSize }]) + lines.map((text) => para([{ text }])).join('') + '<w:p/><w:p/><w:p/>';
   const operkan = sorted.filter((p) => p.operkan).map((p, n) => handoverLine(p, p.operkan!, n + 1));
   const ganti = sorted.filter((p) => p.gantiChief).map((p, n) => handoverLine(p, p.gantiChief!, n + 1));
   return tableXml(grid, [[{ width: grid[0]!, content: box('Operkan ke Tmn Lain:', operkan) }, { width: grid[1]!, content: box('Ganti Chief:', ganti) }]]);
@@ -362,7 +371,10 @@ export interface DenahDocInput {
   patients: readonly FloorPatient[];
 }
 
-export function denahDocumentXml(input: DenahDocInput): string {
+export function denahDocumentXml(input: DenahDocInput, print: DenahPrint = DEFAULT_PRINT.denah): string {
+  const textW = textWidth(print.landscape);
+  // The holders 2.5 pt above the text (10 pt on the default 7.5, 13.14).
+  const holderSize = halfPoints(print.fontPt) + 5;
   const sorted = [...input.patients].sort(byRoute(input.ward));
   const known = new Set(input.plan ? planRooms(input.plan).map((s) => s.room) : []);
   const inRoom = (room: string): FloorPatient[] => sorted.filter((p) => p.room === room);
@@ -370,31 +382,41 @@ export function denahDocumentXml(input: DenahDocInput): string {
   const title = `DENAH PASIEN ${input.ward.replace(/^PJT\s+/i, '').toUpperCase()} (${formatDmy(input.date)})`;
 
   const parts: string[] = [para([{ text: title, bold: true }])];
-  if (input.plan) parts.push(floorTable(input.plan, input.ward, inRoom), '<w:p/>');
+  if (input.plan) parts.push(floorTable(input.plan, input.ward, inRoom, textW), '<w:p/>');
   if (strays.length > 0) {
     parts.push(para([{ text: input.plan ? 'Di luar denah:' : `Pasien ${input.ward}:`, bold: true }]));
     strays.forEach((p, n) => parts.push(para(patientRuns(p, { number: n + 1 }))));
     parts.push('<w:p/>');
   }
-  parts.push(dpjpTables(sorted));
+  parts.push(dpjpTables(sorted, textW));
 
   // Page 2: residents — a table of three columns, one cell per junior (13.7,
   // Avi: "a table, not a list", as the Residen cards in the app), with the
   // hand-filled blocks under it.
   const { chiefs, juniors, divisions } = residentGroups(sorted);
   const page2: string[] = chiefs.map(([name, n]) => para([{ text: `dr. ${name}  ${n}` }]));
-  page2.push(residentTables([...juniors, ...divisions], new Set(divisions.map(([name]) => name))), handoverTable(sorted));
-  // Page 2 starts on a new page: the break goes on its first paragraph (the
-  // chiefs line), or on an empty one before the table.
-  const BREAK = '<w:p><w:pPr><w:pageBreakBefore/></w:pPr>';
-  if (chiefs.length > 0) page2[0] = page2[0]!.replace('<w:p>', BREAK);
-  else page2.unshift(`${BREAK}</w:p>`);
+  page2.push(
+    residentTables([...juniors, ...divisions], new Set(divisions.map(([name]) => name)), textW, holderSize),
+    handoverTable(sorted, textW, holderSize),
+  );
+  /*
+    On a new page only when asked (2026-10-16, Avi): with a long denah the
+    DPJP boxes ran onto page 2 and the forced break pushed the residents to
+    page 3. By default they follow the DPJP boxes, after one empty line. The
+    break goes on the first paragraph (the chiefs line), or on an empty one
+    before the table.
+  */
+  if (print.residentsNewPage) {
+    const BREAK = '<w:p><w:pPr><w:pageBreakBefore/></w:pPr>';
+    if (chiefs.length > 0) page2[0] = page2[0]!.replace('<w:p>', BREAK);
+    else page2.unshift(`${BREAK}</w:p>`);
+  } else page2.unshift('<w:p/>');
   parts.push(...page2);
 
-  return documentXml(parts.join(''), { top: 288, side: 720, bottom: 720 });
+  return documentXml(parts.join(''), { top: 288, side: 720, bottom: 720 }, 1, print.landscape);
 }
 
-export function buildDenahDocx(input: DenahDocInput): Uint8Array<ArrayBuffer> {
+export function buildDenahDocx(input: DenahDocInput, print: DenahPrint = DEFAULT_PRINT.denah): Uint8Array<ArrayBuffer> {
   // The floor's tags on this sheet, in their Word colours.
   const marks = [...new Map(input.patients.flatMap((p) => printedTags(p.tags)).map((t) => [t.label, t])).values()];
   const legend = para([
@@ -405,7 +427,7 @@ export function buildDenahDocx(input: DenahDocInput): Uint8Array<ArrayBuffer> {
     ...marks.flatMap((m): Styled[] => [{ text: ' – ' }, { text: m.label, color: MARK_COLORS[m.color].docx }]),
     ...(marks.length > 0 ? [{ text: '.' }] : []),
   ]);
-  return pack(denahDocumentXml(input), footer(legend), 15);
+  return pack(denahDocumentXml(input, print), footer(legend), halfPoints(print.fontPt));
 }
 
 /** "List Pasien PJT Lantai 4 2026-10-12.docx", safe for Windows. */

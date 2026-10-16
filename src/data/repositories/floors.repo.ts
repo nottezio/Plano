@@ -1,5 +1,6 @@
 import {
   addDoc,
+  doc,
   arrayRemove,
   getDoc,
   getDocs,
@@ -21,11 +22,23 @@ import {
   type Unsubscribe,
 } from 'firebase/firestore';
 
-import { floorDaysCol, floorDoc, floorEditionDoc, floorEditionsCol, floorPatientDoc, floorPatientsCol, floorsCol } from '../paths';
+import {
+  floorDaysCol,
+  floorDoc,
+  floorEditionDoc,
+  floorEditionsCol,
+  floorPatientDoc,
+  floorPatientsCol,
+  floorRestorePartDoc,
+  floorRestorePartsCol,
+  floorRestoresCol,
+  floorsCol,
+} from '../paths';
 import { trackWrite } from '../syncStatus';
 import type { Edition, FloorDoc, FloorRole, RosterPatient, StatusChange } from '@/domain/floorList/floor';
 import { isMarkColor, MARK_PREFIX, readMarks, type FloorMark, type PatientTag } from '@/domain/floorList/marks';
 import { manualFullText, type FloorPatient } from '@/domain/floorList/report';
+import { fromParts, KEEP_POINTS, restored, toParts, type RestorePlan, type RestorePoint, type RestorePointMeta } from '@/domain/floorList/restore';
 
 /**
  * Firestore access for List Maker floors (12.8). See `domain/floorList/floor.ts`
@@ -358,6 +371,12 @@ export async function deleteFloor(floorId: string): Promise<void> {
     const snapshot = await getDocsFromServer(col);
     refs.push(...snapshot.docs.map((d) => d.ref));
   }
+  // Restore points hold patient data too (2026-10-16): their parts, then them.
+  const points = await getDocsFromServer(floorRestoresCol(floorId));
+  for (const point of points.docs) {
+    const parts = await getDocsFromServer(floorRestorePartsCol(floorId, point.id));
+    refs.push(...parts.docs.map((d) => d.ref), point.ref);
+  }
   for (let i = 0; i < refs.length; i += 400) {
     const batch = writeBatch(floorDoc(floorId).firestore);
     for (const ref of refs.slice(i, i + 400)) batch.delete(ref);
@@ -366,8 +385,11 @@ export async function deleteFloor(floorId: string): Promise<void> {
   await trackWrite(deleteDoc(floorDoc(floorId)));
 }
 
-export function saveEdition(floorId: string, edition: Omit<Edition, 'id'>): Promise<string> {
-  return trackWrite(addDoc(floorEditionsCol(floorId), { ...plain(edition), savedAt: serverTimestamp() })).then((ref) => ref.id);
+/** The id is returned at once (offline too), so the edition's restore point can name it. */
+export function saveEdition(floorId: string, edition: Omit<Edition, 'id'>): string {
+  const ref = doc(floorEditionsCol(floorId));
+  void trackWrite(setDoc(ref, { ...plain(edition), savedAt: serverTimestamp() })).catch((e: unknown) => console.error('[floors] edition', e));
+  return ref.id;
 }
 
 /** Delete a saved list (13.14: saved twice, or by mistake). The roster is not touched. */
@@ -446,4 +468,100 @@ export function removeMember(floorId: string, uid: string): Promise<void> {
       'updatedAt', serverTimestamp(),
     ),
   );
+}
+
+// ── Restore points (2026-10-16) ───────────────────────────────────────────
+
+function readRestoreMeta(id: string, data: DocumentData): RestorePointMeta {
+  const kind = data.kind === 'edisi' || data.kind === 'pulihkan' ? data.kind : 'tempel';
+  return {
+    id,
+    kind,
+    label: str(data.label),
+    createdAt: str(data.createdAt),
+    createdBy: str(data.createdBy),
+    editionId: str(data.editionId),
+    scope: data.scope === 'active' ? 'active' : 'touched',
+    count: typeof data.count === 'number' ? data.count : 0,
+  };
+}
+
+/** The latest points, newest first (meta only; the patients are read when one is opened). */
+export function subscribeRestorePoints(floorId: string, callback: (points: RestorePointMeta[]) => void, onError: (e: Error) => void): Unsubscribe {
+  return onSnapshot(
+    query(floorRestoresCol(floorId), orderBy('createdAt', 'desc'), limit(KEEP_POINTS)),
+    (snapshot) => callback(snapshot.docs.map((d) => readRestoreMeta(d.id, d.data()))),
+    onError,
+  );
+}
+
+/**
+ * Save a point: its parts, then its meta, in one batch (all or nothing). The
+ * id is returned at once, before the server confirms — the paste that follows
+ * is not held up by it, and Firestore applies the two writes in order.
+ */
+export function saveRestorePoint(floorId: string, point: Omit<RestorePoint, 'id'>): string {
+  const ref = doc(floorRestoresCol(floorId));
+  const parts = toParts(point);
+  const batch = writeBatch(ref.firestore);
+  parts.forEach((json, n) => batch.set(floorRestorePartDoc(floorId, ref.id, n), { json }));
+  batch.set(ref, {
+    kind: point.kind,
+    label: point.label,
+    createdAt: point.createdAt,
+    createdBy: point.createdBy,
+    editionId: point.editionId,
+    scope: point.scope,
+    count: point.patients.length + point.added.length,
+    parts: parts.length,
+    savedAt: serverTimestamp(),
+  });
+  void trackWrite(batch.commit()).then(() => pruneRestorePoints(floorId)).catch(() => undefined);
+  return ref.id;
+}
+
+export async function readRestorePoint(floorId: string, meta: RestorePointMeta): Promise<RestorePoint> {
+  const snapshot = await getDocs(floorRestorePartsCol(floorId, meta.id));
+  const parts = snapshot.docs
+    .sort((a, b) => Number(a.id) - Number(b.id))
+    .map((d) => str(d.data().json));
+  const { count: _count, ...rest } = meta;
+  return { ...rest, ...fromParts(parts, readRosterPatient) };
+}
+
+/** Older points beyond KEEP_POINTS, with their parts. Best effort. */
+async function pruneRestorePoints(floorId: string): Promise<void> {
+  const snapshot = await getDocs(query(floorRestoresCol(floorId), orderBy('createdAt', 'desc')));
+  const old = snapshot.docs.slice(KEEP_POINTS);
+  if (old.length === 0) return;
+  const batch = writeBatch(floorDoc(floorId).firestore);
+  for (const d of old.slice(0, 40)) {
+    const parts = typeof d.data().parts === 'number' ? (d.data().parts as number) : 1;
+    for (let n = 0; n < parts; n += 1) batch.delete(floorRestorePartDoc(floorId, d.id, n));
+    batch.delete(d.ref);
+  }
+  await trackWrite(batch.commit());
+}
+
+/**
+ * Apply a restore plan: each reverted patient written back WHOLE (its earlier
+ * document, with the restore appended to its log), each later arrival erased.
+ * Batched per 400 writes, as a paste is.
+ */
+export async function applyRestore(floorId: string, plan: RestorePlan, log: StatusChange): Promise<void> {
+  const writes: Array<{ kind: 'set'; patient: RosterPatient } | { kind: 'delete'; key: string }> = [
+    ...plan.revert.map((r) => ({ kind: 'set' as const, patient: restored(r.patient, log) })),
+    ...plan.remove.map((p) => ({ kind: 'delete' as const, key: p.key })),
+  ];
+  for (let i = 0; i < writes.length; i += 400) {
+    const batch = writeBatch(floorDoc(floorId).firestore);
+    for (const write of writes.slice(i, i + 400)) {
+      if (write.kind === 'delete') batch.delete(floorPatientDoc(floorId, write.key));
+      else {
+        const { key, ...data } = write.patient;
+        batch.set(floorPatientDoc(floorId, key), { ...plain(data), updatedAt: serverTimestamp() });
+      }
+    }
+    await trackWrite(batch.commit());
+  }
 }

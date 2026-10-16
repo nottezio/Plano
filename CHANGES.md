@@ -1,5 +1,100 @@
 # Plano — CHANGES
 
+## `2026-10-16.5` — List Maker: restore points, Tempel over the list, print setup, residents page; board shelves
+
+Avi: (1) save the list's state with an edition so a mis-imported WhatsApp
+export can be undone; (2) a Tempel button in the List tab opening a floating
+paste box; (3) view and change the printed PDF/Word — orientation, font size;
+(4) when the denah and DPJP boxes grow, the residents' list is pushed to page
+3 — it should follow the DPJP boxes; (5) a shelf on the canvas to store
+folded cards (discharged, papers not finished).
+
+**1. Restore points** (`domain/floorList/restore`, tested).
+- Root cause: a paste is a batch of writes over the shared roster with no
+  record of what it overwrote, so a bad import could only be fixed patient by
+  patient, by hand.
+- Two kinds of point. `touched`: saved just before a Tempel save — the
+  patients that save will change, as they were, plus the keys it adds. Undo
+  puts back only those, so a colleague's edit to another patient in between
+  survives. `active`: saved with each edition — every patient on the floor.
+  Restoring returns the floor to that list. Patients changed since are put
+  back, later arrivals erased, patients who left since return.
+- A patient who left and came back after the point isn't in an `active`
+  point. It is named and left alone (`stuck`), not guessed at.
+- The plan is computed against the LIVE roster and shown grouped before
+  anything is written. The restore saves its own `touched` point first
+  ("Sebelum pemulihan"), so it is undoable. The change log is ignored when
+  comparing; a restored patient gets a log line.
+- Storage: `floors/{id}/restores/{point}` meta + `parts/{n}` JSON text (300k
+  chars per part: a full floor can pass 1 MiB). Newest 30 kept, older pruned
+  after each save. New rules: edit members create/delete, members read, no
+  update. `deleteFloor` now removes restore points too (they hold patient
+  data).
+- `saveEdition` returns the id synchronously (`doc()` + `setDoc`) so the
+  point can name its edition offline. It was `addDoc`, whose id arrives only
+  after the server confirms.
+- UI: "Batalkan tempel ini…" after a Tempel save; "Pulihkan list ke edisi
+  ini…" on an edition; "Titik pulih" list in Riwayat. The dialog lists
+  dihapus / dikembalikan / masuk lagi / dibuat lagi / tidak diubah.
+
+**2. Tempel in the List tab** (`PasteFloat`): the same `PastePanel` in a
+non-modal floating box (bottom sheet on a phone), so the list behind updates
+as it saves.
+
+**3. Print setup** (`domain/floorList/printSettings`, `PrintSetup`,
+`lib/printPreview`).
+- Settings: list orientation/columns (1–4)/size; denah orientation/size/
+  residents on a new page. Per device (localStorage, one store so every
+  export button follows). Sizes 5–12 pt in half points; denah holders 2.5 pt
+  above the text, as before.
+- `docx.ts` and `printHtml.ts` take the settings. The defaults reproduce the
+  previous layout except (4). Denah Word table widths now follow orientation.
+- Preview: the printout's own HTML in an iframe, laid out at the page's text
+  width, then cut into A4 pages. Denah: blocks are table rows. Rows tied by
+  a `rowspan` cell (nurse station, 411) are one block, because Chromium's PDF
+  keeps them together. A row-by-row preview broke a page later than the real
+  PDF did. List: one box a page tall whose columns overflow to the right,
+  page k showing columns k·n…; checked against Chromium's PDF for four
+  setting combinations — page counts match (3/4/5 denah, 4/5 list).
+
+**4. Residents follow the DPJP boxes.** Root cause: an unconditional page
+break before the residents (`pageBreakBefore` in Word, `.page` in the PDF),
+written when the denah fit on one page. With a longer denah the DPJP boxes
+spill onto page 2 and the break left page 2 mostly empty. Now optional (off
+by default): in the test fixture, 3 denah pages instead of 4.
+
+**5. Shelves on the canvas** (`canvasLayout`, `CanvasBoard`).
+- A shelf is an entry `rak:…` in the same layout map (so it is stored and
+  mirrored to the account with the arrangement), with `title` and `closed`.
+  A card on a shelf carries `shelf` + `shelfAt` (order). A card whose shelf
+  no longer exists is simply back on the canvas.
+- Drag a card's handle onto a shelf (the shelf lights up) to put it away;
+  drag a row's ⠿ out, or ↥ Keluarkan, to put it back. The shelf moves and
+  widens like a card, closes to its header, and is renamed in place.
+  Removing a non-empty shelf asks first, then puts its cards under it.
+- `placeAll`/`tidy` take known heights. Placement assumes 260 px per item, so
+  new cards would have auto-placed inside a tall shelf, and Rapikan would
+  have stacked rows into it.
+- Checked in Chromium (harness canvas): add, drop two cards (target lit),
+  rename, close (52 px), drag one out to a point, Keluarkan the other.
+
+Wrong turns:
+- The preview's denah page 1 came out empty: `instanceof HTMLTableElement`
+  is false for a table in the iframe (another window's constructor), so the
+  whole plan was one unbreakable block. Checked by tag name now.
+- The row-by-row preview disagreed with the real PDF (rowspan, above).
+
+Not done:
+- Restore and the Tempel box were not exercised against live Firestore here
+  (no login in the sandbox). The domain is unit-tested; the rules are new and
+  deploy with this push.
+- The phone's board has its own grid and does not show shelves; shelved
+  cards still appear there.
+- A card can only be put on a shelf by dragging (no keyboard path yet).
+
+Verify: typecheck, lint (0 warnings), 2505 tests (175 files), version, contrast, a11y,
+build — green.
+
 ## `2026-10-16.4` — Desktop tabs: full-height hit area; dead Tailwind opacity classes
 
 Avi (screenshot, dark theme): "This tab looks weird, the half size makes it

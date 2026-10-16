@@ -52,9 +52,88 @@ export interface CardLayout {
    * decision the user made by hand is not session state.
    */
   hMaxWithNote?: true;
+  /**
+   * SHELVES (2026-10-16, Avi: a drawer for minimised SOAPs of patients who
+   * went home but whose papers are not finished). A shelf is an entry of its
+   * own, id `rak:…`, with a position like a card's; `title` names it and
+   * `closed` shuts the drawer to its header. A card ON a shelf carries the
+   * shelf's id in `shelf` and the time it was put there in `shelfAt` (its
+   * order in the drawer); its own x/y are kept but unused while shelved.
+   */
+  shelf?: string;
+  shelfAt?: number;
+  title?: string;
+  closed?: true;
 }
 
 export type CanvasLayouts = Record<string, CardLayout>;
+
+export const SHELF_PREFIX = 'rak:';
+export const isShelfId = (id: string): boolean => id.startsWith(SHELF_PREFIX);
+export const DEFAULT_SHELF_TITLE = 'Rak';
+/** A closed drawer, and the assumed height of an open one per card, before measuring. */
+export const SHELF_HEADER_PX = 44;
+export const SHELF_ROW_PX = 52;
+
+export function newShelfId(now = Date.now()): string {
+  return `${SHELF_PREFIX}${now.toString(36)}`;
+}
+
+/** The shelves in a layout map, by position (reading order). */
+export function shelvesOf(layouts: CanvasLayouts): string[] {
+  return Object.keys(layouts)
+    .filter(isShelfId)
+    .sort((a, b) => layouts[a]!.y - layouts[b]!.y || layouts[a]!.x - layouts[b]!.x);
+}
+
+/**
+ * Where each card is: on a shelf that exists (its id), or on the canvas
+ * (absent). A card whose shelf was removed is simply back on the canvas.
+ */
+export function shelfOf(layouts: CanvasLayouts, id: string): string | null {
+  const shelf = layouts[id]?.shelf;
+  return shelf && layouts[shelf] && isShelfId(shelf) ? shelf : null;
+}
+
+/** The cards on one shelf, in the order they were put there. */
+export function shelfContents(layouts: CanvasLayouts, shelfId: string, ids: readonly string[]): string[] {
+  return ids
+    .filter((id) => shelfOf(layouts, id) === shelfId)
+    .sort((a, b) => (layouts[a]!.shelfAt ?? 0) - (layouts[b]!.shelfAt ?? 0));
+}
+
+/** A new shelf under everything on the canvas, as wide as one default card. */
+export function addShelf(columns: number, bottom: number, now = Date.now()): { id: string; layout: CardLayout } {
+  return {
+    id: newShelfId(now),
+    layout: { x: 0, y: Math.max(0, bottom + GAP_PX), w: Math.max(DEFAULT_W, 1 / columns), hMax: 0, title: DEFAULT_SHELF_TITLE },
+  };
+}
+
+export function shelve(layout: CardLayout, shelfId: string, now = Date.now()): CardLayout {
+  return { ...layout, shelf: shelfId, shelfAt: now };
+}
+
+/**
+ * Off the shelf: placed where it was dropped, or (Keluarkan) just under the
+ * shelf, so it appears where the eye already is.
+ */
+export function unshelve(layout: CardLayout, at?: { x: number; y: number }): CardLayout {
+  const { shelf: _shelf, shelfAt: _at, ...rest } = layout;
+  return at ? { ...rest, x: at.x, y: at.y } : rest;
+}
+
+/** Removing a shelf: its cards go back on the canvas under where it stood. */
+export function removeShelf(layouts: CanvasLayouts, shelfId: string, ids: readonly string[], shelfHeight: number): CanvasLayouts {
+  const shelf = layouts[shelfId];
+  if (!shelf) return layouts;
+  const next: CanvasLayouts = { ...layouts };
+  delete next[shelfId];
+  shelfContents(layouts, shelfId, ids).forEach((id, n) => {
+    next[id] = unshelve(layouts[id]!, { x: shelf.x, y: shelf.y + shelfHeight + GAP_PX + n * ROW_STEP });
+  });
+  return next;
+}
 
 const KEY = 'visite.boardCanvasLayout';
 
@@ -102,6 +181,7 @@ export function sanitizeLayouts(parsed: unknown): CanvasLayouts {
     const hMax = Number(entry.hMax ?? 0);
     if (!Number.isFinite(x) || !Number.isFinite(y) || !Number.isFinite(w)) continue;
     const cap = Number.isFinite(hMax) ? Math.max(0, hMax) : 0;
+    const shelfAt = Number(entry.shelfAt);
     out[id] = {
       x: clamp(x, 0, 0.98),
       y: Math.max(0, y),
@@ -110,6 +190,12 @@ export function sanitizeLayouts(parsed: unknown): CanvasLayouts {
       // Only meaningful with a cap: a flag without one would make a card
       // with no height set claim a height decision nobody made.
       ...(cap > 0 && entry.hMaxWithNote === true ? { hMaxWithNote: true as const } : {}),
+      // Shelves (2026-10-16): a card's shelf, and a shelf's own name and state.
+      ...(typeof entry.shelf === 'string' && isShelfId(entry.shelf) && !isShelfId(id)
+        ? { shelf: entry.shelf, shelfAt: Number.isFinite(shelfAt) ? shelfAt : 0 }
+        : {}),
+      ...(isShelfId(id) ? { title: typeof entry.title === 'string' ? entry.title.slice(0, 40) : DEFAULT_SHELF_TITLE } : {}),
+      ...(isShelfId(id) && entry.closed === true ? { closed: true as const } : {}),
     };
   }
   return out;
@@ -179,15 +265,17 @@ export function placeAll(
   ids: readonly string[],
   stored: CanvasLayouts,
   columns: number,
+  /** Known heights (a shelf's), where the ROW_STEP assumption is wrong. */
+  heights: Readonly<Record<string, number>> = {},
 ): CanvasLayouts {
   const resolved: CanvasLayouts = {};
-  const taken: Array<{ x: number; y: number; w: number }> = [];
+  const taken: Array<{ x: number; y: number; w: number; h?: number }> = [];
 
   for (const id of ids) {
     const layout = stored[id];
     if (layout) {
       resolved[id] = layout;
-      taken.push({ x: layout.x, y: layout.y, w: layout.w });
+      taken.push({ x: layout.x, y: layout.y, w: layout.w, ...(heights[id] ? { h: heights[id] } : {}) });
     }
   }
 
@@ -231,10 +319,10 @@ export function placeAll(
  */
 function overlaps(
   a: { x: number; y: number; w: number },
-  b: { x: number; y: number; w: number },
+  b: { x: number; y: number; w: number; h?: number },
 ): boolean {
   const horizontal = a.x < b.x + b.w && b.x < a.x + a.w;
-  const vertical = a.y < b.y + ROW_STEP && b.y < a.y + ROW_STEP;
+  const vertical = a.y < b.y + Math.max(ROW_STEP, b.h ?? 0) && b.y < a.y + ROW_STEP;
   return horizontal && vertical;
 }
 
@@ -370,6 +458,8 @@ export function tidy(
   ids: readonly string[],
   layouts: CanvasLayouts,
   columns: number,
+  /** Measured heights (a shelf's): its rows are kept clear of what follows. */
+  heights: Readonly<Record<string, number>> = {},
 ): CanvasLayouts {
   const band = ROW_STEP / 2;
   const ordered = [...ids]
@@ -404,7 +494,7 @@ export function tidy(
 
     next[id] = { ...layout, x: cursorX, y: shelfY, w: width };
     cursorX += width;
-    shelfHeight = Math.max(shelfHeight, (layout.hMax || ROW_STEP) + GAP_PX);
+    shelfHeight = Math.max(shelfHeight, (heights[id] || layout.hMax || ROW_STEP) + GAP_PX);
   }
 
   return next;

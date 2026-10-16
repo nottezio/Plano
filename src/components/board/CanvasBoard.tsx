@@ -6,6 +6,16 @@ import {
   DEFAULT_W,
   MIN_CARD_PX,
   ROW_STEP,
+  SHELF_HEADER_PX,
+  SHELF_ROW_PX,
+  addShelf,
+  isShelfId,
+  removeShelf,
+  shelfContents,
+  shelfOf,
+  shelve,
+  shelvesOf,
+  unshelve,
   applyGesture,
   columnsFor,
   mergeLayouts,
@@ -162,15 +172,30 @@ export function CanvasBoard({
     }
     if (width > 0) notify.current?.(stored, width);
   }, [stored, width]);
+  /*
+    Shelves (2026-10-16): placed like cards, first, so a new patient is never
+    auto-placed under one. A card on a shelf takes no place on the canvas.
+  */
+  const shelfIds = useMemo(() => shelvesOf(stored), [stored]);
+  const [shelfHeights, setShelfHeights] = useState<Readonly<Record<string, number>>>({});
   const placementIds = useMemo(() => {
-    if (!layoutIds) return ids;
-    const drawn = new Set(ids);
-    return [...ids, ...layoutIds.filter((id) => !drawn.has(id))];
-  }, [ids, layoutIds]);
+    const all = layoutIds ? [...ids, ...layoutIds.filter((id) => !new Set(ids).has(id))] : [...ids];
+    return [...shelfIds, ...all.filter((id) => !shelfOf(stored, id))];
+  }, [ids, layoutIds, shelfIds, stored]);
   const layouts = useMemo(
-    () => placeAll(placementIds, stored, columns),
-    [placementIds, stored, columns],
+    () => placeAll(placementIds, stored, columns, shelfHeights),
+    [placementIds, stored, columns, shelfHeights],
   );
+  /** The shelf under the card being dragged, lit up as a drop target. */
+  const [dropShelf, setDropShelf] = useState<string | null>(null);
+  const shelfAt = useCallback((clientX: number, clientY: number): string | null => {
+    const nodes = surfaceRef.current?.querySelectorAll<HTMLElement>('[data-shelf-id]') ?? [];
+    for (const node of nodes) {
+      const rect = node.getBoundingClientRect();
+      if (clientX >= rect.left && clientX <= rect.right && clientY >= rect.top && clientY <= rect.bottom) return node.dataset.shelfId ?? null;
+    }
+    return null;
+  }, []);
 
   /**
    * The card under the finger, held apart from `stored`.
@@ -298,6 +323,15 @@ export function CanvasBoard({
    */
   const [undo, setUndo] = useState<CanvasLayouts | null>(null);
 
+  /** The stored map now, for gestures that end after a render (shelves read it). */
+  const storedRef = useRef(stored);
+  storedRef.current = stored;
+  /** Replace the whole map — for removing a shelf, which a merge cannot do. */
+  const applyLayoutsReplacing = useCallback((next: CanvasLayouts) => {
+    writeLayouts(next);
+    setStored(next);
+  }, []);
+
   const applyLayouts = useCallback((resolved: CanvasLayouts) => {
     // Merged, never replaced: `resolved` only covers the scope on screen, and
     // the store holds every patient. See `mergeLayouts`.
@@ -345,7 +379,7 @@ export function CanvasBoard({
    * stays invisible until the board starts moving cards on its own.
    */
   const beginGesture = useCallback(
-    (event: React.PointerEvent, id: string, mode: 'move' | 'width' | 'height') => {
+    (event: React.PointerEvent, id: string, mode: 'move' | 'width' | 'height', start?: CardLayout) => {
       const surface = surfaceRef.current;
       if (!surface) return;
 
@@ -356,7 +390,11 @@ export function CanvasBoard({
 
       const measured = surface.getBoundingClientRect().width || 1;
       const natural = naturalHeights.current.get(id) ?? 0;
-      const stored: CardLayout = layouts[id] ?? { x: 0, y: 0, w: DEFAULT_W, hMax: 0 };
+      // `start`: a card lifted off a shelf begins where its row was.
+      const stored: CardLayout = start ?? layouts[id] ?? { x: 0, y: 0, w: DEFAULT_W, hMax: 0 };
+      const fromShelf = start ? shelfOf(storedRef.current, id) : null;
+      const droppable = mode === 'move' && !isShelfId(id);
+      let pointer = { x: event.clientX, y: event.clientY };
       /*
         A height drag on a card its note has uncapped starts from the height
         it is SHOWING, not from the cap stored before the note opened. From
@@ -382,6 +420,8 @@ export function CanvasBoard({
       let latest = origin;
 
       const onMove = (movement: PointerEvent): void => {
+        pointer = { x: movement.clientX, y: movement.clientY };
+        if (droppable) setDropShelf(shelfAt(movement.clientX, movement.clientY));
         // The arithmetic lives in the domain, where it is tested. This handler
         // owns the gesture; it does not own what a gesture means.
         latest = applyGesture(mode, origin, {
@@ -403,11 +443,18 @@ export function CanvasBoard({
 
       const onUp = (): void => {
         setLive(null);
+        setDropShelf(null);
+        // Dropped on a shelf: onto it (back where it was, if it came from there).
+        const target = droppable ? shelfAt(pointer.x, pointer.y) : null;
+        if (target) {
+          const kept = target === fromShelf ? storedRef.current[id]?.shelfAt : undefined;
+          commit(id, shelve(unshelve(origin), target, kept), layouts);
+        } else
         commit(
           id,
           mode === 'height' && isUncapped?.(id) === 'note'
             ? { ...latest, hMaxWithNote: true }
-            : latest,
+            : unshelve(latest),
           layouts,
         );
         window.removeEventListener('pointermove', onMove);
@@ -424,7 +471,7 @@ export function CanvasBoard({
     },
     // `isUncapped` is an inline arrow from the board, so this re-creates each
     // render. Harmless: every grip already calls it through an inline arrow.
-    [layouts, commit, isUncapped],
+    [layouts, commit, isUncapped, shelfAt],
   );
 
   /**
@@ -439,11 +486,15 @@ export function CanvasBoard({
   const height = useMemo(() => {
     const lowest = ids.reduce((max, id) => {
       const layout = layouts[id];
-      if (!layout) return max;
+      if (!layout || shelfOf(stored, id)) return max;
       return Math.max(max, layout.y + (layout.hMax || ROW_STEP));
     }, 0);
-    return lowest + 160;
-  }, [ids, layouts]);
+    const shelves = shelfIds.reduce((max, id) => {
+      const layout = layouts[id];
+      return layout ? Math.max(max, layout.y + (shelfHeights[id] ?? SHELF_HEADER_PX + SHELF_ROW_PX)) : max;
+    }, 0);
+    return Math.max(lowest, shelves) + 160;
+  }, [ids, layouts, stored, shelfIds, shelfHeights]);
 
   if (!enabled) return <div ref={surfaceRef} className="hidden" />;
 
@@ -467,8 +518,19 @@ export function CanvasBoard({
               <button
                 type="button"
                 onClick={() => {
+                  const { id, layout } = addShelf(columns, height - 160);
+                  commit(id, layout, layouts);
+                }}
+                title="Rak: tempat menyimpan kartu yang dilipat (mis. pasien pulang, berkas belum selesai). Seret kartu ke rak."
+                className="min-h-tap shrink-0 rounded-lg px-2.5 text-xs font-medium text-fg-muted hover:bg-bg-subtle [@media(pointer:fine)]:min-h-9"
+              >
+                + Rak
+              </button>
+              <button
+                type="button"
+                onClick={() => {
                   setUndo(layouts);
-                  applyLayouts(tidy(placementIds, layouts, columns));
+                  applyLayouts(tidy(placementIds, layouts, columns, shelfHeights));
                 }}
                 title="Rapatkan kartu, tanpa mengubah urutan yang sudah diatur"
                 className="min-h-tap shrink-0 rounded-lg px-2.5 text-xs font-medium text-fg-muted hover:bg-bg-subtle [@media(pointer:fine)]:min-h-9"
@@ -492,8 +554,49 @@ export function CanvasBoard({
     */}
     <div ref={surfaceRef} data-canvas-surface="" className="relative mt-5 px-4" style={{ height }}>
       {overlay?.(surfaceRef)}
+      {shelfIds.map((shelfId) => {
+        const base = layouts[shelfId];
+        if (!base) return null;
+        const layout = live?.id === shelfId ? live.layout : base;
+        return (
+          <ShelfBox
+            key={shelfId}
+            id={shelfId}
+            layout={layout}
+            canvasWidth={canvasWidth}
+            active={live?.id === shelfId}
+            front={frontId === shelfId}
+            dropping={dropShelf === shelfId}
+            contents={shelfContents(stored, shelfId, ids).filter((id) => live?.id !== id)}
+            renderItem={(id) => renderItem(id, { fitHeight: false, onHeightBounds: noBounds, maxPreviewLines: 4 })}
+            onFront={() => {
+              if (frontId !== shelfId) setFrontId(shelfId);
+            }}
+            onMove={(event) => beginGesture(event, shelfId, 'move')}
+            onWidth={(event) => beginGesture(event, shelfId, 'width')}
+            onChange={(next) => commit(shelfId, next, layouts)}
+            onRemove={() => applyLayoutsReplacing(removeShelf(storedRef.current, shelfId, ids, shelfHeights[shelfId] ?? SHELF_HEADER_PX))}
+            onTakeOut={(id) => {
+              const shelfH = shelfHeights[shelfId] ?? SHELF_HEADER_PX;
+              const own = storedRef.current[id] ?? { x: 0, y: 0, w: DEFAULT_W, hMax: 0 };
+              commit(id, unshelve(own, { x: layout.x, y: layout.y + shelfH + 12 }), layouts);
+            }}
+            onLift={(event, id, rect) => {
+              const surface = surfaceRef.current?.getBoundingClientRect();
+              const own = storedRef.current[id];
+              if (!surface || !own) return;
+              beginGesture(event, id, 'move', { ...unshelve(own), x: Math.max(0, (rect.left - surface.left) / canvasWidth), y: Math.max(0, rect.top - surface.top) });
+            }}
+            onHeight={(h) =>
+              setShelfHeights((current) => (current[shelfId] === h ? current : { ...current, [shelfId]: h }))
+            }
+          />
+        );
+      })}
       {ids.map((id) => {
-        const base = layouts[id];
+        const lifted = live?.id === id && !live.layout.shelf;
+        if (shelfOf(stored, id) && !lifted) return null;
+        const base = layouts[id] ?? (lifted ? live.layout : undefined);
         if (!base) return null;
         const layout = live?.id === id ? live.layout : base;
         const active = live?.id === id;
@@ -808,5 +911,182 @@ function CanvasHandle({
     >
       <span aria-hidden="true">⠿</span>
     </button>
+  );
+}
+
+const noBounds = (): void => undefined;
+
+/**
+ * A shelf on the canvas (2026-10-16, Avi): a drawer for folded cards —
+ * patients sent home whose papers are not done yet — so they stop reading as
+ * part of the ward. Drag a card onto it to put it away; drag it out, or
+ * Keluarkan, to put it back on the canvas. The drawer closes to its header.
+ *
+ * Moved and widened like a card (handle above, grip at the right), named in
+ * place. Removing a shelf puts its cards back under where it stood.
+ */
+function ShelfBox({
+  id,
+  layout,
+  canvasWidth,
+  active,
+  front,
+  dropping,
+  contents,
+  renderItem,
+  onFront,
+  onMove,
+  onWidth,
+  onChange,
+  onRemove,
+  onTakeOut,
+  onLift,
+  onHeight,
+}: {
+  id: string;
+  layout: CardLayout;
+  canvasWidth: number;
+  active: boolean;
+  front: boolean;
+  dropping: boolean;
+  contents: readonly string[];
+  renderItem: (id: string) => ReactNode;
+  onFront: () => void;
+  onMove: (event: React.PointerEvent) => void;
+  onWidth: (event: React.PointerEvent) => void;
+  onChange: (next: CardLayout) => void;
+  onRemove: () => void;
+  onTakeOut: (id: string) => void;
+  onLift: (event: React.PointerEvent, id: string, rect: DOMRect) => void;
+  onHeight: (height: number) => void;
+}): JSX.Element {
+  const box = useRef<HTMLElement>(null);
+  const [title, setTitle] = useState(layout.title ?? 'Rak');
+  const [asking, setAsking] = useState(false);
+  useEffect(() => setTitle(layout.title ?? 'Rak'), [layout.title]);
+  const report = useRef(onHeight);
+  report.current = onHeight;
+  useEffect(() => {
+    const node = box.current;
+    if (!node) return undefined;
+    const observer = new ResizeObserver(() => report.current(Math.ceil(node.getBoundingClientRect().height)));
+    observer.observe(node);
+    return () => observer.disconnect();
+  }, []);
+  const closed = layout.closed === true;
+  const rename = (): void => {
+    const next = title.trim() || 'Rak';
+    if (next !== layout.title) onChange({ ...layout, title: next });
+  };
+
+  return (
+    <div
+      data-shelf-id={id}
+      data-active={active ? 'true' : undefined}
+      onPointerDownCapture={onFront}
+      className="group absolute"
+      style={{
+        left: layout.x * canvasWidth,
+        top: layout.y,
+        width: Math.max(MIN_CARD_PX, layout.w * canvasWidth),
+        zIndex: active ? 40 : front ? 30 : 2,
+        transition: active ? 'none' : 'left 120ms ease, top 120ms ease, width 120ms ease',
+      }}
+    >
+      <CanvasHandle onPointerDown={onMove} />
+      <section
+        ref={box}
+        aria-label={`Rak ${layout.title ?? ''}`}
+        className={[
+          'overflow-hidden rounded-2xl border-2 border-b-[6px] bg-bg-subtle shadow-[inset_0_2px_8px_rgba(0,0,0,0.18)] transition-colors',
+          dropping ? 'border-accent bg-[var(--accent-soft)]' : 'border-border-strong',
+        ].join(' ')}
+      >
+        <header className="flex items-center gap-1 px-2 py-1.5">
+          <button
+            type="button"
+            aria-expanded={!closed}
+            aria-label={closed ? 'Buka rak' : 'Tutup rak'}
+            onClick={() => {
+              const { closed: _was, ...rest } = layout;
+              onChange(closed ? rest : { ...rest, closed: true });
+            }}
+            className="flex min-h-tap min-w-tap shrink-0 items-center justify-center rounded-lg text-sm text-fg-muted hover:bg-bg hover:text-fg [@media(pointer:fine)]:min-h-8 [@media(pointer:fine)]:min-w-8"
+          >
+            {closed ? '▸' : '▾'}
+          </button>
+          <span aria-hidden="true" className="shrink-0 text-base leading-none">
+            🗄
+          </span>
+          <input
+            value={title}
+            onChange={(event) => setTitle(event.target.value.slice(0, 40))}
+            onBlur={rename}
+            onKeyDown={(event) => {
+              if (event.key === 'Enter') (event.target as HTMLInputElement).blur();
+            }}
+            aria-label="Nama rak"
+            className="min-w-0 flex-1 rounded-md bg-transparent px-1 text-sm font-semibold text-fg outline-none focus:bg-bg"
+          />
+          <span className="shrink-0 rounded-full bg-bg px-2 text-xs font-semibold tabular-nums text-fg-muted">{contents.length}</span>
+          {asking ? (
+            <span className="flex shrink-0 items-center gap-1 text-[11px]">
+              <button type="button" onClick={onRemove} className="min-h-tap rounded-md px-1.5 font-semibold text-danger hover:underline [@media(pointer:fine)]:min-h-8">
+                Hapus rak
+              </button>
+              <button type="button" onClick={() => setAsking(false)} className="min-h-tap rounded-md px-1.5 text-fg-muted hover:underline [@media(pointer:fine)]:min-h-8">
+                Batal
+              </button>
+            </span>
+          ) : (
+            <button
+              type="button"
+              aria-label="Hapus rak"
+              title={contents.length ? 'Hapus rak — kartunya kembali ke papan' : 'Hapus rak'}
+              onClick={() => (contents.length ? setAsking(true) : onRemove())}
+              className="flex min-h-tap min-w-tap shrink-0 items-center justify-center rounded-lg text-fg-faint opacity-0 hover:bg-bg hover:text-danger focus-visible:opacity-100 group-hover:opacity-100 [@media(pointer:fine)]:min-h-8 [@media(pointer:fine)]:min-w-8"
+            >
+              ×
+            </button>
+          )}
+        </header>
+        {closed ? null : contents.length === 0 ? (
+          <p className="mx-2 mb-2 rounded-xl border border-dashed border-border px-3 py-4 text-center text-xs text-fg-muted">
+            Seret kartu ke sini — mis. pasien pulang yang berkasnya belum selesai.
+          </p>
+        ) : (
+          <ul className="space-y-1.5 px-2 pb-2">
+            {contents.map((cardId) => (
+              <li key={cardId} className="flex items-start gap-1">
+                <button
+                  type="button"
+                  aria-label="Geser keluar dari rak"
+                  title="Seret keluar dari rak"
+                  onPointerDown={(event) => {
+                    const row = (event.currentTarget.parentElement as HTMLElement).getBoundingClientRect();
+                    onLift(event, cardId, row);
+                  }}
+                  onClick={(event) => event.preventDefault()}
+                  className="mt-1 flex h-8 w-5 shrink-0 cursor-grab touch-none items-center justify-center rounded text-xs text-fg-faint hover:bg-bg hover:text-fg"
+                >
+                  ⠿
+                </button>
+                <div className="min-w-0 flex-1">{renderItem(cardId)}</div>
+                <button
+                  type="button"
+                  aria-label="Keluarkan dari rak"
+                  title="Keluarkan ke papan"
+                  onClick={() => onTakeOut(cardId)}
+                  className="mt-1 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-sm text-fg-faint hover:bg-bg hover:text-fg"
+                >
+                  ↥
+                </button>
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
+      <Grip axis="width" onPointerDown={onWidth} onReset={() => onChange({ ...layout, w: DEFAULT_W })} />
+    </div>
   );
 }

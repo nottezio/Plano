@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
-import { denahListHtml, patientHtml } from './printHtml';
+import { denahListHtml, patientHtml, previewHtml } from './printHtml';
+import { DEFAULT_PRINT } from './printSettings';
 import type { FloorPatient } from './report';
 
 const p = (over: Partial<FloorPatient>): FloorPatient =>
@@ -19,7 +20,7 @@ describe('Denah + List as one printable page (13.12)', () => {
     expect(html).toContain('<b>- dr. Bima / dr. Kepala</b>');
   });
 
-  it('the page: title, DPJP boxes, residents on a new page, then the list; text escaped', () => {
+  it('the page: title, DPJP boxes, residents, then the list; text escaped', () => {
     const html = denahListHtml({
       ward: 'PJT Lantai 4',
       date: '2026-10-13',
@@ -42,5 +43,27 @@ describe('Denah + List as one printable page (13.12)', () => {
     // Columns fill top to bottom, the last page too (2026-10-14): not balanced across all four.
     expect(html).toContain('column-fill: auto');
     expect(html).toContain('<div class="page list">');
+  });
+
+  it('residents follow the DPJP boxes unless the setup asks for a new page (2026-10-16)', () => {
+    const input = { ward: 'PJT Lantai 4', date: '2026-10-13', plan: null, patients: [p({})], listText: '1. baris' };
+    expect(denahListHtml(input)).toContain('<div class="after" data-residents="">');
+    const own = denahListHtml(input, {
+      list: { landscape: false, columns: 2, fontPt: 8 },
+      denah: { landscape: true, fontPt: 9, residentsNewPage: true },
+    });
+    expect(own).toContain('<div class="page" data-residents="">');
+    expect(own).toContain('@page { size: A4 landscape; margin: 10mm; }');
+    expect(own).toContain('@page listpage { size: A4 portrait;');
+    expect(own).toMatch(/\.list \{ page: listpage; columns: 2;[^}]*font-size: 8pt; \}/);
+    expect(own).toContain('font-size: 9pt;');
+  });
+
+  it('the preview is one text box wide, the list one page tall (2026-10-16)', () => {
+    const input = { ward: 'PJT Lantai 4', date: '2026-10-13', plan: null, patients: [p({})], listText: '1. baris' };
+    expect(previewHtml('denah', input, DEFAULT_PRINT)).toContain('<div class="sheet" style="width:190mm">');
+    // Landscape A4 less 8 mm margins: 281 × 194 mm.
+    expect(previewHtml('list', input, DEFAULT_PRINT)).toContain('width:281mm;height:194mm;columns: 4;');
+    expect(previewHtml('list', input, DEFAULT_PRINT)).not.toContain('@page');
   });
 });

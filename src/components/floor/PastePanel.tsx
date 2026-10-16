@@ -1,12 +1,14 @@
 import { useState } from 'react';
 
 import { Button, Callout } from '@/components/common/ui';
-import { writeRosterBatch, type RosterChange } from '@/data/repositories/floors.repo';
+import { saveRestorePoint, writeRosterBatch, type RosterChange } from '@/data/repositories/floors.repo';
 import { formatDmy } from '@/domain/dateDmy';
 import { localStamp, newRosterPatient, pasteDiff, updatedReport, type FloorDoc, type PasteDiff, type RosterPatient } from '@/domain/floorList/floor';
 import { splitChat } from '@/domain/floorList/chat';
 import { onFloorNumber, readReports, type FloorPatient } from '@/domain/floorList/report';
+import { touchedPoint, type RestorePointMeta } from '@/domain/floorList/restore';
 import { chatFromZip } from '@/lib/unzip';
+import { RestoreDialog } from './RestoreDialog';
 
 interface Reading {
   diff: PasteDiff;
@@ -44,6 +46,9 @@ export function PastePanel({ floor, roster, myName }: { floor: FloorDoc; roster:
   const [error, setError] = useState('');
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState('');
+  // The point saved just before the last Simpan (2026-10-16): "Batalkan tempel ini".
+  const [lastPoint, setLastPoint] = useState<RestorePointMeta | null>(null);
+  const [undoing, setUndoing] = useState<RestorePointMeta | null>(null);
   const floorNumber = /\d+/.exec(floor.ward)?.[0] ?? '';
 
   const read = (raw: string): void => {
@@ -113,6 +118,16 @@ export function PastePanel({ floor, roster, myName }: { floor: FloorDoc; roster:
           { kind: 'fields', key: before.key, fields: { status: 'dirawat', leftAt: '', pindahKe: '' }, log: log('Masuk lagi (dari Tempel)') },
         ]),
       ];
+      /*
+        A restore point first (2026-10-16, Avi: undo a mis-import): the
+        patients this save changes, as they are now, and the keys it adds.
+        Not awaited — Firestore applies it before the paste, offline too.
+      */
+      const touched = changes.flatMap((c) => (c.kind === 'add' ? [] : [c.key]));
+      const added = fresh.map((p) => p.key);
+      const point = touchedPoint(roster, touched, added, { kind: 'tempel', label: 'Sebelum tempel', createdAt: at, createdBy: myName });
+      const id = saveRestorePoint(floor.id, point);
+      setLastPoint({ id, kind: 'tempel', label: point.label, createdAt: at, createdBy: myName, editionId: '', scope: 'touched', count: point.patients.length + point.added.length });
       // Cleared first: the cache shows the result at once, the server confirms after.
       setReading(null);
       setText('');
@@ -171,7 +186,19 @@ export function PastePanel({ floor, roster, myName }: { floor: FloorDoc; roster:
           {error}
         </Callout>
       ) : null}
-      {saved ? <Callout title="Tersimpan">{saved}</Callout> : null}
+      {saved ? (
+        <Callout title="Tersimpan">
+          <span className="flex flex-wrap items-center gap-2">
+            <span className="flex-1">{saved}</span>
+            {lastPoint ? (
+              <Button size="sm" onClick={() => setUndoing(lastPoint)}>
+                Batalkan tempel ini…
+              </Button>
+            ) : null}
+          </span>
+        </Callout>
+      ) : null}
+      <RestoreDialog floor={floor} roster={roster} meta={undoing} myName={myName} onClose={() => setUndoing(null)} />
 
       {d ? (
         <div className="space-y-3 rounded-xl border border-border bg-surface p-3 text-xs">
