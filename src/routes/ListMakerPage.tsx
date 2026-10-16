@@ -15,7 +15,7 @@ import { wardPlan } from '@/domain/denahPlan';
 import { canEdit, chiefsOf, isOwner, localStamp, newRosterPatient, rosterView, type FloorDoc } from '@/domain/floorList/floor';
 import { searchWords } from '@/domain/floorList/search';
 import { AnalysisPanel } from '@/components/floor/AnalysisPanel';
-import { ListMakerHeader } from '@/components/floor/ListMakerHeader';
+import { ListMakerHeader, ListMakerTabs } from '@/components/floor/ListMakerHeader';
 import { EditionsPanel } from '@/components/floor/EditionsPanel';
 import { latestOf, type FloorPatient } from '@/domain/floorList/report';
 import { useClinicalToday } from '@/hooks/useClinicalToday';
@@ -256,10 +256,8 @@ export default function ListMakerPage(): JSX.Element {
               onDate={setDate}
               chiefs={editable ? chiefsOf(floor.chiefs) : null}
               onChiefs={(next) => void writeChiefs(floor.id, next.join(', '))}
-              tab={tab}
-              tabs={tabs}
-              onTab={setTab}
             />
+            <ListMakerTabs tab={tab} tabs={tabs} onTab={setTab} />
 
             {rosterEmpty && legacyCount > 0 ? (
               <Callout title="Ada data lama">

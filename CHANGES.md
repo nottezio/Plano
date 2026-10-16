@@ -1,5 +1,48 @@
 # Plano — CHANGES
 
+## `2026-10-17.1` — Shelf: reorder inside, one set per board view, renamed; List Maker sticky tabs; Tempel box movable
+
+Avi: "Unable to drag to reorder the items inside Rak"; "the Rak should be
+different between Pasien saya and Titipan (standalone), and rename it to
+Shelf"; "in List Maker make the header float to ease tab switching, but not
+big enough to obstruct the view"; "the floating Tempel box should be
+draggable and resizable".
+
+- **Reorder inside a shelf.** Root cause: the drop handler treated a drop on
+  a shelf as "put on this shelf" only. A drop on the card's own shelf
+  deliberately kept its old `shelfAt` (its order), and nothing read where in
+  the drawer it was dropped. Now the drop target carries an index (rows
+  whose middle is above the pointer, `data-shelf-row`). `shelfAtFor` gives a
+  `shelfAt` between the new neighbours (tested), so a drop on the same or
+  another shelf lands where it was dropped. An accent line shows the place
+  while dragging. The lifted card's row leaves the list as it is lifted, so
+  the line is drawn against the rows as they are then.
+- **One set of shelves per view.** A shelf has `scope` (`mine` /
+  `temporary`; absent = `mine`, where the first ones were made).
+  `shelvesOf(layouts, scope)`; `addShelf(…, scope)`; BoardPage passes its
+  scope. They share one layout map, so the other view's shelves are kept,
+  just not drawn.
+- **Renamed Shelf**: button "+ Shelf", default title, every label. A stored
+  default title "Rak" reads as "Shelf"; a name typed by hand is kept.
+- **Sticky tabs.** The tab row is now its own component (`ListMakerTabs`),
+  a direct child of the page body: `sticky top-0` inside the header stuck
+  only within the header's own box and scrolled away with it. It is one
+  compact strip (40 px) with a translucent background; the lists, date and
+  chiefs scroll away as before.
+- **Tempel box moves and resizes** (≥ 640 px; a phone keeps the bottom
+  sheet), remembered per device. The drag/resize/keep-on-screen geometry
+  was inside SoapFloat. It now lives in `lib/floatGeometry` (tested), used
+  by both windows rather than copied.
+- Checked in Chromium (harness): three cards on a shelf, C moved to the top
+  and to the middle; Titipan starts with no shelves and gets its own; tabs
+  pinned at the top after a 1500 px scroll and switchable; Tempel box moved,
+  resized, same place after reload.
+
+Not done: the phone board still has no shelves (its own grid).
+
+Verify: typecheck, lint (0 warnings), 2510 tests (176 files), version, contrast, a11y,
+build — green.
+
 ## `2026-10-16.5` — List Maker: restore points, Tempel over the list, print setup, residents page; board shelves
 
 Avi: (1) save the list's state with an edition so a mis-imported WhatsApp

@@ -11,6 +11,7 @@ import {
   addShelf,
   isShelfId,
   removeShelf,
+  shelfAtFor,
   shelfContents,
   shelfOf,
   shelve,
@@ -57,7 +58,10 @@ export function CanvasBoard({
   renderInCard,
   seed,
   onStoredChange,
+  scope = 'mine',
 }: {
+  /** The board view (Pasien saya / Titipan): each has its own shelves (2026-10-17). */
+  scope?: string | undefined;
   /**
    * The account's copy, used only when this device has no layout yet (a new
    * laptop). See `SharedCanvas`.
@@ -176,7 +180,7 @@ export function CanvasBoard({
     Shelves (2026-10-16): placed like cards, first, so a new patient is never
     auto-placed under one. A card on a shelf takes no place on the canvas.
   */
-  const shelfIds = useMemo(() => shelvesOf(stored), [stored]);
+  const shelfIds = useMemo(() => shelvesOf(stored, scope), [stored, scope]);
   const [shelfHeights, setShelfHeights] = useState<Readonly<Record<string, number>>>({});
   const placementIds = useMemo(() => {
     const all = layoutIds ? [...ids, ...layoutIds.filter((id) => !new Set(ids).has(id))] : [...ids];
@@ -186,13 +190,23 @@ export function CanvasBoard({
     () => placeAll(placementIds, stored, columns, shelfHeights),
     [placementIds, stored, columns, shelfHeights],
   );
-  /** The shelf under the card being dragged, lit up as a drop target. */
-  const [dropShelf, setDropShelf] = useState<string | null>(null);
-  const shelfAt = useCallback((clientX: number, clientY: number): string | null => {
+  /**
+   * The shelf under the card being dragged, lit up as a drop target, and
+   * where among its cards it would go (2026-10-17: a drop inside a shelf
+   * reorders it) — the number of rows whose middle is above the pointer.
+   */
+  const [dropShelf, setDropShelf] = useState<{ shelf: string; index: number } | null>(null);
+  const shelfAt = useCallback((clientX: number, clientY: number): { shelf: string; index: number } | null => {
     const nodes = surfaceRef.current?.querySelectorAll<HTMLElement>('[data-shelf-id]') ?? [];
     for (const node of nodes) {
       const rect = node.getBoundingClientRect();
-      if (clientX >= rect.left && clientX <= rect.right && clientY >= rect.top && clientY <= rect.bottom) return node.dataset.shelfId ?? null;
+      if (clientX < rect.left || clientX > rect.right || clientY < rect.top || clientY > rect.bottom) continue;
+      const rows = [...node.querySelectorAll<HTMLElement>('[data-shelf-row]')];
+      const index = rows.filter((row) => {
+        const r = row.getBoundingClientRect();
+        return r.top + r.height / 2 < clientY;
+      }).length;
+      return node.dataset.shelfId ? { shelf: node.dataset.shelfId, index } : null;
     }
     return null;
   }, []);
@@ -326,6 +340,8 @@ export function CanvasBoard({
   /** The stored map now, for gestures that end after a render (shelves read it). */
   const storedRef = useRef(stored);
   storedRef.current = stored;
+  const idsRef = useRef(ids);
+  idsRef.current = ids;
   /** Replace the whole map — for removing a shelf, which a merge cannot do. */
   const applyLayoutsReplacing = useCallback((next: CanvasLayouts) => {
     writeLayouts(next);
@@ -392,7 +408,6 @@ export function CanvasBoard({
       const natural = naturalHeights.current.get(id) ?? 0;
       // `start`: a card lifted off a shelf begins where its row was.
       const stored: CardLayout = start ?? layouts[id] ?? { x: 0, y: 0, w: DEFAULT_W, hMax: 0 };
-      const fromShelf = start ? shelfOf(storedRef.current, id) : null;
       const droppable = mode === 'move' && !isShelfId(id);
       let pointer = { x: event.clientX, y: event.clientY };
       /*
@@ -421,7 +436,10 @@ export function CanvasBoard({
 
       const onMove = (movement: PointerEvent): void => {
         pointer = { x: movement.clientX, y: movement.clientY };
-        if (droppable) setDropShelf(shelfAt(movement.clientX, movement.clientY));
+        if (droppable) {
+          const over = shelfAt(movement.clientX, movement.clientY);
+          setDropShelf((current) => (current?.shelf === over?.shelf && current?.index === over?.index ? current : over));
+        }
         // The arithmetic lives in the domain, where it is tested. This handler
         // owns the gesture; it does not own what a gesture means.
         latest = applyGesture(mode, origin, {
@@ -444,11 +462,12 @@ export function CanvasBoard({
       const onUp = (): void => {
         setLive(null);
         setDropShelf(null);
-        // Dropped on a shelf: onto it (back where it was, if it came from there).
+        // Dropped on a shelf: onto it, at the place among its cards it was
+        // dropped (its own shelf too — that is a reorder, 2026-10-17).
         const target = droppable ? shelfAt(pointer.x, pointer.y) : null;
         if (target) {
-          const kept = target === fromShelf ? storedRef.current[id]?.shelfAt : undefined;
-          commit(id, shelve(unshelve(origin), target, kept), layouts);
+          const order = shelfContents(storedRef.current, target.shelf, idsRef.current).filter((other) => other !== id);
+          commit(id, shelve(unshelve(origin), target.shelf, shelfAtFor(storedRef.current, order, target.index)), layouts);
         } else
         commit(
           id,
@@ -518,13 +537,13 @@ export function CanvasBoard({
               <button
                 type="button"
                 onClick={() => {
-                  const { id, layout } = addShelf(columns, height - 160);
+                  const { id, layout } = addShelf(columns, height - 160, scope);
                   commit(id, layout, layouts);
                 }}
-                title="Rak: tempat menyimpan kartu yang dilipat (mis. pasien pulang, berkas belum selesai). Seret kartu ke rak."
+                title="Shelf: tempat menyimpan kartu yang dilipat (mis. pasien pulang, berkas belum selesai). Seret kartu ke shelf. Pasien saya dan Titipan punya shelf sendiri."
                 className="min-h-tap shrink-0 rounded-lg px-2.5 text-xs font-medium text-fg-muted hover:bg-bg-subtle [@media(pointer:fine)]:min-h-9"
               >
-                + Rak
+                + Shelf
               </button>
               <button
                 type="button"
@@ -566,7 +585,7 @@ export function CanvasBoard({
             canvasWidth={canvasWidth}
             active={live?.id === shelfId}
             front={frontId === shelfId}
-            dropping={dropShelf === shelfId}
+            dropIndex={dropShelf?.shelf === shelfId ? dropShelf.index : null}
             contents={shelfContents(stored, shelfId, ids).filter((id) => live?.id !== id)}
             renderItem={(id) => renderItem(id, { fitHeight: false, onHeightBounds: noBounds, maxPreviewLines: 4 })}
             onFront={() => {
@@ -917,7 +936,8 @@ function CanvasHandle({
 const noBounds = (): void => undefined;
 
 /**
- * A shelf on the canvas (2026-10-16, Avi): a drawer for folded cards —
+ * A shelf on the canvas (2026-10-16, Avi; named Shelf, one set per board
+ * view, reorderable, 2026-10-17): a drawer for folded cards —
  * patients sent home whose papers are not done yet — so they stop reading as
  * part of the ward. Drag a card onto it to put it away; drag it out, or
  * Keluarkan, to put it back on the canvas. The drawer closes to its header.
@@ -931,7 +951,7 @@ function ShelfBox({
   canvasWidth,
   active,
   front,
-  dropping,
+  dropIndex,
   contents,
   renderItem,
   onFront,
@@ -948,7 +968,8 @@ function ShelfBox({
   canvasWidth: number;
   active: boolean;
   front: boolean;
-  dropping: boolean;
+  /** A card held over this shelf: where it would go, else null. */
+  dropIndex: number | null;
   contents: readonly string[];
   renderItem: (id: string) => ReactNode;
   onFront: () => void;
@@ -961,9 +982,10 @@ function ShelfBox({
   onHeight: (height: number) => void;
 }): JSX.Element {
   const box = useRef<HTMLElement>(null);
-  const [title, setTitle] = useState(layout.title ?? 'Rak');
+  const [title, setTitle] = useState(layout.title ?? 'Shelf');
+  const dropping = dropIndex !== null;
   const [asking, setAsking] = useState(false);
-  useEffect(() => setTitle(layout.title ?? 'Rak'), [layout.title]);
+  useEffect(() => setTitle(layout.title ?? 'Shelf'), [layout.title]);
   const report = useRef(onHeight);
   report.current = onHeight;
   useEffect(() => {
@@ -975,7 +997,7 @@ function ShelfBox({
   }, []);
   const closed = layout.closed === true;
   const rename = (): void => {
-    const next = title.trim() || 'Rak';
+    const next = title.trim() || 'Shelf';
     if (next !== layout.title) onChange({ ...layout, title: next });
   };
 
@@ -996,7 +1018,7 @@ function ShelfBox({
       <CanvasHandle onPointerDown={onMove} />
       <section
         ref={box}
-        aria-label={`Rak ${layout.title ?? ''}`}
+        aria-label={`Shelf ${layout.title ?? ''}`}
         className={[
           'overflow-hidden rounded-2xl border-2 border-b-[6px] bg-bg-subtle shadow-[inset_0_2px_8px_rgba(0,0,0,0.18)] transition-colors',
           dropping ? 'border-accent bg-[var(--accent-soft)]' : 'border-border-strong',
@@ -1006,7 +1028,7 @@ function ShelfBox({
           <button
             type="button"
             aria-expanded={!closed}
-            aria-label={closed ? 'Buka rak' : 'Tutup rak'}
+            aria-label={closed ? 'Buka shelf' : 'Tutup shelf'}
             onClick={() => {
               const { closed: _was, ...rest } = layout;
               onChange(closed ? rest : { ...rest, closed: true });
@@ -1025,14 +1047,14 @@ function ShelfBox({
             onKeyDown={(event) => {
               if (event.key === 'Enter') (event.target as HTMLInputElement).blur();
             }}
-            aria-label="Nama rak"
+            aria-label="Nama shelf"
             className="min-w-0 flex-1 rounded-md bg-transparent px-1 text-sm font-semibold text-fg outline-none focus:bg-bg"
           />
           <span className="shrink-0 rounded-full bg-bg px-2 text-xs font-semibold tabular-nums text-fg-muted">{contents.length}</span>
           {asking ? (
             <span className="flex shrink-0 items-center gap-1 text-[11px]">
               <button type="button" onClick={onRemove} className="min-h-tap rounded-md px-1.5 font-semibold text-danger hover:underline [@media(pointer:fine)]:min-h-8">
-                Hapus rak
+                Hapus shelf
               </button>
               <button type="button" onClick={() => setAsking(false)} className="min-h-tap rounded-md px-1.5 text-fg-muted hover:underline [@media(pointer:fine)]:min-h-8">
                 Batal
@@ -1041,8 +1063,8 @@ function ShelfBox({
           ) : (
             <button
               type="button"
-              aria-label="Hapus rak"
-              title={contents.length ? 'Hapus rak — kartunya kembali ke papan' : 'Hapus rak'}
+              aria-label="Hapus shelf"
+              title={contents.length ? 'Hapus shelf — kartunya kembali ke papan' : 'Hapus shelf'}
               onClick={() => (contents.length ? setAsking(true) : onRemove())}
               className="flex min-h-tap min-w-tap shrink-0 items-center justify-center rounded-lg text-fg-faint opacity-0 hover:bg-bg hover:text-danger focus-visible:opacity-100 group-hover:opacity-100 [@media(pointer:fine)]:min-h-8 [@media(pointer:fine)]:min-w-8"
             >
@@ -1056,12 +1078,13 @@ function ShelfBox({
           </p>
         ) : (
           <ul className="space-y-1.5 px-2 pb-2">
-            {contents.map((cardId) => (
-              <li key={cardId} className="flex items-start gap-1">
+            {contents.map((cardId, n) => (
+              <li key={cardId} data-shelf-row="" className="relative flex items-start gap-1">
+                {dropIndex === n ? <DropLine /> : null}
                 <button
                   type="button"
-                  aria-label="Geser keluar dari rak"
-                  title="Seret keluar dari rak"
+                  aria-label="Geser kartu di shelf"
+                  title="Seret untuk mengurutkan, atau keluar dari shelf"
                   onPointerDown={(event) => {
                     const row = (event.currentTarget.parentElement as HTMLElement).getBoundingClientRect();
                     onLift(event, cardId, row);
@@ -1074,13 +1097,14 @@ function ShelfBox({
                 <div className="min-w-0 flex-1">{renderItem(cardId)}</div>
                 <button
                   type="button"
-                  aria-label="Keluarkan dari rak"
+                  aria-label="Keluarkan dari shelf"
                   title="Keluarkan ke papan"
                   onClick={() => onTakeOut(cardId)}
                   className="mt-1 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-sm text-fg-faint hover:bg-bg hover:text-fg"
                 >
                   ↥
                 </button>
+                {dropIndex === contents.length && n === contents.length - 1 ? <DropLine end /> : null}
               </li>
             ))}
           </ul>
@@ -1089,4 +1113,9 @@ function ShelfBox({
       <Grip axis="width" onPointerDown={onWidth} onReset={() => onChange({ ...layout, w: DEFAULT_W })} />
     </div>
   );
+}
+
+/** Where a held card will land among a shelf's cards. */
+function DropLine({ end = false }: { end?: boolean }): JSX.Element {
+  return <span aria-hidden="true" className={`pointer-events-none absolute inset-x-0 h-0.5 rounded bg-accent ${end ? '-bottom-1' : '-top-1'}`} />;
 }

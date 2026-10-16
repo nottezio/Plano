@@ -5,6 +5,12 @@ Catatan teknis lengkap (akar masalah, perbaikan) ada di CHANGES.md.
 
 Entri teratas harus versi yang sedang dirilis; tes gagal bila belum ditulis.
 
+## `2026-10-17.1`
+- **Rak kini bernama Shelf, dan Pasien saya serta Titipan punya shelf masing-masing.** Shelf yang dibuat di Titipan hanya tampil di Titipan.
+- **Kartu di dalam shelf bisa diurutkan.** Seret kartu lewat pegangan ⠿ ke posisi lain di shelf; garis biru menunjukkan tempat jatuhnya.
+- **List Maker: baris tab menempel di atas** saat halaman digulir, jadi pindah tab tidak perlu menggulir ke atas. Hanya baris tab yang menempel, tipis, tidak menutupi isi.
+- **Kotak Tempel bisa digeser dan diubah ukurannya** (seret judulnya; ubah ukuran dari sudut kanan bawah). Posisi dan ukurannya diingat di perangkat ini.
+
 ## `2026-10-16.5`
 - **List Maker: bisa dipulihkan bila tempel salah.** Sebelum setiap Simpan di Tempel, dan setiap kali Simpan edisi, keadaan list disimpan otomatis. Setelah tempel ada tombol **Batalkan tempel ini**; di tab Riwayat ada **Pulihkan list ke edisi ini** dan daftar **Titik pulih**. Sebelum memulihkan, ditampilkan dulu pasien mana yang dikembalikan dan mana yang dihapus. Pemulihan itu sendiri juga bisa dibatalkan.
 - **Tombol Tempel di tab List.** Membuka kotak tempel melayang di atas list; list di belakangnya langsung berubah setelah disimpan.

@@ -64,13 +64,21 @@ export interface CardLayout {
   shelfAt?: number;
   title?: string;
   closed?: true;
+  /**
+   * The board view a shelf belongs to (2026-10-17, Avi: "different between
+   * Pasien saya and Titipan"): `mine` or `temporary`. Absent = `mine`, where
+   * the first shelves were made.
+   */
+  scope?: string;
 }
 
 export type CanvasLayouts = Record<string, CardLayout>;
 
 export const SHELF_PREFIX = 'rak:';
 export const isShelfId = (id: string): boolean => id.startsWith(SHELF_PREFIX);
-export const DEFAULT_SHELF_TITLE = 'Rak';
+/** Renamed from 'Rak' (2026-10-17); a stored default 'Rak' reads as this. */
+export const DEFAULT_SHELF_TITLE = 'Shelf';
+export const DEFAULT_SCOPE = 'mine';
 /** A closed drawer, and the assumed height of an open one per card, before measuring. */
 export const SHELF_HEADER_PX = 44;
 export const SHELF_ROW_PX = 52;
@@ -79,10 +87,10 @@ export function newShelfId(now = Date.now()): string {
   return `${SHELF_PREFIX}${now.toString(36)}`;
 }
 
-/** The shelves in a layout map, by position (reading order). */
-export function shelvesOf(layouts: CanvasLayouts): string[] {
+/** The shelves of one board view, by position (reading order). */
+export function shelvesOf(layouts: CanvasLayouts, scope: string = DEFAULT_SCOPE): string[] {
   return Object.keys(layouts)
-    .filter(isShelfId)
+    .filter((id) => isShelfId(id) && (layouts[id]!.scope ?? DEFAULT_SCOPE) === scope)
     .sort((a, b) => layouts[a]!.y - layouts[b]!.y || layouts[a]!.x - layouts[b]!.x);
 }
 
@@ -102,12 +110,35 @@ export function shelfContents(layouts: CanvasLayouts, shelfId: string, ids: read
     .sort((a, b) => (layouts[a]!.shelfAt ?? 0) - (layouts[b]!.shelfAt ?? 0));
 }
 
-/** A new shelf under everything on the canvas, as wide as one default card. */
-export function addShelf(columns: number, bottom: number, now = Date.now()): { id: string; layout: CardLayout } {
+/** A new shelf of this board view, under everything on the canvas, as wide as one default card. */
+export function addShelf(columns: number, bottom: number, scope: string = DEFAULT_SCOPE, now = Date.now()): { id: string; layout: CardLayout } {
   return {
     id: newShelfId(now),
-    layout: { x: 0, y: Math.max(0, bottom + GAP_PX), w: Math.max(DEFAULT_W, 1 / columns), hMax: 0, title: DEFAULT_SHELF_TITLE },
+    layout: {
+      x: 0,
+      y: Math.max(0, bottom + GAP_PX),
+      w: Math.max(DEFAULT_W, 1 / columns),
+      hMax: 0,
+      title: DEFAULT_SHELF_TITLE,
+      ...(scope === DEFAULT_SCOPE ? {} : { scope }),
+    },
   };
+}
+
+/**
+ * Where a card dropped at `index` among a shelf's cards goes (2026-10-17,
+ * Avi: "unable to drag to reorder inside the shelf"): a `shelfAt` between
+ * its new neighbours. `order` is the shelf's cards in order, the dragged one
+ * left out; the result sorts it into place without touching the others.
+ */
+export function shelfAtFor(layouts: CanvasLayouts, order: readonly string[], index: number, now = Date.now()): number {
+  const at = (id: string | undefined): number | undefined => (id ? layouts[id]?.shelfAt ?? 0 : undefined);
+  const before = at(order[index - 1]);
+  const after = at(order[index]);
+  if (before === undefined && after === undefined) return now;
+  if (before === undefined) return after! - 1;
+  if (after === undefined) return Math.max(before + 1, now);
+  return (before + after) / 2;
 }
 
 export function shelve(layout: CardLayout, shelfId: string, now = Date.now()): CardLayout {
@@ -194,8 +225,11 @@ export function sanitizeLayouts(parsed: unknown): CanvasLayouts {
       ...(typeof entry.shelf === 'string' && isShelfId(entry.shelf) && !isShelfId(id)
         ? { shelf: entry.shelf, shelfAt: Number.isFinite(shelfAt) ? shelfAt : 0 }
         : {}),
-      ...(isShelfId(id) ? { title: typeof entry.title === 'string' ? entry.title.slice(0, 40) : DEFAULT_SHELF_TITLE } : {}),
+      ...(isShelfId(id)
+        ? { title: typeof entry.title === 'string' && entry.title !== 'Rak' ? entry.title.slice(0, 40) : DEFAULT_SHELF_TITLE }
+        : {}),
       ...(isShelfId(id) && entry.closed === true ? { closed: true as const } : {}),
+      ...(isShelfId(id) && typeof entry.scope === 'string' && entry.scope !== DEFAULT_SCOPE ? { scope: entry.scope.slice(0, 20) } : {}),
     };
   }
   return out;

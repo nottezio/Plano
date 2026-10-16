@@ -15,7 +15,7 @@ import { ChiefsField } from './ChiefsField';
  * two-column grid that fits any width, and the tabs scroll sideways on a
  * phone (each as wide as its word) and share the row evenly from 640 px.
  */
-export function ListMakerHeader<T extends string>({
+export function ListMakerHeader({
   floors,
   floorId,
   onPickFloor,
@@ -24,9 +24,6 @@ export function ListMakerHeader<T extends string>({
   onDate,
   chiefs,
   onChiefs,
-  tab,
-  tabs,
-  onTab,
 }: {
   floors: ReadonlyArray<{ id: string; name: string }>;
   floorId: string;
@@ -37,9 +34,6 @@ export function ListMakerHeader<T extends string>({
   /** null: the chiefs are not editable here. */
   chiefs: string[] | null;
   onChiefs: (next: string[]) => void;
-  tab: T;
-  tabs: ReadonlyArray<readonly [T, string]>;
-  onTab: (tab: T) => void;
 }): JSX.Element {
   return (
     <div className="space-y-2">
@@ -61,6 +55,28 @@ export function ListMakerHeader<T extends string>({
         {chiefs ? <ChiefsField chiefs={chiefs} onChange={onChiefs} wide /> : null}
       </div>
 
+    </div>
+  );
+}
+
+/**
+ * The tabs, pinned to the top of the page while it scrolls (2026-10-17, Avi:
+ * "make the header float to ease tab switching, but not so big it obstructs
+ * the view"). Only the tab row floats — one compact strip; the lists, date
+ * and chiefs above it scroll away. Its own component because a sticky element
+ * sticks only within its parent: inside the header it went with the header.
+ */
+export function ListMakerTabs<T extends string>({
+  tab,
+  tabs,
+  onTab,
+}: {
+  tab: T;
+  tabs: ReadonlyArray<readonly [T, string]>;
+  onTab: (tab: T) => void;
+}): JSX.Element {
+  return (
+    <div className="sticky top-0 z-20 -mx-4 bg-[color-mix(in_srgb,var(--bg)_92%,transparent)] px-4 py-1 backdrop-blur">
       <ScrollStrip outerClassName="rounded-xl border border-border bg-bg-subtle" fade="from-bg-subtle" className="flex p-0.5" label="Tampilan" role="tablist">
         {tabs.map(([key, label]) => {
           const on = key === tab;

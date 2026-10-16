@@ -1097,6 +1097,8 @@ export default function BoardPage(): JSX.Element {
             */
             <CanvasBoard
               enabled
+              // Each view has its own shelves (2026-10-17).
+              scope={scope}
               seed={sharedCanvas?.layouts}
               onStoredChange={mirrorCanvas}
               /*

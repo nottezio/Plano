@@ -7,6 +7,7 @@ import { readReports, type FloorPatient } from '@/domain/floorList/report';
 import { copyText } from '@/lib/clipboard';
 import { useBackToClose } from '@/lib/useBackToClose';
 import { useMediaQuery } from '@/hooks/useMediaQuery';
+import { clampGeometry, currentViewport, dragGeometry, readStoredGeometry, type Geometry } from '@/lib/floatGeometry';
 import type { FloorDoc, RosterPatient } from '@/domain/floorList/floor';
 import { DeletePatient } from './DeletePatient';
 import { PatientControls } from './PatientControls';
@@ -37,13 +38,6 @@ import { SoapParts } from './SoapParts';
 
 const GEOMETRY_KEY = 'plano.listmaker.float';
 
-interface Geometry {
-  x: number;
-  y: number;
-  w: number;
-  h: number;
-}
-
 const MIN_W = 320;
 const MIN_H = 220;
 /** The Atur pasien panel beside the SOAP. */
@@ -56,30 +50,20 @@ function defaultGeometry(): Geometry {
   return { x: window.innerWidth - w - 16, y: 80, w, h: Math.max(MIN_H, window.innerHeight - 100) };
 }
 
-/**
- * Kept wholly inside the window: a box whose bottom (and resize corner) went
- * below the screen could no longer be resized, and the drag selected page
- * text instead (found in the render check).
- */
+/** Kept wholly inside the window (see `lib/floatGeometry`). */
 function clamp(g: Geometry): Geometry {
-  // Below the desktop tab strip when there is one (2026-10-16): it draws above the boxes.
-  const top = (document.querySelector('[data-app-tabs]')?.getBoundingClientRect().bottom ?? 0) + 8;
-  const w = Math.min(Math.max(g.w, MIN_W), window.innerWidth - 16);
-  const x = Math.min(Math.max(g.x, 8), window.innerWidth - w - 8);
-  const y = Math.min(Math.max(g.y, top), window.innerHeight - MIN_H - 8);
-  const h = Math.min(Math.max(g.h, MIN_H), window.innerHeight - y - 8);
-  return { x, y, w, h };
+  return clampGeometry(g, currentViewport(), { w: MIN_W, h: MIN_H });
 }
 
 function readGeometry(slot = 0): Geometry {
-  const base = readStoredGeometry();
+  const base = readStored();
   return slot === 0 ? base : clamp({ ...base, x: base.x - slot * CASCADE, y: base.y + slot * CASCADE });
 }
 
-function readStoredGeometry(): Geometry {
+function readStored(): Geometry {
   try {
-    const raw = JSON.parse(localStorage.getItem(GEOMETRY_KEY) ?? 'null') as Partial<Geometry> | null;
-    if (raw && [raw.x, raw.y, raw.w, raw.h].every((v) => typeof v === 'number')) return clamp(raw as Geometry);
+    const stored = readStoredGeometry(localStorage.getItem(GEOMETRY_KEY));
+    if (stored) return clamp(stored);
   } catch {
     // Unreadable: the default.
   }
@@ -151,9 +135,7 @@ export function SoapFloat({
     if (!d) return;
     const dx = event.clientX - d.startX;
     const dy = event.clientY - d.startY;
-    setGeometry(
-      clamp(d.kind === 'move' ? { ...d.from, x: d.from.x + dx, y: d.from.y + dy } : { ...d.from, w: d.from.w + dx, h: d.from.h + dy }),
-    );
+    setGeometry(clamp(dragGeometry(d.from, d.kind, dx, dy)));
   };
   const end = (): void => {
     if (!drag.current) return;
