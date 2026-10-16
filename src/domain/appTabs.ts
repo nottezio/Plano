@@ -145,3 +145,15 @@ export function launch(stored: TabsState | null, url: string): TabsState {
   if (same) return { ...stored, active: same.id };
   return openTab(stored, url);
 }
+
+/** Drag to reorder (2026-10-16): the tab `id` moved to position `to` (clamped). */
+export function moveTab(state: TabsState, id: string, to: number): TabsState {
+  const from = state.tabs.findIndex((t) => t.id === id);
+  if (from === -1) return state;
+  const at = Math.max(0, Math.min(to, state.tabs.length - 1));
+  if (at === from) return state;
+  const tabs = [...state.tabs];
+  const [tab] = tabs.splice(from, 1);
+  tabs.splice(at, 0, tab!);
+  return { ...state, tabs };
+}

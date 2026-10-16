@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { activate, closeTab, cycle, initialTabs, launch, MAX_TABS, navigated, openTab, readTabs, tabLabel, tabTitle, titled } from './appTabs';
+import { activate, closeTab, cycle, initialTabs, launch, MAX_TABS, moveTab, navigated, openTab, readTabs, tabLabel, tabTitle, titled } from './appTabs';
 
 describe('desktop app tabs (2026-10-16)', () => {
   const start = initialTabs('/', 'a');
@@ -75,5 +75,14 @@ describe('desktop app tabs (2026-10-16)', () => {
     expect(linked.tabs).toHaveLength(3);
     expect(linked.tabs.find((t) => t.id === linked.active)!.url).toBe('/p/x');
     expect(launch(null, '/list').tabs.map((t) => t.url)).toEqual(['/list']);
+  });
+
+  it('moves a tab to a new position by drag, keeping the active tab', () => {
+    const s = openTab(openTab(start, '/list', { id: 'b' }), '/helper', { id: 'c' });
+    expect(moveTab(s, 'a', 2).tabs.map((t) => t.id)).toEqual(['b', 'c', 'a']);
+    expect(moveTab(s, 'c', 0).tabs.map((t) => t.id)).toEqual(['c', 'a', 'b']);
+    expect(moveTab(s, 'c', 99).tabs.map((t) => t.id)).toEqual(['a', 'b', 'c']);
+    expect(moveTab(s, 'a', 2).active).toBe(s.active);
+    expect(moveTab(s, 'zzz', 0)).toBe(s);
   });
 });

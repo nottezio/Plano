@@ -1,5 +1,27 @@
 # Plano — CHANGES
 
+## `2026-10-16.3` — Desktop tabs: drag to reorder; larger tabs
+
+Avi (screenshot of the installed app): "Able for the tab to be draggable to
+switch the order. Enlarge the tab button size."
+
+- **Drag to reorder.** `moveTab(state, id, to)` in `domain/appTabs` (tested).
+  The strip, as in Chrome: pressing a tab activates it; past a 6 px slop the
+  tab follows the pointer (`translateX`, pointer capture), and when its middle
+  passes a neighbour's middle the two swap, the drag origin shifting by the
+  neighbour's width so the tab stays under the pointer. The × does not start a
+  drag; a drag is not a click.
+- **Larger.** Strip 36 → 44 px; tabs 220 → 240 px (min 96), text xs → sm;
+  × 20 → 24 px; + 28 → 36 px.
+- **Inactive tabs look like tabs.** Avi's screenshot showed a second "Aktif"
+  tab at the far left reading as stray text: inactive tabs had no border and
+  no background. Now a faint background and border; hover brightens.
+- Checked in Chromium (strip forced on): three tabs, the first dragged 540 px
+  right ends last with the others shifted; a click still activates; strip 44 px.
+
+Verify: typecheck, lint (0 warnings), 2485 tests (171 files), version, contrast, a11y,
+build — green.
+
 ## `2026-10-16.2` — Browser-like tabs in the installed desktop app
 
 Avi (screenshot of Plano installed from Chrome on Windows): "I want it to

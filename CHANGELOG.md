@@ -5,6 +5,10 @@ Catatan teknis lengkap (akar masalah, perbaikan) ada di CHANGES.md.
 
 Entri teratas harus versi yang sedang dirilis; tes gagal bila belum ditulis.
 
+## `2026-10-16.3`
+- **Tab bisa digeser untuk mengubah urutan.** Tekan dan seret tab ke kiri atau kanan. Tab lain bergeser memberi tempat, seperti di Chrome.
+- **Tab lebih besar dan lebih jelas.** Bilah tab kini lebih tinggi, tab lebih lebar, dan tulisannya lebih besar; tombol **+** dan **×** juga diperbesar. Tab yang tidak aktif kini tampil berbingkai, sehingga tidak lagi terlihat seperti tulisan biasa.
+
 ## `2026-10-16.2`
 - **Tab seperti browser di aplikasi Plano terpasang (desktop).** Fitur ini hanya untuk Plano yang diinstal di laptop/PC, tidak di tab browser atau HP.
   - Tiap tab memuat satu halaman Plano (Aktif, List Maker, Helper, pasien, dan lainnya).

@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react';
+import { useEffect, useRef, useState, type CSSProperties, type PointerEvent as ReactPointerEvent, type ReactNode } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 
 import {
@@ -7,6 +7,7 @@ import {
   cycle,
   HOME_URL,
   launch,
+  moveTab,
   navigated,
   openTab,
   readTabs,
@@ -36,7 +37,10 @@ import { useMediaQuery } from '@/hooks/useMediaQuery';
  */
 
 const STORE_KEY = 'plano.desktopTabs';
-const BAR_PX = 36;
+/** Strip height (2026-10-16: 36 → 44 px, Avi: "enlarge the tab"). */
+const BAR_PX = 44;
+/** A press that moves less than this is a click, not a drag. */
+const DRAG_SLOP = 6;
 
 function load(): TabsState | null {
   try {
@@ -116,6 +120,52 @@ function TabStrip({ children }: { children: ReactNode }): JSX.Element {
     };
   }, [overlay]);
 
+  /*
+    Drag to reorder (2026-10-16, Avi). As in Chrome: the pressed tab becomes
+    active, follows the pointer, and when its middle passes a neighbour's
+    middle the two swap; `startX` shifts by the neighbour's width so the tab
+    stays under the pointer. A press that moves under DRAG_SLOP is a click.
+    Pointer capture keeps the drag even when the pointer leaves the strip.
+  */
+  const tabEls = useRef(new Map<string, HTMLDivElement>());
+  const dragRef = useRef<{ id: string; pointer: number; startX: number; moved: boolean } | null>(null);
+  const [dragging, setDragging] = useState<{ id: string; dx: number } | null>(null);
+  const onTabDown = (id: string) => (event: ReactPointerEvent<HTMLDivElement>): void => {
+    if (event.button !== 0 || (event.target as HTMLElement).closest('[data-tab-close]')) return;
+    if (id !== latest.current.active) go(activate(latest.current, id));
+    dragRef.current = { id, pointer: event.pointerId, startX: event.clientX, moved: false };
+    event.currentTarget.setPointerCapture(event.pointerId);
+  };
+  const onTabMove = (event: ReactPointerEvent<HTMLDivElement>): void => {
+    const d = dragRef.current;
+    if (!d || d.pointer !== event.pointerId) return;
+    const dx = event.clientX - d.startX;
+    if (!d.moved && Math.abs(dx) < DRAG_SLOP) return;
+    d.moved = true;
+    const order = latest.current.tabs;
+    const at = order.findIndex((t) => t.id === d.id);
+    const self = tabEls.current.get(d.id)?.getBoundingClientRect();
+    if (self) {
+      const middle = self.left + self.width / 2 + dx;
+      const right = order[at + 1] ? tabEls.current.get(order[at + 1]!.id)?.getBoundingClientRect() : undefined;
+      const left = order[at - 1] ? tabEls.current.get(order[at - 1]!.id)?.getBoundingClientRect() : undefined;
+      if (right && middle > right.left + right.width / 2) {
+        d.startX += right.width + 4;
+        setState((s) => moveTab(s, d.id, at + 1));
+      } else if (left && middle < left.left + left.width / 2) {
+        d.startX -= left.width + 4;
+        setState((s) => moveTab(s, d.id, at - 1));
+      }
+    }
+    setDragging({ id: d.id, dx: event.clientX - d.startX });
+  };
+  const onTabUp = (event: ReactPointerEvent<HTMLDivElement>): void => {
+    const d = dragRef.current;
+    if (!d || d.pointer !== event.pointerId) return;
+    dragRef.current = null;
+    setDragging(null);
+  };
+
   const go = (next: TabsState): void => {
     setState(next);
     const active = next.tabs.find((t) => t.id === next.active);
@@ -183,13 +233,26 @@ function TabStrip({ children }: { children: ReactNode }): JSX.Element {
             return (
               <div
                 key={tab.id}
-                style={noDrag}
+                ref={(node) => {
+                  if (node) tabEls.current.set(tab.id, node);
+                  else tabEls.current.delete(tab.id);
+                }}
+                style={{
+                  ...noDrag,
+                  ...(dragging?.id === tab.id ? { transform: `translateX(${dragging.dx}px)`, zIndex: 1, cursor: 'grabbing' } : {}),
+                }}
+                onPointerDown={onTabDown(tab.id)}
+                onPointerMove={onTabMove}
+                onPointerUp={onTabUp}
+                onPointerCancel={onTabUp}
                 onAuxClick={(event) => {
                   if (event.button === 1) go(closeTab(latest.current, tab.id));
                 }}
-                className={`group flex h-[calc(100%-2px)] w-[220px] min-w-[72px] shrink items-center rounded-t-lg border border-b-0 text-xs ${
-                  on ? 'border-border bg-bg font-semibold text-fg' : 'border-transparent text-fg-muted hover:bg-bg/60'
-                }`}
+                className={`group relative flex h-[calc(100%-4px)] w-[240px] min-w-[96px] shrink touch-none select-none items-center rounded-t-lg border border-b-0 text-sm ${
+                  on
+                    ? 'border-border bg-bg font-semibold text-fg'
+                    : 'border-border/60 bg-bg/40 text-fg-muted hover:bg-bg/70 hover:text-fg'
+                } ${dragging?.id === tab.id ? 'shadow-lg' : 'transition-transform'}`}
               >
                 <button
                   type="button"
@@ -197,15 +260,16 @@ function TabStrip({ children }: { children: ReactNode }): JSX.Element {
                   aria-selected={on}
                   title={label}
                   onClick={() => go(activate(latest.current, tab.id))}
-                  className="h-full min-w-0 flex-1 truncate px-3 text-left"
+                  className="h-full min-w-0 flex-1 cursor-default truncate px-3.5 text-left"
                 >
                   {label}
                 </button>
                 <button
                   type="button"
+                  data-tab-close
                   aria-label={`Tutup tab ${label}`}
                   onClick={() => go(closeTab(latest.current, tab.id))}
-                  className={`mr-1 flex h-5 w-5 shrink-0 items-center justify-center rounded text-sm leading-none hover:bg-bg-subtle ${on ? '' : 'opacity-0 group-hover:opacity-100'}`}
+                  className={`mr-1.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-md text-base leading-none hover:bg-bg-subtle ${on ? '' : 'opacity-0 group-hover:opacity-100'}`}
                 >
                   ×
                 </button>
@@ -219,7 +283,7 @@ function TabStrip({ children }: { children: ReactNode }): JSX.Element {
           aria-label="Tab baru"
           title="Tab baru"
           onClick={() => go(openTab(latest.current, HOME_URL))}
-          className="mb-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-lg text-lg leading-none text-fg-muted hover:bg-bg"
+          className="mb-1 flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-xl leading-none text-fg-muted hover:bg-bg hover:text-fg"
         >
           +
         </button>
