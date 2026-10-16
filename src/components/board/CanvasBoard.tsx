@@ -690,7 +690,7 @@ function ClampedCard({
           type="button"
           onClick={onToggle}
           aria-label="Tampilkan sisa kartu"
-          className="absolute bottom-0 right-0 min-h-tap min-w-tap text-xs text-token-fg/60"
+          className="absolute bottom-0 right-0 min-h-tap min-w-tap text-xs text-[color-mix(in_srgb,var(--token-fg)_70%,transparent)]"
         >
           <span aria-hidden="true">▾</span>
         </button>

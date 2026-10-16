@@ -611,9 +611,9 @@ function PatientCard({
               className={[
                 'rounded-full px-2 py-0.5 text-[11px] ring-1',
                 cell.present === true
-                  ? 'text-accent ring-accent/40'
+                  ? 'text-accent ring-[color-mix(in_srgb,var(--accent)_40%,transparent)]'
                   : cell.present === false
-                    ? 'bg-[var(--danger-soft)] font-medium text-danger ring-danger/40'
+                    ? 'bg-[var(--danger-soft)] font-medium text-danger ring-[color-mix(in_srgb,var(--danger)_40%,transparent)]'
                     : 'text-fg-faint ring-border',
               ].join(' ')}
             >

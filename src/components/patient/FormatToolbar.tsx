@@ -82,7 +82,7 @@ export function FormatToolbar({
       <div
         role="toolbar"
         aria-label="Format catatan"
-        className="flex max-w-full items-center gap-0.5 overflow-x-auto rounded-xl border border-border bg-surface/95 p-0.5 shadow-lg backdrop-blur [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+        className="flex max-w-full items-center gap-0.5 overflow-x-auto rounded-xl border border-border bg-[color-mix(in_srgb,var(--surface)_95%,transparent)] p-0.5 shadow-lg backdrop-blur [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
       >
         {history ? (
           <Group>

@@ -226,7 +226,15 @@ function TabStrip({ children }: { children: ReactNode }): JSX.Element {
   return (
     <>
       <nav data-app-tabs aria-label="Tab Plano" style={stripStyle} className="fixed z-50 flex items-end gap-1 border-b border-border bg-bg-subtle px-2 pt-1">
-        <div role="tablist" aria-label="Tab" className="flex min-w-0 items-end gap-1 overflow-hidden">
+        {/*
+          The tab list fills the strip's height (`self-stretch`), plus the 1 px of
+          the strip's bottom border (`-mb-px`): a tab's `h-full` needs a parent
+          with a height (with an auto-height parent it fell back to its content,
+          ~28 of 44 px, and the empty band above it dragged the window instead of
+          choosing the tab), and the active tab covers the border so it joins the
+          page below, as in Chrome.
+        */}
+        <div role="tablist" aria-label="Tab" className="-mb-px flex min-w-0 items-end gap-1 self-stretch overflow-hidden">
           {state.tabs.map((tab) => {
             const on = tab.id === state.active;
             const label = tabLabel(tab);
@@ -248,10 +256,10 @@ function TabStrip({ children }: { children: ReactNode }): JSX.Element {
                 onAuxClick={(event) => {
                   if (event.button === 1) go(closeTab(latest.current, tab.id));
                 }}
-                className={`group relative flex h-[calc(100%-4px)] w-[240px] min-w-[96px] shrink touch-none select-none items-center rounded-t-lg border border-b-0 text-sm ${
+                className={`group relative flex h-full w-[240px] min-w-[96px] shrink touch-none select-none items-center rounded-t-lg border border-b-0 text-sm ${
                   on
                     ? 'border-border bg-bg font-semibold text-fg'
-                    : 'border-border/60 bg-bg/40 text-fg-muted hover:bg-bg/70 hover:text-fg'
+                    : 'border-transparent bg-[color-mix(in_srgb,var(--fg)_7%,transparent)] text-fg-muted hover:bg-[color-mix(in_srgb,var(--fg)_12%,transparent)] hover:text-fg'
                 } ${dragging?.id === tab.id ? 'shadow-lg' : 'transition-transform'}`}
               >
                 <button
@@ -260,7 +268,7 @@ function TabStrip({ children }: { children: ReactNode }): JSX.Element {
                   aria-selected={on}
                   title={label}
                   onClick={() => go(activate(latest.current, tab.id))}
-                  className="h-full min-w-0 flex-1 cursor-default truncate px-3.5 text-left"
+                  className="h-full min-w-0 flex-1 cursor-default truncate rounded-tl-lg px-3.5 text-left focus-visible:-outline-offset-2"
                 >
                   {label}
                 </button>

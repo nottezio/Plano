@@ -5,6 +5,10 @@ Catatan teknis lengkap (akar masalah, perbaikan) ada di CHANGES.md.
 
 Entri teratas harus versi yang sedang dirilis; tes gagal bila belum ditulis.
 
+## `2026-10-16.4`
+- **Tab desktop diperbaiki.** Tab kini mengisi seluruh tinggi bilah, jadi bisa diklik di bagian mana pun (sebelumnya hanya separuh bawah; bagian atasnya malah menggeser jendela). Tab yang tidak aktif tampil sebagai blok abu-abu lembut, bukan garis putih terang; tab yang aktif menyatu dengan halaman di bawahnya.
+- **Beberapa warna yang selama ini tidak tampil kini muncul sesuai rancangan.** Header atas dan toolbar format kini semi-transparan dengan benar; di kartu pasien, teks keterangan sekunder sedikit lebih redup dan garis pemisah serta jalur progres kini terlihat; beberapa garis tepi merah/aksen kini berwarna benar.
+
 ## `2026-10-16.3`
 - **Tab bisa digeser untuk mengubah urutan.** Tekan dan seret tab ke kiri atau kanan. Tab lain bergeser memberi tempat, seperti di Chrome.
 - **Tab lebih besar dan lebih jelas.** Bilah tab kini lebih tinggi, tab lebih lebar, dan tulisannya lebih besar; tombol **+** dan **×** juga diperbesar. Tab yang tidak aktif kini tampil berbingkai, sehingga tidak lagi terlihat seperti tulisan biasa.

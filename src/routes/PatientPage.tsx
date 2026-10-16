@@ -1586,7 +1586,7 @@ export default function PatientPage(): JSX.Element {
           also where it reads best: name and record number directly under the
           day they belong to.
         */}
-        <header id="patient-sticky-header" className="sticky top-0 z-30 border-b border-border bg-bg/95 pt-[env(safe-area-inset-top)] backdrop-blur lg:pt-0">
+        <header id="patient-sticky-header" className="sticky top-0 z-30 border-b border-border bg-[color-mix(in_srgb,var(--bg)_95%,transparent)] pt-[env(safe-area-inset-top)] backdrop-blur lg:pt-0">
         <div className="flex items-center gap-2 px-4 py-1.5">
           {/* Browser back exists, but on an installed PWA there is no chrome to
               show it, and on desktop the note fills the window. */}

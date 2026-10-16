@@ -299,7 +299,7 @@ export function PatientCard({
                 onDragHandleDown(event, patient.id);
               }}
               onClick={(event) => event.preventDefault()}
-              className="-my-1 -ml-1 min-h-tap min-w-tap shrink-0 cursor-grab touch-none text-token-fg/50"
+              className="-my-1 -ml-1 min-h-tap min-w-tap shrink-0 cursor-grab touch-none text-[color-mix(in_srgb,var(--token-fg)_70%,transparent)]"
             >
               <span aria-hidden="true">⠿</span>
             </button>
@@ -329,7 +329,7 @@ export function PatientCard({
                 event.stopPropagation();
                 onToggleCollapsed(patient.id);
               }}
-              className="-my-1 -mr-1 min-h-tap min-w-tap shrink-0 text-base font-semibold leading-none text-token-fg/60"
+              className="-my-1 -mr-1 min-h-tap min-w-tap shrink-0 text-base font-semibold leading-none text-[color-mix(in_srgb,var(--token-fg)_70%,transparent)]"
             >
               +
             </button>
@@ -564,7 +564,7 @@ export function PatientCard({
         recorded on the discharge wash. This is the same colour at a different
         weight, which is a separation the eye reads without having to be told.
       */}
-      <div className="-mx-2.5 -mt-2.5 mb-1.5 border-b border-token-fg/10 bg-black/10 px-2.5 py-1.5 dark:bg-white/[0.04]">
+      <div className="-mx-2.5 -mt-2.5 mb-1.5 border-b border-[color-mix(in_srgb,var(--token-fg)_10%,transparent)] bg-black/10 px-2.5 py-1.5 dark:bg-white/[0.04]">
       {/*
         TWO COLUMNS: everything that wraps on the left, the eye fixed on the
         right. It is not decoration — it is what stops the blank row.
@@ -608,7 +608,7 @@ export function PatientCard({
               onDragHandleDown(event, patient.id);
             }}
             onClick={(event) => event.preventDefault()}
-            className="-my-1 -ml-1 min-h-tap min-w-tap shrink-0 cursor-grab touch-none text-token-fg/50"
+            className="-my-1 -ml-1 min-h-tap min-w-tap shrink-0 cursor-grab touch-none text-[color-mix(in_srgb,var(--token-fg)_70%,transparent)]"
           >
             <span aria-hidden="true">⠿</span>
           </button>
@@ -777,7 +777,7 @@ export function PatientCard({
               event.stopPropagation();
               onToggleCollapsed(patient.id);
             }}
-            className="flex min-h-tap w-7 shrink-0 items-center justify-center text-base font-semibold leading-none text-token-fg/50"
+            className="flex min-h-tap w-7 shrink-0 items-center justify-center text-base font-semibold leading-none text-[color-mix(in_srgb,var(--token-fg)_70%,transparent)]"
           >
             −
           </button>
@@ -793,7 +793,7 @@ export function PatientCard({
               event.stopPropagation();
               onPreview(patient.id);
             }}
-            className="flex min-h-tap w-7 shrink-0 items-center justify-center text-token-fg/50"
+            className="flex min-h-tap w-7 shrink-0 items-center justify-center text-[color-mix(in_srgb,var(--token-fg)_70%,transparent)]"
           >
             <IconEye width={16} height={16} />
           </button>

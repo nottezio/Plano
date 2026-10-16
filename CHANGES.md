@@ -1,5 +1,58 @@
 # Plano — CHANGES
 
+## `2026-10-16.4` — Desktop tabs: full-height hit area; dead Tailwind opacity classes
+
+Avi (screenshot, dark theme): "This tab looks weird, the half size makes it
+hard to click, and the clicked effect looks weird."
+
+Two root causes, neither in the 16.3 drag code:
+
+- **Half-height tabs.** The tab had `h-[calc(100%-4px)]`, but its parent (the
+  tablist) had no height of its own (`items-end` in the strip, auto height). A
+  percentage height against an auto-height parent resolves to `auto`, so each
+  tab was its content's height (~28 of 44 px). The empty band above it was the
+  strip's drag region: pressing there dragged the window instead of choosing
+  the tab. Fix: the tablist `self-stretch`es to the strip's height, plus
+  `-mb-px` so the tabs reach over the strip's bottom border; tabs are `h-full`.
+  The active tab (opaque `bg-bg`) now covers the border and joins the page.
+- **The bright outline on inactive tabs.** 16.3 styled them
+  `border-border/60 bg-bg/40 hover:bg-bg/70`. The theme colours are bare CSS
+  variables (`border: 'var(--border)'` in tailwind.config.js), and Tailwind 3
+  cannot apply an opacity modifier to those: the classes **generate no CSS**.
+  The border fell back to preflight's `#e5e7eb` (near-white in the dark
+  theme) and the fill to transparent. This had been found once before
+  (`--accent-soft`, see tokens.css) and fixed case by case, so it came back.
+  - **Guard:** `src/styles/tailwindAlpha.test.ts` reads the var-backed colour
+    names from tailwind.config.js and fails on any `<utility>-<colour>/<n>` in
+    src. It found five more dead classes, all now written as
+    `color-mix(in_srgb,var(--x)_N%,transparent)` arbitrary values:
+    `TopBar` and `PatientPage` sticky headers `bg-bg/95` (they had been fully
+    transparent under the blur), `FormatToolbar` `bg-surface/95`,
+    `CensusVerifier` `ring-accent/40` / `ring-danger/40` (fell back to
+    Tailwind's default blue ring), `NotePage` `border-danger/40` (fell back to
+    grey); and on the board's patient cards, `text-token-fg/50`–`/60` (six
+    places: secondary lines meant to be dimmed rendered at full strength),
+    `border-token-fg/10` (a divider that fell back to near-white) and
+    `ProgressStrip` `bg-token-accent/25` (an invisible track). The dimmed text
+    is set at 70 %, not the authored 50–60 %: half-strength text on a tinted
+    card would fall below readable contrast.
+  - Inactive tabs are now a soft fill (`--fg` at 7 %, 12 % on hover), no border.
+- The tab button's focus ring is drawn inside (`-outline-offset-2`), since the
+  tablist clips overflow.
+
+Wrong turn considered: making every theme colour alpha-capable
+(`color-mix(... <alpha-value> ...)` in the config). Rejected: every colour in
+the app would then depend on `color-mix` (Chrome 111 / Safari 16.2); on an
+older phone the whole UI would lose its colours, where now only a tint does.
+
+Checked in Chromium (installed mode emulated, dark): tabs 40 px tall from the
+strip top to the page edge; a press 3 px below a tab's top edge opens it.
+
+Not done: light-theme screenshot of the strip (same tokens; no change expected).
+
+Verify: typecheck, lint (0 warnings), 2487 tests (172 files), version, contrast, a11y,
+build — green.
+
 ## `2026-10-16.3` — Desktop tabs: drag to reorder; larger tabs
 
 Avi (screenshot of the installed app): "Able for the tab to be draggable to

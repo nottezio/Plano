@@ -476,7 +476,7 @@ function MenuButton({
       onClick={onClick}
       className={[
         'min-h-tap w-full rounded-lg border px-3 py-2 text-left text-sm font-medium',
-        danger ? 'border-danger/40 text-danger' : 'border-border',
+        danger ? 'border-[color-mix(in_srgb,var(--danger)_40%,transparent)] text-danger' : 'border-border',
       ].join(' ')}
     >
       {children}

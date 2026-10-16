@@ -12,7 +12,7 @@ import { SyncPill } from './SyncPill';
  */
 export function TopBar({ title, badge }: { title: string; badge?: ReactNode }): JSX.Element {
   return (
-    <header className="sticky top-0 z-30 border-b border-border bg-bg/95 pt-[env(safe-area-inset-top)] backdrop-blur">
+    <header className="sticky top-0 z-30 border-b border-border bg-[color-mix(in_srgb,var(--bg)_95%,transparent)] pt-[env(safe-area-inset-top)] backdrop-blur">
       {/* 48 px, not 56 (2026-10-08 mobile revamp): it is a label and a status
           dot's worth of information, on every screen. */}
       <div className="flex min-h-12 items-center gap-2 px-4 py-1.5 lg:py-2">

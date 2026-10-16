@@ -20,7 +20,7 @@ export function ProgressStrip({ progress }: { progress: ChecklistProgress }): JS
           data-color-token={segment.colorToken}
           className={[
             'h-1.5 flex-1 rounded-full',
-            segment.done ? 'bg-token-accent' : 'bg-token-accent/25',
+            segment.done ? 'bg-token-accent' : 'bg-[color-mix(in_srgb,var(--token-accent)_25%,transparent)]',
           ].join(' ')}
         />
       ))}
