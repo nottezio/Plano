@@ -97,3 +97,50 @@ describe('pemeriksaan fisik snippet', () => {
     expect(out).toContain('Edema ekstremitas tidak ada, akral hangat, CTR < 2 detik');
   });
 });
+
+describe('A / T + Plan / Laboratorium snippets (added 18 Oct 2026)', () => {
+  it('heads the lab block with the floor and the note’s day, like the EKG', () => {
+    expect(byId('laboratorium').build('2026-10-18', 'PJT Lantai 5')).toBe(
+      '*Laboratorium PJT Lt. 5 (18-10-2026)*\n',
+    );
+    expect(byId('laboratorium').build('2026-10-18', 'CVCU')).toBe('*Laboratorium CVCU (18-10-2026)*\n');
+    expect(byId('laboratorium').build('2026-10-18')).toBe('*Laboratorium PJT Lt. ... (18-10-2026)*\n');
+  });
+
+  it('writes the A heading the way the templates do', () => {
+    expect(byId('assess').build('2026-10-18')).toBe('*Mohon izin kami assess dengan:*\n- \n');
+  });
+
+  it('writes T and Plan together, both bullets empty', () => {
+    expect(byId('terapi-plan').build('2026-10-18')).toBe(
+      '*Mohon izin kami terapi dengan:*\n- \n\n*Plan:*\n- \n',
+    );
+  });
+
+  it('puts the caret on the FIRST empty bullet, not the end of the block', () => {
+    const snippet = byId('terapi-plan');
+    const result = insertSnippet('O\n', 2, snippet.build('2026-10-18'), snippet.caretAfter);
+    expect(result.text.slice(0, result.selectionStart)).toBe('O\n*Mohon izin kami terapi dengan:*\n- ');
+    expect(result.selectionEnd).toBe(result.selectionStart);
+  });
+
+  it('accounts for the line break added mid-sentence when placing the caret', () => {
+    const snippet = byId('assess');
+    const result = insertSnippet('ekg sinus', 9, snippet.build('2026-10-18'), snippet.caretAfter);
+    expect(result.text).toBe('ekg sinus\n*Mohon izin kami assess dengan:*\n- \n');
+    expect(result.text.slice(0, result.selectionStart)).toBe('ekg sinus\n*Mohon izin kami assess dengan:*\n- ');
+  });
+
+  it('lists the blocks in note order: S, O, studies, A, T/Plan', () => {
+    expect(SNIPPETS.map((s) => s.id)).toEqual([
+      'keluhan-pendek',
+      'anamnesis',
+      'pemeriksaan-fisik',
+      'faktor-risiko',
+      'ekg',
+      'laboratorium',
+      'assess',
+      'terapi-plan',
+    ]);
+  });
+});

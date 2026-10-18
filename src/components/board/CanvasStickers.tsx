@@ -1,6 +1,8 @@
 import { useState } from 'react';
 import { createPortal } from 'react-dom';
 
+import { ADD_ITEM, CLOSES_MENU } from './BoardAddMenu';
+
 import type { BoardStickersState } from '@/hooks/useBoardStickers';
 import {
   STICKER_GROUPS,
@@ -226,17 +228,17 @@ export function CardStickers({
 export function CanvasStickers({
   surfaceRef,
   enabled,
-  actionsSlot,
+  addSlot,
   state,
 }: {
   /** The canvas surface, for placing a new sticker in its coordinates. */
   surfaceRef: React.RefObject<HTMLDivElement>;
   enabled: boolean;
   /**
-   * The board toolbar, where the button belongs — beside Rapikan and
-   * Urungkan, not pinned over the corner of a card.
+   * The header's "Tambah" menu (18 Oct 2026; before that its own button in
+   * the toolbar). Not pinned over the corner of a card.
    */
-  actionsSlot?: HTMLElement | null;
+  addSlot?: HTMLElement | null;
   state: BoardStickersState;
 }): JSX.Element | null {
   const [picking, setPicking] = useState(false);
@@ -264,28 +266,25 @@ export function CanvasStickers({
 
   return (
     <>
-      {actionsSlot
+      {addSlot
         ? createPortal(
-            <span className="relative shrink-0">
+            <span className="block">
               <button
                 type="button"
                 onClick={() => setPicking((open) => !open)}
                 aria-expanded={picking}
                 title="Tempel penanda di papan"
-                className="min-h-tap shrink-0 rounded-lg px-2.5 text-xs font-medium text-fg hover:bg-bg-subtle [@media(pointer:fine)]:min-h-9"
+                className={ADD_ITEM}
               >
-                🚩 Penanda
+                <span aria-hidden="true">🚩</span> Penanda
+                <span aria-hidden="true" className="ml-auto text-xs text-fg-muted">{picking ? '▴' : '▾'}</span>
               </button>
               {picking ? (
-                /*
-                  Hangs BELOW the toolbar, over the top of the board. It covers
-                  cards only while it is open, and closes as soon as a marker
-                  is picked.
-                */
+                /* Opens inside the Tambah menu, under its item. */
                 <div
                   role="group"
                   aria-label="Pilih penanda"
-                  className="absolute right-0 top-full z-50 mt-1 max-h-[70vh] w-[288px] space-y-2 overflow-y-auto rounded-lg border border-border bg-surface p-2 shadow-lg"
+                  className="space-y-2 px-2.5 pb-2 pt-1"
                 >
                   <p className="text-[11px] text-fg-muted">
                     Seret penanda ke atas kartu agar ikut berpindah bersama kartunya.
@@ -300,6 +299,7 @@ export function CanvasStickers({
                           <button
                             key={sticker.emoji}
                             type="button"
+                            {...CLOSES_MENU}
                             onClick={() => place(sticker.emoji)}
                             aria-label={`Tempel ${sticker.label}`}
                             title={sticker.label}
@@ -314,7 +314,7 @@ export function CanvasStickers({
                 </div>
               ) : null}
             </span>,
-            actionsSlot,
+            addSlot,
           )
         : null}
 

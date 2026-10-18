@@ -861,7 +861,7 @@ export function BodyEditor({
             // `date` is the note's clinical day, not today: a note written
             // after midnight for the previous day carries that day's date.
                   withSelection((text, start) =>
-                    insertSnippet(text, start, snippet.build(date, ward)),
+                    insertSnippet(text, start, snippet.build(date, ward), snippet.caretAfter),
                   );
                 }
               : undefined

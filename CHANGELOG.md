@@ -5,6 +5,11 @@ Catatan teknis lengkap (akar masalah, perbaikan) ada di CHANGES.md.
 
 Entri teratas harus versi yang sedang dirilis; tes gagal bila belum ditulis.
 
+## `2026-10-18.1`
+- **Sisipkan punya tiga blok baru:** *Mohon izin kami assess dengan*, *Mohon izin kami terapi dengan* sekaligus *Plan*, dan judul **Laboratorium** bertanggal dengan lantai pasien (mis. *Laboratorium PJT Lt. 5 (18-10-2026)*), sama seperti judul EKG. Kursor langsung berada di poin kosong pertama, siap diketik.
+- **Menu Sisipkan kini berurutan seperti SOAP:** keluhan, anamnesis, pemeriksaan fisik, faktor risiko, EKG, Laboratorium, assess, terapi + Plan. Menu bisa digulir bila layar pendek.
+- **Papan: Catatan, Shelf, Penanda, dan Gambar kini satu tombol "+ Tambah".** Baris atas papan jadi lebih lega. Penanda dibuka di dalam menu yang sama.
+
 ## `2026-10-17.1`
 - **Rak kini bernama Shelf, dan Pasien saya serta Titipan punya shelf masing-masing.** Shelf yang dibuat di Titipan hanya tampil di Titipan.
 - **Kartu di dalam shelf bisa diurutkan.** Seret kartu lewat pegangan ⠿ ke posisi lain di shelf; garis biru menunjukkan tempat jatuhnya.

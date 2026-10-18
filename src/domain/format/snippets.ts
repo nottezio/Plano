@@ -37,6 +37,15 @@ export interface Snippet {
    * patient's ward as recorded (e.g. `PJT Lantai 4`), when known.
    */
   build: (date: ClinicalDate, ward?: string) => string;
+  /**
+   * Where the caret lands: right after the first occurrence of this text in
+   * the block. Absent → after the whole block.
+   *
+   * Added 18 Oct 2026 for the A and T/Plan blocks: their heading is the easy
+   * part, and the caret has to sit on the empty bullet underneath it — for
+   * Terapi + Plan, on the FIRST bullet (terapi), not the Plan one at the end.
+   */
+  caretAfter?: string;
 }
 
 /**
@@ -51,25 +60,6 @@ export function ekgPlace(ward: string | undefined): string {
 }
 
 export const SNIPPETS: readonly Snippet[] = [
-  {
-    id: 'ekg',
-    label: 'EKG hari ini',
-    /**
-     * The heading only, dated, with the reading left blank.
-     *
-     * The date is the note's clinical day rather than today's wall clock: a
-     * note written after midnight for the previous day must carry that day's
-     * date, which is the same rule the rest of the app follows.
-     */
-    /**
-     * The floor comes from the patient's ward (Avi, 2026-10-02):
-     * `*EKG PJT Lt. 4 (01-10-2026)*`. It used to be left blank because a
-     * patient can move between floors; the ward on the record is right on
-     * almost every day, and the heading stays editable on the day it is not.
-     * With no ward recorded the blank `...` is kept, so nothing is guessed.
-     */
-    build: (date, ward) => `*EKG ${ekgPlace(ward)} (${numericDate(date)})*\n`,
-  },
   {
     id: 'keluhan-pendek',
     label: 'Keluhan pendek',
@@ -139,6 +129,57 @@ export const SNIPPETS: readonly Snippet[] = [
         '',
       ].join('\n'),
   },
+  {
+    id: 'ekg',
+    label: 'EKG hari ini',
+    /**
+     * The heading only, dated, with the reading left blank.
+     *
+     * The date is the note's clinical day rather than today's wall clock: a
+     * note written after midnight for the previous day must carry that day's
+     * date, which is the same rule the rest of the app follows.
+     */
+    /**
+     * The floor comes from the patient's ward (Avi, 2026-10-02):
+     * `*EKG PJT Lt. 4 (01-10-2026)*`. It used to be left blank because a
+     * patient can move between floors; the ward on the record is right on
+     * almost every day, and the heading stays editable on the day it is not.
+     * With no ward recorded the blank `...` is kept, so nothing is guessed.
+     */
+    build: (date, ward) => `*EKG ${ekgPlace(ward)} (${numericDate(date)})*\n`,
+  },
+  {
+    id: 'laboratorium',
+    label: 'Laboratorium hari ini',
+    /**
+     * Same rule as the EKG heading (Avi, 18 Oct 2026): the floor from the
+     * patient's ward, the note's clinical day, blank `...` when no ward is
+     * recorded. The corpus also writes `*Laboratorium PJT (dd-mm-yyyy)*`
+     * without the floor; with it, the heading says where the sample was taken,
+     * which matters when a patient moved from IGD or CVCU the same day.
+     */
+    build: (date, ward) => `*Laboratorium ${ekgPlace(ward)} (${numericDate(date)})*\n`,
+  },
+  {
+    id: 'assess',
+    label: 'Mohon izin kami assess dengan',
+    /** The A heading exactly as every built-in template writes it. */
+    build: () => '*Mohon izin kami assess dengan:*\n- \n',
+    caretAfter: ':*\n- ',
+  },
+  {
+    id: 'terapi-plan',
+    label: 'Mohon izin kami terapi dengan + Plan',
+    /**
+     * T and Plan together because they are written together: no follow-up in
+     * the corpus has one without the other. Both bullets left empty — the
+     * templates' default "Pantau tanda vital" line is not added here, since a
+     * block inserted into an existing note should not carry a plan item the
+     * resident did not choose.
+     */
+    build: () => '*Mohon izin kami terapi dengan:*\n- \n\n*Plan:*\n- \n',
+    caretAfter: ':*\n- ',
+  },
 ];
 
 /**
@@ -153,11 +194,15 @@ export function insertSnippet(
   text: string,
   caret: number,
   snippet: string,
+  caretAfter?: string,
 ): { text: string; selectionStart: number; selectionEnd: number } {
   const before = text.slice(0, caret);
   const needsBreak = before.length > 0 && !before.endsWith('\n');
-  const block = `${needsBreak ? '\n' : ''}${snippet}`;
+  const lead = needsBreak ? '\n' : '';
+  const block = `${lead}${snippet}`;
   const next = `${before}${block}${text.slice(caret)}`;
-  const at = caret + block.length;
+  const mark = caretAfter ? snippet.indexOf(caretAfter) : -1;
+  const at =
+    mark >= 0 ? caret + lead.length + mark + caretAfter!.length : caret + block.length;
   return { text: next, selectionStart: at, selectionEnd: at };
 }

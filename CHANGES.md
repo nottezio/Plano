@@ -1,5 +1,55 @@
 # Plano — CHANGES
 
+## `2026-10-18.1` — Sisipkan: A, T + Plan, Laboratorium; board "+ Tambah" menu
+
+Avi: "More sisipkan bagian: Mohon izin kami assess dengan; Mohon izin kami
+terapi dengan and Plan; Laboratorium header according to the patient's
+lantai"; "combine Gambar, Penanda, Shelf and Catatan in 1 button to save
+space in the main header".
+
+- **Three new snippets** (`domain/format/snippets.ts`):
+  - `laboratorium`: `*Laboratorium PJT Lt. N (dd-mm-yyyy)*`, built exactly like
+    the EKG heading (`ekgPlace` + the note's clinical day; blank `...` with no
+    ward).
+  - `assess`: `*Mohon izin kami assess dengan:*` + an empty bullet, the
+    templates' own wording.
+  - `terapi-plan`: `*Mohon izin kami terapi dengan:*` + bullet, blank line,
+    `*Plan:*` + bullet. Without the templates' "Pantau tanda vital" line: a
+    block dropped into an existing note should not carry a plan item nobody
+    chose.
+- **Caret placement.** `insertSnippet` always left the caret after the
+  block. That was fine for the old blocks, which end where you keep typing,
+  but wrong for T + Plan: the caret would sit under Plan, not under terapi.
+  A snippet can now name `caretAfter` (the text the caret follows); the
+  offset accounts for the line break added mid-sentence (tested).
+- **Menu order** follows the note (S → O → studies → A → T/Plan). The menu
+  gets `max-h` + scroll: 8 items opening upward overflowed the top of a short
+  screen, which `overflow-hidden` with no max-height would have clipped.
+- **Board header.** Root cause of the crowding: each canvas layer (drawing,
+  stickers, shelves) portalled its own button into the header row, so every
+  new board feature cost one header slot. Now the header has a second slot
+  inside one menu (`components/board/BoardAddMenu.tsx`), and those layers
+  portal there: Catatan (page-owned), Shelf, Gambar, Penanda. Undo and Rapikan
+  stay in the row; they act on the arrangement and are not "add" actions.
+  - The panel is always mounted and only hidden, because unmounting it
+    would remove the portal target.
+  - Closing on an item click is a native DOM listener on `[data-closes-menu]`
+    (pattern 4). React events from a portal bubble through the React tree,
+    not the DOM tree, so a React `onClick` on the panel never sees them.
+  - The Penanda picker opens inline under its item instead of hanging below
+    its own button.
+- Checked in Chromium (harness with the real CanvasDrawing and
+  CanvasStickers): the menu opens; Penanda expands; a marker, Shelf, or a
+  click outside closes it; Gambar shows "Selesai menggambar" while drawing;
+  no console errors.
+
+Not done: the phone board's "Aksi lain" sheet is unchanged (it never had
+these four in its row). A Penanda picker left open stays open the next time
+the menu opens.
+
+Verify: typecheck, lint (0 warnings), 2516 tests (176 files), version, contrast, a11y,
+build — green.
+
 ## `2026-10-17.1` — Shelf: reorder inside, one set per board view, renamed; List Maker sticky tabs; Tempel box movable
 
 Avi: "Unable to drag to reorder the items inside Rak"; "the Rak should be

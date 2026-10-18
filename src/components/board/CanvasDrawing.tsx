@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 
+import { ADD_ITEM, CLOSES_MENU } from './BoardAddMenu';
+
 import {
   DRAW_COLORS,
   STROKE_OPACITY,
@@ -44,13 +46,14 @@ const BUTTON =
 export function CanvasDrawing({
   surfaceRef,
   enabled,
-  actionsSlot,
+  addSlot,
   state,
 }: {
   surfaceRef: React.RefObject<HTMLDivElement>;
   /** False while searching or selecting: the drawing stays, drawing does not. */
   enabled: boolean;
-  actionsSlot?: HTMLElement | null;
+  /** The header's "Tambah" menu, where the Gambar toggle goes (18 Oct 2026). */
+  addSlot?: HTMLElement | null;
   state: BoardDrawingState;
 }): JSX.Element | null {
   const [active, setActive] = useState(false);
@@ -176,17 +179,19 @@ export function CanvasDrawing({
     there, and that row is one line already nearly full (search, order,
     Rapikan, Penanda, + Catatan, Format): opening Gambar pushed half of it
     past the right edge (Avi, 2026-10-08). They now float at the bottom of
-    the screen, where they can wrap and never move the toolbar.
+    the screen, where they can wrap and never move the toolbar. Since 18 Oct
+    2026 the toggle itself is an item in the header's "Tambah" menu.
   */
   const toggle = (
     <button
       type="button"
       onClick={() => setActive((on) => !on)}
       aria-pressed={active}
+      {...CLOSES_MENU}
       title="Gambar di latar papan (tersimpan di perangkat ini)"
-      className={`${BUTTON} ${active ? 'bg-[var(--accent-soft)] text-accent' : 'text-fg'}`}
+      className={`${ADD_ITEM} ${active ? 'text-accent' : ''}`}
     >
-      ✏️ {active ? 'Selesai' : 'Gambar'}
+      <span aria-hidden="true">✏️</span> {active ? 'Selesai menggambar' : 'Gambar'}
     </button>
   );
 
@@ -266,7 +271,7 @@ export function CanvasDrawing({
 
   return (
     <>
-      {actionsSlot && enabled ? createPortal(toggle, actionsSlot) : null}
+      {addSlot && enabled ? createPortal(toggle, addSlot) : null}
       {active ? createPortal(tools, document.body) : null}
 
       <svg

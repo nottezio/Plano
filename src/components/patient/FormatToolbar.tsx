@@ -295,7 +295,7 @@ function Menu({ children }: { children: ReactNode }): JSX.Element {
   return (
     <div
       role="menu"
-      className="absolute bottom-full left-0 z-30 mb-2 w-72 max-w-[calc(100vw-2rem)] overflow-hidden rounded-xl border border-border bg-surface p-1 shadow-2xl"
+      className="absolute bottom-full left-0 z-30 mb-2 max-h-[min(60vh,30rem)] w-72 max-w-[calc(100vw-2rem)] overflow-y-auto overscroll-contain rounded-xl border border-border bg-surface p-1 shadow-2xl"
     >
       {children}
     </div>

@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
+
+import { ADD_ITEM, CLOSES_MENU } from './BoardAddMenu';
 import type { ReactNode } from 'react';
 
 import {
@@ -53,6 +55,7 @@ export function CanvasBoard({
   renderItem,
   enabled,
   actionsSlot,
+  addSlot,
   isUncapped,
   overlay,
   renderInCard,
@@ -104,6 +107,8 @@ export function CanvasBoard({
    * owner and puts the buttons where there is already a row for them.
    */
   actionsSlot?: HTMLElement | null;
+  /** The header's "Tambah" menu, where "+ Shelf" goes (18 Oct 2026). */
+  addSlot?: HTMLElement | null;
   /**
    * Cards that ignore their height cap right now — a patient card whose note
    * is open.
@@ -537,17 +542,6 @@ export function CanvasBoard({
               <button
                 type="button"
                 onClick={() => {
-                  const { id, layout } = addShelf(columns, height - 160, scope);
-                  commit(id, layout, layouts);
-                }}
-                title="Shelf: tempat menyimpan kartu yang dilipat (mis. pasien pulang, berkas belum selesai). Seret kartu ke shelf. Pasien saya dan Titipan punya shelf sendiri."
-                className="min-h-tap shrink-0 rounded-lg px-2.5 text-xs font-medium text-fg-muted hover:bg-bg-subtle [@media(pointer:fine)]:min-h-9"
-              >
-                + Shelf
-              </button>
-              <button
-                type="button"
-                onClick={() => {
                   setUndo(layouts);
                   applyLayouts(tidy(placementIds, layouts, columns, shelfHeights));
                 }}
@@ -558,6 +552,23 @@ export function CanvasBoard({
               </button>
             </>,
             actionsSlot,
+          )
+        : null}
+      {addSlot
+        ? createPortal(
+            <button
+              type="button"
+              {...CLOSES_MENU}
+              onClick={() => {
+                const { id, layout } = addShelf(columns, height - 160, scope);
+                commit(id, layout, layouts);
+              }}
+              title="Shelf: tempat menyimpan kartu yang dilipat (mis. pasien pulang, berkas belum selesai). Seret kartu ke shelf. Pasien saya dan Titipan punya shelf sendiri."
+              className={ADD_ITEM}
+            >
+              <span aria-hidden="true">🗄️</span> Shelf
+            </button>,
+            addSlot,
           )
         : null}
 

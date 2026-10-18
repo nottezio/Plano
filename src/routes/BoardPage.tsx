@@ -14,6 +14,7 @@ import { DenahView } from '@/components/board/DenahView';
 import { ARCHIVE_REASON_LABELS } from '@/domain/archive';
 import type { ArchiveReason } from '@/domain/types';
 
+import { BoardAddMenu, ADD_ITEM, CLOSES_MENU } from '@/components/board/BoardAddMenu';
 import { CanvasBoard } from '@/components/board/CanvasBoard';
 import { StickyNoteCard } from '@/components/board/StickyNoteCard';
 import { CanvasStickers, CardStickers } from '@/components/board/CanvasStickers';
@@ -400,6 +401,7 @@ export default function BoardPage(): JSX.Element {
    * never look again.
    */
   const [canvasActions, setCanvasActions] = useState<HTMLElement | null>(null);
+  const [addSlot, setAddSlot] = useState<HTMLElement | null>(null);
   const [moreOpen, setMoreOpen] = useState(false);
   /**
    * The drag hint, shown until dismissed once. It was a permanent line of the
@@ -889,15 +891,18 @@ export default function BoardPage(): JSX.Element {
             */}
             <span ref={setCanvasActions} className="contents" />
             <span aria-hidden="true" className="h-5 w-px shrink-0 bg-border" />
-            <button
-              type="button"
-              onClick={addSticky}
-              disabled={!uid}
-              title="Tempel catatan singkat di papan"
-              className={`${CONTROL} shrink-0 rounded-lg px-2.5 text-xs font-medium text-fg hover:bg-bg-subtle`}
-            >
-              + Catatan
-            </button>
+            <BoardAddMenu slotRef={setAddSlot}>
+              <button
+                type="button"
+                {...CLOSES_MENU}
+                onClick={addSticky}
+                disabled={!uid}
+                title="Tempel catatan singkat di papan"
+                className={ADD_ITEM}
+              >
+                <span aria-hidden="true">📌</span> Catatan
+              </button>
+            </BoardAddMenu>
             <button
               type="button"
               onClick={() => setLabOpen(true)}
@@ -1115,6 +1120,7 @@ export default function BoardPage(): JSX.Element {
                 ...boardNotes.map((entry) => stickyCanvasId(entry.id)),
               ]}
               actionsSlot={canvasActions}
+              addSlot={addSlot}
               // Stickers are hidden while searching or selecting, like the
               // sticky notes and for the same reason: neither answers "which
               // patient" and neither can be ticked.
@@ -1124,13 +1130,13 @@ export default function BoardPage(): JSX.Element {
                   <CanvasDrawing
                     surfaceRef={surfaceRef}
                     enabled={showStickies}
-                    actionsSlot={canvasActions}
+                    addSlot={addSlot}
                     state={drawingState}
                   />
                   <CanvasStickers
                     surfaceRef={surfaceRef}
                     enabled={showStickies}
-                    actionsSlot={canvasActions}
+                    addSlot={addSlot}
                     state={stickerState}
                   />
                 </>
