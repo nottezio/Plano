@@ -5,6 +5,14 @@ Catatan teknis lengkap (akar masalah, perbaikan) ada di CHANGES.md.
 
 Entri teratas harus versi yang sedang dirilis; tes gagal bila belum ditulis.
 
+## `2026-10-18.2`
+- **Catatan kini terasa seperti Notion.** Ketik di awal baris: `- ` untuk poin, `1. ` untuk nomor, `[] ` untuk checklist (`[x] ` sudah dicentang), `# ` / `## ` / `### ` untuk judul, `---` untuk garis pemisah.
+- **Ketik `/` untuk memilih blok** (Teks, Judul, Daftar berpoin, Daftar bernomor, Checklist, Pemisah). Bisa diketik untuk menyaring, mis. `/che`.
+- **Daftar bisa bertingkat.** Tab / Shift+Tab (atau tombol ⇥ ⇤ di HP) untuk menjorokkan. Enter pada baris kosong keluar satu tingkat; Backspace di awal baris mengubahnya jadi teks biasa.
+- **Memindahkan baris:** di laptop, seret pegangan ⠿ di kiri baris; di HP, tombol ↑ ↓ di toolbar. Sub-baris ikut pindah.
+- **Checklist:** yang dicentang dicoret dan dipudarkan; ⋯ → **Pindahkan yang selesai ke bawah** untuk merapikan. Menempel beberapa baris ke checklist menjadi satu item per baris.
+- Ukuran teks (Kecil/Besar) diganti judul. Catatan lama tetap tampil sama, termasuk warna dan ukurannya. Perbarui Plano di HP dan laptop pada hari yang sama.
+
 ## `2026-10-18.1`
 - **Sisipkan punya tiga blok baru:** *Mohon izin kami assess dengan*, *Mohon izin kami terapi dengan* sekaligus *Plan*, dan judul **Laboratorium** bertanggal dengan lantai pasien (mis. *Laboratorium PJT Lt. 5 (18-10-2026)*), sama seperti judul EKG. Kursor langsung berada di poin kosong pertama, siap diketik.
 - **Menu Sisipkan kini berurutan seperti SOAP:** keluhan, anamnesis, pemeriksaan fisik, faktor risiko, EKG, Laboratorium, assess, terapi + Plan. Menu bisa digulir bila layar pendek.

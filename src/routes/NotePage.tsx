@@ -1,10 +1,18 @@
-import { useEffect, useMemo, useState } from 'react';
+import { Suspense, lazy, useEffect, useMemo, useState } from 'react';
 import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 
 import { AppShell } from '@/components/common/AppShell';
 import { IconClose, IconPlus, IconSearch } from '@/components/common/Icons';
 import { Sheet } from '@/components/common/Sheet';
-import { NoteEditor } from '@/components/notes/NoteEditor';
+import type { NoteMenuActions } from '@/components/notes/NoteEditor';
+
+/**
+ * Lazy (18 Oct 2026): the editor brings TipTap/ProseMirror, which only
+ * Catatan needs; it stays out of the main bundle.
+ */
+const NoteEditor = lazy(() =>
+  import('@/components/notes/NoteEditor').then((module) => ({ default: module.NoteEditor })),
+);
 import { NoteList } from '@/components/notes/NoteList';
 import {
   createScratchNote,
@@ -151,6 +159,7 @@ export default function NotePage(): JSX.Element {
 
   // ── The ⋯ menu ─────────────────────────────────────────────────────────────
   const [menuOpen, setMenuOpen] = useState(false);
+  const [menuActions, setMenuActions] = useState<NoteMenuActions>({ sinkDone: null });
   const [confirmPurge, setConfirmPurge] = useState(false);
   const [copied, setCopied] = useState(false);
 
@@ -308,6 +317,7 @@ export default function NotePage(): JSX.Element {
   );
 
   const editorPane = open ? (
+    <Suspense fallback={<p className="p-4 text-xs text-fg-faint">Memuat…</p>}>
     <NoteEditor
       key={open.id}
       uid={uid}
@@ -315,11 +325,13 @@ export default function NotePage(): JSX.Element {
       now={now}
       autoFocus={open.id === justCreated}
       onBack={wide ? undefined : closeNote}
-      onMenu={() => {
+      onMenu={(actions) => {
+        setMenuActions(actions);
         setConfirmPurge(false);
         setMenuOpen(true);
       }}
     />
+    </Suspense>
   ) : (
     <div className="flex h-full items-center justify-center p-8 text-sm text-fg-faint">
       Pilih catatan, atau buat yang baru.
@@ -408,6 +420,16 @@ export default function NotePage(): JSX.Element {
                 >
                   {open.pinned ? 'Lepas pin' : 'Pin di atas'}
                 </MenuButton>
+                {menuActions.sinkDone ? (
+                  <MenuButton
+                    onClick={() => {
+                      menuActions.sinkDone?.();
+                      setMenuOpen(false);
+                    }}
+                  >
+                    Pindahkan yang selesai ke bawah
+                  </MenuButton>
+                ) : null}
                 <MenuButton
                   onClick={() => {
                     void copyText(

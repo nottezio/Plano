@@ -223,6 +223,11 @@ export function searchNotes(notes: readonly ResolvedNote[], query: string): Reso
  */
 export function notePlainText(body: string): string {
   return body
+    // The editor writes `<li><p>text</p>` (18 Oct 2026): the paragraph inside
+    // a row is not a line of its own.
+    .replace(/(<li[^>]*>)\s*<p[^>]*>/gi, '$1')
+    .replace(/<\/p>\s*(?=<\/li>)/gi, '')
+    .replace(/<\/p>\s*(?=<ul|<ol)/gi, '\n')
     .replace(/<br\s*\/?>/gi, '\n')
     .replace(/<li[^>]*>\s*<input[^>]*type="?checkbox"?[^>]*>/gi, (match) =>
       /\schecked/i.test(match) ? '☑ ' : '☐ ',

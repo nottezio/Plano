@@ -1,5 +1,69 @@
 # Plano — CHANGES
 
+## `2026-10-18.2` — Catatan editor rebuilt on TipTap: Notion-like shortcuts, nesting, `/` menu, moving lines
+
+Avi: "revamp the Catatan tab; it feels clunky, especially the checklist and
+bullet point. Make it Notion-like." He wanted typing shortcuts, nested
+lists, a `/` menu with block handles, and better checklist behaviour.
+
+- **Root cause.** The editor was a `contentEditable` driven by
+  `document.execCommand`, with no document model. Every list behaviour the
+  browser gets wrong (Enter and Backspace in a list, ticking, lists split by
+  edits) was repaired after the fact in `checklistDom.ts` (~460 lines).
+  Nesting, block moves and a slash menu would each have been one more DOM
+  repair, which is the class of bug this editor kept producing.
+- **Fix.** TipTap 3 (ProseMirror), pinned 3.31.4, lazy-loaded with the
+  editor (chunk 46.8 KB gzip; main bundle unchanged).
+  - `components/notes/editor/schema.ts`: our own `checklist` /
+    `checklistItem` nodes write the SAME HTML as before
+    (`ul.cl > li[data-checked]`). That is why checklistProgress, notePlainText,
+    search and previews keep working, and why no note is migrated.
+  - `legacyHtml.ts` reads old markup: `<input>` checklist rows; `<font
+    color/size>` becomes colour and font-size spans.
+  - Shortcuts (`- `, `1. `, `[] `, `[x] `, `#…###`, `---`). Tab/Shift+Tab
+    nest. Enter on an empty item lifts it. Backspace at the start of an item
+    makes it text.
+  - Pasting several lines into a list gives one item per line. Paste is
+    plain text only, as before.
+  - `commands.ts`: tick by the drawn box (pointerdown, prevented, so the
+    phone keyboard does not open; does nothing when read-only); `moveBlock`
+    (↑/↓ on touch screens); `sinkDone` (⋯ → "Pindahkan yang selesai ke
+    bawah").
+  - `slash.ts` + `SlashMenu.tsx`: the `/` menu, Indonesian labels with
+    English aliases. It opens only after a space or at line start, so
+    `TD 120/80` does not open it.
+  - `BlockHandle.tsx`: a ⠿ drag handle on desktop.
+  - Sync: `useTextSync` unchanged. Only a user edit saves (`onUpdate`), so
+    opening a note never writes it (tested on every legacy fixture).
+    `replaceContent` puts another device's version in without a save and
+    keeps the caret, clamped.
+  - CSS: strike-through moved from the ticked `li` to its own `> p`, so
+    nested unticked rows under a ticked row are not struck. Added headings,
+    rule and placeholder.
+  - `checklistDom.ts` and its test are **deleted**.
+- **Wrong turns.**
+  - TipTap's own TaskItem always renders an `<input>` in a `<label>`, and
+    `extend()` cannot drop its NodeView, so we use our own nodes.
+  - `@tiptap/extension-drag-handle` statically imports the collaboration
+    packages (yjs), so we use our own ProseMirror `view.dragging` handle.
+  - The spec's custom `legacySize` mark became TipTap's FontSize (same look).
+  - `editor.commands.keyboardShortcut()` misplaced the caret after a lift in
+    tests; tests press keys through `handleKeyDown` (verified correct).
+- **Checked in Chromium** (harness with the real engine and UI, 1280 and
+  390 px). A legacy note opens with no save. `[] beli obat` → Enter → Tab
+  nests. `/che` shows the menu. Clicking a box ticks it with focus
+  unchanged. ⠿ drag moves a row to the top. ↑ on the phone reorders. No
+  console errors.
+- **Not done / unverified.**
+  - Android keyboard behaviour on a real phone (Backspace on an empty
+    item, IME composition with the `/` menu).
+  - A device still on the old build shows TipTap-saved checklists with
+    slightly taller rows until it updates.
+  - The final review was a self-review, not an independent reviewer.
+
+Verify: typecheck, lint (0 warnings), 2545 tests (180 files), version, contrast, a11y,
+build — green.
+
 ## `2026-10-18.1` — Sisipkan: A, T + Plan, Laboratorium; board "+ Tambah" menu
 
 Avi: "More sisipkan bagian: Mohon izin kami assess dengan; Mohon izin kami

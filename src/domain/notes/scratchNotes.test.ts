@@ -278,3 +278,26 @@ describe('archived jaga notes are a log (2026-09-29)', () => {
     expect(notesForView(notes, 'jaga', 'arsip').map((n) => n.id)).toEqual(['new', 'mid', 'old']);
   });
 });
+
+describe('notePlainText — editor HTML with <li><p> (added 18 Oct 2026)', () => {
+  it('gives one line per checklist row', () => {
+    expect(
+      notePlainText(
+        '<ul class="cl"><li data-checked="false"><p>a</p></li><li data-checked="true"><p>b</p></li></ul>',
+      ),
+    ).toBe('☐ a\n☑ b');
+  });
+
+  it('gives one line per nested bullet', () => {
+    expect(notePlainText('<ul><li><p>x</p><ul><li><p>y</p></li></ul></li></ul>')).toBe('• x\n• y');
+  });
+
+  it('counts nested checklist rows', () => {
+    expect(
+      checklistProgress(
+        '<ul class="cl"><li data-checked="false"><p>a</p><ul class="cl"><li data-checked="true"><p>n</p></li></ul></li>' +
+          '<li data-checked="false"><p>b</p></li></ul>',
+      ),
+    ).toEqual({ done: 1, total: 3 });
+  });
+});

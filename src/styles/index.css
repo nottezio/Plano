@@ -71,7 +71,8 @@
    *
    * The box is drawn, not an <input>: an input inside a contenteditable caught
    * the caret, broke Enter, and needed native listeners React could not give
-   * it. See `components/notes/checklistDom.ts`.
+   * it. Since 18 Oct 2026 the editor is TipTap (`components/notes/editor/`),
+   * which writes the same `ul.cl > li[data-checked]` and keeps this drawing.
    */
   .note-editor ul:not(.cl) {
     list-style: disc;
@@ -101,9 +102,48 @@
     background: var(--surface);
     cursor: pointer;
   }
-  .note-editor ul.cl > li[data-checked='true'] {
+  /* The row's own line only: a ticked row's nested rows keep their own state. */
+  .note-editor ul.cl > li[data-checked='true'] > p {
     color: var(--fg-faint);
     text-decoration: line-through;
+  }
+  .note-editor li > p {
+    margin: 0;
+  }
+  .note-editor h1 {
+    font-size: 1.5rem;
+    font-weight: 700;
+    line-height: 1.3;
+    margin: 1rem 0 0.25rem;
+  }
+  .note-editor h2 {
+    font-size: 1.25rem;
+    font-weight: 600;
+    line-height: 1.35;
+    margin: 0.875rem 0 0.25rem;
+  }
+  .note-editor h3 {
+    font-size: 1.075rem;
+    font-weight: 600;
+    margin: 0.75rem 0 0.25rem;
+  }
+  .note-editor hr {
+    border: 0;
+    border-top: 1px solid var(--border);
+    margin: 0.75rem 0;
+  }
+  .note-editor hr.ProseMirror-selectednode,
+  .note-editor .ProseMirror-selectednode {
+    outline: 2px solid color-mix(in srgb, var(--accent) 45%, transparent);
+    border-radius: 0.25rem;
+  }
+  /* Empty note: the hint, drawn, never stored. */
+  .note-editor p.is-editor-empty:first-child::before {
+    content: attr(data-placeholder);
+    color: var(--fg-faint);
+    float: left;
+    height: 0;
+    pointer-events: none;
   }
   .note-editor ul.cl > li[data-checked='true']::before {
     border-color: var(--accent);
