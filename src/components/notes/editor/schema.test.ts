@@ -85,3 +85,14 @@ describe('note schema — writing HTML', () => {
     );
   });
 });
+
+describe('richer toolbar marks and blocks (19 Oct 2026)', () => {
+  it('keeps strike, highlight and quote through a round trip', () => {
+    const html =
+      '<p><s>coret</s> <mark data-color="rgba(250, 204, 21, 0.4)" style="background-color: rgba(250, 204, 21, 0.4); color: inherit">stabilo</mark></p><blockquote><p>kutipan</p></blockquote>';
+    const out = open(html).getHTML();
+    expect(out).toMatch(/<s>coret<\/s>/);
+    expect(out).toMatch(/<mark[^>]*background-color: rgba\(250, 204, 21, 0\.4\)[^>]*>stabilo<\/mark>/);
+    expect(out).toMatch(/<blockquote><p>kutipan<\/p><\/blockquote>/);
+  });
+});

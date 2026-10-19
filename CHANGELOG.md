@@ -5,6 +5,13 @@ Catatan teknis lengkap (akar masalah, perbaikan) ada di CHANGES.md.
 
 Entri teratas harus versi yang sedang dirilis; tes gagal bila belum ditulis.
 
+## `2026-10-19.1`
+- **Catatan: toolbar lebih lengkap.** Urungkan/Ulangi, pilihan gaya blok (Teks, Judul 1–3, Kutipan), coret, panel warna teks dan **stabilo**, menu Sisipkan (garis pemisah, tanggal hari ini, tanggal dan jam), serta Bersihkan format.
+- **Catatan: pegangan ⠿ untuk menyeret baris dihapus.** Di HP, tombol ↑ ↓ tetap ada.
+- **List Maker: list CVCU/HCU/ICU kini terbaca.** List pasien CVCU (tempat di baris sendiri, identitas di baris berikutnya) dibaca per bed, lengkap dengan DPJP, residen, dan diagnosis, walau penulisnya berganti setiap hari (dr. PT, dr MAA, dr/ PT, Prof.PK, "/ ARB", "(… Pasien dr MAA)"). Bed kosong dilewati. SOAP dari "CVCU Bed 9" juga tercatat di ruang CVCU.
+- **List Maker, Residen: "Tidak ada yang pegang" kini "Tidak di-FU"** dan selalu di kotak terakhir (di aplikasi, Word, dan PDF).
+- **Residen bisa ditampilkan sebagai Kotak atau Daftar** (satu kolom ke bawah). Pilihan diingat di perangkat ini.
+
 ## `2026-10-18.2`
 - **Catatan kini terasa seperti Notion.** Ketik di awal baris: `- ` untuk poin, `1. ` untuk nomor, `[] ` untuk checklist (`[x] ` sudah dicentang), `# ` / `## ` / `### ` untuk judul, `---` untuk garis pemisah.
 - **Ketik `/` untuk memilih blok** (Teks, Judul, Daftar berpoin, Daftar bernomor, Checklist, Pemisah). Bisa diketik untuk menyaring, mis. `/che`.

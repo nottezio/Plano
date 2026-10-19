@@ -2,6 +2,7 @@ import { Extension, Node, mergeAttributes, wrappingInputRule, type AnyExtension 
 import { Plugin, PluginKey } from '@tiptap/pm/state';
 import { Placeholder } from '@tiptap/extensions';
 import StarterKit from '@tiptap/starter-kit';
+import Highlight from '@tiptap/extension-highlight';
 import { Color, FontSize, TextStyle } from '@tiptap/extension-text-style';
 
 import { tickPlugin, toggleChecklistAtCaret } from './commands';
@@ -180,8 +181,6 @@ export function noteExtensions(options: { placeholder?: string } = {}): AnyExten
       link: false,
       code: false,
       codeBlock: false,
-      blockquote: false,
-      strike: false,
       listKeymap: {
         listTypes: [
           { itemName: 'listItem', wrapperNames: ['bulletList', 'orderedList'] },
@@ -194,6 +193,8 @@ export function noteExtensions(options: { placeholder?: string } = {}): AnyExten
     TextStyle,
     Color,
     FontSize,
+    // Highlighter colours from the toolbar's palette (19 Oct 2026).
+    Highlight.configure({ multicolor: true }),
     ListBehaviour,
     PlainPaste,
     Placeholder.configure({ placeholder: options.placeholder ?? 'Ketik, atau / untuk pilihan' }),

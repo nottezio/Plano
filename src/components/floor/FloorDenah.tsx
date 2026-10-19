@@ -5,7 +5,7 @@ import { byRoute, dpjpCodeOf, dpjpTitle, isPediatri, LIST_DPJP_ORDER, PEDIATRI_D
 import { handoverLine } from '@/domain/floorList/docx';
 import { markCss, type FloorMark } from '@/domain/floorList/marks';
 import type { FloorPatient } from '@/domain/floorList/report';
-import { residentGroups } from '@/domain/floorList/residents';
+import { holderBoxes, residentGroups } from '@/domain/floorList/residents';
 import { matchesSearch } from '@/domain/floorList/search';
 import { placeBeds } from '@/domain/floorList/beds';
 import { SoapBadge } from './SoapBadge';
@@ -138,6 +138,28 @@ function RoomBox({
       </ol>
     </div>
   );
+}
+
+const HOLDER_VIEW_KEY = 'plano.listmaker.holderView';
+
+/** Residen as boxes or as one vertical list, remembered per device (19 Oct 2026). */
+function useHolderView(): ['grid' | 'list', (next: 'grid' | 'list') => void] {
+  const [view, setView] = useState<'grid' | 'list'>(() => {
+    try {
+      return localStorage.getItem(HOLDER_VIEW_KEY) === 'list' ? 'list' : 'grid';
+    } catch {
+      return 'grid';
+    }
+  });
+  const set = (next: 'grid' | 'list'): void => {
+    setView(next);
+    try {
+      localStorage.setItem(HOLDER_VIEW_KEY, next);
+    } catch {
+      // No storage: the choice lasts for this visit.
+    }
+  };
+  return [view, set];
 }
 
 function Section({ title, children }: { title: string; children: ReactNode }): JSX.Element {
@@ -372,8 +394,10 @@ export function FloorDenah({
   const order = [...LIST_DPJP_ORDER, ...extra, ...PEDIATRI_DPJP_IDS];
 
   // Residents: chief counts, one block per junior, then division patients (13.9).
-  const { chiefs, juniors, divisions } = residentGroups(shown);
-  const held = new Set(divisions.map(([name]) => name));
+  const groups = residentGroups(shown);
+  const { chiefs } = groups;
+  const boxes = holderBoxes(groups);
+  const [holderView, setHolderView] = useHolderView();
 
   return (
     <div className="space-y-6">
@@ -489,12 +513,43 @@ export function FloorDenah({
       </Section>
 
       <Section title="Residen">
-        {chiefs.length > 0 ? <p className="text-[12px]">{chiefs.map(([name, n]) => `dr. ${name} ${n}`).join(' · ')}</p> : null}
-        <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3">
-          {[...juniors, ...divisions].map(([name, list]) => (
-            <div key={name} className="rounded-lg border border-border bg-surface p-2">
+        <div className="flex flex-wrap items-center gap-2">
+          {chiefs.length > 0 ? (
+            <p className="min-w-0 flex-1 text-[12px]">{chiefs.map(([name, n]) => `dr. ${name} ${n}`).join(' · ')}</p>
+          ) : (
+            <span className="flex-1" />
+          )}
+          {/* Boxes or one vertical list (19 Oct 2026, Avi: "like the previous one"). */}
+          <div role="group" aria-label="Tampilan residen" className="flex rounded-lg border border-border p-0.5 text-[12px]">
+            {(
+              [
+                ['grid', 'Kotak'],
+                ['list', 'Daftar'],
+              ] as const
+            ).map(([value, label]) => (
+              <button
+                key={value}
+                type="button"
+                aria-pressed={holderView === value}
+                onClick={() => setHolderView(value)}
+                className={`min-h-tap rounded-md px-3 ${holderView === value ? 'bg-bg-subtle font-semibold text-fg' : 'text-fg-muted'}`}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+        </div>
+        <div
+          className={
+            holderView === 'grid'
+              ? 'grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3'
+              : 'divide-y divide-border rounded-lg border border-border bg-surface'
+          }
+        >
+          {boxes.map(({ name, list, division }) => (
+            <div key={name} className={holderView === 'grid' ? 'rounded-lg border border-border bg-surface p-2' : 'p-2'}>
               <p className="text-[14px] font-bold">
-                {name} <span className="text-[12px] font-normal text-fg-muted">({list.length}{held.has(name) ? ', tidak di-FU' : ''})</span>
+                {name} <span className="text-[12px] font-normal text-fg-muted">({list.length}{division ? ', tidak di-FU' : ''})</span>
               </p>
               {list.map((p, i) => (
                 <PatientButton key={p.key} patient={p} number={i + 1} onOpen={onOpen} />

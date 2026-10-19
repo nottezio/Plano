@@ -6,7 +6,7 @@ import { byRoute, dpjpCodeOf, dpjpTitle, isPediatri, LIST_DPJP_ORDER, PEDIATRI_D
 import { planLayout, type RoomCell } from './layout';
 import { MARK_COLORS, printedTags } from './marks';
 import type { FloorPatient } from './report';
-import { residentGroups } from './residents';
+import { holderBoxes, residentGroups } from './residents';
 import { handoverLine } from './docx';
 import { contentBox, DEFAULT_PRINT, DENAH_MARGIN_MM, LIST_GAP_MM, LIST_MARGIN_MM, type PrintSettings } from './printSettings';
 
@@ -123,11 +123,11 @@ function grid(cells: readonly string[]): string {
 }
 
 function residentsHtml(sorted: readonly FloorPatient[]): string {
-  const { chiefs, juniors, divisions } = residentGroups(sorted);
-  const held = new Set(divisions.map(([name]) => name));
-  const cells = [...juniors, ...divisions].map(
-    ([name, list]) =>
-      `<td><div class="holder">${esc(name)} (${list.length}${held.has(name) ? ', tidak di-FU' : ''})</div>${list.map((p, n) => line(patientHtml(p, { number: n + 1 }))).join('')}</td>`,
+  const groups = residentGroups(sorted);
+  const { chiefs } = groups;
+  const cells = holderBoxes(groups).map(
+    ({ name, list, division }) =>
+      `<td><div class="holder">${esc(name)} (${list.length}${division ? ', tidak di-FU' : ''})</div>${list.map((p, n) => line(patientHtml(p, { number: n + 1 }))).join('')}</td>`,
   );
   return (
     chiefs.map(([name, n]) => line(`dr. ${esc(name)}&nbsp;&nbsp;${n}`)).join('') +

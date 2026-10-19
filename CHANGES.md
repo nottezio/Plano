@@ -1,5 +1,76 @@
 # Plano — CHANGES
 
+## `2026-10-19.1` — CVCU/HCU/ICU list read; Residen "Tidak di-FU" last + list view; Catatan toolbar richer, drag handle removed
+
+Avi:
+- "CVCU list pasien is made by a different person each day, so the DPJPs
+  can't be read" (with the 19-10 05.30 list).
+- "Tidak ada yang pegang should be the last box; rename it Tidak di-FU."
+- "Add the ability to turn the holder boxes into a vertical list like before."
+- Catatan: "no need for the drag to move a line; the header toolbox is
+  rudimentary, richen it."
+
+- **CVCU list — root cause.** `readListMessage` starts a patient only on a
+  line that begins with a ward room ("415 Bed 1/…") or a DPJP code, and
+  takes the DPJP from section headings. The CVCU list has neither:
+  - the place stands on its own line ("1. CVCU Bed 1");
+  - the identity is on the next line;
+  - the DPJP is written inside the identity, a little differently each day.
+  The real 19-10 list gave **0 patients**.
+- **CVCU list — fix.** A unit place line ("CVCU Bed n", "CVCU VIP 1",
+  "CVCU Super VIP", "HCU Bed n", "ICU bed n") starts a patient and the next
+  non-blank line is its identity. `unitIdentity` reads that line by content,
+  not position, and rewrites it into the shape `listPatient` already
+  handles:
+  - the first DPJP code named is the DPJP ("dr. PT - dr. AHA", "dr MAA",
+    "dr/ PT", "Prof.PK", bare "/ ARB");
+  - the last bracket that names someone holds the residents, junior then
+    chief ("( Pemantauan )" and "( )" are not residents);
+  - a fully bracketed short entry ("(Nama RM 123/ Pasien dr MAA)") keeps
+    its name;
+  - "(BTKV)" marks a BTKV patient;
+  - "Kosong" beds, entries with neither a name nor an RM ("Pasien BTKV -
+    dr. NP"), and unit headings ("ICU : 2 pasien") are skipped.
+  - A unit room has no floor, so on a ward floor these patients show under
+    "Lantai lain" instead of being filed.
+  - `readPlace` reads the same units for SOAPs ("… di CVCU Bed 9") when no
+    ward room is named, so a SOAP and a list entry land in the same room.
+  - The real list now gives 19 patients (all occupied beds), each with the
+    DPJP written. Tested on an anonymised copy (18 tests).
+- **Residen order.** `residentGroups` keyed the unheld patients as a
+  "junior" named "Tidak ada yang pegang", so the box sat wherever its first
+  patient fell in the route order. They now have their own `unheld` field,
+  and `holderBoxes` gives the one order (juniors, divisions, then "Tidak
+  di-FU") used by the app, Word and PDF alike.
+- **Residen list view.** Kotak | Daftar switch, remembered per device
+  (`plano.listmaker.holderView`).
+- **Catatan.**
+  - The ⠿ handle (`BlockHandle`) is **deleted**; ↑/↓ stay on touch screens.
+  - The toolbar is grouped: Undo/Redo · block style (Teks, Judul 1–3,
+    Kutipan) · lists · B/I/U/S · colour + highlighter panel · Sisipkan
+    (divider, date, date + time as dd/mm/yyyy HH.mm) · Bersihkan format.
+  - The dropdowns are portalled and fixed, because the row scrolls
+    sideways on a phone and would clip them.
+  - Strike and blockquote are turned on, and Highlight (3.31.4, multicolour)
+    is added with translucent `--hl-*` tokens that read on both themes.
+- **Wrong turns.**
+  - The identity code pattern first matched "dr" and "prof" in lowercase
+    only, so "Prof. IM" won over "dr. AFG" as the DPJP.
+  - A harness check seemed to show Judul 2 erasing its text. It was the
+    harness: End does not collapse a selection in headless Chromium, so
+    Enter replaced it. With → it keeps the heading.
+- **Not done.**
+  - The day-counter banner after "Salin dari hari sebelumnya" stays. The
+    checker's own day-counter rule compares with the calendar day before
+    only, so after a gap (copying from a note older than yesterday) the
+    banner is the only warning. Merging the two means pointing the checker
+    at the last written note; that was not asked for.
+  - The CVCU list was tested on one day's format; new variants may need
+    another look.
+
+Verify: typecheck, lint (0 warnings), 2568 tests (182 files), version, contrast, a11y,
+build — green.
+
 ## `2026-10-18.2` — Catatan editor rebuilt on TipTap: Notion-like shortcuts, nesting, `/` menu, moving lines
 
 Avi: "revamp the Catatan tab; it feels clunky, especially the checklist and

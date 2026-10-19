@@ -5,10 +5,8 @@ import { IconBack, IconMore, IconPin } from '@/components/common/Icons';
 import { ConflictDialog } from '@/components/patient/ConflictDialog';
 import { patchScratchNote } from '@/data/repositories/scratchNotes.repo';
 import { displayTitle, relativeTime, type ResolvedNote } from '@/domain/notes/scratchNotes';
-import { useMediaQuery } from '@/hooks/useMediaQuery';
 import { useTextSync } from '@/hooks/useTextSync';
 
-import { BlockHandle } from './editor/BlockHandle';
 import { sinkDone } from './editor/commands';
 import { prepareLegacyHtml } from './editor/legacyHtml';
 import { noteExtensions } from './editor/schema';
@@ -85,8 +83,6 @@ export function NoteEditor({
   /** The last HTML this editor sent, so its own echo is not "a remote change". */
   const lastSent = useRef(sync.value);
   const editable = !trashed && uid !== null;
-  const fine = useMediaQuery('(pointer: fine)');
-  const frame = useRef<HTMLDivElement | null>(null);
 
   const editor = useEditor({
     extensions: [...noteExtensions(), SlashCommand.configure({ render: slashRender })],
@@ -247,8 +243,7 @@ export function NoteEditor({
         <Toolbar editor={editor} />
       ) : null}
 
-      <div ref={frame} className={`relative flex-1 ${fine && editable ? 'pl-6' : ''}`}>
-        {editor && fine && editable ? <BlockHandle editor={editor} frame={frame} /> : null}
+      <div className="flex-1">
         <EditorContent editor={editor} />
       </div>
 

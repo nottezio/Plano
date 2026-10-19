@@ -6,7 +6,7 @@ import { placeBeds } from './beds';
 import { planLayout, type RoomCell } from './layout';
 import { byRoute, dpjpCodeOf, dpjpTitle, isPediatri, LIST_DPJP_ORDER, PEDIATRI_DPJP_IDS } from './build';
 import { MARK_COLORS, printedTags } from './marks';
-import { residentGroups } from './residents';
+import { holderBoxes, residentGroups } from './residents';
 import { DEFAULT_PRINT, halfPoints, type DenahPrint, type ListPrint } from './printSettings';
 import type { FloorPatient } from './report';
 
@@ -393,10 +393,17 @@ export function denahDocumentXml(input: DenahDocInput, print: DenahPrint = DEFAU
   // Page 2: residents — a table of three columns, one cell per junior (13.7,
   // Avi: "a table, not a list", as the Residen cards in the app), with the
   // hand-filled blocks under it.
-  const { chiefs, juniors, divisions } = residentGroups(sorted);
+  const groups = residentGroups(sorted);
+  const { chiefs } = groups;
+  const boxes = holderBoxes(groups);
   const page2: string[] = chiefs.map(([name, n]) => para([{ text: `dr. ${name}  ${n}` }]));
   page2.push(
-    residentTables([...juniors, ...divisions], new Set(divisions.map(([name]) => name)), textW, holderSize),
+    residentTables(
+      boxes.map((b): [string, FloorPatient[]] => [b.name, b.list]),
+      new Set(boxes.filter((b) => b.division).map((b) => b.name)),
+      textW,
+      holderSize,
+    ),
     handoverTable(sorted, textW, holderSize),
   );
   /*

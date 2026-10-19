@@ -91,6 +91,11 @@
   --note-amber: #b45309;
   --note-green: #15803d;
   --note-blue: #1d4ed8;
+  /* Catatan highlighter (19 Oct 2026): translucent, so one set reads on light and dark. */
+  --hl-yellow: #facc1566;
+  --hl-green: #4ade8055;
+  --hl-blue: #60a5fa55;
+  --hl-pink: #f472b655;
   /* The floor's own marks (13.7, floorList/marks.ts): text on a card tinted 8%
      with the same colour; >= 4.5:1, checked by scripts/check-contrast.mjs. */
   --mark-blue: #1d4ed8;

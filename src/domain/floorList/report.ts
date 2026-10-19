@@ -135,9 +135,35 @@ function readPlace(opening: string): { room: string; bed: string; floor: string 
   let number = room?.[1] ?? '';
   // A room named, not numbered: "Kamar Super VIP", "Lt.4 Supervip".
   if (!number && /\bsuper\s*-?\s*vip\b/i.test(after)) number = roomNamed(written, 'Super VIP');
+  // A unit, not a ward room (19 Oct 2026): "CVCU Bed 9", "HCU Bed 1",
+  // "ICU bed 4", "CVCU VIP 1". Only when no ward room was named, so "dari
+  // CVCU Bed 9 ke PJT Lt.4 Kamar 417" stays 417. A unit has no floor.
+  if (!number && !written) {
+    const unit = unitPlace(after);
+    if (unit) return { room: unit.room, bed: unit.bed || (bed?.[1] ?? ''), floor: '' };
+  }
   // "PJT Kamar 417": the floor is the room's first digit.
   const floor = written || (/^\d{3}/.test(number) ? number.charAt(0) : '');
   return { room: number, bed: bed?.[1] ?? '', floor };
+}
+
+/**
+ * A CVCU/HCU/ICU place: "CVCU Bed 1" → CVCU/1, "CVCU VIP 1" → "CVCU VIP"/1,
+ * "CVCU Super VIP" / "CVCU Isolasi" → that room, no bed (19 Oct 2026).
+ */
+const UNIT = /\b(I?CVCU|HCU|ICU)\b(?:\s*(?:bed|b)\s*\.?\s*:?\s*(\w+)|\s+(super\s*-?\s*vip|vip|isolasi)\b\s*(\d*))?/i;
+
+export function unitPlace(text: string): { room: string; bed: string; rest: string } | null {
+  const match = UNIT.exec(text);
+  if (!match?.[1]) return null;
+  const unit = match[1].toUpperCase();
+  const rest = text.slice((match.index ?? 0) + match[0].length);
+  if (match[2]) return { room: unit, bed: match[2], rest };
+  if (match[3]) {
+    const label = /super/i.test(match[3]) ? 'Super VIP' : /vip/i.test(match[3]) ? 'VIP' : 'Isolasi';
+    return { room: `${unit} ${label}`, bed: match[4] ?? '', rest };
+  }
+  return { room: unit, bed: '', rest };
 }
 
 function readIdentity(lines: string[], opening: number): string {
@@ -413,6 +439,73 @@ function codeSegment(segment: string): (typeof DPJPS)[number] | null {
   return match?.[1] ? dpjpByCode(match[1]) : null;
 }
 
+/**
+ * CVCU/HCU/ICU List Pasien (19 Oct 2026). Unlike a ward list there are no
+ * DPJP headings: a numbered place line ("1. CVCU Bed 1", "16. CVCU VIP 1",
+ * "1. ICU bed 4"), then the identity on the next line with the DPJP and the
+ * residents inside it. Written by a different resident each day, so the
+ * identity is read by what it contains, not by position:
+ *   "Tn. X/…/RM …/dr. PT - dr. AHA (Bima- dr. Kepala)"
+ *   "(X RM 123/ Pasien dr MAA)"          short entry, whole line in brackets
+ *   "(BTKV) Ny. X/…/RM …/ dr AFG"        BTKV patient
+ *   "…/RM …/ ARB", "…/ dr/ PT", "…/ Prof.PK", "… ( Pemantauan ) (Sekar - dr. Kepala)"
+ * The first DPJP code named is the DPJP; the last bracket with a name in it
+ * holds the residents (junior, then chief).
+ */
+const UNIT_LINE = /^[\s*_]*\d{1,2}\s*\.+\s*((?:I?CVCU|HCU|ICU)\b.*)$/i;
+/** "ICU : 2 pasien", "HCU: 3 Pasien": a unit heading, not part of the patient above. */
+const UNIT_HEAD = /^[\s*_]*(?:I?CVCU|HCU|ICU)\b[^:\n]{0,20}:\s*\d+\s*pasien\b/i;
+/** A DPJP code as written in an identity: "dr. PT", "dr MAA", "dr/ PT", "Prof.PK", "dr.AFM". */
+const IDENTITY_CODE = /(?:[Pp]asien\s+)?\b(?:[Dd][Rr]|[Pp][Rr][Oo][Ff])\s*\.?\s*\/?\s*([A-Z]{2,4})\b/g;
+const NOT_RESIDENTS = /^\s*(?:pemantauan|btkv|kjs\b.*|)\s*$/i;
+
+/** The residents in the last bracket that names someone; '' when none. */
+function lastBracket(text: string): string {
+  const groups = [...text.matchAll(/\(([^()]*)\)/g)].map((m) => m[1] ?? '');
+  return [...groups].reverse().find((g) => /[A-Za-z]{3}/.test(g) && !NOT_RESIDENTS.test(g)) ?? '';
+}
+
+/** A unit identity line → the shape `listPatient` reads: "identity / dr.CODE - dr. Junior / dr. Chief". */
+function unitIdentity(raw: string, placeResidents: string): string {
+  let text = clean(raw);
+  // The whole entry in brackets: "(X RM 123/ Pasien dr MAA)".
+  if (/^\(.*\)$/.test(text) && !/\)\s*\(/.test(text)) text = text.slice(1, -1).trim();
+  const btkv = /\bBTKV\b/i.test(text);
+  text = text.replace(/^\(\s*BTKV\s*\)\s*/i, '');
+  const residents = lastBracket(text) || placeResidents;
+  // Brackets are notes or residents, never identity; an unclosed one at the end too.
+  text = text.replace(/\([^()]*\)/g, ' ').replace(/\(\s*$/, ' ');
+  let code = '';
+  const segments = text
+    .split('/')
+    .map((segment) => {
+      const found = [...segment.matchAll(IDENTITY_CODE)]
+        .map((m) => m[1] ?? '')
+        .filter((c) => dpjpByCode(c));
+      if (!code && found[0]) code = found[0];
+      const left = segment.replace(IDENTITY_CODE, ' ').replace(/\bpasien\b/gi, ' ').replace(/[\s-]+/g, ' ').trim();
+      // A segment that is only a code: "ARB", "PT" after "dr/" (and that "dr").
+      if (!left || /^(?:dr|prof)\.?$/i.test(left) || (dpjpByCode(left) && left.length <= 4)) {
+        if (!code && dpjpByCode(left)) code = left;
+        return '';
+      }
+      return found.length > 0 ? left : segment.trim();
+    })
+    .filter(Boolean)
+    // "X RM 123": the RM on its own, so the name is read as a name.
+    .flatMap((segment) => segment.replace(/\s+(RM\s*:?\s*\d)/i, ' / $1').split(' / '));
+  const people = residents
+    .split(/\s*(?:\/|-|,)\s*/)
+    .map((who) => who.replace(/^(?:dr\.?\s*)+/i, '').trim())
+    .filter((who) => /[A-Za-z]{2}/.test(who));
+  return (
+    segments.join(' / ') +
+    (code ? ` / dr.${code}` : '') +
+    (btkv ? ' (KJS BTKV)' : '') +
+    (people.length > 0 ? ` - ${people.map((who) => `dr. ${who}`).join(' / ')}` : '')
+  );
+}
+
 export function isListMessage(text: string): boolean {
   return /mengirimkan\s+\*?list\b/i.test(text.slice(0, 200));
 }
@@ -444,7 +537,46 @@ export function readListMessage(message: ChatMessage): FloorPatient[] {
     }
     current = null;
   };
+  /** A unit place line was read; its identity is on the next non-blank line. */
+  let unitAwaiting: { line: string; room: string; bed: string; residents: string } | null = null;
   for (const line of message.text.split('\n')) {
+    if (unitAwaiting) {
+      if (!line.trim()) continue;
+      const pending: { line: string; room: string; bed: string; residents: string } = unitAwaiting;
+      unitAwaiting = null;
+      // "Kosong": an empty bed.
+      if (/^[\s*_]*kosong[\s*_.]*$/i.test(line)) continue;
+      // "Pasien BTKV - dr. NP": no RM and no name, nobody to file.
+      if (!readRm(line) && !/\b(?:Tn|Ny|Nn|An|By|Sdri?)\b\.?/i.test(line) && !/^\s*\(/.test(line)) continue;
+      current = {
+        line: `${pending.line}\n${line}`,
+        rest: unitIdentity(line, pending.residents),
+        room: pending.room,
+        bed: pending.bed,
+        dpjp: null,
+        kjsOf: null,
+        body: [],
+      };
+      continue;
+    }
+    const unit = UNIT_LINE.exec(line);
+    const unitAt = unit?.[1] ? unitPlace(unit[1]) : null;
+    if (unitAt) {
+      flush();
+      inKjs = false;
+      const tail = unitAt.rest.trim();
+      // The identity on the same line ("1. CVCU Bed 1 / Tn. …").
+      if (/^\/\s*\S/.test(tail)) {
+        current = { line, rest: unitIdentity(tail.replace(/^\/\s*/, ''), ''), room: unitAt.room, bed: unitAt.bed, dpjp: null, kjsOf: null, body: [] };
+      } else {
+        unitAwaiting = { line, room: unitAt.room, bed: unitAt.bed, residents: lastBracket(tail) };
+      }
+      continue;
+    }
+    if (UNIT_HEAD.test(line)) {
+      flush();
+      continue;
+    }
     if (LIST_SEPARATOR.test(line)) {
       flush();
       inKjs = false;
@@ -602,7 +734,8 @@ function listPatient(input: ListLine, message: ChatMessage, n: number): FloorPat
     identity,
     room: input.room,
     bed: input.bed,
-    floor: input.room.charAt(0),
+    // A unit room ("CVCU") has no floor; a ward room's floor is its first digit.
+    floor: /^\d/.test(input.room) ? input.room.charAt(0) : '',
     // Under a KJS heading the code (if ours) is the utama; the section's DPJP is the consultant.
     dpjpId: input.kjsOf && dpjpId === input.kjsOf ? null : dpjpId,
     kjsDpjpIds: input.kjsOf ? [input.kjsOf] : [],
