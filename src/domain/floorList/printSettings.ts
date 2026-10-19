@@ -26,6 +26,8 @@ export interface DenahPrint {
   fontPt: number;
   /** Start the residents' tables on a new page. */
   residentsNewPage: boolean;
+  /** Residen as one column (the screen's "Daftar"), not three boxes a row (20 Oct 2026). */
+  residentsList: boolean;
 }
 
 export interface PrintSettings {
@@ -36,7 +38,7 @@ export interface PrintSettings {
 /** The layouts as they were before settings existed, residents page aside. */
 export const DEFAULT_PRINT: PrintSettings = {
   list: { landscape: true, columns: 4, fontPt: 6.5 },
-  denah: { landscape: false, fontPt: 7.5, residentsNewPage: false },
+  denah: { landscape: false, fontPt: 7.5, residentsNewPage: false, residentsList: false },
 };
 
 export const FONT_MIN = 5;
@@ -65,6 +67,7 @@ export function readPrintSettings(raw: string | null): PrintSettings {
         landscape: typeof denah.landscape === 'boolean' ? denah.landscape : DEFAULT_PRINT.denah.landscape,
         fontPt: fontPt(denah.fontPt, DEFAULT_PRINT.denah.fontPt),
         residentsNewPage: typeof denah.residentsNewPage === 'boolean' ? denah.residentsNewPage : DEFAULT_PRINT.denah.residentsNewPage,
+        residentsList: denah.residentsList === true,
       },
     };
   } catch {

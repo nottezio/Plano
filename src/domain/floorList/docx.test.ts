@@ -150,7 +150,7 @@ describe('Denah docx', () => {
   it('follows the print setup: residents on a new page, landscape, font size (2026-10-16)', () => {
     const own = denahDocumentXml(
       { ward: 'PJT Lantai 4', date: '2026-10-12', plan: wardPlan('PJT Lantai 4'), patients },
-      { landscape: true, fontPt: 9, residentsNewPage: true },
+      { landscape: true, fontPt: 9, residentsNewPage: true, residentsList: false },
     );
     expect(own).toContain('<w:pageBreakBefore/>');
     expect(own.slice(own.indexOf('<w:pageBreakBefore/>'))).toContain('dr. Kepala  3');
@@ -168,5 +168,22 @@ describe('Denah docx', () => {
     const file = new TextDecoder().decode(buildListDocx('isi', { landscape: false, columns: 1, fontPt: 8 }));
     expect(file).toContain('<w:sz w:val="16"/>');
     expect(file).not.toContain('<w:cols');
+  });
+});
+
+describe('Residen as a list in Word (20 Oct 2026)', () => {
+  const two = [
+    { key: 'a', rm: '1', name: 'Tn. A', identity: 'Tn. A', room: '417', bed: '1', dpjpId: 'ks', kjsDpjpIds: [], btkv: false, junior: 'Bima', chief: 'Kepala', discharge: null },
+    { key: 'b', rm: '2', name: 'Tn. B', identity: 'Tn. B', room: '418', bed: '1', dpjpId: 'ks', kjsDpjpIds: [], btkv: false, junior: 'Kirana', chief: 'Kepala', discharge: null },
+  ] as unknown as FloorPatient[];
+  const residents = (xml: string): string => xml.slice(xml.indexOf('Bima ('));
+  it('one column when the residents are a list', () => {
+    const xml = denahDocumentXml({ ward: 'PJT Lantai 4', date: '2026-10-20', plan: null, patients: two }, { ...DEFAULT_PRINT.denah, residentsList: true });
+    // Bima and Kirana are in different rows: a row ends between them.
+    expect(residents(xml).slice(0, residents(xml).indexOf('Kirana ('))).toContain('</w:tr>');
+  });
+  it('three columns by default', () => {
+    const xml = denahDocumentXml({ ward: 'PJT Lantai 4', date: '2026-10-20', plan: null, patients: two });
+    expect(residents(xml).slice(0, residents(xml).indexOf('Kirana ('))).not.toContain('</w:tr>');
   });
 });

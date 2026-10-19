@@ -50,7 +50,7 @@ describe('Denah + List as one printable page (13.12)', () => {
     expect(denahListHtml(input)).toContain('<div class="after" data-residents="">');
     const own = denahListHtml(input, {
       list: { landscape: false, columns: 2, fontPt: 8 },
-      denah: { landscape: true, fontPt: 9, residentsNewPage: true },
+      denah: { landscape: true, fontPt: 9, residentsNewPage: true, residentsList: false },
     });
     expect(own).toContain('<div class="page" data-residents="">');
     expect(own).toContain('@page { size: A4 landscape; margin: 10mm; }');
@@ -65,5 +65,22 @@ describe('Denah + List as one printable page (13.12)', () => {
     // Landscape A4 less 8 mm margins: 281 × 194 mm.
     expect(previewHtml('list', input, DEFAULT_PRINT)).toContain('width:281mm;height:194mm;columns: 4;');
     expect(previewHtml('list', input, DEFAULT_PRINT)).not.toContain('@page');
+  });
+});
+
+describe('Residen as a list follows the screen (20 Oct 2026)', () => {
+  const two = [p({ key: 'a', junior: 'Bima' }), p({ key: 'b', rm: '2', junior: 'Kirana' })];
+  const residents = (html: string): string => html.slice(html.indexOf('data-residents'));
+  it('boxes: holders three to a row', () => {
+    expect(residents(denahListHtml({ ward: 'PJT Lantai 4', date: '2026-10-20', plan: null, patients: two, listText: '' }))).toMatch(
+      /<tr><td><div class="holder">Bima[^]*?<td><div class="holder">Kirana/,
+    );
+  });
+  it('list: one holder per row', () => {
+    const html = denahListHtml(
+      { ward: 'PJT Lantai 4', date: '2026-10-20', plan: null, patients: two, listText: '' },
+      { ...DEFAULT_PRINT, denah: { ...DEFAULT_PRINT.denah, residentsList: true } },
+    );
+    expect(residents(html)).toMatch(/<tr><td><div class="holder">Bima[^]*?<\/td><\/tr><tr><td><div class="holder">Kirana/);
   });
 });

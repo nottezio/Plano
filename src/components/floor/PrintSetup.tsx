@@ -123,6 +123,14 @@ export function PrintSetup({
               detail="Mati: tabel residen langsung di bawah kotak DPJP, hemat kertas."
             />
           ) : null}
+          {kind === 'denah' ? (
+            <CheckRow
+              checked={settings.denah.residentsList}
+              onChange={(v) => set({ residentsList: v })}
+              title="Residen sebagai daftar"
+              detail="Satu kolom ke bawah, sama dengan tampilan Daftar di layar."
+            />
+          ) : null}
           <button
             type="button"
             onClick={() => setPrintSettings(kind === 'list' ? { ...settings, list: DEFAULT_PRINT.list } : { ...settings, denah: DEFAULT_PRINT.denah })}

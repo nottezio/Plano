@@ -636,3 +636,35 @@ describe('card status rail (2026-10-10)', () => {
     expect(shortStepLabel('Satu langkah dengan nama yang sangat panjang sekali')).toMatch(/…$/);
   });
 });
+
+describe('buildPreview — sub-headings inside A (20 Oct 2026)', () => {
+  it('shows the whole assessment, not the full note, when A has "Diagnosa Utama :" sub-headings', () => {
+    const body = [
+      'Tabe dokter, mohon izin melaporkan follow up pasien di PJT Lantai 4 Kamar 413 Bed 1 atas nama :',
+      '*Tn. Contoh/05 April 1976/ 50 Tahun/1000001*',
+      '*S:*',
+      '- Sekarang nyeri dada tidak ada.',
+      '*O:*',
+      'Tekanan Darah :  117/72 mmHg',
+      'Kesimpulan : Significant stenosis di LAD',
+      '*Mohon izin kami assess dengan:*',
+      'Diagnosa Utama :',
+      '- Chronic Coronary Syndrome Clinical Scenario Type I',
+      '',
+      'Diagnosa Sekunder :',
+      '- Coronary Artery Disease 1 Vessel Disease',
+      '',
+      'Problem :',
+      '- Chest Pain',
+      '',
+      '*Mohon izin kami terapi dengan:*',
+      '- Aspilet 80 mg/24 jam/Oral',
+      '*Plan:*',
+      '- Monitoring tanda vital',
+    ].join('\n');
+    const preview = buildPreview(body);
+    expect(preview.startsWith('Diagnosa Utama :')).toBe(true);
+    expect(preview).toContain('- Chest Pain');
+    expect(preview).not.toMatch(/Tekanan Darah|nyeri dada|Aspilet/);
+  });
+});

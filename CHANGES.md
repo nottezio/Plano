@@ -1,5 +1,38 @@
 # Plano — CHANGES
 
+## `2026-10-20.1` — Card preview with A sub-headings; Residen list view prints; "+ Sticky Note"
+
+Avi: (1) a board card showed the whole SOAP; (2) "the holder choice between
+boxes and list should carry to the printed/exported file"; (3) rename
+"+ Catatan" to "+ Sticky Note".
+
+- **Card preview — root cause.** `buildPreview` used the A section's
+  `text`. `parseSections` is a boundary detector that treats every
+  "Label :" line as a section, so in a note whose assessment reads
+  "Diagnosa Utama : / Diagnosa Sekunder : / Problem :", those sub-headings
+  took the lines, and A's own text was just a newline. An empty A means
+  "no assessment yet", which falls back to the whole note from S down.
+- **Card preview — fix.** For an `a` section, the preview takes the span
+  `regionsOf` gives the A group: from the heading to the next boundary
+  (Terapi/Plan), with the sub-headings inside. It is the same span
+  Salin-per-section copies, so there is no new parsing rule. Tested on an
+  anonymised copy of the note's shape.
+  - The preview is cached on the patient at write time, so a card already
+    showing the full SOAP corrects itself on the next save of that note.
+- **Residen print.** `DenahPrint.residentsList` (per device, in the print
+  settings). The Kotak/Daftar switch on screen and the new checkbox in
+  Atur cetak write the same value. The PDF (`grid(cells, 1)`) and Word
+  (`residentTables(…, asList)` → one column) read it.
+  - The 19.1 per-device key `plano.listmaker.holderView` is dropped, so a
+    "Daftar" set yesterday shows as Kotak once.
+- **Rename.** The board's + Tambah item, the phone's Aksi lain entry, the
+  phone sheet title and the menu tooltip now say Sticky Note.
+- **Not done.** No migration of stored previews: re-saving is the
+  refresh.
+
+Verify: typecheck, lint (0 warnings), 2573 tests (182 files), version, contrast, a11y,
+build — green.
+
 ## `2026-10-19.1` — CVCU/HCU/ICU list read; Residen "Tidak di-FU" last + list view; Catatan toolbar richer, drag handle removed
 
 Avi:

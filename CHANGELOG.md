@@ -5,6 +5,11 @@ Catatan teknis lengkap (akar masalah, perbaikan) ada di CHANGES.md.
 
 Entri teratas harus versi yang sedang dirilis; tes gagal bila belum ditulis.
 
+## `2026-10-20.1`
+- **Kartu pasien kembali menampilkan diagnosis.** Bila bagian assessment memakai sub-judul seperti "Diagnosa Utama :", "Diagnosa Sekunder :" atau "Problem :", kartu sebelumnya menampilkan seluruh SOAP. Kini kartu menampilkan isi assessment. Kartu yang sudah terlanjur salah akan benar sendiri setelah catatannya diubah sekali.
+- **Residen sebagai Daftar ikut ke PDF dan Word.** Pilihan Kotak/Daftar di layar kini juga mengatur cetakan (satu kolom ke bawah), dan bisa diubah juga di Atur cetak.
+- **"+ Catatan" di papan kini bernama "+ Sticky Note".**
+
 ## `2026-10-19.1`
 - **Catatan: toolbar lebih lengkap.** Urungkan/Ulangi, pilihan gaya blok (Teks, Judul 1–3, Kutipan), coret, panel warna teks dan **stabilo**, menu Sisipkan (garis pemisah, tanggal hari ini, tanggal dan jam), serta Bersihkan format.
 - **Catatan: pegangan ⠿ untuk menyeret baris dihapus.** Di HP, tombol ↑ ↓ tetap ada.

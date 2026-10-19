@@ -323,12 +323,14 @@ function residentTables(
   held: ReadonlySet<string>,
   textW: number,
   holderSize: number,
+  asList = false,
 ): string {
   const third = Math.floor(textW / 3);
-  const grid = [third, third, textW - 2 * third];
+  // One column when the screen shows Residen as a list (20 Oct 2026).
+  const grid = asList ? [textW] : [third, third, textW - 2 * third];
   const rows: Cell[][] = [];
-  for (let i = 0; i < juniors.length; i += 3) {
-    const group = juniors.slice(i, i + 3);
+  for (let i = 0; i < juniors.length; i += grid.length) {
+    const group = juniors.slice(i, i + grid.length);
     rows.push(
       grid.map((width, k) => {
         const entry = group[k];
@@ -403,6 +405,7 @@ export function denahDocumentXml(input: DenahDocInput, print: DenahPrint = DEFAU
       new Set(boxes.filter((b) => b.division).map((b) => b.name)),
       textW,
       holderSize,
+      print.residentsList,
     ),
     handoverTable(sorted, textW, holderSize),
   );

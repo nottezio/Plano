@@ -28,6 +28,7 @@ import { isIgdEntry } from '@/domain/clinicalDate';
 import { parsePatientFacts } from '@/domain/parsePatient';
 import { konsulPreview } from '@/domain/konsulReply';
 import { parseSections } from '@/domain/sections/parseSections';
+import { regionsOf } from '@/domain/format/sectionSlices';
 import { namesDiagnosis } from '@/domain/sections/diagnosisHeading';
 import { DEFAULT_SECTION_ALIASES } from '@/domain/sections/aliases';
 import type { SectionAlias } from '@/domain/types';
@@ -180,11 +181,24 @@ export function buildPreview(body: string, aliases?: readonly SectionAlias[]): s
     found an empty assessment and fell back to the note's opening: S, O and
     every investigation, which is what these cards showed.
   */
+  /*
+    A's text runs to the next boundary heading (Terapi, Plan), not to the next
+    "Label :" line (20 Oct 2026). parseSections cuts at every "Diagnosa Utama :"
+    / "Problem :" sub-heading, so A's own text was empty and the card fell back
+    to the whole note. `regionsOf` is the same span Salin-per-section uses.
+  */
+  const region =
+    assessment?.sectionId === 'a' && assessment.headerLine
+      ? regionsOf(body, resolved).find((r) => r.group === 'a' && r.start === assessment.start)
+      : undefined;
+  const assessmentText = region
+    ? body.slice(region.start + assessment!.headerLine!.length, region.end).trim()
+    : (assessment?.text.trim() ?? '');
   const source =
     assessment?.carriesContent && assessment.headerLine
       ? konsulPreview(body, assessment.headerLine, assessment.text)
-      : assessment?.text.trim()
-        ? assessment.text.trim()
+      : assessmentText
+        ? assessmentText
         : body.slice(clinicalStart(sections)).trim();
 
   return source.length > PREVIEW_LIMIT ? `${source.slice(0, PREVIEW_LIMIT)}…` : source;

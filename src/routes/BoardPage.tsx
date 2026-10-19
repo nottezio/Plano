@@ -900,7 +900,7 @@ export default function BoardPage(): JSX.Element {
                 title="Tempel catatan singkat di papan"
                 className={ADD_ITEM}
               >
-                <span aria-hidden="true">📌</span> Catatan
+                <span aria-hidden="true">📌</span> Sticky Note
               </button>
             </BoardAddMenu>
             <button
@@ -1275,7 +1275,7 @@ export default function BoardPage(): JSX.Element {
         onOpenChange={(open) => {
           if (!open) setPhoneStickyId(null);
         }}
-        title="Catatan tempel"
+        title="Sticky Note"
       >
         {phoneSticky && uid ? (
           <div className="p-3">
@@ -1287,7 +1287,7 @@ export default function BoardPage(): JSX.Element {
       <Sheet open={moreOpen} onOpenChange={setMoreOpen} title="Aksi">
         <div className="space-y-2 p-4">
           {[
-            ['+ Catatan tempel', () => addSticky()],
+            ['+ Sticky Note', () => addSticky()],
             ['Format lab', () => setLabOpen(true)],
             [dense ? 'Kartu: Normal (tampilkan diagnosis lengkap)' : 'Kartu: Ringkas (satu baris diagnosis)', () => setDense(!dense)],
             ['Pilih pasien (arsipkan / sampah)', () => setSelecting(true)],

@@ -6,6 +6,7 @@ import { handoverLine } from '@/domain/floorList/docx';
 import { markCss, type FloorMark } from '@/domain/floorList/marks';
 import type { FloorPatient } from '@/domain/floorList/report';
 import { holderBoxes, residentGroups } from '@/domain/floorList/residents';
+import { setPrintSettings, usePrintSettings } from '@/hooks/usePrintSettings';
 import { matchesSearch } from '@/domain/floorList/search';
 import { placeBeds } from '@/domain/floorList/beds';
 import { SoapBadge } from './SoapBadge';
@@ -138,28 +139,6 @@ function RoomBox({
       </ol>
     </div>
   );
-}
-
-const HOLDER_VIEW_KEY = 'plano.listmaker.holderView';
-
-/** Residen as boxes or as one vertical list, remembered per device (19 Oct 2026). */
-function useHolderView(): ['grid' | 'list', (next: 'grid' | 'list') => void] {
-  const [view, setView] = useState<'grid' | 'list'>(() => {
-    try {
-      return localStorage.getItem(HOLDER_VIEW_KEY) === 'list' ? 'list' : 'grid';
-    } catch {
-      return 'grid';
-    }
-  });
-  const set = (next: 'grid' | 'list'): void => {
-    setView(next);
-    try {
-      localStorage.setItem(HOLDER_VIEW_KEY, next);
-    } catch {
-      // No storage: the choice lasts for this visit.
-    }
-  };
-  return [view, set];
 }
 
 function Section({ title, children }: { title: string; children: ReactNode }): JSX.Element {
@@ -397,7 +376,11 @@ export function FloorDenah({
   const groups = residentGroups(shown);
   const { chiefs } = groups;
   const boxes = holderBoxes(groups);
-  const [holderView, setHolderView] = useHolderView();
+  // One setting with the print setup (20 Oct 2026): the PDF and Word follow the screen.
+  const print = usePrintSettings();
+  const holderView = print.denah.residentsList ? 'list' : 'grid';
+  const setHolderView = (next: 'grid' | 'list'): void =>
+    setPrintSettings({ ...print, denah: { ...print.denah, residentsList: next === 'list' } });
 
   return (
     <div className="space-y-6">

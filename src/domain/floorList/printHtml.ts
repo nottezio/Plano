@@ -111,18 +111,18 @@ function dpjpHtml(sorted: readonly FloorPatient[]): string {
   return grid(boxes);
 }
 
-/** Cells three to a row. */
-function grid(cells: readonly string[]): string {
+/** Cells three to a row (or `perRow`). */
+function grid(cells: readonly string[], perRow = 3): string {
   const rows: string[] = [];
-  for (let i = 0; i < cells.length; i += 3) {
-    const row = cells.slice(i, i + 3);
-    while (row.length < 3) row.push('<td></td>');
+  for (let i = 0; i < cells.length; i += perRow) {
+    const row = cells.slice(i, i + perRow);
+    while (row.length < perRow) row.push('<td></td>');
     rows.push(`<tr>${row.join('')}</tr>`);
   }
   return `<table class="grid">${rows.join('')}</table>`;
 }
 
-function residentsHtml(sorted: readonly FloorPatient[]): string {
+function residentsHtml(sorted: readonly FloorPatient[], asList: boolean): string {
   const groups = residentGroups(sorted);
   const { chiefs } = groups;
   const cells = holderBoxes(groups).map(
@@ -131,7 +131,7 @@ function residentsHtml(sorted: readonly FloorPatient[]): string {
   );
   return (
     chiefs.map(([name, n]) => line(`dr. ${esc(name)}&nbsp;&nbsp;${n}`)).join('') +
-    grid(cells) +
+    grid(cells, asList ? 1 : 3) +
     handoverHtml(sorted)
   );
 }
@@ -198,7 +198,7 @@ ${input.plan ? floorHtml(input.plan, input.ward, inRoom) : ''}
 ${strays.length > 0 ? line(`<b>${input.plan ? 'Di luar denah:' : `Pasien ${esc(input.ward)}:`}</b>`) + strays.map((p, n) => line(patientHtml(p, { number: n + 1 }))).join('') : ''}
 ${dpjpHtml(sorted)}
 <div class="legend"><span style="color:${RED}">Merah</span> H-1 – <span style="color:${GREEN}">Hijau</span> Pulang Hari ini${legendTags}.</div>
-<div class="${settings.denah.residentsNewPage ? 'page' : 'after'}" data-residents="">${residentsHtml(sorted)}</div>`;
+<div class="${settings.denah.residentsNewPage ? 'page' : 'after'}" data-residents="">${residentsHtml(sorted, settings.denah.residentsList)}</div>`;
 }
 
 const listCss = (list: PrintSettings['list']): string =>

@@ -75,7 +75,7 @@ export function BoardAddMenu({
         aria-expanded={open}
         aria-haspopup="true"
         onClick={() => setOpen((current) => !current)}
-        title="Catatan, Shelf, Penanda, Gambar"
+        title="Sticky Note, Shelf, Penanda, Gambar"
         className={`min-h-tap shrink-0 rounded-lg px-2.5 text-xs font-medium hover:bg-bg-subtle [@media(pointer:fine)]:min-h-9 ${open ? 'bg-bg-subtle text-accent' : 'text-fg'}`}
       >
         + Tambah <span aria-hidden="true">▾</span>
