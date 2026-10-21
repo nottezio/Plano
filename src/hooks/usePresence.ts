@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 
 import { clearEditing, heartbeatEditing } from '@/data/repositories/entries.repo';
 import { getDeviceId } from '@/data/deviceId';
@@ -22,23 +22,51 @@ export function usePresenceHeartbeat(
   patientId: string | undefined,
   date: ClinicalDate,
   active: boolean,
+  /** True while the user's own typing is waiting to save (`editor.dirty`). */
+  editing: boolean,
 ): void {
+  /*
+    Only while TYPING (22 Oct 2026, Firebase quota at 87%). It used to write
+    the day's entry every 30 s for as long as the page was open and visible,
+    so a laptop tab left on a patient all shift wrote ~1,000 times and every
+    listener on that entry re-read each write. Presence means "someone is
+    writing here"; a page that is only open says nothing.
+  */
+  const lastEdit = useRef(0);
+  const sent = useRef(false);
+
+  useEffect(() => {
+    if (editing) lastEdit.current = Date.now();
+  }, [editing]);
+
   useEffect(() => {
     if (!patientId || !active) return;
-
-    void heartbeatEditing(patientId, date);
+    sent.current = false;
     const timer = window.setInterval(() => {
-      if (document.visibilityState === 'visible') void heartbeatEditing(patientId, date);
+      if (presenceDue(Date.now(), lastEdit.current, document.visibilityState === 'visible')) {
+        sent.current = true;
+        void heartbeatEditing(patientId, date);
+      }
     }, HEARTBEAT_MS);
-
     return () => {
       window.clearInterval(timer);
-      void clearEditing(patientId, date);
+      if (sent.current) void clearEditing(patientId, date);
     };
   }, [patientId, date, active]);
+
+  // The first keystroke announces at once, not up to 30 s later.
+  useEffect(() => {
+    if (!editing || !patientId || !active || sent.current) return;
+    sent.current = true;
+    void heartbeatEditing(patientId, date);
+  }, [editing, patientId, date, active]);
 }
 
-/** Another device's label if it is currently editing this day, else null. */
+/** A beat is due when the page is visible and the user typed within the last two intervals. */
+export function presenceDue(now: number, lastEdit: number, visible: boolean): boolean {
+  return visible && lastEdit > 0 && now - lastEdit < HEARTBEAT_MS * 2;
+}
+
 export function otherDeviceEditing(entry: DailyEntry | null): string | null {
   const editing = entry?.editing;
   if (!editing) return null;

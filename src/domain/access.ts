@@ -33,7 +33,8 @@ export const ADMIN_UID = 'Wh7oXHHQfadqM8UWQubBi2iyj0i2';
 
 export const isAdmin = (uid: string | null | undefined): boolean => uid === ADMIN_UID;
 
-export type AccessStatus = 'pending' | 'approved' | 'revoked';
+/** `viewer` (22 Oct 2026): admitted to read List Maker lists only. */
+export type AccessStatus = 'pending' | 'approved' | 'viewer' | 'revoked';
 
 /**
  * Fields a user's own app may write to its `access` document. Anything else,
@@ -80,7 +81,7 @@ export interface AccessRecord {
  * cached. It is shown as a wait, never as a refusal: an approved resident on
  * a new phone with no signal must not be told they were rejected.
  */
-export type AccessDecision = 'allowed' | 'pending' | 'revoked' | 'unknown' | 'not-google';
+export type AccessDecision = 'allowed' | 'viewer' | 'pending' | 'revoked' | 'unknown' | 'not-google';
 
 export function decideAccess(input: {
   uid: string;
@@ -101,6 +102,7 @@ export function decideAccess(input: {
   if (!input.enforce) return 'allowed';
   if (input.status === undefined) return 'unknown';
   if (input.status === 'approved') return 'allowed';
+  if (input.status === 'viewer') return 'viewer';
   if (input.status === 'revoked') return 'revoked';
   return 'pending';
 }

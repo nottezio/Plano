@@ -512,7 +512,7 @@ export default function PatientPage(): JSX.Element {
   const [suggestionDismissed, setSuggestionDismissed] = useState(false);
 
   // SPEC 7.5 — announce presence only while the day is actually editable.
-  usePresenceHeartbeat(patientId, selected, !locked);
+  usePresenceHeartbeat(patientId, selected, !locked, editor.dirty);
   const otherDevice = otherDeviceEditing(entry);
   /**
    * Subscribed always, not only while the trail sheet is open.
@@ -521,7 +521,8 @@ export default function PatientPage(): JSX.Element {
    * before anybody opens anything — a version you must go looking for through
    * a history sheet is no easier to reach than the history sheet was.
    */
-  const revisions = useRevisions(patientId, selected, true);
+  // The 30 recent snapshots only while the trail is open (22 Oct 2026, quota); saved versions always.
+  const revisions = useRevisions(patientId, selected, trailOpen);
   const savedVersions = revisions.filter((revision) => revision.reason === 'version');
   /** Steps that apply to this patient on this day (no Order obat on the discharge day). */
   const dischargePlannedFor = patient?.dischargePlannedFor;

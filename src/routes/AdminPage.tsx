@@ -31,11 +31,12 @@ export default function AdminPage(): JSX.Element {
 
 const STATUS_LABEL: Record<AccessStatus, string> = {
   approved: 'Disetujui',
+  viewer: 'Hanya list',
   pending: 'Menunggu',
   revoked: 'Dicabut',
 };
 
-const STATUS_ORDER: Record<AccessStatus, number> = { pending: 0, approved: 1, revoked: 2 };
+const STATUS_ORDER: Record<AccessStatus, number> = { pending: 0, approved: 1, viewer: 2, revoked: 3 };
 
 type Filter = 'pending' | 'approved' | 'revoked' | 'all';
 
@@ -369,6 +370,16 @@ function AccountRow({
                 className="min-h-tap rounded-lg bg-accent px-3 text-xs font-medium text-on-accent [@media(pointer:fine)]:min-h-8"
               >
                 {record.status === 'revoked' ? 'Setujui lagi' : 'Setujui'}
+              </button>
+            ) : null}
+            {record.status !== 'viewer' ? (
+              <button
+                type="button"
+                onClick={() => onStatus('viewer')}
+                title="Hanya bisa melihat list di List Maker"
+                className="min-h-tap rounded-lg border border-border px-3 text-xs font-medium [@media(pointer:fine)]:min-h-8"
+              >
+                Hanya list
               </button>
             ) : null}
             {record.status !== 'revoked' ? (

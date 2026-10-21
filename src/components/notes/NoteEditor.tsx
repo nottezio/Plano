@@ -49,6 +49,7 @@ export function NoteEditor({
   autoFocus = false,
   onBack,
   onMenu,
+  onPopOut,
 }: {
   uid: string | null;
   note: ResolvedNote;
@@ -58,6 +59,8 @@ export function NoteEditor({
   /** Phone only: back to the list. Absent in the two-pane layout. */
   onBack?: (() => void) | undefined;
   onMenu: (actions: NoteMenuActions) => void;
+  /** Open this note in the small window (desktop). Absent inside that window. */
+  onPopOut?: (() => void) | undefined;
 }): JSX.Element {
   const noteRef = useRef(note);
   noteRef.current = note;
@@ -201,6 +204,21 @@ export function NoteEditor({
             : displayTitle({ title: '', body: sync.value })}
           className="min-h-tap min-w-0 flex-1 rounded-lg bg-transparent px-2 text-lg font-semibold outline-none placeholder:font-normal placeholder:text-fg-faint focus:bg-bg-subtle"
         />
+        {onPopOut && !trashed ? (
+          <button
+            type="button"
+            aria-label="Buka di jendela kecil"
+            title="Buka di jendela kecil (tetap di atas SIMGOS)"
+            onClick={() => {
+              sync.flush();
+              flushTitle();
+              onPopOut();
+            }}
+            className="flex min-h-tap min-w-tap shrink-0 items-center justify-center rounded-lg text-fg-muted hover:bg-bg-subtle"
+          >
+            <span aria-hidden="true" className="text-base">⧉</span>
+          </button>
+        ) : null}
         {!trashed ? (
           <button
             type="button"

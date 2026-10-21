@@ -23,6 +23,8 @@ import { useMediaQuery } from '@/hooks/useMediaQuery';
 
 /** Patient boxes open at once on a wide screen; the oldest closes first. */
 const MAX_OPEN = 4;
+import { useViewerOnly } from '@/components/auth/viewerOnly';
+import { DischargeSuggestions } from '@/components/floor/DischargeSuggestions';
 import { useEditions, useMyFloors, useRestorePoints, useRoster } from '@/hooks/useFloor';
 import { useSession } from '@/store/useSession';
 
@@ -58,7 +60,8 @@ export default function ListMakerPage(): JSX.Element {
     setParams(p, { replace: true });
   };
   const { roster, state: rosterState } = useRoster(floor?.id ?? null);
-  const editions = useEditions(floor?.id ?? null);
+  // All 60 only where they are listed or analysed; elsewhere the latest few (22 Oct 2026, quota).
+  const editions = useEditions(floor?.id ?? null, tab === 'riwayat' || tab === 'analisis' ? 60 : 10);
   // Read only where they can be used: an edit member on Riwayat.
   const restorePoints = useRestorePoints(tab === 'riwayat' && floor && canEdit(floor, uid) ? floor.id : null);
   // "Pasien baru" (13.10): not on the last list sent before this date.
@@ -105,7 +108,9 @@ export default function ListMakerPage(): JSX.Element {
   }
   const patientOf = (key: string): FloorPatient | null =>
     view.active.find((p) => p.key === key) ?? view.left.find((p) => p.key === key)?.report ?? null;
-  const editable = floor ? canEdit(floor, uid) : false;
+  const viewer = useViewerOnly();
+  // A list viewer reads only (22 Oct 2026), whatever role the list gave them; the rules agree.
+  const editable = floor && !viewer ? canEdit(floor, uid) : false;
 
   // New floor form.
   const [name, setName] = useState('PJT Lantai 4');
@@ -214,7 +219,12 @@ export default function ListMakerPage(): JSX.Element {
           </Callout>
         ) : null}
 
-        {state === 'ready' && (floors.length === 0 || showCreate) ? (
+        {state === 'ready' && viewer && floors.length === 0 ? (
+          <Callout tone="info" title="Belum ada list">
+            Akun ini hanya untuk melihat list. Minta pemilik list mengundang email {user?.email ?? 'Anda'} di tab Setelan list.
+          </Callout>
+        ) : null}
+        {state === 'ready' && !viewer && (floors.length === 0 || showCreate) ? (
           <section className="max-w-md space-y-3 rounded-2xl border border-border bg-surface p-4">
             <h2 className="text-sm font-semibold">Buat list baru</h2>
             <p className="text-xs text-fg-muted">
@@ -248,10 +258,14 @@ export default function ListMakerPage(): JSX.Element {
                 p.set('f', id);
                 setParams(p, { replace: true });
               }}
-              onNewFloor={() => {
-                setName('');
-                setShowCreate(true);
-              }}
+              onNewFloor={
+                viewer
+                  ? undefined
+                  : () => {
+                      setName('');
+                      setShowCreate(true);
+                    }
+              }
               date={date}
               onDate={setDate}
               chiefs={editable ? chiefsOf(floor.chiefs) : null}
@@ -296,6 +310,9 @@ export default function ListMakerPage(): JSX.Element {
               </div>
             ) : null}
 
+            {(tab === 'denah' || tab === 'list') && editable ? (
+              <DischargeSuggestions floor={floor} roster={roster} active={view.active} date={date} myName={myName} onOpen={setOpen} />
+            ) : null}
             {tab === 'denah' ? (
               view.active.length === 0 ? (
                 <p className="text-sm text-fg-muted">Belum ada pasien di list.{editable ? ' Tempel pesan SOAP di tab Tempel.' : ''}</p>

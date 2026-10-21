@@ -1,3 +1,6 @@
+import ListMakerPage from '@/routes/ListMakerPage';
+
+import { ViewerOnly } from './viewerOnly';
 import { useEffect, useState, type ReactNode } from 'react';
 
 import { Footer } from '@/components/common/Footer';
@@ -57,6 +60,15 @@ export function AccessGate({ children }: { children: ReactNode }): JSX.Element {
   if (!uid) return <>{children}</>;
 
   if (decision === 'allowed') return <>{children}</>;
+
+  // List viewer: the List Maker alone, read-only; the rest of the app never mounts.
+  if (decision === 'viewer') {
+    return (
+      <ViewerOnly.Provider value>
+        <ListMakerPage />
+      </ViewerOnly.Provider>
+    );
+  }
 
   if (decision === 'unknown') {
     return (

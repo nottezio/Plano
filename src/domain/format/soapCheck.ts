@@ -55,7 +55,8 @@ export type SoapFindingKind =
   | 'therapy-also-finished'
   | 'ekg-ticked-missing'
   | 'heparin-without-aptt'
-  | 'warfarin-without-inr';
+  | 'warfarin-without-inr'
+  | 'post-pci-labs';
 
 /**
  * How urgent, which is also the order they are listed in:
@@ -573,6 +574,7 @@ export function checkSoap(input: SoapCheckInput): SoapFinding[] {
   }
 
   findings.push(...checkAnticoagulantMonitoring(body, plan));
+  findings.push(...checkPostPciLabs(body, plan));
 
   if (input.context) findings.push(...checkContext(body, input.context));
 
@@ -984,6 +986,41 @@ function checkAnticoagulantMonitoring(body: string, plan: ReadonlyArray<{ line: 
     findings.push({ kind: rule.kind, level: 'cek', message: rule.message, anchor: text, at: hit.offset + hit.line.indexOf(text) });
   }
   return findings;
+}
+
+/**
+ * A PCI planned in the Plan, or a recent "post PCI H-1 / hari ke-2 / POD 1",
+ * with DR, Ureum, Kreatinin not in the Plan or HbA1c nowhere in the note
+ * (Avi, 22 Oct 2026). An old PCI in the history ("post PCI di LAD (2022)")
+ * and a refused or cancelled one do not count.
+ */
+function checkPostPciLabs(body: string, plan: ReadonlyArray<{ line: string; offset: number }>): SoapFinding[] {
+  const pci = /\b(?:PCI|PTCA|POBA)\b|angioplasti/i;
+  const off = /\b(?:batal|dibatalkan|tunda|ditunda|menolak|tolak|stop)\b/i;
+  const planned = plan.find(({ line }) => pci.test(line) && !off.test(line) && !/\bpost\b|\bpasca\b/i.test(line));
+  const recent = body
+    .split('\n')
+    .find((line) => /\b(?:post|pasca)\s+(?:primary\s+)?(?:PCI|PTCA|POBA)\b/i.test(line) && /\bH\s*-?\s*\d\b|hari\s+ke|\bPOD\b/i.test(line));
+  if (!planned && !recent) return [];
+  const planText = plan.map(({ line }) => line).join('\n');
+  const missing = [
+    ['DR', /\bDR\b|darah\s+rutin/i.test(planText)],
+    ['Ur', /\bur(?:eum)?\b/i.test(planText)],
+    ['Cr', /\bcr\b|kreatinin|creatinin/i.test(planText)],
+    ['HbA1c', /hba1c/i.test(body)],
+  ]
+    .filter(([, present]) => !present)
+    .map(([name]) => name);
+  if (missing.length === 0) return [];
+  const anchorLine = (planned?.line ?? recent ?? '').trim();
+  return [
+    {
+      kind: 'post-pci-labs',
+      level: 'cek',
+      message: `PCI direncanakan/baru dilakukan, tapi belum ada cek ${missing.join(', ')}.`,
+      ...(planned ? { anchor: anchorLine, at: planned.offset + planned.line.indexOf(anchorLine) } : anchorFor(body, anchorLine.slice(0, 40))),
+    },
+  ];
 }
 
 /**

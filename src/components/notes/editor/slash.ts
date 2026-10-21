@@ -2,12 +2,14 @@ import { Extension, type Editor, type Range } from '@tiptap/core';
 import { PluginKey } from '@tiptap/pm/state';
 import Suggestion, { type SuggestionOptions } from '@tiptap/suggestion';
 
+import { lineToToggle } from './commands';
+
 /**
  * The `/` menu's items (added 18 Oct 2026). Labels are Indonesian; the
  * aliases let an English word find the same item (`/todo`, `/heading`).
  */
 export interface SlashItem {
-  id: 'text' | 'h1' | 'h2' | 'h3' | 'bullet' | 'number' | 'checklist' | 'divider';
+  id: 'text' | 'h1' | 'h2' | 'h3' | 'bullet' | 'number' | 'checklist' | 'toggle' | 'divider';
   label: string;
   aliases: readonly string[];
   run(editor: Editor, range: Range): void;
@@ -29,6 +31,10 @@ export const SLASH_ITEMS: readonly SlashItem[] = [
     aliases: ['todo', 'checkbox', 'centang', 'tugas'],
     run: (e, r) => at(e, r).toggleList('checklist', 'checklistItem').run(),
   },
+  { id: 'toggle', label: 'Toggle', aliases: ['dropdown', 'lipat', 'details', 'collapse'], run: (e, r) => {
+      at(e, r).run();
+      lineToToggle(e);
+    } },
   { id: 'divider', label: 'Pemisah', aliases: ['divider', 'garis', 'hr', 'line'], run: (e, r) => at(e, r).setHorizontalRule().run() },
 ];
 

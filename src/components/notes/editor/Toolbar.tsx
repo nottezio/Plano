@@ -5,7 +5,7 @@ import { useEditorState } from '@tiptap/react';
 
 import { useMediaQuery } from '@/hooks/useMediaQuery';
 
-import { moveBlock } from './commands';
+import { lineToToggle, moveBlock } from './commands';
 import { listItemTypeAtCaret } from './schema';
 import { stampText } from './stamp';
 
@@ -265,6 +265,7 @@ export function Toolbar({ editor }: { editor: Editor }): JSX.Element {
 
       {open === 'insert' ? (
         <Popover anchor={anchors.current.insert} onClose={() => setOpen(null)} label="Sisipkan">
+          <MenuRow onClick={done(() => void lineToToggle(editor))}>Toggle (bisa dilipat)</MenuRow>
           <MenuRow onClick={done(() => chain().setHorizontalRule().run())}>Garis pemisah</MenuRow>
           <MenuRow onClick={done(() => chain().insertContent(stampText(new Date(), false)).run())}>
             Tanggal hari ini <span className="text-fg-faint">· {stampText(new Date(), false)}</span>
@@ -337,7 +338,8 @@ function Popover({
     if (!anchor) return;
     const rect = anchor.getBoundingClientRect();
     const width = 248;
-    setPlace({ top: rect.bottom + 4, left: Math.max(8, Math.min(rect.left, window.innerWidth - width - 8)) });
+    const view = anchor.ownerDocument.defaultView ?? window;
+    setPlace({ top: rect.bottom + 4, left: Math.max(8, Math.min(rect.left, view.innerWidth - width - 8)) });
   }, [anchor]);
 
   useEffect(() => {
@@ -350,13 +352,15 @@ function Popover({
       if (event.key === 'Escape') onClose();
     };
     const onScroll = (): void => onClose();
-    document.addEventListener('pointerdown', onDown);
-    document.addEventListener('keydown', onKey);
-    window.addEventListener('resize', onScroll);
+    // The anchor's document: the toolbar may be in the mini window (22 Oct 2026).
+    const doc = anchor?.ownerDocument ?? document;
+    doc.addEventListener('pointerdown', onDown);
+    doc.addEventListener('keydown', onKey);
+    (doc.defaultView ?? window).addEventListener('resize', onScroll);
     return () => {
-      document.removeEventListener('pointerdown', onDown);
-      document.removeEventListener('keydown', onKey);
-      window.removeEventListener('resize', onScroll);
+      doc.removeEventListener('pointerdown', onDown);
+      doc.removeEventListener('keydown', onKey);
+      (doc.defaultView ?? window).removeEventListener('resize', onScroll);
     };
   }, [anchor, onClose]);
 
@@ -371,7 +375,7 @@ function Popover({
     >
       {children}
     </div>,
-    document.body,
+    (anchor?.ownerDocument ?? document).body,
   );
 }
 

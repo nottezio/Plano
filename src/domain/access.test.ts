@@ -86,3 +86,12 @@ describe('firestore.rules is Google-only too', () => {
     expect(RULES).toMatch(/function allowed\(\)[^}]*signedInWithGoogle\(\)/);
   });
 });
+
+describe('list viewer (22 Oct 2026)', () => {
+  it('a viewer gets the viewer decision while access is enforced', () => {
+    expect(decideAccess({ uid: 'someone', enforce: true, status: 'viewer', google: true })).toBe('viewer');
+  });
+  it('enforcement off still lets everyone in fully, as before', () => {
+    expect(decideAccess({ uid: 'someone', enforce: false, status: 'viewer', google: true })).toBe('allowed');
+  });
+});

@@ -5,6 +5,15 @@ Catatan teknis lengkap (akar masalah, perbaikan) ada di CHANGES.md.
 
 Entri teratas harus versi yang sedang dirilis; tes gagal bila belum ditulis.
 
+## `2026-10-22.1`
+- **Hemat kuota Firebase.** Aplikasi kini jauh lebih sedikit membaca data: tanda "sedang mengetik" hanya dikirim saat benar-benar mengetik, riwayat perubahan hanya dimuat saat dibuka, dan riwayat List Maker hanya dimuat penuh di tab Riwayat/Analisis.
+- **SOAP checker: post PCI.** Bila PCI direncanakan atau pasien post PCI, Plano mengingatkan bila belum ada cek DR, Ur, Cr, dan HbA1c.
+- **Akun "Hanya list".** Admin bisa menerima pengguna baru hanya untuk melihat list pasien (tanpa SOAP). Mereka melihat list yang mengundang mereka, tanpa bisa mengubah.
+- **List Maker: saran H-1 kini terlihat jelas** di atas list, lengkap dengan tombol Tandai dan Abaikan.
+- **Catatan: Toggle** (bagian yang bisa dilipat, seperti Notion). Ketik /toggle atau pilih dari menu Sisipkan.
+- **Catatan di jendela kecil.** Tombol ⧉ membuka catatan di jendela kecil yang selalu di atas, jadi bisa menulis sambil melihat SIMGOS (Chrome/Edge di komputer).
+- **Ikon aplikasi baru.**
+
 ## `2026-10-20.1`
 - **Kartu pasien kembali menampilkan diagnosis.** Bila bagian assessment memakai sub-judul seperti "Diagnosa Utama :", "Diagnosa Sekunder :" atau "Problem :", kartu sebelumnya menampilkan seluruh SOAP. Kini kartu menampilkan isi assessment. Kartu yang sudah terlanjur salah akan benar sendiri setelah catatannya diubah sekali.
 - **Residen sebagai Daftar ikut ke PDF dan Word.** Pilihan Kotak/Daftar di layar kini juga mengatur cetakan (satu kolom ke bawah), dan bisa diubah juga di Atur cetak.

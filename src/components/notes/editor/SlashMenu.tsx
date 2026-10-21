@@ -70,11 +70,13 @@ const SlashMenu = forwardRef<SlashMenuHandle, SlashMenuProps>(function SlashMenu
 /** Place the popup under the caret, inside the viewport. */
 function place(element: HTMLElement, rect: DOMRect | null | undefined): void {
   if (!rect) return;
-  const width = Math.min(240, window.innerWidth - 16);
+  // The editor's own window: the note may be open in the mini window (22 Oct 2026).
+  const view = element.ownerDocument.defaultView ?? window;
+  const width = Math.min(240, view.innerWidth - 16);
   element.style.width = `${width}px`;
-  element.style.left = `${Math.max(8, Math.min(rect.left, window.innerWidth - width - 8))}px`;
+  element.style.left = `${Math.max(8, Math.min(rect.left, view.innerWidth - width - 8))}px`;
   const below = rect.bottom + 6;
-  const room = window.innerHeight - below;
+  const room = view.innerHeight - below;
   element.style.top = room > 200 ? `${below}px` : `${Math.max(8, rect.top - 6 - Math.min(320, element.offsetHeight || 320))}px`;
 }
 
@@ -85,10 +87,11 @@ export const slashRender: SlashRender = () => {
 
   return {
     onStart: (props) => {
-      host = document.createElement('div');
+      const doc = props.editor.view.dom.ownerDocument;
+      host = doc.createElement('div');
       host.className =
         'fixed z-[70] max-h-80 overflow-y-auto rounded-xl border border-border bg-surface p-1 shadow-lg';
-      document.body.appendChild(host);
+      doc.body.appendChild(host);
       renderer = new ReactRenderer(SlashMenu, { props, editor: props.editor });
       host.appendChild(renderer.element);
       place(host, props.clientRect?.());

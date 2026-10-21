@@ -64,12 +64,12 @@ export function useRoster(floorId: string | null): { roster: RosterPatient[]; st
 }
 
 /** Sent lists, newest first (12.12). */
-export function useEditions(floorId: string | null): Edition[] {
+export function useEditions(floorId: string | null, count = 60): Edition[] {
   const [editions, setEditions] = useState<Edition[]>([]);
   useEffect(() => {
     if (!floorId) return undefined;
-    return subscribeEditions(floorId, setEditions, (e) => console.error('[floors] editions', e));
-  }, [floorId]);
+    return subscribeEditions(floorId, setEditions, (e) => console.error('[floors] editions', e), count);
+  }, [floorId, count]);
   return editions;
 }
 

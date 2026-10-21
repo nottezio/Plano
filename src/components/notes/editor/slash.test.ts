@@ -20,13 +20,14 @@ describe('filterSlash', () => {
     expect(ids('todo')).toEqual(['checklist']);
     expect(ids('judul')).toEqual(['h1', 'h2', 'h3']);
     expect(ids('bullet')).toEqual(['bullet']);
-    expect(ids('')).toHaveLength(8);
+    expect(ids('')).toHaveLength(9);
+    expect(ids('dropdown')).toEqual(['toggle']);
     expect(ids('zzz')).toEqual([]);
   });
 
   it('labels are exactly the spec’s', () => {
     expect(SLASH_ITEMS.map((i) => i.label)).toEqual([
-      'Teks', 'Judul 1', 'Judul 2', 'Judul 3', 'Daftar berpoin', 'Daftar bernomor', 'Checklist', 'Pemisah',
+      'Teks', 'Judul 1', 'Judul 2', 'Judul 3', 'Daftar berpoin', 'Daftar bernomor', 'Checklist', 'Toggle', 'Pemisah',
     ]);
   });
 });
@@ -40,6 +41,7 @@ describe('slash items run', () => {
     ['bullet', 'bulletList'],
     ['number', 'orderedList'],
     ['checklist', 'checklist'],
+    ['toggle', 'details'],
     ['divider', 'horizontalRule'],
   ];
   it.each(cases)('%s turns the block into %s and removes the typed /query', (id, nodeType) => {

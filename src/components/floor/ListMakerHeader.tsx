@@ -28,7 +28,8 @@ export function ListMakerHeader({
   floors: ReadonlyArray<{ id: string; name: string }>;
   floorId: string;
   onPickFloor: (id: string) => void;
-  onNewFloor: () => void;
+  /** Absent for a list viewer, who cannot create lists. */
+  onNewFloor?: (() => void) | undefined;
   date: string;
   onDate: (date: string) => void;
   /** null: the chiefs are not editable here. */
@@ -43,9 +44,11 @@ export function ListMakerHeader({
             {f.name}
           </ChoiceChip>
         ))}
-        <ChoiceChip active={false} onClick={onNewFloor}>
+        {onNewFloor ? (
+          <ChoiceChip active={false} onClick={onNewFloor}>
           + List baru
         </ChoiceChip>
+        ) : null}
       </ScrollStrip>
 
       <div className="grid grid-cols-1 gap-2 min-[420px]:grid-cols-[minmax(0,11rem)_minmax(0,1fr)] sm:max-w-xl">

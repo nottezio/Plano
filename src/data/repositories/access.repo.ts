@@ -25,7 +25,7 @@ const toDate = (value: unknown): Date | null =>
   value && typeof (value as Timestamp).toDate === 'function' ? (value as Timestamp).toDate() : null;
 
 const asStatus = (value: unknown): AccessStatus =>
-  value === 'approved' || value === 'revoked' ? value : 'pending';
+  value === 'approved' || value === 'viewer' || value === 'revoked' ? value : 'pending';
 
 function toRecord(uid: string, data: Record<string, unknown>): AccessRecord {
   const stats = data.stats as Record<string, unknown> | undefined;

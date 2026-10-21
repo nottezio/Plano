@@ -15,6 +15,7 @@ import {
   where,
   type DocumentData,
   type Unsubscribe,
+  getCountFromServer,
 } from 'firebase/firestore';
 
 import { getDeviceId } from '../deviceId';
@@ -587,37 +588,15 @@ export async function deleteVersion(
 
 async function pruneRevisions(patientId: string, date: ClinicalDate): Promise<void> {
   try {
-    /**
-     * Query the population being capped, not a mixed window filtered after.
-     *
-     * This used to fetch the newest `CAP + 10` revisions of ANY kind and drop
-     * saved versions from the result. The window sized itself for the cap
-     * while the cap counted only automatic snapshots — two different
-     * populations — so every saved version displaced an autosave out of the
-     * window. With fifteen versions on a day, the window held twenty-five
-     * autosaves, `slice(30)` returned nothing, and forty autosaves sat
-     * unpruned: the cap stopped working entirely, silently, and it got worse
-     * the more versions were saved.
-     *
-     * Asking only for the prunable reasons makes the window and the cap count
-     * the same thing, so the cap holds no matter how many versions exist.
-     * `in` rather than `!=` because Firestore's inequality would force the
-     * ordering to start with `reason` and lose the `at` ordering the prune
-     * depends on to remove the OLDEST.
-     */
-    const snapshot = await getDocs(
-      query(
-        revisionsCol(patientId, date),
-        where('reason', 'in', PRUNABLE_REASONS),
-        orderBy('at', 'desc'),
-        limit(REVISION_CAP + 10),
-      ),
-    );
-    // Pruning the oldest snapshots past the cap is the one place a hard delete
-    // is correct: these are derived safety copies, not user-authored notes,
-    // and they are removed newest-last so the recent trail always survives.
-    // Saved versions ARE user-authored, so `prunableRevisions` holds them back
-    // — see there for why they are excluded before the cap rather than after.
+    /*
+      Counted first (one read per 1,000 index entries), and pruned only when
+      PRUNE_SLACK over the cap (22 Oct 2026). It used to read up to 40
+      full-text snapshots after EVERY autosave to delete at most one.
+    */
+    const prunable = query(revisionsCol(patientId, date), where('reason', 'in', PRUNABLE_REASONS));
+    const count = (await getCountFromServer(prunable)).data().count;
+    if (count <= REVISION_CAP + PRUNE_SLACK) return;
+    const snapshot = await getDocs(query(prunable, orderBy('at', 'desc'), limit(count)));
     const excess = prunableRevisions(
       snapshot.docs.map((entry) => ({ ref: entry.ref, ...(entry.data() as EntryRevision) })),
     );
@@ -627,11 +606,20 @@ async function pruneRevisions(patientId: string, date: ClinicalDate): Promise<vo
   }
 }
 
+/** How far past the cap snapshots may run before a prune: one big read every 10 saves, not a read of 40 on each. */
+const PRUNE_SLACK = 10;
+
 export function subscribeRevisions(
   patientId: string,
   date: ClinicalDate,
   callback: (revisions: EntryRevision[]) => void,
   onError: (error: Error) => void,
+  /**
+   * The newest autosave snapshots too. Only while the trail is open (22 Oct
+   * 2026): every patient page used to read up to 30 full-text snapshots just
+   * to show the handful of saved versions.
+   */
+  withRecent = true,
 ): Unsubscribe {
   /**
    * TWO subscriptions, because the two populations have different lifetimes.
@@ -675,7 +663,9 @@ export function subscribeRevisions(
     onError,
   );
 
-  const stopRecent = onSnapshot(
+  const stopRecent = !withRecent
+    ? () => undefined
+    : onSnapshot(
     query(revisionsCol(patientId, date), orderBy('at', 'desc'), limit(REVISION_CAP)),
     (snapshot) => {
       recent = snapshot.docs.map((entry) => ({ id: entry.id, ...entry.data() }) as EntryRevision);

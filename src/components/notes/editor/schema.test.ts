@@ -2,6 +2,7 @@
 import { afterEach, describe, expect, it } from 'vitest';
 import type { Editor, JSONContent } from '@tiptap/core';
 
+import { lineToToggle } from './commands';
 import { LEGACY_FIXTURES, makeEditor } from './testEditor';
 
 let editor: Editor | null = null;
@@ -94,5 +95,23 @@ describe('richer toolbar marks and blocks (19 Oct 2026)', () => {
     expect(out).toMatch(/<s>coret<\/s>/);
     expect(out).toMatch(/<mark[^>]*background-color: rgba\(250, 204, 21, 0\.4\)[^>]*>stabilo<\/mark>/);
     expect(out).toMatch(/<blockquote><p>kutipan<\/p><\/blockquote>/);
+  });
+});
+
+describe('toggle block (22 Oct 2026)', () => {
+  it('turns a line into a toggle and keeps it through a round trip', async () => {
+    const ed = open('<p>Lab kemarin</p>');
+    ed.commands.setTextSelection(3);
+    expect(lineToToggle(ed)).toBe(true);
+    const html = ed.getHTML();
+    expect(html).toMatch(/<details[^>]*><summary>Lab kemarin<\/summary><div data-type="detailsContent"><p><\/p><\/div><\/details>/);
+    // Caret at the end of the title, ready to type or press Enter into the body.
+    expect(ed.state.selection.$from.parent.type.name).toBe('detailsSummary');
+    // Created open, so its body can be written into straight away (the view opens it on the next tick).
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(html).toMatch(/<details class="toggle" open="">/);
+    expect(ed.view.dom.querySelector('[data-type="detailsContent"]')?.hasAttribute('hidden')).toBe(false);
+    const again = open(html).getHTML();
+    expect(again).toBe(html);
   });
 });

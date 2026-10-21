@@ -2,6 +2,7 @@ import { Extension, Node, mergeAttributes, wrappingInputRule, type AnyExtension 
 import { Plugin, PluginKey } from '@tiptap/pm/state';
 import { Placeholder } from '@tiptap/extensions';
 import StarterKit from '@tiptap/starter-kit';
+import { Details, DetailsContent, DetailsSummary } from '@tiptap/extension-details';
 import Highlight from '@tiptap/extension-highlight';
 import { Color, FontSize, TextStyle } from '@tiptap/extension-text-style';
 
@@ -195,6 +196,10 @@ export function noteExtensions(options: { placeholder?: string } = {}): AnyExten
     FontSize,
     // Highlighter colours from the toolbar's palette (19 Oct 2026).
     Highlight.configure({ multicolor: true }),
+    // Toggle blocks, Notion-style (22 Oct 2026). Open/closed is kept in the note.
+    Details.configure({ persist: true, HTMLAttributes: { class: 'toggle' } }),
+    DetailsSummary,
+    DetailsContent,
     ListBehaviour,
     PlainPaste,
     Placeholder.configure({ placeholder: options.placeholder ?? 'Ketik, atau / untuk pilihan' }),

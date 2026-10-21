@@ -15,6 +15,8 @@ import { Footer } from './Footer';
 import { RouteAnnouncer } from './RouteAnnouncer';
 import { IosInstallHint } from './IosInstallHint';
 import { TabBar } from './TabBar';
+import { SignOutButton } from '@/components/auth/SignOutButton';
+import { useViewerOnly } from '@/components/auth/viewerOnly';
 import { TopBar } from './TopBar';
 import { UpdateBanner } from './UpdateBanner';
 import { ClipboardPill } from './ClipboardPill';
@@ -89,6 +91,7 @@ export function AppShell({
   /** A mark beside the phone title, e.g. Helper's WIP. */
   titleBadge?: ReactNode;
 }): JSX.Element {
+  const viewer = useViewerOnly();
   usePrivacyGuard();
   useRestoreScroll();
   // SPEC 18 — blur the moment the app is backgrounded. The class has existed
@@ -167,7 +170,7 @@ export function AppShell({
         Lompat ke konten
       </a>
 
-      <TabBar />
+      {viewer ? <ViewerBar /> : <TabBar />}
       <div className="flex min-w-0 flex-1 flex-col">
         {/* Phone and tablet only. On desktop the sidebar carries both the
             section name and the sync state, so this row was 56 px of chrome
@@ -240,5 +243,18 @@ function OutboxNotice(): JSX.Element | null {
         Tutup
       </button>
     </div>
+  );
+}
+
+/** The list viewer's whole navigation: the app's name and a way out (22 Oct 2026). */
+function ViewerBar(): JSX.Element {
+  return (
+    <nav
+      aria-label="Navigasi"
+      className="fixed inset-x-0 bottom-0 z-40 flex items-center justify-between gap-2 border-t border-border bg-surface px-3 pb-[env(safe-area-inset-bottom)] sm:static sm:h-full sm:w-[76px] sm:flex-col sm:justify-start sm:border-r sm:border-t-0 sm:py-3 lg:w-[232px]"
+    >
+      <span className="text-sm font-semibold">Plano · List</span>
+      <SignOutButton className="min-h-tap rounded-lg border border-border px-3 text-xs sm:mt-auto" />
+    </nav>
   );
 }

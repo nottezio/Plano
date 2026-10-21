@@ -11,6 +11,10 @@ export function makeEditor(
   html: string,
   opts: { editable?: boolean; onUpdate?: () => void } = {},
 ): Editor {
+  // jsdom has no layout: Range rects are missing, and a deferred focus() → scrollIntoView throws after the test.
+  const empty = (): DOMRectList => Object.assign([], { item: () => null }) as unknown as DOMRectList;
+  Range.prototype.getClientRects ??= empty;
+  Range.prototype.getBoundingClientRect ??= () => new DOMRect();
   const element = document.createElement('div');
   document.body.appendChild(element);
   return new Editor({

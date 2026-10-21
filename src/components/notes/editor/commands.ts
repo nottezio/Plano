@@ -135,3 +135,32 @@ export const sinkDone: Command = (state, dispatch) => {
   if (dispatch) dispatch(state.tr.replaceWith(0, state.doc.content.size, next.content));
   return true;
 };
+
+/**
+ * The line at the caret becomes a toggle's title, with an empty body under
+ * it, caret at the end of the title — Notion's toggle (22 Oct 2026). TipTap's
+ * own `setDetails` puts the line in the BODY under an empty title.
+ */
+export function lineToToggle(editor: import('@tiptap/core').Editor): boolean {
+  const { $from } = editor.state.selection;
+  if ($from.depth < 1 || !$from.parent.isTextblock) return false;
+  const text = $from.parent.textContent;
+  const from = $from.before();
+  return editor
+    .chain()
+    .focus()
+    .insertContentAt(
+      { from, to: $from.after() },
+      {
+        type: 'details',
+        // Open, so the body under the title can be typed into at once.
+        attrs: { open: true },
+        content: [
+          { type: 'detailsSummary', ...(text ? { content: [{ type: 'text', text }] } : {}) },
+          { type: 'detailsContent', content: [{ type: 'paragraph' }] },
+        ],
+      },
+    )
+    .setTextSelection(from + 2 + text.length)
+    .run();
+}

@@ -861,3 +861,34 @@ describe('frozen counters: Selesai, stopped drugs and TS blocks (12.12)', () => 
     expect(body.slice(frozenRanges(body).at(-1)!.start)).toContain('TS HOM');
   });
 });
+
+describe('post-PCI labs (22 Oct 2026)', () => {
+  const note = (plan: string[], extra = ''): string =>
+    ['*S:*', '- tidak ada keluhan', '*O:*', 'TD 120/80', extra, '*Mohon izin kami assess dengan:*', '- CCS', '*Plan:*', ...plan].join('\n');
+  const finding = (body: string) => checkSoap({ body }).find((f) => f.kind === 'post-pci-labs');
+
+  it('asks for DR, Ur, Cr and HbA1c when a PCI is planned and none is in the Plan', () => {
+    const f = finding(note(['- Monitoring tanda vital', '- Rencana tindakan : Advance PCI (Selasa, 20 Oktober 2026)']));
+    expect(f?.message).toMatch(/DR, Ur, Cr, HbA1c/);
+    expect(f?.anchor).toMatch(/Advance PCI/);
+  });
+
+  it('is silent when DR and Ur/Cr are planned and HbA1c is already resulted', () => {
+    expect(
+      finding(note(['- Rencana tindakan : Advance PCI (20-10-2026)', '- Cek DR, Ur/Cr 24 jam post tindakan'], 'HbA1c 6.5')),
+    ).toBeUndefined();
+  });
+
+  it('names only what is missing', () => {
+    expect(finding(note(['- PCI di LAD (besok)', '- Cek DR, Ureum, Kreatinin post PCI']))?.message).toMatch(/cek HbA1c\.$/);
+  });
+
+  it('fires on a recent "post PCI H-1" too', () => {
+    expect(finding(note(['- Monitoring tanda vital'], 'Diagnosis: Post PCI 1 DES di LAD H-1'))).toBeDefined();
+  });
+
+  it('ignores an old PCI in the history and a refused PCI', () => {
+    expect(finding(note(['- Monitoring tanda vital'], '- CAD 2VD post PCI di LAD (2022)'))).toBeUndefined();
+    expect(finding(note(['- Rencana PCI (pasien menolak)']))).toBeUndefined();
+  });
+});

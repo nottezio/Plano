@@ -231,9 +231,9 @@ export function subscribeRoster(floorId: string, callback: (roster: RosterPatien
 }
 
 /** The latest sent editions (newest first). */
-export function subscribeEditions(floorId: string, callback: (editions: Edition[]) => void, onError: (e: Error) => void): Unsubscribe {
+export function subscribeEditions(floorId: string, callback: (editions: Edition[]) => void, onError: (e: Error) => void, count = 60): Unsubscribe {
   return onSnapshot(
-    query(floorEditionsCol(floorId), orderBy('createdAt', 'desc'), limit(60)),
+    query(floorEditionsCol(floorId), orderBy('createdAt', 'desc'), limit(count)),
     (snapshot) => callback(snapshot.docs.map((d) => readEdition(d.id, d.data()))),
     onError,
   );

@@ -7,16 +7,21 @@ import type { ClinicalDate, EntryRevision } from '@/domain/types';
 export function useRevisions(
   patientId: string | undefined,
   date: ClinicalDate,
-  enabled: boolean,
+  /** Also the newest autosave snapshots (the trail is open); saved versions are always included. */
+  withRecent: boolean,
 ): EntryRevision[] {
   const [revisions, setRevisions] = useState<EntryRevision[]>([]);
 
   useEffect(() => {
-    if (!patientId || !enabled) return;
-    return subscribeRevisions(patientId, date, setRevisions, (error) =>
-      console.error('[revisions] subscription failed', error),
+    if (!patientId) return;
+    return subscribeRevisions(
+      patientId,
+      date,
+      setRevisions,
+      (error) => console.error('[revisions] subscription failed', error),
+      withRecent,
     );
-  }, [patientId, date, enabled]);
+  }, [patientId, date, withRecent]);
 
   return revisions;
 }

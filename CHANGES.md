@@ -1,5 +1,22 @@
 # Plano — CHANGES
 
+## `2026-10-22.1` — Firestore quota; post-PCI check; list viewers; H-1 panel; Toggle; mini window; new icon
+
+Avi: reads at 82–87% of the 50K/day free quota with fewer than 10 users; plus six feature asks.
+
+- **Quota — root causes.** Reads scaled with screen time, not with edits:
+  - Presence heartbeat wrote every 30 s while a patient page was merely open, and every write is a read on every listener of that doc. Now it beats only while the note has unsaved typing (`presenceDue`), first keystroke immediately.
+  - The 30-revision listener ran on every patient-page open. Now the recent-revisions listener runs only while Riwayat is open (`subscribeRevisions(..., withRecent)`).
+  - `pruneRevisions` read ~40 revision docs on each autosave. Now a `getCountFromServer` (1 read per 1,000 entries) gates it; it reads and deletes only past cap + 10.
+  - List Maker subscribed to 60 editions on every open. Now 10, and 60 only on Riwayat/Analisis.
+  - **Not done:** the floor roster listener (every patient ever on the floor) — paste needs departed patients to recognise readmissions. Next candidate if quota stays high.
+- **SOAP check `post-pci-labs`.** A planned PCI/PTCA/POBA/angioplasti (not cancelled, not "post") or a body "post PCI H-n/hari ke/POD" asks for DR, Ur, Cr in the plan and HbA1c anywhere in the note. Level `cek`.
+- **List viewer.** Access status `viewer` ("Hanya list" in Admin): the app opens straight to List Maker read-only, with a bar holding only sign-out. Rules: `isViewer()`/`seesLists()` grant read on floors and their patients/editions/restores/parts/days, plus accepting an invite or leaving. Rules not compiled locally; deploy via firestore-deploy.yml.
+- **H-1 panel.** `DischargeSuggestions` lists Plan-derived H-1/pulang suggestions above the denah/list, with Tandai, Abaikan and open.
+- **Catatan Toggle.** `@tiptap/extension-details@3.31.4` (persisted open state). `/toggle` and Sisipkan → Toggle turn the current line into the toggle title.
+- **Mini window.** ⧉ on wide screens pops the open note into a Document Picture-in-Picture window (Chrome/Edge desktop; `window.open` popup elsewhere). The editor is portalled; popovers/slash menu use the editor's own document.
+- **Icon.** New master `public/icons/icon.svg` (orange gradient, white P with an ECG trace). PNGs rendered by `scripts/make-icons.mjs` (replaces the old V-glyph Python generator). Favicon matches.
+
 ## `2026-10-20.1` — Card preview with A sub-headings; Residen list view prints; "+ Sticky Note"
 
 Avi: (1) a board card showed the whole SOAP; (2) "the holder choice between

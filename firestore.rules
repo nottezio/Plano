@@ -65,6 +65,16 @@ service cloud.firestore {
       return authed() && (isAdmin() || (signedInWithGoogle() && (!accessEnforced() || isApproved())));
     }
 
+    // A list viewer (22 Oct 2026): admitted only to READ the List Maker lists
+    // it is a member of, and to accept or leave an invite. Nothing else.
+    function isViewer() {
+      return exists(/databases/$(database)/documents/access/$(request.auth.uid))
+        && get(/databases/$(database)/documents/access/$(request.auth.uid)).data.get('status', '') == 'viewer';
+    }
+    function seesLists() {
+      return allowed() || (authed() && signedInWithGoogle() && accessEnforced() && isViewer());
+    }
+
     function isMemberOf(data) {
       return allowed() && request.auth.uid in data.memberIds;
     }
@@ -347,7 +357,7 @@ service cloud.firestore {
           && request.resource.data.names.diff(resource.data.names).affectedKeys().hasOnly([request.auth.uid]);
       }
 
-      allow read: if allowed()
+      allow read: if seesLists()
         && (request.auth.uid in resource.data.memberIds || myEmail() in resource.data.inviteEmails);
       allow create: if allowed()
         && request.resource.data.ownerUid == request.auth.uid
@@ -365,7 +375,7 @@ service cloud.firestore {
         || (isFloorEditor() && changed().hasOnly(['nicknames', 'manual', 'chiefs', 'juniors', 'marks', 'updatedAt']))
         || acceptsInvite()
         || leaves()
-      );
+      ) || (seesLists() && (acceptsInvite() || leaves()));
       allow delete: if allowed() && isFloorOwner();
 
       // The roster (12.12): one document per patient. Members read; edit
@@ -375,7 +385,7 @@ service cloud.firestore {
         function floorP() {
           return get(/databases/$(database)/documents/floors/$(floorId)).data;
         }
-        allow read: if allowed() && request.auth.uid in floorP().memberIds;
+        allow read: if seesLists() && request.auth.uid in floorP().memberIds;
         allow create, update: if allowed()
           && (request.auth.uid == floorP().ownerUid
             || (request.auth.uid in floorP().roles && floorP().roles[request.auth.uid] == 'edit'))
@@ -393,7 +403,7 @@ service cloud.firestore {
         function floorE() {
           return get(/databases/$(database)/documents/floors/$(floorId)).data;
         }
-        allow read: if allowed() && request.auth.uid in floorE().memberIds;
+        allow read: if seesLists() && request.auth.uid in floorE().memberIds;
         allow create: if allowed()
           && (request.auth.uid == floorE().ownerUid
             || (request.auth.uid in floorE().roles && floorE().roles[request.auth.uid] == 'edit'))
@@ -419,7 +429,7 @@ service cloud.firestore {
           return request.auth.uid == floorR().ownerUid
             || (request.auth.uid in floorR().roles && floorR().roles[request.auth.uid] == 'edit');
         }
-        allow read: if allowed() && request.auth.uid in floorR().memberIds;
+        allow read: if seesLists() && request.auth.uid in floorR().memberIds;
         allow create: if allowed() && editsR()
           && request.resource.data.kind in ['tempel', 'edisi', 'pulihkan']
           && request.resource.data.createdAt is string
@@ -428,7 +438,7 @@ service cloud.firestore {
         allow delete: if allowed() && editsR();
 
         match /parts/{n} {
-          allow read: if allowed() && request.auth.uid in floorR().memberIds;
+          allow read: if seesLists() && request.auth.uid in floorR().memberIds;
           allow create: if allowed() && editsR() && request.resource.data.json is string;
           allow update: if false;
           allow delete: if allowed() && editsR();
@@ -439,7 +449,7 @@ service cloud.firestore {
         function floor() {
           return get(/databases/$(database)/documents/floors/$(floorId)).data;
         }
-        allow read: if allowed() && request.auth.uid in floor().memberIds;
+        allow read: if seesLists() && request.auth.uid in floor().memberIds;
         allow create, update: if allowed()
           && date.matches('^[0-9]{4}-[0-9]{2}-[0-9]{2}$')
           && request.resource.data.date == date
