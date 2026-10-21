@@ -1,5 +1,12 @@
 # Plano — CHANGES
 
+## `2026-10-22.2` — New app logo
+
+Avi: replace the app logo with the new Plano mark (navy bar, heart + ECG, checklist, wordmark).
+
+- **Icon.** Master is now `scripts/icon-master.png` (clean square crop of the supplied tile, edge band repainted to the cream `#f2e9db`). `scripts/make-icons.py` (Pillow; replaces `make-icons.mjs` and the SVG master) renders `icon-192/512` (rounded), `maskable-512` (content scaled into the 80% safe circle on cream), `apple-touch-icon` (opaque square; the old one was transparent-cornered and iOS paints transparency black) and `favicon.png`. `index.html` favicon link is now PNG; `icon.svg`/`favicon.svg` removed.
+- **Not touched:** manifest `theme_color`/`background_color` stay `#ffffff` (splash screen is white behind the cream icon).
+
 ## `2026-10-22.1` — Firestore quota; post-PCI check; list viewers; H-1 panel; Toggle; mini window; new icon
 
 Avi: reads at 82–87% of the 50K/day free quota with fewer than 10 users; plus six feature asks.

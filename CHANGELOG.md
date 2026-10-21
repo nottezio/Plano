@@ -5,6 +5,9 @@ Catatan teknis lengkap (akar masalah, perbaikan) ada di CHANGES.md.
 
 Entri teratas harus versi yang sedang dirilis; tes gagal bila belum ditulis.
 
+## `2026-10-22.2`
+- **Ikon aplikasi diganti dengan logo baru Plano** (jantung dengan EKG dan daftar). Ikon di layar utama baru berubah setelah Plano diperbarui; di iPhone mungkin perlu dihapus lalu ditambahkan ulang ke Layar Utama.
+
 ## `2026-10-22.1`
 - **Hemat kuota Firebase.** Aplikasi kini jauh lebih sedikit membaca data: tanda "sedang mengetik" hanya dikirim saat benar-benar mengetik, riwayat perubahan hanya dimuat saat dibuka, dan riwayat List Maker hanya dimuat penuh di tab Riwayat/Analisis.
 - **SOAP checker: post PCI.** Bila PCI direncanakan atau pasien post PCI, Plano mengingatkan bila belum ada cek DR, Ur, Cr, dan HbA1c.
