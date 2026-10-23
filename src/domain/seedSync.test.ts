@@ -331,6 +331,18 @@ describe('section names (2026-10-10)', () => {
     expect(next[0]?.aliases).toEqual(['Plan', 'Mine']);
   });
 
+  it('is not dirty when Firestore returns the baseline with its keys reordered', () => {
+    const base = seeds();
+    const sorted = (value: object): object =>
+      Object.fromEntries(
+        Object.entries(value)
+          .sort(([a], [b]) => (a < b ? -1 : 1))
+          .map(([k, v]) => [k, Array.isArray(v) || typeof v !== 'object' ? v : sorted(v as object)]),
+      );
+    const stored = settingsFrom(base, { seedBaseline: sorted(snapshotOf(base)) as never });
+    expect(reconcileSeeds(stored, base).dirty).toBe(false);
+  });
+
   it('runs inside reconcileSeeds, and is idempotent', () => {
     const base = seeds();
     const stale = settingsFrom(base, {

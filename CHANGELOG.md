@@ -5,6 +5,9 @@ Catatan teknis lengkap (akar masalah, perbaikan) ada di CHANGES.md.
 
 Entri teratas harus versi yang sedang dirilis; tes gagal bila belum ditulis.
 
+## `2026-10-23.2`
+- **Pengaturan lebih tahan hilang.** Perbaikan untuk pengaturan (termasuk bagian yang dikosongkan saat "Salin dari hari sebelumnya") yang kadang kembali ke semula. Plano tidak lagi menulis ulang pengaturan setiap kali dibuka tanpa alasan.
+
 ## `2026-10-23.1`
 - **Ikon aplikasi baru, lebih sederhana:** huruf "P" dengan denyut EKG di dalamnya. Lebih jelas dibaca saat kecil di layar utama dan tab browser. Ikon di layar utama baru berubah setelah Plano diperbarui; di iPhone mungkin perlu dihapus lalu ditambahkan ulang ke Layar Utama.
 

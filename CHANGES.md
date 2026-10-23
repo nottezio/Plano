@@ -1,5 +1,13 @@
 # Plano — CHANGES
 
+## `2026-10-23.2` — Settings no longer rewritten on every load
+
+Report: a friend's Plano does not keep her settings, notably which SOAP parts "Salin dari hari sebelumnya" clears.
+
+- **Suspected root cause (not reproduced on her account).** `reconcileSeeds` decided "dirty" with `JSON.stringify(baseline) !== JSON.stringify(current)`. Firestore returns maps in sorted key order, `snapshotOf` writes them in insertion order, so after one round trip the baseline always looked changed. Every profile snapshot therefore made `reconcileProfileSeeds` write templates, phrases, `carryForwardClearSections` and aliases back from that snapshot. On a device holding an older snapshot (offline cache, second device) that write can put the old list back over a newer choice.
+- **Fix.** Compare with `canonicalJson` (keys sorted) in `src/domain/seedSync.ts`; test added for a reordered baseline.
+- **Not done / not verified.** Not reproduced against real Firestore or her account; the key-order behaviour is from reading the SDK, not observed. `reconcileProfileSeeds` still writes all seeded fields when something legitimately changed (could write only changed fields). Her `seedBaseline` was not inspected: an old baseline without `carryForwardClearSections` re-adds the seeded S/TTV once per account, which would also look like "not saved". If it persists, I need her Pengaturan export and the console line "[settings] write rejected" if any.
+
 ## `2026-10-23.1` — Simpler app icon
 
 Avi: new icon that matches the app's idea/function.

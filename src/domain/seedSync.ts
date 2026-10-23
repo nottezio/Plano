@@ -85,6 +85,19 @@ export interface SeedSyncReport {
   aliases?: number;
 }
 
+/**
+ * JSON with object keys sorted. Firestore hands maps back in key order, not the
+ * order `snapshotOf` wrote them, so a plain `JSON.stringify` compare called an
+ * unchanged baseline "different" after every round trip.
+ */
+function canonicalJson(value: unknown): string {
+  return JSON.stringify(value, (_key, v: unknown) =>
+    v && typeof v === 'object' && !Array.isArray(v)
+      ? Object.fromEntries(Object.entries(v).sort(([a], [b]) => (a < b ? -1 : 1)))
+      : v,
+  );
+}
+
 export function snapshotOf(seeds: SeedSnapshot): SeedBaseline {
   return {
     noteTemplates: seeds.noteTemplates.map((template) => ({
@@ -339,7 +352,7 @@ export function reconcileSeeds(
     aliases.changed > 0 ||
     templates.updated.length > 0 ||
     templates.conflicted.length > 0 ||
-    JSON.stringify(baseline) !== JSON.stringify(current);
+    canonicalJson(baseline) !== canonicalJson(current);
 
   if (!dirty) return { settings, report: empty, dirty: false };
 
