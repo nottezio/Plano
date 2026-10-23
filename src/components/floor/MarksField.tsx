@@ -60,7 +60,7 @@ function AutoRule({ mark, onChange }: { mark: FloorMark; onChange: (auto: MarkAu
                   const next = on ? ids.filter((x) => x !== id) : [...ids, id];
                   onChange(next.length > 0 ? { kind: 'dpjp', ids: next } : undefined);
                 }}
-                className={`min-h-8 rounded-full border px-2 text-[11px] font-semibold ${on ? 'border-accent bg-accent text-on-accent' : 'border-border text-fg-muted'}`}
+                className={`min-h-8 rounded-full border px-2 text-xs font-semibold ${on ? 'border-accent bg-accent text-on-accent' : 'border-border text-fg-muted'}`}
               >
                 {code(id)}
               </button>
@@ -139,11 +139,11 @@ export function MarksField({ floorId, marks, editable }: { floorId: string; mark
             )}
             </div>
             {editable ? <AutoRule mark={mark} onChange={(auto) => save(marks.map((m) => (m.id === mark.id ? withAuto(m, auto) : m)))} /> : mark.auto ? (
-              <p className="pl-5 text-[11px] text-fg-muted">Otomatis: {describeAuto(mark.auto)}</p>
+              <p className="pl-5 text-xs text-fg-muted">Otomatis: {describeAuto(mark.auto)}</p>
             ) : null}
             {editable ? (
               // Screen only (13.12): a working mark stays off the Word/PDF sent to consultants.
-              <label className="ml-5 inline-flex min-h-8 items-center gap-1.5 text-[11px] text-fg-muted">
+              <label className="ml-5 inline-flex min-h-8 items-center gap-1.5 text-xs text-fg-muted">
                 <input
                   type="checkbox"
                   checked={mark.print !== false}
@@ -160,7 +160,7 @@ export function MarksField({ floorId, marks, editable }: { floorId: string; mark
                 Ikut dicetak di Word/PDF
               </label>
             ) : mark.print === false ? (
-              <p className="pl-5 text-[11px] text-fg-muted">Hanya di layar</p>
+              <p className="pl-5 text-xs text-fg-muted">Hanya di layar</p>
             ) : null}
           </li>
         ))}

@@ -279,7 +279,7 @@ export function FloatingCalculator({
       }}
       style={placed ? { left: prefs.x ?? 0, top: prefs.y ?? 0, right: 'auto', bottom: 'auto' } : undefined}
       className={[
-        'fixed z-40 flex flex-col overflow-hidden border border-border bg-surface shadow-2xl',
+        'fixed z-40 flex flex-col overflow-hidden border border-border bg-surface shadow-sheet',
         // phone: docked above the tab bar
         'inset-x-2 bottom-[calc(4.5rem+env(safe-area-inset-bottom))] rounded-2xl',
         // laptop: floats, bottom right until it is moved
@@ -381,10 +381,10 @@ export function FloatingCalculator({
                 <p className="text-right font-mono text-xl font-semibold tabular-nums text-fg">
                   = {formatResult(live.value)}
                 </p>
-                <p className="text-right font-mono text-[11px] text-fg-faint">Dibaca: {live.read}</p>
+                <p className="text-right font-mono text-xs text-fg-faint">Dibaca: {live.read}</p>
               </>
             ) : (
-              <p id={`${labelId}-hint`} className="text-[11px] leading-relaxed text-fg-faint">
+              <p id={`${labelId}-hint`} className="text-xs leading-relaxed text-fg-faint">
                 Titik tiga digit = ribuan (12.000), koma = desimal (3,1). Enter untuk menghitung.
               </p>
             )}
@@ -406,7 +406,7 @@ export function FloatingCalculator({
                   className={[
                     'min-h-tap rounded-lg border text-sm font-medium tabular-nums transition-colors [@media(pointer:fine)]:min-h-9',
                     key === '='
-                      ? 'border-accent bg-accent text-on-accent hover:opacity-90'
+                      ? 'border-accent bg-accent text-on-accent hover:brightness-110'
                       : operator
                       ? 'border-border bg-bg-subtle text-accent hover:bg-surface'
                       : key === 'C'
@@ -448,7 +448,7 @@ export function FloatingCalculator({
                     type="button"
                     onClick={() => insert(entry.result)}
                     title="Pakai hasil ini di hitungan"
-                    className="flex w-full items-baseline justify-between gap-3 rounded-md px-1 py-0.5 text-left font-mono text-[11px] hover:bg-bg-subtle"
+                    className="flex w-full items-baseline justify-between gap-3 rounded-md px-1 py-0.5 text-left font-mono text-xs hover:bg-bg-subtle"
                   >
                     <span className="min-w-0 truncate text-fg-faint">{entry.read}</span>
                     <span className="shrink-0 tabular-nums text-fg">= {entry.result}</span>

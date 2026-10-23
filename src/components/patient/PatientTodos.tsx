@@ -140,7 +140,7 @@ export function PatientTodos({
                 <span
                   aria-hidden="true"
                   className={[
-                    'mt-1.5 flex h-4 w-4 shrink-0 items-center justify-center rounded border text-[10px]',
+                    'mt-1.5 flex h-4 w-4 shrink-0 items-center justify-center rounded border text-[11px]',
                     todo.done ? 'border-accent bg-accent text-on-accent' : 'border-border-strong',
                   ].join(' ')}
                 >
@@ -159,7 +159,7 @@ export function PatientTodos({
                     the tick says everything and the reminder is noise.
                   */}
                   {todo.doneYesterday ? (
-                    <span className="ml-1.5 whitespace-nowrap text-[10px] text-fg-faint">
+                    <span className="ml-1.5 whitespace-nowrap text-[11px] text-fg-faint">
                       sudah kemarin
                     </span>
                   ) : null}
@@ -234,7 +234,7 @@ export function PatientTodos({
         <button
           type="button"
           onClick={() => setImportOpen((open) => !open)}
-          className="min-h-tap text-[11px] text-accent underline"
+          className="min-h-tap text-xs text-accent underline"
         >
           Ambil dari checklist harian
         </button>
@@ -242,7 +242,7 @@ export function PatientTodos({
           type="button"
           onClick={() => setHistoryOpen((open) => !open)}
           aria-expanded={historyOpen}
-          className="min-h-tap shrink-0 text-[11px] text-accent underline"
+          className="min-h-tap shrink-0 text-xs text-accent underline"
         >
           {historyOpen ? 'Tutup riwayat' : 'Riwayat'}
         </button>
@@ -257,7 +257,7 @@ export function PatientTodos({
               key={list.id}
               type="button"
               onClick={() => importList(list.id)}
-              className="w-full rounded-lg border border-border px-2 py-1.5 text-left text-[11px]"
+              className="w-full rounded-lg border border-border px-2 py-1.5 text-left text-xs"
             >
               {list.title}
             </button>
@@ -284,7 +284,7 @@ export function PatientTodos({
               key={block.title}
               className="mt-2 border-y border-dashed border-border-strong py-1.5"
             >
-              <p className="text-[10px] font-semibold uppercase tracking-wide text-fg-faint">
+              <p className="text-[11px] font-semibold uppercase tracking-wide text-fg-faint">
                 Dari checklist: {block.title}
               </p>
               <ul className="mt-1 space-y-1">{block.items.map(renderRow)}</ul>
@@ -330,11 +330,11 @@ function TodoHistoryList({
   history: ReturnType<typeof todoHistory>;
 }): JSX.Element {
   if (history.days.length === 0 && history.undated.length === 0) {
-    return <p className="mt-1 text-[11px] text-fg-faint">Belum ada yang dicentang.</p>;
+    return <p className="mt-1 text-xs text-fg-faint">Belum ada yang dicentang.</p>;
   }
 
   return (
-    <div className="mt-1 max-h-60 space-y-2 overflow-auto rounded-lg border border-border bg-bg-subtle px-2 py-1.5 text-[11px]">
+    <div className="mt-1 max-h-60 space-y-2 overflow-auto rounded-lg border border-border bg-bg-subtle px-2 py-1.5 text-xs">
       {history.days.map((day) => (
         <div key={day.date}>
           <p className="font-medium text-fg-muted">{formatShortDate(day.date)}</p>

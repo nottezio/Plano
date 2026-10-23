@@ -73,11 +73,11 @@ export function OnsiteScheduleEditor({ schedule }: { schedule: OnsiteSchedule })
           })}
         </ul>
         <div className="flex flex-wrap items-center gap-2">
-          <p className="flex-1 text-[11px] text-fg-faint">Tersimpan di akun; berlaku untuk semua perangkat.</p>
+          <p className="flex-1 text-xs text-fg-faint">Tersimpan di akun; berlaku untuk semua perangkat.</p>
           {!isDefault && (
             <button
               type="button"
-              className="min-h-tap rounded-lg px-2 text-[11px] font-medium text-accent"
+              className="min-h-tap rounded-lg px-2 text-xs font-medium text-accent"
               onClick={() => {
                 if (uid) void updateSettings(uid, { onsiteIgd: { ...DEFAULT_ONSITE_IGD } });
               }}

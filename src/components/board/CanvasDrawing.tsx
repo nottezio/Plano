@@ -199,7 +199,7 @@ export function CanvasDrawing({
     <div
       role="toolbar"
       aria-label="Alat gambar"
-      className="fixed bottom-4 left-1/2 z-[60] flex w-max max-w-[calc(100vw-2rem)] -translate-x-1/2 flex-wrap items-center justify-center gap-1 rounded-2xl border border-border bg-surface px-2 py-1.5 shadow-lg"
+      className="fixed bottom-4 left-1/2 z-[60] flex w-max max-w-[calc(100vw-2rem)] -translate-x-1/2 flex-wrap items-center justify-center gap-1 rounded-2xl border border-border bg-surface px-2 py-1.5 shadow-pop"
     >
       {active ? (
         <>
@@ -260,7 +260,7 @@ export function CanvasDrawing({
           <button
             type="button"
             onClick={() => setActive(false)}
-            className={`${BUTTON} bg-accent text-on-accent hover:bg-accent hover:opacity-90`}
+            className={`${BUTTON} bg-accent text-on-accent hover:bg-accent hover:brightness-110`}
           >
             Selesai
           </button>

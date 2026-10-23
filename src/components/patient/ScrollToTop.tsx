@@ -37,7 +37,7 @@ export function ScrollToTop(): JSX.Element | null {
         const scroller = document.querySelector('main');
         scroller?.scrollTo({ top: 0, behavior: 'smooth' });
       }}
-      className="fixed bottom-[calc(env(safe-area-inset-bottom)+80px)] right-4 z-30 flex h-11 w-11 items-center justify-center rounded-full border border-border bg-surface text-lg shadow-lg sm:bottom-6"
+      className="fixed bottom-[calc(env(safe-area-inset-bottom)+80px)] right-4 z-30 flex h-11 w-11 items-center justify-center rounded-full border border-border bg-surface text-lg shadow-pop sm:bottom-6"
     >
       <span aria-hidden="true">↑</span>
     </button>

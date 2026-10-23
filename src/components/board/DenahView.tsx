@@ -75,12 +75,12 @@ export function DenahView({
                 <ol className="space-y-1">
                   {room.beds.map(({ bed, patient }) => (
                     <li key={patient.id} className="flex gap-2">
-                      <span className="w-4 shrink-0 text-right text-[11px] text-fg-faint">
+                      <span className="w-4 shrink-0 text-right text-xs text-fg-faint">
                         {bed || '·'}
                       </span>
                       <Link
                         to={`/p/${patient.id}/${today}`}
-                        className="min-w-0 flex-1 truncate text-[11px] leading-snug text-fg hover:underline"
+                        className="min-w-0 flex-1 truncate text-xs leading-snug text-fg hover:underline"
                         title={denahLine(patient, showInitialsOnly)}
                       >
                         {denahLine(patient, showInitialsOnly)}

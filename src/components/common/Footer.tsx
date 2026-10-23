@@ -7,7 +7,7 @@ import { APP_VERSION } from '@/version.js';
 export function Footer({ className = '' }: { className?: string }): JSX.Element {
   return (
     <footer
-      className={`px-4 py-6 text-center text-[11px] leading-relaxed text-fg-faint ${className}`}
+      className={`px-4 py-6 text-center text-xs leading-relaxed text-fg-faint ${className}`}
     >
       <span>© Avicenna</span>
       <span aria-hidden="true"> · </span>

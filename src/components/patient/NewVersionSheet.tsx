@@ -94,11 +94,11 @@ export function NewVersionSheet({
             />
             Penunjang terbaru saja
           </label>
-          <p className="text-[11px] leading-relaxed text-fg-muted">
+          <p className="text-xs leading-relaxed text-fg-muted">
             {latest ? 'Dihilangkan dari versi ini' : 'Bila dicentang, dihilangkan'} (
             {trimmed.removed.length} blok lama):
           </p>
-          <ul className="mt-1 space-y-0.5 text-[11px] text-fg-muted">
+          <ul className="mt-1 space-y-0.5 text-xs text-fg-muted">
             {trimmed.removed.map((block) => (
               <li key={`${block.heading}-${block.date}`} className="truncate font-mono">
                 {block.heading}
@@ -107,7 +107,7 @@ export function NewVersionSheet({
           </ul>
         </div>
       ) : (
-        <p className="mt-4 text-[11px] text-fg-faint">
+        <p className="mt-4 text-xs text-fg-faint">
           Tiap jenis penunjang hanya ada satu tanggal, jadi tidak ada yang perlu dipangkas.
         </p>
       )}

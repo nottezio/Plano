@@ -77,7 +77,7 @@ export function ChecklistPills({
       </div>
 
       <ProgressStrip progress={progress} />
-      <p className="mt-1.5 text-[11px] text-fg-muted">
+      <p className="mt-1.5 text-xs text-fg-muted">
         {progress.complete
           ? 'Semua langkah selesai'
           : `${progress.doneCount}/${progress.total} selesai · belum: ${progress.pendingLabel ?? '—'}`}

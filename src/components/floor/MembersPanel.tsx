@@ -139,7 +139,7 @@ export function MembersPanel({
                 Undang
               </Button>
             </div>
-            <p className="text-[11px] text-fg-faint">
+            <p className="text-xs text-fg-faint">
               Anggota menerima undangan di halaman List Maker miliknya. Semua anggota bisa melihat SOAP lengkap pasien
               lantai ini.
             </p>

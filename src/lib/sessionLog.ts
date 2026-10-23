@@ -41,6 +41,8 @@ export type SessionEventKind =
   | 'signed-out'
   | 'profile-error'
   | 'redirect-error'
+  /** Google sign-in (popup) failed; detail is the code or error name. */
+  | 'signin-error'
   /** A loading state that took `SLOW_MS` or longer (see loadTiming.ts). */
   | 'slow'
   /** The tab came back after Chrome froze it, or after a long time hidden. */

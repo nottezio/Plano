@@ -700,16 +700,16 @@ export function CopySheet({
       type="button"
       onClick={onCopy}
       disabled={!output.trim()}
-      className="flex min-h-tap w-full items-center gap-3 rounded-xl bg-accent px-4 py-2 text-left text-on-accent transition-opacity hover:opacity-90 disabled:opacity-40"
+      className="flex min-h-tap w-full items-center gap-3 rounded-lg bg-accent px-4 py-2 text-left text-on-accent shadow-card transition-[filter,transform] hover:brightness-110 active:translate-y-px disabled:opacity-40 disabled:hover:brightness-100"
     >
       <IconCopy width={20} height={20} className="shrink-0" />
       <span className="min-w-0 flex-1">
-        <span className="block text-[11px] opacity-90">
+        <span className="block text-xs opacity-90">
           {copied ? 'Tersalin ✓' : `Salin ${whatLabel[shape]} · ${FORMAT_LABELS[format]}`}
         </span>
         <span className="block truncate text-sm font-semibold">
           {patientName}
-          {patient.mrn ? ` · RM ${patient.mrn}` : ''}
+          {patient.mrn ? <span className="font-mono font-medium tabular-nums opacity-90"> · RM {patient.mrn}</span> : null}
         </span>
       </span>
     </button>
@@ -893,7 +893,7 @@ export function CopySheet({
           ) : null}
 
           {pdfMode ? (
-            <p className="text-[11px] leading-relaxed text-fg-faint">
+            <p className="text-xs leading-relaxed text-fg-faint">
               Berisi baris Chief/Junior (dari kolom di atas), blok pembuka apa adanya, daftar diagnosis,
               dan kalimat penutup. Tanpa S, O, terapi, dan plan.
             </p>
@@ -1098,10 +1098,10 @@ export function CopySheet({
             bottom of the sheet.
           */}
           <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
-            <h3 className="text-[11px] font-semibold uppercase tracking-wider text-fg-faint">
+            <h3 className="text-xs font-semibold uppercase tracking-wider text-fg-faint">
               Preview
             </h3>
-            <span className="text-[11px] tabular-nums text-fg-faint">
+            <span className="text-xs tabular-nums text-fg-faint">
               · {output.length.toLocaleString('id-ID')} karakter
             </span>
             <span className="flex-1" />
@@ -1156,7 +1156,7 @@ export function CopySheet({
             {preview === 'tampilan' ? (
               <div className="absolute inset-0 flex flex-col gap-2 overflow-y-auto overscroll-contain">
                 <RenderedPreview text={output} />
-                <p className="text-[11px] text-fg-faint">
+                <p className="text-xs text-fg-faint">
                   Perkiraan tampilan di WhatsApp. Jangan menyalin dari sini — tanda formatnya ikut
                   hilang. Gunakan “Teks”.
                 </p>

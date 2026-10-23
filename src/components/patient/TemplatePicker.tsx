@@ -39,7 +39,7 @@ export function TemplatePicker({
           </button>
         ))}
       </div>
-      <p className="mt-2 text-[11px] text-fg-faint">
+      <p className="mt-2 text-xs text-fg-faint">
         Atau langsung tulis / tempel catatan di bawah.
       </p>
     </div>

@@ -234,7 +234,7 @@ export function CensusVerifier(): JSX.Element {
           </Section>
         )}
         {history && !report ? (
-          <p className="text-[11px] leading-relaxed text-fg-faint">
+          <p className="text-xs leading-relaxed text-fg-faint">
             Pemeriksaan terakhir di perangkat ini: {history.shiftDate ?? 'tanggal tidak terbaca'} ·{' '}
             {history.issues.length} masalah terbuka. Pemeriksaan berikutnya dibandingkan dengannya.
           </p>
@@ -299,7 +299,7 @@ export function CensusVerifier(): JSX.Element {
               {readable.counts ? (
                 <li className={`rounded-xl border border-l-4 border-border bg-surface px-3 py-2.5 text-xs ${SEVERITY_EDGE.high}`}>
                   <CardHead number={readable.patients.length + 1} title={readable.counts.title} />
-                  <dl className="mt-2 grid grid-cols-[auto_minmax(0,1fr)] gap-x-3 overflow-hidden rounded-lg border border-border text-[11px]">
+                  <dl className="mt-2 grid grid-cols-[auto_minmax(0,1fr)] gap-x-3 overflow-hidden rounded-lg border border-border text-xs">
                     {readable.counts.rows.map((row, index) => (
                       <Row key={row.label} label={row.label} value={row.value} odd={row.odd} first={index === 0} />
                     ))}
@@ -395,7 +395,7 @@ export function CensusVerifier(): JSX.Element {
                   <IconChevronRight className="h-4 w-4 transition-transform group-open:rotate-90" />
                   Hasil transkripsi (JSON)
                 </summary>
-                <pre className="max-h-80 overflow-auto border-t border-border bg-bg-subtle p-3 text-[10px]">
+                <pre className="max-h-80 overflow-auto border-t border-border bg-bg-subtle p-3 text-[11px]">
                   {JSON.stringify({ denah, list }, null, 2)}
                 </pre>
               </details>
@@ -425,7 +425,7 @@ function RunSteps({ progress, running }: { progress: Partial<Record<DocKey, DocP
   }, [running]);
   const keys = (['DENAH', 'LIST'] as const).filter((key) => progress[key]);
   return (
-    <ol className="space-y-1 text-[11px]" aria-label="Kemajuan" aria-live="polite">
+    <ol className="space-y-1 text-xs" aria-label="Kemajuan" aria-live="polite">
       {keys.map((key) => {
         const doc = progress[key]!;
         const seconds = Math.max(0, Math.round(((doc.endedAt ?? now) - doc.startedAt) / 1000));
@@ -442,7 +442,7 @@ function RunSteps({ progress, running }: { progress: Partial<Record<DocKey, DocP
             <span
               aria-hidden="true"
               className={[
-                'flex h-4 w-4 shrink-0 items-center justify-center rounded-full text-[9px]',
+                'flex h-4 w-4 shrink-0 items-center justify-center rounded-full text-[10px]',
                 doc.phase === 'selesai'
                   ? 'bg-accent text-on-accent'
                   : doc.phase === 'gagal'
@@ -549,7 +549,7 @@ const SEVERITY_EDGE: Record<Severity, string> = {
 function CardHead({ number, title, badge }: { number: number; title: ReactNode; badge?: ReactNode }): JSX.Element {
   return (
     <div className="flex flex-wrap items-start gap-2">
-      <span className="flex h-5 min-w-5 shrink-0 items-center justify-center rounded-full bg-bg-subtle px-1 text-[11px] font-semibold">
+      <span className="flex h-5 min-w-5 shrink-0 items-center justify-center rounded-full bg-bg-subtle px-1 text-xs font-semibold">
         {number}
       </span>
       <p className="min-w-0 flex-1 text-[13px] font-medium leading-snug">{title}</p>
@@ -599,7 +599,7 @@ function PatientCard({
         }
         badge={
           patient.status === 'persisting' ? (
-            <span className="shrink-0 rounded-full bg-bg-subtle px-2 py-0.5 text-[10px] font-medium text-fg-muted">masih ada</span>
+            <span className="shrink-0 rounded-full bg-bg-subtle px-2 py-0.5 text-[11px] font-medium text-fg-muted">masih ada</span>
           ) : null
         }
       />
@@ -609,7 +609,7 @@ function PatientCard({
             <li
               key={cell.label}
               className={[
-                'rounded-full px-2 py-0.5 text-[11px] ring-1',
+                'rounded-full px-2 py-0.5 text-xs ring-1',
                 cell.present === true
                   ? 'text-accent ring-[color-mix(in_srgb,var(--accent)_40%,transparent)]'
                   : cell.present === false
@@ -623,7 +623,7 @@ function PatientCard({
         </ul>
       ) : null}
       {patient.mismatches.length > 0 ? (
-        <dl className="mt-2 grid grid-cols-[auto_minmax(0,1fr)] gap-x-3 overflow-hidden rounded-lg border border-border text-[11px]">
+        <dl className="mt-2 grid grid-cols-[auto_minmax(0,1fr)] gap-x-3 overflow-hidden rounded-lg border border-border text-xs">
           {patient.mismatches.map((item, index) => (
             <div key={item.label} className={`contents ${index > 0 ? '[&>*]:border-t [&>*]:border-border' : ''}`}>
               <dt className="bg-bg-subtle px-2 py-1 text-fg-muted">{item.label}</dt>
@@ -641,7 +641,7 @@ function PatientCard({
         </dl>
       ) : null}
       {patient.source ? (
-        <p className="mt-2 break-words rounded-lg bg-bg-subtle px-2 py-1 font-mono text-[11px] text-fg-muted">
+        <p className="mt-2 break-words rounded-lg bg-bg-subtle px-2 py-1 font-mono text-xs text-fg-muted">
           <span className="font-sans">Tertulis di {patient.source.where}:</span> {patient.source.text}
         </p>
       ) : null}
@@ -703,7 +703,7 @@ function PdfSlot({
       </span>
       <span className="min-w-0 flex-1">
         <span className="block text-xs font-semibold">{label}</span>
-        <span className="block truncate text-[11px] text-fg-muted">{file ? file.name : 'Pilih atau tarik PDF ke sini'}</span>
+        <span className="block truncate text-xs text-fg-muted">{file ? file.name : 'Pilih atau tarik PDF ke sini'}</span>
       </span>
       <input
         type="file"

@@ -117,12 +117,12 @@ export function SensusCompare({
               List {list + 1} <span className="font-normal text-fg-muted">· {labels[list]}</span>
             </p>
             {blocks.length === 0 ? (
-              <p className="px-3 py-2 text-[11px] text-fg-faint">Tidak ada pasien yang terbaca dari list ini.</p>
+              <p className="px-3 py-2 text-xs text-fg-faint">Tidak ada pasien yang terbaca dari list ini.</p>
             ) : null}
             <ol className="divide-y divide-border">
               {items.map((item, index) =>
                 item.kind === 'fold' ? (
-                  <li key={`fold-${index}`} className="px-3 py-1 text-[11px] text-fg-faint">
+                  <li key={`fold-${index}`} className="px-3 py-1 text-xs text-fg-faint">
                     · {item.count} pasien DPJP lain{item.codes.length > 0 ? ` (${item.codes.join(', ')})` : ''}
                   </li>
                 ) : (
@@ -131,7 +131,7 @@ export function SensusCompare({
                     style={{ borderLeft: `4px solid ${TONE[tone(item.block)]}` }}
                     className="grid gap-x-3 gap-y-1 px-3 py-2 lg:grid-cols-2"
                   >
-                    <pre className="min-w-0 whitespace-pre-wrap break-words font-mono text-[11px] leading-snug text-fg-muted">
+                    <pre className="min-w-0 whitespace-pre-wrap break-words font-mono text-xs leading-snug text-fg-muted">
                       {lines
                         .slice(item.block.start, item.block.end)
                         .join('\n')
@@ -140,7 +140,7 @@ export function SensusCompare({
                     <div className="min-w-0 space-y-1">
                       <RowSide comparison={comparison} block={item.block} />
                       {item.block.row !== null || item.block.owner === 'mine' ? (
-                        <label className="flex min-h-tap w-fit items-center gap-2 text-[11px] font-medium [@media(pointer:fine)]:min-h-7">
+                        <label className="flex min-h-tap w-fit items-center gap-2 text-xs font-medium [@media(pointer:fine)]:min-h-7">
                           <input
                             type="checkbox"
                             checked={checked.has(item.block.entry.key)}
@@ -170,8 +170,8 @@ export function SensusCompare({
                 <p className="font-medium">
                   {PLACE_LABEL[row.place]} #{row.number} · {row.identity}
                 </p>
-                <p className="text-[11px] text-fg-muted">{row.diagnoses.length > 0 ? row.diagnoses.join(' · ') : 'Diagnosis: -'}</p>
-                <label className="mt-1 flex min-h-tap w-fit items-center gap-2 text-[11px] font-medium [@media(pointer:fine)]:min-h-7">
+                <p className="text-xs text-fg-muted">{row.diagnoses.length > 0 ? row.diagnoses.join(' · ') : 'Diagnosis: -'}</p>
+                <label className="mt-1 flex min-h-tap w-fit items-center gap-2 text-xs font-medium [@media(pointer:fine)]:min-h-7">
                   <input
                     type="checkbox"
                     checked={checked.has(row.key)}
@@ -227,7 +227,7 @@ function FullText({
             </button>
           ))}
         </div>
-        <pre className="max-h-[70vh] overflow-auto whitespace-pre-wrap break-words px-3 py-2 font-mono text-[11px] leading-relaxed">
+        <pre className="max-h-[70vh] overflow-auto whitespace-pre-wrap break-words px-3 py-2 font-mono text-xs leading-relaxed">
           {texts[list] ?? ''}
         </pre>
       </section>
@@ -266,8 +266,8 @@ function RowSide({ comparison, block }: { comparison: CensusComparison; block: C
         <span className="text-accent">✓ {PLACE_LABEL[row.place]} #{row.number}</span> · {row.identity}
       </p>
       {/* One line each, like the list beside it, so the two read across. */}
-      <p className="text-[11px] text-fg-muted">Diagnosis:</p>
-      <ul className="text-[11px] leading-snug text-fg-muted">
+      <p className="text-xs text-fg-muted">Diagnosis:</p>
+      <ul className="text-xs leading-snug text-fg-muted">
         {row.diagnoses.length > 0 ? row.diagnoses.map((line, index) => <li key={index}>{line}</li>) : <li>-</li>}
       </ul>
     </div>

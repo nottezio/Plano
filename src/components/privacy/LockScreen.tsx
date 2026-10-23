@@ -51,7 +51,7 @@ export function LockScreen(): JSX.Element {
           Terkunci otomatis karena tidak ada aktivitas. Anda masih masuk —
           masukkan PIN untuk melanjutkan.
         </p>
-        <p className="mt-1 text-center text-[11px] text-fg-faint">
+        <p className="mt-1 text-center text-xs text-fg-faint">
           Ubah jedanya di Pengaturan → Privasi.
         </p>
 
@@ -90,7 +90,7 @@ export function LockScreen(): JSX.Element {
             Lupa PIN? Keluar dan masuk lagi
           </SignOutButton>
         </div>
-        <p className="mt-2 max-w-xs text-center text-[11px] text-fg-faint">
+        <p className="mt-2 max-w-xs text-center text-xs text-fg-faint">
           Keluar menghapus data offline dan PIN di perangkat ini. Catatan yang sudah
           synced aman di server; yang belum terkirim akan diperingatkan dulu.
         </p>

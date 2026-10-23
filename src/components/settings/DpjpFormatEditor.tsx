@@ -53,7 +53,7 @@ export function DpjpFormatEditor({
           return (
             <li key={dpjp.id} className="rounded-lg border border-border p-2">
               <div className="flex items-start gap-2">
-                <span className="mt-1 shrink-0 rounded border border-border px-1 text-[10px] font-semibold text-fg-muted">
+                <span className="mt-1 shrink-0 rounded border border-border px-1 text-[11px] font-semibold text-fg-muted">
                   {dpjp.initials}
                 </span>
                 <span className="min-w-0 flex-1 text-xs leading-relaxed">{dpjp.name}</span>
@@ -108,7 +108,7 @@ export function DpjpFormatEditor({
         })}
       </ul>
 
-      <p className="mt-2 text-[11px] text-fg-faint">
+      <p className="mt-2 text-xs text-fg-faint">
         Plano membaca nama DPJP dari baris <code>DPJP</code> di catatan, lalu mengingatkan
         format yang diharapkan saat menyalin. Tidak ada yang diubah otomatis.
       </p>

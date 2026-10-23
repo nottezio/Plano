@@ -284,7 +284,7 @@ function Stat({ value, label }: { value: number; label: string }): JSX.Element {
   return (
     <div className="rounded-xl border border-border bg-bg-subtle px-3 py-2.5">
       <p className="text-2xl font-semibold tabular-nums text-fg">{value}</p>
-      <p className="text-[11px] leading-snug text-fg-muted">{label}</p>
+      <p className="text-xs leading-snug text-fg-muted">{label}</p>
     </div>
   );
 }

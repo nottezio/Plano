@@ -201,8 +201,8 @@ export function MorningReport(): JSX.Element {
               </select>
             </Field>
           </div>
-          <p className="text-[11px] text-fg-faint lg:hidden">Pesannya ada di bagian Pesan di bawah.</p>
-          <p className="hidden text-[11px] text-fg-faint lg:block">Pesannya ada di kolom kanan.</p>
+          <p className="text-xs text-fg-faint lg:hidden">Pesannya ada di bagian Pesan di bawah.</p>
+          <p className="hidden text-xs text-fg-faint lg:block">Pesannya ada di kolom kanan.</p>
         </Step>
 
         <Step
@@ -237,7 +237,7 @@ export function MorningReport(): JSX.Element {
           n={4}
           title={`Pengampu MR ${dayName(mrDate)}`}
           aside={
-            <span className="text-[11px] text-fg-faint">
+            <span className="text-xs text-fg-faint">
               {day.pengampu ? 'diubah untuk tanggal ini' : 'dari jadwal mingguan'}
             </span>
           }
@@ -305,17 +305,17 @@ export function MorningReport(): JSX.Element {
             <h3 id="mr-ready" className="flex-1 text-xs font-semibold">
               Kesiapan MR {dayName(mrDate)}
             </h3>
-            <span className="text-[11px] font-medium text-fg-muted">
+            <span className="text-xs font-medium text-fg-muted">
               {readyCount}/{readiness.length}
             </span>
           </div>
-          <ul className="mt-1.5 space-y-1 text-[11px]">
+          <ul className="mt-1.5 space-y-1 text-xs">
             {readiness.map((item) => (
               <li key={item.label} className="flex items-center gap-2">
                 <span
                   aria-hidden="true"
                   className={[
-                    'flex h-4 w-4 shrink-0 items-center justify-center rounded-full text-[9px]',
+                    'flex h-4 w-4 shrink-0 items-center justify-center rounded-full text-[10px]',
                     item.ok ? 'bg-accent text-on-accent' : 'ring-1 ring-border-strong',
                   ].join(' ')}
                 >
@@ -415,7 +415,7 @@ function Step({
         <h3 className="flex-1 text-sm font-semibold">{title}</h3>
         {aside}
       </div>
-      {hint ? <p className="text-[11px] leading-relaxed text-fg-faint">{hint}</p> : null}
+      {hint ? <p className="text-xs leading-relaxed text-fg-faint">{hint}</p> : null}
       {children}
     </section>
   );
@@ -533,7 +533,7 @@ function ShiftPatients({
         <span className="sr-only">{shiftLabel(shift)}</span>
         <span
           className={[
-            'rounded-full px-2 py-0.5 text-[10px] font-semibold',
+            'rounded-full px-2 py-0.5 text-[11px] font-semibold',
             filled ? 'bg-[var(--accent-soft)] text-accent' : 'bg-surface text-fg-faint ring-1 ring-border',
           ].join(' ')}
         >
@@ -548,13 +548,13 @@ function ShiftPatients({
         className="block w-full grow resize-y bg-surface px-3 py-2 font-mono text-[12px] text-fg outline-none placeholder:text-fg-faint"
       />
       {parsed.unplaced.length > 0 ? (
-        <span className="block border-t border-border px-3 py-1.5 text-[11px] text-danger">
+        <span className="block border-t border-border px-3 py-1.5 text-xs text-danger">
           {parsed.unplaced.length} baris sebelum pasien pertama ikut disalin apa adanya — hapus bila
           bukan bagian laporan.
         </span>
       ) : null}
       {filled && count === 0 ? (
-        <span className="block border-t border-border px-3 py-1.5 text-[11px] text-danger">
+        <span className="block border-t border-border px-3 py-1.5 text-xs text-danger">
           Tidak ada baris yang terbaca sebagai pasien; teks disalin apa adanya.
         </span>
       ) : null}
@@ -583,7 +583,7 @@ function MessageBox({
       <div className="flex items-center gap-2 border-b border-border px-3 py-1.5">
         <span className="min-w-0 flex-1">
           <span className="block truncate text-xs font-semibold">{label}</span>
-          {sub ? <span className="block truncate text-[10px] text-fg-faint">{sub}</span> : null}
+          {sub ? <span className="block truncate text-[11px] text-fg-faint">{sub}</span> : null}
         </span>
         {save ? <SaveResultButton {...save} text={text} /> : null}
         <Button
@@ -601,7 +601,7 @@ function MessageBox({
         </Button>
       </div>
       {extra ? <div className="border-b border-border px-3 py-1.5">{extra}</div> : null}
-      <p className="max-h-72 overflow-auto whitespace-pre-wrap px-3 py-2 text-[11px] leading-relaxed text-fg-muted">
+      <p className="max-h-72 overflow-auto whitespace-pre-wrap px-3 py-2 text-xs leading-relaxed text-fg-muted">
         {text}
       </p>
     </div>
@@ -620,7 +620,7 @@ function MrSettings({
       <summary className="flex min-h-tap cursor-pointer items-center gap-2 px-3 text-sm font-medium [@media(pointer:fine)]:min-h-10">
         <IconChevronRight className="h-4 w-4 text-fg-muted transition-transform group-open:rotate-90" />
         <span className="flex-1">Pengaturan MR</span>
-        <span className="text-[11px] font-normal text-fg-faint">Zoom, status, jadwal pengampu</span>
+        <span className="text-xs font-normal text-fg-faint">Zoom, status, jadwal pengampu</span>
       </summary>
       <div className="space-y-3 border-t border-border px-3 py-3">
         <label className="block text-xs text-fg-muted">
@@ -716,7 +716,7 @@ function ImportFromSent({ uid }: { uid: string | null }): JSX.Element {
       </label>
       {text.trim() ? (
         <div className="flex flex-wrap items-center gap-2">
-          <span className="flex-1 text-[11px] text-fg-muted">
+          <span className="flex-1 text-xs text-fg-muted">
             {blocks.length > 0
               ? blocks
                   .map((block) => `${WEEKDAYS[block.weekday - 1]?.[1] ?? '?'}: ${block.pengampu.length} nama`)
@@ -740,7 +740,7 @@ function ImportFromSent({ uid }: { uid: string | null }): JSX.Element {
           </button>
         </div>
       ) : null}
-      {done ? <p className="text-[11px] text-fg-muted">{done}</p> : null}
+      {done ? <p className="text-xs text-fg-muted">{done}</p> : null}
     </div>
   );
 }

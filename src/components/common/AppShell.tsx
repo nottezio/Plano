@@ -218,7 +218,7 @@ function OutboxNotice(): JSX.Element | null {
   return (
     <div
       role="status"
-      className="fixed inset-x-3 top-3 z-50 mx-auto max-w-md rounded-xl border border-border bg-surface p-3 text-xs shadow-lg"
+      className="fixed inset-x-3 top-3 z-50 mx-auto max-w-md rounded-xl border border-border bg-surface p-3 text-xs shadow-pop"
     >
       <p className="font-medium">Catatan offline diselesaikan</p>
       <ul className="mt-1 space-y-1">

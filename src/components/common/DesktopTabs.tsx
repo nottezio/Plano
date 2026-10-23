@@ -260,7 +260,7 @@ function TabStrip({ children }: { children: ReactNode }): JSX.Element {
                   on
                     ? 'border-border bg-bg font-semibold text-fg'
                     : 'border-transparent bg-[color-mix(in_srgb,var(--fg)_7%,transparent)] text-fg-muted hover:bg-[color-mix(in_srgb,var(--fg)_12%,transparent)] hover:text-fg'
-                } ${dragging?.id === tab.id ? 'shadow-lg' : 'transition-transform'}`}
+                } ${dragging?.id === tab.id ? 'shadow-pop' : 'transition-transform'}`}
               >
                 <button
                   type="button"

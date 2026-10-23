@@ -35,7 +35,7 @@ export function SoapParts({ text }: { text: string }): JSX.Element {
                 type="button"
                 onClick={() => jump(index)}
                 style={{ backgroundColor: tint(index) }}
-                className="min-h-tap rounded-full border border-border px-2 text-[11px] font-medium [@media(pointer:fine)]:min-h-7"
+                className="min-h-tap rounded-full border border-border px-2 text-xs font-medium [@media(pointer:fine)]:min-h-7"
               >
                 {part.label}
               </button>
@@ -56,7 +56,7 @@ export function SoapParts({ text }: { text: string }): JSX.Element {
             {part.label ? (
               <h4
                 style={{ backgroundColor: tint(index) }}
-                className="sticky top-0 z-[1] border-y border-border px-4 py-0.5 text-[11px] font-semibold uppercase tracking-wide text-fg-muted"
+                className="sticky top-0 z-[1] border-y border-border px-4 py-0.5 text-xs font-semibold uppercase tracking-wide text-fg-muted"
               >
                 {part.label}
               </h4>

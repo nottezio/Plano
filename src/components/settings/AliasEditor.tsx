@@ -74,7 +74,7 @@ export function AliasEditor({
                 onChange={(event) => setKeywords(alias.sectionId, event.target.value)}
                 className="mt-1 min-h-tap w-full rounded-lg border border-border bg-surface px-2 text-xs outline-none"
               />
-              <p className="mt-1 px-2 text-[11px] text-fg-faint">
+              <p className="mt-1 px-2 text-xs text-fg-faint">
                 Kata kunci dipisah koma. Baris dianggap header bila diawali salah satu kata
                 kunci diikuti “:”, “.” atau “)”.
               </p>
@@ -102,7 +102,7 @@ export function AliasEditor({
           <li
             key={`${section.sectionId}-${index}`}
             className={[
-              'rounded-full border px-2 py-1 text-[11px]',
+              'rounded-full border px-2 py-1 text-xs',
               section.sectionId === '_intro'
                 ? 'border-border text-fg-faint'
                 : 'border-accent text-accent',

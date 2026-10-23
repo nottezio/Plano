@@ -130,7 +130,7 @@ function CopyMrn({
       }}
       title={`Salin nomor RM ${mrn}`}
       aria-label={`Salin nomor RM ${mrn}`}
-      className="mr-2 min-h-tap shrink-0 rounded-lg border border-border bg-surface px-2 text-[11px] font-medium text-fg-muted"
+      className="mr-2 min-h-tap shrink-0 rounded-lg border border-border bg-surface px-2 text-xs font-medium text-fg-muted"
     >
       {copied ? 'Tersalin' : 'Salin RM'}
     </button>

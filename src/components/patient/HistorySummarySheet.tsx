@@ -156,12 +156,12 @@ export function HistorySummarySheet({
           How much was read, said before the summary is trusted. A retelling
           that skipped a week reads exactly like one that did not.
         */}
-        {note ? <span className="text-[11px] text-fg-muted">{note}</span> : null}
+        {note ? <span className="text-xs text-fg-muted">{note}</span> : null}
       </div>
 
       {error ? <p className="mt-2 text-xs text-danger">{error}</p> : null}
 
-      <p className="mt-2 text-[11px] text-fg-faint">
+      <p className="mt-2 text-xs text-fg-faint">
         Identitas di bawah diambil dari data pasien, bukan dari AI: {identity}
       </p>
 
@@ -171,7 +171,7 @@ export function HistorySummarySheet({
         </pre>
       ) : null}
 
-      <p className="mt-3 text-[11px] text-fg-faint">
+      <p className="mt-3 text-xs text-fg-faint">
         Periksa angka dan tanggalnya sebelum dibacakan. Ringkasan adalah penceritaan ulang,
         dan penceritaan ulang bisa kehilangan hal yang penting.
       </p>

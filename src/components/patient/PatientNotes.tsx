@@ -127,7 +127,7 @@ export function PatientNotes({
         <span className="min-w-0 flex-1">
           <span className="block text-xs font-semibold text-fg-muted">Catatan pasien</span>
           {!open ? (
-            <span className="mt-0.5 block whitespace-pre-line text-[11px] text-fg-faint">
+            <span className="mt-0.5 block whitespace-pre-line text-xs text-fg-faint">
               {preview || 'Tidak hilang saat ganti hari.'}
             </span>
           ) : null}
@@ -166,7 +166,7 @@ export function PatientNotes({
             // wraps, and the measurement then has something to measure.
             className="w-full resize-none overflow-hidden [overflow-wrap:anywhere] rounded-lg border border-border bg-surface p-2 text-sm leading-relaxed outline-none placeholder:text-fg-faint"
           />
-          <p className="mt-1 text-[11px] text-fg-faint">
+          <p className="mt-1 text-xs text-fg-faint">
             Berlaku untuk seluruh hari rawat dan tidak ikut tersalin ke laporan.
           </p>
         </div>

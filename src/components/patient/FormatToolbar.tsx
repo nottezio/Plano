@@ -82,7 +82,7 @@ export function FormatToolbar({
       <div
         role="toolbar"
         aria-label="Format catatan"
-        className="flex max-w-full items-center gap-0.5 overflow-x-auto rounded-xl border border-border bg-[color-mix(in_srgb,var(--surface)_95%,transparent)] p-0.5 shadow-lg backdrop-blur [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+        className="flex max-w-full items-center gap-0.5 overflow-x-auto rounded-xl border border-border bg-surface p-0.5 shadow-pop [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
       >
         {history ? (
           <Group>
@@ -295,7 +295,7 @@ function Menu({ children }: { children: ReactNode }): JSX.Element {
   return (
     <div
       role="menu"
-      className="absolute bottom-full left-0 z-30 mb-2 max-h-[min(60vh,30rem)] w-72 max-w-[calc(100vw-2rem)] overflow-y-auto overscroll-contain rounded-xl border border-border bg-surface p-1 shadow-2xl"
+      className="absolute bottom-full left-0 z-30 mb-2 max-h-[min(60vh,30rem)] w-72 max-w-[calc(100vw-2rem)] overflow-y-auto overscroll-contain rounded-xl border border-border bg-surface p-1 shadow-sheet"
     >
       {children}
     </div>
@@ -320,7 +320,7 @@ function MenuItem({
       className="block min-h-tap w-full rounded-lg px-3 py-2 text-left hover:bg-bg-subtle"
     >
       <span className="block text-sm font-medium text-fg">{label}</span>
-      {detail ? <span className="mt-0.5 block truncate font-mono text-[11px] text-fg-muted">{detail}</span> : null}
+      {detail ? <span className="mt-0.5 block truncate font-mono text-xs text-fg-muted">{detail}</span> : null}
     </button>
   );
 }

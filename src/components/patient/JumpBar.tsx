@@ -133,7 +133,7 @@ export function JumpBar({
             content is the point. The targets are also wide, which is the axis a
             thumb actually misses on.
           */
-          className="h-8 shrink-0 rounded-lg px-2 text-[11px] font-medium text-fg-muted"
+          className="h-8 shrink-0 rounded-lg px-2 text-xs font-medium text-fg-muted"
         >
           {target.label}
         </button>
@@ -147,7 +147,7 @@ export function JumpBar({
           type="button"
           onClick={() => onBookmark?.(bookmark.id)}
           title={`Ke baris: ${bookmark.label}`}
-          className="flex h-8 max-w-[11rem] shrink-0 items-center gap-1 rounded-lg px-2 text-[11px] font-medium text-accent"
+          className="flex h-8 max-w-[11rem] shrink-0 items-center gap-1 rounded-lg px-2 text-xs font-medium text-accent"
         >
           <svg
             viewBox="0 0 24 24"
@@ -167,7 +167,7 @@ export function JumpBar({
           type="button"
           onClick={onClearMissing}
           title="Baris yang di-bookmark tidak ada di catatan hari ini. Ketuk untuk menghapus bookmark-nya."
-          className="h-8 shrink-0 rounded-lg px-2 text-[11px] text-fg-faint"
+          className="h-8 shrink-0 rounded-lg px-2 text-xs text-fg-faint"
         >
           {missingBookmarks} bookmark tidak ditemukan · Hapus
         </button>

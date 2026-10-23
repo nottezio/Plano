@@ -119,7 +119,7 @@ export function HelperPage(): JSX.Element {
     <AppShell
       title="Helper"
       titleBadge={
-        <span className="rounded-full border border-danger px-2 py-0.5 text-[10px] font-semibold text-danger">
+        <span className="rounded-full border border-danger px-2 py-0.5 text-[11px] font-semibold text-danger">
           WIP
         </span>
       }
@@ -137,7 +137,7 @@ export function HelperPage(): JSX.Element {
             <IconBack />
           </button>
           <h1 className="text-lg font-semibold">Helper</h1>
-          <span className="rounded-full border border-danger px-2 py-0.5 text-[10px] font-semibold text-danger">
+          <span className="rounded-full border border-danger px-2 py-0.5 text-[11px] font-semibold text-danger">
             Work in progress
           </span>
         </div>
@@ -170,7 +170,7 @@ export function HelperPage(): JSX.Element {
         */}
         <p
           role="note"
-          className="flex gap-2 rounded-xl border border-[var(--warn-strong)] bg-[var(--warn-soft)] px-3 py-2 text-[11px] leading-relaxed text-fg"
+          className="flex gap-2 rounded-xl border border-[var(--warn-strong)] bg-[var(--warn-soft)] px-3 py-2 text-xs leading-relaxed text-fg"
         >
           <span aria-hidden="true" className="font-semibold text-[var(--warn-strong)]">!</span>
           <span>
@@ -617,7 +617,7 @@ function KonfirmasiJaga(): JSX.Element {
         </div>
         <div className="min-w-0">
           <p className="text-sm font-semibold leading-tight">{longDate(date)}</p>
-          <p className="text-[11px] text-fg-muted">
+          <p className="text-xs text-fg-muted">
             {relativeDay(date, today)}
           </p>
         </div>
@@ -647,7 +647,7 @@ function KonfirmasiJaga(): JSX.Element {
           role="status"
           title="Jadwal yang diimpor dan perubahan di layar ini (konfirmasi, tukar jaga, nama, agama, DPJP) di-sync ke akun dan berlaku hanya untuk tanggalnya. Sumber utamanya tetap PDF jadwal."
           className={[
-            'ml-auto inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11px]',
+            'ml-auto inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs',
             syncTone === 'error' ? 'border-danger text-danger' : 'border-border text-fg-muted',
           ].join(' ')}
         >
@@ -841,7 +841,7 @@ function KonfirmasiJaga(): JSX.Element {
                       ]),
                 ].map(({ date: day, label }) => (
                   <div key={day} className="space-y-1.5">
-                    <p className="text-[11px] font-medium text-fg-faint">{label}</p>
+                    <p className="text-xs font-medium text-fg-faint">{label}</p>
                     <div className="grid gap-1.5 sm:grid-cols-2">
                       {(['utama', 'tindakan'] as const).map((field) => (
                         <input
@@ -866,7 +866,7 @@ function KonfirmasiJaga(): JSX.Element {
                     </div>
                   </div>
                 ))}
-                <p className="text-[11px] text-fg-faint">Kosongkan untuk memakai jadwal yang diimpor.</p>
+                <p className="text-xs text-fg-faint">Kosongkan untuk memakai jadwal yang diimpor.</p>
               </div>
             </details>
 
@@ -1004,7 +1004,7 @@ function KonfirmasiJaga(): JSX.Element {
                         />
                       </label>
                       <span className="text-xs text-fg-muted">{post.label}</span>
-                      <span className="text-[10px] text-fg-faint">{post.initials}</span>
+                      <span className="text-[11px] text-fg-faint">{post.initials}</span>
                       {/*
                         Say when the greeting is a fallback. The Jarkom sheet
                         is a semester old and the roster is not — a resident
@@ -1039,7 +1039,7 @@ function KonfirmasiJaga(): JSX.Element {
                               ),
                             )
                           }
-                          className="min-h-tap rounded border border-border bg-surface px-1 text-[10px]"
+                          className="min-h-tap rounded border border-border bg-surface px-1 text-[11px]"
                         >
                           <option value="auto">
                             {post.muslim === null
@@ -1065,7 +1065,7 @@ function KonfirmasiJaga(): JSX.Element {
                                   setPostOverride(shift.date, shift.shift, post.id, null),
                                 );
                               }}
-                              className="text-[10px] underline decoration-dotted"
+                              className="text-[11px] underline decoration-dotted"
                             >
                               Selalu
                             </button>
@@ -1093,7 +1093,7 @@ function KonfirmasiJaga(): JSX.Element {
                     */}
                     {/* On a swap this is the ROSTERED person; the swap header names them instead. */}
                     {post.name && post.name !== post.display && !post.swapped ? (
-                      <p className="mt-0.5 text-[10px] text-fg-faint">{post.name}</p>
+                      <p className="mt-0.5 text-[11px] text-fg-faint">{post.name}</p>
                     ) : null}
                     {(() => {
                       /*
@@ -1164,7 +1164,7 @@ function KonfirmasiJaga(): JSX.Element {
                       ) : null}
                       <p
                         className={[
-                          'whitespace-pre-wrap border px-2 py-1.5 text-[11px] leading-relaxed text-fg-muted',
+                          'whitespace-pre-wrap border px-2 py-1.5 text-xs leading-relaxed text-fg-muted',
                           post.swapped
                             ? 'rounded-b-lg border-[var(--warn-strong)]'
                             : 'rounded-lg border-border',
@@ -1212,7 +1212,7 @@ function JarkomLinkControl({
 
   if (post.linked) {
     return (
-      <p className="mt-0.5 flex flex-wrap items-center gap-2 text-[10px] text-fg-muted">
+      <p className="mt-0.5 flex flex-wrap items-center gap-2 text-[11px] text-fg-muted">
         Dipilih manual dari Jarkom.
         <button
           type="button"
@@ -1228,7 +1228,7 @@ function JarkomLinkControl({
   if (ambiguous.length > 1) {
     return (
       <div className="mt-1 space-y-1 rounded-lg border border-[var(--warn-strong)] bg-[var(--warn-soft)] px-2 py-1.5">
-        <p className="text-[11px] font-medium text-[var(--warn-strong)]">
+        <p className="text-xs font-medium text-[var(--warn-strong)]">
           “{post.name}” cocok dengan {ambiguous.length} orang di Jarkom. Yang mana {post.initials}?
         </p>
         <div className="flex flex-wrap gap-1">
@@ -1248,7 +1248,7 @@ function JarkomLinkControl({
   }
 
   return open ? (
-    <label className="mt-1 block text-[10px] text-fg-muted">
+    <label className="mt-1 block text-[11px] text-fg-muted">
       Orang yang benar untuk {post.initials} di Jarkom
       <select
         defaultValue=""
@@ -1271,7 +1271,7 @@ function JarkomLinkControl({
     <button
       type="button"
       onClick={() => setOpen(true)}
-      className="mt-0.5 min-h-tap text-[10px] text-fg-faint underline decoration-dotted"
+      className="mt-0.5 min-h-tap text-[11px] text-fg-faint underline decoration-dotted"
     >
       Salah orang?
     </button>
@@ -1332,7 +1332,7 @@ function PediatriPaste({
         placeholder={'Tempel pesannya, mis.\n* Jumat, 09 Oktober: dr. …\n* Minggu, 11 Oktober: dr. … & dr. …'}
         className="block w-full resize-y rounded-lg border border-border bg-bg-subtle px-3 py-2 font-mono text-xs leading-relaxed outline-none focus:border-accent"
       />
-      <p className="text-[11px] leading-relaxed text-fg-faint">
+      <p className="text-xs leading-relaxed text-fg-faint">
         “&amp;” = dua shift (pagi lalu malam). “A - B” = A PPDS BTKV yang jaga bersama B. Tahun diambil dari nama
         harinya.
       </p>
@@ -1347,7 +1347,7 @@ function PediatriPaste({
         </Callout>
       ) : null}
       {shifts.length > 0 ? (
-        <ul className="max-h-56 overflow-auto rounded-lg border border-border text-[11px]">
+        <ul className="max-h-56 overflow-auto rounded-lg border border-border text-xs">
           {shifts.map((entry, index) => (
             <li
               key={`${entry.date}:${entry.shift}:${index}`}
@@ -1455,16 +1455,16 @@ function ScheduleTile({
           ].join(' ')}
         />
         <span className="min-w-0 flex-1 truncate text-xs font-semibold">{label}</span>
-        <span className="shrink-0 text-[11px] font-medium text-accent group-hover:underline">
+        <span className="shrink-0 text-xs font-medium text-accent group-hover:underline">
           {busy ? 'Membaca…' : summary ? 'Ganti' : 'Impor'}
         </span>
       </span>
-      <span className="text-[11px] text-fg-muted">
+      <span className="text-xs text-fg-muted">
         {summary ? [version, summary].filter(Boolean).join(' · ') : `Belum diimpor · ${cadence}`}
         {warning === 'outdated' ? ' · kedaluwarsa' : warning === 'ending' ? ' · hampir habis' : ''}
       </span>
       {gaps.length > 0 ? (
-        <span className="text-[11px] font-medium text-[var(--warn-strong)]">
+        <span className="text-xs font-medium text-[var(--warn-strong)]">
           Tidak terbaca: {describeDates(gaps)}
         </span>
       ) : null}
@@ -1474,7 +1474,7 @@ function ScheduleTile({
         re-read. One import fixes it for good (reparse.ts).
       */}
       {legacy ? (
-        <span className="text-[11px] font-medium text-[var(--warn-strong)]">
+        <span className="text-xs font-medium text-[var(--warn-strong)]">
           Dibaca Plano versi lama — impor ulang PDF ini sekali.
         </span>
       ) : null}
@@ -1559,7 +1559,7 @@ function ResidentPicker({
         className="min-w-0 max-w-[10rem] rounded border border-transparent bg-transparent px-1 text-sm font-medium hover:border-border focus:border-border"
       />
       {matches.length > 0 ? (
-        <ul className="absolute left-0 top-full z-20 mt-1 w-56 overflow-hidden rounded-lg border border-border bg-surface shadow-lg">
+        <ul className="absolute left-0 top-full z-20 mt-1 w-56 overflow-hidden rounded-lg border border-border bg-surface shadow-pop">
           {matches.map((resident) =>
             resident.ambiguous.length > 1 ? (
               /*
@@ -1586,8 +1586,8 @@ function ResidentPicker({
                   >
                     <span className="font-medium">{entry.panggilan}</span>
                     <span className="ml-1 text-fg-faint">{resident.initials}</span>
-                    <span className="block truncate text-[10px] text-fg-muted">{entry.name}</span>
-                    <span className="block truncate text-[10px] text-[var(--warn-strong)]">
+                    <span className="block truncate text-[11px] text-fg-muted">{entry.name}</span>
+                    <span className="block truncate text-[11px] text-[var(--warn-strong)]">
                       Jadwal: {resident.name} — pilih yang benar
                     </span>
                   </button>
@@ -1612,7 +1612,7 @@ function ResidentPicker({
               >
                 <span className="font-medium">{resident.panggilan ?? resident.name}</span>
                 <span className="ml-1 text-fg-faint">{resident.initials}</span>
-                <span className="block truncate text-[10px] text-fg-muted">{resident.name}</span>
+                <span className="block truncate text-[11px] text-fg-muted">{resident.name}</span>
               </button>
             </li>
             ),
@@ -1680,7 +1680,7 @@ function ResetFormasi({
         {armed ? 'Ketuk lagi untuk reset' : 'Kembalikan ke jadwal'}
       </button>
       {armed ? (
-        <p id="reset-formasi-detail" role="status" className="order-last basis-full text-[11px] text-danger">
+        <p id="reset-formasi-detail" role="status" className="order-last basis-full text-xs text-danger">
           Akan dihapus: {parts.join(' & ')}. Konfirmasi untuk pos yang ditukar ikut dihapus;
           koreksi nama dan agama tetap.
         </p>

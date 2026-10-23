@@ -199,7 +199,7 @@ export function DateRail({
                     onClick={() => onSelectShiftNote(date, note.id)}
                     aria-current={noteActive}
                     className={[
-                      'flex min-w-0 items-center gap-1.5 text-left text-[11px]',
+                      'flex min-w-0 items-center gap-1.5 text-left text-xs',
                       orientation === 'vertical'
                         ? 'ml-4 mt-0.5 flex-1 rounded-md border-l-2 px-2 py-1'
                         : // On the strip: a short pill beside its day, not a

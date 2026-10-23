@@ -69,7 +69,7 @@ export function QuickChecklistSheet({
                 <span
                   aria-hidden="true"
                   className={[
-                    'flex h-5 w-5 shrink-0 items-center justify-center rounded-full border text-[11px]',
+                    'flex h-5 w-5 shrink-0 items-center justify-center rounded-full border text-xs',
                     done ? 'border-current' : 'border-border-strong',
                   ].join(' ')}
                 >
@@ -84,7 +84,7 @@ export function QuickChecklistSheet({
 
       <div className="mt-4">
         <ProgressStrip progress={checklist.progress} />
-        <p className="mt-1.5 text-[11px] text-fg-muted">
+        <p className="mt-1.5 text-xs text-fg-muted">
           {checklist.progress.doneCount}/{checklist.progress.total} selesai
         </p>
       </div>

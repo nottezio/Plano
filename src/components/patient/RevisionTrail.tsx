@@ -128,7 +128,7 @@ export function RevisionTrail({
           </p>
           <DiffView before={pair.older.body} after={pair.newer.body} />
           <div className="mt-2 flex items-center gap-3">
-            <p className="flex-1 text-[11px] text-fg-faint">
+            <p className="flex-1 text-xs text-fg-faint">
               Merah = ada di versi lama, hijau = ada di versi yang lebih baru.
             </p>
             <button
@@ -166,12 +166,12 @@ export function RevisionTrail({
                     // Named as well as ordered: a label the author typed is
                     // indistinguishable from an automatic one at a glance
                     // otherwise, and only one of the two is safe to ignore.
-                    <span className="rounded px-1 text-[10px] font-semibold text-[var(--warn-strong)]">
+                    <span className="rounded px-1 text-[11px] font-semibold text-[var(--warn-strong)]">
                       disimpan
                     </span>
                   ) : null}
-                  <span className="text-[11px] text-fg-faint">rev {revision.rev}</span>
-                  <span className="ml-auto text-[11px] text-fg-faint">
+                  <span className="text-xs text-fg-faint">rev {revision.rev}</span>
+                  <span className="ml-auto text-xs text-fg-faint">
                     {formatWhen(revision)}
                   </span>
                 </span>
@@ -191,7 +191,7 @@ export function RevisionTrail({
                 aria-pressed={comparing.includes(revision.id)}
                 title="Bandingkan dengan versi lain"
                 className={[
-                  'min-h-tap shrink-0 rounded-lg border px-2 text-[11px] font-medium',
+                  'min-h-tap shrink-0 rounded-lg border px-2 text-xs font-medium',
                   comparing.includes(revision.id)
                     ? 'border-accent bg-[var(--accent-soft)] text-accent'
                     : 'border-border text-fg-muted',
@@ -208,7 +208,7 @@ export function RevisionTrail({
               {shown?.id === revision.id ? (
                 <div className="mt-2 space-y-2">
                   <DiffView before={revision.body} after={currentBody} />
-                  <p className="text-[11px] text-fg-faint">
+                  <p className="text-xs text-fg-faint">
                     Merah = ada di versi ini, hijau = ada di catatan sekarang.
                   </p>
                   <button

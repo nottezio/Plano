@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, type ReactNode } from 'react';
 import { DateField } from '@/components/common/DateField';
 import { useNavigate } from 'react-router-dom';
 
@@ -16,6 +16,7 @@ import type { ArchiveReason, Patient } from '@/domain/types';
 import { ReminderPicker } from './ReminderPicker';
 import {
   IconCalculator,
+  IconChevronRight,
   IconColumns,
   IconConvert,
   IconEye,
@@ -142,7 +143,10 @@ export function PatientActionsSheet({
     close();
     action();
   };
-  const hasNoteTools = Boolean(onExportWord || onLab || onOpening || onCompare || onCalculator || onAddVersion || onAddShiftNote || onReformat);
+  // Daily rows first; the rest of the note features and the AI rows fold
+  // away so the sheet opens on what a round actually uses.
+  const hasDailyTools = Boolean(onLab || onAddShiftNote || onCompare || onCalculator);
+  const hasMoreTools = Boolean(onExportWord || onOpening || onAddVersion || onReformat || onSummarise || onTidy);
 
   return (
     <Sheet
@@ -152,100 +156,6 @@ export function PatientActionsSheet({
       {...(description ? { description } : {})}
     >
       <div className="space-y-6">
-        {hasNoteTools ? (
-          <Section title="Catatan">
-            <ListGroup>
-              {onExportWord ? (
-                <ListRow
-                  icon={<IconPrinter width={18} height={18} />}
-                  title="Ekspor ke Word"
-                  detail="Catatan yang terbuka sebagai .docx A4 untuk dicetak; tebal/miring dan poin ikut."
-                  onClick={() => run(onExportWord)}
-                />
-              ) : null}
-              {onLab ? (
-                <ListRow
-                  icon={<IconFlask width={18} height={18} />}
-                  title="Format hasil lab"
-                  detail="Dari PDF lab atau teks tempelan, jadi blok berjudul dan bertanggal."
-                  onClick={() => run(onLab)}
-                />
-              ) : null}
-              {onOpening ? (
-                <ListRow
-                  icon={<IconQuote width={18} height={18} />}
-                  title="Pembuka & penutup"
-                  detail="Ganti salam, kalimat pembuka, sapaan Prof/dokter, atau penutup."
-                  onClick={() => run(onOpening)}
-                />
-              ) : null}
-              {onCompare ? (
-                <ListRow
-                  icon={<IconColumns width={18} height={18} />}
-                  title="Bandingkan catatan"
-                  detail="Dengan hari sebelumnya, SOAP asli, atau versi lain."
-                  onClick={() => run(onCompare)}
-                />
-              ) : null}
-              {onCalculator ? (
-                <ListRow
-                  icon={<IconCalculator width={18} height={18} />}
-                  title="Kalkulator"
-                  detail="Hitung sambil menulis; panelnya melayang di atas catatan."
-                  onClick={() => run(onCalculator)}
-                />
-              ) : null}
-              {onAddVersion ? (
-                <ListRow
-                  icon={<IconLayers width={18} height={18} />}
-                  title="Buat versi SOAP"
-                  detail="Salinan untuk diedit (mis. untuk dr. AHA); SOAP aslinya tidak berubah."
-                  onClick={() => run(onAddVersion)}
-                />
-              ) : null}
-              {onAddShiftNote ? (
-                <ListRow
-                  icon={<IconMoon width={18} height={18} />}
-                  title="Tambah SOAP jaga"
-                  detail="Format S/O/A/P jaga, jam bisa diubah."
-                  onClick={() => run(onAddShiftNote)}
-                />
-              ) : null}
-              {onReformat ? (
-                <ListRow
-                  icon={<IconConvert width={18} height={18} />}
-                  title="Ubah ke format bangsal"
-                  detail="Menghapus header Airway/Breathing/Circulation dst."
-                  onClick={() => run(onReformat)}
-                />
-              ) : null}
-            </ListGroup>
-          </Section>
-        ) : null}
-
-        {onSummarise || onTidy ? (
-          <Section title="AI">
-            <ListGroup>
-              {onSummarise ? (
-                <ListRow
-                  icon={<IconSparkle width={18} height={18} />}
-                  title="Ringkas perjalanan pasien"
-                  detail="Untuk dibacakan ke DPJP. Tidak masuk ke catatan."
-                  onClick={() => run(onSummarise)}
-                />
-              ) : null}
-              {onTidy ? (
-                <ListRow
-                  icon={<IconSparkle width={18} height={18} />}
-                  title="Rapikan SOAP"
-                  detail="Tebal/miring dan urutan penunjang. Ditampilkan berdampingan dulu."
-                  onClick={() => run(onTidy)}
-                />
-              ) : null}
-            </ListGroup>
-          </Section>
-        ) : null}
-
         {/*
           States of the PATIENT, shown as switches: the row says what is true
           now, not only what tapping it would do.
@@ -295,6 +205,100 @@ export function PatientActionsSheet({
             ) : null}
           </ListGroup>
         </Section>
+
+        {hasDailyTools ? (
+          <Section title="Catatan">
+            <ListGroup>
+              {onLab ? (
+                <ListRow
+                  icon={<IconFlask width={18} height={18} />}
+                  title="Format hasil lab"
+                  detail="Dari PDF lab atau teks tempelan, jadi blok berjudul dan bertanggal."
+                  onClick={() => run(onLab)}
+                />
+              ) : null}
+              {onAddShiftNote ? (
+                <ListRow
+                  icon={<IconMoon width={18} height={18} />}
+                  title="Tambah SOAP jaga"
+                  detail="Format S/O/A/P jaga, jam bisa diubah."
+                  onClick={() => run(onAddShiftNote)}
+                />
+              ) : null}
+              {onCompare ? (
+                <ListRow
+                  icon={<IconColumns width={18} height={18} />}
+                  title="Bandingkan catatan"
+                  detail="Dengan hari sebelumnya, SOAP asli, atau versi lain."
+                  onClick={() => run(onCompare)}
+                />
+              ) : null}
+              {onCalculator ? (
+                <ListRow
+                  icon={<IconCalculator width={18} height={18} />}
+                  title="Kalkulator"
+                  detail="Hitung sambil menulis; panelnya melayang di atas catatan."
+                  onClick={() => run(onCalculator)}
+                />
+              ) : null}
+            </ListGroup>
+          </Section>
+        ) : null}
+
+        {hasMoreTools ? (
+          <Disclosure title="Catatan lainnya">
+            <ListGroup>
+              {onExportWord ? (
+                <ListRow
+                  icon={<IconPrinter width={18} height={18} />}
+                  title="Ekspor ke Word"
+                  detail="Catatan yang terbuka sebagai .docx A4 untuk dicetak; tebal/miring dan poin ikut."
+                  onClick={() => run(onExportWord)}
+                />
+              ) : null}
+              {onOpening ? (
+                <ListRow
+                  icon={<IconQuote width={18} height={18} />}
+                  title="Pembuka & penutup"
+                  detail="Ganti salam, kalimat pembuka, sapaan Prof/dokter, atau penutup."
+                  onClick={() => run(onOpening)}
+                />
+              ) : null}
+              {onAddVersion ? (
+                <ListRow
+                  icon={<IconLayers width={18} height={18} />}
+                  title="Buat versi SOAP"
+                  detail="Salinan untuk diedit (mis. untuk dr. AHA); SOAP aslinya tidak berubah."
+                  onClick={() => run(onAddVersion)}
+                />
+              ) : null}
+              {onReformat ? (
+                <ListRow
+                  icon={<IconConvert width={18} height={18} />}
+                  title="Ubah ke format bangsal"
+                  detail="Menghapus header Airway/Breathing/Circulation dst."
+                  onClick={() => run(onReformat)}
+                />
+              ) : null}
+              {onSummarise ? (
+                <ListRow
+                  icon={<IconSparkle width={18} height={18} />}
+                  title="Ringkas perjalanan pasien"
+                  detail="Untuk dibacakan ke DPJP. Tidak masuk ke catatan."
+                  onClick={() => run(onSummarise)}
+                />
+              ) : null}
+              {onTidy ? (
+                <ListRow
+                  icon={<IconSparkle width={18} height={18} />}
+                  title="Rapikan SOAP"
+                  detail="Tebal/miring dan urutan penunjang. Ditampilkan berdampingan dulu."
+                  onClick={() => run(onTidy)}
+                />
+              ) : null}
+            </ListGroup>
+          </Disclosure>
+        ) : null}
 
         <Section
           title="Pengingat harian"
@@ -373,7 +377,7 @@ export function PatientActionsSheet({
           </Section>
         ) : null}
 
-        <Section title="Zona berbahaya">
+        <Disclosure title="Zona berbahaya" open={confirmDelete}>
           {confirmDelete ? (
             <Callout
               tone="danger"
@@ -417,7 +421,7 @@ export function PatientActionsSheet({
               />
             </ListGroup>
           )}
-        </Section>
+        </Disclosure>
       </div>
     </Sheet>
   );
@@ -440,5 +444,29 @@ function SwitchMark({ on }: { on: boolean }): JSX.Element {
         ].join(' ')}
       />
     </span>
+  );
+}
+
+/**
+ * A folded group, styled like a Section title. Native <details>, so it is
+ * keyboard- and screen-reader-operable with no state of its own.
+ */
+function Disclosure({
+  title,
+  open,
+  children,
+}: {
+  title: string;
+  open?: boolean;
+  children: ReactNode;
+}): JSX.Element {
+  return (
+    <details className="group" {...(open ? { open: true } : {})}>
+      <summary className="flex min-h-tap cursor-pointer list-none items-center gap-2 text-xs font-semibold uppercase tracking-[0.06em] text-fg-muted [&::-webkit-details-marker]:hidden">
+        <span className="flex-1">{title}</span>
+        <IconChevronRight width={16} height={16} className="transition-transform group-open:rotate-90" />
+      </summary>
+      <div className="pt-2">{children}</div>
+    </details>
   );
 }

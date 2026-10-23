@@ -98,7 +98,7 @@ export default function CalculatorPage(): JSX.Element {
           />
         </Group>
 
-        <p className="mt-6 px-1 text-[11px] text-fg-faint">
+        <p className="mt-6 px-1 text-xs text-fg-faint">
           Hasil tidak disimpan — salin barisnya ke catatan. Setiap rumus dan ambang memakai
           rujukan yang tertulis di kartunya.
         </p>

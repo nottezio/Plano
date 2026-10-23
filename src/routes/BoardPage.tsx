@@ -32,7 +32,7 @@ import { copyText } from '@/lib/clipboard';
 import { PatientCard } from '@/components/board/PatientCard';
 import { PatientPeekWindow } from '@/components/board/PatientPeekWindow';
 import { QuickChecklistSheet } from '@/components/board/QuickChecklistSheet';
-import { IconMore, IconSearch } from '@/components/common/Icons';
+import { IconMore, IconPlus, IconSearch } from '@/components/common/Icons';
 import { Sheet } from '@/components/common/Sheet';
 import { useHideOnScroll } from '@/hooks/useHideOnScroll';
 import { NoteSearchToggle, useSearchNotesPreference } from '@/components/archive/NoteSearchToggle';
@@ -61,6 +61,7 @@ import {
 } from '@/domain/board';
 import { pendingFilters } from '@/domain/checklist';
 import { useSession } from '@/store/useSession';
+import { Button, Segmented } from '@/components/common/ui';
 
 export default function BoardPage(): JSX.Element {
   const today = useClinicalToday();
@@ -246,20 +247,28 @@ export default function BoardPage(): JSX.Element {
    * separate stacking number that can drift out of step with the list.
    */
   const [previewIds, setPreviewIds] = useState<string[]>([]);
+  // Re-peeking an open window brings it forward rather than opening a second copy.
+  const openPreview = useCallback((id: string): void => {
+    setPreviewIds((current) =>
+      current.includes(id) ? [...current.filter((x) => x !== id), id] : [...current, id],
+    );
+  }, []);
 
   /** Cards folded to name and DPJP, remembered per device. */
   const [cardsFolded, toggleFolded] = usePersistentIdSet('visite.board.cardsFolded');
   const [selecting, setSelecting] = useState(false);
   const [selected, setSelected] = useState<ReadonlySet<string>>(new Set());
 
-  const toggleSelected = (patientId: string): void => {
+  // Stable callbacks: PatientCard is memoised, and a new function per render
+  // would redraw every card on every board state change.
+  const toggleSelected = useCallback((patientId: string): void => {
     setSelected((current) => {
       const next = new Set(current);
       if (next.has(patientId)) next.delete(patientId);
       else next.add(patientId);
       return next;
     });
-  };
+  }, []);
 
   const leaveSelection = (): void => {
     setSelecting(false);
@@ -299,7 +308,7 @@ export default function BoardPage(): JSX.Element {
     leaveSelection();
   };
 
-  const onDragHandleDown = (event: React.PointerEvent, patientId: string): void => {
+  const startCardDrag = (event: React.PointerEvent, patientId: string): void => {
     const handle = event.currentTarget as HTMLElement;
     // Capture, so the gesture keeps reporting even when the finger leaves the
     // small handle — which it does immediately, because the point is to move
@@ -349,6 +358,14 @@ export default function BoardPage(): JSX.Element {
     // attached and the next tap anywhere moves a card.
     window.addEventListener('pointercancel', onUp);
   };
+  const startCardDragRef = useRef(startCardDrag);
+  useEffect(() => {
+    startCardDragRef.current = startCardDrag;
+  });
+  const onDragHandleDown = useCallback(
+    (event: React.PointerEvent, patientId: string) => startCardDragRef.current(event, patientId),
+    [],
+  );
 
   /**
    * Is there room for a canvas at all?
@@ -364,9 +381,11 @@ export default function BoardPage(): JSX.Element {
    */
   const [phoneView, setPhoneViewState] = useState<'canvas' | 'list'>(() => {
     try {
-      return localStorage.getItem('visite.board.phoneView') === 'list' ? 'list' : 'canvas';
+      // Daftar by default (2026-10-23): a list explains itself to a first-time
+      // user; the canvas stays one tap away and is remembered once chosen.
+      return localStorage.getItem('visite.board.phoneView') === 'canvas' ? 'canvas' : 'list';
     } catch {
-      return 'canvas';
+      return 'list';
     }
   });
   /** Normal or Ringkas cards (2026-10-10), per device. */
@@ -527,16 +546,7 @@ export default function BoardPage(): JSX.Element {
         checked={selected.has(card.patient.id)}
         onToggleSelected={toggleSelected}
         onPreview={
-          selecting
-            ? undefined
-            : (id: string) =>
-                setPreviewIds((current) =>
-                  // Re-peeking an open window brings it forward
-                  // rather than opening a second copy of it.
-                  current.includes(id)
-                    ? [...current.filter((x) => x !== id), id]
-                    : [...current, id]
-                )
+          selecting ? undefined : openPreview
         }
       />
     );
@@ -769,7 +779,7 @@ export default function BoardPage(): JSX.Element {
     <label className={`${CONTROL} relative flex shrink-0 items-center gap-1 rounded-lg border border-border bg-surface px-2.5 text-xs font-semibold text-fg`}>
       <span className="sr-only">Urutan</span>
       <span aria-hidden="true">{ORDER_SHORT[order]}</span>
-      <span aria-hidden="true" className="text-[10px] text-fg-faint">▾</span>
+      <span aria-hidden="true" className="text-[11px] text-fg-faint">▾</span>
       <select
         value={order}
         onChange={(event) => changeOrder(event.target.value as BoardOrder)}
@@ -820,8 +830,10 @@ export default function BoardPage(): JSX.Element {
         - On a phone the actions go behind ⋯, and the header hides while
           scrolling down and returns on scroll up (`useHideOnScroll`).
       */}
-      <div className="flex flex-wrap items-center gap-2 px-4 py-2 lg:flex-nowrap">
-        <label className={`${CONTROL} flex min-w-0 flex-1 basis-40 items-center gap-2 rounded-lg border border-border bg-surface px-3 lg:max-w-sm`}>
+      {/* One row from xl; below that it wraps rather than squeezing search
+          to a sliver (it was ~30 px wide at 1024 px). */}
+      <div className="flex flex-wrap items-center gap-2 px-4 py-2 xl:flex-nowrap">
+        <label className={`${CONTROL} flex min-w-[12rem] flex-1 basis-40 items-center gap-2 rounded-lg border border-border bg-surface px-3 lg:max-w-sm`}>
           <IconSearch className="shrink-0 text-fg-faint" width={16} height={16} />
           <input
             type="search"
@@ -850,7 +862,7 @@ export default function BoardPage(): JSX.Element {
                 onClick={() => changeScope(value)}
                 className={[
                   `${CONTROL} rounded-md px-2.5 text-xs`,
-                  scope === value ? 'bg-surface font-semibold text-accent shadow-sm' : 'text-fg-muted',
+                  scope === value ? 'bg-surface font-semibold text-accent shadow-card' : 'text-fg-muted',
                 ].join(' ')}
               >
                 {label} <span className="font-normal opacity-70">{count}</span>
@@ -903,36 +915,34 @@ export default function BoardPage(): JSX.Element {
                 <span aria-hidden="true">📌</span> Sticky Note
               </button>
             </BoardAddMenu>
-            <button
-              type="button"
-              onClick={() => setLabOpen(true)}
-              className={`${CONTROL} shrink-0 rounded-lg px-2.5 text-xs font-medium text-fg hover:bg-bg-subtle`}
-            >
+            <Button size="sm" variant="quiet" className="shrink-0 text-fg" onClick={() => setLabOpen(true)}>
               Format lab
-            </button>
-            <button
-              type="button"
+            </Button>
+            <Button
+              size="sm"
+              variant="quiet"
               aria-pressed={dense}
               onClick={() => setDense(!dense)}
               title="Kartu ringkas: satu baris diagnosis"
-              className={`${CONTROL} shrink-0 rounded-lg px-2.5 text-xs font-medium hover:bg-bg-subtle ${dense ? 'bg-bg-subtle text-accent' : 'text-fg'}`}
+              className={`shrink-0 ${dense ? 'bg-bg-subtle text-accent' : 'text-fg'}`}
             >
               {dense ? 'Ringkas' : 'Normal'}
-            </button>
+            </Button>
             <SelectButton selecting={selecting} onToggle={() => (selecting ? leaveSelection() : setSelecting(true))} />
           </>
         ) : null}
 
         {/* From tablet up the primary action sits in the row; on a phone it
             is the floating + in the corner. */}
-        <button
-          type="button"
+        <Button
+          variant="primary"
+          size="sm"
           onClick={createAndOpen}
-          className={`${CONTROL} hidden shrink-0 items-center gap-1.5 rounded-lg bg-accent px-3 text-sm font-medium text-on-accent sm:flex lg:ml-auto`}
+          icon={<IconPlus width={16} height={16} />}
+          className="hidden shrink-0 sm:inline-flex lg:ml-auto"
         >
-          <span aria-hidden="true" className="text-base leading-none">+</span>
           Pasien baru
-        </button>
+        </Button>
       </div>
 
 
@@ -943,30 +953,24 @@ export default function BoardPage(): JSX.Element {
       ) : null}
 
       {selecting ? (
-        <div className="mb-2 space-y-2 rounded-lg border border-border px-3 py-2">
+        <div className="mx-4 mb-2 space-y-2 rounded-xl border border-border bg-surface px-3 py-2 shadow-card">
           <div className="flex flex-wrap items-center gap-2">
             <span className="flex-1 text-xs text-fg-muted">
               {selected.size === 0
                 ? 'Ketuk kartu untuk memilih.'
                 : `${selected.size} pasien dipilih`}
             </span>
-            <button
-              type="button"
+            <Button
+              size="sm"
               disabled={selected.size === 0}
               onClick={() => setArchiveReason((current) => (current ? null : 'pulang'))}
               aria-expanded={archiveReason !== null}
-              className="min-h-tap rounded-lg px-3 text-xs font-medium text-fg disabled:opacity-40"
             >
               Arsipkan
-            </button>
-            <button
-              type="button"
-              disabled={selected.size === 0}
-              onClick={trashSelected}
-              className="min-h-tap rounded-lg px-3 text-xs font-medium text-danger disabled:opacity-40"
-            >
+            </Button>
+            <Button size="sm" variant="danger" disabled={selected.size === 0} onClick={trashSelected}>
               Pindahkan ke sampah
-            </button>
+            </Button>
           </div>
 
           {/*
@@ -980,14 +984,9 @@ export default function BoardPage(): JSX.Element {
             <div className="flex flex-wrap items-center gap-2 border-t border-border pt-2">
               <span className="text-xs text-fg-muted">Alasan:</span>
               {(Object.keys(ARCHIVE_REASON_LABELS) as ArchiveReason[]).map((reason) => (
-                <button
-                  key={reason}
-                  type="button"
-                  onClick={() => archiveSelected(reason)}
-                  className="min-h-tap rounded-lg border border-border px-3 text-xs font-medium"
-                >
+                <Button key={reason} size="sm" onClick={() => archiveSelected(reason)}>
                   {ARCHIVE_REASON_LABELS[reason]}
-                </button>
+                </Button>
               ))}
             </div>
           ) : null}
@@ -1002,7 +1001,7 @@ export default function BoardPage(): JSX.Element {
         the card. One line, only in the mode where it applies.
       */}
       {order === 'custom' && !dragHintSeen ? (
-        <p className="flex items-center gap-2 px-4 pb-2 text-[11px] text-fg-faint">
+        <p className="flex items-center gap-2 px-4 pb-2 text-xs text-fg-faint">
           <span className="flex-1">Seret ⠿ untuk menyusun ulang. Urutan tersimpan di perangkat ini.</span>
           <button
             type="button"
@@ -1050,27 +1049,16 @@ export default function BoardPage(): JSX.Element {
               noise — there is nothing to distinguish it from. */}
           {!canvasWidth && order === 'custom' && !searching && cards.length > 0 ? (
             <div className="flex items-center gap-2 px-4 pb-2 pt-1">
-              <div role="group" aria-label="Tampilan" className="flex overflow-hidden rounded-lg border border-border text-xs">
-                {(
-                  [
-                    ['canvas', 'Kanvas'],
-                    ['list', 'Daftar'],
-                  ] as const
-                ).map(([value, label]) => (
-                  <button
-                    key={value}
-                    type="button"
-                    aria-pressed={phoneView === value}
-                    onClick={() => setPhoneView(value)}
-                    className={[
-                      'min-h-tap px-3',
-                      phoneView === value ? 'bg-accent font-semibold text-on-accent' : 'text-fg-muted',
-                    ].join(' ')}
-                  >
-                    {label}
-                  </button>
-                ))}
-              </div>
+              <Segmented
+                label="Tampilan"
+                size="sm"
+                value={phoneView}
+                onChange={setPhoneView}
+                options={[
+                  ['list', 'Daftar'],
+                  ['canvas', 'Kanvas'],
+                ]}
+              />
             </div>
           ) : null}
 
@@ -1214,16 +1202,7 @@ export default function BoardPage(): JSX.Element {
                       // "tick this", and a second meaning on the same card is
                       // how the wrong one gets ticked.
                       onPreview={
-                      selecting
-                        ? undefined
-                        : (id: string) =>
-                            setPreviewIds((current) =>
-                              // Re-peeking an open window brings it forward
-                              // rather than opening a second copy of it.
-                              current.includes(id)
-                                ? [...current.filter((x) => x !== id), id]
-                                : [...current, id]
-                            )
+                      selecting ? undefined : openPreview
                     }
                     />
                     </MasonryItem>
@@ -1246,7 +1225,7 @@ export default function BoardPage(): JSX.Element {
                   <MasonryItem key={card.patient.id}>
                     <PatientCard card={card} onLongPress={setQuickPatientId} />
                     {card.snippet ? (
-                      <p className="px-2 pt-1 text-[11px] italic leading-snug text-fg-muted">
+                      <p className="px-2 pt-1 text-xs italic leading-snug text-fg-muted">
                         {card.snippet}
                       </p>
                     ) : null}
@@ -1264,7 +1243,7 @@ export default function BoardPage(): JSX.Element {
         onClick={createAndOpen}
         aria-label="Pasien baru"
         // Phone only — the tablet/desktop equivalent lives beside the search box.
-        className="fixed bottom-[calc(env(safe-area-inset-bottom)+76px)] right-4 z-30 flex h-14 w-14 items-center justify-center rounded-full bg-accent text-2xl text-on-accent shadow-lg sm:hidden"
+        className="fixed bottom-[calc(env(safe-area-inset-bottom)+76px)] right-4 z-30 flex h-14 w-14 items-center justify-center rounded-full bg-accent text-2xl text-on-accent shadow-pop sm:hidden"
       >
         +
       </button>
@@ -1416,6 +1395,13 @@ function SectionHeading({ label }: { label: string }): JSX.Element {
   );
 }
 
+/** The three things a round is made of, in the order a new user meets them. */
+const FIRST_STEPS: readonly (readonly [string, string])[] = [
+  ['Tambah pasien', 'Satu kartu per pasien. Tulis SOAP bebas, Plano mengenali bagiannya.'],
+  ['Centang checklist', 'Tahan kartu untuk checklist harian; di daftar, geser kanan untuk mencentang.'],
+  ['Salin laporan', 'Dari halaman pasien, Salin menyiapkan teks untuk WhatsApp atau SIMGOS.'],
+];
+
 function EmptyState({
   filtering,
   onCreate,
@@ -1423,22 +1409,41 @@ function EmptyState({
   filtering: boolean;
   onCreate: () => void;
 }): JSX.Element {
-  return (
-    // Left-aligned and near the top from lg: a message centred in a 900 px
-    // viewport reads as an error page rather than an empty list.
-    <div className="px-6 py-14 text-center lg:px-4 lg:py-10 lg:text-left">
-      <p className="text-sm text-fg-muted">
-        {filtering ? 'Tidak ada pasien yang cocok.' : 'Belum ada pasien aktif.'}
+  if (filtering) {
+    return (
+      // Left-aligned and near the top from lg: a message centred in a 900 px
+      // viewport reads as an error page rather than an empty list.
+      <p className="px-6 py-14 text-center text-sm text-fg-muted lg:px-4 lg:py-10 lg:text-left">
+        Tidak ada pasien yang cocok.
       </p>
-      {!filtering ? (
-        <button
-          type="button"
-          onClick={onCreate}
-          className="mt-3 min-h-tap rounded-lg border border-border px-4 text-sm text-accent"
-        >
+    );
+  }
+  // First run (or an emptied board): what the app is for, then one action.
+  return (
+    <div className="px-4 py-8 lg:py-10">
+      <div className="mx-auto max-w-md rounded-2xl border border-border bg-surface p-5 shadow-card lg:mx-0">
+        <h2 className="text-base font-semibold tracking-tight">Belum ada pasien aktif</h2>
+        <p className="mt-1 text-sm text-fg-muted">Visite di Plano berjalan dalam tiga langkah:</p>
+        <ol className="mt-4 space-y-3">
+          {FIRST_STEPS.map(([title, detail], index) => (
+            <li key={title} className="flex gap-3">
+              <span
+                aria-hidden="true"
+                className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-[var(--accent-soft)] font-mono text-xs font-semibold text-accent"
+              >
+                {index + 1}
+              </span>
+              <span className="min-w-0 text-sm">
+                <span className="font-medium text-fg">{title}</span>
+                <span className="mt-0.5 block text-xs leading-relaxed text-fg-muted">{detail}</span>
+              </span>
+            </li>
+          ))}
+        </ol>
+        <Button variant="primary" full className="mt-5" onClick={onCreate}>
           Tambah pasien pertama
-        </button>
-      ) : null}
+        </Button>
+      </div>
     </div>
   );
 }

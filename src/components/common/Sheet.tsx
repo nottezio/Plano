@@ -66,7 +66,7 @@ export function Sheet({
   return (
     <Dialog.Root open={open} onOpenChange={onOpenChange}>
       <Dialog.Portal>
-        <Dialog.Overlay className="fixed inset-0 z-50 bg-[var(--overlay)] backdrop-blur-[2px]" />
+        <Dialog.Overlay className="fixed inset-0 z-50 bg-[var(--overlay)]" />
         <Dialog.Content
           onOpenAutoFocus={(event) => {
             event.preventDefault();
@@ -82,14 +82,14 @@ export function Sheet({
             // backdrop above and below it was space the preview could have used.
             fill ? 'sm:h-[92dvh] sm:max-h-[92dvh]' : 'sm:max-h-[88dvh]',
             'sm:-translate-x-1/2 sm:-translate-y-1/2 sm:rounded-2xl sm:pb-0',
-            'border border-border shadow-2xl',
+            'border border-border shadow-sheet',
           ].join(' ')}
         >
           {/* The grab handle says "this slides" on a phone; a dialog has none. */}
           <div aria-hidden="true" className="mx-auto mt-2 h-1 w-10 rounded-full bg-border sm:hidden" />
           <div className="flex items-start gap-3 px-5 pb-3 pt-3 sm:pt-5">
             <div className="min-w-0 flex-1">
-              <Dialog.Title className="truncate text-lg font-semibold leading-tight text-fg">
+              <Dialog.Title className="truncate text-[17px] font-semibold leading-tight tracking-tight text-fg">
                 {title}
               </Dialog.Title>
               {description ? (

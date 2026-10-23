@@ -105,10 +105,10 @@ export function HeparinCard({
       }
       sources={HEPARIN_SOURCES}
     >
-      <p className="mb-2 rounded-lg bg-bg-subtle px-2 py-1.5 text-[11px] leading-snug text-fg-muted">
+      <p className="mb-2 rounded-lg bg-bg-subtle px-2 py-1.5 text-xs leading-snug text-fg-muted">
         Saran hitungan, bukan instruksi. Cocokkan dengan protokol RS dan rentang aPTT lab Anda.
       </p>
-      <p className="mb-1 text-[11px] font-medium text-fg-muted">Indikasi (wajib dipilih)</p>
+      <p className="mb-1 text-xs font-medium text-fg-muted">Indikasi (wajib dipilih)</p>
       <div role="group" aria-label="Indikasi heparin" className="mb-2 grid grid-cols-2 gap-1">
         {(
           [
@@ -130,7 +130,7 @@ export function HeparinCard({
             ].join(' ')}
           >
             {label}
-            <span className="block text-[10px] font-normal text-fg-faint">{source}</span>
+            <span className="block text-[11px] font-normal text-fg-faint">{source}</span>
           </button>
         ))}
       </div>
@@ -160,13 +160,13 @@ export function HeparinCard({
         ) : null}
       </div>
       {prefilled.length > 0 ? (
-        <p className="mt-1 text-[11px] text-fg-faint">
+        <p className="mt-1 text-xs text-fg-faint">
           Diisi dari lab terbaru di catatan: {prefilled.join(', ')}. Periksa tanggalnya.
         </p>
       ) : null}
 
       <fieldset className="mt-3">
-        <legend className="mb-1 text-[11px] font-medium text-fg-muted">Sebelum memberi dosis — ada?</legend>
+        <legend className="mb-1 text-xs font-medium text-fg-muted">Sebelum memberi dosis — ada?</legend>
         <div className="grid gap-1 sm:grid-cols-2">
           {STOP_LABELS.map(([key, label]) => (
             <label key={key} className="flex min-h-tap items-center gap-2 text-xs [@media(pointer:fine)]:min-h-8">
@@ -212,7 +212,7 @@ export function HeparinCard({
               {acsPosition === 'in' ? 'dalam target 60–80 dtk' : acsPosition === 'below' ? 'di bawah 60 dtk' : 'di atas 80 dtk'}
             </p>
           ) : null}
-          <p className="mt-1 text-[10px] text-fg-faint">ESC 2023 Tabel 6, UFH: {ESC_2023_ACS.printed}</p>
+          <p className="mt-1 text-[11px] text-fg-faint">ESC 2023 Tabel 6, UFH: {ESC_2023_ACS.printed}</p>
         </ResultBlock>
       ) : indication === 'ska' ? (
         <Empty>Isi berat badan aktual (kg).</Empty>
@@ -226,11 +226,11 @@ export function HeparinCard({
               caption={`= ${formatUnits(start.rateUnitsPerHour)} U/jam`}
             />
           </div>
-          <p className="mt-2 text-[11px] text-fg-muted">Cek aPTT {protocol.recheckHours} jam setelah mulai.</p>
+          <p className="mt-2 text-xs text-fg-muted">Cek aPTT {protocol.recheckHours} jam setelah mulai.</p>
         </ResultBlock>
       ) : adjustment ? (
         <ResultBlock line={adjustment.line}>
-          <p className="text-[11px] text-fg-muted">
+          <p className="text-xs text-fg-muted">
             aPTT {aptt} dtk = <b>{formatRatio(adjustment.ratio)} × kontrol</b> · target &gt;{one(adjustment.targetSeconds.low)}–
             {one(adjustment.targetSeconds.high)} dtk {adjustment.row.therapeutic ? '· dalam target' : ''}
           </p>
@@ -253,15 +253,15 @@ export function HeparinCard({
             ) : null}
           </div>
           {adjustment.rateFloor ? (
-            <p className="mt-2 text-[11px] font-medium text-[var(--danger)]">
+            <p className="mt-2 text-xs font-medium text-[var(--danger)]">
               Penurunan membuat laju ≤ 0 — nomogram tidak mencakup ini; diskusikan dengan DPJP.
             </p>
           ) : null}
-          <p className="mt-2 text-[11px] text-fg-muted">
+          <p className="mt-2 text-xs text-fg-muted">
             Cek aPTT {protocol.recheckHours} jam setelah perubahan. aPTT yang diambil &lt; {protocol.minHoursAfterChange} jam
             setelah perubahan terakhir tidak dipakai untuk menyesuaikan dosis.
           </p>
-          <p className="mt-1 text-[10px] text-fg-faint">Tabel 2 Raschke: {adjustment.row.printed.range} → {adjustment.row.printed.action}</p>
+          <p className="mt-1 text-[11px] text-fg-faint">Tabel 2 Raschke: {adjustment.row.printed.range} → {adjustment.row.printed.action}</p>
         </ResultBlock>
       ) : mode === 'sesuaikan' ? (
         <Empty>{problems.join(' ')}</Empty>
@@ -278,14 +278,14 @@ export function HeparinCard({
           >
             Sisipkan ke Terapi
           </button>
-          {inserted === 'ok' ? <span className="text-[11px] text-fg-muted">Ditambahkan ke daftar Terapi ✓</span> : null}
+          {inserted === 'ok' ? <span className="text-xs text-fg-muted">Ditambahkan ke daftar Terapi ✓</span> : null}
           {inserted === 'none' ? (
-            <span className="text-[11px] text-[var(--danger)]">Tidak ada bagian Terapi di catatan — pakai Salin baris.</span>
+            <span className="text-xs text-[var(--danger)]">Tidak ada bagian Terapi di catatan — pakai Salin baris.</span>
           ) : null}
         </div>
       ) : null}
 
-      <p className="mt-3 text-[10px] leading-snug text-fg-faint">
+      <p className="mt-3 text-[11px] leading-snug text-fg-faint">
         Rentang aPTT bergantung pada reagen: pada kadar heparin 0,3–0,7 U/mL (anti-Xa), reagen modern memberi rasio aPTT
         "1.6-2.7 to 3.7-6.2 times control" (CHEST 2012). Kontrol dan target diatur di Pengaturan → Heparin (aPTT).
       </p>

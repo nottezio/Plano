@@ -177,7 +177,7 @@ function StickerGlyph({
           state.persist(removeSticker(state.stickers, sticker.id));
         }}
         aria-label={`Hapus penanda ${stickerLabel(sticker.emoji)}`}
-        className="absolute -right-2 -top-1 hidden h-5 w-5 items-center justify-center rounded-full border border-border bg-surface text-[10px] text-fg-muted group-hover/sticker:flex"
+        className="absolute -right-2 -top-1 hidden h-5 w-5 items-center justify-center rounded-full border border-border bg-surface text-[11px] text-fg-muted group-hover/sticker:flex"
       >
         ×
       </button>
@@ -286,12 +286,12 @@ export function CanvasStickers({
                   aria-label="Pilih penanda"
                   className="space-y-2 px-2.5 pb-2 pt-1"
                 >
-                  <p className="text-[11px] text-fg-muted">
+                  <p className="text-xs text-fg-muted">
                     Seret penanda ke atas kartu agar ikut berpindah bersama kartunya.
                   </p>
                   {STICKER_GROUPS.map((group) => (
                     <div key={group.title}>
-                      <p className="mb-0.5 text-[10px] font-semibold uppercase tracking-wide text-fg-faint">
+                      <p className="mb-0.5 text-[11px] font-semibold uppercase tracking-wide text-fg-faint">
                         {group.title}
                       </p>
                       <div className="flex flex-wrap gap-0.5">

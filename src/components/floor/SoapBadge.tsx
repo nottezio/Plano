@@ -12,7 +12,7 @@ export function SoapBadge({ patient }: { patient: FloorPatient }): JSX.Element |
     return (
       <span
         title={`SOAP diperbarui ${patient.sentAt.slice(11, 16)}, setelah list terakhir dikirim`}
-        className="ml-1 inline-block rounded-full bg-accent px-1.5 align-middle text-[10px] font-semibold leading-4 text-on-accent"
+        className="ml-1 inline-block rounded-full bg-accent px-1.5 align-middle text-[11px] font-semibold leading-4 text-on-accent"
       >
         SOAP baru {patient.sentAt.slice(11, 16)}
       </span>
@@ -22,7 +22,7 @@ export function SoapBadge({ patient }: { patient: FloorPatient }): JSX.Element |
     return (
       <span
         title="Belum ada SOAP pada tanggal list ini"
-        className="ml-1 inline-block rounded-full border border-border px-1.5 align-middle text-[10px] font-semibold leading-4 text-fg-muted"
+        className="ml-1 inline-block rounded-full border border-border px-1.5 align-middle text-[11px] font-semibold leading-4 text-fg-muted"
       >
         SOAP {formatDmy(patient.sentAt.slice(0, 10)).slice(0, 5)}
       </span>

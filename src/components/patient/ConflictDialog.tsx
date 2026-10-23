@@ -89,7 +89,7 @@ export function ConflictDialog({
 
       {showDiff ? (
         <div className="mt-2">
-          <p className="mb-1 text-[11px] text-fg-faint">
+          <p className="mb-1 text-xs text-fg-faint">
             Hijau = ada di versi Anda, merah = ada di versi {otherDeviceLabel}.
           </p>
           <DiffView before={conflict.remote} after={conflict.local} />

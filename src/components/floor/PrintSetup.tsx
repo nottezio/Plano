@@ -185,7 +185,7 @@ function Preview({ kind, input, settings }: { kind: 'list' | 'denah'; input: Pri
 
   return (
     <div ref={wrap} className="h-[60dvh] min-h-0 overflow-y-auto rounded-xl border border-border bg-[color-mix(in_srgb,var(--fg)_30%,var(--bg))] sm:h-auto">
-      <p className="sticky top-0 z-10 bg-surface px-3 py-1 text-[11px] text-fg-muted">
+      <p className="sticky top-0 z-10 bg-surface px-3 py-1 text-xs text-fg-muted">
         {pages > 0 ? `${pages} halaman ${kind === 'list' ? 'list' : 'denah'}` : 'Menyiapkan pratinjau…'} · A4 {landscape ? 'lanskap' : 'potret'}
       </p>
       <iframe

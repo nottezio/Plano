@@ -90,7 +90,7 @@ export const slashRender: SlashRender = () => {
       const doc = props.editor.view.dom.ownerDocument;
       host = doc.createElement('div');
       host.className =
-        'fixed z-[70] max-h-80 overflow-y-auto rounded-xl border border-border bg-surface p-1 shadow-lg';
+        'fixed z-[70] max-h-80 overflow-y-auto rounded-xl border border-border bg-surface p-1 shadow-pop';
       doc.body.appendChild(host);
       renderer = new ReactRenderer(SlashMenu, { props, editor: props.editor });
       host.appendChild(renderer.element);

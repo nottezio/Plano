@@ -130,7 +130,7 @@ export function SavedResults(): JSX.Element {
       ) : (
         groupByForDate(shown).map(([date, items]) => (
           <section key={date} className="space-y-2">
-            <h3 className="text-[11px] font-semibold uppercase tracking-wider text-fg-faint">{dayHeader(date)}</h3>
+            <h3 className="text-xs font-semibold uppercase tracking-wider text-fg-faint">{dayHeader(date)}</h3>
             <ul className="space-y-2">
               {items.map((result) => (
                 <li key={result.id}>
@@ -146,7 +146,7 @@ export function SavedResults(): JSX.Element {
         ))
       )}
 
-      <p className="text-[11px] leading-relaxed text-fg-faint">
+      <p className="text-xs leading-relaxed text-fg-faint">
         Yang disimpan hanya hasil akhirnya, bukan list yang ditempel. Tersimpan di akun dan ikut
         tersinkron ke semua perangkat; menyimpan ulang hasil yang sama (jenis, tanggal, DPJP/shift)
         memperbarui simpanan yang ada, bukan membuat salinan baru.
@@ -174,7 +174,7 @@ function ResultCard({
       <header className="flex flex-wrap items-center gap-2 border-b border-border px-3 py-1.5">
         <span className="min-w-0 flex-1">
           <span className="block truncate text-xs font-semibold">{result.title}</span>
-          <span className="block truncate text-[10px] text-fg-faint">
+          <span className="block truncate text-[11px] text-fg-faint">
             {/* Time first: on a phone the end of this line is what gets cut. */}
             {clock(result.savedAt)}
             {result.editedAt ? ` · diubah ${clock(result.editedAt)}` : ''} · {KIND_LABEL[result.kind]}
@@ -258,7 +258,7 @@ function ResultCard({
       ) : (
         <>
           <p
-            className={`${open ? 'max-h-[70vh]' : 'max-h-40'} overflow-auto whitespace-pre-wrap px-3 py-2 text-[11px] leading-relaxed text-fg-muted`}
+            className={`${open ? 'max-h-[70vh]' : 'max-h-40'} overflow-auto whitespace-pre-wrap px-3 py-2 text-xs leading-relaxed text-fg-muted`}
           >
             {result.text}
           </p>
@@ -266,7 +266,7 @@ function ResultCard({
             <button
               type="button"
               onClick={() => setOpen(!open)}
-              className="min-h-tap w-full border-t border-border text-[11px] font-medium text-accent [@media(pointer:fine)]:min-h-9"
+              className="min-h-tap w-full border-t border-border text-xs font-medium text-accent [@media(pointer:fine)]:min-h-9"
             >
               {open ? 'Ringkas' : 'Tampilkan semua'}
             </button>

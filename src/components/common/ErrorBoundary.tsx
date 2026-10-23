@@ -51,7 +51,7 @@ export class ErrorBoundary extends Component<Props, State> {
         >
           Muat ulang
         </button>
-        <p className="text-[11px] text-fg-faint">v{APP_VERSION}</p>
+        <p className="text-xs text-fg-faint">v{APP_VERSION}</p>
       </div>
     );
   }

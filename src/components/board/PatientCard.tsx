@@ -5,7 +5,7 @@ import { setTick } from '@/data/repositories/checklist.repo';
 import { clinicalDate, daysBetween } from '@/domain/clinicalDate';
 import { formatDmy } from '@/domain/dateDmy';
 import { useSession } from '@/store/useSession';
-import { useEffect, useRef, useState } from 'react';
+import { memo, useEffect, useRef, useState } from 'react';
 import { NotePopover } from './NotePopover';
 import { useClipboardNote } from '@/store/useClipboardNote';
 import { Link } from 'react-router-dom';
@@ -29,7 +29,7 @@ import {
  * Background comes from the resolved checklist token; the progress strip and
  * the pending chip carry the same information without relying on colour.
  */
-export function PatientCard({
+function PatientCardView({
   card,
   collapsed = false,
   onToggleCollapsed,
@@ -398,7 +398,7 @@ export function PatientCard({
       className={[
         // `p-2.5`, not `p-3`: part of the compact pass — with twelve cards on a
         // board every pixel of padding is paid twelve times.
-        'block min-w-0 border border-black/5 bg-token text-token-fg shadow-sm transition-shadow hover:shadow-md dark:border-white/10',
+        'block min-w-0 border border-black/5 bg-token text-token-fg shadow-card transition-shadow hover:shadow-pop dark:border-white/10',
         dense ? 'p-2' : 'p-2.5',
         // `min-h-0` is what lets the middle actually shrink: a flex child
         // defaults to `min-height: auto`, which refuses to go below its content
@@ -486,7 +486,7 @@ export function PatientCard({
       {card.pemantauan ? (
         <p
           className={[
-            '-mx-3 -mt-3 rounded-t-xl px-3 py-1 text-[10px] font-semibold uppercase tracking-wide text-white',
+            '-mx-3 -mt-3 rounded-t-xl px-3 py-1 text-[11px] font-semibold uppercase tracking-wide text-white',
             dischargeStrip ? '' : 'mb-2',
           ].join(' ')}
           style={{ backgroundColor: 'var(--danger)' }}
@@ -508,7 +508,7 @@ export function PatientCard({
       {dischargeStrip ? (
         <p
           className={[
-            '-mx-3 mb-2 flex items-center gap-1.5 px-3 py-1 text-[10px] font-bold uppercase tracking-wide',
+            '-mx-3 mb-2 flex items-center gap-1.5 px-3 py-1 text-[11px] font-bold uppercase tracking-wide',
             card.pemantauan ? '' : '-mt-3 rounded-t-xl',
           ].join(' ')}
           style={{ backgroundColor: STAGE_TOKEN[dischargeStrip], color: 'var(--discharge-fg)' }}
@@ -564,7 +564,7 @@ export function PatientCard({
         recorded on the discharge wash. This is the same colour at a different
         weight, which is a separation the eye reads without having to be told.
       */}
-      <div className="-mx-2.5 -mt-2.5 mb-1.5 border-b border-[color-mix(in_srgb,var(--token-fg)_10%,transparent)] bg-black/10 px-2.5 py-1.5 dark:bg-white/[0.04]">
+      <div className="-mx-2.5 -mt-2.5 mb-1.5 border-b border-[color-mix(in_srgb,var(--token-fg)_10%,transparent)] bg-black/[0.05] px-2.5 py-1.5 dark:bg-white/[0.04]">
       {/*
         TWO COLUMNS: everything that wraps on the left, the eye fixed on the
         right. It is not decoration — it is what stops the blank row.
@@ -586,7 +586,7 @@ export function PatientCard({
           <span
             aria-hidden="true"
             className={[
-              'mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded border text-[11px]',
+              'mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded border text-xs',
               checked
                 ? 'border-transparent bg-accent text-on-accent'
                 : 'border-current opacity-40',
@@ -682,7 +682,7 @@ export function PatientCard({
         what you are walking to, and a card showing only "PJT Lt 4" still has
         to be opened to find out where.
       */}
-      <div className="mt-0.5 flex flex-wrap items-center gap-x-1.5 gap-y-1 text-[11px] opacity-70">
+      <div className="mt-0.5 flex flex-wrap items-center gap-x-1.5 gap-y-1 text-xs opacity-70">
         <span>{formatLocation(patient) || 'Lokasi belum diisi'}</span>
         {card.mrn ? <RmChip mrn={card.mrn} hidden={card.mrnHidden} patientId={card.patient.id} name={card.name} /> : null}
         {/*
@@ -702,7 +702,7 @@ export function PatientCard({
         {card.dpjp ? (
           <span
             title={`DPJP: ${card.dpjp.name}`}
-            className="rounded-full bg-black/10 px-1.5 text-[10px] font-semibold dark:bg-white/15"
+            className="rounded-full bg-black/10 px-1.5 text-[11px] font-semibold dark:bg-white/15"
           >
             {card.dpjp.initials}
           </span>
@@ -735,7 +735,7 @@ export function PatientCard({
       {card.chief ? (
         <span
           title={`Chief: ${card.chief}`}
-          className="mt-1 inline-flex max-w-full items-center gap-1 rounded-full bg-token-fg px-1.5 text-[10px] font-semibold text-token"
+          className="mt-1 inline-flex max-w-full items-center gap-1 rounded-full bg-token-fg px-1.5 text-[11px] font-semibold text-token"
         >
           <span className="font-normal opacity-80">Chief</span>
           <span className="truncate">{card.chief}</span>
@@ -822,7 +822,7 @@ export function PatientCard({
       */}
       <StatusRail card={card} />
       {gesture.hint ? (
-        <p aria-hidden="true" className="mb-1 text-[11px] font-semibold">
+        <p aria-hidden="true" className="mb-1 text-xs font-semibold">
           {gesture.hint === 'right'
             ? card.progress.pendingLabel
               ? `→ Centang: ${shortStepLabel(card.progress.pendingLabel) ?? card.progress.pendingLabel}`
@@ -884,7 +884,7 @@ export function PatientCard({
           {patient.labels.map((label) => (
             <span
               key={label}
-              className="rounded-full bg-black/10 px-2 py-0.5 text-[10px] dark:bg-white/15"
+              className="rounded-full bg-black/10 px-2 py-0.5 text-[11px] dark:bg-white/15"
             >
               {label}
             </span>
@@ -905,7 +905,7 @@ export function PatientCard({
     </Link>
 
       {undo ? (
-        <div role="status" className="mt-1 flex items-center gap-2 rounded-lg bg-surface px-3 py-1 text-xs shadow-sm">
+        <div role="status" className="mt-1 flex items-center gap-2 rounded-lg bg-surface px-3 py-1 text-xs shadow-card">
           <span className="min-w-0 flex-1 truncate">✓ {undo.label}</span>
           <button type="button" onClick={undoTick} className="min-h-tap shrink-0 px-2 font-semibold text-accent">
             Urungkan
@@ -977,7 +977,7 @@ function DischargeChip({ stage }: { stage: DischargeStage }): JSX.Element {
   return (
     <span
       title={STAGE_LABELS[stage]}
-      className="flex shrink-0 items-center gap-1 rounded-full px-1.5 py-0.5 text-[10px] font-semibold leading-none"
+      className="flex shrink-0 items-center gap-1 rounded-full px-1.5 py-0.5 text-[11px] font-semibold leading-none"
       style={{
         backgroundColor: `color-mix(in srgb, ${token} ${STAGE_TINT[stage]}%, transparent)`,
         // A ring drawn as an inset shadow rather than a border: a border would
@@ -1027,15 +1027,15 @@ function CardNote({ note, patientName }: { note: string; patientName: string }):
         onClick={() => setOpen((current) => !current)}
         className="flex w-full items-start gap-1.5 rounded-b-xl rounded-t-none border border-t-0 border-[var(--warn-strong)] bg-[var(--warn-soft)] px-3 py-1.5 text-left text-fg"
       >
-        <span aria-hidden="true" className="mt-px shrink-0 text-[10px] leading-snug text-[var(--warn-strong)]">
+        <span aria-hidden="true" className="mt-px shrink-0 text-[11px] leading-snug text-[var(--warn-strong)]">
           ✎
         </span>
         <span className="min-w-0 flex-1">
-          <span className="line-clamp-2 whitespace-pre-line break-words text-[11px] leading-snug [overflow-wrap:anywhere]">
+          <span className="line-clamp-2 whitespace-pre-line break-words text-xs leading-snug [overflow-wrap:anywhere]">
             {lines.slice(0, 2).join('\n')}
           </span>
           {more > 0 ? (
-            <span className="mt-0.5 block text-[10px] font-medium text-[var(--warn-strong)]">
+            <span className="mt-0.5 block text-[11px] font-medium text-[var(--warn-strong)]">
               +{more} baris · ketuk untuk membaca
             </span>
           ) : null}
@@ -1172,7 +1172,7 @@ function RmChip({
     >
       {/* No box: the only mark here that DOES something, so it looks like a
           link to copy rather than a label to read. */}
-      <span className="inline-flex items-center gap-0.5 font-mono text-[11px] underline decoration-dotted underline-offset-2">
+      <span className="inline-flex items-center gap-0.5 font-mono text-xs underline decoration-dotted underline-offset-2">
         {copied ? (
           'Tersalin ✓'
         ) : (
@@ -1226,7 +1226,7 @@ function ReminderChip({
     >
       <span
         className={[
-          'inline-flex items-center gap-1 rounded-full border px-1.5 py-0.5 text-[10px] font-semibold',
+          'inline-flex items-center gap-1 rounded-full border px-1.5 py-0.5 text-[11px] font-semibold',
           reminder.done
             ? 'border-[var(--border-strong)] bg-[var(--accent-soft)] text-fg-muted'
             : 'border-[var(--warn-strong)] bg-[var(--warn-soft)] text-fg',
@@ -1247,7 +1247,7 @@ function StatusRail({ card }: { card: BoardCard }): JSX.Element {
   const soap = soapState(card);
   const next = shortStepLabel(progress.pendingLabel);
   return (
-    <div className="mb-1 flex items-center gap-2 text-[11px]">
+    <div className="mb-1 flex items-center gap-2 text-xs">
       <span
         className={`flex shrink-0 items-center gap-1 ${soap === 'today' ? 'font-medium' : 'opacity-70'}`}
         title={
@@ -1263,7 +1263,7 @@ function StatusRail({ card }: { card: BoardCard }): JSX.Element {
       </span>
       {card.checkCount ? (
         <span
-          className="shrink-0 rounded-sm border border-current px-1 text-[10px] font-semibold"
+          className="shrink-0 rounded-sm border border-current px-1 text-[11px] font-semibold"
           title={`${card.checkCount} hal perlu diperiksa lagi di catatan hari ini`}
         >
           ⚑ {card.checkCount}
@@ -1304,7 +1304,7 @@ function FlagRow({
       {card.ekg ? (
         <span
           title={card.ekg === 'harian' ? 'EKG setiap hari' : 'EKG hari ini'}
-          className="rounded-sm border border-current px-1 text-[10px] font-semibold"
+          className="rounded-sm border border-current px-1 text-[11px] font-semibold"
         >
           {card.ekg === 'harian' ? 'EKG harian' : 'EKG hari ini'}
         </span>
@@ -1314,14 +1314,14 @@ function FlagRow({
             title="KJS — pasien TS lain, kita konsulen kardiologi. DPJP utama bukan kita."
             // Inverted: the one mark on the card that changes how you act on
             // it (the plan is a recommendation, the discharge is not ours).
-            className="rounded-sm bg-token-fg px-1 text-[10px] font-bold uppercase tracking-wide text-token"
+            className="rounded-sm bg-token-fg px-1 text-[11px] font-bold uppercase tracking-wide text-token"
           >
             KJS · Kardio
           </span>
         ) : card.kjs === 'ts' ? (
           <span
             title="KJS — pasien kita, rawat bersama TS lain"
-            className="rounded-sm border border-current px-1 text-[10px] font-bold uppercase tracking-wide"
+            className="rounded-sm border border-current px-1 text-[11px] font-bold uppercase tracking-wide"
           >
             KJS · TS
           </span>
@@ -1362,8 +1362,8 @@ function DxChangeLine({ card }: { card: BoardCard }): JSX.Element | null {
   const shown = rows.slice(0, 3);
   const full = rows.map((row) => `${DX_KIND[row.kind].word}: ${row.text}`).join('\n');
   return (
-    <div className="mb-1 rounded-md bg-black/10 px-1.5 py-1 text-[11px] leading-snug dark:bg-white/10" title={full}>
-      <p className="text-[10px] font-semibold opacity-80">Diagnosis berubah dari {when}</p>
+    <div className="mb-1 rounded-md bg-black/10 px-1.5 py-1 text-xs leading-snug dark:bg-white/10" title={full}>
+      <p className="text-[11px] font-semibold opacity-80">Diagnosis berubah dari {when}</p>
       {shown.map((row, index) => (
         <p key={index} className="line-clamp-1">
           <span className="font-semibold">
@@ -1465,3 +1465,6 @@ function useSwipe({
     hint: dx >= SWIPE_COMMIT ? 'right' : dx <= -SWIPE_COMMIT ? 'left' : null,
   };
 }
+
+/** Memoised: the board redraws on every filter, selection and drag change. */
+export const PatientCard = memo(PatientCardView);

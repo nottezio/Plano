@@ -49,7 +49,7 @@ export function DenahPlanView({
               thing it must not look like — so it is filled and centred instead,
               the way the printed sheet shades it.
             */
-            className="flex min-h-[96px] flex-1 items-center justify-center rounded-lg bg-[var(--warn-strong)] p-2 text-center text-[11px] font-bold uppercase leading-tight tracking-wide text-white"
+            className="flex min-h-[96px] flex-1 items-center justify-center rounded-lg bg-[var(--warn-strong)] p-2 text-center text-xs font-bold uppercase leading-tight tracking-wide text-white"
           >
             {block.landmark}
             <br />
@@ -81,7 +81,7 @@ export function DenahPlanView({
 
       {strays.length > 0 ? (
         <div className="mt-3 rounded-lg border border-[var(--danger)] p-2">
-          <p className="mb-1 text-[11px] font-semibold text-fg">
+          <p className="mb-1 text-xs font-semibold text-fg">
             Di luar denah {plan.ward}
           </p>
           {/*
@@ -94,7 +94,7 @@ export function DenahPlanView({
               <li key={patient.id}>
                 <Link
                   to={`/p/${patient.id}/${today}`}
-                  className="text-[11px] text-fg hover:underline"
+                  className="text-xs text-fg hover:underline"
                 >
                   {patient.room ? `Kamar ${patient.room} — ` : ''}
                   {denahLine(patient, showInitialsOnly)}
@@ -123,7 +123,7 @@ function Room({
 
   return (
     <div className="rounded-lg border border-border bg-surface">
-      <p className="border-b border-border px-2 py-1 text-center text-[11px] font-bold">
+      <p className="border-b border-border px-2 py-1 text-center text-xs font-bold">
         KAMAR {slot.room}
         {slot.subtitle ? (
           <span className="block font-semibold text-fg-muted">{slot.subtitle}</span>
@@ -133,11 +133,11 @@ function Room({
       <ol className="space-y-0.5 p-2">
         {beds.map((patient, index) => (
           <li key={`${slot.room}-${String(index)}`} className="flex gap-1.5">
-            <span className="w-3 shrink-0 text-[11px] text-fg-faint">{index + 1}.</span>
+            <span className="w-3 shrink-0 text-xs text-fg-faint">{index + 1}.</span>
             {patient ? (
               <Link
                 to={`/p/${patient.id}/${today}`}
-                className="min-w-0 flex-1 truncate text-[11px] leading-snug text-fg hover:underline"
+                className="min-w-0 flex-1 truncate text-xs leading-snug text-fg hover:underline"
                 title={denahLine(patient, showInitialsOnly)}
               >
                 {denahLine(patient, showInitialsOnly)}
@@ -148,7 +148,7 @@ function Room({
                 is indistinguishable from a bed that does not exist, and on a
                 floor plan that difference is the whole point.
               */
-              <span className="flex-1 text-[11px] text-fg-faint">&nbsp;</span>
+              <span className="flex-1 text-xs text-fg-faint">&nbsp;</span>
             )}
           </li>
         ))}
@@ -159,10 +159,10 @@ function Room({
               In this room but not in a numbered slot — no bed recorded, or a
               bed number the sheet does not have.
             */}
-            <span className="w-3 shrink-0 text-[11px] text-[var(--warn-strong)]">?</span>
+            <span className="w-3 shrink-0 text-xs text-[var(--warn-strong)]">?</span>
             <Link
               to={`/p/${patient.id}/${today}`}
-              className="min-w-0 flex-1 truncate text-[11px] leading-snug text-fg hover:underline"
+              className="min-w-0 flex-1 truncate text-xs leading-snug text-fg hover:underline"
               title={denahLine(patient, showInitialsOnly)}
             >
               {denahLine(patient, showInitialsOnly)}

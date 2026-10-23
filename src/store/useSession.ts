@@ -1,8 +1,10 @@
 import {
   GoogleAuthProvider,
+  browserLocalPersistence,
   browserPopupRedirectResolver,
   getRedirectResult,
   onAuthStateChanged,
+  setPersistence,
   signInWithPopup,
   signInWithRedirect,
   signOut,
@@ -277,6 +279,26 @@ export async function signInWithGoogle(): Promise<void> {
   const provider = new GoogleAuthProvider();
   provider.setCustomParameters({ prompt: 'select_account' });
 
+  /**
+   * Save THIS sign-in to localStorage, not IndexedDB (2026-10-23).
+   *
+   * Firebase's IndexedDB persistence refuses every write once the page has
+   * been hidden ("Database is closing/hidden") and clears that only when the
+   * page is visible again. A popup that covers the app — a new tab on Android
+   * Chrome, the desktop app's browser pane — hides it, so Google's answer
+   * arrived, saving the user failed, and the sign-in screen said "Gagal
+   * masuk" although the account was fine. localStorage has no such check.
+   * The next start finds the user there and moves it into IndexedDB itself
+   * (PersistenceUserManager migration), so the long-term store is unchanged.
+   *
+   * Not awaited: Auth runs it through its operation queue ahead of the popup's
+   * write, and an await here could cost the click's user activation that lets
+   * the popup open on iOS.
+   */
+  void setPersistence(auth, browserLocalPersistence).catch((error: unknown) =>
+    console.warn('[auth] could not switch sign-in persistence', error),
+  );
+
   try {
     /**
      * Popup FIRST, on every device, with redirect as the fallback.
@@ -314,6 +336,8 @@ export async function signInWithGoogle(): Promise<void> {
       await signInWithRedirect(auth, provider, browserPopupRedirectResolver);
       return;
     }
+    console.error('[auth] sign-in failed', error);
+    logSessionEvent('signin-error', errorCode(error) ?? (error instanceof Error ? error.name : typeof error));
     useSession.setState({ error: describeAuthError(error) });
     throw error;
   }
@@ -434,7 +458,12 @@ function describeAuthError(error: unknown): string {
        * little polish on a screen seen once and saves a round trip that
        * happens while someone cannot get into the ward's notes.
        */
-      return code ? `Gagal masuk (${code}).` : 'Gagal masuk. Coba lagi.';
+      // No code means the error did not come from Firebase Auth (a closed or
+      // replaced popup window, a script error): name it so a screenshot says which.
+      if (code) return `Gagal masuk (${code}).`;
+      return error instanceof Error && error.name !== 'Error'
+        ? `Gagal masuk (${error.name}). Coba lagi.`
+        : 'Gagal masuk. Coba lagi.';
   }
 }
 
@@ -464,7 +493,11 @@ let reconciling = false;
  */
 async function reconcileProfileSeeds(uid: string, profile: UserProfile): Promise<void> {
   if (reconciling) return;
-  const result = reconcileSeeds(profile.settings, SEED_SNAPSHOT);
+  // A brand-new account's first profile snapshot arrives before
+  // `seedSettingsIfMissing` has written `settings`; the next snapshot has it.
+  const settings = profile.settings as UserSettings | undefined;
+  if (!settings) return;
+  const result = reconcileSeeds(settings, SEED_SNAPSHOT);
   // `dirty` is false only when the baseline already matches, which also means
   // the baseline is present — so the narrowing below can never widen.
   if (!result.dirty || !result.settings.seedBaseline) return;

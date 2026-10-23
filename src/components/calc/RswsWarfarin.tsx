@@ -87,7 +87,7 @@ export function RswsWarfarin({
 
   return (
     <div className="mt-3 space-y-2">
-      <p className="rounded-lg border border-[var(--warn-strong)] px-2 py-1.5 text-[11px] leading-snug">
+      <p className="rounded-lg border border-[var(--warn-strong)] px-2 py-1.5 text-xs leading-snug">
         <b>Protokol RSWS — tidak resmi.</b> Dari praktik bangsal: mulai 1 × 2 mg, INR tiap {RSWS_INR_EVERY_DAYS} hari, dosis
         ditulis per minggu, dan penyesuaian mingguan menurut Tabel 15 yang dipakai bangsal (★ = saran tabel). Keputusan
         tetap di dokter.
@@ -112,10 +112,10 @@ export function RswsWarfarin({
       ) : (
         <>
           <div>
-            <p className="mb-1 text-[11px] font-medium text-fg-muted">Dosis minggu ini (mg)</p>
+            <p className="mb-1 text-xs font-medium text-fg-muted">Dosis minggu ini (mg)</p>
             <div className="grid grid-cols-7 gap-1">
               {WEEKDAYS.map((name, index) => (
-                <label key={name} className="text-center text-[10px] text-fg-muted">
+                <label key={name} className="text-center text-[11px] text-fg-muted">
                   {name.slice(0, 3)}
                   <input
                     inputMode="decimal"
@@ -130,7 +130,7 @@ export function RswsWarfarin({
                 </label>
               ))}
             </div>
-            <p className="mt-1 text-[11px] text-fg-muted">
+            <p className="mt-1 text-xs text-fg-muted">
               {total !== null ? `${describeSchedule(doses)} · ${mg(total)} mg/minggu` : 'Isi dosis tiap hari (0 bila tunda).'}
             </p>
           </div>
@@ -145,7 +145,7 @@ export function RswsWarfarin({
           ) : null}
 
           {tableRows.length > 0 ? (
-            <div className="rounded-lg bg-bg-subtle px-2 py-1.5 text-[11px] leading-snug">
+            <div className="rounded-lg bg-bg-subtle px-2 py-1.5 text-xs leading-snug">
               <p className="font-semibold">Tabel penyesuaian mingguan (protokol bangsal)</p>
               {tableRows.map((row) => (
                 <p key={row.printed.inr}>
@@ -157,11 +157,11 @@ export function RswsWarfarin({
               ) : null}
             </div>
           ) : target !== '2-3' && inrKnown ? (
-            <p className="text-[11px] text-fg-faint">Tabel penyesuaian mingguan berlaku untuk target 2,0–3,0; pilih perubahan sendiri.</p>
+            <p className="text-xs text-fg-faint">Tabel penyesuaian mingguan berlaku untuk target 2,0–3,0; pilih perubahan sendiri.</p>
           ) : null}
 
           <div>
-            <p className="mb-1 text-[11px] font-medium text-fg-muted">Ubah total mingguan (keputusan dokter)</p>
+            <p className="mb-1 text-xs font-medium text-fg-muted">Ubah total mingguan (keputusan dokter)</p>
             <div className="flex flex-wrap gap-1">
               {CHANGES.map((value) => (
                 <button
@@ -183,7 +183,7 @@ export function RswsWarfarin({
               ))}
             </div>
             <div className="mt-2 flex flex-wrap items-end gap-2">
-              <label className="text-[11px] text-fg-muted">
+              <label className="text-xs text-fg-muted">
                 atau total baru (mg/minggu)
                 <input
                   inputMode="decimal"
@@ -209,7 +209,7 @@ export function RswsWarfarin({
 
           {roundingMatters && totals && wanted !== null ? (
             <div>
-              <p className="mb-1 text-[11px] font-medium text-fg-muted">
+              <p className="mb-1 text-xs font-medium text-fg-muted">
                 Hasil {mg(Math.round(wanted * 100) / 100)} mg/minggu — bulatkan dosis harian
               </p>
               <Segmented
@@ -230,7 +230,7 @@ export function RswsWarfarin({
 
           {next && line ? (
             <ResultBlock line={line}>
-              <div className="grid grid-cols-7 gap-1 text-center text-[11px]">
+              <div className="grid grid-cols-7 gap-1 text-center text-xs">
                 {WEEKDAYS.map((name, index) => (
                   <div key={name}>
                     <p className="text-fg-muted">{name.slice(0, 3)}</p>
@@ -260,9 +260,9 @@ export function RswsWarfarin({
           >
             Sisipkan ke Terapi
           </button>
-          {inserted === 'ok' ? <span className="text-[11px] text-fg-muted">Ditambahkan ke daftar Terapi ✓</span> : null}
+          {inserted === 'ok' ? <span className="text-xs text-fg-muted">Ditambahkan ke daftar Terapi ✓</span> : null}
           {inserted === 'none' ? (
-            <span className="text-[11px] text-[var(--danger)]">Tidak ada bagian Terapi di catatan — pakai Salin baris.</span>
+            <span className="text-xs text-[var(--danger)]">Tidak ada bagian Terapi di catatan — pakai Salin baris.</span>
           ) : null}
         </div>
       ) : null}

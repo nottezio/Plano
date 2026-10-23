@@ -13,6 +13,7 @@ const LABELS: Record<SessionEvent['kind'], string> = {
   'signed-out': 'Keluar',
   'profile-error': 'Gagal memuat pengaturan',
   'redirect-error': 'Gagal menyelesaikan login',
+  'signin-error': 'Gagal masuk dengan Google',
   slow: 'Lambat',
   resumed: 'Kembali ke tab',
 };
@@ -51,12 +52,12 @@ export function SessionLogPanel(): JSX.Element {
       <ul className="space-y-1">
         {[...log].reverse().map((entry, index) => (
           <li key={`${entry.at}-${index}`} className="flex flex-wrap gap-x-2 text-fg-muted">
-            <span className="font-mono text-[11px]">
+            <span className="font-mono text-xs">
               {new Date(entry.at).toLocaleString('id-ID')}
             </span>
             <span>{LABELS[entry.kind] ?? entry.kind}</span>
             {entry.online ? null : <span className="text-danger">offline</span>}
-            {entry.detail ? <span className="font-mono text-[11px]">{entry.detail}</span> : null}
+            {entry.detail ? <span className="font-mono text-xs">{entry.detail}</span> : null}
           </li>
         ))}
       </ul>

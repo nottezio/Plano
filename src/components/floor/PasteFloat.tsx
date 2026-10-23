@@ -92,8 +92,8 @@ export function PasteFloat({
       style={placed ? { left: geometry.x, top: geometry.y, width: geometry.w, height: geometry.h } : undefined}
       className={
         placed
-          ? 'fixed z-40 flex flex-col rounded-2xl border border-border bg-surface shadow-2xl'
-          : 'fixed inset-x-0 bottom-0 z-40 flex max-h-[85dvh] flex-col rounded-t-2xl border border-border bg-surface shadow-2xl'
+          ? 'fixed z-40 flex flex-col rounded-2xl border border-border bg-surface shadow-sheet'
+          : 'fixed inset-x-0 bottom-0 z-40 flex max-h-[85dvh] flex-col rounded-t-2xl border border-border bg-surface shadow-sheet'
       }
     >
       <header

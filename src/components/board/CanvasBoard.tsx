@@ -937,7 +937,7 @@ function CanvasHandle({
       aria-label="Geser kartu"
       onPointerDown={onPointerDown}
       onClick={(event) => event.preventDefault()}
-      className="absolute -top-4 left-2 z-10 flex h-4 w-12 cursor-grab touch-none items-center justify-center rounded bg-border text-[10px] leading-none text-fg-faint opacity-0 transition-opacity group-hover:opacity-100 group-data-[active=true]:opacity-100 focus-visible:opacity-100"
+      className="absolute -top-4 left-2 z-10 flex h-4 w-12 cursor-grab touch-none items-center justify-center rounded bg-border text-[11px] leading-none text-fg-faint opacity-0 transition-opacity group-hover:opacity-100 group-data-[active=true]:opacity-100 focus-visible:opacity-100"
     >
       <span aria-hidden="true">⠿</span>
     </button>
@@ -1063,7 +1063,7 @@ function ShelfBox({
           />
           <span className="shrink-0 rounded-full bg-bg px-2 text-xs font-semibold tabular-nums text-fg-muted">{contents.length}</span>
           {asking ? (
-            <span className="flex shrink-0 items-center gap-1 text-[11px]">
+            <span className="flex shrink-0 items-center gap-1 text-xs">
               <button type="button" onClick={onRemove} className="min-h-tap rounded-md px-1.5 font-semibold text-danger hover:underline [@media(pointer:fine)]:min-h-8">
                 Hapus shelf
               </button>

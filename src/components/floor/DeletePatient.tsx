@@ -32,7 +32,7 @@ export function DeletePatient({
         type="button"
         onClick={() => setAsking(true)}
         aria-label={`Hapus ${name} dari list`}
-        className="h-7 shrink-0 rounded px-1.5 text-[11px] text-fg-faint underline-offset-2 hover:text-danger hover:underline"
+        className="h-7 shrink-0 rounded px-1.5 text-xs text-fg-faint underline-offset-2 hover:text-danger hover:underline"
       >
         Hapus
       </button>

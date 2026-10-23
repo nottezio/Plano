@@ -53,7 +53,7 @@ export function Section({
       {title || aside ? (
         <div className="flex min-h-5 items-center gap-2">
           {title ? (
-            <h3 className="flex-1 text-[11px] font-semibold uppercase tracking-wider text-fg-faint">
+            <h3 className="flex-1 text-xs font-semibold uppercase tracking-[0.06em] text-fg-muted">
               {title}
             </h3>
           ) : (
@@ -63,7 +63,7 @@ export function Section({
         </div>
       ) : null}
       {children}
-      {hint ? <p className="text-[11px] leading-relaxed text-fg-faint">{hint}</p> : null}
+      {hint ? <p className="text-xs leading-relaxed text-fg-faint">{hint}</p> : null}
     </section>
   );
 }
@@ -86,7 +86,7 @@ export function Segmented<T extends string>({
       role="group"
       aria-label={label}
       className={[
-        'flex rounded-xl border border-border bg-bg-subtle p-0.5',
+        'flex rounded-lg bg-bg-subtle p-0.5 ring-1 ring-inset ring-border',
         size === 'sm' ? 'inline-flex' : 'w-full',
       ].join(' ')}
     >
@@ -99,10 +99,11 @@ export function Segmented<T extends string>({
             aria-pressed={on}
             onClick={() => onChange(key)}
             className={[
-              `min-h-tap ${FINE} rounded-lg px-3 text-xs transition-colors`,
+              `min-h-tap ${FINE} rounded-md px-3 text-xs font-medium transition-colors`,
               size === 'sm' ? '' : 'flex-1',
               on
-                ? 'bg-surface font-semibold text-fg shadow-sm ring-1 ring-border'
+                ? // surface-raised: in dark mode plain surface is nearly the track's colour.
+                  'bg-surface-raised font-semibold text-fg shadow-card ring-1 ring-border-strong'
                 : 'text-fg-muted hover:text-fg',
             ].join(' ')}
           >
@@ -135,7 +136,7 @@ export function ChoiceChip({
       disabled={disabled}
       aria-pressed={active}
       className={[
-        `inline-grid min-h-tap ${FINE} place-items-center rounded-lg border px-3 text-xs transition-colors disabled:cursor-not-allowed disabled:opacity-35`,
+        `inline-grid min-h-tap ${FINE} place-items-center rounded-full border px-3.5 text-xs transition-colors disabled:cursor-not-allowed disabled:opacity-35`,
         dashed ? 'border-dashed' : '',
         active
           ? 'border-accent bg-[var(--accent-soft)] text-accent'
@@ -178,7 +179,7 @@ export function ChipRow({ children }: { children: ReactNode }): JSX.Element {
 
 export function ListGroup({ children }: { children: ReactNode }): JSX.Element {
   return (
-    <div className="divide-y divide-border overflow-hidden rounded-xl border border-border bg-surface">
+    <div className="divide-y divide-border overflow-hidden rounded-xl border border-border bg-surface shadow-card">
       {children}
     </div>
   );
@@ -246,7 +247,7 @@ export function ListRow({
         >
           <span className="min-w-0">{title}</span>
           {badge ? (
-            <span className="rounded-md bg-bg-subtle px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-fg-muted">
+            <span className="rounded-md bg-bg-subtle px-1.5 py-0.5 text-[11px] font-semibold uppercase tracking-wide text-fg-muted">
               {badge}
             </span>
           ) : null}
@@ -307,12 +308,16 @@ export function Callout({
 }
 
 const BUTTON_VARIANT = {
-  primary: 'bg-accent text-on-accent hover:opacity-90 disabled:opacity-40',
+  primary: 'bg-accent text-on-accent shadow-card hover:brightness-110 disabled:opacity-40 disabled:hover:brightness-100',
   secondary:
-    'border border-border bg-surface text-fg hover:bg-bg-subtle disabled:opacity-40',
+    'border border-border bg-surface text-fg shadow-card hover:border-border-strong hover:bg-bg-subtle disabled:opacity-40',
   ghost: 'text-accent hover:bg-[var(--accent-soft)] disabled:opacity-40',
-  danger: 'border border-danger text-danger hover:bg-[var(--danger-soft)] disabled:opacity-40',
+  danger: 'bg-[var(--danger-soft)] text-danger hover:brightness-95 disabled:opacity-40',
+  /** Toolbar and icon buttons: no chrome until hovered. */
+  quiet: 'text-fg-muted hover:bg-bg-subtle hover:text-fg disabled:opacity-40',
 } as const;
+
+export type ButtonVariant = keyof typeof BUTTON_VARIANT;
 
 export function Button({
   variant = 'secondary',
@@ -324,7 +329,8 @@ export function Button({
   ...rest
 }: ButtonHTMLAttributes<HTMLButtonElement> & {
   variant?: keyof typeof BUTTON_VARIANT;
-  size?: 'sm' | 'md';
+  /** `icon`: a square button holding only an icon; give it an aria-label. */
+  size?: 'sm' | 'md' | 'icon';
   full?: boolean;
   icon?: ReactNode;
 }): JSX.Element {
@@ -333,8 +339,8 @@ export function Button({
       type="button"
       {...rest}
       className={[
-        'inline-flex min-h-tap items-center justify-center gap-1.5 rounded-xl font-medium transition-colors disabled:cursor-not-allowed',
-        size === 'sm' ? `${FINE} px-3 text-xs` : 'px-4 text-sm',
+        'inline-flex min-h-tap items-center justify-center gap-1.5 rounded-lg font-medium transition-[background-color,border-color,filter,transform] active:translate-y-px disabled:cursor-not-allowed disabled:active:translate-y-0',
+        size === 'icon' ? `min-w-tap ${FINE} [@media(pointer:fine)]:min-w-9` : size === 'sm' ? `${FINE} px-3 text-xs` : 'px-4 text-sm',
         full ? 'w-full' : '',
         BUTTON_VARIANT[variant],
         className,
@@ -348,7 +354,7 @@ export function Button({
 
 /** Shared input look, for the inputs that are not wrapped in `Field`. */
 export const INPUT =
-  'min-h-tap w-full rounded-xl border border-border bg-surface px-3 text-sm text-fg outline-none transition-colors placeholder:text-fg-faint focus:border-accent [@media(pointer:fine)]:min-h-10';
+  'min-h-tap w-full rounded-lg border border-border bg-surface px-3 text-sm text-fg outline-none transition-[border-color,box-shadow] placeholder:text-fg-faint focus:border-accent focus:ring-4 focus:ring-[var(--accent-soft)] [@media(pointer:fine)]:min-h-10';
 
 export function Field({
   label,
@@ -369,7 +375,7 @@ export function Field({
         {label}
       </label>
       {children}
-      {hint ? <p className="mt-1 text-[11px] leading-relaxed text-fg-faint">{hint}</p> : null}
+      {hint ? <p className="mt-1 text-xs leading-relaxed text-fg-faint">{hint}</p> : null}
     </div>
   );
 }

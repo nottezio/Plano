@@ -149,7 +149,7 @@ export function SoapTidySheet({
     >
       <div className="flex flex-wrap items-center gap-2">
         {tidied.body !== body && !suggestion ? (
-          <span className="text-[11px] text-fg-muted">
+          <span className="text-xs text-fg-muted">
             {tidied.changed > 0
               ? `${tidied.changed} baris ditandai, penunjang diurutkan.`
               : 'Penunjang diurutkan.'}
@@ -179,14 +179,14 @@ export function SoapTidySheet({
           </button>
         ) : null}
         {suggestion ? (
-          <span className="text-[11px] text-fg-muted">
+          <span className="text-xs text-fg-muted">
             {delta === 0
               ? 'Panjang sama persis.'
               : `${delta > 0 ? '+' : ''}${delta} karakter dibanding aslinya.`}
           </span>
         ) : null}
         {nonAscii > 0 ? (
-          <span className="text-[11px] text-danger">
+          <span className="text-xs text-danger">
             {nonAscii} karakter non-ASCII — akan jadi ? di SIMGOS.
           </span>
         ) : null}
@@ -202,19 +202,19 @@ export function SoapTidySheet({
       <div className="mt-3 grid gap-3 sm:grid-cols-2">
         <div>
           <p className="mb-1 text-xs font-medium text-fg-muted">Catatan sekarang</p>
-          <pre className="max-h-80 overflow-auto whitespace-pre-wrap rounded-lg border border-border bg-surface px-3 py-2 text-[11px] leading-relaxed">
+          <pre className="max-h-80 overflow-auto whitespace-pre-wrap rounded-lg border border-border bg-surface px-3 py-2 text-xs leading-relaxed">
             {body}
           </pre>
         </div>
         <div>
           <p className="mb-1 text-xs font-medium text-fg-muted">Usulan</p>
-          <pre className="max-h-80 overflow-auto whitespace-pre-wrap rounded-lg border border-border bg-surface px-3 py-2 text-[11px] leading-relaxed">
+          <pre className="max-h-80 overflow-auto whitespace-pre-wrap rounded-lg border border-border bg-surface px-3 py-2 text-xs leading-relaxed">
             {shown || '—'}
           </pre>
         </div>
       </div>
 
-      <p className="mt-3 text-[11px] text-fg-faint">
+      <p className="mt-3 text-xs text-fg-faint">
         Baca dulu sebelum menerapkan. Model bisa mengubah kalimat tanpa terlihat salah.
         Setelah diterapkan, perubahan tercatat di riwayat revisi dan bisa dikembalikan.
       </p>

@@ -73,13 +73,13 @@ export function SidePanel({
           aria-hidden="true"
           className={`h-3.5 w-3.5 shrink-0 text-fg-faint transition-transform ${open ? 'rotate-90' : ''}`}
         />
-        <span className="flex-1 text-[11px] font-semibold uppercase tracking-wider text-fg-faint">
+        <span className="flex-1 text-xs font-semibold uppercase tracking-wider text-fg-faint">
           {title}
         </span>
         {summary ? (
           <span
             className={[
-              'shrink-0 rounded-full px-2 py-0.5 text-[11px] font-medium tabular-nums',
+              'shrink-0 rounded-full px-2 py-0.5 text-xs font-medium tabular-nums',
               tone === 'done' ? 'bg-[var(--accent-soft)] text-accent' : 'bg-bg-subtle text-fg-muted',
             ].join(' ')}
           >

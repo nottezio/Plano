@@ -267,7 +267,7 @@ export function ListPanel({
           </div>
           {saved ? <p className="text-xs text-fg-muted">{saved} Lihat di tab Riwayat.</p> : null}
           <div>
-            <p className="mb-1.5 text-[10px] font-semibold uppercase tracking-wide text-fg-faint">Kirim / ekspor</p>
+            <p className="mb-1.5 text-[11px] font-semibold uppercase tracking-wide text-fg-faint">Kirim / ekspor</p>
             <div className="grid grid-cols-2 gap-2">
               <ExportTile icon={<IconCopy width={18} height={18} />} title={copied === 'list' ? 'Tersalin ✓' : 'Salin teks'} note="untuk WhatsApp" onClick={() => copy(text, 'list')} />
               <ExportTile
@@ -326,7 +326,7 @@ function ExportTile({ icon, title, note, onClick }: { icon: ReactNode; title: st
       <span className="shrink-0 text-accent">{icon}</span>
       <span className="min-w-0">
         <span className="block text-xs font-semibold">{title}</span>
-        <span className="block text-[10px] text-fg-muted">{note}</span>
+        <span className="block text-[11px] text-fg-muted">{note}</span>
       </span>
     </button>
   );
@@ -352,12 +352,12 @@ function PatientRowText({ patient }: { patient: FloorPatient }): JSX.Element {
         {patient.room || '—'}
         {patient.bed ? `/${patient.bed}` : ''}
       </span>
-      {code ? <span className="mr-1 inline-block rounded border border-border px-1 text-[10px] font-semibold text-fg-muted">{code}</span> : null}
+      {code ? <span className="mr-1 inline-block rounded border border-border px-1 text-[11px] font-semibold text-fg-muted">{code}</span> : null}
       <span className="font-semibold" style={colour ? { color: colour } : undefined}>
         {patient.identity}
       </span>
       {patient.discharge ? <span className="sr-only"> ({patient.discharge === 'tomorrow' ? 'H-1' : 'pulang hari ini'})</span> : null}
-      <span className="mt-0.5 block text-[11px] text-fg-muted">
+      <span className="mt-0.5 block text-xs text-fg-muted">
         {residents || <span className="text-fg-faint">belum ada residen</span>}
         {notes.map((n) => (
           <span key={n}> · {n}</span>
@@ -366,7 +366,7 @@ function PatientRowText({ patient }: { patient: FloorPatient }): JSX.Element {
         {(patient.tags ?? []).map((tag) => (
           <span
             key={tag.label}
-            className="ml-1 inline-block rounded-full border px-1.5 text-[10px] font-semibold"
+            className="ml-1 inline-block rounded-full border px-1.5 text-[11px] font-semibold"
             style={{ borderColor: markCss(tag.color), color: markCss(tag.color) }}
           >
             {tag.label}

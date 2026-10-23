@@ -117,7 +117,7 @@ function RoomBox({
   const { beds, loose } = placeBeds(slot, patients);
   return (
     <div className="rounded-lg border border-border bg-surface p-2">
-      <p className="text-center text-[11px] font-bold uppercase tracking-wide">
+      <p className="text-center text-xs font-bold uppercase tracking-wide">
         Kamar {slot.room}
         {slot.subtitle ? <span className="block font-semibold normal-case">{slot.subtitle}</span> : null}
       </p>
@@ -292,7 +292,7 @@ function DenahCanvas({ children }: { children: ReactNode }): JSX.Element {
     <div>
       {narrow ? (
         <div className="mb-1 flex items-center justify-end gap-2">
-          <span className="text-[11px] text-fg-faint">Cubit dua jari untuk memperbesar</span>
+          <span className="text-xs text-fg-faint">Cubit dua jari untuk memperbesar</span>
           <button type="button" onClick={toggle} className="min-h-tap rounded-lg border border-border px-3 text-xs font-medium">
             {atFit ? 'Perbesar' : 'Muat di layar'}
           </button>
@@ -430,7 +430,7 @@ export function FloorDenah({
                   {layout.landmark ? (
                     <div
                       style={place(layout.landmark.row, layout.landmark.span, 2)}
-                      className="flex items-center justify-center rounded-lg bg-[var(--warn-strong)] p-2 text-center text-[11px] font-bold uppercase leading-tight tracking-wide text-white"
+                      className="flex items-center justify-center rounded-lg bg-[var(--warn-strong)] p-2 text-center text-xs font-bold uppercase leading-tight tracking-wide text-white"
                     >
                       {layout.landmark.label}
                       <br />
@@ -478,7 +478,7 @@ export function FloorDenah({
                   ))}
                   {kjs.length > 0 ? (
                     <>
-                      <p className="px-1 pt-1 text-[11px] font-semibold text-fg-muted">KJS:</p>
+                      <p className="px-1 pt-1 text-xs font-semibold text-fg-muted">KJS:</p>
                       {kjs.map((p, i) =>
                         p.dpjpId ? (
                           <KjsReference key={p.key} patient={p} number={i + 1} onOpen={onOpen} />
@@ -561,7 +561,7 @@ export function FloorDenah({
         </div>
       </Section>
 
-      <p className="text-[11px] text-fg-muted">
+      <p className="text-xs text-fg-muted">
         <span style={{ color: 'var(--note-red)' }}>Merah</span> H-1 ·{' '}
         <span style={{ color: 'var(--note-green)' }}>Hijau</span> Pulang hari ini
         {marks.map((m) => (

@@ -84,7 +84,7 @@ export function BoardAddMenu({
         ref={panelRef}
         role="group"
         aria-label="Tambah ke papan"
-        className={`${open ? 'flex' : 'hidden'} absolute right-0 top-full z-50 mt-1 max-h-[75vh] w-[300px] max-w-[calc(100vw-2rem)] flex-col gap-0.5 overflow-y-auto overscroll-contain rounded-xl border border-border bg-surface p-1 shadow-lg`}
+        className={`${open ? 'flex' : 'hidden'} absolute right-0 top-full z-50 mt-1 max-h-[75vh] w-[300px] max-w-[calc(100vw-2rem)] flex-col gap-0.5 overflow-y-auto overscroll-contain rounded-xl border border-border bg-surface p-1 shadow-pop`}
       >
         {children}
         <div ref={slotRef} className="contents" />

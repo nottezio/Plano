@@ -74,7 +74,7 @@ export function EditionsPanel({
               <span className="font-semibold">
                 {formatDmy(e.date)} · {e.time}
               </span>
-              <span className="block text-[11px] text-fg-muted">
+              <span className="block text-xs text-fg-muted">
                 {e.patients.length} pasien · {e.createdBy}
                 {e.createdAt ? ` · disimpan ${localOf(e.createdAt).slice(11, 16)}` : ''}
               </span>
@@ -124,7 +124,7 @@ export function EditionsPanel({
                   </Button>
                 </span>
               ) : (
-                <button type="button" onClick={() => setAsking(true)} className="h-7 rounded px-1.5 text-[11px] text-fg-faint hover:text-danger hover:underline">
+                <button type="button" onClick={() => setAsking(true)} className="h-7 rounded px-1.5 text-xs text-fg-faint hover:text-danger hover:underline">
                   Hapus edisi
                 </button>
               )

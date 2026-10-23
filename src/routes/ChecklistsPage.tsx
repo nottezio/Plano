@@ -192,7 +192,7 @@ export default function ChecklistsPage(): JSX.Element {
           >
             Perbarui ke versi terbaru
           </button>
-          <p className="mt-1 text-[11px] text-fg-faint">Centang yang sedang berjalan direset, karena langkahnya berubah.</p>
+          <p className="mt-1 text-xs text-fg-faint">Centang yang sedang berjalan direset, karena langkahnya berubah.</p>
         </div>
       ) : null}
 
@@ -217,7 +217,7 @@ export default function ChecklistsPage(): JSX.Element {
           onOpen={openList}
         />
       ) : null}
-      <p className="px-1 text-[11px] text-fg-faint">
+      <p className="px-1 text-xs text-fg-faint">
         Centang di sini tidak tersimpan per pasien: ini penanda posisi Anda dalam satu prosedur,
         bukan catatan bahwa sesuatu sudah dikerjakan.
       </p>
@@ -277,7 +277,7 @@ function Group({
 }): JSX.Element {
   return (
     <section>
-      <h2 className="px-1 pb-1 text-[11px] font-semibold uppercase tracking-wide text-fg-faint">
+      <h2 className="px-1 pb-1 text-xs font-semibold uppercase tracking-wide text-fg-faint">
         {title} <span className="font-normal">{rows.length}</span>
       </h2>
       <ul className="space-y-1">
@@ -301,7 +301,7 @@ function Group({
                   </span>
                   <span
                     className={[
-                      'shrink-0 text-[11px] font-semibold',
+                      'shrink-0 text-xs font-semibold',
                       status === 'selesai' ? 'text-accent' : 'text-fg-muted',
                     ].join(' ')}
                   >
@@ -309,7 +309,7 @@ function Group({
                   </span>
                 </span>
                 {list.context ? (
-                  <span className="mt-0.5 block truncate text-[11px] text-fg-muted">{list.context}</span>
+                  <span className="mt-0.5 block truncate text-xs text-fg-muted">{list.context}</span>
                 ) : null}
                 <ProgressBar done={done.length} total={total} />
               </button>
@@ -442,7 +442,7 @@ function ChecklistDetail({
                     <Highlight text={item.label} tokens={tokens} />
                   </span>
                   {isNext ? (
-                    <span className="mt-0.5 block text-[11px] font-semibold text-accent">Langkah berikutnya</span>
+                    <span className="mt-0.5 block text-xs font-semibold text-accent">Langkah berikutnya</span>
                   ) : null}
                 </span>
               </button>
@@ -453,7 +453,7 @@ function ChecklistDetail({
 
       {list.notes && list.notes.length > 0 ? (
         <div className="rounded-xl border border-border bg-bg-subtle p-3">
-          <p className="text-[11px] font-semibold uppercase tracking-wide text-fg-muted">Catatan</p>
+          <p className="text-xs font-semibold uppercase tracking-wide text-fg-muted">Catatan</p>
           <ul className="mt-1 space-y-1">
             {list.notes.map((note) => (
               <li key={note} className="text-xs leading-relaxed text-fg-muted">

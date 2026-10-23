@@ -177,7 +177,7 @@ export function ChecklistEditor({
         </button>
       </div>
 
-      <p className="mt-2 text-[11px] text-fg-faint">
+      <p className="mt-2 text-xs text-fg-faint">
         {ordered.filter((item) => item.active).length} langkah aktif. Warna kartu di papan
         mengikuti langkah aktif pertama yang belum dicentang.
       </p>

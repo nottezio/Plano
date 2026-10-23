@@ -61,7 +61,7 @@ export function ChangeRow({ change }: { change: Change }): JSX.Element {
       <span className="min-w-0 flex-1">
         <span className={`font-medium ${kind.tone}`}>{kind.label}</span> · {change.patient.name}
         {change.patient.kjs ? <span className="text-fg-faint"> ({change.patient.kjs})</span> : null}
-        <span className="block text-[11px] leading-snug text-fg-muted">{detail}</span>
+        <span className="block text-xs leading-snug text-fg-muted">{detail}</span>
       </span>
     </li>
   );
@@ -87,7 +87,7 @@ export function ChangeSummary({
         {counts(changes) ? ` (${counts(changes)})` : ''}
       </p>
       {changes.length === 0 ? (
-        <p className="text-[11px] text-fg-muted">Tidak ada perubahan pasien, tempat, atau diagnosis.</p>
+        <p className="text-xs text-fg-muted">Tidak ada perubahan pasien, tempat, atau diagnosis.</p>
       ) : (
         <ul className="divide-y divide-border">
           {changes.map((change, index) => (
@@ -143,9 +143,9 @@ function ChangesView({ days }: { days: readonly CensusSnapshot[] }): JSX.Element
             {counts(day.changes) ? <span className="font-normal text-fg-muted"> ({counts(day.changes)})</span> : null}
           </p>
           {day.first ? (
-            <p className="text-[11px] text-fg-muted">Awal riwayat.</p>
+            <p className="text-xs text-fg-muted">Awal riwayat.</p>
           ) : day.changes.length === 0 ? (
-            <p className="text-[11px] text-fg-muted">Tidak ada perubahan.</p>
+            <p className="text-xs text-fg-muted">Tidak ada perubahan.</p>
           ) : (
             <ul className="divide-y divide-border">
               {day.changes.map((change, index) => (
@@ -174,7 +174,7 @@ function GridView({ days }: { days: readonly CensusSnapshot[] }): JSX.Element {
     <ScrollStrip outerClassName="rounded-xl border border-border bg-surface" fade="from-surface">
       <table className="w-full min-w-max border-collapse text-xs">
         <thead>
-          <tr className="border-b border-border text-[10px] text-fg-faint">
+          <tr className="border-b border-border text-[11px] text-fg-faint">
             <th scope="col" className="sticky left-0 z-[1] bg-surface px-3 py-1.5 text-left font-medium">
               Pasien
             </th>
@@ -209,7 +209,7 @@ function GridView({ days }: { days: readonly CensusSnapshot[] }): JSX.Element {
                   )}
                 </td>
               ))}
-              <td className="whitespace-nowrap px-3 py-1 text-[11px]">
+              <td className="whitespace-nowrap px-3 py-1 text-xs">
                 H{row.days} · {row.path}
                 {row.current ? '' : ` · terakhir ${formatDmy(row.lastSeen).slice(0, 5)}`}
               </td>

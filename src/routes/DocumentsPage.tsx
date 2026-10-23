@@ -237,7 +237,7 @@ export default function DocumentsPage(): JSX.Element {
         type="button"
         onClick={() => setCreateOpen(true)}
         aria-label="Dokumen baru"
-        className="fixed bottom-[calc(env(safe-area-inset-bottom)+76px)] right-4 z-30 flex h-14 w-14 items-center justify-center rounded-full bg-accent text-2xl text-on-accent shadow-lg sm:hidden"
+        className="fixed bottom-[calc(env(safe-area-inset-bottom)+76px)] right-4 z-30 flex h-14 w-14 items-center justify-center rounded-full bg-accent text-2xl text-on-accent shadow-pop sm:hidden"
       >
         +
       </button>
@@ -332,7 +332,7 @@ function DocumentGroup({
     <section className="mt-4 first:mt-1">
       <h2 className="flex items-center gap-3 pb-2">
         <span className="text-xs font-semibold uppercase tracking-wide text-fg-muted">{title}</span>
-        <span className="text-[11px] text-fg-faint">{matches.length}</span>
+        <span className="text-xs text-fg-faint">{matches.length}</span>
         <span aria-hidden="true" className="h-px flex-1 bg-border" />
       </h2>
       <ul className="grid gap-2 sm:grid-cols-2">
@@ -353,7 +353,7 @@ function DocumentGroup({
                   ) : null}
                 </span>
                 {showCategory ? (
-                  <span className="mt-0.5 text-[11px] text-fg-faint">{document.category}</span>
+                  <span className="mt-0.5 text-xs text-fg-faint">{document.category}</span>
                 ) : null}
                 {snippet ? (
                   <span className="mt-1 text-xs italic leading-snug text-fg-muted">

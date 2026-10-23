@@ -111,7 +111,7 @@ export function ReminderKindsEditor({
           Tambah
         </button>
       </div>
-      <p className="mt-2 text-[11px] leading-relaxed text-fg-faint">
+      <p className="mt-2 text-xs leading-relaxed text-fg-faint">
         Pasang per pasien dengan tekan lama kartu di papan, atau menu ⋯ di halaman pasien:
         <em> Hari ini</em> atau <em>Setiap hari</em>. Ketuk penanda di kartu untuk mencentang;
         centang hilang sendiri besok.

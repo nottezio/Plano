@@ -31,7 +31,7 @@ import { useSession } from '@/store/useSession';
 type Tab = 'denah' | 'list' | 'tempel' | 'analisis' | 'riwayat' | 'anggota';
 
 const WIP = (
-  <span className="rounded-full border border-danger px-2 py-0.5 text-[10px] font-semibold text-danger">WIP</span>
+  <span className="rounded-full border border-danger px-2 py-0.5 text-[11px] font-semibold text-danger">WIP</span>
 );
 
 /**
@@ -343,7 +343,7 @@ export default function ListMakerPage(): JSX.Element {
               <MembersPanel key={floor.id} floor={floor} uid={uid} patients={[...view.active, ...view.left.map((p) => p.report)]} />
             ) : null}
             {isOwner(floor, uid) ? null : (
-              <p className="text-[11px] text-fg-faint">
+              <p className="text-xs text-fg-faint">
                 Anda {editable ? 'bisa melihat dan mengedit' : 'hanya bisa melihat'} list ini.
               </p>
             )}

@@ -415,7 +415,7 @@ export function SensusMaker(): JSX.Element {
       <div className="flex flex-wrap items-center gap-x-3 gap-y-2 rounded-2xl border border-border bg-surface px-3 py-2.5">
         <div className="min-w-0 flex-1">
           <p className="text-sm font-semibold">Sensus {code || '—'}</p>
-          <p className="truncate text-[11px] text-fg-muted">
+          <p className="truncate text-xs text-fg-muted">
             {code ? dpjpFullName(code) : 'Pilih DPJP di langkah 2'}
             {code && currentSnapshot
               ? recorded
@@ -550,7 +550,7 @@ export function SensusMaker(): JSX.Element {
                     </button>
                   </div>
                   {parsedAll.length > 1 ? (
-                    <ul className="flex flex-wrap gap-x-3 gap-y-0.5 border-b border-border px-3 py-1 text-[11px] text-fg-muted">
+                    <ul className="flex flex-wrap gap-x-3 gap-y-0.5 border-b border-border px-3 py-1 text-xs text-fg-muted">
                       {parsedAll.map((one, i) => (
                         <li key={i}>
                           <span className="font-medium text-fg">{one.label}</span> · {patientCount(one)} pasien
@@ -559,7 +559,7 @@ export function SensusMaker(): JSX.Element {
                     </ul>
                   ) : null}
                   {parsedAll.some((one) => one.kind === 'unknown') ? (
-                    <p className="border-b border-border bg-[var(--warn-soft)] px-3 py-1 text-[11px]">
+                    <p className="border-b border-border bg-[var(--warn-soft)] px-3 py-1 text-xs">
                       Jenis list tidak dikenali dari judulnya — pilih di kanan atas.
                     </p>
                   ) : null}
@@ -664,7 +664,7 @@ export function SensusMaker(): JSX.Element {
             </select>
           </div>
           {mine.length === 0 ? (
-            <p className="text-[11px] text-fg-faint">
+            <p className="text-xs text-fg-faint">
               Tandai DPJP yang ditugaskan ke Anda (mis. ARB): hanya itu yang tampil, di semua perangkat Anda.
             </p>
           ) : null}
@@ -695,7 +695,7 @@ export function SensusMaker(): JSX.Element {
             </Field>
           </div>
           {sources.length > 0 && notPasted.length > 0 ? (
-            <p className="text-[11px] text-fg-muted">
+            <p className="text-xs text-fg-muted">
               Belum ditempel: {notPasted.map((place) => PLACE_LABEL[place]).join(', ')}. Tidak dicantumkan di sensus
               (bukan &quot;0 pasien&quot;).
             </p>
@@ -707,7 +707,7 @@ export function SensusMaker(): JSX.Element {
             </Callout>
           ) : null}
           {missing.length > 0 ? (
-            <p className="text-[11px] text-fg-muted">
+            <p className="text-xs text-fg-muted">
               {missing.length} pasien tanpa DPJP di list — lihat <b>Perlu dicek</b>.
             </p>
           ) : null}
@@ -774,7 +774,7 @@ export function SensusMaker(): JSX.Element {
               <span className="block truncate text-xs font-semibold">
                 Sensus {code ? dpjpFullName(code) : ''}
               </span>
-              <span className="block truncate text-[10px] text-fg-faint">
+              <span className="block truncate text-[11px] text-fg-faint">
                 {usingAi
                   ? `Disusun AI${aiAll ? ` · ${aiAll.length} pasien` : ''}`
                   : `${ruleCount} pasien · disusun dengan aturan`}
@@ -812,7 +812,7 @@ export function SensusMaker(): JSX.Element {
           {shown ? (
             <CensusMessage message={shown} />
           ) : (
-            <p className="px-3 py-2 text-[11px] leading-relaxed text-fg-muted">
+            <p className="px-3 py-2 text-xs leading-relaxed text-fg-muted">
               {usingAi
                 ? ai
                   ? 'List, DPJP, sapaan, tanggal, atau cara aplikasi membaca list berubah sejak hasil AI terakhir. Tekan "Susun ulang".'
@@ -880,7 +880,7 @@ function ListFind({
           aria-label={`Teks yang dicari di ${label}`}
           className="min-h-tap min-w-0 flex-1 rounded-lg border border-border bg-surface px-2 text-xs outline-none focus:border-accent [@media(pointer:fine)]:min-h-8"
         />
-        <span className="shrink-0 text-[11px] tabular-nums text-fg-muted" aria-live="polite">
+        <span className="shrink-0 text-xs tabular-nums text-fg-muted" aria-live="polite">
           {query.trim() ? `${hits.length} ditemukan` : ''}
         </span>
       </div>
@@ -891,7 +891,7 @@ function ListFind({
               <button
                 type="button"
                 onClick={() => jump(start, end)}
-                className="block min-h-tap w-full truncate rounded px-1 text-left font-mono text-[11px] text-fg-muted hover:bg-surface hover:text-fg [@media(pointer:fine)]:min-h-8"
+                className="block min-h-tap w-full truncate rounded px-1 text-left font-mono text-xs text-fg-muted hover:bg-surface hover:text-fg [@media(pointer:fine)]:min-h-8"
               >
                 {lineAt(text, start).trim() || '(baris kosong)'}
               </button>
@@ -900,7 +900,7 @@ function ListFind({
         </ul>
       ) : null}
       {hits.length > shown.length ? (
-        <p className="text-[10px] text-fg-faint">{hits.length - shown.length} lagi — persempit pencarian.</p>
+        <p className="text-[11px] text-fg-faint">{hits.length - shown.length} lagi — persempit pencarian.</p>
       ) : null}
     </div>
   );
@@ -939,7 +939,7 @@ function AiCheckPanel({
       <p className="font-semibold">
         Dicek dengan Aturan: {check.matched} cocok · {differences} selisih
       </p>
-      <p className="text-[11px] text-fg-muted">
+      <p className="text-xs text-fg-muted">
         Belum tentu AI yang salah — Aturan juga bisa melewatkan format baru. Periksa list aslinya untuk tiap baris.
       </p>
       <ul>
@@ -947,7 +947,7 @@ function AiCheckPanel({
           <li key={`ai-${index}`} className={row}>
             <span className="min-w-0 flex-1">
               <span className={`font-medium ${inLists ? '' : 'text-danger'}`}>Hanya AI</span> · {patient.identity}
-              <span className="block text-[11px] text-fg-muted">{rules}</span>
+              <span className="block text-xs text-fg-muted">{rules}</span>
             </span>
             <Button size="sm" variant="ghost" onClick={() => onRemove(index)}>
               Buang
@@ -958,7 +958,7 @@ function AiCheckPanel({
           <li key={`rules-${entry.key}`} className={row}>
             <span className="min-w-0 flex-1">
               <span className="font-medium">Hanya Aturan</span> · {entry.asWritten}
-              <span className="block text-[11px] text-fg-muted">AI tidak memasukkan pasien ini.</span>
+              <span className="block text-xs text-fg-muted">AI tidak memasukkan pasien ini.</span>
             </span>
             <Button size="sm" variant="ghost" onClick={() => onAdd(entry)}>
               Tambahkan
@@ -969,7 +969,7 @@ function AiCheckPanel({
           <li key={`dx-${index}`} className={row}>
             <span className="min-w-0 flex-1">
               <span className="font-medium">Diagnosis kosong di AI</span> · {entry.asWritten}
-              <span className="block text-[11px] text-fg-muted">Aturan membaca {entry.diagnoses.length} diagnosis.</span>
+              <span className="block text-xs text-fg-muted">Aturan membaca {entry.diagnoses.length} diagnosis.</span>
             </span>
             <Button size="sm" variant="ghost" onClick={() => onUseDx(index, entry)}>
               Pakai diagnosis Aturan
@@ -1012,7 +1012,7 @@ function CrossCheckBox({
       <p className="font-semibold">
         Perlu dicek · {items.length} pasien{count > 0 ? ` · ${count} dimasukkan` : ''}
       </p>
-      <p className="text-[11px] text-fg-muted">
+      <p className="text-xs text-fg-muted">
         DPJP-nya tidak jelas dari list. Tidak masuk sensus kecuali Anda memasukkannya — cek ke list asli atau
         pengirimnya.
       </p>
@@ -1022,7 +1022,7 @@ function CrossCheckBox({
             <span className="min-w-0 flex-1">
               <span className="text-fg-muted">{PLACE_LABEL[item.place]} · </span>
               {item.line}
-              <span className="block text-[11px] text-fg-muted">
+              <span className="block text-xs text-fg-muted">
                 {item.reasons.join(' · ')}
                 {item.diagnoses === 0 ? ' · diagnosis tidak terbaca' : ''}
               </span>

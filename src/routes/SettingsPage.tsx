@@ -55,6 +55,7 @@ import { isAdmin } from '@/domain/access';
 import type { UserSettings } from '@/domain/types';
 
 const GROUPS: ReadonlyArray<{ id: string; label: string }> = [
+  { id: 'settings-utama', label: 'Utama' },
   { id: 'settings-tampilan', label: 'Tampilan' },
   { id: 'settings-harian', label: 'Papan & harian' },
   { id: 'settings-laporan', label: 'Format laporan' },
@@ -171,7 +172,9 @@ export default function SettingsPage(): JSX.Element {
           Tidak ada pengaturan yang cocok dengan “{query}”.
         </p>
 
-        <SettingsGroup id="settings-tampilan" label="Tampilan">
+        {/* The sections people actually change, first (2026-10-23); everything
+            else stays below in its own group. */}
+        <SettingsGroup id="settings-utama" label="Utama">
           <SettingsSection
             id="tema"
             keywords="tema mode gelap terang dark light warna" title="Tampilan" description="Mode gelap untuk jaga malam." defaultOpen>
@@ -194,202 +197,6 @@ export default function SettingsPage(): JSX.Element {
               ))}
             </div>
           </SettingsSection>
-          <SettingsSection
-            id="warna"
-            keywords="warna palet tema aksen latar oled hitam kertas theme palette colour color"
-            title="Warna aplikasi"
-            description="Warna tombol dan pilihan, serta latar. Tersimpan di perangkat ini."
-          >
-            <div className="space-y-3">
-              <div className="grid grid-cols-2 gap-2 min-[420px]:grid-cols-4">
-                {PALETTES.map((p) => (
-                  <button
-                    key={p.id}
-                    type="button"
-                    aria-pressed={palette === p.id}
-                    onClick={() => setPalette(p.id)}
-                    className={[
-                      'flex min-h-tap items-center gap-2 rounded-lg border px-2.5 text-sm',
-                      palette === p.id ? 'border-accent font-medium text-accent' : 'border-border text-fg-muted',
-                    ].join(' ')}
-                  >
-                    <span aria-hidden="true" className="flex shrink-0 overflow-hidden rounded-full border border-border">
-                      <span className="h-5 w-2.5" style={{ background: p.swatch[0] }} />
-                      <span className="h-5 w-2.5" style={{ background: p.swatch[1] }} />
-                    </span>
-                    {p.name}
-                  </button>
-                ))}
-              </div>
-              <div className="grid gap-2 sm:grid-cols-3">
-                {SURFACES.map((option) => (
-                  <button
-                    key={option.id}
-                    type="button"
-                    aria-pressed={surface === option.id}
-                    onClick={() => setSurface(option.id)}
-                    className={[
-                      'min-h-tap rounded-lg border px-3 py-1.5 text-left text-sm',
-                      surface === option.id ? 'border-accent font-medium text-accent' : 'border-border text-fg-muted',
-                    ].join(' ')}
-                  >
-                    {option.name}
-                    <span className="block text-[11px] font-normal text-fg-faint">{option.note}</span>
-                  </button>
-                ))}
-              </div>
-            </div>
-          </SettingsSection>
-          <SettingsSection
-            id="tata-letak"
-            keywords="layout panel klasik soap"
-            title="Tata letak halaman SOAP"
-            description="Susunan panel di samping catatan."
-          >
-            <div className="flex gap-2">
-              {(
-                [
-                  ['klasik', 'Klasik', 'Semua panel terbuka, urutan lama.'],
-                  ['panel', 'Panel', 'Catatan · Checklist · Custom Checklist · Tanggal, semua mulai tertutup dengan ringkasan di judulnya.'],
-                ] as Array<[SoapLayout, string, string]>
-              ).map(([value, label, note]) => (
-                <button
-                  key={value}
-                  type="button"
-                  onClick={() => patch({ soapLayout: value })}
-                  aria-pressed={(settings.soapLayout ?? 'klasik') === value}
-                  className={[
-                    'min-h-tap flex-1 rounded-lg border p-2 text-left text-sm',
-                    (settings.soapLayout ?? 'klasik') === value
-                      ? 'border-accent bg-bg-subtle text-accent'
-                      : 'border-border text-fg-muted',
-                  ].join(' ')}
-                >
-                  <span className="block font-medium">{label}</span>
-                  <span className="mt-0.5 block text-[11px] text-fg-faint">{note}</span>
-                </button>
-              ))}
-            </div>
-          </SettingsSection>
-          <SettingsSection
-            id="warna-bagian"
-            keywords="tint header warna"
-            title="Warna bagian catatan"
-            description="Latar samar di belakang judul tiap bagian, untuk memindai posisi."
-          >
-            <Toggle
-              label="Beri warna pada judul bagian"
-              description="Identitas, S, O + penunjang, A, Terapi + Plan, dan TS masing-masing berbeda."
-              checked={settings.sectionTint}
-              onChange={(sectionTint) => patch({ sectionTint })}
-            />
-          </SettingsSection>
-          <SettingsSection
-            id="watermark"
-            keywords="watermark nama rm ketebalan"
-            title="Watermark di catatan"
-            description="Nama, RM dan tanggal samar di belakang teks."
-          >
-            <Toggle
-              label="Tampilkan watermark"
-              description="Menyala secara default. Gunanya menahan salah pasien saat sudah menggulir jauh dari judul."
-              checked={settings.showWatermark}
-              onChange={(showWatermark) => patch({ showWatermark })}
-            />
-            {settings.showWatermark ? (
-              <>
-              <div className="mb-3 flex gap-2">
-                {(
-                  [
-                    ['ulang', 'Berulang', 'Terlihat di sepanjang catatan.'],
-                    ['mengambang', 'Mengambang', 'Satu tanda yang ikut bergulir.'],
-                  ] as Array<[WatermarkMode, string, string]>
-                ).map(([value, label, note]) => (
-                  <button
-                    key={value}
-                    type="button"
-                    onClick={() => patch({ watermarkMode: value })}
-                    aria-pressed={(settings.watermarkMode ?? 'ulang') === value}
-                    className={[
-                      'min-h-tap flex-1 rounded-lg border p-2 text-left text-sm',
-                      (settings.watermarkMode ?? 'ulang') === value
-                        ? 'border-accent bg-bg-subtle text-accent'
-                        : 'border-border text-fg-muted',
-                    ].join(' ')}
-                  >
-                    <span className="block font-medium">{label}</span>
-                    <span className="mt-0.5 block text-[11px] text-fg-faint">{note}</span>
-                  </button>
-                ))}
-              </div>
-              <label className="mt-2 block text-[11px] text-fg-muted">
-                Ketebalan watermark
-                <input
-                  type="range"
-                  min={1}
-                  max={20}
-                  value={Math.round(settings.watermarkOpacity * 100)}
-                  onChange={(event) =>
-                    patch({ watermarkOpacity: Number(event.target.value) / 100 })
-                  }
-                  className="mt-1 w-full"
-                />
-                <span className="text-fg-faint">
-                  {Math.round(settings.watermarkOpacity * 100)}%
-                </span>
-              </label>
-              </>
-            ) : null}
-          </SettingsSection>
-          <SettingsSection
-            id="hari-rawat"
-            keywords="hari rawat judul"
-            title="Hari rawat di judul catatan"
-            description="Angka hari rawat sudah terlihat di rel tanggal; ini menambahkannya di judul juga."
-          >
-            <Toggle
-              label="Tampilkan “Hari rawat ke-N”"
-              description="Mati secara default. Nyalakan bila dokter tertentu meminta angkanya di laporan."
-              checked={settings.showHariRawat}
-              onChange={(showHariRawat) => patch({ showHariRawat })}
-            />
-          </SettingsSection>
-        </SettingsGroup>
-
-        <SettingsGroup id="settings-harian" label="Papan & harian">
-          <SettingsSection
-            id="checklist"
-            keywords="checklist centang langkah visite"
-            title="Checklist harian"
-            description="Tambah, ubah nama, warna, urutan, atau nonaktifkan. Jumlah langkah bebas."
-          >
-            <ChecklistEditor
-              items={settings.checklistItems}
-              onChange={(checklistItems) => patch({ checklistItems })}
-            />
-          </SettingsSection>
-          <SettingsSection
-            id="pengingat"
-            title="Pengingat harian"
-            description="Penanda di kartu pasien: EKG, urine output, atau buatan sendiri. Bisa dicentang."
-            keywords="pengingat reminder ekg urine output uo flag penanda"
-          >
-            <ReminderKindsEditor
-              kinds={settings.reminderKinds ?? DEFAULT_REMINDER_KINDS}
-              onChange={(reminderKinds) => patch({ reminderKinds })}
-            />
-          </SettingsSection>
-          <SettingsSection
-            id="hari-klinis"
-            keywords="tanggal pergantian hari jam jaga malam"
-            title="Hari klinis"
-            description="Menentukan catatan hari ini masuk ke tanggal mana."
-          >
-            <ClinicalDayEditor settings={settings} onChange={patch} />
-          </SettingsSection>
-        </SettingsGroup>
-
-        <SettingsGroup id="settings-laporan" label="Format laporan">
           <SettingsSection
             id="format-catatan"
             keywords="template kerangka soap format"
@@ -446,7 +253,7 @@ export default function SettingsPage(): JSX.Element {
                     </button>
                   ))}
                 </div>
-                <p className="mt-1 text-[11px] text-fg-faint">
+                <p className="mt-1 text-xs text-fg-faint">
                   Perubahanmu pada format itu akan hilang. Format lain tidak tersentuh.
                 </p>
               </div>
@@ -461,62 +268,6 @@ export default function SettingsPage(): JSX.Element {
                 if (count > 0) patch({ noteTemplates: next });
                 announce(count);
               }}
-            />
-          </SettingsSection>
-          <SettingsSection
-            id="pembuka"
-            keywords="pembuka laporan tabe izin melaporkan"
-            title="Kalimat pembuka"
-            description="Kerangka kalimat laporan. Ruang, kamar dan poli tetap diisi manual."
-          >
-            <StringListEditor
-              multiline
-              values={settings.openingSentences}
-              onChange={(openingSentences) => patch({ openingSentences })}
-              placeholder="Tabe dokter, mohon izin melaporkan…"
-            />
-            <RestoreButton
-              onClick={() => {
-                const { next, restored: count } = restoreMissingStrings(
-                  settings.openingSentences,
-                  SEED_OPENING_SENTENCES,
-                );
-                if (count > 0) patch({ openingSentences: next });
-                announce(count);
-              }}
-            />
-          </SettingsSection>
-          <SettingsSection
-            id="salam"
-            keywords="salam assalamualaikum selamat pagi"
-            title="Salam"
-            description="Pilihan salam yang bisa ditukar di catatan yang sudah jadi."
-          >
-            <StringListEditor
-              values={settings.greetings}
-              onChange={(greetings) => patch({ greetings })}
-              placeholder="Selamat pagi dokter."
-            />
-            <RestoreButton
-              onClick={() => {
-                const { next, restored: count } = restoreMissingStrings(
-                  settings.greetings,
-                  SEED_GREETINGS,
-                );
-                if (count > 0) patch({ greetings: next });
-                announce(count);
-              }}
-            />
-          </SettingsSection>
-          <SettingsSection
-            id="format-dpjp"
-            keywords="dpjp konsulen format"
-            title="Format per DPJP"
-            description="Pengingat format laporan yang diharapkan tiap konsulen."
-          >
-            <DpjpFormatEditor
-              formats={settings.dpjpFormats}
-              onChange={(dpjpFormats) => patch({ dpjpFormats })}
             />
           </SettingsSection>
           <SettingsSection
@@ -559,7 +310,7 @@ export default function SettingsPage(): JSX.Element {
                             })
                           }
                           className={[
-                            'min-h-tap rounded-full border px-3 text-[11px]',
+                            'min-h-tap rounded-full border px-3 text-xs',
                             preset.format === format
                               ? 'border-accent font-medium text-accent'
                               : 'border-border text-fg-muted',
@@ -589,56 +340,6 @@ export default function SettingsPage(): JSX.Element {
               ))}
             </ul>
           </SettingsSection>
-          <SettingsSection
-            id="bullet-wa"
-            keywords="whatsapp wa bullet tanda hubung"
-            title="Bullet di WhatsApp"
-            description="WhatsApp mengubah baris yang diawali “- ” menjadi daftar bulatnya sendiri."
-          >
-            <div className="flex flex-wrap gap-2">
-              {(
-                [
-                  ['hyphen', 'Tanda hubung — jadi bullet di WA'],
-                  ['guarded', 'Tanda hubung — tetap “-” di WA'],
-                  ['bullet', 'Bulatan • langsung'],
-                ] as Array<[typeof settings.whatsappBullet, string]>
-              ).map(([value, label]) => (
-                <button
-                  key={value}
-                  type="button"
-                  aria-pressed={settings.whatsappBullet === value}
-                  onClick={() => patch({ whatsappBullet: value })}
-                  className={[
-                    'min-h-tap rounded-full border px-3 text-xs',
-                    settings.whatsappBullet === value
-                      ? 'border-accent bg-bg-subtle font-medium text-accent'
-                      : 'border-border text-fg-muted',
-                  ].join(' ')}
-                >
-                  {label}
-                </button>
-              ))}
-            </div>
-            <p className="mt-2 text-[11px] text-fg-faint">
-              Pilihan pertama membiarkan WhatsApp membuat daftar bulatnya sendiri — ini yang
-              dipakai untuk laporan. Pilihan kedua menyisipkan karakter tak terlihat agar
-              tanda hubung tetap apa adanya, untuk tujuan selain WhatsApp.
-            </p>
-          </SettingsSection>
-          <SettingsSection
-            id="bagian-catatan"
-            keywords="alias header bagian section"
-            title="Bagian catatan"
-            description="Kata kunci yang dikenali sebagai header. Catatan lama ikut terbaca ulang, tanpa mengubah teks tersimpan."
-          >
-            <AliasEditor
-              aliases={settings.sectionAliases}
-              onChange={(sectionAliases) => patch({ sectionAliases })}
-            />
-          </SettingsSection>
-        </SettingsGroup>
-
-        <SettingsGroup id="settings-privasi" label="Privasi & data">
           <SettingsSection
             id="privasi"
             keywords="pin kunci inisial blur privasi lock"
@@ -713,6 +414,327 @@ export default function SettingsPage(): JSX.Element {
               </select>
             </label>
           </SettingsSection>
+          <SettingsSection
+            id="akun"
+            keywords="akun email keluar logout google" title="Akun" defaultOpen>
+            {persistence !== 'persisted' ? (
+              <p className="mb-3 rounded-lg border border-border bg-bg-subtle p-3 text-xs leading-relaxed text-fg-muted">
+                Penyimpanan browser di perangkat ini masih bisa dihapus otomatis saat memori
+                menipis — itu yang membuat sesi tiba-tiba keluar. Pasang aplikasi ke layar
+                utama (Bagikan → Tambah ke Layar Utama) agar sesi dan data offline bertahan.
+              </p>
+            ) : null}
+            <p className="truncate text-xs text-fg-muted">{user?.email ?? '—'}</p>
+            <SignOutButton className="mt-3 min-h-tap w-full rounded-lg border border-border px-3 text-sm text-danger" />
+            <p className="mt-2 text-xs text-fg-faint">
+              Keluar menghapus seluruh data offline di perangkat ini dan memuat ulang aplikasi.
+            </p>
+          </SettingsSection>
+        </SettingsGroup>
+
+        <SettingsGroup id="settings-tampilan" label="Tampilan">
+          <SettingsSection
+            id="warna"
+            keywords="warna palet tema aksen latar oled hitam kertas theme palette colour color"
+            title="Warna aplikasi"
+            description="Warna tombol dan pilihan, serta latar. Tersimpan di perangkat ini."
+          >
+            <div className="space-y-3">
+              <div className="grid grid-cols-2 gap-2 min-[420px]:grid-cols-4">
+                {PALETTES.map((p) => (
+                  <button
+                    key={p.id}
+                    type="button"
+                    aria-pressed={palette === p.id}
+                    onClick={() => setPalette(p.id)}
+                    className={[
+                      'flex min-h-tap items-center gap-2 rounded-lg border px-2.5 text-sm',
+                      palette === p.id ? 'border-accent font-medium text-accent' : 'border-border text-fg-muted',
+                    ].join(' ')}
+                  >
+                    <span aria-hidden="true" className="flex shrink-0 overflow-hidden rounded-full border border-border">
+                      <span className="h-5 w-2.5" style={{ background: p.swatch[0] }} />
+                      <span className="h-5 w-2.5" style={{ background: p.swatch[1] }} />
+                    </span>
+                    {p.name}
+                  </button>
+                ))}
+              </div>
+              <div className="grid gap-2 sm:grid-cols-3">
+                {SURFACES.map((option) => (
+                  <button
+                    key={option.id}
+                    type="button"
+                    aria-pressed={surface === option.id}
+                    onClick={() => setSurface(option.id)}
+                    className={[
+                      'min-h-tap rounded-lg border px-3 py-1.5 text-left text-sm',
+                      surface === option.id ? 'border-accent font-medium text-accent' : 'border-border text-fg-muted',
+                    ].join(' ')}
+                  >
+                    {option.name}
+                    <span className="block text-xs font-normal text-fg-faint">{option.note}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          </SettingsSection>
+          <SettingsSection
+            id="tata-letak"
+            keywords="layout panel klasik soap"
+            title="Tata letak halaman SOAP"
+            description="Susunan panel di samping catatan."
+          >
+            <div className="flex gap-2">
+              {(
+                [
+                  ['klasik', 'Klasik', 'Semua panel terbuka, urutan lama.'],
+                  ['panel', 'Panel', 'Catatan · Checklist · Custom Checklist · Tanggal, semua mulai tertutup dengan ringkasan di judulnya.'],
+                ] as Array<[SoapLayout, string, string]>
+              ).map(([value, label, note]) => (
+                <button
+                  key={value}
+                  type="button"
+                  onClick={() => patch({ soapLayout: value })}
+                  aria-pressed={(settings.soapLayout ?? 'klasik') === value}
+                  className={[
+                    'min-h-tap flex-1 rounded-lg border p-2 text-left text-sm',
+                    (settings.soapLayout ?? 'klasik') === value
+                      ? 'border-accent bg-bg-subtle text-accent'
+                      : 'border-border text-fg-muted',
+                  ].join(' ')}
+                >
+                  <span className="block font-medium">{label}</span>
+                  <span className="mt-0.5 block text-xs text-fg-faint">{note}</span>
+                </button>
+              ))}
+            </div>
+          </SettingsSection>
+          <SettingsSection
+            id="warna-bagian"
+            keywords="tint header warna"
+            title="Warna bagian catatan"
+            description="Latar samar di belakang judul tiap bagian, untuk memindai posisi."
+          >
+            <Toggle
+              label="Beri warna pada judul bagian"
+              description="Identitas, S, O + penunjang, A, Terapi + Plan, dan TS masing-masing berbeda."
+              checked={settings.sectionTint}
+              onChange={(sectionTint) => patch({ sectionTint })}
+            />
+          </SettingsSection>
+          <SettingsSection
+            id="watermark"
+            keywords="watermark nama rm ketebalan"
+            title="Watermark di catatan"
+            description="Nama, RM dan tanggal samar di belakang teks."
+          >
+            <Toggle
+              label="Tampilkan watermark"
+              description="Menyala secara default. Gunanya menahan salah pasien saat sudah menggulir jauh dari judul."
+              checked={settings.showWatermark}
+              onChange={(showWatermark) => patch({ showWatermark })}
+            />
+            {settings.showWatermark ? (
+              <>
+              <div className="mb-3 flex gap-2">
+                {(
+                  [
+                    ['ulang', 'Berulang', 'Terlihat di sepanjang catatan.'],
+                    ['mengambang', 'Mengambang', 'Satu tanda yang ikut bergulir.'],
+                  ] as Array<[WatermarkMode, string, string]>
+                ).map(([value, label, note]) => (
+                  <button
+                    key={value}
+                    type="button"
+                    onClick={() => patch({ watermarkMode: value })}
+                    aria-pressed={(settings.watermarkMode ?? 'ulang') === value}
+                    className={[
+                      'min-h-tap flex-1 rounded-lg border p-2 text-left text-sm',
+                      (settings.watermarkMode ?? 'ulang') === value
+                        ? 'border-accent bg-bg-subtle text-accent'
+                        : 'border-border text-fg-muted',
+                    ].join(' ')}
+                  >
+                    <span className="block font-medium">{label}</span>
+                    <span className="mt-0.5 block text-xs text-fg-faint">{note}</span>
+                  </button>
+                ))}
+              </div>
+              <label className="mt-2 block text-xs text-fg-muted">
+                Ketebalan watermark
+                <input
+                  type="range"
+                  min={1}
+                  max={20}
+                  value={Math.round(settings.watermarkOpacity * 100)}
+                  onChange={(event) =>
+                    patch({ watermarkOpacity: Number(event.target.value) / 100 })
+                  }
+                  className="mt-1 w-full"
+                />
+                <span className="text-fg-faint">
+                  {Math.round(settings.watermarkOpacity * 100)}%
+                </span>
+              </label>
+              </>
+            ) : null}
+          </SettingsSection>
+          <SettingsSection
+            id="hari-rawat"
+            keywords="hari rawat judul"
+            title="Hari rawat di judul catatan"
+            description="Angka hari rawat sudah terlihat di rel tanggal; ini menambahkannya di judul juga."
+          >
+            <Toggle
+              label="Tampilkan “Hari rawat ke-N”"
+              description="Mati secara default. Nyalakan bila dokter tertentu meminta angkanya di laporan."
+              checked={settings.showHariRawat}
+              onChange={(showHariRawat) => patch({ showHariRawat })}
+            />
+          </SettingsSection>
+        </SettingsGroup>
+
+        <SettingsGroup id="settings-harian" label="Papan & harian">
+          <SettingsSection
+            id="checklist"
+            keywords="checklist centang langkah visite"
+            title="Checklist harian"
+            description="Tambah, ubah nama, warna, urutan, atau nonaktifkan. Jumlah langkah bebas."
+          >
+            <ChecklistEditor
+              items={settings.checklistItems}
+              onChange={(checklistItems) => patch({ checklistItems })}
+            />
+          </SettingsSection>
+          <SettingsSection
+            id="pengingat"
+            title="Pengingat harian"
+            description="Penanda di kartu pasien: EKG, urine output, atau buatan sendiri. Bisa dicentang."
+            keywords="pengingat reminder ekg urine output uo flag penanda"
+          >
+            <ReminderKindsEditor
+              kinds={settings.reminderKinds ?? DEFAULT_REMINDER_KINDS}
+              onChange={(reminderKinds) => patch({ reminderKinds })}
+            />
+          </SettingsSection>
+          <SettingsSection
+            id="hari-klinis"
+            keywords="tanggal pergantian hari jam jaga malam"
+            title="Hari klinis"
+            description="Menentukan catatan hari ini masuk ke tanggal mana."
+          >
+            <ClinicalDayEditor settings={settings} onChange={patch} />
+          </SettingsSection>
+        </SettingsGroup>
+
+        <SettingsGroup id="settings-laporan" label="Format laporan">
+          <SettingsSection
+            id="pembuka"
+            keywords="pembuka laporan tabe izin melaporkan"
+            title="Kalimat pembuka"
+            description="Kerangka kalimat laporan. Ruang, kamar dan poli tetap diisi manual."
+          >
+            <StringListEditor
+              multiline
+              values={settings.openingSentences}
+              onChange={(openingSentences) => patch({ openingSentences })}
+              placeholder="Tabe dokter, mohon izin melaporkan…"
+            />
+            <RestoreButton
+              onClick={() => {
+                const { next, restored: count } = restoreMissingStrings(
+                  settings.openingSentences,
+                  SEED_OPENING_SENTENCES,
+                );
+                if (count > 0) patch({ openingSentences: next });
+                announce(count);
+              }}
+            />
+          </SettingsSection>
+          <SettingsSection
+            id="salam"
+            keywords="salam assalamualaikum selamat pagi"
+            title="Salam"
+            description="Pilihan salam yang bisa ditukar di catatan yang sudah jadi."
+          >
+            <StringListEditor
+              values={settings.greetings}
+              onChange={(greetings) => patch({ greetings })}
+              placeholder="Selamat pagi dokter."
+            />
+            <RestoreButton
+              onClick={() => {
+                const { next, restored: count } = restoreMissingStrings(
+                  settings.greetings,
+                  SEED_GREETINGS,
+                );
+                if (count > 0) patch({ greetings: next });
+                announce(count);
+              }}
+            />
+          </SettingsSection>
+          <SettingsSection
+            id="format-dpjp"
+            keywords="dpjp konsulen format"
+            title="Format per DPJP"
+            description="Pengingat format laporan yang diharapkan tiap konsulen."
+          >
+            <DpjpFormatEditor
+              formats={settings.dpjpFormats}
+              onChange={(dpjpFormats) => patch({ dpjpFormats })}
+            />
+          </SettingsSection>
+          <SettingsSection
+            id="bullet-wa"
+            keywords="whatsapp wa bullet tanda hubung"
+            title="Bullet di WhatsApp"
+            description="WhatsApp mengubah baris yang diawali “- ” menjadi daftar bulatnya sendiri."
+          >
+            <div className="flex flex-wrap gap-2">
+              {(
+                [
+                  ['hyphen', 'Tanda hubung — jadi bullet di WA'],
+                  ['guarded', 'Tanda hubung — tetap “-” di WA'],
+                  ['bullet', 'Bulatan • langsung'],
+                ] as Array<[typeof settings.whatsappBullet, string]>
+              ).map(([value, label]) => (
+                <button
+                  key={value}
+                  type="button"
+                  aria-pressed={settings.whatsappBullet === value}
+                  onClick={() => patch({ whatsappBullet: value })}
+                  className={[
+                    'min-h-tap rounded-full border px-3 text-xs',
+                    settings.whatsappBullet === value
+                      ? 'border-accent bg-bg-subtle font-medium text-accent'
+                      : 'border-border text-fg-muted',
+                  ].join(' ')}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+            <p className="mt-2 text-xs text-fg-faint">
+              Pilihan pertama membiarkan WhatsApp membuat daftar bulatnya sendiri — ini yang
+              dipakai untuk laporan. Pilihan kedua menyisipkan karakter tak terlihat agar
+              tanda hubung tetap apa adanya, untuk tujuan selain WhatsApp.
+            </p>
+          </SettingsSection>
+          <SettingsSection
+            id="bagian-catatan"
+            keywords="alias header bagian section"
+            title="Bagian catatan"
+            description="Kata kunci yang dikenali sebagai header. Catatan lama ikut terbaca ulang, tanpa mengubah teks tersimpan."
+          >
+            <AliasEditor
+              aliases={settings.sectionAliases}
+              onChange={(sectionAliases) => patch({ sectionAliases })}
+            />
+          </SettingsSection>
+        </SettingsGroup>
+
+        <SettingsGroup id="settings-privasi" label="Privasi & data">
           <SettingsSection
             id="ekspor"
             keywords="export unduh json backup cadangan"
@@ -857,22 +879,6 @@ export default function SettingsPage(): JSX.Element {
             <Changelog />
           </SettingsSection>
           <SettingsSection
-            id="akun"
-            keywords="akun email keluar logout google" title="Akun" defaultOpen>
-            {persistence !== 'persisted' ? (
-              <p className="mb-3 rounded-lg border border-border bg-bg-subtle p-3 text-[11px] leading-relaxed text-fg-muted">
-                Penyimpanan browser di perangkat ini masih bisa dihapus otomatis saat memori
-                menipis — itu yang membuat sesi tiba-tiba keluar. Pasang aplikasi ke layar
-                utama (Bagikan → Tambah ke Layar Utama) agar sesi dan data offline bertahan.
-              </p>
-            ) : null}
-            <p className="truncate text-xs text-fg-muted">{user?.email ?? '—'}</p>
-            <SignOutButton className="mt-3 min-h-tap w-full rounded-lg border border-border px-3 text-sm text-danger" />
-            <p className="mt-2 text-[11px] text-fg-faint">
-              Keluar menghapus seluruh data offline di perangkat ini dan memuat ulang aplikasi.
-            </p>
-          </SettingsSection>
-          <SettingsSection
             id="setel-ulang"
             keywords="reset bawaan default" title="Setel ulang">
             {confirmReset ? (
@@ -932,7 +938,7 @@ export default function SettingsPage(): JSX.Element {
         {restored ? (
           <p
             role="status"
-            className="sticky bottom-4 rounded-lg border border-border bg-surface px-3 py-2 text-center text-xs text-fg-muted shadow-lg"
+            className="sticky bottom-4 rounded-lg border border-border bg-surface px-3 py-2 text-center text-xs text-fg-muted shadow-pop"
           >
             {restored}
           </p>
@@ -990,7 +996,7 @@ function SettingsToolbar({
           onKeyDown={(event) => {
             if (event.key === 'Escape') onQuery('');
           }}
-          placeholder="Cari pengaturan… (mis. PIN, watermark, pengingat)"
+          placeholder="Cari pengaturan… (mis. PIN)"
           className="min-h-tap w-full rounded-xl border border-border bg-surface px-3 text-[15px] outline-none focus:border-accent"
         />
       </label>

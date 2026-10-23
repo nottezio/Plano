@@ -265,7 +265,7 @@ export function NoteEditor({
         <EditorContent editor={editor} />
       </div>
 
-      <p className="px-4 pb-3 text-[11px] text-fg-faint">
+      <p className="px-4 pb-3 text-xs text-fg-faint">
         {sync.dirty ? 'Menyimpan…' : 'Tersimpan'}
         {edited ? ` · diubah ${edited}` : ''}
         {!trashed ? (

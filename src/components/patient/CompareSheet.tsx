@@ -254,7 +254,7 @@ export function CompareSheet({
               sides: the suggestion on "Dari", the open note on "Ke".
             */
             <div className="mt-3 flex flex-wrap items-center gap-1.5">
-              <span className="text-[11px] text-fg-faint">Cepat:</span>
+              <span className="text-xs text-fg-faint">Cepat:</span>
               {suggestions.map((suggestion) => {
                 const active = from === suggestion.key && to === null;
                 return (
@@ -301,7 +301,7 @@ export function CompareSheet({
                 </p>
               ) : view === 'perubahan' && segments ? (
                 <>
-                  <div className="mt-3 flex flex-wrap items-center gap-3 text-[11px] text-fg-muted">
+                  <div className="mt-3 flex flex-wrap items-center gap-3 text-xs text-fg-muted">
                     <span className="flex items-center gap-1">
                       <span className="rounded bg-[var(--card-step-12-bg)] px-1 text-[var(--card-step-12-fg)]">
                         hijau
@@ -370,7 +370,7 @@ function Slot({
         active ? 'border-accent bg-[var(--accent-soft)]' : 'border-border bg-surface hover:bg-bg-subtle',
       ].join(' ')}
     >
-      <span className="flex w-full items-center gap-1 text-[10px] font-semibold uppercase tracking-wide text-fg-faint">
+      <span className="flex w-full items-center gap-1 text-[11px] font-semibold uppercase tracking-wide text-fg-faint">
         <span className="flex-1">{legend}</span>
         <span aria-hidden="true">{active ? '▴' : '▾'}</span>
       </span>
@@ -378,7 +378,7 @@ function Slot({
       {pane?.sub ? (
         <span
           className={[
-            'text-[11px]',
+            'text-xs',
             pane.open ? 'font-medium text-accent' : 'text-fg-muted',
           ].join(' ')}
         >
@@ -445,12 +445,12 @@ function OptionList({
                   >
                     <span className="truncate">{option.name}</span>
                     {option.open ? (
-                      <span className="shrink-0 rounded bg-accent px-1 text-[10px] font-semibold text-on-accent">
+                      <span className="shrink-0 rounded bg-accent px-1 text-[11px] font-semibold text-on-accent">
                         dibuka
                       </span>
                     ) : null}
                     {onOther && !isSelected ? (
-                      <span className="shrink-0 text-[10px] text-fg-faint">sisi lain</span>
+                      <span className="shrink-0 text-[11px] text-fg-faint">sisi lain</span>
                     ) : null}
                   </button>
                 );
@@ -561,7 +561,7 @@ function RevisionCompare({
               <strong className="text-fg">{diff.removed}</strong> dihapus, dari{' '}
               <strong className="text-fg">{mineLabel}</strong> ke revisi.
             </p>
-            <div className="flex flex-wrap items-center gap-3 text-[11px] text-fg-muted">
+            <div className="flex flex-wrap items-center gap-3 text-xs text-fg-muted">
               <span className="flex items-center gap-1">
                 <span className="rounded bg-[var(--card-step-12-bg)] px-1 text-[var(--card-step-12-fg)]">
                   hijau
@@ -700,7 +700,7 @@ function ApplyRevision({
       >
         {armed ? 'Ketuk lagi: ganti catatan hari ini' : 'Pakai versi revisi ini'}
       </button>
-      <p className="text-[11px] text-fg-muted">
+      <p className="text-xs text-fg-muted">
         Teks tempelan menggantikan catatan yang terbuka, persis seperti yang ditempel. Versi
         sekarang tersimpan di Riwayat perubahan.
       </p>

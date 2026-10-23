@@ -1,5 +1,48 @@
 # Plano — CHANGES
 
+## `2026-10-23.6` — Visual check fixes after the revamp
+
+Checked signed in (desktop app browser pane, test account, one empty patient): board, patient page, Tindakan sheet, Salin and Settings at 375 px and 1024 px, light and dark.
+
+- **Board search squeezed (bug).** The toolbar row was `lg:flex-nowrap` with search `min-w-0 flex-1`; at 1024 px the other controls (now larger after the text step-up) left search ~30 px ("Car…"). Row now wraps below `xl`, search has `min-w-[12rem]`.
+- **Segmented selection invisible in dark (bug).** Active segment used `bg-surface` (#131a24) on a `bg-bg-subtle` (#0f151d) track. Now `bg-surface-raised` + `ring-border-strong`; light mode unchanged (both white).
+- **Card header band** `bg-black/10` → `bg-black/[0.05]`: read as a grey bar on the new slate canvas.
+- **Settings search placeholder** shortened; it was cut off at 375 px.
+- **Console TypeError on a new account (bug).** `reconcileProfileSeeds` ran on the first profile snapshot, which arrives before `seedSettingsIfMissing` writes `settings`, and `reconcileSeeds` read `seedBaseline` of undefined (uncaught rejection). Now it returns until a snapshot with settings arrives; nothing was lost before, the next snapshot reconciled.
+- **Not checked.** A patient with a real note (Salin preview, filled cards, the Catatan lainnya rows that need a note), coloured checklist-token cards, tablet width (640–1023 px), Helper/List Maker/Calculator/Documents screens. Screenshots at 1024 px were low resolution in the pane.
+
+## `2026-10-23.5` — "Gagal masuk" after a successful Google popup
+
+Report (Avi): cannot sign in from the desktop app's browser pane; earlier, approved users stuck on "Gagal masuk. Coba lagi.".
+
+- **Root cause (reproduced in the pane via the new `signin-error` log).** The popup sign-in SUCCEEDED; saving the user failed. Console: `Error: Database is closing/hidden` from `IndexedDBLocalPersistence._openDb` ← `setCurrentUser`. Firebase Auth (12.17.1) sets `isHiding` on `visibilitychange: hidden`/`pagehide` and refuses every IndexedDB write until the page is visible again. A popup that hides the opener (the pane; very likely a new tab on Android Chrome too) means Google's answer arrives while the page is hidden, the write throws a plain `Error` (no `auth/` code), and the screen shows the generic message. Approval timing was coincidence: the user's retry happened to run while the page stayed visible.
+- **Fix.** `signInWithGoogle` calls `setPersistence(auth, browserLocalPersistence)` (not awaited, so the click's user activation is kept; Auth's queue orders it before the popup's write). localStorage has no hidden check. On the next start `PersistenceUserManager.create` finds the user in localStorage, migrates it to IndexedDB (first in the hierarchy) and removes the localStorage copy, so the long-term store is unchanged. Regression test `src/store/signInPersistence.test.ts`.
+- **Not verified.** Not tested on a real Android phone. The full pane sign-in needs the owner to pick the Google account. The redirect fallback is unchanged.
+
+## `2026-10-23.4` — Sign-in failures are logged
+
+Report (Avi): an approved account sometimes cannot sign in and stays on the sign-in screen with "Gagal masuk. Coba lagi."; also seen for new users right after approval.
+
+- **What the message means.** That exact text is the `describeAuthError` default for an error with NO `code`, i.e. not a Firebase Auth error. Sign-in itself never reads approval: there is no blocking Cloud Function, and a pending account signs in and lands on AccessGate's "Menunggu persetujuan", which opens live on approval. So approval timing cannot produce this message on its own.
+- **Reproduced in the desktop app's browser pane only.** The pane has no popup windows: `signInWithPopup` navigated the app's own tab to Google's account chooser, the opener page was gone, and no result ever came back. That is the pane, not Plano; sign in in a real browser to test there.
+- **Root cause for real devices: not found.** Candidates, unconfirmed: the popup reported as closed (Chrome's COOP "would block window.closed" warnings appear in the console during the popup) and the redirect fallback then failing on GitHub Pages, as described in `signInWithGoogle`.
+- **Change.** `signInWithGoogle` now `console.error`s the failure and writes a `signin-error` session-log entry (code, or the error's name; no email or token). Shown in Pengaturan → Riwayat sesi as "Gagal masuk dengan Google". The no-code message now names the error type.
+- **Not done.** No fix for the real-device failure, because it isn't known yet. Next step: the Riwayat sesi screenshot from an affected device.
+
+## `2026-10-23.3` — Design revamp, lazy routes, Tindakan/Settings regrouping
+
+Avi accepted ten review items (startup load, header blur, card memo, large files, phone board default, first-run, Tindakan sheet, Settings, small text, ad-hoc buttons) and asked for a professional medical-grade visual pass.
+
+- **Startup load — cause.** `App.tsx` imported all 13 routes eagerly, so every cold start parsed one ~1.2 MB app chunk plus React and Firebase. Now only Board, Patient and NotFound are eager; the rest are `React.lazy` behind one `Suspense`. All JS is still precached by the SW (`globPatterns`), so lazy routes open offline. A chunk that fails to load (old tab after an update) lands on the existing ErrorBoundary "Muat ulang".
+- **Blur — cause.** `backdrop-blur` on the sticky TopBar, patient header, List Maker header, FormatToolbar and the Sheet overlay made low-end GPUs re-blur on every scrolled frame, behind a background that was already 92–95% opaque. Replaced with solid surfaces.
+- **Card redraws — cause.** No component was memoised and BoardPage passed fresh closures (`toggleSelected`, the inline preview handler, the drag handler) each render, so every card redrew on any board state change. `PatientCard` and `StickyNoteCard` are now `memo`; those callbacks are stable (`useCallback`; the drag handler goes through a latest-ref wrapper because it reads current cards). `cards` is still rebuilt when any patient changes, which redraws all cards then.
+- **Design tokens.** Shell is now layered: cool slate `--bg` (#f3f5f8) under white `--surface`, blue-black ink, accent #1559c7 (dark #6aa3ff). New elevation tokens `--shadow-card/pop/sheet` (Tailwind `shadow-card/pop/sheet`); all `shadow-sm/md/lg/xl/2xl` mapped to them. Shared `ui.tsx`: Button gets `quiet` variant and `icon` size, rounded-lg, press feedback, filled-soft danger; inputs get a focus halo; Segmented/ListGroup/ChoiceChip refined; Section labels use `fg-muted` instead of `fg-faint`. Real logo in sidebar and on a carded sign-in screen.
+- **Text.** `text-[11px]`→`text-xs`, `10px`→`11px`, `9px`→`10px` everywhere (sed over `src/`).
+- **Buttons.** Patient header actions moved to `PatientHeaderActions.tsx` on the shared Button (back/⋯/compare now icons); board toolbar, "Pasien baru", selection bar and the phone view toggle (now `Segmented`) use Button. Copy-sheet main button aligned to the primary style. Most of the ~400 raw buttons elsewhere are untouched.
+- **Large files.** PatientPage 3,087 → 2,792 lines: header actions and the Banner/FindingTag/MarkerChips/DpjpSideCard helpers moved to `src/components/patient/`. The main `PatientPage` function is still ~2,600 lines; BoardPage and HelperPage not split.
+- **UX.** Phone board defaults to Daftar (`visite.board.phoneView` must now be `canvas` to get the canvas). Empty board shows a three-step first-run card. Tindakan sheet: Pasien status first, then four daily note actions; Ekspor/Pembuka/Versi/Format bangsal + AI fold into "Catatan lainnya"; "Zona berbahaya" folds (opens while a delete is being confirmed). Settings: new top group "Utama" with Tampilan, Format catatan, Preset salin, Privasi, Akun (moved, not duplicated).
+- **Not done / not verified.** Signed-in screens were not seen in a browser (Google sign-in), unless noted in the session; no on-device performance measurement; no route split for BoardPage/HelperPage; most raw buttons not migrated; no visual check of every screen after the text-size bump (tight rows may wrap).
+
 ## `2026-10-23.2` — Settings no longer rewritten on every load
 
 Report: a friend's Plano does not keep her settings, notably which SOAP parts "Salin dari hari sebelumnya" clears.

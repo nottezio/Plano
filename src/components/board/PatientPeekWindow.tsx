@@ -254,7 +254,7 @@ export function PatientPeekWindow({
       role="dialog"
       aria-label={`Preview ${title}`}
       onPointerDownCapture={onFocus}
-      className="fixed flex flex-col overflow-hidden rounded-xl border border-border bg-surface shadow-2xl"
+      className="fixed flex flex-col overflow-hidden rounded-xl border border-border bg-surface shadow-sheet"
       style={{ left: pos.x, top: pos.y, width: size.w, height: size.h, zIndex: z }}
     >
       {/*
@@ -280,7 +280,7 @@ export function PatientPeekWindow({
             from three days ago read as today's is the mistake this exists to
             prevent.
           */}
-          <p className="flex items-center gap-1 text-[10px] text-fg-muted">
+          <p className="flex items-center gap-1 text-[11px] text-fg-muted">
             <span
               className={[
                 'rounded px-1 font-medium',
@@ -315,7 +315,7 @@ export function PatientPeekWindow({
 
         <Link
           to={`/p/${patient.id}`}
-          className="flex min-h-tap shrink-0 items-center rounded-lg border border-border px-2 text-[10px] font-medium text-accent"
+          className="flex min-h-tap shrink-0 items-center rounded-lg border border-border px-2 text-[11px] font-medium text-accent"
         >
           Buka
         </Link>
@@ -347,7 +347,7 @@ export function PatientPeekWindow({
             data-copy-format={
               view === 'wa' ? 'whatsapp' : view === 'simgos' ? 'plain' : undefined
             }
-            className="whitespace-pre-wrap text-[11px] leading-relaxed"
+            className="whitespace-pre-wrap text-xs leading-relaxed"
           >
             {shown}
           </pre>
@@ -381,7 +381,7 @@ export function PatientPeekWindow({
       {tab ? (
         <div
           id={panelId}
-          className="max-h-[45%] shrink-0 overflow-auto border-t border-border px-3 py-2 text-[11px]"
+          className="max-h-[45%] shrink-0 overflow-auto border-t border-border px-3 py-2 text-xs"
         >
           {tab === 'checklist' ? (
             <ul className="space-y-1">
@@ -503,7 +503,7 @@ function ViewToggle({
       aria-pressed={pressed}
       title={pressed ? 'Kembali ke catatan asli' : `Tampilkan versi ${label}`}
       className={[
-        'min-h-tap shrink-0 rounded-lg border px-2 text-[10px] font-medium',
+        'min-h-tap shrink-0 rounded-lg border px-2 text-[11px] font-medium',
         pressed ? 'border-accent bg-[var(--accent-soft)] text-accent' : 'border-border',
       ].join(' ')}
     >
@@ -542,7 +542,7 @@ function CopyMrnButton({
       }}
       title={`Salin nomor RM ${mrn}`}
       aria-label={`Salin nomor RM ${mrn}`}
-      className="min-h-tap shrink-0 rounded-lg border border-border px-2 text-[10px] font-medium text-fg-muted"
+      className="min-h-tap shrink-0 rounded-lg border border-border px-2 text-[11px] font-medium text-fg-muted"
     >
       {copied ? '✓' : 'Salin RM'}
     </button>
@@ -591,8 +591,8 @@ function DockTab({
       aria-label={summary ? `${label}, ${summary} selesai` : label}
       title={label}
       className={[
-        'flex min-h-tap min-w-0 flex-auto items-center justify-center gap-1 rounded-md px-1.5 text-[11px] font-medium',
-        open ? 'bg-surface text-fg shadow-sm' : empty ? 'text-fg-faint' : 'text-fg-muted',
+        'flex min-h-tap min-w-0 flex-auto items-center justify-center gap-1 rounded-md px-1.5 text-xs font-medium',
+        open ? 'bg-surface text-fg shadow-card' : empty ? 'text-fg-faint' : 'text-fg-muted',
       ].join(' ')}
     >
       <span className="truncate">{label}</span>

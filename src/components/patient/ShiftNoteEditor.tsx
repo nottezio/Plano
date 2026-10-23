@@ -271,7 +271,7 @@ export function ShiftNoteEditor({
           like a daily SOAP.
         */}
         {trim && trim.removed.length > 0 ? (
-          <div className="flex items-center gap-2 border-b border-border px-3 py-1 text-[11px] text-fg-muted">
+          <div className="flex items-center gap-2 border-b border-border px-3 py-1 text-xs text-fg-muted">
             <span className="min-w-0 flex-1">
               {trim.removed.length} blok penunjang lama di versi ini.
             </span>

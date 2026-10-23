@@ -54,13 +54,13 @@ export function CalcCard({
   return (
     <article className="flex flex-col rounded-2xl border border-border bg-surface p-4">
       <h3 className="text-[15px] font-semibold">{title}</h3>
-      <p className="mt-0.5 font-mono text-[11px] leading-relaxed text-fg-muted">{formula}</p>
+      <p className="mt-0.5 font-mono text-xs leading-relaxed text-fg-muted">{formula}</p>
       <div className="mt-3 flex-1">{children}</div>
       <details className="mt-3 border-t border-border pt-2">
         <summary className="min-h-tap cursor-pointer select-none py-2 text-xs font-medium text-fg-muted [@media(pointer:fine)]:min-h-0">
           Rujukan
         </summary>
-        <ol className="mt-1 list-decimal space-y-1 pl-4 text-[11px] leading-relaxed text-fg-faint">
+        <ol className="mt-1 list-decimal space-y-1 pl-4 text-xs leading-relaxed text-fg-faint">
           {sources.map((source) => (
             <li key={source}>{source}</li>
           ))}
@@ -77,7 +77,7 @@ export function ResultBlock({ children, line }: { children: ReactNode; line?: st
       {children}
       {line ? (
         <>
-          <p className="mt-2 break-words font-mono text-[11px] leading-relaxed">{line}</p>
+          <p className="mt-2 break-words font-mono text-xs leading-relaxed">{line}</p>
           <button
             type="button"
             onClick={() => {
@@ -106,7 +106,7 @@ export function Big({ value, unit, caption }: { value: ReactNode; unit: string; 
       <p className="text-xl font-semibold tabular-nums">
         {value} <span className="text-xs font-normal text-fg-muted">{unit}</span>
       </p>
-      {caption ? <p className="text-[11px] text-fg-muted">{caption}</p> : null}
+      {caption ? <p className="text-xs text-fg-muted">{caption}</p> : null}
     </div>
   );
 }
@@ -153,7 +153,7 @@ export function NumberField({
 }): JSX.Element {
   return (
     <label className="block">
-      <span className="mb-1 block text-[11px] text-fg-muted">{label}</span>
+      <span className="mb-1 block text-xs text-fg-muted">{label}</span>
       <input
         type="text"
         inputMode="decimal"
@@ -314,14 +314,14 @@ function EffectiveExplainer(): JSX.Element {
             mengikuti osmolalitas efektif; kriteria HHS memakai efektif &gt; 300 mOsm/kg.
           </li>
         </ul>
-        <p className="rounded-lg bg-bg-subtle px-2.5 py-2 font-mono text-[11px] text-fg">
+        <p className="rounded-lg bg-bg-subtle px-2.5 py-2 font-mono text-xs text-fg">
           Contoh: Na {sodium}, glukosa {glucose}, ureum {urea}
           <br />
           Total = 2·{sodium} + {glucose}/18 + {urea}/6 = {total} (tampak normal)
           <br />
           Efektif = 2·{sodium} + {glucose}/18 = {effective} (hipotonik)
         </p>
-        <ol className="list-decimal space-y-0.5 pl-4 text-[10px] text-fg-faint">
+        <ol className="list-decimal space-y-0.5 pl-4 text-[11px] text-fg-faint">
           {EFFECTIVE_SOURCES.map((source) => (
             <li key={source}>{source}</li>
           ))}
@@ -339,7 +339,7 @@ function ReadingChip({ reading }: { reading: OsmolalityReading }): JSX.Element {
         ? { borderColor: 'var(--accent)', background: 'var(--accent-soft)' }
         : { borderColor: 'var(--warn-strong)', background: 'var(--warn-soft)' };
   return (
-    <p className="mt-1 inline-block rounded-md border px-1.5 py-0.5 text-[11px] font-medium" style={style}>
+    <p className="mt-1 inline-block rounded-md border px-1.5 py-0.5 text-xs font-medium" style={style}>
       {reading.label}
     </p>
   );
@@ -376,7 +376,7 @@ export function SodiumGlucoseCard(): JSX.Element {
             <Big value={result.hillier} unit="mmol/L" caption="Hillier (2.4)" />
           </div>
           {result.factorsDiverge ? (
-            <p className="mt-2 text-[11px] text-fg-muted">
+            <p className="mt-2 text-xs text-fg-muted">
               Berbeda {Math.round((result.hillier - result.katz) * 10) / 10} mmol/L pada GDS ini.
               Hillier lebih sesuai pada glukosa &gt; 400 mg/dL.
             </p>

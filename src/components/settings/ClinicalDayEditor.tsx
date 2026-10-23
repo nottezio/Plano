@@ -53,7 +53,7 @@ export function ClinicalDayEditor({
             </option>
           ))}
         </select>
-        <span className="mt-1 block text-[11px] text-fg-faint">
+        <span className="mt-1 block text-xs text-fg-faint">
           Catatan yang ditulis sebelum jam ini masuk ke tanggal sebelumnya. Mengubahnya tidak
           memindahkan catatan yang sudah ada.
         </span>
@@ -97,7 +97,7 @@ export function ClinicalDayEditor({
             );
           })}
         </div>
-        <p className="mt-1 text-[11px] text-fg-faint">
+        <p className="mt-1 text-xs text-fg-faint">
           Keluhan dan hasil penunjang lama terbaca sebagai temuan hari ini bila ikut tersalin.
         </p>
       </div>

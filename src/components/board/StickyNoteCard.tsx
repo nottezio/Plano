@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { memo, useEffect, useLayoutEffect, useRef, useState } from 'react';
 
 import {
   removeBoardNote,
@@ -26,7 +26,7 @@ import { STICKY_COLORS, stickyTone, type BoardNote, type StickyColor } from '@/d
  * `fitHeight` it fills the height the canvas gives it and scrolls inside, and
  * it reports the range the height grip may use.
  */
-export function StickyNoteCard({
+function StickyNoteCardView({
   uid,
   id,
   note,
@@ -183,7 +183,7 @@ export function StickyNoteCard({
       {/* The tape. */}
       <span
         aria-hidden="true"
-        className="pointer-events-none absolute -top-2 left-1/2 h-4 w-16 -translate-x-1/2 rotate-2 rounded-[2px] bg-white/45 shadow-sm"
+        className="pointer-events-none absolute -top-2 left-1/2 h-4 w-16 -translate-x-1/2 rotate-2 rounded-[2px] bg-white/45 shadow-card"
       />
       {/* The folded corner. */}
       <span
@@ -191,7 +191,7 @@ export function StickyNoteCard({
         className="pointer-events-none absolute bottom-0 right-0 h-4 w-4 bg-[linear-gradient(135deg,transparent_50%,rgba(0,0,0,0.22)_50%)]"
       />
       <div className="flex items-center gap-1 px-2 pt-1.5">
-        <span className="flex-1 text-[10px] font-semibold uppercase tracking-wide opacity-60">
+        <span className="flex-1 text-[11px] font-semibold uppercase tracking-wide opacity-60">
           📌 Catatan
         </span>
 
@@ -301,11 +301,11 @@ export function StickyNoteCard({
       ) : null}
 
       {imageStatus ? (
-        <p role="status" className="px-2.5 pb-2 text-[11px] opacity-70">
+        <p role="status" className="px-2.5 pb-2 text-xs opacity-70">
           {imageStatus}
         </p>
       ) : dropping ? (
-        <p className="px-2.5 pb-2 text-[11px] font-medium">Lepaskan untuk menempel gambar</p>
+        <p className="px-2.5 pb-2 text-xs font-medium">Lepaskan untuk menempel gambar</p>
       ) : null}
     </div>
   );
@@ -345,7 +345,7 @@ function NoteImage({
     return <div className="h-16 animate-pulse rounded bg-black/10" aria-label="Memuat gambar" />;
   }
   if (src === null) {
-    return <p className="text-[11px] opacity-60">Gambar tidak bisa dimuat.</p>;
+    return <p className="text-xs opacity-60">Gambar tidak bisa dimuat.</p>;
   }
 
   return (
@@ -367,7 +367,7 @@ function NoteImage({
               )
               .finally(() => window.setTimeout(() => setCopied(null), 2500));
           }}
-          className="min-h-tap rounded bg-black/70 px-2 text-[11px] font-medium text-white"
+          className="min-h-tap rounded bg-black/70 px-2 text-xs font-medium text-white"
         >
           Salin
         </button>
@@ -385,10 +385,13 @@ function NoteImage({
         </button>
       </div>
       {copied ? (
-        <figcaption role="status" className="mt-0.5 text-[11px] opacity-80">
+        <figcaption role="status" className="mt-0.5 text-xs opacity-80">
           {copied}
         </figcaption>
       ) : null}
     </figure>
   );
 }
+
+/** Memoised: the board redraws on every filter, selection and drag change. */
+export const StickyNoteCard = memo(StickyNoteCardView);

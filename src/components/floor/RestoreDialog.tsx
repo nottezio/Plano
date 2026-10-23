@@ -170,7 +170,7 @@ export function RestorePointList({
     <details className="rounded-xl border border-border bg-surface">
       <summary className="cursor-pointer px-3 py-2 text-xs font-semibold">Titik pulih ({points.length})</summary>
       <div className="space-y-2 border-t border-border p-3">
-        <p className="text-[11px] text-fg-muted">
+        <p className="text-xs text-fg-muted">
           Disimpan otomatis sebelum setiap Tempel dan bersama setiap edisi. Pulihkan bila tempel memasukkan pasien yang salah.
           30 titik terakhir disimpan.
         </p>
@@ -180,7 +180,7 @@ export function RestorePointList({
             <li key={p.id} className="flex items-center gap-2 py-1.5 text-xs">
               <span className="min-w-0 flex-1">
                 <span className="font-semibold">{p.label}</span>
-                <span className="block text-[11px] text-fg-muted">
+                <span className="block text-xs text-fg-muted">
                   {pointWhen(p)} · {p.createdBy} · {p.count} pasien
                 </span>
               </span>

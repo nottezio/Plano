@@ -206,7 +206,7 @@ export function Toolbar({ editor }: { editor: Editor }): JSX.Element {
       </Tool>
       <Tool label="Bersihkan format" onClick={() => chain().unsetAllMarks().clearNodes().run()}>
         <span aria-hidden="true" className="relative">
-          T<span className="absolute -right-1.5 -bottom-1 text-[10px]">✕</span>
+          T<span className="absolute -right-1.5 -bottom-1 text-[11px]">✕</span>
         </span>
       </Tool>
 
@@ -236,7 +236,7 @@ export function Toolbar({ editor }: { editor: Editor }): JSX.Element {
 
       {open === 'color' ? (
         <Popover anchor={anchors.current.color} onClose={() => setOpen(null)} label="Warna dan stabilo">
-          <p className="px-2 pt-1 text-[11px] font-semibold uppercase tracking-wide text-fg-faint">Warna teks</p>
+          <p className="px-2 pt-1 text-xs font-semibold uppercase tracking-wide text-fg-faint">Warna teks</p>
           <div className="flex flex-wrap gap-0.5 px-1">
             <Swatch label="Warna biasa" onClick={done(() => chain().unsetColor().run())} style={{ backgroundColor: 'var(--fg)' }} />
             {TEXT_COLORS.map((c) => (
@@ -248,7 +248,7 @@ export function Toolbar({ editor }: { editor: Editor }): JSX.Element {
               />
             ))}
           </div>
-          <p className="px-2 pt-2 text-[11px] font-semibold uppercase tracking-wide text-fg-faint">Stabilo</p>
+          <p className="px-2 pt-2 text-xs font-semibold uppercase tracking-wide text-fg-faint">Stabilo</p>
           <div className="flex flex-wrap gap-0.5 px-1 pb-1">
             <Swatch label="Tanpa stabilo" onClick={done(() => chain().unsetHighlight().run())} style={{ backgroundColor: 'var(--surface)' }} crossed />
             {HIGHLIGHTS.map((h) => (
@@ -371,7 +371,7 @@ function Popover({
       role="menu"
       aria-label={label}
       style={{ top: place.top, left: place.left }}
-      className="fixed z-[70] w-[248px] rounded-xl border border-border bg-surface p-1 shadow-lg"
+      className="fixed z-[70] w-[248px] rounded-xl border border-border bg-surface p-1 shadow-pop"
     >
       {children}
     </div>,

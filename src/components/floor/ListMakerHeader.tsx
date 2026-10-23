@@ -79,7 +79,7 @@ export function ListMakerTabs<T extends string>({
   onTab: (tab: T) => void;
 }): JSX.Element {
   return (
-    <div className="sticky top-0 z-20 -mx-4 bg-[color-mix(in_srgb,var(--bg)_92%,transparent)] px-4 py-1 backdrop-blur">
+    <div className="sticky top-0 z-20 -mx-4 bg-bg px-4 py-1">
       <ScrollStrip outerClassName="rounded-xl border border-border bg-bg-subtle" fade="from-bg-subtle" className="flex p-0.5" label="Tampilan" role="tablist">
         {tabs.map(([key, label]) => {
           const on = key === tab;
@@ -91,7 +91,7 @@ export function ListMakerTabs<T extends string>({
               aria-selected={on}
               onClick={() => onTab(key)}
               className={`min-h-tap min-w-max flex-1 shrink-0 rounded-lg px-2.5 text-xs transition-colors sm:px-4 [@media(pointer:fine)]:min-h-9 ${
-                on ? 'bg-surface font-semibold text-fg shadow-sm ring-1 ring-border' : 'text-fg-muted hover:text-fg'
+                on ? 'bg-surface font-semibold text-fg shadow-card ring-1 ring-border' : 'text-fg-muted hover:text-fg'
               }`}
             >
               {label}

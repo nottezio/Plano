@@ -42,7 +42,7 @@ export function UpdateBanner(): JSX.Element | null {
   return (
     <div
       role="status"
-      className="fixed inset-x-3 bottom-[calc(env(safe-area-inset-bottom)+72px)] z-50 flex items-center gap-3 rounded-xl border border-border bg-surface-raised px-4 py-3 shadow-lg sm:bottom-4 sm:left-auto sm:right-4 sm:w-96"
+      className="fixed inset-x-3 bottom-[calc(env(safe-area-inset-bottom)+72px)] z-50 flex items-center gap-3 rounded-xl border border-border bg-surface-raised px-4 py-3 shadow-pop sm:bottom-4 sm:left-auto sm:right-4 sm:w-96"
     >
       <IconRefresh className="shrink-0 text-accent" />
       <div className="min-w-0 flex-1 text-sm">

@@ -66,7 +66,7 @@ export function CensusMessage({
               type="button"
               onClick={() => jump(part.place)}
               style={{ backgroundColor: PLACE_TINT[part.place] }}
-              className="min-h-tap rounded-full border border-border px-2 text-[11px] font-medium [@media(pointer:fine)]:min-h-7"
+              className="min-h-tap rounded-full border border-border px-2 text-xs font-medium [@media(pointer:fine)]:min-h-7"
             >
               {PLACE_LABEL[part.place]} · {part.count}
             </button>
@@ -74,7 +74,7 @@ export function CensusMessage({
         </div>
       ) : null}
       <div ref={box} className="relative max-h-[70vh] overflow-auto">
-        <pre className="whitespace-pre-wrap break-words px-3 py-2 font-mono text-[11px] leading-relaxed text-fg-muted">{intro}</pre>
+        <pre className="whitespace-pre-wrap break-words px-3 py-2 font-mono text-xs leading-relaxed text-fg-muted">{intro}</pre>
         {parts.map((part) => (
           <section
             key={part.place}
@@ -86,11 +86,11 @@ export function CensusMessage({
           >
             <h4
               style={{ backgroundColor: PLACE_TINT[part.place] }}
-              className="sticky top-0 z-[1] border-y border-border px-3 py-1 font-mono text-[11px] font-semibold"
+              className="sticky top-0 z-[1] border-y border-border px-3 py-1 font-mono text-xs font-semibold"
             >
               {part.heading}
             </h4>
-            <pre className="whitespace-pre-wrap break-words px-3 py-2 font-mono text-[11px] leading-relaxed">{part.body}</pre>
+            <pre className="whitespace-pre-wrap break-words px-3 py-2 font-mono text-xs leading-relaxed">{part.body}</pre>
           </section>
         ))}
       </div>

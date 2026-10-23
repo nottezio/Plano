@@ -99,7 +99,7 @@ export function DocumentPanel(): JSX.Element {
 
         {/* Selectable, so a single phrase can be taken without copying the
             whole document. */}
-        <pre className="mt-2 min-h-0 flex-1 select-text overflow-auto whitespace-pre-wrap break-words rounded-lg border border-border bg-bg-subtle p-2 text-[11px] leading-relaxed">
+        <pre className="mt-2 min-h-0 flex-1 select-text overflow-auto whitespace-pre-wrap break-words rounded-lg border border-border bg-bg-subtle p-2 text-xs leading-relaxed">
           {open.body}
         </pre>
       </div>
@@ -154,7 +154,7 @@ export function DocumentPanel(): JSX.Element {
               <button
                 type="button"
                 onClick={() => setOpenId(document.id)}
-                className="min-h-tap w-full truncate rounded-lg border border-border px-2 py-1.5 text-left text-[11px]"
+                className="min-h-tap w-full truncate rounded-lg border border-border px-2 py-1.5 text-left text-xs"
               >
                 {document.title}
               </button>

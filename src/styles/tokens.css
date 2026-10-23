@@ -19,23 +19,26 @@
 :root {
   color-scheme: light;
 
-  /* ---- Neutral shell (SPEC 11.4: neutral clinical base) ---- */
-  --bg: #ffffff;
-  --bg-subtle: #f6f7f9;
+  /* ---- Neutral shell (SPEC 11.4: neutral clinical base) ----
+     Design revamp (2026-10-23): a cool slate canvas under white surfaces, so
+     a card, a sheet and a header read as layers instead of one white sheet
+     with lines on it. Ink is a blue-black, not pure black. */
+  --bg: #f3f5f8;
+  --bg-subtle: #eceff4;
   --surface: #ffffff;
   --surface-raised: #ffffff;
-  --border: #e3e7ec;
-  --border-strong: #c9d1da;
-  --fg: #0b0f14;
-  --fg-muted: #5b6672;
-  --fg-faint: #8b95a1;
-  --accent: #0b5ed7;
+  --border: #e1e6ed;
+  --border-strong: #c6cfdb;
+  --fg: #0f1a2a;
+  --fg-muted: #4f5d70;
+  --fg-faint: #8590a0;
+  --accent: #1559c7;
   /* Text on an accent fill (13.15): white on the light accents… */
   --on-accent: #ffffff;
   --danger: #dc2626;
   /* Tinted fills. Tailwind's `bg-accent/15` emits NO CSS for a colour that is a
      CSS variable, so every such tint in the app was silently transparent. */
-  --accent-soft: #0b5ed71f;
+  --accent-soft: #1559c71a;
   --danger-soft: #dc26261f;
   /**
    * Pemantauan — a patient under closer watch.
@@ -46,8 +49,12 @@
    */
   --warn-strong: #d97706;
   --warn-soft: #fbbf2455;
-  --focus-ring: #2563eb;
-  --overlay: rgb(11 15 20 / 45%);
+  --focus-ring: #1559c7;
+  --overlay: rgb(15 26 42 / 42%);
+  /* Elevation: one hairline-plus-shadow recipe per layer (card, popover, sheet). */
+  --shadow-card: 0 1px 2px rgb(15 26 42 / 6%), 0 1px 1px rgb(15 26 42 / 3%);
+  --shadow-pop: 0 8px 24px -6px rgb(15 26 42 / 14%), 0 2px 6px -2px rgb(15 26 42 / 8%);
+  --shadow-sheet: 0 28px 64px -16px rgb(15 26 42 / 30%), 0 4px 12px -4px rgb(15 26 42 / 10%);
 
   /* ---- Checklist palette: light ---- */
   --card-step-1-bg: #fee2e2;
@@ -129,26 +136,29 @@
 .dark {
   color-scheme: dark;
 
-  --bg: #0b0f14;
-  --bg-subtle: #0f151c;
-  --surface: #141b23;
-  --surface-raised: #1a232d;
-  --border: #232e3a;
-  --border-strong: #33404f;
-  --fg: #e6edf3;
-  --fg-muted: #9aa7b4;
-  --fg-faint: #6f7d8b;
-  --accent: #5b9cff;
+  --bg: #0a0f15;
+  --bg-subtle: #0f151d;
+  --surface: #131a24;
+  --surface-raised: #19222e;
+  --border: #212b38;
+  --border-strong: #324051;
+  --fg: #e8eef5;
+  --fg-muted: #9ba9b9;
+  --fg-faint: #6e7c8d;
+  --accent: #6aa3ff;
   /* …near-black on the bright dark-mode accents (white on #5b9cff was 2.8:1). */
   --on-accent: #0b0f14;
   --danger: #f87171;
-  --accent-soft: #5b9cff2e;
+  --accent-soft: #6aa3ff29;
   --danger-soft: #f8717129;
   /* Lifted for dark mode: amber at #d97706 disappears against a dark card. */
   --warn-strong: #fbbf24;
   --warn-soft: #f59e0b40;
-  --focus-ring: #5b9cff;
+  --focus-ring: #6aa3ff;
   --overlay: rgb(0 0 0 / 62%);
+  --shadow-card: 0 1px 2px rgb(0 0 0 / 40%);
+  --shadow-pop: 0 8px 24px -6px rgb(0 0 0 / 55%), 0 0 0 1px rgb(255 255 255 / 4%);
+  --shadow-sheet: 0 28px 64px -16px rgb(0 0 0 / 70%), 0 0 0 1px rgb(255 255 255 / 5%);
 
   /* Dark palette: desaturated deep tints so text stays legible at 3am. */
   --card-step-1-bg: #3b1c1e;

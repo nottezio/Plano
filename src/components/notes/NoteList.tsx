@@ -65,14 +65,14 @@ export function NoteList({
   return (
     <div className="space-y-3">
       <section>
-        <h3 className="px-3 pb-1 text-[11px] font-semibold uppercase tracking-wide text-fg-faint">
+        <h3 className="px-3 pb-1 text-xs font-semibold uppercase tracking-wide text-fg-faint">
           Pinned
         </h3>
         <Group notes={pinned} {...{ activeId, onOpen, onMove, now, reorderable, showShelf }} />
       </section>
       {rest.length > 0 ? (
         <section>
-          <h3 className="px-3 pb-1 text-[11px] font-semibold uppercase tracking-wide text-fg-faint">
+          <h3 className="px-3 pb-1 text-xs font-semibold uppercase tracking-wide text-fg-faint">
             Lainnya
           </h3>
           <Group notes={rest} {...{ activeId, onOpen, onMove, now, reorderable, showShelf }} />
@@ -174,7 +174,7 @@ function Group({
                     {preview}
                   </span>
                 ) : null}
-                <span className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[11px] text-fg-faint">
+                <span className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs text-fg-faint">
                   {progress ? (
                     <span
                       className={progress.done === progress.total ? 'text-accent' : ''}

@@ -268,7 +268,7 @@ export function LabSheet({
               <span className="block text-sm font-semibold text-fg">
                 {ocrState === 'running' ? 'Membaca berkas…' : 'Ambil dari PDF / gambar'}
               </span>
-              <span className="block text-[11px] leading-snug text-fg-muted">
+              <span className="block text-xs leading-snug text-fg-muted">
                 Ketuk atau seret berkas ke sini. PDF lab dibaca persis; gambar dikenali dan wajib
                 diperiksa.
               </span>
@@ -378,7 +378,7 @@ export function LabSheet({
               />
             </Field>
           </div>
-          <p className="text-[11px] text-fg-faint">
+          <p className="text-xs text-fg-faint">
             {dateSource === 'report'
               ? 'Tanggal dari PDF (Tgl. Registrasi — saat sampel diambil).'
               : dateSource === 'manual'
@@ -409,7 +409,7 @@ export function LabSheet({
           <TextPane label="Akan disisipkan" maxHeight="max-h-[40vh]">
             {block || <span className="text-fg-faint">Belum ada nilai yang terbaca.</span>}
           </TextPane>
-          {placement ? <p className="text-[11px] text-fg-muted">{placement}</p> : null}
+          {placement ? <p className="text-xs text-fg-muted">{placement}</p> : null}
 
           {result.unknown.length > 0 ? (
             <Callout tone="warn" title={`${result.unknown.length} nilai tidak dikenali`}>

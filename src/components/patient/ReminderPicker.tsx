@@ -48,7 +48,7 @@ export function ReminderPicker({ patient, today }: { patient: Patient; today: st
                       onClick={() => set(value)}
                       className={[
                         'min-h-tap rounded-lg px-2.5 [@media(pointer:fine)]:min-h-8',
-                        on ? 'bg-surface font-semibold text-fg shadow-sm ring-1 ring-border' : 'text-fg-muted hover:text-fg',
+                        on ? 'bg-surface font-semibold text-fg shadow-card ring-1 ring-border' : 'text-fg-muted hover:text-fg',
                       ].join(' ')}
                     >
                       {label}

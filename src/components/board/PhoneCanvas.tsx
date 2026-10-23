@@ -117,7 +117,7 @@ export function PhoneCanvas({
   return (
     <div className="px-4 pb-4">
       <div className="mb-2 flex items-center gap-2">
-        <p className="min-w-0 flex-1 text-[11px] text-fg-muted">
+        <p className="min-w-0 flex-1 text-xs text-fg-muted">
           {editing ? 'Seret blok ke kotak lain. Blok yang ditimpa bertukar tempat.' : 'Ketuk untuk membuka, tekan lama untuk checklist.'}
         </p>
         {editing ? (
@@ -196,7 +196,7 @@ export function PhoneCanvas({
           return (
             <div
               key={id}
-              className={['absolute', editing ? 'touch-none' : '', held ? 'shadow-2xl' : ''].join(' ')}
+              className={['absolute', editing ? 'touch-none' : '', held ? 'shadow-sheet' : ''].join(' ')}
               style={style}
               onPointerDown={(event) => startDrag(event, id)}
             >
@@ -231,11 +231,11 @@ function PatientBlock({
   const content = (
     <>
       <span className="line-clamp-2 text-[12px] font-semibold leading-tight">{card.name}</span>
-      <span className="mt-auto flex items-center gap-1 truncate text-[10px] opacity-85">
+      <span className="mt-auto flex items-center gap-1 truncate text-[11px] opacity-85">
         {where ? <span className="font-mono">{where}</span> : null}
         {card.dpjp ? <span className="truncate">· {card.dpjp.initials}</span> : null}
       </span>
-      <span className="flex items-center gap-1 text-[10px] font-semibold">
+      <span className="flex items-center gap-1 text-[11px] font-semibold">
         <span>{progress.complete ? '✓' : `${progress.doneCount}/${progress.total}`}</span>
         {card.discharge === 'today' || card.discharge === 'h1' ? (
           <span className="rounded bg-black/25 px-1">{card.discharge === 'today' ? 'Pulang' : 'H-1'}</span>
@@ -250,7 +250,7 @@ function PatientBlock({
   );
 
   const className =
-    'flex h-full w-full flex-col overflow-hidden rounded-lg border border-black/10 bg-token p-1.5 text-left text-token-fg shadow-sm dark:border-white/10';
+    'flex h-full w-full flex-col overflow-hidden rounded-lg border border-black/10 bg-token p-1.5 text-left text-token-fg shadow-card dark:border-white/10';
 
   if (editing) {
     return (
@@ -316,8 +316,8 @@ function StickyBlock({
         onClick={() => (onOpen ? onOpen(sticky.id) : setOpen(true))}
         className="flex h-full w-full flex-col overflow-hidden rounded-lg border border-[var(--warn-strong)] bg-[var(--warn-soft)] p-1.5 text-left text-fg disabled:cursor-grab"
       >
-        <span className="text-[9px] font-semibold uppercase tracking-wide text-[var(--warn-strong)]">Catatan</span>
-        <span className="line-clamp-3 text-[11px] leading-tight">{first}</span>
+        <span className="text-[10px] font-semibold uppercase tracking-wide text-[var(--warn-strong)]">Catatan</span>
+        <span className="line-clamp-3 text-xs leading-tight">{first}</span>
       </button>
       {open ? <NotePopover anchor={ref} title="Catatan papan" note={sticky.text} onClose={() => setOpen(false)} /> : null}
     </>

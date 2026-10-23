@@ -240,12 +240,12 @@ export default function ArchivePage(): JSX.Element {
                         <span className="text-xs font-semibold uppercase tracking-wide text-fg-muted">
                           {group.label}
                         </span>
-                        <span className="rounded-full bg-bg-subtle px-1.5 text-[11px] font-medium text-fg-muted">
+                        <span className="rounded-full bg-bg-subtle px-1.5 text-xs font-medium text-fg-muted">
                           {group.patients.length}
                         </span>
                         <span aria-hidden="true" className="h-px flex-1 bg-border" />
                         {!monthOpen ? (
-                          <span className="shrink-0 text-[11px] text-fg-faint">
+                          <span className="shrink-0 text-xs text-fg-faint">
                             {group.weeks.length} minggu
                           </span>
                         ) : null}
@@ -265,7 +265,7 @@ export default function ArchivePage(): JSX.Element {
                                   aria-controls={weekBody}
                                   disabled={narrowing}
                                   onClick={() => toggleFold(week.key, weekOpen)}
-                                  className="flex min-h-tap w-full items-center gap-2 rounded-lg pl-5 pr-1 text-left text-[11px] font-medium text-fg-muted hover:bg-bg-subtle disabled:hover:bg-transparent [@media(pointer:fine)]:min-h-8"
+                                  className="flex min-h-tap w-full items-center gap-2 rounded-lg pl-5 pr-1 text-left text-xs font-medium text-fg-muted hover:bg-bg-subtle disabled:hover:bg-transparent [@media(pointer:fine)]:min-h-8"
                                 >
                                   <Chevron open={weekOpen} small />
                                   <span>{week.label}</span>
@@ -402,7 +402,7 @@ function ArchiveRow({
           <Highlight text={cardTitle(patient, showInitialsOnly, false)} tokens={tokens} />
           {facts ? <span className="ml-1.5 text-xs font-normal text-fg-faint">{facts}</span> : null}
         </span>
-        <span className="shrink-0 text-[11px] text-fg-faint">
+        <span className="shrink-0 text-xs text-fg-faint">
           {formatShortDate(archiveDate(patient))}
         </span>
       </span>
@@ -417,7 +417,7 @@ function ArchiveRow({
         {dpjp ? (
           <span
             title={`DPJP: ${dpjp.name}`}
-            className="rounded-full bg-bg-subtle px-1.5 text-[10px] font-semibold"
+            className="rounded-full bg-bg-subtle px-1.5 text-[11px] font-semibold"
           >
             {dpjp.initials}
           </span>
@@ -425,7 +425,7 @@ function ArchiveRow({
         {reason && reason !== 'pulang' ? (
           <span
             className={[
-              'rounded-sm border px-1 text-[10px] font-bold uppercase tracking-wide',
+              'rounded-sm border px-1 text-[11px] font-bold uppercase tracking-wide',
               reason === 'meninggal' ? 'border-danger text-danger' : 'border-border-strong',
             ].join(' ')}
           >
@@ -443,7 +443,7 @@ function ArchiveRow({
       ) : null}
 
       {snippet ? (
-        <span className="mt-1 block text-[11px] italic leading-snug text-fg-muted">
+        <span className="mt-1 block text-xs italic leading-snug text-fg-muted">
           <Highlight text={privateText(snippet, patient, showInitialsOnly)} tokens={tokens} />
         </span>
       ) : null}
@@ -493,7 +493,7 @@ function TrashButton({
         className="relative flex min-h-tap min-w-tap shrink-0 items-center justify-center rounded-lg border border-border text-fg-muted"
       >
         <IconTrash width={18} height={18} />
-        <span className="absolute -right-1 -top-1 rounded-full bg-accent px-1.5 text-[10px] font-medium text-on-accent">
+        <span className="absolute -right-1 -top-1 rounded-full bg-accent px-1.5 text-[11px] font-medium text-on-accent">
           {trashed.length}
         </span>
       </button>

@@ -56,7 +56,7 @@ export function ListMessage({ text }: { text: string }): JSX.Element {
                   type="button"
                   onClick={() => jump(index)}
                   style={{ backgroundColor: TINTS[index % TINTS.length] }}
-                  className="min-h-tap rounded-full border border-border px-2 text-[11px] font-medium [@media(pointer:fine)]:min-h-7"
+                  className="min-h-tap rounded-full border border-border px-2 text-xs font-medium [@media(pointer:fine)]:min-h-7"
                 >
                   {part.heading.replace(/^\S+\s/, '').replace(/ : .*$/, '')} · {part.count}
                 </button>

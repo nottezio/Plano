@@ -92,10 +92,10 @@ export function PasteInspector(): JSX.Element {
                 {diff.changedLines.map((entry) => (
                   <li key={entry.line}>
                     <p className="text-fg-faint">Baris {entry.line}</p>
-                    <p className="break-words font-mono text-[11px] text-fg-muted">
+                    <p className="break-words font-mono text-xs text-fg-muted">
                       Plano: {entry.before || '(kosong)'}
                     </p>
-                    <p className="break-words font-mono text-[11px] text-danger">
+                    <p className="break-words font-mono text-xs text-danger">
                       SIMGOS: {entry.after || '(kosong)'}
                     </p>
                   </li>
@@ -149,7 +149,7 @@ function Verdict({
           </p>
           <ul className="mt-0.5 space-y-0.5 text-fg-muted">
             {marks.slice(0, 10).map((hit) => (
-              <li key={`${hit.line}-${hit.column}`} className="break-words font-mono text-[11px]">
+              <li key={`${hit.line}-${hit.column}`} className="break-words font-mono text-xs">
                 baris {hit.line}:{hit.column} — …{hit.context}…
               </li>
             ))}
@@ -164,7 +164,7 @@ function Verdict({
           </p>
           <ul className="mt-0.5 space-y-0.5 text-fg-muted">
             {offenders.slice(0, 12).map((hit, index) => (
-              <li key={`${hit.code}-${hit.line}-${hit.column}-${index}`} className="text-[11px]">
+              <li key={`${hit.code}-${hit.line}-${hit.column}-${index}`} className="text-xs">
                 baris {hit.line}:{hit.column} — <span className="font-mono">{hit.code}</span>
                 {hit.note ? ` · ${hit.note}` : ''}
                 <span className="block break-words font-mono text-fg-faint">…{hit.context}…</span>

@@ -38,7 +38,7 @@ export function ClipboardPill({
         role="status"
         title={`Terakhir disalin: ${last.what} · ${who} · ${clock(last.at)}`}
         className={[
-          'flex items-center gap-1.5 rounded-md px-1.5 py-1 text-[11px] leading-tight',
+          'flex items-center gap-1.5 rounded-md px-1.5 py-1 text-xs leading-tight',
           wrong ? 'bg-[var(--warn-soft)] text-fg' : 'text-fg-muted',
           className,
         ].join(' ')}
@@ -69,7 +69,7 @@ export function ClipboardPill({
     <div
       role="status"
       className={[
-        'flex items-start gap-1.5 rounded-lg border px-2.5 py-1.5 text-[11px] leading-snug shadow-sm',
+        'flex items-start gap-1.5 rounded-lg border px-2.5 py-1.5 text-xs leading-snug shadow-card',
         wrong
           ? 'border-[var(--warn-strong)] bg-[var(--warn-soft)] text-fg'
           : 'border-border bg-surface text-fg-muted',
@@ -83,7 +83,7 @@ export function ClipboardPill({
         </span>
         <span className="block truncate text-[13px] font-semibold text-fg">
           {who}
-          {last.mrn && !initialsOnly ? <span className="font-mono text-[11px] font-normal"> · RM {last.mrn}</span> : null}
+          {last.mrn && !initialsOnly ? <span className="font-mono text-xs font-normal"> · RM {last.mrn}</span> : null}
         </span>
       </span>
       <button

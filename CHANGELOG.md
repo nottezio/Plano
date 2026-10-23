@@ -5,6 +5,23 @@ Catatan teknis lengkap (akar masalah, perbaikan) ada di CHANGES.md.
 
 Entri teratas harus versi yang sedang dirilis; tes gagal bila belum ditulis.
 
+## `2026-10-23.6`
+- **Rapikan tampilan baru.** Kolom cari di papan tidak lagi menyempit di layar laptop 1024 px; pilihan aktif pada tombol pilihan (mis. Daftar/Kanvas, format Salin) kini jelas terlihat di mode gelap; kepala kartu pasien lebih ringan.
+
+## `2026-10-23.5`
+- **Perbaikan "Gagal masuk" setelah memilih akun Google.** Bila jendela Google menutupi Plano (misalnya di HP Android yang membukanya sebagai tab baru), masuk bisa gagal walau akun sudah benar dan sudah disetujui. Kini masuk tersimpan dengan benar.
+
+## `2026-10-23.4`
+- **Gagal masuk kini tercatat.** Bila masuk dengan Google gagal, penyebabnya dicatat di Pengaturan → Riwayat sesi ("Gagal masuk dengan Google") dan pesan di layar menyebut jenis kesalahannya. Kirim tangkapan layar Riwayat sesi bila masih terjadi.
+
+## `2026-10-23.3`
+- **Tampilan baru yang lebih rapi.** Latar abu-abu lembut dengan kartu putih, bayangan halus, dan tombol yang seragam di seluruh aplikasi. Teks kecil diperbesar satu tingkat agar lebih mudah dibaca di bangsal. Logo Plano kini tampil di menu samping dan halaman masuk.
+- **Lebih cepat dibuka.** Hanya papan dan halaman pasien yang dimuat saat aplikasi dibuka; layar lain dimuat saat pertama kali dibuka (tetap bisa offline). Papan dan header tidak lagi memakai efek blur yang memberatkan HP.
+- **Papan di HP kini mulai dari Daftar.** Kanvas tetap satu ketukan di sebelahnya dan pilihan Anda diingat.
+- **Papan kosong menjelaskan cara memakai Plano** dalam tiga langkah, dengan tombol Tambah pasien pertama.
+- **Menu Tindakan pasien lebih ringkas.** Status pasien dan empat aksi harian di atas; fitur catatan lain dan AI dilipat di "Catatan lainnya"; Zona berbahaya dilipat.
+- **Pengaturan dibuka dengan grup Utama:** Tampilan, Format catatan, Preset salin, Privasi, dan Akun.
+
 ## `2026-10-23.2`
 - **Pengaturan lebih tahan hilang.** Perbaikan untuk pengaturan (termasuk bagian yang dikosongkan saat "Salin dari hari sebelumnya") yang kadang kembali ke semula. Plano tidak lagi menulis ulang pengaturan setiap kali dibuka tanpa alasan.
 

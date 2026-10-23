@@ -269,7 +269,7 @@ export function PatientControls({
                   type="button"
                   aria-pressed={on}
                   onClick={() => toggleTag(mark.id, mark.label)}
-                  className="min-h-8 rounded-full border px-2.5 text-[11px] font-semibold"
+                  className="min-h-8 rounded-full border px-2.5 text-xs font-semibold"
                   style={
                     on
                       ? { borderColor: markCss(mark.color), color: markCss(mark.color), backgroundColor: `color-mix(in srgb, ${markCss(mark.color)} 12%, var(--surface))` }
@@ -385,7 +385,7 @@ export function PatientControls({
 function Group({ title, children }: { title: string; children: ReactNode }): JSX.Element {
   return (
     <section>
-      <h4 className="mb-1 text-[10px] font-semibold uppercase tracking-wide text-fg-faint">{title}</h4>
+      <h4 className="mb-1 text-[11px] font-semibold uppercase tracking-wide text-fg-faint">{title}</h4>
       {children}
     </section>
   );
@@ -394,7 +394,7 @@ function Group({ title, children }: { title: string; children: ReactNode }): JSX
 function Labelled({ label, children }: { label: string; children: ReactNode }): JSX.Element {
   return (
     <div className="min-w-0">
-      <span className="mb-0.5 block text-[10px] text-fg-muted">{label}</span>
+      <span className="mb-0.5 block text-[11px] text-fg-muted">{label}</span>
       {children}
     </div>
   );

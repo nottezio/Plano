@@ -23,7 +23,7 @@ function Tile({ label, value, tone }: { label: string; value: number; tone?: str
       <p className="text-2xl font-semibold tabular-nums" style={tone ? { color: tone } : undefined}>
         {value}
       </p>
-      <p className="text-[11px] text-fg-muted">{label}</p>
+      <p className="text-xs text-fg-muted">{label}</p>
     </div>
   );
 }
@@ -182,7 +182,7 @@ export function AnalysisPanel({
             </tbody>
           </table>
         </div>
-        <p className="text-[11px] text-fg-faint">"List" = jumlah pasien pada list terakhir yang disimpan hari itu.</p>
+        <p className="text-xs text-fg-faint">"List" = jumlah pasien pada list terakhir yang disimpan hari itu.</p>
       </section>
 
       <section className="space-y-2">
@@ -194,7 +194,7 @@ export function AnalysisPanel({
               type="button"
               aria-pressed={filter === f}
               onClick={() => setFilter(f)}
-              className={`min-h-8 rounded-full border px-2.5 text-[11px] font-semibold ${filter === f ? 'border-accent bg-accent text-on-accent' : 'border-border text-fg-muted'}`}
+              className={`min-h-8 rounded-full border px-2.5 text-xs font-semibold ${filter === f ? 'border-accent bg-accent text-on-accent' : 'border-border text-fg-muted'}`}
             >
               {f === 'semua' ? 'Semua' : MOVE_LABEL[f]}
             </button>
@@ -301,7 +301,7 @@ export function AnalysisPanel({
         ) : null}
       </section>
 
-      <p className="text-[11px] text-fg-faint">Ketuk nama untuk membuka SOAP.</p>
+      <p className="text-xs text-fg-faint">Ketuk nama untuk membuka SOAP.</p>
     </div>
   );
 }

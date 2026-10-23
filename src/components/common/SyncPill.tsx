@@ -27,7 +27,7 @@ export function SyncPill({
         aria-live="polite"
         title={offline ? `Offline — ${sync.pending} perubahan pending` : sync.kind === 'saving' ? 'Menyimpan…' : 'Synced'}
         className={[
-          'flex shrink-0 items-center gap-1 text-[11px] font-medium',
+          'flex shrink-0 items-center gap-1 text-xs font-medium',
           offline ? 'rounded-full border border-current px-2 py-0.5 text-[var(--card-step-2-accent)]' : 'px-1',
         ].join(' ')}
       >
@@ -73,7 +73,7 @@ export function SyncPill({
     <span
       role="status"
       aria-live="polite"
-      className={`whitespace-nowrap rounded-full border border-border px-2.5 py-1 text-[11px] ${tone}`}
+      className={`whitespace-nowrap rounded-full border border-border px-2.5 py-1 text-xs ${tone}`}
     >
       {label}
     </span>

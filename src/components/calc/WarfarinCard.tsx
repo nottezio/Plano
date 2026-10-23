@@ -79,7 +79,7 @@ export function WarfarinCard({
       }
       sources={WARFARIN_SOURCES}
     >
-      <p className="mb-2 rounded-lg bg-bg-subtle px-2 py-1.5 text-[11px] leading-snug text-fg-muted">
+      <p className="mb-2 rounded-lg bg-bg-subtle px-2 py-1.5 text-xs leading-snug text-fg-muted">
         Saran hitungan, bukan instruksi. Cocokkan dengan protokol RS. Hanya untuk memulai warfarin, bukan penyesuaian rawat
         jalan.
       </p>
@@ -96,7 +96,7 @@ export function WarfarinCard({
           { value: 'rsws', label: 'RSWS (tidak resmi)' },
         ]}
       />
-      <p className="mb-1 mt-2 text-[11px] font-medium text-fg-muted">Target INR (wajib dipilih)</p>
+      <p className="mb-1 mt-2 text-xs font-medium text-fg-muted">Target INR (wajib dipilih)</p>
       <div role="group" aria-label="Target INR" className="grid grid-cols-2 gap-1">
         {INR_TARGETS.map((option) => (
           <button
@@ -119,11 +119,11 @@ export function WarfarinCard({
         <NumberField label="INR pagi ini" value={inr} onChange={setInr} />
       </div>
       {fromNote.inr !== undefined ? (
-        <p className="mt-1 text-[11px] text-fg-faint">INR diisi dari lab terbaru di catatan ({mg(fromNote.inr)}). Periksa tanggalnya.</p>
+        <p className="mt-1 text-xs text-fg-faint">INR diisi dari lab terbaru di catatan ({mg(fromNote.inr)}). Periksa tanggalnya.</p>
       ) : null}
 
       <fieldset className="mt-3">
-        <legend className="mb-1 text-[11px] font-medium text-fg-muted">Sebelum memberi dosis — ada?</legend>
+        <legend className="mb-1 text-xs font-medium text-fg-muted">Sebelum memberi dosis — ada?</legend>
         <div className="grid gap-1 sm:grid-cols-2">
           {STOP_LABELS.map(([key, label]) => (
             <label key={key} className="flex min-h-tap items-center gap-2 text-xs [@media(pointer:fine)]:min-h-8">
@@ -140,7 +140,7 @@ export function WarfarinCard({
       </fieldset>
 
       <fieldset className="mt-2">
-        <legend className="mb-1 text-[11px] font-medium text-fg-muted">Butuh dosis awal lebih rendah?</legend>
+        <legend className="mb-1 text-xs font-medium text-fg-muted">Butuh dosis awal lebih rendah?</legend>
         <div className="grid grid-cols-2 gap-1">
           {LOWER_START_FACTORS.map((factor) => (
             <label key={factor.key} className="flex min-h-tap items-center gap-2 text-xs [@media(pointer:fine)]:min-h-8">
@@ -161,7 +161,7 @@ export function WarfarinCard({
             </label>
           ))}
         </div>
-        {lowerNote ? <p className="mt-1 text-[11px] font-medium text-[var(--warn-strong)]">{lowerNote}</p> : null}
+        {lowerNote ? <p className="mt-1 text-xs font-medium text-[var(--warn-strong)]">{lowerNote}</p> : null}
       </fieldset>
 
       <details className="mt-2 rounded-lg border border-border text-xs" open={drugsInNote.size > 0}>
@@ -174,7 +174,7 @@ export function WarfarinCard({
               key={drug.name}
               title={drug.level === 'highly probable' ? 'Ageno 2012 Tabel 1: highly probable' : 'Ageno 2012 Tabel 1: probable'}
               className={[
-                'rounded-full border px-2 py-0.5 text-[11px]',
+                'rounded-full border px-2 py-0.5 text-xs',
                 drugsInNote.has(drug.name) ? 'border-[var(--warn-strong)] font-semibold' : 'border-border text-fg-muted',
               ].join(' ')}
             >
@@ -182,7 +182,7 @@ export function WarfarinCard({
             </li>
           ))}
         </ul>
-        <p className="px-2 pb-2 text-[11px] text-fg-faint">
+        <p className="px-2 pb-2 text-xs text-fg-faint">
           Dari Ageno 2012, Tabel 1 (potensiasi, "highly probable"/"probable"). Tabel tidak memberi penyesuaian dosis: pantau
           INR lebih ketat.
         </p>
@@ -227,21 +227,21 @@ export function WarfarinCard({
             caption={`Hari ke-${result.day}${result.rows.length > 0 ? `, INR ${inr}` : ''}`}
           />
           {result.between ? (
-            <p className="mt-2 text-[11px] font-medium text-[var(--warn-strong)]">
+            <p className="mt-2 text-xs font-medium text-[var(--warn-strong)]">
               INR di antara dua baris tabel ({result.rows.map((row) => row.printed.inr).join(' dan ')}); kedua rentang ditampilkan.
             </p>
           ) : null}
           {result.rows.length > 0 ? (
-            <p className="mt-1 text-[10px] text-fg-faint">
+            <p className="mt-1 text-[11px] text-fg-faint">
               Tabel hari ke-{result.day}: {result.rows.map((row) => `INR ${row.printed.inr} → ${row.printed.dose}`).join('; ')}
             </p>
           ) : null}
           {result.day === 2 ? (
-            <p className="mt-1 text-[11px] text-fg-muted">
+            <p className="mt-1 text-xs text-fg-muted">
               Dosis hari ke-2 diturunkan hanya bila INR 12–16 jam setelah dosis pertama sudah menunjukkan efek berlebih.
             </p>
           ) : null}
-          <p className="mt-1 text-[11px] text-fg-muted">
+          <p className="mt-1 text-xs text-fg-muted">
             INR tiap pagi sampai INR 2,0–3,0 dua hari berturut-turut.
           </p>
         </ResultBlock>
@@ -261,9 +261,9 @@ export function WarfarinCard({
           >
             Sisipkan ke Terapi
           </button>
-          {inserted === 'ok' ? <span className="text-[11px] text-fg-muted">Ditambahkan ke daftar Terapi ✓</span> : null}
+          {inserted === 'ok' ? <span className="text-xs text-fg-muted">Ditambahkan ke daftar Terapi ✓</span> : null}
           {inserted === 'none' ? (
-            <span className="text-[11px] text-[var(--danger)]">Tidak ada bagian Terapi di catatan — pakai Salin baris.</span>
+            <span className="text-xs text-[var(--danger)]">Tidak ada bagian Terapi di catatan — pakai Salin baris.</span>
           ) : null}
         </div>
       ) : null}
@@ -272,7 +272,7 @@ export function WarfarinCard({
         <summary className="min-h-tap cursor-pointer px-2 py-2 font-medium text-fg-muted [@media(pointer:fine)]:min-h-0">
           Overlap heparin &amp; katup mekanik
         </summary>
-        <ul className="list-disc space-y-1 px-2 pb-2 pl-6 text-[11px] leading-snug">
+        <ul className="list-disc space-y-1 px-2 pb-2 pl-6 text-xs leading-snug">
           {OVERLAP_GUIDANCE.map((text) => (
             <li key={text}>{text}</li>
           ))}

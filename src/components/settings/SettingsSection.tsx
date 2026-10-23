@@ -167,7 +167,7 @@ function SectionHeading({
       <span className="flex items-center gap-2 text-[15px] font-semibold">
         {title}
         {badge ? (
-          <span className="rounded-full bg-accent px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-on-accent">
+          <span className="rounded-full bg-accent px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wide text-on-accent">
             {badge}
           </span>
         ) : null}

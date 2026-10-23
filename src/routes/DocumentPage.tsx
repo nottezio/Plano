@@ -225,7 +225,7 @@ export default function DocumentPage(): JSX.Element {
           placeholder="Tulis isi dokumen…"
         />
 
-        <div className="flex flex-wrap items-center gap-2 px-4 py-2 text-[11px] text-fg-faint">
+        <div className="flex flex-wrap items-center gap-2 px-4 py-2 text-xs text-fg-faint">
           <span className="flex-1">{editor.dirty ? 'Menyimpan…' : 'Tersimpan'}</span>
           {(Object.keys(FORMAT_LABELS) as OutputFormat[]).map((value) => (
             <button

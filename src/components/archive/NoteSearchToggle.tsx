@@ -66,7 +66,7 @@ export function NoteSearchToggle({
         Cari juga di isi catatan arsip (SOAP &amp; catatan pasien)
       </button>
       {on && status.loading ? (
-        <span className="text-[11px] text-fg-faint" aria-live="polite">
+        <span className="text-xs text-fg-faint" aria-live="polite">
           Memuat catatan {status.loaded}/{status.total}…
         </span>
       ) : null}
@@ -122,7 +122,7 @@ export function ArchiveScopePicker({
 }): JSX.Element {
   return (
     <div className="flex flex-wrap items-center gap-1.5" role="group" aria-label="Cari di">
-      <span className="text-[11px] text-fg-faint">Cari di</span>
+      <span className="text-xs text-fg-faint">Cari di</span>
       {ARCHIVE_SCOPES.map((scope) => {
         const on = scopes.has(scope.value);
         return (
@@ -143,7 +143,7 @@ export function ArchiveScopePicker({
         );
       })}
       {scopes.has('soap') && status.loading ? (
-        <span className="text-[11px] text-fg-faint" aria-live="polite">
+        <span className="text-xs text-fg-faint" aria-live="polite">
           Memuat SOAP {status.loaded}/{status.total}…
         </span>
       ) : null}

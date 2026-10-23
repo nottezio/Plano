@@ -163,7 +163,7 @@ export function ManualPatientSheet({
         <Field label="Plan" htmlFor="manual-plan">
           <textarea id="manual-plan" rows={3} value={planText} onChange={(e) => setPlanText(e.target.value)} placeholder="- …" className={TEXTAREA} />
         </Field>
-        <p className="text-[11px] text-fg-faint">
+        <p className="text-xs text-fg-faint">
           Warna merah (H-1) / hijau (pulang hari ini) diatur di tab List, bukan dari isi Plan.
         </p>
         {error ? <Callout tone="warn">{error}</Callout> : null}

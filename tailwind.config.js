@@ -28,6 +28,11 @@ export default {
         'safe-top': 'env(safe-area-inset-top)',
         'safe-bottom': 'env(safe-area-inset-bottom)',
       },
+      boxShadow: {
+        card: 'var(--shadow-card)',
+        pop: 'var(--shadow-pop)',
+        sheet: 'var(--shadow-sheet)',
+      },
       minHeight: { tap: '44px' },
       minWidth: { tap: '44px' },
       fontFamily: {

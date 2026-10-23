@@ -199,8 +199,8 @@ export function SoapFloat({
       onPointerDownCapture={() => stack?.onFocus()}
       className={
         floating
-          ? `fixed flex flex-col rounded-2xl border bg-surface shadow-2xl ${stack && !stack.front ? 'border-border' : 'border-border-strong'}`
-          : 'fixed inset-x-0 bottom-0 flex max-h-[80dvh] flex-col rounded-t-2xl border border-border bg-surface shadow-2xl'
+          ? `fixed flex flex-col rounded-2xl border bg-surface shadow-sheet ${stack && !stack.front ? 'border-border' : 'border-border-strong'}`
+          : 'fixed inset-x-0 bottom-0 flex max-h-[80dvh] flex-col rounded-t-2xl border border-border bg-surface shadow-sheet'
       }
     >
       <header
@@ -221,7 +221,7 @@ export function SoapFloat({
               .join(' · ')}
           </p>
           {sent ? (
-            <p className="mt-0.5 text-[11px] text-fg-faint">
+            <p className="mt-0.5 text-xs text-fg-faint">
               {patient.manual ? 'Diinput manual' : 'Laporan'} {sent}
               {patient.sender ? ` · ${patient.sender}` : ''}
               {patient.edited ? ' · diubah' : ''}

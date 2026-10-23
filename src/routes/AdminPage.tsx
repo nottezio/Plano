@@ -137,7 +137,7 @@ function AdminConsole({ adminUid }: { adminUid: string }): JSX.Element {
               Siapa yang memakai Plano, dan siapa yang boleh. Tidak pernah menampilkan isi catatan.
             </p>
           </div>
-          <span className="rounded-full border border-border px-2 py-0.5 font-mono text-[11px] text-fg-muted">
+          <span className="rounded-full border border-border px-2 py-0.5 font-mono text-xs text-fg-muted">
             v{APP_VERSION}
           </span>
         </header>
@@ -166,7 +166,7 @@ function AdminConsole({ adminUid }: { adminUid: string }): JSX.Element {
               Pembatasan akses
               <span
                 className={[
-                  'rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide',
+                  'rounded-full px-2 py-0.5 text-[11px] font-bold uppercase tracking-wide',
                   enforce ? 'bg-accent text-on-accent' : 'border border-border text-fg-muted',
                 ].join(' ')}
               >
@@ -262,7 +262,7 @@ function AdminConsole({ adminUid }: { adminUid: string }): JSX.Element {
               />
             ))}
           </ul>
-          <p className="text-[11px] text-fg-faint">
+          <p className="text-xs text-fg-faint">
             Akun yang belum pernah membuka Plano versi terbaru belum tercatat. Bandingkan dengan
             Firebase Console → Authentication → Users.
           </p>
@@ -288,7 +288,7 @@ function Tile({
         tone === 'warn' ? 'border-[var(--warn-strong)] bg-[var(--warn-soft)]' : 'border-border bg-surface',
       ].join(' ')}
     >
-      <p className="text-[11px] text-fg-muted">{label}</p>
+      <p className="text-xs text-fg-muted">{label}</p>
       <p className="mt-0.5 text-2xl font-semibold tabular-nums">{value ?? '—'}</p>
     </div>
   );
@@ -344,11 +344,11 @@ function AccountRow({
         >
           <span className="flex items-center gap-2">
             <span className="truncate text-sm font-medium">{name}</span>
-            <span className={['shrink-0 rounded-full px-2 py-0.5 text-[10px] font-semibold', tone].join(' ')}>
+            <span className={['shrink-0 rounded-full px-2 py-0.5 text-[11px] font-semibold', tone].join(' ')}>
               {admin ? 'Admin' : STATUS_LABEL[record.status]}
             </span>
           </span>
-          <span className="mt-0.5 flex flex-wrap items-center gap-x-2 text-[11px] text-fg-muted">
+          <span className="mt-0.5 flex flex-wrap items-center gap-x-2 text-xs text-fg-muted">
             {record.displayName && record.email ? <span className="truncate">{record.email}</span> : null}
             <span>· aktif {ago(record.lastSeenAt, now)}</span>
             {record.appVersion ? (
@@ -395,7 +395,7 @@ function AccountRow({
       </div>
 
       {open ? (
-        <dl className="ml-12 mt-2 grid grid-cols-2 gap-x-4 gap-y-1 text-[11px] text-fg-muted sm:grid-cols-3">
+        <dl className="ml-12 mt-2 grid grid-cols-2 gap-x-4 gap-y-1 text-xs text-fg-muted sm:grid-cols-3">
           <Field label="Pertama tercatat" value={when(record.firstSeenAt)} />
           <Field label="Terakhir aktif" value={when(record.lastSeenAt)} />
           <Field label="Perangkat" value={record.device || '—'} />
@@ -407,7 +407,7 @@ function AccountRow({
           />
           <div className="col-span-full min-w-0">
             <dt className="text-fg-faint">UID</dt>
-            <dd className="break-all font-mono text-[10px]">{record.uid}</dd>
+            <dd className="break-all font-mono text-[11px]">{record.uid}</dd>
           </div>
         </dl>
       ) : null}

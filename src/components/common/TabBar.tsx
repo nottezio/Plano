@@ -72,7 +72,7 @@ const MORE: readonly Destination[] = [...TOOLS, SETTINGS];
 function WipTag({ className = '' }: { className?: string }): JSX.Element {
   return (
     <span
-      className={`rounded-full bg-[var(--danger-soft)] px-1.5 text-[9px] font-semibold leading-4 text-danger ${className}`}
+      className={`rounded-full bg-[var(--danger-soft)] px-1.5 text-[10px] font-semibold leading-4 text-danger ${className}`}
     >
       WIP
     </span>
@@ -94,7 +94,7 @@ function NavItem({ item, phone = false }: { item: Destination; phone?: boolean }
       end={end ?? false}
       className={({ isActive }) =>
         [
-          'group relative flex min-h-tap flex-col items-center justify-center gap-0.5 px-1 py-1.5 text-[11px] outline-none sm:text-[10px]',
+          'group relative flex min-h-tap flex-col items-center justify-center gap-0.5 px-1 py-1.5 text-xs outline-none sm:text-[11px]',
           'focus-visible:ring-2 focus-visible:ring-accent',
           phone ? 'flex-1' : 'hidden sm:flex sm:w-full sm:rounded-xl',
           // Desktop: a row.
@@ -145,7 +145,7 @@ function NavItem({ item, phone = false }: { item: Destination; phone?: boolean }
 
 function GroupLabel({ children }: { children: string }): JSX.Element {
   return (
-    <p className="hidden px-2.5 pb-1 pt-3 text-[10px] font-semibold uppercase tracking-wider text-fg-faint lg:block">
+    <p className="hidden px-2.5 pb-1 pt-3 text-[11px] font-semibold uppercase tracking-wider text-fg-faint lg:block">
       {children}
     </p>
   );
@@ -176,13 +176,14 @@ export function TabBar(): JSX.Element {
     >
       {/* Brand: a mark on the rail, mark and name on the sidebar. */}
       <div className="hidden items-center gap-2.5 px-1 pb-2 sm:flex sm:justify-center lg:justify-start lg:px-2.5 lg:pb-1">
-        <span
-          aria-hidden="true"
-          className="flex h-8 w-8 items-center justify-center rounded-lg bg-accent text-sm font-bold text-on-accent"
-        >
-          P
-        </span>
-        <span className="hidden text-base font-semibold tracking-tight lg:inline">Plano</span>
+        <img
+          src={`${import.meta.env.BASE_URL}icons/icon-192.png`}
+          alt=""
+          width={32}
+          height={32}
+          className="h-8 w-8 rounded-lg shadow-card ring-1 ring-border"
+        />
+        <span className="hidden text-[15px] font-semibold tracking-tight lg:inline">Plano</span>
       </div>
 
       {/* Phone bar: the three ward screens and "Lainnya". */}
@@ -196,7 +197,7 @@ export function TabBar(): JSX.Element {
           aria-label="Menu lainnya"
           aria-expanded={moreOpen}
           className={[
-            'flex min-h-tap flex-1 flex-col items-center justify-center gap-0.5 px-1 py-1.5 text-[11px]',
+            'flex min-h-tap flex-1 flex-col items-center justify-center gap-0.5 px-1 py-1.5 text-xs',
             moreActive ? 'text-accent' : 'text-fg-muted',
           ].join(' ')}
         >
@@ -236,7 +237,7 @@ export function TabBar(): JSX.Element {
         <NavItem item={SETTINGS} />
 
         {/* Status and credit. The rail is too narrow for either. */}
-        <div className="mt-2 hidden border-t border-border px-2.5 pt-2 text-[11px] lg:block">
+        <div className="mt-2 hidden border-t border-border px-2.5 pt-2 text-xs lg:block">
           <SyncPill compact />
           <p className="mt-1 truncate text-fg-faint">
             © Avicenna <span aria-hidden="true">·</span>{' '}

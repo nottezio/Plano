@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState, useRef, type ReactNode } from 'react';
+import { useCallback, useEffect, useMemo, useState, useRef } from 'react';
 import { useSlowWait } from '@/lib/loadTiming';
 import { useClipboardNote } from '@/store/useClipboardNote';
 import { Link, useNavigate, useParams } from 'react-router-dom';
@@ -6,9 +6,9 @@ import { Link, useNavigate, useParams } from 'react-router-dom';
 import { BodyEditor, type BodyEditorHandle } from '@/components/patient/BodyEditor';
 import { FloatingCalculator } from '@/components/calc/FloatingCalculator';
 import { insertIntoTerapi } from '@/domain/format/insertTerapi';
-import { IconCalculator } from '@/components/common/Icons';
+import { IconBack } from '@/components/common/Icons';
 import { Sheet } from '@/components/common/Sheet';
-import { SyncPill } from '@/components/common/SyncPill';
+import { PatientHeaderActions } from '@/components/patient/PatientHeaderActions';
 import { CopySheet } from '@/components/copy/CopySheet';
 import { ChecklistPills } from '@/components/patient/ChecklistPills';
 import { CompareSheet } from '@/components/patient/CompareSheet';
@@ -43,7 +43,7 @@ import { DateRail } from '@/components/patient/DateRail';
 import { RevisionTrail } from '@/components/patient/RevisionTrail';
 import { deleteVersion, saveVersion } from '@/data/repositories/entries.repo';
 import { AppShell } from '@/components/common/AppShell';
-import { Segmented } from '@/components/common/ui';
+import { Button, Segmented } from '@/components/common/ui';
 import { useGoUp } from '@/lib/useGoUp';
 import { clearEntry, fetchEntryBodies, setEntryLocked } from '@/data/repositories/entries.repo';
 import { updateArchiveNote, updatePatient } from '@/data/repositories/patients.repo';
@@ -85,7 +85,8 @@ import {
   primaryDpjp,
   shortDelivery,
 } from '@/domain/dpjp';
-import { SCHEDULE_PERIOD, upcomingPoli, weekPoli, weekdayName } from '@/domain/poli/schedule';
+import { SCHEDULE_PERIOD, upcomingPoli, weekdayName } from '@/domain/poli/schedule';
+import { Banner, DpjpSideCard, FindingTag, MarkerChips } from '@/components/patient/PatientPageParts';
 import {
   daysBetween,
   formatShortDate,
@@ -1043,8 +1044,8 @@ export default function PatientPage(): JSX.Element {
           <div
             className={
               where !== 'main'
-                ? 'flex shrink-0 items-center gap-2 rounded-xl border border-border bg-surface px-3 py-1 text-[11px] text-fg-muted'
-                : 'mx-4 mt-1 flex items-center gap-2 text-[11px] text-fg-faint'
+                ? 'flex shrink-0 items-center gap-2 rounded-xl border border-border bg-surface px-3 py-1 text-xs text-fg-muted'
+                : 'mx-4 mt-1 flex items-center gap-2 text-xs text-fg-faint'
             }
           >
             <span className="min-w-0 flex-1 truncate">
@@ -1082,7 +1083,7 @@ export default function PatientPage(): JSX.Element {
               <p className={`flex flex-1 items-center gap-1.5 font-semibold ${where === 'sheet' ? 'invisible' : ''}`}>
                 Periksa lagi
                 {soapFindings.length > 0 ? (
-                  <span className="rounded-full bg-[var(--warn-soft)] px-1.5 text-[10px] font-semibold text-[var(--warn-strong)]">
+                  <span className="rounded-full bg-[var(--warn-soft)] px-1.5 text-[11px] font-semibold text-[var(--warn-strong)]">
                     {soapFindings.length}
                   </span>
                 ) : null}
@@ -1092,7 +1093,7 @@ export default function PatientPage(): JSX.Element {
                   type="button"
                   onClick={() => void runAiCheck()}
                   disabled={aiCheckState === 'running' || editor.value.trim().length === 0}
-                  className="min-h-tap shrink-0 rounded-lg px-2 text-[11px] font-medium text-accent hover:bg-bg-subtle disabled:opacity-50 [@media(pointer:fine)]:min-h-7"
+                  className="min-h-tap shrink-0 rounded-lg px-2 text-xs font-medium text-accent hover:bg-bg-subtle disabled:opacity-50 [@media(pointer:fine)]:min-h-7"
                 >
                   {aiCheckState === 'running'
                     ? 'Memeriksa…'
@@ -1243,12 +1244,12 @@ export default function PatientPage(): JSX.Element {
                   <p className="mb-2 text-fg-muted">AI tidak menemukan ketidakcocokan lain.</p>
                 ) : null}
                 {aiDropped > 0 && !aiStale ? (
-                  <p className="mb-2 text-[11px] text-fg-faint">
+                  <p className="mb-2 text-xs text-fg-faint">
                     {aiDropped} temuan AI dibuang karena kutipannya tidak ada di catatan.
                   </p>
                 ) : null}
                 {aiStale ? (
-                  <p className="mb-1 text-[11px] text-fg-faint">Catatan sudah diubah sejak diperiksa AI.</p>
+                  <p className="mb-1 text-xs text-fg-faint">Catatan sudah diubah sejak diperiksa AI.</p>
                 ) : null}
                 {aiCheckError ? <p className="mb-1 text-danger">{aiCheckError}</p> : null}
               </div>
@@ -1309,7 +1310,7 @@ export default function PatientPage(): JSX.Element {
                   Periksa lagi
                   {/* Dark-on-light, not white-on-amber: white on the amber is about
                       3:1, under the 4.5:1 a 10 px number needs. */}
-                  <span className="rounded-full bg-fg px-1.5 text-[10px] font-semibold leading-4 text-bg">
+                  <span className="rounded-full bg-fg px-1.5 text-[11px] font-semibold leading-4 text-bg">
                     {checkerFindings}
                   </span>
                 </>
@@ -1383,7 +1384,7 @@ export default function PatientPage(): JSX.Element {
               type="button"
               aria-expanded={dpjpInfoOpen}
               onClick={toggleDpjpInfo}
-              className="flex min-h-tap w-full items-center gap-2 text-left text-[11px] text-fg-muted [@media(pointer:fine)]:min-h-7"
+              className="flex min-h-tap w-full items-center gap-2 text-left text-xs text-fg-muted [@media(pointer:fine)]:min-h-7"
             >
               {dpjp ? (
                 <span className="shrink-0 rounded border border-border px-1 font-semibold text-fg">
@@ -1428,17 +1429,17 @@ export default function PatientPage(): JSX.Element {
               reads only one of the two is better served by this one.
             */}
             {dpjp?.delivery ? (
-              <p className="text-[11px] text-fg-muted">
+              <p className="text-xs text-fg-muted">
                 {dpjp.initials} — {describeDelivery(dpjp.delivery)}
               </p>
             ) : null}
             {isTrioDpjp(dpjp?.id) ? (
-              <p className="truncate text-[11px] font-medium text-accent">
+              <p className="truncate text-xs font-medium text-accent">
                 {dpjp?.initials} — rencanakan 6MWT (6 minute walk test)
               </p>
             ) : null}
             {dpjpFormat ? (
-              <p className="truncate text-[11px] text-fg-faint">
+              <p className="truncate text-xs text-fg-faint">
                 {dpjp?.initials} — {describeConfig(dpjpFormat)}
               </p>
             ) : null}
@@ -1449,12 +1450,12 @@ export default function PatientPage(): JSX.Element {
               not tell them apart from a screenshot either.
             */}
             {dpjp && !poli ? (
-              <p className="truncate text-[11px] text-fg-faint">
+              <p className="truncate text-xs text-fg-faint">
                 {dpjp.initials} tidak ada di jadwal poli {SCHEDULE_PERIOD}
               </p>
             ) : null}
             {poli ? (
-              <p className="truncate text-[11px] text-fg-faint">
+              <p className="truncate text-xs text-fg-faint">
                 Poli {dpjp?.initials} {weekdayName(poli.weekday)}
                 {poli.inDays === 0 ? ' (hari ini)' : poli.inDays === 1 ? ' (besok)' : ''} ·{' '}
                 {poli.slot.clinic} · {poli.slot.time}
@@ -1469,13 +1470,13 @@ export default function PatientPage(): JSX.Element {
               wrong clinic comes back a week later.
             */}
             {poliAfter ? (
-              <p className="truncate text-[11px] text-fg-faint">
+              <p className="truncate text-xs text-fg-faint">
                 Lalu {weekdayName(poliAfter.weekday)}, {poliAfter.date} ·{' '}
                 {poliAfter.slot.clinic} · {poliAfter.slot.time}
               </p>
             ) : null}
             {patient.diagnoses.length > 0 ? (
-              <p className="truncate text-[11px] text-fg-faint">
+              <p className="truncate text-xs text-fg-faint">
                 {patient.diagnoses.join(', ')}
               </p>
             ) : null}
@@ -1587,18 +1588,13 @@ export default function PatientPage(): JSX.Element {
           also where it reads best: name and record number directly under the
           day they belong to.
         */}
-        <header id="patient-sticky-header" className="sticky top-0 z-30 border-b border-border bg-[color-mix(in_srgb,var(--bg)_95%,transparent)] pt-[env(safe-area-inset-top)] backdrop-blur lg:pt-0">
+        <header id="patient-sticky-header" className="sticky top-0 z-30 border-b border-border bg-surface pt-[env(safe-area-inset-top)] lg:pt-0">
         <div className="flex items-center gap-2 px-4 py-1.5">
           {/* Browser back exists, but on an installed PWA there is no chrome to
               show it, and on desktop the note fills the window. */}
-          <button
-            type="button"
-            onClick={goUp}
-            aria-label="Kembali"
-            className="min-h-tap min-w-tap shrink-0 text-fg-muted"
-          >
-            <span aria-hidden="true">←</span>
-          </button>
+          <Button size="icon" variant="quiet" onClick={goUp} aria-label="Kembali" className="-ml-2 shrink-0">
+            <IconBack width={20} height={20} />
+          </Button>
           <div className="min-w-0 flex-1">
             <h2 className="truncate text-sm font-semibold">
               {/* Short below lg: on a tablet the header also carries Lab,
@@ -1616,7 +1612,7 @@ export default function PatientPage(): JSX.Element {
               <button
                 type="button"
                 onClick={() => setIdentityOpen(true)}
-                className="text-left text-[11px] text-accent underline"
+                className="text-left text-xs text-accent underline"
               >
                 Tambah identitas pasien
               </button>
@@ -1639,113 +1635,20 @@ export default function PatientPage(): JSX.Element {
             */}
           </div>
 
-          {/*
-            THE HEADER'S ACTION COST IS NOW FIXED, and that is the whole fix.
-
-            This row is: back button, a `flex-1` title, then N buttons that are
-            all `shrink-0`. On a 360 px phone those buttons — Lab, Pembuka,
-            Salin, ⇄, ⋯ — plus their gaps came to more than 360 px on their
-            own, before the title was given a single pixel. The title had
-            already shrunk to nothing, so there was nothing left to give and
-            the row ran off the right edge.
-
-            Widening nothing fixes that; the row's fixed cost has to stop
-            growing with the number of features. Below `sm` the header keeps
-            only what is irreducible — where am I (back, title), the thing this
-            screen is for (Salin), and everything else (⋯) — and the three
-            hidden actions are listed in the ⋯ sheet, where they are also
-            listed on desktop. Nothing becomes unreachable at any width.
-          */}
-          {!locked ? (
-            <button
-              type="button"
-              onClick={() => setLabOpen(true)}
-              className="hidden min-h-tap shrink-0 rounded-lg border border-border px-3 text-xs font-medium sm:block"
-            >
-              Lab
-            </button>
-          ) : null}
-
-          {/*
-            MOVED UP from the "Tersimpan" status row.
-            
-            It had been a small underlined link among faint grey microcopy —
-            the row that says whether the note is saved, which is text you read
-            once and then stop seeing. A transform that rewrites the whole note
-            is not a footnote; it belongs with Lab and Pembuka, which are the
-            other things you do TO a note.
-          */}
-          {!locked ? (
-            <button
-              type="button"
-              onClick={() => setReformatOpen(true)}
-              className="hidden min-h-tap shrink-0 rounded-lg border border-border px-3 text-xs font-medium sm:block"
-            >
-              Format bangsal
-            </button>
-          ) : null}
-          {!locked ? (
-            <button
-              type="button"
-              onClick={() => setOpeningOpen(true)}
-              disabled={editor.value.trim().length === 0}
-              className="hidden min-h-tap shrink-0 rounded-lg border border-border px-3 text-xs font-medium disabled:opacity-40 sm:block"
-            >
-              Pembuka
-            </button>
-          ) : null}
-          <button
-            type="button"
-            onClick={() => setCalcOpen((current) => !current)}
-            aria-label={calcOpen ? 'Tutup kalkulator' : 'Buka kalkulator'}
-            aria-pressed={calcOpen}
-            title="Kalkulator melayang"
-            className={[
-              'hidden min-h-tap min-w-tap shrink-0 items-center justify-center rounded-lg border sm:flex',
-              calcOpen ? 'border-accent text-accent' : 'border-border text-fg-muted',
-            ].join(' ')}
-          >
-            <IconCalculator width={18} height={18} />
-          </button>
-          {/* The shell's title bar is off on this screen (it repeated the
-              name), so its sync state moves here. Desktop has it in the
-              sidebar. */}
-          <span className="lg:hidden">
-            <SyncPill dot />
-          </span>
-          <button
-            type="button"
-            onClick={() => setCopyOpen(true)}
-            className="min-h-tap shrink-0 rounded-lg bg-accent px-3 text-xs font-medium text-on-accent"
-          >
-            Salin
-          </button>
-          <button
-            type="button"
-            onClick={togglePane}
-            aria-label={paneOpen ? 'Sembunyikan panel samping' : 'Tampilkan panel samping'}
-            aria-expanded={paneOpen}
-            className="hidden min-h-tap min-w-tap shrink-0 text-fg-faint xl:block"
-          >
-            <span aria-hidden="true">{paneOpen ? '⇥' : '⇤'}</span>
-          </button>
-          <button
-            type="button"
-            onClick={() => setCompareOpen(true)}
-            aria-label="Bandingkan catatan atau revisi"
-            title="Bandingkan catatan atau revisi"
-            className="hidden min-h-tap min-w-tap shrink-0 text-fg-faint sm:block"
-          >
-            <span aria-hidden="true">⇄</span>
-          </button>
-          <button
-            type="button"
-            onClick={() => setActionsOpen(true)}
-            aria-label="Tindakan pasien"
-            className="min-h-tap min-w-tap shrink-0 text-fg-faint"
-          >
-            ⋯
-          </button>
+          <PatientHeaderActions
+            locked={locked}
+            noteEmpty={editor.value.trim().length === 0}
+            calcOpen={calcOpen}
+            paneOpen={paneOpen}
+            onLab={() => setLabOpen(true)}
+            onReformat={() => setReformatOpen(true)}
+            onOpening={() => setOpeningOpen(true)}
+            onToggleCalc={() => setCalcOpen((current) => !current)}
+            onCopy={() => setCopyOpen(true)}
+            onTogglePane={togglePane}
+            onCompare={() => setCompareOpen(true)}
+            onActions={() => setActionsOpen(true)}
+          />
         </div>
 
         {/*
@@ -1820,7 +1723,7 @@ export default function PatientPage(): JSX.Element {
         */}
         {patient.status === 'archived' ? (
           <div className="border-b border-border px-4 py-1.5">
-            <p className="text-[11px] text-fg-faint">
+            <p className="text-xs text-fg-faint">
               Pasien terarsip{patient.archive ? ` — ${archiveSummary(patient)}` : ''}. Catatan
               tetap dapat dibaca, disalin, dan diubah.
             </p>
@@ -2027,7 +1930,7 @@ export default function PatientPage(): JSX.Element {
         {patient.status === 'active' &&
         !patient.name?.trim() &&
         editor.value.trim().length === 0 ? (
-          <div className="flex items-center gap-2 border-b border-border px-4 py-1.5 text-[11px]">
+          <div className="flex items-center gap-2 border-b border-border px-4 py-1.5 text-xs">
             <span className="text-fg-muted">Masuk daftar:</span>
             {(
               [
@@ -2297,7 +2200,7 @@ export default function PatientPage(): JSX.Element {
 
 
         {/* SPEC F4 — microcopy only. There is no save button by design. */}
-        <div className="flex items-center gap-3 px-4 py-2 text-[11px] text-fg-faint">
+        <div className="flex items-center gap-3 px-4 py-2 text-xs text-fg-faint">
           <span className="flex-1">{editor.dirty ? 'Menyimpan…' : 'Tersimpan'}</span>
 
           {/*
@@ -2339,7 +2242,7 @@ export default function PatientPage(): JSX.Element {
         */}
         {savedVersions.length > 0 && !activeShiftNote ? (
           <div className="mt-2 flex flex-wrap items-center gap-1.5">
-            <span className="text-[11px] text-fg-faint">Versi:</span>
+            <span className="text-xs text-fg-faint">Versi:</span>
             {savedVersions.map((revision) => (
               <button
                 key={revision.id}
@@ -2348,7 +2251,7 @@ export default function PatientPage(): JSX.Element {
                   setTrailFocus(revision.id);
                   setTrailOpen(true);
                 }}
-                className="min-h-tap rounded-full border border-[var(--warn-strong)]/40 bg-[var(--warn-soft)] px-2.5 text-[11px] text-fg"
+                className="min-h-tap rounded-full border border-[var(--warn-strong)]/40 bg-[var(--warn-soft)] px-2.5 text-xs text-fg"
               >
                 {revision.label ?? `rev ${String(revision.rev)}`}
               </button>
@@ -2583,7 +2486,7 @@ export default function PatientPage(): JSX.Element {
                 title="Catatan pasien"
                 summary={notesSummary}
                 preview={
-                  <p className="line-clamp-3 whitespace-pre-line text-[11px] text-fg-muted">
+                  <p className="line-clamp-3 whitespace-pre-line text-xs text-fg-muted">
                     {notesSync.value.trim() || 'Belum ada catatan tetap.'}
                   </p>
                 }
@@ -2602,7 +2505,7 @@ export default function PatientPage(): JSX.Element {
                       answers "what is left", and when the answer is "nothing"
                       seven struck-through lines say it slower than one word.
                     */
-                    <p className="flex items-center gap-1.5 text-[11px] font-medium text-accent">
+                    <p className="flex items-center gap-1.5 text-xs font-medium text-accent">
                       <span aria-hidden="true">✓</span> Semua selesai
                     </p>
                   ) : (
@@ -2612,7 +2515,7 @@ export default function PatientPage(): JSX.Element {
                       opening anything, and a list that stops at four hides the
                       three that might be the unticked ones.
                     */
-                    <ul className="grid grid-cols-2 gap-x-2 gap-y-0.5 text-[11px]">
+                    <ul className="grid grid-cols-2 gap-x-2 gap-y-0.5 text-xs">
                       {activeChecklistItems.map((item) => {
                         const done = checklist.states[item.id]?.done === true;
                         return (
@@ -2654,11 +2557,11 @@ export default function PatientPage(): JSX.Element {
                 tone={todoSummary.tone}
                 preview={
                   todoViewsForSummary.length === 0 ? (
-                    <p className="text-[11px] text-fg-faint">Belum ada langkah khusus.</p>
+                    <p className="text-xs text-fg-faint">Belum ada langkah khusus.</p>
                   ) : todoSummary.tone === 'done' ? (
                     // Same rule as the daily checklist: when nothing is left,
                     // say so instead of listing what is already done.
-                    <p className="flex items-center gap-1.5 text-[11px] font-medium text-accent">
+                    <p className="flex items-center gap-1.5 text-xs font-medium text-accent">
                       <span aria-hidden="true">✓</span> Semua selesai
                     </p>
                   ) : (
@@ -2666,7 +2569,7 @@ export default function PatientPage(): JSX.Element {
                       // What is left first: see `previewTodos`.
                       const preview = previewTodos(todoViewsForSummary, 4);
                       return (
-                        <ul className="space-y-0.5 text-[11px]">
+                        <ul className="space-y-0.5 text-xs">
                           {preview.shown.map((view) => (
                             <li key={view.id} className="flex gap-1.5">
                               <span aria-hidden="true" className={view.done ? 'text-accent' : 'text-fg-faint'}>
@@ -2714,7 +2617,7 @@ export default function PatientPage(): JSX.Element {
                         <span
                           key={date}
                           className={[
-                            'rounded px-1.5 py-0.5 text-[11px]',
+                            'rounded px-1.5 py-0.5 text-xs',
                             date === selected
                               ? 'bg-[var(--accent-soft)] font-medium text-accent'
                               : 'bg-bg-subtle text-fg-muted',
@@ -2724,7 +2627,7 @@ export default function PatientPage(): JSX.Element {
                         </span>
                       ))}
                     {railDates.length > 4 ? (
-                      <span className="px-1 py-0.5 text-[11px] text-fg-faint">
+                      <span className="px-1 py-0.5 text-xs text-fg-faint">
                         +{railDates.length - 4}
                       </span>
                     ) : null}
@@ -2851,26 +2754,6 @@ export default function PatientPage(): JSX.Element {
   );
 }
 
-function Banner({
-  tone,
-  children,
-}: {
-  tone: 'info' | 'warn' | 'muted';
-  children: React.ReactNode;
-}): JSX.Element {
-  const toneClass =
-    tone === 'warn'
-      ? 'border-[var(--card-step-2-accent)] text-[var(--card-step-2-accent)]'
-      : tone === 'info'
-        ? 'border-border bg-bg-subtle'
-        : 'border-border text-fg-muted';
-
-  return (
-    <div className={`flex items-center gap-3 border-b px-4 py-2 text-xs ${toneClass}`}>
-      {children}
-    </div>
-  );
-}
 
 /**
  * The rail spans admission → today, with a minimum window, plus any date that
@@ -2906,182 +2789,4 @@ function buildRail(
 function defaultVersionLabel(): string {
   const now = new Date();
   return `${String(now.getHours()).padStart(2, '0')}.${String(now.getMinutes()).padStart(2, '0')}`;
-}
-
-/** Urgency of a Periksa lagi finding, in words, not colour alone. */
-function FindingTag({ level }: { level: 'isi' | 'kemarin' | 'cek' }): JSX.Element {
-  return (
-    <span
-      className={[
-        'shrink-0 rounded-sm border px-1 text-[10px] font-bold uppercase tracking-wide',
-        level === 'isi'
-          ? 'border-danger text-danger'
-          : level === 'kemarin'
-            ? 'border-[var(--warn-strong)] text-[var(--warn-strong)]'
-            : 'border-border-strong text-fg-muted',
-      ].join(' ')}
-    >
-      {level === 'isi' ? 'Isi' : level === 'kemarin' ? 'Kemarin' : 'Cek'}
-    </span>
-  );
-}
-
-/**
- * The day counters that did not move since yesterday, one chip each, in a
- * row that scrolls sideways: tap the counter to go to it, +1 to advance just
- * that one. Choosing counter by counter is the point; which ones should move
- * (an antibiotic course that ended, a post-procedure day that keeps running)
- * is a clinical judgement, so there is no "all +1".
- */
-function MarkerChips({
-  markers,
-  onJump,
-  onBump,
-}: {
-  markers: ReadonlyArray<{ text: string; value: number; at: number }>;
-  onJump: (marker: { text: string; at: number }, index: number) => void;
-  onBump: (marker: { text: string; at: number }, index: number) => void;
-}): JSX.Element {
-  const [bumped, setBumped] = useState<ReadonlySet<number>>(new Set());
-  // Occurrence index among counters with the same text, for relocating one
-  // after edits have moved it.
-  const occurrence = (index: number): number =>
-    markers.slice(0, index).filter((other) => other.text === markers[index]?.text).length;
-
-  return (
-    <div className="flex w-full gap-1.5 overflow-x-auto pb-1 [scrollbar-width:thin]" role="group" aria-label="Hitungan hari">
-      {markers.map((marker, index) => (
-        <span
-          key={`${marker.text}-${String(marker.at)}`}
-          className={[
-            'flex shrink-0 items-stretch overflow-hidden rounded-full border text-[11px]',
-            bumped.has(index) ? 'border-border opacity-60' : 'border-[var(--warn-strong)]',
-          ].join(' ')}
-        >
-          <button
-            type="button"
-            onClick={() => onJump(marker, occurrence(index))}
-            title="Tampilkan di catatan"
-            className="min-h-tap px-2.5 font-mono [@media(pointer:fine)]:min-h-7"
-          >
-            {bumped.has(index) ? `✓ ${marker.text.replace(/\d+$/, String(marker.value + 1))}` : marker.text}
-          </button>
-          {bumped.has(index) ? null : (
-            <button
-              type="button"
-              onClick={() => {
-                onBump(marker, occurrence(index));
-                setBumped((current) => new Set(current).add(index));
-              }}
-              aria-label={`Naikkan ${marker.text} satu hari`}
-              className="min-h-tap border-l border-[var(--warn-strong)] bg-[var(--warn-soft)] px-2 font-semibold [@media(pointer:fine)]:min-h-7"
-            >
-              +1
-            </button>
-          )}
-        </span>
-      ))}
-    </div>
-  );
-}
-
-/**
- * The DPJP card in the panel sidebar (compact, 2026-10-10).
- *
- * It had grown to seven rows: a header, the full name on its own line, Kirim,
- * Format, Rencana, Poli and Lalu, each clinic spelled out with its hours. The
- * name now shares the header, and the clinics are ONE line — the next one —
- * that opens to the consultant's whole coming week (Avi). The week answers
- * the question the two lines were read for ("can a referral still go this
- * week?") better than two dates did, and costs nothing until it is asked.
- */
-function DpjpSideCard({
-  dpjp,
-  rows,
-  today,
-}: {
-  dpjp: { id: string; initials: string; name: string } | null;
-  rows: ReadonlyArray<{ label: string; value: ReactNode; strong?: boolean }>;
-  today: ClinicalDate;
-}): JSX.Element {
-  const [weekOpen, setWeekOpen] = useState(false);
-  const week = useMemo(() => (dpjp ? weekPoli(dpjp.id, today) : []), [dpjp, today]);
-  const next = dpjp ? (upcomingPoli(dpjp.id, today, 1)[0] ?? null) : null;
-  const when = (entry: { weekday: number; inDays: number; date: string }): string =>
-    entry.inDays === 0
-      ? 'Hari ini'
-      : entry.inDays === 1
-        ? 'Besok'
-        : `${weekdayName(entry.weekday)} ${entry.date.slice(8)}/${entry.date.slice(5, 7)}`;
-  return (
-    <section className="shrink-0 overflow-hidden rounded-xl border border-border bg-surface">
-      <div className="flex min-h-tap items-center gap-2 px-3 [@media(pointer:fine)]:min-h-10">
-        <span className="shrink-0 text-[11px] font-semibold uppercase tracking-wider text-fg-faint">DPJP</span>
-        <span className="min-w-0 flex-1 truncate text-xs font-medium" title={dpjp?.name}>
-          {dpjp ? dpjp.name : <span className="text-fg-faint">belum dikenali</span>}
-        </span>
-        {dpjp ? (
-          <span className="shrink-0 rounded-md bg-[var(--accent-soft)] px-1.5 py-0.5 text-[11px] font-semibold text-accent">
-            {dpjp.initials}
-          </span>
-        ) : null}
-      </div>
-      {rows.length > 0 || dpjp ? (
-        <dl className="grid grid-cols-[auto_minmax(0,1fr)] gap-x-3 gap-y-1 border-t border-border px-3 py-2 text-[11px]">
-          {rows.map((row) => (
-            <div key={row.label} className="contents">
-              <dt className="text-fg-faint">{row.label}</dt>
-              <dd className={row.strong ? 'font-medium text-accent' : 'text-fg-muted'}>{row.value}</dd>
-            </div>
-          ))}
-          {dpjp ? (
-            <div className="contents">
-              <dt className="text-fg-faint">Poli</dt>
-              <dd className="min-w-0 text-fg-muted">
-                {next ? (
-                  <button
-                    type="button"
-                    aria-expanded={weekOpen}
-                    onClick={() => setWeekOpen((open) => !open)}
-                    title="Lihat jadwal poli minggu ini"
-                    className="-my-1 flex min-h-8 w-full min-w-0 items-center gap-1 text-left text-accent"
-                  >
-                    <span className="min-w-0 flex-1 truncate">
-                      {when(next)} · {next.slot.clinic}
-                    </span>
-                    <span aria-hidden="true" className={`shrink-0 transition-transform ${weekOpen ? 'rotate-90' : ''}`}>
-                      ›
-                    </span>
-                  </button>
-                ) : (
-                  `Tidak ada di jadwal poli ${SCHEDULE_PERIOD}`
-                )}
-              </dd>
-            </div>
-          ) : null}
-        </dl>
-      ) : null}
-      {weekOpen && dpjp ? (
-        <div className="border-t border-border px-3 py-2 text-[11px]">
-          <p className="mb-1 font-semibold text-fg-faint">Poli {dpjp.initials} · 7 hari ke depan</p>
-          {week.length === 0 ? (
-            <p className="text-fg-muted">Tidak ada poli dalam 7 hari ke depan.</p>
-          ) : (
-            <ul className="space-y-1">
-              {week.map((entry) => (
-                <li key={`${entry.date}-${entry.slot.clinic}`} className="grid grid-cols-[5.5rem_minmax(0,1fr)] gap-x-2">
-                  <span className={entry.inDays <= 1 ? 'font-semibold' : 'text-fg-muted'}>{when(entry)}</span>
-                  <span className="min-w-0">
-                    {entry.slot.clinic}
-                    <span className="block text-fg-faint">{entry.slot.time}</span>
-                  </span>
-                </li>
-              ))}
-            </ul>
-          )}
-          <p className="mt-1 text-[10px] text-fg-faint">Jadwal {SCHEDULE_PERIOD}</p>
-        </div>
-      ) : null}
-    </section>
-  );
 }

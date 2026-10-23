@@ -82,7 +82,7 @@ export function NotePopover({
         bottom: box.bottom,
         maxHeight: box.maxHeight,
       }}
-      className="z-50 flex flex-col overflow-hidden rounded-xl border border-[var(--warn-strong)] bg-surface text-fg shadow-2xl outline-none"
+      className="z-50 flex flex-col overflow-hidden rounded-xl border border-[var(--warn-strong)] bg-surface text-fg shadow-sheet outline-none"
     >
       <div className="flex items-center gap-2 border-b border-border bg-[var(--warn-soft)] px-3 py-1.5">
         <span className="min-w-0 flex-1 truncate text-xs font-semibold">Catatan · {title}</span>

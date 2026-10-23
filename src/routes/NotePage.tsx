@@ -215,7 +215,7 @@ export default function NotePage(): JSX.Element {
             className={[
               'min-h-tap flex-1 rounded-lg text-sm transition-colors',
               shelf === value && !searching
-                ? 'bg-surface font-semibold text-fg shadow-sm'
+                ? 'bg-surface font-semibold text-fg shadow-card'
                 : 'text-fg-muted hover:text-fg',
             ].join(' ')}
           >
