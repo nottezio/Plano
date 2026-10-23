@@ -19,6 +19,8 @@ export function firstMeaningfulLine(body: string): string {
   for (const rawLine of body.split('\n')) {
     const line = rawLine
       .replace(/^\s*[-*]\s+/, '')
+      // "1. CHF" as a title read as a list item; only "1." / "1)" followed by a space.
+      .replace(/^\s*\d{1,2}[.)]\s+/, '')
       .replace(/\*\*|~~|_/g, '')
       .trim();
     if (line.length > 0) return line;

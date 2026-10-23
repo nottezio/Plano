@@ -5,6 +5,9 @@ Catatan teknis lengkap (akar masalah, perbaikan) ada di CHANGES.md.
 
 Entri teratas harus versi yang sedang dirilis; tes gagal bila belum ditulis.
 
+## `2026-10-23.7`
+- **Judul kartu tanpa nomor urut.** Pasien yang belum diisi identitasnya memakai baris diagnosis pertama sebagai judul kartu; nomor "1." di depannya kini tidak ikut tampil.
+
 ## `2026-10-23.6`
 - **Rapikan tampilan baru.** Kolom cari di papan tidak lagi menyempit di layar laptop 1024 px; pilihan aktif pada tombol pilihan (mis. Daftar/Kanvas, format Salin) kini jelas terlihat di mode gelap; kepala kartu pasien lebih ringan.
 

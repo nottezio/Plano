@@ -1,5 +1,14 @@
 # Plano — CHANGES
 
+## `2026-10-23.7` — Card title without the list number
+
+Checked with a filled test note (clearly fake, "DATA UJI", typed into the test account's "Catatan baru" in the pane) and 3/8 checklist ticks: board card, patient page, Salin preview, Tindakan → Catatan lainnya.
+
+- **Card title "1. CHF NYHA II" (bug).** With no identity name, `displayName` falls back to the first line of `patient.preview` (the assessment). `firstMeaningfulLine` stripped `- `/`* ` bullets but not `1.`/`1)` numbering, so the title read as a list item. It now strips a leading 1–2 digit number followed by `.` or `)` and a space; `1.5 L/hari` is kept. Display only; stored text untouched. Tests in `identity.test.ts`.
+- **Looked right:** step-3 yellow card with progress dots and "⚑ 3"; patient header, "Periksa lagi 3", "Isi identitas" offer from the note; Salin preview (436 chars, monospace); Catatan lainnya lists Ekspor ke Word, Pembuka & penutup, Buat versi SOAP, Ubah ke format bangsal, Rapikan SOAP.
+- **Reported, not changed.** The section jump row shows only Identitas, A, P: `S: …` and `O: …` with text on the same line were not detected as boundaries. Parser behaviour; needs real-note corpus before any rule change.
+- **Not checked.** Desktop width with the filled note (pane captures were zoomed/garbled), dark mode with the filled note, a card title once identity is filled. The fake note stays in the test account.
+
 ## `2026-10-23.6` — Visual check fixes after the revamp
 
 Checked signed in (desktop app browser pane, test account, one empty patient): board, patient page, Tindakan sheet, Salin and Settings at 375 px and 1024 px, light and dark.

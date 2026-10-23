@@ -22,6 +22,12 @@ describe('firstMeaningfulLine', () => {
     expect(firstMeaningfulLine('- Ny. Siti')).toBe('Ny. Siti');
   });
 
+  it('strips a leading list number but not a number that is data', () => {
+    expect(firstMeaningfulLine('1. CHF NYHA II\n2. HT')).toBe('CHF NYHA II');
+    expect(firstMeaningfulLine('2) Pneumonia')).toBe('Pneumonia');
+    expect(firstMeaningfulLine('1.5 L/hari')).toBe('1.5 L/hari');
+  });
+
   it('returns empty for an empty body', () => {
     expect(firstMeaningfulLine('')).toBe('');
     expect(firstMeaningfulLine('   \n\n  ')).toBe('');
