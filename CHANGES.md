@@ -1,5 +1,16 @@
 # Plano — CHANGES
 
+## `2026-10-24.1` — Bug reports and feature suggestions to /admin
+
+Request (Avi): users can report a bug or suggest a feature; reports appear on the admin page, and a bug report carries what is needed to fix it.
+
+- **Send.** Pengaturan → Akun & aplikasi → "Laporkan masalah / saran fitur" (`FeedbackForm`). Writes `feedback/{id}` through `feedback.repo.ts`: `uid`, `email`, `kind` (`bug`/`fitur`), `text` (≤ 4000), `status: 'baru'`, `createdAt`, `device` (version, user agent, viewport, online, installed app) and, for bugs only, the session log. Fire-and-forget via `trackWrite`, so it queues offline. The form asks for no patient names or MRNs.
+- **Error capture (the "bug sources").** New session-log kind `error`. `installErrorLog` (main.tsx) records uncaught errors and unhandled rejections; `ErrorBoundary.componentDidCatch` records crashes (React swallows those before `window.onerror`). `describeError` writes message, route and the top three `file:line:col` frames, capped at 400 chars; consecutive duplicates and ResizeObserver-loop noise are skipped. Quoted text is cut from messages (a JSON/parse error quotes its input, which can be a note) except short quoted identifiers such as `reading 'body'`. Tests in `src/lib/sessionLog.test.ts`.
+- **Admin.** /admin gains "Laporan & saran" (Baru/Selesai). A row shows kind, sender, time, version and error count; expanded, the device and each recorded error. "Salin untuk Claude" copies `feedbackForClaude(report)`: one Markdown block with description, device, errors and the full session log, to paste into Claude Code. "Tandai selesai" sets `status: 'selesai'`.
+- **Rules.** `match /feedback/{id}`: create by `seesLists()` (list viewers too) as themselves (uid and token email), fixed key set, `kind` in bug/fitur, `status == 'baru'`, text 1–4000, `log` ≤ 40 (the session log LIMIT, now exported); read/update admin only; no delete. `feedback.test.ts` checks the bounds match the client. **Rules need deploying** (firestore-deploy workflow) before reports go through; until then a send is refused and the form says so.
+- **Not done.** No screenshot attachment (could carry patient data; would need the board-image compression path). No source maps, so frames name built chunks (`PatientPage-xxxx.js:1:2345`), not source lines; SPEC 18 keeps production maps off. No notification to the owner on a new report (no Cloud Functions); check /admin. Error messages that are not quoted could in principle still contain text from a note.
+- **Not verified.** Not run in the browser pane (needs a signed-in session and the deployed rules); covered by unit tests, typecheck and build only.
+
 ## `2026-10-23.7` — Card title without the list number
 
 Checked with a filled test note (clearly fake, "DATA UJI", typed into the test account's "Catatan baru" in the pane) and 3/8 checklist ticks: board card, patient page, Salin preview, Tindakan → Catatan lainnya.

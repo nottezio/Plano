@@ -488,6 +488,30 @@ service cloud.firestore {
       allow delete: if false;
     }
 
+    /*
+     * Bug reports and suggestions (src/domain/feedback.ts). Anyone admitted,
+     * list viewers included, may send one as themselves; only the admin reads
+     * them and marks them done. Never deleted: done is `status: 'selesai'`.
+     * The text bound matches MAX_FEEDBACK_CHARS and the log bound the session
+     * log's LIMIT, checked by a client test.
+     */
+    match /feedback/{id} {
+      allow create: if seesLists()
+        && request.resource.data.keys().hasOnly(['uid', 'email', 'kind', 'text', 'status', 'createdAt', 'device', 'log'])
+        && request.resource.data.uid == request.auth.uid
+        && request.resource.data.email == request.auth.token.email
+        && request.resource.data.kind in ['bug', 'fitur']
+        && request.resource.data.status == 'baru'
+        && request.resource.data.text is string
+        && request.resource.data.text.size() > 0
+        && request.resource.data.text.size() <= 4000
+        && request.resource.data.device is map
+        && request.resource.data.log is list
+        && request.resource.data.log.size() <= 40;
+      allow read, update: if isAdmin();
+      allow delete: if false;
+    }
+
     // Anything not matched above is denied.
     match /{document=**} {
       allow read, write: if false;

@@ -23,6 +23,7 @@ import { HeparinSettingsEditor } from '@/components/settings/HeparinSettings';
 import { PasteInspector } from '@/components/settings/PasteInspector';
 import { RebuildCards } from '@/components/settings/RebuildCards';
 import { SessionLogPanel } from '@/components/settings/SessionLogPanel';
+import { FeedbackForm } from '@/components/settings/FeedbackForm';
 import { PinSetupSheet } from '@/components/privacy/PinSetupSheet';
 import { useLock } from '@/store/useLock';
 import { updateSettings } from '@/data/repositories/settings.repo';
@@ -839,6 +840,14 @@ export default function SettingsPage(): JSX.Element {
         </SettingsGroup>
 
         <SettingsGroup id="settings-aplikasi" label="Akun & aplikasi">
+          <SettingsSection
+            id="laporan-saran"
+            keywords="bug masalah error laporan saran fitur feedback umpan balik"
+            title="Laporkan masalah / saran fitur"
+            description="Kirim langsung ke pemilik Plano."
+          >
+            <FeedbackForm />
+          </SettingsSection>
           <SettingsSection
             id="tentang"
             keywords="versi update pembaruan perbarui muat ulang admin" title="Tentang" collapsible={false}>

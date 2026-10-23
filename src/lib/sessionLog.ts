@@ -33,7 +33,7 @@ const KEY = 'visite.sessionLog';
  * its own, which would be an unusually poor way to cause the bug it exists to
  * explain.
  */
-const LIMIT = 40;
+export const LIMIT = 40;
 
 export type SessionEventKind =
   | 'boot'
@@ -46,7 +46,9 @@ export type SessionEventKind =
   /** A loading state that took `SLOW_MS` or longer (see loadTiming.ts). */
   | 'slow'
   /** The tab came back after Chrome froze it, or after a long time hidden. */
-  | 'resumed';
+  | 'resumed'
+  /** An uncaught error or a crashed screen; detail from `describeError`. */
+  | 'error';
 
 export interface SessionEvent {
   at: string;
@@ -87,6 +89,43 @@ export function readSessionLog(): SessionEvent[] {
   } catch {
     return [];
   }
+}
+
+/**
+ * An error as one log line: message, the screen it happened on, and the top
+ * stack frames as `file:line:col`, which is what points at the code.
+ *
+ * Quoted text is cut from the message: a JSON or parse error quotes its input,
+ * and here that input can be a note. Production builds ship no source maps
+ * (SPEC 18), so frames name the built chunk; the route and chunk name are
+ * usually enough to find the source.
+ */
+export function describeError(error: unknown, path: string): string {
+  const raw =
+    error instanceof Error ? `${error.name}: ${error.message}` : String(error ?? 'unknown error');
+  // A short quoted identifier ("reading 'foo'") names the bug; anything else may be text.
+  const message = raw
+    .replace(/"[^"]*"|'[^']*'|`[^`]*`/g, (quoted) => (/^'[\w$.-]{1,40}'$/.test(quoted) ? quoted : '"…"'))
+    .slice(0, 200);
+  const stack = error instanceof Error ? (error.stack ?? '') : '';
+  const frames = [...stack.matchAll(/([\w.-]+\.[jt]sx?):(\d+):(\d+)/g)]
+    .slice(0, 3)
+    .map((match) => `${match[1]}:${match[2]}:${match[3]}`);
+  return `${message} @ ${path}${frames.length ? ` [${frames.join(' < ')}]` : ''}`.slice(0, 400);
+}
+
+/** Records uncaught errors and rejections, so a report can carry them. */
+export function installErrorLog(): void {
+  let last = '';
+  const record = (error: unknown): void => {
+    const detail = describeError(error, window.location.pathname);
+    // A loop that throws every frame would push everything else out of the log.
+    if (detail === last || detail.includes('ResizeObserver loop')) return;
+    last = detail;
+    logSessionEvent('error', detail);
+  };
+  window.addEventListener('error', (event) => record(event.error ?? event.message));
+  window.addEventListener('unhandledrejection', (event) => record(event.reason));
 }
 
 export function clearSessionLog(): void {

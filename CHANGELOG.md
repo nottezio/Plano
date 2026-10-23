@@ -5,6 +5,10 @@ Catatan teknis lengkap (akar masalah, perbaikan) ada di CHANGES.md.
 
 Entri teratas harus versi yang sedang dirilis; tes gagal bila belum ditulis.
 
+## `2026-10-24.1`
+- **Laporkan masalah / saran fitur.** Di Pengaturan → Akun & aplikasi kini ada formulir untuk mengirim laporan masalah atau saran fitur langsung ke pemilik Plano, juga saat offline (terkirim begitu tersambung). Laporan masalah otomatis menyertakan versi aplikasi, jenis perangkat, dan Riwayat sesi, tanpa isi catatan.
+- **Kesalahan kini tercatat di Riwayat sesi** ("Kesalahan"), dengan layar tempat terjadinya, agar masalah bisa ditelusuri tanpa harus diulang.
+
 ## `2026-10-23.7`
 - **Judul kartu tanpa nomor urut.** Pasien yang belum diisi identitasnya memakai baris diagnosis pertama sebagai judul kartu; nomor "1." di depannya kini tidak ikut tampil.
 

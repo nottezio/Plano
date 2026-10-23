@@ -12,6 +12,7 @@ import { initThemeSync } from '@/store/useUI';
 import { createAppHistory } from '@/lib/appHistory';
 import { installChunkRecovery, markBootSucceeded } from '@/lib/chunkRecovery';
 import { installLoadDiagnostics } from '@/lib/loadTiming';
+import { installErrorLog } from '@/lib/sessionLog';
 import { registerServiceWorker } from './pwa';
 import '@/styles/index.css';
 
@@ -26,6 +27,7 @@ if (!container) {
 installChunkRecovery();
 
 installLoadDiagnostics();
+installErrorLog();
 initThemeSync();
 initSyncStatus();
 initSession();

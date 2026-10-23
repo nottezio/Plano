@@ -1,5 +1,6 @@
 import { Component, type ErrorInfo, type ReactNode } from 'react';
 import { APP_VERSION } from '@/version.js';
+import { describeError, logSessionEvent } from '@/lib/sessionLog';
 
 interface Props {
   children: ReactNode;
@@ -26,6 +27,8 @@ export class ErrorBoundary extends Component<Props, State> {
 
   override componentDidCatch(error: Error, info: ErrorInfo): void {
     console.error('[visite] render error', { version: APP_VERSION, error, componentStack: info.componentStack });
+    // React catches render errors itself, so window 'error' never sees them.
+    logSessionEvent('error', `crash: ${describeError(error, window.location.pathname)}`);
   }
 
   override render(): ReactNode {

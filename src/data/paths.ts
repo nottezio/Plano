@@ -51,6 +51,10 @@ export const accessDoc = (uid: string): DocumentReference => doc(db(), 'access',
 /** The enforcement switch. */
 export const accessConfigDoc = (): DocumentReference => doc(db(), 'config', 'access');
 
+/** Bug reports and suggestions (see `src/domain/feedback.ts`). Admin reads. */
+export const feedbackCol = (): CollectionReference => collection(db(), 'feedback');
+export const feedbackDoc = (id: string): DocumentReference => doc(db(), 'feedback', id);
+
 /**
  * Images pasted into board sticky notes, one document each.
  *
