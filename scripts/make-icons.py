@@ -1,16 +1,45 @@
-"""Renders the PWA icons from scripts/icon-master.png (the master). Run: python scripts/make-icons.py  (needs Pillow)
+"""Draws the Plano icon (a "P" whose bowl holds an ECG pulse) and renders the PWA icons.
+Run: python scripts/make-icons.py  (needs Pillow)
 
-Master = the Plano logo tile, full-bleed square on cream. Content bbox in the master is
-x116-874, y48-907; the maskable variant scales it into the 80% safe circle.
+The mark is one bold glyph with no wordmark, so it stays legible at favicon size. Coordinates are
+in a 1000-unit square; the content bbox is x290-730, y190-810, and the maskable variant scales it
+into the 80% safe circle.
 """
+import sys
 from pathlib import Path
 from PIL import Image, ImageDraw
 
 ROOT = Path(__file__).resolve().parent.parent
-OUT = ROOT / 'public' / 'icons'
-master = Image.open(Path(__file__).with_name('icon-master.png')).convert('RGB')
-BG = master.getpixel((2, 2))
-CX, CY, HALF_DIAG = 495, 477.5, 573  # content centre and half-diagonal, master px
+OUT = Path(sys.argv[1]) if len(sys.argv) > 1 else ROOT / 'public' / 'icons'  # optional output dir
+BG, NAVY, RED = '#f2e9db', '#1b2a3f', '#c0392b'
+CX, CY, HALF_DIAG = 510, 500, 386  # content centre and half-diagonal, master units
+SS, MASTER_PX = 4, 1024
+
+
+def draw_master():
+    k = MASTER_PX * SS / 1000
+    img = Image.new('RGB', (MASTER_PX * SS,) * 2, BG)
+    d = ImageDraw.Draw(img)
+
+    def box(x0, y0, x1, y1):
+        return [x0 * k, y0 * k, x1 * k, y1 * k]
+
+    d.rounded_rectangle(box(290, 190, 730, 600), radius=205 * k, fill=NAVY)  # bowl, right side round
+    d.rectangle(box(290, 190, 500, 600), fill=NAVY)  # square off the left corners
+    d.rectangle(box(290, 190, 400, 810), fill=NAVY)  # stem
+    d.rounded_rectangle(box(400, 290, 620, 500), radius=105 * k, fill=BG)  # counter
+    d.rectangle(box(400, 290, 525, 500), fill=BG)
+    pulse = [(420, 395), (468, 395), (498, 328), (534, 462), (560, 395), (605, 395)]
+    pts = [(x * k, y * k) for x, y in pulse]
+    w = 34 * k
+    d.line(pts, fill=RED, width=round(w), joint='curve')
+    for x, y in (pts[0], pts[-1]):  # round caps
+        d.ellipse([x - w / 2, y - w / 2, x + w / 2, y + w / 2], fill=RED)
+    return img.resize((MASTER_PX, MASTER_PX), Image.LANCZOS)
+
+
+master = draw_master()
+UNIT = MASTER_PX / 1000  # master px per drawing unit
 
 
 def rounded(size):
@@ -22,10 +51,10 @@ def rounded(size):
 
 
 def maskable(size):
-    k = size / 2 * 0.8 * 0.95 / HALF_DIAG  # content inside the safe circle, 5% spare
+    k = size / 2 * 0.8 * 0.95 / (HALF_DIAG * UNIT)  # content inside the safe circle, 5% spare
     m = master.resize((round(master.width * k),) * 2, Image.LANCZOS)
     canvas = Image.new('RGB', (size, size), BG)
-    canvas.paste(m, (round(size / 2 - CX * k), round(size / 2 - CY * k)))
+    canvas.paste(m, (round(size / 2 - CX * UNIT * k), round(size / 2 - CY * UNIT * k)))
     return canvas
 
 

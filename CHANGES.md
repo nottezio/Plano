@@ -1,5 +1,13 @@
 # Plano — CHANGES
 
+## `2026-10-23.1` — Simpler app icon
+
+Avi: new icon that matches the app's idea/function.
+
+- **Why.** The previous icon was the full logo tile (heart, ECG, checklist, wordmark); the detail turned to mush at 16–64 px. New mark = one bold navy "P" (Plano) with a red ECG pulse in its bowl (clinical + notes), same navy/red/cream palette as before.
+- **How.** `scripts/make-icons.py` now draws the master itself (Pillow, 4x supersampled) instead of reading `scripts/icon-master.png`, which is deleted. Optional argv[1] sets the output dir. Same five outputs in `public/icons/`, same rounded / maskable / opaque-apple-touch handling.
+- **Not done:** no dark-mode icon variant; manifest `theme_color`/`background_color` still `#ffffff`. Not checked on a real phone home screen. Pillow could not write into the repo from the sandboxed shell, so the PNGs were rendered to the scratchpad and copied in.
+
 ## `2026-10-22.2` — New app logo
 
 Avi: replace the app logo with the new Plano mark (navy bar, heart + ECG, checklist, wordmark).

@@ -5,6 +5,9 @@ Catatan teknis lengkap (akar masalah, perbaikan) ada di CHANGES.md.
 
 Entri teratas harus versi yang sedang dirilis; tes gagal bila belum ditulis.
 
+## `2026-10-23.1`
+- **Ikon aplikasi baru, lebih sederhana:** huruf "P" dengan denyut EKG di dalamnya. Lebih jelas dibaca saat kecil di layar utama dan tab browser. Ikon di layar utama baru berubah setelah Plano diperbarui; di iPhone mungkin perlu dihapus lalu ditambahkan ulang ke Layar Utama.
+
 ## `2026-10-22.2`
 - **Ikon aplikasi diganti dengan logo baru Plano** (jantung dengan EKG dan daftar). Ikon di layar utama baru berubah setelah Plano diperbarui; di iPhone mungkin perlu dihapus lalu ditambahkan ulang ke Layar Utama.
 
