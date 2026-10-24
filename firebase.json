@@ -1,7 +1,13 @@
 {
-  "//": "Hosting is NOT used — the app is published to GitHub Pages. This file exists so rules and indexes can be deployed with: firebase deploy --only firestore:rules,firestore:indexes",
+  "//": "Hosting is NOT used — the app is published to GitHub Pages. This file exists so rules and indexes can be deployed with: firebase deploy --only firestore:rules,firestore:indexes. The emulators block is for local preview only (npm run emu).",
   "firestore": {
     "rules": "firestore.rules",
     "indexes": "firestore.indexes.json"
+  },
+  "emulators": {
+    "auth": { "host": "127.0.0.1", "port": 9099 },
+    "firestore": { "host": "127.0.0.1", "port": 8080 },
+    "ui": { "enabled": false },
+    "singleProjectMode": true
   }
 }

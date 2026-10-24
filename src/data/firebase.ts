@@ -15,6 +15,7 @@ import {
   type Firestore,
 } from 'firebase/firestore';
 
+import { connectEmulators, EMULATOR_CONFIG, isEmulatorMode } from './emulator';
 import { readFirebaseEnv } from './env';
 
 /**
@@ -56,7 +57,8 @@ let cached: FirebaseInit | null = null;
 export function initFirebase(): FirebaseInit {
   if (cached) return cached;
 
-  const { config, missing } = readFirebaseEnv();
+  const emulator = isEmulatorMode(import.meta.env.MODE, globalThis.location?.hostname ?? '');
+  const { config, missing } = emulator ? { config: EMULATOR_CONFIG, missing: [] } : readFirebaseEnv();
   if (!config) {
     cached = { ok: false, missing };
     return cached;
@@ -99,6 +101,8 @@ export function initFirebase(): FirebaseInit {
     ...(hasSignedInHint() ? {} : { popupRedirectResolver: browserPopupRedirectResolver }),
   });
   const persistenceReady = Promise.resolve();
+
+  if (emulator) connectEmulators(auth, db);
 
   cached = { ok: true, services: { app, auth, db, persistenceReady } };
   return cached;

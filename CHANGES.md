@@ -1,5 +1,41 @@
 # Plano — CHANGES
 
+## `2026-10-24.5` — Local preview on the Firebase emulators (dev tooling)
+
+- **Root cause.** The Claude preview pane does not keep IndexedDB between sessions, so Firebase Auth lost the Google login and the app sat behind the sign-in gate, which made the UI impossible to check. Nothing in the app clears auth (only the explicit sign-out does); the pane's storage is the cause (inferred, not observed directly).
+- **Fix.** `npm run emu` starts the Auth and Firestore emulators (project `demo-plano`, state kept in git-ignored `.emulator-data/`, firebase-tools pinned through `npx`, not added as a dependency). `npm run dev:emu` runs Vite with `--mode emulator`. In that mode only, and only on a loopback host, `src/data/emulator.ts` swaps in a demo config, connects both emulators and signs in a fake Google user (the emulator accepts a JSON id token), so `firestore.rules` and `AccessGate` are exercised for real. Production and `npm run dev` take the old path; `emulator.test.ts` pins the guard. New `.claude/launch.json` entries: `plano-emulators`, `plano-emu`.
+- **Needs Java** (the Firestore emulator). Data starts empty: create a few fake patients once, they persist across restarts.
+- **Not done.** No seed script (the patient schema is large; fake patients are made in the UI).
+
+## `2026-10-24.4` — Board card: visible text for tooltip-only cues (clarify)
+
+Source: design critique P1 "meaning on touch is carried by tooltips and glyphs". Narrowed to what could change without a domain decision.
+
+- **Root cause.** Several card marks carried their meaning only in a `title` attribute, which a phone never shows. The ones that had no readable text of their own were the ⚑ count and the "+n" overflow chip.
+- **Fix.** `StatusRail`: `⚑ 3` is now `3 cek`, with an `aria-label` carrying the full sentence (the unicode flag is gone). `FlagRow`: `+2` is now `+2 lagi`.
+- **Already fine, left alone.** SOAP state (visible words), next checklist step (visible, truncated), discharge chip (visible short form plus sr-only phrase), reminder chip (visible label, ○/✓), fold/open buttons (aria-label).
+- **Not done.** (1) `KJS · Kardio` / `KJS · TS` still explain themselves only in `title` ("kita konsulen, DPJP utama bukan kita"): that is a clinical wording decision, so I did not invent visible text; options are a longer chip or moving it to the peek view. (2) DPJP initials still show the full name only on `title`. (3) No coach mark for swipe-right, swipe-left and long-press: it needs persisted "seen" state and a decision on when it returns. (4) Not seen rendered (sign-in gate); "3 cek" widens the status rail slightly and was not checked at 320px.
+
+## `2026-10-24.3` — Board card hierarchy (distill)
+
+Source: design critique of the board (P2 "card overload flattens hierarchy"), decisions confirmed with Avi: DPJP and RM stay in the identity band; flag row capped at 3 with "+n"; diagnosis change on one line.
+
+- **Root cause.** Every mark added to the card since the first version had a good reason and a place, so the card grew to about 20 atoms with no tier. Each fix was local (a badge wrapped, a strip added), so no change ever removed anything and the loud elements (Pemantauan, Chief, KJS, discharge) competed.
+- **Identity band.** Pin (★) and the Chief tag left the band. They are now one muted line (`11px`, 70% opacity) after the body, outside `ClampedBody`, with the text "Chief: …" so it still reads as a label and is never clipped on a short canvas card (the failure the 2026-10-10 comment records). The solid Chief pill is gone.
+- **Flag row.** `MAX_FLAGS = 3`. Reminders and `KJS · Kardio` always show; discharge chip, EKG and `KJS · TS` fill the remaining budget in that order; the rest collapse to `+n` (title: "buka pasien untuk melihatnya").
+- **Diagnosis change.** `DxChangeLine` is one truncated line, in words ("2 baru · 1 diubah · 1 dihapus"), not "+2 −1", which Avi found unreadable on 2026-10-10. The spelled-out rows remain in the `title` and on the patient page.
+- **Not done.** Not seen rendered (sign-in gate). `+n` and the Chief label are `title`/text only: a hidden chip cannot be tapped from the card. The 28px fold/eye buttons, the tooltip-only cues, and the 11px type are separate passes (`adapt`, `clarify`, `typeset`). No component test covers the flag cap; the cap logic is inline in `FlagRow`.
+
+## `2026-10-24.2` — Pemantauan strip: dark-mode contrast and edge bleed
+
+Source: design critique of the board (impeccable `colorize` pass).
+
+- **Root cause (contrast).** The Pemantauan strip hardcoded `text-white` on `var(--danger)`. In dark mode `--danger` is lifted to `#f87171`, and white on it is about 2.8:1, below the 4.5:1 floor. `check-contrast.mjs` never saw the pair because it only compares `--*-fg` against `--*-bg` variables, and this one was a Tailwind class on a token.
+- **Root cause (bleed).** Both strips used `-mx-3 -mt-3` (12px), written when the card padding was 12px. After the compact pass the card is `p-2.5` (10px) or `p-2` dense (8px), so the strips overshot the border by 2-4px.
+- **Fix.** New `--pemantauan-bg` / `--pemantauan-fg` tokens in `tokens.css` (white on `#dc2626` in light, near-black on `#f87171` in dark), so the existing contrast script now verifies the pair in both themes. The strips' negative margins and horizontal padding follow the `dense` prop (`-mx-2`/`px-2` dense, `-mx-2.5`/`px-2.5` otherwise).
+- **Decision, not changed.** Pemantauan stays red. It was moved from amber on purpose (amber collided with the H-1 discharge strip, see the comment above the ring in `PatientCard.tsx`). DESIGN.md was out of date on this and is corrected.
+- **Not done.** WIP tags in `TabBar` are still red. The strip is still 11px uppercase (typography is a separate pass). Not checked on a rendered board: the app is behind Google sign-in.
+
 ## `2026-10-24.1` — Bug reports and feature suggestions to /admin
 
 Request (Avi): users can report a bug or suggest a feature; reports appear on the admin page, and a bug report carries what is needed to fix it.

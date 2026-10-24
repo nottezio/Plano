@@ -49,6 +49,11 @@
    */
   --warn-strong: #d97706;
   --warn-soft: #fbbf2455;
+  /* The Pemantauan strip on a board card: the danger red, with the text colour
+     that clears 4.5:1 on it. Named -bg/-fg so scripts/check-contrast.mjs
+     verifies the pair in both themes. */
+  --pemantauan-bg: #dc2626;
+  --pemantauan-fg: #ffffff;
   --focus-ring: #1559c7;
   --overlay: rgb(15 26 42 / 42%);
   /* Elevation: one hairline-plus-shadow recipe per layer (card, popover, sheet). */
@@ -154,6 +159,9 @@
   /* Lifted for dark mode: amber at #d97706 disappears against a dark card. */
   --warn-strong: #fbbf24;
   --warn-soft: #f59e0b40;
+  /* White on the lifted dark red was 2.8:1; near-black clears it. */
+  --pemantauan-bg: #f87171;
+  --pemantauan-fg: #0b0f14;
   --focus-ring: #6aa3ff;
   --overlay: rgb(0 0 0 / 62%);
   --shadow-card: 0 1px 2px rgb(0 0 0 / 40%);

@@ -486,10 +486,13 @@ function PatientCardView({
       {card.pemantauan ? (
         <p
           className={[
-            '-mx-3 -mt-3 rounded-t-xl px-3 py-1 text-[11px] font-semibold uppercase tracking-wide text-white',
+            // Bleed matches the card's own padding (p-2 dense, p-2.5), so the
+            // strip meets the border instead of overshooting it.
+            dense ? '-mx-2 -mt-2 px-2' : '-mx-2.5 -mt-2.5 px-2.5',
+            'rounded-t-xl py-1 text-[11px] font-semibold uppercase tracking-wide',
             dischargeStrip ? '' : 'mb-2',
           ].join(' ')}
-          style={{ backgroundColor: 'var(--danger)' }}
+          style={{ backgroundColor: 'var(--pemantauan-bg)', color: 'var(--pemantauan-fg)' }}
         >
           Pemantauan
         </p>
@@ -508,8 +511,9 @@ function PatientCardView({
       {dischargeStrip ? (
         <p
           className={[
-            '-mx-3 mb-2 flex items-center gap-1.5 px-3 py-1 text-[11px] font-bold uppercase tracking-wide',
-            card.pemantauan ? '' : '-mt-3 rounded-t-xl',
+            dense ? '-mx-2 px-2' : '-mx-2.5 px-2.5',
+            'mb-2 flex items-center gap-1.5 py-1 text-[11px] font-bold uppercase tracking-wide',
+            card.pemantauan ? '' : dense ? '-mt-2 rounded-t-xl' : '-mt-2.5 rounded-t-xl',
           ].join(' ')}
           style={{ backgroundColor: STAGE_TOKEN[dischargeStrip], color: 'var(--discharge-fg)' }}
         >
@@ -720,27 +724,7 @@ function PatientCardView({
           filled badge because it is the rarer and more easily mis-read of the
           two, but the badge is readable with the fill ignored.
         */}
-        {patient.pinned ? (
-          <span aria-label="Pinned" className="text-xs">
-            ★
-          </span>
-        ) : null}
       </div>
-      {/*
-        The chief, as a solid person tag under the location (2026-10-10). It was a
-        faint "Chief …" line in the body, where it was cut first on a short
-        card and read like part of the diagnosis list. It is who the note
-        goes to: solid, labelled, at full strength (the location row is faded).
-      */}
-      {card.chief ? (
-        <span
-          title={`Chief: ${card.chief}`}
-          className="mt-1 inline-flex max-w-full items-center gap-1 rounded-full bg-token-fg px-1.5 text-[11px] font-semibold text-token"
-        >
-          <span className="font-normal opacity-80">Chief</span>
-          <span className="truncate">{card.chief}</span>
-        </span>
-      ) : null}
       </div>
 
         {/*
@@ -893,6 +877,30 @@ function PatientCardView({
       ) : null}
 
       </ClampedBody>
+
+      {/*
+        META LINE (distill pass): the pin and the chief, demoted from the
+        identity band. The band keeps what finds a patient (name, bed, DPJP,
+        RM); these are read after the card is found.
+
+        Outside ClampedBody on purpose. The chief was once a faint line INSIDE
+        the body, where it was clipped first on a short card and read like part
+        of the diagnosis list; this one is labelled "Chief:" and never clipped.
+      */}
+      {patient.pinned || card.chief ? (
+        <p className={`mt-1 flex min-w-0 items-center gap-1.5 text-[11px] opacity-70 ${fitHeight ? 'shrink-0' : ''}`}>
+          {patient.pinned ? (
+            <span aria-label="Pinned" className="shrink-0">
+              ★
+            </span>
+          ) : null}
+          {card.chief ? (
+            <span className="min-w-0 truncate" title={`Chief: ${card.chief}`}>
+              Chief: {card.chief}
+            </span>
+          ) : null}
+        </p>
+      ) : null}
 
       {/*
         ONE FLAG ROW (2026-10-10): reminders, discharge, EKG, KJS — the marks
@@ -1265,8 +1273,10 @@ function StatusRail({ card }: { card: BoardCard }): JSX.Element {
         <span
           className="shrink-0 rounded-sm border border-current px-1 text-[11px] font-semibold"
           title={`${card.checkCount} hal perlu diperiksa lagi di catatan hari ini`}
+          aria-label={`${card.checkCount} hal perlu diperiksa lagi di catatan hari ini`}
         >
-          ⚑ {card.checkCount}
+          {/* Words, not a flag glyph: a phone shows no tooltip to say what ⚑ was. */}
+          {card.checkCount} cek
         </span>
       ) : null}
       {progress.total > 0 ? (
@@ -1293,42 +1303,92 @@ function FlagRow({
   className?: string;
 }): JSX.Element | null {
   const showDischarge = card.discharge !== null && !dischargeStrip;
-  const any = card.reminders.length > 0 || showDischarge || card.ekg !== null || card.kjs !== null;
-  if (!any) return null;
+  // Distill pass: at most MAX_FLAGS chips, then "+n". Reminders (a thing due now)
+  // and KJS · Kardio (changes how you act on the plan) are never hidden; the
+  // rest fill whatever budget is left, in this order.
+  const flags: Array<{ key: string; always: boolean; node: JSX.Element }> = [
+    ...card.reminders.map((reminder) => ({
+      key: `r-${reminder.id}`,
+      always: true,
+      node: <ReminderChip key={`r-${reminder.id}`} patient={card.patient} reminder={reminder} />,
+    })),
+    ...(showDischarge && card.discharge
+      ? [{ key: 'discharge', always: false, node: <DischargeChip key="discharge" stage={card.discharge} /> }]
+      : []),
+    ...(card.ekg
+      ? [
+          {
+            key: 'ekg',
+            always: false,
+            node: (
+              <span
+                key="ekg"
+                title={card.ekg === 'harian' ? 'EKG setiap hari' : 'EKG hari ini'}
+                className="rounded-sm border border-current px-1 text-[11px] font-semibold"
+              >
+                {card.ekg === 'harian' ? 'EKG harian' : 'EKG hari ini'}
+              </span>
+            ),
+          },
+        ]
+      : []),
+    ...(card.kjs === 'kardio'
+      ? [
+          {
+            key: 'kjs',
+            always: true,
+            node: (
+              <span
+                key="kjs"
+                title="KJS — pasien TS lain, kita konsulen kardiologi. DPJP utama bukan kita."
+                // Inverted: the one mark on the card that changes how you act on
+                // it (the plan is a recommendation, the discharge is not ours).
+                className="rounded-sm bg-token-fg px-1 text-[11px] font-bold uppercase tracking-wide text-token"
+              >
+                KJS · Kardio
+              </span>
+            ),
+          },
+        ]
+      : card.kjs === 'ts'
+        ? [
+            {
+              key: 'kjs',
+              always: false,
+              node: (
+                <span
+                  key="kjs"
+                  title="KJS — pasien kita, rawat bersama TS lain"
+                  className="rounded-sm border border-current px-1 text-[11px] font-bold uppercase tracking-wide"
+                >
+                  KJS · TS
+                </span>
+              ),
+            },
+          ]
+        : []),
+  ];
+  if (flags.length === 0) return null;
+  let budget = MAX_FLAGS - flags.filter((flag) => flag.always).length;
+  const shown = flags.filter((flag) => flag.always || budget-- > 0);
+  const hidden = flags.length - shown.length;
   return (
     <div className={`mt-1.5 flex flex-wrap items-center gap-1 ${className}`}>
-      {card.reminders.map((reminder) => (
-        <ReminderChip key={reminder.id} patient={card.patient} reminder={reminder} />
-      ))}
-      {showDischarge && card.discharge ? <DischargeChip stage={card.discharge} /> : null}
-      {card.ekg ? (
+      {shown.map((flag) => flag.node)}
+      {hidden > 0 ? (
         <span
-          title={card.ekg === 'harian' ? 'EKG setiap hari' : 'EKG hari ini'}
-          className="rounded-sm border border-current px-1 text-[11px] font-semibold"
+          className="text-[11px] font-semibold opacity-70"
+          title={`${hidden} penanda lain: buka pasien untuk melihatnya`}
         >
-          {card.ekg === 'harian' ? 'EKG harian' : 'EKG hari ini'}
+          +{hidden} lagi
         </span>
       ) : null}
-        {card.kjs === 'kardio' ? (
-          <span
-            title="KJS — pasien TS lain, kita konsulen kardiologi. DPJP utama bukan kita."
-            // Inverted: the one mark on the card that changes how you act on
-            // it (the plan is a recommendation, the discharge is not ours).
-            className="rounded-sm bg-token-fg px-1 text-[11px] font-bold uppercase tracking-wide text-token"
-          >
-            KJS · Kardio
-          </span>
-        ) : card.kjs === 'ts' ? (
-          <span
-            title="KJS — pasien kita, rawat bersama TS lain"
-            className="rounded-sm border border-current px-1 text-[11px] font-bold uppercase tracking-wide"
-          >
-            KJS · TS
-          </span>
-        ) : null}
     </div>
   );
 }
+
+/** Flag-row cap: the 4th and later chips collapse into "+n" (distill pass). */
+const MAX_FLAGS = 3;
 
 /**
  * What changed in the diagnosis list since the previous day's note.
@@ -1359,22 +1419,23 @@ function DxChangeLine({ card }: { card: BoardCard }): JSX.Element | null {
     ...changes.changed.map((change) => ({ kind: 'changed' as const, text: change.to })),
     ...changes.removed.map((text) => ({ kind: 'removed' as const, text })),
   ];
-  const shown = rows.slice(0, 3);
   const full = rows.map((row) => `${DX_KIND[row.kind].word}: ${row.text}`).join('\n');
+  // One line, in words (not "+2 −1": that read as positive/negative, see above).
+  // The spelled-out rows live in the title and on the patient page.
+  const summary = [
+    changes.added.length ? `${changes.added.length} baru` : '',
+    changes.changed.length ? `${changes.changed.length} diubah` : '',
+    changes.removed.length ? `${changes.removed.length} dihapus` : '',
+  ]
+    .filter(Boolean)
+    .join(' · ');
   return (
-    <div className="mb-1 rounded-md bg-black/10 px-1.5 py-1 text-xs leading-snug dark:bg-white/10" title={full}>
-      <p className="text-[11px] font-semibold opacity-80">Diagnosis berubah dari {when}</p>
-      {shown.map((row, index) => (
-        <p key={index} className="line-clamp-1">
-          <span className="font-semibold">
-            <span aria-hidden="true">{DX_KIND[row.kind].mark} </span>
-            {DX_KIND[row.kind].word}:
-          </span>{' '}
-          {row.text}
-        </p>
-      ))}
-      {rows.length > shown.length ? <p className="opacity-70">+{rows.length - shown.length} perubahan lagi</p> : null}
-    </div>
+    <p
+      className="mb-1 truncate rounded-md bg-black/10 px-1.5 py-1 text-[11px] font-semibold leading-snug dark:bg-white/10"
+      title={full}
+    >
+      Diagnosis berubah dari {when}: {summary}
+    </p>
   );
 }
 

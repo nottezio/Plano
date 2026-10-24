@@ -5,6 +5,18 @@ Catatan teknis lengkap (akar masalah, perbaikan) ada di CHANGES.md.
 
 Entri teratas harus versi yang sedang dirilis; tes gagal bila belum ditulis.
 
+## `2026-10-24.5`
+- **Tidak ada perubahan yang terlihat di aplikasi.** Hanya penyiapan pratinjau lokal untuk pengembangan; versi yang dipublikasikan berjalan seperti biasa.
+
+## `2026-10-24.4`
+- **Penanda di kartu pakai kata, bukan simbol.** Tanda ⚑ kini tertulis "3 cek" (hal yang perlu diperiksa lagi di catatan hari ini), dan penanda yang disembunyikan tertulis "+2 lagi". Di HP tidak ada tooltip, jadi artinya sekarang terbaca langsung.
+
+## `2026-10-24.3`
+- **Kartu pasien lebih ringkas.** Di bagian nama hanya tersisa yang membantu menemukan pasien (nama, tempat tidur, DPJP, RM). Tanda ★ dan Chief pindah ke satu baris kecil di bawah kartu. Deret penanda (pengingat, pulang, EKG, KJS) paling banyak tiga, sisanya "+n"; pengingat dan KJS · Kardio selalu tampil. Perubahan diagnosis kini satu baris ("2 baru · 1 diubah"); rincian ada di halaman pasien.
+
+## `2026-10-24.2`
+- **Strip "Pemantauan" terbaca di mode gelap.** Tulisan putih pada merah terang mode gelap sulit dibaca; kini memakai tulisan gelap. Strip Pemantauan dan strip "Pulang" juga tidak lagi menjorok 2–4 px keluar dari tepi kartu.
+
 ## `2026-10-24.1`
 - **Laporkan masalah / saran fitur.** Di Pengaturan → Akun & aplikasi kini ada formulir untuk mengirim laporan masalah atau saran fitur langsung ke pemilik Plano, juga saat offline (terkirim begitu tersambung). Laporan masalah otomatis menyertakan versi aplikasi, jenis perangkat, dan Riwayat sesi, tanpa isi catatan.
 - **Kesalahan kini tercatat di Riwayat sesi** ("Kesalahan"), dengan layar tempat terjadinya, agar masalah bisa ditelusuri tanpa harus diulang.
