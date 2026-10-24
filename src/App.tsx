@@ -4,6 +4,7 @@ import BoardPage from '@/routes/BoardPage';
 import PatientPage from '@/routes/PatientPage';
 import NotFoundPage from '@/routes/NotFoundPage';
 import { useAiKeySync } from '@/hooks/useAiKeySync';
+import { MiniWindowHost } from '@/components/common/MiniWindowHost';
 
 // The board and the patient page are the ward round; every other screen loads
 // on first open so a cold start parses only those. The service worker
@@ -28,6 +29,7 @@ export default function App(): JSX.Element {
   // The AI key follows the account (12.6).
   useAiKeySync();
   return (
+    <>
     <Suspense fallback={null}>
       <Routes>
         <Route path="/" element={<BoardPage />} />
@@ -47,5 +49,11 @@ export default function App(): JSX.Element {
         <Route path="*" element={<NotFoundPage />} />
       </Routes>
     </Suspense>
+    {/*
+      The small window lives above the routes, so changing tab keeps it open;
+      outside their Suspense, so a route chunk loading does not hide it.
+    */}
+    <MiniWindowHost />
+    </>
   );
 }

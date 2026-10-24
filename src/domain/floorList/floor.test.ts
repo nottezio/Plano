@@ -35,6 +35,7 @@ const FLOOR: FloorDoc = {
   inviteEmails: [],
   nicknames: { 'dr. Muh Bima Contoh': 'Dani' },
   chiefs: '',
+  chiefBangsal: '',
   juniors: '',
   marks: [],
 };

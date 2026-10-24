@@ -113,6 +113,8 @@ export const floorPatientDoc = (floorId: string, key: string): DocumentReference
 /** Sent lists (12.12): message + roster snapshot, free-text time. */
 export const floorEditionsCol = (floorId: string): CollectionReference => collection(db(), 'floors', floorId, 'editions');
 export const floorEditionDoc = (floorId: string, editionId: string): DocumentReference => doc(db(), 'floors', floorId, 'editions', editionId);
+/** The list's shared Catatan Visite (24 Oct 2026): one document. */
+export const floorVisitNoteDoc = (floorId: string): DocumentReference => doc(db(), 'floors', floorId, 'visitNote', 'main');
 /** Restore points (2026-10-16): the roster as it was, before a paste and with each edition. */
 export const floorRestoresCol = (floorId: string): CollectionReference => collection(db(), 'floors', floorId, 'restores');
 /** A point's patients, as JSON text in parts (see `domain/floorList/restore`). */

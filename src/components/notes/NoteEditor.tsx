@@ -1,19 +1,11 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { EditorContent, useEditor } from '@tiptap/react';
 
 import { IconBack, IconMore, IconPin } from '@/components/common/Icons';
-import { ConflictDialog } from '@/components/patient/ConflictDialog';
 import { patchScratchNote } from '@/data/repositories/scratchNotes.repo';
 import { displayTitle, relativeTime, type ResolvedNote } from '@/domain/notes/scratchNotes';
-import { useTextSync } from '@/hooks/useTextSync';
 
 import { sinkDone } from './editor/commands';
-import { prepareLegacyHtml } from './editor/legacyHtml';
-import { noteExtensions } from './editor/schema';
-import { SlashCommand } from './editor/slash';
-import { slashRender } from './editor/SlashMenu';
-import { replaceContent } from './editor/syncBridge';
-import { Toolbar } from './editor/Toolbar';
+import { NoteBodyView, useNoteBody } from './NoteBody';
 
 /**
  * One Catatan, open for editing.
@@ -72,53 +64,15 @@ export function NoteEditor({
     [uid],
   );
 
-  const sync = useTextSync({
-    key: `scratch|${uid ?? 'none'}|${note.id}`,
+  const { editor, sync, editable } = useNoteBody({
+    syncKey: `scratch|${uid ?? 'none'}|${note.id}`,
     serverText: note.body,
     // A note in Sampah is read-only until restored: edits there would be
     // edits nobody can find.
     locked: uid === null || trashed,
     write,
+    autoFocus,
   });
-  const syncRef = useRef(sync);
-  syncRef.current = sync;
-
-  /** The last HTML this editor sent, so its own echo is not "a remote change". */
-  const lastSent = useRef(sync.value);
-  const editable = !trashed && uid !== null;
-
-  const editor = useEditor({
-    extensions: [...noteExtensions(), SlashCommand.configure({ render: slashRender })],
-    content: prepareLegacyHtml(sync.value),
-    editable,
-    autofocus: autoFocus ? 'end' : false,
-    editorProps: {
-      attributes: {
-        class: 'note-editor min-h-[60vh] px-4 py-3 text-[15px] leading-7 outline-none',
-        role: 'textbox',
-        'aria-multiline': 'true',
-        'aria-label': 'Isi catatan',
-        spellcheck: 'true',
-      },
-    },
-    onUpdate: ({ editor: e }) => {
-      const html = e.getHTML();
-      lastSent.current = html;
-      syncRef.current.setValue(html);
-    },
-    onBlur: () => syncRef.current.flush(),
-  });
-
-  // Another device's version: replace quietly, keep the caret.
-  useEffect(() => {
-    if (!editor || sync.value === lastSent.current) return;
-    lastSent.current = sync.value;
-    replaceContent(editor, sync.value);
-  }, [editor, sync.value]);
-
-  useEffect(() => {
-    editor?.setEditable(editable, false);
-  }, [editor, editable]);
 
   // ── Title: local while typing, written on a pause or on blur ───────────────
   const [titleDraft, setTitleDraft] = useState<string | null>(null);
@@ -253,33 +207,19 @@ export function NoteEditor({
         </button>
       </div>
 
-      {trashed ? (
-        <p className="mx-3 mt-1 rounded-lg bg-bg-subtle px-3 py-2 text-xs text-fg-muted">
-          Catatan ini ada di Sampah dan tidak bisa diubah. Pulihkan lewat menu ⋯.
-        </p>
-      ) : editor ? (
-        <Toolbar editor={editor} />
-      ) : null}
-
-      <div className="flex-1">
-        <EditorContent editor={editor} />
-      </div>
-
-      <p className="px-4 pb-3 text-xs text-fg-faint">
-        {sync.dirty ? 'Menyimpan…' : 'Tersimpan'}
-        {edited ? ` · diubah ${edited}` : ''}
-        {!trashed ? (
-          <span className="hidden lg:inline"> · Ketik / untuk pilihan · Ctrl+Enter mencentang</span>
-        ) : null}
-      </p>
-
-      {sync.conflict ? (
-        <ConflictDialog
-          conflict={sync.conflict}
-          otherDeviceLabel="perangkat lain"
-          onResolve={sync.resolveConflict}
-        />
-      ) : null}
+      <NoteBodyView
+        editor={editor}
+        sync={sync}
+        editable={editable}
+        notice={
+          trashed ? (
+            <p className="mx-3 mt-1 rounded-lg bg-bg-subtle px-3 py-2 text-xs text-fg-muted">
+              Catatan ini ada di Sampah dan tidak bisa diubah. Pulihkan lewat menu ⋯.
+            </p>
+          ) : null
+        }
+        footer={edited ? ` · diubah ${edited}` : ''}
+      />
     </div>
   );
 }

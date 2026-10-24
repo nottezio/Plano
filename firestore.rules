@@ -308,15 +308,16 @@ service cloud.firestore {
      * - read: members, and anyone whose email is invited (to see the invite);
      * - the OWNER manages everything on the floor document (name, roles,
      *   invites, members) but cannot hand the floor to someone else;
-     * - an EDIT member may change only the nicknames, the chiefs, the
-     *   junior roster (12.12) and the
+     * - an EDIT member may change only the nicknames, the chiefs, the Chief
+     *   Bangsal (24 Oct 2026), the junior roster (12.12) and the
      *   (pre-12.12) hand-entered patients;
      * - an invitee may accept: add THEMSELVES, with exactly the invited role,
      *   and remove their own invite — nothing else;
      * - any member may leave (remove only themselves);
      * - days: members read, edit members (and the owner) write;
-     * - the OWNER may delete the list (12.12): its patients, editions and
-     *   days first (checked through this document), then the document.
+     * - the OWNER may delete the list (12.12): its patients, editions,
+     *   days and Catatan Visite first (checked through this document), then
+     *   the document.
      */
     match /floors/{floorId} {
       function myEmail() {
@@ -372,7 +373,7 @@ service cloud.firestore {
           && request.auth.uid in request.resource.data.memberIds
           && request.resource.data.roles[request.auth.uid] == 'edit'
           && request.resource.data.memberIds.size() <= 60)
-        || (isFloorEditor() && changed().hasOnly(['nicknames', 'manual', 'chiefs', 'juniors', 'marks', 'updatedAt']))
+        || (isFloorEditor() && changed().hasOnly(['nicknames', 'manual', 'chiefs', 'chiefBangsal', 'juniors', 'marks', 'updatedAt']))
         || acceptsInvite()
         || leaves()
       ) || (seesLists() && (acceptsInvite() || leaves()));
@@ -443,6 +444,25 @@ service cloud.firestore {
           allow update: if false;
           allow delete: if allowed() && editsR();
         }
+      }
+
+      // Catatan Visite (24 Oct 2026): one shared note per list. Members read;
+      // only the owner and edit members write (a viewer's window is read-only).
+      match /visitNote/{noteId} {
+        function floorV() {
+          return get(/databases/$(database)/documents/floors/$(floorId)).data;
+        }
+        function editsV() {
+          return request.auth.uid == floorV().ownerUid
+            || (request.auth.uid in floorV().roles && floorV().roles[request.auth.uid] == 'edit');
+        }
+        allow read: if seesLists() && request.auth.uid in floorV().memberIds;
+        allow create, update: if allowed() && editsV() && noteId == 'main'
+          && request.resource.data.keys().hasOnly(['body', 'updatedBy', 'updatedAt'])
+          && request.resource.data.updatedBy == request.auth.uid
+          && request.resource.data.body is string
+          && request.resource.data.body.size() <= 200000;
+        allow delete: if allowed() && request.auth.uid == floorV().ownerUid;
       }
 
       match /days/{date} {

@@ -44,6 +44,8 @@ export interface FloorDoc {
   nicknames: Record<string, string>;
   /** The floor's chiefs now, comma-separated (several allowed, 12.11). */
   chiefs: string;
+  /** The chief who takes the floor's patients in jam dinas (24 Oct 2026, `chiefHandover.ts`); '' = not set. */
+  chiefBangsal: string;
   /**
    * The floor's junior residents, comma-separated (12.12, Avi: "a floor
    * roster so the app recognises the residents' names"). Names read from a
@@ -112,6 +114,11 @@ export interface RosterPatient {
    */
   operkan: string;
   gantiChief: string;
+  /**
+   * When the Chief Bangsal suggestion was dismissed (ISO; '' = never). Hides
+   * it until the next jam dinas; for a patient without a chief, for good.
+   */
+  chiefDismissed: string;
   addedAt: string;
   log: StatusChange[];
 }
@@ -386,6 +393,7 @@ export function newRosterPatient(report: FloorPatient, at: string, by: string): 
     tagsOff: [],
     operkan: '',
     gantiChief: '',
+    chiefDismissed: '',
     addedAt: at,
     log: [{ at, by, what: 'Masuk list' }],
   };

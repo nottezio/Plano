@@ -1,5 +1,4 @@
 import { Suspense, lazy, useEffect, useMemo, useState } from 'react';
-import { createPortal } from 'react-dom';
 import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 
 import { AppShell } from '@/components/common/AppShell';
@@ -37,7 +36,7 @@ import type { ScratchNoteCategory } from '@/domain/types';
 import { useMediaQuery } from '@/hooks/useMediaQuery';
 import { copyText } from '@/lib/clipboard';
 import { useSession } from '@/store/useSession';
-import { openMiniWindow } from '@/lib/miniWindow';
+import { useMiniWindow } from '@/store/useMiniWindow';
 
 /**
  * Catatan — personal notes, not for any patient.
@@ -132,16 +131,10 @@ export default function NotePage(): JSX.Element {
   const [justCreated, setJustCreated] = useState<string | null>(null);
 
   // ── The small window (22 Oct 2026): one note, beside SIMGOS ───────────────
-  const [mini, setMini] = useState<{ id: string; win: Window } | null>(null);
-  const miniNote = mini ? byId.get(mini.id) ?? null : null;
-  const popOut = async (id: string): Promise<void> => {
-    mini?.win.close();
-    const win = await openMiniWindow();
-    if (!win) return;
-    win.addEventListener('pagehide', () => setMini((current) => (current?.win === win ? null : current)));
-    setMini({ id, win });
-  };
-  useEffect(() => () => mini?.win.close(), [mini]);
+  // Owned at the app root since 24 Oct 2026 (`store/useMiniWindow`): this page
+  // closed it on unmount, so changing tab shut the window.
+  const popOut = (id: string): Promise<boolean> => useMiniWindow.getState().open({ kind: 'scratch', id });
+  const mini = useMiniWindow((s) => s.target);
 
   const addNote = (): void => {
     if (!uid) return;
@@ -330,10 +323,10 @@ export default function NotePage(): JSX.Element {
     </div>
   );
 
-  const editorPane = open && mini?.id === open.id ? (
+  const editorPane = open && mini?.kind === 'scratch' && mini.id === open.id ? (
     <div className="flex h-full flex-col items-center justify-center gap-3 p-8 text-center text-sm text-fg-muted">
       <p>Catatan ini sedang terbuka di jendela kecil.</p>
-      <button type="button" onClick={() => mini.win.close()} className="min-h-tap rounded-lg border border-border px-4 font-medium text-fg">
+      <button type="button" onClick={() => useMiniWindow.getState().close()} className="min-h-tap rounded-lg border border-border px-4 font-medium text-fg">
         Kembalikan ke sini
       </button>
     </div>
@@ -501,24 +494,6 @@ export default function NotePage(): JSX.Element {
           </div>
         </Sheet>
       ) : null}
-      {mini && miniNote
-        ? createPortal(
-            <div className="flex h-screen flex-col overflow-auto bg-bg text-fg">
-              <Suspense fallback={<p className="p-4 text-xs text-fg-faint">Memuat…</p>}>
-                <NoteEditor key={miniNote.id} uid={uid} note={miniNote} now={now} onMenu={(actions) => {
-                    // The note's menu opens in the main window, on this note.
-                    window.focus();
-                    openNote(miniNote.id);
-                    setMenuActions(actions);
-                    setConfirmPurge(false);
-                    setMenuOpen(true);
-                  }}
-                />
-              </Suspense>
-            </div>,
-            mini.win.document.body,
-          )
-        : null}
     </AppShell>
   );
 }

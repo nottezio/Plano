@@ -87,6 +87,21 @@ describe('firestore.rules is Google-only too', () => {
   });
 });
 
+describe('List Maker floor rules (24 Oct 2026)', () => {
+  it('lets an edit member set the Chief Bangsal', () => {
+    expect(RULES).toMatch(/isFloorEditor\(\) && changed\(\)\.hasOnly\(\[[^\]]*'chiefBangsal'/);
+  });
+  it('lets only floor editors write the Catatan Visite', () => {
+    expect(RULES).toContain('match /visitNote/{noteId}');
+    expect(RULES).toMatch(/allow create, update: if allowed\(\) && editsV\(\) && noteId == 'main'/);
+  });
+  it('stamps the Catatan Visite with the writer and nothing else', () => {
+    const block = RULES.slice(RULES.indexOf('match /visitNote/{noteId}'), RULES.indexOf('match /days/{date}'));
+    expect(block).toContain('request.resource.data.updatedBy == request.auth.uid');
+    expect(block).toContain("request.resource.data.keys().hasOnly(['body', 'updatedBy', 'updatedAt'])");
+  });
+});
+
 describe('list viewer (22 Oct 2026)', () => {
   it('a viewer gets the viewer decision while access is enforced', () => {
     expect(decideAccess({ uid: 'someone', enforce: true, status: 'viewer', google: true })).toBe('viewer');

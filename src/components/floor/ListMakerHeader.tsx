@@ -24,6 +24,8 @@ export function ListMakerHeader({
   onDate,
   chiefs,
   onChiefs,
+  chiefBangsal,
+  onChiefBangsal,
 }: {
   floors: ReadonlyArray<{ id: string; name: string }>;
   floorId: string;
@@ -35,6 +37,9 @@ export function ListMakerHeader({
   /** null: the chiefs are not editable here. */
   chiefs: string[] | null;
   onChiefs: (next: string[]) => void;
+  /** The jam-dinas chief, one name (24 Oct 2026); null: not editable here. */
+  chiefBangsal: string | null;
+  onChiefBangsal: (name: string) => void;
 }): JSX.Element {
   return (
     <div className="space-y-2">
@@ -51,10 +56,21 @@ export function ListMakerHeader({
         ) : null}
       </ScrollStrip>
 
-      <div className="grid grid-cols-1 gap-2 min-[420px]:grid-cols-[minmax(0,11rem)_minmax(0,1fr)] sm:max-w-xl">
+      <div className="grid grid-cols-1 gap-2 min-[420px]:grid-cols-[minmax(0,11rem)_minmax(0,1fr)] sm:max-w-3xl sm:grid-cols-[minmax(0,11rem)_minmax(0,1fr)_minmax(0,1fr)]">
         <Field label="Tanggal list">
           <DateField value={date} onChange={onDate} className="w-full" />
         </Field>
+        {chiefBangsal !== null ? (
+          // One name: a new chip replaces the old one.
+          <ChiefsField
+            chiefs={chiefBangsal ? [chiefBangsal] : []}
+            onChange={(next) => onChiefBangsal(next.at(-1) ?? '')}
+            label="Chief Bangsal"
+            id="floor-chief-bangsal-input"
+            noun="chief bangsal"
+            wide
+          />
+        ) : null}
         {chiefs ? <ChiefsField chiefs={chiefs} onChange={onChiefs} wide /> : null}
       </div>
 

@@ -14,14 +14,15 @@ interface PipApi {
   requestWindow(options: { width: number; height: number }): Promise<Window>;
 }
 
-export async function openMiniWindow(width = 380, height = 520): Promise<Window | null> {
+export async function openMiniWindow(title: string, width = 380, height = 520): Promise<Window | null> {
   const pip = (window as unknown as { documentPictureInPicture?: PipApi }).documentPictureInPicture;
-  const win = pip
-    ? await pip.requestWindow({ width, height })
-    : window.open('', 'plano-mini', `popup,width=${width},height=${height}`);
+  // PiP can refuse (no user activation, an embedded browser): fall back to a popup.
+  const win =
+    (pip ? await pip.requestWindow({ width, height }).catch(() => null) : null) ??
+    window.open('', 'plano-mini', `popup,width=${width},height=${height}`);
   if (!win) return null;
   const doc = win.document;
-  doc.title = 'Plano · Catatan';
+  doc.title = title;
   for (const node of document.querySelectorAll('link[rel="stylesheet"], style')) {
     const copy = node.cloneNode(true) as HTMLElement;
     if (copy.tagName === 'LINK') (copy as HTMLLinkElement).href = (node as HTMLLinkElement).href;

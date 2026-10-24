@@ -5,6 +5,11 @@ Catatan teknis lengkap (akar masalah, perbaikan) ada di CHANGES.md.
 
 Entri teratas harus versi yang sedang dirilis; tes gagal bila belum ditulis.
 
+## `2026-10-24.6`
+- **Chief Bangsal di List Maker.** Ada kotak baru "Chief Bangsal" di samping Chief. Saat jam dinas (Senin–Jumat 07.00–16.00), List Maker menampilkan pasien yang masih dengan chief sebelumnya (masuk malam, akhir pekan, atau dari Poli lewat Chief Jaga) dan menyarankan pindah ke Chief Bangsal. Chief tidak berubah sendiri: tekan **Terima** per pasien atau **Terima semua**. **Abaikan** menyembunyikan saran sampai jam dinas berikutnya (berguna di tanggal merah). Pasien yang belum punya chief juga disarankan; bila diabaikan, tidak muncul lagi. Bila "Ganti chief" diisi, saran memakai nama itu. Di luar jam dinas ada satu baris pengingat, misalnya "3 pasien ganti chief · Senin 26/10 07.00".
+- **Catatan Visite bersama.** Tombol "Catatan Visite" di List Maker membuka satu catatan per list yang dilihat semua anggota list. Hanya pembuat list dan anggota dengan izin edit yang bisa mengubahnya. Di laptop/PC catatan terbuka di jendela kecil yang tetap di atas SIMGOS; di HP terbuka sebagai lembar. Bila dua orang mengetik bersamaan, tulisan keduanya digabung, tidak ada yang hilang.
+- **Jendela kecil Catatan tidak tertutup lagi saat pindah tab.** Sebelumnya jendela kecil ikut tertutup begitu Anda membuka tab lain di Plano. Kini tetap terbuka sampai Anda menutupnya (menutup atau memuat ulang tab Plano di browser tetap ikut menutupnya).
+
 ## `2026-10-24.5`
 - **Tidak ada perubahan yang terlihat di aplikasi.** Hanya penyiapan pratinjau lokal untuk pengembangan; versi yang dipublikasikan berjalan seperti biasa.
 

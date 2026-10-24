@@ -1,7 +1,12 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { Suspense, lazy, useEffect, useMemo, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 
 import { AppShell } from '@/components/common/AppShell';
+import { Sheet } from '@/components/common/Sheet';
+import { useMiniWindow } from '@/store/useMiniWindow';
+
+// The note editor brings TipTap; it loads when Catatan Visite is opened.
+const FloorVisitNote = lazy(() => import('@/components/floor/FloorVisitNote').then((m) => ({ default: m.FloorVisitNote })));
 import { Button, Callout, Field, INPUT } from '@/components/common/ui';
 import { FloorDenah } from '@/components/floor/FloorDenah';
 import { ListPanel } from '@/components/floor/ListPanel';
@@ -10,7 +15,7 @@ import { ManualPatientSheet } from '@/components/floor/ManualPatientSheet';
 import { PastePanel } from '@/components/floor/PastePanel';
 import { RosterDatalists } from '@/components/floor/PatientControls';
 import { SoapFloat } from '@/components/floor/SoapFloat';
-import { acceptInvite, createFloor, readLegacy, writeChiefs, writeRosterBatch } from '@/data/repositories/floors.repo';
+import { acceptInvite, createFloor, readLegacy, writeChiefBangsal, writeChiefs, writeRosterBatch } from '@/data/repositories/floors.repo';
 import { wardPlan } from '@/domain/denahPlan';
 import { canEdit, chiefsOf, isOwner, localStamp, newRosterPatient, rosterView, type FloorDoc } from '@/domain/floorList/floor';
 import { searchWords } from '@/domain/floorList/search';
@@ -24,6 +29,7 @@ import { useMediaQuery } from '@/hooks/useMediaQuery';
 /** Patient boxes open at once on a wide screen; the oldest closes first. */
 const MAX_OPEN = 4;
 import { useViewerOnly } from '@/components/auth/viewerOnly';
+import { ChiefSuggestions } from '@/components/floor/ChiefSuggestions';
 import { DischargeSuggestions } from '@/components/floor/DischargeSuggestions';
 import { useEditions, useMyFloors, useRestorePoints, useRoster } from '@/hooks/useFloor';
 import { useSession } from '@/store/useSession';
@@ -111,6 +117,9 @@ export default function ListMakerPage(): JSX.Element {
   const viewer = useViewerOnly();
   // A list viewer reads only (22 Oct 2026), whatever role the list gave them; the rules agree.
   const editable = floor && !viewer ? canEdit(floor, uid) : false;
+  // Catatan Visite (24 Oct 2026): the floating window on a desk, a sheet on a phone.
+  const desk = useMediaQuery('(min-width: 1024px)');
+  const [visitOpen, setVisitOpen] = useState(false);
 
   // New floor form.
   const [name, setName] = useState('PJT Lantai 4');
@@ -270,7 +279,27 @@ export default function ListMakerPage(): JSX.Element {
               onDate={setDate}
               chiefs={editable ? chiefsOf(floor.chiefs) : null}
               onChiefs={(next) => void writeChiefs(floor.id, next.join(', '))}
+              chiefBangsal={editable ? floor.chiefBangsal : null}
+              onChiefBangsal={(next) => void writeChiefBangsal(floor.id, next)}
             />
+            <div>
+              <Button
+                size="sm"
+                onClick={() => {
+                  if (!desk) return setVisitOpen(true);
+                  // Popup blocked: the sheet instead of nothing.
+                  void useMiniWindow.getState().open({ kind: 'floor', floorId: floor.id }).then((ok) => ok || setVisitOpen(true));
+                }}
+                title={desk ? 'Buka di jendela kecil (tetap di atas SIMGOS)' : undefined}
+              >
+                Catatan Visite{desk ? ' ⧉' : ''}
+              </Button>
+            </div>
+            <Sheet open={visitOpen} onOpenChange={setVisitOpen} title="Catatan Visite">
+              <Suspense fallback={<p className="p-4 text-xs text-fg-faint">Memuat…</p>}>
+                <FloorVisitNote key={floor.id} floorId={floor.id} uid={uid} editable={editable} />
+              </Suspense>
+            </Sheet>
             <ListMakerTabs tab={tab} tabs={tabs} onTab={setTab} />
 
             {rosterEmpty && legacyCount > 0 ? (
@@ -311,7 +340,10 @@ export default function ListMakerPage(): JSX.Element {
             ) : null}
 
             {(tab === 'denah' || tab === 'list') && editable ? (
-              <DischargeSuggestions floor={floor} roster={roster} active={view.active} date={date} myName={myName} onOpen={setOpen} />
+              <>
+                <ChiefSuggestions floor={floor} roster={roster} active={view.active} date={date} myName={myName} onOpen={setOpen} />
+                <DischargeSuggestions floor={floor} roster={roster} active={view.active} date={date} myName={myName} onOpen={setOpen} />
+              </>
             ) : null}
             {tab === 'denah' ? (
               view.active.length === 0 ? (

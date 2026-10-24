@@ -3,6 +3,7 @@ import {
   doc,
   arrayRemove,
   getDoc,
+  getDocFromServer,
   getDocs,
   getDocsFromServer,
   deleteDoc,
@@ -33,6 +34,7 @@ import {
   floorRestorePartsCol,
   floorRestoresCol,
   floorsCol,
+  floorVisitNoteDoc,
 } from '../paths';
 import { trackWrite } from '../syncStatus';
 import type { Edition, FloorDoc, FloorRole, RosterPatient, StatusChange } from '@/domain/floorList/floor';
@@ -81,6 +83,7 @@ export function readFloor(id: string, data: DocumentData): FloorDoc {
     inviteEmails: Array.isArray(data.inviteEmails) ? data.inviteEmails.filter((v: unknown): v is string => typeof v === 'string') : [],
     nicknames: record(data.nicknames, text),
     chiefs: str(data.chiefs),
+    chiefBangsal: str(data.chiefBangsal),
     juniors: str(data.juniors),
     marks: readMarks(data.marks),
   };
@@ -177,6 +180,7 @@ export function readRosterPatient(key: string, data: DocumentData): RosterPatien
     tagsOff: ids(data.tagsOff),
     operkan: str(data.operkan),
     gantiChief: str(data.gantiChief),
+    chiefDismissed: str(data.chiefDismissed),
     addedAt: str(data.addedAt),
     log: readLog(data.log),
   };
@@ -239,6 +243,20 @@ export function subscribeEditions(floorId: string, callback: (editions: Edition[
   );
 }
 
+/** The list's Catatan Visite (24 Oct 2026); null until someone writes it. */
+export function subscribeVisitNote(floorId: string, callback: (note: { body: string } | null) => void, onError: (e: Error) => void): Unsubscribe {
+  return onSnapshot(
+    floorVisitNoteDoc(floorId),
+    (snapshot) => callback(snapshot.exists() ? { body: str(snapshot.data().body) } : null),
+    onError,
+  );
+}
+
+/** Edit members only (the rules agree). The body is never logged. */
+export function writeVisitNote(floorId: string, body: string, uid: string): Promise<void> {
+  return trackWrite(setDoc(floorVisitNoteDoc(floorId), { body, updatedBy: uid, updatedAt: serverTimestamp() }, { merge: true }));
+}
+
 export async function createFloor(uid: string, myName: string, name: string, ward: string): Promise<string> {
   const ref = await trackWrite(
     addDoc(floorsCol(), {
@@ -275,7 +293,12 @@ export function addRosterPatient(floorId: string, patient: RosterPatient): Promi
 export type RosterChange =
   | { kind: 'add'; patient: RosterPatient }
   | { kind: 'report'; key: string; report: FloorPatient; log?: StatusChange | undefined }
-  | { kind: 'fields'; key: string; fields: Partial<Pick<RosterPatient, 'status' | 'pindahKe' | 'leftAt'>>; log?: StatusChange | undefined };
+  | {
+      kind: 'fields';
+      key: string;
+      fields: Partial<Pick<RosterPatient, 'status' | 'pindahKe' | 'leftAt' | 'chief' | 'gantiChief' | 'chiefDismissed'>>;
+      log?: StatusChange | undefined;
+    };
 
 /**
  * A whole paste (or the legacy move) as batched writes (12.12).
@@ -325,7 +348,7 @@ export function writeRosterReport(floorId: string, key: string, report: FloorPat
 export function writeRosterFields(
   floorId: string,
   key: string,
-  fields: Partial<Pick<RosterPatient, 'status' | 'pindahKe' | 'leftAt' | 'colour' | 'dischargeDate' | 'junior' | 'chief' | 'dismissed' | 'division' | 'tags' | 'tagsOff' | 'operkan' | 'gantiChief'>>,
+  fields: Partial<Pick<RosterPatient, 'status' | 'pindahKe' | 'leftAt' | 'colour' | 'dischargeDate' | 'junior' | 'chief' | 'dismissed' | 'division' | 'tags' | 'tagsOff' | 'operkan' | 'gantiChief' | 'chiefDismissed'>>,
   log?: StatusChange,
 ): Promise<void> {
   return trackWrite(
@@ -377,6 +400,8 @@ export async function deleteFloor(floorId: string): Promise<void> {
     const parts = await getDocsFromServer(floorRestorePartsCol(floorId, point.id));
     refs.push(...parts.docs.map((d) => d.ref), point.ref);
   }
+  const visitNote = await getDocFromServer(floorVisitNoteDoc(floorId));
+  if (visitNote.exists()) refs.push(visitNote.ref);
   for (let i = 0; i < refs.length; i += 400) {
     const batch = writeBatch(floorDoc(floorId).firestore);
     for (const ref of refs.slice(i, i + 400)) batch.delete(ref);
@@ -413,6 +438,11 @@ export function writeMarks(floorId: string, marks: readonly FloorMark[]): Promis
 
 export function writeChiefs(floorId: string, chiefs: string): Promise<void> {
   return trackWrite(updateDoc(floorDoc(floorId), 'chiefs', chiefs, 'updatedAt', serverTimestamp()));
+}
+
+/** The jam-dinas chief (24 Oct 2026, `chiefHandover.ts`): one name, '' = none. */
+export function writeChiefBangsal(floorId: string, name: string): Promise<void> {
+  return trackWrite(updateDoc(floorDoc(floorId), 'chiefBangsal', name, 'updatedAt', serverTimestamp()));
 }
 
 export function writeNickname(floorId: string, sender: string, nickname: string): Promise<void> {
