@@ -1,7 +1,7 @@
 import { dpjpById } from '@/domain/dpjp';
 import { tagsOf, type FloorMark } from './marks';
 import { nameKey } from './slaber';
-import { dischargeFlag, type DischargeFlag, type FloorPatient } from './report';
+import { dischargeFlag, soapStamp, type DischargeFlag, type FloorPatient } from './report';
 
 /**
  * A shared floor list (12.8; roster since 12.12).
@@ -342,8 +342,10 @@ export function effective(
  */
 export function soapState(report: FloorPatient, date: string, lastSent: string): 'baru' | 'lama' | null {
   if (report.manual || report.fromList || !report.sentAt) return null;
-  if (lastSent && report.sentAt > lastSent) return 'baru';
-  if (report.sentAt.slice(0, 10) < date) return 'lama';
+  // An edit in Plano counts as the SOAP being brought up to date (`sentAt` stays the message's).
+  const at = soapStamp(report);
+  if (lastSent && at > lastSent) return 'baru';
+  if (at.slice(0, 10) < date) return 'lama';
   return null;
 }
 

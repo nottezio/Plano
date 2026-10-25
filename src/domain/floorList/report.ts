@@ -59,6 +59,12 @@ export interface FloorPatient {
   /** The stored WhatsApp text was edited in Plano ("Ubah SOAP", 12.11). */
   edited?: boolean | undefined;
   /**
+   * When it was edited (local "YYYY-MM-DDTHH:MM", the clock of `sentAt`).
+   * `sentAt` stays the message's own stamp so a re-paste does not undo the
+   * edit; this is what the "SOAP baru" / "SOAP dd/mm" freshness reads.
+   */
+  editedAt?: string | undefined;
+  /**
    * Read from a sent LIST, not a SOAP (12.12: a list from a colleague outside
    * Plano). Only A/Terapi/Plan, so it never replaces a real SOAP.
    */
@@ -120,6 +126,11 @@ function clean(line: string): string {
 
 function findOpening(lines: string[]): number {
   return lines.findIndex((line) => /\batas\s+nama\b/i.test(line));
+}
+
+/** When the SOAP on the list was last brought up to date: its edit, else its message. */
+export function soapStamp(report: Pick<FloorPatient, 'sentAt' | 'editedAt'>): string {
+  return report.editedAt && report.editedAt > report.sentAt ? report.editedAt : report.sentAt;
 }
 
 /** "Kamar 421 Bed 4" on a line of its own under the identity (a numbered SOAP names no room in its opening). */

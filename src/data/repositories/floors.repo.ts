@@ -116,6 +116,7 @@ export function readPatient(raw: unknown): FloorPatient | null {
     discharge,
     ...(p.manual === true ? { manual: true } : {}),
     ...(p.edited === true ? { edited: true } : {}),
+    ...(typeof p.editedAt === 'string' && p.editedAt ? { editedAt: p.editedAt } : {}),
     ...(p.fromList === true ? { fromList: true } : {}),
     ...readTags(p.tags, p.mark),
     ...(typeof p.dpjpCode === 'string' && p.dpjpCode ? { dpjpCode: p.dpjpCode } : {}),

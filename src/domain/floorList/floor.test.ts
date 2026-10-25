@@ -366,6 +366,9 @@ describe('soapState (13.11)', () => {
     expect(soapState(patient({ sentAt: '2026-10-13T11:20' }), '2026-10-13', '2026-10-13T04:05')).toBe('baru');
     expect(soapState(patient({ sentAt: '2026-10-13T03:50' }), '2026-10-13', '2026-10-13T04:05')).toBeNull();
     expect(soapState(patient({ sentAt: '2026-10-12T07:00' }), '2026-10-13', '2026-10-13T04:05')).toBe('lama');
+    // "Ubah SOAP" keeps the message's sentAt; the edit time is what makes it current (2026-10-25, Tn. Irwan).
+    expect(soapState(patient({ sentAt: '2026-10-12T07:00', edited: true, editedAt: '2026-10-13T11:20' }), '2026-10-13', '2026-10-13T04:05')).toBe('baru');
+    expect(soapState(patient({ sentAt: '2026-10-12T07:00', edited: true, editedAt: '2026-10-13T03:00' }), '2026-10-13', '2026-10-13T04:05')).toBeNull();
     expect(soapState(patient({ sentAt: '2026-10-12T07:00', manual: true }), '2026-10-13', '')).toBeNull();
     expect(soapState(patient({ sentAt: '2026-10-13T09:00', fromList: true }), '2026-10-13', '2026-10-13T04:05')).toBeNull();
   });

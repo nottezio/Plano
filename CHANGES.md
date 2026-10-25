@@ -1,5 +1,14 @@
 # Plano — CHANGES
 
+## `2026-10-25.2` — List Maker: an edited SOAP is "current" by its edit time
+
+- **Symptom.** Tn. Irwan (420 Bed 2): SOAP edited on 25/10 but the box read "Laporan 24/10/2026 15:29 · diubah · belum ada SOAP hari ini". The two sent lists confirm the edit (only the junior changed, Yudi → Imelda).
+- **Root cause.** "Ubah SOAP" deliberately re-saves with the ORIGINAL `sentAt` so a re-paste of the same message cannot undo the edit (`pasteDiff`). But `soapState` (the "SOAP baru" / "lama" badge) read freshness from `sentAt` alone, so an edit could never be 'baru' and, the next day, was always 'lama'.
+- **Fix.** `FloorPatient.editedAt` (local stamp, set in `SoapFloat.save`, read in `readPatient`); `soapStamp()` = edit time if later than `sentAt`; `soapState` and `SoapBadge` use it. `sentAt` and `pasteDiff` are unchanged, so a newer WhatsApp message still replaces the edit and a re-paste still doesn't undo it. A paste's `updatedReport` carries no `editedAt`, so it clears.
+- **"SOAP baru only for the editor?"** Not by code: `soapState` runs in `rosterView` for every member, and `SoapBadge` has no role check (ListPanel, FloorDenah). Edits never produced 'baru' for anyone (the bug above). Could not be reproduced from the repo: other candidates are a stale roster/editions snapshot on that device, or `lastSent` (the newest saved list's time on the viewer's clock) already being later than the SOAP.
+- **Tests.** `floor.test.ts` `soapState`: edit after the last list → baru; edit before it → none.
+- **Not done / not verified.** Not tried in the browser. Edits made before this version have no `editedAt` and still read as the old message time (edit again to refresh). Did not find why the second member sees the badge and the first does not.
+
 ## `2026-10-25.1` — List Maker: hand colour ages by date; numbered multi-patient SOAP
 
 - **Root cause 1 (colour).** The hand mark was a stage (`colour: 'h1' | 'today'`), and `colourOn` lets a hand mark win over `dischargeDate`. A patient marked H-1 stayed red on the day itself and every day after. The board fixed the same flaw earlier (`discharge.ts`: stage → `dischargePlannedFor`); the floor roster never got it.

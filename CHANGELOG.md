@@ -5,6 +5,9 @@ Catatan teknis lengkap (akar masalah, perbaikan) ada di CHANGES.md.
 
 Entri teratas harus versi yang sedang dirilis; tes gagal bila belum ditulis.
 
+## `2026-10-25.2`
+- **SOAP yang diubah lewat "Ubah SOAP" kini dihitung terbaru.** Sebelumnya lencana tetap menulis "SOAP 24/10" dan tidak pernah "SOAP baru" untuk SOAP yang baru diubah, karena yang dibaca adalah jam pesan aslinya. Kini jam saat diubah yang dipakai, dan di jendela SOAP tertulis "diubah 25/10/2026 19:05". SOAP yang diubah sebelum versi ini tetap memakai jam pesan aslinya; ubah sekali lagi untuk memperbaruinya.
+
 ## `2026-10-25.1`
 - **Warna H-1 / Pulang hari ini di List Maker kini ikut hari.** Pasien yang ditandai H-1 hari ini otomatis menjadi hijau (pulang hari ini) besok, tanpa perlu ditandai ulang. Kolom "Tanggal pulang" ikut terisi saat Anda memilih warna. Tanda lama yang masih tersimpan dibaca dari riwayat pasien; bila riwayatnya tidak ada, tanda tetap seperti semula dan bisa dipilih ulang.
 - **SOAP dengan beberapa pasien bernomor kini terbaca semua.** Pesan seperti "1. Ny. … / RM …" lalu "2. Tn. … / RM …" di bawah satu kalimat pembuka sebelumnya hanya membaca pasien pertama, sehingga pasien kedua (misalnya DPJP dr. MAA) tidak masuk. Kini tiap pasien terbaca dengan kamar, bed, DPJP, dan A/Terapi/Plan masing-masing. Kamar yang ditulis di baris "Kamar 421 Bed 4" juga terbaca.

@@ -8,7 +8,7 @@ import { copyText } from '@/lib/clipboard';
 import { useBackToClose } from '@/lib/useBackToClose';
 import { useMediaQuery } from '@/hooks/useMediaQuery';
 import { clampGeometry, currentViewport, dragGeometry, readStoredGeometry, type Geometry } from '@/lib/floatGeometry';
-import type { FloorDoc, RosterPatient } from '@/domain/floorList/floor';
+import { localStamp, type FloorDoc, type RosterPatient } from '@/domain/floorList/floor';
 import { DeletePatient } from './DeletePatient';
 import { PatientControls } from './PatientControls';
 import { SoapParts } from './SoapParts';
@@ -165,6 +165,7 @@ export function SoapFloat({
         key: patient.key,
         sentAt: patient.sentAt,
         edited: true,
+        editedAt: localStamp(new Date()),
       });
       setEditing(false);
     } catch (e) {
@@ -224,7 +225,7 @@ export function SoapFloat({
             <p className="mt-0.5 text-xs text-fg-faint">
               {patient.manual ? 'Diinput manual' : 'Laporan'} {sent}
               {patient.sender ? ` · ${patient.sender}` : ''}
-              {patient.edited ? ' · diubah' : ''}
+              {patient.edited ? ` · diubah${patient.editedAt ? ` ${formatDmy(patient.editedAt.slice(0, 10))} ${patient.editedAt.slice(11, 16)}` : ''}` : ''}
               {patient.soap === 'baru' ? ' · SOAP baru (setelah list terakhir)' : patient.soap === 'lama' ? ' · belum ada SOAP hari ini' : ''}
             </p>
           ) : null}

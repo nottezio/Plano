@@ -1,5 +1,5 @@
 import { formatDmy } from '@/domain/dateDmy';
-import type { FloorPatient } from '@/domain/floorList/report';
+import { soapStamp, type FloorPatient } from '@/domain/floorList/report';
 
 /**
  * Whether the SOAP shown is the newest (13.11, Avi: the list maker re-pastes
@@ -8,13 +8,14 @@ import type { FloorPatient } from '@/domain/floorList/report';
  * date, the one shown is older.
  */
 export function SoapBadge({ patient }: { patient: FloorPatient }): JSX.Element | null {
+  const at = soapStamp(patient);
   if (patient.soap === 'baru') {
     return (
       <span
-        title={`SOAP diperbarui ${patient.sentAt.slice(11, 16)}, setelah list terakhir dikirim`}
+        title={`SOAP diperbarui ${at.slice(11, 16)}, setelah list terakhir dikirim`}
         className="ml-1 inline-block rounded-full bg-accent px-1.5 align-middle text-[11px] font-semibold leading-4 text-on-accent"
       >
-        SOAP baru {patient.sentAt.slice(11, 16)}
+        SOAP baru {at.slice(11, 16)}
       </span>
     );
   }
@@ -24,7 +25,7 @@ export function SoapBadge({ patient }: { patient: FloorPatient }): JSX.Element |
         title="Belum ada SOAP pada tanggal list ini"
         className="ml-1 inline-block rounded-full border border-border px-1.5 align-middle text-[11px] font-semibold leading-4 text-fg-muted"
       >
-        SOAP {formatDmy(patient.sentAt.slice(0, 10)).slice(0, 5)}
+        SOAP {formatDmy(at.slice(0, 10)).slice(0, 5)}
       </span>
     );
   }
