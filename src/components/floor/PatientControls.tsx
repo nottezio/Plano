@@ -7,6 +7,8 @@ import { planRooms, wardPlan } from '@/domain/denahPlan';
 import { formatDmy } from '@/domain/dateDmy';
 import {
   chiefsOf,
+  colourFields,
+  colourMark,
   DIVISIONS,
   divisionOf,
   localStamp,
@@ -124,7 +126,7 @@ export function PatientControls({
           <span className="flex-1">
             Plan menyebut <strong>{suggestion === 'h1' ? 'H-1' : 'pulang hari ini'}</strong>. Tandai?
           </span>
-          <Button size="sm" onClick={() => set({ colour: suggestion }, suggestion === 'h1' ? 'H-1 (dari saran Plan)' : 'Pulang hari ini (dari saran Plan)')}>
+          <Button size="sm" onClick={() => set(colourFields(suggestion, date), suggestion === 'h1' ? 'H-1 (dari saran Plan)' : 'Pulang hari ini (dari saran Plan)')}>
             Tandai
           </Button>
           <Button size="sm" variant="ghost" onClick={() => set({ dismissed: entry.report.sentAt })}>
@@ -230,10 +232,10 @@ export function PatientControls({
           <Labelled label="Warna">
             <select
               aria-label={`Warna ${patient.name}`}
-              value={colourOptions.some(([v]) => v === entry.colour) ? entry.colour : 'none'}
+              value={colourMark(entry, date)}
               onChange={(e) => {
                 const next = e.target.value as ColourMark;
-                set({ colour: next }, colourOptions.find(([v]) => v === next)?.[1] ?? next);
+                set(colourFields(next, date), colourOptions.find(([v]) => v === next)?.[1] ?? next);
               }}
               className={`${INPUT} text-xs`}
             >

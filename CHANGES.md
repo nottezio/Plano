@@ -1,5 +1,14 @@
 # Plano — CHANGES
 
+## `2026-10-25.1` — List Maker: hand colour ages by date; numbered multi-patient SOAP
+
+- **Root cause 1 (colour).** The hand mark was a stage (`colour: 'h1' | 'today'`), and `colourOn` lets a hand mark win over `dischargeDate`. A patient marked H-1 stayed red on the day itself and every day after. The board fixed the same flaw earlier (`discharge.ts`: stage → `dischargePlannedFor`); the floor roster never got it.
+- **Fix.** Setting a colour now writes the date it means, `colour: 'none'` + `dischargeDate` (`colourFields(mark, listDate)`: H-1 → date+1, pulang hari ini → date, none → ''), from the "Warna" select, the Atur-panel chip and `DischargeSuggestions`. `colourOn` is unchanged: red the day before, green on and after. The select shows `colourMark(entry, date)`, so it follows the date. Marks already stored as `colour` with no date are dated once on read (`readRosterPatient` → `legacyColourDate`, from the local day of the last "H-1" / "Pulang hari ini" log entry); with no such entry they stay as they were.
+- **Root cause 2 (MAA).** `readReports` splits a message only on "atas nama" openings. This SOAP has one opening and two numbered patients ("1. Ny. … / RM …", "2. Tn. … / RM …"), so it was read as ONE patient: the first, filed under the first DPJP found (AAU). Patient 2 (DPJP MAA) was never read. The room is on its own "Kamar 421 Bed 4" line, which `readPlace` (opening line only) missed, and the name kept its "1. ".
+- **Fix.** A single opening plus two or more `NUMBERED_IDENTITY` lines (`N. Tn|Ny|… … RM …`) splits into one part per patient, each with the shared header; the DPJP is then filed per part. `roomLine` reads a "Kamar …" line under the identity when the opening names none; `readIdentity` drops the list number. `dpjp.ts` was already right (`asrul apris` matches MAA).
+- **Tests.** `floorList.test.ts` (two numbered patients: room, bed, DPJP aau/maa, body split; one numbered patient stays one); `floor.test.ts` (hand mark ages red → green; legacy dating).
+- **Not done / not verified.** Not tried in the browser or on a ward device. A numbered SOAP whose identity lacks a title (Tn./Ny./…) or an RM is still read as one patient. "Tanpa warna" now also clears the planned date (colour and date are one thing). Legacy marks without a log entry are not migrated.
+
 ## `2026-10-24.6` — List Maker: Chief Bangsal handover suggestions, shared Catatan Visite; mini window survives tab changes
 
 - **Workflow (owner).** Admitted in jam dinas (Mon–Fri 07.00–16.00) → Chief Bangsal at once. Admitted outside it (weekday 16.00–07.00, weekend, tanggal merah) → the previous chief (IGD/previous room; Chief Jaga for a Poli preadmission) until the next jam dinas.

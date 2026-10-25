@@ -309,6 +309,47 @@ describe('readReports (several openings in one message)', () => {
   });
 });
 
+describe('readReports (one opening, numbered patients; 2026-10-24)', () => {
+  const text = [
+    "]Assalamu'alaikum dokter. Tabe dokter, mohon izin melaporkan follow-up pasien PJT Lantai 4 atas nama:",
+    '1. Ny. Contoh Satu / 25 tahun / RM 1600701',
+    'Kamar 421 Bed 4',
+    'DPJP: dr. Andi Alief Utama Armyn, M.Kes., Sp.JP, Subsp.KPPJB(K)',
+    'Diagnosis:',
+    '* Atrial Septal Defect (ASD) Secundum.',
+    'Terapi saat ini:',
+    '* Bisoprolol 1,25 mg/24 jam/oral.',
+    'Plan:',
+    '* Rencana RHC + TEE Selasa, 27-10-2026.',
+    '',
+    '2. Tn. Contoh Dua / 84 tahun / RM 1600702',
+    'Kamar 401',
+    'DPJP: dr. Muhammad Asrul Apris, M.Kes, Sp.JP(K)',
+    'Diagnosis:',
+    '* STEMI whole anterior onset <12 jam Killip I.',
+    'Plan:',
+    '* EKG 12 lead per 24 jam atau tiap nyeri dada.',
+    '',
+    'Selanjutnya mohon arahan dokter. Terima kasih dokter.',
+  ].join('\n');
+
+  it('each numbered patient is read with its own room, bed, DPJP and body', () => {
+    const [one, two, ...rest] = readReports({ sentAt: '2026-10-24T14:00', sender: 'dr. A', text, index: 0 });
+    expect(rest).toHaveLength(0);
+    expect([one!.name, one!.rm, one!.room, one!.bed, one!.dpjpId]).toEqual(['Ny. Contoh Satu', '1600701', '421', '4', 'aau']);
+    expect([two!.name, two!.rm, two!.room, two!.bed, two!.dpjpId]).toEqual(['Tn. Contoh Dua', '1600702', '401', '', 'maa']);
+    expect(one!.body).toContain('Atrial Septal Defect');
+    expect(one!.body).not.toContain('STEMI');
+    expect(two!.body).toContain('STEMI');
+    expect(two!.body).not.toContain('Terima kasih');
+  });
+
+  it('one numbered patient stays a single report', () => {
+    const single = text.split('\n').slice(0, 11).join('\n');
+    expect(readReports({ sentAt: '2026-10-24T14:00', sender: 'dr. A', text: single, index: 0 })).toHaveLength(1);
+  });
+});
+
 describe('manualPatient (pediatri, entered by hand)', () => {
   it('builds a report from the three fields; no colour from its Plan', () => {
     const p = manualPatient({

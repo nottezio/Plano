@@ -3,6 +3,8 @@ import { describe, expect, it } from 'vitest';
 import {
   canEdit,
   chiefsOf,
+  colourFields,
+  colourMark,
   colourOn,
   divisionOf,
   effective,
@@ -10,6 +12,8 @@ import {
   isOwner,
   leftNote,
   leftSince,
+  legacyColourDate,
+  localOf,
   localStamp,
   newRosterPatient,
   pasteDiff,
@@ -106,6 +110,27 @@ describe('colourOn (set by hand, never read from the SOAP)', () => {
     expect(['2026-10-12', '2026-10-13', '2026-10-14', '2026-10-15'].map((d) => colourOn(planned, d))).toEqual([
       null, 'tomorrow', 'today', 'today',
     ]);
+  });
+
+  it('a hand mark is a date: H-1 set on the 12th is red on the 12th and green on the 13th', () => {
+    const h1 = colourFields('h1', '2026-10-12');
+    expect(['2026-10-12', '2026-10-13', '2026-10-14'].map((d) => colourOn(h1, d))).toEqual(['tomorrow', 'today', 'today']);
+    expect(colourMark(h1, '2026-10-12')).toBe('h1');
+    expect(colourMark(h1, '2026-10-13')).toBe('today');
+    expect(colourOn(colourFields('today', '2026-10-12'), '2026-10-12')).toBe('today');
+    expect(colourOn(colourFields('none', '2026-10-12'), '2026-10-12')).toBeNull();
+  });
+
+  it('a mark stored the old way (colour, no date) is dated from the log', () => {
+    const log = [
+      { at: '2026-10-12T02:00:00.000Z', by: 'A', what: 'Masuk list' },
+      { at: '2026-10-12T05:00:00.000Z', by: 'A', what: 'H-1 (merah)' },
+    ];
+    const day = localOf(log[1]!.at).slice(0, 10);
+    expect(legacyColourDate('h1', log)).toBe(colourFields('h1', day).dischargeDate);
+    expect(legacyColourDate('today', log)).toBe(day);
+    expect(legacyColourDate('h1', [log[0]!])).toBe('');
+    expect(legacyColourDate('none', log)).toBe('');
   });
 
   it('a SOAP saying "pulang hari ini" does not colour the patient', () => {

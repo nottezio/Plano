@@ -168,6 +168,34 @@ export function colourOn(patient: Pick<RosterPatient, 'colour' | 'dischargeDate'
   return null;
 }
 
+/**
+ * A hand mark, stored as the DATE it means (13.16). `colour: 'h1'` kept alone
+ * is a stage: red the day it is set and red forever, never turning green on
+ * the day itself. As `dischargeDate` it ages by itself, like the board's
+ * `dischargePlannedFor`. `date` is the list date the mark is set on.
+ */
+export function colourFields(mark: ColourMark, date: string): { colour: 'none'; dischargeDate: string } {
+  return { colour: 'none', dischargeDate: mark === 'h1' ? addDays(date, 1) : mark === 'today' ? date : '' };
+}
+
+/** What the "Warna" select shows on `date`: the colour the list would print. */
+export function colourMark(patient: Pick<RosterPatient, 'colour' | 'dischargeDate'>, date: string): ColourMark {
+  const flag = colourOn(patient, date);
+  return flag === 'tomorrow' ? 'h1' : flag === 'today' ? 'today' : 'none';
+}
+
+/**
+ * A mark stored the old way (`colour` and no date) as a date, read from the
+ * log: the local day of its last "H-1" / "Pulang hari ini" entry. '' when the
+ * log has none — the mark then stays as it was.
+ */
+export function legacyColourDate(colour: ColourMark, log: readonly StatusChange[]): string {
+  if (colour === 'none') return '';
+  const marked = [...log].reverse().find((change) => /^(?:H-1|Pulang hari ini)/.test(change.what));
+  const day = marked ? localOf(marked.at).slice(0, 10) : '';
+  return day ? colourFields(colour, day).dischargeDate : '';
+}
+
 /** What the roster entry looks like on the list: residents and colour applied. */
 /**
  * A resident's name as the roster spells it (12.12). Lists are typed in a

@@ -1,6 +1,6 @@
 import { Button } from '@/components/common/ui';
 import { writeRosterFields } from '@/data/repositories/floors.repo';
-import { suggestionFor, type FloorDoc, type RosterPatient } from '@/domain/floorList/floor';
+import { colourFields, suggestionFor, type FloorDoc, type RosterPatient } from '@/domain/floorList/floor';
 import type { FloorPatient } from '@/domain/floorList/report';
 
 /**
@@ -60,7 +60,7 @@ export function DischargeSuggestions({
                 void writeRosterFields(
                   floor.id,
                   entry.key,
-                  { colour: mark },
+                  colourFields(mark, date),
                   stamp(mark === 'h1' ? 'H-1 (dari saran Plan)' : 'Pulang hari ini (dari saran Plan)'),
                 )
               }

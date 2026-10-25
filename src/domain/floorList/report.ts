@@ -122,6 +122,16 @@ function findOpening(lines: string[]): number {
   return lines.findIndex((line) => /\batas\s+nama\b/i.test(line));
 }
 
+/** "Kamar 421 Bed 4" on a line of its own under the identity (a numbered SOAP names no room in its opening). */
+function roomLine(lines: string[], opening: number): string {
+  if (/\bkamar\s*:?\s*\d{3}/i.test(lines[opening] ?? '')) return '';
+  for (let i = opening + 1; i < Math.min(lines.length, opening + 6); i += 1) {
+    const line = clean(lines[i] ?? '');
+    if (/^kamar\s*:?\s*\d{3}/i.test(line)) return line;
+  }
+  return '';
+}
+
 /** Room/bed: the LAST "Kamar" in the opening — "dari IGD … ke PJT Lt. 4 Kamar 408". */
 function readPlace(opening: string): { room: string; bed: string; floor: string } {
   const flat = clean(opening);
@@ -170,7 +180,8 @@ function readIdentity(lines: string[], opening: number): string {
   for (let i = opening + 1; i < Math.min(lines.length, opening + 5); i += 1) {
     const line = clean(lines[i] ?? '');
     if (!line) continue;
-    if (/\d{1,2}[-/]\d{1,2}[-/]\d{2,4}|\bRM\b|\d{6,}/i.test(line)) return line;
+    // "1. Ny. X / 25 tahun / RM 1": the list number is not part of the name.
+    if (/\d{1,2}[-/]\d{1,2}[-/]\d{2,4}|\bRM\b|\d{6,}/i.test(line)) return line.replace(/^\d{1,2}\s*\.\s+/, '');
   }
   // "atas nama: Tn. … / RM …" on the opening line itself.
   const same = /\batas\s+nama\s*:?\s*(.+)$/i.exec(clean(lines[opening] ?? ''));
@@ -327,7 +338,7 @@ export function readReport(message: ChatMessage): FloorPatient | null {
   const name = readName(identity);
   if (!rm && !name) return null;
 
-  const place = readPlace(lines[opening] ?? '');
+  const place = readPlace(`${lines[opening] ?? ''} ${roomLine(lines, opening)}`);
   const { dpjpId, kjs, btkvDpjp } = fileDpjp(text);
   const body = listBody(text);
   const chief = /^\W*chief\s*:\s*(.+)$/im.exec(text)?.[1]?.trim() ?? '';
@@ -370,6 +381,9 @@ export function latestPatients(messages: readonly ChatMessage[]): FloorPatient[]
   return latestOf(messages.flatMap(readReports));
 }
 
+/** "1. Ny. X / 25 tahun / RM 114976": a numbered identity under a shared opening. */
+const NUMBERED_IDENTITY = /^[\s*_]*\d{1,2}\s*\.\s+(?:Tn|Ny|Nn|An|By|Sdri?)\b.*\bRM\s*:?\s*\d{4,}/i;
+
 /**
  * Every report in one message. A message can hold more than one opening
  * ("… atas nama:"): a short summary followed by the full SOAP of the same
@@ -381,16 +395,25 @@ export function readReports(message: ChatMessage): FloorPatient[] {
   if (isListMessage(message.text)) return readListMessage(message);
   const lines = message.text.split('\n');
   const openings = lines.map((line, i) => (/\batas\s+nama\b/i.test(line) ? i : -1)).filter((i) => i >= 0);
-  if (openings.length <= 1) {
+  /*
+    One opening, several patients: "… pasien PJT Lantai 4 atas nama:" then
+    "1. Ny. X / 25 tahun / RM 114976", "Kamar 421 Bed 4", … and "2. Tn. Y / …".
+    Each numbered identity starts a patient; the opening above is shared.
+  */
+  const numbered = lines.map((line, i) => (NUMBERED_IDENTITY.test(line) ? i : -1)).filter((i) => i >= 0);
+  const shared = openings.length === 1 && numbered.length >= 2 && numbered[0]! > openings[0]!;
+  if (openings.length <= 1 && !shared) {
     const one = readReport(message);
     return one ? [one] : [];
   }
-  const parts = openings.map((at, k) => {
-    // The first part keeps anything above its opening ("Chief :" headers).
-    const from = k === 0 ? 0 : at;
-    const to = openings[k + 1] ?? lines.length;
-    return lines.slice(from, to).join('\n');
-  });
+  const parts = shared
+    ? numbered.map((at, k) => [...lines.slice(0, numbered[0]), ...lines.slice(at, numbered[k + 1] ?? lines.length)].join('\n'))
+    : openings.map((at, k) => {
+        // The first part keeps anything above its opening ("Chief :" headers).
+        const from = k === 0 ? 0 : at;
+        const to = openings[k + 1] ?? lines.length;
+        return lines.slice(from, to).join('\n');
+      });
   return parts
     .map((text, k) => readReport({ ...message, text, index: message.index + k / parts.length }))
     .filter((patient): patient is FloorPatient => patient !== null)

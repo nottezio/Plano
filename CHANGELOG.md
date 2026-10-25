@@ -5,6 +5,10 @@ Catatan teknis lengkap (akar masalah, perbaikan) ada di CHANGES.md.
 
 Entri teratas harus versi yang sedang dirilis; tes gagal bila belum ditulis.
 
+## `2026-10-25.1`
+- **Warna H-1 / Pulang hari ini di List Maker kini ikut hari.** Pasien yang ditandai H-1 hari ini otomatis menjadi hijau (pulang hari ini) besok, tanpa perlu ditandai ulang. Kolom "Tanggal pulang" ikut terisi saat Anda memilih warna. Tanda lama yang masih tersimpan dibaca dari riwayat pasien; bila riwayatnya tidak ada, tanda tetap seperti semula dan bisa dipilih ulang.
+- **SOAP dengan beberapa pasien bernomor kini terbaca semua.** Pesan seperti "1. Ny. … / RM …" lalu "2. Tn. … / RM …" di bawah satu kalimat pembuka sebelumnya hanya membaca pasien pertama, sehingga pasien kedua (misalnya DPJP dr. MAA) tidak masuk. Kini tiap pasien terbaca dengan kamar, bed, DPJP, dan A/Terapi/Plan masing-masing. Kamar yang ditulis di baris "Kamar 421 Bed 4" juga terbaca.
+
 ## `2026-10-24.6`
 - **Chief Bangsal di List Maker.** Ada kotak baru "Chief Bangsal" di samping Chief. Saat jam dinas (Senin–Jumat 07.00–16.00), List Maker menampilkan pasien yang masih dengan chief sebelumnya (masuk malam, akhir pekan, atau dari Poli lewat Chief Jaga) dan menyarankan pindah ke Chief Bangsal. Chief tidak berubah sendiri: tekan **Terima** per pasien atau **Terima semua**. **Abaikan** menyembunyikan saran sampai jam dinas berikutnya (berguna di tanggal merah). Pasien yang belum punya chief juga disarankan; bila diabaikan, tidak muncul lagi. Bila "Ganti chief" diisi, saran memakai nama itu. Di luar jam dinas ada satu baris pengingat, misalnya "3 pasien ganti chief · Senin 26/10 07.00".
 - **Catatan Visite bersama.** Tombol "Catatan Visite" di List Maker membuka satu catatan per list yang dilihat semua anggota list. Hanya pembuat list dan anggota dengan izin edit yang bisa mengubahnya. Di laptop/PC catatan terbuka di jendela kecil yang tetap di atas SIMGOS; di HP terbuka sebagai lembar. Bila dua orang mengetik bersamaan, tulisan keduanya digabung, tidak ada yang hilang.

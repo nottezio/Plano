@@ -37,7 +37,7 @@ import {
   floorVisitNoteDoc,
 } from '../paths';
 import { trackWrite } from '../syncStatus';
-import type { Edition, FloorDoc, FloorRole, RosterPatient, StatusChange } from '@/domain/floorList/floor';
+import { legacyColourDate, type Edition, type FloorDoc, type FloorRole, type RosterPatient, type StatusChange } from '@/domain/floorList/floor';
 import { isMarkColor, MARK_PREFIX, readMarks, type FloorMark, type PatientTag } from '@/domain/floorList/marks';
 import { manualFullText, type FloorPatient } from '@/domain/floorList/report';
 import { fromParts, KEEP_POINTS, restored, toParts, type RestorePlan, type RestorePoint, type RestorePointMeta } from '@/domain/floorList/restore';
@@ -163,14 +163,17 @@ export function readRosterPatient(key: string, data: DocumentData): RosterPatien
   const ids = (v: unknown): string[] => (Array.isArray(v) ? v.filter((x): x is string => typeof x === 'string' && x.length > 0) : []);
   // 13.7 stored a hand mark as colour "m:<id>": read as a tag (13.10).
   const legacy = typeof data.colour === 'string' && data.colour.startsWith(MARK_PREFIX) ? [data.colour.slice(MARK_PREFIX.length)] : [];
+  const log = readLog(data.log);
+  // A hand mark stored as a stage (before 13.16) becomes the date it meant, so it ages (`colourFields`).
+  const carried = str(data.dischargeDate) ? '' : legacyColourDate(colour, log);
   return {
     key,
     report: { ...report, key },
     status,
     pindahKe: str(data.pindahKe),
     leftAt: str(data.leftAt),
-    colour,
-    dischargeDate: str(data.dischargeDate),
+    colour: carried ? 'none' : colour,
+    dischargeDate: str(data.dischargeDate) || carried,
     junior: str(data.junior),
     chief: str(data.chief),
     dismissed: str(data.dismissed),
@@ -182,7 +185,7 @@ export function readRosterPatient(key: string, data: DocumentData): RosterPatien
     gantiChief: str(data.gantiChief),
     chiefDismissed: str(data.chiefDismissed),
     addedAt: str(data.addedAt),
-    log: readLog(data.log),
+    log,
   };
 }
 
