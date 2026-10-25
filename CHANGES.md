@@ -1,5 +1,20 @@
 # Plano — CHANGES
 
+## `2026-10-25.4` — Riwayat: restore points read only when opened
+
+- **Root cause.** `ListMakerPage` subscribed to the 30 newest restore-point meta docs whenever an edit member was on Riwayat, although the "Titik pulih" list is a collapsed `<details>`. 30 reads per open (after the 30-minute resume window), unused unless the list was opened.
+- **Fix.** `EditionsPanel` now owns `useRestorePoints` and enables it on the first `toggle` open of the details (`RestorePointList.onOpen`). The "Pulihkan list ke edisi ini…" button used to depend on the loaded list (`openPoint`); it now calls `readEditionPoint` (`where editionId == …`, limit 1, one read) on tap, or uses the list if already loaded, and says so when the edition has no point. The `points` prop is gone.
+- **Not done / not verified.** Not tried in the browser or against Firestore (the `editionId` equality query needs no composite index, but rules were not checked). The button now shows for every edition for editors, not only those with a point. No unit test: the change is wiring around Firestore reads.
+
+## `2026-10-25.3` — List Maker Riwayat: grouped by day, paged reads
+
+- **Symptom.** With a long history the Riwayat tab became one endless list (60 buttons), and the phone layout pushed the open edition far below it.
+- **Root cause.** `EditionsPanel` rendered every live edition as a flat list, and Riwayat raised the shared editions listener from 10 to 60 docs (`ListMakerPage`). Firestore bills per document returned, so every first open (and every re-open after the 30-minute resume window) cost 60 reads, even if only the newest was looked at.
+- **Fix.** `groupByDay` (`editionGroups.ts`) groups by list date; the newest day starts open, others shut. Riwayat now shares the 10-doc live listener (`EDITIONS_PAGE`), so opening it adds no reads; "Muat edisi lebih lama" reads the next 10 once with `readOlderEditions` (`startAfter` cursor on `createdAt`, no listener). Loaded older pages are dropped when a newer edition arrives, so no gap opens behind the live window. Desktop list scrolls inside its own 70dvh column. Analisis keeps its 60.
+- **Also fixed (reads on save).** `pruneRestorePoints` read every restore point (~31) after each Tempel and each saved edition. It now does one `getCountFromServer` and reads only the surplus, oldest first (the old code deleted the newest of the surplus, leaving the oldest behind).
+- **Tests.** `editionGroups.test.ts`: grouping, order, late-saved edition under its own date, empty.
+- **Not done / not verified.** Not tried in the browser or against a real Firestore. Restore-point listener (30 meta docs on Riwayat for editors) is unchanged, and so is Analisis (60). Deleting an older loaded edition only removes it locally plus the server write; no reload.
+
 ## `2026-10-25.2` — List Maker: an edited SOAP is "current" by its edit time
 
 - **Symptom.** Tn. Irwan (420 Bed 2): SOAP edited on 25/10 but the box read "Laporan 24/10/2026 15:29 · diubah · belum ada SOAP hari ini". The two sent lists confirm the edit (only the junior changed, Yudi → Imelda).

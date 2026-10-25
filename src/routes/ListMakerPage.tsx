@@ -17,6 +17,7 @@ import { RosterDatalists } from '@/components/floor/PatientControls';
 import { SoapFloat } from '@/components/floor/SoapFloat';
 import { acceptInvite, createFloor, readLegacy, writeChiefBangsal, writeChiefs, writeRosterBatch } from '@/data/repositories/floors.repo';
 import { wardPlan } from '@/domain/denahPlan';
+import { EDITIONS_PAGE } from '@/domain/floorList/editionGroups';
 import { canEdit, chiefsOf, isOwner, localStamp, newRosterPatient, rosterView, type FloorDoc } from '@/domain/floorList/floor';
 import { searchWords } from '@/domain/floorList/search';
 import { AnalysisPanel } from '@/components/floor/AnalysisPanel';
@@ -31,7 +32,7 @@ const MAX_OPEN = 4;
 import { useViewerOnly } from '@/components/auth/viewerOnly';
 import { ChiefSuggestions } from '@/components/floor/ChiefSuggestions';
 import { DischargeSuggestions } from '@/components/floor/DischargeSuggestions';
-import { useEditions, useMyFloors, useRestorePoints, useRoster } from '@/hooks/useFloor';
+import { useEditions, useMyFloors, useRoster } from '@/hooks/useFloor';
 import { useSession } from '@/store/useSession';
 
 type Tab = 'denah' | 'list' | 'tempel' | 'analisis' | 'riwayat' | 'anggota';
@@ -66,10 +67,8 @@ export default function ListMakerPage(): JSX.Element {
     setParams(p, { replace: true });
   };
   const { roster, state: rosterState } = useRoster(floor?.id ?? null);
-  // All 60 only where they are listed or analysed; elsewhere the latest few (22 Oct 2026, quota).
-  const editions = useEditions(floor?.id ?? null, tab === 'riwayat' || tab === 'analisis' ? 60 : 10);
-  // Read only where they can be used: an edit member on Riwayat.
-  const restorePoints = useRestorePoints(tab === 'riwayat' && floor && canEdit(floor, uid) ? floor.id : null);
+  // 60 only for Analisis; Riwayat shares the latest page and reads older ones on demand (25 Oct 2026, quota).
+  const editions = useEditions(floor?.id ?? null, tab === 'analisis' ? 60 : EDITIONS_PAGE);
   // "Pasien baru" (13.10): not on the last list sent before this date.
   const previous = useMemo(() => {
     const last = editions.find((e) => e.date < date);
@@ -369,7 +368,7 @@ export default function ListMakerPage(): JSX.Element {
             {tab === 'tempel' && editable ? <PastePanel key={floor.id} floor={floor} roster={roster} myName={myName} /> : null}
             {tab === 'analisis' ? <AnalysisPanel key={floor.id} ward={floor.ward || floor.name} roster={roster} view={view} date={date} editions={editions} onOpen={setOpen} /> : null}
             {tab === 'riwayat' ? (
-              <EditionsPanel key={floor.id} floor={floor} editions={editions} editable={editable} roster={roster} points={restorePoints} myName={myName} />
+              <EditionsPanel key={floor.id} floor={floor} editions={editions} editable={editable} roster={roster} myName={myName} />
             ) : null}
             {tab === 'anggota' && uid ? (
               <MembersPanel key={floor.id} floor={floor} uid={uid} patients={[...view.active, ...view.left.map((p) => p.report)]} />

@@ -161,14 +161,22 @@ export function RestorePointList({
   points,
   editable,
   onPick,
+  onOpen,
 }: {
   points: readonly RestorePointMeta[];
   editable: boolean;
   onPick: (meta: RestorePointMeta) => void;
+  /** First opening: the points are only read from here on (2026-10-25, quota). */
+  onOpen: () => void;
 }): JSX.Element {
   return (
-    <details className="rounded-xl border border-border bg-surface">
-      <summary className="cursor-pointer px-3 py-2 text-xs font-semibold">Titik pulih ({points.length})</summary>
+    <details
+      className="rounded-xl border border-border bg-surface"
+      onToggle={(e) => {
+        if (e.currentTarget.open) onOpen();
+      }}
+    >
+      <summary className="cursor-pointer px-3 py-2 text-xs font-semibold">Titik pulih{points.length > 0 ? ` (${points.length})` : ''}</summary>
       <div className="space-y-2 border-t border-border p-3">
         <p className="text-xs text-fg-muted">
           Disimpan otomatis sebelum setiap Tempel dan bersama setiap edisi. Pulihkan bila tempel memasukkan pasien yang salah.

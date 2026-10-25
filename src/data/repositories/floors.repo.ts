@@ -6,10 +6,12 @@ import {
   getDocFromServer,
   getDocs,
   getDocsFromServer,
+  getCountFromServer,
   deleteDoc,
   writeBatch,
   limit,
   orderBy,
+  startAfter,
   arrayUnion,
   deleteField,
   FieldPath,
@@ -245,6 +247,15 @@ export function subscribeEditions(floorId: string, callback: (editions: Edition[
     (snapshot) => callback(snapshot.docs.map((d) => readEdition(d.id, d.data()))),
     onError,
   );
+}
+
+/**
+ * One page of editions older than `before` (a createdAt), read once. Old lists
+ * do not change, so no listener is kept: nothing is re-read when it reconnects.
+ */
+export async function readOlderEditions(floorId: string, before: string, count: number): Promise<Edition[]> {
+  const snapshot = await getDocs(query(floorEditionsCol(floorId), orderBy('createdAt', 'desc'), startAfter(before), limit(count)));
+  return snapshot.docs.map((d) => readEdition(d.id, d.data()));
 }
 
 /** The list's Catatan Visite (24 Oct 2026); null until someone writes it. */
@@ -529,6 +540,13 @@ export function subscribeRestorePoints(floorId: string, callback: (points: Resto
   );
 }
 
+/** The point saved with an edition, if any: one read on demand, so Riwayat need not listen for points. */
+export async function readEditionPoint(floorId: string, editionId: string): Promise<RestorePointMeta | null> {
+  const snapshot = await getDocs(query(floorRestoresCol(floorId), where('editionId', '==', editionId), limit(1)));
+  const d = snapshot.docs[0];
+  return d ? readRestoreMeta(d.id, d.data()) : null;
+}
+
 /**
  * Save a point: its parts, then its meta, in one batch (all or nothing). The
  * id is returned at once, before the server confirms — the paste that follows
@@ -565,9 +583,11 @@ export async function readRestorePoint(floorId: string, meta: RestorePointMeta):
 
 /** Older points beyond KEEP_POINTS, with their parts. Best effort. */
 async function pruneRestorePoints(floorId: string): Promise<void> {
-  const snapshot = await getDocs(query(floorRestoresCol(floorId), orderBy('createdAt', 'desc')));
-  const old = snapshot.docs.slice(KEEP_POINTS);
-  if (old.length === 0) return;
+  // One aggregate read says whether anything is over; the old way read every point on every save.
+  const all = query(floorRestoresCol(floorId));
+  const over = (await getCountFromServer(all)).data().count - KEEP_POINTS;
+  if (over <= 0) return;
+  const old = (await getDocs(query(all, orderBy('createdAt', 'asc'), limit(over)))).docs;
   const batch = writeBatch(floorDoc(floorId).firestore);
   for (const d of old.slice(0, 40)) {
     const parts = typeof d.data().parts === 'number' ? (d.data().parts as number) : 1;

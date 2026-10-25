@@ -5,6 +5,12 @@ Catatan teknis lengkap (akar masalah, perbaikan) ada di CHANGES.md.
 
 Entri teratas harus versi yang sedang dirilis; tes gagal bila belum ditulis.
 
+## `2026-10-25.4`
+- **"Titik pulih" di Riwayat baru dibaca saat dibuka.** Sebelumnya 30 titik pulih dibaca setiap kali Riwayat dibuka, walau daftarnya terlipat. Kini hanya dibaca saat Anda membuka "Titik pulih". Tombol "Pulihkan list ke edisi ini…" selalu tampil untuk pengedit dan mencari titik pulih edisi itu saat ditekan.
+
+## `2026-10-25.3`
+- **Riwayat List Maker kini dikelompokkan per hari.** Hari terbaru terbuka, hari lain terlipat; ketuk tanggal untuk membuka atau menutup. Hanya 10 edisi terbaru yang dimuat, dan tombol "Muat edisi lebih lama" menambah 10 lagi bila perlu. Halaman tidak lagi memanjang tanpa batas, dan membuka Riwayat tidak lagi membaca 60 edisi sekaligus, jadi pemakaian kuota Firebase turun.
+
 ## `2026-10-25.2`
 - **SOAP yang diubah lewat "Ubah SOAP" kini dihitung terbaru.** Sebelumnya lencana tetap menulis "SOAP 24/10" dan tidak pernah "SOAP baru" untuk SOAP yang baru diubah, karena yang dibaca adalah jam pesan aslinya. Kini jam saat diubah yang dipakai, dan di jendela SOAP tertulis "diubah 25/10/2026 19:05". SOAP yang diubah sebelum versi ini tetap memakai jam pesan aslinya; ubah sekali lagi untuk memperbaruinya.
 
