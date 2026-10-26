@@ -69,7 +69,7 @@ export function PhoneCanvas({
     return () => observer.disconnect();
   }, []);
 
-  const columns = width >= 640 ? 5 : width >= 480 ? 4 : width >= 400 ? 3 : 2;
+  const columns = width >= 640 ? 5 : width >= 480 ? 4 : 3;
   const cellW = width > 0 ? (width - GAP * (columns - 1)) / columns : 110;
   const placed = useMemo(() => placeGrid(ids, grid, columns), [ids, grid, columns]);
   // Outside Atur the used part of the grid is drawn from the top-left corner;
@@ -119,7 +119,7 @@ export function PhoneCanvas({
   };
 
   return (
-    <div className="px-4 pb-4">
+    <div className="px-4 pb-24">
       <div className="mb-2 flex items-center gap-2">
         <p className="min-w-0 flex-1 text-xs text-fg-muted">
           {editing ? 'Seret blok ke kotak lain. Blok yang ditimpa bertukar tempat.' : 'Ketuk buka · tahan untuk checklist'}
@@ -253,11 +253,11 @@ function PatientBlock({
         </span>
       </span>
       {stage || due > 0 || card.ekg ? (
-        <span className="mt-1 flex items-center gap-1 text-[10px] font-semibold leading-4">
-          {stage ? <span className="rounded bg-black/30 px-1.5">{stage}</span> : null}
-          {card.ekg ? <span className="rounded bg-black/30 px-1.5">EKG</span> : null}
+        <span className="mt-1 flex items-center gap-1 overflow-hidden whitespace-nowrap text-[10px] font-semibold leading-4">
+          {stage ? <span className="rounded bg-black/30 px-1">{stage}</span> : null}
+          {card.ekg ? <span className="rounded bg-black/30 px-1">EKG</span> : null}
           {due > 0 ? (
-            <span className="ml-auto rounded-full bg-[var(--warn-strong)] px-1.5 text-black" title="Pengingat belum">
+            <span className="ml-auto rounded-full bg-[var(--warn-strong)] px-1 text-black" title="Pengingat belum">
               🔔 {due}
             </span>
           ) : null}
