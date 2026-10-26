@@ -5,6 +5,10 @@ Catatan teknis lengkap (akar masalah, perbaikan) ada di CHANGES.md.
 
 Entri teratas harus versi yang sedang dirilis; tes gagal bila belum ditulis.
 
+## `2026-10-26.4`
+- **Kanvas di HP kini selalu minimal 3 kolom.** Pada versi sebelumnya HP sempit (di bawah 400 px) mendapat dua kolom, sehingga blok jadi lebar dan susunan lama bergeser. Kini 3 kolom di semua HP, 4 dan 5 kolom di layar yang lebih lebar. Baris penanda di blok dibuat lebih rapat agar muat.
+- **Tombol + tidak lagi menutup blok terakhir.** Kanvas diberi ruang kosong di bawahnya.
+
 ## `2026-10-26.3`
 - **Tampilan blok di kanvas HP didesain ulang.** Blok lebih tinggi dan, di HP sempit, dua kolom. Blok pasien menampilkan bed dan kode DPJP, nama, bilah progres, penanda pulang/EKG/pengingat, dan cincin pemantauan. Catatan tempel punya pita judul dan keadaan kosong yang lebih tenang.
 - **Ruang kosong di tampilan HP dipangkas.** Di luar mode Atur, blok digambar mulai dari sudut kiri atas bagian grid yang terpakai, sehingga baris dan kolom kosong di awal tidak mendorong blok ke tengah layar. Posisi tersimpan tidak berubah, dan mode Atur tetap menampilkan seluruh grid.

@@ -1,5 +1,14 @@
 # Plano — CHANGES
 
+## `2026-10-26.4` — Phone canvas: 3 columns minimum; room for the add button
+
+- **Symptom (owner, screenshot).** On his phone the `.3` canvas showed 2 columns, wide blocks, and the last sticky note sat under the floating + button. He wanted 3 columns.
+- **Root cause.** `.3` added a `width >= 400 ? 3 : 2` step to `PhoneCanvas` (`columns`), and a 390 px phone has a ~358 px surface, so it fell to 2. The surface had only `pb-4`, which the floating button overlaps.
+- **Fix.** `columns` is `640 → 5, 480 → 4, otherwise 3`. The chip row of a patient block is `overflow-hidden whitespace-nowrap` with tighter padding so Pulang / EKG / reminder fit at about 114 px. The outer wrapper is `pb-24`.
+- **Side effect.** A grid saved while the phone showed 2 columns has no block in column 3; blocks saved in column 3 earlier are placed again by `placeGrid` only if they were moved on a 2-column screen. Atur > Rapikan packs gaps.
+- **Not changed.** A large gap between rows is a saved cell, not a bug.
+- **Not verified.** Not rendered by this session; typecheck, lint and the board tests pass. The chip row may be tight at 3 columns on the narrowest phones.
+
 ## `2026-10-26.3` — Phone canvas blocks redesigned; view mode skips empty leading grid (entry added afterwards)
 
 - **Why this entry exists.** `1914514` bumped `APP_VERSION` to `.3` without a `CHANGELOG.md` entry, so the test "the newest entry in CHANGELOG.md is the running version" failed on `main` and the GitHub Actions run stopped at "Run npm test" (deploy skipped). This entry was written afterwards from that commit's message and diff, by a different session than the one that made the change.
