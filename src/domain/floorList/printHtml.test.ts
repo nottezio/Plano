@@ -50,7 +50,7 @@ describe('Denah + List as one printable page (13.12)', () => {
     expect(denahListHtml(input)).toContain('<div class="after" data-residents="">');
     const own = denahListHtml(input, {
       list: { landscape: false, columns: 2, fontPt: 8 },
-      denah: { landscape: true, fontPt: 9, residentsNewPage: true, residentsList: false },
+      denah: { landscape: true, fontPt: 9, residentsNewPage: true, residentsList: false, usulMarker: false },
     });
     expect(own).toContain('<div class="page" data-residents="">');
     expect(own).toContain('@page { size: A4 landscape; margin: 10mm; }');
@@ -65,6 +65,32 @@ describe('Denah + List as one printable page (13.12)', () => {
     // Landscape A4 less 8 mm margins: 281 × 194 mm.
     expect(previewHtml('list', input, DEFAULT_PRINT)).toContain('width:281mm;height:194mm;columns: 4;');
     expect(previewHtml('list', input, DEFAULT_PRINT)).not.toContain('@page');
+  });
+});
+
+describe('Usul H-1 on paper: nothing unless asked (26 Oct 2026)', () => {
+  const input = { ward: 'PJT Lantai 4', date: '2026-10-13', plan: null, patients: [p({ usul: true }), p({ key: 'rm:2', rm: '2' })], listText: '' };
+  const on = { ...DEFAULT_PRINT, denah: { ...DEFAULT_PRINT.denah, usulMarker: true } };
+
+  it('a line carries an amber [usul] tag, never a colour', () => {
+    const html = patientHtml(p({ usul: true }), { number: 1 });
+    expect(html).toContain('<b style="color:#ffc000">[usul]</b>');
+    expect(html).not.toContain('color:#ff0000');
+  });
+
+  it('off (default): the printout is the same as before, legend included', () => {
+    for (const html of [denahListHtml(input), previewHtml('denah', input, DEFAULT_PRINT)]) {
+      expect(html).not.toContain('[usul]');
+      expect(html).not.toContain('Usul H-1');
+    }
+  });
+
+  it('on: the tag shows beside the name and the legend explains it', () => {
+    const html = denahListHtml(input, on);
+    expect(html).toContain('[usul]');
+    expect(html).toContain('Usul H-1 (belum disetujui)');
+    // No usul open: no legend entry even when the marker is on.
+    expect(denahListHtml({ ...input, patients: [p({})] }, on)).not.toContain('Usul H-1');
   });
 });
 

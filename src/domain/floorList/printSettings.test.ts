@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { contentBox, DEFAULT_PRINT, fontPt, pageStarts, readPrintSettings } from './printSettings';
+import { contentBox, DEFAULT_PRINT, fontPt, forPrint, pageStarts, readPrintSettings } from './printSettings';
 
 describe('print setup (2026-10-16)', () => {
   it('reads stored settings defensively, keeping what is valid', () => {
@@ -10,6 +10,18 @@ describe('print setup (2026-10-16)', () => {
       list: { landscape: false, columns: 4, fontPt: 7.5 },
       denah: { ...DEFAULT_PRINT.denah, residentsNewPage: true },
     });
+  });
+
+  it('the usul H-1 marker is off unless asked (26 Oct 2026)', () => {
+    expect(DEFAULT_PRINT.denah.usulMarker).toBe(false);
+    expect(readPrintSettings(JSON.stringify({ denah: { usulMarker: true } })).denah.usulMarker).toBe(true);
+    expect(readPrintSettings(JSON.stringify({ denah: { usulMarker: 'ya' } })).denah.usulMarker).toBe(false);
+    type Row = { key: string; usul?: boolean | undefined };
+    const open: Row = { usul: true, key: 'a' };
+    const plain: Row = { key: 'b' };
+    expect(forPrint([open], { ...DEFAULT_PRINT.denah, usulMarker: true })).toEqual([open]);
+    // Off: the flag never reaches the printout, whatever the screen shows.
+    expect(forPrint([open, plain], DEFAULT_PRINT.denah).map((p) => p.usul)).toEqual([undefined, undefined]);
   });
 
   it('keeps sizes in half points within 5–12 pt', () => {

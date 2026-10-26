@@ -124,6 +124,7 @@ export function readPatient(raw: unknown): FloorPatient | null {
     ...(typeof p.dpjpCode === 'string' && p.dpjpCode ? { dpjpCode: p.dpjpCode } : {}),
     ...(typeof p.operkan === 'string' && p.operkan ? { operkan: p.operkan } : {}),
     ...(typeof p.gantiChief === 'string' && p.gantiChief ? { gantiChief: p.gantiChief } : {}),
+    ...(p.usul === true ? { usul: true } : {}),
     ...(p.manualFields && typeof p.manualFields === 'object'
       ? {
           manualFields: {
@@ -177,6 +178,7 @@ export function readRosterPatient(key: string, data: DocumentData): RosterPatien
     leftAt: str(data.leftAt),
     colour: carried ? 'none' : colour,
     dischargeDate: str(data.dischargeDate) || carried,
+    usulH1: str(data.usulH1),
     junior: str(data.junior),
     chief: str(data.chief),
     dismissed: str(data.dismissed),
@@ -363,7 +365,7 @@ export function writeRosterReport(floorId: string, key: string, report: FloorPat
 export function writeRosterFields(
   floorId: string,
   key: string,
-  fields: Partial<Pick<RosterPatient, 'status' | 'pindahKe' | 'leftAt' | 'colour' | 'dischargeDate' | 'junior' | 'chief' | 'dismissed' | 'division' | 'tags' | 'tagsOff' | 'operkan' | 'gantiChief' | 'chiefDismissed'>>,
+  fields: Partial<Pick<RosterPatient, 'status' | 'pindahKe' | 'leftAt' | 'colour' | 'dischargeDate' | 'usulH1' | 'junior' | 'chief' | 'dismissed' | 'division' | 'tags' | 'tagsOff' | 'operkan' | 'gantiChief' | 'chiefDismissed'>>,
   log?: StatusChange,
 ): Promise<void> {
   return trackWrite(

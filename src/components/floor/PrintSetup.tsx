@@ -131,6 +131,14 @@ export function PrintSetup({
               detail="Satu kolom ke bawah, sama dengan tampilan Daftar di layar."
             />
           ) : null}
+          {kind === 'denah' ? (
+            <CheckRow
+              checked={settings.denah.usulMarker}
+              onChange={(v) => set({ usulMarker: v })}
+              title="Tandai usul H-1"
+              detail="Mati: usul H-1 tidak muncul di cetakan (belum keputusan). Nyala: tag [usul] kuning di samping nama, tanpa warna merah."
+            />
+          ) : null}
           <button
             type="button"
             onClick={() => setPrintSettings(kind === 'list' ? { ...settings, list: DEFAULT_PRINT.list } : { ...settings, denah: DEFAULT_PRINT.denah })}

@@ -20,8 +20,12 @@ import {
   rosterName,
   rosterView,
   soapState,
+  suggestionActions,
   suggestionFor,
   updatedReport,
+  usulDays,
+  usulFields,
+  usulOpen,
   type FloorDoc,
   type RosterPatient,
 } from './floor';
@@ -153,9 +157,9 @@ describe('rosterView', () => {
 
 describe('suggestionFor (a chip, never applied by itself)', () => {
   it('offers what the Plan says, relative to the day the SOAP was sent', () => {
-    expect(suggestionFor(rostered({ body: 'Plan:\n- Usul H-1 hari ini' }), '2026-10-12')).toBe('h1');
+    expect(suggestionFor(rostered({ body: 'Plan:\n- H-1 hari ini' }), '2026-10-12')).toBe('h1');
     // Written yesterday, "H-1" means today.
-    expect(suggestionFor(rostered({ body: 'Plan:\n- Usul H-1 hari ini', sentAt: '2026-10-11T07:00' }), '2026-10-12')).toBe('today');
+    expect(suggestionFor(rostered({ body: 'Plan:\n- H-1 hari ini', sentAt: '2026-10-11T07:00' }), '2026-10-12')).toBe('today');
     // Yesterday's "pulang hari ini" is stale: nothing.
     expect(suggestionFor(rostered({ body: 'Plan:\n- Pulang hari ini', sentAt: '2026-10-11T07:00' }), '2026-10-12')).toBeNull();
     expect(suggestionFor(rostered({ body: 'Diagnosis:\n- post PPM (H-1)' }), '2026-10-12')).toBeNull();
@@ -168,6 +172,68 @@ describe('suggestionFor (a chip, never applied by itself)', () => {
     expect(suggestionFor(rostered({ body }, { status: 'pulang' }), '2026-10-12')).toBeNull();
     // A newer SOAP after a dismissal is offered again.
     expect(suggestionFor(rostered({ body, sentAt: '2026-10-12T09:00' }, { dismissed: '2026-10-12T07:00' }), '2026-10-12')).toBe('today');
+  });
+});
+
+describe('usul H-1 (26 Oct 2026): a proposal the supervisor has not accepted yet', () => {
+  const usul = 'Plan:\n- Usul H-1 hari ini';
+
+  it('is its own suggestion, not H-1, whatever day the SOAP was sent', () => {
+    expect(suggestionFor(rostered({ body: usul }), '2026-10-12')).toBe('usul');
+    expect(suggestionFor(rostered({ body: usul, sentAt: '2026-10-10T07:00' }), '2026-10-12')).toBe('usul');
+  });
+
+  it('not offered again once marked, dismissed, already coloured, or for who left', () => {
+    expect(suggestionFor(rostered({ body: usul }, { usulH1: '2026-10-12' }), '2026-10-12')).toBeNull();
+    expect(suggestionFor(rostered({ body: usul }, { dismissed: '2026-10-12T07:00' }), '2026-10-12')).toBeNull();
+    expect(suggestionFor(rostered({ body: usul }, { dischargeDate: '2026-10-13' }), '2026-10-12')).toBeNull();
+    expect(suggestionFor(rostered({ body: usul }, { status: 'pindah' }), '2026-10-12')).toBeNull();
+  });
+
+  it('the accepting SOAP ("H-1 hari ini") is the normal H-1 chip, and stays offered while usul is open', () => {
+    const accepted = { body: 'Plan:\n- H-1 hari ini', sentAt: '2026-10-13T07:00' };
+    expect(suggestionFor(rostered(accepted, { usulH1: '2026-10-12' }), '2026-10-13')).toBe('h1');
+  });
+
+  it('is open while marked and not coloured; marking H-1 or pulang closes it', () => {
+    expect(usulOpen(rostered({}, { usulH1: '2026-10-12' }))).toBe(true);
+    expect(usulOpen(rostered({}, { usulH1: '' }))).toBe(false);
+    expect(usulOpen(rostered({}, { usulH1: '2026-10-12', status: 'pulang' }))).toBe(false);
+    expect(usulFields('2026-10-12')).toEqual({ usulH1: '2026-10-12' });
+    expect(colourFields('h1', '2026-10-13')).toEqual({ colour: 'none', dischargeDate: '2026-10-14', usulH1: '' });
+    expect(colourFields('today', '2026-10-13')).toEqual({ colour: 'none', dischargeDate: '2026-10-13', usulH1: '' });
+    // "Tanpa warna" says nothing about the proposal.
+    expect(colourFields('none', '2026-10-13')).toEqual({ colour: 'none', dischargeDate: '' });
+  });
+
+  it('the chip offers the right answers for each reading of the Plan', () => {
+    const day = '2026-10-13';
+    const labels = (mark: 'h1' | 'today' | 'usul', state: Partial<RosterPatient> = {}) => suggestionActions(rostered({}, state), mark, day).map((a) => a.label);
+    // A first usul: record it, or say it is already certain.
+    expect(labels('usul')).toEqual(['Tandai usul', 'Sudah pasti H-1']);
+    expect(suggestionActions(rostered(), 'usul', day)[0]).toMatchObject({ fields: { usulH1: day }, what: 'Usul H-1 (dari saran Plan)' });
+    // The accepting SOAP while an usul is open.
+    expect(labels('h1', { usulH1: '2026-10-12' })).toEqual(['Usul disetujui — tandai H-1']);
+    expect(suggestionActions(rostered({}, { usulH1: '2026-10-12' }), 'h1', day)[0]).toMatchObject({
+      fields: { dischargeDate: '2026-10-14', usulH1: '' },
+      what: 'H-1 (usul disetujui)',
+    });
+    // Without an usul the chips are as before.
+    expect(labels('h1')).toEqual(['Tandai']);
+    expect(labels('today')).toEqual(['Tandai']);
+    expect(suggestionActions(rostered(), 'today', day)[0]).toMatchObject({ fields: { dischargeDate: day, usulH1: '' }, what: 'Pulang hari ini (dari saran Plan)' });
+  });
+
+  it('days open count from the day it was marked', () => {
+    expect(usulDays(rostered({}, { usulH1: '2026-10-12' }), '2026-10-12')).toBe(0);
+    expect(usulDays(rostered({}, { usulH1: '2026-10-12' }), '2026-10-15')).toBe(3);
+    expect(usulDays(rostered({}), '2026-10-15')).toBeNull();
+  });
+
+  it('shows on the list line as a flag only while open', () => {
+    const open = rostered({}, { usulH1: '2026-10-12' });
+    expect(effective(open, FLOOR, '2026-10-12', false).usul).toBe(true);
+    expect(effective(rostered(), FLOOR, '2026-10-12', false).usul).toBeUndefined();
   });
 });
 
@@ -308,8 +374,7 @@ describe('pasteDiff (nobody is removed by a paste)', () => {
   it('a new patient who has probably gone already is flagged (unticked), with the reason', () => {
     const today = patient({ key: 'rm:10', rm: '10', sentAt: '2026-10-13T07:00' });
     const wentHome = patient({ key: 'rm:11', rm: '11', sentAt: '2026-10-12T07:00', body: 'Plan:\n- Rawat jalan hari ini' });
-    const saidH1 = patient({ key: 'rm:12', rm: '12', sentAt: '2026-10-11T07:00', body: 'Plan:\n- Usul H-1' });
-    const silent = patient({ key: 'rm:13', rm: '13', sentAt: '2026-10-11T06:00' });
+    const saidH1 = patient({ key: 'rm:12', rm: '12', sentAt: '2026-10-11T07:00', body: 'Plan:\n- Rencana H-1' });    const silent = patient({ key: 'rm:13', rm: '13', sentAt: '2026-10-11T06:00' });
     const yesterday = patient({ key: 'rm:14', rm: '14', sentAt: '2026-10-12T07:00' });
     const diff = pasteDiff([], [today, wentHome, saidH1, silent, yesterday]);
     expect(diff.fresh).toHaveLength(5);

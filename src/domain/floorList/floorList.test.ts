@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest';
 import { splitChat } from './chat';
 import { buildFloorList, countLabel, patientLine, splitFloorList } from './build';
 import { effective, newRosterPatient } from './floor';
-import { dischargeFlag, latestOf, latestPatients, listBody, manualPatient, nicknameOf, onFloorNumber, otherDepartmentUtama, readReport, readReports } from './report';
+import { dischargeFlag, usulH1, latestOf, latestPatients, listBody, manualPatient, nicknameOf, onFloorNumber, otherDepartmentUtama, readReport, readReports } from './report';
 
 /*
   The floor's WhatsApp group, re-typed with invented patients and residents
@@ -188,7 +188,9 @@ describe('readReport', () => {
     expect(p.body).not.toMatch(/Selanjutnya|Compos mentis|Sesak tidak ada/);
     // Colour is never taken from the SOAP (12.12); the Plan only feeds a suggestion chip.
     expect(p.discharge).toBeNull();
-    expect(dischargeFlag(p.body)).toBe('tomorrow');
+    // "Usul H-1 hari ini" is a proposal (26 Oct 2026): offered as such, not as H-1.
+    expect(dischargeFlag(p.body)).toBeNull();
+    expect(usulH1(p.body)).toBe(true);
   });
 
   it('takes the room after "ke" on a transfer, and a name with no space after Tn.', () => {
@@ -234,6 +236,21 @@ describe('helpers', () => {
     expect(dischargeFlag('Diagnosis:\n- post PPM (H-1)\nPlan\n- EKG')).toBeNull();
     expect(dischargeFlag('Plan:\n- Rawat jalan besok')).toBe('tomorrow');
     expect(dischargeFlag('Plan:\n- Usul H-1 hari ini\n- Pulang hari ini')).toBe('today');
+  });
+
+  it('"usul H-1" is a proposal: not a discharge flag, but readable as one', () => {
+    expect(dischargeFlag('Plan:\n- Usul H-1 hari ini (11-10-2026)')).toBeNull();
+    expect(dischargeFlag('Plan:\n- Usul H-1')).toBeNull();
+    expect(usulH1('Plan:\n- Usul H-1 hari ini (11-10-2026)')).toBe(true);
+    expect(usulH1('Plan:\n- usul H 1')).toBe(true);
+    // The supervisor accepted: the same Plan now states it.
+    expect(dischargeFlag('Plan:\n- H-1 hari ini')).toBe('tomorrow');
+    expect(usulH1('Plan:\n- H-1 hari ini')).toBe(false);
+    // A firm line next to an usul line: the firm one decides.
+    expect(dischargeFlag('Plan:\n- Usul H-1\n- Rencana H-1')).toBe('tomorrow');
+    expect(usulH1('Plan:\n- Usul H-1\n- Rencana H-1')).toBe(false);
+    // Plan lines only.
+    expect(usulH1('Diagnosis:\n- usul H-1\nPlan:\n- EKG')).toBe(false);
   });
 
   it('listBody is empty without an assessment', () => {

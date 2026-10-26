@@ -1,7 +1,7 @@
 import { dpjpById } from '@/domain/dpjp';
 import { tagsOf, type FloorMark } from './marks';
 import { nameKey } from './slaber';
-import { dischargeFlag, soapStamp, type DischargeFlag, type FloorPatient } from './report';
+import { dischargeFlag, soapStamp, usulH1, type DischargeFlag, type FloorPatient } from './report';
 
 /**
  * A shared floor list (12.8; roster since 12.12).
@@ -82,6 +82,13 @@ export interface RosterPatient {
   colour: ColourMark;
   /** Planned discharge (ISO date): red the day before, green on the day. */
   dischargeDate: string;
+  /**
+   * The day (ISO) an "usul H-1" was marked, '' = none (26 Oct 2026, Avi: the
+   * resident proposes H-1, the supervisor may not visit that day). Tracked and
+   * shown in Analisis, never coloured: a proposal is not a decision. Closed by
+   * marking H-1 or pulang (`colourFields`), or by hand.
+   */
+  usulH1: string;
   /** Overrides; '' = from the SOAP / nickname / floor chief. */
   junior: string;
   chief: string;
@@ -174,8 +181,26 @@ export function colourOn(patient: Pick<RosterPatient, 'colour' | 'dischargeDate'
  * the day itself. As `dischargeDate` it ages by itself, like the board's
  * `dischargePlannedFor`. `date` is the list date the mark is set on.
  */
-export function colourFields(mark: ColourMark, date: string): { colour: 'none'; dischargeDate: string } {
-  return { colour: 'none', dischargeDate: mark === 'h1' ? addDays(date, 1) : mark === 'today' ? date : '' };
+export function colourFields(mark: ColourMark, date: string): { colour: 'none'; dischargeDate: string; usulH1?: '' } {
+  const dischargeDate = mark === 'h1' ? addDays(date, 1) : mark === 'today' ? date : '';
+  // A decision closes an open usul H-1; "Tanpa warna" is not a decision about it.
+  return mark === 'none' ? { colour: 'none', dischargeDate } : { colour: 'none', dischargeDate, usulH1: '' };
+}
+
+/** An usul H-1 marked on `date` (ISO): tracked, never coloured (26 Oct 2026). */
+export function usulFields(date: string): { usulH1: string } {
+  return { usulH1: date };
+}
+
+/** An usul H-1 is waiting for the supervisor: marked, and the patient still on the floor. */
+export function usulOpen(patient: Pick<RosterPatient, 'usulH1' | 'status'>): boolean {
+  return patient.status === 'dirawat' && Boolean(patient.usulH1);
+}
+
+/** Days the usul H-1 has been open on `date`, or null when there is none. */
+export function usulDays(patient: Pick<RosterPatient, 'usulH1'>, date: string): number | null {
+  if (!patient.usulH1) return null;
+  return Math.round((Date.parse(`${date}T00:00:00Z`) - Date.parse(`${patient.usulH1}T00:00:00Z`)) / 86_400_000);
 }
 
 /** What the "Warna" select shows on `date`: the colour the list would print. */
@@ -327,6 +352,7 @@ export function effective(
     junior,
     chief,
     discharge: colourOn(patient, date),
+    ...(usulOpen(patient) ? { usul: true } : {}),
     ...(division ? { division } : {}),
     ...(tags.length > 0 ? { tags } : {}),
     ...notes,
@@ -392,10 +418,14 @@ export function rosterView(
  * on a tap. Not offered when the hand-set state already says the same, or the
  * suggestion for this very report was dismissed.
  */
-export function suggestionFor(patient: RosterPatient, date: string): 'h1' | 'today' | null {
+export function suggestionFor(patient: RosterPatient, date: string): 'h1' | 'today' | 'usul' | null {
   if (patient.status !== 'dirawat' || patient.dismissed === patient.report.sentAt) return null;
   const read = dischargeFlag(patient.report.body);
-  if (!read) return null;
+  if (!read) {
+    // "Usul H-1" only proposes: asked once, and not while a colour already says more.
+    const open = usulH1(patient.report.body) && !patient.usulH1 && colourOn(patient, date) === null;
+    return open ? 'usul' : null;
+  }
   // "H-1" written yesterday means today; read relative to the report's day.
   const day = patient.report.sentAt.slice(0, 10);
   const flag = read === 'tomorrow' && day && day < date ? 'today' : read === 'today' && day && day < date ? null : read;
@@ -403,6 +433,37 @@ export function suggestionFor(patient: RosterPatient, date: string): 'h1' | 'tod
   const mark = flag === 'tomorrow' ? 'h1' : 'today';
   if (colourOn(patient, date) === flag) return null;
   return mark;
+}
+
+export interface SuggestionAction {
+  label: string;
+  /** Written to the roster entry when tapped. */
+  fields: ReturnType<typeof colourFields> | ReturnType<typeof usulFields>;
+  /** The log line. */
+  what: string;
+}
+
+/** The words of a suggestion chip: "Plan menyebut …". */
+export function suggestionWords(mark: 'h1' | 'today' | 'usul'): string {
+  return mark === 'usul' ? 'usul H-1 (belum pasti)' : mark === 'h1' ? 'H-1' : 'pulang hari ini';
+}
+
+/**
+ * The taps a suggestion chip offers (26 Oct 2026), shared by the Atur panel
+ * and the list at the top of the List Maker. Marking H-1 or pulang closes an
+ * open usul (`colourFields`); the Plan is never applied without a tap.
+ */
+export function suggestionActions(patient: RosterPatient, mark: 'h1' | 'today' | 'usul', date: string): SuggestionAction[] {
+  if (mark === 'usul') {
+    return [
+      { label: 'Tandai usul', fields: usulFields(date), what: 'Usul H-1 (dari saran Plan)' },
+      { label: 'Sudah pasti H-1', fields: colourFields('h1', date), what: 'H-1 (dari saran Plan)' },
+    ];
+  }
+  if (mark === 'h1' && patient.usulH1) {
+    return [{ label: 'Usul disetujui — tandai H-1', fields: colourFields('h1', date), what: 'H-1 (usul disetujui)' }];
+  }
+  return [{ label: 'Tandai', fields: colourFields(mark, date), what: mark === 'h1' ? 'H-1 (dari saran Plan)' : 'Pulang hari ini (dari saran Plan)' }];
 }
 
 export function newRosterPatient(report: FloorPatient, at: string, by: string): RosterPatient {
@@ -414,6 +475,7 @@ export function newRosterPatient(report: FloorPatient, at: string, by: string): 
     leftAt: '',
     colour: 'none',
     dischargeDate: '',
+    usulH1: '',
     junior: '',
     chief: '',
     dismissed: '',

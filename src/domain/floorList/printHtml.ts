@@ -8,7 +8,7 @@ import { MARK_COLORS, printedTags } from './marks';
 import type { FloorPatient } from './report';
 import { holderBoxes, residentGroups } from './residents';
 import { handoverLine } from './docx';
-import { contentBox, DEFAULT_PRINT, DENAH_MARGIN_MM, LIST_GAP_MM, LIST_MARGIN_MM, type PrintSettings } from './printSettings';
+import { contentBox, DEFAULT_PRINT, DENAH_MARGIN_MM, forPrint, LIST_GAP_MM, LIST_MARGIN_MM, type PrintSettings } from './printSettings';
 
 /**
  * Denah + List as ONE printable page (13.12, Avi: "export both as a single
@@ -39,9 +39,12 @@ export function patientHtml(patient: FloorPatient, options: { number?: number | 
   const place = options.place !== false && patient.room ? `${patient.room}${patient.bed ? ` Bed ${patient.bed}` : ''}/` : '';
   const residents = [patient.junior, patient.chief].filter(Boolean).map((n) => `dr. ${n}`).join(' / ');
   const codeHtml = code ? (isPediatri(patient.dpjpId) ? `<span style="color:${AMBER}">${esc(code)}</span>/` : `${esc(code)}/`) : '';
-  const tags = printedTags(patient.tags)
-    .map((t) => ` <b style="color:${hex(MARK_COLORS[t.color].docx)}">[${esc(t.label)}]</b>`)
-    .join('');
+  const usul = patient.usul ? ` <b style="color:${AMBER}">[usul]</b>` : '';
+  const tags =
+    usul +
+    printedTags(patient.tags)
+      .map((t) => ` <b style="color:${hex(MARK_COLORS[t.color].docx)}">[${esc(t.label)}]</b>`)
+      .join('');
   return (
     `<span${style}>${options.number !== undefined ? `${options.number}. ` : ''}${esc(place)}${codeHtml}${esc(patient.identity)}` +
     `${patient.btkv ? ' <b>(KJS BTKV)</b>' : ''}</span>${residents ? ` <b>- ${esc(residents)}</b>` : ''}${tags}`
@@ -185,13 +188,14 @@ tr { page-break-inside: avoid; break-inside: avoid; }
 
 /** The denah, its DPJP boxes and legend, then the residents (on a new page only if asked). */
 function denahBody(input: PrintInput, settings: PrintSettings): string {
-  const sorted = [...input.patients].sort(byRoute(input.ward));
+  const sorted = [...forPrint(input.patients, settings.denah)].sort(byRoute(input.ward));
   const known = new Set(input.plan ? planRooms(input.plan).map((s) => s.room) : []);
   const inRoom = (room: string): FloorPatient[] => sorted.filter((p) => p.room === room);
   const strays = sorted.filter((p) => !known.has(p.room));
   const title = `DENAH PASIEN ${input.ward.replace(/^PJT\s+/i, '').toUpperCase()} (${formatDmy(input.date)})`;
   const legendTags = [...new Map(sorted.flatMap((p) => printedTags(p.tags)).map((t) => [t.label, t])).values()]
     .map((t) => ` – <span style="color:${hex(MARK_COLORS[t.color].docx)}">${esc(t.label)}</span>`)
+    .concat(sorted.some((p) => p.usul) ? [` – <span style="color:${AMBER}">[usul]</span> Usul H-1 (belum disetujui)`] : [])
     .join('');
   return `<h1>${esc(title)}</h1>
 ${input.plan ? floorHtml(input.plan, input.ward, inRoom) : ''}

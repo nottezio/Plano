@@ -5,6 +5,12 @@ Catatan teknis lengkap (akar masalah, perbaikan) ada di CHANGES.md.
 
 Entri teratas harus versi yang sedang dirilis; tes gagal bila belum ditulis.
 
+## `2026-10-26.1`
+- **"Usul H-1" kini dibedakan dari H-1.** Bila Plan SOAP menulis "Usul H-1", List Maker menanyakan lebih dulu: **Tandai usul** (belum pasti, menunggu DPJP) atau **Sudah pasti H-1**. Pasien yang ditandai usul tidak diberi warna merah, tetapi tercatat di tab Analisis pada blok baru "Usul H-1 (menunggu konfirmasi DPJP)" beserta lama menunggunya, dan ikut di ringkasan WhatsApp.
+- **Usul disetujui.** Saat SOAP berikutnya menulis "H-1 hari ini", saran berubah menjadi **Usul disetujui — tandai H-1**. Satu ketukan menjadikannya H-1 merah dan menutup usulnya; tidak ada yang berubah sendiri. Bila DPJP menolak, tekan **Batalkan usul** di panel Atur pasien.
+- **Usul H-1 di cetakan (opsional).** Di Atur cetak → Denah ada pilihan "Tandai usul H-1". Mati (bawaan): cetakan sama seperti sebelumnya. Nyala: tag kuning [usul] muncul di samping nama pada PDF dan Word, tanpa warna merah, dan legenda menjelaskannya.
+- **Catatan.** Pasien baru dengan Plan "Usul H-1" yang sudah lama tidak lagi ditandai "kemungkinan sudah pulang" hanya karena usul itu, karena usul bukan rencana pulang.
+
 ## `2026-10-25.4`
 - **"Titik pulih" di Riwayat baru dibaca saat dibuka.** Sebelumnya 30 titik pulih dibaca setiap kali Riwayat dibuka, walau daftarnya terlipat. Kini hanya dibaca saat Anda membuka "Titik pulih". Tombol "Pulihkan list ke edisi ini…" selalu tampil untuk pengedit dan mencari titik pulih edisi itu saat ditekan.
 

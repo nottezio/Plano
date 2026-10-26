@@ -39,6 +39,23 @@ describe('Analisis (13.12)', () => {
     expect(day.rencanaH1.map((x) => x.key)).toEqual(['e']);
   });
 
+  it('usul H-1 is its own kind, not a plan: marked, cancelled, and accepted (26 Oct 2026)', () => {
+    expect(['Usul H-1 (dari saran Plan)', 'Usul H-1 dibatalkan', 'H-1 (usul disetujui)'].map(moveKind)).toEqual(['usul', 'usul', 'rencana']);
+  });
+
+  it('a day lists the open usul H-1 apart from the firm H-1, with how long each has waited', () => {
+    const roster = [
+      rostered('u', [['2026-10-11T09:00', 'Usul H-1 (dari saran Plan)']], { usulH1: '2026-10-11' }),
+      rostered('v', [['2026-10-13T09:00', 'Usul H-1 (dari saran Plan)']], { usulH1: '2026-10-13' }),
+      rostered('w', [['2026-10-11T09:00', 'Usul H-1 (dari saran Plan)']], { usulH1: '2026-10-11', status: 'pulang', leftAt: iso('2026-10-12T10:00') }),
+      rostered('x', []),
+    ];
+    const active = [p('u', { usul: true }), p('v', { usul: true }), p('e', { discharge: 'tomorrow' })];
+    const day = daySummary('2026-10-13', roster, active, movements(roster));
+    expect(day.usulH1.map((u) => [u.patient.key, u.days])).toEqual([['u', 2], ['v', 0]]);
+    expect(day.rencanaH1.map((x) => x.key)).toEqual(['e']);
+  });
+
   it('a week of counts, with the census of the day\'s last saved list', () => {
     const roster = [rostered('a', [['2026-10-13T08:00', 'Masuk list'], ['2026-10-13T10:00', 'Pulang']]), rostered('b', [['2026-10-11T07:00', 'Masuk list']])];
     const editions = [
@@ -78,6 +95,8 @@ describe('Analisis (13.12)', () => {
         '420/4 MZ/Tn. Empat',
         '*Rencana H-1 (pulang besok) (0)*',
         '-',
+        '*Usul H-1 (menunggu konfirmasi DPJP) (0)*',
+        '-',
         '',
         '*Sudah pulang (1)*',
         '413/2 AHA/Tn. Satu',
@@ -92,6 +111,14 @@ describe('Analisis (13.12)', () => {
       ].join('\n'),
     );
     expect(text).not.toMatch(/\d{1,2}:\d{2}/);
+  });
+
+  it('the WhatsApp message names the usul H-1 and its wait', () => {
+    const roster = [rostered('u', [], { usulH1: '2026-10-11', report: p('u', { name: 'Tn. Lima', room: '417', bed: '2', dpjpId: 'zd' }) })];
+    const active = [p('u', { name: 'Tn. Lima', room: '417', bed: '2', dpjpId: 'zd', usul: true })];
+    const text = daySummaryText(daySummary('2026-10-13', roster, active, []), 'PJT Lantai 4');
+    expect(text).toContain('*Usul H-1 (menunggu konfirmasi DPJP) (1)*\n417/2 ZD/Tn. Lima - usul sejak 2 hari');
+    expect(daySummaryText(daySummary('2026-10-13', [rostered('v', [], { usulH1: '2026-10-13' })], [p('v', { name: 'Tn. Enam', kjsDpjpIds: [], usul: true })], []), 'W')).toContain('usul hari ini');
   });
 
   it('groups the history by day, newest day first, each day newest first (2026-10-16)', () => {

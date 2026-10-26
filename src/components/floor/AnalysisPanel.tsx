@@ -106,13 +106,14 @@ export function AnalysisPanel({
     <div className="space-y-4">
       <p className="text-xs text-fg-muted">Tanggal {formatDmy(date)} — dibaca dari catatan perubahan tiap pasien di list (siapa, kapan), tanpa input tambahan.</p>
 
-      <div className="grid grid-cols-3 gap-2 sm:grid-cols-6">
+      <div className="grid grid-cols-3 gap-2 sm:grid-cols-4 lg:grid-cols-7">
         <Tile label="Di lantai" value={view.active.length} />
         <Tile label="Masuk" value={day.masuk.length} />
         <Tile label="Pulang" value={day.pulang.length} />
         <Tile label="Pindah ruangan" value={day.pindah.length} />
         <Tile label="Rencana pulang hari ini" value={day.pulangHariIni.length} tone="var(--note-green)" />
         <Tile label="Rencana H-1" value={day.rencanaH1.length} tone="var(--note-red)" />
+        <Tile label="Usul H-1" value={day.usulH1.length} tone="var(--warn-strong)" />
       </div>
 
       <div className="flex justify-end">
@@ -130,6 +131,11 @@ export function AnalysisPanel({
         <Block title="Rencana H-1 (pulang besok)" count={day.rencanaH1.length}>
           {day.rencanaH1.map((p) => (
             <Row key={p.key} patient={p} onOpen={onOpen} />
+          ))}
+        </Block>
+        <Block title="Usul H-1 (menunggu konfirmasi DPJP)" count={day.usulH1.length}>
+          {day.usulH1.map(({ patient, days }) => (
+            <Row key={patient.key} patient={patient} note={days === 0 ? 'usul hari ini' : `usul sejak ${days} hari`} onOpen={onOpen} />
           ))}
         </Block>
         <Block title="Sudah pulang" count={day.pulang.length}>

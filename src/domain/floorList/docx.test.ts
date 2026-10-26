@@ -120,6 +120,21 @@ describe('Denah docx', () => {
     expect(text).toContain('Pre-op');
   });
 
+  it('usul H-1 prints as an amber [usul] run only when the setup asks (26 Oct 2026)', () => {
+    const open = [{ ...patients[2]!, usul: true }];
+    expect(patientRuns(open[0]!).at(-1)).toEqual({ text: ' [usul]', bold: true, color: 'FFC000' });
+    expect(patientRuns(open[0]!).find((r) => r.text.includes('RM'))?.color).toBeUndefined();
+    const input = { ward: 'PJT Lantai 4', date: '2026-10-12', plan: null, patients: open };
+    const off = new TextDecoder().decode(buildDenahDocx(input));
+    expect(off).not.toContain('[usul]');
+    expect(denahDocumentXml(input)).not.toContain('[usul]');
+    const asked = { ...DEFAULT_PRINT.denah, usulMarker: true };
+    expect(denahDocumentXml(input, asked)).toContain('[usul]');
+    const legend = new TextDecoder().decode(buildDenahDocx(input, asked));
+    expect(legend).toContain('Usul H-1 (belum disetujui)');
+    expect(new TextDecoder().decode(buildDenahDocx({ ...input, patients: [patients[0]!] }, asked))).not.toContain('Usul H-1');
+  });
+
   it('residents are numbered; a division patient gets its own cell and no chief count', () => {
     const held = { ...patients[0]!, key: 'rm:9', junior: '', chief: '', division: 'Aritmia' };
     const out = denahDocumentXml({ ward: 'PJT Lantai 4', date: '2026-10-12', plan: null, patients: [...patients, held] });
@@ -150,7 +165,7 @@ describe('Denah docx', () => {
   it('follows the print setup: residents on a new page, landscape, font size (2026-10-16)', () => {
     const own = denahDocumentXml(
       { ward: 'PJT Lantai 4', date: '2026-10-12', plan: wardPlan('PJT Lantai 4'), patients },
-      { landscape: true, fontPt: 9, residentsNewPage: true, residentsList: false },
+      { landscape: true, fontPt: 9, residentsNewPage: true, residentsList: false, usulMarker: false },
     );
     expect(own).toContain('<w:pageBreakBefore/>');
     expect(own.slice(own.indexOf('<w:pageBreakBefore/>'))).toContain('dr. Kepala  3');

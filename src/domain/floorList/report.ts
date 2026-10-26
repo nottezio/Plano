@@ -51,6 +51,8 @@ export interface FloorPatient {
   sentAt: string;
   index: number;
   discharge: DischargeFlag;
+  /** An usul H-1 is open (not accepted yet): never a colour, a small marker when the list is set to print it. */
+  usul?: boolean | undefined;
   /**
    * Entered by hand (pediatri patients have no SOAP in the floor group).
    * Stays on the list without daily reports until removed.
@@ -321,20 +323,39 @@ export function listBody(text: string): string {
   return out.join('\n');
 }
 
-/** Red (H-1) / green (pulang hari ini), from the Plan lines only — never the diagnosis. */
-export function dischargeFlag(body: string): DischargeFlag {
-  const lines = body.split('\n');
+/** "Usul H-1": the resident proposes it; the supervisor has not agreed yet (26 Oct 2026). */
+const USUL_H1 = /\busul\s+H\s*-?\s*1\b/i;
+
+/** What the Plan lines say: the firm discharge flag, and whether an usul H-1 stands in it. */
+function readPlan(body: string): { flag: DischargeFlag; usul: boolean } {
   let inPlan = false;
   let flag: DischargeFlag = null;
-  for (const line of lines) {
+  let usul = false;
+  for (const line of body.split('\n')) {
     if (TS_HEAD.test(line)) inPlan = false;
     else if (PLAN.test(line)) inPlan = true;
     else if (/^\W*(?:diagnosis|terapi|selesai)\W*:?\s*$/i.test(line)) inPlan = false;
     if (!inPlan) continue;
-    if (/\b(?:rawat\s+jalan|pulang|aff\s+rawat|discharge)\b.*\bhari\s+ini\b/i.test(line)) return 'today';
-    if (/\bH\s*-\s*1\b.*\bhari\s+ini\b|\b(?:usul|rencana)\s+H\s*-?\s*1\b|\b(?:pulang|rawat\s+jalan)\s+besok\b/i.test(line)) flag = 'tomorrow';
+    if (/\b(?:rawat\s+jalan|pulang|aff\s+rawat|discharge)\b.*\bhari\s+ini\b/i.test(line)) return { flag: 'today', usul: false };
+    // A proposal is not a plan: "Usul H-1 hari ini" must not read as "H-1 hari ini".
+    if (USUL_H1.test(line)) {
+      usul = true;
+      continue;
+    }
+    if (/\bH\s*-\s*1\b.*\bhari\s+ini\b|\brencana\s+H\s*-?\s*1\b|\b(?:pulang|rawat\s+jalan)\s+besok\b/i.test(line)) flag = 'tomorrow';
   }
-  return flag;
+  // A firm line anywhere in the Plan outranks an usul: the supervisor has decided.
+  return { flag, usul: usul && flag === null };
+}
+
+/** Red (H-1) / green (pulang hari ini), from the Plan lines only — never the diagnosis. */
+export function dischargeFlag(body: string): DischargeFlag {
+  return readPlan(body).flag;
+}
+
+/** The Plan only proposes H-1 ("usul H-1"), with no firm discharge line: a chip to confirm, never a colour. */
+export function usulH1(body: string): boolean {
+  return readPlan(body).usul;
 }
 
 /** One message → one patient, or null when it is not a patient report. */

@@ -12,7 +12,11 @@ import {
   DIVISIONS,
   divisionOf,
   localStamp,
+  suggestionActions,
   suggestionFor,
+  suggestionWords,
+  usulDays,
+  usulOpen,
   type ColourMark,
   type FloorDoc,
   type RosterPatient,
@@ -124,11 +128,13 @@ export function PatientControls({
       {suggestion ? (
         <div className="flex flex-wrap items-center gap-1.5 rounded-lg px-2 py-1" style={{ backgroundColor: 'var(--warn-soft)' }}>
           <span className="flex-1">
-            Plan menyebut <strong>{suggestion === 'h1' ? 'H-1' : 'pulang hari ini'}</strong>. Tandai?
+            Plan menyebut <strong>{suggestionWords(suggestion)}</strong>. Tandai?
           </span>
-          <Button size="sm" onClick={() => set(colourFields(suggestion, date), suggestion === 'h1' ? 'H-1 (dari saran Plan)' : 'Pulang hari ini (dari saran Plan)')}>
-            Tandai
-          </Button>
+          {suggestionActions(entry, suggestion, date).map((action) => (
+            <Button key={action.label} size="sm" onClick={() => set(action.fields, action.what)}>
+              {action.label}
+            </Button>
+          ))}
           <Button size="sm" variant="ghost" onClick={() => set({ dismissed: entry.report.sentAt })}>
             Abaikan
           </Button>
@@ -228,6 +234,20 @@ export function PatientControls({
       </Group>
 
       <Group title="Rencana pulang">
+        {usulOpen(entry) ? (
+          // An usul H-1 waits for the supervisor (26 Oct 2026): no colour until a decision.
+          <div className="mb-1.5 flex flex-wrap items-center gap-1.5 rounded-lg border border-[var(--warn-strong)] px-2 py-1">
+            <span className="flex-1">
+              <strong>Usul H-1</strong> · {usulDays(entry, date) ? `sejak ${usulDays(entry, date)} hari` : 'hari ini'} · menunggu konfirmasi DPJP
+            </span>
+            <Button size="sm" onClick={() => set(colourFields('h1', date), 'H-1 (usul disetujui)')}>
+              Sudah pasti H-1
+            </Button>
+            <Button size="sm" variant="ghost" onClick={() => set({ usulH1: '' }, 'Usul H-1 dibatalkan')}>
+              Batalkan usul
+            </Button>
+          </div>
+        ) : null}
         <div className={`grid gap-1.5 ${cols}`}>
           <Labelled label="Warna">
             <select

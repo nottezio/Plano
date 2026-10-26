@@ -28,6 +28,12 @@ export interface DenahPrint {
   residentsNewPage: boolean;
   /** Residen as one column (the screen's "Daftar"), not three boxes a row (20 Oct 2026). */
   residentsList: boolean;
+  /**
+   * An amber "[usul]" after a patient whose H-1 is only proposed (26 Oct 2026,
+   * Avi). Off: the printout is unchanged and an usul stays invisible on paper,
+   * since a proposal is not a decision.
+   */
+  usulMarker: boolean;
 }
 
 export interface PrintSettings {
@@ -38,8 +44,16 @@ export interface PrintSettings {
 /** The layouts as they were before settings existed, residents page aside. */
 export const DEFAULT_PRINT: PrintSettings = {
   list: { landscape: true, columns: 4, fontPt: 6.5 },
-  denah: { landscape: false, fontPt: 7.5, residentsNewPage: false, residentsList: false },
+  denah: { landscape: false, fontPt: 7.5, residentsNewPage: false, residentsList: false, usulMarker: false },
 };
+
+/**
+ * The patients as the printout sees them: the open-usul flag only survives
+ * when the setup asks for the marker, so no printing code can show it by accident.
+ */
+export function forPrint<T extends { usul?: boolean | undefined }>(patients: readonly T[], print: DenahPrint): readonly T[] {
+  return print.usulMarker ? patients : patients.map((p) => (p.usul ? { ...p, usul: undefined } : p));
+}
 
 export const FONT_MIN = 5;
 export const FONT_MAX = 12;
@@ -68,6 +82,7 @@ export function readPrintSettings(raw: string | null): PrintSettings {
         fontPt: fontPt(denah.fontPt, DEFAULT_PRINT.denah.fontPt),
         residentsNewPage: typeof denah.residentsNewPage === 'boolean' ? denah.residentsNewPage : DEFAULT_PRINT.denah.residentsNewPage,
         residentsList: denah.residentsList === true,
+        usulMarker: denah.usulMarker === true,
       },
     };
   } catch {

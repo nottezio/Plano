@@ -1,6 +1,6 @@
 import { Button } from '@/components/common/ui';
 import { writeRosterFields } from '@/data/repositories/floors.repo';
-import { colourFields, suggestionFor, type FloorDoc, type RosterPatient } from '@/domain/floorList/floor';
+import { suggestionActions, suggestionFor, suggestionWords, type FloorDoc, type RosterPatient } from '@/domain/floorList/floor';
 import type { FloorPatient } from '@/domain/floorList/report';
 
 /**
@@ -26,7 +26,7 @@ export function DischargeSuggestions({
 }): JSX.Element | null {
   const pending = roster
     .map((entry) => ({ entry, mark: suggestionFor(entry, date) }))
-    .filter((s): s is { entry: RosterPatient; mark: 'h1' | 'today' } => s.mark !== null);
+    .filter((s): s is { entry: RosterPatient; mark: 'h1' | 'today' | 'usul' } => s.mark !== null);
   if (pending.length === 0) return null;
 
   const stamp = (what: string) => ({ at: new Date().toISOString(), by: myName, what });
@@ -38,7 +38,7 @@ export function DischargeSuggestions({
       style={{ backgroundColor: 'var(--warn-soft)' }}
     >
       <p className="text-xs font-semibold">
-        Plan menyebut pulang · {pending.length} pasien belum ditandai
+        Saran dari Plan (pulang / usul H-1) · {pending.length} pasien belum ditandai
       </p>
       {pending.map(({ entry, mark }) => {
         const shown = active.find((p) => p.key === entry.key);
@@ -52,21 +52,13 @@ export function DischargeSuggestions({
               className="min-h-tap min-w-0 flex-1 truncate text-left hover:underline"
             >
               {place ? `${place} · ` : ''}
-              {entry.report.name} — <strong>{mark === 'h1' ? 'H-1' : 'pulang hari ini'}</strong>
+              {entry.report.name} — <strong>{suggestionWords(mark)}</strong>
             </button>
-            <Button
-              size="sm"
-              onClick={() =>
-                void writeRosterFields(
-                  floor.id,
-                  entry.key,
-                  colourFields(mark, date),
-                  stamp(mark === 'h1' ? 'H-1 (dari saran Plan)' : 'Pulang hari ini (dari saran Plan)'),
-                )
-              }
-            >
-              Tandai
-            </Button>
+            {suggestionActions(entry, mark, date).map((action) => (
+              <Button key={action.label} size="sm" onClick={() => void writeRosterFields(floor.id, entry.key, action.fields, stamp(action.what))}>
+                {action.label}
+              </Button>
+            ))}
             <Button size="sm" variant="ghost" onClick={() => void writeRosterFields(floor.id, entry.key, { dismissed: entry.report.sentAt })}>
               Abaikan
             </Button>

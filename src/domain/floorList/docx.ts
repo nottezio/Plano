@@ -7,7 +7,7 @@ import { planLayout, type RoomCell } from './layout';
 import { byRoute, dpjpCodeOf, dpjpTitle, isPediatri, LIST_DPJP_ORDER, PEDIATRI_DPJP_IDS } from './build';
 import { MARK_COLORS, printedTags } from './marks';
 import { holderBoxes, residentGroups } from './residents';
-import { DEFAULT_PRINT, halfPoints, type DenahPrint, type ListPrint } from './printSettings';
+import { DEFAULT_PRINT, forPrint, halfPoints, type DenahPrint, type ListPrint } from './printSettings';
 import type { FloorPatient } from './report';
 
 /**
@@ -77,6 +77,7 @@ export function patientRuns(patient: FloorPatient, options: { number?: number | 
   out.push(tint({ text: patient.identity }));
   if (patient.btkv) out.push(tint({ text: ' (KJS BTKV)', bold: true }));
   if (residents) out.push({ text: ` - ${residents}`, bold: true });
+  if (patient.usul) out.push({ text: ' [usul]', bold: true, color: AMBER });
   for (const tag of printedTags(patient.tags)) out.push({ text: ` [${tag.label}]`, bold: true, color: MARK_COLORS[tag.color].docx });
   return out;
 }
@@ -377,7 +378,7 @@ export function denahDocumentXml(input: DenahDocInput, print: DenahPrint = DEFAU
   const textW = textWidth(print.landscape);
   // The holders 2.5 pt above the text (10 pt on the default 7.5, 13.14).
   const holderSize = halfPoints(print.fontPt) + 5;
-  const sorted = [...input.patients].sort(byRoute(input.ward));
+  const sorted = [...forPrint(input.patients, print)].sort(byRoute(input.ward));
   const known = new Set(input.plan ? planRooms(input.plan).map((s) => s.room) : []);
   const inRoom = (room: string): FloorPatient[] => sorted.filter((p) => p.room === room);
   const strays = sorted.filter((p) => !known.has(p.room));
@@ -428,14 +429,19 @@ export function denahDocumentXml(input: DenahDocInput, print: DenahPrint = DEFAU
 
 export function buildDenahDocx(input: DenahDocInput, print: DenahPrint = DEFAULT_PRINT.denah): Uint8Array<ArrayBuffer> {
   // The floor's tags on this sheet, in their Word colours.
-  const marks = [...new Map(input.patients.flatMap((p) => printedTags(p.tags)).map((t) => [t.label, t])).values()];
+  const patients = forPrint(input.patients, print);
+  const marks = [...new Map(patients.flatMap((p) => printedTags(p.tags)).map((t) => [t.label, t])).values()];
+  // An open usul H-1 explained last, only when the setup prints its marker.
+  const usul = patients.some((p) => p.usul);
+  const more = marks.length > 0 || usul;
   const legend = para([
     { text: 'Merah', color: RED },
     { text: ' H-1 – ' },
     { text: 'Hijau', color: GREEN },
-    { text: marks.length > 0 ? ' Pulang Hari ini' : ' Pulang Hari ini.' },
+    { text: more ? ' Pulang Hari ini' : ' Pulang Hari ini.' },
     ...marks.flatMap((m): Styled[] => [{ text: ' – ' }, { text: m.label, color: MARK_COLORS[m.color].docx }]),
-    ...(marks.length > 0 ? [{ text: '.' }] : []),
+    ...(usul ? [{ text: ' – ' }, { text: '[usul]', color: AMBER }, { text: ' Usul H-1 (belum disetujui)' }] : []),
+    ...(more ? [{ text: '.' }] : []),
   ]);
   return pack(denahDocumentXml(input, print), footer(legend), halfPoints(print.fontPt));
 }

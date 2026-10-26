@@ -1,4 +1,4 @@
-import { localStamp, type Edition, type RosterPatient } from './floor';
+import { localStamp, usulDays, usulOpen, type Edition, type RosterPatient } from './floor';
 import { dpjpById } from '@/domain/dpjp';
 import type { FloorPatient } from './report';
 
@@ -10,7 +10,7 @@ import type { FloorPatient } from './report';
  * editions — so nothing new is stored and nothing can drift.
  */
 
-export type MoveKind = 'masuk' | 'pulang' | 'pindah' | 'kamar' | 'rencana' | 'lain';
+export type MoveKind = 'masuk' | 'pulang' | 'pindah' | 'kamar' | 'rencana' | 'usul' | 'lain';
 
 export const MOVE_LABEL: Record<MoveKind, string> = {
   masuk: 'Masuk',
@@ -18,6 +18,7 @@ export const MOVE_LABEL: Record<MoveKind, string> = {
   pindah: 'Pindah ruangan',
   kamar: 'Pindah kamar',
   rencana: 'Rencana pulang',
+  usul: 'Usul H-1',
   lain: 'Lainnya',
 };
 
@@ -37,6 +38,8 @@ export function moveKind(what: string): MoveKind {
   if (/^Pulang$/i.test(what)) return 'pulang';
   if (/^Pindah ke\b/i.test(what)) return 'pindah';
   if (/^Pindah kamar\b/i.test(what)) return 'kamar';
+  // Before the plan check below: "Usul H-1 …" contains "H-1" but decides nothing (26 Oct 2026).
+  if (/^Usul H-1/i.test(what)) return 'usul';
   if (/H-1|pulang hari ini|rencana pulang|tanpa warna/i.test(what)) return 'rencana';
   return 'lain';
 }
@@ -77,6 +80,8 @@ export interface DaySummary {
   pulangHariIni: FloorPatient[];
   /** Still on the floor, red: going home tomorrow. */
   rencanaH1: FloorPatient[];
+  /** Proposed H-1 the supervisor has not accepted: uncoloured, with the days it has waited. */
+  usulH1: Array<{ patient: FloorPatient; days: number }>;
 }
 
 export function daySummary(date: string, roster: readonly RosterPatient[], active: readonly FloorPatient[], moves: readonly Movement[]): DaySummary {
@@ -90,6 +95,10 @@ export function daySummary(date: string, roster: readonly RosterPatient[], activ
     masuk: moves.filter((m) => m.kind === 'masuk' && onDay(m)),
     pulangHariIni: active.filter((p) => p.discharge === 'today'),
     rencanaH1: active.filter((p) => p.discharge === 'tomorrow'),
+    usulH1: roster
+      .filter((p) => usulOpen(p))
+      .map((p) => ({ patient: active.find((a) => a.key === p.key) ?? p.report, days: Math.max(0, usulDays(p, date) ?? 0) }))
+      .sort((a, b) => b.days - a.days),
   };
 }
 
@@ -147,6 +156,10 @@ export function daySummaryText(day: DaySummary, ward: string): string {
     '',
     ...block('Rencana pulang hari ini (masih di lantai)', day.pulangHariIni.map((p) => line(p))),
     ...block('Rencana H-1 (pulang besok)', day.rencanaH1.map((p) => line(p))),
+    ...block(
+      'Usul H-1 (menunggu konfirmasi DPJP)',
+      day.usulH1.map(({ patient, days }) => line(patient, days === 0 ? 'usul hari ini' : `usul sejak ${days} hari`)),
+    ),
     '',
     ...block('Sudah pulang', day.pulang.map((p) => line(p.report))),
     ...block('Pindah ruangan', day.pindah.map((p) => line(p.report, `ke ${p.pindahKe || '…'}`))),
