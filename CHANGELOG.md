@@ -5,6 +5,10 @@ Catatan teknis lengkap (akar masalah, perbaikan) ada di CHANGES.md.
 
 Entri teratas harus versi yang sedang dirilis; tes gagal bila belum ditulis.
 
+## `2026-10-26.3`
+- **Tampilan blok di kanvas HP didesain ulang.** Blok lebih tinggi dan, di HP sempit, dua kolom. Blok pasien menampilkan bed dan kode DPJP, nama, bilah progres, penanda pulang/EKG/pengingat, dan cincin pemantauan. Catatan tempel punya pita judul dan keadaan kosong yang lebih tenang.
+- **Ruang kosong di tampilan HP dipangkas.** Di luar mode Atur, blok digambar mulai dari sudut kiri atas bagian grid yang terpakai, sehingga baris dan kolom kosong di awal tidak mendorong blok ke tengah layar. Posisi tersimpan tidak berubah, dan mode Atur tetap menampilkan seluruh grid.
+
 ## `2026-10-26.2`
 - **Tab Setelan di List Maker dirapikan.** Isinya kini dikelompokkan: **Tim** (anggota dan undangan), **Nama dan residen** (roster junior, nama panggilan pengirim), **Tampilan list** (warna list), dan **Zona berbahaya** (hapus list, atau keluar dari list). Judul blok lebih jelas, keterangan lebih pendek, dan daftar nama panggilan yang panjang (lebih dari 5 pengirim) terlipat sampai dibuka.
 - **Mengeluarkan anggota kini perlu dua ketukan.** "Keluarkan" dan "Keluar dari list ini" menanyakan dulu dengan menyebut nama orangnya ("Keluarkan dr. X dari list?"), lalu **Ya, keluarkan** atau **Batal**; pertanyaan hilang sendiri setelah beberapa detik. Sebelumnya satu ketukan langsung mengeluarkan.
