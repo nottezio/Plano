@@ -130,6 +130,12 @@ describe('Denah docx', () => {
     expect(denahDocumentXml(input)).not.toContain('[usul]');
     const asked = { ...DEFAULT_PRINT.denah, usulMarker: true };
     expect(denahDocumentXml(input, asked)).toContain('[usul]');
+    // Renamed and recoloured: the word and the colour follow the setup (26 Oct 2026).
+    const styled = { ...asked, usulLabel: 'Tunggu DPJP', usulColor: 'purple' as const };
+    const xml = denahDocumentXml(input, styled);
+    expect(xml).toContain('[Tunggu DPJP]');
+    expect(xml).toContain('7030A0');
+    expect(xml).not.toContain('[usul]');
     const legend = new TextDecoder().decode(buildDenahDocx(input, asked));
     expect(legend).toContain('Usul H-1 (belum disetujui)');
     expect(new TextDecoder().decode(buildDenahDocx({ ...input, patients: [patients[0]!] }, asked))).not.toContain('Usul H-1');
@@ -165,7 +171,7 @@ describe('Denah docx', () => {
   it('follows the print setup: residents on a new page, landscape, font size (2026-10-16)', () => {
     const own = denahDocumentXml(
       { ward: 'PJT Lantai 4', date: '2026-10-12', plan: wardPlan('PJT Lantai 4'), patients },
-      { landscape: true, fontPt: 9, residentsNewPage: true, residentsList: false, usulMarker: false },
+      { landscape: true, fontPt: 9, residentsNewPage: true, residentsList: false, usulMarker: false, usulLabel: 'usul', usulColor: 'amber' },
     );
     expect(own).toContain('<w:pageBreakBefore/>');
     expect(own.slice(own.indexOf('<w:pageBreakBefore/>'))).toContain('dr. Kepala  3');

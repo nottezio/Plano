@@ -3,6 +3,8 @@ import { describe, expect, it } from 'vitest';
 import {
   canEdit,
   chiefsOf,
+  clearMarkFields,
+  colourChoice,
   colourFields,
   colourMark,
   colourOn,
@@ -25,6 +27,7 @@ import {
   updatedReport,
   usulDays,
   usulFields,
+  usulMarkFields,
   usulOpen,
   type FloorDoc,
   type RosterPatient,
@@ -46,6 +49,7 @@ const FLOOR: FloorDoc = {
   chiefBangsal: '',
   juniors: '',
   marks: [],
+  analysisTitles: {},
 };
 
 function patient(over: Partial<FloorPatient>): FloorPatient {
@@ -204,6 +208,22 @@ describe('usul H-1 (26 Oct 2026): a proposal the supervisor has not accepted yet
     expect(colourFields('today', '2026-10-13')).toEqual({ colour: 'none', dischargeDate: '2026-10-13', usulH1: '' });
     // "Tanpa warna" says nothing about the proposal.
     expect(colourFields('none', '2026-10-13')).toEqual({ colour: 'none', dischargeDate: '' });
+  });
+
+  it('the Warna select has Usul H-1 as its own choice (26 Oct 2026)', () => {
+    const day = '2026-10-13';
+    // Usul marks and clears the date colour; the select reads it back as 'usul'.
+    expect(usulMarkFields(day)).toEqual({ colour: 'none', dischargeDate: '', usulH1: day });
+    const asUsul = rostered({}, { ...usulMarkFields(day) });
+    expect(colourChoice(asUsul, day)).toBe('usul');
+    // A decision wins: coloured is never shown as usul, and closes the usul.
+    expect(colourChoice(rostered({}, { ...colourFields('h1', day) }), day)).toBe('h1');
+    expect(colourChoice(rostered({}, { ...colourFields('today', day) }), day)).toBe('today');
+    // "Tanpa warna" picked by hand clears the usul too, so the select can leave 'usul'.
+    expect(clearMarkFields()).toEqual({ colour: 'none', dischargeDate: '', usulH1: '' });
+    expect(colourChoice(rostered({}, { ...clearMarkFields() }), day)).toBe('none');
+    // A patient who went home has no open usul to show.
+    expect(colourChoice(rostered({}, { ...usulMarkFields(day), status: 'pulang' }), day)).toBe('none');
   });
 
   it('the chip offers the right answers for each reading of the Plan', () => {

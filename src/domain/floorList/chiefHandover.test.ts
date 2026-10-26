@@ -19,6 +19,7 @@ const FLOOR: FloorDoc = {
   chiefBangsal: 'Kirana',
   juniors: '',
   marks: [],
+  analysisTitles: {},
 };
 
 function report(over: Partial<FloorPatient> = {}): FloorPatient {

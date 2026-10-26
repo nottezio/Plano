@@ -1,10 +1,26 @@
 import { useMemo, useState, type ReactNode } from 'react';
 
-import { Button, Callout } from '@/components/common/ui';
+import { Button, Callout, INPUT } from '@/components/common/ui';
+import { writeAnalysisTitles } from '@/data/repositories/floors.repo';
 import { copyText } from '@/lib/clipboard';
 import { formatDmy } from '@/domain/dateDmy';
 import { dayName } from '@/domain/mr/morningReport';
-import { daySummary, daySummaryText, MOVE_LABEL, movesByDay, movements, weekCounts, type MoveKind } from '@/domain/floorList/analysis';
+import {
+  daySummary,
+  daySummaryText,
+  MOVE_LABEL,
+  movesByDay,
+  movements,
+  readSectionTitles,
+  SECTION_TITLE,
+  SECTION_TITLE_MAX,
+  sectionTitle,
+  tileTitle,
+  weekCounts,
+  type MoveKind,
+  type SectionKey,
+  type SectionTitles,
+} from '@/domain/floorList/analysis';
 import { localStamp, type Edition, type RosterPatient, type RosterView } from '@/domain/floorList/floor';
 import type { FloorPatient } from '@/domain/floorList/report';
 import { checkSlaber, readSlaber, type Slaber } from '@/domain/floorList/slaber';
@@ -17,22 +33,41 @@ const localOf = (iso: string): string => {
   return Number.isNaN(at.getTime()) ? '' : localStamp(at);
 };
 
-function Tile({ label, value, tone }: { label: string; value: number; tone?: string }): JSX.Element {
+/** A section's name while renaming: saved when the field is left; blank goes back to the default. */
+function TitleField({ id, value, fallback, onCommit }: { id: string; value: string; fallback: string; onCommit: (text: string) => void }): JSX.Element {
+  return (
+    <input
+      key={value}
+      aria-label={`Nama bagian ${fallback}`}
+      defaultValue={value}
+      placeholder={fallback}
+      maxLength={SECTION_TITLE_MAX}
+      data-title-field={id}
+      onBlur={(e) => onCommit(e.target.value.trim())}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter') e.currentTarget.blur();
+      }}
+      className={`${INPUT} !min-h-8 w-full text-xs font-semibold`}
+    />
+  );
+}
+
+function Tile({ label, value, tone, rename }: { label: string; value: number; tone?: string; rename?: ReactNode }): JSX.Element {
   return (
     <div className="rounded-xl border border-border bg-surface p-2">
       <p className="text-2xl font-semibold tabular-nums" style={tone ? { color: tone } : undefined}>
         {value}
       </p>
-      <p className="text-xs text-fg-muted">{label}</p>
+      {rename ?? <p className="text-xs text-fg-muted">{label}</p>}
     </div>
   );
 }
 
-function Block({ title, count, children }: { title: string; count: number; children: ReactNode }): JSX.Element {
+function Block({ title, count, rename, children }: { title: string; count: number; rename?: ReactNode; children: ReactNode }): JSX.Element {
   return (
     <section className="rounded-xl border border-border bg-surface p-2 text-xs">
       <h3 className="mb-1 font-semibold">
-        {title} <span className="font-normal text-fg-muted">({count})</span>
+        {rename ?? title} <span className="font-normal text-fg-muted">({count})</span>
       </h3>
       {count === 0 ? <p className="text-fg-faint">—</p> : <ol className="max-h-64 space-y-0.5 overflow-y-auto">{children}</ol>}
     </section>
@@ -64,9 +99,17 @@ export function AnalysisPanel({
   editions,
   onOpen,
   ward,
+  floorId,
+  titles,
+  canRename,
 }: {
   /** The floor's ward name, for the WhatsApp summary's heading. */
   ward: string;
+  floorId: string;
+  /** The names the editors gave the sections (empty = the defaults). */
+  titles: SectionTitles;
+  /** The list's editors may rename the sections. */
+  canRename: boolean;
   roster: readonly RosterPatient[];
   view: RosterView;
   date: string;
@@ -78,8 +121,21 @@ export function AnalysisPanel({
   const week = useMemo(() => weekCounts(date, moves, editions), [date, moves, editions]);
   const [filter, setFilter] = useState<MoveKind | 'semua'>('semua');
   const [copied, setCopied] = useState(false);
+  const [renaming, setRenaming] = useState(false);
+  const [renameError, setRenameError] = useState(false);
+  const name = (key: SectionKey): string => sectionTitle(titles, key);
+  const tile = (key: SectionKey): string => tileTitle(titles, key);
+  const rename = (key: SectionKey, text: string): void => {
+    const next = readSectionTitles({ ...titles, [key]: text });
+    if (JSON.stringify(next) === JSON.stringify(titles)) return;
+    setRenameError(false);
+    void writeAnalysisTitles(floorId, next).catch(() => setRenameError(true));
+  };
+  /** The title field of a section while renaming (editors only), else nothing. */
+  const field = (key: SectionKey, shown: string): ReactNode =>
+    renaming ? <TitleField id={key} value={titles[key] ?? ''} fallback={shown} onCommit={(text) => rename(key, text)} /> : undefined;
   const copySummary = (): void => {
-    void copyText(daySummaryText(day, ward)).then((ok) => {
+    void copyText(daySummaryText(day, ward, titles)).then((ok) => {
       setCopied(ok);
       if (ok) window.setTimeout(() => setCopied(false), 2000);
     });
@@ -107,53 +163,63 @@ export function AnalysisPanel({
       <p className="text-xs text-fg-muted">Tanggal {formatDmy(date)} — dibaca dari catatan perubahan tiap pasien di list (siapa, kapan), tanpa input tambahan.</p>
 
       <div className="grid grid-cols-3 gap-2 sm:grid-cols-4 lg:grid-cols-7">
-        <Tile label="Di lantai" value={view.active.length} />
-        <Tile label="Masuk" value={day.masuk.length} />
-        <Tile label="Pulang" value={day.pulang.length} />
-        <Tile label="Pindah ruangan" value={day.pindah.length} />
-        <Tile label="Rencana pulang hari ini" value={day.pulangHariIni.length} tone="var(--note-green)" />
-        <Tile label="Rencana H-1" value={day.rencanaH1.length} tone="var(--note-red)" />
-        <Tile label="Usul H-1" value={day.usulH1.length} tone="var(--warn-strong)" />
+        <Tile label={tile('census')} value={view.active.length} rename={field('census', SECTION_TITLE.census)} />
+        <Tile label={tile('masuk')} value={day.masuk.length} />
+        <Tile label={tile('pulang')} value={day.pulang.length} />
+        <Tile label={tile('pindah')} value={day.pindah.length} />
+        <Tile label={tile('pulangHariIni')} value={day.pulangHariIni.length} tone="var(--note-green)" />
+        <Tile label={tile('rencanaH1')} value={day.rencanaH1.length} tone="var(--note-red)" />
+        <Tile label={tile('usulH1')} value={day.usulH1.length} tone="var(--warn-strong)" />
       </div>
 
-      <div className="flex justify-end">
+      {renameError ? (
+        <Callout tone="warn" title="Nama belum tersimpan">
+          Perubahan nama ditolak (mungkin Anda hanya boleh melihat list ini). Coba lagi.
+        </Callout>
+      ) : null}
+      <div className="flex flex-wrap justify-end gap-2">
+        {canRename ? (
+          <Button size="sm" variant={renaming ? 'primary' : 'secondary'} aria-pressed={renaming} onClick={() => setRenaming((on) => !on)}>
+            {renaming ? 'Selesai ubah nama' : 'Ubah nama bagian'}
+          </Button>
+        ) : null}
         <Button size="sm" onClick={copySummary}>
           {copied ? 'Tersalin ✓' : 'Salin ringkasan untuk WhatsApp'}
         </Button>
       </div>
 
       <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
-        <Block title="Rencana pulang hari ini (masih di lantai)" count={day.pulangHariIni.length}>
+        <Block title={name('pulangHariIni')} count={day.pulangHariIni.length} rename={field('pulangHariIni', SECTION_TITLE.pulangHariIni)}>
           {day.pulangHariIni.map((p) => (
             <Row key={p.key} patient={p} onOpen={onOpen} />
           ))}
         </Block>
-        <Block title="Rencana H-1 (pulang besok)" count={day.rencanaH1.length}>
+        <Block title={name('rencanaH1')} count={day.rencanaH1.length} rename={field('rencanaH1', SECTION_TITLE.rencanaH1)}>
           {day.rencanaH1.map((p) => (
             <Row key={p.key} patient={p} onOpen={onOpen} />
           ))}
         </Block>
-        <Block title="Usul H-1 (menunggu konfirmasi DPJP)" count={day.usulH1.length}>
+        <Block title={name('usulH1')} count={day.usulH1.length} rename={field('usulH1', SECTION_TITLE.usulH1)}>
           {day.usulH1.map(({ patient, days }) => (
             <Row key={patient.key} patient={patient} note={days === 0 ? 'usul hari ini' : `usul sejak ${days} hari`} onOpen={onOpen} />
           ))}
         </Block>
-        <Block title="Sudah pulang" count={day.pulang.length}>
+        <Block title={name('pulang')} count={day.pulang.length} rename={field('pulang', SECTION_TITLE.pulang)}>
           {day.pulang.map((p) => (
             <Row key={p.key} patient={p.report} note={hm(localOf(p.leftAt))} onOpen={onOpen} />
           ))}
         </Block>
-        <Block title="Pindah ruangan" count={day.pindah.length}>
+        <Block title={name('pindah')} count={day.pindah.length} rename={field('pindah', SECTION_TITLE.pindah)}>
           {day.pindah.map((p) => (
             <Row key={p.key} patient={p.report} note={`ke ${p.pindahKe || '…'} · ${hm(localOf(p.leftAt))}`} onOpen={onOpen} />
           ))}
         </Block>
-        <Block title="Pindah kamar (di lantai ini)" count={day.kamar.length}>
+        <Block title={name('kamar')} count={day.kamar.length} rename={field('kamar', SECTION_TITLE.kamar)}>
           {day.kamar.map((m) => (
             <Row key={`${m.key}-${m.at}`} patient={m.patient} note={`${m.what.replace(/^Pindah kamar\s*/i, '')} · ${hm(m.at)}`} onOpen={onOpen} />
           ))}
         </Block>
-        <Block title="Masuk list" count={day.masuk.length}>
+        <Block title={name('masuk')} count={day.masuk.length} rename={field('masuk', SECTION_TITLE.masuk)}>
           {day.masuk.map((m) => (
             <Row key={`${m.key}-${m.at}`} patient={m.patient} note={`${m.what === 'Masuk list' ? 'baru' : m.what.toLowerCase()} · ${hm(m.at)}`} onOpen={onOpen} />
           ))}
@@ -168,10 +234,10 @@ export function AnalysisPanel({
               <tr className="text-left text-fg-muted">
                 <th className="py-1 pr-2 font-medium">Tanggal</th>
                 <th className="px-2 font-medium">List</th>
-                <th className="px-2 font-medium">Masuk</th>
-                <th className="px-2 font-medium">Pulang</th>
-                <th className="px-2 font-medium">Pindah ruangan</th>
-                <th className="px-2 font-medium">Pindah kamar</th>
+                <th className="px-2 font-medium">{tile('masuk')}</th>
+                <th className="px-2 font-medium">{tile('pulang')}</th>
+                <th className="px-2 font-medium">{tile('pindah')}</th>
+                <th className="px-2 font-medium">{tile('kamar')}</th>
               </tr>
             </thead>
             <tbody>

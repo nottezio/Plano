@@ -7,8 +7,9 @@ import { planRooms, wardPlan } from '@/domain/denahPlan';
 import { formatDmy } from '@/domain/dateDmy';
 import {
   chiefsOf,
+  clearMarkFields,
+  colourChoice,
   colourFields,
-  colourMark,
   DIVISIONS,
   divisionOf,
   localStamp,
@@ -16,7 +17,9 @@ import {
   suggestionFor,
   suggestionWords,
   usulDays,
+  usulMarkFields,
   usulOpen,
+  type ColourChoice,
   type ColourMark,
   type FloorDoc,
   type RosterPatient,
@@ -26,11 +29,18 @@ import { markCss } from '@/domain/floorList/marks';
 import type { FloorPatient } from '@/domain/floorList/report';
 import { DeletePatient } from './DeletePatient';
 
-const COLOUR_OPTIONS: ReadonlyArray<readonly [ColourMark, string]> = [
+/** "Usul H-1" sits between none and the firm H-1: a proposal the supervisor has not accepted (26 Oct 2026). */
+const COLOUR_OPTIONS: ReadonlyArray<readonly [ColourChoice, string]> = [
   ['none', 'Tanpa warna'],
+  ['usul', 'Usul H-1 (kuning)'],
   ['h1', 'H-1 (merah)'],
   ['today', 'Pulang hari ini (hijau)'],
 ];
+
+/** The fields a pick in the Warna select writes: usul is tracked, a colour is a date, none clears both. */
+function choiceFields(choice: ColourChoice, date: string): Parameters<typeof writeRosterFields>[2] {
+  return choice === 'usul' ? usulMarkFields(date) : choice === 'none' ? clearMarkFields() : colourFields(choice satisfies ColourMark, date);
+}
 const PINDAH_CHIPS = ['ICU', 'CVCU', 'HCU', 'ICCU', 'Lantai lain'];
 
 /** The datalists the junior/chief inputs offer; rendered once per page. */
@@ -252,10 +262,10 @@ export function PatientControls({
           <Labelled label="Warna">
             <select
               aria-label={`Warna ${patient.name}`}
-              value={colourMark(entry, date)}
+              value={colourChoice(entry, date)}
               onChange={(e) => {
-                const next = e.target.value as ColourMark;
-                set(colourFields(next, date), colourOptions.find(([v]) => v === next)?.[1] ?? next);
+                const next = e.target.value as ColourChoice;
+                set(choiceFields(next, date), next === 'usul' ? 'Usul H-1' : (colourOptions.find(([v]) => v === next)?.[1] ?? next));
               }}
               className={`${INPUT} text-xs`}
             >

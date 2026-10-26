@@ -366,7 +366,7 @@ export default function ListMakerPage(): JSX.Element {
               />
             ) : null}
             {tab === 'tempel' && editable ? <PastePanel key={floor.id} floor={floor} roster={roster} myName={myName} /> : null}
-            {tab === 'analisis' ? <AnalysisPanel key={floor.id} ward={floor.ward || floor.name} roster={roster} view={view} date={date} editions={editions} onOpen={setOpen} /> : null}
+            {tab === 'analisis' ? <AnalysisPanel key={floor.id} floorId={floor.id} titles={floor.analysisTitles} canRename={editable} ward={floor.ward || floor.name} roster={roster} view={view} date={date} editions={editions} onOpen={setOpen} /> : null}
             {tab === 'riwayat' ? (
               <EditionsPanel key={floor.id} floor={floor} editions={editions} editable={editable} roster={roster} myName={myName} />
             ) : null}

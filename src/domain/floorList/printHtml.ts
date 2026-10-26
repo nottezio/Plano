@@ -8,7 +8,7 @@ import { MARK_COLORS, printedTags } from './marks';
 import type { FloorPatient } from './report';
 import { holderBoxes, residentGroups } from './residents';
 import { handoverLine } from './docx';
-import { contentBox, DEFAULT_PRINT, DENAH_MARGIN_MM, forPrint, LIST_GAP_MM, LIST_MARGIN_MM, type PrintSettings } from './printSettings';
+import { contentBox, DEFAULT_PRINT, DENAH_MARGIN_MM, forPrint, LIST_GAP_MM, LIST_MARGIN_MM, usulPrintOf, type PrintSettings, type UsulPrint } from './printSettings';
 
 /**
  * Denah + List as ONE printable page (13.12, Avi: "export both as a single
@@ -29,6 +29,8 @@ const esc = (text: string): string => text.replace(/&/g, '&amp;').replace(/</g, 
 const RED = '#ff0000';
 const GREEN = '#00b050';
 const AMBER = '#ffc000';
+/** The usul tag as a patient line prints it: the setup's (via `forPrint`), else the original amber [usul]. */
+const usulStyle = (patient: FloorPatient): UsulPrint => patient.usulPrint ?? usulPrintOf(DEFAULT_PRINT.denah);
 const GREY = '#7f7f7f';
 const hex = (docx: string): string => `#${docx.toLowerCase()}`;
 
@@ -39,7 +41,8 @@ export function patientHtml(patient: FloorPatient, options: { number?: number | 
   const place = options.place !== false && patient.room ? `${patient.room}${patient.bed ? ` Bed ${patient.bed}` : ''}/` : '';
   const residents = [patient.junior, patient.chief].filter(Boolean).map((n) => `dr. ${n}`).join(' / ');
   const codeHtml = code ? (isPediatri(patient.dpjpId) ? `<span style="color:${AMBER}">${esc(code)}</span>/` : `${esc(code)}/`) : '';
-  const usul = patient.usul ? ` <b style="color:${AMBER}">[usul]</b>` : '';
+  const usulTag = patient.usul ? usulStyle(patient) : null;
+  const usul = usulTag ? ` <b style="color:${hex(usulTag.docx)}">[${esc(usulTag.label)}]</b>` : '';
   const tags =
     usul +
     printedTags(patient.tags)
@@ -195,7 +198,11 @@ function denahBody(input: PrintInput, settings: PrintSettings): string {
   const title = `DENAH PASIEN ${input.ward.replace(/^PJT\s+/i, '').toUpperCase()} (${formatDmy(input.date)})`;
   const legendTags = [...new Map(sorted.flatMap((p) => printedTags(p.tags)).map((t) => [t.label, t])).values()]
     .map((t) => ` – <span style="color:${hex(MARK_COLORS[t.color].docx)}">${esc(t.label)}</span>`)
-    .concat(sorted.some((p) => p.usul) ? [` – <span style="color:${AMBER}">[usul]</span> Usul H-1 (belum disetujui)`] : [])
+    .concat(
+      sorted.some((p) => p.usul)
+        ? [` – <span style="color:${hex(usulStyle(sorted.find((p) => p.usul)!).docx)}">[${esc(usulStyle(sorted.find((p) => p.usul)!).label)}]</span> Usul H-1 (belum disetujui)`]
+        : [],
+    )
     .join('');
   return `<h1>${esc(title)}</h1>
 ${input.plan ? floorHtml(input.plan, input.ward, inRoom) : ''}

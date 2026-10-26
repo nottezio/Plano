@@ -50,7 +50,7 @@ describe('Denah + List as one printable page (13.12)', () => {
     expect(denahListHtml(input)).toContain('<div class="after" data-residents="">');
     const own = denahListHtml(input, {
       list: { landscape: false, columns: 2, fontPt: 8 },
-      denah: { landscape: true, fontPt: 9, residentsNewPage: true, residentsList: false, usulMarker: false },
+      denah: { landscape: true, fontPt: 9, residentsNewPage: true, residentsList: false, usulMarker: false, usulLabel: 'usul', usulColor: 'amber' },
     });
     expect(own).toContain('<div class="page" data-residents="">');
     expect(own).toContain('@page { size: A4 landscape; margin: 10mm; }');
@@ -71,6 +71,15 @@ describe('Denah + List as one printable page (13.12)', () => {
 describe('Usul H-1 on paper: nothing unless asked (26 Oct 2026)', () => {
   const input = { ward: 'PJT Lantai 4', date: '2026-10-13', plan: null, patients: [p({ usul: true }), p({ key: 'rm:2', rm: '2' })], listText: '' };
   const on = { ...DEFAULT_PRINT, denah: { ...DEFAULT_PRINT.denah, usulMarker: true } };
+
+  it('a renamed, recoloured tag prints with the setup\'s word and colour, in the line and the legend', () => {
+    const styled = { ...on, denah: { ...on.denah, usulLabel: 'Tunggu DPJP', usulColor: 'blue' as const } };
+    const html = denahListHtml(input, styled);
+    expect(html).toContain('<b style="color:#0070c0">[Tunggu DPJP]</b>');
+    expect(html).toContain('<span style="color:#0070c0">[Tunggu DPJP]</span> Usul H-1 (belum disetujui)');
+    expect(html).not.toContain('[usul]');
+    expect(html).not.toContain('<b style="color:#ffc000">');
+  });
 
   it('a line carries an amber [usul] tag, never a colour', () => {
     const html = patientHtml(p({ usul: true }), { number: 1 });

@@ -2,6 +2,7 @@ import { roomNamed } from '@/domain/denahPlan';
 import { DPJPS, detectDpjps, dpjpById } from '@/domain/dpjp';
 import type { ChatMessage } from './chat';
 import type { PatientTag } from './marks';
+import type { UsulPrint } from './printSettings';
 
 /**
  * List Maker, step 2: one follow-up message → one patient on the floor (12.8).
@@ -53,6 +54,8 @@ export interface FloorPatient {
   discharge: DischargeFlag;
   /** An usul H-1 is open (not accepted yet): never a colour, a small marker when the list is set to print it. */
   usul?: boolean | undefined;
+  /** How the usul tag prints (label and Word colour); set by `forPrint` from the print setup, never stored. */
+  usulPrint?: UsulPrint | undefined;
   /**
    * Entered by hand (pediatri patients have no SOAP in the floor group).
    * Stays on the list without daily reports until removed.

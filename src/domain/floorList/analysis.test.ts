@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { daySummary, daySummaryText, moveKind, movesByDay, movements, weekCounts } from './analysis';
+import { daySummary, daySummaryText, moveKind, movesByDay, movements, readSectionTitles, sectionTitle, SECTION_TITLE, tileTitle, weekCounts } from './analysis';
 import { localStamp, newRosterPatient, type Edition, type RosterPatient } from './floor';
 import type { FloorPatient } from './report';
 
@@ -119,6 +119,30 @@ describe('Analisis (13.12)', () => {
     const text = daySummaryText(daySummary('2026-10-13', roster, active, []), 'PJT Lantai 4');
     expect(text).toContain('*Usul H-1 (menunggu konfirmasi DPJP) (1)*\n417/2 ZD/Tn. Lima - usul sejak 2 hari');
     expect(daySummaryText(daySummary('2026-10-13', [rostered('v', [], { usulH1: '2026-10-13' })], [p('v', { name: 'Tn. Enam', kjsDpjpIds: [], usul: true })], []), 'W')).toContain('usul hari ini');
+  });
+
+  it('the sections can be renamed by the floor (26 Oct 2026)', () => {
+    // Only known sections, trimmed; a blank or unchanged name is simply absent (the default shows).
+    expect(
+      readSectionTitles({ pindah: '  Ke ICU/CVCU  ', rencanaH1: '', pulang: SECTION_TITLE.pulang, nonsense: 'x', masuk: 5, kamar: 'k'.repeat(90) }),
+    ).toEqual({ pindah: 'Ke ICU/CVCU', kamar: 'k'.repeat(60) });
+    expect(readSectionTitles(null)).toEqual({});
+    expect(sectionTitle({ pindah: 'Ke ICU/CVCU' }, 'pindah')).toBe('Ke ICU/CVCU');
+    expect(sectionTitle({}, 'rencanaH1')).toBe('Rencana H-1 (pulang besok)');
+    // A tile keeps its short name until the section is renamed.
+    expect(tileTitle({}, 'rencanaH1')).toBe('Rencana H-1');
+    expect(tileTitle({ rencanaH1: 'Besok pulang' }, 'rencanaH1')).toBe('Besok pulang');
+  });
+
+  it('the WhatsApp summary uses the floor\'s names', () => {
+    const day = daySummary('2026-10-13', [], [], []);
+    const named = daySummaryText(day, 'W', { pindah: 'Ke ICU/CVCU', rencanaH1: 'Besok pulang' });
+    expect(named).toContain('*Ke ICU/CVCU (0)*');
+    expect(named).toContain('*Besok pulang (0)*');
+    expect(named).not.toContain('*Pindah ruangan (0)*');
+    // No names: the text is what it always was.
+    expect(daySummaryText(day, 'W', {})).toBe(daySummaryText(day, 'W'));
+    expect(daySummaryText(day, 'W')).toContain('*Pindah ruangan (0)*');
   });
 
   it('groups the history by day, newest day first, each day newest first (2026-10-16)', () => {

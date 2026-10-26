@@ -29,7 +29,7 @@ function AutoRule({ mark, onChange }: { mark: FloorMark; onChange: (auto: MarkAu
   const kind = mark.auto?.kind ?? (picking ? 'dpjp' : '');
   const ids = mark.auto?.kind === 'dpjp' ? mark.auto.ids : [];
   return (
-    <div className="flex flex-wrap items-center gap-1.5 pl-5">
+    <div className="space-y-1.5">
       <select
         aria-label={`Otomatis untuk ${mark.label}`}
         value={kind}
@@ -39,7 +39,7 @@ function AutoRule({ mark, onChange }: { mark: FloorMark; onChange: (auto: MarkAu
           onChange(next === '' || next === 'dpjp' ? (next === 'dpjp' && ids.length > 0 ? { kind: 'dpjp', ids } : undefined) : { kind: next });
           setPicking(next === 'dpjp');
         }}
-        className={`${INPUT} !w-auto max-w-full text-xs`}
+        className={`${INPUT} text-xs`}
       >
         <option value="">Otomatis: tidak</option>
         {(Object.keys(AUTO_LABEL) as Array<MarkAuto['kind']>).map((k) => (
@@ -48,8 +48,9 @@ function AutoRule({ mark, onChange }: { mark: FloorMark; onChange: (auto: MarkAu
           </option>
         ))}
       </select>
-      {kind === 'dpjp'
-        ? RULE_DPJPS.map((id) => {
+      {kind === 'dpjp' ? (
+        <div className="flex flex-wrap gap-1.5">
+          {RULE_DPJPS.map((id) => {
             const on = ids.includes(id);
             return (
               <button
@@ -65,8 +66,9 @@ function AutoRule({ mark, onChange }: { mark: FloorMark; onChange: (auto: MarkAu
                 {code(id)}
               </button>
             );
-          })
-        : null}
+          })}
+        </div>
+      ) : null}
     </div>
   );
 }
@@ -101,49 +103,50 @@ export function MarksField({ floorId, marks, editable }: { floorId: string; mark
           <span className="flex-1">Pulang hari ini (hijau) · tetap</span>
         </li>
         {marks.map((mark) => (
-          <li key={mark.id} className="space-y-1 text-xs">
+          // One card per tag: the name row, then the rule and the print choice, all on the card's own left edge.
+          <li key={mark.id} className="space-y-2 rounded-lg border border-border p-2 text-xs">
             <div className="flex items-center gap-1.5">
-            <span className="h-3 w-3 shrink-0 rounded-full" style={{ background: markCss(mark.color) }} />
-            {editable ? (
-              <>
-                <input
-                  key={mark.label}
-                  defaultValue={mark.label}
-                  aria-label={`Nama warna ${mark.label}`}
-                  onBlur={(e) => {
-                    const text = e.target.value.trim();
-                    if (text && text !== mark.label) save(marks.map((m) => (m.id === mark.id ? { ...m, label: text } : m)));
-                  }}
-                  className={`${INPUT} !w-0 min-w-0 flex-1 text-xs sm:!w-48 sm:flex-none`}
-                />
-                <select
-                  aria-label={`Warna ${mark.label}`}
-                  value={mark.color}
-                  onChange={(e) => save(marks.map((m) => (m.id === mark.id ? { ...m, color: e.target.value as MarkColor } : m)))}
-                  className={`${INPUT} !w-28 shrink-0 text-xs`}
-                >
-                  {COLORS.map((c) => (
-                    <option key={c} value={c}>
-                      {MARK_COLORS[c].name}
-                    </option>
-                  ))}
-                </select>
-                <Button size="sm" variant="ghost" aria-label={`Hapus warna ${mark.label}`} onClick={() => save(marks.filter((m) => m.id !== mark.id))}>
-                  Hapus
-                </Button>
-              </>
-            ) : (
-              <span style={{ color: markCss(mark.color) }} className="font-semibold">
-                {mark.label}
-              </span>
-            )}
+              <span className="h-3 w-3 shrink-0 rounded-full" style={{ background: markCss(mark.color) }} />
+              {editable ? (
+                <>
+                  <input
+                    key={mark.label}
+                    defaultValue={mark.label}
+                    aria-label={`Nama warna ${mark.label}`}
+                    onBlur={(e) => {
+                      const text = e.target.value.trim();
+                      if (text && text !== mark.label) save(marks.map((m) => (m.id === mark.id ? { ...m, label: text } : m)));
+                    }}
+                    className={`${INPUT} !w-0 min-w-0 flex-1 text-xs`}
+                  />
+                  <select
+                    aria-label={`Warna ${mark.label}`}
+                    value={mark.color}
+                    onChange={(e) => save(marks.map((m) => (m.id === mark.id ? { ...m, color: e.target.value as MarkColor } : m)))}
+                    className={`${INPUT} !w-28 shrink-0 text-xs`}
+                  >
+                    {COLORS.map((c) => (
+                      <option key={c} value={c}>
+                        {MARK_COLORS[c].name}
+                      </option>
+                    ))}
+                  </select>
+                  <Button size="sm" variant="ghost" aria-label={`Hapus warna ${mark.label}`} onClick={() => save(marks.filter((m) => m.id !== mark.id))}>
+                    Hapus
+                  </Button>
+                </>
+              ) : (
+                <span style={{ color: markCss(mark.color) }} className="font-semibold">
+                  {mark.label}
+                </span>
+              )}
             </div>
             {editable ? <AutoRule mark={mark} onChange={(auto) => save(marks.map((m) => (m.id === mark.id ? withAuto(m, auto) : m)))} /> : mark.auto ? (
-              <p className="pl-5 text-xs text-fg-muted">Otomatis: {describeAuto(mark.auto)}</p>
+              <p className="text-xs text-fg-muted">Otomatis: {describeAuto(mark.auto)}</p>
             ) : null}
             {editable ? (
               // Screen only (13.12): a working mark stays off the Word/PDF sent to consultants.
-              <label className="ml-5 inline-flex min-h-8 items-center gap-1.5 text-xs text-fg-muted">
+              <label className="flex min-h-8 items-center gap-1.5 text-xs text-fg-muted">
                 <input
                   type="checkbox"
                   checked={mark.print !== false}
@@ -160,7 +163,7 @@ export function MarksField({ floorId, marks, editable }: { floorId: string; mark
                 Ikut dicetak di Word/PDF
               </label>
             ) : mark.print === false ? (
-              <p className="pl-5 text-xs text-fg-muted">Hanya di layar</p>
+              <p className="text-xs text-fg-muted">Hanya di layar</p>
             ) : null}
           </li>
         ))}

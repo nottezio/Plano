@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { contentBox, DEFAULT_PRINT, fontPt, forPrint, pageStarts, readPrintSettings } from './printSettings';
+import { contentBox, DEFAULT_PRINT, fontPt, forPrint, pageStarts, readPrintSettings, usulLabel } from './printSettings';
 
 describe('print setup (2026-10-16)', () => {
   it('reads stored settings defensively, keeping what is valid', () => {
@@ -19,9 +19,24 @@ describe('print setup (2026-10-16)', () => {
     type Row = { key: string; usul?: boolean | undefined };
     const open: Row = { usul: true, key: 'a' };
     const plain: Row = { key: 'b' };
-    expect(forPrint([open], { ...DEFAULT_PRINT.denah, usulMarker: true })).toEqual([open]);
+    expect(forPrint([open], { ...DEFAULT_PRINT.denah, usulMarker: true })).toEqual([{ ...open, usulPrint: { label: 'usul', docx: 'FFC000' } }]);
     // Off: the flag never reaches the printout, whatever the screen shows.
     expect(forPrint([open, plain], DEFAULT_PRINT.denah).map((p) => p.usul)).toEqual([undefined, undefined]);
+  });
+
+  it('the usul tag can be renamed and recoloured (26 Oct 2026)', () => {
+    expect(DEFAULT_PRINT.denah.usulLabel).toBe('usul');
+    expect(DEFAULT_PRINT.denah.usulColor).toBe('amber');
+    const read = readPrintSettings(JSON.stringify({ denah: { usulMarker: true, usulLabel: '  [Tunggu DPJP]  ', usulColor: 'blue' } })).denah;
+    // Brackets are the print's own; they are stripped from what is typed.
+    expect(read.usulLabel).toBe('Tunggu DPJP');
+    expect(read.usulColor).toBe('blue');
+    // Blank, too long, or an unknown colour fall back or are cut.
+    expect(readPrintSettings(JSON.stringify({ denah: { usulLabel: '   ', usulColor: 'red' } })).denah).toMatchObject({ usulLabel: 'usul', usulColor: 'amber' });
+    expect(usulLabel('x'.repeat(40))).toHaveLength(14);
+    expect(usulLabel('<b>&')).toBe('b');
+    const row = { usul: true as const, key: 'a' };
+    expect(forPrint([row], { ...DEFAULT_PRINT.denah, usulMarker: true, usulLabel: 'Menunggu', usulColor: 'blue' })[0]!.usulPrint).toEqual({ label: 'Menunggu', docx: '0070C0' });
   });
 
   it('keeps sizes in half points within 5–12 pt', () => {

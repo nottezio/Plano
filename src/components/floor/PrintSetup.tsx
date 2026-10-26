@@ -1,10 +1,10 @@
 import { useEffect, useRef, useState } from 'react';
 
 import { Sheet } from '@/components/common/Sheet';
-import { Button, CheckRow, Segmented } from '@/components/common/ui';
+import { Button, CheckRow, INPUT, Segmented } from '@/components/common/ui';
 import { buildDenahDocx, buildListDocx, DOCX_MIME, floorFileName } from '@/domain/floorList/docx';
 import { denahListHtml, previewHtml, type PrintInput } from '@/domain/floorList/printHtml';
-import { DEFAULT_PRINT, FONT_MAX, FONT_MIN, type PrintSettings } from '@/domain/floorList/printSettings';
+import { DEFAULT_PRINT, FONT_MAX, FONT_MIN, USUL_COLORS, USUL_LABEL_MAX, usulLabel, type PrintSettings, type UsulColor } from '@/domain/floorList/printSettings';
 import { setPrintSettings, usePrintSettings } from '@/hooks/usePrintSettings';
 import { deliverFile } from '@/lib/download';
 import { MM, paginate } from '@/lib/printPreview';
@@ -136,8 +136,43 @@ export function PrintSetup({
               checked={settings.denah.usulMarker}
               onChange={(v) => set({ usulMarker: v })}
               title="Tandai usul H-1"
-              detail="Mati: usul H-1 tidak muncul di cetakan (belum keputusan). Nyala: tag [usul] kuning di samping nama, tanpa warna merah."
+              detail="Mati: usul H-1 tidak muncul di cetakan (belum keputusan). Nyala: tag di samping nama (bawaan [usul] kuning), tanpa warna merah."
             />
+          ) : null}
+          {kind === 'denah' && settings.denah.usulMarker ? (
+            <Setting title="Tampilan tag usul">
+              <div className="flex items-center gap-1.5">
+                <input
+                  // Remounts when the stored label changes elsewhere (reset); saved on blur so a half-typed word is never printed.
+                  key={settings.denah.usulLabel}
+                  aria-label="Tulisan tag usul"
+                  defaultValue={settings.denah.usulLabel}
+                  maxLength={USUL_LABEL_MAX}
+                  onBlur={(e) => {
+                    const next = usulLabel(e.target.value);
+                    e.target.value = next;
+                    if (next !== settings.denah.usulLabel) set({ usulLabel: next });
+                  }}
+                  className={`${INPUT} min-w-0 flex-1 text-xs`}
+                />
+                <select
+                  aria-label="Warna tag usul"
+                  value={settings.denah.usulColor}
+                  onChange={(e) => set({ usulColor: e.target.value as UsulColor })}
+                  className={`${INPUT} !w-28 shrink-0 text-xs`}
+                >
+                  {(Object.keys(USUL_COLORS) as UsulColor[]).map((c) => (
+                    <option key={c} value={c}>
+                      {USUL_COLORS[c].name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <p className="mt-1 text-xs text-fg-muted">
+                Tercetak sebagai{' '}
+                <b style={{ color: `#${USUL_COLORS[settings.denah.usulColor].docx}` }}>[{usulLabel(settings.denah.usulLabel)}]</b>.
+              </p>
+            </Setting>
           ) : null}
           <button
             type="button"

@@ -40,6 +40,7 @@ import {
 } from '../paths';
 import { trackWrite } from '../syncStatus';
 import { legacyColourDate, type Edition, type FloorDoc, type FloorRole, type RosterPatient, type StatusChange } from '@/domain/floorList/floor';
+import { readSectionTitles, type SectionTitles } from '@/domain/floorList/analysis';
 import { isMarkColor, MARK_PREFIX, readMarks, type FloorMark, type PatientTag } from '@/domain/floorList/marks';
 import { manualFullText, type FloorPatient } from '@/domain/floorList/report';
 import { fromParts, KEEP_POINTS, restored, toParts, type RestorePlan, type RestorePoint, type RestorePointMeta } from '@/domain/floorList/restore';
@@ -88,6 +89,7 @@ export function readFloor(id: string, data: DocumentData): FloorDoc {
     chiefBangsal: str(data.chiefBangsal),
     juniors: str(data.juniors),
     marks: readMarks(data.marks),
+    analysisTitles: readSectionTitles(data.analysisTitles),
   };
 }
 
@@ -289,6 +291,7 @@ export async function createFloor(uid: string, myName: string, name: string, war
       chiefs: '',
       juniors: '',
       marks: [],
+      analysisTitles: {},
       createdAt: serverTimestamp(),
       updatedAt: serverTimestamp(),
     }),
@@ -451,6 +454,11 @@ export function writeJuniors(floorId: string, juniors: string): Promise<void> {
 /** The floor's own colours (13.7): the whole list, small and edited in one place. */
 export function writeMarks(floorId: string, marks: readonly FloorMark[]): Promise<void> {
   return trackWrite(updateDoc(floorDoc(floorId), 'marks', plain(marks), 'updatedAt', serverTimestamp()));
+}
+
+/** The names of the Analisis sections (26 Oct 2026): the whole small map; a default-named section is simply absent. */
+export function writeAnalysisTitles(floorId: string, titles: SectionTitles): Promise<void> {
+  return trackWrite(updateDoc(floorDoc(floorId), 'analysisTitles', plain(readSectionTitles(titles)), 'updatedAt', serverTimestamp()));
 }
 
 export function writeChiefs(floorId: string, chiefs: string): Promise<void> {

@@ -7,7 +7,7 @@ import { planLayout, type RoomCell } from './layout';
 import { byRoute, dpjpCodeOf, dpjpTitle, isPediatri, LIST_DPJP_ORDER, PEDIATRI_DPJP_IDS } from './build';
 import { MARK_COLORS, printedTags } from './marks';
 import { holderBoxes, residentGroups } from './residents';
-import { DEFAULT_PRINT, forPrint, halfPoints, type DenahPrint, type ListPrint } from './printSettings';
+import { DEFAULT_PRINT, forPrint, halfPoints, usulPrintOf, type DenahPrint, type ListPrint, type UsulPrint } from './printSettings';
 import type { FloorPatient } from './report';
 
 /**
@@ -37,6 +37,8 @@ const PAGE = { width: 11906, height: 16838 };
 const RED = 'FF0000';
 const GREEN = '00B050';
 const AMBER = 'FFC000';
+/** The usul tag as a patient line prints it: the setup's (via `forPrint`), else the original amber [usul]. */
+const usulStyle = (patient: FloorPatient): UsulPrint => patient.usulPrint ?? usulPrintOf(DEFAULT_PRINT.denah);
 const GREY = '7F7F7F';
 const ORANGE_FILL = 'FFC000';
 
@@ -77,7 +79,7 @@ export function patientRuns(patient: FloorPatient, options: { number?: number | 
   out.push(tint({ text: patient.identity }));
   if (patient.btkv) out.push(tint({ text: ' (KJS BTKV)', bold: true }));
   if (residents) out.push({ text: ` - ${residents}`, bold: true });
-  if (patient.usul) out.push({ text: ' [usul]', bold: true, color: AMBER });
+  if (patient.usul) out.push({ text: ` [${usulStyle(patient).label}]`, bold: true, color: usulStyle(patient).docx });
   for (const tag of printedTags(patient.tags)) out.push({ text: ` [${tag.label}]`, bold: true, color: MARK_COLORS[tag.color].docx });
   return out;
 }
@@ -432,7 +434,8 @@ export function buildDenahDocx(input: DenahDocInput, print: DenahPrint = DEFAULT
   const patients = forPrint(input.patients, print);
   const marks = [...new Map(patients.flatMap((p) => printedTags(p.tags)).map((t) => [t.label, t])).values()];
   // An open usul H-1 explained last, only when the setup prints its marker.
-  const usul = patients.some((p) => p.usul);
+  const usulPatient = patients.find((p) => p.usul);
+  const usul = usulPatient !== undefined;
   const more = marks.length > 0 || usul;
   const legend = para([
     { text: 'Merah', color: RED },
@@ -440,7 +443,7 @@ export function buildDenahDocx(input: DenahDocInput, print: DenahPrint = DEFAULT
     { text: 'Hijau', color: GREEN },
     { text: more ? ' Pulang Hari ini' : ' Pulang Hari ini.' },
     ...marks.flatMap((m): Styled[] => [{ text: ' – ' }, { text: m.label, color: MARK_COLORS[m.color].docx }]),
-    ...(usul ? [{ text: ' – ' }, { text: '[usul]', color: AMBER }, { text: ' Usul H-1 (belum disetujui)' }] : []),
+    ...(usulPatient ? [{ text: ' – ' }, { text: `[${usulStyle(usulPatient).label}]`, color: usulStyle(usulPatient).docx }, { text: ' Usul H-1 (belum disetujui)' }] : []),
     ...(more ? [{ text: '.' }] : []),
   ]);
   return pack(denahDocumentXml(input, print), footer(legend), halfPoints(print.fontPt));

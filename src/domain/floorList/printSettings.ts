@@ -13,6 +13,44 @@
  * default now: they follow the DPJP boxes.
  */
 
+import { MARK_COLORS } from './marks';
+
+/**
+ * The colours the printed usul tag may take (26 Oct 2026, Avi: rename and
+ * recolour it). Not red or green: those already mean H-1 and pulang hari ini
+ * on paper. Amber is what it always was.
+ */
+export const USUL_COLORS = {
+  amber: { name: 'Kuning', docx: 'FFC000' },
+  orange: MARK_COLORS.orange,
+  blue: MARK_COLORS.blue,
+  purple: MARK_COLORS.purple,
+  teal: MARK_COLORS.teal,
+  grey: MARK_COLORS.grey,
+  black: { name: 'Hitam', docx: '000000' },
+} as const;
+
+export type UsulColor = keyof typeof USUL_COLORS;
+export const DEFAULT_USUL_LABEL = 'usul';
+export const USUL_LABEL_MAX = 14;
+
+/** What the printed tag says and how it is coloured, once the setup has been applied. */
+export interface UsulPrint {
+  label: string;
+  /** Word colour, 6 hex digits, no '#'. */
+  docx: string;
+}
+
+/** A typed label: no brackets (the print adds them), trimmed, short; blank falls back to the default. */
+export function usulLabel(value: unknown): string {
+  const text = typeof value === 'string' ? value.replace(/[[\]<>&"]/g, '').replace(/\s+/g, ' ').trim().slice(0, USUL_LABEL_MAX).trim() : '';
+  return text || DEFAULT_USUL_LABEL;
+}
+
+export function usulPrintOf(print: Pick<DenahPrint, 'usulLabel' | 'usulColor'>): UsulPrint {
+  return { label: usulLabel(print.usulLabel), docx: USUL_COLORS[print.usulColor].docx };
+}
+
 export interface ListPrint {
   landscape: boolean;
   /** Newspaper columns, 1–4. */
@@ -34,6 +72,10 @@ export interface DenahPrint {
    * since a proposal is not a decision.
    */
   usulMarker: boolean;
+  /** The word inside the tag's brackets (default "usul"). */
+  usulLabel: string;
+  /** The tag's colour, from `USUL_COLORS` (default amber). */
+  usulColor: UsulColor;
 }
 
 export interface PrintSettings {
@@ -44,15 +86,17 @@ export interface PrintSettings {
 /** The layouts as they were before settings existed, residents page aside. */
 export const DEFAULT_PRINT: PrintSettings = {
   list: { landscape: true, columns: 4, fontPt: 6.5 },
-  denah: { landscape: false, fontPt: 7.5, residentsNewPage: false, residentsList: false, usulMarker: false },
+  denah: { landscape: false, fontPt: 7.5, residentsNewPage: false, residentsList: false, usulMarker: false, usulLabel: DEFAULT_USUL_LABEL, usulColor: 'amber' },
 };
 
 /**
  * The patients as the printout sees them: the open-usul flag only survives
  * when the setup asks for the marker, so no printing code can show it by accident.
  */
-export function forPrint<T extends { usul?: boolean | undefined }>(patients: readonly T[], print: DenahPrint): readonly T[] {
-  return print.usulMarker ? patients : patients.map((p) => (p.usul ? { ...p, usul: undefined } : p));
+export function forPrint<T extends { usul?: boolean | undefined }>(patients: readonly T[], print: DenahPrint): ReadonlyArray<T & { usulPrint?: UsulPrint | undefined }> {
+  if (!print.usulMarker) return patients.map((p) => (p.usul ? { ...p, usul: undefined } : p));
+  const style = usulPrintOf(print);
+  return patients.map((p) => (p.usul ? { ...p, usulPrint: style } : p));
 }
 
 export const FONT_MIN = 5;
@@ -83,6 +127,8 @@ export function readPrintSettings(raw: string | null): PrintSettings {
         residentsNewPage: typeof denah.residentsNewPage === 'boolean' ? denah.residentsNewPage : DEFAULT_PRINT.denah.residentsNewPage,
         residentsList: denah.residentsList === true,
         usulMarker: denah.usulMarker === true,
+        usulLabel: usulLabel(denah.usulLabel),
+        usulColor: typeof denah.usulColor === 'string' && denah.usulColor in USUL_COLORS ? (denah.usulColor as UsulColor) : DEFAULT_PRINT.denah.usulColor,
       },
     };
   } catch {

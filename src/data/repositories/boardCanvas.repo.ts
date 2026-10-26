@@ -3,6 +3,7 @@ import { updateDoc } from 'firebase/firestore';
 import { userDoc } from '../paths';
 import { trackWrite } from '../syncStatus';
 import type { SharedCanvas } from '@/domain/board/canvasLayout';
+import type { PhoneShelf } from '@/domain/board/phoneShelf';
 
 /**
  * Mirror the canvas layout to the account, for the phone's read-only canvas.
@@ -15,10 +16,10 @@ export function saveSharedCanvas(uid: string, shared: SharedCanvas): Promise<voi
   return trackWrite(updateDoc(userDoc(uid), { boardCanvas: shared }));
 }
 
-/** The phone's block grid (see `domain/board/phoneGrid`), replaced whole. */
+/** The phone's block grid and its shelves (see `domain/board/phoneGrid`, `phoneShelf`), replaced whole. */
 export function savePhoneGrid(
   uid: string,
-  grid: { cells: Record<string, { c: number; r: number }>; columns: number; at: number },
+  grid: { cells: Record<string, { c: number; r: number }>; columns: number; shelves: readonly PhoneShelf[]; at: number },
 ): Promise<void> {
   return trackWrite(updateDoc(userDoc(uid), { boardPhoneGrid: grid }));
 }

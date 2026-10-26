@@ -1,4 +1,5 @@
 import { dpjpById } from '@/domain/dpjp';
+import type { SectionTitles } from './analysis';
 import { tagsOf, type FloorMark } from './marks';
 import { nameKey } from './slaber';
 import { dischargeFlag, soapStamp, usulH1, type DischargeFlag, type FloorPatient } from './report';
@@ -55,6 +56,8 @@ export interface FloorDoc {
   juniors: string;
   /** The floor's own colours besides red/green (13.7, `marks.ts`). */
   marks: FloorMark[];
+  /** The names the editors gave Analisis sections (26 Oct 2026, `analysis.ts`); {} = the defaults. */
+  analysisTitles: SectionTitles;
 }
 
 /** On the floor, or gone (and how). */
@@ -192,6 +195,19 @@ export function usulFields(date: string): { usulH1: string } {
   return { usulH1: date };
 }
 
+/**
+ * "Usul H-1" picked in the Warna select (26 Oct 2026): the patient is marked
+ * usul and any date-based colour is cleared, since the select holds one state.
+ */
+export function usulMarkFields(date: string): { colour: 'none'; dischargeDate: ''; usulH1: string } {
+  return { colour: 'none', dischargeDate: '', usulH1: date };
+}
+
+/** "Tanpa warna" picked by hand: no colour, planned date and usul all cleared. */
+export function clearMarkFields(): { colour: 'none'; dischargeDate: ''; usulH1: '' } {
+  return { colour: 'none', dischargeDate: '', usulH1: '' };
+}
+
 /** An usul H-1 is waiting for the supervisor: marked, and the patient still on the floor. */
 export function usulOpen(patient: Pick<RosterPatient, 'usulH1' | 'status'>): boolean {
   return patient.status === 'dirawat' && Boolean(patient.usulH1);
@@ -207,6 +223,13 @@ export function usulDays(patient: Pick<RosterPatient, 'usulH1'>, date: string): 
 export function colourMark(patient: Pick<RosterPatient, 'colour' | 'dischargeDate'>, date: string): ColourMark {
   const flag = colourOn(patient, date);
   return flag === 'tomorrow' ? 'h1' : flag === 'today' ? 'today' : 'none';
+}
+
+/** The select's value: a colour, or 'usul' while an usul H-1 is open and nothing has a colour. */
+export type ColourChoice = ColourMark | 'usul';
+export function colourChoice(patient: Pick<RosterPatient, 'colour' | 'dischargeDate' | 'usulH1' | 'status'>, date: string): ColourChoice {
+  const mark = colourMark(patient, date);
+  return mark === 'none' && usulOpen(patient) ? 'usul' : mark;
 }
 
 /**

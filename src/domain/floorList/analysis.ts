@@ -22,6 +22,62 @@ export const MOVE_LABEL: Record<MoveKind, string> = {
   lain: 'Lainnya',
 };
 
+/**
+ * The Analisis sections whose names the list's editors may change (26 Oct 2026,
+ * Avi: "rename 'Pindah ruangan' / 'Rencana H-1 (pulang besok)' and the others").
+ * The key is stable; the title is what the floor calls it, in the panel's
+ * blocks and tiles and in the WhatsApp summary.
+ */
+export type SectionKey = 'census' | 'pulangHariIni' | 'rencanaH1' | 'usulH1' | 'pulang' | 'pindah' | 'kamar' | 'masuk';
+
+export const SECTION_KEYS: readonly SectionKey[] = ['census', 'pulangHariIni', 'rencanaH1', 'usulH1', 'pulang', 'pindah', 'kamar', 'masuk'];
+
+/** The names as they were before they could be changed (the blocks' titles). */
+export const SECTION_TITLE: Record<SectionKey, string> = {
+  census: 'Di lantai',
+  pulangHariIni: 'Rencana pulang hari ini (masih di lantai)',
+  rencanaH1: 'Rencana H-1 (pulang besok)',
+  usulH1: 'Usul H-1 (menunggu konfirmasi DPJP)',
+  pulang: 'Sudah pulang',
+  pindah: 'Pindah ruangan',
+  kamar: 'Pindah kamar (di lantai ini)',
+  masuk: 'Masuk list',
+};
+
+/** The shorter names on the count tiles, used until a section is renamed. */
+export const TILE_TITLE: Record<SectionKey, string> = {
+  census: 'Di lantai',
+  pulangHariIni: 'Rencana pulang hari ini',
+  rencanaH1: 'Rencana H-1',
+  usulH1: 'Usul H-1',
+  pulang: 'Pulang',
+  pindah: 'Pindah ruangan',
+  kamar: 'Pindah kamar',
+  masuk: 'Masuk',
+};
+
+export type SectionTitles = Partial<Record<SectionKey, string>>;
+
+export const SECTION_TITLE_MAX = 60;
+
+/** A stored map as clean titles: known keys, trimmed text, nothing blank or equal to the default. */
+export function readSectionTitles(raw: unknown): SectionTitles {
+  if (!raw || typeof raw !== 'object') return {};
+  const out: SectionTitles = {};
+  for (const key of SECTION_KEYS) {
+    const value = (raw as Record<string, unknown>)[key];
+    const text = typeof value === 'string' ? value.trim().slice(0, SECTION_TITLE_MAX) : '';
+    if (text && text !== SECTION_TITLE[key]) out[key] = text;
+  }
+  return out;
+}
+
+/** A section's name: the floor's own, else the block title. */
+export const sectionTitle = (titles: SectionTitles, key: SectionKey): string => titles[key] || SECTION_TITLE[key];
+
+/** The count tile's name: the floor's own, else the short one. */
+export const tileTitle = (titles: SectionTitles, key: SectionKey): string => titles[key] || TILE_TITLE[key];
+
 export interface Movement {
   /** Local wall clock, "2026-10-13T09:05". */
   at: string;
@@ -139,7 +195,7 @@ export function daysOnList(patient: RosterPatient, date: string): number | null 
  * the day, not the minute. Empty sections keep their heading with "-", so
  * "0" is stated, not missing.
  */
-export function daySummaryText(day: DaySummary, ward: string): string {
+export function daySummaryText(day: DaySummary, ward: string, titles: SectionTitles = {}): string {
   const code = (p: FloorPatient): string => {
     const own = p.dpjpId ? (dpjpById(p.dpjpId)?.initials ?? '') : (p.dpjpCode ?? '');
     return own || (p.kjsDpjpIds[0] ? (dpjpById(p.kjsDpjpIds[0])?.initials ?? '') : '');
@@ -150,22 +206,23 @@ export function daySummaryText(day: DaySummary, ward: string): string {
     return `${place}${who}${note ? ` - ${note}` : ''}`;
   };
   const block = (title: string, lines: readonly string[]): string[] => [`*${title} (${lines.length})*`, ...(lines.length > 0 ? lines : ['-'])];
+  const name = (key: SectionKey): string => sectionTitle(titles, key);
   const [y, m, d] = day.date.split('-');
   return [
     `*Ringkasan ${ward} — ${d}/${m}/${y}*`,
     '',
-    ...block('Rencana pulang hari ini (masih di lantai)', day.pulangHariIni.map((p) => line(p))),
-    ...block('Rencana H-1 (pulang besok)', day.rencanaH1.map((p) => line(p))),
+    ...block(name('pulangHariIni'), day.pulangHariIni.map((p) => line(p))),
+    ...block(name('rencanaH1'), day.rencanaH1.map((p) => line(p))),
     ...block(
-      'Usul H-1 (menunggu konfirmasi DPJP)',
+      name('usulH1'),
       day.usulH1.map(({ patient, days }) => line(patient, days === 0 ? 'usul hari ini' : `usul sejak ${days} hari`)),
     ),
     '',
-    ...block('Sudah pulang', day.pulang.map((p) => line(p.report))),
-    ...block('Pindah ruangan', day.pindah.map((p) => line(p.report, `ke ${p.pindahKe || '…'}`))),
-    ...block('Pindah kamar (di lantai ini)', day.kamar.map((mv) => line(mv.patient, mv.what.replace(/^Pindah kamar\s*/i, '')))),
+    ...block(name('pulang'), day.pulang.map((p) => line(p.report))),
+    ...block(name('pindah'), day.pindah.map((p) => line(p.report, `ke ${p.pindahKe || '…'}`))),
+    ...block(name('kamar'), day.kamar.map((mv) => line(mv.patient, mv.what.replace(/^Pindah kamar\s*/i, '')))),
     '',
-    ...block('Masuk list', day.masuk.map((mv) => line(mv.patient, mv.what === 'Masuk list' ? 'baru' : mv.what.toLowerCase()))),
+    ...block(name('masuk'), day.masuk.map((mv) => line(mv.patient, mv.what === 'Masuk list' ? 'baru' : mv.what.toLowerCase()))),
   ].join('\n');
 }
 
