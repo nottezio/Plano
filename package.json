@@ -13,6 +13,7 @@
     "test:watch": "vitest",
     "typecheck": "tsc --noEmit -p tsconfig.json && tsc --noEmit -p tsconfig.sw.json",
     "check:version": "node scripts/check-version.mjs",
+    "preflight": "node scripts/preflight.mjs",
     "check:contrast": "node scripts/check-contrast.mjs",
     "lint": "eslint . --max-warnings 0",
     "verify": "npm run typecheck && npm run lint && npm run test && npm run check:version && npm run check:contrast && npm run check:a11y && npm run build",
