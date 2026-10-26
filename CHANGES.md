@@ -1,5 +1,11 @@
 # Plano — CHANGES
 
+## `2026-10-26.3` — Phone canvas blocks redesigned; view mode skips empty leading grid (entry added afterwards)
+
+- **Why this entry exists.** `1914514` bumped `APP_VERSION` to `.3` without a `CHANGELOG.md` entry, so the test "the newest entry in CHANGELOG.md is the running version" failed on `main` and the GitHub Actions run stopped at "Run npm test" (deploy skipped). This entry was written afterwards from that commit's message and diff, by a different session than the one that made the change.
+- **What the commit does (from its diff).** `phoneGrid.viewOffset(grid)` returns the top-left of the used cells (`{c:0,r:0}` for an empty grid); outside Atur `PhoneCanvas` draws blocks shifted by it, so leading empty rows and columns no longer push them to the middle. Stored cells are never changed, Atur still shows the full grid. `PhoneCanvas.tsx`: taller blocks (104 px), 2 columns on narrow phones, a patient block with bed + DPJP chip, name, progress bar, discharge/EKG/reminder chips and the pemantauan ring; the sticky note gets a header band and a muted empty state. Tests: `viewOffset` (used top-left, empty grid).
+- **Not verified.** The visual redesign was not rendered by this session; only the changelog/version consistency was fixed here. `npm run verify` passes with this entry.
+
 ## `2026-10-26.2` — List Maker Setelan: grouped, hierarchy, two-tap removals, visible save failures
 
 - **Symptom (owner).** The Setelan tab (id `anggota`, `MembersPanel`) was five equal blocks with 12px faint headings and long grey paragraphs; the owner-only invite and delete sat among everyday editor settings.
