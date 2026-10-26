@@ -7,12 +7,13 @@ import {
   gridRows,
   moveBlock,
   placeGrid,
+  viewOffset,
   type Cell,
   type PhoneGrid,
 } from '@/domain/board/phoneGrid';
 import { NotePopover } from './NotePopover';
 
-const CELL_H = 78;
+const CELL_H = 104;
 const GAP = 8;
 
 export interface PhoneSticky {
@@ -68,10 +69,13 @@ export function PhoneCanvas({
     return () => observer.disconnect();
   }, []);
 
-  const columns = width >= 640 ? 5 : width >= 480 ? 4 : 3;
+  const columns = width >= 640 ? 5 : width >= 480 ? 4 : width >= 400 ? 3 : 2;
   const cellW = width > 0 ? (width - GAP * (columns - 1)) / columns : 110;
   const placed = useMemo(() => placeGrid(ids, grid, columns), [ids, grid, columns]);
-  const rows = Math.max(1, gridRows(placed)) + (editing ? 2 : 0);
+  // Outside Atur the used part of the grid is drawn from the top-left corner;
+  // Atur shows every cell so a block can be put anywhere.
+  const offset = useMemo(() => (editing ? { c: 0, r: 0 } : viewOffset(placed)), [editing, placed]);
+  const rows = Math.max(1, gridRows(placed) - offset.r) + (editing ? 2 : 0);
 
   const cellAt = (clientX: number, clientY: number): Cell => {
     const rect = surfaceRef.current?.getBoundingClientRect();
@@ -118,7 +122,7 @@ export function PhoneCanvas({
     <div className="px-4 pb-4">
       <div className="mb-2 flex items-center gap-2">
         <p className="min-w-0 flex-1 text-xs text-fg-muted">
-          {editing ? 'Seret blok ke kotak lain. Blok yang ditimpa bertukar tempat.' : 'Ketuk untuk membuka, tekan lama untuk checklist.'}
+          {editing ? 'Seret blok ke kotak lain. Blok yang ditimpa bertukar tempat.' : 'Ketuk buka · tahan untuk checklist'}
         </p>
         {editing ? (
           <button
@@ -185,8 +189,8 @@ export function PhoneCanvas({
                   transform: 'scale(1.05)',
                 }
               : {
-                  left: cell.c * (cellW + GAP),
-                  top: cell.r * (CELL_H + GAP),
+                  left: (cell.c - offset.c) * (cellW + GAP),
+                  top: (cell.r - offset.r) * (CELL_H + GAP),
                   width: cellW,
                   height: CELL_H,
                   transition: 'left 150ms ease, top 150ms ease',
@@ -228,33 +232,47 @@ function PatientBlock({
   const where = [patient.room?.trim(), patient.bed?.trim()].filter(Boolean).join('/');
   const due = card.reminders.filter((reminder) => !reminder.done).length;
 
+  const percent = progress.total > 0 ? Math.round((progress.doneCount / progress.total) * 100) : 0;
+  const stage = card.discharge === 'today' ? 'Pulang' : card.discharge === 'h1' ? 'H-1' : null;
+
   const content = (
     <>
-      <span className="line-clamp-2 text-[12px] font-semibold leading-tight">{card.name}</span>
-      <span className="mt-auto flex items-center gap-1 truncate text-[11px] opacity-85">
-        {where ? <span className="font-mono">{where}</span> : null}
-        {card.dpjp ? <span className="truncate">· {card.dpjp.initials}</span> : null}
-      </span>
-      <span className="flex items-center gap-1 text-[11px] font-semibold">
-        <span>{progress.complete ? '✓' : `${progress.doneCount}/${progress.total}`}</span>
-        {card.discharge === 'today' || card.discharge === 'h1' ? (
-          <span className="rounded bg-black/25 px-1">{card.discharge === 'today' ? 'Pulang' : 'H-1'}</span>
-        ) : null}
-        {due > 0 ? (
-          <span className="ml-auto rounded-full bg-[var(--warn-strong)] px-1 text-black" title="Pengingat belum">
-            {due}
-          </span>
+      <span className="flex items-start justify-between gap-1">
+        <span className="truncate font-mono text-[13px] font-bold leading-tight">{where || '—'}</span>
+        {card.dpjp ? (
+          <span className="shrink-0 rounded bg-black/25 px-1 text-[10px] font-semibold leading-4">{card.dpjp.initials}</span>
         ) : null}
       </span>
+      <span className="mt-0.5 line-clamp-2 text-[13px] font-semibold leading-tight">{card.name}</span>
+      <span className="mt-auto flex items-center gap-1.5">
+        <span className="h-1.5 flex-1 overflow-hidden rounded-full bg-black/25" aria-hidden="true">
+          <span className="block h-full rounded-full bg-current" style={{ width: `${percent}%` }} />
+        </span>
+        <span className="text-[11px] font-semibold tabular-nums">
+          {progress.complete ? '✓' : `${progress.doneCount}/${progress.total}`}
+        </span>
+      </span>
+      {stage || due > 0 || card.ekg ? (
+        <span className="mt-1 flex items-center gap-1 text-[10px] font-semibold leading-4">
+          {stage ? <span className="rounded bg-black/30 px-1.5">{stage}</span> : null}
+          {card.ekg ? <span className="rounded bg-black/30 px-1.5">EKG</span> : null}
+          {due > 0 ? (
+            <span className="ml-auto rounded-full bg-[var(--warn-strong)] px-1.5 text-black" title="Pengingat belum">
+              🔔 {due}
+            </span>
+          ) : null}
+        </span>
+      ) : null}
     </>
   );
 
   const className =
-    'flex h-full w-full flex-col overflow-hidden rounded-lg border border-black/10 bg-token p-1.5 text-left text-token-fg shadow-card dark:border-white/10';
+    'flex h-full w-full flex-col overflow-hidden rounded-lg border border-black/10 bg-token p-2 text-left text-token-fg shadow-card dark:border-white/10';
+  const ringed = card.pemantauan ? ' ring-2 ring-[var(--danger)]' : '';
 
   if (editing) {
     return (
-      <div data-color-token={card.colorToken} className={`${className} cursor-grab select-none`}>
+      <div data-color-token={card.colorToken} className={`${className}${ringed} cursor-grab select-none`}>
         {content}
       </div>
     );
@@ -263,7 +281,7 @@ function PatientBlock({
     <Link
       to={`/p/${patient.id}`}
       data-color-token={card.colorToken}
-      className={className}
+      className={`${className}${ringed}`}
       onPointerDown={() => {
         pressed.current = false;
         window.clearTimeout(timer.current);
@@ -306,7 +324,9 @@ function StickyBlock({
 }): JSX.Element {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLButtonElement>(null);
-  const first = sticky.text.split('\n').find((line) => line.trim()) ?? '(kosong)';
+  const found = sticky.text.split('\n').find((line) => line.trim());
+  const empty = !found;
+  const first = found ?? '(kosong)';
   return (
     <>
       <button
@@ -314,10 +334,14 @@ function StickyBlock({
         type="button"
         disabled={editing}
         onClick={() => (onOpen ? onOpen(sticky.id) : setOpen(true))}
-        className="flex h-full w-full flex-col overflow-hidden rounded-lg border border-[var(--warn-strong)] bg-[var(--warn-soft)] p-1.5 text-left text-fg disabled:cursor-grab"
+        className="flex h-full w-full flex-col overflow-hidden rounded-lg border border-[var(--warn-strong)] bg-[var(--warn-soft)] text-left text-fg disabled:cursor-grab"
       >
-        <span className="text-[10px] font-semibold uppercase tracking-wide text-[var(--warn-strong)]">Catatan</span>
-        <span className="line-clamp-3 text-xs leading-tight">{first}</span>
+        <span className="w-full bg-[var(--warn-strong)]/25 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-[var(--warn-strong)]">
+          Catatan
+        </span>
+        <span className={['line-clamp-4 px-2 pt-1 text-[13px] leading-tight', empty ? 'italic text-fg-muted' : ''].join(' ')}>
+          {first}
+        </span>
       </button>
       {open ? <NotePopover anchor={ref} title="Catatan papan" note={sticky.text} onClose={() => setOpen(false)} /> : null}
     </>

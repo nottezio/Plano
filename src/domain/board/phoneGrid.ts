@@ -106,6 +106,17 @@ export function gridRows(grid: PhoneGrid): number {
   return Object.values(grid).reduce((max, cell) => Math.max(max, cell.r + 1), 0);
 }
 
+/**
+ * Where the used part of the grid starts. Outside Atur the phone draws the
+ * blocks shifted by this, so empty leading rows and columns do not push them
+ * into the middle of the screen. Stored cells are never changed by it.
+ */
+export function viewOffset(grid: PhoneGrid): Cell {
+  const cells = Object.values(grid);
+  if (cells.length === 0) return { c: 0, r: 0 };
+  return { c: Math.min(...cells.map((cell) => cell.c)), r: Math.min(...cells.map((cell) => cell.r)) };
+}
+
 /** Pack every block up and left, keeping their order. "Rapikan" on the phone. */
 export function compactGrid(grid: PhoneGrid, columns: number): PhoneGrid {
   const order = Object.keys(grid).sort((a, b) => {

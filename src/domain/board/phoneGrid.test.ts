@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { compactGrid, gridRows, moveBlock, placeGrid, readingOrder, sanitizePhoneGrid } from './phoneGrid';
+import { compactGrid, gridRows, moveBlock, placeGrid, readingOrder, sanitizePhoneGrid, viewOffset } from './phoneGrid';
 
 describe('placeGrid', () => {
   it('keeps stored cells and fills the rest in reading order', () => {
@@ -50,5 +50,15 @@ describe('sanitizePhoneGrid', () => {
   it('drops bad cells and clamps to the column count', () => {
     const grid = sanitizePhoneGrid({ cells: { a: { c: 1, r: 0 }, b: { c: 'x', r: 0 }, c: { c: 4, r: 2 } } }, 3);
     expect(grid).toEqual({ a: { c: 1, r: 0 }, c: { c: 2, r: 2 } });
+  });
+});
+
+describe('viewOffset', () => {
+  it('is the top-left of the used cells, so empty leading space can be skipped', () => {
+    expect(viewOffset({ a: { c: 1, r: 4 }, b: { c: 2, r: 6 }, c: { c: 1, r: 9 } })).toEqual({ c: 1, r: 4 });
+  });
+
+  it('is the origin for an empty grid', () => {
+    expect(viewOffset({})).toEqual({ c: 0, r: 0 });
   });
 });
