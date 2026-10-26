@@ -11,8 +11,19 @@ import { useEffect, useState } from 'react';
  */
 const SHOW_AFTER_PX = 400;
 
+/** Clear of the working area's own scrollbar and its edge. */
+const EDGE_GAP_PX = 20;
+
 export function ScrollToTop(): JSX.Element | null {
   const [visible, setVisible] = useState(false);
+  /**
+   * Distance from the window's right edge: the button sits inside the scroller
+   * (<main>), past its scrollbar, not at the window's edge. On a wide screen
+   * the window edge is the side panel's scrollbar, and a button fixed there
+   * covered the scrollbar and the panel's cards (28 Oct 2026, Avi: "placed
+   * weirdly").
+   */
+  const [right, setRight] = useState(EDGE_GAP_PX);
 
   useEffect(() => {
     // The app's scroll container is <main>, not the window: the shell is a
@@ -21,10 +32,23 @@ export function ScrollToTop(): JSX.Element | null {
     if (!scroller) return;
 
     const onScroll = (): void => setVisible(scroller.scrollTop > SHOW_AFTER_PX);
+    const place = (): void => {
+      const rect = scroller.getBoundingClientRect();
+      const scrollbar = scroller.offsetWidth - scroller.clientWidth;
+      setRight(Math.max(EDGE_GAP_PX, window.innerWidth - rect.right + scrollbar + EDGE_GAP_PX));
+    };
     onScroll();
+    place();
 
     scroller.addEventListener('scroll', onScroll, { passive: true });
-    return () => scroller.removeEventListener('scroll', onScroll);
+    const observer = new ResizeObserver(place);
+    observer.observe(scroller);
+    window.addEventListener('resize', place);
+    return () => {
+      scroller.removeEventListener('scroll', onScroll);
+      observer.disconnect();
+      window.removeEventListener('resize', place);
+    };
   }, []);
 
   if (!visible) return null;
@@ -33,13 +57,17 @@ export function ScrollToTop(): JSX.Element | null {
     <button
       type="button"
       aria-label="Kembali ke atas"
+      title="Kembali ke atas"
       onClick={() => {
         const scroller = document.querySelector('main');
         scroller?.scrollTo({ top: 0, behavior: 'smooth' });
       }}
-      className="fixed bottom-[calc(env(safe-area-inset-bottom)+80px)] right-4 z-30 flex h-11 w-11 items-center justify-center rounded-full border border-border bg-surface text-lg shadow-pop sm:bottom-6"
+      style={{ right }}
+      className="fixed bottom-[calc(env(safe-area-inset-bottom)+80px)] z-30 flex h-10 w-10 items-center justify-center rounded-full border border-border bg-surface text-fg-muted shadow-pop transition-colors hover:border-border-strong hover:text-fg sm:bottom-6"
     >
-      <span aria-hidden="true">↑</span>
+      <svg aria-hidden="true" viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2">
+        <path d="M8 13V3m0 0L3.5 7.5M8 3l4.5 4.5" strokeLinecap="round" strokeLinejoin="round" />
+      </svg>
     </button>
   );
 }

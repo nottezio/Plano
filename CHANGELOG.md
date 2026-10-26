@@ -5,6 +5,14 @@ Catatan teknis lengkap (akar masalah, perbaikan) ada di CHANGES.md.
 
 Entri teratas harus versi yang sedang dirilis; tes gagal bila belum ditulis.
 
+## `2026-10-28.1`
+- **Salin: "Tanpa judul bagian".** Saat Anda memilih bagian tertentu (mis. hanya A), muncul pilihan untuk membuang baris judulnya ("Mohon izin kami assess dengan:"). Mati secara bawaan, jadi judul tetap ikut sampai Anda mencentangnya. Untuk "Seluruh catatan" pilihannya tidak muncul dan teks tetap utuh.
+- **Pindahkan kepemilikan list.** Pemilik list kini bisa menjadikan anggota lain sebagai pemilik (penanggung jawab) lewat tombol **Jadikan pemilik** di Setelan → Anggota, dengan satu pertanyaan konfirmasi yang menyebut nama orangnya. Pemilik lama tetap menjadi editor. Hanya anggota yang sudah menerima undangan yang bisa dipilih. **Butuh deploy firestore.rules.**
+- **Tab Analisis diperbarui dengan grafik.** Ringkasan hari ini kini satu bilah angka; di bawahnya empat grafik: jumlah pasien di lantai (kurva dua minggu), masuk/pulang/pindah per hari, pasien per DPJP, dan sudah berapa hari pasien di list. Arahkan kursor (atau sentuh) untuk melihat angkanya. Tabel 7 hari pindah ke bagian lipat "Angka per hari".
+- **Tombol kembali ke atas tidak lagi menutupi batang gulir.** Tombol kini berada di dalam area isi, dengan jarak dari batang gulir, lebih kecil dan lebih tenang.
+- **Catatan, Kalkulator, dan Checklist ditata ulang.** Daftar catatan dan checklist kini satu tumpukan baris yang dipisah garis tipis (bukan dinding kartu) tanpa garis warna acak di tepi; tab "Catatan | Catatan jaga" bergaris bawah; tombol baru berupa ikon +; judul catatan lebih besar; bilah format tidak lagi menampilkan batang gulir. Kalkulator memakai kerangka halaman yang sama dengan Arsip dan Dokumen, hasil hitung tampil sebagai blok yang menonjol, dan pilihan ganda tidak lagi berupa blok warna penuh.
+- **Jendela pratinjau pasien dan kartu yang dilipat.** Jendela kecil kini dua baris: nama dan tanggal (tidak lagi terpotong "Hari ini"), lalu pilihan tampilan Asli/SIMGOS/WA dalam satu kontrol, Salin RM, dan Buka. Tab Checklist/Custom/Catatan di bawahnya bergaris atas, bukan kotak. Kartu yang dilipat menampilkan nama, DPJP, progres, dan panah buka (bukan tanda +).
+
 ## `2026-10-26.7`
 - **Kartu pasien: "3 cek" kembali menjadi bendera dan angka** (⚑ 3). Arti angkanya tetap muncul di tooltip dan pembaca layar.
 - **Nama Chief di kartu lebih menonjol.** Tulisan "Chief" tetap redup, tetapi namanya kini tebal, penuh warna, dan sedikit lebih besar.

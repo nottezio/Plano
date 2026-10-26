@@ -157,8 +157,8 @@ export default function ChecklistsPage(): JSX.Element {
   };
 
   const listPane = (
-    <div className="flex flex-col gap-3 p-3">
-      <label className="flex min-h-tap items-center gap-2 rounded-xl border border-border bg-surface px-3 focus-within:border-accent">
+    <div className="flex flex-col gap-5 p-4">
+      <label className="flex min-h-tap items-center gap-2 rounded-lg border border-border bg-surface px-3 focus-within:border-accent">
         <IconSearch width="16" height="16" className="shrink-0 text-fg-faint" />
         <input
           type="search"
@@ -181,7 +181,7 @@ export default function ChecklistsPage(): JSX.Element {
       </label>
 
       {outdated.length > 0 ? (
-        <div className="rounded-xl border border-accent bg-bg-subtle p-3">
+        <div className="rounded-xl bg-[var(--accent-soft)] p-3">
           <p className="text-xs text-fg">
             {outdated.length} checklist tersimpan berbeda dari versi terbaru di aplikasi.
           </p>
@@ -217,7 +217,7 @@ export default function ChecklistsPage(): JSX.Element {
           onOpen={openList}
         />
       ) : null}
-      <p className="px-1 text-xs text-fg-faint">
+      <p className="text-xs text-fg-faint">
         Centang di sini tidak tersimpan per pasien: ini penanda posisi Anda dalam satu prosedur,
         bukan catatan bahwa sesuatu sudah dikerjakan.
       </p>
@@ -242,9 +242,9 @@ export default function ChecklistsPage(): JSX.Element {
     <AppShell title="Checklist">
       {wide ? (
         <div className="flex h-full min-h-0">
-          <aside className="w-[22rem] shrink-0 overflow-y-auto border-r border-border">{listPane}</aside>
-          <section className="min-w-0 flex-1 overflow-y-auto">
-            <div className="mx-auto max-w-2xl">{detail}</div>
+          <aside className="w-[21rem] shrink-0 overflow-y-auto border-r border-border bg-bg">{listPane}</aside>
+          <section className="min-w-0 flex-1 overflow-y-auto bg-surface">
+            <div className="mx-auto max-w-2xl px-2 xl:px-6">{detail}</div>
           </section>
         </div>
       ) : open ? (
@@ -277,10 +277,10 @@ function Group({
 }): JSX.Element {
   return (
     <section>
-      <h2 className="px-1 pb-1 text-xs font-semibold uppercase tracking-wide text-fg-faint">
-        {title} <span className="font-normal">{rows.length}</span>
+      <h2 className="flex items-baseline gap-2 px-1 pb-2 text-xs font-semibold uppercase tracking-wide text-fg-muted">
+        {title} <span className="font-normal tabular-nums text-fg-faint">{rows.length}</span>
       </h2>
-      <ul className="space-y-1">
+      <ul className="divide-y divide-border overflow-hidden rounded-xl border border-border bg-surface">
         {rows.map(({ list, done, status }) => {
           const total = list.items.length;
           const active = list.id === activeId;
@@ -291,8 +291,8 @@ function Group({
                 onClick={() => onOpen(list.id)}
                 aria-current={active ? 'true' : undefined}
                 className={[
-                  'block min-h-tap w-full rounded-xl border px-3 py-2.5 text-left transition-colors',
-                  active ? 'border-accent bg-bg-subtle' : 'border-border bg-surface hover:bg-bg-subtle',
+                  'block min-h-tap w-full px-4 py-3 text-left transition-colors',
+                  active ? 'bg-[var(--accent-soft)]' : 'hover:bg-bg-subtle',
                 ].join(' ')}
               >
                 <span className="flex items-baseline gap-2">
@@ -352,7 +352,7 @@ function ChecklistDetail({
   const finished = total > 0 && ticked.size >= total;
 
   return (
-    <div className="flex flex-col gap-3 p-3 sm:p-4">
+    <div className="flex flex-col gap-5 p-4 sm:py-6">
       <div className="flex items-start gap-1">
         {onBack ? (
           <button
@@ -365,7 +365,7 @@ function ChecklistDetail({
           </button>
         ) : null}
         <div className="min-w-0 flex-1 pt-2">
-          <h2 className="text-lg font-semibold leading-snug">{list.title}</h2>
+          <h2 className="text-xl font-semibold leading-snug tracking-tight">{list.title}</h2>
           {list.context ? <p className="mt-0.5 text-xs text-fg-muted">{list.context}</p> : null}
         </div>
       </div>
@@ -403,7 +403,7 @@ function ChecklistDetail({
         <ProgressBar done={ticked.size} total={total} />
       </div>
 
-      <ol className="space-y-1">
+      <ol className="divide-y divide-border overflow-hidden rounded-xl border border-border">
         {list.items.map((item, index) => {
           const checked = ticked.has(item.id);
           const isNext = item.id === next;
@@ -414,12 +414,8 @@ function ChecklistDetail({
                 onClick={() => onToggle(item.id, !checked)}
                 aria-pressed={checked}
                 className={[
-                  'flex min-h-tap w-full items-start gap-3 rounded-xl border px-3 py-2.5 text-left transition-colors',
-                  isNext
-                    ? 'border-accent bg-bg-subtle'
-                    : checked
-                      ? 'border-transparent'
-                      : 'border-border hover:bg-bg-subtle',
+                  'flex min-h-tap w-full items-start gap-3 px-4 py-3 text-left transition-colors',
+                  isNext ? 'bg-[var(--accent-soft)]' : 'hover:bg-bg-subtle',
                 ].join(' ')}
               >
                 <span
@@ -452,7 +448,7 @@ function ChecklistDetail({
       </ol>
 
       {list.notes && list.notes.length > 0 ? (
-        <div className="rounded-xl border border-border bg-bg-subtle p-3">
+        <div>
           <p className="text-xs font-semibold uppercase tracking-wide text-fg-muted">Catatan</p>
           <ul className="mt-1 space-y-1">
             {list.notes.map((note) => (

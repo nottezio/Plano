@@ -1,6 +1,8 @@
 import { useMemo, useState, type ReactNode } from 'react';
 
 import { Button, Callout, INPUT } from '@/components/common/ui';
+import { SectionLabel } from '@/components/common/PageFrame';
+import { BarRows, ChartCard, Columns, LegendKey, TrendLine } from './AnalysisCharts';
 import { writeAnalysisTitles } from '@/data/repositories/floors.repo';
 import { copyText } from '@/lib/clipboard';
 import { formatDmy } from '@/domain/dateDmy';
@@ -8,6 +10,7 @@ import { dayName } from '@/domain/mr/morningReport';
 import {
   daySummary,
   daySummaryText,
+  dpjpLoad,
   MOVE_LABEL,
   movesByDay,
   movements,
@@ -15,6 +18,7 @@ import {
   SECTION_TITLE,
   SECTION_TITLE_MAX,
   sectionTitle,
+  stayBuckets,
   tileTitle,
   weekCounts,
   type MoveKind,
@@ -54,11 +58,11 @@ function TitleField({ id, value, fallback, onCommit }: { id: string; value: stri
 
 function Tile({ label, value, tone, rename }: { label: string; value: number; tone?: string; rename?: ReactNode }): JSX.Element {
   return (
-    <div className="rounded-xl border border-border bg-surface p-2">
-      <p className="text-2xl font-semibold tabular-nums" style={tone ? { color: tone } : undefined}>
+    <div className="min-w-0">
+      <p className="text-xl font-semibold leading-tight tabular-nums" style={tone ? { color: tone } : undefined}>
         {value}
       </p>
-      {rename ?? <p className="text-xs text-fg-muted">{label}</p>}
+      {rename ?? <p className="mt-0.5 text-xs leading-snug text-fg-muted">{label}</p>}
     </div>
   );
 }
@@ -119,6 +123,16 @@ export function AnalysisPanel({
   const moves = useMemo(() => movements(roster), [roster]);
   const day = useMemo(() => daySummary(date, roster, view.active, moves), [date, roster, view.active, moves]);
   const week = useMemo(() => weekCounts(date, moves, editions), [date, moves, editions]);
+  /** Two weeks for the charts: a trend needs more than seven points to be one. */
+  const trend = useMemo(() => weekCounts(date, moves, editions, 14), [date, moves, editions]);
+  const load = useMemo(() => dpjpLoad(view.active), [view.active]);
+  const stay = useMemo(() => stayBuckets(roster, date), [roster, date]);
+  const short = (iso: string): string => `${iso.slice(8, 10)}/${iso.slice(5, 7)}`;
+  const flowTotals = {
+    masuk: trend.reduce((n, d) => n + d.masuk, 0),
+    pulang: trend.reduce((n, d) => n + d.pulang, 0),
+    pindah: trend.reduce((n, d) => n + d.pindah, 0),
+  };
   const [filter, setFilter] = useState<MoveKind | 'semua'>('semua');
   const [copied, setCopied] = useState(false);
   const [renaming, setRenaming] = useState(false);
@@ -159,10 +173,11 @@ export function AnalysisPanel({
   };
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-8">
+      <section aria-label="Ringkasan hari ini" className="space-y-3">
       <p className="text-xs text-fg-muted">Tanggal {formatDmy(date)} — dibaca dari catatan perubahan tiap pasien di list (siapa, kapan), tanpa input tambahan.</p>
 
-      <div className="grid grid-cols-3 gap-2 sm:grid-cols-4 lg:grid-cols-7">
+      <div className="grid grid-cols-3 gap-x-4 gap-y-4 rounded-xl border border-border bg-surface p-4 sm:grid-cols-4 lg:grid-cols-7">
         <Tile label={tile('census')} value={view.active.length} rename={field('census', SECTION_TITLE.census)} />
         <Tile label={tile('masuk')} value={day.masuk.length} />
         <Tile label={tile('pulang')} value={day.pulang.length} />
@@ -187,8 +202,59 @@ export function AnalysisPanel({
           {copied ? 'Tersalin ✓' : 'Salin ringkasan untuk WhatsApp'}
         </Button>
       </div>
+      </section>
 
-      <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+      <section aria-label="Tren dua minggu" className="space-y-3">
+        <SectionLabel title="Dua minggu terakhir" />
+        <div className="grid gap-3 md:grid-cols-2">
+          <ChartCard title="Pasien di lantai" note="jumlah pada list terakhir tiap hari">
+            <TrendLine
+              name="Pasien"
+              points={trend.map((d) => ({ label: short(d.date), value: d.census }))}
+              ariaLabel={`Jumlah pasien di lantai per hari: ${trend.filter((d) => d.census !== null).map((d) => `${short(d.date)} ${d.census}`).join(', ') || 'belum ada data'}`}
+            />
+          </ChartCard>
+          <ChartCard
+            title="Masuk, pulang, pindah"
+            note="per hari"
+            legend={
+              <>
+                <LegendKey color="var(--chart-1)" name={tile('masuk')} total={flowTotals.masuk} />
+                <LegendKey color="var(--chart-2)" name={tile('pulang')} total={flowTotals.pulang} />
+                <LegendKey color="var(--chart-3)" name={tile('pindah')} total={flowTotals.pindah} />
+              </>
+            }
+          >
+            <Columns
+              groups={trend.map((d) => ({ label: short(d.date), values: [d.masuk, d.pulang, d.pindah] }))}
+              series={[
+                { name: tile('masuk'), color: 'var(--chart-1)' },
+                { name: tile('pulang'), color: 'var(--chart-2)' },
+                { name: tile('pindah'), color: 'var(--chart-3)' },
+              ]}
+              ariaLabel="Pasien masuk, pulang, dan pindah per hari dalam dua minggu terakhir; angka tujuh hari ada di tabel di bawah"
+            />
+          </ChartCard>
+        </div>
+        <div className="grid gap-3 md:grid-cols-2">
+          <ChartCard title="Pasien per DPJP" note={`${view.active.length} di lantai`}>
+            <BarRows rows={load.map((row) => ({ label: row.code, value: row.count }))} empty="Belum ada pasien di lantai." />
+          </ChartCard>
+          <ChartCard title="Sudah berapa hari di list" note="pasien yang masih di lantai">
+            <Columns
+              groups={stay.map((b) => ({ label: b.label, values: [b.count] }))}
+              series={[{ name: 'Pasien', color: 'var(--accent)' }]}
+              ariaLabel={`Lama di list: ${stay.map((b) => `${b.label} hari ${b.count} pasien`).join(', ')}`}
+              showValues
+              height={140}
+            />
+          </ChartCard>
+        </div>
+      </section>
+
+      <section aria-label="Rincian hari ini" className="space-y-3">
+      <SectionLabel title="Hari ini, per pasien" />
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
         <Block title={name('pulangHariIni')} count={day.pulangHariIni.length} rename={field('pulangHariIni', SECTION_TITLE.pulangHariIni)}>
           {day.pulangHariIni.map((p) => (
             <Row key={p.key} patient={p} onOpen={onOpen} />
@@ -225,9 +291,14 @@ export function AnalysisPanel({
           ))}
         </Block>
       </div>
+      </section>
 
-      <section className="space-y-1">
-        <h3 className="text-xs font-semibold uppercase tracking-wide text-fg-faint">7 hari terakhir</h3>
+      <details className="group rounded-xl border border-border bg-surface">
+        <summary className="flex min-h-tap cursor-pointer list-none items-center gap-2 px-4 text-sm font-semibold">
+          <span className="flex-1">Angka per hari (7 hari)</span>
+          <span aria-hidden="true" className="text-fg-muted transition-transform group-open:rotate-90">›</span>
+        </summary>
+        <div className="space-y-1 px-4 pb-4">
         <div className="overflow-x-auto">
           <table className="w-full min-w-[28rem] border-collapse text-xs">
             <thead>
@@ -255,10 +326,11 @@ export function AnalysisPanel({
           </table>
         </div>
         <p className="text-xs text-fg-faint">"List" = jumlah pasien pada list terakhir yang disimpan hari itu.</p>
-      </section>
+        </div>
+      </details>
 
-      <section className="space-y-2">
-        <h3 className="text-xs font-semibold uppercase tracking-wide text-fg-faint">Riwayat perubahan (7 hari)</h3>
+      <section className="space-y-3">
+        <SectionLabel title="Riwayat perubahan · 7 hari" />
         <div className="flex flex-wrap gap-1.5">
           {FILTERS.map((f) => (
             <button

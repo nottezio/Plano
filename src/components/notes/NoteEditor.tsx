@@ -123,7 +123,7 @@ export function NoteEditor({
   return (
     <div className="flex min-h-full flex-col">
       {/* Row 1 — scrolls away once you are writing. */}
-      <div className="flex items-center gap-1 px-2 pt-2">
+      <div className="flex items-center gap-1 pb-1 pt-3">
         {onBack ? (
           <button
             type="button"
@@ -156,7 +156,7 @@ export function NoteEditor({
           placeholder={displayTitle({ title: '', body: sync.value }) === 'Tanpa judul'
             ? 'Judul'
             : displayTitle({ title: '', body: sync.value })}
-          className="min-h-tap min-w-0 flex-1 rounded-lg bg-transparent px-2 text-lg font-semibold outline-none placeholder:font-normal placeholder:text-fg-faint focus:bg-bg-subtle"
+          className="min-h-tap min-w-0 flex-1 rounded-lg bg-transparent px-2 text-xl font-semibold tracking-tight outline-none placeholder:font-normal placeholder:text-fg-faint focus:bg-bg-subtle"
         />
         {onPopOut && !trashed ? (
           <button

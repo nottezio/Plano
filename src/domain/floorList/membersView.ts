@@ -23,6 +23,16 @@ export function confirmQuestion(kind: 'remove' | 'leave', name = ''): string {
   return `Keluarkan ${name.trim() || 'anggota ini'} dari list?`;
 }
 
+/** The question before the list is handed over: names the person, and says what the owner keeps. */
+export function transferQuestion(name = ''): string {
+  return `Jadikan ${name.trim() || 'anggota ini'} pemilik list? Anda tetap menjadi editor.`;
+}
+
+/** Who a list can be handed to: members other than the owner (an invite not yet accepted is not a member). */
+export function transferTargets(floor: Pick<FloorDoc, 'ownerUid' | 'memberIds'>): string[] {
+  return floor.memberIds.filter((member) => member !== floor.ownerUid);
+}
+
 /** A sender list this long folds away; a short one stays open. */
 export const NICKNAMES_OPEN_UP_TO = 5;
 export function collapseNicknames(count: number): boolean {

@@ -52,7 +52,7 @@ export function useNoteBody({
     autofocus: autoFocus ? 'end' : false,
     editorProps: {
       attributes: {
-        class: 'note-editor min-h-[60vh] px-4 py-3 text-[15px] leading-7 outline-none',
+        class: 'note-editor min-h-[60vh] px-2 py-4 text-[15px] leading-7 outline-none',
         role: 'textbox',
         'aria-multiline': 'true',
         'aria-label': ariaLabel,
@@ -104,7 +104,7 @@ export function NoteBodyView({
         <EditorContent editor={editor} />
       </div>
 
-      <p className="px-4 pb-3 text-xs text-fg-faint">
+      <p className="px-2 pb-4 text-xs text-fg-faint">
         {sync.dirty ? 'Menyimpan…' : 'Tersimpan'}
         {footer}
         {editable ? <span className="hidden lg:inline"> · Ketik / untuk pilihan · Ctrl+Enter mencentang</span> : null}

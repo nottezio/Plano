@@ -48,6 +48,11 @@ export interface ComposeOptions {
   sections: CopyGroupId[] | 'all';
   includeIdentity: boolean;
   includeDateHeader: boolean;
+  /**
+   * With a section subset: leave out each chosen block's own heading line
+   * ("*Mohon izin kami assess dengan:*"). Off by default; ignored for 'all'.
+   */
+  dropHeaders?: boolean | undefined;
   aliases: readonly SectionAlias[];
   patient: Patient;
   /**
@@ -101,7 +106,7 @@ function renderDayBody(body: string, options: ComposeOptions): string {
    * everything else is carried along inside whichever block contains it —
    * exactly as a reader takes it.
    */
-  return sliceGroups(body, options.aliases, options.sections);
+  return sliceGroups(body, options.aliases, options.sections, { dropHeaders: options.dropHeaders });
 }
 
 /**

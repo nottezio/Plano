@@ -124,5 +124,18 @@ for (const [, mode, name, body] of css.matchAll(/(:root|\.dark)\[data-surface='(
   }
   void dark;
 }
+// Chart series (Analisis, 28 Oct 2026): a mark needs 3:1 against the surface it is drawn on
+// (the raised surface too, for the tooltip swatch), in every theme.
+for (const selector of [':root', '.dark', ".dark[data-theme='senja']"]) {
+  const map = vars(blockOf(selector));
+  for (const series of ['chart-1', 'chart-2', 'chart-3']) {
+    for (const ground of ['surface', 'surface-raised']) {
+      const r = ratio(map.get(series), map.get(ground));
+      const ok = r >= 3;
+      if (!ok) failures++;
+      console.log(`${ok ? 'PASS' : 'FAIL'} ${selector.padEnd(6)} ${series} on ${ground.padEnd(14)} ${r.toFixed(2)}:1`);
+    }
+  }
+}
 console.log(failures === 0 ? '\nAll card colours meet 4.5:1.' : `\n${failures} failing pair(s).`);
 process.exit(failures === 0 ? 0 : 1);

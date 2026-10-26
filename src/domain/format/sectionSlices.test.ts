@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { DEFAULT_SECTION_ALIASES as ALIASES } from '../defaults';
-import { sliceGroups } from './sectionSlices';
+import { sliceGroups, withoutHeader } from './sectionSlices';
 
 /*
   The shape of a 9 October transfer note (anonymised): our plan, then two TS
@@ -85,5 +85,33 @@ describe('a TS reply is one block (2026-10-10)', () => {
     expect(sliceGroups(middle, ALIASES, ['plan'])).toBe('Plan:\n- Echo');
     expect(sliceGroups(middle, ALIASES, ['terapi'])).toContain('- Torakosintesis');
     expect(sliceGroups(middle, ALIASES, ['terapi'])).toContain('- Furosemide');
+  });
+});
+
+describe('leaving out a block\'s heading (28 Oct 2026)', () => {
+  it('drops the bare heading line of the chosen block, nothing else', () => {
+    expect(sliceGroups(NOTE, ALIASES, ['a'])).toBe('*Mohon izin kami assess dengan:*\n- Congestive Heart Failure NYHA IV');
+    expect(sliceGroups(NOTE, ALIASES, ['a'], { dropHeaders: true })).toBe('- Congestive Heart Failure NYHA IV');
+    expect(sliceGroups(NOTE, ALIASES, ['plan'], { dropHeaders: true })).toBe('- Monitoring tanda vital\n- Cek INR/3 hari');
+  });
+
+  it('keeps sub-headings and consultant blocks inside a block', () => {
+    const terapi = sliceGroups(NOTE, ALIASES, ['terapi'], { dropHeaders: true });
+    expect(terapi.startsWith('- Furosemide 40 mg/12 jam/IV')).toBe(true);
+    expect(terapi).toContain('*TS GEH*');
+    expect(terapi).toContain('*Plan Diagnostik*');
+  });
+
+  it('several blocks each lose their own heading', () => {
+    expect(sliceGroups(NOTE, ALIASES, ['a', 'plan'], { dropHeaders: true })).toBe(
+      '- Congestive Heart Failure NYHA IV\n\n- Monitoring tanda vital\n- Cek INR/3 hari',
+    );
+  });
+
+  it('leaves a first line that is content', () => {
+    expect(withoutHeader('S: Sesak berkurang\n- BAB')).toBe('S: Sesak berkurang\n- BAB');
+    expect(withoutHeader('*TS GEH*\nA/')).toBe('*TS GEH*\nA/');
+    expect(withoutHeader('*A:*\n- DM')).toBe('- DM');
+    expect(withoutHeader('')).toBe('');
   });
 });

@@ -12,7 +12,7 @@ import { Link } from 'react-router-dom';
 
 import { previewLines, shortStepLabel, soapState, type BoardCard } from '@/domain/board';
 import { ProgressStrip } from './ProgressStrip';
-import { IconCar, IconCopy, IconEye } from '@/components/common/Icons';
+import { IconCar, IconCopy, IconEye, IconGrip } from '@/components/common/Icons';
 import { isTrioDpjp } from '@/domain/dpjp';
 import { formatLocation } from '@/domain/identity';
 import { copyText } from '@/lib/clipboard';
@@ -284,7 +284,7 @@ function PatientCardView({
           data-patient-id={patient.id}
           data-color-token={card.colorToken}
           className={[
-            'flex min-w-0 items-center gap-2 rounded-lg border border-black/5 bg-token px-3 py-1.5 text-token-fg dark:border-white/10',
+            'flex min-w-0 items-center gap-2 rounded-lg border border-black/5 bg-token px-3 py-1 text-token-fg shadow-card dark:border-white/10',
             dragging ? 'opacity-40' : '',
             selectable && checked ? 'ring-2 ring-accent' : '',
           ].join(' ')}
@@ -299,9 +299,9 @@ function PatientCardView({
                 onDragHandleDown(event, patient.id);
               }}
               onClick={(event) => event.preventDefault()}
-              className="-my-1 -ml-1 min-h-tap min-w-tap shrink-0 cursor-grab touch-none text-[color-mix(in_srgb,var(--token-fg)_70%,transparent)]"
+              className="-my-1 -ml-2 flex min-h-tap w-7 shrink-0 cursor-grab touch-none items-center justify-center text-[color-mix(in_srgb,var(--token-fg)_55%,transparent)]"
             >
-              <span aria-hidden="true">⠿</span>
+              <IconGrip width="14" height="14" />
             </button>
           ) : null}
           {/* Wraps, never truncates — the rule the full card's name keeps,
@@ -311,13 +311,17 @@ function PatientCardView({
             <span className="font-semibold">{card.title}</span>
             {/* Initials, as on the full card's badge. The full name is on the
                 title attribute for the one time it is needed. */}
-            {card.dpjp ? (
-              <span className="opacity-70" title={card.dpjp.name}>
-                {' '}
-                · {card.dpjp.initials}
-              </span>
-            ) : null}
           </span>
+          {card.dpjp ? (
+            <span className="shrink-0 rounded bg-black/20 px-1.5 text-[11px] font-semibold leading-5" title={card.dpjp.name}>
+              {card.dpjp.initials}
+            </span>
+          ) : null}
+          {card.progress.total > 0 ? (
+            <span className="shrink-0 text-[11px] font-semibold tabular-nums opacity-75" aria-label={`${card.progress.doneCount} dari ${card.progress.total} selesai`}>
+              {card.progress.complete ? '✓' : `${card.progress.doneCount}/${card.progress.total}`}
+            </span>
+          ) : null}
           {onToggleCollapsed ? (
             <button
               type="button"
@@ -329,9 +333,11 @@ function PatientCardView({
                 event.stopPropagation();
                 onToggleCollapsed(patient.id);
               }}
-              className="-my-1 -mr-1 min-h-tap min-w-tap shrink-0 text-base font-semibold leading-none text-[color-mix(in_srgb,var(--token-fg)_70%,transparent)]"
+              className="-my-1 -mr-2 flex min-h-tap w-9 shrink-0 items-center justify-center text-[color-mix(in_srgb,var(--token-fg)_75%,transparent)] hover:text-token-fg"
             >
-              +
+              <svg aria-hidden="true" viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M4 6l4 4 4-4" />
+              </svg>
             </button>
           ) : null}
         </Link>

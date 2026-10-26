@@ -165,13 +165,36 @@ export function sliceGroups(
   body: string,
   aliases: readonly SectionAlias[],
   groups: readonly CopyGroupId[],
+  options: { dropHeaders?: boolean | undefined } = {},
 ): string {
   const wanted = new Set(groups);
   const chosen = regionsOf(body, aliases).filter((region) => wanted.has(region.group));
 
   return chosen
     .map((region) => body.slice(region.start, region.end).trimEnd())
+    .map((chunk) => (options.dropHeaders ? withoutHeader(chunk) : chunk))
     .filter((chunk) => chunk.trim().length > 0)
     .join('\n\n')
     .trim();
+}
+
+/**
+ * A heading on a line of its own: optional bold/italic marks, words, a colon,
+ * optional marks. `*Mohon izin kami assess dengan:*`, `*A:*`, `Plan:`.
+ * Not `A: Sesak berkurang` (the label shares its line with content) and not
+ * `*TS GEH*` (no colon: a consultant's name, which is content).
+ */
+const HEADING_LINE = /^[\s*_~]*[^\n:*_~][^\n:]{0,79}:[\s*_~]*$/;
+
+/**
+ * The block without its first line when that line is only its heading (28 Oct
+ * 2026, Avi: copying only "A" should be able to leave out "Mohon izin kami
+ * assess dengan:"). Only the first line, only when it is a bare heading; the
+ * inline and sub-headings inside the block stay, and so does everything else.
+ */
+export function withoutHeader(chunk: string): string {
+  const lines = chunk.split('\n');
+  const first = lines[0] ?? '';
+  if (!HEADING_LINE.test(first)) return chunk;
+  return lines.slice(1).join('\n').replace(/^\s*\n/, '').trimStart();
 }

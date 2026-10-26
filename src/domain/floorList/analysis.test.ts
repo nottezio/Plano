@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { daySummary, daySummaryText, moveKind, movesByDay, movements, readSectionTitles, sectionTitle, SECTION_TITLE, tileTitle, weekCounts } from './analysis';
+import { daySummary, daySummaryText, dpjpLoad, moveKind, movesByDay, movements, readSectionTitles, sectionTitle, SECTION_TITLE, stayBuckets, tileTitle, weekCounts } from './analysis';
 import { localStamp, newRosterPatient, type Edition, type RosterPatient } from './floor';
 import type { FloorPatient } from './report';
 
@@ -155,5 +155,23 @@ describe('Analisis (13.12)', () => {
       ['2026-10-13', ['10:00', '07:00']],
       ['2026-10-12', ['21:00', '08:00']],
     ]);
+  });
+
+  it('the ward\'s load by DPJP, largest first, with one row for no DPJP (28 Oct 2026)', () => {
+    const load = dpjpLoad([p('a', { dpjpId: 'zd' }), p('b', { dpjpId: 'zd' }), p('c', { dpjpId: 'np' }), p('d'), p('e')]);
+    expect(load[0]).toEqual({ code: 'ZD', count: 2 });
+    expect(load.find((row) => row.code === 'Tanpa DPJP')?.count).toBe(2);
+    expect(load.reduce((sum, row) => sum + row.count, 0)).toBe(5);
+    expect(dpjpLoad([])).toEqual([]);
+  });
+
+  it('how long the patients on the floor have been on the list, in fixed buckets', () => {
+    const added = (day: string): RosterPatient => ({ ...rostered('x', []), addedAt: iso(`${day}T08:00`) });
+    const buckets = stayBuckets(
+      [added('2026-10-13'), added('2026-10-12'), added('2026-10-10'), added('2026-10-03'), added('2026-09-20'), { ...added('2026-10-01'), status: 'pulang' }],
+      '2026-10-13',
+    );
+    expect(buckets.map((b) => b.label)).toEqual(['0–1', '2–3', '4–7', '8–14', '15+']);
+    expect(buckets.map((b) => b.count)).toEqual([2, 1, 0, 1, 1]);
   });
 });

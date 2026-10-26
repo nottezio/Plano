@@ -193,9 +193,9 @@ export default function NotePage(): JSX.Element {
 
   // ── Rendering ──────────────────────────────────────────────────────────────
   const listPane = (
-    <div className="flex flex-col gap-2 p-3">
-      {/* Shelf: which list you are looking at, filled so it reads as a choice. */}
-      <div role="group" aria-label="Rak catatan" className="flex gap-1 rounded-xl bg-bg-subtle p-1">
+    <div className="flex flex-col gap-3 p-4">
+      {/* Shelf: which list you are looking at. Underlined tabs: the choice is a place, not a button. */}
+      <div role="group" aria-label="Rak catatan" className="flex gap-5 border-b border-border">
         {(['umum', 'jaga'] as const).map((value) => (
           <button
             key={value}
@@ -206,10 +206,10 @@ export default function NotePage(): JSX.Element {
               setShelf(value);
             }}
             className={[
-              'min-h-tap flex-1 rounded-lg text-sm transition-colors',
+              '-mb-px min-h-tap border-b-2 text-sm transition-colors',
               shelf === value && !searching
-                ? 'bg-surface font-semibold text-fg shadow-card'
-                : 'text-fg-muted hover:text-fg',
+                ? 'border-accent font-semibold text-fg'
+                : 'border-transparent text-fg-muted hover:text-fg',
             ].join(' ')}
           >
             {value === 'umum' ? 'Catatan' : 'Catatan jaga'}
@@ -218,7 +218,7 @@ export default function NotePage(): JSX.Element {
       </div>
 
       <div className="flex gap-2">
-        <label className="flex min-h-tap min-w-0 flex-1 items-center gap-2 rounded-xl border border-border bg-surface px-3 focus-within:border-accent">
+        <label className="flex min-h-tap min-w-0 flex-1 items-center gap-2 rounded-lg border border-border bg-surface px-3 focus-within:border-accent">
           <IconSearch width="16" height="16" className="shrink-0 text-fg-faint" />
           <input
             type="search"
@@ -246,15 +246,16 @@ export default function NotePage(): JSX.Element {
           type="button"
           onClick={addNote}
           disabled={!uid}
-          className="flex min-h-tap shrink-0 items-center gap-1 rounded-xl bg-accent px-3 text-sm font-semibold text-on-accent disabled:opacity-50"
+          aria-label="Catatan baru"
+          title="Catatan baru"
+          className="flex min-h-tap min-w-tap shrink-0 items-center justify-center rounded-lg bg-accent text-on-accent disabled:opacity-50"
         >
           <IconPlus width="18" height="18" />
-          Baru
         </button>
       </div>
 
       {!searching ? (
-        <div className="flex items-center gap-1 text-xs">
+        <div className="flex items-center gap-1 text-xs [@media(pointer:fine)]:-mt-1">
           {(
             [
               ['aktif', 'Aktif', null],
@@ -270,8 +271,8 @@ export default function NotePage(): JSX.Element {
                 aria-pressed={view === value}
                 onClick={() => setView(value)}
                 className={[
-                  'min-h-tap rounded-lg px-2',
-                  view === value ? 'font-semibold text-accent' : 'text-fg-muted hover:text-fg',
+                  'min-h-tap rounded-lg px-2 [@media(pointer:fine)]:min-h-8',
+                  view === value ? 'bg-bg-subtle font-semibold text-fg' : 'text-fg-muted hover:text-fg',
                 ].join(' ')}
               >
                 {label}
@@ -357,11 +358,11 @@ export default function NotePage(): JSX.Element {
     <AppShell title="Catatan">
       {wide ? (
         <div className="flex h-full min-h-0">
-          <aside className="w-[22rem] shrink-0 overflow-y-auto border-r border-border">
+          <aside className="w-[21rem] shrink-0 overflow-y-auto border-r border-border bg-bg">
             {listPane}
           </aside>
-          <section className="min-w-0 flex-1 overflow-y-auto">
-            <div className="mx-auto h-full max-w-3xl">{editorPane}</div>
+          <section className="min-w-0 flex-1 overflow-y-auto bg-surface">
+            <div className="mx-auto h-full max-w-3xl px-4 xl:px-8">{editorPane}</div>
           </section>
         </div>
       ) : open ? (

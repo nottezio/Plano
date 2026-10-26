@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import type { FloorDoc } from './floor';
-import { collapseNicknames, confirmQuestion, memberRole, saveErrorMessage } from './membersView';
+import { collapseNicknames, confirmQuestion, memberRole, saveErrorMessage, transferQuestion, transferTargets } from './membersView';
 
 const floor = { ownerUid: 'o', roles: { o: 'edit', e: 'edit', v: 'view' } } as unknown as FloorDoc;
 
@@ -26,6 +26,14 @@ describe('Setelan list (26 Oct 2026)', () => {
     expect(confirmQuestion('remove', 'Dr. Contoh')).toBe('Keluarkan Dr. Contoh dari list?');
     expect(confirmQuestion('leave')).toBe('Keluar dari list ini?');
     expect(confirmQuestion('remove', '')).toBe('Keluarkan anggota ini dari list?');
+  });
+
+  it('handing the list over names the new owner and says what the old one keeps (28 Oct 2026)', () => {
+    expect(transferQuestion('Dr. Contoh')).toBe('Jadikan Dr. Contoh pemilik list? Anda tetap menjadi editor.');
+    expect(transferQuestion('')).toBe('Jadikan anggota ini pemilik list? Anda tetap menjadi editor.');
+    // Only members other than the owner; an invited address is not a member yet.
+    expect(transferTargets({ ownerUid: 'o', memberIds: ['o', 'e', 'v'] })).toEqual(['e', 'v']);
+    expect(transferTargets({ ownerUid: 'o', memberIds: ['o'] })).toEqual([]);
   });
 
   it('a long sender list folds away; a short one stays open', () => {

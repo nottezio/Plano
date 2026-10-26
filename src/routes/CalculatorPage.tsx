@@ -1,6 +1,7 @@
 import { type ReactNode } from 'react';
 
 import { AppShell } from '@/components/common/AppShell';
+import { CHIP_ROW, PageBody, PageHeader, SectionLabel } from '@/components/common/PageFrame';
 import { HeparinCard } from '@/components/calc/HeparinCard';
 import { WarfarinCard } from '@/components/calc/WarfarinCard';
 import {
@@ -43,12 +44,9 @@ const GROUPS = [
 export default function CalculatorPage(): JSX.Element {
   return (
     <AppShell title="Kalkulator">
-      <div className="mx-auto w-full max-w-5xl px-4 pb-8">
-        <nav
-          aria-label="Kelompok kalkulator"
-          className="sticky top-0 z-10 -mx-4 overflow-x-auto border-b border-border bg-bg px-4 py-2"
-        >
-          <ul className="flex w-max gap-2">
+      <PageHeader>
+        <nav aria-label="Kelompok kalkulator">
+          <ul className={CHIP_ROW}>
             {GROUPS.map((group) => (
               <li key={group.id}>
                 <button
@@ -56,7 +54,7 @@ export default function CalculatorPage(): JSX.Element {
                   onClick={() =>
                     document.getElementById(group.id)?.scrollIntoView({ behavior: 'smooth', block: 'start' })
                   }
-                  className="min-h-tap whitespace-nowrap rounded-full border border-border bg-surface px-3 text-sm text-fg-muted [@media(pointer:fine)]:min-h-8"
+                  className="min-h-tap whitespace-nowrap rounded-full border border-border bg-surface px-3 text-sm text-fg-muted hover:bg-bg-subtle [@media(pointer:fine)]:min-h-8"
                 >
                   {group.label}
                 </button>
@@ -64,6 +62,8 @@ export default function CalculatorPage(): JSX.Element {
             ))}
           </ul>
         </nav>
+      </PageHeader>
+      <PageBody>
 
         <Group id="calc-cairan" label="Ginjal & cairan">
           <UrineOutputCard />
@@ -98,22 +98,20 @@ export default function CalculatorPage(): JSX.Element {
           />
         </Group>
 
-        <p className="mt-6 px-1 text-xs text-fg-faint">
+        <p className="mt-10 text-xs text-fg-faint">
           Hasil tidak disimpan — salin barisnya ke catatan. Setiap rumus dan ambang memakai
           rujukan yang tertulis di kartunya.
         </p>
-      </div>
+      </PageBody>
     </AppShell>
   );
 }
 
 function Group({ id, label, children }: { id: string; label: string; children: ReactNode }): JSX.Element {
   return (
-    <section id={id} aria-labelledby={`${id}-h`} className="scroll-mt-16 pt-5">
-      <h2 id={`${id}-h`} className="px-1 pb-2 text-xs font-semibold uppercase tracking-wide text-fg-muted">
-        {label}
-      </h2>
-      <div className="grid items-start gap-3 md:grid-cols-2">{children}</div>
+    <section id={id} aria-label={label} className="scroll-mt-20 pt-8 first:pt-0">
+      <SectionLabel title={label} />
+      <div className="grid items-start gap-4 md:grid-cols-2">{children}</div>
     </section>
   );
 }

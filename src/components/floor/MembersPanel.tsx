@@ -9,11 +9,12 @@ import {
   writeJuniors,
   inviteMember,
   removeMember,
+  transferOwnership,
   setMemberRole,
   writeNickname,
 } from '@/data/repositories/floors.repo';
 import { canEdit, chiefsOf, isOwner, type FloorDoc, type FloorRole } from '@/domain/floorList/floor';
-import { collapseNicknames, confirmQuestion, memberRole, saveErrorMessage } from '@/domain/floorList/membersView';
+import { collapseNicknames, confirmQuestion, memberRole, saveErrorMessage, transferQuestion } from '@/domain/floorList/membersView';
 import { ChiefsField } from './ChiefsField';
 import { MarksField } from './MarksField';
 import type { FloorPatient } from '@/domain/floorList/report';
@@ -185,6 +186,15 @@ export function MembersPanel({
                           <option value="edit">{ROLE_LABEL.edit}</option>
                           <option value="view">{ROLE_LABEL.view}</option>
                         </select>
+                        <TwoTapButton
+                          label="Jadikan pemilik"
+                          ariaLabel={`Jadikan ${name} pemilik list`}
+                          question={transferQuestion(name)}
+                          confirmLabel="Ya, pindahkan"
+                          busyLabel="Memindahkan…"
+                          onConfirm={() => transferOwnership(floor.id, member)}
+                          onError={(e) => setProblem(saveErrorMessage(e))}
+                        />
                         <TwoTapButton
                           label="Keluarkan"
                           ariaLabel={`Keluarkan ${name}`}

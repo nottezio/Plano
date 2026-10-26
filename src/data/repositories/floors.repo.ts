@@ -512,6 +512,17 @@ export function setMemberRole(floorId: string, uid: string, role: FloorRole): Pr
   return trackWrite(updateDoc(floorDoc(floorId), new FieldPath('roles', uid), role, 'updatedAt', serverTimestamp()));
 }
 
+/**
+ * The owner hands the list to another member (28 Oct 2026): `ownerUid` moves,
+ * the new owner is an editor, the previous owner stays as an editor. The rules
+ * (`transfersOwnership`) accept exactly this and nothing else in the write.
+ */
+export function transferOwnership(floorId: string, newOwnerUid: string): Promise<void> {
+  return trackWrite(
+    updateDoc(floorDoc(floorId), 'ownerUid', newOwnerUid, new FieldPath('roles', newOwnerUid), 'edit', 'updatedAt', serverTimestamp()),
+  );
+}
+
 /** Owner removes a member, or a member leaves. */
 export function removeMember(floorId: string, uid: string): Promise<void> {
   return trackWrite(

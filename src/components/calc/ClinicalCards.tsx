@@ -52,12 +52,12 @@ export function CalcCard({
   sources: readonly string[];
 }): JSX.Element {
   return (
-    <article className="flex flex-col rounded-2xl border border-border bg-surface p-4">
-      <h3 className="text-[15px] font-semibold">{title}</h3>
-      <p className="mt-0.5 font-mono text-xs leading-relaxed text-fg-muted">{formula}</p>
-      <div className="mt-3 flex-1">{children}</div>
-      <details className="mt-3 border-t border-border pt-2">
-        <summary className="min-h-tap cursor-pointer select-none py-2 text-xs font-medium text-fg-muted [@media(pointer:fine)]:min-h-0">
+    <article className="flex flex-col rounded-xl border border-border bg-surface p-5">
+      <h3 className="text-base font-semibold tracking-tight">{title}</h3>
+      <p className="mt-1 font-mono text-xs leading-relaxed text-fg-muted">{formula}</p>
+      <div className="mt-4 flex-1">{children}</div>
+      <details className="mt-4 border-t border-border pt-1">
+        <summary className="min-h-tap cursor-pointer select-none py-2 text-xs font-medium text-fg-muted [@media(pointer:fine)]:min-h-9 [@media(pointer:fine)]:py-2.5">
           Rujukan
         </summary>
         <ol className="mt-1 list-decimal space-y-1 pl-4 text-xs leading-relaxed text-fg-faint">
@@ -73,11 +73,11 @@ export function CalcCard({
 export function ResultBlock({ children, line }: { children: ReactNode; line?: string }): JSX.Element {
   const [copied, setCopied] = useState(false);
   return (
-    <div className="mt-3 rounded-xl border border-border bg-bg-subtle p-3">
+    <div className="mt-4 rounded-lg bg-[var(--accent-soft)] p-4">
       {children}
       {line ? (
-        <>
-          <p className="mt-2 break-words font-mono text-xs leading-relaxed">{line}</p>
+        <div className="mt-3 flex items-start gap-3 border-t border-border pt-3">
+          <p className="min-w-0 flex-1 break-words font-mono text-xs leading-relaxed">{line}</p>
           <button
             type="button"
             onClick={() => {
@@ -86,11 +86,11 @@ export function ResultBlock({ children, line }: { children: ReactNode; line?: st
                 window.setTimeout(() => setCopied(false), 1500);
               });
             }}
-            className="mt-2 min-h-tap rounded-lg border border-accent px-3 text-xs font-medium text-accent"
+            className="min-h-tap shrink-0 rounded-lg px-2 text-xs font-semibold text-accent hover:bg-surface [@media(pointer:fine)]:min-h-8"
           >
             {copied ? 'Tersalin ✓' : 'Salin baris'}
           </button>
-        </>
+        </div>
       ) : null}
     </div>
   );
@@ -103,8 +103,8 @@ export function Empty({ children }: { children: ReactNode }): JSX.Element {
 export function Big({ value, unit, caption }: { value: ReactNode; unit: string; caption?: ReactNode }): JSX.Element {
   return (
     <div>
-      <p className="text-xl font-semibold tabular-nums">
-        {value} <span className="text-xs font-normal text-fg-muted">{unit}</span>
+      <p className="text-2xl font-semibold tabular-nums tracking-tight">
+        {value} <span className="text-sm font-normal text-fg-muted">{unit}</span>
       </p>
       {caption ? <p className="text-xs text-fg-muted">{caption}</p> : null}
     </div>
@@ -123,7 +123,7 @@ export function Segmented<T extends string>({
   onChange: (next: T) => void;
 }): JSX.Element {
   return (
-    <div role="group" aria-label={label} className="flex overflow-hidden rounded-lg border border-border text-xs">
+    <div role="group" aria-label={label} className="flex gap-0.5 rounded-lg bg-bg-subtle p-0.5 text-xs">
       {options.map((option) => (
         <button
           key={option.value}
@@ -131,8 +131,8 @@ export function Segmented<T extends string>({
           aria-pressed={value === option.value}
           onClick={() => onChange(option.value)}
           className={[
-            'min-h-tap flex-1 px-2',
-            value === option.value ? 'bg-accent font-semibold text-on-accent' : 'text-fg-muted',
+            'min-h-tap flex-1 rounded-md px-2 transition-colors [@media(pointer:fine)]:min-h-9',
+            value === option.value ? 'bg-surface font-semibold text-fg shadow-card' : 'text-fg-muted hover:text-fg',
           ].join(' ')}
         >
           {option.label}

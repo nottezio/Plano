@@ -266,70 +266,67 @@ export function PatientPeekWindow({
       */}
       <div
         onPointerDown={(event) => beginDrag(event, 'move')}
-        className="flex cursor-grab touch-none items-center gap-2 border-b border-border bg-bg-subtle px-3 py-2"
+        className="cursor-grab touch-none space-y-2 border-b border-border bg-bg-subtle px-3 pb-2 pt-2.5"
       >
-        <div className="min-w-0 flex-1">
-          <p className="truncate text-xs font-semibold">
-            {title}
-          </p>
-          {/*
-            The date is a chip, not a sentence.
+        {/* Row 1 — who and which day, and the way out. */}
+        <div className="flex items-start gap-2">
+          <div className="min-w-0 flex-1">
+            <p className="truncate text-sm font-semibold leading-tight">{title}</p>
+            {/*
+              The date is a chip, not a sentence, and never wraps.
 
-            With several of these open at once, "hanya dibaca" is the same on
-            every one and the date is the only thing that differs — and a note
-            from three days ago read as today's is the mistake this exists to
-            prevent.
-          */}
-          <p className="flex items-center gap-1 text-[11px] text-fg-muted">
-            <span
-              className={[
-                'rounded px-1 font-medium',
-                date === today ? 'bg-[var(--accent-soft)] text-accent' : 'bg-[var(--danger-soft)] text-danger',
-              ].join(' ')}
-            >
-              {date ? (date === today ? 'Hari ini' : formatShortDate(date)) : '—'}
-            </span>
-            {patient.mrn && !initialsOnly ? (
-              <span className="shrink-0 font-mono">RM {patient.mrn}</span>
-            ) : null}
-            <span className="truncate">
-              {view === 'asli' ? 'hanya dibaca' : `tampilan ${view === 'simgos' ? 'SIMGOS' : 'WA'}`}
-            </span>
-          </p>
-        </div>
-        {patient.mrn ? <CopyMrnButton mrn={patient.mrn} patientId={patient.id} name={patient.name?.trim() ?? ''} /> : null}
-        {body && body.trim() ? (
-          <div role="group" aria-label="Tampilan catatan" className="flex shrink-0 gap-1">
-            <ViewToggle
-              label="SIMGOS"
-              pressed={view === 'simgos'}
-              onPress={() => setView((current) => (current === 'simgos' ? 'asli' : 'simgos'))}
-            />
-            <ViewToggle
-              label="WA"
-              pressed={view === 'wa'}
-              onPress={() => setView((current) => (current === 'wa' ? 'asli' : 'wa'))}
-            />
+              With several of these open at once, "hanya dibaca" is the same on
+              every one and the date is the only thing that differs — and a note
+              from three days ago read as today's is the mistake this exists to
+              prevent.
+            */}
+            <p className="mt-1 flex items-center gap-1.5 text-[11px] text-fg-muted">
+              <span
+                className={[
+                  'shrink-0 whitespace-nowrap rounded px-1.5 py-px font-medium',
+                  date === today ? 'bg-[var(--accent-soft)] text-accent' : 'bg-[var(--danger-soft)] text-danger',
+                ].join(' ')}
+              >
+                {date ? (date === today ? 'Hari ini' : formatShortDate(date)) : '—'}
+              </span>
+              {patient.mrn && !initialsOnly ? <span className="shrink-0 font-mono">RM {patient.mrn}</span> : null}
+              <span className="truncate">{view === 'asli' ? 'hanya dibaca' : `tampilan ${view === 'simgos' ? 'SIMGOS' : 'WA'}`}</span>
+            </p>
           </div>
-        ) : null}
+          <button
+            type="button"
+            onClick={onClose}
+            aria-label="Tutup preview"
+            title="Tutup"
+            className="-mr-1 -mt-0.5 flex min-h-tap min-w-tap shrink-0 items-center justify-center rounded-lg text-fg-muted hover:bg-bg hover:text-fg [@media(pointer:fine)]:min-h-8 [@media(pointer:fine)]:min-w-8"
+          >
+            <svg aria-hidden="true" viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+              <path d="M3.5 3.5l9 9M12.5 3.5l-9 9" />
+            </svg>
+          </button>
+        </div>
 
-        <Link
-          to={`/p/${patient.id}`}
-          className="flex min-h-tap shrink-0 items-center rounded-lg border border-border px-2 text-[11px] font-medium text-accent"
-        >
-          Buka
-        </Link>
-        <button
-          type="button"
-          onClick={onClose}
-          aria-label="Tutup preview"
-          className="min-h-tap min-w-tap shrink-0 rounded-lg text-xs text-fg-muted"
-        >
-          ✕
-        </button>
+        {/* Row 2 — how to read it, and where to go. One segmented switch, not four boxes. */}
+        <div className="flex items-center gap-2">
+          {body && body.trim() ? (
+            <div role="group" aria-label="Tampilan catatan" className="flex shrink-0 rounded-lg bg-bg p-0.5">
+              <ViewToggle label="Asli" pressed={view === 'asli'} onPress={() => setView('asli')} />
+              <ViewToggle label="SIMGOS" pressed={view === 'simgos'} onPress={() => setView('simgos')} />
+              <ViewToggle label="WA" pressed={view === 'wa'} onPress={() => setView('wa')} />
+            </div>
+          ) : null}
+          <span className="flex-1" />
+          {patient.mrn ? <CopyMrnButton mrn={patient.mrn} patientId={patient.id} name={patient.name?.trim() ?? ''} /> : null}
+          <Link
+            to={`/p/${patient.id}`}
+            className="flex min-h-tap shrink-0 items-center rounded-lg bg-accent px-3 text-xs font-semibold text-on-accent [@media(pointer:fine)]:min-h-8"
+          >
+            Buka
+          </Link>
+        </div>
       </div>
 
-      <div className="min-h-0 flex-1 overflow-auto p-3">
+      <div className="min-h-0 flex-1 overflow-auto px-4 py-3">
         {loading ? (
           <p className="py-6 text-center text-xs text-fg-muted">Memuat…</p>
         ) : body && body.trim().length > 0 ? (
@@ -347,7 +344,7 @@ export function PatientPeekWindow({
             data-copy-format={
               view === 'wa' ? 'whatsapp' : view === 'simgos' ? 'plain' : undefined
             }
-            className="whitespace-pre-wrap text-xs leading-relaxed"
+            className="whitespace-pre-wrap font-mono text-xs leading-relaxed text-fg"
           >
             {shown}
           </pre>
@@ -421,7 +418,7 @@ export function PatientPeekWindow({
         blank line (CHANGES, recurring pattern 7). Labels truncate instead,
         and the count — the part actually read at a glance — never does.
       */}
-      <div className="flex shrink-0 items-stretch gap-1 border-t border-border bg-bg-subtle px-1 pr-6">
+      <div className="flex shrink-0 items-stretch border-t border-border bg-surface px-1 pr-6">
         <DockTab
           label="Checklist"
           count={
@@ -501,10 +498,10 @@ function ViewToggle({
       type="button"
       onClick={onPress}
       aria-pressed={pressed}
-      title={pressed ? 'Kembali ke catatan asli' : `Tampilkan versi ${label}`}
+      title={label === 'Asli' ? 'Catatan sebagaimana ditulis' : `Tampilkan versi ${label}`}
       className={[
-        'min-h-tap shrink-0 rounded-lg border px-2 text-[11px] font-medium',
-        pressed ? 'border-accent bg-[var(--accent-soft)] text-accent' : 'border-border',
+        'min-h-tap shrink-0 rounded-md px-2.5 text-[11px] font-medium transition-colors [@media(pointer:fine)]:min-h-7',
+        pressed ? 'bg-surface font-semibold text-fg shadow-card' : 'text-fg-muted hover:text-fg',
       ].join(' ')}
     >
       {label}
@@ -542,9 +539,9 @@ function CopyMrnButton({
       }}
       title={`Salin nomor RM ${mrn}`}
       aria-label={`Salin nomor RM ${mrn}`}
-      className="min-h-tap shrink-0 rounded-lg border border-border px-2 text-[11px] font-medium text-fg-muted"
+      className="min-h-tap shrink-0 rounded-lg px-2 text-xs font-medium text-fg-muted hover:bg-bg hover:text-fg [@media(pointer:fine)]:min-h-8"
     >
-      {copied ? '✓' : 'Salin RM'}
+      {copied ? 'Tersalin ✓' : 'Salin RM'}
     </button>
   );
 }
@@ -591,8 +588,9 @@ function DockTab({
       aria-label={summary ? `${label}, ${summary} selesai` : label}
       title={label}
       className={[
-        'flex min-h-tap min-w-0 flex-auto items-center justify-center gap-1 rounded-md px-1.5 text-xs font-medium',
-        open ? 'bg-surface text-fg shadow-card' : empty ? 'text-fg-faint' : 'text-fg-muted',
+        'flex min-h-tap min-w-0 flex-auto items-center justify-center gap-1.5 px-1.5 text-xs font-medium transition-colors [@media(pointer:fine)]:min-h-10',
+        // The open tab is marked on the hairline above it, not boxed.
+        open ? 'font-semibold text-fg shadow-[inset_0_2px_0_var(--accent)]' : empty ? 'text-fg-faint hover:text-fg-muted' : 'text-fg-muted hover:text-fg',
       ].join(' ')}
     >
       <span className="truncate">{label}</span>

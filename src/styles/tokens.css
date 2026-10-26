@@ -119,6 +119,12 @@
   --mark-grey: #475569;
   --card-neutral-bg: #f4f6f8;
   --card-neutral-accent: #64748b;
+  /* Chart series (Analisis, 28 Oct 2026): blue / green / purple, validated for colour-vision
+     separation (scripts: dataviz validate_palette). Not amber: amber beside green is the
+     classic red-green confusion. */
+  --chart-1: #2563eb;
+  --chart-2: #15803d;
+  --chart-3: #9333ea;
 
   /* Light mode: one near-black foreground clears 4.5:1 on every pastel above.
      Verified in scripts/check-contrast.mjs. */
@@ -219,6 +225,9 @@
   --mark-grey: #94a3b8;
   --card-neutral-bg: #161c24;
   --card-neutral-accent: #94a3b8;
+  --chart-1: #3b82f6;
+  --chart-2: #16a34a;
+  --chart-3: #a855f7;
 
   --card-step-1-fg: #f2f6fa;
   --card-step-2-fg: #f2f6fa;
@@ -321,6 +330,9 @@
   --mark-grey: #a7b2c5;
   --card-neutral-bg: #3f444f;
   --card-neutral-accent: #9ca4b8;
+  --chart-1: #6aa8fb;
+  --chart-2: #2fb865;
+  --chart-3: #b98cf9;
 
   --card-step-1-fg: #f9f6f1;
   --card-step-2-fg: #f9f6f1;

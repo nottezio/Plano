@@ -238,3 +238,35 @@ export function movesByDay(moves: readonly Movement[]): Array<{ date: string; mo
   }
   return [...days.entries()].sort(([a], [b]) => (a < b ? 1 : -1)).map(([date, list]) => ({ date, moves: list }));
 }
+
+/**
+ * Who is on the floor, by DPJP: the ward's workload at a glance (28 Oct 2026,
+ * Analisis charts). Largest first; patients without a DPJP code are one row, last.
+ */
+export function dpjpLoad(active: readonly FloorPatient[]): Array<{ code: string; count: number }> {
+  const counts = new Map<string, number>();
+  for (const p of active) {
+    const code = (p.dpjpId ? dpjpById(p.dpjpId)?.initials : p.dpjpCode) || '';
+    const key = code || 'Tanpa DPJP';
+    counts.set(key, (counts.get(key) ?? 0) + 1);
+  }
+  return [...counts.entries()].map(([code, count]) => ({ code, count })).sort((a, b) => Number(a.code === 'Tanpa DPJP') - Number(b.code === 'Tanpa DPJP') || b.count - a.count || a.code.localeCompare(b.code));
+}
+
+export const STAY_BUCKETS: ReadonlyArray<{ label: string; from: number; to: number }> = [
+  { label: '0–1', from: 0, to: 1 },
+  { label: '2–3', from: 2, to: 3 },
+  { label: '4–7', from: 4, to: 7 },
+  { label: '8–14', from: 8, to: 14 },
+  { label: '15+', from: 15, to: Infinity },
+];
+
+/**
+ * How long the patients still on the floor have been on the list, in days (from
+ * when they were added, not the hospital admission), in fixed buckets so the
+ * bars keep their places from day to day.
+ */
+export function stayBuckets(roster: readonly RosterPatient[], date: string): Array<{ label: string; count: number }> {
+  const days = roster.filter((p) => p.status === 'dirawat').map((p) => daysOnList(p, date)).filter((d): d is number => d !== null && d >= 0);
+  return STAY_BUCKETS.map((bucket) => ({ label: bucket.label, count: days.filter((d) => d >= bucket.from && d <= bucket.to).length }));
+}

@@ -113,7 +113,7 @@ export function Toolbar({ editor }: { editor: Editor }): JSX.Element {
     <div
       role="toolbar"
       aria-label="Format"
-      className="sticky top-0 z-10 flex items-center gap-0.5 overflow-x-auto border-b border-border bg-surface px-2"
+      className="sticky top-0 z-10 flex items-center gap-0.5 overflow-x-auto border-b border-border bg-surface py-0.5 [scrollbar-width:none] sm:flex-wrap sm:overflow-visible [&::-webkit-scrollbar]:hidden"
     >
       <Tool label="Urungkan" disabled={!state.undo} onClick={() => chain().undo().run()}>
         ↶
@@ -133,7 +133,7 @@ export function Toolbar({ editor }: { editor: Editor }): JSX.Element {
         aria-expanded={open === 'block'}
         onMouseDown={(event) => event.preventDefault()}
         onClick={() => toggle('block')}
-        className="flex min-h-tap shrink-0 items-center gap-1 rounded-lg px-2 text-sm text-fg hover:bg-bg-subtle"
+        className="flex min-h-tap shrink-0 items-center gap-1 rounded-lg px-2 text-sm text-fg hover:bg-bg-subtle [@media(pointer:fine)]:min-h-9"
       >
         <span className="w-[4.5rem] truncate text-left">{BLOCK_LABEL[state.block]}</span>
         <span aria-hidden="true" className="text-xs text-fg-muted">▾</span>
@@ -310,7 +310,7 @@ function Tool({
       onMouseDown={(event) => event.preventDefault()}
       onClick={onClick}
       className={[
-        'flex min-h-tap min-w-tap shrink-0 items-center justify-center rounded-lg text-sm hover:bg-bg-subtle disabled:opacity-35',
+        'flex min-h-tap min-w-tap shrink-0 items-center justify-center rounded-lg text-sm hover:bg-bg-subtle disabled:opacity-35 [@media(pointer:fine)]:min-h-9 [@media(pointer:fine)]:min-w-9',
         pressed ? 'bg-bg-subtle text-accent' : 'text-fg-muted',
       ].join(' ')}
     >

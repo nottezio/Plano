@@ -143,6 +143,13 @@ export function CopySheet({
   };
   const [groups, setGroups] = useState<CopyGroupId[] | 'all'>('all');
   /**
+   * Leave out the heading line of each chosen part (28 Oct 2026, Avi: copying
+   * only "A" should be able to drop "*Mohon izin kami assess dengan:*"). Off by
+   * default: the heading is part of what was written, so excluding it is a
+   * choice. Only means something with parts chosen, and is reset with them.
+   */
+  const [skipHeaders, setSkipHeaders] = useState(false);
+  /**
    * Identity and date header are no longer options.
    *
    * Templates carry the greeting, ward, identity line and closing INSIDE the
@@ -506,6 +513,7 @@ export function CopySheet({
         sections: selected,
         includeIdentity,
         includeDateHeader,
+        dropHeaders: skipHeaders && selected !== 'all',
             aliases,
             patient,
             bullet,
@@ -535,6 +543,7 @@ export function CopySheet({
       days,
       format,
       selected,
+      skipHeaders,
       includeIdentity,
       includeDateHeader,
       aliases,
@@ -1018,6 +1027,17 @@ export function CopySheet({
                   </ChoiceChip>
                 ))}
               </ChipRow>
+              {/* Only when parts are chosen: whole-note copies are byte-faithful and keep every heading. */}
+              {groups !== 'all' ? (
+                <div className="mt-2">
+                  <CheckRow
+                    checked={skipHeaders}
+                    onChange={setSkipHeaders}
+                    title="Tanpa judul bagian"
+                    detail="Buang baris judulnya, mis. “Mohon izin kami assess dengan:”. Isinya tetap."
+                  />
+                </div>
+              ) : null}
             </Section>
           ) : null}
 

@@ -4,7 +4,6 @@ import { IconGrip, IconPin } from '@/components/common/Icons';
 import {
   checklistProgress,
   displayTitle,
-  noteTone,
   previewText,
   relativeTime,
   type ResolvedNote,
@@ -20,6 +19,11 @@ type Place = 'before' | 'after';
  * and on a phone they were a single column of large boxes anyway. A row now
  * carries what the cards did — colour, title, the first lines — plus
  * checklist progress and the last edit, in less height.
+ *
+ * Redesigned 28 Oct 2026 (Avi: "looks like AI slop"): one stack of rows split
+ * by hairlines instead of a wall of separate cards, and no coloured edge. The
+ * edge colour came from the note's id, so it said nothing; the row now says
+ * the title, the date it was last touched, and what is in it.
  *
  * REORDERING — a handle, on pointer events
  *
@@ -63,16 +67,16 @@ export function NoteList({
     );
   }
   return (
-    <div className="space-y-3">
+    <div className="space-y-5">
       <section>
-        <h3 className="px-3 pb-1 text-xs font-semibold uppercase tracking-wide text-fg-faint">
+        <h3 className="px-1 pb-2 text-xs font-semibold uppercase tracking-wide text-fg-muted">
           Pinned
         </h3>
         <Group notes={pinned} {...{ activeId, onOpen, onMove, now, reorderable, showShelf }} />
       </section>
       {rest.length > 0 ? (
         <section>
-          <h3 className="px-3 pb-1 text-xs font-semibold uppercase tracking-wide text-fg-faint">
+          <h3 className="px-1 pb-2 text-xs font-semibold uppercase tracking-wide text-fg-muted">
             Lainnya
           </h3>
           <Group notes={rest} {...{ activeId, onOpen, onMove, now, reorderable, showShelf }} />
@@ -128,9 +132,8 @@ function Group({
   };
 
   return (
-    <ul className="space-y-1">
+    <ul className="divide-y divide-border overflow-hidden rounded-xl border border-border bg-surface">
       {notes.map((note, index) => {
-        const tone = noteTone(note.id);
         const title = displayTitle(note);
         const preview = previewText(note);
         const progress = checklistProgress(note.body);
@@ -148,47 +151,38 @@ function Group({
             className={['relative', dragId === note.id ? 'opacity-40' : ''].join(' ')}
           >
             {marker === 'before' ? <DropLine edge="top" /> : null}
-            <div
-              className={[
-                'flex items-stretch overflow-hidden rounded-xl border transition-colors',
-                active ? 'border-accent bg-[var(--accent-soft)]' : 'border-border bg-surface hover:bg-bg-subtle',
-              ].join(' ')}
-            >
-              {/* The note's colour, as an edge rather than a fill: rows stay readable. */}
-              <span aria-hidden="true" className="w-1 shrink-0" style={{ backgroundColor: tone.accent }} />
+            <div className={['flex items-stretch transition-colors', active ? 'bg-[var(--accent-soft)]' : 'hover:bg-bg-subtle'].join(' ')}>
               <button
                 type="button"
                 onClick={() => onOpen(note.id)}
                 aria-current={active ? 'true' : undefined}
-                className="min-h-tap min-w-0 flex-1 px-3 py-2 text-left"
+                className="min-h-tap min-w-0 flex-1 px-4 py-3 text-left"
               >
-                <span className="flex items-center gap-1">
+                <span className="flex items-baseline gap-2">
                   <span className="min-w-0 flex-1 truncate text-sm font-semibold">{title}</span>
                   {note.pinned && !reorderable ? (
-                    <IconPin width="14" height="14" className="shrink-0 text-accent" filled />
+                    <IconPin width="14" height="14" className="shrink-0 self-center text-accent" filled />
                   ) : null}
+                  {edited ? <span className="shrink-0 text-xs text-fg-faint">{edited}</span> : null}
                 </span>
                 {preview ? (
-                  // No `block` beside `line-clamp-*` (pattern 13).
-                  <span className="mt-0.5 line-clamp-2 whitespace-pre-line text-xs leading-snug text-fg-muted">
-                    {preview}
+                  // One line: the title finds the note, the preview confirms it. No `block` beside `line-clamp-*` (pattern 13).
+                  <span className="mt-0.5 line-clamp-1 text-xs text-fg-muted">{preview.replace(/\s*\n\s*/g, ' ')}</span>
+                ) : null}
+                {progress || showShelf || note.archived ? (
+                  <span className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs text-fg-faint">
+                    {progress ? (
+                      <span
+                        className={progress.done === progress.total ? 'font-medium text-accent' : ''}
+                        aria-label={`${progress.done} dari ${progress.total} selesai`}
+                      >
+                        ☑ {progress.done}/{progress.total}
+                      </span>
+                    ) : null}
+                    {showShelf ? <span>{note.category === 'jaga' ? 'Catatan jaga' : 'Catatan'}</span> : null}
+                    {note.archived ? <span className="rounded bg-bg-subtle px-1 font-medium">Arsip</span> : null}
                   </span>
                 ) : null}
-                <span className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs text-fg-faint">
-                  {progress ? (
-                    <span
-                      className={progress.done === progress.total ? 'text-accent' : ''}
-                      aria-label={`${progress.done} dari ${progress.total} selesai`}
-                    >
-                      ☑ {progress.done}/{progress.total}
-                    </span>
-                  ) : null}
-                  {edited ? <span>{edited}</span> : null}
-                  {showShelf ? <span>{note.category === 'jaga' ? 'Catatan jaga' : 'Catatan'}</span> : null}
-                  {note.archived ? (
-                    <span className="rounded bg-bg-subtle px-1 font-medium">Arsip</span>
-                  ) : null}
-                </span>
               </button>
               {reorderable && notes.length > 1 ? (
                 <button

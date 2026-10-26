@@ -358,6 +358,23 @@ service cloud.firestore {
           && request.resource.data.names.diff(resource.data.names).affectedKeys().hasOnly([request.auth.uid]);
       }
 
+      /*
+       * The owner hands the list to another MEMBER (28 Oct 2026, Avi: transfer
+       * it to the new Penanggung jawab). Only `ownerUid` and the roles change:
+       * the new owner must already be a member and is made an editor, and the
+       * previous owner stays on the list as an editor. Nobody is added or
+       * removed by it.
+       */
+      function transfersOwnership() {
+        return isFloorOwner()
+          && changed().hasOnly(['ownerUid', 'roles', 'updatedAt'])
+          && request.resource.data.ownerUid != resource.data.ownerUid
+          && request.resource.data.ownerUid in resource.data.memberIds
+          && request.resource.data.roles[request.resource.data.ownerUid] == 'edit'
+          && request.resource.data.roles[resource.data.ownerUid] == 'edit'
+          && request.resource.data.roles.diff(resource.data.roles).affectedKeys().hasOnly([request.resource.data.ownerUid]);
+      }
+
       allow read: if seesLists()
         && (request.auth.uid in resource.data.memberIds || myEmail() in resource.data.inviteEmails);
       allow create: if allowed()
@@ -373,6 +390,7 @@ service cloud.firestore {
           && request.auth.uid in request.resource.data.memberIds
           && request.resource.data.roles[request.auth.uid] == 'edit'
           && request.resource.data.memberIds.size() <= 60)
+        || transfersOwnership()
         || (isFloorEditor() && changed().hasOnly(['nicknames', 'manual', 'chiefs', 'chiefBangsal', 'juniors', 'marks', 'analysisTitles', 'updatedAt']))
         || acceptsInvite()
         || leaves()
