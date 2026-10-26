@@ -5,6 +5,11 @@ Catatan teknis lengkap (akar masalah, perbaikan) ada di CHANGES.md.
 
 Entri teratas harus versi yang sedang dirilis; tes gagal bila belum ditulis.
 
+## `2026-10-26.2`
+- **Tab Setelan di List Maker dirapikan.** Isinya kini dikelompokkan: **Tim** (anggota dan undangan), **Nama dan residen** (roster junior, nama panggilan pengirim), **Tampilan list** (warna list), dan **Zona berbahaya** (hapus list, atau keluar dari list). Judul blok lebih jelas, keterangan lebih pendek, dan daftar nama panggilan yang panjang (lebih dari 5 pengirim) terlipat sampai dibuka.
+- **Mengeluarkan anggota kini perlu dua ketukan.** "Keluarkan" dan "Keluar dari list ini" menanyakan dulu dengan menyebut nama orangnya ("Keluarkan dr. X dari list?"), lalu **Ya, keluarkan** atau **Batal**; pertanyaan hilang sendiri setelah beberapa detik. Sebelumnya satu ketukan langsung mengeluarkan.
+- **Perubahan yang ditolak kini terlihat.** Mengubah peran, mengeluarkan anggota, mengubah roster junior atau nama panggilan menampilkan "Tersimpan ✓" bila berhasil, dan pesan "Perubahan belum tersimpan" bila ditolak (misalnya tidak punya izin). Sebelumnya kegagalan tidak terlihat.
+
 ## `2026-10-26.1`
 - **"Usul H-1" kini dibedakan dari H-1.** Bila Plan SOAP menulis "Usul H-1", List Maker menanyakan lebih dulu: **Tandai usul** (belum pasti, menunggu DPJP) atau **Sudah pasti H-1**. Pasien yang ditandai usul tidak diberi warna merah, tetapi tercatat di tab Analisis pada blok baru "Usul H-1 (menunggu konfirmasi DPJP)" beserta lama menunggunya, dan ikut di ringkasan WhatsApp.
 - **Usul disetujui.** Saat SOAP berikutnya menulis "H-1 hari ini", saran berubah menjadi **Usul disetujui — tandai H-1**. Satu ketukan menjadikannya H-1 merah dan menutup usulnya; tidak ada yang berubah sendiri. Bila DPJP menolak, tekan **Batalkan usul** di panel Atur pasien.

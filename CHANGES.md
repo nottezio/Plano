@@ -1,5 +1,15 @@
 # Plano — CHANGES
 
+## `2026-10-26.2` — List Maker Setelan: grouped, hierarchy, two-tap removals, visible save failures
+
+- **Symptom (owner).** The Setelan tab (id `anggota`, `MembersPanel`) was five equal blocks with 12px faint headings and long grey paragraphs; the owner-only invite and delete sat among everyday editor settings.
+- **Root cause.** Removing a member (`removeMember`) and leaving the list were a single tap, and a role change rewrote access at once, on a tab whose members can read full SOAPs; "Hapus list" had a confirm, these did not. Every write was a bare `void promise`, so a refused write (rules, permission) showed nothing and the control looked applied.
+- **Fix.** `MembersPanel.tsx`: four groups (Tim, Nama dan residen, Tampilan list, Zona berbahaya) built from the shared `Section`/`Callout`/`Button`; helper text cut to the facts; the nickname list folds (`<details>`, chevron) above 5 senders. New `TwoTapButton` (`components/common`): first tap asks a question naming the person, second confirms, resets itself after 6 s and on Batal, keeps the question open on failure. `run()` wraps role change, cancel invite, junior roster and nickname writes: "Tersimpan ✓" on success, a warn callout "Perubahan belum tersimpan" with a plain reason on rejection. Pure decisions live in `domain/floorList/membersView.ts` (`saveErrorMessage`, `memberRole`, `confirmQuestion`, `collapseNicknames`).
+- **Unchanged.** Data model, `firestore.rules`, permissions, the header (Chief, Chief Bangsal), Atur cetak, `MarksField` (keeps its own write handling, so a refused mark write is still silent), and the invite and delete-list flows.
+- **Tests.** `membersView.test.ts` (error wording, owner is editor, question names the person, fold threshold). No component test: vitest here runs `.test.ts` in node only.
+- **Checked.** Rendered the real component in a throwaway harness (not committed) at 390 px and 1100 px as owner and as an editor: grouping, hierarchy, the confirm state and the fold open/closed.
+- **Not done / not verified.** Not tried signed in, against Firestore, or on a ward phone. The refused-write callout was not seen rendered (the harness has no Firebase, so the write never settled). Chief, Chief Bangsal, Atur cetak and Catatan Visite still live outside Setelan: a links block (or moving them in) is the next step if "scattered" is still the problem.
+
 ## `2026-10-26.1` — List Maker: "usul H-1" is a proposal, tracked apart from H-1
 
 - **Root cause.** `dischargeFlag` matched `\b(?:usul|rencana)\s+H\s*-?\s*1\b` and `H-1 … hari ini` for one result, `tomorrow`. "Usul H-1 hari ini" (a resident proposing, the supervisor not yet agreed, possibly not visiting that day) became the same chip, the same red mark and the same "Rencana H-1" row in Analisis as a decided H-1. `floor.ts` already names this exact risk ("a proposal read as a decision"), but the roster only fixed it for colour, not for the Plan reader.
