@@ -5,6 +5,14 @@ Catatan teknis lengkap (akar masalah, perbaikan) ada di CHANGES.md.
 
 Entri teratas harus versi yang sedang dirilis; tes gagal bila belum ditulis.
 
+## `2026-10-26.7`
+- **Kartu pasien: "3 cek" kembali menjadi bendera dan angka** (⚑ 3). Arti angkanya tetap muncul di tooltip dan pembaca layar.
+- **Nama Chief di kartu lebih menonjol.** Tulisan "Chief" tetap redup, tetapi namanya kini tebal, penuh warna, dan sedikit lebih besar.
+- **Arsip, Dokumen, dan Pengaturan memakai satu kerangka halaman.** Sebelumnya tiap halaman punya lebar, jarak atas, dan jarak antarbagian sendiri-sendiri, sehingga isi bergeser ke samping saat pindah halaman. Kini ketiganya sama lebar dan sejajar kiri-kanan, dengan bilah atas yang sama (jarak 12 px antarbaris) dan judul bagian yang sama (lebih banyak ruang di atasnya daripada di bawahnya).
+  - **Arsip:** filter (DPJP, Ruang, Alasan, Bulan) di atas, lalu "Cari di" yang kini lebih tenang sehingga tidak menyaingi filter. Baris, bulan, dan minggu diberi jarak lebih lega.
+  - **Dokumen:** kartu lebih lega, jarak antarkelompok lebih jelas, label kelompok sama dengan Arsip.
+  - **Pengaturan:** di layar lebar daftar kelompok (Utama, Tema, Tampilan, dst.) menjadi kolom di kiri yang tetap terlihat dan menandai kelompok yang sedang dibaca; di HP tetap deret chip tanpa batang gulir. Kolom pencarian memakai gaya yang sama dengan halaman lain.
+
 ## `2026-10-26.6`
 - **Tema baru: Senja.** Pengaturan kini punya bagian **Tema** di atas. Mode warna tampil sebagai pratinjau: Sistem, Terang, Gelap, dan **Senja**. Senja adalah mode gelap yang lembut: latar biru-abu senja (bukan hitam), teks krem hangat yang tidak menyilaukan, dan warna kartu checklist, H-1, dan pulang tetap jelas dibedakan. Cocok untuk jaga panjang di bangsal yang terang maupun redup. Palet aksen tetap bisa dipilih di atasnya; "Hitam pekat" hanya untuk mode Gelap. "Warna aplikasi" pindah ke bagian Tema.
 - **Pilihan "Usul H-1" di menu Warna tidak lagi bertuliskan "(kuning)".** Kuning hanya berlaku di cetakan denah, bukan di aplikasi.

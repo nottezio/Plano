@@ -15,6 +15,7 @@ import { useDocumentList } from '@/hooks/useDocuments';
 import { useDebouncedValue } from '@/hooks/useDebouncedValue';
 import { Highlight } from '@/components/common/Highlight';
 import { IconMore, IconPin, IconSearch } from '@/components/common/Icons';
+import { CHIP_ROW, PageBody, PageHeader, SectionLabel } from '@/components/common/PageFrame';
 import { findSnippet, searchTokens } from '@/domain/archiveSearch';
 import { useSession } from '@/store/useSession';
 import type { AppDocument } from '@/domain/types';
@@ -138,8 +139,7 @@ export default function DocumentsPage(): JSX.Element {
 
   return (
     <AppShell title="Dokumen">
-      <div className="sticky top-0 z-20 border-b border-border bg-bg">
-        <div className="mx-auto w-full max-w-5xl px-4 pb-2 pt-2">
+      <PageHeader>
           <div className="flex items-center gap-2">
             <label className="flex min-h-tap min-w-0 flex-1 items-center gap-2 rounded-lg border border-border bg-surface px-3 focus-within:border-accent">
               <IconSearch width={16} height={16} className="shrink-0 text-fg-faint" />
@@ -171,7 +171,7 @@ export default function DocumentsPage(): JSX.Element {
           </div>
 
           {documents.length > 0 ? (
-            <div className="-mx-4 mt-2 flex gap-1.5 overflow-x-auto px-4 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+            <div className={CHIP_ROW}>
               {['all', ...categories].map((value) => {
                 const selected = activeCategory === value;
                 return (
@@ -196,10 +196,9 @@ export default function DocumentsPage(): JSX.Element {
               })}
             </div>
           ) : null}
-        </div>
-      </div>
+      </PageHeader>
 
-      <div className="mx-auto w-full max-w-5xl px-4 pb-24 pt-3 sm:pb-6">
+      <PageBody>
         {loading ? (
           <p className="py-10 text-center text-sm text-fg-muted">Memuat…</p>
         ) : documents.length === 0 ? (
@@ -221,7 +220,7 @@ export default function DocumentsPage(): JSX.Element {
         ) : (
           <>
             {tokens.length > 0 ? (
-              <p className="pb-1 text-xs text-fg-muted" aria-live="polite">{matches.length} dokumen</p>
+              <p className="pb-3 text-xs text-fg-muted" aria-live="polite">{matches.length} dokumen</p>
             ) : null}
             {pinned.length > 0 ? (
               <DocumentGroup title="Pinned" matches={pinned} tokens={tokens} showCategory />
@@ -231,7 +230,7 @@ export default function DocumentsPage(): JSX.Element {
             ))}
           </>
         )}
-      </div>
+      </PageBody>
 
       <button
         type="button"
@@ -329,20 +328,16 @@ function DocumentGroup({
   showCategory: boolean;
 }): JSX.Element {
   return (
-    <section className="mt-4 first:mt-1">
-      <h2 className="flex items-center gap-3 pb-2">
-        <span className="text-xs font-semibold uppercase tracking-wide text-fg-muted">{title}</span>
-        <span className="text-xs text-fg-faint">{matches.length}</span>
-        <span aria-hidden="true" className="h-px flex-1 bg-border" />
-      </h2>
-      <ul className="grid gap-2 sm:grid-cols-2">
+    <section className="mt-8 first:mt-0">
+      <SectionLabel title={title} count={matches.length} />
+      <ul className="grid gap-3 sm:grid-cols-2">
         {matches.map(({ document, snippet }) => {
           const preview = documentPreview(document);
           return (
             <li key={document.id}>
               <Link
                 to={`/dokumen/${document.id}`}
-                className="flex h-full flex-col rounded-xl border border-border bg-surface px-3 py-2.5 transition-colors hover:border-border-strong hover:bg-bg-subtle"
+                className="flex h-full flex-col rounded-xl border border-border bg-surface px-4 py-3 transition-colors hover:border-border-strong hover:bg-bg-subtle"
               >
                 <span className="flex items-baseline gap-2">
                   <span className="min-w-0 flex-1 text-sm font-semibold leading-snug">

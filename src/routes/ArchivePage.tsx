@@ -37,6 +37,7 @@ import { useDebouncedValue } from '@/hooks/useDebouncedValue';
 import { usePatients } from '@/hooks/usePatients';
 import { useSession } from '@/store/useSession';
 import type { Patient } from '@/domain/types';
+import { PageBody, PageHeader, CHIP_ROW } from '@/components/common/PageFrame';
 
 /**
  * Arsip — finding a patient who has gone home.
@@ -122,8 +123,7 @@ export default function ArchivePage(): JSX.Element {
 
   return (
     <AppShell title="Arsip">
-      <div className="sticky top-0 z-20 border-b border-border bg-bg">
-        <div className="mx-auto w-full max-w-3xl px-4 pb-2 pt-2">
+      <PageHeader>
           <div className="flex items-center gap-2">
             <label className="flex min-h-tap flex-1 items-center gap-2 rounded-lg border border-border bg-surface px-3 focus-within:border-accent">
               <IconSearch className="shrink-0 text-fg-faint" width={18} height={18} />
@@ -145,13 +145,10 @@ export default function ArchivePage(): JSX.Element {
             {trashed.length > 0 ? <TrashButton trashed={trashed} showInitialsOnly={showInitialsOnly} /> : null}
           </div>
 
-          <div className="mt-1">
-            <ArchiveScopePicker scopes={scopes} onToggle={toggleScope} status={noteText} />
-          </div>
-
-          {/* Scrolls sideways rather than wrapping: four chips and a reset
+          {/* The filters first (they narrow the list), then where the words are searched. */}
+          {/* Scrolls sideways on a phone rather than wrapping: four chips and a reset
               must not take two rows of a phone screen. */}
-          <div className="-mx-4 mt-1 flex items-center gap-2 overflow-x-auto px-4">
+          <div className={CHIP_ROW}>
             {(Object.keys(FACET_TITLES) as FacetKey[]).map((key) => {
               const active = filters[key] !== null;
               return (
@@ -181,17 +178,18 @@ export default function ArchivePage(): JSX.Element {
               </button>
             ) : null}
           </div>
-        </div>
-      </div>
 
-      <div className="mx-auto w-full max-w-3xl px-4 pb-6">
+          <ArchiveScopePicker scopes={scopes} onToggle={toggleScope} status={noteText} />
+      </PageHeader>
+
+      <PageBody>
         {loading ? (
           <p className="py-10 text-center text-sm text-fg-muted">Memuat…</p>
         ) : patients.length === 0 ? (
           <p className="py-12 text-center text-sm text-fg-muted">Belum ada pasien terarsip.</p>
         ) : (
           <>
-            <div className="flex items-center gap-2 pb-1 pt-3">
+            <div className="flex items-center gap-2 pb-2">
               <p className="min-w-0 flex-1 text-xs text-fg-muted" aria-live="polite">
                 {narrowing
                   ? `${matches.length} dari ${patients.length} pasien · semua bulan dibuka`
@@ -226,7 +224,7 @@ export default function ArchivePage(): JSX.Element {
                 const monthOpen = isMonthOpen(folds, group.key, position, narrowing);
                 const monthBody = `arsip-${group.key}`;
                 return (
-                  <section key={group.key} className="mt-3">
+                  <section key={group.key} className="mt-6 first:mt-0">
                     <h2>
                       <button
                         type="button"
@@ -257,7 +255,7 @@ export default function ArchivePage(): JSX.Element {
                           const weekOpen = isWeekOpen(folds, week.key, narrowing);
                           const weekBody = `arsip-${week.key}`;
                           return (
-                            <div key={week.key} className="mt-1">
+                            <div key={week.key} className="mt-2">
                               <h3>
                                 <button
                                   type="button"
@@ -275,7 +273,7 @@ export default function ArchivePage(): JSX.Element {
                               {weekOpen ? (
                                 <ul
                                   id={weekBody}
-                                  className="mb-1 divide-y divide-border overflow-hidden rounded-xl border border-border bg-surface"
+                                  className="mb-3 divide-y divide-border overflow-hidden rounded-xl border border-border bg-surface"
                                 >
                                   {week.patients.map((patient) => (
                                     <li key={patient.id}>
@@ -300,7 +298,7 @@ export default function ArchivePage(): JSX.Element {
             )}
           </>
         )}
-      </div>
+      </PageBody>
 
       {picking ? (
         <Sheet
@@ -395,7 +393,7 @@ function ArchiveRow({
   return (
     <Link
       to={`/p/${patient.id}`}
-      className="block px-3 py-2.5 transition-colors hover:bg-bg-subtle"
+      className="block px-4 py-3 transition-colors hover:bg-bg-subtle"
     >
       <span className="flex items-baseline gap-2">
         <span className="min-w-0 flex-1 truncate text-sm font-semibold">

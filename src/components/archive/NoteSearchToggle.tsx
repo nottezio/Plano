@@ -121,7 +121,7 @@ export function ArchiveScopePicker({
   status: ArchiveText;
 }): JSX.Element {
   return (
-    <div className="flex flex-wrap items-center gap-1.5" role="group" aria-label="Cari di">
+    <div className="flex flex-wrap items-center gap-2" role="group" aria-label="Cari di">
       <span className="text-xs text-fg-faint">Cari di</span>
       {ARCHIVE_SCOPES.map((scope) => {
         const on = scopes.has(scope.value);
@@ -134,7 +134,8 @@ export function ArchiveScopePicker({
             onClick={() => onToggle(scope.value)}
             className={[
               'min-h-tap rounded-full border px-2.5 text-xs [@media(pointer:fine)]:min-h-8',
-              on ? 'border-accent bg-[var(--accent-soft)] font-medium text-accent' : 'border-border text-fg-muted',
+              // Quieter than the filter chips above it: this is a setting of the search, those narrow the list.
+              on ? 'border-transparent bg-bg-subtle font-medium text-fg' : 'border-border text-fg-faint',
             ].join(' ')}
           >
             {on ? '✓ ' : ''}

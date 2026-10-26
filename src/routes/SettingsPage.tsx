@@ -1,4 +1,4 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 
 import { AppShell } from '@/components/common/AppShell';
 import { AliasEditor } from '@/components/settings/AliasEditor';
@@ -48,6 +48,7 @@ import { resetSettings } from '@/data/repositories/settings.repo';
 import { useUI } from '@/store/useUI';
 import { PALETTES, SURFACES } from '@/domain/palette';
 import { ThemePicker } from '@/components/settings/ThemePicker';
+import { CHIP_ROW, PAGE_X } from '@/components/common/PageFrame';
 import type { NoteTemplate } from '@/domain/types';
 import { APP_VERSION } from '@/version.js';
 import { UpdateControls } from '@/components/common/UpdateControls';
@@ -162,7 +163,11 @@ export default function SettingsPage(): JSX.Element {
   return (
     <AppShell title="Pengaturan">
       <SettingsSearchProvider query={query}>
-      <div className="settings-list mx-auto w-full max-w-3xl px-4 pb-6">
+      {/* One measure with Arsip and Dokumen (PageFrame). From `lg` the group jump bar is a
+          pinned column on the left, so the groups are always in view and the width is used. */}
+      <div className={`settings-list ${PAGE_X} pb-24 sm:pb-10 lg:grid lg:grid-cols-[10rem_minmax(0,1fr)] lg:gap-10`}>
+        {query ? <span className="hidden lg:block" /> : <GroupNav unseen={unseenChangelog} />}
+        <div className="min-w-0">
         <SettingsToolbar query={query} onQuery={setQuery} unseen={unseenChangelog} />
 
         <p className="settings-empty rounded-xl border border-dashed border-border p-6 text-center text-sm text-fg-muted">
@@ -938,6 +943,7 @@ export default function SettingsPage(): JSX.Element {
             {restored}
           </p>
         ) : null}
+        </div>
       </div>
       </SettingsSearchProvider>
 
@@ -964,6 +970,52 @@ function RestoreButton({ onClick }: { onClick: () => void }): JSX.Element {
 }
 
 /**
+ * The group jump bar as a left column on a wide screen (`lg`), with the group in
+ * view marked, so the page reads as a table of contents and the sections.
+ */
+function GroupNav({ unseen }: { unseen: boolean }): JSX.Element {
+  const [active, setActive] = useState(GROUPS[0]!.id);
+  useEffect(() => {
+    const elements = GROUPS.map((group) => document.getElementById(group.id)).filter((el): el is HTMLElement => el !== null);
+    if (elements.length === 0) return undefined;
+    // The group whose heading is nearest the top of the working area.
+    const observer = new IntersectionObserver(
+      (entries) => {
+        const top = entries.filter((entry) => entry.isIntersecting).sort((a, b) => a.boundingClientRect.top - b.boundingClientRect.top)[0];
+        if (top) setActive(top.target.id);
+      },
+      { root: document.getElementById('main'), rootMargin: '-96px 0px -60% 0px' },
+    );
+    elements.forEach((element) => observer.observe(element));
+    return () => observer.disconnect();
+  }, []);
+  return (
+    <nav aria-label="Kelompok pengaturan" className="sticky top-24 hidden self-start pt-6 lg:block">
+      <ul className="space-y-1">
+        {GROUPS.map((group) => (
+          <li key={group.id}>
+            <button
+              type="button"
+              aria-current={active === group.id ? 'true' : undefined}
+              onClick={() => document.getElementById(group.id)?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
+              className={[
+                'relative flex min-h-9 w-full items-center rounded-lg px-3 text-left text-sm transition-colors',
+                active === group.id ? 'bg-[var(--accent-soft)] font-medium text-accent' : 'text-fg-muted hover:bg-bg-subtle hover:text-fg',
+              ].join(' ')}
+            >
+              {group.label}
+              {unseen && group.id === 'settings-aplikasi' ? (
+                <span aria-label="ada pembaruan baru" className="ml-2 h-2 w-2 rounded-full bg-accent" />
+              ) : null}
+            </button>
+          </li>
+        ))}
+      </ul>
+    </nav>
+  );
+}
+
+/**
  * Search plus a jump bar, pinned while the page scrolls.
  *
  * The page is six groups of collapsed sections. On a phone the old layout
@@ -981,7 +1033,7 @@ function SettingsToolbar({
   unseen: boolean;
 }): JSX.Element {
   return (
-    <div className="sticky top-0 z-10 -mx-4 space-y-2 border-b border-border bg-bg px-4 pb-2 pt-3">
+    <div className="sticky top-0 z-10 -mx-4 space-y-3 border-b border-border bg-bg px-4 py-3 sm:-mx-6 sm:px-6 lg:mx-0 lg:px-0">
       <label className="relative block">
         <span className="sr-only">Cari pengaturan</span>
         <input
@@ -992,12 +1044,12 @@ function SettingsToolbar({
             if (event.key === 'Escape') onQuery('');
           }}
           placeholder="Cari pengaturan… (mis. PIN)"
-          className="min-h-tap w-full rounded-xl border border-border bg-surface px-3 text-[15px] outline-none focus:border-accent"
+          className="min-h-tap w-full rounded-lg border border-border bg-surface px-3 text-sm outline-none focus:border-accent"
         />
       </label>
       {query ? null : (
-        <nav aria-label="Kelompok pengaturan" className="-mx-4 overflow-x-auto px-4">
-          <ul className="flex w-max gap-2 py-1">
+        <nav aria-label="Kelompok pengaturan" className="lg:hidden">
+          <ul className={CHIP_ROW}>
             {GROUPS.map((group) => (
               <li key={group.id}>
                 <button

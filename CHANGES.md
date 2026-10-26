@@ -1,5 +1,18 @@
 # Plano — CHANGES
 
+## `2026-10-26.7` — Card flag restored, chief louder, one page frame for Arsip / Dokumen / Pengaturan
+
+Avi: "I don't like the '2 cek' change, revert it to flag and number"; the chief name on the card is "not noticeable enough"; redo Arsip, Dokumen and Pengaturan (screenshots), "the spacing is weird", as the design skill sees fit for this kind of app.
+
+- **Card.** `PatientCard` StatusRail: `⚑ {n}` instead of `{n} cek` (title and aria-label unchanged, so the meaning is still stated). Meta line: the chief is `text-xs`, the name `font-semibold` at full strength, only the word "Chief" and the pin stay at 70%; it was 11px at 70% for the whole line. "+n lagi" for hidden flags is unchanged.
+- **Root cause of the weird spacing.** The three pages each chose their own container (`max-w-3xl` / `max-w-5xl` / `max-w-3xl`), header padding (`pb-2 pt-2`, `pt-3`), heading spacing (`mt-3`, `mt-4 first:mt-1`, `pt-4`) and gaps (`gap-2`, `mt-1`), so content jumped between 768 and 1024 px when switching tabs, rows of pills sat 4 px apart, and a heading had as much space below as above.
+- **Fix.** New `components/common/PageFrame.tsx`: `PAGE_X` (`max-w-4xl`, 16 px gutter, 24 px from `sm`), `PageHeader` (sticky, rows 12 px apart, hairline under), `PageBody`, `SectionLabel` (label, count, hairline; 12 px below, more above) and `CHIP_ROW` (scrolls with the bleed on a phone, wraps on a wide screen, scrollbar hidden). Spacing scale 4 / 8 / 12 / 16 / 24 / 32.
+  - Arsip: filters, then the "Cari di" scope picker; the scope chips are now neutral (on = `bg-bg-subtle` with a check) so they no longer read as filters; row padding `px-4 py-3`; month `mt-6`, week `mt-2`, list `mb-3`.
+  - Dokumen: `SectionLabel` per group, `mt-8` between groups, `gap-3` grid, card `px-4 py-3`.
+  - Pengaturan: from `lg` a two-column layout, a pinned left `GroupNav` (10rem, `IntersectionObserver` marks the group in view) and the content; below `lg` the chip row as before (no scrollbar). Groups `space-y-3 pt-6`, search field `rounded-lg text-sm` like the other pages. The nav hides while a search is typed.
+- **Checked.** Rendered the real `SettingsPage`, `DocumentsPage` and `ArchivePage` in a throwaway Vite harness (not committed) at 1280 px: the three share one left/right edge; Settings shows the left nav with the active group. No console errors.
+- **Not verified.** The harness has no signed-in user, so Arsip and Dokumen showed their empty states: the populated lists (rows, weeks, the document grid) were only changed by class and not seen. Phone width and light mode were not looked at. The card flag and chief line were not rendered. The scroll-spy marker was seen only at the top of the page.
+
 ## `2026-10-26.6` — Senja theme, Tema settings group, phone canvas keeps its columns, Update SOAP, no "(kuning)" in Warna
 
 Avi: no "(kuning)" on Usul H-1 in Atur pasien (yellow is only the printed denah); "Ubah SOAP" → "Update SOAP" (a colleague updates SOAP that way, not through Tempel); the phone canvas jumps left after saving a position (two screenshots); a third UI palette beside Terang and Gelap, easy on the eyes, colours still perceived, not a 90s app, as a category in Settings (asked to use the impeccable skill).

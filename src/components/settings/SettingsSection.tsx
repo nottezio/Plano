@@ -197,10 +197,10 @@ export function SettingsGroup({
 }): JSX.Element {
   const headingId = `${id}-heading`;
   return (
-    <div id={id} role="group" aria-labelledby={headingId} className="settings-group scroll-mt-32 space-y-2">
+    <div id={id} role="group" aria-labelledby={headingId} className="settings-group scroll-mt-32 space-y-3 pt-6">
       <h2
         id={headingId}
-        className="px-1 pt-4 text-xs font-semibold uppercase tracking-wide text-fg-muted"
+        className="px-1 text-xs font-semibold uppercase tracking-wide text-fg-muted"
       >
         {label}
       </h2>

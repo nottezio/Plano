@@ -888,15 +888,17 @@ function PatientCardView({
         of the diagnosis list; this one is labelled "Chief:" and never clipped.
       */}
       {patient.pinned || card.chief ? (
-        <p className={`mt-1 flex min-w-0 items-center gap-1.5 text-[11px] opacity-70 ${fitHeight ? 'shrink-0' : ''}`}>
+        <p className={`mt-1 flex min-w-0 items-center gap-1.5 text-xs ${fitHeight ? 'shrink-0' : ''}`}>
           {patient.pinned ? (
-            <span aria-label="Pinned" className="shrink-0">
+            <span aria-label="Pinned" className="shrink-0 opacity-70">
               ★
             </span>
           ) : null}
           {card.chief ? (
+            // The chief is who the note is handed to (26 Oct 2026, Avi: "not noticeable
+            // enough"): full strength and bold, with only the label kept quiet.
             <span className="min-w-0 truncate" title={`Chief: ${card.chief}`}>
-              Chief: {card.chief}
+              <span className="opacity-70">Chief</span> <b className="font-semibold">{card.chief}</b>
             </span>
           ) : null}
         </p>
@@ -1275,8 +1277,8 @@ function StatusRail({ card }: { card: BoardCard }): JSX.Element {
           title={`${card.checkCount} hal perlu diperiksa lagi di catatan hari ini`}
           aria-label={`${card.checkCount} hal perlu diperiksa lagi di catatan hari ini`}
         >
-          {/* Words, not a flag glyph: a phone shows no tooltip to say what ⚑ was. */}
-          {card.checkCount} cek
+          {/* Flag and number again (26 Oct 2026, Avi disliked "3 cek"); the title and aria-label say what it counts. */}
+          ⚑ {card.checkCount}
         </span>
       ) : null}
       {progress.total > 0 ? (
