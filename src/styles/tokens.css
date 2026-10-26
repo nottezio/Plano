@@ -236,6 +236,108 @@
   --card-neutral-fg: #f2f6fa;
 }
 
+/* ---- Senja (26 Oct 2026, Avi: a third theme, easy on the eyes, colours still
+   readable, not a 90s app) ----
+   A dusk slate for long shifts: a mid-tone ground (not near-black, so no halation
+   on bright wards or at 3am), warm cream text instead of blue-white (12:1 on the
+   ground, comfortably above AA without the glare), a soft periwinkle accent, and
+   checklist cards lifted to mid-tones with enough chroma that red, amber, green
+   and blue still read apart at a glance. It is a dark theme (`.dark` is set too,
+   so every `dark:` utility and the colour scheme apply); this block only moves
+   the values. Palettes (accent) still apply on top; the black surface does not.
+   Generated in OKLCH and checked by scripts/check-contrast.mjs. */
+.dark[data-theme='senja'] {
+  --bg: #252b3a;
+  --bg-subtle: #2c3242;
+  --surface: #32394a;
+  --surface-raised: #3c4356;
+  --border: #4a5266;
+  --border-strong: #666e84;
+  --fg: #f3eee4;
+  --fg-muted: #cac3b6;
+  --fg-faint: #bbb3a5;
+  --accent: #aab9ff;
+  --on-accent: #101524;
+  --danger: #fea09d;
+  --warn-strong: #f7cb58;
+  --pemantauan-bg: #fea09d;
+  --pemantauan-fg: #101524;
+  --focus-ring: #aab9ff;
+  --accent-soft: #aab9ff33;
+  --danger-soft: #fea09d33;
+  --warn-soft: #f7cb583d;
+  --overlay: rgb(12 15 26 / 62%);
+  --shadow-card: 0 1px 2px rgb(10 12 22 / 32%), 0 0 0 1px rgb(255 255 255 / 3%);
+  --shadow-pop: 0 10px 28px -8px rgb(10 12 22 / 50%), 0 0 0 1px rgb(255 255 255 / 5%);
+  --shadow-sheet: 0 28px 64px -16px rgb(10 12 22 / 60%), 0 0 0 1px rgb(255 255 255 / 6%);
+
+  --card-step-1-bg: #743c38;
+  --card-step-1-accent: #ffa098;
+  --card-step-2-bg: #70411f;
+  --card-step-2-accent: #fea668;
+  --card-step-3-bg: #5c4d0f;
+  --card-step-3-accent: #d8bd51;
+  --card-step-4-bg: #425723;
+  --card-step-4-accent: #a5ce6f;
+  --card-step-5-bg: #095b54;
+  --card-step-5-accent: #37d8c9;
+  --card-step-6-bg: #2f5079;
+  --card-step-6-accent: #91c1ff;
+  --card-step-7-bg: #504676;
+  --card-step-7-accent: #bfb1ff;
+  --card-step-8-bg: #6d3b58;
+  --card-step-8-accent: #f99bd1;
+  --card-step-9-bg: #085671;
+  --card-step-9-accent: #55cdfd;
+  --card-step-10-bg: #454f5f;
+  --card-step-10-accent: #b7becb;
+  --card-step-11-bg: #733a46;
+  --card-step-11-accent: #ff9daf;
+  --card-step-12-bg: #1d5c3f;
+  --card-step-12-accent: #68d7a1;
+  --card-done-bg: #2a5b36;
+  --card-done-accent: #75df8f;
+  --discharge-fg: #101524;
+  --discharge-planned: #7c8799;
+  --discharge-overdue: #fea09d;
+  --discharge-h1: #f7cb58;
+  --discharge-today: #65e287;
+  --sec-identitas: #3b3e55;
+  --sec-s: #2d4638;
+  --sec-o: #2f4154;
+  --sec-a: #493f27;
+  --sec-terapi: #4e3746;
+  --sec-ts: #433b52;
+  --note-red: #fea09d;
+  --note-amber: #f7cb58;
+  --note-green: #65e287;
+  --note-blue: #86bafe;
+  --mark-blue: #86bafe;
+  --mark-purple: #cfa1f1;
+  --mark-orange: #fea668;
+  --mark-pink: #f893bc;
+  --mark-teal: #5cd5c7;
+  --mark-brown: #d7b174;
+  --mark-grey: #a7b2c5;
+  --card-neutral-bg: #3f444f;
+  --card-neutral-accent: #9ca4b8;
+
+  --card-step-1-fg: #f9f6f1;
+  --card-step-2-fg: #f9f6f1;
+  --card-step-3-fg: #f9f6f1;
+  --card-step-4-fg: #f9f6f1;
+  --card-step-5-fg: #f9f6f1;
+  --card-step-6-fg: #f9f6f1;
+  --card-step-7-fg: #f9f6f1;
+  --card-step-8-fg: #f9f6f1;
+  --card-step-9-fg: #f9f6f1;
+  --card-step-10-fg: #f9f6f1;
+  --card-step-11-fg: #f9f6f1;
+  --card-step-12-fg: #f9f6f1;
+  --card-done-fg: #f9f6f1;
+  --card-neutral-fg: #f9f6f1;
+}
+
 /**
  * Consumer surface. A card sets `data-color-token="step-3"` and reads the
  * resolved trio through these three variables — no per-token Tailwind classes,
@@ -279,9 +381,15 @@
 :root[data-palette='grafit'] { --accent: #334155; --accent-soft: #3341551f; --focus-ring: #334155; }
 .dark[data-palette='grafit'] { --accent: #cbd5e1; --accent-soft: #cbd5e12e; --focus-ring: #cbd5e1; }
 
+/* Senja's ground is lighter than Gelap's, so two accents lift a step to stay
+   >= 4.5:1 as text on its surfaces (checked by scripts/check-contrast.mjs). */
+.dark[data-theme='senja'][data-palette='ungu'] { --accent: #c0b0fd; --accent-soft: #c0b0fd33; --focus-ring: #c0b0fd; }
+.dark[data-theme='senja'][data-palette='rose'] { --accent: #ff9aa9; --accent-soft: #ff9aa933; --focus-ring: #ff9aa9; }
+
 /* ---- Backgrounds ----
    "hangat": warm paper in light mode; "pekat": true black in dark mode
-   (OLED, night shifts). Each applies only in its own mode. */
+   (OLED, night shifts). Each applies only in its own mode; Senja keeps its own
+   ground, so the black surface skips it. */
 :root[data-surface='hangat']:not(.dark) {
   --bg: #fbf7f0;
   --bg-subtle: #f3ede3;
@@ -290,7 +398,7 @@
   --border: #e6dccd;
   --border-strong: #d2c4ae;
 }
-.dark[data-surface='pekat'] {
+.dark[data-surface='pekat']:not([data-theme='senja']) {
   --bg: #000000;
   --bg-subtle: #0a0a0a;
   --surface: #0f0f10;

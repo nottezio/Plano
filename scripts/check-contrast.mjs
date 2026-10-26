@@ -31,7 +31,7 @@ function ratio(a, b) {
 }
 
 let failures = 0;
-for (const selector of [':root', '.dark']) {
+for (const selector of [':root', '.dark', ".dark[data-theme='senja']"]) {
   const map = vars(blockOf(selector));
   for (const [name, value] of map) {
     if (!name.endsWith('-fg')) continue;
@@ -48,7 +48,7 @@ for (const selector of [':root', '.dark']) {
 // Floor marks (13.7): the mark colour as text on a card tinted 8% with itself.
 const mix = (fg, bg, t) =>
   '#' + [1, 3, 5].map((i) => Math.round(parseInt(fg.slice(i, i + 2), 16) * t + parseInt(bg.slice(i, i + 2), 16) * (1 - t)).toString(16).padStart(2, '0')).join('');
-for (const selector of [':root', '.dark']) {
+for (const selector of [':root', '.dark', ".dark[data-theme='senja']"]) {
   const map = vars(blockOf(selector));
   const surface = map.get('surface');
   for (const [name, value] of map) {
@@ -87,6 +87,42 @@ for (const [, mode, name, body] of css.matchAll(/(:root|\.dark)\[data-surface='(
       console.log(`${ok ? 'PASS' : 'FAIL'} ${mode.padEnd(6)} ${name.padEnd(7)} ${label.padEnd(12)} ${r.toFixed(2)}:1`);
     }
   }
+}
+// Senja (26 Oct 2026): its text on its grounds, the accent as text and as a fill
+// with its on-accent text, the status colours as text, and every accent palette
+// as text on Senja's surface (palettes still apply on top of it).
+{
+  const senjaSel = ".dark[data-theme='senja']";
+  const map = vars(blockOf(senjaSel));
+  const dark = vars(blockOf('.dark'));
+  const check = (what, fg, bg, min = 4.5) => {
+    const r = ratio(fg, bg);
+    const ok = r >= min;
+    if (!ok) failures++;
+    console.log(`${ok ? 'PASS' : 'FAIL'} senja  ${what.padEnd(26)} ${r.toFixed(2)}:1`);
+  };
+  for (const ground of ['bg', 'surface', 'surface-raised']) {
+    for (const text of ['fg', 'fg-muted', 'fg-faint', 'accent', 'danger', 'warn-strong', 'note-red', 'note-green', 'note-blue']) {
+      check(`${text} on ${ground}`, map.get(text), map.get(ground));
+    }
+  }
+  check('on-accent on accent', map.get('on-accent'), map.get('accent'));
+  check('pemantauan', map.get('pemantauan-fg'), map.get('pemantauan-bg'));
+  // Borders are not text: 1.3:1 keeps a hairline visible without a hard edge.
+  check('border on surface', map.get('border'), map.get('surface'), 1.3);
+  check('border-strong on surface', map.get('border-strong'), map.get('surface'), 2);
+  // A card must stand off the ground it sits on, or the colours are lost.
+  for (const key of Object.keys(Object.fromEntries(map)).filter((k) => /^card-step-\d+-bg$/.test(k))) {
+    check(`${key} off bg`, map.get(key), map.get('bg'), 1.4);
+  }
+  for (const [, name, body] of css.matchAll(/\.dark\[data-palette='(\w+)'\]\s*\{([^}]*)\}/g)) {
+    // A Senja-specific lift of the accent, when the palette needs one.
+    const lift = new RegExp(`\\.dark\\[data-theme='senja'\\]\\[data-palette='${name}'\\]\\s*\\{([^}]*)\\}`).exec(css)?.[1] ?? body;
+    const accent = /--accent:\s*(#[0-9a-fA-F]{6})/.exec(lift)?.[1];
+    check(`palette ${name} text`, accent, map.get('surface'));
+    check(`palette ${name} on-accent`, map.get('on-accent'), accent);
+  }
+  void dark;
 }
 console.log(failures === 0 ? '\nAll card colours meet 4.5:1.' : `\n${failures} failing pair(s).`);
 process.exit(failures === 0 ? 0 : 1);

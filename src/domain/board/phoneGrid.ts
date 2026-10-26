@@ -108,13 +108,15 @@ export function gridRows(grid: PhoneGrid): number {
 
 /**
  * Where the used part of the grid starts. Outside Atur the phone draws the
- * blocks shifted by this, so empty leading rows and columns do not push them
- * into the middle of the screen. Stored cells are never changed by it.
+ * blocks shifted UP by this, so empty leading rows do not push them down the
+ * screen. Never sideways: a column is where it was put (26 Oct 2026, Avi: a
+ * saved arrangement came back "rata kiri"; Atur must look like the saved view).
+ * Stored cells are never changed by it.
  */
 export function viewOffset(grid: PhoneGrid): Cell {
   const cells = Object.values(grid);
   if (cells.length === 0) return { c: 0, r: 0 };
-  return { c: Math.min(...cells.map((cell) => cell.c)), r: Math.min(...cells.map((cell) => cell.r)) };
+  return { c: 0, r: Math.min(...cells.map((cell) => cell.r)) };
 }
 
 /** Pack every block up and left, keeping their order. "Rapikan" on the phone. */

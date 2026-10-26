@@ -30,7 +30,7 @@ import { SoapParts } from './SoapParts';
  * left by the panel's width. On a phone it takes the SOAP's place, with a
  * button back.
  *
- * "Ubah SOAP" (edit members): the stored WhatsApp text is edited and read
+ * "Update SOAP" (edit members; "Ubah SOAP" before 26 Oct 2026): the stored WhatsApp text is edited and read
  * again — the A/P, DPJP, red/green all follow the edit. Saved as an edited
  * report with the same stamp, so re-pasting the same message does not undo
  * it; a NEWER message from the group still replaces it.
@@ -255,7 +255,7 @@ export function SoapFloat({
                 }}
                 className="min-h-tap rounded-lg border border-border px-3 text-xs font-medium"
               >
-                Ubah SOAP
+                Update SOAP
               </button>
             ) : null}
             <button

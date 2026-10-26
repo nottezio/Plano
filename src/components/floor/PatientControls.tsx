@@ -32,7 +32,7 @@ import { DeletePatient } from './DeletePatient';
 /** "Usul H-1" sits between none and the firm H-1: a proposal the supervisor has not accepted (26 Oct 2026). */
 const COLOUR_OPTIONS: ReadonlyArray<readonly [ColourChoice, string]> = [
   ['none', 'Tanpa warna'],
-  ['usul', 'Usul H-1 (kuning)'],
+  ['usul', 'Usul H-1'],
   ['h1', 'H-1 (merah)'],
   ['today', 'Pulang hari ini (hijau)'],
 ];

@@ -33,10 +33,12 @@
       // truth afterwards.
       (function () {
         try {
-          var stored = localStorage.getItem('visite.theme'); // 'system'|'light'|'dark'
+          var stored = localStorage.getItem('visite.theme'); // 'system'|'light'|'dark'|'senja'
           var prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-          var dark = stored === 'dark' || ((!stored || stored === 'system') && prefersDark);
+          var senja = stored === 'senja';
+          var dark = senja || stored === 'dark' || ((!stored || stored === 'system') && prefersDark);
           if (dark) document.documentElement.classList.add('dark');
+          if (senja) document.documentElement.setAttribute('data-theme', 'senja');
           // Palette and background (13.15), before first paint as well.
           var palette = localStorage.getItem('plano.palette');
           var surface = localStorage.getItem('plano.surface');

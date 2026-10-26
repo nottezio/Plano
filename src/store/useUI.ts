@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 
+import { isTheme, resolveTheme, SENJA_BG, THEME_KEY, type ThemePreference } from '@/domain/theme';
 import { applyPalette, isPalette, isSurface, PALETTE_KEY, SURFACE_KEY, type PaletteId, type SurfaceId } from '@/domain/palette';
 
 function readStored<T>(key: string, valid: (v: unknown) => v is T, fallback: T): T {
@@ -19,7 +20,7 @@ function store(key: string, value: string): void {
   }
 }
 
-export type ThemePreference = 'system' | 'light' | 'dark';
+export type { ThemePreference };
 
 /**
  * SPEC 7.4 — sync pill states. Wired to Firestore metadata in P1; modelled now
@@ -92,7 +93,7 @@ interface UIState {
  */
 const FLUSHERS = new Map<string, () => void>();
 
-const THEME_STORAGE_KEY = 'visite.theme';
+const THEME_STORAGE_KEY = THEME_KEY;
 const PANE_STORAGE_KEY = 'visite.contextPane';
 
 /**
@@ -112,14 +113,22 @@ function readStoredPane(): boolean {
 
 function applyThemeClass(theme: ThemePreference): void {
   const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-  const dark = theme === 'dark' || (theme === 'system' && prefersDark);
-  document.documentElement.classList.toggle('dark', dark);
+  const { dark, senja } = resolveTheme(theme, prefersDark);
+  const root = document.documentElement;
+  root.classList.toggle('dark', dark);
+  if (senja) root.setAttribute('data-theme', 'senja');
+  else root.removeAttribute('data-theme');
+  // The browser's bar colour follows Senja's ground (the two metas are by device scheme).
+  for (const meta of document.querySelectorAll<HTMLMetaElement>('meta[name="theme-color"]')) {
+    meta.dataset.original ??= meta.content;
+    meta.content = senja ? SENJA_BG : (meta.dataset.original ?? meta.content);
+  }
 }
 
 function readStoredTheme(): ThemePreference {
   try {
     const raw = localStorage.getItem(THEME_STORAGE_KEY);
-    if (raw === 'light' || raw === 'dark' || raw === 'system') return raw;
+    if (isTheme(raw)) return raw;
   } catch (error) {
     console.warn('[ui] theme preference unreadable', error);
   }

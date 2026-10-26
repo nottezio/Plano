@@ -54,8 +54,9 @@ describe('sanitizePhoneGrid', () => {
 });
 
 describe('viewOffset', () => {
-  it('is the top-left of the used cells, so empty leading space can be skipped', () => {
-    expect(viewOffset({ a: { c: 1, r: 4 }, b: { c: 2, r: 6 }, c: { c: 1, r: 9 } })).toEqual({ c: 1, r: 4 });
+  it('skips empty leading rows only; a column stays where it was put', () => {
+    expect(viewOffset({ a: { c: 1, r: 4 }, b: { c: 2, r: 6 }, c: { c: 1, r: 9 } })).toEqual({ c: 0, r: 4 });
+    expect(viewOffset({ a: { c: 2, r: 0 } })).toEqual({ c: 0, r: 0 });
   });
 
   it('is the origin for an empty grid', () => {

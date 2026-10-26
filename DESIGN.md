@@ -128,6 +128,7 @@ A cool slate neutral base, one saturated blue accent, and a 12-step pastel set t
 - **Blue-Black Ink** (`#0f1a2a`), **Muted** (`#4f5d70`), **Faint** (`#8590a0`): primary, secondary and placeholder text.
 - **Danger Red** (`#dc2626`, dark `#f87171`): irreversible actions and errors only.
 - **Dark theme:** canvas `#0a0f15`, surface `#131a24`, ink `#e8eef5`. "Pekat" lowers canvas to `#000000`; "hangat" warms the light canvas to `#fbf7f0`.
+- **Senja theme** (26 Oct 2026, the third mode beside Terang and Gelap; `data-theme="senja"` on a `dark` document): a dusk slate for long shifts, easy on the eyes while colour stays readable. Canvas `#252b3a` (a mid-tone, not near-black), surface `#32394a`, raised `#3c4356`, warm cream ink `#f3eee4` (12:1 on the canvas), periwinkle accent `#aab9ff` with navy text on it. Checklist cards sit at mid-tone lightness with real chroma and warm near-white text (7-8:1), so the twelve hues stay distinct. "Pekat" does not apply to it; accent palettes do (ungu and rose lift one step).
 
 ### Checklist Status Cards
 Twelve pastel steps (red, orange, yellow, lime, teal, blue, violet, pink, sky, slate, rose, green) plus Done green and Neutral. Item N maps to step `((N-1) % 12) + 1`, so any checklist length works. Cards stay selected by a `data-color-token` attribute, never by a hex stored in data. Text on every card is `#0b0f14` in light and `#f2f6fa` in dark, checked at 4.5:1 or better.
@@ -137,7 +138,7 @@ Twelve pastel steps (red, orange, yellow, lime, teal, blue, violet, pink, sky, s
 
 **The Accent-Means-Selected Rule.** Blue means selected or active. Amber means caution or discharge-soon. Red means irreversible actions, errors, and a patient under Pemantauan. Do not borrow one for another job.
 
-**The Contrast Gate Rule.** Any new foreground/background pair must pass `npm run check:contrast` (4.5:1) in both themes.
+**The Contrast Gate Rule.** Any new foreground/background pair must pass `npm run check:contrast` (4.5:1) in every theme (light, dark and Senja).
 
 ## Typography
 

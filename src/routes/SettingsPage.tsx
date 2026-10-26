@@ -45,8 +45,9 @@ import { FORMAT_LABELS } from '@/domain/format/formatters';
 import { useSession } from '@/store/useSession';
 import { SignOutButton } from '@/components/auth/SignOutButton';
 import { resetSettings } from '@/data/repositories/settings.repo';
-import { useUI, type ThemePreference } from '@/store/useUI';
+import { useUI } from '@/store/useUI';
 import { PALETTES, SURFACES } from '@/domain/palette';
+import { ThemePicker } from '@/components/settings/ThemePicker';
 import type { NoteTemplate } from '@/domain/types';
 import { APP_VERSION } from '@/version.js';
 import { UpdateControls } from '@/components/common/UpdateControls';
@@ -57,18 +58,13 @@ import type { UserSettings } from '@/domain/types';
 
 const GROUPS: ReadonlyArray<{ id: string; label: string }> = [
   { id: 'settings-utama', label: 'Utama' },
+  { id: 'settings-tema', label: 'Tema' },
   { id: 'settings-tampilan', label: 'Tampilan' },
   { id: 'settings-harian', label: 'Papan & harian' },
   { id: 'settings-laporan', label: 'Format laporan' },
   { id: 'settings-privasi', label: 'Privasi & data' },
   { id: 'settings-lanjutan', label: 'Lanjutan' },
   { id: 'settings-aplikasi', label: 'Akun & aplikasi' },
-];
-
-const THEME_OPTIONS: Array<{ value: ThemePreference; label: string }> = [
-  { value: 'system', label: 'Sistem' },
-  { value: 'light', label: 'Terang' },
-  { value: 'dark', label: 'Gelap' },
 ];
 
 export default function SettingsPage(): JSX.Element {
@@ -176,28 +172,6 @@ export default function SettingsPage(): JSX.Element {
         {/* The sections people actually change, first (2026-10-23); everything
             else stays below in its own group. */}
         <SettingsGroup id="settings-utama" label="Utama">
-          <SettingsSection
-            id="tema"
-            keywords="tema mode gelap terang dark light warna" title="Tampilan" description="Mode gelap untuk jaga malam." defaultOpen>
-            <div className="flex gap-2">
-              {THEME_OPTIONS.map((option) => (
-                <button
-                  key={option.value}
-                  type="button"
-                  onClick={() => setTheme(option.value)}
-                  aria-pressed={theme === option.value}
-                  className={[
-                    'min-h-tap flex-1 rounded-lg border px-3 text-sm',
-                    theme === option.value
-                      ? 'border-accent bg-bg-subtle font-medium text-accent'
-                      : 'border-border text-fg-muted',
-                  ].join(' ')}
-                >
-                  {option.label}
-                </button>
-              ))}
-            </div>
-          </SettingsSection>
           <SettingsSection
             id="format-catatan"
             keywords="template kerangka soap format"
@@ -433,12 +407,21 @@ export default function SettingsPage(): JSX.Element {
           </SettingsSection>
         </SettingsGroup>
 
-        <SettingsGroup id="settings-tampilan" label="Tampilan">
+        <SettingsGroup id="settings-tema" label="Tema">
+          <SettingsSection
+            id="tema"
+            keywords="tema mode gelap terang dark light senja lembut mata warna sistem"
+            title="Mode warna"
+            description="Terang, Gelap, atau Senja yang lembut di mata. Tersimpan di perangkat ini."
+            defaultOpen
+          >
+            <ThemePicker theme={theme} onChange={setTheme} />
+          </SettingsSection>
           <SettingsSection
             id="warna"
             keywords="warna palet tema aksen latar oled hitam kertas theme palette colour color"
             title="Warna aplikasi"
-            description="Warna tombol dan pilihan, serta latar. Tersimpan di perangkat ini."
+            description="Warna tombol dan pilihan, serta latar. Tersimpan di perangkat ini. Hitam pekat hanya untuk mode Gelap."
           >
             <div className="space-y-3">
               <div className="grid grid-cols-2 gap-2 min-[420px]:grid-cols-4">
@@ -480,6 +463,9 @@ export default function SettingsPage(): JSX.Element {
               </div>
             </div>
           </SettingsSection>
+        </SettingsGroup>
+
+        <SettingsGroup id="settings-tampilan" label="Tampilan">
           <SettingsSection
             id="tata-letak"
             keywords="layout panel klasik soap"

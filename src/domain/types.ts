@@ -255,7 +255,7 @@ export interface UserSettings {
   showHariRawat: boolean;
   copyPresets: CopyPreset[];
   privacy: PrivacySettings;
-  theme: 'system' | 'light' | 'dark';
+  theme: 'system' | 'light' | 'dark' | 'senja';
 }
 
 export interface ScratchNote {

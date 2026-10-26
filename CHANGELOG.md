@@ -5,6 +5,12 @@ Catatan teknis lengkap (akar masalah, perbaikan) ada di CHANGES.md.
 
 Entri teratas harus versi yang sedang dirilis; tes gagal bila belum ditulis.
 
+## `2026-10-26.6`
+- **Tema baru: Senja.** Pengaturan kini punya bagian **Tema** di atas. Mode warna tampil sebagai pratinjau: Sistem, Terang, Gelap, dan **Senja**. Senja adalah mode gelap yang lembut: latar biru-abu senja (bukan hitam), teks krem hangat yang tidak menyilaukan, dan warna kartu checklist, H-1, dan pulang tetap jelas dibedakan. Cocok untuk jaga panjang di bangsal yang terang maupun redup. Palet aksen tetap bisa dipilih di atasnya; "Hitam pekat" hanya untuk mode Gelap. "Warna aplikasi" pindah ke bagian Tema.
+- **Pilihan "Usul H-1" di menu Warna tidak lagi bertuliskan "(kuning)".** Kuning hanya berlaku di cetakan denah, bukan di aplikasi.
+- **"Ubah SOAP" menjadi "Update SOAP"** di tombol pasien List Maker, supaya tujuannya jelas (memperbarui SOAP tanpa lewat tab Tempel).
+- **Kanvas HP: posisi setelah Selesai sama dengan saat Atur.** Sebelumnya tampilan menggeser seluruh susunan ke kiri sampai kolom paling kiri terisi, sehingga posisi yang disimpan berubah. Kini kolom tetap di tempatnya; hanya baris kosong di atas yang dilewati.
+
 ## `2026-10-26.5`
 - **Nama bagian di Analisis bisa diubah.** Di tab Analisis, pengedit list menekan **Ubah nama bagian**, lalu mengetik nama baru untuk "Pindah ruangan", "Rencana H-1 (pulang besok)", "Sudah pulang", dan bagian lain (termasuk "Di lantai"). Nama dipakai di blok, kotak hitungan, tabel 7 hari, dan ringkasan WhatsApp, dan dibagikan ke semua anggota list. Kosongkan kolomnya untuk kembali ke nama bawaan.
 - **Tag [usul] di cetakan bisa diganti tulisan dan warnanya.** Di Atur cetak → Denah, setelah "Tandai usul H-1" dinyalakan, ada kolom tulisan (bawaan "usul") dan pilihan warna (kuning, oranye, biru, ungu, toska, abu-abu, hitam; merah dan hijau tidak ditawarkan karena sudah berarti H-1 dan pulang hari ini). Berlaku di PDF, Word, dan legenda. Disimpan di perangkat ini.
