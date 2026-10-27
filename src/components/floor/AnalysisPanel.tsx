@@ -204,6 +204,47 @@ export function AnalysisPanel({
       </div>
       </section>
 
+      <section aria-label="Rincian hari ini" className="space-y-3">
+      <SectionLabel title="Hari ini, per pasien" />
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+        <Block title={name('pulangHariIni')} count={day.pulangHariIni.length} rename={field('pulangHariIni', SECTION_TITLE.pulangHariIni)}>
+          {day.pulangHariIni.map((p) => (
+            <Row key={p.key} patient={p} onOpen={onOpen} />
+          ))}
+        </Block>
+        <Block title={name('rencanaH1')} count={day.rencanaH1.length} rename={field('rencanaH1', SECTION_TITLE.rencanaH1)}>
+          {day.rencanaH1.map((p) => (
+            <Row key={p.key} patient={p} onOpen={onOpen} />
+          ))}
+        </Block>
+        <Block title={name('usulH1')} count={day.usulH1.length} rename={field('usulH1', SECTION_TITLE.usulH1)}>
+          {day.usulH1.map(({ patient, days }) => (
+            <Row key={patient.key} patient={patient} note={days === 0 ? 'usul hari ini' : `usul sejak ${days} hari`} onOpen={onOpen} />
+          ))}
+        </Block>
+        <Block title={name('pulang')} count={day.pulang.length} rename={field('pulang', SECTION_TITLE.pulang)}>
+          {day.pulang.map((p) => (
+            <Row key={p.key} patient={p.report} note={hm(localOf(p.leftAt))} onOpen={onOpen} />
+          ))}
+        </Block>
+        <Block title={name('pindah')} count={day.pindah.length} rename={field('pindah', SECTION_TITLE.pindah)}>
+          {day.pindah.map((p) => (
+            <Row key={p.key} patient={p.report} note={`ke ${p.pindahKe || '…'} · ${hm(localOf(p.leftAt))}`} onOpen={onOpen} />
+          ))}
+        </Block>
+        <Block title={name('kamar')} count={day.kamar.length} rename={field('kamar', SECTION_TITLE.kamar)}>
+          {day.kamar.map((m) => (
+            <Row key={`${m.key}-${m.at}`} patient={m.patient} note={`${m.what.replace(/^Pindah kamar\s*/i, '')} · ${hm(m.at)}`} onOpen={onOpen} />
+          ))}
+        </Block>
+        <Block title={name('masuk')} count={day.masuk.length} rename={field('masuk', SECTION_TITLE.masuk)}>
+          {day.masuk.map((m) => (
+            <Row key={`${m.key}-${m.at}`} patient={m.patient} note={`${m.what === 'Masuk list' ? 'baru' : m.what.toLowerCase()} · ${hm(m.at)}`} onOpen={onOpen} />
+          ))}
+        </Block>
+      </div>
+      </section>
+
       <section aria-label="Tren dua minggu" className="space-y-3">
         <SectionLabel title="Dua minggu terakhir" />
         <div className="grid gap-3 md:grid-cols-2">
@@ -250,47 +291,6 @@ export function AnalysisPanel({
             />
           </ChartCard>
         </div>
-      </section>
-
-      <section aria-label="Rincian hari ini" className="space-y-3">
-      <SectionLabel title="Hari ini, per pasien" />
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-        <Block title={name('pulangHariIni')} count={day.pulangHariIni.length} rename={field('pulangHariIni', SECTION_TITLE.pulangHariIni)}>
-          {day.pulangHariIni.map((p) => (
-            <Row key={p.key} patient={p} onOpen={onOpen} />
-          ))}
-        </Block>
-        <Block title={name('rencanaH1')} count={day.rencanaH1.length} rename={field('rencanaH1', SECTION_TITLE.rencanaH1)}>
-          {day.rencanaH1.map((p) => (
-            <Row key={p.key} patient={p} onOpen={onOpen} />
-          ))}
-        </Block>
-        <Block title={name('usulH1')} count={day.usulH1.length} rename={field('usulH1', SECTION_TITLE.usulH1)}>
-          {day.usulH1.map(({ patient, days }) => (
-            <Row key={patient.key} patient={patient} note={days === 0 ? 'usul hari ini' : `usul sejak ${days} hari`} onOpen={onOpen} />
-          ))}
-        </Block>
-        <Block title={name('pulang')} count={day.pulang.length} rename={field('pulang', SECTION_TITLE.pulang)}>
-          {day.pulang.map((p) => (
-            <Row key={p.key} patient={p.report} note={hm(localOf(p.leftAt))} onOpen={onOpen} />
-          ))}
-        </Block>
-        <Block title={name('pindah')} count={day.pindah.length} rename={field('pindah', SECTION_TITLE.pindah)}>
-          {day.pindah.map((p) => (
-            <Row key={p.key} patient={p.report} note={`ke ${p.pindahKe || '…'} · ${hm(localOf(p.leftAt))}`} onOpen={onOpen} />
-          ))}
-        </Block>
-        <Block title={name('kamar')} count={day.kamar.length} rename={field('kamar', SECTION_TITLE.kamar)}>
-          {day.kamar.map((m) => (
-            <Row key={`${m.key}-${m.at}`} patient={m.patient} note={`${m.what.replace(/^Pindah kamar\s*/i, '')} · ${hm(m.at)}`} onOpen={onOpen} />
-          ))}
-        </Block>
-        <Block title={name('masuk')} count={day.masuk.length} rename={field('masuk', SECTION_TITLE.masuk)}>
-          {day.masuk.map((m) => (
-            <Row key={`${m.key}-${m.at}`} patient={m.patient} note={`${m.what === 'Masuk list' ? 'baru' : m.what.toLowerCase()} · ${hm(m.at)}`} onOpen={onOpen} />
-          ))}
-        </Block>
-      </div>
       </section>
 
       <details className="group rounded-xl border border-border bg-surface">

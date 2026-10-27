@@ -1,5 +1,13 @@
 # Plano — CHANGES
 
+## `2026-10-28.2` — Analisis: today's patients first; List tab right panel no longer under the tabs
+
+Avi: the "Hari ini, per pasien" blocks should sit at the very top, under Salin / Ubah nama bagian, above the graphs; in the List tab the right-hand panel floats and overlaps (screenshot).
+
+- **Analisis.** `AnalysisPanel`: the "Rincian hari ini" section moved above "Dua minggu terakhir"; nothing else changed.
+- **Root cause of the overlap.** `ListPanel`'s right column was `lg:sticky lg:top-2`, while the tab strip above it is `sticky top-0 z-20` (about 50–58 px tall). The column stuck 8 px from the top, so its first rows (Jam list, Simpan edisi) slid under the tab strip, and a column taller than the screen could never show its bottom (Catatan pulang, Pratinjau). Now `lg:top-16 lg:max-h-[calc(100dvh-5.5rem)] lg:overflow-y-auto lg:overscroll-contain`: it sticks below the tabs and scrolls inside itself when it is taller than the window.
+- **Not verified.** Not rendered: the tab strip height was read from its classes, not measured, and the panel was not seen with real data or at other window heights.
+
 ## `2026-10-28.1` — Salin without section headings, list ownership transfer, Analisis charts, Catatan / Kalkulator / Checklist / peek redesign
 
 Avi (a long list): redo Catatan, Kalkulator, Checklist, the floating patient window and its folded card ("AI slop", "ugly"); Analisis with graphs (the message was cut off after "Also"); the scroll-to-top button sits weirdly; in Salin, an option to leave out the header of a chosen part, off by default; transfer the list's ownership to the new Penanggung jawab.

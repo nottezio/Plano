@@ -5,6 +5,10 @@ Catatan teknis lengkap (akar masalah, perbaikan) ada di CHANGES.md.
 
 Entri teratas harus versi yang sedang dirilis; tes gagal bila belum ditulis.
 
+## `2026-10-28.2`
+- **Analisis: daftar pasien hari ini kini di paling atas**, tepat di bawah tombol "Ubah nama bagian" dan "Salin ringkasan"; grafik pindah ke bawahnya.
+- **Panel kanan di tab List tidak lagi tertutup tab.** Panel "Jam list / Simpan edisi / Kirim / ekspor" menempel di bawah deret tab, bukan di belakangnya, sehingga bagian atasnya tidak terpotong. Bila panelnya lebih tinggi dari layar, panel menggulir sendiri sehingga bagian bawahnya tetap terjangkau.
+
 ## `2026-10-28.1`
 - **Salin: "Tanpa judul bagian".** Saat Anda memilih bagian tertentu (mis. hanya A), muncul pilihan untuk membuang baris judulnya ("Mohon izin kami assess dengan:"). Mati secara bawaan, jadi judul tetap ikut sampai Anda mencentangnya. Untuk "Seluruh catatan" pilihannya tidak muncul dan teks tetap utuh.
 - **Pindahkan kepemilikan list.** Pemilik list kini bisa menjadikan anggota lain sebagai pemilik (penanggung jawab) lewat tombol **Jadikan pemilik** di Setelan → Anggota, dengan satu pertanyaan konfirmasi yang menyebut nama orangnya. Pemilik lama tetap menjadi editor. Hanya anggota yang sudah menerima undangan yang bisa dipilih. **Butuh deploy firestore.rules.**

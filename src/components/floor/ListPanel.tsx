@@ -247,7 +247,8 @@ export function ListPanel({
         ) : null}
       </div>
 
-      <div className="min-w-0 space-y-3 lg:sticky lg:top-2 lg:self-start">
+      {/* Pinned under the tab strip (which is `sticky top-0`, about 56 px tall), not behind it; a tall panel scrolls inside itself so its bottom is reachable. */}
+      <div className="min-w-0 space-y-3 lg:sticky lg:top-16 lg:max-h-[calc(100dvh-5.5rem)] lg:self-start lg:overflow-y-auto lg:overscroll-contain">
         {/*
           Send and export (13.15, Avi: "the export UI is weird"): one card —
           the list's time and Simpan edisi first (what the list maker does),
