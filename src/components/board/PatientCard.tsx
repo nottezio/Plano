@@ -12,7 +12,7 @@ import { Link } from 'react-router-dom';
 
 import { previewLines, shortStepLabel, soapState, type BoardCard } from '@/domain/board';
 import { ProgressStrip } from './ProgressStrip';
-import { IconCar, IconCopy, IconEye, IconGrip } from '@/components/common/Icons';
+import { IconCar, IconClipboard, IconCopy, IconEye, IconGrip } from '@/components/common/Icons';
 import { isTrioDpjp } from '@/domain/dpjp';
 import { formatLocation } from '@/domain/identity';
 import { copyText } from '@/lib/clipboard';
@@ -43,6 +43,7 @@ function PatientCardView({
   checked,
   onToggleSelected,
   onPreview,
+  onVisite,
   dense = false,
   swipe = false,
 }: {
@@ -106,6 +107,8 @@ function PatientCardView({
   onToggleSelected?: ((patientId: string) => void) | undefined;
   /** Opens the read-only note preview. Absent while selecting. */
   onPreview?: ((patientId: string) => void) | undefined;
+  /** Opens Visite mode (the bedside cheat sheet) for this patient. */
+  onVisite?: ((patientId: string) => void) | undefined;
   /**
    * Folded to its name and DPJP. Held by the board (and remembered there),
    * like the note's open state, because the board is what lays cards out.
@@ -797,6 +800,21 @@ function PatientCardView({
             className="flex min-h-tap w-7 shrink-0 items-center justify-center text-[color-mix(in_srgb,var(--token-fg)_70%,transparent)]"
           >
             <IconEye width={16} height={16} />
+          </button>
+        ) : null}
+        {onVisite ? (
+          <button
+            type="button"
+            aria-label={`Visite ${card.title}`}
+            title="Visite: ringkasan untuk visite DPJP"
+            onClick={(event) => {
+              event.preventDefault();
+              event.stopPropagation();
+              onVisite(patient.id);
+            }}
+            className="flex min-h-tap w-7 shrink-0 items-center justify-center text-[color-mix(in_srgb,var(--token-fg)_70%,transparent)]"
+          >
+            <IconClipboard width={16} height={16} />
           </button>
         ) : null}
         </div>

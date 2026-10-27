@@ -10,6 +10,7 @@ import { IconBack } from '@/components/common/Icons';
 import { Sheet } from '@/components/common/Sheet';
 import { PatientHeaderActions } from '@/components/patient/PatientHeaderActions';
 import { CopySheet } from '@/components/copy/CopySheet';
+import { VisiteView } from '@/components/patient/VisiteView';
 import { ChecklistPills } from '@/components/patient/ChecklistPills';
 import { CompareSheet } from '@/components/patient/CompareSheet';
 import { IdentitySheet } from '@/components/patient/IdentitySheet';
@@ -249,6 +250,8 @@ export default function PatientPage(): JSX.Element {
   const [versionLabel, setVersionLabel] = useState<string | null>(null);
 
   const [copyOpen, setCopyOpen] = useState(false);
+  /** Visite mode: the editor slot shows the bedside cheat sheet instead (read-only). */
+  const [visiteOn, setVisiteOn] = useState(false);
   /** The floating calculator: non-modal, so it can stay open while writing. */
   const [calcOpen, setCalcOpen] = useState(false);
   /**
@@ -1640,6 +1643,11 @@ export default function PatientPage(): JSX.Element {
             noteEmpty={editor.value.trim().length === 0}
             calcOpen={calcOpen}
             paneOpen={paneOpen}
+            visiteOn={visiteOn && !activeShiftNote}
+            onToggleVisite={() => {
+              editor.flush();
+              setVisiteOn((current) => !current);
+            }}
             onLab={() => setLabOpen(true)}
             onReformat={() => setReformatOpen(true)}
             onOpening={() => setOpeningOpen(true)}
@@ -2155,6 +2163,20 @@ export default function PatientPage(): JSX.Element {
             onRename={(title) => shiftNotes.rename(activeShiftNote.id, title)}
             focusAt={justCreatedJaga === activeShiftNote.id ? JAGA_TEMPLATE_CARET : undefined}
           />
+        ) : visiteOn ? (
+          // The page's own sticky bar already names the patient and the day.
+          <div className="px-4 py-3">
+            <VisiteView
+              patient={patient}
+              body={entryLoading ? null : editor.value}
+              noteDate={null}
+              today={today}
+              aliases={settings.sectionAliases}
+            />
+            <Button size="sm" className="mt-4" onClick={() => setVisiteOn(false)}>
+              Kembali ke catatan
+            </Button>
+          </div>
         ) : (
           <BodyEditor
             handleRef={editorHandle}

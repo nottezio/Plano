@@ -33,6 +33,7 @@ import { copyText } from '@/lib/clipboard';
 import { PatientCard } from '@/components/board/PatientCard';
 import { PatientPeekWindow } from '@/components/board/PatientPeekWindow';
 import { QuickChecklistSheet } from '@/components/board/QuickChecklistSheet';
+import { VisiteSheet } from '@/components/board/VisiteSheet';
 import { IconMore, IconPlus, IconSearch } from '@/components/common/Icons';
 import { Sheet } from '@/components/common/Sheet';
 import { useHideOnScroll } from '@/hooks/useHideOnScroll';
@@ -248,6 +249,8 @@ export default function BoardPage(): JSX.Element {
    * separate stacking number that can drift out of step with the list.
    */
   const [previewIds, setPreviewIds] = useState<string[]>([]);
+  /** The patient open in Visite mode, by id so a board change cannot swap it. */
+  const [visiteId, setVisiteId] = useState<string | null>(null);
   // Re-peeking an open window brings it forward rather than opening a second copy.
   const openPreview = useCallback((id: string): void => {
     setPreviewIds((current) =>
@@ -549,6 +552,7 @@ export default function BoardPage(): JSX.Element {
         onPreview={
           selecting ? undefined : openPreview
         }
+        onVisite={selecting ? undefined : setVisiteId}
       />
     );
   };
@@ -663,6 +667,9 @@ export default function BoardPage(): JSX.Element {
     settings.privacy.boardShowInitialsOnly,
     reminderKinds,
   ]);
+
+  /** Visite steps bed to bed in the order the board shows. */
+  const visitePatients = useMemo(() => cards.map((card) => card.patient), [cards]);
 
   /** Inputs of the phone's block canvas. */
   const phoneCards = useMemo(() => new Map(cards.map((card) => [card.patient.id, card])), [cards]);
@@ -1235,6 +1242,7 @@ export default function BoardPage(): JSX.Element {
                       onPreview={
                       selecting ? undefined : openPreview
                     }
+                      onVisite={selecting ? undefined : setVisiteId}
                     />
                     </MasonryItem>
                   ))}
@@ -1372,8 +1380,21 @@ export default function BoardPage(): JSX.Element {
         today={today}
         onOpenChange={(open) => {
           if (!open) setQuickPatientId(null);
+        }}        onVisite={(id) => {
+          setQuickPatientId(null);
+          setVisiteId(id);
         }}
       />
+
+      {visiteId && visitePatients.some((patient) => patient.id === visiteId) ? (
+        <VisiteSheet
+          patients={visitePatients}
+          index={visitePatients.findIndex((patient) => patient.id === visiteId)}
+          today={today}
+          onIndex={(next) => setVisiteId(visitePatients[next]?.id ?? null)}
+          onClose={() => setVisiteId(null)}
+        />
+      ) : null}
     </AppShell>
   );
 }

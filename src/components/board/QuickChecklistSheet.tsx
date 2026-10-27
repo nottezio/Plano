@@ -4,6 +4,8 @@ import { cardTitle } from '@/domain/board';
 import { itemsForPatientDay } from '@/domain/checklistDay';
 import { useSession } from '@/store/useSession';
 import { Sheet } from '@/components/common/Sheet';
+import { IconClipboard } from '@/components/common/Icons';
+import { Button } from '@/components/common/ui';
 import { ProgressStrip } from './ProgressStrip';
 import { ReminderPicker } from '@/components/patient/ReminderPicker';
 import { useChecklist } from '@/hooks/useChecklist';
@@ -25,11 +27,14 @@ export function QuickChecklistSheet({
   items,
   today,
   onOpenChange,
+  onVisite,
 }: {
   patient: Patient | null;
   items: readonly ChecklistItemDef[];
   today: ClinicalDate;
   onOpenChange: (open: boolean) => void;
+  /** The phone's way into Visite mode: long-press opens this sheet, not a card button. */
+  onVisite?: ((patientId: string) => void) | undefined;
 }): JSX.Element | null {
   const dischargePlannedFor = patient?.dischargePlannedFor;
   const legacyDischarge = patient?.discharge;
@@ -48,6 +53,17 @@ export function QuickChecklistSheet({
       onOpenChange={onOpenChange}
       title={cardTitle(patient, initialsOnly, false)}
       description="Checklist dan pengingat hari ini"
+      footer={
+        onVisite ? (
+          <Button
+            className="w-full"
+            icon={<IconClipboard width={16} height={16} />}
+            onClick={() => onVisite(patient.id)}
+          >
+            Visite
+          </Button>
+        ) : undefined
+      }
     >
       <ul className="space-y-2">
         {activeItems(dayItems).map((item) => {

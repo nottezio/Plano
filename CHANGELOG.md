@@ -5,6 +5,11 @@ Catatan teknis lengkap (akar masalah, perbaikan) ada di CHANGES.md.
 
 Entri teratas harus versi yang sedang dirilis; tes gagal bila belum ditulis.
 
+## `2026-10-28.7`
+- **Visite: ringkasan pasien untuk visite DPJP.** Tombol papan klip baru di kartu pasien (di HP: tekan lama kartu → Visite) dan di samping Salin di halaman pasien. Isinya, dalam urutan tetap: DPJP dan chief, Diagnosis, EKG terbaru, Lab terbaru, Foto thorax terbaru, Laporan tindakan terbaru, Echo (hanya kesimpulan atau EF), Terapi, dan Plan kita. Teks disalin apa adanya dari SOAP, tidak diubah; blok TS tidak ikut ke Plan.
+- **"Terbaru" berarti blok bertanggal yang paling baru** di catatan, sama seperti "Penunjang terbaru saja". EKG dan lab yang panjang dilipat ke 4 baris; ketuk "+n baris" untuk membuka. Bagian yang tidak ada di catatan tidak ditampilkan, dan disebut di bawah ("Tidak ada di catatan: …").
+- **Dari papan, pindah pasien tanpa menutup:** tombol Sebelumnya/Berikutnya atau geser ke samping, mengikuti urutan papan. Bila SOAP hari ini belum ditulis, Visite memakai catatan terakhir dan menandainya "bukan hari ini".
+
 ## `2026-10-28.6`
 - **Papan: status baru "Usul H-1".** Di menu pasien → Rencana pulang ada pilihan "Usul H-1", cara kerjanya seperti usul H-1 di List Maker: pasien belum punya tanggal pulang, hanya usulan yang menunggu keputusan DPJP. Kartu di kanvas menampilkan strip kuning di atas, bergaris putus di bawahnya: "Usul pulang besok · H-1 · n hari" (di HP: "Usul"). Usul tidak kedaluwarsa sendiri. Pilih H-1, pulang hari ini, atau isi tanggal pulang untuk menutupnya; di bawah pilihan ada tombol "Jadikan H-1" dan "Batalkan usul". Papan dan List Maker belum saling menyalin usulnya.
 

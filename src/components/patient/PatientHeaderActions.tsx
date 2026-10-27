@@ -1,5 +1,5 @@
 import { SyncPill } from '@/components/common/SyncPill';
-import { IconCalculator, IconColumns, IconMore } from '@/components/common/Icons';
+import { IconCalculator, IconClipboard, IconColumns, IconMore } from '@/components/common/Icons';
 import { Button } from '@/components/common/ui';
 
 /**
@@ -17,6 +17,8 @@ export function PatientHeaderActions({
   noteEmpty,
   calcOpen,
   paneOpen,
+  visiteOn,
+  onToggleVisite,
   onLab,
   onReformat,
   onOpening,
@@ -30,6 +32,9 @@ export function PatientHeaderActions({
   noteEmpty: boolean;
   calcOpen: boolean;
   paneOpen: boolean;
+  /** Visite mode: the note read back as a bedside cheat sheet. */
+  visiteOn: boolean;
+  onToggleVisite: () => void;
   onLab: () => void;
   onReformat: () => void;
   onOpening: () => void;
@@ -72,6 +77,17 @@ export function PatientHeaderActions({
       <span className="lg:hidden">
         <SyncPill dot />
       </span>
+      <Button
+        size="icon"
+        variant={visiteOn ? 'ghost' : 'quiet'}
+        onClick={onToggleVisite}
+        aria-label={visiteOn ? 'Kembali ke catatan' : 'Visite'}
+        aria-pressed={visiteOn}
+        title="Visite: ringkasan untuk visite DPJP"
+        className={`shrink-0 ${visiteOn ? 'bg-[var(--accent-soft)]' : ''}`}
+      >
+        <IconClipboard width={18} height={18} />
+      </Button>
       <Button size="sm" variant="primary" className="shrink-0" onClick={onCopy}>
         Salin
       </Button>
