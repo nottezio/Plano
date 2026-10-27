@@ -23,6 +23,7 @@ import { searchWords } from '@/domain/floorList/search';
 import { AnalysisPanel } from '@/components/floor/AnalysisPanel';
 import { ListMakerHeader, ListMakerTabs } from '@/components/floor/ListMakerHeader';
 import { EditionsPanel } from '@/components/floor/EditionsPanel';
+import { SuggestionTray } from '@/components/floor/SuggestionTray';
 import { latestOf, type FloorPatient } from '@/domain/floorList/report';
 import { useClinicalToday } from '@/hooks/useClinicalToday';
 import { useMediaQuery } from '@/hooks/useMediaQuery';
@@ -30,8 +31,6 @@ import { useMediaQuery } from '@/hooks/useMediaQuery';
 /** Patient boxes open at once on a wide screen; the oldest closes first. */
 const MAX_OPEN = 4;
 import { useViewerOnly } from '@/components/auth/viewerOnly';
-import { ChiefSuggestions } from '@/components/floor/ChiefSuggestions';
-import { DischargeSuggestions } from '@/components/floor/DischargeSuggestions';
 import { useEditions, useMyFloors, useRoster } from '@/hooks/useFloor';
 import { useSession } from '@/store/useSession';
 
@@ -339,10 +338,7 @@ export default function ListMakerPage(): JSX.Element {
             ) : null}
 
             {(tab === 'denah' || tab === 'list') && editable ? (
-              <>
-                <ChiefSuggestions floor={floor} roster={roster} active={view.active} date={date} myName={myName} onOpen={setOpen} />
-                <DischargeSuggestions floor={floor} roster={roster} active={view.active} date={date} myName={myName} onOpen={setOpen} />
-              </>
+              <SuggestionTray floor={floor} roster={roster} active={view.active} date={date} myName={myName} onOpen={setOpen} />
             ) : null}
             {tab === 'denah' ? (
               view.active.length === 0 ? (

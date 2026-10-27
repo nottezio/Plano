@@ -225,6 +225,14 @@ export const IconChevronRight = (props: IconProps): JSX.Element => (
   </Base>
 );
 
+/** Bell: something waits for a decision (the Saran tray in the List Maker). */
+export const IconBell = (props: IconProps): JSX.Element => (
+  <Base {...props}>
+    <path d="M6 9.5a6 6 0 0 1 12 0c0 4.5 2 6 2 6H4s2-1.5 2-6Z" />
+    <path d="M10 19.5a2 2 0 0 0 4 0" />
+  </Base>
+);
+
 export const IconCheck = (props: IconProps): JSX.Element => (
   <Base {...props}>
     <path d="m5 12.5 4.5 4.5L19 7.5" />

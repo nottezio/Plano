@@ -1,5 +1,17 @@
 # Plano — CHANGES
 
+## `2026-10-28.4` — List Maker: one "Saran" tray instead of two amber strips
+
+Avi: "design and revamp the notification (for accepting pasien pulang/usul, et cetera) in the list maker tab".
+
+- **Why.** `ChiefSuggestions` and `DischargeSuggestions` were two stacked amber boxes with identical chrome: every row was a `flex-wrap` of truncated text plus two or three 12 px buttons (the usul row wrapped into three lines at 360 px), twelve pending patients pushed the denah/list a screen down, and an accepted row just vanished (nothing said the tap had landed). Amber also means "H-1 stage" in DESIGN.md, so a chief handover wore the discharge colour.
+- **Domain.** `domain/floorList/suggestionTray.ts`: `buildTray(roster, floor, date, now)` returns `rows` (discharge rows first, then chief) and `later` (patients who change chief at the next jam dinas, outside jam dinas). Each row carries its sentence in parts, its answers (`TrayAction`: label, the fields and log line to write, and the short "done" text) and an Abaikan action. It reuses `suggestionFor` / `suggestionActions` / `chiefSuggestions`; their rules, labels and the written fields are unchanged (Abaikan still writes `dismissed = report.sentAt` or `chiefDismissed = now`). Row id = kind + key + `sentAt` (discharge), so a new SOAP is a new suggestion and is never hidden by an old tap.
+- **UI.** `components/floor/SuggestionTray.tsx` replaces both files (deleted). A surface card (hairline border, card shadow; no amber box): header button with bell, count pill (the only amber), summary and chevron (collapsed state in `localStorage` `plano.listmaker.tray`). Rows: `room/bed` + name (opens the patient), "Plan menyebut [H-1]" or "Chief Ari → [dr. Kirana]" with the proposed value on a tint (warn for discharge, subtle for chief), answers on the right; the two answers of an usul wrap to their own line on a phone; Abaikan is an × on a phone and the word from `sm`. Four rows shown, "Lihat n lainnya" for the rest; a footer with Terima semua / Abaikan semua when two or more chief rows are pending (one batch write, as before). New `IconBell`.
+- **Tap feedback.** A tapped row becomes a "ghost" (kept in local state with its position) that shows a check and `done` for 900 ms, then folds (grid-rows 1fr to 0fr, 220 ms), so the snapshot that removes it does not make the list jump. If a write is rejected the row comes back from the data. `prefers-reduced-motion` is handled by the global rule.
+- **Tests.** `suggestionTray.test.ts`: empty, H-1 row, usul with two answers, chief only in jam dinas with the written fields and log, Ganti chief cleared on accept, row id changes with a new SOAP, ordering, `doneText`.
+- **Checked.** Rendered the real component in a throwaway harness (Firestore repo stubbed, not committed) at 360 px and 900 px in light, dark and Senja, expanded, "Lihat semua", collapsed, a tapped row (and the write it made), and an evening clock; no console errors. No new colour pair: text uses `fg` / `fg-muted` on surface, `warn-soft` and `bg-subtle` only as fills behind `fg`.
+- **Not verified.** Not seen on a real phone or with a real list; with several editors on one list the row also folds for the other person only through the snapshot (no ghost there); the "Urungkan" step was not built (an accepted colour is changed back in Atur as before).
+
 ## `2026-10-28.3` — Denah: usul toggle
 
 Avi: "add a toggle in denah view that shows who have a usul state".

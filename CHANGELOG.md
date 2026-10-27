@@ -5,6 +5,12 @@ Catatan teknis lengkap (akar masalah, perbaikan) ada di CHANGES.md.
 
 Entri teratas harus versi yang sedang dirilis; tes gagal bila belum ditulis.
 
+## `2026-10-28.4`
+- **List Maker: pemberitahuan saran dirombak jadi satu kotak "Saran".** Dua kotak kuning (saran Chief Bangsal dan saran dari Plan: H-1, pulang hari ini, usul H-1) kini satu kartu di atas Denah dan List, dengan jumlah dan ringkasan ("3 soal pulang · 3 ganti chief") di barisnya. Tiap pasien satu baris: kamar/bed dan nama (ketuk untuk membuka SOAP), kalimat sarannya dengan nilai yang diusulkan ditandai, lalu tombol jawaban di kanan. Di HP tombol Abaikan menjadi ikon ×.
+- **Ketukan terlihat jadinya.** Baris yang Anda ketuk berubah menjadi centang dan hasilnya ("H-1", "Chief → dr. Kirana", "Diabaikan") sekitar satu detik, baru melipat, sehingga daftar tidak melompat saat jempol masih di layar.
+- **Tidak lagi menenggelamkan list.** Hanya empat baris pertama yang tampil, sisanya di "Lihat n lainnya". Kartu bisa dilipat dengan ketukan di judulnya (diingat di perangkat ini). Saran chief tetap punya "Terima semua" dan "Abaikan semua". Di luar jam dinas, satu baris tenang di bawahnya menyebut berapa pasien ganti chief dan kapan.
+- Isi saran dan aturan kapan muncul tidak berubah; tidak ada yang diterapkan tanpa ketukan.
+
 ## `2026-10-28.3`
 - **Denah: tombol "Tampilkan usul H-1".** Di atas denah ada tombol dengan jumlah pasien yang H-1-nya baru usul. Bila dinyalakan, pasien itu diberi latar kuning dan tag [usul] di denah, di kotak DPJP, dan di kotak residen, plus satu baris daftar nama (ketuk untuk membuka SOAP) dan keterangan di legenda. Mati secara bawaan, diingat di perangkat ini. Tidak memengaruhi cetakan (itu tetap diatur di Atur cetak).
 
