@@ -1,4 +1,4 @@
-import { regionsOf, withoutHeader } from './format/sectionSlices';
+import { regionText, regionsOf } from './format/sectionSlices';
 import type { CopyGroupId } from './format/copyGroups';
 import { penunjangBlocks } from './penunjang';
 import type { SectionAlias } from './types';
@@ -57,7 +57,7 @@ function ownGroup(body: string, aliases: readonly SectionAlias[], group: CopyGro
   );
   const region = group === 'a' ? own.at(-1) : own[0];
   if (!region) return [];
-  const text = withoutHeader(body.slice(region.start, region.end).trimEnd());
+  const text = regionText(body, region, true);
   return group === 'a' ? diagnosisLines(text) : linesOf(text);
 }
 

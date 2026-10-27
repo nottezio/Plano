@@ -77,6 +77,19 @@ describe('visiteSummary', () => {
     expect(s.terapi?.lines).toEqual(['- Furosemide 40 mg/12 jam/iv']);
   });
 
+  it('drops a heading written without a colon (2026-10-28, from a real note)', () => {
+    const note = [
+      '*O :*', 'TD 120/80', '',
+      '*Mohon izin kami assest dengan*', '- Hipertensi Emergency', '',
+      '*Mohon izin kami terapi dengan*', '- Amlodipin', '',
+      'Plan', '- Echo',
+    ].join('\n');
+    const s = byId(note);
+    expect(s.diagnosis?.lines).toEqual(['- Hipertensi Emergency']);
+    expect(s.terapi?.lines).toEqual(['- Amlodipin']);
+    expect(s.plan?.lines).toEqual(['- Echo']);
+  });
+
   it('stops the diagnosis at the end of its list, even when nothing closes it', () => {
     const note = ['*Diagnosis :*', '- Ischemic Heart Disease', '- CAD 2VD', '_Rencana tindakan : PCI (Senin)_', 'TB 172cm', 'Hb 12'].join('\n');
     expect(byId(note).diagnosis?.lines).toEqual(['- Ischemic Heart Disease', '- CAD 2VD']);

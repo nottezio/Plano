@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { DEFAULT_SECTION_ALIASES as ALIASES } from '../defaults';
-import { sliceGroups, withoutHeader } from './sectionSlices';
+import { sliceGroups } from './sectionSlices';
 
 /*
   The shape of a 9 October transfer note (anonymised): our plan, then two TS
@@ -109,9 +109,20 @@ describe('leaving out a block\'s heading (28 Oct 2026)', () => {
   });
 
   it('leaves a first line that is content', () => {
-    expect(withoutHeader('S: Sesak berkurang\n- BAB')).toBe('S: Sesak berkurang\n- BAB');
-    expect(withoutHeader('*TS GEH*\nA/')).toBe('*TS GEH*\nA/');
-    expect(withoutHeader('*A:*\n- DM')).toBe('- DM');
-    expect(withoutHeader('')).toBe('');
+    expect(sliceGroups('S: Sesak berkurang\n- BAB', ALIASES, ['s'], { dropHeaders: true })).toBe('S: Sesak berkurang\n- BAB');
+    expect(sliceGroups('*A:*\n- DM', ALIASES, ['a'], { dropHeaders: true })).toBe('- DM');
+    expect(sliceGroups('', ALIASES, ['a'], { dropHeaders: true })).toBe('');
+  });
+
+  it('drops a heading with no colon, as the parser reads it (2026-10-28, Visite bug)', () => {
+    const note = '*Mohon izin kami assest dengan*\n- HHD\n\nMohon izin kami terapi dengan\n- Furosemide\n\nPlan\n- Echo';
+    expect(sliceGroups(note, ALIASES, ['a'], { dropHeaders: true })).toBe('- HHD');
+    expect(sliceGroups(note, ALIASES, ['terapi'], { dropHeaders: true })).toBe('- Furosemide');
+    expect(sliceGroups(note, ALIASES, ['plan'], { dropHeaders: true })).toBe('- Echo');
+  });
+
+  it('never drops the kardiologi conclusion sentence, which is the assessment itself', () => {
+    const note = '*Saat ini evaluasi Kardiologi berdasarkan anamnesis, pasien kami assess dengan ACS*\n- Low risk';
+    expect(sliceGroups(note, ALIASES, ['a'], { dropHeaders: true })).toContain('Saat ini evaluasi Kardiologi');
   });
 });

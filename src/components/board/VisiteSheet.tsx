@@ -76,7 +76,7 @@ export function VisiteSheet({
     <Sheet
       open
       onOpenChange={(open) => (open ? undefined : onClose())}
-      size="lg"
+      size="xl"
       title={cardTitle(patient, settings.privacy.boardShowInitialsOnly, false)}
       description={description}
       footer={

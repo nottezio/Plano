@@ -5,6 +5,11 @@ Catatan teknis lengkap (akar masalah, perbaikan) ada di CHANGES.md.
 
 Entri teratas harus versi yang sedang dirilis; tes gagal bila belum ditulis.
 
+## `2026-10-28.8`
+- **Visite: dua kolom.** Kiri: Diagnosis, Terapi, Plan. Kanan: pemeriksaan penunjang (EKG, Lab, Foto thorax, Laporan tindakan, Echo). Di layar sempit (HP) tetap satu kolom dengan urutan Diagnosis, penunjang, Terapi, Plan.
+- **Perbaikan: judul bagian tidak lagi ikut di Visite.** `*Mohon izin kami assest dengan*` (tanpa titik dua) masih tampil sebagai baris pertama Diagnosis. Sekarang judul yang berdiri sendiri di barisnya selalu dibuang, dengan atau tanpa titik dua: juga `Plan`, `Mohon izin kami terapi dengan`, `T/`. Ini juga memperbaiki "Tanpa judul bagian" di Salin untuk judul-judul itu.
+- **Perbaikan: `*Mohon izin kami assess dengan: *`** (spasi sebelum bintang penutup) kini dibaca sebagai judul yang berdiri sendiri, sehingga warna bagian, tombol lompat, dan Salin memperlakukannya dengan benar.
+
 ## `2026-10-28.7`
 - **Visite: ringkasan pasien untuk visite DPJP.** Tombol papan klip baru di kartu pasien (di HP: tekan lama kartu → Visite) dan di samping Salin di halaman pasien. Isinya, dalam urutan tetap: DPJP dan chief, Diagnosis, EKG terbaru, Lab terbaru, Foto thorax terbaru, Laporan tindakan terbaru, Echo (hanya kesimpulan atau EF), Terapi, dan Plan kita. Teks disalin apa adanya dari SOAP, tidak diubah; blok TS tidak ikut ke Plan.
 - **"Terbaru" berarti blok bertanggal yang paling baru** di catatan, sama seperti "Penunjang terbaru saja". EKG dan lab yang panjang dilipat ke 4 baris; ketuk "+n baris" untuk membuka. Bagian yang tidak ada di catatan tidak ditampilkan, dan disebut di bawah ("Tidak ada di catatan: …").

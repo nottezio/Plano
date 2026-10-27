@@ -5,7 +5,7 @@ import { formatDmy } from '@/domain/dateDmy';
 import { dpjpById } from '@/domain/dpjp';
 import { aliasesOrDefault } from '@/domain/sections/aliases';
 import type { ClinicalDate, Patient, SectionAlias } from '@/domain/types';
-import { visiteSummary, type VisiteSection } from '@/domain/visite';
+import { visiteSummary, type VisiteSection, type VisiteSectionId } from '@/domain/visite';
 
 /**
  * Visite mode: the note read back as a bedside cheat sheet (2026-10-28).
@@ -20,6 +20,19 @@ import { visiteSummary, type VisiteSection } from '@/domain/visite';
 const FOLD_AT = 4;
 const FOLDED = new Set(['ekg', 'lab']);
 const LIST_LINE = /^\s*([-*•⁃]|\d+[.)])\s/;
+const OWN = new Set<VisiteSectionId>(['diagnosis', 'terapi', 'plan']);
+const PENUNJANG = new Set<VisiteSectionId>(['ekg', 'lab', 'thorax', 'tindakan', 'echo']);
+/** One-column order (bedside): Diagnosis, then the investigations, then Terapi and Plan. */
+const ORDER_CLASS: Record<VisiteSectionId, string> = {
+  diagnosis: 'order-1',
+  ekg: 'order-2',
+  lab: 'order-3',
+  thorax: 'order-4',
+  tindakan: 'order-5',
+  echo: 'order-6',
+  terapi: 'order-7',
+  plan: 'order-8',
+};
 
 export function VisiteView({
   patient,
@@ -77,10 +90,25 @@ export function VisiteView({
         </p>
       ) : (
         <>
-          <div className="divide-y divide-border border-y border-border">
-            {summary.sections.map((section) => (
-              <VisiteBlock key={section.id} section={section} />
-            ))}
+          {/*
+            Two columns once the VIEW is 40rem wide (a container query, so the
+            patient page's narrower note column decides for itself): our
+            reasoning left, the investigations right (Avi, 2026-10-28). Narrower,
+            one column in the bedside order: Diagnosis, penunjang, Terapi, Plan.
+            `contents` lets the columns' children join that one list.
+          */}
+          <div className="[container-type:inline-size]">
+            <div className="flex flex-col border-b border-border [@container(min-width:40rem)]:grid [@container(min-width:40rem)]:grid-cols-2 [@container(min-width:40rem)]:gap-x-8 [@container(min-width:40rem)]:border-b-0">
+              {[OWN, PENUNJANG].map((column, at) => (
+                <div key={at} className="contents [@container(min-width:40rem)]:block [@container(min-width:40rem)]:border-b [@container(min-width:40rem)]:border-border">
+                  {summary.sections
+                    .filter((section) => column.has(section.id))
+                    .map((section) => (
+                      <VisiteBlock key={section.id} section={section} />
+                    ))}
+                </div>
+              ))}
+            </div>
           </div>
           {summary.missing.length > 0 ? (
             <p className="text-xs text-fg-faint">Tidak ada di catatan: {summary.missing.join(', ')}.</p>
@@ -98,7 +126,7 @@ function VisiteBlock({ section }: { section: VisiteSection }): JSX.Element {
   const headingId = `visite-${section.id}`;
 
   return (
-    <section aria-labelledby={headingId} className="py-3">
+    <section aria-labelledby={headingId} className={`border-t border-border py-3 ${ORDER_CLASS[section.id]}`}>
       <div className="mb-1.5 flex items-baseline justify-between gap-3">
         <h3 id={headingId} className="text-[11px] font-semibold uppercase tracking-[0.05em] text-fg-muted">
           {section.title}

@@ -546,3 +546,14 @@ describe('a label alone on its line', () => {
     expect(parseSections(body).map((s) => s.sectionId)).toEqual(['o']);
   });
 });
+
+describe('a closing mark after a space', () => {
+  it('belongs to the heading, so the heading still owns its line', () => {
+    const sections = assertLossless('*Mohon izin kami assess dengan: *\n- Cardiogenic shock');
+    expect(sections[0]).toMatchObject({ sectionId: 'a', ownsLine: true, text: '\n- Cardiogenic shock' });
+  });
+
+  it('leaves bold content on the heading line alone', () => {
+    expect(parseSections('A: *Sesak berkurang*')[0]).toMatchObject({ ownsLine: false, text: '*Sesak berkurang*' });
+  });
+});

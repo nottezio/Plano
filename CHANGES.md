@@ -1,5 +1,16 @@
 # Plano — CHANGES
 
+## `2026-10-28.8` — Visite: two columns; headings without a colon dropped
+
+Avi (screenshot of Visite on a real patient): "the header still included in visite Mode *Mohon izin kami assest dengan*", and "make it have 2 columns, left Diagnosis, Terapi and Plan, right the pemeriksaan penunjang".
+
+- **Root cause.** Visite dropped a block's heading with Salin's `withoutHeader`, which recognised a heading only by a trailing colon (`HEADING_RE` `…:`). `*Mohon izin kami assest dengan*` has none, so it stayed as the first Diagnosis line. The same hole was in Salin's "Tanpa judul bagian" for every colonless heading the parser accepts: bare `Plan` (159 in the export), bare `Mohon izin kami terapi dengan` (135), `T/` (54). Two readers of "is this a heading" again disagreed: the parser knew (`ownsLine`), the regex guessed.
+- **Fix.** `Region` (sectionSlices `regionsOf`) carries `textStart`: the parser's own `section.textStart` when the heading owns its line, else `start` (inline `S: Sesak…` is content; a TS block's name line is the consultant; the kardiologi conclusion sentence, `carriesContent`, is the assessment). `regionText(body, region, dropHeader)` replaces `withoutHeader` (deleted, no other callers) in both `sliceGroups` and `visite.ts`.
+- **Parser.** `*Mohon izin kami assess dengan: *` (a space before the closing mark) read as heading + content `*`, so `ownsLine` was false (1 of 128 latest notes). The alias matcher now takes a closing `[*_~]{1,2}` after spaces as the heading's, only at line end, so `A: *Sesak berkurang*` keeps its bold content.
+- **Two columns.** `VisiteView` lays out with a CSS container query (`[container-type:inline-size]`, `[@container(min-width:40rem)]:grid-cols-2`, Tailwind 3.4 arbitrary variant; no plugin), so the patient page's narrower note column decides for itself. Left: Diagnosis, Terapi, Plan; right: EKG, Lab, Thorax, Laporan, Echo. Narrower: one column in the approved bedside order via `display: contents` + `order-*` (no duplicated markup). Board sheet widened to `xl`.
+- **Checked.** New tests: colonless headings in `sectionSlices.test.ts` and `visite.test.ts`, kardiologi sentence kept, closing-mark heading and bold inline content in `parseSections.test.ts`. Export: no Visite diagnosis/terapi/plan starts with a heading (was 1+); 706 notes lossless. Harness (deleted): grid 2 x 476 px at 1100 px with the columns as specified; 375 px one column in order, no overflow. No screenshot: the pane could not draw (window hidden).
+- **Not verified.** The real board sheet at `xl` and the patient-page column width were not rendered (Firebase); no pixel look at either layout.
+
 ## `2026-10-28.7` — Visite mode (bedside summary for the DPJP round)
 
 Avi: a "Visite" mode on the patient card showing identity, DPJP, diagnosis, lab terbaru, foto thorax terbaru, laporan tindakan terbaru, echo (kesimpulan or EF only), terapi and our plan; brainstormed, spec and plan in the session scratchpad (not in the repo). Decisions: both entry points (canvas card and patient page); read-only cheat sheet for the resident's own eyes; EKG added; EKG/lab shown whole but folded to 4 lines.

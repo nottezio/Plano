@@ -307,7 +307,9 @@ function buildMatcher(aliases: readonly SectionAlias[]): AliasMatcher {
   const body = branches.length > 0 ? branches.join('|') : '(?!)';
 
   return {
-    pattern: new RegExp(`^(${DECORATION})(${body})[ \\t]*`, 'i'),
+    // A closing mark after a space at line end (`*Mohon izin kami assess dengan: *`)
+    // is the heading's, else the line read as heading + content "*" and lost ownsLine.
+    pattern: new RegExp(`^(${DECORATION})(${body})[ \\t]*(?:[*_~]{1,2}[ \\t]*$)?`, 'i'),
     lookup,
   };
 }

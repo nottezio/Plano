@@ -87,6 +87,13 @@ export interface Region {
   group: CopyGroupId;
   start: number;
   end: number;
+  /**
+   * Where the block's content starts without its heading: after the heading
+   * when the heading owns its line, else `start` (`S: Sesak berkurang` is its
+   * own content, a TS block's name is the consultant, the kardiologi
+   * conclusion sentence is the assessment).
+   */
+  textStart: number;
 }
 
 /**
@@ -102,7 +109,7 @@ export function regionsOf(
   aliases: readonly SectionAlias[],
 ): Region[] {
   const sections = parseSections(body, aliases);
-  const starts: Array<{ group: CopyGroupId; start: number }> = [];
+  const starts: Array<{ group: CopyGroupId; start: number; textStart: number }> = [];
   let inConsult = false;
 
   for (const section of sections) {
@@ -120,7 +127,7 @@ export function regionsOf(
      * and is read beside the drugs — unchanged from before.
      */
     if (CONSULT_HEADING.test(section.headerLine)) {
-      starts.push({ group: 'terapi', start: section.start });
+      starts.push({ group: 'terapi', start: section.start, textStart: section.start });
       inConsult = true;
       continue;
     }
@@ -141,7 +148,10 @@ export function regionsOf(
      */
     const group = BOUNDARY_GROUP[section.sectionId];
     if (group) {
-      starts.push({ group, start: section.start });
+      // The parser already knows whether the heading owns its line; a colon-
+      // matching regex here missed `*Mohon izin kami assest dengan*`, `Plan`, `T/`.
+      const textStart = section.ownsLine && !section.carriesContent ? section.textStart : section.start;
+      starts.push({ group, start: section.start, textStart });
       inConsult = false;
     }
   }
@@ -150,6 +160,7 @@ export function regionsOf(
     group: entry.group,
     start: entry.start,
     end: starts[index + 1]?.start ?? body.length,
+    textStart: entry.textStart,
   }));
 }
 
@@ -171,30 +182,18 @@ export function sliceGroups(
   const chosen = regionsOf(body, aliases).filter((region) => wanted.has(region.group));
 
   return chosen
-    .map((region) => body.slice(region.start, region.end).trimEnd())
-    .map((chunk) => (options.dropHeaders ? withoutHeader(chunk) : chunk))
+    .map((region) => regionText(body, region, options.dropHeaders === true))
     .filter((chunk) => chunk.trim().length > 0)
     .join('\n\n')
     .trim();
 }
 
 /**
- * A heading on a line of its own: optional bold/italic marks, words, a colon,
- * optional marks. `*Mohon izin kami assess dengan:*`, `*A:*`, `Plan:`.
- * Not `A: Sesak berkurang` (the label shares its line with content) and not
- * `*TS GEH*` (no colon: a consultant's name, which is content).
+ * A region's text, optionally without its heading (28 Oct 2026, Avi: copying
+ * only "A" should be able to leave out "Mohon izin kami assess dengan:").
+ * Only the heading that opens the block goes; sub-headings inside it stay.
  */
-const HEADING_LINE = /^[\s*_~]*[^\n:*_~][^\n:]{0,79}:[\s*_~]*$/;
-
-/**
- * The block without its first line when that line is only its heading (28 Oct
- * 2026, Avi: copying only "A" should be able to leave out "Mohon izin kami
- * assess dengan:"). Only the first line, only when it is a bare heading; the
- * inline and sub-headings inside the block stay, and so does everything else.
- */
-export function withoutHeader(chunk: string): string {
-  const lines = chunk.split('\n');
-  const first = lines[0] ?? '';
-  if (!HEADING_LINE.test(first)) return chunk;
-  return lines.slice(1).join('\n').replace(/^\s*\n/, '').trimStart();
+export function regionText(body: string, region: Region, dropHeader: boolean): string {
+  const text = body.slice(dropHeader ? region.textStart : region.start, region.end).trimEnd();
+  return dropHeader ? text.replace(/^\s*\n/, '').trimStart() : text;
 }
