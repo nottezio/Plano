@@ -1,5 +1,14 @@
 # Plano — CHANGES
 
+## `2026-10-28.3` — Denah: usul toggle
+
+Avi: "add a toggle in denah view that shows who have a usul state".
+
+- `FloorDenah`: a `ShowUsul` context (every plan line, DPJP box and resident box is a `PatientButton`), a pill toggle "Tampilkan usul H-1 · n" above the denah (disabled while there are none and it is off), persisted per device (`plano.denah.usul`). On: a patient with `usul` (open usul, from `effective()`) gets a `--warn-soft` background and an amber `[usul]` tag, a line "Usul H-1: 412/2 Name · …" of buttons that open the SOAP, and a legend entry. Off by default.
+- Separate from the print setup: `denah.usulMarker` still decides what paper shows.
+- **Checked.** Rendered the real `FloorDenah` in a throwaway harness (not committed) with six patients, three with usul: off and on, no console errors.
+- **Not verified.** Not seen with a real list, on a phone width, or in light mode; the DPJP and resident boxes got the tag by the same component, not looked at.
+
 ## `2026-10-28.2` — Analisis: today's patients first; List tab right panel no longer under the tabs
 
 Avi: the "Hari ini, per pasien" blocks should sit at the very top, under Salin / Ubah nama bagian, above the graphs; in the List tab the right-hand panel floats and overlaps (screenshot).

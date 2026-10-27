@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react';
+import { createContext, useContext, useEffect, useLayoutEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react';
 
 import { planRooms, type DenahRoomSlot, type WardPlan } from '@/domain/denahPlan';
 import { byRoute, dpjpCodeOf, dpjpTitle, isPediatri, LIST_DPJP_ORDER, PEDIATRI_DPJP_IDS } from '@/domain/floorList/build';
@@ -25,6 +25,23 @@ import { clampZoom, pinchStart, pinchStep, readStoredZoom, type PinchStart } fro
 const FLAG_COLOR = { tomorrow: 'var(--note-red)', today: 'var(--note-green)' } as const;
 const FLAG_LABEL = { tomorrow: 'H-1', today: 'pulang hari ini' } as const;
 
+/**
+ * Mark the patients whose H-1 is only proposed (usul), on the screen denah
+ * (28 Oct 2026, Avi: "a toggle in denah view that shows who have a usul state").
+ * A context rather than a prop: every line of the plan, the DPJP boxes and the
+ * residents' boxes is a `PatientButton`. Off by default; remembered on this device.
+ */
+const ShowUsul = createContext(false);
+const USUL_KEY = 'plano.denah.usul';
+
+function readUsulToggle(): boolean {
+  try {
+    return localStorage.getItem(USUL_KEY) === '1';
+  } catch {
+    return false;
+  }
+}
+
 /** While searching (13.7): a match is highlighted, the rest dimmed — the plan keeps every bed in place. */
 type Found = 'hit' | 'dim' | undefined;
 
@@ -45,6 +62,7 @@ function PatientButton({
   const place = showPlace && patient.room ? `${patient.room}${patient.bed ? ` Bed ${patient.bed}` : ''}/` : '';
   const residents = [patient.junior, patient.chief].filter(Boolean).map((n) => `dr. ${n}`).join(' / ');
   const flag = patient.discharge;
+  const usul = useContext(ShowUsul) && patient.usul === true;
   // Red/green colour the line; a floor tag only colours itself (13.10).
   const colour = flag ? FLAG_COLOR[flag] : undefined;
   return (
@@ -52,8 +70,8 @@ function PatientButton({
       type="button"
       onClick={() => onOpen(patient)}
       className={`block w-full rounded-md px-1 py-0.5 text-left text-[12px] leading-snug text-fg hover:bg-bg-subtle focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent ${
-        found === 'dim' ? 'opacity-30' : found === 'hit' ? 'outline outline-2 outline-accent' : ''
-      }`}
+        usul ? 'bg-[var(--warn-soft)]' : ''
+      } ${found === 'dim' ? 'opacity-30' : found === 'hit' ? 'outline outline-2 outline-accent' : ''}`}
       style={colour ? { color: colour } : undefined}
     >
       {number !== undefined ? `${number}. ` : ''}
@@ -65,6 +83,7 @@ function PatientButton({
       {patient.btkv ? <strong> (KJS BTKV)</strong> : null}
       {residents ? <strong className="text-fg"> - {residents}</strong> : null}
       {flag ? <span className="sr-only"> ({FLAG_LABEL[flag]})</span> : null}
+      {usul ? <strong style={{ color: 'var(--warn-strong)' }}> [usul]</strong> : null}
       <Tags patient={patient} />
       <SoapBadge patient={patient} />
     </button>
@@ -382,8 +401,51 @@ export function FloorDenah({
   const setHolderView = (next: 'grid' | 'list'): void =>
     setPrintSettings({ ...print, denah: { ...print.denah, residentsList: next === 'list' } });
 
+  const [showUsul, setShowUsul] = useState(readUsulToggle);
+  const toggleUsul = (): void => {
+    const next = !showUsul;
+    setShowUsul(next);
+    try {
+      localStorage.setItem(USUL_KEY, next ? '1' : '0');
+    } catch {
+      // Lasts for this visit.
+    }
+  };
+  const usulPatients = sorted.filter((p) => p.usul === true);
+
   return (
+    <ShowUsul.Provider value={showUsul}>
     <div className="space-y-6">
+      <div className="space-y-2">
+        <button
+          type="button"
+          aria-pressed={showUsul}
+          onClick={toggleUsul}
+          disabled={usulPatients.length === 0 && !showUsul}
+          title="Tandai pasien yang H-1-nya baru usul (menunggu konfirmasi DPJP)"
+          className={`flex min-h-tap items-center gap-2 rounded-full border px-3 text-xs font-medium transition-colors disabled:opacity-50 [@media(pointer:fine)]:min-h-9 ${
+            showUsul ? 'border-[var(--warn-strong)] bg-[var(--warn-soft)] text-fg' : 'border-border text-fg-muted hover:text-fg'
+          }`}
+        >
+          <span aria-hidden="true" className="h-2 w-2 rounded-full" style={{ background: 'var(--warn-strong)' }} />
+          Tampilkan usul H-1
+          <span className="tabular-nums text-fg-faint">{usulPatients.length}</span>
+        </button>
+        {showUsul && usulPatients.length > 0 ? (
+          <p className="text-xs text-fg-muted">
+            <span className="font-semibold text-fg">Usul H-1:</span>{' '}
+            {usulPatients.map((p, i) => (
+              <span key={p.key}>
+                {i > 0 ? ' · ' : ''}
+                <button type="button" onClick={() => onOpen(p)} className="hover:underline">
+                  {p.room}
+                  {p.bed ? `/${p.bed}` : ''} {p.name}
+                </button>
+              </span>
+            ))}
+          </p>
+        ) : null}
+      </div>
       {searching ? (
         <Section title={`Hasil cari (${hits.length})`}>
           {hits.length === 0 ? (
@@ -570,8 +632,15 @@ export function FloorDenah({
             <span style={{ color: markCss(m.color) }}>{m.label}</span>
           </span>
         ))}{' '}
+        {showUsul ? (
+          <>
+            {' · '}
+            <span style={{ color: 'var(--warn-strong)' }}>[usul]</span> Usul H-1 (belum disetujui)
+          </>
+        ) : null}{' '}
         · Ketuk pasien untuk SOAP lengkap.
       </p>
     </div>
+    </ShowUsul.Provider>
   );
 }

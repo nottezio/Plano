@@ -5,6 +5,9 @@ Catatan teknis lengkap (akar masalah, perbaikan) ada di CHANGES.md.
 
 Entri teratas harus versi yang sedang dirilis; tes gagal bila belum ditulis.
 
+## `2026-10-28.3`
+- **Denah: tombol "Tampilkan usul H-1".** Di atas denah ada tombol dengan jumlah pasien yang H-1-nya baru usul. Bila dinyalakan, pasien itu diberi latar kuning dan tag [usul] di denah, di kotak DPJP, dan di kotak residen, plus satu baris daftar nama (ketuk untuk membuka SOAP) dan keterangan di legenda. Mati secara bawaan, diingat di perangkat ini. Tidak memengaruhi cetakan (itu tetap diatur di Atur cetak).
+
 ## `2026-10-28.2`
 - **Analisis: daftar pasien hari ini kini di paling atas**, tepat di bawah tombol "Ubah nama bagian" dan "Salin ringkasan"; grafik pindah ke bawahnya.
 - **Panel kanan di tab List tidak lagi tertutup tab.** Panel "Jam list / Simpan edisi / Kirim / ekspor" menempel di bawah deret tab, bukan di belakangnya, sehingga bagian atasnya tidak terpotong. Bila panelnya lebih tinggi dari layar, panel menggulir sendiri sehingga bagian bawahnya tetap terjangkau.
