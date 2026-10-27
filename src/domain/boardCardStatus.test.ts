@@ -116,3 +116,13 @@ describe('previousFromEntry', () => {
     );
   });
 });
+
+describe('usul H-1 on the card', () => {
+  const patient = makePatient({ usulH1: '2026-08-04' });
+
+  it('carries how long the usul has been open, and nothing once a date is set', () => {
+    expect(buildCard(patient, ITEMS, TODAY, false).usulDays).toBe(2);
+    expect(buildCard({ ...patient, dischargePlannedFor: '2026-08-07' }, ITEMS, TODAY, false).usulDays).toBeNull();
+    expect(buildCard(makePatient({}), ITEMS, TODAY, false).usulDays).toBeNull();
+  });
+});

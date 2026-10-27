@@ -347,6 +347,9 @@ function PatientCardView({
 
   /** H-1 and pulang hari ini get the strip; the other stages keep the corner chip. */
   const dischargeStrip = card.discharge === 'h1' || card.discharge === 'today' ? card.discharge : null;
+  /** An open usul H-1 gets the strip too, in the H-1 amber but dashed: a proposal, not a plan. */
+  const usulStrip = dischargeStrip === null && card.usulDays !== null;
+  const stripShown = dischargeStrip !== null || usulStrip;
 
   return (
     /*
@@ -496,7 +499,7 @@ function PatientCardView({
             // strip meets the border instead of overshooting it.
             dense ? '-mx-2 -mt-2 px-2' : '-mx-2.5 -mt-2.5 px-2.5',
             'rounded-t-xl py-1 text-[11px] font-semibold uppercase tracking-wide',
-            dischargeStrip ? '' : 'mb-2',
+            stripShown ? '' : 'mb-2',
           ].join(' ')}
           style={{ backgroundColor: 'var(--pemantauan-bg)', color: 'var(--pemantauan-fg)' }}
         >
@@ -514,17 +517,25 @@ function PatientCardView({
         and on the frame, so the card's own background keeps carrying the
         checklist colour. Rencana and Lewat? keep the chip.
       */}
-      {dischargeStrip ? (
+      {stripShown ? (
         <p
           className={[
             dense ? '-mx-2 px-2' : '-mx-2.5 px-2.5',
             'mb-2 flex items-center gap-1.5 py-1 text-[11px] font-bold uppercase tracking-wide',
             card.pemantauan ? '' : dense ? '-mt-2 rounded-t-xl' : '-mt-2.5 rounded-t-xl',
           ].join(' ')}
-          style={{ backgroundColor: STAGE_TOKEN[dischargeStrip], color: 'var(--discharge-fg)' }}
+          style={{
+            backgroundColor: STAGE_TOKEN[dischargeStrip ?? 'h1'],
+            color: 'var(--discharge-fg)',
+            ...(usulStrip ? { borderBottom: '2px dashed color-mix(in srgb, var(--discharge-fg) 55%, transparent)' } : {}),
+          }}
         >
           <IconCar width={13} height={13} className="shrink-0" aria-hidden="true" />
-          {dischargeStrip === 'today' ? 'Pulang hari ini' : 'Pulang besok · H-1'}
+          {usulStrip
+            ? `Usul pulang besok · H-1${card.usulDays ? ` · ${card.usulDays} hari` : ''}`
+            : dischargeStrip === 'today'
+              ? 'Pulang hari ini'
+              : 'Pulang besok · H-1'}
           {/* AFG, AFM and ZD want a 6MWT before discharge: said where the
               discharge is said, from H-1, so it is not found on the day. */}
           {isTrioDpjp(card.dpjp?.id) ? <span className="ml-auto rounded bg-black/15 px-1.5">6MWT</span> : null}

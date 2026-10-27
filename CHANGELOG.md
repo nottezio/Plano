@@ -5,6 +5,9 @@ Catatan teknis lengkap (akar masalah, perbaikan) ada di CHANGES.md.
 
 Entri teratas harus versi yang sedang dirilis; tes gagal bila belum ditulis.
 
+## `2026-10-28.6`
+- **Papan: status baru "Usul H-1".** Di menu pasien → Rencana pulang ada pilihan "Usul H-1", cara kerjanya seperti usul H-1 di List Maker: pasien belum punya tanggal pulang, hanya usulan yang menunggu keputusan DPJP. Kartu di kanvas menampilkan strip kuning di atas, bergaris putus di bawahnya: "Usul pulang besok · H-1 · n hari" (di HP: "Usul"). Usul tidak kedaluwarsa sendiri. Pilih H-1, pulang hari ini, atau isi tanggal pulang untuk menutupnya; di bawah pilihan ada tombol "Jadikan H-1" dan "Batalkan usul". Papan dan List Maker belum saling menyalin usulnya.
+
 ## `2026-10-28.5`
 - **Judul penunjang tanpa bintang kini dikenali.** `Laboratorium PJT (09-09-2026)`, `Analisa Gas Darah 14-09-2026 jam 06:29 :`, `EKG IGD PJT Kanan Posterior (11-10-2026 pukul 19.34)` dan `Foto Thorax RSUD X (24-09-2026): …` kini dibaca sebagai judul blok, sama seperti versi yang ditebalkan. Sebelumnya hanya yang bertanda bintang yang dikenali, jadi ratusan judul lab, EKG, AGD, dan echo di export tidak punya warna bagian dan tampil sebagai satu gumpalan O. Catatan setelah tanggal ("onset 6 jam", "Post Lytic") ikut menjadi bagian judul.
 - **"Penunjang terbaru saja" ikut mengenali bentuk-bentuk itu.** Tanggal tanpa kurung, jam di dalam kurung, dan catatan setelah tanggal tidak lagi membuat blok lama lolos dari pemangkasan.

@@ -38,6 +38,23 @@ export function dischargeStage(
 }
 
 /**
+ * An "usul H-1": the patient MAY go home tomorrow, the DPJP has not said so.
+ *
+ * Same idea as the List Maker's usul (26 Oct 2026): a tracked proposal, never a
+ * stage and never a colour. It stores the day it was marked and stays open until
+ * a decision — a planned date (H-1, pulang hari ini, any date) or "Batalkan
+ * usul" — so it neither expires on its own nor reads as a firm plan.
+ */
+export function usulOpen(patient: Pick<Patient, 'usulH1' | 'dischargePlannedFor' | 'discharge'>): boolean {
+  return Boolean(patient.usulH1) && !patient.dischargePlannedFor && !patient.discharge;
+}
+
+/** Days the usul has been open on `today`; 0 on the day it was marked. */
+export function usulDays(usulH1: ClinicalDate, today: ClinicalDate): number {
+  return Math.max(0, daysBetween(usulH1, today));
+}
+
+/**
  * The full phrase, for tooltips and screen readers — anywhere there is room to
  * say the whole thing.
  *

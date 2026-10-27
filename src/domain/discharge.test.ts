@@ -6,6 +6,8 @@ import {
   dateForStage,
   dischargeStage,
   migrateLegacyDischarge,
+  usulDays,
+  usulOpen,
   type DischargeStage,
 } from './discharge';
 import type { ClinicalDate } from './types';
@@ -88,5 +90,19 @@ describe('stage wording', () => {
   it('says "pulang" in full in the phrase a screen reader gets', () => {
     expect(STAGE_LABELS.today.toLowerCase()).toContain('pulang');
     expect(STAGE_LABELS.h1.toLowerCase()).toContain('pulang');
+  });
+});
+
+describe('usul H-1', () => {
+  it('is open from the day it is marked until a planned date decides it', () => {
+    expect(usulOpen({ usulH1: '2026-08-18' })).toBe(true);
+    expect(usulOpen({})).toBe(false);
+    expect(usulOpen({ usulH1: '2026-08-18', dischargePlannedFor: '2026-08-20' })).toBe(false);
+    expect(usulOpen({ usulH1: '2026-08-18', discharge: 'h1' })).toBe(false);
+  });
+
+  it('counts the days it has been open, 0 on the day it was marked', () => {
+    expect(usulDays('2026-08-19', TODAY)).toBe(0);
+    expect(usulDays('2026-08-16', TODAY)).toBe(3);
   });
 });

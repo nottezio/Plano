@@ -6,7 +6,7 @@ import { hariRawat } from './clinicalDate';
 import { displayName, redactName } from './identity';
 import { dpjpById, type Dpjp } from './dpjp';
 import { canonicalWard, visitIndex } from './denahPlan';
-import { dischargeStage, migrateLegacyDischarge, type DischargeStage } from './discharge';
+import { dischargeStage, migrateLegacyDischarge, usulDays, usulOpen, type DischargeStage } from './discharge';
 import type {
   ChecklistItemDef,
   ClinicalDate,
@@ -89,6 +89,8 @@ export function boardTickStates(
 export interface BoardCard {
   /** Derived from the planned date, so it is right every morning by itself. */
   discharge: DischargeStage | null;
+  /** Days an "usul H-1" has been open (0 = marked today), null when none is. */
+  usulDays: number | null;
   patient: Patient;
   /** Name with the bed — for the folded card, which has no location line. */
   title: string;
@@ -253,6 +255,7 @@ export function buildCard(
     // Derived rather than stored: a stage is a fact about today that goes
     // stale overnight, a date does not.
     discharge: dischargeStage(migrateLegacyDischarge(patient, today), today),
+    usulDays: usulOpen(patient) && patient.usulH1 ? usulDays(patient.usulH1, today) : null,
     chief: patient.chief?.trim() || null,
     dpjp: patient.dpjpId ? (dpjpById(patient.dpjpId) ?? null) : null,
     // Read from the preview rather than a field: KJS is stated in the note's

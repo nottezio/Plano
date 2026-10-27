@@ -447,7 +447,8 @@ function PatientBlock({
   const due = card.reminders.filter((reminder) => !reminder.done).length;
 
   const percent = progress.total > 0 ? Math.round((progress.doneCount / progress.total) * 100) : 0;
-  const stage = card.discharge === 'today' ? 'Pulang' : card.discharge === 'h1' ? 'H-1' : null;
+  const stage =
+    card.discharge === 'today' ? 'Pulang' : card.discharge === 'h1' ? 'H-1' : card.usulDays !== null ? 'Usul' : null;
 
   const content = (
     <>

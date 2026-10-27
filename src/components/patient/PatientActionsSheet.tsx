@@ -10,7 +10,7 @@ import {
   updatePatient,
 } from '@/data/repositories/patients.repo';
 import { ARCHIVE_REASON_LABELS } from '@/domain/archive';
-import { dateForStage, migrateLegacyDischarge } from '@/domain/discharge';
+import { dateForStage, migrateLegacyDischarge, usulDays, usulOpen } from '@/domain/discharge';
 import { useClinicalToday } from '@/hooks/useClinicalToday';
 import type { ArchiveReason, Patient } from '@/domain/types';
 import { ReminderPicker } from './ReminderPicker';
@@ -138,7 +138,16 @@ export function PatientActionsSheet({
     .join(' · ');
   const h1 = dateForStage('h1', today);
   const dischargeToday = dateForStage('today', today);
-  const dischargeStage = !planned ? 'none' : planned === h1 ? 'h1' : planned === dischargeToday ? 'today' : 'custom';
+  const usul = usulOpen(patient);
+  const dischargeStage = usul
+    ? 'usul'
+    : !planned
+      ? 'none'
+      : planned === h1
+        ? 'h1'
+        : planned === dischargeToday
+          ? 'today'
+          : 'custom';
   const run = (action: () => void): void => {
     close();
     action();
@@ -318,16 +327,40 @@ export function PatientActionsSheet({
             value={dischargeStage}
             onChange={(stage) => {
               if (stage === 'custom') return;
-              void updatePatient(patient.id, {
-                dischargePlannedFor: stage === 'none' ? undefined : dateForStage(stage, today),
-              });
+              // An usul is a proposal: it holds no date. Any decision closes it.
+              void updatePatient(
+                patient.id,
+                stage === 'usul'
+                  ? { usulH1: today, dischargePlannedFor: undefined, discharge: undefined }
+                  : {
+                      usulH1: undefined,
+                      dischargePlannedFor: stage === 'none' ? undefined : dateForStage(stage, today),
+                    },
+              );
             }}
             options={[
               ['none', 'Belum'],
+              ['usul', 'Usul H-1'],
               ['h1', 'H-1 pulang'],
               ['today', 'Pulang hari ini'],
             ]}
           />
+          {usul && patient.usulH1 ? (
+            <div className="flex flex-wrap items-center gap-2 rounded-lg bg-bg-subtle px-3 py-2 text-xs text-fg">
+              <span className="min-w-0 flex-1">
+                <strong>Usul H-1</strong> · {usulDays(patient.usulH1, today) > 0 ? `sejak ${usulDays(patient.usulH1, today)} hari` : 'hari ini'} · menunggu keputusan DPJP
+              </span>
+              <Button
+                size="sm"
+                onClick={() => void updatePatient(patient.id, { usulH1: undefined, dischargePlannedFor: h1 })}
+              >
+                Jadikan H-1
+              </Button>
+              <Button size="sm" variant="ghost" onClick={() => void updatePatient(patient.id, { usulH1: undefined })}>
+                Batalkan usul
+              </Button>
+            </div>
+          ) : null}
           {/* The date is the stored value, so it is also editable directly —
               a discharge four days out is a real plan. */}
           <Field label="Tanggal pulang" htmlFor="discharge-date">
@@ -338,6 +371,7 @@ export function PatientActionsSheet({
               onChange={(next) =>
                 void updatePatient(patient.id, {
                   dischargePlannedFor: next ? (next as typeof planned) : undefined,
+                  ...(next ? { usulH1: undefined } : {}),
                 })
               }
             />

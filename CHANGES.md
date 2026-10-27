@@ -1,5 +1,15 @@
 # Plano — CHANGES
 
+## `2026-10-28.6` — Dashboard card: "Usul H-1" status
+
+Avi: "For the patient status in the card Dashboard can you also make a new status which is Usul H-1 which function like the Usul h-1 in list maker".
+
+- **Model.** `Patient.usulH1?: ClinicalDate` (the day it was marked), added to both patient shapes in `types.ts` and to the `updatePatient` field union (`undefined` clears it via `deleteField`, as for the other fields). `domain/discharge.ts`: `usulOpen` (marked, and no `dischargePlannedFor`/legacy `discharge`) and `usulDays`. Like the List Maker's usul: a tracked proposal, never a stage or colour, no auto-expiry; a decision (any planned date) closes it. Derived, not stored as a stage, so nothing goes stale overnight.
+- **Card.** `BoardCard.usulDays` (null when none open). `PatientCard` shows the same top strip as H-1 (`usulStrip`: H-1 amber, dashed bottom edge, "Usul pulang besok · H-1 · n hari"); a firm H-1/today strip wins over it. A first version drew a small chip; Avi's screenshot showed he wants the strip; `PhoneCanvas` blocks say "Usul" when no firm stage is shown.
+- **Setting it.** `PatientActionsSheet` > Rencana pulang: new "Usul H-1" option (writes `usulH1 = today`, clears planned date and legacy stage). H-1, pulang hari ini, "Belum" and the date field clear the usul. While open: "Jadikan H-1" (sets H-1, clears usul) and "Batalkan usul".
+- **Tests.** `discharge.test.ts` (open/closed, days), `boardCardStatus.test.ts` (card field).
+- **Not done.** Not synced with the List Maker's usul (separate stores: board patient vs. roster patient). No suggestion from the SOAP Plan on the board (List Maker has one). The usul strip is not in the Denah, Analisis or print. Not seen rendered; typecheck and tests only. No firestore.rules change expected (patient doc fields are not whitelisted per field; read, not run).
+
 ## `2026-10-28.5` — Parser: bare dated investigation headings, longer own-line sub-headings, more lab rows
 
 Avi: "Improve the soap parser to recognize certain missed Header/Lab header/TS header etc." and "Improve the parser of pemeriksaan penunjang" (his export of 706 notes, 2026-10-27, and 100 SIMGOS PDFs). Method: ran `parseSections` over every note and listed lines that look like headings but were not sections; ran `parseLab` over the PDFs (text extracted the way `lib/pdfText.ts` does).

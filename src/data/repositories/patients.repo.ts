@@ -477,6 +477,7 @@ type PatientPatchKey = keyof Pick<
   | 'chief'
   | 'discharge'
   | 'dischargePlannedFor'
+  | 'usulH1'
   | 'operationFor'
   | 'todos'
   | 'colorOverride'

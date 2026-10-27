@@ -518,6 +518,11 @@ export interface Patient {
   /** The clinical date the patient is expected to go home. */
   dischargePlannedFor?: ClinicalDate;
   /**
+   * The day an "usul H-1" was marked: a proposal the DPJP has not decided
+   * (domain/discharge `usulOpen`). Cleared by any planned date or by cancelling.
+   */
+  usulH1?: ClinicalDate;
+  /**
    * Date of a planned operation (BTKV), set from the reminder picker. Drives
    * procedure reminders such as the H-1 ICU post-op consult; see
    * `PROCEDURE_RULES` in `reminders.ts`.
@@ -791,6 +796,11 @@ export interface AppDocument {
   discharge?: 'h1' | 'today';
   /** The clinical date the patient is expected to go home. */
   dischargePlannedFor?: ClinicalDate;
+  /**
+   * The day an "usul H-1" was marked: a proposal the DPJP has not decided
+   * (domain/discharge `usulOpen`). Cleared by any planned date or by cancelling.
+   */
+  usulH1?: ClinicalDate;
   /**
    * One-off checklist for this patient.
    *
