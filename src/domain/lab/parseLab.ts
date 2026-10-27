@@ -152,6 +152,17 @@ const ALIASES: Record<string, readonly string[]> = {
   Albumin: ['albumin'],
   GOT: ['got', 'sgot', 'ast'],
   GPT: ['gpt', 'sgpt', 'alt'],
+  // Liver panel beyond the transaminases (ADT / sirosis printouts). `Bilirubin
+  // Total` has to be its own key: the bare `Bilirubin` alias is the urinalysis
+  // row, and the longest-alias-first lookup lets these win over it.
+  'Bil Total': ['bilirubin total'],
+  'Bil Direk': ['bilirubin direk', 'bilirubin direct'],
+  ALP: ['alkali fosfatase', 'alkaline phosphatase', 'fosfatase alkali', 'alp'],
+  GGT: ['gamma gt', 'gamma glutamyl transferase', 'ggt'],
+  // Printed `HbA 1c` with a space.
+  HbA1c: ['hba1c', 'hba 1c'],
+  RET: ['ret', 'retikulosit'],
+  'Ret-HE': ['ret he'],
   Na: ['natrium', 'sodium', 'na'],
   K: ['kalium', 'potassium', 'k'],
   Cl: ['klorida', 'chloride', 'cl'],
@@ -248,6 +259,10 @@ const GROUPS: ReadonlyArray<{ label: string; keys: readonly string[] }> = [
   { label: 'Asam urat', keys: ['Asam Urat'] },
   { label: 'Albumin', keys: ['Albumin'] },
   { label: 'GOT/GPT', keys: ['GOT', 'GPT'] },
+  { label: 'Bil T/D', keys: ['Bil Total', 'Bil Direk'] },
+  { label: 'ALP/GGT', keys: ['ALP', 'GGT'] },
+  { label: 'HbA1c', keys: ['HbA1c'] },
+  { label: 'RET/Ret-HE', keys: ['RET', 'Ret-HE'] },
   { label: 'Na/K/Cl', keys: ['Na', 'K', 'Cl'] },
   { label: 'Ca/Mg', keys: ['Kalsium', 'Magnesium'] },
   { label: 'Kol total/LDL/HDL/TG', keys: ['Kol Total', 'LDL', 'HDL', 'TG'] },
@@ -358,6 +373,11 @@ const OMITTED_ANALYTES: readonly string[] = [
   'p lcr',
   'plcr',
   'ig',
+  // Reticulocyte maturity fractions; RET and Ret-HE are the ones a note carries.
+  'ipf',
+  'lfr',
+  'mfr',
+  'hfr',
 ];
 
 const IGNORED_LABELS: readonly string[] = [

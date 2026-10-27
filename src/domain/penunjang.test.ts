@@ -105,3 +105,27 @@ describe('latestPenunjangOnly', () => {
     expect(latestPenunjangOnly(body, ALIASES).text).toBe('*O :*\n*Lab (2/10/26)*\nB');
   });
 });
+
+describe('latestPenunjangOnly: forms the strict pattern did not spell', () => {
+  it('trims a bare date, a time in the brackets and a trailing note', () => {
+    const body = [
+      '*O :*',
+      'Analisa Gas Darah 14-09-2026 jam 06:29 :',
+      'pH 7.30',
+      '',
+      'Analisa Gas Darah 15-09-2026',
+      'pH 7.40',
+      '',
+      'EKG IGD PJT (11-10-2026 pukul 19.34)',
+      'ST elevasi',
+      '',
+      'EKG di IGD PJT (12-10-2026) onset 6 jam',
+      'Normal',
+    ].join('\n');
+    const out = latestPenunjangOnly(body, ALIASES);
+    expect(out.removed.map((block) => block.date)).toEqual(['2026-09-14', '2026-10-11']);
+    expect(out.text).toContain('Analisa Gas Darah 15-09-2026\npH 7.40');
+    expect(out.text).not.toContain('pH 7.30');
+    expect(out.text).not.toContain('ST elevasi');
+  });
+});

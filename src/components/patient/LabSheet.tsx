@@ -6,6 +6,7 @@ import { IconCopy, IconSparkle, IconUpload } from '@/components/common/Icons';
 import { Button, Callout, CheckRow, Field, INPUT, Section, TextPane } from '@/components/common/ui';
 import { AiError, aiEnabled, askClaude } from '@/lib/ai';
 import { labHeading, labReportKind, parseLab } from '@/domain/lab/parseLab';
+import { readReport, reportBlockText, type ReportBlock } from '@/domain/lab/readReport';
 import { copyText } from '@/lib/clipboard';
 import { preprocessForOcr } from '@/lib/ocrPreprocess';
 import { extractPdfText, isPdf } from '@/lib/pdfText';
@@ -47,8 +48,10 @@ export function LabSheet({
   const [dateOverride, setDateOverride] = useState<ClinicalDate | null>(null);
   const [ocrState, setOcrState] = useState<'idle' | 'running' | 'failed'>('idle');
   const [readMode, setReadMode] = useState<'pdf' | 'image' | null>(null);
-  /** The name of a PDF that was not a lab report, so it was not read. */
+  /** The name of a PDF that could not be read (an unsupported report type). */
   const [notLab, setNotLab] = useState<string | null>(null);
+  /** Radiology / echo / procedure reports read from dropped PDFs (domain/lab/readReport). */
+  const [reports, setReports] = useState<ReportBlock[]>([]);
   const fileRef = useRef<HTMLInputElement>(null);
 
   /**
@@ -118,7 +121,12 @@ export function LabSheet({
   const labDate = dateOverride ?? meta.date ?? date;
   const dateSource = dateOverride ? 'manual' : meta.date ? 'report' : 'note';
   const heading = labHeading(headingDate(labDate), title.trim() || labTitleFor(meta));
-  const block = result.formatted ? `${heading}\n${result.formatted}` : '';
+  const block = [
+    result.formatted ? `${heading}\n${result.formatted}` : '',
+    ...reports.map((report) => reportBlockText(report, date)),
+  ]
+    .filter(Boolean)
+    .join('\n\n');
 
   /**
    * OCR is loaded on demand from a CDN, never bundled.
@@ -143,12 +151,16 @@ export function LabSheet({
       try {
         const text = await extractPdfText(file);
         /*
-          A radiology, echo or procedure report is said to be one, not read.
-          Read as a lab it filled "Lain-lain" with `Radiografi Thorax 1` and
-          `MR. 24`: plausible-looking lines that are not results.
+          A radiology, echo or procedure report is never read as a lab (it
+          filled "Lain-lain" with `Radiografi Thorax 1` and `MR. 24`). It gets
+          its own reader; a type the reader does not know is said so.
         */
         if (labReportKind(text) === 'other') {
-          setNotLab(file.name);
+          const report = readReport(text);
+          if (report) {
+            setNotLab(null);
+            setReports((current) => [...current, report]);
+          } else setNotLab(file.name);
           setOcrState('idle');
           return;
         }
@@ -207,6 +219,7 @@ export function LabSheet({
   const insert = (): void => {
     onInsert(block);
     setRaw('');
+    setReports([]);
     setTitleOverride(null);
     setDateOverride(null);
     onOpenChange(false);
@@ -269,8 +282,8 @@ export function LabSheet({
                 {ocrState === 'running' ? 'Membaca berkas…' : 'Ambil dari PDF / gambar'}
               </span>
               <span className="block text-xs leading-snug text-fg-muted">
-                Ketuk atau seret berkas ke sini. PDF lab dibaca persis; gambar dikenali dan wajib
-                diperiksa.
+                Ketuk atau seret berkas ke sini. PDF lab, radiologi, echo, dan laporan tindakan
+                dibaca persis; gambar dikenali dan wajib diperiksa.
               </span>
             </span>
           </button>
@@ -322,9 +335,31 @@ export function LabSheet({
               {aiError}
             </Callout>
           ) : null}
+          {reports.length > 0 ? (
+            <ul className="flex flex-col gap-1.5">
+              {reports.map((report, index) => (
+                <li
+                  key={`${report.title}-${index}`}
+                  className="flex items-center gap-2 rounded-lg bg-bg-subtle px-3 py-2 text-xs text-fg"
+                >
+                  <span className="min-w-0 flex-1 truncate">
+                    <span className="font-semibold">{report.title}</span> · {report.lines.length} baris
+                  </span>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    onClick={() => setReports((current) => current.filter((_, at) => at !== index))}
+                  >
+                    Hapus
+                  </Button>
+                </li>
+              ))}
+            </ul>
+          ) : null}
           {notLab ? (
-            <Callout tone="danger" role="alert" title={`“${notLab}” bukan hasil laboratorium`}>
-              Radiologi, ekokardiografi, atau laporan tindakan tidak dibaca di sini.
+            <Callout tone="danger" role="alert" title={`“${notLab}” belum bisa dibaca`}>
+              Yang dibaca di sini: lab, radiologi (Kesan), ekokardiografi (Conclusion), dan laporan
+              angiografi, EP study, ablasi, dan PPM (Kesimpulan). Tempel manual untuk yang lain.
             </Callout>
           ) : null}
           {ocrState === 'failed' ? (

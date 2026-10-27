@@ -1,3 +1,4 @@
+import { isoDate, matchInvestigationHeading } from './sections/investigationHeading';
 import { parseSections } from './sections/parseSections';
 import type { SectionAlias } from './types';
 
@@ -86,12 +87,16 @@ export function penunjangKind(label: string): string {
   return key;
 }
 
-function isoDate(day: string, month: string, year: string): string | null {
-  const d = Number(day);
-  const m = Number(month);
-  const y = year.length === 2 ? 2000 + Number(year) : Number(year);
-  if (m < 1 || m > 12 || d < 1 || d > 31) return null;
-  return `${y}-${String(m).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+/**
+ * The strict bracketed form first (any label), then the shared matcher for what
+ * it does not spell: a bare date, a time inside the brackets, a note after it.
+ */
+function headingOf(text: string): { stem: string; date: string } | null {
+  const strict = HEADING_RE.exec(text);
+  const hit = strict
+    ? { stem: strict[1]!, date: isoDate(strict[2]!, strict[3]!, strict[4]!) }
+    : matchInvestigationHeading(text);
+  return hit?.date ? { stem: hit.stem, date: hit.date } : null;
 }
 
 interface Block {
@@ -142,12 +147,11 @@ export function penunjangBlocks(
   };
 
   for (const line of lines) {
-    const heading = HEADING_RE.exec(line.text);
-    const date = heading ? isoDate(heading[2]!, heading[3]!, heading[4]!) : null;
-    const kind = heading ? penunjangKind(heading[1]!) : '';
-    if (heading && date && kind) {
+    const heading = headingOf(line.text);
+    const kind = heading ? penunjangKind(heading.stem) : '';
+    if (heading && kind) {
       close(line.start);
-      open = { start: line.start, kind, date, heading: line.text.trim() };
+      open = { start: line.start, kind, date: heading.date, heading: line.text.trim() };
       continue;
     }
     if (open && (coreStarts.has(line.start) || BOLD_LINE_RE.test(line.text))) close(line.start);

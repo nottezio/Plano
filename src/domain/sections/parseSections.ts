@@ -1,5 +1,6 @@
 import { aliasesOrDefault, customSectionId, labelFor, sectionSortIndex } from './aliases';
 import { classifyProseHeader } from './classifyProseHeader';
+import { matchInvestigationHeading } from './investigationHeading';
 import type { SectionAlias, SectionId } from '../types';
 
 /**
@@ -156,10 +157,18 @@ const TRAILING_MARKERS = '[*_~]{0,2}';
  * most three words, at most 24 characters.
  */
 const CUSTOM_HEADER_SOURCE =
-  `^(${DECORATION})([A-Za-zÀ-ÖØ-öø-ÿ][A-Za-zÀ-ÖØ-öø-ÿ /&()-]{0,23}?)` +
+  `^(${DECORATION})([A-Za-zÀ-ÖØ-öø-ÿ][A-Za-zÀ-ÖØ-öø-ÿ /&()-]{0,38}?)` +
   `${TRAILING_MARKERS}[ \\t]*:${TRAILING_MARKERS}[ \\t]*`;
 
 const MAX_CUSTOM_WORDS = 3;
+const MAX_CUSTOM_CHARS = 24;
+/**
+ * A label alone on its line may be a little longer (`Faktor Risiko
+ * Kardiovaskular :` is 28 characters; 59 of them in the Lt 4 / Lt 5 exports sat
+ * inside the S block unrecognised). Nothing follows the colon, so there is no
+ * value it could be the label of; a field with a value keeps the tight limits.
+ */
+const MAX_OWN_LINE_WORDS = 4;
 
 /**
  * A line that is ENTIRELY wrapped in asterisks is a header.
@@ -328,6 +337,7 @@ function detectHeader(
   line: Line,
   matcher: AliasMatcher,
   aliases: readonly SectionAlias[],
+  investigationOk = false,
 ): HeaderHit | null {
   const known = matcher.pattern.exec(line.text);
   if (known) {
@@ -393,6 +403,18 @@ function detectHeader(
     };
   }
 
+  // The same heading without asterisks. Only above the assessment: below it a
+  // dated `EKG (05-10-2026)` line is a plan, and it must stay inside the Plan.
+  const investigation = investigationOk ? matchInvestigationHeading(line.text) : null;
+  if (investigation) {
+    return {
+      start: line.start,
+      headerEnd: line.start + investigation.end,
+      sectionId: customSectionId(investigation.label),
+      label: investigation.label,
+    };
+  }
+
   const consult = TS_BARE_RE.exec(line.text);
   if (consult?.[1] && consult[1].trim().split(/\s+/).length <= MAX_TS_WORDS) {
     const label = consult[1].trim();
@@ -409,7 +431,9 @@ function detectHeader(
 
   const token = (custom[2] ?? '').trim();
   if (!token) return null;
-  if (token.split(/\s+/).length > MAX_CUSTOM_WORDS) return null;
+  const alone = line.text.slice(custom[0].length).trim() === '';
+  if (token.split(/\s+/).length > (alone ? MAX_OWN_LINE_WORDS : MAX_CUSTOM_WORDS)) return null;
+  if (token.length > MAX_CUSTOM_CHARS && !alone) return null;
   // `https://…` at the start of a line is a URL, not a section called "https".
   if (line.text.slice(custom[0].length).startsWith('//')) return null;
 
@@ -478,7 +502,7 @@ export function parseSections(
   let inConsult = false;
   for (const line of splitLines(body)) {
     const hit: HeaderHit | null =
-      detectHeader(line, matcher, table) ??
+      detectHeader(line, matcher, table, !inConsult && lastOwn !== 'a' && lastOwn !== 'terapi' && lastOwn !== 'p') ??
       (barePlan && !inConsult && (lastOwn === 'terapi' || lastOwn === 'a') ? detectHeader(line, barePlan, table) : null);
     if (!hit) continue;
     if (!hit.sectionId.startsWith('custom_')) {

@@ -728,7 +728,30 @@ describe('recognised-name safety (Rule 1: never a real number under the wrong na
   it('does not read chemistry total bilirubin as the urinalysis bilirubin', () => {
     const result = parseLab('Bilirubin Total 0.5 mg/dl');
     expect(result.known.find((value) => value.key === 'Bilirubin')).toBeUndefined();
-    expect(result.formatted).toContain('Bilirubin Total 0.5');
+    // Its own analyte now (liver panel), still never the urinalysis row.
+    expect(result.known.find((value) => value.key === 'Bil Total')?.value).toBe('0.5');
+    expect(result.formatted).toContain('Bil Total 0.5');
+  });
+
+  it('reads the liver panel, HbA 1c and the reticulocyte rows a printout carries', () => {
+    const result = parseLab(
+      [
+        'Bilirubin Direk 1.84 mg/dl',
+        'Bilirubin Total 2.94 mg/dl',
+        'Alkali Fosfatase 259 30 - 120 U/L',
+        'Gamma_GT 249 L(11 - 50); P(7-32) U/L',
+        'HbA 1c 11.9 4 - 6 %',
+        'RET 2.8 0.00 - 2.00 %',
+        'IPF 10.20 1.10 - 6.10 %',
+        'Ret-HE 32.0 28.0-37.0 pg',
+      ].join('\n'),
+    );
+    expect(result.formatted).toContain('Bil T/D 2.94/1.84');
+    expect(result.formatted).toContain('ALP/GGT 259/249');
+    expect(result.formatted).toContain('HbA1c 11.9');
+    expect(result.formatted).toContain('RET/Ret-HE 2.8/32.0');
+    // IPF is a maturity fraction: recognised and omitted, not "unknown".
+    expect(result.unknown).toEqual([]);
   });
 
   it('shows a recognised word result it could not read instead of dropping it (Rule 2)', () => {

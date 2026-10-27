@@ -483,3 +483,66 @@ describe('bare TS headings (12.12): "TS Neuro" alone on its line opens the consu
     expect(parseSections('Plan:\n- Konsul\n- TS Gizi\n').map((s) => s.sectionId)).toEqual(['p']);
   });
 });
+
+describe('bare dated investigation headings', () => {
+  const labelsOf = (body: string): string[] =>
+    assertLossless(body).filter((s) => s.ownsLine).map((s) => s.label);
+
+  it('reads the unbolded form like the bold one, bracket or not', () => {
+    const body = [
+      '*O :*',
+      'Laboratorium PJT (09-09-2026)',
+      'WBC : 9.000',
+      'Analisa Gas Darah 14-09-2026 jam 06:29 :',
+      'pH : 7.4',
+      'EKG IGD PJT Kanan Posterior (11-10-2026 pukul 19.34)',
+      'ST elevasi',
+      'Echo Hemodinamik CVCU (30-09-2026; 07.00)',
+      'LVEF 35%',
+    ].join('\n');
+    expect(labelsOf(body)).toEqual([
+      'Objektif',
+      'Laboratorium PJT (09-09-2026)',
+      'Analisa Gas Darah 14-09-2026 jam 06:29',
+      'EKG IGD PJT Kanan Posterior (11-10-2026 pukul 19.34)',
+      'Echo Hemodinamik CVCU (30-09-2026; 07.00)',
+    ]);
+  });
+
+  it('takes a short note after a bracketed date into the heading, and a result after a colon out of it', () => {
+    const noted = parseSections('*O :*\nEKG di IGD PJT (06-10-2026) onset 6 jam\nSinus');
+    expect(noted[1]?.ownsLine).toBe(true);
+    expect(noted[1]?.text).toBe('\nSinus');
+
+    const inline = parseSections('*O :*\nFoto Thorax RSUD X (24-09-2026): tidak ada kelainan');
+    expect(inline[1]?.ownsLine).toBe(false);
+    expect(inline[1]?.text).toBe('tidak ada kelainan');
+  });
+
+  it('leaves a dated line below the assessment inside the plan', () => {
+    const body = '*Mohon izin kami assess dengan:*\n- ADHF\n*Plan :*\nEKG (05-10-2026)\nLab 06-10-2026\n- kontrol';
+    expect(labelsOf(body)).toEqual(['Assessment', 'Plan']);
+  });
+
+  it('does not read a sentence, a bullet or a bare date plus value as a heading', () => {
+    expect(labelsOf('*O :*\n- EKG (05-10-2026)')).toEqual(['Objektif']);
+    expect(labelsOf('*O :*\nLab kemarin tanggal 12-10-2026 normal')).toEqual(['Objektif']);
+    expect(labelsOf('*O :*\nLab 12-10-2026 Hb 12')).toEqual(['Objektif']);
+    expect(labelsOf('*O :*\nEKG sinus rhythm tanggal 05-10-2026 tidak berubah dari sebelumnya')).toEqual(['Objektif']);
+  });
+});
+
+describe('a label alone on its line', () => {
+  it('may run to four words and 40 characters; with a value it still may not', () => {
+    const own = parseSections('*S :*\nFaktor Risiko Kardiovaskular :\n- HT');
+    expect(own.map((s) => s.label)).toEqual(['Subjektif', 'Faktor Risiko Kardiovaskular']);
+
+    const withValue = parseSections('*S :*\nFaktor Risiko Kardiovaskular : HT');
+    expect(withValue.map((s) => s.sectionId)).toEqual(['s']);
+  });
+
+  it('still refuses a prose line that happens to end in a colon', () => {
+    const body = '*O :*\nPada CT Coronary Angiography dan Calcium Scoring ditemukan :\n- LM normal';
+    expect(parseSections(body).map((s) => s.sectionId)).toEqual(['o']);
+  });
+});

@@ -26,7 +26,7 @@ const REGISTRATION = /tgl\.?\s*registrasi\s*:?\s*(\d{1,2})[/-](\d{1,2})[/-](\d{2
 const RESULT = /tgl\.?\s*hasil\s*:?\s*(\d{1,2})[/-](\d{1,2})[/-](\d{2}|\d{4})\b/gi;
 const UNIT = /unit\s+pengantar\s*:\s*(.+?)(?:\s{2,}|\s+(?:no\.|nama|tgl\.|dokter|diagnosa|nama\s+tindakan)\b|$)/im;
 
-function toDate(day: string, month: string, year: string): ClinicalDate | null {
+export function toDate(day: string, month: string, year: string): ClinicalDate | null {
   const fullYear = year.length === 2 ? `20${year}` : year;
   const value = `${fullYear}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
   if (!isClinicalDate(value)) return null;

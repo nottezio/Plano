@@ -5,6 +5,14 @@ Catatan teknis lengkap (akar masalah, perbaikan) ada di CHANGES.md.
 
 Entri teratas harus versi yang sedang dirilis; tes gagal bila belum ditulis.
 
+## `2026-10-28.5`
+- **Judul penunjang tanpa bintang kini dikenali.** `Laboratorium PJT (09-09-2026)`, `Analisa Gas Darah 14-09-2026 jam 06:29 :`, `EKG IGD PJT Kanan Posterior (11-10-2026 pukul 19.34)` dan `Foto Thorax RSUD X (24-09-2026): …` kini dibaca sebagai judul blok, sama seperti versi yang ditebalkan. Sebelumnya hanya yang bertanda bintang yang dikenali, jadi ratusan judul lab, EKG, AGD, dan echo di export tidak punya warna bagian dan tampil sebagai satu gumpalan O. Catatan setelah tanggal ("onset 6 jam", "Post Lytic") ikut menjadi bagian judul.
+- **"Penunjang terbaru saja" ikut mengenali bentuk-bentuk itu.** Tanggal tanpa kurung, jam di dalam kurung, dan catatan setelah tanggal tidak lagi membuat blok lama lolos dari pemangkasan.
+- **Baris tanggal di bawah Assessment tetap rencana.** `EKG (05-10-2026)` di bawah Plan atau Terapi, atau yang diawali "-", tidak pernah dijadikan judul.
+- **Judul sub-bagian yang lebih panjang** (mis. "Faktor Risiko Kardiovaskular :") dikenali bila berdiri sendiri di satu baris; baris berisi nilai tetap memakai batas lama.
+- **Format hasil lab kini juga membaca PDF non-lab.** Seret PDF radiologi (foto thorax, CT), ekokardiografi, atau laporan tindakan (angiografi, EP study, ablasi, PPM) ke sheet yang sama: yang diambil hanya bagian yang biasa Anda tulis di catatan, dengan judul bertanggal. Radiologi: baris Kesan (`*Foto Thorax PJT (04-09-2026)*`). Echo: baris Conclusion. Angiografi: baris pembuluh (Left Main, LAD, …), Kesimpulan, dan Saran. EP study, ablasi, PPM: Kesimpulan (PPM juga baris generator dan lead). Teks disalin apa adanya; hanya bullet yang dirapikan. Beberapa PDF bisa ditambahkan, tiap satu bisa dihapus dari daftar sebelum disisipkan. Laporan yang belum didukung (mis. programming PPM) ditolak dengan pesan, bukan disisipkan kosong.
+- **Hasil lab: baris baru terbaca.** Bilirubin total/direk, ALP, GGT, HbA1c (juga yang tercetak "HbA 1c"), serta retikulosit dan Ret-HE kini masuk ke ringkasan lab, tidak lagi ke "Lain-lain". Pecahan IPF/LFR/MFR/HFR dikenali tetapi tidak dicetak.
+
 ## `2026-10-28.4`
 - **List Maker: pemberitahuan saran dirombak jadi satu kotak "Saran".** Dua kotak kuning (saran Chief Bangsal dan saran dari Plan: H-1, pulang hari ini, usul H-1) kini satu kartu di atas Denah dan List, dengan jumlah dan ringkasan ("3 soal pulang · 3 ganti chief") di barisnya. Tiap pasien satu baris: kamar/bed dan nama (ketuk untuk membuka SOAP), kalimat sarannya dengan nilai yang diusulkan ditandai, lalu tombol jawaban di kanan. Di HP tombol Abaikan menjadi ikon ×.
 - **Ketukan terlihat jadinya.** Baris yang Anda ketuk berubah menjadi centang dan hasilnya ("H-1", "Chief → dr. Kirana", "Diabaikan") sekitar satu detik, baru melipat, sehingga daftar tidak melompat saat jempol masih di layar.
