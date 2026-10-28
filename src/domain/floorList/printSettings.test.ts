@@ -39,6 +39,17 @@ describe('print setup (2026-10-16)', () => {
     expect(forPrint([row], { ...DEFAULT_PRINT.denah, usulMarker: true, usulLabel: 'Menunggu', usulColor: 'blue' })[0]!.usulPrint).toEqual({ label: 'Menunggu', docx: '0070C0' });
   });
 
+  it('the yellow DPJP codes are a setting, AAU, YP and MAA by default (28 Oct 2026)', () => {
+    expect(DEFAULT_PRINT.denah.amberDpjps).toEqual(['aau', 'yp', 'maa']);
+    expect(readPrintSettings(JSON.stringify({ denah: { amberDpjps: ['ks', 5, ''] } })).denah.amberDpjps).toEqual(['ks']);
+    // Cleared on purpose is kept; a missing or malformed value falls back.
+    expect(readPrintSettings(JSON.stringify({ denah: { amberDpjps: [] } })).denah.amberDpjps).toEqual([]);
+    expect(readPrintSettings(JSON.stringify({ denah: { amberDpjps: 'maa' } })).denah.amberDpjps).toEqual(['aau', 'yp', 'maa']);
+    const rows = [{ key: 'a', dpjpId: 'maa' }, { key: 'b', dpjpId: 'ks' }, { key: 'c', dpjpId: null }];
+    expect(forPrint(rows, DEFAULT_PRINT.denah).map((p) => (p as { codeAmber?: boolean }).codeAmber)).toEqual([true, undefined, undefined]);
+    expect(forPrint(rows, { ...DEFAULT_PRINT.denah, amberDpjps: ['ks'] }).map((p) => (p as { codeAmber?: boolean }).codeAmber)).toEqual([undefined, true, undefined]);
+  });
+
   it('keeps sizes in half points within 5–12 pt', () => {
     expect([fontPt(3, 7), fontPt(30, 7), fontPt('x', 7), fontPt(6.26, 7)]).toEqual([5, 12, 7, 6.5]);
   });

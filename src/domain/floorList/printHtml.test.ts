@@ -50,7 +50,7 @@ describe('Denah + List as one printable page (13.12)', () => {
     expect(denahListHtml(input)).toContain('<div class="after" data-residents="">');
     const own = denahListHtml(input, {
       list: { landscape: false, columns: 2, fontPt: 8 },
-      denah: { landscape: true, fontPt: 9, residentsNewPage: true, residentsList: false, usulMarker: false, usulLabel: 'usul', usulColor: 'amber' },
+      denah: { landscape: true, fontPt: 9, residentsNewPage: true, residentsList: false, usulMarker: false, usulLabel: 'usul', usulColor: 'amber', amberDpjps: ['aau', 'yp', 'maa'] },
     });
     expect(own).toContain('<div class="page" data-residents="">');
     expect(own).toContain('@page { size: A4 landscape; margin: 10mm; }');

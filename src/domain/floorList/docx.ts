@@ -75,7 +75,7 @@ export function patientRuns(patient: FloorPatient, options: { number?: number | 
   const place = options.place !== false && patient.room ? `${patient.room}${patient.bed ? ` Bed ${patient.bed}` : ''}/` : '';
   const residents = [patient.junior, patient.chief].filter(Boolean).map((n) => `dr. ${n}`).join(' / ');
   const out: Styled[] = [tint({ text: `${options.number !== undefined ? `${options.number}. ` : ''}${place}` })];
-  if (code) out.push(isPediatri(patient.dpjpId) ? { text: code, color: AMBER } : tint({ text: code }), tint({ text: '/' }));
+  if (code) out.push(patient.codeAmber ? { text: code, color: AMBER } : tint({ text: code }), tint({ text: '/' }));
   out.push(tint({ text: patient.identity }));
   if (patient.btkv) out.push(tint({ text: ' (KJS BTKV)', bold: true }));
   if (residents) out.push({ text: ` - ${residents}`, bold: true });

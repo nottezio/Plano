@@ -40,7 +40,7 @@ export function patientHtml(patient: FloorPatient, options: { number?: number | 
   const code = dpjpCodeOf(patient);
   const place = options.place !== false && patient.room ? `${patient.room}${patient.bed ? ` Bed ${patient.bed}` : ''}/` : '';
   const residents = [patient.junior, patient.chief].filter(Boolean).map((n) => `dr. ${n}`).join(' / ');
-  const codeHtml = code ? (isPediatri(patient.dpjpId) ? `<span style="color:${AMBER}">${esc(code)}</span>/` : `${esc(code)}/`) : '';
+  const codeHtml = code ? (patient.codeAmber ? `<span style="color:${AMBER}">${esc(code)}</span>/` : `${esc(code)}/`) : '';
   const usulTag = patient.usul ? usulStyle(patient) : null;
   const usul = usulTag ? ` <b style="color:${hex(usulTag.docx)}">[${esc(usulTag.label)}]</b>` : '';
   const tags =

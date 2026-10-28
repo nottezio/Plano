@@ -5,6 +5,9 @@ Catatan teknis lengkap (akar masalah, perbaikan) ada di CHANGES.md.
 
 Entri teratas harus versi yang sedang dirilis; tes gagal bila belum ditulis.
 
+## `2026-10-28.11`
+- **List Maker: kode DPJP kuning bisa diatur, dan MAA ikut.** Di denah, kode AAU dan YP berwarna kuning. Sekarang MAA juga, dan pilihannya ada di Atur cetak → Denah → "Kode DPJP berwarna kuning": ketuk kode DPJP untuk menyalakan atau mematikan. Berlaku di denah layar, PDF dan Word, disimpan di perangkat ini. "Kembalikan bawaan denah" mengembalikan AAU, YP, MAA.
+
 ## `2026-10-28.10`
 - **Perbaikan: lokasi IGD di Salin.** Pasien IGD kini ditulis `IGD PJT Redzone bed 1`, seperti di grup, bukan `IGD PJT Bed Redzone 1`. Berlaku di Grup invasif, Konsul, catatan jaga, dan di mana pun lokasi pasien tampil. Bed berupa angka saja tetap `Bed 4`.
 

@@ -4,7 +4,9 @@ import { Sheet } from '@/components/common/Sheet';
 import { Button, CheckRow, INPUT, Segmented } from '@/components/common/ui';
 import { buildDenahDocx, buildListDocx, DOCX_MIME, floorFileName } from '@/domain/floorList/docx';
 import { denahListHtml, previewHtml, type PrintInput } from '@/domain/floorList/printHtml';
-import { DEFAULT_PRINT, FONT_MAX, FONT_MIN, USUL_COLORS, USUL_LABEL_MAX, usulLabel, type PrintSettings, type UsulColor } from '@/domain/floorList/printSettings';
+import { dpjpById } from '@/domain/dpjp';
+import { LIST_DPJP_ORDER, PEDIATRI_DPJP_IDS } from '@/domain/floorList/build';
+import { DEFAULT_PRINT, FONT_MAX, isAmberDpjp, FONT_MIN, USUL_COLORS, USUL_LABEL_MAX, usulLabel, type PrintSettings, type UsulColor } from '@/domain/floorList/printSettings';
 import { setPrintSettings, usePrintSettings } from '@/hooks/usePrintSettings';
 import { deliverFile } from '@/lib/download';
 import { MM, paginate } from '@/lib/printPreview';
@@ -172,6 +174,27 @@ export function PrintSetup({
                 Tercetak sebagai{' '}
                 <b style={{ color: `#${USUL_COLORS[settings.denah.usulColor].docx}` }}>[{usulLabel(settings.denah.usulLabel)}]</b>.
               </p>
+            </Setting>
+          ) : null}
+          {kind === 'denah' ? (
+            <Setting title="Kode DPJP berwarna kuning">
+              <div className="flex flex-wrap gap-1.5">
+                {[...LIST_DPJP_ORDER, ...PEDIATRI_DPJP_IDS].map((id) => {
+                  const on = isAmberDpjp(id, settings.denah);
+                  return (
+                    <button
+                      key={id}
+                      type="button"
+                      aria-pressed={on}
+                      onClick={() => set({ amberDpjps: on ? settings.denah.amberDpjps.filter((x) => x !== id) : [...settings.denah.amberDpjps, id] })}
+                      className={`min-h-8 rounded-full border px-2 text-xs font-semibold ${on ? 'border-accent bg-accent text-on-accent' : 'border-border text-fg-muted'}`}
+                    >
+                      {dpjpById(id)?.initials ?? id.toUpperCase()}
+                    </button>
+                  );
+                })}
+              </div>
+              <p className="mt-1 text-xs text-fg-muted">Berlaku di denah layar, PDF dan Word.</p>
             </Setting>
           ) : null}
           <button

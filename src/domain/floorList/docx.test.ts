@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest';
 import { wardPlan } from '@/domain/denahPlan';
 import { placeBeds } from './beds';
 import { buildDenahDocx, buildListDocx, denahDocumentXml, floorFileName, kjsReferenceRuns, listDocumentXml, patientRuns } from './docx';
-import { DEFAULT_PRINT } from './printSettings';
+import { DEFAULT_PRINT, forPrint } from './printSettings';
 import type { FloorPatient } from './report';
 
 function patient(over: Partial<FloorPatient>): FloorPatient {
@@ -34,8 +34,11 @@ describe('patientRuns', () => {
     expect(red[0]!.color).toBe('FF0000');
     expect(red.at(-1)).toEqual({ text: ' - dr. Muda / dr. Kepala', bold: true });
     expect(patientRuns(patient({ discharge: 'today' }))[0]!.color).toBe('00B050');
-    const pedi = patientRuns(patient({ dpjpId: 'aau' }));
+    const pedi = patientRuns(forPrint([patient({ dpjpId: 'aau' })], DEFAULT_PRINT.denah)[0]!);
     expect(pedi.find((r) => r.text === 'AAU')?.color).toBe('FFC000');
+    // MAA is yellow too (28 Oct 2026); KS is not.
+    expect(patientRuns(forPrint([patient({ dpjpId: 'maa' })], DEFAULT_PRINT.denah)[0]!).find((r) => r.text === 'MAA')?.color).toBe('FFC000');
+    expect(patientRuns(forPrint([patient({})], DEFAULT_PRINT.denah)[0]!).find((r) => r.text === 'KS')?.color).toBeUndefined();
   });
 });
 
@@ -171,7 +174,7 @@ describe('Denah docx', () => {
   it('follows the print setup: residents on a new page, landscape, font size (2026-10-16)', () => {
     const own = denahDocumentXml(
       { ward: 'PJT Lantai 4', date: '2026-10-12', plan: wardPlan('PJT Lantai 4'), patients },
-      { landscape: true, fontPt: 9, residentsNewPage: true, residentsList: false, usulMarker: false, usulLabel: 'usul', usulColor: 'amber' },
+      { landscape: true, fontPt: 9, residentsNewPage: true, residentsList: false, usulMarker: false, usulLabel: 'usul', usulColor: 'amber', amberDpjps: ['aau', 'yp', 'maa'] },
     );
     expect(own).toContain('<w:pageBreakBefore/>');
     expect(own.slice(own.indexOf('<w:pageBreakBefore/>'))).toContain('dr. Kepala  3');

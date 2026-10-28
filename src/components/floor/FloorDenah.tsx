@@ -2,6 +2,7 @@ import { createContext, useContext, useEffect, useLayoutEffect, useRef, useState
 
 import { planRooms, type DenahRoomSlot, type WardPlan } from '@/domain/denahPlan';
 import { byRoute, dpjpCodeOf, dpjpTitle, isPediatri, LIST_DPJP_ORDER, PEDIATRI_DPJP_IDS } from '@/domain/floorList/build';
+import { isAmberDpjp } from '@/domain/floorList/printSettings';
 import { handoverLine } from '@/domain/floorList/docx';
 import { markCss, type FloorMark } from '@/domain/floorList/marks';
 import type { FloorPatient } from '@/domain/floorList/report';
@@ -63,6 +64,7 @@ function PatientButton({
   const residents = [patient.junior, patient.chief].filter(Boolean).map((n) => `dr. ${n}`).join(' / ');
   const flag = patient.discharge;
   const usul = useContext(ShowUsul) && patient.usul === true;
+  const print = usePrintSettings();
   // Red/green colour the line; a floor tag only colours itself (13.10).
   const colour = flag ? FLAG_COLOR[flag] : undefined;
   return (
@@ -77,7 +79,7 @@ function PatientButton({
       {number !== undefined ? `${number}. ` : ''}
       {place}
       {code ? (
-        <span style={isPediatri(patient.dpjpId) ? { color: 'var(--note-amber)' } : undefined}>{code}/</span>
+        <span style={isAmberDpjp(patient.dpjpId, print.denah) ? { color: 'var(--note-amber)' } : undefined}>{code}/</span>
       ) : null}
       {patient.identity}
       {patient.btkv ? <strong> (KJS BTKV)</strong> : null}

@@ -1,5 +1,13 @@
 # Plano — CHANGES
 
+## `2026-10-28.11` — List Maker: yellow DPJP codes are a setting; MAA added
+
+Avi: the yellow on AAU and YP should also apply to MAA, and be customizable.
+
+- **Root cause.** The yellow was `isPediatri(dpjpId)` at three sites (docx, printHtml, FloorDenah). `isPediatri` is the pediatric group (AAU, YP) that also drives the 👶🏻 emoji, ordering and counts, so MAA could not be added to it without moving MAA into the pediatric box.
+- **Fix.** `DenahPrint.amberDpjps` (per device, default `aau, yp, maa`) in `printSettings.ts`. `forPrint` sets `FloorPatient.codeAmber` for Word/PDF; the screen denah calls `isAmberDpjp` with the same setting, so the three agree. Chips in Atur cetak → Denah. A stored `[]` means none; a missing or malformed value falls back to the default, so devices with saved settings get MAA too.
+- **Not done.** Only which DPJPs are yellow is customizable, not the colour itself. The setting is per device, not per floor or shared across devices (like the rest of the print setup). Not looked at on screen or on paper. The text List (WhatsApp list) has no colour and was not touched.
+
 ## `2026-10-28.10` — Location: "Redzone bed 1", not "Bed Redzone 1"
 
 Avi: Salin-Konsul is wrong; compared against the Invasif PJT and Laporan Invasif chat exports (97 + 82 reports).

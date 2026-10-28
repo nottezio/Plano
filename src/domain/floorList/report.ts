@@ -56,6 +56,8 @@ export interface FloorPatient {
   usul?: boolean | undefined;
   /** How the usul tag prints (label and Word colour); set by `forPrint` from the print setup, never stored. */
   usulPrint?: UsulPrint | undefined;
+  /** The DPJP code prints yellow; set by `forPrint` from the print setup, never stored. */
+  codeAmber?: boolean | undefined;
   /**
    * Entered by hand (pediatri patients have no SOAP in the floor group).
    * Stays on the list without daily reports until removed.

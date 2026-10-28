@@ -76,7 +76,13 @@ export interface DenahPrint {
   usulLabel: string;
   /** The tag's colour, from `USUL_COLORS` (default amber). */
   usulColor: UsulColor;
+  /** DPJP ids whose code is yellow on the denah, in print and on screen (default AAU, YP, MAA). */
+  amberDpjps: readonly string[];
 }
+
+export const DEFAULT_AMBER_DPJPS: readonly string[] = ['aau', 'yp', 'maa'];
+
+export const isAmberDpjp = (id: string | null | undefined, print: Pick<DenahPrint, 'amberDpjps'>): boolean => !!id && print.amberDpjps.includes(id);
 
 export interface PrintSettings {
   list: ListPrint;
@@ -86,17 +92,23 @@ export interface PrintSettings {
 /** The layouts as they were before settings existed, residents page aside. */
 export const DEFAULT_PRINT: PrintSettings = {
   list: { landscape: true, columns: 4, fontPt: 6.5 },
-  denah: { landscape: false, fontPt: 7.5, residentsNewPage: false, residentsList: false, usulMarker: false, usulLabel: DEFAULT_USUL_LABEL, usulColor: 'amber' },
+  denah: { landscape: false, fontPt: 7.5, residentsNewPage: false, residentsList: false, usulMarker: false, usulLabel: DEFAULT_USUL_LABEL, usulColor: 'amber', amberDpjps: DEFAULT_AMBER_DPJPS },
 };
 
 /**
  * The patients as the printout sees them: the open-usul flag only survives
  * when the setup asks for the marker, so no printing code can show it by accident.
  */
-export function forPrint<T extends { usul?: boolean | undefined }>(patients: readonly T[], print: DenahPrint): ReadonlyArray<T & { usulPrint?: UsulPrint | undefined }> {
-  if (!print.usulMarker) return patients.map((p) => (p.usul ? { ...p, usul: undefined } : p));
-  const style = usulPrintOf(print);
-  return patients.map((p) => (p.usul ? { ...p, usulPrint: style } : p));
+export function forPrint<T extends { usul?: boolean | undefined; dpjpId?: string | null | undefined }>(
+  patients: readonly T[],
+  print: DenahPrint,
+): ReadonlyArray<T & { usulPrint?: UsulPrint | undefined; codeAmber?: boolean | undefined }> {
+  const style = print.usulMarker ? usulPrintOf(print) : null;
+  return patients.map((p) => {
+    const amber = isAmberDpjp(p.dpjpId, print);
+    if (!p.usul && !amber) return p;
+    return { ...p, ...(p.usul ? (style ? { usulPrint: style } : { usul: undefined }) : {}), ...(amber ? { codeAmber: true } : {}) };
+  });
 }
 
 export const FONT_MIN = 5;
@@ -129,6 +141,7 @@ export function readPrintSettings(raw: string | null): PrintSettings {
         usulMarker: denah.usulMarker === true,
         usulLabel: usulLabel(denah.usulLabel),
         usulColor: typeof denah.usulColor === 'string' && denah.usulColor in USUL_COLORS ? (denah.usulColor as UsulColor) : DEFAULT_PRINT.denah.usulColor,
+        amberDpjps: Array.isArray(denah.amberDpjps) ? denah.amberDpjps.filter((id): id is string => typeof id === 'string' && id.length > 0) : DEFAULT_AMBER_DPJPS,
       },
     };
   } catch {
