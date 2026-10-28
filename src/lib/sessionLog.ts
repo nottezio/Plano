@@ -47,6 +47,8 @@ export type SessionEventKind =
   | 'slow'
   /** The tab came back after Chrome froze it, or after a long time hidden. */
   | 'resumed'
+  /** The SOAP editor lost focus, or went read-only, while being typed in. */
+  | 'focus-lost'
   /** An uncaught error or a crashed screen; detail from `describeError`. */
   | 'error';
 

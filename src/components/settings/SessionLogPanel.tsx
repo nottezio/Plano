@@ -16,6 +16,7 @@ const LABELS: Record<SessionEvent['kind'], string> = {
   'signin-error': 'Gagal masuk dengan Google',
   slow: 'Lambat',
   resumed: 'Kembali ke tab',
+  'focus-lost': 'Kursor hilang',
   error: 'Kesalahan',
 };
 

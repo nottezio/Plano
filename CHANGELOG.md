@@ -5,6 +5,9 @@ Catatan teknis lengkap (akar masalah, perbaikan) ada di CHANGES.md.
 
 Entri teratas harus versi yang sedang dirilis; tes gagal bila belum ditulis.
 
+## `2026-10-28.9`
+- **Pencatat kursor hilang (sementara).** Bila kursor hilang saat mengetik, aplikasi kini mencatat ke Pengaturan → catatan sesi ("Kursor hilang"): kursor pindah ke apa (tombol, dialog, tidak ke mana-mana), atau catatan tiba-tiba terkunci. Tanpa isi catatan dan tanpa nama pasien. Kirim isi catatan sesi itu bila terjadi lagi.
+
 ## `2026-10-28.8`
 - **Visite: dua kolom.** Kiri: Diagnosis, Terapi, Plan. Kanan: pemeriksaan penunjang (EKG, Lab, Foto thorax, Laporan tindakan, Echo). Di layar sempit (HP) tetap satu kolom dengan urutan Diagnosis, penunjang, Terapi, Plan.
 - **Perbaikan: judul bagian tidak lagi ikut di Visite.** `*Mohon izin kami assest dengan*` (tanpa titik dua) masih tampil sebagai baris pertama Diagnosis. Sekarang judul yang berdiri sendiri di barisnya selalu dibuang, dengan atau tanpa titik dua: juga `Plan`, `Mohon izin kami terapi dengan`, `T/`. Ini juga memperbaiki "Tanpa judul bagian" di Salin untuk judul-judul itu.

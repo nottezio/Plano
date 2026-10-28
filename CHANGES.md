@@ -1,5 +1,13 @@
 # Plano — CHANGES
 
+## `2026-10-28.9` — Diagnostic: log when the SOAP editor loses focus while typing
+
+Avi: sometimes the typing cursor is lost while typing, and he fears text then lands elsewhere.
+
+- **Root cause: not known.** Read, not reproduced. The caret is already carried across remote merges (`mapOffset`) and every toolbar button already prevents the focus-stealing mousedown, so neither is the cause. Remaining candidates: editor going read-only (`locked`: entry loading, 48 h auto-lock), a button or dialog outside the toolbar taking focus, day rollover swapping the note, the conflict dialog.
+- **What shipped.** `BodyEditor` writes a `focus-lost` event to the session log (`sessionLog.ts`, shown in Pengaturan as "Kursor hilang") when the textarea blurs, or goes read-only while focused, within 4 s of a keystroke. Detail: where focus went (tag, role, "in dialog", "to nothing", "window lost focus"), page visibility, seconds since the key. No text, labels, names or MRNs.
+- **Not done.** No fix: the cause is unknown on purpose. Not tested on a phone. The log has no test of its own. Remove the diagnostic once the cause is found.
+
 ## `2026-10-28.8` — Visite: two columns; headings without a colon dropped
 
 Avi (screenshot of Visite on a real patient): "the header still included in visite Mode *Mohon izin kami assest dengan*", and "make it have 2 columns, left Diagnosis, Terapi and Plan, right the pemeriksaan penunjang".

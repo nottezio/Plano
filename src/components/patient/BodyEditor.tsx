@@ -18,6 +18,7 @@ import {
 } from '@/domain/format/markdownLite';
 import type { ClinicalDate, SectionAlias } from '@/domain/types';
 import { mapOffset } from '@/domain/caret';
+import { logSessionEvent } from '@/lib/sessionLog';
 import { FormatToolbar } from './FormatToolbar';
 import { SectionBands } from './SectionBands';
 import { SNIPPETS, insertSnippet } from '@/domain/format/snippets';
@@ -247,6 +248,26 @@ export function BodyEditor({
     has the right caret, and `applyEdit` and undo set theirs a frame later.
   */
   const ownEdit = useRef<string | null>(null);
+  /**
+   * DIAGNOSTIC (2026-10-28): "the cursor is lost while typing" has no known
+   * cause and cannot be reproduced on demand, so the moments that separate the
+   * candidates are written to the session log (Pengaturan). Only blurs within
+   * a few seconds of a keystroke are recorded: tapping away on purpose is not
+   * the bug. Element NAMES only (tag, role, in a dialog): never text or labels.
+   */
+  const lastKeyAt = useRef(0);
+  const noteLost = useCallback((what: string): void => {
+    const since = Date.now() - lastKeyAt.current;
+    if (since > 4000) return;
+    logSessionEvent(
+      'focus-lost',
+      `${what}; ${document.visibilityState}; ${String(Math.round(since / 100) / 10)}s after key`,
+    );
+    lastKeyAt.current = 0;
+  }, []);
+  useEffect(() => {
+    if (readOnly && document.activeElement === ref.current) noteLost('went read-only');
+  }, [readOnly, noteLost]);
   const shown = useRef(value);
   const selection = useRef({ start: 0, end: 0 });
   /** Start of the caret's line, for the bookmark button's pressed state. */
@@ -691,6 +712,7 @@ export function BodyEditor({
             if (bookmarks) trackCaret(event.currentTarget);
           }}
           onChange={(event) => {
+            lastKeyAt.current = Date.now();
             selection.current = {
               start: event.target.selectionStart,
               end: event.target.selectionEnd,
@@ -733,8 +755,16 @@ export function BodyEditor({
             }
           }}
           onFocus={() => setFocused(true)}
-          onBlur={() => {
+          onBlur={(event) => {
             setFocused(false);
+            const to = event.relatedTarget as HTMLElement | null;
+            noteLost(
+              to
+                ? `to ${to.tagName.toLowerCase()}${to.getAttribute('role') ? `[${to.getAttribute('role') ?? ''}]` : ''}${to.closest('[role="dialog"]') ? ' in dialog' : ''}`
+                : document.hasFocus()
+                  ? 'to nothing'
+                  : 'window lost focus',
+            );
             onBlur();
           }}
           onKeyDown={(event) => {
