@@ -107,6 +107,11 @@ describe('formatLocation', () => {
     );
   });
 
+  it('puts the area before "bed" when the bed is labelled', () => {
+    expect(formatLocation({ ward: 'IGD PJT', bed: 'Redzone 1' })).toBe('IGD PJT Redzone bed 1');
+    expect(formatLocation({ ward: 'IGD', bed: '3' })).toBe('IGD Bed 3');
+  });
+
   it('omits parts that are not filled in', () => {
     expect(formatLocation({ ward: 'PJT Lantai 5' })).toBe('PJT Lantai 5');
     expect(formatLocation({ ward: 'CVCU', bed: '4' })).toBe('CVCU Bed 4');

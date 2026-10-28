@@ -125,6 +125,17 @@ export function redactName(text: string, name: string): string {
  * The labels are part of the format, not the data — nobody types "Kamar 517",
  * they type "517".
  */
+/**
+ * "4" → "Bed 4", but "Redzone 1" → "Redzone bed 1": the ward writes the area
+ * first (`IGD PJT Redzone bed 1`, 20 of the group's reports), and "Bed Redzone 1"
+ * is how nobody says it.
+ */
+function bedPhrase(bed: string | undefined): string | null {
+  if (!bed) return null;
+  const labelled = /^([^\d\s].*?)\s*(\d+)$/.exec(bed);
+  return labelled ? `${labelled[1]} bed ${labelled[2]}` : `Bed ${bed}`;
+}
+
 export function formatLocation(patient: {
   ward?: string | undefined;
   room?: string | undefined;
@@ -133,7 +144,7 @@ export function formatLocation(patient: {
   return [
     patient.ward?.trim(),
     patient.room?.trim() ? `Kamar ${patient.room.trim()}` : null,
-    patient.bed?.trim() ? `Bed ${patient.bed.trim()}` : null,
+    bedPhrase(patient.bed?.trim()),
   ]
     .filter(Boolean)
     .join(' ');

@@ -1,5 +1,13 @@
 # Plano — CHANGES
 
+## `2026-10-28.10` — Location: "Redzone bed 1", not "Bed Redzone 1"
+
+Avi: Salin-Konsul is wrong; compared against the Invasif PJT and Laporan Invasif chat exports (97 + 82 reports).
+
+- **Root cause.** `formatLocation` prefixed every bed with `Bed `, so a bed stored as `Redzone 1` came out `IGD PJT Bed Redzone 1`. The group writes `IGD PJT Redzone bed 1` (20 reports); numeric-only beds (`IGD Bed 3`, `CVCU Bed 4`) were already right.
+- **Fix.** `bedPhrase` in `identity.ts`: a bed that is label + number becomes `<label> bed <n>`; anything else stays `Bed <bed>`. Fixed in the shared function, so the invasif, konsul, shift-note messages and the patient card/identity bar all agree.
+- **Not done.** The other differences from the corpus were left on purpose: bold/italic in the WhatsApp format (the reports are about 99% plain), `Diagnosis:` vs `Diagnosis :` (66 vs 22), and the "izin mengirimkan penunjang" line in the long form (41 of 82). Konsul presets (6MWT, echo) were not in the corpus and were not compared.
+
 ## `2026-10-28.9` — Diagnostic: log when the SOAP editor loses focus while typing
 
 Avi: sometimes the typing cursor is lost while typing, and he fears text then lands elsewhere.

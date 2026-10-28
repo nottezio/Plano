@@ -5,6 +5,9 @@ Catatan teknis lengkap (akar masalah, perbaikan) ada di CHANGES.md.
 
 Entri teratas harus versi yang sedang dirilis; tes gagal bila belum ditulis.
 
+## `2026-10-28.10`
+- **Perbaikan: lokasi IGD di Salin.** Pasien IGD kini ditulis `IGD PJT Redzone bed 1`, seperti di grup, bukan `IGD PJT Bed Redzone 1`. Berlaku di Grup invasif, Konsul, catatan jaga, dan di mana pun lokasi pasien tampil. Bed berupa angka saja tetap `Bed 4`.
+
 ## `2026-10-28.9`
 - **Pencatat kursor hilang (sementara).** Bila kursor hilang saat mengetik, aplikasi kini mencatat ke Pengaturan → catatan sesi ("Kursor hilang"): kursor pindah ke apa (tombol, dialog, tidak ke mana-mana), atau catatan tiba-tiba terkunci. Tanpa isi catatan dan tanpa nama pasien. Kirim isi catatan sesi itu bila terjadi lagi.
 

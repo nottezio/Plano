@@ -41,7 +41,7 @@ describe('composeInvasif', () => {
   const out = composeInvasif(BODY, PATIENT, ALIASES, OPTIONS);
 
   it('opens with the rencana tindakan sentence and the location', () => {
-    expect(out).toContain('mohon izin melaporkan rencana tindakan dari *IGD PJT Bed Redzoned 6*');
+    expect(out).toContain('mohon izin melaporkan rencana tindakan dari *IGD PJT Redzoned bed 6*');
   });
 
   it("reuses the note's own identity line", () => {
