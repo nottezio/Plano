@@ -25,6 +25,16 @@ describe('placeBeds', () => {
     expect(placed.loose.map((p) => p.key)).toEqual(['c']);
     expect(placeBeds({ room: '409', beds: 1 }, [patient({ bed: '7' })]).beds[0]?.bed).toBe('7');
   });
+
+  it('a new patient on a taken bed replaces the old one; nobody shifts to another bed', () => {
+    const slot = { room: '417', beds: 3 };
+    const old1 = patient({ key: 'old1', bed: '1', sentAt: '2026-10-27T07:00' });
+    const two = patient({ key: 'two', bed: '2', sentAt: '2026-10-28T07:00' });
+    const new1 = patient({ key: 'new1', bed: '1', sentAt: '2026-10-29T07:00' });
+    const placed = placeBeds(slot, [old1, two, new1]);
+    expect(placed.beds.map((p) => p?.key ?? null)).toEqual(['new1', 'two', null]);
+    expect(placed.loose.map((p) => p.key)).toEqual(['old1']);
+  });
 });
 
 describe('patientRuns', () => {

@@ -5,6 +5,9 @@ Catatan teknis lengkap (akar masalah, perbaikan) ada di CHANGES.md.
 
 Entri teratas harus versi yang sedang dirilis; tes gagal bila belum ditulis.
 
+## `2026-10-29.7`
+- **Perbaikan denah List Maker: pasien baru di bed yang masih terisi.** Dulu pasien lama digeser ke bed kosong berikutnya di kamar itu, seolah pindah bed. Sekarang pasien dengan SOAP terbaru menempati bed itu, dan pasien lama ditulis di bawah kamar (tanpa nomor bed) sampai ditandai pulang atau pindah. Berlaku di denah layar, PDF dan Word.
+
 ## `2026-10-29.6`
 - **Selotip sticky note kembali menempel di luar kertas.** Selotip di .5 digeser masuk ke dalam kertas; sekarang kembali menjuntai di atas tepi seperti semula. Agar tidak terpotong, kotak kartu yang tingginya dibatasi di kanvas diberi ruang 8 px di atasnya. Warna selotip tetap mengikuti tulisan catatan.
 

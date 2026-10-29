@@ -1,5 +1,13 @@
 # Plano — CHANGES
 
+## `2026-10-29.7` — Denah: a new patient on a taken bed no longer pushes the old one to the next bed
+
+Avi: when a new patient is entered on a bed still held by another patient, the room's patients move to the next bed. That is wrong: a new patient replaces the old one, who went home or moved room.
+
+- **Root cause.** `placeBeds` (`beds.ts`, shared by the screen denah, PDF and Word) treated a bed that was "already taken" like an unreadable bed: the patient went to the first free slot of the room. So the patient who lost the bed was drawn on another bed number, and which one lost depended only on the roster order, not on who is actually there now.
+- **Fix.** Beds are claimed newest SOAP first (`soapStamp`, so an edit counts). The newer patient keeps the bed; the older one goes to `loose` (listed under the room, no bed number, never dropped). Unreadable or out-of-range beds still fill free slots, in the list's order as before. Test added in `docx.test.ts`.
+- **Not done.** The old patient is not marked pulang/pindah automatically, and not flagged as "bed sama" beyond being listed under the room; the list maker still marks them by hand. The text List (WhatsApp) prints room/bed as written and was not changed. Not checked in the app, PDF or Word.
+
 ## `2026-10-29.6` — Sticky tape back over the edge, with room to show it
 
 Avi did not like the tape moved inside the paper (.5); he prefers it hanging over the top edge.
