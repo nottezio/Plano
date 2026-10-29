@@ -714,6 +714,69 @@ export function addMember(patientId: string, uid: string): Promise<void> {
   );
 }
 
+/**
+ * Handover (see `domain/transfer`). Sending only marks the patient; nothing
+ * moves until the recipient accepts, and the sender can cancel until then.
+ */
+export function sendPatient(
+  patientId: string,
+  toEmail: string,
+  from: { uid: string; name: string },
+): Promise<void> {
+  return trackWrite(
+    updateDoc(patientDoc(patientId), {
+      transferTo: toEmail,
+      transferFrom: from,
+      updatedAt: serverTimestamp(),
+      updatedBy: getDeviceId(),
+    }),
+  );
+}
+
+/** Cancel (sender) or decline (recipient): the patient stays where it is. */
+export function clearTransfer(patientId: string): Promise<void> {
+  return trackWrite(
+    updateDoc(patientDoc(patientId), {
+      transferTo: deleteField(),
+      transferFrom: deleteField(),
+      updatedAt: serverTimestamp(),
+      updatedBy: getDeviceId(),
+    }),
+  );
+}
+
+/**
+ * Take the patient over: the recipient becomes the sole owner and member, so
+ * it drops off the sender's board query and appears on this one. The notes,
+ * versions and checklists go with it because they are subcollections of this
+ * document, and the rules for them read `memberIds` here.
+ */
+export function acceptTransfer(patientId: string, uid: string): Promise<void> {
+  return trackWrite(
+    updateDoc(patientDoc(patientId), {
+      ownerId: uid,
+      memberIds: [uid],
+      transferTo: deleteField(),
+      transferFrom: deleteField(),
+      updatedAt: serverTimestamp(),
+      updatedBy: getDeviceId(),
+    }),
+  );
+}
+
+/** Patients sent to this email and not yet accepted or declined. */
+export function subscribeIncomingTransfers(
+  email: string,
+  callback: (patients: Patient[]) => void,
+  onError: (error: Error) => void,
+): Unsubscribe {
+  return onSnapshot(
+    query(patientsCol(), where('transferTo', '==', email.toLowerCase())),
+    (snapshot) => callback(snapshot.docs.map((entry) => entry.data() as Patient)),
+    onError,
+  );
+}
+
 export function subscribePatient(
   patientId: string,
   callback: (patient: Patient | null) => void,

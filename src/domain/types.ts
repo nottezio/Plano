@@ -488,6 +488,15 @@ export interface Patient {
   /** Which reminders were ticked, and for which clinical day. */
   reminderDone?: { date: ClinicalDate; ids: string[] };
   /**
+   * A handover in flight (see `domain/transfer`): the lowercase email of the
+   * colleague this patient was sent to. While set, that account can read this
+   * document (not its notes) and accept or decline. Accepting makes them the
+   * sole owner, so the patient leaves the sender's board.
+   */
+  transferTo?: string;
+  /** Who sent it, shown to the recipient. Set together with `transferTo`. */
+  transferFrom?: { uid: string; name: string };
+  /**
    * Held temporarily — someone else's patient, covered on a shift.
    *
    * A flag rather than a separate collection: they are ordinary patients with

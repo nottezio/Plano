@@ -108,23 +108,52 @@ service cloud.firestore {
     }
 
     match /patients/{pid} {
+      // A field read rather than `get()` with a default, so a query filtered
+      // on `transferTo` can be proven against it (as floor invites are).
+      function isTransferTarget(data) {
+        return allowed() && data.transferTo == request.auth.token.email.lower();
+      }
+
       // `resource` is null for a document that does not exist on the server
       // yet. Evaluating `resource.data` in that case throws, the rule denies,
       // and the listener errors out — which is exactly what happened when a
       // patient created offline was opened before its write had landed.
       // Allowing reads of non-existent documents reveals nothing: the snapshot
       // simply comes back empty.
-      allow read: if allowed() && (resource == null || isMemberOf(resource.data));
+      allow read: if allowed()
+        && (resource == null || isMemberOf(resource.data) || isTransferTarget(resource.data));
 
       allow create: if allowed()
         && request.resource.data.ownerId == request.auth.uid
         && request.resource.data.memberIds == [request.auth.uid]
         && request.resource.data.deletedAt == null;
 
-      // Ownership is immutable; sharing happens by adding to memberIds only.
+      // Members never change the owner; sharing happens by adding to
+      // memberIds only. A member may send (or cancel) a handover, signed as
+      // themselves: `transferFrom` is either unchanged or their own uid.
       allow update: if isMemberOf(resource.data)
         && request.resource.data.ownerId == resource.data.ownerId
-        && request.auth.uid in request.resource.data.memberIds;
+        && request.auth.uid in request.resource.data.memberIds
+        && (!('transferFrom' in request.resource.data)
+            || request.resource.data.transferFrom == resource.data.get('transferFrom', null)
+            || request.resource.data.transferFrom.uid == request.auth.uid);
+
+      /*
+       * Handover (src/domain/transfer.ts): the account a patient was sent to
+       * may read the patient document (not its notes: those check memberIds)
+       * and either decline, clearing the request and nothing else, or accept,
+       * becoming the sole owner and member. Ownership changes ONLY this way,
+       * and only to the person the current members chose.
+       */
+      allow update: if isTransferTarget(resource.data)
+        && request.resource.data.diff(resource.data).affectedKeys()
+             .hasOnly(['ownerId', 'memberIds', 'transferTo', 'transferFrom', 'updatedAt', 'updatedBy'])
+        && !('transferTo' in request.resource.data)
+        && !('transferFrom' in request.resource.data)
+        && ((request.resource.data.ownerId == request.auth.uid
+             && request.resource.data.memberIds == [request.auth.uid])
+            || (request.resource.data.ownerId == resource.data.ownerId
+                && request.resource.data.memberIds == resource.data.memberIds));
 
       /**
        * Hard delete, for emptying the trash.

@@ -1,5 +1,14 @@
 # Plano — CHANGES
 
+## `2026-10-29.9` — Send one patient to a colleague (handover)
+
+Avi: send one patient in-app to a friend; it moves to their board once they accept.
+
+- **Design.** Patients are already top-level with `ownerId`/`memberIds` (SPEC 6.1), so a handover is a change of owner, not a copy: entries, revisions and checklists follow because their rules read `memberIds` on the parent. The request lives on the patient document as `transferTo` (lowercase email) and `transferFrom` ({uid, name}); no new collection.
+- **Code.** `domain/transfer.ts` (`transferTarget`: trim, lowercase, refuse empty/malformed/own email; tested). `patients.repo`: `sendPatient`, `clearTransfer` (cancel or decline), `acceptTransfer` (`ownerId` = me, `memberIds` = [me], request cleared), `subscribeIncomingTransfers` (`where transferTo == email`). UI: "Kirim ke rekan" in `PatientActionsSheet` (pending state shows who and a Batalkan button); `IncomingTransfers` above the board with Terima / Tolak.
+- **Rules.** `patients/{pid}`: read also allowed to the addressed account (`data.transferTo == token.email.lower()`, the same shape the floor-invite query uses so the query can be proven). A member's `transferFrom` must be unchanged or carry their own uid. A new update clause lets the addressed account only clear the request, optionally taking `ownerId` and `memberIds == [self]`; nothing else may change. Before this, ownership was immutable. Subcollections are untouched, so the recipient cannot read notes before accepting.
+- **Not done.** Rules not run against the emulator and NOT deployed: `firebase deploy --only firestore:rules` is needed before it works. Not tried in the app with two accounts. The recipient's email must match their Google sign-in email exactly. A sender who edits offline after sending and comes back online after the recipient accepted gets those writes refused (kept in the outbox as "versi luring belum digabung", not lost). A sender who has the patient open when it is accepted sees "Gagal memuat pasien." rather than being returned to the board. No notification outside the app; the recipient sees it the next time the board is open. A pending card is not marked on the sender's board, only in the patient menu. Only one recipient at a time; any member may cancel.
+
 ## `2026-10-29.8` — Denah on a phone: zoom buttons removed, double-tap instead
 
 Avi did not like the floating + / − / Muat buttons (they covered room text); chose pinch only.

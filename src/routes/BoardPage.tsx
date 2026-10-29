@@ -12,6 +12,7 @@ import { useNavigate } from 'react-router-dom';
 
 import { AppShell } from '@/components/common/AppShell';
 import { FilterBar } from '@/components/board/FilterBar';
+import { IncomingTransfers } from '@/components/board/IncomingTransfers';
 import { DenahView } from '@/components/board/DenahView';
 import { ARCHIVE_REASON_LABELS } from '@/domain/archive';
 import type { ArchiveReason } from '@/domain/types';
@@ -1095,6 +1096,8 @@ export default function BoardPage(): JSX.Element {
           onChange={setFilters}
         />
       )}
+
+      <IncomingTransfers />
 
       {/*
         Its own stacking context: canvas cards raise themselves with z-index

@@ -5,6 +5,9 @@ Catatan teknis lengkap (akar masalah, perbaikan) ada di CHANGES.md.
 
 Entri teratas harus versi yang sedang dirilis; tes gagal bila belum ditulis.
 
+## `2026-10-29.9`
+- **Kirim pasien ke rekan (serah terima).** Di menu pasien (⋯) ada bagian baru *Kirim ke rekan*: isi email Google rekan, lalu tekan Kirim pasien. Rekan melihat kiriman itu di atas papannya dengan tombol Terima dan Tolak. Setelah diterima, pasien beserta semua catatan, versi dan checklist-nya pindah ke papan rekan dan hilang dari papan Anda. Sebelum diterima pasien tetap di papan Anda, dan kiriman bisa dibatalkan. Rekan perlu online untuk melihat kiriman.
+
 ## `2026-10-29.8`
 - **Denah di HP: tombol zoom diganti ketuk dua kali.** Tombol + / − / Muat dihapus karena menutupi isi plan. Sekarang ketuk dua kali di area kosong plan untuk beralih antara muat di layar dan ukuran terbaca, berpusat di titik yang diketuk. Cubit dua jari tetap bisa. Ketuk dua kali pada nama pasien tidak memperbesar (ketukan pertama sudah membuka SOAP).
 

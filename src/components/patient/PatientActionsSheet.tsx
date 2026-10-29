@@ -5,10 +5,14 @@ import { useNavigate } from 'react-router-dom';
 import { Sheet } from '@/components/common/Sheet';
 import {
   archivePatient,
+  clearTransfer,
+  sendPatient,
   setPatientStatus,
   reopenPatient,
   updatePatient,
 } from '@/data/repositories/patients.repo';
+import { transferTarget } from '@/domain/transfer';
+import { useSession } from '@/store/useSession';
 import { ARCHIVE_REASON_LABELS } from '@/domain/archive';
 import { dateForStage, migrateLegacyDischarge, usulDays, usulOpen } from '@/domain/discharge';
 import { useClinicalToday } from '@/hooks/useClinicalToday';
@@ -411,6 +415,8 @@ export function PatientActionsSheet({
           </Section>
         ) : null}
 
+        <SendToColleague patient={patient} />
+
         <Disclosure title="Zona berbahaya" open={confirmDelete}>
           {confirmDelete ? (
             <Callout
@@ -458,6 +464,88 @@ export function PatientActionsSheet({
         </Disclosure>
       </div>
     </Sheet>
+  );
+}
+
+/**
+ * Handover to a colleague (see `domain/transfer`). Sending only marks the
+ * patient; it moves when they accept on their board, and until then it stays
+ * here and can be cancelled.
+ */
+function SendToColleague({ patient }: { patient: Patient }): JSX.Element {
+  const user = useSession((state) => state.user);
+  const [email, setEmail] = useState('');
+  const [error, setError] = useState<string | null>(null);
+
+  if (patient.transferTo) {
+    return (
+      <Section title="Kirim ke rekan">
+        <Callout
+          tone="info"
+          role="status"
+          title={`Menunggu diterima oleh ${patient.transferTo}`}
+          action={
+            <Button size="sm" onClick={() => void clearTransfer(patient.id)}>
+              Batalkan
+            </Button>
+          }
+        >
+          Pasien pindah ke papan rekan setelah ia menekan Terima.
+        </Callout>
+      </Section>
+    );
+  }
+
+  const send = (): void => {
+    if (!user) return;
+    const target = transferTarget(email, user.email);
+    if ('error' in target) {
+      setError(target.error);
+      return;
+    }
+    setError(null);
+    setEmail('');
+    void sendPatient(patient.id, target.email, {
+      uid: user.uid,
+      name: user.displayName?.trim() || user.email || 'Rekan',
+    }).catch((e: unknown) => {
+      console.error('[transfer] send failed', e);
+      setError('Gagal mengirim. Coba lagi.');
+    });
+  };
+
+  return (
+    <Disclosure title="Kirim ke rekan">
+      <div className="space-y-2">
+        <p className="text-xs text-fg-muted">
+          Untuk serah terima. Setelah rekan menerima, pasien beserta semua catatannya pindah ke
+          papannya dan hilang dari papan Anda.
+        </p>
+        <Field label="Email Google rekan" htmlFor="transfer-email">
+          <input
+            id="transfer-email"
+            type="email"
+            inputMode="email"
+            autoComplete="off"
+            value={email}
+            onChange={(event) => setEmail(event.target.value)}
+            onKeyDown={(event) => {
+              if (event.key === 'Enter') send();
+            }}
+            placeholder="nama@gmail.com"
+            className={INPUT}
+          />
+        </Field>
+        {error ? (
+          <p role="alert" className="text-xs text-danger">
+            {error}
+          </p>
+        ) : null}
+        <Button variant="primary" full disabled={!email.trim()} onClick={send}>
+          Kirim pasien
+        </Button>
+      </div>
+    </Disclosure>
   );
 }
 
