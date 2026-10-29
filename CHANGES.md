@@ -1,5 +1,13 @@
 # Plano — CHANGES
 
+## `2026-10-29.3` — Patient card: note panel unfolds from its strip; opaque chip tints; done reminders folded
+
+Avi: the expanded catatan on the card looked wrong; spacing of the card.
+
+- **Root cause.** (1) `NotePopover` was a separate floating box: 4px below the strip, all corners rounded, a title bar repeating the card's patient name, a translucent `--warn-soft` header over a slate body. For a one-line note it opened to the same text the strip already showed. (2) `--warn-soft` and `--accent-soft` are 18-33% alpha, so on a coloured checklist card the reminder chips and the note strip mixed with the card colour (olive on green), the collision DESIGN.md records for the discharge wash. (3) The two done reminders left no room for KJS · Kardio, which wrapped onto its own row.
+- **Fix.** `NotePopover` gets `unfold` (card strips only; `PhoneCanvas` keeps the old panel): anchored on the strip's rectangle, same left and width, same fill and ✎, no title bar. `NOTE_FILL` is an opaque `color-mix` of `--warn-strong` over `--surface`, used by the strip, the panel and due reminder chips. Done chips use the card's own ink. `CardNote` is a button only when text is clipped (`more > 0` or measured `scrollHeight > clientHeight`). `FlagRow` folds two or more done reminders into "✓ n pengingat"; tapping unfolds them. Strip padding `px-2.5` matches the card.
+- **Not done.** Not looked at in the app or on a device: placement, the flip-above case and the contrast of `NOTE_FILL` under the three themes are unchecked beyond `check:contrast`. The uneven vertical gaps (dx line, flag row, strip) were not changed: I could not tell without rendering whether they come from the clipped body or the margins. The unfolded panel covers the strip, so the strip cannot be tapped while open (× or tap outside closes). The grey location/RM text opacity was not touched. A single done reminder still shows as its own chip.
+
 ## `2026-10-29.2` — Canvas: shelves shared between laptop and phone
 
 Avi: sync the canvas state between desktop and mobile, not the positions, but the basket/shelf content.

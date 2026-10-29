@@ -5,6 +5,11 @@ Catatan teknis lengkap (akar masalah, perbaikan) ada di CHANGES.md.
 
 Entri teratas harus versi yang sedang dirilis; tes gagal bila belum ditulis.
 
+## `2026-10-29.3`
+- **Catatan di kartu: panel terbuka dari strip-nya.** Ketuk strip catatan, panelnya kini tumbuh dari strip itu sendiri (warna dan lebar sama), tanpa judul yang mengulang nama pasien dan tanpa celah. Catatan pendek yang sudah tampil utuh tidak lagi bisa diketuk, karena panelnya hanya akan mengulang isi yang sama.
+- **Warna chip dan catatan tidak lagi keruh.** Chip pengingat dan strip catatan memakai warna penuh, bukan tint transparan yang ikut berwarna hijau kartu. Centang selesai memakai warna tulisan kartu.
+- **Pengingat selesai dilipat.** Dua pengingat atau lebih yang sudah selesai jadi satu chip "✓ 2 pengingat" (ketuk untuk membuka dan membatalkan centang), sehingga KJS dan pengingat yang belum selesai tidak turun ke baris sendiri.
+
 ## `2026-10-29.2`
 - **Shelf kini sama di laptop dan HP.** Isi shelf (nama, terlipat atau tidak, dan pasien di dalamnya) dibagi antara kanvas laptop dan kanvas HP: shelf yang dibuat atau diisi di satu perangkat muncul di perangkat lain, termasuk Pasien saya dan Titipan terpisah. Posisi kartu tidak ikut dibagi, karena layarnya berbeda. Shelf yang sebelumnya dibuat di HP dipindahkan otomatis. Bila laptop dan HP mengubah shelf hampir bersamaan, yang terakhir menyimpan yang dipakai.
 

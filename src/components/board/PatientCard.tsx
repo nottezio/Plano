@@ -6,7 +6,7 @@ import { clinicalDate, daysBetween } from '@/domain/clinicalDate';
 import { formatDmy } from '@/domain/dateDmy';
 import { useSession } from '@/store/useSession';
 import { memo, useEffect, useRef, useState } from 'react';
-import { NotePopover } from './NotePopover';
+import { NOTE_FILL, NotePopover } from './NotePopover';
 import { useClipboardNote } from '@/store/useClipboardNote';
 import { Link } from 'react-router-dom';
 
@@ -1057,9 +1057,52 @@ function DischargeChip({ stage }: { stage: DischargeStage }): JSX.Element {
  */
 function CardNote({ note, patientName }: { note: string; patientName: string }): JSX.Element {
   const [open, setOpen] = useState(false);
-  const stripRef = useRef<HTMLButtonElement>(null);
+  const stripRef = useRef<HTMLButtonElement & HTMLDivElement>(null);
+  const textRef = useRef<HTMLSpanElement>(null);
+  const [clamped, setClamped] = useState(false);
   const lines = note.split('\n').filter((line) => line.trim() !== '');
   const more = Math.max(0, lines.length - 2);
+
+  // `more` counts lines, but one long line wraps past the two-line clamp too.
+  // Only a strip that actually hides text is a button: a panel that opens to
+  // repeat what the strip already shows is noise.
+  useEffect(() => {
+    const node = textRef.current;
+    if (!node) return;
+    const measure = (): void => setClamped(node.scrollHeight > node.clientHeight + 1);
+    const observer = new ResizeObserver(measure);
+    observer.observe(node);
+    measure();
+    return () => observer.disconnect();
+  }, [note]);
+  const expandable = more > 0 || clamped;
+
+  const className = `flex w-full items-start gap-1.5 rounded-b-xl rounded-t-none border border-t-0 border-[var(--warn-strong)] ${NOTE_FILL} px-2.5 py-1.5 text-left text-fg`;
+  const content = (
+    <>
+      <span aria-hidden="true" className="mt-px shrink-0 text-[11px] leading-snug text-[var(--warn-strong)]">
+        ✎
+      </span>
+      <span className="min-w-0 flex-1">
+        <span
+          ref={textRef}
+          className="line-clamp-2 whitespace-pre-line break-words text-xs leading-snug [overflow-wrap:anywhere]"
+        >
+          {lines.slice(0, 2).join('\n')}
+        </span>
+        {more > 0 ? (
+          <span className="mt-0.5 block text-[11px] font-medium opacity-75">+{more} baris · ketuk untuk membaca</span>
+        ) : null}
+      </span>
+    </>
+  );
+  if (!expandable) {
+    return (
+      <div ref={stripRef} className={className}>
+        {content}
+      </div>
+    );
+  }
   return (
     <>
       <button
@@ -1070,24 +1113,12 @@ function CardNote({ note, patientName }: { note: string; patientName: string }):
         aria-label={`Catatan ${patientName}: buka`}
         onPointerDown={(event) => event.stopPropagation()}
         onClick={() => setOpen((current) => !current)}
-        className="flex w-full items-start gap-1.5 rounded-b-xl rounded-t-none border border-t-0 border-[var(--warn-strong)] bg-[var(--warn-soft)] px-3 py-1.5 text-left text-fg"
+        className={className}
       >
-        <span aria-hidden="true" className="mt-px shrink-0 text-[11px] leading-snug text-[var(--warn-strong)]">
-          ✎
-        </span>
-        <span className="min-w-0 flex-1">
-          <span className="line-clamp-2 whitespace-pre-line break-words text-xs leading-snug [overflow-wrap:anywhere]">
-            {lines.slice(0, 2).join('\n')}
-          </span>
-          {more > 0 ? (
-            <span className="mt-0.5 block text-[11px] font-medium text-[var(--warn-strong)]">
-              +{more} baris · ketuk untuk membaca
-            </span>
-          ) : null}
-        </span>
+        {content}
       </button>
       {open ? (
-        <NotePopover anchor={stripRef} title={patientName} note={note} onClose={() => setOpen(false)} />
+        <NotePopover unfold anchor={stripRef} title={patientName} note={note} onClose={() => setOpen(false)} />
       ) : null}
     </>
   );
@@ -1272,14 +1303,15 @@ function ReminderChip({
       <span
         className={[
           'inline-flex items-center gap-1 rounded-full border px-1.5 py-0.5 text-[11px] font-semibold',
+          // Neither fill is a translucent hue laid on the card: that took on
+          // the card's colour (olive on a green card). Done is the card's own
+          // ink in a neutral tint; due is the opaque note amber.
           reminder.done
-            ? 'border-[var(--border-strong)] bg-[var(--accent-soft)] text-fg-muted'
-            : 'border-[var(--warn-strong)] bg-[var(--warn-soft)] text-fg',
+            ? 'border-[color-mix(in_srgb,var(--token-fg)_30%,transparent)] bg-black/10 text-token-fg dark:bg-white/15'
+            : `border-[var(--warn-strong)] ${NOTE_FILL} text-fg`,
         ].join(' ')}
       >
-        <span aria-hidden="true" className={reminder.done ? 'text-accent' : ''}>
-          {reminder.done ? '✓' : '○'}
-        </span>
+        <span aria-hidden="true">{reminder.done ? '✓' : '○'}</span>
         {reminder.label}
         {reminder.mode === 'harian' ? <span className="font-normal opacity-70">/hari</span> : null}
       </span>
@@ -1339,16 +1371,54 @@ function FlagRow({
   dischargeStrip: DischargeStage | null;
   className?: string;
 }): JSX.Element | null {
+  const [showDone, setShowDone] = useState(false);
   const showDischarge = card.discharge !== null && !dischargeStrip;
+  // Two or more finished reminders fold into one "✓ n pengingat" chip: they
+  // need no action, and each used to take a chip's width from the marks that do.
+  // Tapping it unfolds them, so a wrong tick can still be taken back here.
+  const doneReminders = card.reminders.filter((reminder) => reminder.done);
+  const foldDone = doneReminders.length >= 2 && !showDone;
+  const reminderFlags = card.reminders
+    .filter((reminder) => !(foldDone && reminder.done))
+    .map((reminder) => ({
+      key: `r-${reminder.id}`,
+      always: true,
+      node: <ReminderChip key={`r-${reminder.id}`} patient={card.patient} reminder={reminder} />,
+    }));
   // Distill pass: at most MAX_FLAGS chips, then "+n". Reminders (a thing due now)
   // and KJS · Kardio (changes how you act on the plan) are never hidden; the
   // rest fill whatever budget is left, in this order.
   const flags: Array<{ key: string; always: boolean; node: JSX.Element }> = [
-    ...card.reminders.map((reminder) => ({
-      key: `r-${reminder.id}`,
-      always: true,
-      node: <ReminderChip key={`r-${reminder.id}`} patient={card.patient} reminder={reminder} />,
-    })),
+    ...reminderFlags,
+    ...(foldDone || (showDone && doneReminders.length >= 2)
+      ? [
+          {
+            key: 'done-reminders',
+            always: true,
+            node: (
+              <button
+                key="done-reminders"
+                type="button"
+                aria-expanded={!foldDone}
+                title={doneReminders.map((reminder) => reminder.label).join(', ')}
+                onPointerDown={(event) => event.stopPropagation()}
+                onContextMenu={(event) => event.stopPropagation()}
+                onClick={(event) => {
+                  event.preventDefault();
+                  event.stopPropagation();
+                  setShowDone((current) => !current);
+                }}
+                className="-my-2 flex min-h-tap shrink-0 items-center [@media(pointer:fine)]:my-0 [@media(pointer:fine)]:min-h-0"
+              >
+                <span className="inline-flex items-center gap-1 rounded-full border border-[color-mix(in_srgb,var(--token-fg)_30%,transparent)] bg-black/10 px-1.5 py-0.5 text-[11px] font-semibold text-token-fg dark:bg-white/15">
+                  <span aria-hidden="true">{foldDone ? '✓' : '−'}</span>
+                  {foldDone ? `${doneReminders.length} pengingat` : 'Lipat'}
+                </span>
+              </button>
+            ),
+          },
+        ]
+      : []),
     ...(showDischarge && card.discharge
       ? [{ key: 'discharge', always: false, node: <DischargeChip key="discharge" stage={card.discharge} /> }]
       : []),
