@@ -5,6 +5,9 @@ Catatan teknis lengkap (akar masalah, perbaikan) ada di CHANGES.md.
 
 Entri teratas harus versi yang sedang dirilis; tes gagal bila belum ditulis.
 
+## `2026-10-29.1`
+- **Perbaikan: "H-1 hari ini" setelah SOAP diedit.** Bila SOAP kemarin diedit hari ini di List Maker dan Plan-nya ditulis "H-1 hari ini", saran Plan dulu menawarkan "pulang hari ini". Sekarang saran membaca hari SOAP terakhir diedit, jadi "H-1 hari ini" berarti pulang besok (merah).
+
 ## `2026-10-28.11`
 - **List Maker: kode DPJP kuning bisa diatur, dan MAA ikut.** Di denah, kode AAU dan YP berwarna kuning. Sekarang MAA juga, dan pilihannya ada di Atur cetak → Denah → "Kode DPJP berwarna kuning": ketuk kode DPJP untuk menyalakan atau mematikan. Berlaku di denah layar, PDF dan Word, disimpan di perangkat ini. "Kembalikan bawaan denah" mengembalikan AAU, YP, MAA.
 

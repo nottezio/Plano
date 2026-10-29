@@ -1,5 +1,13 @@
 # Plano — CHANGES
 
+## `2026-10-29.1` — List Maker: "H-1 hari ini" in an edited SOAP read as "pulang hari ini"
+
+Avi: a SOAP updated in List Maker with Plan "H-1 hari ini" got the suggestion "pulang hari ini" instead of H-1 (pulang besok).
+
+- **Root cause.** `suggestionFor` shifts a Plan by the SOAP's age: "H-1" written yesterday means today. It took the SOAP's day from `report.sentAt`. An edit in Plano (`SoapFloat` save) keeps `sentAt` as the original message's stamp on purpose and records the edit in `editedAt`. So yesterday's SOAP, edited today to "H-1 hari ini", still counted as written yesterday, and H-1 was moved forward a day to "pulang hari ini". Tapping Tandai then stored today as the discharge date (green).
+- **Fix.** `suggestionFor` reads the day from `soapStamp(report)` (edit time when it is later, else `sentAt`), the same stamp `soapState` already uses for an edited SOAP. Test added in `floor.test.ts`.
+- **Not done.** `doubtFor` (paste check) still uses `sentAt`; pasted reports are never edited, so it is not affected. A suggestion dismissed before the edit stays dismissed after it (`dismissed` is keyed by `sentAt`, which an edit does not change); not changed. Not checked in the app.
+
 ## `2026-10-28.11` — List Maker: yellow DPJP codes are a setting; MAA added
 
 Avi: the yellow on AAU and YP should also apply to MAA, and be customizable.

@@ -449,8 +449,8 @@ export function suggestionFor(patient: RosterPatient, date: string): 'h1' | 'tod
     const open = usulH1(patient.report.body) && !patient.usulH1 && colourOn(patient, date) === null;
     return open ? 'usul' : null;
   }
-  // "H-1" written yesterday means today; read relative to the report's day.
-  const day = patient.report.sentAt.slice(0, 10);
+  // "H-1" written yesterday means today; read relative to the day the Plan was last written (an edit in Plano counts).
+  const day = soapStamp(patient.report).slice(0, 10);
   const flag = read === 'tomorrow' && day && day < date ? 'today' : read === 'today' && day && day < date ? null : read;
   if (!flag) return null;
   const mark = flag === 'tomorrow' ? 'h1' : 'today';

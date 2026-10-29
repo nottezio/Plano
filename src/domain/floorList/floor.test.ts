@@ -166,6 +166,8 @@ describe('suggestionFor (a chip, never applied by itself)', () => {
     expect(suggestionFor(rostered({ body: 'Plan:\n- H-1 hari ini', sentAt: '2026-10-11T07:00' }), '2026-10-12')).toBe('today');
     // Yesterday's "pulang hari ini" is stale: nothing.
     expect(suggestionFor(rostered({ body: 'Plan:\n- Pulang hari ini', sentAt: '2026-10-11T07:00' }), '2026-10-12')).toBeNull();
+    // Yesterday's SOAP edited today to "H-1 hari ini": tomorrow, not today (29 Oct 2026).
+    expect(suggestionFor(rostered({ body: 'Plan:\n- H-1 hari ini', sentAt: '2026-10-11T07:00', edited: true, editedAt: '2026-10-12T08:00' }), '2026-10-12')).toBe('h1');
     expect(suggestionFor(rostered({ body: 'Diagnosis:\n- post PPM (H-1)' }), '2026-10-12')).toBeNull();
   });
 
