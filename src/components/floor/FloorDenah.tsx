@@ -13,8 +13,6 @@ import { placeBeds } from '@/domain/floorList/beds';
 import { SoapBadge } from './SoapBadge';
 import { planLayout } from '@/domain/floorList/layout';
 import {
-  MAX_ZOOM,
-  ZOOM_STEP,
   clampZoom,
   pinchStart,
   pinchStep,
@@ -249,22 +247,16 @@ function DenahCanvas({ children }: { children: ReactNode }): JSX.Element {
   }, [scale]);
 
   /**
-   * The buttons' zoom, about the middle of what is in view.
-   *
-   * It used to flip between fit and full size and leave the scroll where it
-   * was: the plan grew from the top-left corner, so the room you were looking
-   * at moved off the screen and had to be found again by scrolling.
+   * Zoom about a screen point (the double-tap), so the spot you tapped stays
+   * under your finger. A zoom that left the scroll alone grew the plan from
+   * its top-left corner and moved the room you were looking at away.
    */
-  const zoomTo = (target: number): void => {
+  const zoomTo = (target: number, point: { x: number; y: number }): void => {
     const box = outer.current;
     if (!box) return;
     const next = clampZoom(target, fit);
     if (Math.abs(next - scale) < 0.001) return;
     const rect = box.getBoundingClientRect();
-    const view = scrollParentOf(box).getBoundingClientRect();
-    const top = Math.max(rect.top, view.top);
-    const bottom = Math.min(rect.bottom, view.bottom);
-    const point = { x: rect.left + box.clientWidth / 2, y: bottom > top ? (top + bottom) / 2 : rect.top };
     pending.current = zoomAbout(scale, next, point, { left: rect.left, top: rect.top, scrollLeft: box.scrollLeft });
     const stored = next <= fit * 1.02 ? null : next;
     setZoom(stored);
@@ -336,10 +328,49 @@ function DenahCanvas({ children }: { children: ReactNode }): JSX.Element {
     };
   }, [narrow]);
 
+  // Double-tap on empty plan: fit <-> readable (full desk size), about the tap.
+  // Not on a button: a patient's first tap already opened the SOAP.
+  const toggleAt = useRef((_point: { x: number; y: number }): void => undefined);
+  toggleAt.current = (point) => zoomTo(atFit ? 1 : fit, point);
+  useEffect(() => {
+    const box = outer.current;
+    if (!box || !narrow) return undefined;
+    let down: { x: number; y: number; t: number } | null = null;
+    let last: { x: number; y: number; t: number } | null = null;
+    const onDown = (event: TouchEvent): void => {
+      const touch = event.touches[0];
+      down = touch && event.touches.length === 1 ? { x: touch.clientX, y: touch.clientY, t: Date.now() } : null;
+    };
+    const onUp = (event: TouchEvent): void => {
+      const touch = event.changedTouches[0];
+      const from = down;
+      if (!touch || !from || event.touches.length > 0) return;
+      down = null;
+      const now = Date.now();
+      const isTap = Math.hypot(touch.clientX - from.x, touch.clientY - from.y) < 10 && now - from.t < 300;
+      if (!isTap || (event.target as Element).closest('button, a, input, textarea, label')) {
+        last = null;
+        return;
+      }
+      if (last && now - last.t < 350 && Math.hypot(touch.clientX - last.x, touch.clientY - last.y) < 30) {
+        last = null;
+        toggleAt.current({ x: touch.clientX, y: touch.clientY });
+      } else {
+        last = { x: touch.clientX, y: touch.clientY, t: now };
+      }
+    };
+    box.addEventListener('touchstart', onDown, { passive: true });
+    box.addEventListener('touchend', onUp, { passive: true });
+    return () => {
+      box.removeEventListener('touchstart', onDown);
+      box.removeEventListener('touchend', onUp);
+    };
+  }, [narrow]);
+
   return (
     <div>
       {narrow ? (
-        <p className="mb-1 text-right text-xs text-fg-faint">Cubit dua jari, atau pakai tombol di kanan bawah</p>
+        <p className="mb-1 text-right text-xs text-fg-faint">Cubit dua jari, atau ketuk dua kali di area kosong</p>
       ) : null}
       {/*
         `relative`: the scroller must be the containing block of the patients'
@@ -367,37 +398,6 @@ function DenahCanvas({ children }: { children: ReactNode }): JSX.Element {
           </div>
         </div>
       </div>
-      {/*
-        One-handed zoom, kept at the bottom edge of the screen while the plan
-        scrolls (a zero-height sticky row; the buttons grow upward from it).
-        The plan is long, so a button above it was out of reach as soon as you
-        scrolled, and a pinch needs two hands at a bedside.
-      */}
-      {narrow ? (
-        <div className="pointer-events-none sticky bottom-[calc(env(safe-area-inset-bottom)+76px)] z-10 h-0">
-          <div className="pointer-events-auto absolute bottom-0 right-1 flex flex-col overflow-hidden rounded-xl border border-border bg-surface shadow-pop">
-            {(
-              [
-                ['Perbesar', '+', scale >= MAX_ZOOM - 0.001, () => zoomTo(scale * ZOOM_STEP)],
-                ['Perkecil', '−', atFit, () => zoomTo(scale / ZOOM_STEP)],
-                ['Muat di layar', 'Muat', atFit, () => zoomTo(fit)],
-              ] as const
-            ).map(([label, text, disabled, onClick]) => (
-              <button
-                key={label}
-                type="button"
-                aria-label={label}
-                title={label}
-                disabled={disabled}
-                onClick={onClick}
-                className="min-h-tap min-w-tap px-2 text-base font-semibold disabled:opacity-35 [&:not(:first-child)]:border-t [&:not(:first-child)]:border-border"
-              >
-                {text}
-              </button>
-            ))}
-          </div>
-        </div>
-      ) : null}
     </div>
   );
 }

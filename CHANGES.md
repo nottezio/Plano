@@ -1,5 +1,12 @@
 # Plano — CHANGES
 
+## `2026-10-29.8` — Denah on a phone: zoom buttons removed, double-tap instead
+
+Avi did not like the floating + / − / Muat buttons (they covered room text); chose pinch only.
+
+- **Change.** `FloorDenah` `DenahCanvas`: the button group is gone. A double-tap (two taps under 350 ms and 30 px apart, each under 10 px of movement and 300 ms) on anything that is not a button, link, input or label toggles fit and full desk size, about the tap (`zoomAbout`). Pinch is unchanged. `ZOOM_STEP` removed from `pinch.ts`.
+- **Not done.** Not tried on a phone. A double-tap on a patient row does nothing extra: the first tap opens the SOAP, which is the existing behaviour. Rooms packed with patient buttons leave little empty space to double-tap on. Two sizes only (fit and full), no in-between steps except by pinch. The pinch-while-scrolling suspicion from .5 is still unchecked.
+
 ## `2026-10-29.7` — Denah: a new patient on a taken bed no longer pushes the old one to the next bed
 
 Avi: when a new patient is entered on a bed still held by another patient, the room's patients move to the next bed. That is wrong: a new patient replaces the old one, who went home or moved room.

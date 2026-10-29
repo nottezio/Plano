@@ -5,6 +5,9 @@ Catatan teknis lengkap (akar masalah, perbaikan) ada di CHANGES.md.
 
 Entri teratas harus versi yang sedang dirilis; tes gagal bila belum ditulis.
 
+## `2026-10-29.8`
+- **Denah di HP: tombol zoom diganti ketuk dua kali.** Tombol + / − / Muat dihapus karena menutupi isi plan. Sekarang ketuk dua kali di area kosong plan untuk beralih antara muat di layar dan ukuran terbaca, berpusat di titik yang diketuk. Cubit dua jari tetap bisa. Ketuk dua kali pada nama pasien tidak memperbesar (ketukan pertama sudah membuka SOAP).
+
 ## `2026-10-29.7`
 - **Perbaikan denah List Maker: pasien baru di bed yang masih terisi.** Dulu pasien lama digeser ke bed kosong berikutnya di kamar itu, seolah pindah bed. Sekarang pasien dengan SOAP terbaru menempati bed itu, dan pasien lama ditulis di bawah kamar (tanpa nomor bed) sampai ditandai pulang atau pindah. Berlaku di denah layar, PDF dan Word.
 
