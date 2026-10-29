@@ -29,6 +29,13 @@ installChunkRecovery();
 installLoadDiagnostics();
 installErrorLog();
 initThemeSync();
+// Touch only: Android opens its spellcheck menu (suggestions, "Add to dictionary",
+// Delete) on a long-press or double-tap of any underlined word, which is most
+// names and abbreviations in a clinical note, so selecting text became
+// impossible. `spellcheck` inherits, so this one line covers every editable.
+if (typeof window.matchMedia === 'function' && window.matchMedia('(pointer: coarse)').matches) {
+  document.documentElement.spellcheck = false;
+}
 initSyncStatus();
 initSession();
 

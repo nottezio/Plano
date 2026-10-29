@@ -797,8 +797,10 @@ export function BodyEditor({
           }}
           readOnly={readOnly}
           placeholder={placeholder}
-          spellCheck
           /**
+           * `spellCheck` is not set here: the document decides (main.tsx turns it
+           * off on touch devices, where the suggestion menu hijacks selection).
+           *
            * No `lang` attribute on purpose.
            *
            * The document is `lang="id"`, which makes the browser check Indonesian

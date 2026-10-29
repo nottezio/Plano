@@ -5,6 +5,9 @@ Catatan teknis lengkap (akar masalah, perbaikan) ada di CHANGES.md.
 
 Entri teratas harus versi yang sedang dirilis; tes gagal bila belum ditulis.
 
+## `2026-10-29.4`
+- **Perbaikan: menyorot teks di HP tidak lagi membuka kamus.** Di HP, menahan atau mengetuk dua kali sebuah kata yang digarisbawahi merah membuka menu kamus (saran kata, "Add to dictionary", Delete) dan menyulitkan memilih teks. Pemeriksa ejaan kini dimatikan di perangkat layar sentuh, di semua kolom ketik (SOAP, catatan, sticky). Di laptop tidak berubah.
+
 ## `2026-10-29.3`
 - **Catatan di kartu: panel terbuka dari strip-nya.** Ketuk strip catatan, panelnya kini tumbuh dari strip itu sendiri (warna dan lebar sama), tanpa judul yang mengulang nama pasien dan tanpa celah. Catatan pendek yang sudah tampil utuh tidak lagi bisa diketuk, karena panelnya hanya akan mengulang isi yang sama.
 - **Warna chip dan catatan tidak lagi keruh.** Chip pengingat dan strip catatan memakai warna penuh, bukan tint transparan yang ikut berwarna hijau kartu. Centang selesai memakai warna tulisan kartu.

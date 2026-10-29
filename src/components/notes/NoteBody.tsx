@@ -56,7 +56,6 @@ export function useNoteBody({
         role: 'textbox',
         'aria-multiline': 'true',
         'aria-label': ariaLabel,
-        spellcheck: 'true',
       },
     },
     onUpdate: ({ editor: e }) => {

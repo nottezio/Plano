@@ -284,7 +284,6 @@ function StickyNoteCardView({
         }}
         placeholder="Tulis catatan…"
         aria-label="Isi catatan"
-        spellCheck
         className={[
           'w-full resize-none bg-transparent px-2.5 pb-2.5 pt-1 text-sm leading-snug outline-none placeholder:opacity-50',
           fitHeight ? 'min-h-0 flex-1 overflow-y-auto' : 'overflow-hidden',

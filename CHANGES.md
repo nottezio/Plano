@@ -1,5 +1,13 @@
 # Plano — CHANGES
 
+## `2026-10-29.4` — Phone: selecting text opened the spellcheck menu
+
+Avi: typing on mobile is bugged; highlighting text always opens a dictionary box (screenshot: Kodong / Kodingan / Kosong / Add to dictionary / Delete over a board sticky).
+
+- **Root cause.** The SOAP box, the Catatan editor and the board sticky all set `spellcheck` on, deliberately ("an underline you can ignore"). On Android Chrome a long-press or double-tap on an underlined word opens the system suggestion menu instead of starting a selection. In Indonesian clinical text with names and abbreviations most words are underlined, so selecting nearly anything triggered it.
+- **Fix.** `main.tsx` sets `document.documentElement.spellcheck = false` when `(pointer: coarse)` matches; the attribute inherits to every textarea and contenteditable. The three explicit `spellcheck` overrides were removed so they no longer win over it. Desktop is unchanged.
+- **Not done.** Not tried on a phone. Red underlines are gone on touch devices too, not just the menu: there is no way to keep one without the other. A tablet with a keyboard counts as touch. No setting to turn spellcheck back on. iOS was not looked at (its menu behaves differently).
+
 ## `2026-10-29.3` — Patient card: note panel unfolds from its strip; opaque chip tints; done reminders folded
 
 Avi: the expanded catatan on the card looked wrong; spacing of the card.
