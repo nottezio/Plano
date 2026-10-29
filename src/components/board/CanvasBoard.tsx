@@ -29,6 +29,7 @@ import {
   type CardLayout,
   type CanvasLayouts,
 } from '@/domain/board/canvasLayout';
+import { applyRemoteShelves, shelfKey } from '@/domain/board/shelfSync';
 
 /**
  * The free canvas: drag a card anywhere, set its width, cap its height.
@@ -66,8 +67,10 @@ export function CanvasBoard({
   /** The board view (Pasien saya / Titipan): each has its own shelves (2026-10-17). */
   scope?: string | undefined;
   /**
-   * The account's copy, used only when this device has no layout yet (a new
-   * laptop). See `SharedCanvas`.
+   * The account's copy. Seeds a device with no layout yet (a new laptop), and
+   * after that its SHELVES are kept in step with it (the phone edits them
+   * too): shelf titles, folds and which cards are on them, never positions.
+   * See `SharedCanvas` and `shelfSync`.
    */
   seed?: CanvasLayouts | undefined;
   /** Called after the stored layout changes, to mirror it to the account. */
@@ -345,6 +348,31 @@ export function CanvasBoard({
   /** The stored map now, for gestures that end after a render (shelves read it). */
   const storedRef = useRef(stored);
   storedRef.current = stored;
+
+  /*
+    The account's shelves, taken in as they change (29 Oct 2026: the phone
+    edits them). `syncedKey` is the shelf state this device last agreed on with
+    the account. If the device has changed its shelves since, ITS copy is the
+    newer one and its own mirror write replaces the account's, so the
+    account's is not taken in; otherwise it is. A device that has not agreed
+    yet (just opened) takes the account's.
+  */
+  const syncedKey = useRef<string | null>(null);
+  useEffect(() => {
+    if (!seed) return;
+    const previous = storedRef.current;
+    const remoteKey = shelfKey(seed);
+    const localKey = shelfKey(previous);
+    if (localKey === remoteKey) {
+      syncedKey.current = remoteKey;
+      return;
+    }
+    if (syncedKey.current !== null && localKey !== syncedKey.current) return;
+    const next = applyRemoteShelves(previous, seed);
+    syncedKey.current = remoteKey;
+    writeLayouts(next);
+    setStored(next);
+  }, [seed]);
   const idsRef = useRef(ids);
   idsRef.current = ids;
   /** Replace the whole map — for removing a shelf, which a merge cannot do. */

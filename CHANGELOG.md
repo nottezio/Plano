@@ -5,6 +5,9 @@ Catatan teknis lengkap (akar masalah, perbaikan) ada di CHANGES.md.
 
 Entri teratas harus versi yang sedang dirilis; tes gagal bila belum ditulis.
 
+## `2026-10-29.2`
+- **Shelf kini sama di laptop dan HP.** Isi shelf (nama, terlipat atau tidak, dan pasien di dalamnya) dibagi antara kanvas laptop dan kanvas HP: shelf yang dibuat atau diisi di satu perangkat muncul di perangkat lain, termasuk Pasien saya dan Titipan terpisah. Posisi kartu tidak ikut dibagi, karena layarnya berbeda. Shelf yang sebelumnya dibuat di HP dipindahkan otomatis. Bila laptop dan HP mengubah shelf hampir bersamaan, yang terakhir menyimpan yang dipakai.
+
 ## `2026-10-29.1`
 - **Perbaikan: "H-1 hari ini" setelah SOAP diedit.** Bila SOAP kemarin diedit hari ini di List Maker dan Plan-nya ditulis "H-1 hari ini", saran Plan dulu menawarkan "pulang hari ini". Sekarang saran membaca hari SOAP terakhir diedit, jadi "H-1 hari ini" berarti pulang besok (merah).
 

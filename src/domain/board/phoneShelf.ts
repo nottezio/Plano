@@ -7,10 +7,15 @@
  * per board view (`mine` / `temporary`), kept beside the grid cells on the
  * account.
  *
+ * 29 Oct 2026: those lists are now the laptop's shelves (`shelfSync`); this file
+ * is the phone's editing of them, and the format the old stored list was in.
+ *
  * A shelved patient leaves the grid (its cell is free again) and is listed on
  * the shelf, in the order it was put there. Taking it off, or removing the
  * shelf, puts it back on the grid: the first free cell, in reading order.
  */
+
+import { newShelfId } from './canvasLayout';
 
 export type PhoneScope = 'mine' | 'temporary';
 
@@ -65,8 +70,9 @@ export function shelfOfPatient(shelves: readonly PhoneShelf[], id: string): stri
 /** A new empty shelf; none once the view has `MAX_PHONE_SHELVES`. */
 export function addPhoneShelf(shelves: readonly PhoneShelf[], scope: PhoneScope, now = Date.now()): PhoneShelf[] {
   if (shelves.filter((shelf) => shelf.scope === scope).length >= MAX_PHONE_SHELVES) return [...shelves];
-  let id = `ps:${now.toString(36)}`;
-  for (let n = 2; shelves.some((shelf) => shelf.id === id); n += 1) id = `ps:${now.toString(36)}-${n}`;
+  // A canvas shelf id (`rak:…`): the phone's shelves are the laptop's (see `shelfSync`).
+  let id = newShelfId(now);
+  for (let n = 2; shelves.some((shelf) => shelf.id === id); n += 1) id = `${newShelfId(now)}-${n}`;
   return [...shelves, { id, title: PHONE_SHELF_TITLE, scope, ids: [] }];
 }
 

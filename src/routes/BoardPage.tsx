@@ -5,8 +5,9 @@ import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } fro
 import { PhoneCanvas, type PhoneSticky } from '@/components/board/PhoneCanvas';
 import { readingOrder, sanitizePhoneGrid, type PhoneGrid } from '@/domain/board/phoneGrid';
 import { mergeScope, sanitizePhoneShelves, type PhoneShelf } from '@/domain/board/phoneShelf';
+import { canvasShelfId, layoutsWithShelves, shelfPatch, shelvesFromLayouts } from '@/domain/board/shelfSync';
 import { parseSharedCanvas, type CanvasLayouts } from '@/domain/board/canvasLayout';
-import { savePhoneGrid, saveSharedCanvas } from '@/data/repositories/boardCanvas.repo';
+import { dropLegacyPhoneShelves, patchSharedCanvas, savePhoneGrid, saveSharedCanvas } from '@/data/repositories/boardCanvas.repo';
 import { useNavigate } from 'react-router-dom';
 
 import { AppShell } from '@/components/common/AppShell';
@@ -597,42 +598,73 @@ export default function BoardPage(): JSX.Element {
     [localPhoneGrid, rawPhoneGrid],
   );
   /*
-    The phone's shelves (26 Oct 2026): both board views' shelves live beside
-    the grid cells in one account field, so every save writes both; the refs
-    keep a save of one from sending the other's stale copy.
+    The phone's shelves are the canvas's (29 Oct 2026): read out of the
+    mirrored layouts, so a shelf made on the laptop is on the phone and the
+    other way round (see `shelfSync`). An edit on the phone is shown at once
+    from `localShared`, and written as changes to single entries so it does
+    not touch the positions the laptop arranged; the next snapshot of the
+    account replaces the local copy.
   */
-  const rawPhoneShelves = useMemo(() => sanitizePhoneShelves(rawPhoneGrid), [rawPhoneGrid]);
-  const [localPhoneShelves, setLocalPhoneShelves] = useState<PhoneShelf[] | null>(null);
-  const allPhoneShelves = localPhoneShelves ?? rawPhoneShelves;
+  const [localShared, setLocalShared] = useState<CanvasLayouts | null>(null);
+  useEffect(() => setLocalShared(null), [sharedCanvas]);
+  const sharedLayouts = localShared ?? sharedCanvas?.layouts;
+  const allPhoneShelves = useMemo(() => shelvesFromLayouts(sharedLayouts ?? {}), [sharedLayouts]);
   const phoneShelves = useMemo(() => allPhoneShelves.filter((shelf) => shelf.scope === scope), [allPhoneShelves, scope]);
-  const phoneGridRef = useRef(phoneGrid);
-  phoneGridRef.current = phoneGrid;
   const phoneShelvesRef = useRef(allPhoneShelves);
   phoneShelvesRef.current = allPhoneShelves;
-  const savePhone = useCallback(
-    (cells: PhoneGrid, columns: number, shelves: PhoneShelf[]) => {
+  const sharedLayoutsRef = useRef(sharedLayouts);
+  sharedLayoutsRef.current = sharedLayouts;
+  const sharedWidthRef = useRef(sharedCanvas?.width ?? null);
+  sharedWidthRef.current = sharedCanvas?.width ?? null;
+  const writeShelves = useCallback(
+    (shelves: readonly PhoneShelf[]) => {
       if (!uid) return;
-      void savePhoneGrid(uid, { cells, columns, shelves, at: Date.now() }).catch((error: unknown) =>
+      const base = sharedLayoutsRef.current ?? {};
+      const updated = layoutsWithShelves(base, shelves);
+      const patch = shelfPatch(base, updated);
+      if (Object.keys(patch).length === 0) return;
+      sharedLayoutsRef.current = updated;
+      setLocalShared(updated);
+      void patchSharedCanvas(uid, patch, sharedWidthRef.current).catch((error: unknown) =>
+        console.warn('[board] shelves not saved', error),
+      );
+    },
+    [uid],
+  );
+  const phoneGridRef = useRef(phoneGrid);
+  phoneGridRef.current = phoneGrid;
+  const changePhoneGrid = useCallback(
+    (next: PhoneGrid, columns: number) => {
+      setLocalPhoneGrid(next);
+      if (!uid) return;
+      void savePhoneGrid(uid, { cells: next, columns, at: Date.now() }).catch((error: unknown) =>
         console.warn('[board] phone grid not saved', error),
       );
     },
     [uid],
   );
-  const changePhoneGrid = useCallback(
-    (next: PhoneGrid, columns: number) => {
-      setLocalPhoneGrid(next);
-      savePhone(next, columns, phoneShelvesRef.current);
-    },
-    [savePhone],
-  );
   const changePhoneShelves = useCallback(
-    (next: PhoneShelf[], columns: number) => {
-      const merged = mergeScope(phoneShelvesRef.current, scopeRef.current, next);
-      setLocalPhoneShelves(merged);
-      savePhone(phoneGridRef.current, columns, merged);
-    },
-    [savePhone],
+    (next: PhoneShelf[]) => writeShelves(mergeScope(phoneShelvesRef.current, scopeRef.current, next)),
+    [writeShelves],
   );
+
+  /*
+    One-time move of the phone's own shelf list (before 29 Oct) into the
+    canvas's shelves, from whichever device opens the board first. Ids are
+    derived, so two devices doing it at once write the same entries.
+  */
+  const legacyPhoneShelves = useMemo(() => sanitizePhoneShelves(rawPhoneGrid), [rawPhoneGrid]);
+  const migratedShelves = useRef(false);
+  useEffect(() => {
+    if (!uid || migratedShelves.current || legacyPhoneShelves.length === 0) return;
+    migratedShelves.current = true;
+    const known = new Set(allPhoneShelves.map((shelf) => shelf.id));
+    const moved = legacyPhoneShelves
+      .map((shelf) => ({ ...shelf, id: canvasShelfId(shelf.id) }))
+      .filter((shelf) => !known.has(shelf.id));
+    writeShelves([...allPhoneShelves, ...moved]);
+    void dropLegacyPhoneShelves(uid).catch((error: unknown) => console.warn('[board] old phone shelves not cleared', error));
+  }, [uid, legacyPhoneShelves, allPhoneShelves, writeShelves]);
 
   const cards = useMemo(() => {
     const matched = filterPatients(

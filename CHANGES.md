@@ -1,5 +1,14 @@
 # Plano — CHANGES
 
+## `2026-10-29.2` — Canvas: shelves shared between laptop and phone
+
+Avi: sync the canvas state between desktop and mobile, not the positions, but the basket/shelf content.
+
+- **Root cause.** Two unrelated models. The laptop keeps shelves in the canvas layouts (`rak:*` entries, `shelf`/`shelfAt` on cards) and mirrors them one way to `boardCanvas`; the phone kept its own `PhoneShelf[]` in `boardPhoneGrid.shelves`. The laptop only read `boardCanvas` as a seed for a device with no layout.
+- **Fix.** `boardCanvas.layouts` is the one copy. `domain/board/shelfSync.ts`: `shelvesFromLayouts` (phone reads), `layoutsWithShelves` + `shelfPatch` (phone edit as per-entry changes), `applyRemoteShelves` + `shelfKey` (laptop takes in the account's shelves). The phone writes with `patchSharedCanvas` (field paths, so laptop positions are not overwritten); `CanvasBoard` applies remote shelf state unless this device changed its shelves since it last agreed with the account (`syncedKey`; that device's mirror write then wins). New phone shelves get `rak:` ids. `savePhoneGrid` now writes cells/columns/at by field path.
+- **Migration.** The first device to open the board moves `boardPhoneGrid.shelves` into the layouts (`ps:` ids become `rak:`) and deletes the old field.
+- **Not done.** Concurrent edits are still last-writer-wins at shelf level (the laptop mirror writes the whole layout map, 2 s debounce). The phone cannot reorder inside a shelf (it only appends), and its 6-shelves-per-view limit does not apply to shelves made on the laptop. Not tried on real devices or against Firestore; covered by unit tests of the mapping only.
+
 ## `2026-10-29.1` — List Maker: "H-1 hari ini" in an edited SOAP read as "pulang hari ini"
 
 Avi: a SOAP updated in List Maker with Plan "H-1 hari ini" got the suggestion "pulang hari ini" instead of H-1 (pulang besok).
