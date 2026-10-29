@@ -17,6 +17,7 @@ const CalculatorPage = lazy(() => import('@/routes/CalculatorPage'));
 const ChecklistsPage = lazy(() => import('@/routes/ChecklistsPage'));
 const HelperPage = lazy(() => import('@/routes/HelperPage').then((m) => ({ default: m.HelperPage })));
 const SettingsPage = lazy(() => import('@/routes/SettingsPage'));
+const AccountPage = lazy(() => import('@/routes/AccountPage'));
 const AdminPage = lazy(() => import('@/routes/AdminPage'));
 const ListMakerPage = lazy(() => import('@/routes/ListMakerPage'));
 
@@ -42,6 +43,7 @@ export default function App(): JSX.Element {
         <Route path="/helper" element={<HelperPage />} />
         <Route path="/list" element={<ListMakerPage />} />
         <Route path="/pengaturan" element={<SettingsPage />} />
+        <Route path="/akun" element={<AccountPage />} />
         <Route path="/p/:patientId" element={<PatientPage />} />
         <Route path="/p/:patientId/:date" element={<PatientPage />} />
         {/* Unlinked for everyone but the admin; see AdminPage. */}

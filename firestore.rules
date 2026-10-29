@@ -110,8 +110,12 @@ service cloud.firestore {
     match /patients/{pid} {
       // A field read rather than `get()` with a default, so a query filtered
       // on `transferTo` can be proven against it (as floor invites are).
+      // `transferTo` is the recipient's uid (picked from a shared list) or,
+      // as a fallback, their lowercase email; a uid never contains '@'.
       function isTransferTarget(data) {
-        return allowed() && data.transferTo == request.auth.token.email.lower();
+        return allowed()
+          && (data.transferTo == request.auth.uid
+              || data.transferTo == request.auth.token.email.lower());
       }
 
       // `resource` is null for a document that does not exist on the server
@@ -147,8 +151,9 @@ service cloud.firestore {
        */
       allow update: if isTransferTarget(resource.data)
         && request.resource.data.diff(resource.data).affectedKeys()
-             .hasOnly(['ownerId', 'memberIds', 'transferTo', 'transferFrom', 'updatedAt', 'updatedBy'])
+             .hasOnly(['ownerId', 'memberIds', 'transferTo', 'transferToName', 'transferFrom', 'updatedAt', 'updatedBy'])
         && !('transferTo' in request.resource.data)
+        && !('transferToName' in request.resource.data)
         && !('transferFrom' in request.resource.data)
         && ((request.resource.data.ownerId == request.auth.uid
              && request.resource.data.memberIds == [request.auth.uid])
@@ -553,6 +558,34 @@ service cloud.firestore {
       allow get: if authed() && docId == 'access';
       allow create, update: if isAdmin() && docId == 'access';
       allow delete: if false;
+    }
+
+    /*
+     * Usernames (src/domain/username.ts): one document per handle, holding
+     * the owner's uid and name. Read one at a time by its exact handle, never
+     * listed, so the collection cannot be used as a directory of accounts.
+     * Claimed together with `username` on the owner's profile (`getAfter`),
+     * and released only once the profile has moved off it.
+     */
+    match /usernames/{handle} {
+      allow get: if allowed();
+      allow list: if false;
+      allow create: if allowed()
+        && handle.matches('^[a-z0-9][a-z0-9._]{1,18}[a-z0-9]$')
+        && request.resource.data.keys().hasOnly(['uid', 'name'])
+        && request.resource.data.uid == request.auth.uid
+        && request.resource.data.name is string
+        && request.resource.data.name.size() <= 80
+        && getAfter(/databases/$(database)/documents/users/$(request.auth.uid)).data.get('username', '') == handle;
+      allow update: if allowed()
+        && resource.data.uid == request.auth.uid
+        && request.resource.data.keys().hasOnly(['uid', 'name'])
+        && request.resource.data.uid == request.auth.uid
+        && request.resource.data.name is string
+        && request.resource.data.name.size() <= 80;
+      allow delete: if allowed()
+        && resource.data.uid == request.auth.uid
+        && getAfter(/databases/$(database)/documents/users/$(request.auth.uid)).data.get('username', '') != handle;
     }
 
     /*

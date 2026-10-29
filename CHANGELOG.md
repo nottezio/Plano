@@ -5,6 +5,15 @@ Catatan teknis lengkap (akar masalah, perbaikan) ada di CHANGES.md.
 
 Entri teratas harus versi yang sedang dirilis; tes gagal bila belum ditulis.
 
+## `2026-10-30.2`
+- **Kirim ke rekan lewat username.** Di bagian *Kirim ke rekan*, ketik `@username` rekan (yang ia pilih di halaman Akun), lalu Kirim. Email Google tetap bisa dipakai. Username dicek ke server, jadi perlu koneksi internet; bila tidak ditemukan, muncul pesan dan pasien tidak terkirim.
+
+## `2026-10-30.1`
+- **Halaman Akun baru.** Buka dari Pengaturan → Akun → *Buka halaman Akun*. Di sini tampil nama dan email Google Anda, tombol Keluar, dan pilihan **username** (mis. `@dr.rina`). Username tidak bisa dicari atau didaftar oleh pengguna lain; nanti rekan bisa mengirim pasien ke Anda cukup dengan mengetik username itu. Menyimpan username perlu koneksi internet.
+
+## `2026-10-29.10`
+- **Kirim ke rekan tanpa mengetik email.** Rekan yang satu list List Maker dengan Anda kini muncul sebagai pilihan nama di bagian *Kirim ke rekan*: ketuk namanya lalu Kirim. Email Google tetap bisa dipakai untuk rekan di luar list Anda. Saat menunggu, menu pasien menampilkan nama rekan, bukan alamat email.
+
 ## `2026-10-29.9`
 - **Kirim pasien ke rekan (serah terima).** Di menu pasien (⋯) ada bagian baru *Kirim ke rekan*: isi email Google rekan, lalu tekan Kirim pasien. Rekan melihat kiriman itu di atas papannya dengan tombol Terima dan Tolak. Setelah diterima, pasien beserta semua catatan, versi dan checklist-nya pindah ke papan rekan dan hilang dari papan Anda. Sebelum diterima pasien tetap di papan Anda, dan kiriman bisa dibatalkan. Rekan perlu online untuk melihat kiriman.
 

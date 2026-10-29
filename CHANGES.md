@@ -1,5 +1,31 @@
 # Plano — CHANGES
 
+## `2026-10-30.2` — Kirim ke rekan: send by @username
+
+Step 3 of the plan. The field takes `@username` or an email.
+
+- **Change.** `isEmailInput` (an '@' after the first character = email; tested) picks the path. A username goes through `parseUsername` then `lookupUsername` (now `getDocFromServer`, so offline throws "perlu koneksi" instead of a false "tidak ditemukan" from cache), refuses your own handle, and sends by uid with the handle's stored name. Input is `type="text"` (an email input would refuse a bare handle) with `inputMode="email"`. Button shows "Mencari…" during the lookup.
+- **Checked in the emulator (this rules file).** In the app: `@dr.nobody` → "tidak ditemukan"; `@dr.rekan` (seeded for a fake uid) → patient stored with `transferTo` = that uid, `transferToName`, `transferFrom` = sender; sheet shows "Menunggu diterima oleh Dr Rekan". As the recipient via REST with an emulator token: incoming query 200; notes before accepting 403; editing another field 403; accept 200; notes after 200; the patient then left the sender's board. A stranger: get 403, query for the recipient's key 403. `usernames`: list 403, get one 200.
+- **Not done.** Rules still NOT deployed. The recipient's Terima/Tolak banner was not seen rendered (only one app account in the emulator). Decline and email-based sending not exercised. Not tried on a phone.
+
+## `2026-10-30.1` — Account page with a username
+
+Step 2 of the Kirim ke rekan plan (teammates → account page + username → username lookup).
+
+- **Change.** New route `/akun` (`AccountPage`), linked from Settings → Akun: Google name and email (read-only: `ensureProfile` copies them on every sign-in, so an edit would be overwritten), username claim/change, Keluar. `domain/username.ts` (`parseUsername`: strip '@', lowercase, 3–20 of `[a-z0-9._]`, letter/digit at both ends; tested). `usernames.repo.ts`: `claimUsername` in a transaction (fails at once offline instead of queuing a write that could be refused later because someone else took the name; sets `users/{uid}.username`, creates `usernames/{handle}` {uid, name}, deletes the previous handle), `lookupUsername` (exact handle, for step 3).
+- **Rules.** `usernames/{handle}`: `get` for anyone admitted, `list: if false` (no directory), create only as yourself with the handle pattern and only when the profile points at it after the write (`getAfter`), update own name only, delete own only once the profile has moved off it. A test checks the pattern and the no-list line match the client.
+- **Checked.** In the local emulator (auth + Firestore with this rules file), dark theme: claim `@Dr.Test` → stored as `dr.test`; change to `dr.test2` releases `dr.test` (delete rule passed); a handle owned by another uid shows "sudah dipakai".
+- **Not done.** Rules (from .29.9, .29.10 and this) NOT deployed. The `list: if false` rule and the transfer rules were not exercised in the emulator. Not tried on a phone or in light theme. Step 3 (typing `@username` in Kirim ke rekan) not done, so the username has no use yet. One account can still hold extra handles by creating a second without releasing the first through some other client (the app always releases); not enforced in rules. The name stored on a handle is not refreshed if the Google name changes. Export/import was not checked for the new `username` profile field. No nav entry besides the Settings link.
+
+## `2026-10-29.10` — Kirim ke rekan: pick a List Maker teammate instead of typing an email
+
+Avi: the sender should not need to know the recipient's email. Agreed plan: (1) teammates from shared lists + send by uid, (2) account page with a username, (3) username lookup. This is step 1.
+
+- **Change.** `transferTo` now holds the recipient's uid when picked, or the lowercase email as a fallback (a uid never contains '@', so one field serves both). New `transferToName` for the sender's "Menunggu diterima oleh …". `domain/transfer.teammates()` builds the pick list from `subscribeMyFloors` (`memberIds` + `names`, me excluded, deduped, first name wins, sorted; tested). `subscribeIncomingTransfers(uid, email)` runs two equality queries (uid, email) and merges them, since each must match the rule on its own.
+- **Rules.** `isTransferTarget` accepts `transferTo == auth.uid` OR the email; the accept/decline clause also allows and requires clearing `transferToName`.
+- **Why not a user directory.** The repo is public and this is clinical data: a searchable list of every account lets any signed-in user harvest names and emails, and Firestore cannot limit a list to "people you might know". List Maker teammates already see each other's names.
+- **Not done.** Rules (from .9 and this) still NOT deployed or run in an emulator. Not tried with two accounts or seen rendered. A teammate's name is the one the list shows; the same person on two lists under different names shows the first. Viewer-only list members appear as teammates too; whether they can accept depends on `allowed()` (a viewer cannot). Steps 2 and 3 (account page, username) not started.
+
 ## `2026-10-29.9` — Send one patient to a colleague (handover)
 
 Avi: send one patient in-app to a friend; it moves to their board once they accept.

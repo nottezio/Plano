@@ -373,6 +373,8 @@ export interface UserProfile {
   uid: string;
   displayName: string;
   email: string;
+  /** Public handle without '@' (see `domain/username`); absent until chosen. */
+  username?: string;
   createdAt: Timestamp;
   /** Bumped only by a real migration; read on boot to refuse newer schemas. */
   schemaVersion: number;
@@ -488,12 +490,15 @@ export interface Patient {
   /** Which reminders were ticked, and for which clinical day. */
   reminderDone?: { date: ClinicalDate; ids: string[] };
   /**
-   * A handover in flight (see `domain/transfer`): the lowercase email of the
-   * colleague this patient was sent to. While set, that account can read this
+   * A handover in flight (see `domain/transfer`): the uid of the colleague
+   * this patient was sent to, or their lowercase email when they were not
+   * picked from a shared list. While set, that account can read this
    * document (not its notes) and accept or decline. Accepting makes them the
    * sole owner, so the patient leaves the sender's board.
    */
   transferTo?: string;
+  /** The recipient's name as the sender saw it, for "waiting for …". */
+  transferToName?: string;
   /** Who sent it, shown to the recipient. Set together with `transferTo`. */
   transferFrom?: { uid: string; name: string };
   /**

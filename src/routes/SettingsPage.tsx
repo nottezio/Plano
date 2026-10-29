@@ -405,6 +405,12 @@ export default function SettingsPage(): JSX.Element {
               </p>
             ) : null}
             <p className="truncate text-xs text-fg-muted">{user?.email ?? '—'}</p>
+            <Link
+              to="/akun"
+              className="mt-3 flex min-h-tap w-full items-center justify-center rounded-lg border border-border px-3 text-sm text-accent"
+            >
+              Buka halaman Akun (username)
+            </Link>
             <SignOutButton className="mt-3 min-h-tap w-full rounded-lg border border-border px-3 text-sm text-danger" />
             <p className="mt-2 text-xs text-fg-faint">
               Keluar menghapus seluruh data offline di perangkat ini dan memuat ulang aplikasi.

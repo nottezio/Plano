@@ -45,6 +45,9 @@ export const jagaCol = (uid: string): CollectionReference =>
 export const jagaDoc = (uid: string, id: string): DocumentReference =>
   doc(db(), 'users', uid, 'jaga', id);
 
+/** Usernames, one document per handle (see `src/domain/username.ts`). Never listed. */
+export const usernameDoc = (handle: string): DocumentReference => doc(db(), 'usernames', handle);
+
 /** Access records, one per account (see `src/domain/access.ts`). */
 export const accessCol = (): CollectionReference => collection(db(), 'access');
 export const accessDoc = (uid: string): DocumentReference => doc(db(), 'access', uid);

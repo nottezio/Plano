@@ -27,12 +27,12 @@ export function IncomingTransfers(): JSX.Element | null {
   const [busy, setBusy] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!email) return undefined;
-    return subscribeIncomingTransfers(email, setIncoming, (e) => {
+    if (!uid) return undefined;
+    return subscribeIncomingTransfers(uid, email, setIncoming, (e) => {
       console.error('[transfer] incoming query failed', e);
       setError('Kiriman pasien tidak bisa dimuat.');
     });
-  }, [email]);
+  }, [uid, email]);
 
   if (!uid || (incoming.length === 0 && !error)) return null;
 

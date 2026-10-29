@@ -720,12 +720,13 @@ export function addMember(patientId: string, uid: string): Promise<void> {
  */
 export function sendPatient(
   patientId: string,
-  toEmail: string,
+  to: { key: string; name: string },
   from: { uid: string; name: string },
 ): Promise<void> {
   return trackWrite(
     updateDoc(patientDoc(patientId), {
-      transferTo: toEmail,
+      transferTo: to.key,
+      transferToName: to.name,
       transferFrom: from,
       updatedAt: serverTimestamp(),
       updatedBy: getDeviceId(),
@@ -738,6 +739,7 @@ export function clearTransfer(patientId: string): Promise<void> {
   return trackWrite(
     updateDoc(patientDoc(patientId), {
       transferTo: deleteField(),
+      transferToName: deleteField(),
       transferFrom: deleteField(),
       updatedAt: serverTimestamp(),
       updatedBy: getDeviceId(),
@@ -757,6 +759,7 @@ export function acceptTransfer(patientId: string, uid: string): Promise<void> {
       ownerId: uid,
       memberIds: [uid],
       transferTo: deleteField(),
+      transferToName: deleteField(),
       transferFrom: deleteField(),
       updatedAt: serverTimestamp(),
       updatedBy: getDeviceId(),
@@ -764,17 +767,29 @@ export function acceptTransfer(patientId: string, uid: string): Promise<void> {
   );
 }
 
-/** Patients sent to this email and not yet accepted or declined. */
+/**
+ * Patients sent to this account, by uid or by email, not yet accepted or
+ * declined. Two queries because each must match the rule on its own.
+ */
 export function subscribeIncomingTransfers(
-  email: string,
+  uid: string,
+  email: string | null,
   callback: (patients: Patient[]) => void,
   onError: (error: Error) => void,
 ): Unsubscribe {
-  return onSnapshot(
-    query(patientsCol(), where('transferTo', '==', email.toLowerCase())),
-    (snapshot) => callback(snapshot.docs.map((entry) => entry.data() as Patient)),
-    onError,
+  const keys = email ? [uid, email.toLowerCase()] : [uid];
+  const byKey = new Map<string, Patient[]>();
+  const stops = keys.map((key) =>
+    onSnapshot(
+      query(patientsCol(), where('transferTo', '==', key)),
+      (snapshot) => {
+        byKey.set(key, snapshot.docs.map((entry) => entry.data() as Patient));
+        callback([...byKey.values()].flat());
+      },
+      onError,
+    ),
   );
+  return () => stops.forEach((stop) => stop());
 }
 
 export function subscribePatient(

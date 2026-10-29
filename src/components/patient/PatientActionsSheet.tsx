@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import { DateField } from '@/components/common/DateField';
 import { useNavigate } from 'react-router-dom';
 
@@ -11,7 +11,10 @@ import {
   reopenPatient,
   updatePatient,
 } from '@/data/repositories/patients.repo';
-import { transferTarget } from '@/domain/transfer';
+import { subscribeMyFloors } from '@/data/repositories/floors.repo';
+import { lookupUsername } from '@/data/repositories/usernames.repo';
+import { isEmailInput, teammates, transferTarget } from '@/domain/transfer';
+import { parseUsername } from '@/domain/username';
 import { useSession } from '@/store/useSession';
 import { ARCHIVE_REASON_LABELS } from '@/domain/archive';
 import { dateForStage, migrateLegacyDischarge, usulDays, usulOpen } from '@/domain/discharge';
@@ -475,7 +478,19 @@ export function PatientActionsSheet({
 function SendToColleague({ patient }: { patient: Patient }): JSX.Element {
   const user = useSession((state) => state.user);
   const [email, setEmail] = useState('');
+  const [picked, setPicked] = useState<{ uid: string; name: string } | null>(null);
+  const [team, setTeam] = useState<Array<{ uid: string; name: string }>>([]);
   const [error, setError] = useState<string | null>(null);
+  const [looking, setLooking] = useState(false);
+  const uid = user?.uid ?? null;
+
+  useEffect(() => {
+    if (!uid) return undefined;
+    // A failure only hides the shortcuts; sending by email still works.
+    return subscribeMyFloors(uid, (floors) => setTeam(teammates(floors, uid)), (e) =>
+      console.error('[transfer] teammates unavailable', e),
+    );
+  }, [uid]);
 
   if (patient.transferTo) {
     return (
@@ -483,7 +498,7 @@ function SendToColleague({ patient }: { patient: Patient }): JSX.Element {
         <Callout
           tone="info"
           role="status"
-          title={`Menunggu diterima oleh ${patient.transferTo}`}
+          title={`Menunggu diterima oleh ${patient.transferToName || patient.transferTo}`}
           action={
             <Button size="sm" onClick={() => void clearTransfer(patient.id)}>
               Batalkan
@@ -496,16 +511,49 @@ function SendToColleague({ patient }: { patient: Patient }): JSX.Element {
     );
   }
 
-  const send = (): void => {
-    if (!user) return;
-    const target = transferTarget(email, user.email);
-    if ('error' in target) {
-      setError(target.error);
-      return;
+  const resolve = async (): Promise<{ key: string; name: string } | null> => {
+    if (!user) return null;
+    if (picked) return { key: picked.uid, name: picked.name };
+    if (isEmailInput(email)) {
+      const target = transferTarget(email, user.email);
+      if ('error' in target) {
+        setError(target.error);
+        return null;
+      }
+      return { key: target.email, name: target.email };
     }
+    const parsed = parseUsername(email);
+    if ('error' in parsed) {
+      setError(parsed.error);
+      return null;
+    }
+    const found = await lookupUsername(parsed.handle).catch((e: unknown) => {
+      console.error('[transfer] username lookup failed', e);
+      setError('Username tidak bisa dicek. Perlu koneksi internet.');
+      return undefined;
+    });
+    if (found === undefined) return null;
+    if (!found) {
+      setError(`@${parsed.handle} tidak ditemukan.`);
+      return null;
+    }
+    if (found.uid === user.uid) {
+      setError('Itu username Anda sendiri.');
+      return null;
+    }
+    return { key: found.uid, name: found.name || `@${parsed.handle}` };
+  };
+
+  const send = async (): Promise<void> => {
+    if (!user || looking) return;
+    setLooking(true);
+    const to = await resolve();
+    setLooking(false);
+    if (!to) return;
     setError(null);
     setEmail('');
-    void sendPatient(patient.id, target.email, {
+    setPicked(null);
+    void sendPatient(patient.id, to, {
       uid: user.uid,
       name: user.displayName?.trim() || user.email || 'Rekan',
     }).catch((e: unknown) => {
@@ -521,18 +569,47 @@ function SendToColleague({ patient }: { patient: Patient }): JSX.Element {
           Untuk serah terima. Setelah rekan menerima, pasien beserta semua catatannya pindah ke
           papannya dan hilang dari papan Anda.
         </p>
-        <Field label="Email Google rekan" htmlFor="transfer-email">
+        {team.length > 0 ? (
+          <div className="space-y-1">
+            <p className="text-xs font-medium text-fg">Rekan di List Maker Anda</p>
+            <ChipRow>
+              {team.map((mate) => (
+                <ChoiceChip
+                  key={mate.uid}
+                  active={picked?.uid === mate.uid}
+                  onClick={() => {
+                    setPicked(picked?.uid === mate.uid ? null : mate);
+                    setEmail('');
+                    setError(null);
+                  }}
+                >
+                  {mate.name}
+                </ChoiceChip>
+              ))}
+            </ChipRow>
+          </div>
+        ) : null}
+        <Field
+          label={team.length > 0 ? 'Atau @username / email Google rekan' : '@username atau email Google rekan'}
+          htmlFor="transfer-email"
+        >
+          {/* text, not email: a username has no domain and the browser would refuse it. */}
           <input
             id="transfer-email"
-            type="email"
+            type="text"
             inputMode="email"
             autoComplete="off"
+            autoCapitalize="none"
+            spellCheck={false}
             value={email}
-            onChange={(event) => setEmail(event.target.value)}
-            onKeyDown={(event) => {
-              if (event.key === 'Enter') send();
+            onChange={(event) => {
+              setEmail(event.target.value);
+              setPicked(null);
             }}
-            placeholder="nama@gmail.com"
+            onKeyDown={(event) => {
+              if (event.key === 'Enter') void send();
+            }}
+            placeholder="@dr.rina atau nama@gmail.com"
             className={INPUT}
           />
         </Field>
@@ -541,8 +618,13 @@ function SendToColleague({ patient }: { patient: Patient }): JSX.Element {
             {error}
           </p>
         ) : null}
-        <Button variant="primary" full disabled={!email.trim()} onClick={send}>
-          Kirim pasien
+        <Button
+          variant="primary"
+          full
+          disabled={looking || (!picked && !email.trim())}
+          onClick={() => void send()}
+        >
+          {looking ? 'Mencari…' : picked ? `Kirim pasien ke ${picked.name}` : 'Kirim pasien'}
         </Button>
       </div>
     </Disclosure>
