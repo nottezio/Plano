@@ -5,6 +5,10 @@ Catatan teknis lengkap (akar masalah, perbaikan) ada di CHANGES.md.
 
 Entri teratas harus versi yang sedang dirilis; tes gagal bila belum ditulis.
 
+## `2026-10-29.5`
+- **Perbaikan: selotip sticky note tidak lagi hilang.** Selotip di atas sticky note terpotong atau hilang pada catatan yang tingginya dibatasi atau yang terletak di tepi atas kanvas. Sekarang selotip digambar di dalam kertas dan berwarna mengikuti tulisan catatan, jadi tetap terlihat di catatan berwarna pucat juga.
+- **Denah di HP: zoom lebih mudah.** Tombol + / − / Muat melayang di kanan bawah plan dan ikut saat plan digulir, jadi bisa dipakai satu tangan. Zoom lewat tombol berpusat pada bagian yang sedang terlihat, tidak lagi melompat ke pojok kiri atas plan. Cubit dua jari tetap bisa.
+
 ## `2026-10-29.4`
 - **Perbaikan: menyorot teks di HP tidak lagi membuka kamus.** Di HP, menahan atau mengetuk dua kali sebuah kata yang digarisbawahi merah membuka menu kamus (saran kata, "Add to dictionary", Delete) dan menyulitkan memilih teks. Pemeriksa ejaan kini dimatikan di perangkat layar sentuh, di semua kolom ketik (SOAP, catatan, sticky). Di laptop tidak berubah.
 

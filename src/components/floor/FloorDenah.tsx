@@ -12,7 +12,16 @@ import { matchesSearch } from '@/domain/floorList/search';
 import { placeBeds } from '@/domain/floorList/beds';
 import { SoapBadge } from './SoapBadge';
 import { planLayout } from '@/domain/floorList/layout';
-import { clampZoom, pinchStart, pinchStep, readStoredZoom, type PinchStart } from '@/domain/floorList/pinch';
+import {
+  MAX_ZOOM,
+  ZOOM_STEP,
+  clampZoom,
+  pinchStart,
+  pinchStep,
+  readStoredZoom,
+  zoomAbout,
+  type PinchStart,
+} from '@/domain/floorList/pinch';
 
 /**
  * The List Maker denah (12.8): the floor plan with every bed, the DPJP tables
@@ -227,11 +236,6 @@ function DenahCanvas({ children }: { children: ReactNode }): JSX.Element {
       // Not remembered in a private window; still works.
     }
   };
-  const toggle = (): void => {
-    const next = atFit ? 1 : null;
-    setZoom(next);
-    remember(next);
-  };
 
   // The scroll to apply once the new scale is laid out (see pinchStep).
   const pending = useRef<{ scrollLeft: number; scrollBy: number } | null>(null);
@@ -243,6 +247,29 @@ function DenahCanvas({ children }: { children: ReactNode }): JSX.Element {
     box.scrollLeft = move.scrollLeft;
     if (Math.abs(move.scrollBy) >= 1) scrollParentOf(box).scrollBy(0, move.scrollBy);
   }, [scale]);
+
+  /**
+   * The buttons' zoom, about the middle of what is in view.
+   *
+   * It used to flip between fit and full size and leave the scroll where it
+   * was: the plan grew from the top-left corner, so the room you were looking
+   * at moved off the screen and had to be found again by scrolling.
+   */
+  const zoomTo = (target: number): void => {
+    const box = outer.current;
+    if (!box) return;
+    const next = clampZoom(target, fit);
+    if (Math.abs(next - scale) < 0.001) return;
+    const rect = box.getBoundingClientRect();
+    const view = scrollParentOf(box).getBoundingClientRect();
+    const top = Math.max(rect.top, view.top);
+    const bottom = Math.min(rect.bottom, view.bottom);
+    const point = { x: rect.left + box.clientWidth / 2, y: bottom > top ? (top + bottom) / 2 : rect.top };
+    pending.current = zoomAbout(scale, next, point, { left: rect.left, top: rect.top, scrollLeft: box.scrollLeft });
+    const stored = next <= fit * 1.02 ? null : next;
+    setZoom(stored);
+    remember(stored);
+  };
 
   // Two-finger pinch. Listeners are attached by hand: React's touch handlers
   // are passive, and the move must be able to cancel the page's own zoom.
@@ -312,12 +339,7 @@ function DenahCanvas({ children }: { children: ReactNode }): JSX.Element {
   return (
     <div>
       {narrow ? (
-        <div className="mb-1 flex items-center justify-end gap-2">
-          <span className="text-xs text-fg-faint">Cubit dua jari untuk memperbesar</span>
-          <button type="button" onClick={toggle} className="min-h-tap rounded-lg border border-border px-3 text-xs font-medium">
-            {atFit ? 'Perbesar' : 'Muat di layar'}
-          </button>
-        </div>
+        <p className="mb-1 text-right text-xs text-fg-faint">Cubit dua jari, atau pakai tombol di kanan bawah</p>
       ) : null}
       {/*
         `relative`: the scroller must be the containing block of the patients'
@@ -345,6 +367,37 @@ function DenahCanvas({ children }: { children: ReactNode }): JSX.Element {
           </div>
         </div>
       </div>
+      {/*
+        One-handed zoom, kept at the bottom edge of the screen while the plan
+        scrolls (a zero-height sticky row; the buttons grow upward from it).
+        The plan is long, so a button above it was out of reach as soon as you
+        scrolled, and a pinch needs two hands at a bedside.
+      */}
+      {narrow ? (
+        <div className="pointer-events-none sticky bottom-[calc(env(safe-area-inset-bottom)+76px)] z-10 h-0">
+          <div className="pointer-events-auto absolute bottom-0 right-1 flex flex-col overflow-hidden rounded-xl border border-border bg-surface shadow-pop">
+            {(
+              [
+                ['Perbesar', '+', scale >= MAX_ZOOM - 0.001, () => zoomTo(scale * ZOOM_STEP)],
+                ['Perkecil', '−', atFit, () => zoomTo(scale / ZOOM_STEP)],
+                ['Muat di layar', 'Muat', atFit, () => zoomTo(fit)],
+              ] as const
+            ).map(([label, text, disabled, onClick]) => (
+              <button
+                key={label}
+                type="button"
+                aria-label={label}
+                title={label}
+                disabled={disabled}
+                onClick={onClick}
+                className="min-h-tap min-w-tap px-2 text-base font-semibold disabled:opacity-35 [&:not(:first-child)]:border-t [&:not(:first-child)]:border-border"
+              >
+                {text}
+              </button>
+            ))}
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }

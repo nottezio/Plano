@@ -30,6 +30,29 @@ export function readStoredZoom(value: string | null): number | null {
   return Number.isFinite(n) && n > 0 ? Math.min(MAX_ZOOM, n) : null;
 }
 
+/** One tap of the zoom buttons: a quarter step, so three taps go from fit to about full size. */
+export const ZOOM_STEP = 1.25;
+
+/**
+ * Zoom from `scale` to `next` about a point on the screen (the buttons zoom
+ * about the middle of what is in view), returning the sideways scroll and the
+ * page's vertical correction that keep the plan point under it in place.
+ * Same arithmetic as `pinchStep`, for a zoom with no fingers to follow.
+ */
+export function zoomAbout(
+  scale: number,
+  next: number,
+  point: { x: number; y: number },
+  box: { left: number; top: number; scrollLeft: number },
+): { scrollLeft: number; scrollBy: number } {
+  const planX = (point.x - box.left + box.scrollLeft) / scale;
+  const planY = (point.y - box.top) / scale;
+  return {
+    scrollLeft: Math.max(0, planX * next - (point.x - box.left)),
+    scrollBy: planY * next + box.top - point.y,
+  };
+}
+
 export interface PinchStart {
   /** Distance between the two fingers at the start, px. */
   distance: number;

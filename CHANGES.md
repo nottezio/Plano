@@ -1,5 +1,15 @@
 # Plano — CHANGES
 
+## `2026-10-29.5` — Sticky tape clipped; Denah zoom on a phone
+
+Avi: the sticky's tape sometimes goes missing; zooming the Denah on a phone feels finicky.
+
+- **Root cause, tape.** The tape was `absolute -top-2`, 8px outside the note's own box. `ClampedCard` puts `overflow: hidden` on any canvas card the user has height-capped, and a note near the canvas's top edge sits against the canvas frame (also `overflow-hidden`), so the tape was cut or gone depending on the note's cap and position. It was `bg-white/45`, which is also nearly invisible on a pale note.
+- **Fix, tape.** `StickyNoteCard`: the tape sits inside the box (`top-0.5`, root `pt-4` instead of `pt-2` so the header clears it) and is a 30% tint of the note's ink (`currentColor`), so it shows on light and dark notes.
+- **Root cause, Denah.** The only button flipped between fit and full size and left the scroll untouched: the plan grew from its top-left corner, so the room you were looking at moved away. It sat above the plan, out of reach once scrolled, and the only other way to zoom was a two-finger pinch.
+- **Fix, Denah.** `zoomAbout` in `domain/floorList/pinch.ts` (tested). `DenahCanvas`: + / − / Muat buttons in a zero-height sticky row at the bottom of the scroller, zooming about the middle of what is in view in quarter steps (`ZOOM_STEP`), 44px targets, disabled at the limits. The pinch is unchanged.
+- **Not done.** Not tried on a phone. A pinch that starts while one finger is already scrolling may not be cancelable on Chrome (the page scrolls with it); I suspected this and did not confirm or change it. The buttons sit 76px above the bottom edge to clear the tab bar; if an ancestor ever clips `position: sticky` they would rest at the end of the plan instead. No double-tap zoom. The tape position changed everywhere (also masonry and the sheet), not only on the canvas.
+
 ## `2026-10-29.4` — Phone: selecting text opened the spellcheck menu
 
 Avi: typing on mobile is bugged; highlighting text always opens a dictionary box (screenshot: Kodong / Kodingan / Kosong / Add to dictionary / Delete over a board sticky).
