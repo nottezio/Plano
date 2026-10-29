@@ -174,25 +174,21 @@ function StickyNoteCardView({
           square-ish corners, a strip of tape across the top, a folded corner
           at the bottom right, a tilt, and no header band at all.
         */
-        'group relative rounded-sm pt-4 shadow-[0_6px_14px_rgba(0,0,0,0.35)]',
+        'group relative rounded-sm pt-2 shadow-[0_6px_14px_rgba(0,0,0,0.35)]',
         '[transform:rotate(-0.6deg)]',
         dropping ? 'outline-dashed outline-2 outline-offset-2 outline-current' : '',
         fitHeight ? 'flex h-full flex-col' : '',
       ].join(' ')}
     >
       {/*
-        The tape, INSIDE the note's box.
-
-        It used to hang 8px above the top edge (`-top-2`). A card the user has
-        capped on the canvas sits in a box with `overflow: hidden`
-        (ClampedCard), and a note near the canvas's top edge sits against its
-        clipping frame, so the tape was cut off or gone depending on where the
-        note happened to be. It was also white at 45%, which disappears on a
-        pale note; it is now a tint of the note's own ink, so it shows on both.
+        The tape, hanging 8px over the top edge. That is outside this box, so
+        whatever clips this box clips the tape: ClampedCard leaves 8px of room
+        above a capped card for exactly this. A tint of the note's own ink
+        rather than white, which disappears on a pale note.
       */}
       <span
         aria-hidden="true"
-        className="pointer-events-none absolute left-1/2 top-0.5 h-4 w-16 -translate-x-1/2 rotate-2 rounded-[2px] bg-[color-mix(in_srgb,currentColor_30%,transparent)] shadow-card"
+        className="pointer-events-none absolute -top-2 left-1/2 h-4 w-16 -translate-x-1/2 rotate-2 rounded-[2px] bg-[color-mix(in_srgb,currentColor_40%,transparent)] shadow-card"
       />
       {/* The folded corner. */}
       <span

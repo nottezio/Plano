@@ -756,6 +756,9 @@ export function CanvasBoard({
   );
 }
 
+/** Room above a capped card inside its clip, for what hangs over the top edge (a sticky's tape). */
+const CLIP_BLEED = 8;
+
 /**
  * A card with an optional height cap, and the fade that admits there is more.
  *
@@ -800,7 +803,8 @@ function ClampedCard({
     const measure = (): void => {
       // `scrollHeight` rather than a bounding rect: the rect reports the
       // CLAMPED height, which is the very number being compared against.
-      const value = node.scrollHeight;
+      // Without the bleed padding: the card's own height, as before.
+      const value = node.scrollHeight - (Number.parseFloat(getComputedStyle(node).paddingTop) || 0);
       setNatural(value);
       onNaturalHeight(id, value);
     };
@@ -829,8 +833,13 @@ function ClampedCard({
         cap > 0
           ? {
               // Never below what the card cannot shrink past, never above
-              // what its content needs, and otherwise the cap.
-              height: Math.max(floor, ceiling > 0 ? Math.min(cap, ceiling) : cap),
+              // what its content needs, and otherwise the cap. Plus the 8px
+              // of BLEED: the box reaches 8px higher (padding, pulled back by
+              // the negative margin so nothing moves) so a sticky's tape,
+              // which hangs over its top edge, is not cut off by the clip.
+              height: Math.max(floor, ceiling > 0 ? Math.min(cap, ceiling) : cap) + CLIP_BLEED,
+              paddingTop: CLIP_BLEED,
+              marginTop: -CLIP_BLEED,
               overflow: 'hidden',
             }
           : undefined
@@ -861,7 +870,7 @@ function ClampedCard({
           type="button"
           onClick={onToggle}
           aria-label="Kembalikan batas tinggi kartu"
-          className="absolute right-1 top-1 min-h-tap min-w-tap text-xs text-fg-faint"
+          className={`absolute right-1 ${cap > 0 ? 'top-3' : 'top-1'} min-h-tap min-w-tap text-xs text-fg-faint`}
         >
           <span aria-hidden="true">▴</span>
         </button>

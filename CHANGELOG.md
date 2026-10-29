@@ -5,6 +5,9 @@ Catatan teknis lengkap (akar masalah, perbaikan) ada di CHANGES.md.
 
 Entri teratas harus versi yang sedang dirilis; tes gagal bila belum ditulis.
 
+## `2026-10-29.6`
+- **Selotip sticky note kembali menempel di luar kertas.** Selotip di .5 digeser masuk ke dalam kertas; sekarang kembali menjuntai di atas tepi seperti semula. Agar tidak terpotong, kotak kartu yang tingginya dibatasi di kanvas diberi ruang 8 px di atasnya. Warna selotip tetap mengikuti tulisan catatan.
+
 ## `2026-10-29.5`
 - **Perbaikan: selotip sticky note tidak lagi hilang.** Selotip di atas sticky note terpotong atau hilang pada catatan yang tingginya dibatasi atau yang terletak di tepi atas kanvas. Sekarang selotip digambar di dalam kertas dan berwarna mengikuti tulisan catatan, jadi tetap terlihat di catatan berwarna pucat juga.
 - **Denah di HP: zoom lebih mudah.** Tombol + / − / Muat melayang di kanan bawah plan dan ikut saat plan digulir, jadi bisa dipakai satu tangan. Zoom lewat tombol berpusat pada bagian yang sedang terlihat, tidak lagi melompat ke pojok kiri atas plan. Cubit dua jari tetap bisa.

@@ -1,5 +1,12 @@
 # Plano — CHANGES
 
+## `2026-10-29.6` — Sticky tape back over the edge, with room to show it
+
+Avi did not like the tape moved inside the paper (.5); he prefers it hanging over the top edge.
+
+- **Fix.** `StickyNoteCard` is back to `-top-2` / `pt-2`; the tape keeps the ink-tinted colour (40%). The clipping cause from .5 is handled where the clip is: `ClampedCard` (CanvasBoard) now adds `CLIP_BLEED` = 8px of top padding and an equal negative margin to a capped card's box, so the box reaches 8px higher while nothing moves; its height grows by the same 8px and the natural height it reports subtracts the padding, so layout numbers are unchanged. The expanded-card button moves to `top-3` when capped so it stays where it was.
+- **Not done.** Not seen rendered. A note placed at the very top of the canvas (y = 0) still has its tape cut by the canvas frame (`overflow-hidden`); the layout is not offset for that. The 8px bleed applies to every capped card, patient cards included (transparent, nothing visible there).
+
 ## `2026-10-29.5` — Sticky tape clipped; Denah zoom on a phone
 
 Avi: the sticky's tape sometimes goes missing; zooming the Denah on a phone feels finicky.
