@@ -557,3 +557,37 @@ describe('a closing mark after a space', () => {
     expect(parseSections('A: *Sesak berkurang*')[0]).toMatchObject({ ownsLine: false, text: '*Sesak berkurang*' });
   });
 });
+
+describe('Lt. 5 export of 30-10-2026: headings the alias table did not list', () => {
+  const ids = (body: string) => assertLossless(body).filter((s) => s.headerLine !== null).map((s) => s.sectionId);
+
+  it.each([
+    ['Mohon Izin prof, pasien kami assest dengan:', 'a'],
+    ['Mohon izin kami assest pasien dengan: ', 'a'],
+    ['Mohon izin pasien kami asessment dengan :', 'a'],
+    ['*Mohon izin kami assessment pasien dengan*', 'a'],
+    ['Mohon ijn kami terapi dengan:', 'terapi'],
+    ['Mohon Izin prof, pasien kami terapi dengan:', 'terapi'],
+  ])('reads "%s" as a heading', (heading, id) => {
+    expect(ids(['S:', '- Baik', 'O:', 'Compos mentis', heading, '- isi'].join('\n'))).toEqual(['s', 'o', id]);
+  });
+
+  it('leaves the reporting sentence and a prose request alone', () => {
+    expect(ids(['Mohon izin melaporkan pasien baru atas nama:', 'Tn. X', 'S:', '- Baik', 'Plan:', '- Mohon izin terapi dilanjutkan'].join('\n'))).toEqual(['s', 'p']);
+  });
+
+  it('reads a bare "S" / "O" / "S;" line as the heading', () => {
+    expect(ids(['Tn. X', 'S', '- Baik', 'O', 'Compos mentis', 'Mohon izin kami assess dengan:', '- CCS'].join('\n'))).toEqual(['s', 'o', 'a']);
+    expect(ids(['S;', '- Baik', 'O:', 'Compos mentis'].join('\n'))).toEqual(['s', 'o']);
+  });
+
+  it('reads a bare letter only in the note\'s own order, never "S." and never after the Plan', () => {
+    expect(ids(['Plan:', '- Echo', 'O', 'S'].join('\n'))).toEqual(['p']);
+    expect(ids(['S.', '- Baik'].join('\n'))).toEqual([]);
+    expect(ids(['S:', '- Baik', 'O:', 'x', 'S', 'O'].join('\n'))).toEqual(['s', 'o']);
+  });
+
+  it('reads no bare letter inside a TS block', () => {
+    expect(ids(['S:', '- Baik', 'TS Paru', 'O', '- x'].join('\n')).filter((id) => !id.startsWith('custom_'))).toEqual(['s']);
+  });
+});

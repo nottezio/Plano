@@ -88,7 +88,8 @@ export function classifyProseHeader(label: string): SectionId | null {
 
   if (!normalised) return null;
 
-  const opensWithRequest = /^(mohon izin|izin|kami mohon)/.test(normalised);
+  // "Mohon ijin", and "Mohon ijn" (Lt. 5, Oct 2026) with the letter dropped.
+  const opensWithRequest = /^(mohon i[zj]i?n|izin|kami mohon)/.test(normalised);
 
   // Order matters: a heading naming two sections resolves by intent rather
   // than by position in this list. Assessment first because it is the one with

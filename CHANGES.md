@@ -1,5 +1,19 @@
 # Plano — CHANGES
 
+## `2026-10-30.7` — Parser pass over the Lt. 5 export (another floor's habits)
+
+Owner: a different floor writes its SOAPs differently, and some misparse in Plano. Corpus: WhatsApp export "SOAP FIX LT 5", 9 to 30 Oct 2026, 369 messages (295 SOAP reports, 21 sent lists). Method: every message run through `readReports`, `parseSections` and `regionsOf` with the default aliases; output snapshotted before and after, every changed line read. Harness kept out of the repo (it reads patient data).
+
+- **Section parser: sentence headings by shape, not by spelling list.** `REQUEST_HEADING_RE` (parseSections.ts): a whole line `Mohon i[zj]i?n … (dengan)? :`, classified by `classifyProseHeader` (assess/terapi stems only). The alias table lists spellings one by one and missed "Mohon Izin prof, pasien kami assest dengan:", "… assest pasien dengan:", "… asessment dengan :", "Mohon ijn kami terapi dengan:". 9 reports had no A region (diagnoses copied as O), 6 more no Terapi region. `classifyProseHeader` and `sectionSlices` `OWN_HEADING` accept "ijn".
+- **Bare S / O.** `BARE_LETTER_RE` + `bareLetter`: a line that is only `S`, `O` or `S;` (14 reports). Never `.`; S only before any S/O/Terapi/Plan, O only before any O/Terapi/Plan; never inside a TS block.
+- **List body (`report.ts` ASSESS/TERAPI).** `i[zj]i?n` and `as+e?s+` (was `asses+`, which missed "asessment"). For one patient the list body had fallen back to the "KESIMPULAN :" of a cath report inside O (5.5k chars). A newer SOAP whose "Mohon ijn kami terapi" was not read had no `Terapi:` and was therefore discarded as a summary by `isSummaryOf` (.30.5); now read.
+- **Room (`readPlace`).** "Kamar 508 B" / "508 A ," → 508B/508A (were both 508); "Kamar (Super) VIP 501" → 501 (was empty); "Kamr" typo; "Lantai 5 Bed 508 A" with no Kamar → room 508A (was bed 508). Room letter limited to A–D with a word boundary, so "505 atas" stays 505.
+- **Sent lists.** `LIST_ROOM` accepts "bad" (= bed): "513 bad 1/", "510 bad 3/" were not patient lines, so the patient vanished AND its A/P was appended to the patient above (RM …523 showed …033's diagnosis). `LIST_SEPARATOR` matches a separator with text glued after it; the rest of the line is read as its own line. `mergeKjs`: the same patient listed twice as an own line keeps the entry with a body (was: the first, empty one).
+- **DPJP carried forward (`latestOf`).** A newer report with no DPJP and no KJS keeps the previous report's DPJP (4 patients were filed under no DPJP).
+- **Before/after on the corpus.** 30 SOAPs gained their missing S/O/A/Terapi region, none lost one; the only SOAP still without a region is a consult reply with no Plan of its own. Lists: 2 patients recovered per list from 27-10 on, 1 wrong body fixed, 1 empty body filled.
+- **Tests.** floorList.test.ts and parseSections.test.ts, invented patients.
+- **Not done.** `parseSections` still opens own Terapi/A sections for `Th/`, `T/`, `Assestment:` inside TS blocks (jump chips, bands). `regionsOf` already keeps them in the TS block, so copy and List are unaffected. List blocks written `A/ P/ I/` keep `P/` and `I/` as written. Patients with no RM in a list (e.g. pediatri "ny.Rasma") are keyed by room+name, as before. Not seen rendered.
+
 ## `2026-10-30.6` — Card catatan strip off by default
 
 Avi: the yellow catatan strip under each board card duplicates the new Catatan pasien sticky; hide it by default, keep it as a setting.

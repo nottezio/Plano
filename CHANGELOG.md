@@ -5,6 +5,13 @@ Catatan teknis lengkap (akar masalah, perbaikan) ada di CHANGES.md.
 
 Entri teratas harus versi yang sedang dirilis; tes gagal bila belum ditulis.
 
+## `2026-10-30.7`
+- **Pembacaan SOAP dan List lebih tepat untuk gaya tulis lantai lain (dipelajari dari grup PJT Lantai 5).** Judul *"Mohon Izin prof, pasien kami assest dengan:"*, *"… assest pasien dengan"*, *"… asessment dengan"* dan *"Mohon ijn kami terapi dengan"* kini terbaca sebagai Diagnosis dan Terapi. Sebelumnya diagnosis ikut tersalin sebagai bagian O, dan di List bisa muncul laporan kateterisasi dari O sebagai diagnosis.
+- **Judul S dan O tanpa titik dua** (baris berisi hanya `S`, `O`, atau `S;`) kini dikenali.
+- **Kamar:** "Kamar 508 B" dan "Kamar 508 A ," kini 508B/508A (dulu keduanya 508), "Kamar VIP 502" / "Kamar Super VIP 501" kini 502/501, "Kamr 510" (salah ketik) dan "Lantai 5 Bed 508 A" juga terbaca.
+- **List Pasien yang ditempel:** pasien dengan "513 bad 1/" (salah ketik bed) tidak lagi hilang, dan diagnosisnya tidak lagi menempel ke pasien di atasnya. Pasien yang tertulis dua kali di satu list memakai entri yang ada isinya. Garis pemisah yang menempel dengan tulisan ("_____List Pasien Lt. 6") tidak lagi masuk ke isi pasien.
+- **DPJP:** bila SOAP hari ini lupa menulis baris DPJP, list tetap memakai DPJP dari laporan sebelumnya untuk pasien yang sama.
+
 ## `2026-10-30.6`
 - **Strip kuning catatan di kartu pasien kini mati secara default.** Catatan pasien sudah tampil di sticky *Catatan pasien*, jadi strip kuning di bawah kartu di papan disembunyikan. Bisa dinyalakan lagi di Pengaturan → Papan & harian → *Catatan di kartu pasien*. Catatannya sendiri tidak berubah.
 
