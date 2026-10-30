@@ -5,6 +5,9 @@ Catatan teknis lengkap (akar masalah, perbaikan) ada di CHANGES.md.
 
 Entri teratas harus versi yang sedang dirilis; tes gagal bila belum ditulis.
 
+## `2026-10-31.2`
+- **Format hasil lab: pratinjau PDF.** Setelah mengambil PDF, kotak di kiri kini menampilkan halaman PDF-nya sebagai pembanding. Tombol *Teks hasil lab* di atasnya membuka teks yang bisa dikoreksi seperti biasa. PDF tetap dibaca di perangkat ini dan tidak diunggah.
+
 ## `2026-10-31.1`
 - **Keamanan data pasien diperketat.** Pemilik pasien kini tidak bisa dikeluarkan dari pasiennya sendiri oleh anggota lain. Tidak ada yang berubah di layar.
 - **Pembaruan aplikasi lebih rapi.** Cache versi lama kini selalu terhapus saat aplikasi diperbarui.

@@ -2,6 +2,7 @@ import { useMemo, useRef, useState } from 'react';
 import { DateField } from '@/components/common/DateField';
 
 import { Sheet } from '@/components/common/Sheet';
+import { PdfPreview } from './PdfPreview';
 import { IconCopy, IconSparkle, IconUpload } from '@/components/common/Icons';
 import { Button, Callout, CheckRow, Field, INPUT, Section, TextPane } from '@/components/common/ui';
 import { AiError, aiEnabled, askClaude } from '@/lib/ai';
@@ -53,6 +54,9 @@ export function LabSheet({
   /** Radiology / echo / procedure reports read from dropped PDFs (domain/lab/readReport). */
   const [reports, setReports] = useState<ReportBlock[]>([]);
   const fileRef = useRef<HTMLInputElement>(null);
+  /** PDFs read this session, shown as a preview beside the extracted text. */
+  const [pdfs, setPdfs] = useState<File[]>([]);
+  const [showPdf, setShowPdf] = useState(true);
 
   /**
    * Off by default.
@@ -150,6 +154,8 @@ export function LabSheet({
       setOcrState('running');
       try {
         const text = await extractPdfText(file);
+        setPdfs((current) => [...current, file]);
+        setShowPdf(true);
         /*
           A radiology, echo or procedure report is never read as a lab (it
           filled "Lain-lain" with `Radiografi Thorax 1` and `MR. 24`). It gets
@@ -220,6 +226,7 @@ export function LabSheet({
     onInsert(block);
     setRaw('');
     setReports([]);
+    setPdfs([]);
     setTitleOverride(null);
     setDateOverride(null);
     onOpenChange(false);
@@ -379,17 +386,39 @@ export function LabSheet({
             </Callout>
           ) : null}
 
-          <Field label="Teks hasil lab" htmlFor="lab-raw">
-            <textarea
-              id="lab-raw"
-              value={raw}
-              onChange={(event) => setRaw(event.target.value)}
-              rows={12}
-              spellCheck={false}
-              placeholder={'WBC 6.01 4.00 - 10.0\nHGB 12.4 12.0 - 16.0\nNatrium 132 136 - 145'}
-              className="w-full resize-y rounded-xl border border-border bg-surface p-3 font-mono text-xs leading-relaxed text-fg outline-none placeholder:text-fg-faint focus:border-accent"
-            />
-          </Field>
+          {pdfs.length > 0 ? (
+            <div className="flex gap-2">
+              <Button
+                size="sm"
+                variant={showPdf ? 'primary' : 'ghost'}
+                onClick={() => setShowPdf(true)}
+              >
+                Pratinjau PDF
+              </Button>
+              <Button
+                size="sm"
+                variant={showPdf ? 'ghost' : 'primary'}
+                onClick={() => setShowPdf(false)}
+              >
+                Teks hasil lab
+              </Button>
+            </div>
+          ) : null}
+          {showPdf && pdfs.length > 0 ? (
+            <PdfPreview files={pdfs} />
+          ) : (
+            <Field label="Teks hasil lab" htmlFor="lab-raw">
+              <textarea
+                id="lab-raw"
+                value={raw}
+                onChange={(event) => setRaw(event.target.value)}
+                rows={12}
+                spellCheck={false}
+                placeholder={'WBC 6.01 4.00 - 10.0\nHGB 12.4 12.0 - 16.0\nNatrium 132 136 - 145'}
+                className="w-full resize-y rounded-xl border border-border bg-surface p-3 font-mono text-xs leading-relaxed text-fg outline-none placeholder:text-fg-faint focus:border-accent"
+              />
+            </Field>
+          )}
         </Section>
 
         {/* RESULT: what goes into the note, and the two things to check. */}

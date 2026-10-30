@@ -61,7 +61,7 @@ function toLines(items: readonly TextItem[]): string[] {
   );
 }
 
-export async function extractPdfText(file: File): Promise<string> {
+export async function openPdf(file: File) {
   // Loaded on demand: the PDF engine is around a megabyte and most sessions
   // never open a lab report.
   const pdfjs = await import('pdfjs-dist');
@@ -74,7 +74,11 @@ export async function extractPdfText(file: File): Promise<string> {
   ).toString();
 
   const buffer = await file.arrayBuffer();
-  const document = await pdfjs.getDocument({ data: buffer }).promise;
+  return pdfjs.getDocument({ data: buffer }).promise;
+}
+
+export async function extractPdfText(file: File): Promise<string> {
+  const document = await openPdf(file);
 
   const pages: string[] = [];
   for (let pageNumber = 1; pageNumber <= document.numPages; pageNumber += 1) {

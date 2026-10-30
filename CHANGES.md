@@ -1,5 +1,13 @@
 # Plano — CHANGES
 
+## `2026-10-31.2` — Lab sheet: PDF preview in the source box
+
+Request: the left box of "Format hasil lab" should show the PDF instead of only the text.
+
+- **Change.** `LabSheet` keeps the dropped PDFs (`pdfs`) and, when there are any, shows `PdfPreview` (new, `components/patient/PdfPreview.tsx`) in place of the textarea, with a Pratinjau PDF / Teks hasil lab toggle. The textarea stays one click away because the parser reads that text, and a misread value has to be correctable. Pages are drawn to canvases with pdf.js at the box width.
+- **Refactor.** `openPdf(file)` split out of `extractPdfText` in `lib/pdfText.ts` so both share the worker setup; extraction behaviour is unchanged.
+- **Not done.** Not tried in the app with a real lab PDF or on a phone. No test (canvas rendering). Images (OCR path) have no preview. Pages render sequentially, so a long PDF fills in top-down. Preview resets after Sisipkan; closing the sheet without inserting keeps it, like the text.
+
 ## `2026-10-31.1` — Audit fixes: owner lock-out rule, pinned deploy action, dead code, cache match
 
 Owner approved fixes 1, 2 (pin only), 6 and 10 from the 2026-10-30 repo audit.
