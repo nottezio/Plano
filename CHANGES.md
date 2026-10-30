@@ -1,5 +1,15 @@
 # Plano — CHANGES
 
+## `2026-10-31.1` — Audit fixes: owner lock-out rule, pinned deploy action, dead code, cache match
+
+Owner approved fixes 1, 2 (pin only), 6 and 10 from the 2026-10-30 repo audit.
+
+- **Owner could be locked out of a patient (firestore.rules, member `allow update` on `patients/{pid}`).** Root cause: the rule checked that `ownerId` is unchanged and that the writer stays in `memberIds`, but not that the owner does. A member could write `memberIds: [self]` and the owner lost read access to the patient and its notes. Latent only: nothing in the app adds members (see next item). Fix: `resource.data.ownerId in request.resource.data.memberIds`. Every current write keeps the owner (create, import and accept set `memberIds: [uid]` with `ownerId: uid`; accept is a separate `allow update` and is unaffected).
+- **Deleted `addMember` (patients.repo.ts) and its `arrayUnion` import.** No caller anywhere; it was the only path to the hole above. Bring it back together with real sharing.
+- **Rules deploy action pinned.** `.github/workflows/firestore-deploy.yml` used `w9jds/firebase-action@master`, a moving third-party branch that runs with the service-account key. Now pinned to commit `18be666` (tag v15.34.2, which is master today), so the deploy runs exactly the same code as before.
+- **Service worker cache cleanup (sw.ts activate).** Root cause: stale caches were found with `!key.includes(APP_VERSION)`, and a version is a substring of a longer one (`.1` inside `.10`). Harmless while versions only go up, wrong after a rollback. Now `endsWith('-' + APP_VERSION)`; every Plano cache name (shell, runtime, assets) ends that way.
+- **Not done.** The rule change was NOT run in the emulator; there is still no rules test (audit finding 3). It deploys to production automatically when pushed to main, so try a patient edit, a send and an accept on the live app after pushing. Audit fixes 3, 4, 5, 7 and 8 were not applied: 5 (60 s AI timeout) would cut census extraction (16,000 tokens) and 7 (require `baseHash`) would refuse clears, locks and preview writes.
+
 ## `2026-10-30.10` — Canvas: smoother card drag, scroll at the edge
 
 Owner: "smoothen the placement and the moving of the patient card in the dashboard for the canvas mode".

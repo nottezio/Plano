@@ -135,9 +135,11 @@ service cloud.firestore {
       // Members never change the owner; sharing happens by adding to
       // memberIds only. A member may send (or cancel) a handover, signed as
       // themselves: `transferFrom` is either unchanged or their own uid.
+      // The owner stays a member, so no member can lock the owner out.
       allow update: if isMemberOf(resource.data)
         && request.resource.data.ownerId == resource.data.ownerId
         && request.auth.uid in request.resource.data.memberIds
+        && resource.data.ownerId in request.resource.data.memberIds
         && (!('transferFrom' in request.resource.data)
             || request.resource.data.transferFrom == resource.data.get('transferFrom', null)
             || request.resource.data.transferFrom.uid == request.auth.uid);

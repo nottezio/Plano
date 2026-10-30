@@ -14,7 +14,9 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - uses: w9jds/firebase-action@master
+      # Pinned to a commit (v15.34.2), not @master: this step holds the
+      # service-account key, so a moved branch must not change what runs.
+      - uses: w9jds/firebase-action@18be666dd40e1769c63de2dac0e6053e0e8c7349
         with:
           args: deploy --only firestore:rules,firestore:indexes --project plano-85e9e
         env:

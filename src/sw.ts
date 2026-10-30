@@ -75,7 +75,8 @@ self.addEventListener('activate', (event) => {
     (async () => {
       const keys = await caches.keys();
       const stale = keys.filter(
-        (key) => key.startsWith(CACHE_PREFIX) && !key.includes(APP_VERSION),
+        // endsWith, not includes: '…-30.10' contains '…-30.1'.
+        (key) => key.startsWith(CACHE_PREFIX) && !key.endsWith(`-${APP_VERSION}`),
       );
       await Promise.all(stale.map((key) => caches.delete(key)));
       await self.clients.claim();

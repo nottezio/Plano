@@ -1,5 +1,4 @@
 import {
-  arrayUnion,
   deleteDoc,
   deleteField,
   FieldPath,
@@ -708,17 +707,6 @@ export function createBlankPatient(
  * notes. `deletedAt` survives in the schema because every query filters on it
  * and the security rules already deny `delete` outright.
  */
-
-/** v1 no-op seam: sharing is a config change, not a migration (SPEC 6.1). */
-export function addMember(patientId: string, uid: string): Promise<void> {
-  return trackWrite(
-    updateDoc(patientDoc(patientId), {
-      memberIds: arrayUnion(uid),
-      updatedAt: serverTimestamp(),
-      updatedBy: getDeviceId(),
-    }),
-  );
-}
 
 /**
  * Handover (see `domain/transfer`). Sending only marks the patient; nothing
