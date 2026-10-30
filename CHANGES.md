@@ -1,5 +1,13 @@
 # Plano — CHANGES
 
+## `2026-10-30.9` — Summary stickies list patients in visite order
+
+Owner: "Can you sort the order like the Visite DPJP order?"
+
+- **Change.** The Catatan pasien and Lab hari ini stickies (desktop canvas, list view and phone canvas) took the board's current order, so a board on Terbaru or DPJP listed patients in that order. `BoardPage` now builds `summaryCards` once by passing the board's cards through `orderPatients(…, 'visite')` (ward route from `denahPlan.ts`, beds ascending, off-route rooms in location order) and hands it to all three `StickyNoteCard` sites and to `phoneStickies`. No new sort logic.
+- **Kept.** Pinned patients stay first, as `orderPatients` does in every order. Filters and search still narrow the list, since it is derived from the visible cards.
+- **Not done.** No new test (it reuses the tested `orderPatients`). Not checked on a real phone. "Visite DPJP order" was read as the board's *Urutan visite*; if the owner meant grouping by DPJP (the floor-list order), that is a different change.
+
 ## `2026-10-30.8` — Summary stickies on the phone canvas show their content
 
 Owner: "no sticky notes catatan and lab in mobile view?"

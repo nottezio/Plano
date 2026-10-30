@@ -533,7 +533,7 @@ export default function BoardPage(): JSX.Element {
           note={entry.note}
           fitHeight={fitHeight}
           onHeightBounds={onHeightBounds}
-          cards={cards}
+          cards={summaryCards}
           today={today}
         />
       ) : null;
@@ -703,6 +703,15 @@ export default function BoardPage(): JSX.Element {
     reminderKinds,
   ]);
 
+  /** Summary stickies list patients in "Urutan visite" (the ward route), whatever order the board shows. */
+  const summaryCards = useMemo(() => {
+    const byId = new Map(cards.map((card) => [card.patient.id, card]));
+    return orderPatients(
+      cards.map((card) => card.patient),
+      'visite',
+    ).flatMap((patient) => byId.get(patient.id) ?? []);
+  }, [cards]);
+
   /** Visite steps bed to bed in the order the board shows. */
   const visitePatients = useMemo(() => cards.map((card) => card.patient), [cards]);
 
@@ -721,7 +730,7 @@ export default function BoardPage(): JSX.Element {
             ? {
                 id: entry.id,
                 title: 'Catatan pasien',
-                text: cards
+                text: summaryCards
                   .filter((card) => card.patient.notes.trim())
                   .map((card) => `${card.name}: ${card.patient.notes.trim()}`)
                   .join('\n'),
@@ -730,7 +739,7 @@ export default function BoardPage(): JSX.Element {
               ? {
                   id: entry.id,
                   title: 'Lab hari ini',
-                  text: cards
+                  text: summaryCards
                     .flatMap((card) =>
                       (card.patient.labPlans ?? [])
                         .filter((plan) => plan.date === today)
@@ -741,7 +750,7 @@ export default function BoardPage(): JSX.Element {
               : { id: entry.id, text: entry.note.text },
         ]),
       ),
-    [boardNotes, cards, today],
+    [boardNotes, summaryCards, today],
   );
   const phoneIds = useMemo(() => {
     const ids = [
@@ -1286,7 +1295,7 @@ export default function BoardPage(): JSX.Element {
               <MasonryGrid>
                 {boardNotes.map((entry) => (
                   <MasonryItem key={stickyCanvasId(entry.id)}>
-                    <StickyNoteCard uid={uid} id={entry.id} note={entry.note} cards={cards} today={today} />
+                    <StickyNoteCard uid={uid} id={entry.id} note={entry.note} cards={summaryCards} today={today} />
                   </MasonryItem>
                 ))}
               </MasonryGrid>
@@ -1379,7 +1388,7 @@ export default function BoardPage(): JSX.Element {
       >
         {phoneSticky && uid ? (
           <div className="p-3">
-            <StickyNoteCard uid={uid} id={phoneSticky.id} note={phoneSticky.note} cards={cards} today={today} />
+            <StickyNoteCard uid={uid} id={phoneSticky.id} note={phoneSticky.note} cards={summaryCards} today={today} />
           </div>
         ) : null}
       </Sheet>

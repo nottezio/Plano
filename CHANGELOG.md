@@ -5,6 +5,9 @@ Catatan teknis lengkap (akar masalah, perbaikan) ada di CHANGES.md.
 
 Entri teratas harus versi yang sedang dirilis; tes gagal bila belum ditulis.
 
+## `2026-10-30.9`
+- **Sticky Catatan pasien dan Lab hari ini kini berurutan seperti Urutan visite.** Pasien di kedua sticky tersusun mengikuti rute visite bangsal (kamar demi kamar, bed naik), apa pun urutan papan yang sedang dipakai. Pasien yang di-Pin tetap di atas, sama seperti di papan.
+
 ## `2026-10-30.8`
 - **Sticky Catatan pasien dan Lab hari ini lebih jelas di HP.** Di HP keduanya ditambahkan lewat tombol ⋯ di samping pencarian (bukan *+ Tambah*, yang hanya ada di layar lebar). Di tampilan Kanvas HP, kotak kecilnya dulu hanya bertuliskan "Catatan"; sekarang judulnya *Catatan pasien* / *Lab hari ini* dan isinya langsung terlihat (nama: catatan, atau nama: lab hari ini). Ketuk untuk membuka dan mengedit.
 
