@@ -3,7 +3,7 @@ import { nanoid } from 'nanoid';
 
 import { userDoc } from '../paths';
 import { trackWrite } from '../syncStatus';
-import type { StickyColor } from '@/domain/boardNotes';
+import type { StickyColor, StickyKind } from '@/domain/boardNotes';
 
 /**
  * Sticky-note writes. Each one touches exactly ONE field path under
@@ -19,6 +19,8 @@ export function createBoardNote(
   color: StickyColor = 'kuning',
   /** The board it is written on. Pasien saya stores nothing (see `BoardNote.scope`). */
   scope: 'mine' | 'temporary' = 'mine',
+  /** A summary sticky; omitted for a plain note (see `BoardNote.kind`). */
+  kind?: StickyKind,
 ): string {
   const id = nanoid(8);
   void trackWrite(
@@ -27,6 +29,7 @@ export function createBoardNote(
       color,
       createdAt: Date.now(),
       ...(scope === 'temporary' ? { scope: 'temporary' } : {}),
+      ...(kind ? { kind } : {}),
     }),
   ).catch((error: unknown) => console.error('[sticky] create rejected', error));
   return id;

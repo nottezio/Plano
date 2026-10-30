@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import { splitChat } from './chat';
 import { buildFloorList, countLabel, patientLine, splitFloorList } from './build';
-import { effective, newRosterPatient } from './floor';
+import { effective, newRosterPatient, pasteDiff } from './floor';
 import { dischargeFlag, usulH1, latestOf, latestPatients, listBody, manualPatient, nicknameOf, onFloorNumber, otherDepartmentUtama, readReport, readReports } from './report';
 
 /*
@@ -364,6 +364,66 @@ describe('readReports (one opening, numbered patients; 2026-10-24)', () => {
   it('one numbered patient stays a single report', () => {
     const single = text.split('\n').slice(0, 11).join('\n');
     expect(readReports({ sentAt: '2026-10-24T14:00', sender: 'dr. A', text: single, index: 0 })).toHaveLength(1);
+  });
+});
+
+describe('a summary message followed by the full SOAP of the same patient', () => {
+  const opening = [
+    'Assalamualaikum dokter. Tabe dokter, mohon izin melaporkan follow up pasien di *PJT lantai 4 Kamar 421 Bed 6* atas nama:',
+    '',
+    '*Ny. Contoh Enam/31-12-1960/65 tahun/RM 940388*',
+    '',
+    '_DPJP Utama : dr. Zaenab Djafar, M.Kes, Sp.PD, Sp.JP, Subsp.PRKV(K)_',
+    '',
+  ];
+  const text = [
+    'Chief : Didi',
+    'Junior : Ari',
+    '',
+    ...opening,
+    'Diagnosis:',
+    '- Chronic Coronary Syndrome Clinical Scenario I',
+    '- Susp Neuralgia Trigeminal',
+    '',
+    '_Verifikasi : 07:11 WITA_',
+    '',
+    'Mohon arahannya dokter. Terima kasih dokter.',
+    '',
+    '',
+    ...opening,
+    'S : ',
+    '- Keluhan nyeri dada tidak ada',
+    '',
+    '*Mohon izin pasien kami assess dengan :*',
+    '- Chronic Coronary Syndrome Clinical Scenario I',
+    '',
+    '*Mohon izin pasien kami terapi dengan :*',
+    '- Clopidogrel 75 mg/24 jam/oral',
+    '',
+    '*Plan :*',
+    '- Monitoring tanda vital',
+    '',
+    'Tabe dokter, selanjutnya mohon arahannya dokter. Terima kasih dokter',
+  ].join('\n');
+
+  it('the SOAP wins and keeps its terapi', () => {
+    const [patient, ...rest] = latestPatients([{ sentAt: '2026-10-30T07:11', sender: 'dr. A', text, index: 0 }]);
+    expect(rest).toHaveLength(0);
+    expect(patient!.body).toContain('Terapi:');
+    expect(patient!.body).toContain('Clopidogrel');
+    expect(patient!.body).not.toContain('Neuralgia');
+  });
+
+  // The summary ("Post Tindakan") is sent AFTER the SOAP: newest-wins used to keep it, with no terapi.
+  it('a newer summary without terapi does not replace the SOAP', () => {
+    const at = text.indexOf('Assalamualaikum', text.indexOf('Verifikasi'));
+    const timed = `[10/29/26, 6:00:00 AM] dr. A: ${text.slice(at)}\n[10/30/26, 7:11:00 AM] dr. A: ${text.slice(0, at).trim()}`;
+    const messages = splitChat(timed);
+    const [patient, ...rest] = latestPatients(messages);
+    expect(rest).toHaveLength(0);
+    expect(patient!.body).toContain('Clopidogrel');
+    expect(patient!.chief).toBe('Didi');
+    expect(pasteDiff([], messages.flatMap(readReports)).fresh[0]!.body).toContain('Clopidogrel');
   });
 });
 

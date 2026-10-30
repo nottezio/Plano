@@ -2,7 +2,7 @@ import { dpjpById } from '@/domain/dpjp';
 import type { SectionTitles } from './analysis';
 import { tagsOf, type FloorMark } from './marks';
 import { nameKey } from './slaber';
-import { dischargeFlag, soapStamp, usulH1, type DischargeFlag, type FloorPatient } from './report';
+import { dischargeFlag, isSummaryOf, soapStamp, usulH1, type DischargeFlag, type FloorPatient } from './report';
 
 /**
  * A shared floor list (12.8; roster since 12.12).
@@ -579,6 +579,8 @@ export function pasteDiff(roster: readonly RosterPatient[], reports: readonly Fl
     if (report.sentAt > (seen.get(report.key) ?? '')) seen.set(report.key, report.sentAt);
     if (report.sentAt > newest) newest = report.sentAt;
     const before = latest.get(report.key);
+    // A newer summary without Terapi never replaces the full SOAP above it.
+    if (before && isSummaryOf(report, before)) continue;
     // Within one paste a SOAP outranks a sent list's line, whatever the time.
     const outranks = before && Boolean(before.fromList) !== Boolean(report.fromList) ? !report.fromList : undefined;
     if (!before || (outranks ?? report.sentAt >= before.sentAt)) latest.set(report.key, report);

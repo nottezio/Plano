@@ -1,5 +1,32 @@
 # Plano — CHANGES
 
+## `2026-10-30.5` — List maker: a newer summary message erased the terapi
+
+Owner: a pasted SOAP (summary "Post Tindakan" + full SOAP) came out in the list with Diagnosis only, no Terapi.
+
+- **Root cause.** One patient, two messages: a short summary (`Diagnosis:` + `_Verifikasi : …_`, no Terapi) and the full SOAP. `latestOf` (report.ts) and `pasteDiff` (floor.ts) keep the newest report per patient, and in a WhatsApp export the summary was sent after the SOAP, so it replaced it. Untimed pastes happened to work (the SOAP came second).
+- **Fix.** `isSummaryOf(report, earlier)`: a non-list report with no `Terapi:` never replaces a non-list report that has one. Used in both pickers; `latestOf` still carries the summary's Chief/Junior over.
+- **Tests.** Two in floorList.test.ts (untimed and timed order), invented patient.
+- **Not done.** A summary that does contain a terapi still replaces the older SOAP. A genuine newer SOAP with no terapi at all is ignored in favour of the older one. Not tried on a device.
+
+## `2026-10-30.4` — Transfer: accepted patients went to Arsip, trash, Titipan or nowhere
+
+Avi: "sometimes patient gets moved to archive, or lost in transfer, missing".
+
+- **Root cause.** `acceptTransfer` changed only `ownerId`/`memberIds`, so the patient kept the sender's state. A patient the sender archived (reason "Pindah ruang/RS" is the natural handover step) before or after sending landed in the recipient's Arsip; one trashed landed in their trash; one soft-deleted (`deletedAt`) matched no list at all; one marked `temporary` (Titipan) landed under Titipan, not Pasien saya. The incoming query filters on `transferTo` only, so all of these were offered and accepted normally.
+- **Fix.** `acceptTransfer` also writes `status: 'active'`, `deletedAt: null`, and deletes `archive` and `temporary`. Rules: the recipient's clause allows those keys; accept must leave `status == 'active'` and `deletedAt == null`; decline may not touch them. Test checks the rule text.
+- **Not done.** Not reproduced on a device; cause found by reading the code (only these four state fields hide a patient from the active board). Patients already accepted into the wrong place are not migrated: reactivate from Arsip/trash by hand; a soft-deleted one needs an admin. Rules NOT deployed (this plus .29.9–.30.2).
+- **Checked in the emulator (REST, emulator tokens).** A patient sent while archived + Titipan: new accept → 200, lands `active`, no `archive`, no `temporary`, recipient owns it; an accept that leaves it archived → 403; a decline that also un-archives → 403; a plain decline → 200. Test documents deleted afterwards. Recipient's banner not seen rendered.
+
+## `2026-10-30.3` — Summary stickies: Catatan pasien (two-way) and Lab hari ini
+
+Owner: a sticky summarising every patient's catatan, editable both on the board and the SOAP page; and a variant showing each patient's labs planned for today. Settled with the owner: one summary sticky per board (not one per patient), identity = name · room/bed · DPJP, added from + Tambah, labs read from the SOAP plan where residents write "tests (date)".
+
+- **Model.** `BoardNote.kind?: 'catatan' | 'lab'` (absent = plain note); `createBoardNote` takes it. The sticky stores nothing else: content lives on the patients. Position, colour and soft delete are the existing sticky machinery.
+- **Catatan.** `PatientSummaryRows` renders one row per board card (board order, current filters) with a textarea driven by `usePatientNotes`, the same hook the SOAP page uses, so both write `Patient.notes` and each follows the other live through the patient snapshot.
+- **Lab.** `domain/labPlan.labPlans(body)`: lines below the first own-line A/P/Terapi heading (where penunjang says a dated line is a plan, not a result) that match `lab|laboratorium|cek|periksa`, are not EKG/echo/thorax/imaging/procedure, and carry a `d/m/yyyy` date; text kept as written; max 12 (tested). Cached as `Patient.labPlans` beside `preview` in `touchEntryMeta`, and by `healCardPreview` when the latest day is opened and the cache differs. The sticky shows those dated today.
+- **Not done / not verified.** Keyword match, not a lab vocabulary: a lab line without `cek`/`lab`/`periksa` is missed, and a non-lab "cek …" line not in the exclusion list is shown. Patients whose latest note was not saved or opened since this build show no labs. Custom section aliases are ignored by `labPlans` (default parser). The peek window and the catatan sticky both run `usePatientNotes` for the same patient on the board; typing in both at once was not tested. The summary sticky lists filtered cards, so a board filter narrows it. No rows link to the patient. Not tried on a phone.
+
 ## `2026-10-30.2` — Kirim ke rekan: send by @username
 
 Step 3 of the plan. The field takes `@username` or an email.

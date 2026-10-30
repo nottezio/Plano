@@ -26,7 +26,7 @@ import { useBoardStickers } from '@/hooks/useBoardStickers';
 import { pruneDetachedStickers } from '@/domain/board/stickers';
 import { useBoardDrawing } from '@/hooks/useBoardDrawing';
 import { createBoardNote } from '@/data/repositories/boardNotes.repo';
-import { activeBoardNotes, noteIdFromCanvasId, stickyCanvasId } from '@/domain/boardNotes';
+import { activeBoardNotes, noteIdFromCanvasId, stickyCanvasId, type StickyKind } from '@/domain/boardNotes';
 import { useMediaQuery } from '@/hooks/useMediaQuery';
 import { usePersistentIdSet } from '@/hooks/usePersistentIdSet';
 import { MasonryGrid, MasonryItem } from '@/components/board/MasonryGrid';
@@ -471,9 +471,9 @@ export default function BoardPage(): JSX.Element {
   const rawBoardNotes = useSession((state) => state.profile?.boardNotes);
   const boardNotes = useMemo(() => activeBoardNotes(rawBoardNotes, scope), [rawBoardNotes, scope]);
   const showStickies = !searching && !selecting;
-  const addSticky = (): void => {
+  const addSticky = (kind?: StickyKind): void => {
     // Written on the board on screen, and shown only there.
-    if (uid) createBoardNote(uid, 'kuning', scopeRef.current);
+    if (uid) createBoardNote(uid, kind === 'lab' ? 'biru' : 'kuning', scopeRef.current, kind);
   };
   const { patients: archived } = usePatients('archived', searching);
   const [searchNotes, setSearchNotes] = useSearchNotesPreference();
@@ -533,6 +533,8 @@ export default function BoardPage(): JSX.Element {
           note={entry.note}
           fitHeight={fitHeight}
           onHeightBounds={onHeightBounds}
+          cards={cards}
+          today={today}
         />
       ) : null;
     }
@@ -712,7 +714,19 @@ export default function BoardPage(): JSX.Element {
   const phoneStickies = useMemo(
     () =>
       new Map<string, PhoneSticky>(
-        boardNotes.map((entry) => [stickyCanvasId(entry.id), { id: entry.id, text: entry.note.text }]),
+        boardNotes.map((entry) => [
+          stickyCanvasId(entry.id),
+          {
+            id: entry.id,
+            // A summary sticky has no text of its own; the block names what it lists.
+            text:
+              entry.note.kind === 'catatan'
+                ? 'Catatan pasien'
+                : entry.note.kind === 'lab'
+                  ? 'Lab hari ini'
+                  : entry.note.text,
+          },
+        ]),
       ),
     [boardNotes],
   );
@@ -975,12 +989,32 @@ export default function BoardPage(): JSX.Element {
               <button
                 type="button"
                 {...CLOSES_MENU}
-                onClick={addSticky}
+                onClick={() => addSticky()}
                 disabled={!uid}
                 title="Tempel catatan singkat di papan"
                 className={ADD_ITEM}
               >
                 <span aria-hidden="true">📌</span> Sticky Note
+              </button>
+              <button
+                type="button"
+                {...CLOSES_MENU}
+                onClick={() => addSticky('catatan')}
+                disabled={!uid}
+                title="Catatan pasien semua pasien di papan, bisa diedit dan sinkron dengan halaman SOAP"
+                className={ADD_ITEM}
+              >
+                <span aria-hidden="true">📋</span> Sticky Catatan pasien
+              </button>
+              <button
+                type="button"
+                {...CLOSES_MENU}
+                onClick={() => addSticky('lab')}
+                disabled={!uid}
+                title="Lab yang direncanakan hari ini, dibaca dari Plan SOAP"
+                className={ADD_ITEM}
+              >
+                <span aria-hidden="true">🧪</span> Sticky Lab hari ini
               </button>
             </BoardAddMenu>
             <Button size="sm" variant="quiet" className="shrink-0 text-fg" onClick={() => setLabOpen(true)}>
@@ -1239,7 +1273,7 @@ export default function BoardPage(): JSX.Element {
               <MasonryGrid>
                 {boardNotes.map((entry) => (
                   <MasonryItem key={stickyCanvasId(entry.id)}>
-                    <StickyNoteCard uid={uid} id={entry.id} note={entry.note} />
+                    <StickyNoteCard uid={uid} id={entry.id} note={entry.note} cards={cards} today={today} />
                   </MasonryItem>
                 ))}
               </MasonryGrid>
@@ -1332,7 +1366,7 @@ export default function BoardPage(): JSX.Element {
       >
         {phoneSticky && uid ? (
           <div className="p-3">
-            <StickyNoteCard uid={uid} id={phoneSticky.id} note={phoneSticky.note} />
+            <StickyNoteCard uid={uid} id={phoneSticky.id} note={phoneSticky.note} cards={cards} today={today} />
           </div>
         ) : null}
       </Sheet>
@@ -1341,6 +1375,8 @@ export default function BoardPage(): JSX.Element {
         <div className="space-y-2 p-4">
           {[
             ['+ Sticky Note', () => addSticky()],
+            ['+ Sticky Catatan pasien', () => addSticky('catatan')],
+            ['+ Sticky Lab hari ini', () => addSticky('lab')],
             ['Format lab', () => setLabOpen(true)],
             [dense ? 'Kartu: Normal (tampilkan diagnosis lengkap)' : 'Kartu: Ringkas (satu baris diagnosis)', () => setDense(!dense)],
             ['Pilih pasien (arsipkan / sampah)', () => setSelecting(true)],

@@ -45,5 +45,8 @@ describe('firestore.rules agrees with the transfer flow', () => {
   it('lets only the addressed account read and take over the patient', () => {
     expect(rules).toContain('data.transferTo == request.auth.token.email.lower()');
     expect(rules).toContain('request.resource.data.memberIds == [request.auth.uid]');
+    // Accepted patients land active; the client's acceptTransfer writes these keys.
+    expect(rules).toContain("request.resource.data.status == 'active'");
+    expect(rules).toMatch(/'status', 'archive', 'deletedAt', 'temporary'/);
   });
 });

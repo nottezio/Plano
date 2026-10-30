@@ -36,6 +36,8 @@ export const STICKY_COLORS: ReadonlyArray<{ id: StickyColor; label: string; step
   { id: 'ungu', label: 'Ungu', step: 7 },
 ];
 
+export type StickyKind = 'catatan' | 'lab';
+
 export interface BoardNote {
   text: string;
   color: StickyColor;
@@ -52,6 +54,14 @@ export interface BoardNote {
    * sat beside a titipan patient in one and beside your own in the other.
    */
   scope?: 'temporary';
+  /**
+   * A summary sticky instead of a written one (2026-10-30). Absent: a plain
+   * note. `catatan` lists every patient on the board with their standing
+   * note (`Patient.notes`, the same field the SOAP page edits); `lab` lists
+   * the labs each patient's plan dates today (`Patient.labPlans`). `text` is
+   * unused for both: the content lives on the patients, never copied here.
+   */
+  kind?: StickyKind;
   /**
    * Soft delete, as everywhere else in this app: no client ever hard-deletes.
    * A deleted note leaves the board and its text stays recoverable.
@@ -109,6 +119,7 @@ export function activeBoardNotes(
           ? note.images.filter((image): image is string => typeof image === 'string')
           : [],
         ...(note.scope === 'temporary' ? { scope: 'temporary' as const } : {}),
+        ...(note.kind === 'catatan' || note.kind === 'lab' ? { kind: note.kind } : {}),
       },
     }))
     .sort((a, b) => a.note.createdAt - b.note.createdAt || a.id.localeCompare(b.id));

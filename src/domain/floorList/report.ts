@@ -899,10 +899,24 @@ export function manualPatient(input: {
 }
 
 /** The same rule over reports already read (stored ones). */
+/**
+ * A newer message that is only a summary of a SOAP already seen ("Post Tindakan"
+ * with a Diagnosis block and a "Verifikasi" line, no Terapi). "Latest wins"
+ * made it replace the full SOAP, so the list lost the terapi.
+ */
+export function isSummaryOf(report: FloorPatient, earlier: FloorPatient): boolean {
+  const terapi = (p: FloorPatient): boolean => /^Terapi:/m.test(p.body);
+  return !report.fromList && !earlier.fromList && terapi(earlier) && !terapi(report);
+}
+
 export function latestOf(reports: readonly FloorPatient[]): FloorPatient[] {
   const byKey = new Map<string, FloorPatient>();
   for (const patient of reports) {
     const previous = byKey.get(patient.key);
+    if (previous && isSummaryOf(patient, previous)) {
+      byKey.set(patient.key, { ...previous, chief: previous.chief || patient.chief, junior: previous.junior || patient.junior });
+      continue;
+    }
     // A real SOAP always outranks a line read from a sent list (12.12).
     const rank = previous && Boolean(patient.fromList) !== Boolean(previous.fromList) ? (patient.fromList ? -1 : 1) : 0;
     const later =

@@ -5,6 +5,16 @@ Catatan teknis lengkap (akar masalah, perbaikan) ada di CHANGES.md.
 
 Entri teratas harus versi yang sedang dirilis; tes gagal bila belum ditulis.
 
+## `2026-10-30.5`
+- **Perbaikan Tempel (Baca): terapi tidak lagi hilang.** Bila pesan ringkasan pendek ("Post Tindakan", hanya Diagnosis dan jam Verifikasi) dikirim setelah SOAP lengkap pasien yang sama, list memakai ringkasan itu dan Terapi hilang. Sekarang pesan tanpa Terapi tidak menggantikan SOAP yang sudah punya Terapi; Chief dan Junior dari ringkasan tetap terbaca.
+
+## `2026-10-30.4`
+- **Perbaikan Kirim ke rekan: pasien tidak lagi masuk Arsip atau hilang.** Dulu pasien yang diterima ikut membawa keadaannya di papan pengirim: bila pengirim sudah mengarsipkan (mis. "Pindah ruang/RS"), membuang ke sampah, atau menandainya Titipan, pasien muncul di Arsip, sampah, atau tab Titipan penerima, sehingga terlihat hilang. Sekarang pasien yang diterima selalu masuk papan aktif penerima, di *Pasien saya*. Pasien yang sudah terlanjur masuk Arsip penerima bisa diaktifkan kembali dari Arsip.
+
+## `2026-10-30.3`
+- **Sticky Catatan pasien.** Di papan, *+ Tambah → Sticky Catatan pasien* menempelkan satu sticky berisi semua pasien di papan itu: nama · kamar/bed · DPJP, dan di bawahnya catatan pasien. Catatan bisa langsung diedit di sticky; isinya sama dengan *Catatan pasien* di halaman SOAP, jadi perubahan di salah satu tempat langsung muncul di tempat lain.
+- **Sticky Lab hari ini.** *+ Tambah → Sticky Lab hari ini* menampilkan lab yang direncanakan hari ini per pasien, dibaca dari Plan SOAP: baris cek lab yang diberi tanggal hari ini, mis. `- Cek DL, SE (30/10/2026)`. Hanya dibaca; ubah di Plan SOAP. Pasien yang SOAP-nya belum disimpan ulang sejak pembaruan ini muncul setelah SOAP-nya dibuka atau diedit.
+
 ## `2026-10-30.2`
 - **Kirim ke rekan lewat username.** Di bagian *Kirim ke rekan*, ketik `@username` rekan (yang ia pilih di halaman Akun), lalu Kirim. Email Google tetap bisa dipakai. Username dicek ke server, jadi perlu koneksi internet; bila tidak ditemukan, muncul pesan dan pasien tidak terkirim.
 

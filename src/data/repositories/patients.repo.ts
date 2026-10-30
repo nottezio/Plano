@@ -23,6 +23,7 @@ import { nanoid } from 'nanoid';
 import { getDeviceId } from '../deviceId';
 import { clinicalStart } from '@/domain/identity';
 import { kjsRole } from '@/domain/board';
+import { labPlans } from '@/domain/labPlan';
 import { detectDpjps, primaryDpjp } from '@/domain/dpjp';
 import { isIgdEntry } from '@/domain/clinicalDate';
 import { parsePatientFacts } from '@/domain/parsePatient';
@@ -353,6 +354,7 @@ export async function touchEntryMeta(
         lastEntryDate: date,
         preview: buildPreview(body),
         previewDate: date,
+        labPlans: labPlans(body),
         ...previousPreviewFields(stored, storedPreview, date),
       }
     : {};
@@ -405,9 +407,13 @@ export function healCardPreview(
   const preview = buildPreview(body);
   const moved = !(patient.preview === preview && patient.previewDate === date);
   const fromEntry = previousFromEntry(patient, date, previous);
-  if (!moved && !fromEntry) return null;
+  // Also heals patients whose note was last saved before `labPlans` existed.
+  const plans = labPlans(body);
+  const plansMoved = JSON.stringify(plans) !== JSON.stringify(patient.labPlans ?? []);
+  if (!moved && !fromEntry && !plansMoved) return null;
   return trackWrite(
     updateDoc(patientDoc(patient.id), {
+      ...(plansMoved ? { labPlans: plans } : {}),
       ...(moved
         ? {
             lastEntryDate: date,
@@ -752,12 +758,22 @@ export function clearTransfer(patientId: string): Promise<void> {
  * it drops off the sender's board query and appears on this one. The notes,
  * versions and checklists go with it because they are subcollections of this
  * document, and the rules for them read `memberIds` here.
+ *
+ * It always lands as an active patient of the recipient's own. The sender's
+ * state is not carried over: a patient they archived ("Pindah", the usual
+ * reason for a handover), trashed or soft-deleted before or after sending
+ * used to arrive in the recipient's Arsip or trash, or nowhere, and one
+ * marked Titipan arrived under Titipan instead of Pasien saya.
  */
 export function acceptTransfer(patientId: string, uid: string): Promise<void> {
   return trackWrite(
     updateDoc(patientDoc(patientId), {
       ownerId: uid,
       memberIds: [uid],
+      status: 'active' satisfies PatientStatus,
+      archive: deleteField(),
+      deletedAt: null,
+      temporary: deleteField(),
       transferTo: deleteField(),
       transferToName: deleteField(),
       transferFrom: deleteField(),

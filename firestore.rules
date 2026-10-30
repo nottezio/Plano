@@ -147,18 +147,25 @@ service cloud.firestore {
        * may read the patient document (not its notes: those check memberIds)
        * and either decline, clearing the request and nothing else, or accept,
        * becoming the sole owner and member. Ownership changes ONLY this way,
-       * and only to the person the current members chose.
+       * and only to the person the current members chose. Accepting also
+       * makes it an active, undeleted, non-Titipan patient (whatever the
+       * sender left it as); declining may not touch any of that.
        */
       allow update: if isTransferTarget(resource.data)
         && request.resource.data.diff(resource.data).affectedKeys()
-             .hasOnly(['ownerId', 'memberIds', 'transferTo', 'transferToName', 'transferFrom', 'updatedAt', 'updatedBy'])
+             .hasOnly(['ownerId', 'memberIds', 'transferTo', 'transferToName', 'transferFrom',
+                       'status', 'archive', 'deletedAt', 'temporary', 'updatedAt', 'updatedBy'])
         && !('transferTo' in request.resource.data)
         && !('transferToName' in request.resource.data)
         && !('transferFrom' in request.resource.data)
         && ((request.resource.data.ownerId == request.auth.uid
-             && request.resource.data.memberIds == [request.auth.uid])
+             && request.resource.data.memberIds == [request.auth.uid]
+             && request.resource.data.status == 'active'
+             && request.resource.data.deletedAt == null)
             || (request.resource.data.ownerId == resource.data.ownerId
-                && request.resource.data.memberIds == resource.data.memberIds));
+                && request.resource.data.memberIds == resource.data.memberIds
+                && !request.resource.data.diff(resource.data).affectedKeys()
+                     .hasAny(['status', 'archive', 'deletedAt', 'temporary'])));
 
       /**
        * Hard delete, for emptying the trash.

@@ -634,6 +634,12 @@ export interface Patient {
   preview?: string;
   previewDate?: ClinicalDate;
   /**
+   * Dated lab lines from the plan of the latest day's note (`domain/labPlan`),
+   * written with `preview`. The board's "Lab hari ini" sticky shows those
+   * dated today; it cannot open every note to find them.
+   */
+  labPlans?: Array<import('./labPlan').LabPlan>;
+  /**
    * The preview of the EARLIER day, kept when the preview moves to a new day
    * (2026-10-10). The card compares the two to say what changed since
    * yesterday ("+ Hipokalemia"), without reading either note.

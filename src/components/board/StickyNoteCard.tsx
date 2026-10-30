@@ -12,6 +12,9 @@ import {
   removeImageFromNote,
 } from '@/data/repositories/boardImages.repo';
 import { STICKY_COLORS, stickyTone, type BoardNote, type StickyColor } from '@/domain/boardNotes';
+import type { BoardCard } from '@/domain/board';
+import type { ClinicalDate } from '@/domain/types';
+import { PatientSummaryRows } from './PatientSummaryRows';
 
 /**
  * A sticky note on the patient board, edited where it sits.
@@ -32,12 +35,17 @@ function StickyNoteCardView({
   note,
   fitHeight = false,
   onHeightBounds,
+  cards = [],
+  today,
 }: {
   uid: string;
   id: string;
   note: BoardNote;
   fitHeight?: boolean;
   onHeightBounds?: ((bounds: { min: number; max: number }) => void) | undefined;
+  /** The board's cards, in board order: what a summary sticky lists. */
+  cards?: readonly BoardCard[];
+  today?: ClinicalDate;
 }): JSX.Element {
   const [text, setText] = useState(note.text);
   const [focused, setFocused] = useState(false);
@@ -65,6 +73,8 @@ function StickyNoteCardView({
   const timer = useRef(0);
   const pending = useRef<string | null>(null);
   const areaRef = useRef<HTMLTextAreaElement | null>(null);
+  /** A summary sticky's list: measured in place of the textarea. */
+  const listRef = useRef<HTMLDivElement | null>(null);
   const rootRef = useRef<HTMLDivElement | null>(null);
 
   /**
@@ -121,7 +131,7 @@ function StickyNoteCardView({
   */
   useLayoutEffect(() => {
     const root = rootRef.current;
-    const area = areaRef.current;
+    const area = areaRef.current ?? listRef.current;
     if (!fitHeight || !onHeightBounds || !root || !area) return undefined;
     const ONE_LINE = 28;
     const measure = (): void => {
@@ -136,7 +146,7 @@ function StickyNoteCardView({
     observer.observe(area);
     measure();
     return () => observer.disconnect();
-  }, [fitHeight, onHeightBounds, note.images]);
+  }, [fitHeight, onHeightBounds, note.images, note.kind]);
 
   useEffect(() => {
     if (!armed) return undefined;
@@ -150,7 +160,8 @@ function StickyNoteCardView({
     <div
       ref={rootRef}
       onDragOver={(event) => {
-        if (!event.dataTransfer.types.includes('Files')) return;
+        // A summary sticky holds no images: its content lives on the patients.
+        if (note.kind || !event.dataTransfer.types.includes('Files')) return;
         event.preventDefault();
         event.dataTransfer.dropEffect = 'copy';
         if (!dropping) setDropping(true);
@@ -197,7 +208,7 @@ function StickyNoteCardView({
       />
       <div className="flex items-center gap-1 px-2 pt-1.5">
         <span className="flex-1 text-[11px] font-semibold uppercase tracking-wide opacity-60">
-          📌 Catatan
+          {note.kind === 'catatan' ? '📌 Catatan pasien' : note.kind === 'lab' ? '🧪 Lab hari ini' : '📌 Catatan'}
         </span>
 
         {/* Colour: a dot that opens the palette in place. */}
@@ -268,6 +279,14 @@ function StickyNoteCardView({
         </div>
       ) : null}
 
+      {note.kind && today ? (
+        <div
+          ref={listRef}
+          className={['px-2.5 pb-2.5 pt-1', fitHeight ? 'min-h-0 flex-1 overflow-y-auto' : ''].join(' ')}
+        >
+          <PatientSummaryRows kind={note.kind} cards={cards} today={today} />
+        </div>
+      ) : (
       <textarea
         ref={areaRef}
         onPaste={(event) => {
@@ -295,6 +314,7 @@ function StickyNoteCardView({
         ].join(' ')}
         style={{ color: tone.fg }}
       />
+      )}
 
       {(note.images ?? []).length > 0 ? (
         <div className={['space-y-1.5 px-2.5 pb-3', fitHeight ? 'shrink-0' : ''].join(' ')}>
