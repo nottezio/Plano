@@ -105,6 +105,32 @@ interface HeaderHit {
  */
 const KARDIO_CONCLUSION_RE = /^[ \t]*[*_]*[ \t]*saat ini evaluasi\s+kardiologi\b/i;
 
+/**
+ * The "Mohon izin … dengan" sentence heading, whatever words sit between
+ * (Lt. 5 export, Oct 2026: "Mohon Izin prof, pasien kami assest dengan:",
+ * "Mohon izin kami assest pasien dengan:", "Mohon izin pasien kami asessment
+ * dengan :", "Mohon ijn kami terapi dengan:"). The alias table lists
+ * spellings one by one and missed all four, so 9 of 295 reports had no A
+ * region: the diagnoses were copied as part of O.
+ *
+ * The whole line, ending in "dengan" or a colon: that is the heading's shape,
+ * and it keeps a sentence of prose ("Mohon izin terapi dilanjutkan") out.
+ * Which section it is stays `classifyProseHeader`'s call (assess or terapi
+ * stem, nothing else).
+ */
+const REQUEST_HEADING_RE =
+  /^[\s>*_#-]{0,4}(mohon\s+i[zj]i?n\b[^\n:]{0,40}?(?:\bdengan\b[ \t]*[*_~]{0,2}[ \t]*:?|[ \t]*[*_~]{0,2}[ \t]*:))[ \t]*[*_~]{0,2}[ \t]*$/i;
+
+/**
+ * A bare "S" / "O" alone on its line, or "S;" (Lt. 5 export: 14 of 295
+ * reports wrote the heading so, and lost their S or O block). Never `.`
+ * (SPEC: one-letter aliases do not take a full stop), and only in the note's
+ * own order — S before any S, O, Terapi or Plan; O before any O, Terapi or
+ * Plan — so a stray letter further down is never a heading. A diagnosis
+ * summary above S/O (6 of the reports) does not count.
+ */
+const BARE_LETTER_RE = /^[ \t]*[*_]{0,2}([SO])[*_]{0,2}[ \t]*;?[ \t]*$/;
+
 interface Line {
   start: number;
   text: string;
@@ -355,6 +381,17 @@ function detectHeader(
     }
   }
 
+  const request = REQUEST_HEADING_RE.exec(line.text);
+  const requestId = request?.[1] ? classifyProseHeader(request[1]) : null;
+  if (requestId) {
+    return {
+      start: line.start,
+      headerEnd: line.start + line.text.length,
+      sectionId: requestId,
+      label: labelFor(requestId, aliases),
+    };
+  }
+
   // Before the wrapped-header rule, which would reject it for its length.
   if (KARDIO_CONCLUSION_RE.test(line.text)) {
     return {
@@ -467,6 +504,15 @@ function isVitalField(line: Line, hit: HeaderHit): boolean {
   return /^\s*\d/.test(line.text.slice(hit.headerEnd - line.start));
 }
 
+function bareLetter(line: Line, seen: ReadonlySet<SectionId>, aliases: readonly SectionAlias[]): HeaderHit | null {
+  const letter = BARE_LETTER_RE.exec(line.text)?.[1];
+  const later = (ids: readonly SectionId[]): boolean => ids.some((id) => seen.has(id));
+  const sectionId: SectionId | null =
+    letter === 'S' && !later(['s', 'o', 'terapi', 'p']) ? 's' : letter === 'O' && !later(['o', 'terapi', 'p']) ? 'o' : null;
+  if (!sectionId || !aliases.some((alias) => alias.sectionId === sectionId)) return null;
+  return { start: line.start, headerEnd: line.start + line.text.length, sectionId, label: labelFor(sectionId, aliases) };
+}
+
 /**
  * Parses a body into contiguous, total blocks.
  *
@@ -501,14 +547,17 @@ export function parseSections(
     stop it being our Plan, but a TS block must.
   */
   let lastOwn: SectionId | null = null;
+  const seenOwn = new Set<SectionId>();
   let inConsult = false;
   for (const line of splitLines(body)) {
     const hit: HeaderHit | null =
       detectHeader(line, matcher, table, !inConsult && lastOwn !== 'a' && lastOwn !== 'terapi' && lastOwn !== 'p') ??
-      (barePlan && !inConsult && (lastOwn === 'terapi' || lastOwn === 'a') ? detectHeader(line, barePlan, table) : null);
+      (barePlan && !inConsult && (lastOwn === 'terapi' || lastOwn === 'a') ? detectHeader(line, barePlan, table) : null) ??
+      (inConsult ? null : bareLetter(line, seenOwn, table));
     if (!hit) continue;
     if (!hit.sectionId.startsWith('custom_')) {
       lastOwn = hit.sectionId;
+      seenOwn.add(hit.sectionId);
       inConsult = false;
     } else if (/^TS\s/i.test(hit.label)) inConsult = true;
     if (inObjective && isVitalField(line, hit)) continue;

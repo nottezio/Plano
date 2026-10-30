@@ -81,7 +81,7 @@ const CONSULT_HEADING = /^\s*[*_]*\s*TS\b/i;
  * only by the forms the ward writes for its OWN sections — "Mohon izin kami
  * assess / terapi …" — which a consultant's reply never uses.
  */
-const OWN_HEADING = /^\s*[*_]*\s*mohon\s+i[zj]in\b/i;
+const OWN_HEADING = /^\s*[*_]*\s*mohon\s+i[zj]i?n\b/i;
 
 export interface Region {
   group: CopyGroupId;

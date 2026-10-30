@@ -108,11 +108,14 @@ const BTKV_IDS = new Set(DPJPS.filter((d) => /BTKV/i.test(d.name)).map((d) => d.
   "terapi" ("… terapi pasien dengan", "… inisial terapi dengan",
   "Mohon izin kami Terapi:"). 29 of 402 Lt 4 reports had an empty list body
   with the old, narrower pattern.
+  Lt 5 (Oct 2026 export): "Mohon ijn kami terapi dengan" (izin typed "ijn")
+  and "… pasien kami asessment dengan" (one s first) were missed too, so the
+  list carried no Terapi and a newer SOAP read as a summary of the older one.
 */
 const ASSESS =
-  /^\W*mohon\s+(?:izin|ijin)\b[^\n]{0,24}?\b(?:asses+t?\w*|diagnos[ai]s?)\b(?:[^\n]{0,16}\bdengan\b|\s*:)/i;
+  /^\W*mohon\s+i[zj]i?n\b[^\n]{0,24}?\b(?:as+e?s+\w*|diagnos[ai]s?)\b(?:[^\n]{0,16}\bdengan\b|\s*:)/i;
 const DX = /^\W*(?:diagnos[ai]s?|diagnosa|asses+t?ment)\W*$/i;
-const TERAPI = /^\W*mohon\s+(?:izin|ijin)\b[^\n]{0,24}?\b(?:inisial\s+)?terapi\b(?:[^\n]{0,16}\bdengan\b|\s*:)/i;
+const TERAPI = /^\W*mohon\s+i[zj]i?n\b[^\n]{0,24}?\b(?:inisial\s+)?terapi\b(?:[^\n]{0,16}\bdengan\b|\s*:)/i;
 /**
  * A sign-off ends the tail. Never a bulleted line: "- Mohon arahan DPJP" in a
  * plan is an instruction, not the closing.
@@ -154,13 +157,21 @@ function roomLine(lines: string[], opening: number): string {
 function readPlace(opening: string): { room: string; bed: string; floor: string } {
   const flat = clean(opening);
   const after = /\bke\s+(.*)$/i.exec(flat)?.[1] ?? flat;
-  const room = [...after.matchAll(/\bkamar\s*:?\s*(\d{3}[A-Za-z]?)/gi)].at(-1);
+  /*
+    Lt. 5 export (Oct 2026): "Kamar 508 B" / "Kamar 508 A ," (the room letter
+    after a space) read as room 508, so 508A and 508B were one room; "Kamar
+    VIP 501" / "Kamar Super VIP 501" read no room; "Kamr 510" (typo) neither.
+  */
+  const room = [...after.matchAll(/\bkam(?:a)?r\s*:?\s*(?:(?:super\s*-?\s*)?vip\s*)?(\d{3})(?:([A-Da-d])|\s([A-Da-d]))?\b/gi)].at(-1);
   const tail = room ? after.slice((room.index ?? 0) + room[0].length) : after;
   // "Bed bed 4" (Lt. 5, 2026-10-12): the word typed twice is still bed 4.
   const bed = /\bbed\s*:?\s*(?:bed\s*:?\s*)?(\w+)/i.exec(tail);
   // "Lt .4", "Lt.4", "Lantai 4" (12.12: "Lt .4" was missed).
   const written = /\b(?:lantai|lt)\s*\.?\s*(\d+)/i.exec(after)?.[1] ?? '';
-  let number = room?.[1] ?? '';
+  let number = room ? `${room[1] ?? ''}${(room[2] ?? room[3] ?? '').toUpperCase()}` : '';
+  // "PJT Lantai 5 Bed 508 A" (Lt. 5): the room written as the bed, no "Kamar".
+  const roomAsBed = !number && written ? new RegExp(`\\bbed\\s*:?\\s*(${written}\\d{2})(?:\\s?([A-Da-d]))?\\b`, 'i').exec(after) : null;
+  if (roomAsBed) return { room: `${roomAsBed[1]}${(roomAsBed[2] ?? '').toUpperCase()}`, bed: '', floor: written };
   // A room named, not numbered: "Kamar Super VIP", "Lt.4 Supervip".
   if (!number && /\bsuper\s*-?\s*vip\b/i.test(after)) number = roomNamed(written, 'Super VIP');
   // A unit, not a ward room (19 Oct 2026): "CVCU Bed 9", "HCU Bed 1",
@@ -477,8 +488,10 @@ export function readReports(message: ChatMessage): FloorPatient[] {
 const LIST_PATIENT = /^[\s*_]*(?:\d{1,2}\s*\.+\s*)?(.+?)[\s*_]*$/;
 /** An unnumbered line counts only when it reads like an identity. */
 const LOOKS_LIKE_IDENTITY = /\bRM\b|\d{1,2}[-/]\d{1,2}[-/]\d{2,4}|\b(?:Tn|Ny|Nn|An|By)\b\.?/i;
-const LIST_ROOM = /^(\d{3}[A-Za-z]?)(?:\s*(?:bed|be|b)\.?\s*(\w+)|\s+([A-Za-z]))?\s*\/+\s*(.*)$/i;
-const LIST_SEPARATOR = /^\s*[-_=]{5,}\s*$/;
+/** "bad" is "bed" mistyped (Lt. 5, 29-10: "513 bad 1/ …", "510 bad 6/ …" — both of dr. YP's patients were lost). */
+const LIST_ROOM = /^(\d{3}[A-Za-z]?)(?:\s*(?:bed|bad|be|b)\.?\s*(\w+)|\s+([A-Za-z]))?\s*\/+\s*(.*)$/i;
+/** A separator, and (Lt. 5, 29-10) one with text glued after it: "_________________List Pasien Lt. 6  0  pasien". */
+const LIST_SEPARATOR = /^\s*[-_=]{5,}/;
 const LIST_KJS_HEAD = /^[\s*_]*KJS[\s*_:]*$/i;
 /**
  * "🫀 dr. ZD — 2 pasien", "Prof. PK 3 Pasien", and (2026-10-14) the count in
@@ -599,7 +612,7 @@ export function readListMessage(message: ChatMessage): FloorPatient[] {
   };
   /** A unit place line was read; its identity is on the next non-blank line. */
   let unitAwaiting: { line: string; room: string; bed: string; residents: string } | null = null;
-  for (const line of message.text.split('\n')) {
+  for (let line of message.text.split('\n')) {
     if (unitAwaiting) {
       if (!line.trim()) continue;
       const pending: { line: string; room: string; bed: string; residents: string } = unitAwaiting;
@@ -637,10 +650,13 @@ export function readListMessage(message: ChatMessage): FloorPatient[] {
       flush();
       continue;
     }
-    if (LIST_SEPARATOR.test(line)) {
+    const separator = LIST_SEPARATOR.exec(line);
+    if (separator) {
       flush();
       inKjs = false;
-      continue;
+      // The text glued after it is a heading line of its own ("List Pasien Lt. 6", "🫀dr. AHA …").
+      line = line.slice(separator[0].length);
+      if (!line.trim()) continue;
     }
     if (LIST_KJS_HEAD.test(line)) {
       flush();
@@ -718,6 +734,16 @@ function mergeKjs(patients: FloorPatient[]): FloorPatient[] {
     if (!seen) {
       byKey.set(patient.key, patient);
       out.push(patient);
+      continue;
+    }
+    /*
+      The same patient twice as an own line (Lt. 5, 29-10: "3. 604/Tn. X" with
+      nothing under it in dr. AHA's part, then again under "List Pasien Lt. 6"
+      with the A/Terapi/Plan): the first, empty one used to win and the list
+      showed no diagnosis. The one with a body is kept.
+    */
+    if (!seen.body.trim() && patient.body.trim() && patient.kjsDpjpIds.length === 0) {
+      Object.assign(seen, { body: patient.body, full: patient.full, room: seen.room || patient.room, bed: seen.bed || patient.bed });
       continue;
     }
     const kjs = patient.kjsDpjpIds.filter((id) => id !== seen.dpjpId && !seen.kjsDpjpIds.includes(id));
@@ -927,9 +953,16 @@ export function latestOf(reports: readonly FloorPatient[]): FloorPatient[] {
           ? patient.sentAt > previous.sentAt || (patient.sentAt === previous.sentAt && patient.index > previous.index)
           : patient.index > previous.index));
     if (later) {
-      // Residents written once (a "Chief :" header) carry over to a later report without one.
+      /*
+        Residents written once (a "Chief :" header) carry over to a later
+        report without one. So does the DPJP (Lt. 5, Oct 2026: a follow-up
+        that left out its "DPJP Utama dan Tindakan" line was filed under no
+        DPJP, though the day before named one).
+      */
+      const keepDpjp = !patient.dpjpId && patient.kjsDpjpIds.length === 0 && previous?.dpjpId;
       byKey.set(patient.key, {
         ...patient,
+        ...(keepDpjp ? { dpjpId: previous.dpjpId } : {}),
         chief: patient.chief || previous?.chief || '',
         junior: patient.junior || previous?.junior || '',
       });

@@ -690,3 +690,86 @@ describe('SOAP reader, 2026-10-16 audit of the Lt. 4 and Lt. 5 exports', () => {
     expect(r.body).toBe('Saat ini evaluasi kardiologi berdasarkan echocardiography bedside, pasien dengan mildly abnormal LV systolic function.');
   });
 });
+
+describe('Lt. 5 export of 30-10-2026 (another floor, other habits)', () => {
+  const msg = (text: string, sentAt = '2026-10-28T07:00', index = 0) => ({ sentAt, sender: 'dr. Contoh', text, index });
+  const report = (opening: string, extra: string[] = []) =>
+    readReport(msg([opening, '', 'Tn. Contoh Satu / 01-01-1970 / 56 tahun / RM 1600701', '', 'DPJP Utama : Prof. dr. Peter Kabo, Ph.D, Sp.FK, Sp.JP(K)', '', ...extra].join('\n')))!;
+
+  it.each([
+    ['di PJT Lantai 5 Kamar 508 B atas nama :', '508B', ''],
+    ['di PJT Lt 5 Kamar 508 A , atas nama:', '508A', ''],
+    ['di PJT lantai 5 kamar 508A (isolasi) atas nama :', '508A', ''],
+    ['di PJT Lantai 5 Kamar 505 atas nama:', '505', ''],
+    ['di Perawatan PJT lantai 5 kamar VIP 502 atas nama:', '502', ''],
+    ['di *PJT lantai 5 Kamar Super VIP 501* atas nama:', '501', ''],
+    ['dari CVCU Bed 4 ke PJT LT 5 Kamr 510 bed 3 atas nama:', '510', '3'],
+    ['pasien PJT Lantai 5 Bed 508 A atas nama:', '508A', ''],
+    ['di PJT Lantai 5 Kamar 507 bed 2 atas nama:', '507', '2'],
+  ])('reads the room of "%s"', (place, room, bed) => {
+    const r = report(`Tabe dokter, mohon izin melaporkan follow up pasien ${place}`);
+    expect([r.room, r.bed, r.floor]).toEqual([room, bed, '5']);
+  });
+
+  it('reads "Mohon ijn kami terapi dengan" and "… pasien kami asessment dengan" as the A/T headings', () => {
+    const r = report('Tabe dokter, mohon izin melaporkan follow up pasien di PJT Lantai 5 Kamar 507 atas nama:', [
+      'O :', 'KESIMPULAN\t: CAD 2 VD', '',
+      'Mohon izin pasien kami asessment dengan :', '- Cellulitis Pedis', '',
+      'Mohon ijn kami terapi dengan:', '- Ceftriaxone 1 gram/12 jam/IV', '',
+      'Plan', '- Monitoring tanda vital',
+    ]);
+    expect(r.body).toBe('Diagnosis:\n- Cellulitis Pedis\n\nTerapi:\n- Ceftriaxone 1 gram/12 jam/IV\n\nPlan\n- Monitoring tanda vital');
+  });
+
+  it('keeps the DPJP of the day before when a follow-up leaves out its DPJP line', () => {
+    const opening = 'Tabe dokter, mohon izin melaporkan follow up pasien di PJT Lantai 5 Kamar 515 Bed 1 atas nama :';
+    const first = readReport(msg([opening, '', 'Tn. Contoh Dua / 31-10-1974 / RM 1600702', '', 'DPJP Utama dan Tindakan : Dr. dr. Abdul Hakim Alkatiri, Sp.JP (K)', '', 'S :', '- Baik'].join('\n'), '2026-10-15T08:00'))!;
+    const next = readReport(msg([opening, '', 'Tn. Contoh Dua / 31-10-1974 / RM 1600702', '', 'S :', '- Baik'].join('\n'), '2026-10-16T08:00', 1))!;
+    expect(next.dpjpId).toBeNull();
+    expect(latestOf([first, next]).map((p) => [p.sentAt, p.dpjpId])).toEqual([['2026-10-16T08:00', 'aha']]);
+  });
+
+  const list = [
+    'Tabe dokter izin mengirimkan List Pasien Lt. 5 dan Lt. 6  (29 oktober 2026) Pukul 04.00 WITA',
+    '_________________',
+    '🫀Dr.AHA  ( 2pasien)',
+    '1. 505/Tn Contoh Tiga/09-10-1952/74 th/RM 1600703',
+    'Mohon izin kami assess dengan:',
+    '- NSTEMI High Risk',
+    '2. Lantai 6',
+    '3. 604/Tn. Contoh Empat / 61 tahun / RM 1600704',
+    '__________',
+    '👶🏻 dr. YP : 2 Pasien',
+    '1. 513 bad 1/ Contoh Lima/ 18-06-1981/1600705',
+    'A/',
+    '- Atrial Septal Defect Secundum',
+    '510 bad 6/ Contoh Enam/ 03-07-2002/ 1600706',
+    'A/',
+    '- Severe Pulmonary Stenosis',
+    '________________',
+    '👶🏻 dr. AAU : 1 Pasien',
+    '1. 510 Bed 5/Contoh Tujuh/1600707/AUU',
+    '_________________List Pasien Lt. 6  0  pasien',
+    '🫀dr. AHA 1  Pasien ',
+    '1. 604/Tn. Contoh Empat / 61 tahun / RM 1600704',
+    'Mohon izin pasien kami assess dengan :',
+    '- Chronic Coronary Syndrome',
+  ].join('\n');
+
+  it('reads "513 bad 1/" (bed mistyped) as a patient instead of dropping it', () => {
+    const yp = readReports(msg(list)).filter((p) => p.dpjpId === 'yp');
+    expect(yp.map((p) => [p.room, p.bed, p.rm])).toEqual([['513', '1', '1600705'], ['510', '6', '1600706']]);
+    expect(yp[0]!.body).toBe('Diagnosis:\n- Atrial Septal Defect Secundum');
+  });
+
+  it('ends a patient at a separator with text glued after it', () => {
+    const aau = readReports(msg(list)).find((p) => p.rm === '1600707')!;
+    expect(aau.body).toBe('');
+  });
+
+  it('keeps the listing that has a body when the same patient is listed twice', () => {
+    const twice = readReports(msg(list)).filter((p) => p.rm === '1600704');
+    expect(twice).toHaveLength(1);
+    expect(twice[0]!.body).toBe('Diagnosis:\n- Chronic Coronary Syndrome');
+  });
+});
