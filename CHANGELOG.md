@@ -5,6 +5,9 @@ Catatan teknis lengkap (akar masalah, perbaikan) ada di CHANGES.md.
 
 Entri teratas harus versi yang sedang dirilis; tes gagal bila belum ditulis.
 
+## `2026-10-30.10`
+- **Kanvas: menggeser kartu lebih halus.** Kartu kini mengikuti penunjuk tanpa tersendat (papan diperbarui sekali per bingkai, bukan tiap gerakan mouse). Saat menyeret kartu mendekati tepi atas atau bawah layar, halaman ikut bergulir, jadi kartu bisa dibawa jauh ke bawah dalam satu seretan.
+
 ## `2026-10-30.9`
 - **Sticky Catatan pasien dan Lab hari ini kini berurutan seperti Urutan visite.** Pasien di kedua sticky tersusun mengikuti rute visite bangsal (kamar demi kamar, bed naik), apa pun urutan papan yang sedang dipakai. Pasien yang di-Pin tetap di atas, sama seperti di papan.
 

@@ -12,6 +12,7 @@ import { matchesSearch } from '@/domain/floorList/search';
 import { placeBeds } from '@/domain/floorList/beds';
 import { SoapBadge } from './SoapBadge';
 import { planLayout } from '@/domain/floorList/layout';
+import { scrollParentOf } from '@/lib/scrollParent';
 import {
   clampZoom,
   pinchStart,
@@ -400,15 +401,6 @@ function DenahCanvas({ children }: { children: ReactNode }): JSX.Element {
       </div>
     </div>
   );
-}
-
-/** The element that scrolls the page vertically around `node` (#main in the app). */
-function scrollParentOf(node: HTMLElement): Element {
-  for (let at = node.parentElement; at; at = at.parentElement) {
-    const { overflowY } = getComputedStyle(at);
-    if ((overflowY === 'auto' || overflowY === 'scroll') && at.scrollHeight > at.clientHeight) return at;
-  }
-  return document.scrollingElement ?? document.documentElement;
 }
 
 export function FloorDenah({

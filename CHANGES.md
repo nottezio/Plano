@@ -1,5 +1,13 @@
 # Plano — CHANGES
 
+## `2026-10-30.10` — Canvas: smoother card drag, scroll at the edge
+
+Owner: "smoothen the placement and the moving of the patient card in the dashboard for the canvas mode".
+
+- **Root cause (read from the code, not profiled).** `beginGesture` ran `setLive` plus a `shelfAt` DOM measurement on every `pointermove`. Pointer events arrive as fast as the mouse reports (hundreds a second on a high-rate mouse), and each one re-rendered every card on the board, more than a frame holds, so the card lagged the pointer in steps. Nothing scrolled during a drag, so moving a card down a long board meant drop, scroll, grab again.
+- **Fix.** `CanvasBoard.beginGesture`: the pointer position is stored on each event and the board updated once per animation frame (`requestAnimationFrame`); on release a pending frame is applied synchronously so the drop uses the latest position. For a move, holding the pointer within 64 px of the scroll container's top or bottom scrolls it (up to 16 px a frame, only after the first move) and the scroll counts as movement. `scrollParentOf` moved from `FloorDenah` to `lib/scrollParent.ts`, shared.
+- **Not done.** Not tried in the app and not profiled, so how much smoother it feels is unmeasured. The per-card re-render on each frame is unchanged (a per-card memo would need `ClampedCard` children to be stable). No snapping, no collision handling on drop (cards can still overlap), no easing on drop, no auto-scroll for width or height drags or sideways. Applies to shelves' move too, as they share the handler. No unit test: the change is DOM and timing.
+
 ## `2026-10-30.9` — Summary stickies list patients in visite order
 
 Owner: "Can you sort the order like the Visite DPJP order?"

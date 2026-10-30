@@ -30,6 +30,7 @@ import {
   type CanvasLayouts,
 } from '@/domain/board/canvasLayout';
 import { applyRemoteShelves, shelfKey } from '@/domain/board/shelfSync';
+import { scrollParentOf } from '@/lib/scrollParent';
 
 /**
  * The free canvas: drag a card anywhere, set its width, cap its height.
@@ -467,22 +468,41 @@ export function CanvasBoard({
       const startY = event.clientY;
       let latest = origin;
 
-      const onMove = (movement: PointerEvent): void => {
-        pointer = { x: movement.clientX, y: movement.clientY };
-        if (droppable) {
-          const over = shelfAt(movement.clientX, movement.clientY);
-          setDropShelf((current) => (current?.shelf === over?.shelf && current?.index === over?.index ? current : over));
-        }
+      /*
+        One update per FRAME, not per pointer event.
+
+        A pointermove fires as fast as the mouse reports (hundreds a second on a
+        gaming mouse), and each one re-rendered the whole board and measured
+        every shelf — more work than a frame can hold, so the card trailed the
+        pointer in lurches. The pointer position is kept as it arrives and the
+        board is updated once, from the latest, before the next paint.
+
+        A MOVE also scrolls the page when the pointer is held near its top or
+        bottom edge, and counts that scroll as movement, so a card can be taken
+        down a long board in one drag instead of drop, scroll, grab again.
+      */
+      const scroller = mode === 'move' ? scrollParentOf(surface) : null;
+      const scrollStart = scroller?.scrollTop ?? 0;
+      let frame = 0;
+      let edgeFrame = 0;
+      const step = (): void => {
         // The arithmetic lives in the domain, where it is tested. This handler
         // owns the gesture; it does not own what a gesture means.
         latest = applyGesture(mode, origin, {
-          dx: movement.clientX - startX,
-          dy: movement.clientY - startY,
+          dx: pointer.x - startX,
+          dy: pointer.y - startY + ((scroller?.scrollTop ?? 0) - scrollStart),
           canvasWidth: measured,
           natural,
           ...(bounds ? { minH: bounds.min, maxH: bounds.max } : {}),
         });
-
+      };
+      const update = (): void => {
+        frame = 0;
+        step();
+        if (droppable) {
+          const over = shelfAt(pointer.x, pointer.y);
+          setDropShelf((current) => (current?.shelf === over?.shelf && current?.index === over?.index ? current : over));
+        }
         setLive({
           id,
           layout:
@@ -491,8 +511,42 @@ export function CanvasBoard({
               : latest,
         });
       };
+      const schedule = (): void => {
+        if (!frame) frame = requestAnimationFrame(update);
+      };
+      // No edge scroll until the pointer has moved: a handle grabbed near the
+      // edge must not take off before you have done anything.
+      let moved = false;
+      const onMove = (movement: PointerEvent): void => {
+        pointer = { x: movement.clientX, y: movement.clientY };
+        moved = true;
+        schedule();
+      };
+      const EDGE = 64;
+      const edgeScroll = (): void => {
+        edgeFrame = requestAnimationFrame(edgeScroll);
+        if (!scroller || !moved) return;
+        const isPage = scroller === document.scrollingElement || scroller === document.documentElement;
+        const top = isPage ? 0 : scroller.getBoundingClientRect().top;
+        const bottom = isPage ? window.innerHeight : scroller.getBoundingClientRect().bottom;
+        const speed =
+          pointer.y < top + EDGE ? -(EDGE - (pointer.y - top)) : pointer.y > bottom - EDGE ? EDGE - (bottom - pointer.y) : 0;
+        if (speed === 0) return;
+        const before = scroller.scrollTop;
+        // Up to 16px a frame at the very edge, easing in from the start of the zone.
+        scroller.scrollTop += Math.max(-EDGE, Math.min(EDGE, speed)) / 4;
+        if (scroller.scrollTop !== before) schedule();
+      };
+      if (scroller) edgeFrame = requestAnimationFrame(edgeScroll);
 
       const onUp = (): void => {
+        cancelAnimationFrame(edgeFrame);
+        if (frame) {
+          // A move still waiting for its frame is not lost: the drop uses it.
+          cancelAnimationFrame(frame);
+          frame = 0;
+          step();
+        }
         setLive(null);
         setDropShelf(null);
         // Dropped on a shelf: onto it, at the place among its cards it was
