@@ -425,6 +425,22 @@ describe('a summary message followed by the full SOAP of the same patient', () =
     expect(patient!.chief).toBe('Didi');
     expect(pasteDiff([], messages.flatMap(readReports)).fresh[0]!.body).toContain('Clopidogrel');
   });
+
+  // Ubah SOAP (SoapFloat) picked the FIRST part with the patient's key: the summary.
+  it('editing a patient already on the list with summary + SOAP keeps the terapi', () => {
+    const parts = readReports({ sentAt: '2026-10-30T07:11', sender: 'dr. A', text, index: 0 });
+    const read = latestOf(parts).find((p) => p.key === parts[0]!.key);
+    expect(read!.body).toContain('Clopidogrel');
+  });
+
+  it('Tempel onto a patient already on the list keeps the terapi', () => {
+    const at = text.indexOf('Assalamualaikum', text.indexOf('Verifikasi'));
+    const [summary] = readReports({ sentAt: '2026-10-29T07:11', sender: 'dr. A', text: text.slice(0, at), index: 0 });
+    const roster = [newRosterPatient(summary!, '2026-10-29T07:11', 'dr. A')];
+    const diff = pasteDiff(roster, splitChat(text).map((m) => ({ ...m, sentAt: '2026-10-30T08:00' })).flatMap(readReports));
+    expect(diff.updated).toHaveLength(1);
+    expect(diff.updated[0]!.report.body).toContain('Clopidogrel');
+  });
 });
 
 describe('manualPatient (pediatri, entered by hand)', () => {

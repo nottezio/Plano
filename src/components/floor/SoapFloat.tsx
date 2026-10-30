@@ -3,7 +3,7 @@ import { useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } f
 import { writeRosterReport } from '@/data/repositories/floors.repo';
 import { dpjpById } from '@/domain/dpjp';
 import { formatDmy } from '@/domain/dateDmy';
-import { readReports, type FloorPatient } from '@/domain/floorList/report';
+import { latestOf, readReports, type FloorPatient } from '@/domain/floorList/report';
 import { copyText } from '@/lib/clipboard';
 import { useBackToClose } from '@/lib/useBackToClose';
 import { useMediaQuery } from '@/hooks/useMediaQuery';
@@ -151,7 +151,8 @@ export function SoapFloat({
   const save = async (): Promise<void> => {
     if (!floorId) return;
     const parts = readReports({ sentAt: patient.sentAt, sender: patient.sender, text: draft, index: 0 });
-    const read = parts.find((p) => p.key === patient.key) ?? parts.at(-1);
+    // A summary then the full SOAP of the same patient: the first match was the summary (Diagnosis only).
+    const read = latestOf(parts).find((p) => p.key === patient.key) ?? parts.at(-1);
     if (!read) {
       setError('Identitas pasien tidak terbaca (baris "… atas nama:" dan identitas di bawahnya harus ada).');
       return;

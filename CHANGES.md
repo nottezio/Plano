@@ -1,5 +1,14 @@
 # Plano — CHANGES
 
+## `2026-10-31.4` — Ubah SOAP saved the summary instead of the full SOAP
+
+Owner: a patient already on the list, given a text that holds a short summary ("Diagnosis:" only) and then the full SOAP of the same patient, ended up with Diagnosis only in the list.
+
+- **Root cause.** `SoapFloat.save` splits the text with `readReports` (one part per "atas nama" opening) and took `parts.find((p) => p.key === patient.key)`: the FIRST part with the patient's key, which is the summary. The `2026-10-30.5` summary rule lives in `latestOf`/`pasteDiff` and was never consulted here. Tempel onto an existing patient was already right.
+- **Fix.** `latestOf(parts).find(...)`: the later part wins, and a part with no Terapi never replaces one that has it.
+- **Tests.** floorList.test.ts: Ubah SOAP selection, and Tempel onto an existing roster patient (invented patient).
+- **Not done.** Not tried in the app or on a device. The earlier limit stands: a summary that does contain a terapi still wins when it comes later.
+
 ## `2026-10-31.3` — Lab sheet: free each PDF after it is read or drawn
 
 Owner approved review finding 1 on be8a467 (.31.2).
