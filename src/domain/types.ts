@@ -253,6 +253,12 @@ export interface UserSettings {
    * outright, since a few consultants do ask for the count in a report.
    */
   showHariRawat: boolean;
+  /**
+   * The patient's catatan as a yellow strip under its board card. Off by
+   * default (30 Oct 2026, Avi): the Catatan pasien sticky shows it now.
+   * Absent on older profiles, which reads as off.
+   */
+  showCardNote?: boolean;
   copyPresets: CopyPreset[];
   privacy: PrivacySettings;
   theme: 'system' | 'light' | 'dark' | 'senja';

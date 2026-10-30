@@ -252,7 +252,8 @@ function PatientCardView({
     setUndo(null);
   };
 
-  const note = patient.notes.trim();
+  const showCardNote = useSession((state) => state.settings().showCardNote === true);
+  const note = showCardNote ? patient.notes.trim() : '';
 
   /*
     FOLDED: one plain box, the name and the DPJP as text, and the button that

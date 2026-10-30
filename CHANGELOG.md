@@ -5,6 +5,9 @@ Catatan teknis lengkap (akar masalah, perbaikan) ada di CHANGES.md.
 
 Entri teratas harus versi yang sedang dirilis; tes gagal bila belum ditulis.
 
+## `2026-10-30.6`
+- **Strip kuning catatan di kartu pasien kini mati secara default.** Catatan pasien sudah tampil di sticky *Catatan pasien*, jadi strip kuning di bawah kartu di papan disembunyikan. Bisa dinyalakan lagi di Pengaturan → Papan & harian → *Catatan di kartu pasien*. Catatannya sendiri tidak berubah.
+
 ## `2026-10-30.5`
 - **Perbaikan Tempel (Baca): terapi tidak lagi hilang.** Bila pesan ringkasan pendek ("Post Tindakan", hanya Diagnosis dan jam Verifikasi) dikirim setelah SOAP lengkap pasien yang sama, list memakai ringkasan itu dan Terapi hilang. Sekarang pesan tanpa Terapi tidak menggantikan SOAP yang sudah punya Terapi; Chief dan Junior dari ringkasan tetap terbaca.
 

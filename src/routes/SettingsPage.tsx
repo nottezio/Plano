@@ -595,6 +595,19 @@ export default function SettingsPage(): JSX.Element {
 
         <SettingsGroup id="settings-harian" label="Papan & harian">
           <SettingsSection
+            id="catatan-kartu"
+            keywords="catatan kartu pasien kuning strip papan"
+            title="Catatan di kartu pasien"
+            description="Catatan pasien sudah tampil di sticky Catatan pasien; ini menampilkannya juga sebagai strip kuning di bawah kartu."
+          >
+            <Toggle
+              label="Tampilkan catatan di bawah kartu"
+              description="Mati secara default."
+              checked={settings.showCardNote === true}
+              onChange={(showCardNote) => patch({ showCardNote })}
+            />
+          </SettingsSection>
+          <SettingsSection
             id="checklist"
             keywords="checklist centang langkah visite"
             title="Checklist harian"

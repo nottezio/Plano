@@ -1,5 +1,12 @@
 # Plano — CHANGES
 
+## `2026-10-30.6` — Card catatan strip off by default
+
+Avi: the yellow catatan strip under each board card duplicates the new Catatan pasien sticky; hide it by default, keep it as a setting.
+
+- **Change.** New `UserSettings.showCardNote` (absent = off, so no default/migration needed). `PatientCard` passes an empty note when it is off, which also restores the card's rounded bottom and drops the strip from the height bounds. Toggle in Settings → Papan & harian → "Catatan di kartu pasien".
+- **Not done.** Not seen rendered (another chat's dev server holds this folder's preview). The note popover and peek window still show catatan; only the strip under the card is gated.
+
 ## `2026-10-30.5` — List maker: a newer summary message erased the terapi
 
 Owner: a pasted SOAP (summary "Post Tindakan" + full SOAP) came out in the list with Diagnosis only, no Terapi.
