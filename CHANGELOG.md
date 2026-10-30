@@ -5,6 +5,9 @@ Catatan teknis lengkap (akar masalah, perbaikan) ada di CHANGES.md.
 
 Entri teratas harus versi yang sedang dirilis; tes gagal bila belum ditulis.
 
+## `2026-10-30.7`
+- **Sticky Catatan pasien dan Lab hari ini lebih jelas di HP.** Di HP keduanya ditambahkan lewat tombol ⋯ di samping pencarian (bukan *+ Tambah*, yang hanya ada di layar lebar). Di tampilan Kanvas HP, kotak kecilnya dulu hanya bertuliskan "Catatan"; sekarang judulnya *Catatan pasien* / *Lab hari ini* dan isinya langsung terlihat (nama: catatan, atau nama: lab hari ini). Ketuk untuk membuka dan mengedit.
+
 ## `2026-10-30.6`
 - **Strip kuning catatan di kartu pasien kini mati secara default.** Catatan pasien sudah tampil di sticky *Catatan pasien*, jadi strip kuning di bawah kartu di papan disembunyikan. Bisa dinyalakan lagi di Pengaturan → Papan & harian → *Catatan di kartu pasien*. Catatannya sendiri tidak berubah.
 

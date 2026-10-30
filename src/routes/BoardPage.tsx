@@ -716,19 +716,32 @@ export default function BoardPage(): JSX.Element {
       new Map<string, PhoneSticky>(
         boardNotes.map((entry) => [
           stickyCanvasId(entry.id),
-          {
-            id: entry.id,
-            // A summary sticky has no text of its own; the block names what it lists.
-            text:
-              entry.note.kind === 'catatan'
-                ? 'Catatan pasien'
-                : entry.note.kind === 'lab'
-                  ? 'Lab hari ini'
-                  : entry.note.text,
-          },
+          // A summary sticky has no text of its own: the block shows what it lists.
+          entry.note.kind === 'catatan'
+            ? {
+                id: entry.id,
+                title: 'Catatan pasien',
+                text: cards
+                  .filter((card) => card.patient.notes.trim())
+                  .map((card) => `${card.name}: ${card.patient.notes.trim()}`)
+                  .join('\n'),
+              }
+            : entry.note.kind === 'lab'
+              ? {
+                  id: entry.id,
+                  title: 'Lab hari ini',
+                  text: cards
+                    .flatMap((card) =>
+                      (card.patient.labPlans ?? [])
+                        .filter((plan) => plan.date === today)
+                        .map((plan) => `${card.name}: ${plan.text}`),
+                    )
+                    .join('\n'),
+                }
+              : { id: entry.id, text: entry.note.text },
         ]),
       ),
-    [boardNotes],
+    [boardNotes, cards, today],
   );
   const phoneIds = useMemo(() => {
     const ids = [

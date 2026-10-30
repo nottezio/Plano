@@ -33,6 +33,8 @@ const GAP = 8;
 export interface PhoneSticky {
   id: string;
   text: string;
+  /** The block's band; "Catatan" when absent (a plain note). */
+  title?: string;
 }
 
 /**
@@ -539,7 +541,8 @@ function StickyBlock({
 }): JSX.Element {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLButtonElement>(null);
-  const found = sticky.text.split('\n').find((line) => line.trim());
+  // A summary sticky shows as many lines as fit; a plain note its first line.
+  const found = sticky.title ? sticky.text.trim() || undefined : sticky.text.split('\n').find((line) => line.trim());
   const empty = !found;
   const first = found ?? '(kosong)';
   return (
@@ -552,9 +555,9 @@ function StickyBlock({
         className="flex h-full w-full flex-col overflow-hidden rounded-lg border border-[var(--warn-strong)] bg-[var(--warn-soft)] text-left text-fg disabled:cursor-grab"
       >
         <span className="w-full bg-[var(--warn-strong)]/25 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-[var(--warn-strong)]">
-          Catatan
+          {sticky.title ?? 'Catatan'}
         </span>
-        <span className={['line-clamp-4 px-2 pt-1 text-[13px] leading-tight', empty ? 'italic text-fg-muted' : ''].join(' ')}>
+        <span className={['line-clamp-4 whitespace-pre-line px-2 pt-1 text-[13px] leading-tight', empty ? 'italic text-fg-muted' : ''].join(' ')}>
           {first}
         </span>
       </button>

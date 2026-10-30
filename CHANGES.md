@@ -1,5 +1,14 @@
 # Plano — CHANGES
 
+## `2026-10-30.7` — Summary stickies on the phone canvas show their content
+
+Owner: "no sticky notes catatan and lab in mobile view?"
+
+- **Root cause.** They were there, but easy to miss. On a phone the only way to add them is the ⋯ (Aksi lain) sheet, because + Tambah is rendered only when the desktop canvas exists. And on the phone canvas (Urutan sendiri → Kanvas) a sticky is a small `StickyBlock` with a fixed "Catatan" band and the first line of `text`. A summary sticky has empty `text`, so .3 passed a placeholder label: both blocks read "CATATAN / Catatan pasien" and "CATATAN / Lab hari ini", with none of the content.
+- **Fix.** `PhoneSticky.title` (optional) sets the band. `BoardPage` builds a summary block's text from the same cards the sticky lists (`name: catatan`, `name: lab line dated today`), and `StickyBlock` shows up to 4 lines of it. Plain notes are unchanged. Tap still opens the editable `StickyNoteCard` sheet.
+- **Checked** at 375 px in the emulator: list view and the Urutan sendiri list already showed both stickies in full; the canvas blocks now show the titles and content, and a tap opens the catatan editor with the stored text.
+- **Not done.** Not tried on a real phone (the owner's device may still have an older cached build until it updates). No + Tambah button was added to the phone header. The ⋯ sheet is still the way in.
+
 ## `2026-10-30.6` — Card catatan strip off by default
 
 Avi: the yellow catatan strip under each board card duplicates the new Catatan pasien sticky; hide it by default, keep it as a setting.
