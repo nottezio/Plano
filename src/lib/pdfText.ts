@@ -87,7 +87,8 @@ export async function extractPdfText(file: File): Promise<string> {
     pages.push(toLines(content.items as TextItem[]).join('\n'));
   }
 
-  await document.cleanup();
+  // destroy, not cleanup: cleanup keeps the parsed PDF in memory.
+  await document.loadingTask.destroy();
   return pages.join('\n');
 }
 

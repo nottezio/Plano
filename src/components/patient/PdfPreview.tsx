@@ -21,19 +21,24 @@ export function PdfPreview({ files }: { files: readonly File[] }): JSX.Element {
       for (const file of files) {
         try {
           const doc = await openPdf(file);
-          for (let n = 1; n <= doc.numPages; n += 1) {
-            const page = await doc.getPage(n);
-            if (cancelled) return;
-            const base = page.getViewport({ scale: 1 });
-            const viewport = page.getViewport({ scale: (width / base.width) * ratio });
-            const canvas = document.createElement('canvas');
-            canvas.width = viewport.width;
-            canvas.height = viewport.height;
-            canvas.style.width = '100%';
-            canvas.className = 'mb-2 block rounded border border-border bg-white';
-            await page.render({ canvas, viewport }).promise;
-            if (cancelled) return;
-            root.appendChild(canvas);
+          try {
+            for (let n = 1; n <= doc.numPages; n += 1) {
+              const page = await doc.getPage(n);
+              if (cancelled) return;
+              const base = page.getViewport({ scale: 1 });
+              const viewport = page.getViewport({ scale: (width / base.width) * ratio });
+              const canvas = document.createElement('canvas');
+              canvas.width = viewport.width;
+              canvas.height = viewport.height;
+              canvas.style.width = '100%';
+              canvas.className = 'mb-2 block rounded border border-border bg-white';
+              await page.render({ canvas, viewport }).promise;
+              if (cancelled) return;
+              root.appendChild(canvas);
+            }
+          } finally {
+            // The canvases keep the pixels; the parsed PDF is not needed again.
+            void doc.loadingTask.destroy();
           }
         } catch (error) {
           console.error('[lab] PDF preview failed', error);

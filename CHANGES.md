@@ -1,5 +1,13 @@
 # Plano — CHANGES
 
+## `2026-10-31.3` — Lab sheet: free each PDF after it is read or drawn
+
+Owner approved review finding 1 on be8a467 (.31.2).
+
+- **Root cause.** pdf.js keeps a parsed document (and the file's bytes, in its worker) until `destroy()` is called. `extractPdfText` only called `cleanup()`, which frees page caches but keeps the document; `PdfPreview` called neither. The preview also re-opens every PDF in the list each time one is added, so 4 dropped PDFs left 4 + (1+2+3+4) = 14 documents held for the session.
+- **Fix.** `extractPdfText` calls `loadingTask.destroy()` instead of `cleanup()` (pdf.js 6 has `destroy` on the loading task, not on the document). `PdfPreview` destroys each document in a `finally` once its pages are drawn (or the effect is cancelled); the canvases keep the pixels.
+- **Not done.** The preview still redraws every earlier PDF when one is added (speed only, not memory). Not tried in the app with a real PDF or on a phone; memory was not measured. No test (pdf.js worker + canvas).
+
 ## `2026-10-31.2` — Lab sheet: PDF preview in the source box
 
 Request: the left box of "Format hasil lab" should show the PDF instead of only the text.

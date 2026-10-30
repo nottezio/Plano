@@ -5,6 +5,9 @@ Catatan teknis lengkap (akar masalah, perbaikan) ada di CHANGES.md.
 
 Entri teratas harus versi yang sedang dirilis; tes gagal bila belum ditulis.
 
+## `2026-10-31.3`
+- **Format hasil lab: lebih ringan di HP.** PDF yang sudah ditampilkan atau dibaca kini dilepas dari memori, jadi menambah beberapa PDF berturut-turut tidak lagi membuat aplikasi makin berat.
+
 ## `2026-10-31.2`
 - **Format hasil lab: pratinjau PDF.** Setelah mengambil PDF, kotak di kiri kini menampilkan halaman PDF-nya sebagai pembanding. Tombol *Teks hasil lab* di atasnya membuka teks yang bisa dikoreksi seperti biasa. PDF tetap dibaca di perangkat ini dan tidak diunggah.
 
