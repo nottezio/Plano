@@ -1,5 +1,16 @@
 # Plano — CHANGES
 
+## `2026-10-31.16` — Carry device-only settings to the new address (dormant)
+
+Plano moves from GitHub Pages (nottezio.github.io/Plano) to Firebase Hosting (tabulaplano.web.app) so the repo can go private. A new origin starts with empty browser storage: Firestore data returns at sign-in, localStorage-only settings do not.
+
+- **`domain/moveSettings.ts` (new, pure).** `isCarriedKey`: every `visite.*` / `plano.*` key except device identity (`deviceId`, `chunkRecovery`, `iosInstallHint`), the PIN, `ai.key`/`ai.flags` (already synced), `plano.clipboard.last` (patient name/RM), Firestore mirrors (`visite.jaga.*`, `plano.sensus.v1/v2`), `visite.access.*`, `visite.sessionLog`, `plano.move.*`. `packSettings` packs to JSON under 300 KB, smallest values first, reports skipped keys. `planApply` writes only carried, string-valued keys that are absent. `parseMovedTo` accepts https, or http on loopback for local testing. `moveRole` → none / old / new by origin.
+- **Rules + repo.** `users/{uid}/private/move`: owner only, `devices` map (device id → { label, at, json }) with at most 3 entries, deletable. `move.repo.ts`: write own entry (`setDoc` merge, resolves on server ack), read from the server (written on another origin), remove used/ignored entries (`FieldPath`, whole doc when none remain). Carried through Firestore, not the URL: stickers and census history can hold patient names, and URLs land in history.
+- **UI (`MoveBanner`, top of `<main>`).** Old address: "Plano pindah ke …"; *Bawa pengaturan & buka* flushes editors, waits up to 15 s for Synced (refuses otherwise), uploads (20 s timeout), opens the new address; *Buka tanpa membawa* link; × hides for the page. New address: one *Pakai (device · date)* per source device, applies then reloads (stores read settings at start-up); *Abaikan* deletes the copies.
+- **Dormant.** Shows nothing unless the build has `VITE_MOVED_TO` (repository variable, passed in `deploy.yml` and `firebase-hosting.yml`). Avi decides when to switch it on.
+- **Checked.** Unit tests (13). Emulator, two origins (5174 old, 5175 new): banner shown, upload, navigation, offer, apply wrote theme, refRanges and a sticker (`visite.board.stickers.mine`), PIN and clipboard not carried, offer gone after apply. Screenshots at 390 px (both) and 1280 px (old). Not seen on a real phone or against production rules (re-verify after the rules deploy).
+- **Not done.** Device label is the coarse `describeDevice` ("Perangkat lain" for unknown UAs). The new-address offer is read once per start while copies exist.
+
 ## `2026-10-31.15` — Versions carry on from the earlier day's version
 
 Avi's dr. AHA routine: full SOAP to the chief, then a shortened "SOAP AHA" version for the DPJP. Each morning the full SOAP carries forward, the version does not, and nothing records which full-SOAP lines changed overnight, so a change was easy to miss in the remade version.

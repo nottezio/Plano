@@ -116,6 +116,11 @@ describe('parseMovedTo / moveRole', () => {
     expect(parseMovedTo('http://tabulaplano.web.app')).toBeNull();
   });
 
+  it('accepts plain http on loopback only, for local testing', () => {
+    expect(parseMovedTo('http://localhost:5175')).toBe('http://localhost:5175');
+    expect(parseMovedTo('http://127.0.0.1:5175/')).toBe('http://127.0.0.1:5175');
+  });
+
   it('tells the old address from the new one', () => {
     const target = 'https://tabulaplano.web.app';
     expect(moveRole(null, 'https://nottezio.github.io')).toBe('none');

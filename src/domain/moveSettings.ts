@@ -108,12 +108,17 @@ export function planApply(json: string, has: (key: string) => boolean): Array<[s
   return out.sort(([a], [b]) => a.localeCompare(b));
 }
 
-/** The new address's origin, or null when unset or not an https URL. */
+/**
+ * The new address's origin, or null when unset or not an https URL. Plain
+ * http is accepted for loopback only, so both halves can be tried locally on
+ * two ports (two origins).
+ */
 export function parseMovedTo(raw: string | undefined): string | null {
   if (!raw) return null;
   try {
     const url = new URL(raw.trim());
-    return url.protocol === 'https:' ? url.origin : null;
+    if (url.protocol === 'https:') return url.origin;
+    return url.protocol === 'http:' && ['localhost', '127.0.0.1'].includes(url.hostname) ? url.origin : null;
   } catch {
     return null;
   }

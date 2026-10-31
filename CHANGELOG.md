@@ -5,6 +5,9 @@ Catatan teknis lengkap (akar masalah, perbaikan) ada di CHANGES.md.
 
 Entri teratas harus versi yang sedang dirilis; tes gagal bila belum ditulis.
 
+## `2026-10-31.16`
+- **Persiapan pindah alamat.** Plano akan pindah ke alamat baru. Saat waktunya tiba, alamat lama menampilkan pemberitahuan **Plano pindah ke …** dengan tombol **Bawa pengaturan & buka**: Plano menunggu sampai *Synced*, membawa pengaturan yang hanya tersimpan di perangkat ini (tema, sticker, coretan, nilai rujukan, urutan board), lalu membuka alamat baru. Di alamat baru, ketuk **Pakai** untuk memasang pengaturan itu; yang sudah ada tidak diganti. Catatan pasien tidak perlu dibawa: semuanya muncul lagi setelah masuk. PIN dibuat lagi di alamat baru. Belum aktif di versi ini.
+
 ## `2026-10-31.15`
 - **Versi SOAP kini bisa melanjutkan versi kemarin.** Saat membuat versi baru (mis. *Versi dr. AHA*), Plano menawarkan **Mulai dari** versi hari sebelumnya, lalu memasukkan sendiri perubahan SOAP sejak hari itu: tanda vital yang berubah (juga bila di versi sudah dilipat jadi satu baris), obat yang ditambah atau dihentikan, plan, dan penunjang baru. Ringkasan yang sudah Anda tulis sendiri di versi kemarin tetap utuh.
 - **Yang tidak bisa dimasukkan otomatis tidak hilang.** Perubahan yang di versi ditulis berbeda (S yang diringkas, pemeriksaan fisik yang jadi satu baris) tampil dalam kotak kuning **Belum masuk** di atas versi baru: coret = kemarin, di bawahnya = hari ini. Kotak tetap tampil sampai Anda ketuk **Selesai**.

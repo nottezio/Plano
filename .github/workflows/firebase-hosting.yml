@@ -46,6 +46,8 @@ jobs:
           VITE_FIREBASE_STORAGE_BUCKET: ${{ vars.VITE_FIREBASE_STORAGE_BUCKET }}
           VITE_FIREBASE_MESSAGING_SENDER_ID: ${{ vars.VITE_FIREBASE_MESSAGING_SENDER_ID }}
           VITE_FIREBASE_APP_ID: ${{ vars.VITE_FIREBASE_APP_ID }}
+          # The new address once Plano has moved (MoveBanner). Unset: no banner.
+          VITE_MOVED_TO: ${{ vars.VITE_MOVED_TO }}
           VITE_BASE: /
         run: npm run build
 

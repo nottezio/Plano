@@ -19,6 +19,7 @@ import { SignOutButton } from '@/components/auth/SignOutButton';
 import { useViewerOnly } from '@/components/auth/viewerOnly';
 import { TopBar } from './TopBar';
 import { UpdateBanner } from './UpdateBanner';
+import { MoveBanner } from './MoveBanner';
 import { ClipboardPill } from './ClipboardPill';
 
 /**
@@ -184,6 +185,7 @@ export function AppShell({
           id="main"
           className="relative min-h-0 flex-1 overflow-y-auto pb-[calc(env(safe-area-inset-bottom)+64px)] sm:pb-0"
         >
+          <MoveBanner />
           <IosInstallHint />
           {/* A second boundary inside the shell: a crash in one route leaves
               the navigation usable instead of blanking the whole app. */}
