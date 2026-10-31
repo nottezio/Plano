@@ -5,6 +5,9 @@ Catatan teknis lengkap (akar masalah, perbaikan) ada di CHANGES.md.
 
 Entri teratas harus versi yang sedang dirilis; tes gagal bila belum ditulis.
 
+## `2026-10-31.6`
+- **Tab di tablet.** Aplikasi yang terpasang kini menampilkan deretan tab di bagian atas layar tablet (lebar 768 px ke atas), seperti di komputer. Ketuk + untuk tab baru, ketuk × untuk menutup (kini selalu terlihat di layar sentuh), geser tab untuk mengubah urutan. HP tidak berubah.
+
 ## `2026-10-31.5`
 - **Kirim ke rekan: pengirim kini menyimpan salinan di Arsip.** Saat rekan menekan Terima, ia mendapat salinan pasien beserta semua catatan dan checklist hariannya di papannya. Pasien di papan pengirim tidak lagi hilang, melainkan masuk Arsip dengan alasan *Pindah* dan catatan "Diserahkan ke …", lengkap dengan riwayat revisinya. Menerima pasien perlu koneksi internet.
 

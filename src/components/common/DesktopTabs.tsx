@@ -58,11 +58,15 @@ function save(state: TabsState): void {
   }
 }
 
-/** Installed (its own window), with a mouse, and wide enough for a strip. */
+/**
+ * Installed (its own window) and wide enough for a strip: a desktop with a
+ * mouse, or a tablet by touch (768 px wide and 600 px tall, which keeps a phone
+ * turned sideways out).
+ */
 export function useDesktopTabsEnabled(): boolean {
   const installed = useMediaQuery('(display-mode: standalone), (display-mode: window-controls-overlay)');
-  const desktop = useMediaQuery('(pointer: fine) and (min-width: 900px)');
-  return installed && desktop;
+  const wide = useMediaQuery('(pointer: fine) and (min-width: 900px), (min-width: 768px) and (min-height: 600px)');
+  return installed && wide;
 }
 
 const drag = { WebkitAppRegion: 'drag', appRegion: 'drag' } as CSSProperties;
@@ -277,7 +281,7 @@ function TabStrip({ children }: { children: ReactNode }): JSX.Element {
                   data-tab-close
                   aria-label={`Tutup tab ${label}`}
                   onClick={() => go(closeTab(latest.current, tab.id))}
-                  className={`mr-1.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-md text-base leading-none hover:bg-bg-subtle ${on ? '' : 'opacity-0 group-hover:opacity-100'}`}
+                  className={`mr-1.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-md text-base leading-none hover:bg-bg-subtle [@media(pointer:coarse)]:h-8 [@media(pointer:coarse)]:w-8 ${on ? '' : 'opacity-0 group-hover:opacity-100 [@media(hover:none)]:opacity-100'}`}
                 >
                   ×
                 </button>
@@ -291,7 +295,7 @@ function TabStrip({ children }: { children: ReactNode }): JSX.Element {
           aria-label="Tab baru"
           title="Tab baru"
           onClick={() => go(openTab(latest.current, HOME_URL))}
-          className="mb-1 flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-xl leading-none text-fg-muted hover:bg-bg hover:text-fg"
+          className="mb-1 flex h-9 w-9 shrink-0 [@media(pointer:coarse)]:h-11 [@media(pointer:coarse)]:w-11 items-center justify-center rounded-lg text-xl leading-none text-fg-muted hover:bg-bg hover:text-fg"
         >
           +
         </button>

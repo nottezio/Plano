@@ -1,5 +1,13 @@
 # Plano — CHANGES
 
+## `2026-10-31.6` — Tab strip on installed tablets
+
+Request: a tab-like structure on a friend's tablet.
+
+- **Root cause.** `useDesktopTabsEnabled` required `(pointer: fine) and (min-width: 900px)`, so any touch device never got the strip. Now also `(min-width: 768px) and (min-height: 600px)`; the height keeps a phone in landscape out. Still installed-only.
+- **Touch fixes in `DesktopTabs`.** The × on inactive tabs showed only on hover (`group-hover`), so touch could not close them: now always visible under `hover: none`. × and + get larger targets under `pointer: coarse`. Drag-to-reorder already used pointer events with `touch-none`.
+- **Not done.** Not tried on a real tablet or in an installed window. No Ctrl+click / Ctrl+Tab equivalents on touch (none exist). The strip's bar height (44 px) is unchanged. A tablet in a narrow split-screen (<768 px) gets no tabs.
+
 ## `2026-10-31.5` — Transfer: copy to the recipient, sender keeps the original archived
 
 Avi: "for transferring a patient make a copy also from the sender and archive it".
