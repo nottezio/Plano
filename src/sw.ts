@@ -53,7 +53,10 @@ cleanupOutdatedCaches();
  */
 registerRoute(
   new NavigationRoute(createHandlerBoundToURL(`${self.registration.scope}index.html`), {
-    denylist: [/^\/api\//, /\/[^/?]+\.[^/]+$/],
+    // `/__/`: Firebase Hosting's reserved paths. `/__/auth/handler` is the
+    // Google sign-in page when the auth domain is this site's own domain;
+    // served index.html instead, the popup showed Plano and sign-in hung.
+    denylist: [/^\/api\//, /^\/__\//, /\/[^/?]+\.[^/]+$/],
   }),
 );
 

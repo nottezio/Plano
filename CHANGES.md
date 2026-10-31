@@ -1,5 +1,14 @@
 # Plano — CHANGES
 
+## `2026-10-31.17` — Service worker no longer swallows /__/auth/handler
+
+Avi on tabulaplano.web.app: "Masuk dengan Google" opened a popup at `tabulaplano.web.app/__/auth/handler?apiKey=…` that rendered Plano's own sign-in page.
+
+- **Cause.** With `VITE_FIREBASE_AUTH_DOMAIN_HOSTING=tabulaplano.web.app` the auth handler is on the app's own origin. The SW's `NavigationRoute` (SPA fallback) serves `index.html` for every navigation in scope, including Firebase Hosting's reserved `/__/` paths, so the handler page never loaded. With the old auth domain (`plano-85e9e.firebaseapp.com`) the handler was cross-origin and out of the SW's reach, so GitHub Pages never hit this.
+- **Fix.** `sw.ts`: `/^\/__\//` added to the navigation denylist; those requests go to the network (Hosting serves its handler).
+- **Rollout.** The old SW keeps control until the new one activates (no skipWaiting by design): tap *Muat ulang* on the update banner, or close every Plano tab, before retrying sign-in.
+- **Checked.** `npm run verify`. Not reproduced against production before the fix (re-verify on tabulaplano.web.app, popup and iPhone redirect).
+
 ## `2026-10-31.16` — Carry device-only settings to the new address (dormant)
 
 Plano moves from GitHub Pages (nottezio.github.io/Plano) to Firebase Hosting (tabulaplano.web.app) so the repo can go private. A new origin starts with empty browser storage: Firestore data returns at sign-in, localStorage-only settings do not.

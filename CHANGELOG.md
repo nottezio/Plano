@@ -5,6 +5,9 @@ Catatan teknis lengkap (akar masalah, perbaikan) ada di CHANGES.md.
 
 Entri teratas harus versi yang sedang dirilis; tes gagal bila belum ditulis.
 
+## `2026-10-31.17`
+- **Masuk dengan Google di alamat baru kini berjalan.** Jendela masuk Google sempat menampilkan halaman Plano lagi, bukan halaman Google, sehingga tidak bisa masuk. Sudah diperbaiki. Bila masih terjadi, ketuk **Muat ulang** pada pemberitahuan *Versi baru tersedia* lalu coba lagi.
+
 ## `2026-10-31.16`
 - **Persiapan pindah alamat.** Plano akan pindah ke alamat baru. Saat waktunya tiba, alamat lama menampilkan pemberitahuan **Plano pindah ke …** dengan tombol **Bawa pengaturan & buka**: Plano menunggu sampai *Synced*, membawa pengaturan yang hanya tersimpan di perangkat ini (tema, sticker, coretan, nilai rujukan, urutan board), lalu membuka alamat baru. Di alamat baru, ketuk **Pakai** untuk memasang pengaturan itu; yang sudah ada tidak diganti. Catatan pasien tidak perlu dibawa: semuanya muncul lagi setelah masuk. PIN dibuat lagi di alamat baru.
 
