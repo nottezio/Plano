@@ -3,6 +3,7 @@ import {
   deleteDoc,
   deleteField,
   doc,
+  getDoc,
   getDocs,
   increment,
   limit,
@@ -125,6 +126,17 @@ export async function fetchEntryBodies(
    */
   const snapshot = await getDocs(query(entriesCol(patientId)));
   return toBodies(snapshot.docs);
+}
+
+/**
+ * One day's SOAP, read by id: one document (the cached copy when offline, if
+ * this device has it). `null` when the day has no note or was deleted.
+ */
+export async function fetchEntryBody(patientId: string, date: ClinicalDate): Promise<string | null> {
+  const snapshot = await getDoc(entryDoc(patientId, date));
+  const entry = snapshot.exists() ? (snapshot.data() as DailyEntry) : null;
+  if (!entry || entry.deletedAt) return null;
+  return entry.body?.trim() ? entry.body : null;
 }
 
 /** How many days back from today `fetchLatestEntryBody` reads before it falls back to all of them. */

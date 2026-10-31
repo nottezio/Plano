@@ -28,7 +28,12 @@ import {
   isVersion,
   noteLabel,
 } from '@/domain/shiftNotes';
-import { NewVersionSheet } from '@/components/patient/NewVersionSheet';
+import {
+  CarryPendingPanel,
+  NewVersionSheet,
+  type CarrySource,
+} from '@/components/patient/NewVersionSheet';
+import type { CarryChange } from '@/domain/versionCarry';
 import { PatientNotes, usePatientNotes } from '@/components/patient/PatientNotes';
 import { PatientTodos } from '@/components/patient/PatientTodos';
 import { SidePanel } from '@/components/patient/SidePanel';
@@ -42,7 +47,7 @@ import { TemplatePicker } from '@/components/patient/TemplatePicker';
 import { ConflictDialog } from '@/components/patient/ConflictDialog';
 import { DateRail } from '@/components/patient/DateRail';
 import { RevisionTrail } from '@/components/patient/RevisionTrail';
-import { deleteVersion, saveVersion } from '@/data/repositories/entries.repo';
+import { deleteVersion, fetchEntryBody, saveVersion } from '@/data/repositories/entries.repo';
 import { AppShell } from '@/components/common/AppShell';
 import { Button, Segmented } from '@/components/common/ui';
 import { useGoUp } from '@/lib/useGoUp';
@@ -447,13 +452,66 @@ export default function PatientPage(): JSX.Element {
   const activeVersion = activeShiftNote && isVersion(activeShiftNote) ? activeShiftNote : null;
   const activeJaga = activeShiftNote && !isVersion(activeShiftNote) ? activeShiftNote : null;
 
+  /**
+   * The newest earlier day with a version, so today's can carry on from it.
+   * Not necessarily yesterday: after a weekend with no version, Friday's
+   * version and Friday's SOAP are the right pair.
+   */
+  const carryDayVersions = useMemo(() => {
+    const days = Object.keys(entryDates.shiftNotesByDate)
+      .filter((date) => !isIgdEntry(date) && date < selected)
+      .sort();
+    for (let k = days.length - 1; k >= 0; k--) {
+      const date = days[k]!;
+      const versions = (entryDates.shiftNotesByDate[date] ?? [])
+        .filter((note) => isVersion(note) && note.clearedAt === null && note.body.trim())
+        .map((note) => ({ id: note.id, title: noteLabel(note), body: note.body }));
+      if (versions.length > 0) return { date, versions };
+    }
+    return null;
+  }, [entryDates.shiftNotesByDate, selected]);
+
+  /** That day's SOAP, read once per opening of the sheet (one document). */
+  const [carryBase, setCarryBase] = useState<string | null | undefined>(undefined);
+  const carryDate = carryDayVersions?.date ?? null;
+  useEffect(() => {
+    if (!versionSheetOpen || !patientId || !carryDate) return;
+    let live = true;
+    setCarryBase(undefined);
+    fetchEntryBody(patientId, carryDate).then(
+      (body) => live && setCarryBase(body),
+      () => live && setCarryBase(null),
+    );
+    return () => {
+      live = false;
+    };
+  }, [versionSheetOpen, patientId, carryDate]);
+  const carrySource = useMemo<CarrySource | null>(
+    () => (carryDayVersions ? { ...carryDayVersions, base: carryBase } : null),
+    [carryDayVersions, carryBase],
+  );
+
+  /** What carrying on could not place, shown above that version until dismissed. */
+  const [carryPending, setCarryPending] = useState<{ id: string; changes: CarryChange[] } | null>(
+    null,
+  );
+
   /** A version is a copy of the SOAP on screen, made in `NewVersionSheet`. */
-  const createVersion = ({ title, body }: { title: string; body: string }): void => {
+  const createVersion = ({
+    title,
+    body,
+    pending,
+  }: {
+    title: string;
+    body: string;
+    pending: CarryChange[];
+  }): void => {
     editor.flush();
     shiftNotes.flush();
     const id = shiftNotes.add(body, { kind: 'versi', title });
     setVersionSheetOpen(false);
     if (!id) return;
+    setCarryPending(pending.length > 0 ? { id, changes: pending } : null);
     setJustCreatedJaga(null);
     setSelectedShiftNoteId(id);
   };
@@ -2153,6 +2211,12 @@ export default function PatientPage(): JSX.Element {
           and the whole reason the jaga note is a separate document is that its
           text must not end up in the morning note.
         */}
+        {activeShiftNote && carryPending?.id === activeShiftNote.id ? (
+          <CarryPendingPanel
+            pending={carryPending.changes}
+            onDismiss={() => setCarryPending(null)}
+          />
+        ) : null}
         {activeShiftNote ? (
           <ShiftNoteEditor
             note={activeShiftNote}
@@ -2768,6 +2832,7 @@ export default function PatientPage(): JSX.Element {
         aliases={settings.sectionAliases}
         defaultTitle={defaultVersionTitle(shiftNotes.notes, dpjp?.initials)}
         latestByDefault={Boolean(dpjp && settings.dpjpFormats[dpjp.id]?.latestPenunjang)}
+        carry={carrySource}
         onCreate={createVersion}
       />
 

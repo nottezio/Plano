@@ -1,5 +1,15 @@
 # Plano — CHANGES
 
+## `2026-10-31.15` — Versions carry on from the earlier day's version
+
+Avi's dr. AHA routine: full SOAP to the chief, then a shortened "SOAP AHA" version for the DPJP. Each morning the full SOAP carries forward, the version does not, and nothing records which full-SOAP lines changed overnight, so a change was easy to miss in the remade version.
+
+- **Cause.** The version is a hand-kept second copy with no link to the SOAP it was made from. Remaking it from today's SOAP redoes the hand shortening; copying yesterday's means remembering the overnight changes.
+- **`domain/versionCarry.ts` (new, pure).** `carryVersion(yesterdaySoap, yesterdayVersion, todaySoap)` line-diffs the two SOAPs (`diffSegmentsByLine`, trailing spaces ignored) and replays each hunk onto the version: (1) changed lines found once as whole lines → replaced (blank line left doubled by a removed block collapsed); (2) equal line counts → per line, a whole-line match or a unique, word-bounded substring inside a version line (folded vitals/lab rows; needles under 4 chars refused); (3) pure additions → next to the nearest unchanged neighbour the version has (equal, or a folded heading starting with it), walking past neighbours the version left out and stopping at one it has twice; blocks set off by blank lines go above the next neighbour, list lines below the previous. Anything else, and any ambiguity, is `pending` with old and new text. Tests on a synthetic AHA-shaped SOAP and version.
+- **`penunjang.ts`.** `penunjangBlocks` also opens a block at a folded heading (`*Heading (dd-mm-yyyy)* text`, bold part alone must read as a dated heading). Root cause found by the carry test: the shortened version folds EKG/lab onto their headings, so "penunjang terbaru saja" never dropped the old EKG in it. Affects `insertLab` and Visite too (they now also see folded blocks); all existing tests unchanged and green.
+- **UI.** `NewVersionSheet`: "Mulai dari" chips (that day's versions, dashed, and "SOAP hari ini"); defaults to the earlier version named like the default title, else that day's newest, and takes its title. Shows the auto-applied changes (folded list) and the pending count. "Buat versi" is disabled while the earlier SOAP is read or when it cannot be (offline, not cached). `PatientPage`: the earlier day = newest earlier date with a non-cleared version in `shiftNotesByDate` (already live; a weekend gap pairs Friday's version with Friday's SOAP); its SOAP is read once per sheet opening by the new `fetchEntryBody` (one `getDoc`). Pending changes show in `CarryPendingPanel` (warn `Callout`) above that version's editor until "Selesai".
+- **Known gap (stated in the sheet).** A change made to the earlier day's SOAP after its version was made is in both SOAPs, so it is not carried. Pending list is page state only: gone after a reload.
+
 ## `2026-10-31.14` — Restore sees patients outside the 30-day roster; phone header folds the chiefs
 
 Rest of the List Maker audit (items 4 and 5).

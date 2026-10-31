@@ -99,6 +99,18 @@ function headingOf(text: string): { stem: string; date: string } | null {
   return hit?.date ? { stem: hit.stem, date: hit.date } : null;
 }
 
+/**
+ * A heading with its result folded onto the same line, as dr. AHA's shortened
+ * version writes it: `*EKG Lt. 4 (29-10-2026)* Sinus rhythm, …`. Bold only,
+ * and the bold part alone must read as a dated heading.
+ */
+const FOLDED_RE = /^[ \t]*(\*[^*\n]{1,90}\*)[ \t]+\S/;
+
+function foldedHeadingOf(text: string): { stem: string; date: string } | null {
+  const folded = FOLDED_RE.exec(text);
+  return folded ? headingOf(folded[1]!) : null;
+}
+
 interface Block {
   start: number;
   end: number;
@@ -147,7 +159,7 @@ export function penunjangBlocks(
   };
 
   for (const line of lines) {
-    const heading = headingOf(line.text);
+    const heading = headingOf(line.text) ?? foldedHeadingOf(line.text);
     const kind = heading ? penunjangKind(heading.stem) : '';
     if (heading && kind) {
       close(line.start);

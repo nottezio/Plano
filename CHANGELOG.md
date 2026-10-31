@@ -5,6 +5,11 @@ Catatan teknis lengkap (akar masalah, perbaikan) ada di CHANGES.md.
 
 Entri teratas harus versi yang sedang dirilis; tes gagal bila belum ditulis.
 
+## `2026-10-31.15`
+- **Versi SOAP kini bisa melanjutkan versi kemarin.** Saat membuat versi baru (mis. *Versi dr. AHA*), Plano menawarkan **Mulai dari** versi hari sebelumnya, lalu memasukkan sendiri perubahan SOAP sejak hari itu: tanda vital yang berubah (juga bila di versi sudah dilipat jadi satu baris), obat yang ditambah atau dihentikan, plan, dan penunjang baru. Ringkasan yang sudah Anda tulis sendiri di versi kemarin tetap utuh.
+- **Yang tidak bisa dimasukkan otomatis tidak hilang.** Perubahan yang di versi ditulis berbeda (S yang diringkas, pemeriksaan fisik yang jadi satu baris) tampil dalam kotak kuning **Belum masuk** di atas versi baru: coret = kemarin, di bawahnya = hari ini. Kotak tetap tampil sampai Anda ketuk **Selesai**.
+- **Penunjang terbaru saja kini juga mengenali judul yang dilipat** seperti `*EKG Lt. 4 (29-10-2026)* Sinus rhythm…`, jadi EKG/lab lama di versi ringkas ikut dihilangkan.
+
 ## `2026-10-31.14`
 - **List Maker di HP: tab lebih cepat terlihat.** Kolom Chief Bangsal dan Chief kini terlipat di balik satu baris ringkas (**Atur chief** · nama yang terisi); ketuk untuk membuka. Pilihan buka/tutup diingat di perangkat ini. Laptop tidak berubah.
 - **Pulihkan tidak lagi menimpa pasien lama.** Saat memulihkan titik pulih yang menyebut pasien yang sudah pulang/pindah lebih dari 30 hari, pasien itu kini dikenali (tampil di *Masuk list lagi*), bukan dianggap terhapus lalu ditulis ulang. Membatalkan pemulihan itu juga tidak lagi menghapusnya.
