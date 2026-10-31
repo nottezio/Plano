@@ -1,5 +1,14 @@
 # Plano — CHANGES
 
+## `2026-10-31.14` — Restore sees patients outside the 30-day roster; phone header folds the chiefs
+
+Rest of the List Maker audit (items 4 and 5).
+
+- **Restore (`RestoreDialog`).** Root cause: `planRestore` compared the point with the live roster only, which since .12 drops departures older than 30 days. A patient in the point who left before that was planned as `recreated`: the point's copy was `set` over their record, and the pre-restore point listed them in `added`, so undoing that restore deleted the document. Fix: after reading the point, keys in `point.patients`/`point.added` missing from the live roster are read once with `readRosterPatients` and joined (`[...older, ...roster]`, roster wins in the Map) for both `planRestore` and `pointBeforeRestore`. Unreachable keys (offline) stop the dialog with "butuh koneksi" instead of a wrong plan. Side effect, intended: Batalkan tempel of an old paste now removes an added patient even if they left over 30 days ago (as before .12).
+- **Phone header (`ListMakerHeader`).** Below 640 px the Chief Bangsal and Chief fields sit behind a summary button ("Atur chief", "Bangsal: … · Chief: …", chevron), same pattern and storage shape as the Salin fold in .8 (`plano.listMaker.chiefsOpen`, folded unless left open; storage that throws reads folded). The fields' wrapper is `contents` when shown, so the 420/640 px grid is unchanged; `sm:contents` keeps the laptop as it was. Tabs moved from ~835 to ~670 px (device px at 390 width, 2x), first patient on screen without scrolling.
+- **Checked.** `npm run verify` green. Emulator: two pastes, then the updated patient set pulang 40 days ago by REST; Batalkan tempel listed them under "Masuk list lagi" (was "Dibuat lagi"). Phone 390 px folded/open screenshots, no horizontal overflow, open state remembered across reload; laptop 1280 px shows no summary button.
+- **Not done.** Catatan Visite still takes its own row on a phone. `kmr 417` still gives no room.
+
 ## `2026-10-31.13` — List Maker verification fixes: chat date order, offline Baca, manual add overwrite
 
 From a List Maker audit (paste, 30-day roster, phone layout) against the emulator and parser probes.

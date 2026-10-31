@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 
 import { Button, Callout } from '@/components/common/ui';
 import { Sheet } from '@/components/common/Sheet';
-import { applyRestore, readRestorePoint, saveRestorePoint } from '@/data/repositories/floors.repo';
+import { applyRestore, readRestorePoint, readRosterPatients, saveRestorePoint } from '@/data/repositories/floors.repo';
 import { formatDmy } from '@/domain/dateDmy';
 import { localOf, type FloorDoc, type RosterPatient } from '@/domain/floorList/floor';
 import { isEmptyPlan, planRestore, pointBeforeRestore, type RestorePoint, type RestorePointMeta } from '@/domain/floorList/restore';
@@ -36,19 +36,37 @@ export function RestoreDialog({
   onClose: () => void;
 }): JSX.Element {
   const [point, setPoint] = useState<RestorePoint | null>(null);
+  // Patients the point names that the live roster no longer holds (left over 30 days ago), read by key.
+  const [older, setOlder] = useState<RosterPatient[]>([]);
   const [error, setError] = useState('');
   const [done, setDone] = useState('');
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
     setPoint(null);
+    setOlder([]);
     setError('');
     setDone('');
     if (!meta) return undefined;
     let live = true;
     readRestorePoint(floor.id, meta)
-      .then((p) => {
-        if (live) setPoint(p);
+      .then(async (p) => {
+        /*
+          The live roster keeps 30 days of departures. A patient in the point
+          who left before that is not missing, only out of view: without this
+          read the plan called them "recreated", wrote the point's copy over
+          their record, and undoing that restore deleted it (2026-10-31).
+        */
+        const known = new Set(roster.map((r) => r.key));
+        const missing = [...new Set([...p.patients.map((r) => r.key), ...p.added])].filter((key) => !known.has(key));
+        const { patients, unchecked } = missing.length ? await readRosterPatients(floor.id, missing) : { patients: [], unchecked: [] };
+        if (!live) return;
+        if (unchecked.length > 0) {
+          setError('Belum bisa memeriksa pasien lama di titik pulih ini (butuh koneksi). Buka lagi saat online.');
+          return;
+        }
+        setOlder(patients);
+        setPoint(p);
       })
       .catch((e: unknown) => {
         if (live) setError(e instanceof Error ? e.message : 'Titik pulih tidak bisa dibaca.');
@@ -56,10 +74,13 @@ export function RestoreDialog({
     return () => {
       live = false;
     };
+    // The roster is read once per opened point: its live changes reach the plan through `current`.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [floor.id, meta]);
 
-  // Against the live roster: a colleague's edit while the dialog is open shows here.
-  const plan = useMemo(() => (point ? planRestore(point, roster) : null), [point, roster]);
+  // Against the live roster: a colleague's edit while the dialog is open shows here. The roster wins over `older`.
+  const current = useMemo(() => [...older, ...roster], [older, roster]);
+  const plan = useMemo(() => (point ? planRestore(point, current) : null), [point, current]);
 
   const restore = async (): Promise<void> => {
     if (!plan || !meta) return;
@@ -67,7 +88,7 @@ export function RestoreDialog({
     setError('');
     const at = new Date().toISOString();
     try {
-      saveRestorePoint(floor.id, pointBeforeRestore(plan, roster, { label: `Sebelum pemulihan ke "${meta.label}"`, createdAt: at, createdBy: myName }));
+      saveRestorePoint(floor.id, pointBeforeRestore(plan, current, { label: `Sebelum pemulihan ke "${meta.label}"`, createdAt: at, createdBy: myName }));
       await applyRestore(floor.id, plan, { at, by: myName, what: `Dipulihkan ke ${meta.label} (${pointWhen(meta)})` });
       setDone(`${plan.revert.length} pasien dikembalikan, ${plan.remove.length} dihapus.`);
     } catch (e) {

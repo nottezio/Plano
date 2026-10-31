@@ -5,6 +5,10 @@ Catatan teknis lengkap (akar masalah, perbaikan) ada di CHANGES.md.
 
 Entri teratas harus versi yang sedang dirilis; tes gagal bila belum ditulis.
 
+## `2026-10-31.14`
+- **List Maker di HP: tab lebih cepat terlihat.** Kolom Chief Bangsal dan Chief kini terlipat di balik satu baris ringkas (**Atur chief** · nama yang terisi); ketuk untuk membuka. Pilihan buka/tutup diingat di perangkat ini. Laptop tidak berubah.
+- **Pulihkan tidak lagi menimpa pasien lama.** Saat memulihkan titik pulih yang menyebut pasien yang sudah pulang/pindah lebih dari 30 hari, pasien itu kini dikenali (tampil di *Masuk list lagi*), bukan dianggap terhapus lalu ditulis ulang. Membatalkan pemulihan itu juga tidak lagi menghapusnya.
+
 ## `2026-10-31.13`
 - **Tempel: tanggal chat export dari HP berbahasa Indonesia kini terbaca benar.** Pada export Android (dan pesan yang disalin) yang menulis tanggal dulu baru bulan, tanggal 1–12 bisa terbaca sebagai bulan lain (12/10 jadi 10 Desember), sehingga SOAP lama dianggap yang terbaru dan SOAP berikutnya tidak menggantikannya. Kini satu tanggal yang jelas di export (mis. 13/10) menentukan urutan untuk semua pesan.
 - **Tempel tanpa sinyal tetap bisa menyimpan SOAP terbaru.** Sebelumnya, satu pasien baru di tempelan membuat seluruh **Baca** berhenti saat offline. Kini hanya pasien yang belum bisa diperiksa yang ditahan (ditampilkan dalam kotak kuning, tidak ikut disimpan); pembaruan SOAP pasien lain tetap bisa disimpan. Baca lagi saat online untuk menambahkan pasien yang ditahan.

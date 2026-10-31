@@ -1,4 +1,7 @@
+import { useState } from 'react';
+
 import { DateField } from '@/components/common/DateField';
+import { IconChevronRight } from '@/components/common/Icons';
 import { ScrollStrip } from '@/components/common/ScrollStrip';
 import { ChoiceChip, Field } from '@/components/common/ui';
 import { ChiefsField } from './ChiefsField';
@@ -41,6 +44,24 @@ export function ListMakerHeader({
   chiefBangsal: string | null;
   onChiefBangsal: (name: string) => void;
 }): JSX.Element {
+  /*
+    On a phone the two chief fields are folded behind one summary line
+    (2026-10-31): with the date, both chiefs and Catatan Visite open, the tabs
+    started half way down the screen and the first patient two thirds down.
+    Folded unless left open on this device; 640 px and up unchanged.
+  */
+  const [chiefsOpen, setChiefsOpen] = useState(readChiefsOpen);
+  const toggleChiefs = (): void => {
+    setChiefsOpen(!chiefsOpen);
+    writeChiefsOpen(!chiefsOpen);
+  };
+  const editsChiefs = chiefs !== null || chiefBangsal !== null;
+  const summary = [
+    chiefBangsal !== null ? `Bangsal: ${chiefBangsal || '—'}` : null,
+    chiefs !== null ? `Chief: ${chiefs.length ? chiefs.join(', ') : '—'}` : null,
+  ]
+    .filter(Boolean)
+    .join(' · ');
   return (
     <div className="space-y-2">
       <ScrollStrip className="flex gap-2 py-0.5" label="List">
@@ -60,6 +81,27 @@ export function ListMakerHeader({
         <Field label="Tanggal list">
           <DateField value={date} onChange={onDate} className="w-full" />
         </Field>
+        {editsChiefs ? (
+          <button
+            type="button"
+            onClick={toggleChiefs}
+            aria-expanded={chiefsOpen}
+            aria-controls="list-chiefs"
+            className="flex min-h-tap w-full items-center gap-3 self-end rounded-xl border border-border bg-surface px-3 py-2 text-left transition-colors [@media(hover:hover)]:hover:bg-bg-subtle focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent sm:hidden"
+          >
+            <span className="min-w-0 flex-1">
+              <span className="block text-xs text-fg-muted">{chiefsOpen ? 'Tutup chief' : 'Atur chief'}</span>
+              <span className="block truncate text-sm font-medium text-fg">{summary}</span>
+            </span>
+            <IconChevronRight
+              width={18}
+              height={18}
+              aria-hidden="true"
+              className={`shrink-0 text-fg-muted transition-transform duration-150 motion-reduce:transition-none ${chiefsOpen ? '-rotate-90' : 'rotate-90'}`}
+            />
+          </button>
+        ) : null}
+        <div id="list-chiefs" className={`${chiefsOpen ? 'contents' : 'hidden'} sm:contents`}>
         {chiefBangsal !== null ? (
           // One name: a new chip replaces the old one.
           <ChiefsField
@@ -72,10 +114,31 @@ export function ListMakerHeader({
           />
         ) : null}
         {chiefs ? <ChiefsField chiefs={chiefs} onChange={onChiefs} wide /> : null}
+        </div>
       </div>
 
     </div>
   );
+}
+
+const CHIEFS_OPEN_KEY = 'plano.listMaker.chiefsOpen';
+
+/** Folded unless the user left them open; storage that throws reads as folded. */
+function readChiefsOpen(): boolean {
+  try {
+    return window.localStorage.getItem(CHIEFS_OPEN_KEY) === 'open';
+  } catch {
+    return false;
+  }
+}
+
+function writeChiefsOpen(open: boolean): void {
+  try {
+    if (open) window.localStorage.setItem(CHIEFS_OPEN_KEY, 'open');
+    else window.localStorage.removeItem(CHIEFS_OPEN_KEY);
+  } catch {
+    // Not remembered; the toggle still works on this page.
+  }
 }
 
 /**
