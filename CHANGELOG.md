@@ -5,6 +5,9 @@ Catatan teknis lengkap (akar masalah, perbaikan) ada di CHANGES.md.
 
 Entri teratas harus versi yang sedang dirilis; tes gagal bila belum ditulis.
 
+## `2026-10-31.10`
+- **Kartu pasien: hanya SOAP yang belum ditulis yang ditandai.** Tulisan "● SOAP hari ini" tidak lagi muncul di setiap kartu. Kartu yang SOAP hari ininya belum ada kini menulis **○ SOAP kemarin** atau **○ Belum ada SOAP** dengan huruf tebal, jadi mudah dicari. Langkah checklist berikutnya kini lebih jarang terpotong.
+
 ## `2026-10-31.9`
 - **Halaman pasien di HP: catatan lebih cepat terlihat.** Catatan kini mulai sekitar 100 px lebih tinggi. Tombol **+ Versi** dan **+ SOAP jaga** pindah ke ujung deretan tanggal (sebelum *Tanggal lain*), tidak lagi memakai baris sendiri. Usulan "Dari catatan: RM …" kini menjadi tombol kecil **Isi RM …** di baris identitas, dengan × untuk mengabaikan. Bilah format (undo, tebal, daftar, Sisipkan, Rapikan) hanya muncul saat Anda mengetik, dan tidak lagi tembus pandang di atas teks. Tablet dan laptop tidak berubah.
 

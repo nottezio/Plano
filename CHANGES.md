@@ -1,5 +1,13 @@
 # Plano — CHANGES
 
+## `2026-10-31.10` — Board card: SOAP status only when missing
+
+From the board re-render (realistic notes, some checklist ticks): "● SOAP hari ini" was the same words on every card once the round was under way, and took the width the next-step label needed (desktop showed "5/8 · Inp…").
+
+- **Change (`StatusRail` in `PatientCard`).** Today's SOAP renders nothing visible (an `sr-only` "SOAP hari ini sudah ditulis." keeps it for screen readers). "○ SOAP kemarin" / "○ Belum ada SOAP" are now `font-semibold` at full opacity instead of `opacity-70`, so the exception is the thing that stands out. No new colour: the card colour already means checklist progress.
+- **Side effect.** On cards with today's SOAP the progress strip (`flex-1`) is wider. The 0/8 strip was proposed for hiding and declined.
+- **Checked in the emulator.** Phone 390 px and laptop 1280 px with 12 patients with today's SOAP, one with yesterday's only and one with none: the two exceptions read in bold, the rest show strip + "0/8 · Visite pasien" untruncated on most desktop cards.
+
 ## `2026-10-31.9` — Phone patient page: less furniture above the note
 
 From the UI critique rendered at 390×844: eight bands sat above the note (it began at ~410 px), and the format toolbar, dimmed to 40 % opacity including its background, sat over the note's last lines while reading.

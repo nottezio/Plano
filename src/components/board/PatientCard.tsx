@@ -834,7 +834,7 @@ function PatientCardView({
       {/*
         THE STATUS RAIL (2026-10-10). What is left to do on this patient, on
         one line under the name, where the eye already is:
-          ● SOAP hari ini / ○ SOAP kemarin / ○ Belum ada SOAP
+          ○ SOAP kemarin / ○ Belum ada SOAP (nothing once today's is written)
           the checklist strip with its count, and the next step, short.
         It replaces "Belum: Visite pasien + TTV + EKG sesuai kebutuhan" at the
         bottom, which was the longest line on every card and identical on all
@@ -1326,19 +1326,29 @@ function StatusRail({ card }: { card: BoardCard }): JSX.Element {
   const next = shortStepLabel(progress.pendingLabel);
   return (
     <div className="mb-1 flex items-center gap-2 text-xs">
-      <span
-        className={`flex shrink-0 items-center gap-1 ${soap === 'today' ? 'font-medium' : 'opacity-70'}`}
-        title={
-          soap === 'today'
-            ? 'SOAP hari ini sudah ditulis'
-            : soap === 'stale'
+      {/*
+        Only the exception is written (2026-10-31). "● SOAP hari ini" was the
+        same words on every card once the round was under way, and it took the
+        width the next step needed ("5/8 · Inp…"). A missing SOAP is the thing
+        to find, so it is the one that shows, in weight rather than the faded
+        style it had: the card's colour already means checklist progress, so
+        no second hue. Screen readers still hear the written state.
+      */}
+      {soap === 'today' ? (
+        <span className="sr-only">SOAP hari ini sudah ditulis.</span>
+      ) : (
+        <span
+          className="flex shrink-0 items-center gap-1 font-semibold"
+          title={
+            soap === 'stale'
               ? 'Catatan terakhir dari hari sebelumnya — SOAP hari ini belum ditulis'
               : 'Belum ada catatan'
-        }
-      >
-        <span aria-hidden="true">{soap === 'today' ? '●' : '○'}</span>
-        {soap === 'today' ? 'SOAP hari ini' : soap === 'stale' ? 'SOAP kemarin' : 'Belum ada SOAP'}
-      </span>
+          }
+        >
+          <span aria-hidden="true">○</span>
+          {soap === 'stale' ? 'SOAP kemarin' : 'Belum ada SOAP'}
+        </span>
+      )}
       {card.checkCount ? (
         <span
           className="shrink-0 rounded-sm border border-current px-1 text-[11px] font-semibold"
