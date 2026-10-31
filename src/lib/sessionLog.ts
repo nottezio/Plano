@@ -50,7 +50,9 @@ export type SessionEventKind =
   /** The SOAP editor lost focus, or went read-only, while being typed in. */
   | 'focus-lost'
   /** An uncaught error or a crashed screen; detail from `describeError`. */
-  | 'error';
+  | 'error'
+  /** The server refused a write; detail is the Firestore code only. */
+  | 'write-rejected';
 
 export interface SessionEvent {
   at: string;

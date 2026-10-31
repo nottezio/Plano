@@ -5,6 +5,9 @@ Catatan teknis lengkap (akar masalah, perbaikan) ada di CHANGES.md.
 
 Entri teratas harus versi yang sedang dirilis; tes gagal bila belum ditulis.
 
+## `2026-10-31.7`
+- **Gagal sinkron kini terlihat.** Bila server menolak menyimpan perubahan (misalnya izin akses), status di pojok tidak lagi menulis "Synced". Muncul tanda merah **Gagal sinkron**; ketuk untuk melihat penyebabnya dan apa yang perlu dilakukan. Tanda tetap ada sampai Anda menekan **Mengerti**, meskipun perubahan berikutnya berhasil. Baris di bawah catatan kini menulis "Tersimpan di perangkat ini" saat offline, dan memberi tahu bila ada perubahan yang ditolak.
+
 ## `2026-10-31.6`
 - **Tab di tablet.** Aplikasi yang terpasang kini menampilkan deretan tab di bagian atas layar tablet (lebar 768 px ke atas), seperti di komputer. Ketuk + untuk tab baru, ketuk × untuk menutup (kini selalu terlihat di layar sentuh), geser tab untuk mengubah urutan. HP tidak berubah.
 

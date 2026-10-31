@@ -1,3 +1,4 @@
+import { logSessionEvent } from '@/lib/sessionLog';
 import { useUI } from '@/store/useUI';
 
 /**
@@ -18,8 +19,35 @@ import { useUI } from '@/store/useUI';
 let pending = 0;
 let online = typeof navigator === 'undefined' ? true : navigator.onLine;
 
+/**
+ * Writes the server refused since the user last acknowledged it.
+ *
+ * Every repository write goes through `trackWrite`, so this is the one place
+ * a refusal can be seen. It used to end in `console.error` only, and the pill
+ * went back to "Synced": a rules or quota refusal looked exactly like success
+ * (PRODUCT.md principles 1 and 5).
+ */
+let failed = 0;
+let lastCode: string | undefined;
+let lastAt = 0;
+
+/** `permission-denied`, `resource-exhausted`, …; only the code, never the message (it can carry document paths). */
+function errorCode(error: unknown): string | undefined {
+  if (typeof error === 'object' && error !== null && 'code' in error) {
+    const code = (error as { code: unknown }).code;
+    if (typeof code === 'string') return code;
+  }
+  return undefined;
+}
+
 function publish(): void {
   const setSync = useUI.getState().setSync;
+  // A refusal outranks offline: offline writes are queued and will go, a
+  // refused one will not.
+  if (failed > 0) {
+    setSync({ kind: 'error', failed, code: lastCode, at: lastAt });
+    return;
+  }
   if (!online) {
     setSync({ kind: 'offline', pending });
     return;
@@ -41,13 +69,25 @@ export function trackWrite<T>(promise: Promise<T>): Promise<T> {
   };
 
   promise.then(settle, (error: unknown) => {
-    settle();
-    // Never swallow. A rejected write offline is not normal — Firestore keeps
-    // those pending — so a rejection here means a rules failure or a bug.
+    // A rejected write offline is not normal — Firestore keeps those
+    // pending — so a rejection here means a rules failure, quota, or a bug.
+    failed += 1;
+    lastCode = errorCode(error);
+    lastAt = Date.now();
+    logSessionEvent('write-rejected', lastCode ?? (error instanceof Error ? error.name : typeof error));
     console.error('[sync] write rejected', error);
+    settle();
   });
 
   return promise;
+}
+
+/** The user has seen the failure (the pill's sheet). Back to the live state. */
+export function acknowledgeWriteFailures(): void {
+  failed = 0;
+  lastCode = undefined;
+  lastAt = 0;
+  publish();
 }
 
 export function initSyncStatus(): () => void {

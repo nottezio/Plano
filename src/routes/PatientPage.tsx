@@ -337,6 +337,7 @@ export default function PatientPage(): JSX.Element {
   const [paneView, setPaneView] = useState<'pasien' | 'dokumen'>('pasien');
   const paneOpen = useUI((state) => state.contextPaneOpen);
   const togglePane = useUI((state) => state.toggleContextPane);
+  const syncKind = useUI((state) => state.sync.kind);
 
   /*
     When the stay began (2026-10-11). `admittedAt` defaults to the day the
@@ -2221,9 +2222,23 @@ export default function PatientPage(): JSX.Element {
         )}
 
 
-        {/* SPEC F4 — microcopy only. There is no save button by design. */}
-        <div className="flex items-center gap-3 px-4 py-2 text-xs text-fg-faint">
-          <span className="flex-1">{editor.dirty ? 'Menyimpan…' : 'Tersimpan'}</span>
+        {/*
+          SPEC F4 — microcopy only. There is no save button by design.
+
+          "Tersimpan" used to be the answer whatever the server said. It now
+          says where the text is: on this phone only while offline, and not on
+          the server at all after a refusal (the pill explains that one).
+        */}
+        <div className="flex items-center gap-3 px-4 py-2 text-xs text-fg-muted">
+          <span className={`flex-1 ${syncKind === 'error' && !editor.dirty ? 'font-semibold text-danger' : ''}`}>
+            {editor.dirty
+              ? 'Menyimpan…'
+              : syncKind === 'error'
+                ? 'Ada perubahan yang ditolak server'
+                : syncKind === 'offline'
+                  ? 'Tersimpan di perangkat ini'
+                  : 'Tersimpan'}
+          </span>
 
           {/*
             Freeze the day's SOAP and keep editing.

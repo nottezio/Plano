@@ -1,5 +1,15 @@
 # Plano — CHANGES
 
+## `2026-10-31.7` — Refused writes are shown, not just logged
+
+From a UI critique (rendered against the emulators): a write the server refuses looked exactly like success.
+
+- **Root cause.** Every repository write goes through `trackWrite` (`data/syncStatus.ts`). On rejection it only called `console.error` and settled the pending count, so the pill went back to "Synced". `SyncState` had no error state. A rules refusal (e.g. the undeployed `firestore.rules` from .29.9 onwards) or a quota error was invisible; the editor's status line said "Tersimpan" regardless.
+- **Change.** `SyncState` gains `{kind: 'error', failed, code, at}`. `trackWrite` counts refusals and keeps the Firestore code (code only, never the message, which can carry document paths), and logs `write-rejected` to the session log so it reaches feedback reports. The error is sticky until `acknowledgeWriteFailures()`: a later successful write says nothing about the refused one. It outranks offline (offline writes are queued, refused ones are not).
+- **UI.** `SyncPill` renders a red, worded button in all three places (board top bar "Gagal sinkron · N", desktop sidebar, phone patient header "Gagal" so the date stays readable). Tapping opens a sheet: the reason by code (`permission-denied`, `resource-exhausted`, `unauthenticated`, other), that refused changes are not resent, and to copy visible text before reloading; "Mengerti" acknowledges. The live region wraps the button: a `status` inside a button is dropped from its accessible name (found when the button had no name). The editor status line reads `sync.kind`: "Tersimpan di perangkat ini" offline, "Ada perubahan yang ditolak server" after a refusal, and moved from `fg-faint` to `fg-muted` (faint is ~3:1 on the canvas); "Synced" likewise.
+- **Checked.** Unit tests for saving → synced, refusal → error with code, sticky after a later success, count of several refusals. In the emulator: `updatePatient` on a non-existent patient returned a real `permission-denied`; pill seen on the phone board, phone patient header and desktop sidebar; sheet opened by role/name; "Mengerti" returned to synced.
+- **Not done.** No generic "retry": a rejected Firestore write cannot be replayed from here, and resending blindly could overwrite newer text. The error does not say WHICH document was refused (`trackWrite` has no context). Whether the text sync's editor keeps the refused text on screen after Firestore reverts its cache was not tested, so the sheet says "if it is still on screen". Not seen on a real phone.
+
 ## `2026-10-31.6` — Tab strip on installed tablets
 
 Request: a tab-like structure on a friend's tablet.

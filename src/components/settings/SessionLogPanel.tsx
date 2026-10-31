@@ -18,6 +18,7 @@ const LABELS: Record<SessionEvent['kind'], string> = {
   resumed: 'Kembali ke tab',
   'focus-lost': 'Kursor hilang',
   error: 'Kesalahan',
+  'write-rejected': 'Simpan ditolak server',
 };
 
 /**

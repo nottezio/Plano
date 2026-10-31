@@ -29,7 +29,15 @@ export type { ThemePreference };
 export type SyncState =
   | { kind: 'synced' }
   | { kind: 'saving' }
-  | { kind: 'offline'; pending: number };
+  | { kind: 'offline'; pending: number }
+  /**
+   * The server refused one or more writes since the user last looked.
+   *
+   * Sticky until acknowledged (`acknowledgeWriteFailures`): a later write
+   * that succeeds says nothing about the one that did not, and clearing on
+   * it would turn "your change was refused" back into "Synced".
+   */
+  | { kind: 'error'; failed: number; code: string | undefined; at: number };
 
 interface UIState {
   theme: ThemePreference;
