@@ -337,16 +337,27 @@ service cloud.firestore {
             && request.resource.data.lists.size() <= 30));
       }
 
-      // The account's Anthropic key and AI switches (12.6, Avi's choice),
-      // owner only, one document. Not part of the profile so it never enters
+      // `ai`: the account's Anthropic key and AI switches (12.6, Avi's
+      // choice), owner only. Not part of the profile so it never enters
       // Export data. No delete: clearing writes an empty key.
+      //
+      // `move`: device-only settings carried from the old address to the new
+      // one (domain/moveSettings.ts). `devices` maps a device id to
+      // { label, at, json }; the client keeps each json under 300 KB, the cap
+      // on entries keeps the document under Firestore's 1 MiB. Owner only;
+      // deletable, so a used or ignored copy does not linger.
       match /private/{docId} {
-        allow read: if isSelf(uid) && allowed() && docId == 'ai';
-        allow create, update: if isSelf(uid) && allowed() && docId == 'ai'
-          && request.resource.data.key is string
-          && request.resource.data.key.size() <= 400
-          && request.resource.data.flags is map;
-        allow delete: if false;
+        allow read: if isSelf(uid) && allowed() && docId in ['ai', 'move'];
+        allow create, update: if isSelf(uid) && allowed() && (
+          (docId == 'ai'
+            && request.resource.data.key is string
+            && request.resource.data.key.size() <= 400
+            && request.resource.data.flags is map)
+          || (docId == 'move'
+            && request.resource.data.keys().hasOnly(['devices'])
+            && request.resource.data.devices is map
+            && request.resource.data.devices.size() <= 3));
+        allow delete: if isSelf(uid) && allowed() && docId == 'move';
       }
     }
 

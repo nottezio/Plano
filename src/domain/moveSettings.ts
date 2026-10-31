@@ -45,10 +45,10 @@ export function isCarriedKey(key: string): boolean {
 }
 
 /**
- * Firestore's document limit is 1 MiB, shared by every device's entry. One
- * device gets well under half, so two old devices still fit.
+ * Firestore's document limit is 1 MiB, shared by every device's entry; the
+ * rules allow three devices (phone, laptop, tablet), so each gets 300 KB.
  */
-export const MAX_PACK_BYTES = 400_000;
+export const MAX_PACK_BYTES = 300_000;
 
 export interface PackResult {
   /** JSON object of carried key → value. */
