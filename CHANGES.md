@@ -1,5 +1,15 @@
 # Plano — CHANGES
 
+## `2026-10-31.9` — Phone patient page: less furniture above the note
+
+From the UI critique rendered at 390×844: eight bands sat above the note (it began at ~410 px), and the format toolbar, dimmed to 40 % opacity including its background, sat over the note's last lines while reading.
+
+- **Date strip.** `DateRail` takes a `trailing` slot (strip only). Below `sm`, PatientPage passes `JagaAddButtons` (new export in `JagaBar.tsx`, same buttons and conditions), so "+ Versi" / "+ SOAP jaga" sit after the days and before "Tanggal lain". `JagaBar` hides its add buttons below `sm` and hides itself there when the day has no jaga notes or versions; with notes it still lists them.
+- **Fill-from-note prompt.** The "Dari catatan: … · Isi identitas · ×" `Banner` is gone; `IdentityBar` takes an `action` slot and PatientPage passes an "Isi RM 001245" button (one missing fact shows its value; several show their labels, all values in the accessible name) plus an × "Abaikan usulan identitas". Same handler (`fillPatientFromNote`) and dismissal. The identity row now also renders when only the prompt exists (a blank patient), which is when it matters most.
+- **Toolbar.** Below `sm` the sticky toolbar is `hidden` unless the editor is focused, with a 300 ms linger after blur so a touch browser that blurs before the click does not hide the button under the finger. Toolbar buttons already `preventDefault` on mousedown, so focus stays in the note (checked: tapping Bold left focus on the textarea). Laptop keeps the dimmed toolbar.
+- **Not done, on purpose.** The proposal also merged the DPJP/diagnosis line into the identity block. Dropped: that line was moved out of the sticky header on 2026-10-05 so it does not follow the scroll, and merging it would put it back. Tablet and laptop untouched (their toolbar is still translucent over the text).
+- **Checked in the emulator.** Phone 390×844: note top 410 → 306 px; toolbar hidden while reading, solid while typing; "Isi RM 001245" filled the RM (row then shows "Salin RM"); strip scrolled to the end shows + Versi, + SOAP jaga, Tanggal lain. Laptop 1280×800 and tablet 820×1180 unchanged. Not tried on a real phone, and the 300 ms linger is not tested on a real touch browser.
+
 ## `2026-10-31.8` — Salin on a phone: preview first
 
 From the UI critique rendered at 390×844: Preset, Format, Bentuk and Bagian filled the sheet and the preview textarea began below the fold, so the text Avi selects by hand needed a scroll for every patient.

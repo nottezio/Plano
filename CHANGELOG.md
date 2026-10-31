@@ -5,6 +5,9 @@ Catatan teknis lengkap (akar masalah, perbaikan) ada di CHANGES.md.
 
 Entri teratas harus versi yang sedang dirilis; tes gagal bila belum ditulis.
 
+## `2026-10-31.9`
+- **Halaman pasien di HP: catatan lebih cepat terlihat.** Catatan kini mulai sekitar 100 px lebih tinggi. Tombol **+ Versi** dan **+ SOAP jaga** pindah ke ujung deretan tanggal (sebelum *Tanggal lain*), tidak lagi memakai baris sendiri. Usulan "Dari catatan: RM …" kini menjadi tombol kecil **Isi RM …** di baris identitas, dengan × untuk mengabaikan. Bilah format (undo, tebal, daftar, Sisipkan, Rapikan) hanya muncul saat Anda mengetik, dan tidak lagi tembus pandang di atas teks. Tablet dan laptop tidak berubah.
+
 ## `2026-10-31.8`
 - **Salin di HP: preview langsung terlihat.** Pilihan Format, Bentuk, Bagian dan Penyesuaian kini dilipat menjadi satu baris ringkasan, misalnya *WhatsApp · Laporan harian · Seluruh catatan*. Ketuk baris itu untuk mengubahnya. Teks yang akan disalin langsung tampil saat lembar Salin dibuka, tanpa perlu menggulir. Preset dan peringatan identitas tetap terlihat. Di laptop tidak ada perubahan. Pilihan dibuka atau dilipat diingat di perangkat ini.
 

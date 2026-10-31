@@ -32,6 +32,11 @@ export function JagaBar({
   onAddVersion?: (() => void) | undefined;
 }): JSX.Element | null {
   if (notes.length === 0 && !canAdd) return null;
+  /*
+    Below `sm` the add buttons live at the end of the date strip instead
+    (`JagaAddButtons`, 2026-10-31): on a phone this row cost 50 px above the
+    note and usually held nothing else. It stays for the day's note list.
+  */
 
   const chip = (active: boolean): string =>
     [
@@ -43,7 +48,7 @@ export function JagaBar({
     <div
       role="group"
       aria-label="Catatan hari ini"
-      className="mx-4 mt-2 flex items-center gap-1.5 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+      className={`mx-4 mt-2 items-center gap-1.5 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden ${notes.length > 0 ? 'flex' : 'hidden sm:flex'}`}
     >
       {notes.length > 0 ? (
         <>
@@ -69,7 +74,7 @@ export function JagaBar({
           type="button"
           onClick={onAddVersion}
           title="Salinan SOAP hari ini untuk diedit tanpa mengubah aslinya"
-          className="min-h-tap shrink-0 rounded-full border border-dashed border-accent px-3 text-xs font-medium text-accent [@media(pointer:fine)]:min-h-8"
+          className={`hidden sm:inline-block ${ADD_CHIP}`}
         >
           + Versi
         </button>
@@ -78,11 +83,44 @@ export function JagaBar({
         <button
           type="button"
           onClick={onAdd}
-          className="min-h-tap shrink-0 rounded-full border border-dashed border-accent px-3 text-xs font-medium text-accent [@media(pointer:fine)]:min-h-8"
+          className={`hidden sm:inline-block ${ADD_CHIP}`}
         >
           + SOAP jaga
         </button>
       ) : null}
     </div>
+  );
+}
+
+const ADD_CHIP =
+  'min-h-tap shrink-0 whitespace-nowrap rounded-full border border-dashed border-accent px-3 text-xs font-medium text-accent [@media(pointer:fine)]:min-h-8';
+
+/** The same two add buttons, for the end of the phone date strip. */
+export function JagaAddButtons({
+  canAdd,
+  onAdd,
+  onAddVersion,
+}: {
+  canAdd: boolean;
+  onAdd: () => void;
+  onAddVersion?: (() => void) | undefined;
+}): JSX.Element | null {
+  if (!canAdd) return null;
+  return (
+    <>
+      {onAddVersion ? (
+        <button
+          type="button"
+          onClick={onAddVersion}
+          title="Salinan SOAP hari ini untuk diedit tanpa mengubah aslinya"
+          className={ADD_CHIP}
+        >
+          + Versi
+        </button>
+      ) : null}
+      <button type="button" onClick={onAdd} className={ADD_CHIP}>
+        + SOAP jaga
+      </button>
+    </>
   );
 }

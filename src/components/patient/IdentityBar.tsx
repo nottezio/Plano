@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, type ReactNode } from 'react';
 
 import { useClipboardNote } from '@/store/useClipboardNote';
 import { copyText } from '@/lib/clipboard';
@@ -31,10 +31,13 @@ export function IdentityBar({
   patient,
   showInitialsOnly,
   onEdit,
+  action,
 }: {
   patient: Patient;
   showInitialsOnly: boolean;
   onEdit: () => void;
+  /** A pending prompt for this row, e.g. "Isi RM" from the note (phone and up). */
+  action?: ReactNode;
 }): JSX.Element {
   const name = patient.name?.trim();
   const label = !name ? 'Tanpa nama' : showInitialsOnly ? initials(name) : name;
@@ -100,6 +103,7 @@ export function IdentityBar({
       browsers resolve by dropping one of them.
     */}
     {patient.mrn ? <CopyMrn mrn={patient.mrn} patientId={patient.id} name={patient.name?.trim() ?? ''} /> : null}
+    {action ? <div className="mr-2 flex shrink-0 items-center">{action}</div> : null}
     </div>
   );
 }

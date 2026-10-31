@@ -160,6 +160,10 @@ export function BodyEditor({
   // region on a phone is how you lose your place mid-round.
   // Length at the last measurement, to tell growth from deletion.
   const [focused, setFocused] = useState(false);
+  /** Phone toolbar visibility: focus, plus a short linger after blur. */
+  const [toolbarShown, setToolbarShown] = useState(false);
+  const toolbarLinger = useRef<number | undefined>(undefined);
+  useEffect(() => () => window.clearTimeout(toolbarLinger.current), []);
   /** Measured note height, driving how many watermark tiles are drawn. */
   const [contentHeight, setContentHeight] = useState(0);
 
@@ -754,9 +758,17 @@ export function BodyEditor({
               console.warn('[editor] refused a dropped link');
             }
           }}
-          onFocus={() => setFocused(true)}
+          onFocus={() => {
+            window.clearTimeout(toolbarLinger.current);
+            setFocused(true);
+            setToolbarShown(true);
+          }}
           onBlur={(event) => {
             setFocused(false);
+            // Lingers briefly: a touch browser that blurs before the tap's
+            // click would otherwise hide the button under the finger.
+            window.clearTimeout(toolbarLinger.current);
+            toolbarLinger.current = window.setTimeout(() => setToolbarShown(false), 300);
             const to = event.relatedTarget as HTMLElement | null;
             noteLost(
               to
@@ -851,11 +863,17 @@ export function BodyEditor({
         It sits over the note permanently, and four buttons that are used
         occasionally should not compete with the text for attention. Focus is
         the right trigger: the toolbar is only reachable while typing anyway.
+
+        On a phone it is HIDDEN until focus (2026-10-31). Dimmed, its
+        background went translucent too and the note showed through the
+        buttons, while it covered the last lines of the note being read.
+        Reading needs none of it; typing brings it back, solid.
       */}
       <div
         className={[
           'sticky bottom-0 px-4 pb-2 transition-opacity',
           focused ? 'opacity-100' : 'opacity-40 hover:opacity-100',
+          toolbarShown ? '' : 'max-sm:hidden',
         ].join(' ')}
       >
         <FormatToolbar

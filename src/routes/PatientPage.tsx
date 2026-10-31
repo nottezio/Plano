@@ -20,7 +20,7 @@ import { IdentityBar } from '@/components/patient/IdentityBar';
 import { JumpBar } from '@/components/patient/JumpBar';
 import { ShiftNoteEditor } from '@/components/patient/ShiftNoteEditor';
 import { LabSheet } from '@/components/patient/LabSheet';
-import { JagaBar } from '@/components/patient/JagaBar';
+import { JagaAddButtons, JagaBar } from '@/components/patient/JagaBar';
 import {
   JAGA_TEMPLATE,
   JAGA_TEMPLATE_CARET,
@@ -947,6 +947,46 @@ export default function PatientPage(): JSX.Element {
     );
   }
 
+  /*
+    "Dari catatan: RM … · Isi identitas" used to be a banner row of its own
+    between the date strip and the note. It is a prompt about the identity
+    row, so it sits IN that row now (2026-10-31): no height of its own, and
+    right next to what it fills. The values stay readable on the button's
+    label (one fact) or its accessible name (several).
+  */
+  const showSuggestion = Boolean(suggestion && !suggestionDismissed && !locked);
+  const fillFromNote = suggestion ? (
+    <span className="flex items-center">
+      <button
+        type="button"
+        onClick={() => {
+          const written = fillPatientFromNote(patient, settledBody);
+          if (written) {
+            void written.catch((error: unknown) =>
+              console.error('[patient] could not fill from note', error),
+            );
+          }
+          setSuggestionDismissed(true);
+        }}
+        aria-label={`Isi identitas dari catatan: ${suggestion.missing.map(([label, value]) => `${label} ${value}`).join(', ')}`}
+        className="min-h-tap max-w-[11rem] truncate rounded-lg border border-accent bg-surface px-2 text-xs font-medium text-accent"
+      >
+        Isi{' '}
+        {suggestion.missing.length === 1
+          ? `${suggestion.missing[0]?.[0] ?? ''} ${suggestion.missing[0]?.[1] ?? ''}`
+          : suggestion.missing.map(([label]) => label).join(', ')}
+      </button>
+      <button
+        type="button"
+        onClick={() => setSuggestionDismissed(true)}
+        aria-label="Abaikan usulan identitas"
+        className="flex min-h-tap min-w-9 items-center justify-center text-fg-muted"
+      >
+        <span aria-hidden="true">×</span>
+      </button>
+    </span>
+  ) : null;
+
   const identity = [
     patient.name?.trim() || null,
     patient.age ? `${patient.age}th` : null,
@@ -1674,11 +1714,12 @@ export default function PatientPage(): JSX.Element {
           third of a phone screen and hid the identity text behind the header
           above it.
         */}
-        {identity ? (
+        {identity || showSuggestion ? (
           <IdentityBar
             patient={patient}
             showInitialsOnly={settings.privacy.boardShowInitialsOnly}
             onEdit={() => setIdentityOpen(true)}
+            action={showSuggestion ? fillFromNote : undefined}
           />
         ) : null}
 
@@ -1824,6 +1865,15 @@ export default function PatientPage(): JSX.Element {
               if (date !== selected) goToDate(date);
               setSelectedShiftNoteId(id);
             }}
+            trailing={
+              <span className="contents sm:hidden">
+                <JagaAddButtons
+                  canAdd={!locked}
+                  onAdd={addJagaNote}
+                  onAddVersion={editor.value.trim() ? () => setVersionSheetOpen(true) : undefined}
+                />
+              </span>
+            }
           />
         </div>
 
@@ -2067,38 +2117,6 @@ export default function PatientPage(): JSX.Element {
           </Banner>
         ) : null}
 
-        {suggestion && !suggestionDismissed && !locked ? (
-          <Banner tone="info">
-            <span className="min-w-0 flex-1">
-              Dari catatan:{' '}
-              {suggestion.missing.map(([label, value]) => `${label} ${value}`).join(' · ')}
-            </span>
-            <button
-              type="button"
-              onClick={() => {
-                if (!patient) return;
-                const written = fillPatientFromNote(patient, settledBody);
-                if (written) {
-                  void written.catch((error: unknown) =>
-                    console.error('[patient] could not fill from note', error),
-                  );
-                }
-                setSuggestionDismissed(true);
-              }}
-              className="shrink-0 font-medium text-accent underline"
-            >
-              Isi identitas
-            </button>
-            <button
-              type="button"
-              onClick={() => setSuggestionDismissed(true)}
-              aria-label="Abaikan"
-              className="shrink-0 text-fg-faint"
-            >
-              ×
-            </button>
-          </Banner>
-        ) : null}
 
         <JagaBar
           notes={shiftNotes.notes}

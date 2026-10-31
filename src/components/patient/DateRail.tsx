@@ -1,5 +1,5 @@
 import { IconCalendar } from '@/components/common/Icons';
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, type ReactNode } from 'react';
 
 import { formatShortDate, relativeDayLabel } from '@/domain/clinicalDate';
 import { isVersion, noteLabel } from '@/domain/shiftNotes';
@@ -23,6 +23,7 @@ export function DateRail({
   onSelectShiftNote,
   onClearShiftNote,
   orientation = 'horizontal',
+  trailing,
 }: {
   dates: ClinicalDate[];
   /** Clear a day's note. Omitted where there is no room for the control. */
@@ -46,6 +47,12 @@ export function DateRail({
   onClearShiftNote?: (date: ClinicalDate, id: string) => void;
   /** Horizontal strip on phone; a stacked list in the desktop sidebar. */
   orientation?: 'horizontal' | 'vertical';
+  /**
+   * Extra chips after the days and before "Tanggal lain", on the strip only.
+   * The phone puts "+ Versi" and "+ SOAP jaga" here: they add to the list
+   * this strip already shows, and a row of their own cost 50 px above the note.
+   */
+  trailing?: ReactNode;
 }): JSX.Element {
   const pickerRef = useRef<HTMLInputElement>(null);
   const selectedRef = useRef<HTMLButtonElement>(null);
@@ -258,6 +265,8 @@ export function DateRail({
         platform's own calendar, including the year jump needed for a long
         admission, and needs no picker component of our own.
       */}
+      {orientation === 'horizontal' ? trailing : null}
+
       <div className="relative shrink-0">
         <button
           type="button"
