@@ -16,13 +16,15 @@ import {
   type DocumentData,
   type Unsubscribe,
   getCountFromServer,
+  documentId,
+  type QueryDocumentSnapshot,
 } from 'firebase/firestore';
 
 import { getDeviceId } from '../deviceId';
 import { PRUNABLE_REASONS, prunableRevisions, REVISION_CAP } from '@/domain/revisionPrune';
 import { entriesCol, entryDoc, revisionsCol } from '../paths';
 import { touchEntryMeta } from './patients.repo';
-import { compareEntryDates } from '@/domain/clinicalDate';
+import { addDays, compareEntryDates, isIgdEntry } from '@/domain/clinicalDate';
 import {
   clearOutbox,
   forgetSentBody,
@@ -122,7 +124,42 @@ export async function fetchEntryBodies(
    * exists.
    */
   const snapshot = await getDocs(query(entriesCol(patientId)));
-  return snapshot.docs
+  return toBodies(snapshot.docs);
+}
+
+/** How many days back from today `fetchLatestEntryBody` reads before it falls back to all of them. */
+const LATEST_WINDOW_DAYS = 3;
+
+/**
+ * Today's note, else the newest one with content: what the board's peek
+ * window and Visite sheet show.
+ *
+ * Both used `fetchEntryBodies`, a server read of EVERY day of the admission
+ * for one note, and Visite re-ran it on every board snapshot (every autosave
+ * anywhere on the board touches a patient doc). This reads only the days from
+ * three days ago onward (a weekend gap still fits): the id is the date, and the range is open upwards, so
+ * every day newer than any it misses is in it. Exact whenever one of them is a
+ * dated day with text; otherwise it reads them all, as before. An ascending
+ * id range, because Firestore refuses a descending key scan.
+ */
+export async function fetchLatestEntryBody(
+  patientId: string,
+  today: ClinicalDate,
+): Promise<{ date: ClinicalDate; body: string } | null> {
+  const recent = await getDocs(
+    query(entriesCol(patientId), where(documentId(), '>=', addDays(today, -LATEST_WINDOW_DAYS))),
+  );
+  let days = toBodies(recent.docs);
+  // `igd` sorts after the digits, so it is always in the range, and it is the
+  // OLDEST note: dated days before the range would come before it.
+  if (!days.some((day) => !isIgdEntry(day.date))) {
+    days = await fetchEntryBodies(patientId);
+  }
+  return days.find((day) => day.date === today) ?? days[0] ?? null;
+}
+
+function toBodies(docs: readonly QueryDocumentSnapshot[]): Array<{ date: ClinicalDate; body: string }> {
+  return docs
     // The ID, not `data().date`. They are the same string whenever the field
     // exists, and the ID is the one that always does.
     .map((entry) => ({ ...(entry.data() as DailyEntry), date: entry.id }))

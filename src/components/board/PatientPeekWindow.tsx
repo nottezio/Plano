@@ -4,7 +4,7 @@ import { itemsForPatientDay } from '@/domain/checklistDay';
 import { useClipboardNote } from '@/store/useClipboardNote';
 import { Link } from 'react-router-dom';
 
-import { fetchEntryBodies } from '@/data/repositories/entries.repo';
+import { fetchLatestEntryBody } from '@/data/repositories/entries.repo';
 import { formatShortDate } from '@/domain/clinicalDate';
 import { toPlain, toWhatsApp } from '@/domain/format/formatters';
 import { useChecklist } from '@/hooks/useChecklist';
@@ -139,12 +139,11 @@ export function PatientPeekWindow({
     setBody(null);
     setDate(null);
 
-    void fetchEntryBodies(patient.id)
-      .then((days) => {
+    void fetchLatestEntryBody(patient.id, today)
+      .then((chosen) => {
         if (cancelled) return;
         // Today's, or the most recent with content: "nothing written" and "not
         // yet today" are different answers, and only one of them is useful.
-        const chosen = days.find((day) => day.date === today) ?? days[0];
         setBody(chosen?.body ?? '');
         setDate(chosen?.date ?? null);
       })

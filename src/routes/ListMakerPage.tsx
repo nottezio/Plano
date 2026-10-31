@@ -15,7 +15,7 @@ import { ManualPatientSheet } from '@/components/floor/ManualPatientSheet';
 import { PastePanel } from '@/components/floor/PastePanel';
 import { RosterDatalists } from '@/components/floor/PatientControls';
 import { SoapFloat } from '@/components/floor/SoapFloat';
-import { acceptInvite, createFloor, readLegacy, writeChiefBangsal, writeChiefs, writeRosterBatch } from '@/data/repositories/floors.repo';
+import { acceptInvite, createFloor, readLegacy, rosterHasAny, writeChiefBangsal, writeChiefs, writeRosterBatch } from '@/data/repositories/floors.repo';
 import { wardPlan } from '@/domain/denahPlan';
 import { EDITIONS_PAGE } from '@/domain/floorList/editionGroups';
 import { canEdit, chiefsOf, isOwner, localStamp, newRosterPatient, rosterView, type FloorDoc } from '@/domain/floorList/floor';
@@ -171,7 +171,10 @@ export default function ListMakerPage(): JSX.Element {
   useEffect(() => {
     if (!floor || !rosterEmpty || legacyFor?.floorId === floor.id) return;
     let live = true;
-    readLegacy(floor.id)
+    // The live roster leaves out patients gone over 30 days: "empty" must mean none at all,
+    // or the move would add (overwrite) them.
+    rosterHasAny(floor.id)
+      .then(async (any) => (any ? { reports: [], manual: [] } : readLegacy(floor.id)))
       .then(({ reports, manual }) => {
         if (live) setLegacyFor({ floorId: floor.id, count: latestOf([...reports, ...manual]).length });
       })

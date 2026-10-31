@@ -22,6 +22,7 @@ import {
   updateDoc,
   where,
   type DocumentData,
+  type QueryDocumentSnapshot,
   type Unsubscribe,
 } from 'firebase/firestore';
 
@@ -234,14 +235,66 @@ export function subscribeInvites(email: string, callback: (floors: FloorDoc[]) =
   );
 }
 
-/** The floor's roster: every patient document, on the floor or gone. */
+/** How long a patient who left (Pulang/Pindah) stays in the live roster. Older ones: `readRosterPatients`. */
+export const ROSTER_LEFT_DAYS = 30;
+
+/**
+ * The floor's roster: every patient on the floor, and those who left in the
+ * last `ROSTER_LEFT_DAYS` days.
+ *
+ * It was the whole collection, every patient ever on the floor, and each List
+ * Maker open after 30 min away re-read all of it (Firestore charges a listen
+ * that has been gone that long as a new query). Two queries now, joined when
+ * both have answered. `leftAt` is an ISO string, so it compares as text.
+ */
 export function subscribeRoster(floorId: string, callback: (roster: RosterPatient[]) => void, onError: (e: Error) => void): Unsubscribe {
-  return onSnapshot(
-    floorPatientsCol(floorId),
-    (snapshot) =>
-      callback(snapshot.docs.map((d) => readRosterPatient(d.id, d.data())).filter((p): p is RosterPatient => p !== null)),
+  const read = (docs: readonly QueryDocumentSnapshot[]): RosterPatient[] =>
+    docs.map((d) => readRosterPatient(d.id, d.data())).filter((p): p is RosterPatient => p !== null);
+  let here: RosterPatient[] | null = null;
+  let left: RosterPatient[] | null = null;
+  const emit = (): void => {
+    if (here && left) callback([...here, ...left]);
+  };
+  const since = new Date(Date.now() - ROSTER_LEFT_DAYS * 86_400_000).toISOString();
+  const offHere = onSnapshot(
+    query(floorPatientsCol(floorId), where('status', '==', 'dirawat')),
+    (snapshot) => {
+      here = read(snapshot.docs);
+      emit();
+    },
     onError,
   );
+  const offLeft = onSnapshot(
+    query(floorPatientsCol(floorId), where('leftAt', '>=', since)),
+    (snapshot) => {
+      // A patient back on the floor keeps a stale `leftAt` only until the write lands; `here` has them.
+      left = read(snapshot.docs).filter((p) => p.status !== 'dirawat');
+      emit();
+    },
+    onError,
+  );
+  return () => {
+    offHere();
+    offLeft();
+  };
+}
+
+/**
+ * Roster patients by key, read once: the ones the live roster no longer holds
+ * (left more than `ROSTER_LEFT_DAYS` ago), so a paste finds a readmission
+ * instead of adding it as new, which would overwrite the old document.
+ */
+export async function readRosterPatients(floorId: string, keys: readonly string[]): Promise<RosterPatient[]> {
+  const snapshots = await Promise.all(keys.map((key) => getDoc(floorPatientDoc(floorId, key))));
+  return snapshots.flatMap((s) => {
+    const patient = s.exists() ? readRosterPatient(s.id, s.data()) : null;
+    return patient ? [patient] : [];
+  });
+}
+
+/** Whether the floor has any roster patient at all, gone long ago included: one read. */
+export async function rosterHasAny(floorId: string): Promise<boolean> {
+  return !(await getDocs(query(floorPatientsCol(floorId), limit(1)))).empty;
 }
 
 /** The latest sent editions (newest first). */

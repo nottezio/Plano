@@ -4,7 +4,7 @@ import { IconBack, IconChevronRight } from '@/components/common/Icons';
 import { Sheet } from '@/components/common/Sheet';
 import { Button } from '@/components/common/ui';
 import { VisiteView } from '@/components/patient/VisiteView';
-import { fetchEntryBodies } from '@/data/repositories/entries.repo';
+import { fetchLatestEntryBody } from '@/data/repositories/entries.repo';
 import { cardTitle } from '@/domain/board';
 import { hariRawat } from '@/domain/clinicalDate';
 import type { ClinicalDate, Patient } from '@/domain/types';
@@ -36,23 +36,25 @@ export function VisiteSheet({
   const [note, setNote] = useState<{ id: string; body: string; date: ClinicalDate | null } | null>(null);
   const swipe = useRef<{ x: number; y: number } | null>(null);
 
+  const patientId = patient?.id;
+  // This patient's own writes, not the list's: the board hands over new objects on every snapshot.
+  const patientStamp = patient?.updatedAt?.toMillis?.() ?? 0;
   useEffect(() => {
-    if (!patient) return;
+    if (!patientId) return;
     let cancelled = false;
     setNote(null);
-    void fetchEntryBodies(patient.id)
-      .then((days) => {
-        const chosen = days.find((day) => day.date === today) ?? days[0];
-        if (!cancelled) setNote({ id: patient.id, body: chosen?.body ?? '', date: chosen?.date ?? null });
+    void fetchLatestEntryBody(patientId, today)
+      .then((chosen) => {
+        if (!cancelled) setNote({ id: patientId, body: chosen?.body ?? '', date: chosen?.date ?? null });
       })
       .catch((error: unknown) => {
         console.error('[visite] could not read entries', error);
-        if (!cancelled) setNote({ id: patient.id, body: '', date: null });
+        if (!cancelled) setNote({ id: patientId, body: '', date: null });
       });
     return () => {
       cancelled = true;
     };
-  }, [patient, today]);
+  }, [patientId, patientStamp, today]);
 
   if (!patient) return null;
   const current = note?.id === patient.id ? note : null;

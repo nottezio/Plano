@@ -1,7 +1,7 @@
 import { useState } from 'react';
 
 import { Button, Callout } from '@/components/common/ui';
-import { saveRestorePoint, writeRosterBatch, type RosterChange } from '@/data/repositories/floors.repo';
+import { readRosterPatients, saveRestorePoint, writeRosterBatch, type RosterChange } from '@/data/repositories/floors.repo';
 import { formatDmy } from '@/domain/dateDmy';
 import { localStamp, newRosterPatient, pasteDiff, updatedReport, type FloorDoc, type PasteDiff, type RosterPatient } from '@/domain/floorList/floor';
 import { splitChat } from '@/domain/floorList/chat';
@@ -18,6 +18,8 @@ interface Reading {
   untimed: number;
   /** Patients read at all (this floor or another). */
   found: number;
+  /** Roster patients who left long ago (not in the live roster) that this paste names. */
+  older: RosterPatient[];
 }
 
 const where = (p: FloorPatient): string => `${p.room}${p.bed ? `/${p.bed}` : ''}`;
@@ -51,7 +53,7 @@ export function PastePanel({ floor, roster, myName }: { floor: FloorDoc; roster:
   const [undoing, setUndoing] = useState<RestorePointMeta | null>(null);
   const floorNumber = /\d+/.exec(floor.ward)?.[0] ?? '';
 
-  const read = (raw: string): void => {
+  const read = async (raw: string): Promise<void> => {
     setError('');
     setSaved('');
     setSkipFresh(new Set());
@@ -69,17 +71,34 @@ export function PastePanel({ floor, roster, myName }: { floor: FloorDoc; roster:
     // Another floor (moved out, CVCU) or no floor yet (IGD) is shown, not filed.
     const reports = all.filter((p) => onFloorNumber(p, floorNumber));
     const otherFloor = all.filter((p) => !reports.includes(p));
-    const diff = pasteDiff(roster, reports);
+    /*
+      The live roster holds only the last 30 days of departures. A key it does
+      not know may still be a patient who left earlier: read those few by key,
+      so a readmission is offered as one rather than added as new (an add
+      overwrites the old document, and its undo would delete it). Without the
+      answer nothing is proposed.
+    */
+    const known = new Set(roster.map((p) => p.key));
+    const unknown = [...new Set(reports.map((p) => p.key).filter((key) => !known.has(key)))];
+    let older: RosterPatient[];
+    try {
+      older = unknown.length ? await readRosterPatients(floor.id, unknown) : [];
+    } catch (e) {
+      console.error('[paste] older roster lookup', e);
+      setError('Tidak bisa memeriksa pasien lama di list ini (butuh koneksi). Coba Baca lagi saat online.');
+      return;
+    }
+    const diff = pasteDiff([...roster, ...older], reports);
     // Probably gone already (an export spans days): proposed unticked.
     setSkipFresh(new Set(Object.keys(diff.doubt)));
-    setReading({ diff, otherFloor, messages: messages.length, untimed, found: reports.length + otherFloor.length });
+    setReading({ diff, otherFloor, messages: messages.length, untimed, found: reports.length + otherFloor.length, older });
   };
 
   const openFile = async (file: File): Promise<void> => {
     try {
       const raw = /\.zip$/i.test(file.name) ? await chatFromZip(await file.arrayBuffer()) : await file.text();
       setText(raw.length > 200_000 ? '' : raw);
-      read(raw);
+      await read(raw);
     } catch (e) {
       setError(e instanceof Error ? e.message : 'File tidak bisa dibaca.');
     }
@@ -125,7 +144,7 @@ export function PastePanel({ floor, roster, myName }: { floor: FloorDoc; roster:
       */
       const touched = changes.flatMap((c) => (c.kind === 'add' ? [] : [c.key]));
       const added = fresh.map((p) => p.key);
-      const point = touchedPoint(roster, touched, added, { kind: 'tempel', label: 'Sebelum tempel', createdAt: at, createdBy: myName });
+      const point = touchedPoint([...roster, ...reading.older], touched, added, { kind: 'tempel', label: 'Sebelum tempel', createdAt: at, createdBy: myName });
       const id = saveRestorePoint(floor.id, point);
       setLastPoint({ id, kind: 'tempel', label: point.label, createdAt: at, createdBy: myName, editionId: '', scope: 'touched', count: point.patients.length + point.added.length });
       // Cleared first: the cache shows the result at once, the server confirms after.
@@ -163,7 +182,7 @@ export function PastePanel({ floor, roster, myName }: { floor: FloorDoc; roster:
         className="w-full rounded-xl border border-border bg-surface p-3 font-mono text-xs"
       />
       <div className="flex flex-wrap items-center gap-2">
-        <Button onClick={() => read(text)} disabled={!text.trim()}>
+        <Button onClick={() => void read(text)} disabled={!text.trim()}>
           Baca
         </Button>
         <label className="inline-flex min-h-tap cursor-pointer items-center rounded-lg border border-border px-3 text-sm font-medium">

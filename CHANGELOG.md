@@ -5,6 +5,12 @@ Catatan teknis lengkap (akar masalah, perbaikan) ada di CHANGES.md.
 
 Entri teratas harus versi yang sedang dirilis; tes gagal bila belum ditulis.
 
+## `2026-10-31.12`
+- **List Maker lebih hemat kuota.** List kini hanya memuat pasien yang masih dirawat dan yang pulang/pindah dalam 30 hari terakhir, bukan semua pasien yang pernah ada di list. Daftar Pulang/Pindah dan Analisis hanya menampilkan 30 hari terakhir. Pasien lama yang muncul lagi di **Tempel** tetap dikenali sebagai *masuk lagi*; untuk memeriksanya, **Baca** kini butuh koneksi.
+
+## `2026-10-31.11`
+- **Jendela intip dan Visite lebih hemat kuota.** Untuk menampilkan catatan hari ini (atau yang terakhir), Plano kini hanya membaca beberapa hari terakhir, bukan seluruh catatan sejak pasien masuk. Visite juga tidak lagi membaca ulang catatan setiap kali pasien lain di board disimpan. Tampilan tidak berubah.
+
 ## `2026-10-31.10`
 - **Kartu pasien: hanya SOAP yang belum ditulis yang ditandai.** Tulisan "● SOAP hari ini" tidak lagi muncul di setiap kartu. Kartu yang SOAP hari ininya belum ada kini menulis **○ SOAP kemarin** atau **○ Belum ada SOAP** dengan huruf tebal, jadi mudah dicari. Langkah checklist berikutnya kini lebih jarang terpotong.
 
