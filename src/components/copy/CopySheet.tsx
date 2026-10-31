@@ -1,7 +1,7 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
 
 import { Sheet } from '@/components/common/Sheet';
-import { IconCopy } from '@/components/common/Icons';
+import { IconChevronRight, IconCopy } from '@/components/common/Icons';
 import { ResizeGrip } from '@/components/common/ResizeGrip';
 import {
   Button,
@@ -168,6 +168,20 @@ export function CopySheet({
    * paste would arrive unbolded. The text view is the one that is real.
    */
   const [preview, setPreview] = useState<'teks' | 'tampilan'>('teks');
+  /**
+   * Phone only: the options folded into one summary line (2026-10-31).
+   *
+   * Seen rendered at 390 px, Preset, Format, Bentuk and Bagian filled the
+   * sheet and the preview box started below the fold, so the text Avi copies
+   * by hand needed a scroll on every patient. Folded, the box is on screen
+   * when the sheet opens; the summary says what will be copied. Remembered per
+   * device, like the preview height. A laptop shows both columns and ignores it.
+   */
+  const [optionsOpen, setOptionsOpenState] = useState<boolean>(readOptionsOpen);
+  const setOptionsOpen = (next: boolean): void => {
+    setOptionsOpenState(next);
+    writeOptionsOpen(next);
+  };
   const outputRef = useRef<HTMLTextAreaElement>(null);
   /**
    * How big the preview is, remembered per device (2026-10-05).
@@ -677,6 +691,32 @@ export function CopySheet({
     konsul: 'Konsul',
   };
 
+  /*
+    Everything the folded options decide, so nothing that changes the copy is
+    hidden: shape, format, the parts, and the switches that are on.
+  */
+  const optionsSummary = [
+    FORMAT_LABELS[format],
+    shape === 'harian'
+      ? 'Laporan harian'
+      : shape === 'ringkas'
+        ? 'Ringkas (PDF)'
+        : shape === 'jaga'
+          ? `SOAP jaga${activeShiftNote ? ` ${activeShiftNote.time}` : ''}`
+          : whatLabel[shape],
+    ...(shape === 'harian'
+      ? [
+          groups === 'all'
+            ? 'Seluruh catatan'
+            : COPY_GROUPS.filter((group) => groups.includes(group.id))
+                .map((group) => group.label)
+                .join(', '),
+        ]
+      : []),
+    ...(shape === 'harian' && groups !== 'all' && skipHeaders ? ['tanpa judul bagian'] : []),
+    ...(shape !== 'jaga' && latestOnly && trimmed.removed.length > 0 ? ['penunjang terbaru saja'] : []),
+  ].join(' · ');
+
   const onCopy = (): void => {
     void copyText(output).then((ok) => {
       setCopied(ok);
@@ -812,6 +852,26 @@ export function CopySheet({
             </Section>
           ) : null}
 
+          <button
+            type="button"
+            onClick={() => setOptionsOpen(!optionsOpen)}
+            aria-expanded={optionsOpen}
+            aria-controls="salin-options"
+            className="flex min-h-tap w-full items-center gap-3 rounded-xl border border-border bg-surface px-3 py-2 text-left transition-colors [@media(hover:hover)]:hover:bg-bg-subtle focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent sm:hidden"
+          >
+            <span className="min-w-0 flex-1">
+              <span className="block text-xs text-fg-muted">{optionsOpen ? 'Tutup pengaturan salin' : 'Atur salin'}</span>
+              <span className="block text-sm font-medium text-fg">{optionsSummary}</span>
+            </span>
+            <IconChevronRight
+              width={18}
+              height={18}
+              aria-hidden="true"
+              className={`shrink-0 text-fg-muted transition-transform duration-150 motion-reduce:transition-none ${optionsOpen ? '-rotate-90' : 'rotate-90'}`}
+            />
+          </button>
+
+          <div id="salin-options" className={`space-y-5 ${optionsOpen ? '' : 'hidden'} sm:block`}>
           <Section title="Format">
             <Segmented
               label="Format"
@@ -1086,6 +1146,7 @@ export function CopySheet({
               ) : null}
             </Section>
           ) : null}
+          </div>
         </div>
           <div className="hidden sm:block">{copyButton}</div>
         </div>
@@ -1118,11 +1179,17 @@ export function CopySheet({
             bottom of the sheet.
           */}
           <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
-            <h3 className="text-xs font-semibold uppercase tracking-wider text-fg-faint">
+            {/*
+              The heading is laptop-only: on a phone the box under it is plainly
+              the preview, and the word pushed Teks/Tampilan onto a second row
+              that came out of the box's height. The textarea is labelled below.
+            */}
+            <h3 className="hidden text-xs font-semibold uppercase tracking-wider text-fg-faint sm:block">
               Preview
             </h3>
-            <span className="text-xs tabular-nums text-fg-faint">
-              · {output.length.toLocaleString('id-ID')} karakter
+            <span className="text-xs tabular-nums text-fg-muted">
+              <span className="hidden sm:inline">· </span>
+              {output.length.toLocaleString('id-ID')} karakter
             </span>
             <span className="flex-1" />
             {previewHeight !== null || optionsWidth !== DEFAULT_OPTIONS_WIDTH ? (
@@ -1190,6 +1257,7 @@ export function CopySheet({
               <textarea
                 ref={outputRef}
                 readOnly
+                aria-label="Preview teks yang akan disalin"
                 value={output || '(kosong)'}
                 spellCheck={false}
                 className="absolute inset-0 h-full w-full resize-none overscroll-contain rounded-xl border border-border bg-bg-subtle p-3 font-mono text-xs leading-relaxed text-fg outline-none"
@@ -1282,6 +1350,26 @@ function writeAsciiSymbols(on: boolean): void {
     else window.localStorage.setItem(ASCII_SYMBOLS_KEY, 'off');
   } catch {
     // Not remembered; the switch still works for this sheet.
+  }
+}
+
+const OPTIONS_OPEN_KEY = 'plano.salin.optionsOpen';
+
+/** Folded unless the user left them open; storage that throws reads as folded. */
+function readOptionsOpen(): boolean {
+  try {
+    return window.localStorage.getItem(OPTIONS_OPEN_KEY) === 'open';
+  } catch {
+    return false;
+  }
+}
+
+function writeOptionsOpen(open: boolean): void {
+  try {
+    if (open) window.localStorage.setItem(OPTIONS_OPEN_KEY, 'open');
+    else window.localStorage.removeItem(OPTIONS_OPEN_KEY);
+  } catch {
+    // Not remembered; the toggle still works for this sheet.
   }
 }
 

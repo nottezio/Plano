@@ -1,5 +1,14 @@
 # Plano — CHANGES
 
+## `2026-10-31.8` — Salin on a phone: preview first
+
+From the UI critique rendered at 390×844: Preset, Format, Bentuk and Bagian filled the sheet and the preview textarea began below the fold, so the text Avi selects by hand needed a scroll for every patient.
+
+- **Change (phone only, `CopySheet`).** Format, Bentuk, the shape fields, Bagian and Penyesuaian sit in `#salin-options`, `hidden` below `sm` unless opened. A summary button above them (`sm:hidden`, `aria-expanded`) reads everything that changes the copy: format, shape (with the jaga time), the chosen parts, "tanpa judul bagian" and "penunjang terbaru saja" when on. The identity-mismatch callout, the DPJP "biasanya meminta" callout and the Preset chips stay visible. Open/folded is remembered per device (`plano.salin.optionsOpen`, folded by default; storage errors read as folded). Laptop layout unchanged.
+- **Preview row.** The "Preview" heading is laptop-only so the count, "Pilih semua teks" and Teks/Tampilan fit one row on a phone; the textarea gets `aria-label` (it had no label). The count moved from `fg-faint` to `fg-muted`. The summary button's hover applies under `(hover: hover)` only, so a tap does not leave it grey.
+- **Checked in the emulator (390×844 and 1280×800).** Textarea top moved from below the fold to y≈425; with a realistic note the text through Terapi is visible on open. Choosing "A" in the expanded options updated the summary to "WhatsApp · Laporan harian · A" and the preview to the A section. Desktop screenshot unchanged.
+- **Not done.** The textarea keeps its fixed 26rem height on a phone, so its bottom still sits behind the copy button until the sheet is scrolled. Konsul's missing TB/BB warning is inside the folded options (only reachable after choosing Konsul, which opens them). Not tried on a real phone.
+
 ## `2026-10-31.7` — Refused writes are shown, not just logged
 
 From a UI critique (rendered against the emulators): a write the server refuses looked exactly like success.

@@ -5,6 +5,9 @@ Catatan teknis lengkap (akar masalah, perbaikan) ada di CHANGES.md.
 
 Entri teratas harus versi yang sedang dirilis; tes gagal bila belum ditulis.
 
+## `2026-10-31.8`
+- **Salin di HP: preview langsung terlihat.** Pilihan Format, Bentuk, Bagian dan Penyesuaian kini dilipat menjadi satu baris ringkasan, misalnya *WhatsApp · Laporan harian · Seluruh catatan*. Ketuk baris itu untuk mengubahnya. Teks yang akan disalin langsung tampil saat lembar Salin dibuka, tanpa perlu menggulir. Preset dan peringatan identitas tetap terlihat. Di laptop tidak ada perubahan. Pilihan dibuka atau dilipat diingat di perangkat ini.
+
 ## `2026-10-31.7`
 - **Gagal sinkron kini terlihat.** Bila server menolak menyimpan perubahan (misalnya izin akses), status di pojok tidak lagi menulis "Synced". Muncul tanda merah **Gagal sinkron**; ketuk untuk melihat penyebabnya dan apa yang perlu dilakukan. Tanda tetap ada sampai Anda menekan **Mengerti**, meskipun perubahan berikutnya berhasil. Baris di bawah catatan kini menulis "Tersimpan di perangkat ini" saat offline, dan memberi tahu bila ada perubahan yang ditolak.
 
