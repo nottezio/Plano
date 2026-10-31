@@ -153,6 +153,18 @@ describe('splitChat', () => {
     ]);
   });
 
+  it('settles day or month first once per paste, so an ambiguous day is not read as another month', () => {
+    // Indonesian Android export: 13/10 proves day-first, so 12/10 is 12 October, not 10 December.
+    const android = splitChat('12/10/26 06.34 - dr. A: satu\n13/10/26 06.30 - dr. B: dua');
+    expect(android.map((m) => m.sentAt)).toEqual(['2026-10-12T06:34', '2026-10-13T06:30']);
+    // A US copy: 10/13 proves month-first, so 10/12 is 12 October.
+    const copied = splitChat('[6:34 AM, 10/12/2026] dr. A: satu\n[6:30 AM, 10/13/2026] dr. B: dua');
+    expect(copied.map((m) => m.sentAt)).toEqual(['2026-10-12T06:34', '2026-10-13T06:30']);
+    // Evidence in a later message settles an earlier one too.
+    const ios = splitChat('[12/10/26, 06:34:20] dr. A: satu\n[25/10/26, 06:30:00] dr. B: dua');
+    expect(ios.map((m) => m.sentAt)).toEqual(['2026-10-12T06:34', '2026-10-25T06:30']);
+  });
+
   it('splits header-less pastes at each report opening, keeping a Chief header with its report', () => {
     const bare = [
       'Assalamualaikum dokter. Tabe dokter, mohon izin melaporkan follow up pasien di PJT Lt 4 Kamar 401 atas nama:',

@@ -1,11 +1,11 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 
 import { Button, Callout } from '@/components/common/ui';
 import { readRosterPatients, saveRestorePoint, writeRosterBatch, type RosterChange } from '@/data/repositories/floors.repo';
 import { formatDmy } from '@/domain/dateDmy';
 import { localStamp, newRosterPatient, pasteDiff, updatedReport, type FloorDoc, type PasteDiff, type RosterPatient } from '@/domain/floorList/floor';
 import { splitChat } from '@/domain/floorList/chat';
-import { onFloorNumber, readReports, type FloorPatient } from '@/domain/floorList/report';
+import { latestOf, onFloorNumber, readReports, type FloorPatient } from '@/domain/floorList/report';
 import { touchedPoint, type RestorePointMeta } from '@/domain/floorList/restore';
 import { chatFromZip } from '@/lib/unzip';
 import { RestoreDialog } from './RestoreDialog';
@@ -20,6 +20,8 @@ interface Reading {
   found: number;
   /** Roster patients who left long ago (not in the live roster) that this paste names. */
   older: RosterPatient[];
+  /** Offline: patients the live roster does not hold and the lookup could not reach. Held back, never added. */
+  unchecked: FloorPatient[];
 }
 
 const where = (p: FloorPatient): string => `${p.room}${p.bed ? `/${p.bed}` : ''}`;
@@ -51,6 +53,8 @@ export function PastePanel({ floor, roster, myName }: { floor: FloorDoc; roster:
   // The point saved just before the last Simpan (2026-10-16): "Batalkan tempel ini".
   const [lastPoint, setLastPoint] = useState<RestorePointMeta | null>(null);
   const [undoing, setUndoing] = useState<RestorePointMeta | null>(null);
+  // Each Baca's number: only the latest one may show its answer (the lookup is async).
+  const readTurn = useRef(0);
   const floorNumber = /\d+/.exec(floor.ward)?.[0] ?? '';
 
   const read = async (raw: string): Promise<void> => {
@@ -80,18 +84,31 @@ export function PastePanel({ floor, roster, myName }: { floor: FloorDoc; roster:
     */
     const known = new Set(roster.map((p) => p.key));
     const unknown = [...new Set(reports.map((p) => p.key).filter((key) => !known.has(key)))];
-    let older: RosterPatient[];
-    try {
-      older = unknown.length ? await readRosterPatients(floor.id, unknown) : [];
-    } catch (e) {
-      console.error('[paste] older roster lookup', e);
-      setError('Tidak bisa memeriksa pasien lama di list ini (butuh koneksi). Coba Baca lagi saat online.');
-      return;
-    }
-    const diff = pasteDiff([...roster, ...older], reports);
+    const turn = ++readTurn.current;
+    /*
+      Offline (2026-10-31): only the keys the lookup could not reach are
+      held back. Before, one unreachable key blocked the whole Baca, so no SOAP
+      update could be saved on the ward without signal. A held-back patient is
+      not proposed as new: that add could overwrite an old record.
+    */
+    const { patients: older, unchecked } = unknown.length
+      ? await readRosterPatients(floor.id, unknown)
+      : { patients: [], unchecked: [] };
+    // A later Baca (or a new paste) has started: this answer is stale.
+    if (turn !== readTurn.current) return;
+    const held = new Set(unchecked);
+    const diff = pasteDiff([...roster, ...older], reports.filter((p) => !held.has(p.key)));
     // Probably gone already (an export spans days): proposed unticked.
     setSkipFresh(new Set(Object.keys(diff.doubt)));
-    setReading({ diff, otherFloor, messages: messages.length, untimed, found: reports.length + otherFloor.length, older });
+    setReading({
+      diff,
+      otherFloor,
+      messages: messages.length,
+      untimed,
+      found: reports.length + otherFloor.length,
+      older,
+      unchecked: latestOf(reports.filter((p) => held.has(p.key))),
+    });
   };
 
   const openFile = async (file: File): Promise<void> => {
@@ -160,7 +177,7 @@ export function PastePanel({ floor, roster, myName }: { floor: FloorDoc; roster:
   };
 
   const d = reading?.diff;
-  const nothing = d ? d.fresh.length + d.updated.length + d.readmit.length === 0 : true;
+  const nothing = d ? d.fresh.length + d.updated.length + d.readmit.length + reading!.unchecked.length === 0 : true;
 
   return (
     <div className="space-y-3">
@@ -175,6 +192,8 @@ export function PastePanel({ floor, roster, myName }: { floor: FloorDoc; roster:
         onChange={(event) => {
           setText(event.target.value);
           setReading(null);
+          // A lookup still running belongs to the old text.
+          readTurn.current += 1;
         }}
         rows={8}
         placeholder="Tempel pesan WhatsApp di sini…"
@@ -231,6 +250,15 @@ export function PastePanel({ floor, roster, myName }: { floor: FloorDoc; roster:
             </Callout>
           ) : nothing && reading!.otherFloor.length === 0 ? (
             <p className="font-medium">Semua pasien sudah sama dengan yang tersimpan — tidak ada yang perlu disimpan.</p>
+          ) : null}
+          {reading!.unchecked.length > 0 ? (
+            <Callout tone="warn" title={`${reading!.unchecked.length} pasien belum bisa diperiksa (offline)`}>
+              <span className="block">
+                Belum ada di list yang terbuka dan tidak bisa dicek apakah pernah dirawat di sini (butuh koneksi). Tidak ikut disimpan
+                supaya data lamanya tidak tertimpa. Baca lagi saat online untuk menambahkannya.
+              </span>
+              <span className="mt-1 block">{reading!.unchecked.map((p) => `${where(p)} ${p.name}`).join(' · ')}</span>
+            </Callout>
           ) : null}
           {reading!.untimed > 0 ? (
             <p className="text-fg-muted">

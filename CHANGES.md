@@ -1,5 +1,15 @@
 # Plano — CHANGES
 
+## `2026-10-31.13` — List Maker verification fixes: chat date order, offline Baca, manual add overwrite
+
+From a List Maker audit (paste, 30-day roster, phone layout) against the emulator and parser probes.
+
+- **Chat date order (`chat.ts`).** Root cause: `isoDate` decided day/month order per header; a part over 12 swapped only that header. Android exports were always taken month-first and COPIED day-first, so an Indonesian Android export read `12/10/26` as 2026-12-10 next to `13/10/26` = 2026-10-13. `latestOf` then kept the older SOAP (future stamp), and it was stored with that stamp, so `pasteDiff` never found a later real SOAP newer. Fix: `monthFirstIn` decides once per header shape per paste (any header with a part over 12 settles all of them; otherwise the old default). Test in `floorList.test.ts` (Android day-first, US copied month-first, evidence in a later message).
+- **Offline Baca (`PastePanel`, `readRosterPatients`).** .12 stopped the whole Baca when any key outside the live roster could not be looked up, i.e. any new admission offline, so no SOAP update could be saved without signal. `readRosterPatients` now uses `allSettled` and returns `{ patients, unchecked }`; unchecked keys are left out of `pasteDiff` (never proposed as `add`, which could overwrite an old record) and listed in a warn callout. Also: a `readTurn` ref drops a lookup answer that a later Baca or a text edit has superseded (Baca is async since .12).
+- **Manual add overwrite (`ManualPatientSheet`).** It `setDoc`'d the whole patient under `rm:<RM>` without looking, so an RM already on the list (or departed) lost log, chief, colour, dates, tags. Now: live roster first, then `readRosterPatients` for the key; `manualAddAction` (pure, tested in `floor.test.ts`) → `onList` refused with the patient named, `readmit` = report + status/leftAt/pindahKe fields with a "Masuk lagi (pasien manual)" log entry, `add` only when no document exists; an unreachable lookup refuses with "butuh koneksi". Both sheet mounts (ListMakerPage, ListPanel) pass `roster`.
+- **Checked.** `npm run verify` green. Emulator: see the session notes for the paste/offline/manual runs.
+- **Not done.** `planRestore` still compares a point with the live roster only, so restoring an old point naming a patient gone over 30 days treats them as recreated (and undoing that restore deletes the record). Phone header above the tabs (date, Chief Bangsal, Chief, Catatan Visite) still takes about half the screen. `kmr 417` (lowercase abbreviation) gives no room; iOS Indonesian-locale headers without a comma are not recognised as headers.
+
 ## `2026-10-31.12` — Firestore reads: roster listener holds 30 days of departures
 
 Avi chose "last 30 days" for the roster (the next read sink after .11).

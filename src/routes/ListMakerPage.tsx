@@ -392,6 +392,7 @@ export default function ListMakerPage(): JSX.Element {
           date={date}
           myName={myName}
           editing={manualFor}
+          roster={roster}
         />
       ) : null}
       {/* Rendered in a fixed order (by slot) and layered by z-index: re-ordering

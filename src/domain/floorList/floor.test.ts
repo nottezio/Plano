@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import {
+  manualAddAction,
   canEdit,
   chiefsOf,
   clearMarkFields,
@@ -499,5 +500,19 @@ describe('rosterName / the junior roster (12.12)', () => {
     const floor = { ...FLOOR, chiefs: 'Kepala', juniors: 'Kirana, Sekar' };
     expect(effective(rostered({ junior: 'Kiran A', chief: 'kepala' }), floor, '2026-10-12')).toMatchObject({ junior: 'Kirana', chief: 'Kepala' });
     expect(effective(rostered({ junior: 'Kiran A' }), FLOOR, '2026-10-12').junior).toBe('Kiran A');
+  });
+});
+
+describe('manualAddAction (2026-10-31: a hand-entered patient never overwrites a record)', () => {
+  it('adds only when there is no record', () => {
+    expect(manualAddAction(null)).toBe('add');
+    expect(manualAddAction(undefined)).toBe('add');
+  });
+  it('refuses a patient still on the list', () => {
+    expect(manualAddAction({ status: 'dirawat' })).toBe('onList');
+  });
+  it('brings back a patient who left, keeping the record', () => {
+    expect(manualAddAction({ status: 'pulang' })).toBe('readmit');
+    expect(manualAddAction({ status: 'pindah' })).toBe('readmit');
   });
 });

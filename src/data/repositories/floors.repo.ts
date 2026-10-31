@@ -283,13 +283,27 @@ export function subscribeRoster(floorId: string, callback: (roster: RosterPatien
  * Roster patients by key, read once: the ones the live roster no longer holds
  * (left more than `ROSTER_LEFT_DAYS` ago), so a paste finds a readmission
  * instead of adding it as new, which would overwrite the old document.
+ *
+ * Each key on its own: offline, a key the cache has answered is still known,
+ * and only the rest come back `unchecked` (neither found nor known to be new).
  */
-export async function readRosterPatients(floorId: string, keys: readonly string[]): Promise<RosterPatient[]> {
-  const snapshots = await Promise.all(keys.map((key) => getDoc(floorPatientDoc(floorId, key))));
-  return snapshots.flatMap((s) => {
+export async function readRosterPatients(
+  floorId: string,
+  keys: readonly string[],
+): Promise<{ patients: RosterPatient[]; unchecked: string[] }> {
+  const results = await Promise.allSettled(keys.map((key) => getDoc(floorPatientDoc(floorId, key))));
+  const patients: RosterPatient[] = [];
+  const unchecked: string[] = [];
+  results.forEach((result, i) => {
+    if (result.status === 'rejected') {
+      unchecked.push(keys[i]!);
+      return;
+    }
+    const s = result.value;
     const patient = s.exists() ? readRosterPatient(s.id, s.data()) : null;
-    return patient ? [patient] : [];
+    if (patient) patients.push(patient);
   });
+  return { patients, unchecked };
 }
 
 /** Whether the floor has any roster patient at all, gone long ago included: one read. */

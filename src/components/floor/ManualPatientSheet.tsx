@@ -2,8 +2,8 @@ import { useEffect, useState } from 'react';
 
 import { Sheet } from '@/components/common/Sheet';
 import { Button, Callout, Field, INPUT } from '@/components/common/ui';
-import { addRosterPatient, writeRosterReport } from '@/data/repositories/floors.repo';
-import { newRosterPatient } from '@/domain/floorList/floor';
+import { addRosterPatient, readRosterPatients, writeRosterBatch, writeRosterReport } from '@/data/repositories/floors.repo';
+import { manualAddAction, newRosterPatient, type RosterPatient } from '@/domain/floorList/floor';
 import { DPJPS } from '@/domain/dpjp';
 import { planRooms, wardPlan } from '@/domain/denahPlan';
 import { manualPatient, type FloorPatient } from '@/domain/floorList/report';
@@ -25,6 +25,7 @@ export function ManualPatientSheet({
   date,
   myName,
   editing,
+  roster,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -34,6 +35,8 @@ export function ManualPatientSheet({
   myName: string;
   /** A hand-entered patient to edit; null to add one. */
   editing: FloorPatient | null;
+  /** The live roster (on the floor + left in the last 30 days): checked before an add. */
+  roster: readonly RosterPatient[];
 }): JSX.Element {
   const plan = wardPlan(ward);
   const rooms = plan ? planRooms(plan).map((slot) => slot.room).sort() : [];
@@ -88,9 +91,41 @@ export function ManualPatientSheet({
         sender: myName,
         key: editing?.key,
       });
-      // A new hand-entered patient joins the roster; an edit replaces only its SOAP.
-      if (editing) await writeRosterReport(floorId, editing.key, patient);
-      else await addRosterPatient(floorId, newRosterPatient(patient, now.toISOString(), myName));
+      // An edit replaces only its SOAP.
+      if (editing) {
+        await writeRosterReport(floorId, editing.key, patient);
+        onOpenChange(false);
+        return;
+      }
+      /*
+        A new one must not overwrite a record with the same key (same RM): the
+        live roster first, then the document itself for one who left over 30
+        days ago (2026-10-31).
+      */
+      let existing: RosterPatient | null = roster.find((p) => p.key === patient.key) ?? null;
+      if (!existing) {
+        const { patients, unchecked } = await readRosterPatients(floorId, [patient.key]);
+        if (unchecked.length > 0) {
+          setError('Belum bisa memeriksa apakah pasien ini pernah ada di list (butuh koneksi). Coba simpan lagi saat online.');
+          return;
+        }
+        existing = patients[0] ?? null;
+      }
+      const action = manualAddAction(existing);
+      if (action === 'onList' && existing) {
+        const place = `${existing.report.room}${existing.report.bed ? `/${existing.report.bed}` : ''}`;
+        setError(`Pasien dengan RM ini sudah ada di list (${place} ${existing.report.name}). Ubah lewat Atur pada pasien itu.`);
+        return;
+      }
+      const at = now.toISOString();
+      if (action === 'readmit' && existing) {
+        await writeRosterBatch(floorId, [
+          { kind: 'report', key: existing.key, report: patient },
+          { kind: 'fields', key: existing.key, fields: { status: 'dirawat', leftAt: '', pindahKe: '' }, log: { at, by: myName, what: 'Masuk lagi (pasien manual)' } },
+        ]);
+      } else {
+        await addRosterPatient(floorId, newRosterPatient(patient, at, myName));
+      }
       onOpenChange(false);
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Gagal menyimpan.');

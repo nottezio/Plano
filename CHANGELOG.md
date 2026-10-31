@@ -5,6 +5,11 @@ Catatan teknis lengkap (akar masalah, perbaikan) ada di CHANGES.md.
 
 Entri teratas harus versi yang sedang dirilis; tes gagal bila belum ditulis.
 
+## `2026-10-31.13`
+- **Tempel: tanggal chat export dari HP berbahasa Indonesia kini terbaca benar.** Pada export Android (dan pesan yang disalin) yang menulis tanggal dulu baru bulan, tanggal 1–12 bisa terbaca sebagai bulan lain (12/10 jadi 10 Desember), sehingga SOAP lama dianggap yang terbaru dan SOAP berikutnya tidak menggantikannya. Kini satu tanggal yang jelas di export (mis. 13/10) menentukan urutan untuk semua pesan.
+- **Tempel tanpa sinyal tetap bisa menyimpan SOAP terbaru.** Sebelumnya, satu pasien baru di tempelan membuat seluruh **Baca** berhenti saat offline. Kini hanya pasien yang belum bisa diperiksa yang ditahan (ditampilkan dalam kotak kuning, tidak ikut disimpan); pembaruan SOAP pasien lain tetap bisa disimpan. Baca lagi saat online untuk menambahkan pasien yang ditahan.
+- **+ Pasien manual tidak lagi menimpa data pasien.** Bila RM yang diisi sudah ada di list, penyimpanan ditolak dengan nama pasiennya (ubah lewat **Atur**). Bila pasien itu pernah pulang/pindah, ia dimasukkan lagi dengan riwayatnya tetap utuh, bukan ditulis ulang.
+
 ## `2026-10-31.12`
 - **List Maker lebih hemat kuota.** List kini hanya memuat pasien yang masih dirawat dan yang pulang/pindah dalam 30 hari terakhir, bukan semua pasien yang pernah ada di list. Daftar Pulang/Pindah dan Analisis hanya menampilkan 30 hari terakhir. Pasien lama yang muncul lagi di **Tempel** tetap dikenali sebagai *masuk lagi*; untuk memeriksanya, **Baca** kini butuh koneksi.
 

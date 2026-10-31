@@ -164,6 +164,7 @@ export function ListPanel({
           date={date}
           myName={myName}
           editing={editing}
+          roster={roster}
         />
         {chiefs.length > 1 && sorted.some((p) => !p.chief && !p.division) ? (
           <p className="text-xs text-fg-muted">{sorted.filter((p) => !p.chief && !p.division).length} pasien belum ada chief — buka Atur pada pasiennya.</p>

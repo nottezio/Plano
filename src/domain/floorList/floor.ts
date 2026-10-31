@@ -489,6 +489,20 @@ export function suggestionActions(patient: RosterPatient, mark: 'h1' | 'today' |
   return [{ label: 'Tandai', fields: colourFields(mark, date), what: mark === 'h1' ? 'H-1 (dari saran Plan)' : 'Pulang hari ini (dari saran Plan)' }];
 }
 
+/**
+ * What "+ Pasien manual" does with a key that may already have a record
+ * (2026-10-31). It wrote the whole document, so an RM already on the list,
+ * or one who left earlier, lost its log, chief, colour, dates and tags.
+ *
+ * - `onList`: still dirawat here: refused, changed through Atur instead;
+ * - `readmit`: left earlier: back on the list, record and log kept;
+ * - `add`: no record: a new document.
+ */
+export function manualAddAction(existing: Pick<RosterPatient, 'status'> | null | undefined): 'onList' | 'readmit' | 'add' {
+  if (!existing) return 'add';
+  return existing.status === 'dirawat' ? 'onList' : 'readmit';
+}
+
 export function newRosterPatient(report: FloorPatient, at: string, by: string): RosterPatient {
   return {
     key: report.key,

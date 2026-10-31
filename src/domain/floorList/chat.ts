@@ -78,20 +78,40 @@ const COPIED = /^‎?\[(\d{1,2})[:.](\d{2})(?:\s*([AP]\.?M\.?))?,\s*(\d{1,2})\/(
 const MD_DAY = /^##\s+(\d{1,2})\s+([A-Za-z]+)\s+(\d{4})\s*$/gim;
 const MD = /^\[(\d{1,2})[.:](\d{2})\]\s+\*\*([^*\n]{1,80}):\*\*\s?/gim;
 
+/**
+ * Day or month first, decided once for every header of one shape in a paste.
+ * One export comes from one phone, so one header with a part over 12 settles
+ * them all. Decided per header (before 31 Oct 2026), "12/10" next to "13/10"
+ * in an Indonesian export was read as 10 December: a future stamp that made the
+ * older SOAP the latest, and outranked every real SOAP after it.
+ */
+function monthFirstIn(pairs: ReadonlyArray<readonly [number, number]>, fallback: boolean): boolean {
+  if (pairs.some(([a, b]) => a > 12 && b <= 12)) return false;
+  if (pairs.some(([a, b]) => b > 12 && a <= 12)) return true;
+  return fallback;
+}
+
 function headers(text: string): Header[] {
   const found: Header[] = [];
-  for (const m of text.matchAll(IOS)) {
-    const date = isoDate(Number(m[1]), Number(m[2]), Number(m[3]), true);
+  const ios = [...text.matchAll(IOS)];
+  const iosMonthFirst = monthFirstIn(ios.map((m) => [Number(m[1]), Number(m[2])] as const), true);
+  const android = [...text.matchAll(ANDROID)];
+  const androidMonthFirst = monthFirstIn(android.map((m) => [Number(m[1]), Number(m[2])] as const), true);
+  const copied = [...text.matchAll(COPIED)];
+  // COPIED reads `isoDate(a = m[4], b = m[5])`: month first means m[4] is the month.
+  const copiedMonthFirst = monthFirstIn(copied.map((m) => [Number(m[4]), Number(m[5])] as const), false);
+  for (const m of ios) {
+    const date = isoDate(Number(m[1]), Number(m[2]), Number(m[3]), iosMonthFirst);
     const time = `${pad(to24(Number(m[4]), m[6]))}:${m[5]}`;
     found.push({ at: m.index, end: m.index + m[0].length, sentAt: date ? `${date}T${time}` : '', sender: (m[7] ?? '').trim() });
   }
-  for (const m of text.matchAll(ANDROID)) {
-    const date = isoDate(Number(m[1]), Number(m[2]), Number(m[3]), true);
+  for (const m of android) {
+    const date = isoDate(Number(m[1]), Number(m[2]), Number(m[3]), androidMonthFirst);
     const time = `${pad(to24(Number(m[4]), m[6]))}:${m[5]}`;
     found.push({ at: m.index, end: m.index + m[0].length, sentAt: date ? `${date}T${time}` : '', sender: (m[7] ?? '').trim() });
   }
-  for (const m of text.matchAll(COPIED)) {
-    const date = isoDate(Number(m[4]), Number(m[5]), Number(m[6]), false);
+  for (const m of copied) {
+    const date = isoDate(Number(m[4]), Number(m[5]), Number(m[6]), copiedMonthFirst);
     const time = `${pad(to24(Number(m[1]), m[3]))}:${m[2]}`;
     found.push({ at: m.index, end: m.index + m[0].length, sentAt: date ? `${date}T${time}` : '', sender: (m[7] ?? '').trim() });
   }
