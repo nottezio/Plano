@@ -1,6 +1,7 @@
 {
-  "//": "Hosting (web.app) runs in parallel with GitHub Pages during the migration; see .github/workflows/firebase-hosting.yml. Rules and indexes deploy with: firebase deploy --only firestore:rules,firestore:indexes. The emulators block is for local preview only (npm run emu).",
+  "//": "Hosting deploys to the tabulaplano site (tabulaplano.web.app), in parallel with GitHub Pages during the migration; see .github/workflows/firebase-hosting.yml. Rules and indexes deploy with: firebase deploy --only firestore:rules,firestore:indexes. The emulators block is for local preview only (npm run emu).",
   "hosting": {
+    "site": "tabulaplano",
     "public": "dist",
     "ignore": [
       "firebase.json",
