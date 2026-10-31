@@ -144,30 +144,34 @@ service cloud.firestore {
             || request.resource.data.transferFrom == resource.data.get('transferFrom', null)
             || request.resource.data.transferFrom.uid == request.auth.uid);
 
+      // For the subcollections: the parent was sent to this account and is
+      // still waiting. `get` with defaults, as these are single reads.
+      function isPendingRecipient(pid) {
+        let data = get(/databases/$(database)/documents/patients/$(pid)).data;
+        return allowed()
+          && (data.get('transferTo', '') == request.auth.uid
+              || data.get('transferTo', '') == request.auth.token.email.lower());
+      }
+
       /*
-       * Handover (src/domain/transfer.ts): the account a patient was sent to
-       * may read the patient document (not its notes: those check memberIds)
-       * and either decline, clearing the request and nothing else, or accept,
-       * becoming the sole owner and member. Ownership changes ONLY this way,
-       * and only to the person the current members chose. Accepting also
-       * makes it an active, undeleted, non-Titipan patient (whatever the
-       * sender left it as); declining may not touch any of that.
+       * Handover (src/domain/transfer.ts, 2026-10-31): accepting COPIES the
+       * patient into a new one the recipient owns (an ordinary create), and
+       * leaves the sender's original with the sender, archived as "pindah".
+       * So the account a patient was sent to may, while it waits: read the
+       * patient document and its notes and checklists (to copy them), and
+       * update the original ONLY to clear the request, either leaving it as it
+       * was (decline) or archiving it (accepted). Owner and members never
+       * change, so the sender keeps the full record, revisions included.
        */
       allow update: if isTransferTarget(resource.data)
         && request.resource.data.diff(resource.data).affectedKeys()
-             .hasOnly(['ownerId', 'memberIds', 'transferTo', 'transferToName', 'transferFrom',
-                       'status', 'archive', 'deletedAt', 'temporary', 'updatedAt', 'updatedBy'])
+             .hasOnly(['transferTo', 'transferToName', 'transferFrom', 'status', 'archive', 'updatedAt', 'updatedBy'])
         && !('transferTo' in request.resource.data)
         && !('transferToName' in request.resource.data)
         && !('transferFrom' in request.resource.data)
-        && ((request.resource.data.ownerId == request.auth.uid
-             && request.resource.data.memberIds == [request.auth.uid]
-             && request.resource.data.status == 'active'
-             && request.resource.data.deletedAt == null)
-            || (request.resource.data.ownerId == resource.data.ownerId
-                && request.resource.data.memberIds == resource.data.memberIds
-                && !request.resource.data.diff(resource.data).affectedKeys()
-                     .hasAny(['status', 'archive', 'deletedAt', 'temporary'])));
+        && (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['status', 'archive'])
+            || (request.resource.data.status == 'archived'
+                && request.resource.data.archive.reason == 'pindah'));
 
       /**
        * Hard delete, for emptying the trash.
@@ -189,7 +193,8 @@ service cloud.firestore {
       allow delete: if isMemberOf(resource.data);
 
       match /entries/{date} {
-        allow read, create: if isMember(pid);
+        allow read: if isMember(pid) || isPendingRecipient(pid);
+        allow create: if isMember(pid);
 
         /*
          * COMPARE-AND-SET on the body, which is what stops a note reverting.
@@ -234,7 +239,8 @@ service cloud.firestore {
       }
 
       match /checklist/{date} {
-        allow read, create, update: if isMember(pid);
+        allow read: if isMember(pid) || isPendingRecipient(pid);
+        allow create, update: if isMember(pid);
         // Same reason as entries: purge needs to empty it first.
         allow delete: if isMember(pid);
       }

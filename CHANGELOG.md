@@ -5,6 +5,9 @@ Catatan teknis lengkap (akar masalah, perbaikan) ada di CHANGES.md.
 
 Entri teratas harus versi yang sedang dirilis; tes gagal bila belum ditulis.
 
+## `2026-10-31.5`
+- **Kirim ke rekan: pengirim kini menyimpan salinan di Arsip.** Saat rekan menekan Terima, ia mendapat salinan pasien beserta semua catatan dan checklist hariannya di papannya. Pasien di papan pengirim tidak lagi hilang, melainkan masuk Arsip dengan alasan *Pindah* dan catatan "Diserahkan ke …", lengkap dengan riwayat revisinya. Menerima pasien perlu koneksi internet.
+
 ## `2026-10-31.4`
 - **Perbaikan Ubah SOAP: terapi tidak lagi hilang.** Bila SOAP pasien yang sudah ada di list diganti dengan teks yang berisi ringkasan singkat (hanya Diagnosis) lalu SOAP lengkap pasien yang sama, yang tersimpan adalah ringkasannya, sehingga list hanya menampilkan diagnosis. Sekarang SOAP lengkap yang dipakai.
 

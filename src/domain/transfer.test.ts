@@ -2,7 +2,23 @@ import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
-import { isEmailInput, teammates, transferTarget } from './transfer';
+import { isEmailInput, teammates, transferCopy, transferCopyId, transferTarget } from './transfer';
+
+describe('transferCopy', () => {
+  it("makes the recipient's own active copy and drops the sender's state", () => {
+    const original = {
+      id: 'p1', ownerId: 'sender', memberIds: ['sender'], name: 'X', notes: 'alergi',
+      status: 'archived', archive: { reason: 'pindah' }, temporary: true, deletedAt: 5,
+      transferTo: 'rekan', transferToName: 'R', transferFrom: { uid: 'sender', name: 'S' },
+      createdAt: 1, updatedAt: 2,
+    };
+    const copy = transferCopy(original, 'rekan', transferCopyId('p1', 'rekan'));
+    expect(copy).toEqual({
+      id: 'p1_rekan', ownerId: 'rekan', memberIds: ['rekan'], name: 'X', notes: 'alergi',
+      status: 'active', deletedAt: null,
+    });
+  });
+});
 
 describe('isEmailInput', () => {
   it('tells an email from a username', () => {
@@ -42,11 +58,12 @@ describe('transferTarget', () => {
 describe('firestore.rules agrees with the transfer flow', () => {
   const rules = readFileSync(resolve(__dirname, '../../firestore.rules'), 'utf8');
 
-  it('lets only the addressed account read and take over the patient', () => {
+  it('lets only the addressed account read, copy and archive the original', () => {
     expect(rules).toContain('data.transferTo == request.auth.token.email.lower()');
-    expect(rules).toContain('request.resource.data.memberIds == [request.auth.uid]');
-    // Accepted patients land active; the client's acceptTransfer writes these keys.
-    expect(rules).toContain("request.resource.data.status == 'active'");
-    expect(rules).toMatch(/'status', 'archive', 'deletedAt', 'temporary'/);
+    // The recipient reads the notes to copy them, and leaves the sender's
+    // original archived as "pindah" without ever owning it.
+    expect(rules).toContain('isMember(pid) || isPendingRecipient(pid)');
+    expect(rules).toContain("request.resource.data.archive.reason == 'pindah'");
+    expect(rules).not.toContain('request.resource.data.ownerId == request.auth.uid\n             && request.resource.data.memberIds == [request.auth.uid]\n             && request.resource.data.status');
   });
 });

@@ -36,7 +36,9 @@ export function IncomingTransfers(): JSX.Element | null {
 
   if (!uid || (incoming.length === 0 && !error)) return null;
 
-  const act = (patientId: string, action: () => Promise<void>): void => {
+  const myName = useSession.getState().user?.displayName?.trim() || email || 'rekan';
+
+  const act = (patientId: string, action: () => Promise<unknown>): void => {
     setBusy(patientId);
     setError(null);
     action()
@@ -73,9 +75,9 @@ export function IncomingTransfers(): JSX.Element | null {
                   size="sm"
                   variant="primary"
                   disabled={busy === patient.id}
-                  onClick={() => act(patient.id, () => acceptTransfer(patient.id, uid))}
+                  onClick={() => act(patient.id, () => acceptTransfer(patient.id, uid, myName))}
                 >
-                  Terima
+                  {busy === patient.id ? 'Menyalin…' : 'Terima'}
                 </Button>
               </div>
             }

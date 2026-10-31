@@ -3,7 +3,9 @@ import {
   deleteField,
   FieldPath,
   getDocFromCache,
+  getDocFromServer,
   getDocs,
+  getDocsFromServer,
   writeBatch,
   onSnapshot,
   orderBy,
@@ -34,9 +36,12 @@ import { DEFAULT_SECTION_ALIASES } from '@/domain/sections/aliases';
 import type { SectionAlias } from '@/domain/types';
 import type { LineBookmark } from '@/domain/bookmarks';
 import type { ReminderSetting } from '@/domain/reminders';
+import { transferCopy, transferCopyId } from '@/domain/transfer';
 import {
   checklistCol,
+  checklistDoc,
   entriesCol,
+  entryDoc,
   patientDoc,
   patientsCol,
   revisionsCol,
@@ -742,26 +747,57 @@ export function clearTransfer(patientId: string): Promise<void> {
 }
 
 /**
- * Take the patient over: the recipient becomes the sole owner and member, so
- * it drops off the sender's board query and appears on this one. The notes,
- * versions and checklists go with it because they are subcollections of this
- * document, and the rules for them read `memberIds` here.
+ * Accept a handover by COPYING (2026-10-31, Avi: the sender keeps a copy,
+ * archived). The recipient gets a new patient of their own with every day's
+ * note and checklist; the sender's original stays theirs, archived as
+ * "Pindah", with its revision history. Needs a connection: everything is
+ * read from the server. Returns the copy's id.
  *
- * It always lands as an active patient of the recipient's own. The sender's
- * state is not carried over: a patient they archived ("Pindah", the usual
- * reason for a handover), trashed or soft-deleted before or after sending
- * used to arrive in the recipient's Arsip or trash, or nowhere, and one
- * marked Titipan arrived under Titipan instead of Pasien saya.
+ * The copy always lands active in Pasien saya (`transferCopy`), whatever the
+ * sender had left the original as — the .30.4 "lost in transfer" bug.
+ * Revisions are not copied: they are the sender's undo trail, and stay with
+ * the sender's original. Edits the sender makes later, even offline, land
+ * there too instead of being refused.
  */
-export function acceptTransfer(patientId: string, uid: string): Promise<void> {
-  return trackWrite(
+export async function acceptTransfer(
+  patientId: string,
+  uid: string,
+  myName: string,
+): Promise<string> {
+  // From the server: a copy built from a partial cache would silently drop days.
+  const original = await getDocFromServer(patientDoc(patientId));
+  if (!original.exists()) throw new Error('transfer: patient gone');
+  const [entries, checklists] = await Promise.all([
+    getDocsFromServer(entriesCol(patientId)),
+    getDocsFromServer(checklistCol(patientId)),
+  ]);
+
+  const copyId = transferCopyId(patientId, uid);
+  // The patient first: the rules for its notes read `memberIds` on it.
+  await trackWrite(
+    setDoc(patientDoc(copyId), {
+      ...transferCopy(original.data(), uid, copyId),
+      createdAt: serverTimestamp(),
+      updatedAt: serverTimestamp(),
+      updatedBy: getDeviceId(),
+    }),
+  );
+  const writes = [
+    ...entries.docs.map((entry) => ({ ref: entryDoc(copyId, entry.id as ClinicalDate), data: entry.data() })),
+    ...checklists.docs.map((day) => ({ ref: checklistDoc(copyId, day.id as ClinicalDate), data: day.data() })),
+  ];
+  // Batches of 400, under Firestore's 500-write limit (as importData does).
+  for (let start = 0; start < writes.length; start += 400) {
+    const batch = writeBatch(db());
+    for (const write of writes.slice(start, start + 400)) batch.set(write.ref, write.data);
+    await trackWrite(batch.commit());
+  }
+
+  // Last, so a failed copy leaves the request open to try again.
+  await trackWrite(
     updateDoc(patientDoc(patientId), {
-      ownerId: uid,
-      memberIds: [uid],
-      status: 'active' satisfies PatientStatus,
-      archive: deleteField(),
-      deletedAt: null,
-      temporary: deleteField(),
+      status: 'archived' satisfies PatientStatus,
+      archive: { reason: 'pindah', at: serverTimestamp(), note: `Diserahkan ke ${myName}` },
       transferTo: deleteField(),
       transferToName: deleteField(),
       transferFrom: deleteField(),
@@ -769,6 +805,7 @@ export function acceptTransfer(patientId: string, uid: string): Promise<void> {
       updatedBy: getDeviceId(),
     }),
   );
+  return copyId;
 }
 
 /**

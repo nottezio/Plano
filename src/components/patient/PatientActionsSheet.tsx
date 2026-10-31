@@ -505,7 +505,7 @@ function SendToColleague({ patient }: { patient: Patient }): JSX.Element {
             </Button>
           }
         >
-          Pasien pindah ke papan rekan setelah ia menekan Terima.
+          Setelah rekan menekan Terima, ia mendapat salinannya dan pasien ini masuk Arsip Anda.
         </Callout>
       </Section>
     );
@@ -566,8 +566,8 @@ function SendToColleague({ patient }: { patient: Patient }): JSX.Element {
     <Disclosure title="Kirim ke rekan">
       <div className="space-y-2">
         <p className="text-xs text-fg-muted">
-          Untuk serah terima. Setelah rekan menerima, pasien beserta semua catatannya pindah ke
-          papannya dan hilang dari papan Anda.
+          Untuk serah terima. Setelah rekan menerima, ia mendapat salinan pasien beserta semua
+          catatannya, dan pasien di papan Anda diarsipkan (alasan Pindah) sehingga tetap bisa dibuka.
         </p>
         {team.length > 0 ? (
           <div className="space-y-1">

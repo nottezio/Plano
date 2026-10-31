@@ -1,5 +1,15 @@
 # Plano — CHANGES
 
+## `2026-10-31.5` — Transfer: copy to the recipient, sender keeps the original archived
+
+Avi: "for transferring a patient make a copy also from the sender and archive it".
+
+- **Change.** `acceptTransfer(patientId, uid, myName)` no longer takes ownership. It reads the original patient, its entries and checklists **from the server**, writes a new patient `{originalId}_{uid}` owned by the recipient (`domain/transfer.transferCopy`: active, undeleted, no Titipan/archive/transfer fields; tested), copies entries and checklists in batches of 400 (as `importData`), and LAST archives the original (`status: 'archived'`, `archive: {reason: 'pindah', note: 'Diserahkan ke …'}`, request cleared). The deterministic copy id makes a retried accept rewrite the same copy instead of adding a second. Revisions are not copied: they stay with the sender's original. Sender's sheet texts updated.
+- **Why this shape.** The sender keeps the whole record (revisions included) and edits they make later, even offline, land in their own archived original instead of being refused, which the ownership move could not do.
+- **Rules.** New `isPendingRecipient(pid)` lets the addressed account read `entries` and `checklist` while the request is open (not revisions). The recipient's update clause on the original no longer allows changing `ownerId`/`memberIds`; it may only clear the request, either leaving the rest as is (decline) or with `status == 'archived'` and `archive.reason == 'pindah'` (accept). Test checks the rule text.
+- **Checked in the emulator (REST, emulator tokens).** Recipient reads pending entries/checklist 200, stranger 403; recipient creates the copy, its entry and checklist 200; on the original: take ownership 403, archive with another reason 403, edit a field 403, archive as pindah + clear 200; afterwards recipient reads 403, sender still 200, original still owned by sender. Test data removed.
+- **Not done.** The Terima banner was not seen rendered (one app account in the emulator). A copy interrupted between the patient and the last batch leaves the request open with a partial copy until Terima is tapped again. Board images, documents and the canvas position are not copied (they belong to the account, not the patient). Rules still NOT deployed (this plus .29.9 onwards).
+
 ## `2026-10-31.4` — Ubah SOAP saved the summary instead of the full SOAP
 
 Owner: a patient already on the list, given a text that holds a short summary ("Diagnosis:" only) and then the full SOAP of the same patient, ended up with Diagnosis only in the list.

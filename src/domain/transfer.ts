@@ -10,6 +10,40 @@
 const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 /**
+ * The recipient's copy is keyed by the original and the recipient, so an
+ * accept that failed halfway and is tapped again rewrites the same copy
+ * instead of leaving a second, partial one on the board.
+ */
+export function transferCopyId(originalId: string, uid: string): string {
+  return `${originalId}_${uid}`;
+}
+
+/**
+ * The patient document as the recipient's own copy (2026-10-31, Avi: the
+ * sender keeps an archived copy). The sender's state is not carried over: it
+ * lands active, undeleted and in Pasien saya, whatever the sender had left it
+ * as (the cause of the .30.4 "lost in transfer" bug). Timestamps are set by
+ * the repository.
+ */
+export function transferCopy(
+  original: Readonly<Record<string, unknown>>,
+  uid: string,
+  copyId: string,
+): Record<string, unknown> {
+  const {
+    archive: _archive,
+    temporary: _temporary,
+    transferTo: _to,
+    transferToName: _toName,
+    transferFrom: _from,
+    createdAt: _created,
+    updatedAt: _updated,
+    ...rest
+  } = original;
+  return { ...rest, id: copyId, ownerId: uid, memberIds: [uid], status: 'active', deletedAt: null };
+}
+
+/**
  * People the sender can pick without typing an email: everyone they share a
  * List Maker list with, by the name that list shows. Not a directory of all
  * users, on purpose: these accounts already see each other's names.
