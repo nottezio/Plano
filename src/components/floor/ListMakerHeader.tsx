@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from 'react';
+import { useLayoutEffect, useRef, useState, type ReactNode } from 'react';
 
 import { DateField } from '@/components/common/DateField';
 import { IconChevronRight } from '@/components/common/Icons';
@@ -173,8 +173,28 @@ export function ListMakerTabs<T extends string>({
   tabs: ReadonlyArray<readonly [T, string]>;
   onTab: (tab: T) => void;
 }): JSX.Element {
+  /*
+    The bar's real height, for whatever pins itself under it (the List tab's
+    side panel). A guessed 4rem was 8 px short on a touch laptop, where the tab
+    buttons are 44 px tall, so the panel's top sat behind the bar. Like
+    `--tabs-h` in `DesktopTabs`: set on the root, removed on unmount.
+  */
+  const bar = useRef<HTMLDivElement>(null);
+  useLayoutEffect(() => {
+    const node = bar.current;
+    if (!node) return undefined;
+    const root = document.documentElement.style;
+    const measure = (): void => root.setProperty('--lm-tabs-h', `${node.offsetHeight}px`);
+    measure();
+    const observer = new ResizeObserver(measure);
+    observer.observe(node);
+    return () => {
+      observer.disconnect();
+      root.removeProperty('--lm-tabs-h');
+    };
+  }, []);
   return (
-    <div className="sticky top-0 z-20 -mx-4 bg-bg px-4 pb-2 pt-1">
+    <div ref={bar} className="sticky top-0 z-20 -mx-4 bg-bg px-4 pb-2 pt-1">
       <ScrollStrip outerClassName="rounded-xl border border-border bg-bg-subtle sm:w-fit" fade="from-bg-subtle" className="flex p-0.5" label="Tampilan" role="tablist">
         {tabs.map(([key, label]) => {
           const on = key === tab;

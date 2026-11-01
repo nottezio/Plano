@@ -5,6 +5,10 @@ Catatan teknis lengkap (akar masalah, perbaikan) ada di CHANGES.md.
 
 Entri teratas harus versi yang sedang dirilis; tes gagal bila belum ditulis.
 
+## `2026-11-01.7`
+- **Ruang kosong di bawah halaman List Maker berkurang.** Di layar lebar jaraknya kini 40 px (sebelumnya 96 px), sama seperti halaman lain. Di HP tidak berubah.
+- **Kolom kanan tab List tidak lagi tertutup bilah tab.** Bagian atasnya (Kirim / Ekspor) tadinya terpotong di bawah bilah tab saat halaman digulir; kini ia berhenti tepat di bawah bilah, setinggi bilah yang sebenarnya.
+
 ## `2026-11-01.6`
 - **Tab List Maker aktif kini kuning, bukan krem-oranye.** Isiannya memakai warna kuning yang sama dengan tab List Maker yang tidak aktif, hanya lebih pekat, dengan tepi kuning tipis. Terang dan Gelap sudah dicek di aplikasi.
 

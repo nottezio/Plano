@@ -222,7 +222,7 @@ export default function ListMakerPage(): JSX.Element {
 
   return (
     <AppShell title="List Maker" titleBadge={WIP}>
-      <div className="mx-auto max-w-7xl space-y-4 px-4 pb-24 pt-0 lg:pt-4">
+      <div className="mx-auto max-w-7xl space-y-4 px-4 pb-24 pt-0 sm:pb-10 lg:pt-4">
         {invites.map((invited) => (
           <Callout key={invited.id} title={`Undangan: ${invited.name}`}>
             <div className="flex flex-wrap items-center gap-2">

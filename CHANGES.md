@@ -1,5 +1,11 @@
 # Plano — CHANGES
 
+## `2026-11-01.7` — List Maker: desktop bottom gap, and the List tab's side panel no longer starts behind the sub-tab bar
+
+- **Root cause (gap).** `ListMakerPage` had `pb-24` at every width. `PageFrame` and Settings use `pb-24 sm:pb-10`: the 96 px is phone clearance for the bottom tab bar and floating buttons, and from 640 px there is no bottom bar. Now `sm:pb-10`; phones unchanged.
+- **Root cause (clipped panel).** The side panel was `lg:sticky lg:top-16` (64 px) but the sub-tab bar is taller than that on a touch laptop (44 px buttons: about 72 px with its padding, seen in Avi's screenshot), so the panel's first ~8 px, plus its own scroll, started behind the bar. `ListMakerTabs` now measures its height into `--lm-tabs-h` (ResizeObserver, removed on unmount, like `--tabs-h`), and the panel's `top` and `max-h` read it.
+- **Not done / not verified.** Checked in the emulator at 1920×1008 only; a 120-patient list (the case in the screenshot) was not seeded. Phone widths unchanged and not rechecked.
+
 ## `2026-11-01.6` — Active List Maker tab: the yellow fill uses `--warn-soft`
 
 - **Why.** `.5` mixed `--warn-strong` at 38% over `--bg`; in light mode amber over a cool grey reads tan-orange, not yellow. The active tab is now `--warn-soft` (the token the inactive tab already used) with the 55% tinted edge; the inactive tab is that fill at half strength, so active reads as the stronger of the two.

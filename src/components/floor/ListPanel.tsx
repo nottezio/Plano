@@ -248,8 +248,8 @@ export function ListPanel({
         ) : null}
       </div>
 
-      {/* Pinned under the tab strip (which is `sticky top-0`, about 56 px tall), not behind it; a tall panel scrolls inside itself so its bottom is reachable. */}
-      <div className="min-w-0 space-y-3 lg:sticky lg:top-16 lg:max-h-[calc(var(--app-h,100dvh)-5.5rem)] lg:self-start lg:overflow-y-auto lg:overscroll-contain">
+      {/* Pinned under the sub-tab bar (`sticky top-0`; its measured height is `--lm-tabs-h`), not behind it; a tall panel scrolls inside itself so its bottom is reachable. */}
+      <div className="min-w-0 space-y-3 lg:sticky lg:top-[calc(var(--lm-tabs-h,4.5rem)+0.5rem)] lg:max-h-[calc(var(--app-h,100dvh)-var(--lm-tabs-h,4.5rem)-1rem)] lg:self-start lg:overflow-y-auto lg:overscroll-contain">
         {/*
           Send and export (13.15, Avi: "the export UI is weird"): one card —
           the list's time and Simpan edisi first (what the list maker does),
