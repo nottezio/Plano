@@ -27,6 +27,7 @@ import { kjsRole } from '@/domain/board';
 import { labPlans } from '@/domain/labPlan';
 import { detectDpjps, primaryDpjp } from '@/domain/dpjp';
 import { isIgdEntry } from '@/domain/clinicalDate';
+import { patientMetaChanged } from '@/domain/patientMeta';
 import { parsePatientFacts } from '@/domain/parsePatient';
 import { konsulPreview } from '@/domain/konsulReply';
 import { parseSections } from '@/domain/sections/parseSections';
@@ -345,11 +346,13 @@ export async function touchEntryMeta(
    */
   let stored: ClinicalDate | undefined;
   let storedPreview: string | undefined;
+  let cachedData: Record<string, unknown> | undefined;
   try {
     const cached = await getDocFromCache(patientDoc(patientId));
     const data = cached.data() as Patient | undefined;
     stored = data?.previewDate;
     storedPreview = data?.preview;
+    cachedData = data as Record<string, unknown> | undefined;
   } catch {
     stored = undefined;
   }
@@ -363,13 +366,47 @@ export async function touchEntryMeta(
       }
     : {};
 
+  const fields: DocumentData = { ...previewFields, ...derivedPatientFields(body) };
+  /*
+    Nothing the card shows has changed (typing in S, O or P): no write now, so
+    the board, the patient page and other devices are not each charged a read
+    for this autosave (2026-11-01). One `updatedAt` write follows once the
+    typing has stopped, for what keys on it (Visite's refresh, archive search).
+  */
+  if (!patientMetaChanged(cachedData, fields)) {
+    scheduleTrailingTouch(patientId);
+    return;
+  }
+  cancelTrailingTouch(patientId);
   return trackWrite(
     updateDoc(patientDoc(patientId), {
-      ...previewFields,
-      ...derivedPatientFields(body),
+      ...fields,
       updatedAt: serverTimestamp(),
       updatedBy: getDeviceId(),
     }),
+  );
+}
+
+/** How long after the last skipped autosave the single `updatedAt` write goes out. */
+export const TRAILING_TOUCH_MS = 60_000;
+const trailingTouches = new Map<string, ReturnType<typeof setTimeout>>();
+
+function cancelTrailingTouch(patientId: string): void {
+  const timer = trailingTouches.get(patientId);
+  if (timer !== undefined) clearTimeout(timer);
+  trailingTouches.delete(patientId);
+}
+
+function scheduleTrailingTouch(patientId: string): void {
+  cancelTrailingTouch(patientId);
+  trailingTouches.set(
+    patientId,
+    setTimeout(() => {
+      trailingTouches.delete(patientId);
+      void trackWrite(updateDoc(patientDoc(patientId), { updatedAt: serverTimestamp(), updatedBy: getDeviceId() })).catch(
+        (error: unknown) => console.error('[patients] trailing touch', error),
+      );
+    }, TRAILING_TOUCH_MS),
   );
 }
 

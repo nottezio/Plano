@@ -1,5 +1,14 @@
 # Plano — CHANGES
 
+## `2026-11-01.1` — Firestore reads: an autosave writes the patient document only when the card changes
+
+From the read-cost analysis of 1 Nov (fix A of A–E; B, the date-rail summary, is next as its own version).
+
+- **Root cause.** `writeBody` always called `touchEntryMeta`, which always `updateDoc`'d the patient with `updatedAt: serverTimestamp()`. So every autosave (0.8 s idle, at least every 15 s) changed the patient document, and every listener holding it was billed one read: the board feed (`active` never stops), `usePatient` on the patient page, and the board of any other device or member. With the entry and entry-dates listeners that is ~4 reads per autosave on the typing device alone, about half of them for the patient document, although typing in S/O/P changes nothing the card shows (preview is the A region; DPJP/KJS from the DPJP lines; `labPlans` from the Plan's lab lines).
+- **Fix.** `touchEntryMeta` builds the same fields as before (preview fields when `previewMovesTo`, plus `derivedPatientFields`) and compares them with the cached patient (`getDocFromCache`, already read there) through `patientMetaChanged` (`src/domain/patientMeta.ts`, JSON comparison, true when there is no cache). Unchanged: no write; a per-patient trailing `{ updatedAt, updatedBy }` write goes out `TRAILING_TOUCH_MS` (60 s) after the last skipped save, so what keys on `updatedAt` (VisiteSheet refetch, `useArchiveText` cache key) still moves once per editing burst. A real change writes as before and cancels the trailing timer.
+- **Checked.** `npm run verify` green; `patientMeta.test.ts` (4). Emulator, rules on, through the patient page: first SOAP wrote the preview; four autosaves in P took the entry from rev 1 to 5 with the patient `updatedAt` unchanged; ~60 s later one trailing write moved `updatedAt` (preview unchanged); editing A wrote the new preview at once. Reads themselves not measured (the emulator does not bill); watch the console for a few days.
+- **Limits.** The trailing write is lost if the tab closes within 60 s (only Visite refresh and archive-search caching depend on it). Two devices editing the same note: the card can show the other device's A until the next change. The entry listener and `subscribeEntryDates` are still billed per save (fix B).
+
 ## `2026-10-31.17` — Service worker no longer swallows /__/auth/handler
 
 Avi on tabulaplano.web.app: "Masuk dengan Google" opened a popup at `tabulaplano.web.app/__/auth/handler?apiKey=…` that rendered Plano's own sign-in page.
