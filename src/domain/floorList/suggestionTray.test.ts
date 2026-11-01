@@ -62,7 +62,6 @@ describe('buildTray', () => {
   it('is empty when nothing is proposed', () => {
     const tray = buildTray([rostered({ chief: 'Kirana' })], FLOOR, DATE, MON_0700);
     expect(tray.rows).toEqual([]);
-    expect(tray.later).toBeNull();
   });
 
   it('lists a Plan that says H-1 as one row with Tandai and Abaikan', () => {
@@ -82,7 +81,7 @@ describe('buildTray', () => {
     expect(rows[0]?.actions.map((a) => a.label)).toEqual(['Tandai usul', 'Sudah pasti H-1']);
   });
 
-  it('shows the chief handover only in jam dinas, as a Terima that writes the chief and a log line', () => {
+  it('shows the chief handover at any hour (also hours before 07.00), as a Terima that writes the chief and a log line', () => {
     const roster = [rostered()];
     const { rows } = buildTray(roster, FLOOR, DATE, MON_0700);
     expect(rows).toHaveLength(1);
@@ -91,9 +90,8 @@ describe('buildTray', () => {
     expect(rows[0]?.actions[0]?.done).toBe('Chief → dr. Kirana');
 
     const evening = buildTray(roster, FLOOR, DATE, MON_2000);
-    expect(evening.rows).toEqual([]);
-    expect(evening.later?.count).toBe(1);
-    expect(evening.later?.at).toEqual(new Date(2026, 9, 27, 7));
+    expect(evening.rows).toHaveLength(1);
+    expect(buildTray(roster, FLOOR, DATE, new Date(2026, 9, 26, 3)).rows).toHaveLength(1);
   });
 
   it('clears a planned Ganti chief when the handover is accepted', () => {

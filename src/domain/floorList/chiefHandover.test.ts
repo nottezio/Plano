@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { chiefSuggestions, isJamDinas, nextJamDinas } from './chiefHandover';
+import { chiefSuggestions, handoverCycleStart } from './chiefHandover';
 import { newRosterPatient, type FloorDoc, type RosterPatient } from './floor';
 import type { FloorPatient } from './report';
 
@@ -56,38 +56,26 @@ const rostered = (state: Partial<RosterPatient> = {}): RosterPatient => ({
 const at = (day: number, hour: number, minute = 0): Date => new Date(2026, 9, day, hour, minute);
 const MON_0700 = at(26, 7);
 const DATE = '2026-10-26';
-const run = (roster: RosterPatient[], now = MON_0700, floor = FLOOR, opts?: { ignoreClock?: boolean }) =>
-  chiefSuggestions(roster, floor, DATE, now, opts).map(({ from, to }) => ({ from, to }));
+const run = (roster: RosterPatient[], now = MON_0700, floor = FLOOR) =>
+  chiefSuggestions(roster, floor, DATE, now).map(({ from, to }) => ({ from, to }));
 
-describe('isJamDinas', () => {
-  it('is Mon–Fri 07.00 up to (not including) 16.00', () => {
-    expect(isJamDinas(at(26, 6, 59))).toBe(false);
-    expect(isJamDinas(at(26, 7))).toBe(true);
-    expect(isJamDinas(at(26, 15, 59))).toBe(true);
-    expect(isJamDinas(at(26, 16))).toBe(false);
-    expect(isJamDinas(at(30, 15, 59))).toBe(true); // Friday
-    expect(isJamDinas(at(31, 10))).toBe(false); // Saturday
-    expect(isJamDinas(new Date(2026, 10, 1, 10))).toBe(false); // Sunday
-  });
-});
-
-describe('nextJamDinas', () => {
-  it('Friday night → Monday 07.00', () => {
-    expect(nextJamDinas(at(30, 20))).toEqual(new Date(2026, 10, 2, 7));
-  });
-  it('a weekday before 07.00 → the same day', () => {
-    expect(nextJamDinas(at(27, 5))).toEqual(at(27, 7));
-  });
-  it('a weekday after 16.00 → the next day', () => {
-    expect(nextJamDinas(at(27, 16, 30))).toEqual(at(28, 7));
+describe('handoverCycleStart', () => {
+  it('is the latest weekday 16.00 not after now', () => {
+    expect(handoverCycleStart(at(26, 10))).toEqual(at(23, 16)); // Monday jam dinas → Friday 16.00
+    expect(handoverCycleStart(at(26, 5))).toEqual(at(23, 16)); // Monday early morning
+    expect(handoverCycleStart(at(26, 16))).toEqual(at(26, 16));
+    expect(handoverCycleStart(at(26, 20))).toEqual(at(26, 16));
+    expect(handoverCycleStart(at(31, 10))).toEqual(at(30, 16)); // Saturday → Friday 16.00
   });
 });
 
 describe('chiefSuggestions', () => {
-  it('suggests the Chief Bangsal for a patient of the previous chief, in jam dinas only', () => {
+  it('suggests the Chief Bangsal for a patient of the previous chief, at any hour (early, for the printed list)', () => {
     const roster = [rostered({ chief: 'Bima' })];
     expect(run(roster)).toEqual([{ from: 'Bima', to: 'Kirana' }]);
-    expect(run(roster, at(31, 10))).toEqual([]);
+    expect(run(roster, at(26, 3))).toEqual([{ from: 'Bima', to: 'Kirana' }]); // 4 h before the change
+    expect(run(roster, at(23, 17))).toEqual([{ from: 'Bima', to: 'Kirana' }]); // Friday evening
+    expect(run(roster, at(31, 10))).toEqual([{ from: 'Bima', to: 'Kirana' }]); // Saturday
   });
 
   it('a name variant of the Chief Bangsal is the same person', () => {
@@ -117,10 +105,14 @@ describe('chiefSuggestions', () => {
     expect(run([rostered({ chief: 'Bima' })], MON_0700, { ...FLOOR, chiefBangsal: '' })).toEqual([]);
   });
 
-  it('Abaikan lasts until the next jam dinas', () => {
+  it('Abaikan lasts until the end of that jam dinas (16.00), then the next handover is asked again', () => {
     const roster = [rostered({ chief: 'Bima', chiefDismissed: at(26, 10).toISOString() })];
     expect(run(roster, at(26, 11))).toEqual([]);
-    expect(run(roster, at(27, 7))).toEqual([{ from: 'Bima', to: 'Kirana' }]);
+    expect(run(roster, at(26, 15, 59))).toEqual([]);
+    expect(run(roster, at(26, 16))).toEqual([{ from: 'Bima', to: 'Kirana' }]);
+    const early = [rostered({ chief: 'Bima', chiefDismissed: at(27, 4).toISOString() })];
+    expect(run(early, at(27, 6))).toEqual([]);
+    expect(run(early, at(27, 9))).toEqual([]);
   });
 
   it('a patient without a chief is suggested; Abaikan on it is for good, until a chief is written', () => {
@@ -128,9 +120,5 @@ describe('chiefSuggestions', () => {
     const dismissed = rostered({ chiefDismissed: at(19, 10).toISOString() });
     expect(run([dismissed])).toEqual([]);
     expect(run([{ ...dismissed, chief: 'Bima' }])).toEqual([{ from: 'Bima', to: 'Kirana' }]);
-  });
-
-  it('ignoreClock: the off-hours reminder still finds them', () => {
-    expect(run([rostered({ chief: 'Bima' })], at(31, 10), FLOOR, { ignoreClock: true })).toEqual([{ from: 'Bima', to: 'Kirana' }]);
   });
 });

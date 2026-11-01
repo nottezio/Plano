@@ -1,5 +1,13 @@
 # Plano — CHANGES
 
+## `2026-11-01.8` — Chief handover is suggested hours before 07.00, not at 07.00
+
+- **Why.** The Saran tray offered "Terima" for the Chief Bangsal handover only inside jam dinas (Mon–Fri 07.00–16.00). The List is printed hours before 07.00, so the printed chief was always the old one. Before 07.00 there was only the passive line "N pasien ganti chief · Sen 07.00".
+- **Change (Avi's choice, 1 Nov 2026).** `chiefSuggestions` no longer checks the clock: the handover is open from the end of the previous jam dinas (16.00) on, which is every hour that matters (evenings, nights, weekends). Terima changes the chief at once, so the printed List is already right. The passive "later" line (`Tray.later`, `nextJamDinas`, `isJamDinas`, the `ignoreClock` option) is gone.
+- **Abaikan** now holds until the end of the current cycle (`handoverCycleStart`: the latest weekday 16.00 not after now), not until 07.00. Dismissed Monday 10.00: quiet through Monday 15.59, asked again at 16.00 for Tuesday. Dismissed Monday 04.00: quiet for that morning's jam dinas. Saturday/Sunday dismissals hold until Monday 16.00. A patient with no chief at all stays dismissed for good, as before.
+- **Side effect to know.** A patient who arrives from IGD at 17.00 now shows "Chief → Kirana" at once (it used to wait until the next 07.00). Tap Abaikan if the old chief should stay for the night.
+- **Not checked.** Unit tests only (chiefHandover, suggestionTray); not seen in the UI.
+
 ## `2026-11-01.7` — List Maker: desktop bottom gap, and the List tab's side panel no longer starts behind the sub-tab bar
 
 - **Root cause (gap).** `ListMakerPage` had `pb-24` at every width. `PageFrame` and Settings use `pb-24 sm:pb-10`: the 96 px is phone clearance for the bottom tab bar and floating buttons, and from 640 px there is no bottom bar. Now `sm:pb-10`; phones unchanged.

@@ -1,14 +1,12 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 
 import { Button } from '@/components/common/ui';
-import { IconBell, IconCalendar, IconCheck, IconChevronRight, IconClose } from '@/components/common/Icons';
+import { IconBell, IconCheck, IconChevronRight, IconClose } from '@/components/common/Icons';
 import { writeRosterBatch, writeRosterFields, type RosterChange } from '@/data/repositories/floors.repo';
-import { formatDmy } from '@/domain/dateDmy';
-import { localStamp, type FloorDoc, type RosterPatient } from '@/domain/floorList/floor';
+import type { FloorDoc, RosterPatient } from '@/domain/floorList/floor';
 import type { FloorPatient } from '@/domain/floorList/report';
 import { buildTray, type TrayAction, type TrayRow } from '@/domain/floorList/suggestionTray';
 
-const DAYS = ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'];
 const KEY = 'plano.listmaker.tray';
 /** Rows shown before "Lihat semua": a full ward would push the list off the phone. */
 const LIMIT = 4;
@@ -72,7 +70,7 @@ export function SuggestionTray({
     return () => pending.forEach((timer) => window.clearTimeout(timer));
   }, []);
 
-  const { rows, later } = useMemo(() => buildTray(roster, floor, date, now), [roster, floor, date, now]);
+  const { rows } = useMemo(() => buildTray(roster, floor, date, now), [roster, floor, date, now]);
 
   const items = useMemo(() => {
     const byId = new Map(ghosts.map((ghost) => [ghost.row.id, ghost]));
@@ -125,14 +123,7 @@ export function SuggestionTray({
 
   const chiefRows = rows.filter((row) => row.kind === 'chief' && !items.some((item) => item.row.id === row.id && item.ghost));
   const discharge = rows.filter((row) => row.kind === 'discharge').length;
-  const laterLine = later ? (
-    <p className="flex items-center gap-1.5 text-xs text-fg-muted">
-      <IconCalendar width={14} height={14} />
-      {later.count} pasien ganti chief · {DAYS[later.at.getDay()]} {formatDmy(localStamp(later.at).slice(0, 10)).slice(0, 5)} 07.00
-    </p>
-  ) : null;
-
-  if (items.length === 0) return laterLine;
+  if (items.length === 0) return null;
 
   const visible = all ? items : items.slice(0, LIMIT);
   const hidden = items.length - visible.length;
@@ -195,7 +186,6 @@ export function SuggestionTray({
           </div>
         </div>
       </section>
-      {laterLine}
     </div>
   );
 }

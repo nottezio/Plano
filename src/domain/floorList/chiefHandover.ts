@@ -15,31 +15,28 @@ import { effective, type FloorDoc, type RosterPatient } from './floor';
  * Monday 07.00. Tanggal merah are not known (no holiday list): the list maker
  * taps Abaikan, which lasts until the next jam dinas.
  *
+ * EARLY (1 Nov 2026): the list is printed hours before 07.00, so a handover
+ * that only appeared at 07.00 came too late. The suggestion is open all the
+ * time now, from the end of the previous jam dinas (16.00) on, and Terima
+ * changes the chief at once so the printed list is already right.
+ *
  * Only ever a SUGGESTION: the chief changes on a tap (Terima), never by itself.
  */
 
-const START_HOUR = 7;
 const END_HOUR = 16;
 
 const isWeekday = (at: Date): boolean => at.getDay() >= 1 && at.getDay() <= 5;
 
-/** Mon–Fri, 07.00 up to (not including) 16.00, on the device clock. */
-export function isJamDinas(now: Date): boolean {
-  return isWeekday(now) && now.getHours() >= START_HOUR && now.getHours() < END_HOUR;
-}
-
-/** 07.00 on `now`'s day: a dismissal before it belongs to an earlier block. */
-export function jamDinasBlockStart(now: Date): Date {
-  return new Date(now.getFullYear(), now.getMonth(), now.getDate(), START_HOUR);
-}
-
-/** When the next jam dinas starts: today 07.00 if still ahead, else the next weekday's. */
-export function nextJamDinas(now: Date): Date {
-  const next = jamDinasBlockStart(now);
-  if (isWeekday(next) && now < next) return next;
-  do next.setDate(next.getDate() + 1);
-  while (!isWeekday(next));
-  return next;
+/**
+ * Where an Abaikan stops holding: the latest weekday 16.00 that is not after
+ * `now` (the end of the last jam dinas). Dismissed in Monday's jam dinas or
+ * on Monday's early morning, it holds through Monday; from Monday 16.00 the
+ * Tuesday handover is a new question.
+ */
+export function handoverCycleStart(now: Date): Date {
+  const at = new Date(now.getFullYear(), now.getMonth(), now.getDate(), END_HOUR);
+  while (at > now || !isWeekday(at)) at.setDate(at.getDate() - 1);
+  return at;
 }
 
 export interface ChiefSuggestion {
@@ -70,20 +67,17 @@ function samePerson(a: string, b: string): boolean {
 
 /**
  * The patients to hand to the Chief Bangsal (or to their Ganti chief, a
- * planned handover to someone else). `ignoreClock`: outside jam dinas, for
- * the "ganti chief Senin 07.00" reminder line.
+ * planned handover to someone else). Open at any hour (see EARLY above).
  */
 export function chiefSuggestions(
   roster: readonly RosterPatient[],
   floor: FloorDoc,
   date: string,
   now: Date,
-  opts: { ignoreClock?: boolean } = {},
 ): ChiefSuggestion[] {
   const bangsal = floor.chiefBangsal.trim();
   if (!bangsal) return [];
-  if (!opts.ignoreClock && !isJamDinas(now)) return [];
-  const blockStart = jamDinasBlockStart(now);
+  const cycleStart = handoverCycleStart(now);
   const out: ChiefSuggestion[] = [];
   for (const entry of roster) {
     if (entry.status !== 'dirawat') continue;
@@ -95,7 +89,7 @@ export function chiefSuggestions(
     if (entry.chiefDismissed) {
       // No chief at all: the list maker said no once, for good (owner, 24 Oct 2026).
       if (!from) continue;
-      if (!opts.ignoreClock && new Date(entry.chiefDismissed) >= blockStart) continue;
+      if (new Date(entry.chiefDismissed) >= cycleStart) continue;
     }
     out.push({ entry, from, to });
   }

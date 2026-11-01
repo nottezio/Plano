@@ -1,4 +1,4 @@
-import { chiefSuggestions, isJamDinas, nextJamDinas } from './chiefHandover';
+import { chiefSuggestions } from './chiefHandover';
 import { suggestionActions, suggestionFor, suggestionWords, type FloorDoc, type RosterPatient, type StatusChange } from './floor';
 
 /**
@@ -40,8 +40,6 @@ export interface TrayRow {
 
 export interface Tray {
   rows: TrayRow[];
-  /** Outside jam dinas: how many patients change chief next time, and when (null = none). */
-  later: { count: number; at: Date } | null;
 }
 
 const dr = (name: string): string => `dr. ${name.replace(/^dr(\.\s*|\s+)/i, '')}`;
@@ -74,7 +72,6 @@ export function buildTray(roster: readonly RosterPatient[], floor: FloorDoc, dat
     });
   }
 
-  const dinas = isJamDinas(now);
   const chief = chiefSuggestions(roster, floor, date, now);
   for (const { entry, from, to } of chief) {
     const done = `Chief → ${dr(to)}`;
@@ -99,10 +96,5 @@ export function buildTray(roster: readonly RosterPatient[], floor: FloorDoc, dat
     });
   }
 
-  let later: Tray['later'] = null;
-  if (!dinas) {
-    const count = chiefSuggestions(roster, floor, date, now, { ignoreClock: true }).length;
-    if (count > 0) later = { count, at: nextJamDinas(now) };
-  }
-  return { rows, later };
+  return { rows };
 }
