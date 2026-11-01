@@ -5,6 +5,9 @@ Catatan teknis lengkap (akar masalah, perbaikan) ada di CHANGES.md.
 
 Entri teratas harus versi yang sedang dirilis; tes gagal bila belum ditulis.
 
+## `2026-11-01.2`
+- **Membuka halaman pasien lebih hemat kuota.** Deretan tanggal kini hanya memantau 4 hari terakhir secara langsung; hari yang lebih lama dibaca sekali per sesi. Pasien yang dirawat lama tidak lagi membaca seluruh catatannya setiap kali dibuka. Tampilan tidak berubah: semua tanggal dan SOAP jaga tetap muncul. Perubahan pada hari lebih dari 4 hari lalu yang dibuat di perangkat lain akan terlihat pada sesi berikutnya.
+
 ## `2026-11-01.1`
 - **Menulis SOAP lebih hemat kuota.** Saat mengetik di S, O atau P, simpan otomatis kini hanya menyimpan catatannya, tidak lagi ikut menulis ulang kartu pasien setiap beberapa detik. Kartu tetap diperbarui seketika bila yang tampil di kartu berubah (diagnosis/A, DPJP, rencana lab, tanggal catatan terbaru). Tampilan tidak berubah.
 

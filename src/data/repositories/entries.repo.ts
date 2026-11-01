@@ -17,6 +17,7 @@ import {
   type DocumentData,
   type Unsubscribe,
   getCountFromServer,
+  getDocsFromCache,
   documentId,
   type QueryDocumentSnapshot,
 } from 'firebase/firestore';
@@ -251,38 +252,104 @@ export interface EntryDatesSnapshot {
   shiftNotesByDate: Record<ClinicalDate, ShiftNote[]>;
 }
 
+/** Days from today backwards that the date rail listens to live; older days are read once per session. */
+export const ENTRY_DATES_LIVE_DAYS = 4;
+
+/** Patients whose older days this session has already read from the server. */
+const olderDaysRead = new Set<string>();
+
+/**
+ * The date rail (and every day's SOAP jaga) for one patient.
+ *
+ * It listened to EVERY entry of the admission, bodies included: one read per
+ * day on each open after 30 min away, and one more on every autosave of the
+ * open day (2026-11-01, read-cost fix B). Now only the last
+ * `ENTRY_DATES_LIVE_DAYS` days (and `igd`, which sorts after the digits) are
+ * live. Older days are taken from this device's cache at once and read from
+ * the server once per session, so a day written on another device before the
+ * window still appears; an edit to such an old day made on another device
+ * during this session shows on the next session. The real entries are always
+ * what is read: no summary is kept anywhere that an older app version could
+ * fail to update.
+ *
+ * The first answer waits for the live part, so "the latest written day" is
+ * never decided from older days alone.
+ */
 export function subscribeEntryDates(
   patientId: string,
+  today: ClinicalDate,
   callback: (snapshot: EntryDatesSnapshot) => void,
   onError: (error: Error) => void,
 ): Unsubscribe {
-  return onSnapshot(
-    // No `orderBy('date')` — see `fetchEntryBodies`. A document missing that
-    // field is excluded from the result entirely, which is how a real day
-    // vanished from the rail while still opening fine by id.
-    query(entriesCol(patientId)),
+  // No `orderBy('date')` — see `fetchEntryBodies`. The id is the date; a
+  // document missing the `date` field still has one.
+  const since = addDays(today, -ENTRY_DATES_LIVE_DAYS);
+  const recentQuery = query(entriesCol(patientId), where(documentId(), '>=', since));
+  const olderQuery = query(entriesCol(patientId), where(documentId(), '<', since));
+  let recent: EntryDay[] | null = null;
+  let older: EntryDay[] = [];
+  let stopped = false;
+  const emit = (): void => {
+    if (!stopped && recent) callback(summarizeEntryDays([...older, ...recent]));
+  };
+  const take = (docs: readonly QueryDocumentSnapshot[]): EntryDay[] =>
+    docs.map((entry) => ({ id: entry.id, data: entry.data() as DailyEntry }));
+
+  const stop = onSnapshot(
+    recentQuery,
     (snapshot) => {
-      const dates: ClinicalDate[] = [];
-      const datesWithBody: ClinicalDate[] = [];
-      const shiftNotesByDate: Record<ClinicalDate, ShiftNote[]> = {};
-
-      for (const entry of snapshot.docs) {
-        const data = entry.data() as DailyEntry;
-        if (data.deletedAt) continue;
-
-        const hasBody = (data.body ?? '').trim().length > 0;
-        const live = (data.shiftNotes ?? []).filter((note) => note.clearedAt === null);
-
-        if (hasBody) datesWithBody.push(entry.id);
-        // Either kind of content makes the day worth offering.
-        if (hasBody || live.length > 0) dates.push(entry.id);
-        if (live.length > 0) shiftNotesByDate[entry.id] = live;
-      }
-
-      callback({ dates, datesWithBody, shiftNotesByDate });
+      recent = take(snapshot.docs);
+      emit();
     },
     onError,
   );
+  void getDocsFromCache(olderQuery)
+    .then((snapshot) => {
+      if (older.length === 0) older = take(snapshot.docs);
+      emit();
+    })
+    .catch(() => undefined);
+  if (!olderDaysRead.has(patientId)) {
+    void getDocs(olderQuery)
+      .then((snapshot) => {
+        if (!snapshot.metadata.fromCache) olderDaysRead.add(patientId);
+        older = take(snapshot.docs);
+        emit();
+      })
+      .catch((error: unknown) => console.error('[entry] older days', error));
+  }
+  return () => {
+    stopped = true;
+    stop();
+  };
+}
+
+export interface EntryDay {
+  id: string;
+  data: DailyEntry;
+}
+
+/** The rail's three lists from entry documents (unchanged rules; a later copy of a day wins). */
+export function summarizeEntryDays(days: readonly EntryDay[]): EntryDatesSnapshot {
+  const byId = new Map<string, DailyEntry>();
+  for (const day of days) byId.set(day.id, day.data);
+  const dates: ClinicalDate[] = [];
+  const datesWithBody: ClinicalDate[] = [];
+  const shiftNotesByDate: Record<ClinicalDate, ShiftNote[]> = {};
+
+  for (const [id, data] of byId) {
+    if (data.deletedAt) continue;
+
+    const hasBody = (data.body ?? '').trim().length > 0;
+    const live = (data.shiftNotes ?? []).filter((note) => note.clearedAt === null);
+
+    if (hasBody) datesWithBody.push(id);
+    // Either kind of content makes the day worth offering.
+    if (hasBody || live.length > 0) dates.push(id);
+    if (live.length > 0) shiftNotesByDate[id] = live;
+  }
+
+  return { dates, datesWithBody, shiftNotesByDate };
 }
 
 /**

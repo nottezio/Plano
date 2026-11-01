@@ -1,5 +1,7 @@
 import { useEffect, useState } from 'react';
 
+import { useClinicalToday } from './useClinicalToday';
+
 import {
   subscribeEntry,
   subscribeEntryDates,
@@ -75,15 +77,18 @@ const EMPTY_DATES: EntryDatesSnapshot = {
 
 export function useEntryDates(patientId: string | undefined): EntryDatesSnapshot {
   const [snapshot, setSnapshot] = useState<EntryDatesSnapshot>(EMPTY_DATES);
+  // The live window is counted back from today, so it moves at midnight.
+  const today = useClinicalToday();
 
   useEffect(() => {
     if (!patientId) return;
     return subscribeEntryDates(
       patientId,
+      today,
       setSnapshot,
       (error) => console.error('[entry] date list failed', error),
     );
-  }, [patientId]);
+  }, [patientId, today]);
 
   return snapshot;
 }

@@ -1,5 +1,15 @@
 # Plano — CHANGES
 
+## `2026-11-01.2` — Firestore reads: the date rail listens to the last 4 days, older days read once per session
+
+Read-cost fix B, the safe variant (Avi chose it over a summary on the patient document).
+
+- **Root cause.** `subscribeEntryDates` listened to `entriesCol(patientId)` whole, bodies included, only to know which days exist, which have a body, and each day's live shift notes. Billed one read per day of stay on every open after 30 min away, and one more per autosave of the open day.
+- **Why not a summary on the patient (the original B).** Plano has no forced update: devices on an older build keep writing entries without maintaining a summary, so on updated devices a day or a SOAP jaga could be missing from the rail until every device reloads. Rejected for that reason.
+- **Fix (`entries.repo.ts`, `useEntry.ts`).** Live listener on `documentId() >= today − ENTRY_DATES_LIVE_DAYS (4)` (`igd` sorts after the digits, so it is in it). Older days: `getDocsFromCache` at once, then `getDocs` once per patient per session (`olderDaysRead`, set only for a server answer). The first emission waits for the live part, so the "latest written day" is never decided from older days alone. Summary rules unchanged, moved to `summarizeEntryDays` (tested, `entryDays.test.ts`). `useEntryDates` takes today from `useClinicalToday`, so the window moves at midnight.
+- **Checked.** `npm run verify` green. Emulator, rules on: a patient with IGD, days −8, −7, −6 (SOAP jaga only), −5, −3, −1, today; the rail showed all of them, the −6 jaga note included (outside the window, so from the once-per-session read). Reads not measured.
+- **Limits.** An edit or SOAP jaga on a day older than 4 days, made on another device during this session, shows on the next session. The open day's autosave is still billed once on this listener when it is in the window (normally it is).
+
 ## `2026-11-01.1` — Firestore reads: an autosave writes the patient document only when the card changes
 
 From the read-cost analysis of 1 Nov (fix A of A–E; B, the date-rail summary, is next as its own version).
