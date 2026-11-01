@@ -5,6 +5,11 @@ Catatan teknis lengkap (akar masalah, perbaikan) ada di CHANGES.md.
 
 Entri teratas harus versi yang sedang dirilis; tes gagal bila belum ditulis.
 
+## `2026-11-01.5`
+- **Kotak cari List Maker tidak lagi punya dua tombol ✕.** Kini hanya satu. Hal yang sama diperbaiki di pencarian Catatan dan Checklist.
+- **Tab List Maker yang aktif tidak lagi bergaris kuning di atas.** Tab itu kini diisi warna kuning yang lebih pekat dengan tepi kuning tipis, seperti tab aktif lainnya yang berupa isian, bukan garis.
+- **Kepala List Maker lebih rapi.** Tanggal, Chief Bangsal, dan Catatan Visite satu baris; kotak Chief di bawahnya selebar blok, jadi nama-nama chief tidak lagi menumpuk empat baris. Tab Denah, List, dan lainnya tidak lagi melebar selebar layar. Kolom kanan di tab List kini bisa digulir sampai ujung bawahnya di aplikasi terpasang.
+
 ## `2026-11-01.4`
 - **Tab List Maker berwarna kuning dan posisinya tidak hilang saat pindah tab.** Di aplikasi terpasang (desktop), tab List Maker kini kuning agar mudah dicari. Saat kembali ke tab mana pun, halaman muncul di posisi gulir terakhir, dan List Maker mengingat tanggal yang dipilih, isi pencarian, dan kotak pasien yang sedang terbuka (sampai halaman dimuat ulang).
 

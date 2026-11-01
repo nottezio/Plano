@@ -1,5 +1,14 @@
 # Plano — CHANGES
 
+## `2026-11-01.5` — List Maker spacing pass: one search clear, no yellow bar on the active tab, head and sub-tabs re-laid
+
+- **Root cause (double ✕).** The search is `type="search"`, which Chromium decorates with its own clear button, and the page drew a second one. Fixed with `[&::-webkit-search-cancel-button]:appearance-none` on the three inputs that draw their own clear (List Maker, Catatan, Checklist); the other `type="search"` inputs have no clear of their own and keep the native one. The List Maker's was a text `×`; it is now `IconClose`, like the other two.
+- **Root cause (yellow bar).** `DesktopTabs` gave the active List Maker tab `shadow-[inset_0_3px_0_var(--warn-strong)]`, a 3 px bar that no other tab has. Now the active one is a 38% `--warn-strong` fill over `--bg` with a 55% tinted edge; the inactive one is unchanged.
+- **Root cause (side panel).** The List tab's right panel is `sticky` with `max-h: 100dvh - 5.5rem`, which ignores the 44 px tab strip (`--app-h`), so its last ~20 px sat below the window and could not be scrolled to. Now `var(--app-h, 100dvh)`.
+- **Head layout.** The date, Chief Bangsal and Chief shared one row, so the Chief box, as tall as its chips (four lines), left a dead pocket under the other two, and Catatan Visite sat alone on a row. Row 1 is now date | Chief Bangsal | Catatan Visite (the page passes the button as `actions`); the Chief box is row 2 across the block. Phones keep the folded chiefs and the button on its own row.
+- **Sub-tabs.** On a wide window the six tabs shared the full width at 12 px. At 640 px and up they are content-sized (`sm:w-fit`, `sm:flex-none`, 14 px); phones are unchanged. The sticky bar gained 4 px below it so rows that scroll under it do not meet its edge, and the search sits 8 px under the tabs instead of 16.
+- **Not done / not verified.** Written from Avi's screenshots and the source; not seen rendered here (the List Maker needs a signed-in session), so spacing values and the new tab yellow still need a look in the installed app, light and dark and Senja. `check:contrast` covers tokens, not this tab fill.
+
 ## `2026-11-01.4` — Desktop tabs: a tab keeps its scroll and the List Maker's day; the List Maker tab is yellow
 
 - **Root cause.** A tab switch in `DesktopTabs` is `navigate(url, { replace: true })`, so the page remounts. Scroll came back only on Back (`AppShell.useRestoreScroll` ran for `Pop` only, from the history key, and a replace gets a new key), and the List Maker kept the picked day in `useState`, so both were lost on every switch. The sub-tab (`?tab=`) and floor (`?f=`) were already in the URL, which the tab stores.

@@ -166,7 +166,7 @@ export default function ChecklistsPage(): JSX.Element {
           onChange={(event) => setQuery(event.target.value)}
           aria-label="Cari checklist"
           placeholder="Cari judul atau langkah…"
-          className="min-w-0 flex-1 bg-transparent text-sm outline-none"
+          className="min-w-0 flex-1 bg-transparent text-sm outline-none [&::-webkit-search-cancel-button]:appearance-none"
         />
         {query ? (
           <button

@@ -229,7 +229,7 @@ export default function NotePage(): JSX.Element {
             }}
             placeholder="Cari semua catatan"
             aria-label="Cari catatan"
-            className="min-w-0 flex-1 bg-transparent text-sm outline-none"
+            className="min-w-0 flex-1 bg-transparent text-sm outline-none [&::-webkit-search-cancel-button]:appearance-none"
           />
           {searching ? (
             <button

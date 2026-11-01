@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, type ReactNode } from 'react';
 
 import { DateField } from '@/components/common/DateField';
 import { IconChevronRight } from '@/components/common/Icons';
@@ -29,6 +29,7 @@ export function ListMakerHeader({
   onChiefs,
   chiefBangsal,
   onChiefBangsal,
+  actions,
 }: {
   floors: ReadonlyArray<{ id: string; name: string }>;
   floorId: string;
@@ -43,6 +44,8 @@ export function ListMakerHeader({
   /** The jam-dinas chief, one name (24 Oct 2026); null: not editable here. */
   chiefBangsal: string | null;
   onChiefBangsal: (name: string) => void;
+  /** The page's one action for this list (Catatan Visite); sits in the date row. */
+  actions?: ReactNode;
 }): JSX.Element {
   /*
     On a phone the two chief fields are folded behind one summary line
@@ -77,7 +80,15 @@ export function ListMakerHeader({
         ) : null}
       </ScrollStrip>
 
-      <div className="grid grid-cols-1 gap-2 min-[420px]:grid-cols-[minmax(0,11rem)_minmax(0,1fr)] sm:max-w-3xl sm:grid-cols-[minmax(0,11rem)_minmax(0,1fr)_minmax(0,1fr)]">
+      {/*
+        One block, one left edge (2026-11-01, Avi: "the placement UI is off"). The row used to be
+        date | Chief Bangsal | Chief with the Chief box as tall as its wrapped chips (four lines),
+        so a dead pocket opened under the other two, and Catatan Visite sat alone on a row of its
+        own below. Now: row 1 is date | Chief Bangsal | Catatan Visite (the action at the row's
+        end, level with the fields); row 2 is the Chief box across the block, where its chips
+        wrap to two lines instead of four. Phones keep the folded chiefs.
+      */}
+      <div className="grid grid-cols-1 gap-x-3 gap-y-2 min-[420px]:grid-cols-[minmax(0,11rem)_minmax(0,1fr)] sm:max-w-3xl sm:grid-cols-[minmax(0,11rem)_minmax(0,1fr)_auto] sm:items-end">
         <Field label="Tanggal list">
           <DateField value={date} onChange={onDate} className="w-full" />
         </Field>
@@ -113,8 +124,13 @@ export function ListMakerHeader({
             wide
           />
         ) : null}
-        {chiefs ? <ChiefsField chiefs={chiefs} onChange={onChiefs} wide /> : null}
+        {chiefs ? (
+          <div className="min-w-0 sm:col-span-3">
+            <ChiefsField chiefs={chiefs} onChange={onChiefs} wide />
+          </div>
+        ) : null}
         </div>
+        {actions ? <div className="min-[420px]:col-span-2 sm:col-span-1 sm:col-start-3 sm:row-start-1">{actions}</div> : null}
       </div>
 
     </div>
@@ -158,8 +174,8 @@ export function ListMakerTabs<T extends string>({
   onTab: (tab: T) => void;
 }): JSX.Element {
   return (
-    <div className="sticky top-0 z-20 -mx-4 bg-bg px-4 py-1">
-      <ScrollStrip outerClassName="rounded-xl border border-border bg-bg-subtle" fade="from-bg-subtle" className="flex p-0.5" label="Tampilan" role="tablist">
+    <div className="sticky top-0 z-20 -mx-4 bg-bg px-4 pb-2 pt-1">
+      <ScrollStrip outerClassName="rounded-xl border border-border bg-bg-subtle sm:w-fit" fade="from-bg-subtle" className="flex p-0.5" label="Tampilan" role="tablist">
         {tabs.map(([key, label]) => {
           const on = key === tab;
           return (
@@ -169,7 +185,7 @@ export function ListMakerTabs<T extends string>({
               role="tab"
               aria-selected={on}
               onClick={() => onTab(key)}
-              className={`min-h-tap min-w-max flex-1 shrink-0 rounded-lg px-2.5 text-xs transition-colors sm:px-4 [@media(pointer:fine)]:min-h-9 ${
+              className={`min-h-tap min-w-max flex-1 shrink-0 rounded-lg px-2.5 text-xs transition-colors sm:flex-none sm:px-5 sm:text-sm [@media(pointer:fine)]:min-h-9 ${
                 on ? 'bg-surface font-semibold text-fg shadow-card ring-1 ring-border' : 'text-fg-muted hover:text-fg'
               }`}
             >

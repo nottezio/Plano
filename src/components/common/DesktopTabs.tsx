@@ -270,9 +270,10 @@ function TabStrip({ children }: { children: ReactNode }): JSX.Element {
                 }}
                 className={`group relative flex h-full w-[240px] min-w-[96px] shrink touch-none select-none items-center rounded-t-lg border border-b-0 text-sm ${
                   tabAccent(tab) === 'list'
-                    ? // Yellow, so the list is found at a glance; the active one keeps a solid bar on top.
+                    ? // Yellow, so the list is found at a glance. The active one is the stronger fill plus a
+                      // yellow-tinted edge, as every other active tab is a fill: no bar on top.
                       on
-                      ? 'border-border bg-bg font-semibold text-fg shadow-[inset_0_3px_0_var(--warn-strong)]'
+                      ? 'border-[color:color-mix(in_srgb,var(--warn-strong)_55%,var(--border))] bg-[color-mix(in_srgb,var(--warn-strong)_38%,var(--bg))] font-semibold text-fg'
                       : 'border-transparent bg-[var(--warn-soft)] text-fg hover:bg-[color-mix(in_srgb,var(--warn-strong)_35%,transparent)]'
                     : on
                       ? 'border-border bg-bg font-semibold text-fg'

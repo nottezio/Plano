@@ -2,6 +2,7 @@ import { Suspense, lazy, useEffect, useMemo, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 
 import { AppShell } from '@/components/common/AppShell';
+import { IconClose } from '@/components/common/Icons';
 import { Sheet } from '@/components/common/Sheet';
 import { useMiniWindow } from '@/store/useMiniWindow';
 
@@ -300,20 +301,20 @@ export default function ListMakerPage(): JSX.Element {
               onChiefs={(next) => void writeChiefs(floor.id, next.join(', '))}
               chiefBangsal={editable ? floor.chiefBangsal : null}
               onChiefBangsal={(next) => void writeChiefBangsal(floor.id, next)}
+              actions={
+                <Button
+                  size="sm"
+                  onClick={() => {
+                    if (!desk) return setVisitOpen(true);
+                    // Popup blocked: the sheet instead of nothing.
+                    void useMiniWindow.getState().open({ kind: 'floor', floorId: floor.id }).then((ok) => ok || setVisitOpen(true));
+                  }}
+                  title={desk ? 'Buka di jendela kecil (tetap di atas SIMGOS)' : undefined}
+                >
+                  Catatan Visite{desk ? ' ⧉' : ''}
+                </Button>
+              }
             />
-            <div>
-              <Button
-                size="sm"
-                onClick={() => {
-                  if (!desk) return setVisitOpen(true);
-                  // Popup blocked: the sheet instead of nothing.
-                  void useMiniWindow.getState().open({ kind: 'floor', floorId: floor.id }).then((ok) => ok || setVisitOpen(true));
-                }}
-                title={desk ? 'Buka di jendela kecil (tetap di atas SIMGOS)' : undefined}
-              >
-                Catatan Visite{desk ? ' ⧉' : ''}
-              </Button>
-            </div>
             <Sheet open={visitOpen} onOpenChange={setVisitOpen} title="Catatan Visite">
               <Suspense fallback={<p className="p-4 text-xs text-fg-faint">Memuat…</p>}>
                 <FloorVisitNote key={floor.id} floorId={floor.id} uid={uid} editable={editable} />
@@ -336,23 +337,25 @@ export default function ListMakerPage(): JSX.Element {
             ) : null}
 
             {(tab === 'denah' || tab === 'list') && view.active.length > 0 ? (
-              <div className="relative">
+              // `!mt-0`: the search belongs to the tabs above it (8 px), not a section of its own (16 px).
+              <div className="relative !mt-0">
                 <input
                   type="search"
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
                   placeholder="Cari nama, RM, kamar (417/2), residen, diagnosis…"
                   aria-label="Cari pasien"
-                  className={`${INPUT} pr-10`}
+                  // The clear button below is ours; the browser's own would be a second ✕.
+                  className={`${INPUT} pr-10 [&::-webkit-search-cancel-button]:appearance-none`}
                 />
                 {search ? (
                   <button
                     type="button"
                     onClick={() => setSearch('')}
                     aria-label="Hapus pencarian"
-                    className="absolute right-0 top-0 h-full min-w-tap text-fg-muted hover:text-fg"
+                    className="absolute right-0 top-0 flex h-full min-w-tap items-center justify-center text-fg-muted hover:text-fg"
                   >
-                    ×
+                    <IconClose width="16" height="16" />
                   </button>
                 ) : null}
               </div>
