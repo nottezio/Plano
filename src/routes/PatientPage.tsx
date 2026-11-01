@@ -7,7 +7,7 @@ import { BodyEditor, type BodyEditorHandle } from '@/components/patient/BodyEdit
 import { FloatingCalculator } from '@/components/calc/FloatingCalculator';
 import { insertIntoTerapi } from '@/domain/format/insertTerapi';
 import { IconBack } from '@/components/common/Icons';
-import { Sheet } from '@/components/common/Sheet';
+import { Sheet, memoWhileClosed } from '@/components/common/Sheet';
 import { PatientHeaderActions } from '@/components/patient/PatientHeaderActions';
 import { CopySheet } from '@/components/copy/CopySheet';
 import { VisiteView } from '@/components/patient/VisiteView';
@@ -118,6 +118,22 @@ import type { ClinicalDate } from '@/domain/types';
 import { useDebouncedValue } from '@/hooks/useDebouncedValue';
 import { ConfirmDialog } from '@/components/common/ConfirmDialog';
 import { itemsForPatientDay } from '@/domain/checklistDay';
+
+/**
+ * This page re-renders on every keystroke (the draft lives in its hooks), and
+ * these sheets are mounted all the time. Closed, they skip those renders.
+ */
+const ReformatSheetWhenOpen = memoWhileClosed(ReformatSheet);
+const CompareSheetWhenOpen = memoWhileClosed(CompareSheet);
+const IdentitySheetWhenOpen = memoWhileClosed(IdentitySheet);
+const HistorySummarySheetWhenOpen = memoWhileClosed(HistorySummarySheet);
+const SoapTidySheetWhenOpen = memoWhileClosed(SoapTidySheet);
+const PatientActionsSheetWhenOpen = memoWhileClosed(PatientActionsSheet);
+const LabSheetWhenOpen = memoWhileClosed(LabSheet);
+const OpeningSheetWhenOpen = memoWhileClosed(OpeningSheet);
+const NewVersionSheetWhenOpen = memoWhileClosed(NewVersionSheet);
+const CopySheetWhenOpen = memoWhileClosed(CopySheet);
+const RevisionTrailWhenOpen = memoWhileClosed(RevisionTrail);
 
 /** Minimum window the rail offers, so a patient admitted today can still scroll. */
 
@@ -2443,7 +2459,7 @@ export default function PatientPage(): JSX.Element {
         Reformatting a jaga note while it wrote the morning SOAP would have
         been the same silent cross-write.
       */}
-      <ReformatSheet
+      <ReformatSheetWhenOpen
         open={reformatOpen}
         onOpenChange={setReformatOpen}
         body={activeNote.body}
@@ -2456,7 +2472,7 @@ export default function PatientPage(): JSX.Element {
         against its own day produced two panes neither of which was visible,
         under a header that said "hari ini".
       */}
-      <CompareSheet
+      <CompareSheetWhenOpen
         open={compareOpen}
         onOpenChange={setCompareOpen}
         patientId={patientId ?? ''}
@@ -2480,14 +2496,14 @@ export default function PatientPage(): JSX.Element {
             })}
       />
 
-      <IdentitySheet
+      <IdentitySheetWhenOpen
         body={editor.value}
         open={identityOpen}
         onOpenChange={setIdentityOpen}
         patient={patient}
       />
 
-      <HistorySummarySheet
+      <HistorySummarySheetWhenOpen
         open={summaryOpen}
         onOpenChange={setSummaryOpen}
         patientId={patient.id}
@@ -2496,14 +2512,14 @@ export default function PatientPage(): JSX.Element {
           .join(' · ')}
       />
 
-      <SoapTidySheet
+      <SoapTidySheetWhenOpen
         open={tidyOpen}
         onOpenChange={setTidyOpen}
         body={activeNote.body}
         onApply={activeNote.apply}
       />
 
-      <PatientActionsSheet
+      <PatientActionsSheetWhenOpen
         open={actionsOpen}
         onOpenChange={setActionsOpen}
         patient={patient}
@@ -2785,7 +2801,7 @@ export default function PatientPage(): JSX.Element {
         </aside>
       </div>
 
-      <LabSheet
+      <LabSheetWhenOpen
         open={labOpen}
         onOpenChange={setLabOpen}
         date={selected}
@@ -2803,7 +2819,7 @@ export default function PatientPage(): JSX.Element {
 
       <ScrollToTop />
 
-      <OpeningSheet
+      <OpeningSheetWhenOpen
         open={openingOpen}
         onOpenChange={setOpeningOpen}
         /**
@@ -2825,7 +2841,7 @@ export default function PatientPage(): JSX.Element {
         }}
       />
 
-      <NewVersionSheet
+      <NewVersionSheetWhenOpen
         open={versionSheetOpen}
         onOpenChange={setVersionSheetOpen}
         body={editor.value}
@@ -2836,7 +2852,7 @@ export default function PatientPage(): JSX.Element {
         onCreate={createVersion}
       />
 
-      <CopySheet
+      <CopySheetWhenOpen
         open={copyOpen}
         onOpenChange={setCopyOpen}
         patient={patient}
@@ -2850,7 +2866,7 @@ export default function PatientPage(): JSX.Element {
         closings={settings.closingSentences}
       />
 
-      <RevisionTrail
+      <RevisionTrailWhenOpen
         focusId={trailFocus}
         open={trailOpen}
         onOpenChange={(next) => {

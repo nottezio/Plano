@@ -45,10 +45,12 @@ import { ClipboardPill } from './ClipboardPill';
  */
 function useRestoreScroll(): void {
   const navigationType = useNavigationType();
-  const { key } = useLocation();
+  const { key, state } = useLocation();
+  // A tab switch is a replace that carries the scroll the tab was left at.
+  const tabScroll = (state as { tabScroll?: number } | null)?.tabScroll ?? 0;
   useLayoutEffect(() => {
-    if (navigationType !== NavigationType.Pop) return undefined;
-    const target = appHistory()?.savedScroll(key) ?? 0;
+    const target =
+      navigationType === NavigationType.Pop ? (appHistory()?.savedScroll(key) ?? 0) : tabScroll;
     const main = document.getElementById('main');
     if (!main || target <= 0) return undefined;
     let frame = 0;
@@ -67,7 +69,7 @@ function useRestoreScroll(): void {
       main.removeEventListener('touchstart', stop);
       main.removeEventListener('wheel', stop);
     };
-  }, [key, navigationType]);
+  }, [key, navigationType, tabScroll]);
 }
 
 function titleForPrivacy(title: string, initialsOnly: boolean): string {

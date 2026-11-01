@@ -1,7 +1,20 @@
 import * as Dialog from '@radix-ui/react-dialog';
-import type { ReactNode } from 'react';
+import { memo, type ComponentType, type ReactNode } from 'react';
 import { IconClose } from './Icons';
 import { useBackToClose } from '@/lib/useBackToClose';
+
+/**
+ * A sheet that is closed shows nothing, so it skips its parent's renders.
+ *
+ * The patient page re-renders on every keystroke and mounts a dozen sheets.
+ * Closed, each one still ran its hooks over the whole note (Salin composes the
+ * full report) for output nobody could see. Props are compared only when the
+ * sheet is, or just was, open: the render that opens it carries fresh props,
+ * and the sheets already reset their own state on that edge.
+ */
+export function memoWhileClosed<P extends { open: boolean }>(sheet: ComponentType<P>) {
+  return memo(sheet, (previous, next) => !previous.open && !next.open);
+}
 
 /**
  * Bottom sheet on phone, centred dialog from 640 px up.

@@ -5,6 +5,12 @@ Catatan teknis lengkap (akar masalah, perbaikan) ada di CHANGES.md.
 
 Entri teratas harus versi yang sedang dirilis; tes gagal bila belum ditulis.
 
+## `2026-11-01.4`
+- **Tab List Maker berwarna kuning dan posisinya tidak hilang saat pindah tab.** Di aplikasi terpasang (desktop), tab List Maker kini kuning agar mudah dicari. Saat kembali ke tab mana pun, halaman muncul di posisi gulir terakhir, dan List Maker mengingat tanggal yang dipilih, isi pencarian, dan kotak pasien yang sedang terbuka (sampai halaman dimuat ulang).
+
+## `2026-11-01.3`
+- **Mengetik di Versi SOAP dan Catatan pasien lebih ringan.** Halaman pasien tidak lagi memproses jendela Salin, Rapikan, Identitas, dan jendela lain yang sedang tertutup setiap kali satu huruf diketik. Isi dan tampilan tidak berubah; jendela-jendela itu tetap menyegarkan dirinya saat dibuka.
+
 ## `2026-11-01.2`
 - **Membuka halaman pasien lebih hemat kuota.** Deretan tanggal kini hanya memantau 4 hari terakhir secara langsung; hari yang lebih lama dibaca sekali per sesi. Pasien yang dirawat lama tidak lagi membaca seluruh catatannya setiap kali dibuka. Tampilan tidak berubah: semua tanggal dan SOAP jaga tetap muncul. Perubahan pada hari lebih dari 4 hari lalu yang dibuat di perangkat lain akan terlihat pada sesi berikutnya.
 

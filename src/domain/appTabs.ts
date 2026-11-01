@@ -121,6 +121,11 @@ const PAGE_NAMES: ReadonlyArray<readonly [RegExp, string]> = [
   [/^\/p\//, 'Pasien'],
 ];
 
+/** The List Maker's tab is yellow, so it is found at a glance among the rest. */
+export function tabAccent(tab: Pick<AppTab, 'url'>): 'list' | null {
+  return /^\/list\b/.test(tab.url.split('?')[0] ?? '') ? 'list' : null;
+}
+
 /**
  * What a tab is called before its page has set a title (a tab opened behind
  * with Ctrl+click has never been shown) — and on the board, whose own title is

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { activate, closeTab, cycle, initialTabs, launch, MAX_TABS, moveTab, navigated, openTab, readTabs, tabLabel, tabTitle, titled } from './appTabs';
+import { activate, closeTab, cycle, initialTabs, launch, MAX_TABS, moveTab, navigated, openTab, readTabs, tabAccent, tabLabel, tabTitle, titled } from './appTabs';
 
 describe('desktop app tabs (2026-10-16)', () => {
   const start = initialTabs('/', 'a');
@@ -84,5 +84,12 @@ describe('desktop app tabs (2026-10-16)', () => {
     expect(moveTab(s, 'c', 99).tabs.map((t) => t.id)).toEqual(['a', 'b', 'c']);
     expect(moveTab(s, 'a', 2).active).toBe(s.active);
     expect(moveTab(s, 'zzz', 0)).toBe(s);
+  });
+
+  it('marks only the List Maker tab, with or without a query', () => {
+    expect(tabAccent({ url: '/list' })).toBe('list');
+    expect(tabAccent({ url: '/list?tab=list&f=x' })).toBe('list');
+    expect(tabAccent({ url: '/' })).toBeNull();
+    expect(tabAccent({ url: '/listing' })).toBeNull();
   });
 });

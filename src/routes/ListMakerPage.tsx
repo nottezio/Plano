@@ -49,6 +49,13 @@ const WIP = (
  * full app"), not a Helper tab: the denah is used standing at the bed during
  * the DPJP visit and needs the whole screen.
  */
+/**
+ * What a desktop tab switch (a remount) must not drop: the search and the open
+ * patient boxes. Kept for the session in memory; a reload starts clean.
+ * shortcut: one slot, so two List Maker tabs share it; key by tab if that matters.
+ */
+const kept: { search: string; openKeys: string[] } = { search: '', openKeys: [] };
+
 export default function ListMakerPage(): JSX.Element {
   const uid = useSession((s) => s.user?.uid ?? null);
   const user = useSession((s) => s.user);
@@ -58,7 +65,14 @@ export default function ListMakerPage(): JSX.Element {
   const { floors, invites, state, error } = useMyFloors();
   const floorId = params.get('f') ?? floors[0]?.id ?? null;
   const floor: FloorDoc | null = floors.find((f) => f.id === floorId) ?? floors[0] ?? null;
-  const [date, setDate] = useState(today);
+  // The picked day lives in the URL like the sub-tab, so a tab switch (a
+  // remount) brings it back; it is only written once somebody picks a day.
+  const date = params.get('d') ?? today;
+  const setDate = (next: typeof today): void => {
+    const p = new URLSearchParams(params);
+    p.set('d', next);
+    setParams(p, { replace: true });
+  };
   const tab = (params.get('tab') as Tab | null) ?? 'denah';
   const setTab = (next: Tab): void => {
     const p = new URLSearchParams(params);
@@ -80,7 +94,7 @@ export default function ListMakerPage(): JSX.Element {
     [floor, roster, date, previous, lastSent],
   );
   // One search for the list and the denah (13.7): switching tabs keeps it.
-  const [search, setSearch] = useState('');
+  const [search, setSearch] = useState(kept.search);
   // A hand-entered patient opened from the denah is edited here (13.11).
   const [manualFor, setManualFor] = useState<FloorPatient | null>(null);
   const words = useMemo(() => searchWords(search), [search]);
@@ -93,7 +107,11 @@ export default function ListMakerPage(): JSX.Element {
     (a bottom sheet).
   */
   const wide = useMediaQuery('(min-width: 640px)');
-  const [openKeys, setOpenKeys] = useState<string[]>([]);
+  const [openKeys, setOpenKeys] = useState<string[]>(kept.openKeys);
+  useEffect(() => {
+    kept.search = search;
+    kept.openKeys = openKeys;
+  }, [search, openKeys]);
   const setOpen = (patient: FloorPatient | null): void => {
     if (!patient) return setOpenKeys([]);
     setOpenKeys((keys) => (wide ? [...keys.filter((k) => k !== patient.key), patient.key].slice(-MAX_OPEN) : [patient.key]));

@@ -11,6 +11,7 @@ import {
   navigated,
   openTab,
   readTabs,
+  tabAccent,
   tabLabel,
   tabTitle,
   titled,
@@ -170,11 +171,18 @@ function TabStrip({ children }: { children: ReactNode }): JSX.Element {
     setDragging(null);
   };
 
+  // Where each tab's page was scrolled to when it was left; a tab switch is a
+  // navigation, so the page remounts at the top unless it is told otherwise.
+  const scrolls = useRef(new Map<string, number>());
   const go = (next: TabsState): void => {
+    const leaving = latest.current.active;
+    if (next.active !== leaving) scrolls.current.set(leaving, document.getElementById('main')?.scrollTop ?? 0);
     setState(next);
     const active = next.tabs.find((t) => t.id === next.active);
     // Replace, not push: Back stays inside the tab's own page, never jumps to another tab.
-    if (active && active.url !== here) navigate(active.url, { replace: true });
+    if (active && active.url !== here) {
+      navigate(active.url, { replace: true, state: { tabScroll: scrolls.current.get(active.id) ?? 0 } });
+    }
   };
 
   // Ctrl/⌘+click and middle-click on a link in the app: a tab behind this one.
@@ -261,9 +269,14 @@ function TabStrip({ children }: { children: ReactNode }): JSX.Element {
                   if (event.button === 1) go(closeTab(latest.current, tab.id));
                 }}
                 className={`group relative flex h-full w-[240px] min-w-[96px] shrink touch-none select-none items-center rounded-t-lg border border-b-0 text-sm ${
-                  on
-                    ? 'border-border bg-bg font-semibold text-fg'
-                    : 'border-transparent bg-[color-mix(in_srgb,var(--fg)_7%,transparent)] text-fg-muted hover:bg-[color-mix(in_srgb,var(--fg)_12%,transparent)] hover:text-fg'
+                  tabAccent(tab) === 'list'
+                    ? // Yellow, so the list is found at a glance; the active one keeps a solid bar on top.
+                      on
+                      ? 'border-border bg-bg font-semibold text-fg shadow-[inset_0_3px_0_var(--warn-strong)]'
+                      : 'border-transparent bg-[var(--warn-soft)] text-fg hover:bg-[color-mix(in_srgb,var(--warn-strong)_35%,transparent)]'
+                    : on
+                      ? 'border-border bg-bg font-semibold text-fg'
+                      : 'border-transparent bg-[color-mix(in_srgb,var(--fg)_7%,transparent)] text-fg-muted hover:bg-[color-mix(in_srgb,var(--fg)_12%,transparent)] hover:text-fg'
                 } ${dragging?.id === tab.id ? 'shadow-pop' : 'transition-transform'}`}
               >
                 <button

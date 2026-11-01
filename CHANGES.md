@@ -1,5 +1,19 @@
 # Plano — CHANGES
 
+## `2026-11-01.4` — Desktop tabs: a tab keeps its scroll and the List Maker's day; the List Maker tab is yellow
+
+- **Root cause.** A tab switch in `DesktopTabs` is `navigate(url, { replace: true })`, so the page remounts. Scroll came back only on Back (`AppShell.useRestoreScroll` ran for `Pop` only, from the history key, and a replace gets a new key), and the List Maker kept the picked day in `useState`, so both were lost on every switch. The sub-tab (`?tab=`) and floor (`?f=`) were already in the URL, which the tab stores.
+- **Fix.** `DesktopTabs.go` records `#main`'s scrollTop of the tab being left and passes the target tab's value as navigation state (`tabScroll`); `useRestoreScroll` uses it for non-Pop navigations, with its existing retry until the list has filled. The List Maker's day is the `d` URL param (written only when a day is picked, so "today" still follows the clock). Yellow: `tabAccent` (`appTabs.ts`, tested) picks the `/list` tab; styled with `--warn-soft`/`--warn-strong` so it follows the theme.
+- **Search and open boxes.** Kept in a module-level slot in `ListMakerPage` (`kept`), so they survive the remount for the session; a reload clears them. One slot: two List Maker tabs share it, and a box whose patient is not on the loaded list yet renders empty until the roster arrives.
+- **Not done / not verified.** Tabs only exist in the installed desktop app, so none of this was seen running: typecheck, tests and build only. Not restored: scroll when two tabs show the identical URL (no navigation happens). A scroll restore competes with the page still loading; it retries for about 1.5 s.
+
+## `2026-11-01.3` — Typing lag in Versi SOAP and Catatan pasien: closed sheets no longer re-render per keystroke
+
+- **Root cause.** The draft lives in hooks called by `PatientPage` (`useBodyEditor`, `useShiftNotes`, `usePatientNotes`), so every keystroke, in the day SOAP, a Versi/jaga note or the Catatan pasien box, re-renders the whole 2,900-line page. Eleven sheets are mounted all the time (Salin, Bandingkan, Identitas, Rapikan, Rapikan SOAP, Tindakan, Lab, Pembuka, Versi baru, Ringkasan, Riwayat) and none was memoised, so each ran its hooks every time even when closed. `CopySheet` alone composes the full report, scans it for non-ASCII and checks identity against the note on each render. Nothing visible came of any of it.
+- **Measured** (emulator, dev build, desktop, same ~4.2k-character Versi note, React commit duration per keystroke, median of 25): Versi SOAP 14.1 → 6.6 ms, Catatan pasien 10.3 → 5.5 ms. A phone will be several times slower than both, which is where the lag showed. Production build and a real phone not measured.
+- **Fix.** `memoWhileClosed` (`Sheet.tsx`): `memo` with a comparator that skips the render when the sheet was closed and still is. `PatientPage` uses it for the eleven sheets. The render that opens a sheet carries fresh props, and the sheets already reset their own state on that edge (`if (open)` effects in Salin, Rapikan SOAP, Pembuka, Versi baru, Bandingkan), so nothing is lost by skipping the closed renders.
+- **Not done.** The rest of the page still re-renders on each keystroke (about 5–6 ms in dev: date rail, jump bar, section bands, buttons). Taking that out means moving the draft state out of `PatientPage` or memoising its children behind stable props; it is a larger change and was not attempted. Only the closed sheets were removed. No unit test: the change is render scheduling, checked by timing in the browser.
+
 ## `2026-11-01.2` — Firestore reads: the date rail listens to the last 4 days, older days read once per session
 
 Read-cost fix B, the safe variant (Avi chose it over a summary on the patient document).
