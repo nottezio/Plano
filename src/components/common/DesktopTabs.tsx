@@ -273,8 +273,8 @@ function TabStrip({ children }: { children: ReactNode }): JSX.Element {
                     ? // Yellow, so the list is found at a glance. The active one is the stronger fill plus a
                       // yellow-tinted edge, as every other active tab is a fill: no bar on top.
                       on
-                      ? 'border-[color:color-mix(in_srgb,var(--warn-strong)_55%,var(--border))] bg-[color-mix(in_srgb,var(--warn-strong)_38%,var(--bg))] font-semibold text-fg'
-                      : 'border-transparent bg-[var(--warn-soft)] text-fg hover:bg-[color-mix(in_srgb,var(--warn-strong)_35%,transparent)]'
+                      ? 'border-[color:color-mix(in_srgb,var(--warn-strong)_55%,var(--border))] bg-[var(--warn-soft)] font-semibold text-fg'
+                      : 'border-transparent bg-[color-mix(in_srgb,var(--warn-soft)_50%,transparent)] text-fg hover:bg-[var(--warn-soft)]'
                     : on
                       ? 'border-border bg-bg font-semibold text-fg'
                       : 'border-transparent bg-[color-mix(in_srgb,var(--fg)_7%,transparent)] text-fg-muted hover:bg-[color-mix(in_srgb,var(--fg)_12%,transparent)] hover:text-fg'

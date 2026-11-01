@@ -5,6 +5,9 @@ Catatan teknis lengkap (akar masalah, perbaikan) ada di CHANGES.md.
 
 Entri teratas harus versi yang sedang dirilis; tes gagal bila belum ditulis.
 
+## `2026-11-01.6`
+- **Tab List Maker aktif kini kuning, bukan krem-oranye.** Isiannya memakai warna kuning yang sama dengan tab List Maker yang tidak aktif, hanya lebih pekat, dengan tepi kuning tipis. Terang dan Gelap sudah dicek di aplikasi.
+
 ## `2026-11-01.5`
 - **Kotak cari List Maker tidak lagi punya dua tombol ✕.** Kini hanya satu. Hal yang sama diperbaiki di pencarian Catatan dan Checklist.
 - **Tab List Maker yang aktif tidak lagi bergaris kuning di atas.** Tab itu kini diisi warna kuning yang lebih pekat dengan tepi kuning tipis, seperti tab aktif lainnya yang berupa isian, bukan garis.

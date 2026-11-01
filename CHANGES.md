@@ -1,5 +1,10 @@
 # Plano — CHANGES
 
+## `2026-11-01.6` — Active List Maker tab: the yellow fill uses `--warn-soft`
+
+- **Why.** `.5` mixed `--warn-strong` at 38% over `--bg`; in light mode amber over a cool grey reads tan-orange, not yellow. The active tab is now `--warn-soft` (the token the inactive tab already used) with the 55% tinted edge; the inactive tab is that fill at half strength, so active reads as the stronger of the two.
+- **Checked.** Rendered in the Firebase emulator (`npm run emu` + `npm run dev:emu`, fake patients, desktop tab strip forced by overriding `matchMedia`), Terang and Gelap, 1920×1008: one ✕ in the search, no bar on the tab, head and sub-tabs as intended, sticky sub-tabs keep a gap over scrolled rows. **Not checked:** Senja, a phone width, and a real installed window.
+
 ## `2026-11-01.5` — List Maker spacing pass: one search clear, no yellow bar on the active tab, head and sub-tabs re-laid
 
 - **Root cause (double ✕).** The search is `type="search"`, which Chromium decorates with its own clear button, and the page drew a second one. Fixed with `[&::-webkit-search-cancel-button]:appearance-none` on the three inputs that draw their own clear (List Maker, Catatan, Checklist); the other `type="search"` inputs have no clear of their own and keep the native one. The List Maker's was a text `×`; it is now `IconClose`, like the other two.
