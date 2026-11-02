@@ -78,8 +78,9 @@ import {
   locateDayMarker,
 } from '@/domain/dayMarkers';
 import { formatLocation } from '@/domain/identity';
-import { DOCX_MIME, buildSoapDocx, soapDocxFileName } from '@/domain/format/soapDocx';
+import { DOCX_MIME, buildSoapDocx, soapDocxFileName, soapPrintHtml } from '@/domain/format/soapDocx';
 import { deliverFile } from '@/lib/download';
+import { printDocument } from '@/lib/printPage';
 import { isIgdEntry, stayStart } from '@/domain/clinicalDate';
 import { describeLabPlacement, insertLabBlock, labPlacement } from '@/domain/lab/insertLab';
 import {
@@ -1630,22 +1631,23 @@ export default function PatientPage(): JSX.Element {
 
   /**
    * The note on screen — the day's SOAP, or the jaga note or version that is
-   * open — as a Word file for printing (`domain/format/soapDocx`).
+   * open — as a Word file for printing (`domain/format/soapDocx`), then the
+   * same sheet on the print page so the printer is one click away.
    */
   const exportWord = (): void => {
     const label = activeShiftNote ? noteLabel(activeShiftNote) : undefined;
-    const bytes = buildSoapDocx({
+    const input = {
       body: activeNote.body,
       patientName: patient.name?.trim() || 'Tanpa nama',
       mrn: patient.mrn ? `RM ${patient.mrn}` : undefined,
       location: formatLocation(patient),
       dayLabel: formatDayHeader(selected, patient.admittedAt, settings.showHariRawat),
       noteLabel: label,
-    });
+    };
     void deliverFile(
-      new Blob([bytes], { type: DOCX_MIME }),
+      new Blob([buildSoapDocx(input)], { type: DOCX_MIME }),
       soapDocxFileName(patient.name ?? '', isIgdEntry(selected) ? 'SOAP Awal' : selected, label),
-    );
+    ).then(() => printDocument(soapPrintHtml(input)));
   };
 
   return (

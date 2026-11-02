@@ -11,6 +11,7 @@ import {
   soapDocxFileName,
   soapDocxParts,
   soapParagraphs,
+  soapPrintHtml,
 } from './soapDocx';
 
 const INPUT = {
@@ -103,7 +104,26 @@ describe('XML', () => {
     expect(xml).toContain('<w:b/><w:bCs/></w:rPr><w:t xml:space="preserve">S:</w:t>');
     expect(xml).toContain('<w:numId w:val="1"/>');
     expect(xml).toContain('<w:i/><w:iCs/></w:rPr><w:t xml:space="preserve">NYHA II</w:t>');
-    expect(xml).toContain('<w:pgSz w:w="11906" w:h="16838"/>');
+    expect(xml).toContain('<w:pgSz w:w="16838" w:h="11906" w:orient="landscape"/>');
+    expect(xml).toContain('<w:cols w:num="3" w:space="720"/>');
+  });
+
+  it('prints at 7 pt, single spaced', () => {
+    const styles = soapDocxParts(INPUT).find((part) => part.name === 'word/styles.xml')!.xml;
+    expect(styles).toContain('<w:sz w:val="14"/>');
+    expect(styles).toContain('w:line="240"');
+  });
+
+  it('print page carries the same lines, header and marks, escaped', () => {
+    const html = soapPrintHtml({ ...INPUT, body: `${INPUT.body}\nTD <90 & HR >100` });
+    expect(html).toContain('@page');
+    expect(html).toContain('column-count:3');
+    expect(html).toContain('<b>Tn. Pasien A</b>');
+    expect(html).toContain('Hari rawat ke-4');
+    expect(html).toContain('<b>S:</b>');
+    expect(html).toContain('<i>NYHA II</i>');
+    expect(html).toContain('<span class="m">1.</span>');
+    expect(html).toContain('TD &lt;90 &amp; HR &gt;100');
   });
 
   it('puts whose and which day on every page', () => {

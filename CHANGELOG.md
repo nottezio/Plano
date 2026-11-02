@@ -5,6 +5,10 @@ Catatan teknis lengkap (akar masalah, perbaikan) ada di CHANGES.md.
 
 Entri teratas harus versi yang sedang dirilis; tes gagal bila belum ditulis.
 
+## `2026-11-02.4`
+- **Ekspor ke Word kini satu lembar landscape.** Hasilnya A4 landscape dengan tiga kolom, huruf Arial 7 pt dan margin 1,27 cm, sehingga satu SOAP muat dalam satu lembar.
+- **Halaman cetak terbuka otomatis.** Setelah file Word diunduh, halaman cetak dengan tampilan yang sama langsung muncul; tinggal tekan Cetak.
+
 ## `2026-11-02.3`
 - **Tombol Panduan lebih terlihat.** Di List Maker dan Helper, tombol Panduan kini berbingkai seperti tombol Catatan Visite, tidak lagi terlihat seperti tulisan biasa.
 

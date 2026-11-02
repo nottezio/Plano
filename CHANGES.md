@@ -1,5 +1,11 @@
 # Plano — CHANGES
 
+## `2026-11-02.4` — Ekspor Word: landscape three-column sheet + print page opens with it
+
+- **What.** Layout copied from the .docx Avi hand-edited from the old export (`SOAP Tn. Sardar Ali Bakkas 2026-11-02.docx`): A4 landscape, `w:cols` 3 with 720 twips gap, margins 720, Arial 7 pt (`sz` 14), single line spacing (240). Indents, bullets, header and footer are unchanged. `exportWord` now also calls `printDocument(soapPrintHtml(input))` after `deliverFile`, so the browser print dialog opens on the same sheet (CSS `column-count:3`, `@page` A4 landscape).
+- **Header tab.** The sample's header right tab sat at 9638 (the old portrait width, so the date floated mid-page). The tab now follows the text width (15398).
+- **Not done / not checked.** Not opened in Word or printed on paper. The print page has no "Halaman x dari y" (browser-owned). On phones the print dialog follows the share sheet.
+
 ## `2026-11-02.3` — Panduan buttons get a border
 
 - **Why.** The quiet (borderless) Panduan button on List Maker and Helper read like a label on a phone (Avi agreed). Both are now the default bordered `Button`, the same look as Catatan Visite beside it.

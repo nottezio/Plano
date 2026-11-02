@@ -151,8 +151,11 @@ export function escapeXml(text: string): string {
     .replace(/"/g, '&quot;');
 }
 
-/** A4 with 2 cm margins, in twentieths of a point. */
-const PAGE = { width: 11906, height: 16838, margin: 1134, headerFooter: 567 };
+/**
+ * A4 landscape, three columns, 1.27 cm margins, in twentieths of a point: a
+ * whole SOAP on one sheet, the layout Avi hand-built in Word (2026-11-02).
+ */
+const PAGE = { width: 16838, height: 11906, margin: 720, headerFooter: 567, columns: 3, columnGap: 720 };
 const TEXT_WIDTH = PAGE.width - 2 * PAGE.margin;
 /** Indent per level and the hanging indent for a bullet or number, 0.63 cm. */
 const STEP = 357;
@@ -188,22 +191,31 @@ export function documentXml(paragraphs: readonly Paragraph[]): string {
   return (
     `${XML_HEAD}<w:document xmlns:w="${W_NS}" xmlns:r="${R_NS}"><w:body>${body}` +
     `<w:sectPr><w:headerReference w:type="default" r:id="rIdHeader"/><w:footerReference w:type="default" r:id="rIdFooter"/>` +
-    `<w:pgSz w:w="${PAGE.width}" w:h="${PAGE.height}"/>` +
+    `<w:pgSz w:w="${PAGE.width}" w:h="${PAGE.height}" w:orient="landscape"/>` +
     `<w:pgMar w:top="${PAGE.margin}" w:right="${PAGE.margin}" w:bottom="${PAGE.margin}" w:left="${PAGE.margin}" w:header="${PAGE.headerFooter}" w:footer="${PAGE.headerFooter}" w:gutter="0"/>` +
+    `<w:cols w:num="${PAGE.columns}" w:space="${PAGE.columnGap}"/>` +
     `</w:sectPr></w:body></w:document>`
   );
 }
 
 const SMALL = '<w:color w:val="595959"/><w:sz w:val="17"/><w:szCs w:val="17"/>';
 
+/** The running header's three pieces: whose, where, which day. */
+function headerParts(input: SoapDocxInput): { name: string; who: string; when: string } {
+  return {
+    name: input.patientName.trim() || 'Tanpa nama',
+    who: [input.mrn?.trim(), input.location?.trim()].filter(Boolean).join(' · '),
+    when: [input.dayLabel.trim(), input.noteLabel?.trim()].filter(Boolean).join(' · '),
+  };
+}
+
 export function headerXml(input: SoapDocxInput): string {
-  const who = [input.mrn?.trim(), input.location?.trim()].filter(Boolean).join(' · ');
-  const when = [input.dayLabel.trim(), input.noteLabel?.trim()].filter(Boolean).join(' · ');
+  const { name, who, when } = headerParts(input);
   return (
     `${XML_HEAD}<w:hdr xmlns:w="${W_NS}" xmlns:r="${R_NS}"><w:p><w:pPr>` +
     `<w:pBdr><w:bottom w:val="single" w:sz="4" w:space="4" w:color="A6A6A6"/></w:pBdr>` +
     `<w:tabs><w:tab w:val="right" w:pos="${TEXT_WIDTH}"/></w:tabs></w:pPr>` +
-    runXml({ text: input.patientName.trim() || 'Tanpa nama', bold: true }, SMALL) +
+    runXml({ text: name, bold: true }, SMALL) +
     (who ? runXml({ text: ` · ${who}` }, SMALL) : '') +
     `<w:r><w:rPr>${SMALL}</w:rPr><w:tab/></w:r>` +
     runXml({ text: when }, SMALL) +
@@ -224,7 +236,7 @@ export function footerXml(): string {
 }
 
 /*
-  Arial 11 pt, single spacing, no space after paragraphs: the note's own blank
+  Arial 7 pt, single spacing, no space after paragraphs: the note's own blank
   lines are its spacing, and Word's default 8 pt after every paragraph would
   double a SOAP's length on paper. Language Indonesian, so Word's spelling
   check does not underline every line.
@@ -232,8 +244,8 @@ export function footerXml(): string {
 const STYLES =
   `${XML_HEAD}<w:styles xmlns:w="${W_NS}"><w:docDefaults><w:rPrDefault><w:rPr>` +
   `<w:rFonts w:ascii="Arial" w:hAnsi="Arial" w:eastAsia="Arial" w:cs="Arial"/>` +
-  `<w:sz w:val="22"/><w:szCs w:val="22"/><w:lang w:val="id-ID" w:eastAsia="id-ID" w:bidi="ar-SA"/>` +
-  `</w:rPr></w:rPrDefault><w:pPrDefault><w:pPr><w:spacing w:after="0" w:line="259" w:lineRule="auto"/></w:pPr></w:pPrDefault></w:docDefaults>` +
+  `<w:sz w:val="14"/><w:szCs w:val="14"/><w:lang w:val="id-ID" w:eastAsia="id-ID" w:bidi="ar-SA"/>` +
+  `</w:rPr></w:rPrDefault><w:pPrDefault><w:pPr><w:spacing w:after="0" w:line="240" w:lineRule="auto"/></w:pPr></w:pPrDefault></w:docDefaults>` +
   `<w:style w:type="paragraph" w:default="1" w:styleId="Normal"><w:name w:val="Normal"/><w:qFormat/></w:style>` +
   `</w:styles>`;
 
@@ -292,6 +304,52 @@ export const DOCX_MIME = 'application/vnd.openxmlformats-officedocument.wordproc
 export function buildSoapDocx(input: SoapDocxInput): Uint8Array<ArrayBuffer> {
   const encoder = new TextEncoder();
   return storeZip(soapDocxParts(input).map((part) => ({ name: part.name, data: encoder.encode(part.xml) })));
+}
+
+// ---------------------------------------------------------------------------
+// The same sheet as a print page (`lib/printPage`): opens with the Word export
+// so the printer is one click away. Same lines, same marks, same landscape
+// three-column 7 pt page; the page number in the foot is left to the browser.
+
+const runHtml = (runs: readonly Run[]): string =>
+  runs
+    .map((run) => {
+      let html = escapeXml(run.text);
+      if (run.bold) html = `<b>${html}</b>`;
+      if (run.italic) html = `<i>${html}</i>`;
+      if (run.strike) html = `<s>${html}</s>`;
+      return html;
+    })
+    .join('');
+
+function paragraphHtml(paragraph: Paragraph): string {
+  const text = runHtml(paragraph.runs);
+  switch (paragraph.kind) {
+    case 'text':
+      return `<p>${text || '<br>'}</p>`;
+    case 'bullet':
+      return `<p class="h" style="--l:${paragraph.level}"><span class="m">${BULLET_GLYPHS[paragraph.level]}</span>${text}</p>`;
+    case 'numbered':
+      return `<p class="h n" style="--l:${paragraph.level}"><span class="m">${escapeXml(paragraph.marker)}</span>${text}</p>`;
+  }
+}
+
+export function soapPrintHtml(input: SoapDocxInput): string {
+  const { name, who, when } = headerParts(input);
+  const header = `<header><span><b>${escapeXml(name)}</b>${who ? ` · ${escapeXml(who)}` : ''}</span><span>${escapeXml(when)}</span></header>`;
+  return (
+    `<!doctype html><html lang="id"><head><meta charset="utf-8"><title>${escapeXml(`SOAP ${name}`)}</title><style>` +
+    `@page{size:A4 landscape;margin:17mm 12.7mm 12.7mm}` +
+    `body{margin:0;font:7pt/1.15 Arial,sans-serif}` +
+    `header{position:fixed;top:-12mm;left:0;right:0;display:flex;justify-content:space-between;gap:8mm;padding-bottom:1mm;border-bottom:.5pt solid #a6a6a6;font-size:8.5pt;color:#595959}` +
+    `main{column-count:3;column-gap:12.7mm;column-fill:auto;white-space:pre-wrap}` +
+    `p{margin:0}` +
+    `.h{margin-left:calc(var(--l)*.63cm + .63cm);text-indent:-.63cm}` +
+    `.n{margin-left:calc(var(--l)*.63cm + .8cm);text-indent:-.8cm}` +
+    `.m{display:inline-block;width:.63cm;text-indent:0}` +
+    `.n .m{width:.8cm}` +
+    `</style></head><body>${header}<main>${soapParagraphs(input.body).map(paragraphHtml).join('')}</main></body></html>`
+  );
 }
 
 /**
