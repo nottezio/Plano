@@ -308,7 +308,7 @@ export default function ListMakerPage(): JSX.Element {
               onChiefBangsal={(next) => void writeChiefBangsal(floor.id, next)}
               actions={
                 <div className="flex flex-wrap gap-2">
-                  <Button size="sm" variant="quiet" onClick={() => setGuideAsked(true)}>
+                  <Button size="sm" onClick={() => setGuideAsked(true)}>
                     Panduan
                   </Button>
                   <Button

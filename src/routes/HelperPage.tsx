@@ -184,7 +184,7 @@ export function HelperPage(): JSX.Element {
             DPJP, diagnosis, jumlah pasien — sebelum disalin atau dikirim.
           </span>
         </p>
-          <Button size="sm" variant="quiet" onClick={() => setGuideAsked(true)}>
+          <Button size="sm" onClick={() => setGuideAsked(true)}>
             Panduan
           </Button>
         </div>

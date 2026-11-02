@@ -5,6 +5,9 @@ Catatan teknis lengkap (akar masalah, perbaikan) ada di CHANGES.md.
 
 Entri teratas harus versi yang sedang dirilis; tes gagal bila belum ditulis.
 
+## `2026-11-02.3`
+- **Tombol Panduan lebih terlihat.** Di List Maker dan Helper, tombol Panduan kini berbingkai seperti tombol Catatan Visite, tidak lagi terlihat seperti tulisan biasa.
+
 ## `2026-11-02.2`
 - **Panduan Helper.** Saat pertama kali membuka Helper, muncul panduan singkat untuk tiap alat: Konfirmasi Jaga, Verifikasi List, Buat Sensus, Morning Report, dan Tersimpan. Bisa dilewati, dan dibuka lagi lewat tombol **Panduan** di samping catatan "Periksa sendiri isinya".
 

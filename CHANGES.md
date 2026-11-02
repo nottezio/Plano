@@ -1,5 +1,9 @@
 # Plano — CHANGES
 
+## `2026-11-02.3` — Panduan buttons get a border
+
+- **Why.** The quiet (borderless) Panduan button on List Maker and Helper read like a label on a phone (Avi agreed). Both are now the default bordered `Button`, the same look as Catatan Visite beside it.
+
 ## `2026-11-02.2` — Helper: first-time Panduan; one shared guide component
 
 - **What.** "Panduan Helper": welcome, then one step per tab (Konfirmasi Jaga, Verifikasi List, Buat Sensus, Morning Report, Tersimpan), naming the real buttons (Salin Formasi, Terkonfirmasi, Salah orang?, Transkripsi dan periksa, Susun dengan AI, Perlu dicek…). Opens once per device (`plano.helper.guideSeen`, apart from the List Maker's); a **Panduan** button beside the "Periksa sendiri" note reopens it.
