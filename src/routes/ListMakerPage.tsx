@@ -1,4 +1,4 @@
-import { Suspense, lazy, useEffect, useMemo, useRef, useState } from 'react';
+import { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 
 import { AppShell } from '@/components/common/AppShell';
@@ -10,6 +10,7 @@ import { useMiniWindow } from '@/store/useMiniWindow';
 const FloorVisitNote = lazy(() => import('@/components/floor/FloorVisitNote').then((m) => ({ default: m.FloorVisitNote })));
 import { Button, Callout, Field, INPUT } from '@/components/common/ui';
 import { FloorDenah } from '@/components/floor/FloorDenah';
+import { ListMakerGuide } from '@/components/floor/ListMakerGuide';
 import { ListPanel } from '@/components/floor/ListPanel';
 import { MembersPanel } from '@/components/floor/MembersPanel';
 import { ManualPatientSheet } from '@/components/floor/ManualPatientSheet';
@@ -137,6 +138,9 @@ export default function ListMakerPage(): JSX.Element {
   // Catatan Visite (24 Oct 2026): the floating window on a desk, a sheet on a phone.
   const desk = useMediaQuery('(min-width: 1024px)');
   const [visitOpen, setVisitOpen] = useState(false);
+  // Panduan (2 Nov 2026): opens by itself once per device; the button asks again.
+  const [guideAsked, setGuideAsked] = useState(false);
+  const guideHandled = useCallback(() => setGuideAsked(false), []);
 
   // New floor form.
   const [name, setName] = useState('PJT Lantai 4');
@@ -302,17 +306,22 @@ export default function ListMakerPage(): JSX.Element {
               chiefBangsal={editable ? floor.chiefBangsal : null}
               onChiefBangsal={(next) => void writeChiefBangsal(floor.id, next)}
               actions={
-                <Button
-                  size="sm"
-                  onClick={() => {
-                    if (!desk) return setVisitOpen(true);
-                    // Popup blocked: the sheet instead of nothing.
-                    void useMiniWindow.getState().open({ kind: 'floor', floorId: floor.id }).then((ok) => ok || setVisitOpen(true));
-                  }}
-                  title={desk ? 'Buka di jendela kecil (tetap di atas SIMGOS)' : undefined}
-                >
-                  Catatan Visite{desk ? ' ⧉' : ''}
-                </Button>
+                <div className="flex flex-wrap gap-2">
+                  <Button size="sm" variant="quiet" onClick={() => setGuideAsked(true)}>
+                    Panduan
+                  </Button>
+                  <Button
+                    size="sm"
+                    onClick={() => {
+                      if (!desk) return setVisitOpen(true);
+                      // Popup blocked: the sheet instead of nothing.
+                      void useMiniWindow.getState().open({ kind: 'floor', floorId: floor.id }).then((ok) => ok || setVisitOpen(true));
+                    }}
+                    title={desk ? 'Buka di jendela kecil (tetap di atas SIMGOS)' : undefined}
+                  >
+                    Catatan Visite{desk ? ' ⧉' : ''}
+                  </Button>
+                </div>
               }
             />
             <Sheet open={visitOpen} onOpenChange={setVisitOpen} title="Catatan Visite">
@@ -402,6 +411,7 @@ export default function ListMakerPage(): JSX.Element {
         ) : null}
       </div>
       {floor ? <RosterDatalists floor={floor} /> : null}
+      <ListMakerGuide editable={Boolean(editable)} ready={Boolean(floor) && state === 'ready'} requested={guideAsked} onRequestHandled={guideHandled} />
       {floor ? (
         <ManualPatientSheet
           open={manualFor !== null}

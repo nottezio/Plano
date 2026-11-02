@@ -1,5 +1,13 @@
 # Plano — CHANGES
 
+## `2026-11-02.1` — List Maker: first-time Panduan (tutorial)
+
+- **What.** A step-by-step guide sheet, "Panduan List Maker" (`ListMakerGuide.tsx`, steps in `domain/floorList/guide.ts`). It opens by itself the first time a list is shown on a device; Lewati, Mulai pakai, ✕ or back all mark it seen (`plano.listmaker.guideSeen`). A **Panduan** button next to Catatan Visite opens it again at step 1.
+- **Steps (editor).** Welcome → Tempel (paste / Export chat, Baca, check, Simpan, Batalkan tempel ini) → Denah (tap a bed, search) → status, Saran and Chief Bangsal (handover offered from 16.00 the day before) → List (Salin teks, Word: Denah, PDF, Simpan edisi) → Riwayat, Analisis, Setelan.
+- **Viewer** ("lihat saja") gets 4 steps without Tempel, Saran, Simpan edisi or inviting; a test checks no such words leak in.
+- **Design choice.** A paged sheet, not coach marks pointing at buttons: the List Maker head re-lays itself per width (folded chiefs on a phone), so anchored bubbles would drift. A blocked localStorage counts as seen so it never reopens on every visit.
+- **Not checked.** Unit tests only; not rendered in the emulator, phone or laptop.
+
 ## `2026-11-01.8` — Chief handover is suggested hours before 07.00, not at 07.00
 
 - **Why.** The Saran tray offered "Terima" for the Chief Bangsal handover only inside jam dinas (Mon–Fri 07.00–16.00). The List is printed hours before 07.00, so the printed chief was always the old one. Before 07.00 there was only the passive line "N pasien ganti chief · Sen 07.00".
