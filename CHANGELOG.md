@@ -5,6 +5,12 @@ Catatan teknis lengkap (akar masalah, perbaikan) ada di CHANGES.md.
 
 Entri teratas harus versi yang sedang dirilis; tes gagal bila belum ditulis.
 
+## `2026-11-02.6`
+- **Penanda H-1 dan Pulang di List kini berupa kata, bukan garis tebal di tepi baris.** Baris pasien yang H-1 atau pulang hari ini diberi label kecil **H-1** atau **Pulang** (merah / hijau seperti sebelumnya) di depan identitas.
+- **Garis tebal di sisi kartu dihapus** di Pemeriksa sensus (kini tepi dan warna latar sesuai tingkat), Bandingkan sensus (latar berwarna), catatan jaga di baris tanggal, dan editor catatan jaga.
+- **Kode DPJP di kartu papan sedikit lebih besar** (12 px; di Kanvas HP 11 px).
+- **Area ketuk lebih lega** untuk nama pasien di kartu Saran dan untuk tautan "Tambah identitas pasien", tanpa mengubah tata letak.
+
 ## `2026-11-02.5`
 - **List Maker di HP: tab dan daftar mulai lebih atas.** Tanggal dan tombol Catatan Visite kini satu baris, dan Panduan menjadi chip di baris daftar lantai, jadi satu baris tombol hilang. Di layar lebar tidak ada perubahan.
 

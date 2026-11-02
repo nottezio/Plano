@@ -220,10 +220,13 @@ function Row({
               type="button"
               disabled={!shown || done}
               onClick={() => shown && onOpen(shown)}
-              className="block max-w-full truncate py-0.5 text-left text-sm hover:underline disabled:no-underline"
+              className="relative block max-w-full py-0.5 text-left text-sm after:absolute after:inset-x-0 after:-inset-y-2.5 after:content-[''] hover:underline disabled:no-underline"
             >
-              {where ? <span className="mr-1.5 font-semibold tabular-nums">{where}</span> : null}
-              <span className="font-medium">{row.name}</span>
+              {/* The truncation sits on an inner span: `overflow: hidden` on the button would clip the hit area. */}
+              <span className="block truncate">
+                {where ? <span className="mr-1.5 font-semibold tabular-nums">{where}</span> : null}
+                <span className="font-medium">{row.name}</span>
+              </span>
             </button>
             {done ? (
               <p className="flex items-center gap-1 text-xs text-fg-muted">

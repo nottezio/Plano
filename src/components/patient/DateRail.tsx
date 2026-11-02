@@ -208,18 +208,14 @@ export function DateRail({
                     className={[
                       'flex min-w-0 items-center gap-1.5 text-left text-xs',
                       orientation === 'vertical'
-                        ? 'ml-4 mt-0.5 flex-1 rounded-md border-l-2 px-2 py-1'
+                        ? 'ml-4 mt-0.5 flex-1 rounded-md border px-2 py-1'
                         : // On the strip: a short pill beside its day, not a
                           // full-width row. Dashed so it reads as secondary to
                           // the solid day chips it sits among.
                           'ml-1 shrink-0 rounded-full border border-dashed px-2 py-1',
                       noteActive
-                        ? orientation === 'vertical'
-                          ? 'border-l-accent bg-bg-subtle font-medium text-accent'
-                          : 'border-accent bg-bg-subtle font-medium text-accent'
-                        : orientation === 'vertical'
-                          ? 'border-l-border text-fg-faint'
-                          : 'border-border text-fg-faint',
+                        ? 'border-accent bg-bg-subtle font-medium text-accent'
+                        : 'border-border text-fg-faint',
                     ].join(' ')}
                   >
                     {isVersion(note) || note.title ? (

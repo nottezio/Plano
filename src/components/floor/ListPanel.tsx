@@ -184,7 +184,7 @@ export function ListPanel({
             if (!entry) return null;
             const isOpen = openKey === patient.key;
             return (
-              <li key={patient.key} style={{ boxShadow: patient.discharge ? `inset 4px 0 0 ${FLAG_TEXT[patient.discharge]}` : undefined }}>
+              <li key={patient.key}>
                 <div className="flex items-start gap-2 py-1.5 pl-3 pr-2">
                   <button type="button" onClick={() => onOpen(patient)} className="min-w-0 flex-1 text-left">
                     <PatientRowText patient={patient} />
@@ -355,10 +355,15 @@ function PatientRowText({ patient }: { patient: FloorPatient }): JSX.Element {
         {patient.bed ? `/${patient.bed}` : ''}
       </span>
       {code ? <span className="mr-1 inline-block rounded border border-border px-1 text-[11px] font-semibold text-fg-muted">{code}</span> : null}
+      {patient.discharge && colour ? (
+        // A word, not a stripe down the row's edge: the colour was already on the identity.
+        <span className="mr-1 inline-block rounded-full border px-1.5 text-[11px] font-semibold" style={{ borderColor: colour, color: colour }}>
+          {patient.discharge === 'tomorrow' ? 'H-1' : 'Pulang'}
+        </span>
+      ) : null}
       <span className="font-semibold" style={colour ? { color: colour } : undefined}>
         {patient.identity}
       </span>
-      {patient.discharge ? <span className="sr-only"> ({patient.discharge === 'tomorrow' ? 'H-1' : 'pulang hari ini'})</span> : null}
       <span className="mt-0.5 block text-xs text-fg-muted">
         {residents || <span className="text-fg-faint">belum ada residen</span>}
         {notes.map((n) => (

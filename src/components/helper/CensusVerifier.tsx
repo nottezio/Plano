@@ -297,7 +297,7 @@ export function CensusVerifier(): JSX.Element {
                 <PatientCard key={patient.key} number={index + 1} patient={patient} onAnswer={answer} />
               ))}
               {readable.counts ? (
-                <li className={`rounded-xl border border-l-4 border-border bg-surface px-3 py-2.5 text-xs ${SEVERITY_EDGE.high}`}>
+                <li className={`rounded-xl border px-3 py-2.5 text-xs ${SEVERITY_EDGE.high}`}>
                   <CardHead number={readable.patients.length + 1} title={readable.counts.title} />
                   <dl className="mt-2 grid grid-cols-[auto_minmax(0,1fr)] gap-x-3 overflow-hidden rounded-lg border border-border text-xs">
                     {readable.counts.rows.map((row, index) => (
@@ -331,7 +331,7 @@ export function CensusVerifier(): JSX.Element {
                 </li>
               ) : null}
               {readable.other.map((item, index) => (
-                <li key={item.title} className={`rounded-xl border border-l-4 border-border bg-surface px-3 py-2.5 text-xs ${SEVERITY_EDGE[item.severity]}`}>
+                <li key={item.title} className={`rounded-xl border px-3 py-2.5 text-xs ${SEVERITY_EDGE[item.severity]}`}>
                   <CardHead number={readable.patients.length + (readable.counts ? 1 : 0) + index + 1} title={item.title} />
                   <p className="mt-0.5 text-fg-muted">{item.detail}</p>
                 </li>
@@ -540,11 +540,16 @@ function Disclosure({ title, children }: { title: string; children: React.ReactN
 }
 
 /** One colour per severity: red, amber, the accent for "your answer", grey. */
+/*
+  Severity is the card's whole edge and tint, not a thick bar down one side
+  (2026-11-02, impeccable audit): a 1 px edge in the severity colour over a soft
+  fill of it. `cosmetic` stays the plain surface.
+*/
 const SEVERITY_EDGE: Record<Severity, string> = {
-  high: 'border-l-danger',
-  medium: 'border-l-[var(--warn-strong)]',
-  confirm: 'border-l-accent',
-  cosmetic: 'border-l-[var(--border-strong)]',
+  high: 'border-[color:color-mix(in_srgb,var(--danger)_55%,var(--border))] bg-[var(--danger-soft)]',
+  medium: 'border-[color:color-mix(in_srgb,var(--warn-strong)_55%,var(--border))] bg-[var(--warn-soft)]',
+  confirm: 'border-[color:color-mix(in_srgb,var(--accent)_55%,var(--border))] bg-[var(--accent-soft)]',
+  cosmetic: 'border-border bg-surface',
 };
 function CardHead({ number, title, badge }: { number: number; title: ReactNode; badge?: ReactNode }): JSX.Element {
   return (
@@ -586,7 +591,7 @@ function PatientCard({
 }): JSX.Element {
   const confirm = patient.issues.find((issue) => issue.severity === 'confirm');
   return (
-    <li className={`rounded-xl border border-l-4 border-border bg-surface px-3 py-2.5 text-xs ${SEVERITY_EDGE[patient.severity]}`}>
+    <li className={`rounded-xl border px-3 py-2.5 text-xs ${SEVERITY_EDGE[patient.severity]}`}>
       <CardHead
         number={number}
         title={

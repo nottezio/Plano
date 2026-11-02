@@ -1732,7 +1732,7 @@ export default function PatientPage(): JSX.Element {
               <button
                 type="button"
                 onClick={() => setIdentityOpen(true)}
-                className="text-left text-xs text-accent underline"
+                className="relative text-left text-xs text-accent underline after:absolute after:inset-x-0 after:-inset-y-3.5 after:content-['']"
               >
                 Tambah identitas pasien
               </button>

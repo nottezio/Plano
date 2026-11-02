@@ -1,5 +1,13 @@
 # Plano — CHANGES
 
+## `2026-11-02.6` — Impeccable phone audit, P2s: side stripes, DPJP chip, two tap targets
+
+- **Side stripes removed.** `CensusVerifier` severity cards (`border-l-4` per severity) now take a 1 px edge in the severity colour over its `-soft` fill (`SEVERITY_EDGE`, `bg-surface` dropped from the three `<li>`s so the fill is not fighting it); `SensusCompare` block tone is a 14% background mix instead of `borderLeft: 4px`; `DateRail` note rows (`border-l-2`) use the same full border as the strip pills, so one rule covers both orientations; `ShiftNoteEditor`'s frame lost a redundant `border-l-4` on a frame that is already accent-bordered; the List's H-1 / Pulang rows lost the `inset 4px` shadow (a stripe the detector cannot see) for an **H-1** / **Pulang** chip before the identity, which was already red/green. Left: the editor toolbar, `Changelog` and `ArchivePage` 2 px rules, which the detector did not flag.
+- **DPJP code.** Board card chips 11 → 12 px; `PhoneCanvas` blocks 10 → 11 px (the documented caption step).
+- **Tap targets.** The Saran row's patient name and the patient header's "Tambah identitas pasien" get a pseudo-element hit area (44 px) that does not move anything.
+- **Audit corrections.** Two of the audit's findings were wrong or already decided: the board search is an `<input>` inside a 44 px `<label>`, so its real target is 44 px; the board card icons are 28 px wide on purpose (`PatientCard`: 44 px tall, wider than the 24 px WCAG 2.2 minimum, to give the name ~34 px back). The footer links "Simpan versi" and "Riwayat perubahan" are already `min-h-tap`. None changed.
+- **Not done.** The WIP pill stays red (Avi, 2 Nov). Not rendered: Helper's census cards and Sensus compare, the vertical DateRail, dark and Senja.
+
 ## `2026-11-02.5` — List Maker phone header: one row less above the tabs
 
 - **Why.** The impeccable phone audit (Pixel 7, 412 px) found the tabs 38% down the screen: floor chips, date, chief summary, then Panduan and Catatan Visite on a row of their own, all stacked below 420 px.

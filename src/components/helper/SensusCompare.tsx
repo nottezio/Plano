@@ -128,7 +128,7 @@ export function SensusCompare({
                 ) : (
                   <li
                     key={`${item.block.start}`}
-                    style={{ borderLeft: `4px solid ${TONE[tone(item.block)]}` }}
+                    style={{ backgroundColor: `color-mix(in srgb, ${TONE[tone(item.block)]} 14%, transparent)` }}
                     className="grid gap-x-3 gap-y-1 px-3 py-2 lg:grid-cols-2"
                   >
                     <pre className="min-w-0 whitespace-pre-wrap break-words font-mono text-xs leading-snug text-fg-muted">

@@ -134,7 +134,7 @@ export function ShiftNoteEditor({
         text within the frame instead of moving the page. That is the note
         being cut at both ends.
       */}
-      <div ref={frame} className="mx-4 mt-2 flex flex-col rounded-lg border border-accent border-l-4 border-l-accent">
+      <div ref={frame} className="mx-4 mt-2 flex flex-col rounded-lg border border-accent">
         <div className="flex items-center gap-2 rounded-t-md bg-[var(--accent-soft)] px-3 py-1.5">
           <button
             type="button"

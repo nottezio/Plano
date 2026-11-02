@@ -317,7 +317,7 @@ function PatientCardView({
                 title attribute for the one time it is needed. */}
           </span>
           {card.dpjp ? (
-            <span className="shrink-0 rounded bg-black/20 px-1.5 text-[11px] font-semibold leading-5" title={card.dpjp.name}>
+            <span className="shrink-0 rounded bg-black/20 px-1.5 text-xs font-semibold leading-5" title={card.dpjp.name}>
               {card.dpjp.initials}
             </span>
           ) : null}
@@ -727,7 +727,7 @@ function PatientCardView({
         {card.dpjp ? (
           <span
             title={`DPJP: ${card.dpjp.name}`}
-            className="rounded-full bg-black/10 px-1.5 text-[11px] font-semibold dark:bg-white/15"
+            className="rounded-full bg-black/10 px-1.5 text-xs font-semibold dark:bg-white/15"
           >
             {card.dpjp.initials}
           </span>

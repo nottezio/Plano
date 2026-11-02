@@ -398,7 +398,7 @@ function ShelfRow({ card, editing, onLongPress }: { card: BoardCard; editing: bo
     <>
       <span className="shrink-0 font-mono text-xs font-bold">{where || '—'}</span>
       <span className="min-w-0 flex-1 truncate text-[13px] font-semibold">{card.name}</span>
-      {card.dpjp ? <span className="shrink-0 rounded bg-black/25 px-1 text-[10px] font-semibold leading-4">{card.dpjp.initials}</span> : null}
+      {card.dpjp ? <span className="shrink-0 rounded bg-black/25 px-1 text-[11px] font-semibold leading-4">{card.dpjp.initials}</span> : null}
     </>
   );
   if (editing) {
@@ -457,7 +457,7 @@ function PatientBlock({
       <span className="flex items-start justify-between gap-1">
         <span className="truncate font-mono text-[13px] font-bold leading-tight">{where || '—'}</span>
         {card.dpjp ? (
-          <span className="shrink-0 rounded bg-black/25 px-1 text-[10px] font-semibold leading-4">{card.dpjp.initials}</span>
+          <span className="shrink-0 rounded bg-black/25 px-1 text-[11px] font-semibold leading-4">{card.dpjp.initials}</span>
         ) : null}
       </span>
       <span className="mt-0.5 line-clamp-2 text-[13px] font-semibold leading-tight">{card.name}</span>
