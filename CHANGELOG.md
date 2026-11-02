@@ -5,6 +5,9 @@ Catatan teknis lengkap (akar masalah, perbaikan) ada di CHANGES.md.
 
 Entri teratas harus versi yang sedang dirilis; tes gagal bila belum ditulis.
 
+## `2026-11-02.7`
+- **Warna judul bagian di Versi SOAP kini tepat di belakang judulnya.** Bila catatan diawali baris kosong (mis. setelah *Penunjang terbaru saja*), setiap pita warna sempat tampil satu baris di atas judulnya sendiri. Sudah diperbaiki; teks tidak berubah.
+
 ## `2026-11-02.6`
 - **Penanda H-1 dan Pulang di List kini berupa kata, bukan garis tebal di tepi baris.** Baris pasien yang H-1 atau pulang hari ini diberi label kecil **H-1** atau **Pulang** (merah / hijau seperti sebelumnya) di depan identitas.
 - **Garis tebal di sisi kartu dihapus** di Pemeriksa sensus (kini tepi dan warna latar sesuai tingkat), Bandingkan sensus (latar berwarna), catatan jaga di baris tanggal, dan editor catatan jaga.

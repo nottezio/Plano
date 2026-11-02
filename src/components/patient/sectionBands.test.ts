@@ -22,6 +22,11 @@ const NOTE = [
 
 const bands = buildBands(NOTE, ALIASES, true);
 
+/** What the mirror draws, as text: a block that has a line ends it with one newline; an empty one has no line. */
+function rebuild(parts: ReturnType<typeof buildBands>): string {
+  return parts.map((band) => (band.block && band.text !== '' ? `${band.text}\n` : band.text)).join('');
+}
+
 describe('mirror bands', () => {
   /**
    * The invariant the mirror exists for.
@@ -39,10 +44,24 @@ describe('mirror bands', () => {
    * below the first heading ended up on the wrong line.
    */
   it('reconstructs the body when each block span regains its newline', () => {
-    const rebuilt = bands
-      .map((band) => (band.block ? `${band.text}\n` : band.text))
-      .join('');
-    expect(rebuilt).toBe(NOTE);
+    expect(rebuild(bands)).toBe(NOTE);
+  });
+
+  /**
+   * A note that starts on blank lines (a Versi trimmed to "Penunjang terbaru
+   * saja" does) has an EMPTY first block. An empty block has no line box, so
+   * the newline it would "end" must stay in the following text or the blank
+   * line vanishes from the mirror and every band lands one line above its
+   * heading (2 Nov 2026).
+   */
+  it('keeps the blank line when the note starts with one', () => {
+    for (const body of ['\nLung US\n\n*S :*\nsatu', '\n\n\nLung US\n\n*O :*\nsatu\n\n*EKG di PJT (31-8-2026)*\nSinus']) {
+      const parts = buildBands(body, ALIASES, true);
+      expect(rebuild(parts)).toBe(body);
+      // The empty block carries no text, so the newline lives in what follows it.
+      const first = parts[0];
+      expect(first?.block && first.text === '' ? parts[1]?.text.startsWith('\n') : true).toBe(true);
+    }
   });
 
   it('emits an anchor for each heading', () => {
@@ -72,9 +91,6 @@ describe('mirror bands', () => {
     expect(unpainted.map((band) => band.anchor).filter(Boolean)).toContain('o');
     // And the geometry is still exact, because the jump bar measures against
     // it whether or not anything is painted.
-    const rebuilt = unpainted
-      .map((band) => (band.block ? `${band.text}\n` : band.text))
-      .join('');
-    expect(rebuilt).toBe(NOTE);
+    expect(rebuild(unpainted)).toBe(NOTE);
   });
 });

@@ -1,5 +1,12 @@
 # Plano — CHANGES
 
+## `2026-11-02.7` — Section bands one line above their headings when the note starts with blank lines
+
+- **Root cause.** `buildBands` draws each heading as a `display: block` span and drops the newline after it (a block already ends its line). When a note, or a section, starts on a blank line, the first "heading" is the EMPTY first line: an empty block has no line box, so there was nothing for the dropped newline to end and the blank line disappeared from the mirror. Every band below sat one line higher than the textarea's text. A Versi trimmed to "Penunjang terbaru saja" starts with blank lines, which is how Avi's screenshot got there.
+- **Fix.** The newline is consumed only when the block has text (`headerEnd > section.start`); an empty block leaves it in the text that follows.
+- **Checked.** Reproduced in the emulator at 134% zoom with a note starting on three blank lines: bands 32 px above their headings (313 vs 345, 425 vs 457, 537 vs 569); after the fix a constant 4 px offset (the span box against the glyph box), the same for every heading. Tests: the "rebuild" invariant now re-adds a newline only after a non-empty block, and a new test pins the leading-blank-line case; it fails without the fix.
+- **Not verified.** Avi's own Versi text and the carried-over version flow; only a text of the same shape. Other mirror layers (`BookmarkMarks`, the measuring copy) use the whole body and were not touched.
+
 ## `2026-11-02.6` — Impeccable phone audit, P2s: side stripes, DPJP chip, two tap targets
 
 - **Side stripes removed.** `CensusVerifier` severity cards (`border-l-4` per severity) now take a 1 px edge in the severity colour over its `-soft` fill (`SEVERITY_EDGE`, `bg-surface` dropped from the three `<li>`s so the fill is not fighting it); `SensusCompare` block tone is a 14% background mix instead of `borderLeft: 4px`; `DateRail` note rows (`border-l-2`) use the same full border as the strip pills, so one rule covers both orientations; `ShiftNoteEditor`'s frame lost a redundant `border-l-4` on a frame that is already accent-bordered; the List's H-1 / Pulang rows lost the `inset 4px` shadow (a stripe the detector cannot see) for an **H-1** / **Pulang** chip before the identity, which was already red/green. Left: the editor toolbar, `Changelog` and `ArchivePage` 2 px rules, which the detector did not flag.

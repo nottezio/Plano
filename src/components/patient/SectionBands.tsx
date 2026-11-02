@@ -145,7 +145,15 @@ export function buildBands(
       // The newline is consumed by the block above — a block element already
       // ends its line, so leaving the `\n` here would open a second one and
       // every band would drift one line further down the note.
-      const restStart = settled[headerEnd] === '\n' ? headerEnd + 1 : headerEnd;
+      //
+      // Unless the block is EMPTY (the note, or a section, starts on a blank
+      // line): an empty block has no line box, so there is no line for the
+      // newline to end and consuming it deletes the blank line from the
+      // mirror. Everything below then sits one line higher than in the textarea
+      // — every band one line above its heading (2 Nov 2026, a Versi trimmed to
+      // "Penunjang terbaru saja", which starts with blank lines).
+      const restStart =
+        settled[headerEnd] === '\n' && headerEnd > section.start ? headerEnd + 1 : headerEnd;
       result.push({
         key: `rest-${index}`,
         text: settled.slice(restStart, section.end),
