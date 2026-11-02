@@ -10,7 +10,8 @@ import { useMiniWindow } from '@/store/useMiniWindow';
 const FloorVisitNote = lazy(() => import('@/components/floor/FloorVisitNote').then((m) => ({ default: m.FloorVisitNote })));
 import { Button, Callout, Field, INPUT } from '@/components/common/ui';
 import { FloorDenah } from '@/components/floor/FloorDenah';
-import { ListMakerGuide } from '@/components/floor/ListMakerGuide';
+import { PageGuide } from '@/components/common/PageGuide';
+import { LIST_MAKER_GUIDE_KEY, listMakerGuideSteps } from '@/domain/guides/listMaker';
 import { ListPanel } from '@/components/floor/ListPanel';
 import { MembersPanel } from '@/components/floor/MembersPanel';
 import { ManualPatientSheet } from '@/components/floor/ManualPatientSheet';
@@ -411,7 +412,14 @@ export default function ListMakerPage(): JSX.Element {
         ) : null}
       </div>
       {floor ? <RosterDatalists floor={floor} /> : null}
-      <ListMakerGuide editable={Boolean(editable)} ready={Boolean(floor) && state === 'ready'} requested={guideAsked} onRequestHandled={guideHandled} />
+      <PageGuide
+        title="Panduan List Maker"
+        steps={listMakerGuideSteps(Boolean(editable))}
+        storageKey={LIST_MAKER_GUIDE_KEY}
+        ready={Boolean(floor) && state === 'ready'}
+        requested={guideAsked}
+        onRequestHandled={guideHandled}
+      />
       {floor ? (
         <ManualPatientSheet
           open={manualFor !== null}

@@ -5,6 +5,9 @@ Catatan teknis lengkap (akar masalah, perbaikan) ada di CHANGES.md.
 
 Entri teratas harus versi yang sedang dirilis; tes gagal bila belum ditulis.
 
+## `2026-11-02.2`
+- **Panduan Helper.** Saat pertama kali membuka Helper, muncul panduan singkat untuk tiap alat: Konfirmasi Jaga, Verifikasi List, Buat Sensus, Morning Report, dan Tersimpan. Bisa dilewati, dan dibuka lagi lewat tombol **Panduan** di samping catatan "Periksa sendiri isinya".
+
 ## `2026-11-02.1`
 - **Panduan List Maker.** Saat pertama kali membuka List Maker, muncul panduan singkat langkah demi langkah: mengisi list dari WhatsApp (Tempel), melihat Denah, mengatur status dan chief, lalu mengirim dan mencetak list. Bisa dilewati, dan dibuka lagi kapan saja lewat tombol **Panduan** di samping Catatan Visite.
 

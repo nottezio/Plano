@@ -1,20 +1,14 @@
+import type { GuideStep } from './guide';
+
 /**
- * Panduan List Maker (2 Nov 2026): a first-time walkthrough, shown once per
- * device when a list is first opened, and again from the "Panduan" button.
+ * Panduan List Maker (2 Nov 2026), shown when a list is first opened.
  *
- * Plain data so the steps can be tested against the role: a viewer ("lihat
- * saja") has no Tempel tab and cannot accept a Saran, so those steps are left
- * out rather than shown greyed.
+ * A viewer ("lihat saja") has no Tempel tab and cannot accept a Saran, so
+ * those steps are left out rather than shown greyed.
  */
 
-export interface GuideStep {
-  id: string;
-  title: string;
-  /** One short line on what this part is for. */
-  lead: string;
-  /** What to do, in order; **bold** marks a button or tab name. */
-  points: string[];
-}
+/** Per device. */
+export const LIST_MAKER_GUIDE_KEY = 'plano.listmaker.guideSeen';
 
 const WELCOME: GuideStep = {
   id: 'welcome',
@@ -106,34 +100,6 @@ const MORE_VIEWER: GuideStep = {
 };
 
 /** The steps for this user: an editor gets the whole flow, a viewer only what they can use. */
-export function guideSteps(editable: boolean): GuideStep[] {
+export function listMakerGuideSteps(editable: boolean): GuideStep[] {
   return editable ? [WELCOME, PASTE, DENAH, STATUS, SEND, MORE] : [WELCOME_VIEWER, DENAH, SEND_VIEWER, MORE_VIEWER];
-}
-
-/** Split "Ketuk **Baca**." into plain and bold runs, for rendering without HTML. */
-export function boldRuns(text: string): { text: string; bold: boolean }[] {
-  return text
-    .split(/(\*\*[^*]+\*\*)/)
-    .filter(Boolean)
-    .map((part) => (part.startsWith('**') && part.endsWith('**') ? { text: part.slice(2, -2), bold: true } : { text: part, bold: false }));
-}
-
-/** Per device: once dismissed (Selesai, Lewati or ✕), it does not open by itself again. */
-export const GUIDE_KEY = 'plano.listmaker.guideSeen';
-
-export function readGuideSeen(storage: Pick<Storage, 'getItem'> | undefined): boolean {
-  try {
-    return storage?.getItem(GUIDE_KEY) === '1';
-  } catch {
-    // A private window: treat as seen, so it does not reopen on every visit.
-    return true;
-  }
-}
-
-export function writeGuideSeen(storage: Pick<Storage, 'setItem'> | undefined): void {
-  try {
-    storage?.setItem(GUIDE_KEY, '1');
-  } catch {
-    // Not remembered; it will open once more next time.
-  }
 }

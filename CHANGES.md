@@ -1,5 +1,11 @@
 # Plano — CHANGES
 
+## `2026-11-02.2` — Helper: first-time Panduan; one shared guide component
+
+- **What.** "Panduan Helper": welcome, then one step per tab (Konfirmasi Jaga, Verifikasi List, Buat Sensus, Morning Report, Tersimpan), naming the real buttons (Salin Formasi, Terkonfirmasi, Salah orang?, Transkripsi dan periksa, Susun dengan AI, Perlu dicek…). Opens once per device (`plano.helper.guideSeen`, apart from the List Maker's); a **Panduan** button beside the "Periksa sendiri" note reopens it.
+- **Refactor.** `ListMakerGuide` became `components/common/PageGuide` (title, steps, storage key); steps live in `domain/guides/` (`guide.ts` core, `listMaker.ts`, `helper.ts`). The List Maker key is unchanged, so anyone who closed it does not see it again.
+- **Checked.** Emulator at 390 and 1280 px: opens once, stays closed after reload, the Panduan button reopens at step 1 (Helper and List Maker after the refactor). Not checked on a real phone or the installed window.
+
 ## `2026-11-02.1` — List Maker: first-time Panduan (tutorial)
 
 - **What.** A step-by-step guide sheet, "Panduan List Maker" (`ListMakerGuide.tsx`, steps in `domain/floorList/guide.ts`). It opens by itself the first time a list is shown on a device; Lewati, Mulai pakai, ✕ or back all mark it seen (`plano.listmaker.guideSeen`). A **Panduan** button next to Catatan Visite opens it again at step 1.

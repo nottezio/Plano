@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 
 import { Sheet } from '@/components/common/Sheet';
 import { Button } from '@/components/common/ui';
-import { boldRuns, guideSteps, readGuideSeen, writeGuideSeen } from '@/domain/floorList/guide';
+import { boldRuns, readGuideSeen, writeGuideSeen, type GuideStep } from '@/domain/guides/guide';
 
 const storage = (): Storage | undefined => (typeof window === 'undefined' ? undefined : window.localStorage);
 
@@ -23,29 +23,32 @@ function Rich({ text }: { text: string }): JSX.Element {
 }
 
 /**
- * Panduan List Maker (2 Nov 2026): opens by itself the first time a list is
- * shown on this device; any close (Selesai, Lewati, ✕, back) marks it seen.
- * `requested` reopens it from the Panduan button, at the first step.
+ * A first-time guide (Panduan, 2 Nov 2026): opens by itself the first time
+ * `ready` is true on this device; any close (Mulai pakai, Lewati, ✕, back)
+ * marks `storageKey` seen. `requested` reopens it, at the first step.
  */
-export function ListMakerGuide({
-  editable,
+export function PageGuide({
+  title,
+  steps,
+  storageKey,
   ready,
   requested,
   onRequestHandled,
 }: {
-  editable: boolean;
-  /** A list is on screen: the guide never opens over the "Buat list baru" form or a loading page. */
+  title: string;
+  steps: readonly GuideStep[];
+  storageKey: string;
+  /** The page is on screen: never opens over a loading page or a setup form. */
   ready: boolean;
   requested: boolean;
   onRequestHandled: () => void;
 }): JSX.Element {
-  const steps = guideSteps(editable);
   const [open, setOpen] = useState(false);
   const [index, setIndex] = useState(0);
 
   useEffect(() => {
-    if (ready && !readGuideSeen(storage())) setOpen(true);
-  }, [ready]);
+    if (ready && !readGuideSeen(storage(), storageKey)) setOpen(true);
+  }, [ready, storageKey]);
 
   useEffect(() => {
     if (!requested) return;
@@ -55,7 +58,7 @@ export function ListMakerGuide({
   }, [requested, onRequestHandled]);
 
   const close = (): void => {
-    writeGuideSeen(storage());
+    writeGuideSeen(storage(), storageKey);
     setOpen(false);
     setIndex(0);
   };
@@ -68,7 +71,7 @@ export function ListMakerGuide({
     <Sheet
       open={open}
       onOpenChange={(next) => (next ? setOpen(true) : close())}
-      title="Panduan List Maker"
+      title={title}
       description={`Langkah ${index + 1} dari ${steps.length}`}
       footer={
         <div className="flex items-center gap-2">

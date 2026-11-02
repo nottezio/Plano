@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
-import { GUIDE_KEY, boldRuns, guideSteps, readGuideSeen, writeGuideSeen } from './guide';
+import { boldRuns, readGuideSeen, writeGuideSeen } from './guide';
+import { LIST_MAKER_GUIDE_KEY as GUIDE_KEY, listMakerGuideSteps as guideSteps } from './listMaker';
 
 describe('guideSteps', () => {
   it('an editor gets the whole flow, starting with Tempel', () => {
@@ -40,10 +41,10 @@ describe('guide seen flag', () => {
   it('is unseen until written, then seen', () => {
     const map = new Map<string, string>();
     const storage = { getItem: (k: string) => map.get(k) ?? null, setItem: (k: string, v: string) => void map.set(k, v) };
-    expect(readGuideSeen(storage)).toBe(false);
-    writeGuideSeen(storage);
+    expect(readGuideSeen(storage, GUIDE_KEY)).toBe(false);
+    writeGuideSeen(storage, GUIDE_KEY);
     expect(map.get(GUIDE_KEY)).toBe('1');
-    expect(readGuideSeen(storage)).toBe(true);
+    expect(readGuideSeen(storage, GUIDE_KEY)).toBe(true);
   });
 
   it('a storage that throws counts as seen, so it never nags', () => {
@@ -55,7 +56,7 @@ describe('guide seen flag', () => {
         throw new Error('blocked');
       },
     };
-    expect(readGuideSeen(broken)).toBe(true);
-    expect(() => writeGuideSeen(broken)).not.toThrow();
+    expect(readGuideSeen(broken, GUIDE_KEY)).toBe(true);
+    expect(() => writeGuideSeen(broken, GUIDE_KEY)).not.toThrow();
   });
 });

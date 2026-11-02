@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { DateField } from '@/components/common/DateField';
 import { formatDmy } from '@/domain/dateDmy';
 import { useSearchParams } from 'react-router-dom';
@@ -17,6 +17,8 @@ import { OnsiteScheduleEditor } from '@/components/helper/OnsiteSchedule';
 import { onsiteSchedule } from '@/domain/jaga/onsite';
 import { useSession } from '@/store/useSession';
 import { SaveResultButton, SavedResultsProvider } from '@/components/helper/SaveResult';
+import { PageGuide } from '@/components/common/PageGuide';
+import { HELPER_GUIDE_KEY, HELPER_GUIDE_STEPS } from '@/domain/guides/helper';
 
 import { copyText } from '@/lib/clipboard';
 import { extractPdf } from '@/lib/pdfItems';
@@ -109,6 +111,9 @@ export function HelperPage(): JSX.Element {
   const tab: HelperTab = HELPER_TABS.some((entry) => entry.id === requested)
     ? (requested as HelperTab)
     : 'jaga';
+  // Panduan (2 Nov 2026): opens by itself once per device; the button asks again.
+  const [guideAsked, setGuideAsked] = useState(false);
+  const guideHandled = useCallback(() => setGuideAsked(false), []);
 
   /*
     Inside AppShell like every other page. It used to render bare, with no tab
@@ -168,9 +173,10 @@ export function HelperPage(): JSX.Element {
           message for a consultant or a group, and a parser — or the AI — can
           misread a list it has not seen before.
         */}
+        <div className="flex items-start gap-2">
         <p
           role="note"
-          className="flex gap-2 rounded-xl border border-[var(--warn-strong)] bg-[var(--warn-soft)] px-3 py-2 text-xs leading-relaxed text-fg"
+          className="flex flex-1 gap-2 rounded-xl border border-[var(--warn-strong)] bg-[var(--warn-soft)] px-3 py-2 text-xs leading-relaxed text-fg"
         >
           <span aria-hidden="true" className="font-semibold text-[var(--warn-strong)]">!</span>
           <span>
@@ -178,6 +184,10 @@ export function HelperPage(): JSX.Element {
             DPJP, diagnosis, jumlah pasien — sebelum disalin atau dikirim.
           </span>
         </p>
+          <Button size="sm" variant="quiet" onClick={() => setGuideAsked(true)}>
+            Panduan
+          </Button>
+        </div>
         <SavedResultsProvider>
           <div role="tabpanel">
             {tab === 'jaga' ? (
@@ -194,6 +204,14 @@ export function HelperPage(): JSX.Element {
           </div>
         </SavedResultsProvider>
       </div>
+      <PageGuide
+        title="Panduan Helper"
+        steps={HELPER_GUIDE_STEPS}
+        storageKey={HELPER_GUIDE_KEY}
+        ready
+        requested={guideAsked}
+        onRequestHandled={guideHandled}
+      />
     </AppShell>
   );
 }
