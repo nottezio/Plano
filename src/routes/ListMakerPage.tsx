@@ -306,8 +306,9 @@ export default function ListMakerPage(): JSX.Element {
               onChiefs={(next) => void writeChiefs(floor.id, next.join(', '))}
               chiefBangsal={editable ? floor.chiefBangsal : null}
               onChiefBangsal={(next) => void writeChiefBangsal(floor.id, next)}
+              onGuide={() => setGuideAsked(true)}
               actions={
-                <div className="flex flex-wrap gap-2">
+                <div className="flex flex-wrap gap-2 max-sm:[&>button:first-child]:hidden max-sm:[&>button:last-child]:w-full">
                   <Button size="sm" onClick={() => setGuideAsked(true)}>
                     Panduan
                   </Button>

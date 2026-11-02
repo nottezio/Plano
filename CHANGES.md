@@ -1,5 +1,12 @@
 # Plano — CHANGES
 
+## `2026-11-02.5` — List Maker phone header: one row less above the tabs
+
+- **Why.** The impeccable phone audit (Pixel 7, 412 px) found the tabs 38% down the screen: floor chips, date, chief summary, then Panduan and Catatan Visite on a row of their own, all stacked below 420 px.
+- **Change (below 640 px only).** Date and Catatan Visite share one row from 360 px (the grid was `min-[420px]`, so a 412 px phone stacked them); the chief summary and, when open, the two chief fields take the full width; Panduan is a chip at the end of the floor strip (`onGuide`; the button next to Catatan Visite is hidden on a phone, unchanged from 640 px up).
+- **Left alone on purpose.** The Saran tray stays open by default: Avi designed it as the one place proposals appear, and it already collapses and remembers that. The audit's suggestion to collapse it on Denah is a product decision, not a spacing fix.
+- **Not done / not verified.** Checked in the emulator at 412 px only; 360 px and the dark theme not rendered.
+
 ## `2026-11-02.4` — Ekspor Word: landscape three-column sheet + print page opens with it
 
 - **What.** Layout copied from the .docx Avi hand-edited from the old export (`SOAP Tn. Sardar Ali Bakkas 2026-11-02.docx`): A4 landscape, `w:cols` 3 with 720 twips gap, margins 720, Arial 7 pt (`sz` 14), single line spacing (240). Indents, bullets, header and footer are unchanged. `exportWord` now also calls `printDocument(soapPrintHtml(input))` after `deliverFile`, so the browser print dialog opens on the same sheet (CSS `column-count:3`, `@page` A4 landscape).

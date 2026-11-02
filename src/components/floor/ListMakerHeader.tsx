@@ -30,6 +30,7 @@ export function ListMakerHeader({
   chiefBangsal,
   onChiefBangsal,
   actions,
+  onGuide,
 }: {
   floors: ReadonlyArray<{ id: string; name: string }>;
   floorId: string;
@@ -46,6 +47,8 @@ export function ListMakerHeader({
   onChiefBangsal: (name: string) => void;
   /** The page's one action for this list (Catatan Visite); sits in the date row. */
   actions?: ReactNode;
+  /** Opens the page guide; on a phone it is a chip in the list strip, not a button row of its own. */
+  onGuide?: () => void;
 }): JSX.Element {
   /*
     On a phone the two chief fields are folded behind one summary line
@@ -67,7 +70,7 @@ export function ListMakerHeader({
     .join(' · ');
   return (
     <div className="space-y-2">
-      <ScrollStrip className="flex gap-2 py-0.5" label="List">
+      <ScrollStrip className="flex gap-2 py-0.5 [&>*]:shrink-0 [&>*]:whitespace-nowrap" label="List">
         {floors.map((f) => (
           <ChoiceChip key={f.id} active={f.id === floorId} onClick={() => onPickFloor(f.id)}>
             {f.name}
@@ -78,6 +81,13 @@ export function ListMakerHeader({
           + List baru
         </ChoiceChip>
         ) : null}
+        {onGuide ? (
+          <span className="sm:hidden">
+            <ChoiceChip active={false} onClick={onGuide}>
+              Panduan
+            </ChoiceChip>
+          </span>
+        ) : null}
       </ScrollStrip>
 
       {/*
@@ -86,9 +96,11 @@ export function ListMakerHeader({
         so a dead pocket opened under the other two, and Catatan Visite sat alone on a row of its
         own below. Now: row 1 is date | Chief Bangsal | Catatan Visite (the action at the row's
         end, level with the fields); row 2 is the Chief box across the block, where its chips
-        wrap to two lines instead of four. Phones keep the folded chiefs.
+        wrap to two lines instead of four. Phones keep the folded chiefs, and put the date and
+        Catatan Visite on one row (Panduan is a chip in the list strip), so the tabs start a
+        row higher (2026-11-02: the tabs were 38% down a 412 px phone).
       */}
-      <div className="grid grid-cols-1 gap-x-3 gap-y-2 min-[420px]:grid-cols-[minmax(0,11rem)_minmax(0,1fr)] sm:max-w-3xl sm:grid-cols-[minmax(0,11rem)_minmax(0,1fr)_auto] sm:items-end">
+      <div className="grid grid-cols-1 gap-x-3 gap-y-2 min-[360px]:grid-cols-[minmax(0,10rem)_minmax(0,1fr)] sm:max-w-3xl sm:grid-cols-[minmax(0,11rem)_minmax(0,1fr)_auto] sm:items-end">
         <Field label="Tanggal list">
           <DateField value={date} onChange={onDate} className="w-full" />
         </Field>
@@ -98,7 +110,7 @@ export function ListMakerHeader({
             onClick={toggleChiefs}
             aria-expanded={chiefsOpen}
             aria-controls="list-chiefs"
-            className="flex min-h-tap w-full items-center gap-3 self-end rounded-xl border border-border bg-surface px-3 py-2 text-left transition-colors [@media(hover:hover)]:hover:bg-bg-subtle focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent sm:hidden"
+            className="flex min-h-tap w-full items-center gap-3 self-end rounded-xl border border-border bg-surface px-3 py-2 text-left min-[360px]:col-span-2 transition-colors [@media(hover:hover)]:hover:bg-bg-subtle focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent sm:hidden"
           >
             <span className="min-w-0 flex-1">
               <span className="block text-xs text-fg-muted">{chiefsOpen ? 'Tutup chief' : 'Atur chief'}</span>
@@ -115,22 +127,24 @@ export function ListMakerHeader({
         <div id="list-chiefs" className={`${chiefsOpen ? 'contents' : 'hidden'} sm:contents`}>
         {chiefBangsal !== null ? (
           // One name: a new chip replaces the old one.
-          <ChiefsField
-            chiefs={chiefBangsal ? [chiefBangsal] : []}
-            onChange={(next) => onChiefBangsal(next.at(-1) ?? '')}
-            label="Chief Bangsal"
-            id="floor-chief-bangsal-input"
-            noun="chief bangsal"
-            wide
-          />
+          <div className="min-w-0 min-[360px]:col-span-2 sm:col-span-1">
+            <ChiefsField
+              chiefs={chiefBangsal ? [chiefBangsal] : []}
+              onChange={(next) => onChiefBangsal(next.at(-1) ?? '')}
+              label="Chief Bangsal"
+              id="floor-chief-bangsal-input"
+              noun="chief bangsal"
+              wide
+            />
+          </div>
         ) : null}
         {chiefs ? (
-          <div className="min-w-0 sm:col-span-3">
+          <div className="min-w-0 min-[360px]:col-span-2 sm:col-span-3">
             <ChiefsField chiefs={chiefs} onChange={onChiefs} wide />
           </div>
         ) : null}
         </div>
-        {actions ? <div className="min-[420px]:col-span-2 sm:col-span-1 sm:col-start-3 sm:row-start-1">{actions}</div> : null}
+        {actions ? <div className="min-[360px]:col-start-2 min-[360px]:row-start-1 min-[360px]:self-end sm:col-start-3">{actions}</div> : null}
       </div>
 
     </div>
