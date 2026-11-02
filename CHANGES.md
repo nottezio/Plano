@@ -32,6 +32,13 @@
 - **Side effect to know.** A patient who arrives from IGD at 17.00 now shows "Chief → Kirana" at once (it used to wait until the next 07.00). Tap Abaikan if the old chief should stay for the night.
 - **Not checked.** Unit tests only (chiefHandover, suggestionTray); not seen in the UI.
 
+## `2026-11-02.1` — Desktop tabs in a narrow installed window (split screen)
+
+- **Root cause.** `useDesktopTabsEnabled` needed `(pointer: fine)` and 900 px, or 768 × 600 by touch. A colleague snaps Plano beside SIMGOS (photo: about 600 px wide, so the phone layout with its bottom bar), which met neither clause, so no strip.
+- **Fix.** A third clause: `(any-pointer: fine) and (min-width: 480px) and (min-height: 400px)` (`DESKTOP_TABS_ROOM`). `any-pointer`, not `pointer`, because a touch laptop can report coarse as its primary pointer. A phone is out by three independent tests: portrait width < 480, landscape height < 400, and no fine pointer; a flat folded phone has only touch.
+- **Layout.** The shell already sizes from `--app-h` (`AppShell`, the auth screens, `PatientPage`), so the phone layout under a strip needs no change; rendered to confirm.
+- **Not done / not verified.** Seen in the emulator at 620 × 760 only (strip forced on by overriding `matchMedia`'s display-mode); not on the colleague's machine. Below 480 px there is still no strip.
+
 ## `2026-11-01.7` — List Maker: desktop bottom gap, and the List tab's side panel no longer starts behind the sub-tab bar
 
 - **Root cause (gap).** `ListMakerPage` had `pb-24` at every width. `PageFrame` and Settings use `pb-24 sm:pb-10`: the 96 px is phone clearance for the bottom tab bar and floating buttons, and from 640 px there is no bottom bar. Now `sm:pb-10`; phones unchanged.

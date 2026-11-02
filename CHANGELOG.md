@@ -22,6 +22,9 @@ Entri teratas harus versi yang sedang dirilis; tes gagal bila belum ditulis.
 - **Saran ganti chief muncul lebih awal.** Sebelumnya tombol Terima baru ada pukul 07.00, padahal daftar dicetak berjam-jam sebelumnya. Kini saran ke Chief Bangsal sudah tampil sejak jam dinas hari sebelumnya berakhir (16.00), termasuk malam dan akhir pekan; Terima langsung mengganti chief agar daftar cetak sudah benar.
 - **Abaikan** berlaku sampai pukul 16.00 berikutnya (bukan 07.00), lalu saran untuk hari berikutnya ditanyakan lagi.
 
+## `2026-11-02.1`
+- **Tab kini juga muncul saat Plano dipakai di setengah layar.** Di jendela aplikasi yang sempit (mis. dipasang berdampingan dengan SIMGOS, lebar sekitar 600 px), strip tab di atas kini tampil, jadi pasien dan papan bisa dibuka berdampingan seperti di layar penuh. Di HP tidak ada perubahan.
+
 ## `2026-11-01.7`
 - **Ruang kosong di bawah halaman List Maker berkurang.** Di layar lebar jaraknya kini 40 px (sebelumnya 96 px), sama seperti halaman lain. Di HP tidak berubah.
 - **Kolom kanan tab List tidak lagi tertutup bilah tab.** Bagian atasnya (Kirim / Ekspor) tadinya terpotong di bawah bilah tab saat halaman digulir; kini ia berhenti tepat di bawah bilah, setinggi bilah yang sebenarnya.

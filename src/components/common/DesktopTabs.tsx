@@ -60,13 +60,24 @@ function save(state: TabsState): void {
 }
 
 /**
- * Installed (its own window) and wide enough for a strip: a desktop with a
+ * Installed (its own window) and roomy enough for a strip: a desktop with a
  * mouse, or a tablet by touch (768 px wide and 600 px tall, which keeps a phone
  * turned sideways out).
+ *
+ * Also a NARROW desktop window (2026-11-02, a colleague's snapped half-screen
+ * beside SIMGOS, about 600 px wide: no tabs, so he could not keep a patient and
+ * the board open): 480 px wide and 400 px tall with any mouse or touchpad
+ * present (`any-pointer`, because a touch laptop may report its primary
+ * pointer as coarse). A phone has neither a touchpad nor a window that tall in
+ * landscape, and its portrait width is under 480 px, so it stays out; a folded
+ * phone opened flat has only touch, so `any-pointer: fine` keeps it out too.
  */
+export const DESKTOP_TABS_ROOM =
+  '(pointer: fine) and (min-width: 900px), (min-width: 768px) and (min-height: 600px), (any-pointer: fine) and (min-width: 480px) and (min-height: 400px)';
+
 export function useDesktopTabsEnabled(): boolean {
   const installed = useMediaQuery('(display-mode: standalone), (display-mode: window-controls-overlay)');
-  const wide = useMediaQuery('(pointer: fine) and (min-width: 900px), (min-width: 768px) and (min-height: 600px)');
+  const wide = useMediaQuery(DESKTOP_TABS_ROOM);
   return installed && wide;
 }
 
