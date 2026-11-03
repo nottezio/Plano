@@ -64,7 +64,7 @@ export function TwoTapButton({
             .catch((error: unknown) => onError?.(error))
             .finally(() => setBusy(false));
         }}
-        className="min-h-tap rounded-lg bg-danger px-3 text-xs font-semibold text-white disabled:opacity-60 [@media(pointer:fine)]:min-h-9"
+        className="min-h-tap rounded-lg bg-danger px-3 text-xs font-semibold text-on-danger disabled:opacity-60 [@media(pointer:fine)]:min-h-9"
       >
         {busy ? busyLabel : confirmLabel}
       </button>

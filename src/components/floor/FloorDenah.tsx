@@ -561,7 +561,7 @@ export function FloorDenah({
                   {layout.landmark ? (
                     <div
                       style={place(layout.landmark.row, layout.landmark.span, 2)}
-                      className="flex items-center justify-center rounded-lg bg-[var(--warn-strong)] p-2 text-center text-xs font-bold uppercase leading-tight tracking-wide text-white"
+                      className="flex items-center justify-center rounded-lg border border-[var(--warn-strong)] bg-[var(--warn-soft)] p-2 text-center text-xs font-bold uppercase leading-tight tracking-wide text-fg"
                     >
                       {layout.landmark.label}
                       <br />

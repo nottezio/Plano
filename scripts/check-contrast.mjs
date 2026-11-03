@@ -45,6 +45,18 @@ for (const selector of [':root', '.dark', ".dark[data-theme='senja']"]) {
     );
   }
 }
+// Text on a solid danger fill (delete confirmations): `--on-danger` on `--danger`. White on the pale
+// dark-mode danger was about 2:1 (3 Nov 2026).
+for (const selector of [':root', '.dark', ".dark[data-theme='senja']"]) {
+  const map = vars(blockOf(selector));
+  const fg = map.get('on-danger');
+  const bg = map.get('danger');
+  if (!fg || !bg) continue;
+  const r = ratio(fg, bg);
+  const ok = r >= 4.5;
+  if (!ok) failures++;
+  console.log(`${ok ? 'PASS' : 'FAIL'} ${selector.padEnd(6)} ${'on-danger on danger'.padEnd(21)} ${r.toFixed(2)}:1`);
+}
 // Accent text on its own selected tint (the active sidebar row, a selected list row): the accent at
 // `--accent-soft`'s alpha over the surface. In Senja a 20% tint of the light accent left this at 4.0:1.
 for (const selector of [':root', '.dark', ".dark[data-theme='senja']"]) {

@@ -166,9 +166,12 @@ export function PatientNotes({
             // wraps, and the measurement then has something to measure.
             className="w-full resize-none overflow-hidden [overflow-wrap:anywhere] rounded-lg border border-border bg-surface p-2 text-sm leading-relaxed outline-none placeholder:text-fg-faint"
           />
-          <p className="mt-1 text-xs text-fg-faint">
-            Berlaku untuk seluruh hari rawat dan tidak ikut tersalin ke laporan.
-          </p>
+          {/* In the phone sheet (`bare`) the sheet's own description already says this. */}
+          {bare ? null : (
+            <p className="mt-1 text-xs text-fg-faint">
+              Berlaku untuk seluruh hari rawat dan tidak ikut tersalin ke laporan.
+            </p>
+          )}
         </div>
       ) : null}
     </section>

@@ -5,6 +5,11 @@ Catatan teknis lengkap (akar masalah, perbaikan) ada di CHANGES.md.
 
 Entri teratas harus versi yang sedang dirilis; tes gagal bila belum ditulis.
 
+## `2026-11-03.8`
+- **Blok "NURSE STATION" di Denah kini terbaca di mode Senja.** Sebelumnya tulisan putih di atas kuning terang (hampir tak terlihat); kini latar kuning samar dengan tulisan biasa, di Denah List Maker dan Denah papan.
+- **Tombol hapus (Ya, hapus / Hapus catatan / Hapus revisi / konfirmasi hapus) kini terbaca di mode Gelap dan Senja.** Tulisannya putih di atas merah muda pucat (kontras sekitar 2 : 1); kini tulisan gelap di tema gelap, putih tetap di tema terang.
+- **Lembar "Catatan pasien" di HP tidak lagi mengulang kalimat yang sama dua kali.**
+
 ## `2026-11-03.7`
 - **Semua yang berhubungan dengan tema kini ada di Pengaturan → Tema.** **Warna bagian catatan** (dari Tampilan) dan **Tampilan sticky note** (dari Papan & harian) dipindah ke sana, di samping Mode warna dan Warna aplikasi.
 - **Sticky note lebih terbaca di mode Senja** (dan tema lain): judul "Catatan pasien" / "Lab hari ini", tombol ×, dan tulisan "tidak ada lab" tadinya terlalu pucat (kontras 3,3 sampai 3,9 : 1); kini semuanya di atas 4,5 : 1 di kelima tampilan.

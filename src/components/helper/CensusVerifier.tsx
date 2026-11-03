@@ -446,7 +446,7 @@ function RunSteps({ progress, running }: { progress: Partial<Record<DocKey, DocP
                 doc.phase === 'selesai'
                   ? 'bg-accent text-on-accent'
                   : doc.phase === 'gagal'
-                    ? 'bg-danger text-white'
+                    ? 'bg-danger text-on-danger'
                     : 'animate-pulse bg-[var(--accent-soft)] ring-1 ring-accent',
               ].join(' ')}
             >

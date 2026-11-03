@@ -414,7 +414,7 @@ export default function NotePage(): JSX.Element {
                           }
                           leave();
                         }}
-                        className="min-h-tap flex-1 rounded-lg bg-danger text-sm font-semibold text-white"
+                        className="min-h-tap flex-1 rounded-lg bg-danger text-sm font-semibold text-on-danger"
                       >
                         Hapus permanen
                       </button>

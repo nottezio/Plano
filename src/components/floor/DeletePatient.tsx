@@ -51,7 +51,7 @@ export function DeletePatient({
             .then(() => onDeleted?.())
             .finally(() => setBusy(false));
         }}
-        className={`${base} border-danger bg-danger text-white`}
+        className={`${base} border-danger bg-danger text-on-danger`}
       >
         {busy ? 'Menghapus…' : 'Ya, hapus'}
       </button>

@@ -242,7 +242,7 @@ export function RevisionTrail({
                             setConfirmingDelete(null);
                             setSelected(null);
                           }}
-                          className="min-h-tap flex-1 rounded-lg px-3 text-sm font-medium text-white"
+                          className="min-h-tap flex-1 rounded-lg px-3 text-sm font-medium text-on-danger"
                           style={{ backgroundColor: 'var(--danger)' }}
                         >
                           Hapus "{revision.label ?? `rev ${String(revision.rev)}`}"

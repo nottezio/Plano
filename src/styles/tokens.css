@@ -35,6 +35,7 @@
   --accent: #1559c7;
   /* Text on an accent fill (13.15): white on the light accents… */
   --on-accent: #ffffff;
+  --on-danger: #ffffff;
   --danger: #dc2626;
   /* Tinted fills. Tailwind's `bg-accent/15` emits NO CSS for a colour that is a
      CSS variable, so every such tint in the app was silently transparent. */
@@ -181,6 +182,7 @@
   --accent: #6aa3ff;
   /* …near-black on the bright dark-mode accents (white on #5b9cff was 2.8:1). */
   --on-accent: #0b0f14;
+  --on-danger: #0b0f14;
   --danger: #f87171;
   --accent-soft: #6aa3ff29;
   --danger-soft: #f8717129;
@@ -305,6 +307,7 @@
   --fg-faint: #bbb3a5;
   --accent: #aab9ff;
   --on-accent: #101524;
+  --on-danger: #101524;
   --danger: #fea09d;
   --warn-strong: #f7cb58;
   --pemantauan-bg: #fea09d;

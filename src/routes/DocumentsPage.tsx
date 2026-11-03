@@ -595,7 +595,7 @@ function ManageCategorySheet({
             <button
               type="button"
               onClick={remove}
-              className="mt-3 min-h-tap w-full rounded-lg bg-[var(--danger)] px-4 text-sm font-medium text-white"
+              className="mt-3 min-h-tap w-full rounded-lg bg-[var(--danger)] px-4 text-sm font-medium text-on-danger"
             >
               Hapus dan pindahkan
             </button>
