@@ -1,5 +1,11 @@
 # Plano — CHANGES
 
+## `2026-11-03.4` — Denah search offers "only this DPJP" when a DPJP code is typed
+
+- **Why.** Typing "ks" already matched the DPJP code, but as a word-prefix over the whole line, so it also hit residents and names starting with "ks". Avi wanted a clean per-DPJP highlight.
+- **Change.** `search.ts`: `dpjpOffers` (DPJPs with a patient here whose initials are a whole typed word, A–Z), `isDpjpPatient` (own patient or shared KJS, same rule as the DPJP boxes), `dpjpWord`. `FloorDenah` shows one chip per offer; chosen, the code word is dropped from the text search and only that DPJP's patients are hit. The choice is local state and lapses on its own when the word leaves the box (derived from `offers`, no effect).
+- **Not done.** The List tab does not get the chip (only the denah was asked); no separate always-visible DPJP button row; not checked on a ward device.
+
 ## `2026-11-03.3` — Our Plan after a KJS discharge-therapy list no longer copies as TS
 
 - **Root cause.** `regionsOf` keeps a TS block open until a "Mohon izin …" heading, so a consultant's own `Plan:` stays inside their reply (2026-10-10). The ward also lists a co-managing team's discharge therapy (KJS) under our Terapi as a bare `TS Pulmo` + drug bullets and goes straight on to our `*Plan:*`. That Plan was copied under "Terapi + TS" and the Plan chip was empty.

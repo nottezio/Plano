@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import type { FloorPatient } from './report';
-import { matchesSearch, searchWords } from './search';
+import { dpjpOffers, isDpjpPatient, matchesSearch, searchWords } from './search';
 
 const P: FloorPatient = {
   key: 'rm:123456',
@@ -52,5 +52,15 @@ describe('list / denah search', () => {
     // A hyphenated term is one phrase, not two loose words.
     expect(matchesSearch({ ...P, tags: undefined, body: 'Plan:\n- Prednison\n- Rencana operasi' }, searchWords('pre-op'))).toBe(false);
     expect(hit('')).toBe(true);
+  });
+
+  it('offers "only this DPJP" for a whole typed code, A–Z, own and shared KJS patients', () => {
+    const ks = { ...P, dpjpId: 'ks' };
+    const shared = { ...P, key: 'rm:2', dpjpId: 'pt', kjsDpjpIds: ['ks'] };
+    expect(dpjpOffers(searchWords('pt ks'), [ks, shared])).toEqual(['ks', 'pt']);
+    expect(dpjpOffers(searchWords('k'), [ks])).toEqual([]);
+    expect(dpjpOffers(searchWords('mz'), [ks])).toEqual([]);
+    expect(isDpjpPatient(shared, 'ks')).toBe(true);
+    expect(isDpjpPatient(ks, 'pt')).toBe(false);
   });
 });

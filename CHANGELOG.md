@@ -5,6 +5,9 @@ Catatan teknis lengkap (akar masalah, perbaikan) ada di CHANGES.md.
 
 Entri teratas harus versi yang sedang dirilis; tes gagal bila belum ditulis.
 
+## `2026-11-03.4`
+- **Cari inisial DPJP di denah List Maker.** Ketik inisial DPJP (mis. "ks") di kotak cari: muncul tombol "Hanya pasien dr. KS". Ketuk untuk menyorot hanya pasien DPJP itu di denah (termasuk pasien KJS yang dibagi dengannya); kata lain di kotak cari tetap berlaku bersama. Ketuk lagi untuk melepas.
+
 ## `2026-11-03.3`
 - **Plan tidak lagi ikut tersalin sebagai "Terapi + TS" setelah daftar terapi KJS.** Bila terapi pulang dari TS (mis. "TS Pulmo" + daftar obat) ditulis di bawah Terapi lalu langsung diikuti *Plan:*, Plan kita kini tersalin sebagai Plan. Balasan konsul TS yang punya assessment sendiri tetap utuh di "Terapi + TS".
 

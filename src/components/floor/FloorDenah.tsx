@@ -8,7 +8,7 @@ import { markCss, type FloorMark } from '@/domain/floorList/marks';
 import type { FloorPatient } from '@/domain/floorList/report';
 import { holderBoxes, residentGroups } from '@/domain/floorList/residents';
 import { setPrintSettings, usePrintSettings } from '@/hooks/usePrintSettings';
-import { matchesSearch } from '@/domain/floorList/search';
+import { dpjpOffers, dpjpWord, isDpjpPatient, matchesSearch } from '@/domain/floorList/search';
 import { placeBeds } from '@/domain/floorList/beds';
 import { SoapBadge } from './SoapBadge';
 import { planLayout } from '@/domain/floorList/layout';
@@ -422,7 +422,12 @@ export function FloorDenah({
 }): JSX.Element {
   const sorted = [...patients].sort(byRoute(ward));
   const searching = words.length > 0;
-  const hits = searching ? sorted.filter((p) => matchesSearch(p, words)) : [];
+  // A typed DPJP code ("ks") offers "only their patients"; once chosen, the code is the filter, not text to find.
+  const [only, setOnly] = useState<string | null>(null);
+  const offers = dpjpOffers(words, sorted);
+  const onlyId = only && offers.includes(only) ? only : null;
+  const rest = onlyId ? words.filter((w) => w !== dpjpWord(onlyId)) : words;
+  const hits = searching ? sorted.filter((p) => (!onlyId || isDpjpPatient(p, onlyId)) && matchesSearch(p, rest)) : [];
   const hitKeys = new Set(hits.map((p) => p.key));
   const find = (p: FloorPatient): Found => (!searching ? undefined : hitKeys.has(p.key) ? 'hit' : 'dim');
   // The lists below the plan show the matches only; the plan dims the rest.
@@ -493,6 +498,23 @@ export function FloorDenah({
           </p>
         ) : null}
       </div>
+      {offers.length > 0 ? (
+        <div className="flex flex-wrap gap-2">
+          {offers.map((id) => (
+            <button
+              key={id}
+              type="button"
+              aria-pressed={onlyId === id}
+              onClick={() => setOnly(onlyId === id ? null : id)}
+              className={`flex min-h-tap items-center gap-2 rounded-full border px-3 text-xs font-medium transition-colors [@media(pointer:fine)]:min-h-9 ${
+                onlyId === id ? 'border-fg bg-surface-2 text-fg' : 'border-border text-fg-muted hover:text-fg'
+              }`}
+            >
+              Hanya pasien {dpjpTitle(id)}
+            </button>
+          ))}
+        </div>
+      ) : null}
       {searching ? (
         <Section title={`Hasil cari (${hits.length})`}>
           {hits.length === 0 ? (

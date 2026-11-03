@@ -1,3 +1,5 @@
+import { dpjpById } from '@/domain/dpjp';
+
 import { dpjpCodeOf } from './build';
 import type { FloorPatient } from './report';
 
@@ -34,6 +36,22 @@ function haystack(p: FloorPatient): string {
   return ` ${squash(
     [p.name, p.identity, p.rm, p.room, p.bed, `${p.room}${p.bed}`, code, p.junior, p.chief, p.btkv ? 'kjs btkv' : '', colour, ...(p.tags ?? []).map((t) => t.label), p.division ? `divisi ${p.division}` : '', p.body].join(' '),
   )} `;
+}
+
+/** The word a DPJP is typed as: their initials ("ks"). */
+export const dpjpWord = (id: string): string => (dpjpById(id)?.initials ?? id).toLowerCase();
+
+/** Whose patient: the DPJP's own, or a KJS patient shared with them (as in the DPJP boxes). */
+export const isDpjpPatient = (p: Pick<FloorPatient, 'dpjpId' | 'kjsDpjpIds'>, id: string): boolean =>
+  p.dpjpId === id || p.kjsDpjpIds.includes(id);
+
+/**
+ * DPJPs with a patient here whose initials were typed as a whole word, A–Z:
+ * the denah offers "only this DPJP" for them (the word is a filter then, not text to find).
+ */
+export function dpjpOffers(words: readonly string[], patients: readonly FloorPatient[]): string[] {
+  const ids = new Set(patients.flatMap((p) => [p.dpjpId, ...p.kjsDpjpIds]).filter((id): id is string => !!id));
+  return [...ids].filter((id) => words.includes(dpjpWord(id))).sort((a, b) => dpjpWord(a).localeCompare(dpjpWord(b)));
 }
 
 /** True when every word of the query is found (at the start of a word, or a number anywhere in one). */
