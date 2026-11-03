@@ -45,6 +45,22 @@ for (const selector of [':root', '.dark', ".dark[data-theme='senja']"]) {
     );
   }
 }
+// Accent text on its own selected tint (the active sidebar row, a selected list row): the accent at
+// `--accent-soft`'s alpha over the surface. In Senja a 20% tint of the light accent left this at 4.0:1.
+for (const selector of [':root', '.dark', ".dark[data-theme='senja']"]) {
+  const block = blockOf(selector);
+  const map = vars(block);
+  const accent = map.get('accent');
+  const surface = map.get('surface');
+  const soft = block.match(/--accent-soft:\s*#([0-9a-fA-F]{6})([0-9a-fA-F]{2});/);
+  if (!accent || !surface || !soft) continue;
+  const alpha = parseInt(soft[2], 16) / 255;
+  const tint = '#' + [0, 2, 4].map((i) => Math.round(parseInt(soft[1].slice(i, i + 2), 16) * alpha + parseInt(surface.slice(1 + i, 3 + i), 16) * (1 - alpha)).toString(16).padStart(2, '0')).join('');
+  const r = ratio(accent, tint);
+  const ok = r >= 4.5;
+  if (!ok) failures++;
+  console.log(`${ok ? 'PASS' : 'FAIL'} ${selector.padEnd(6)} ${'accent on accent-soft'.padEnd(21)} ${r.toFixed(2)}:1`);
+}
 // Floor marks (13.7): the mark colour as text on a card tinted 8% with itself.
 const mix = (fg, bg, t) =>
   '#' + [1, 3, 5].map((i) => Math.round(parseInt(fg.slice(i, i + 2), 16) * t + parseInt(bg.slice(i, i + 2), 16) * (1 - t)).toString(16).padStart(2, '0')).join('');

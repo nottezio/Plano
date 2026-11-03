@@ -475,6 +475,64 @@ export default function SettingsPage(): JSX.Element {
               </div>
             </div>
           </SettingsSection>
+          <SettingsSection
+            id="warna-bagian"
+            keywords="tint header warna"
+            title="Warna bagian catatan"
+            description="Latar samar di belakang judul tiap bagian, untuk memindai posisi."
+          >
+            <Toggle
+              label="Beri warna pada judul bagian"
+              description="Identitas, S, O + penunjang, A, Terapi + Plan, dan TS masing-masing berbeda."
+              checked={settings.sectionTint}
+              onChange={(sectionTint) => patch({ sectionTint })}
+            />
+          </SettingsSection>
+          <SettingsSection
+            id="tampilan-sticky"
+            keywords="sticky note catatan tempel post-it kertas paku bergaris gaya tampilan"
+            title="Tampilan sticky note"
+            description="Gaya kertas untuk sticky note di papan. Hanya mengubah tampilan; isi dan warna catatan tidak berubah."
+          >
+            <div role="radiogroup" aria-label="Tampilan sticky note" className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+              {STICKY_STYLES.map((entry) => {
+                const on = stickyStyleOf(settings.stickyStyle) === entry.id;
+                return (
+                  <button
+                    key={entry.id}
+                    type="button"
+                    role="radio"
+                    aria-checked={on}
+                    onClick={() => patch({ stickyStyle: entry.id })}
+                    className={[
+                      'flex min-h-tap flex-col items-start gap-2 rounded-xl border p-2.5 text-left',
+                      on ? 'border-accent bg-[var(--accent-soft)]' : 'border-border bg-surface',
+                    ].join(' ')}
+                  >
+                    {/* A small sample drawn with the note's own rules, so the picker cannot drift from the board. */}
+                    <span
+                      aria-hidden="true"
+                      data-sticky={entry.id}
+                      style={
+                        entry.id === 'klasik'
+                          ? { backgroundColor: 'var(--card-step-3-bg)', color: 'var(--card-step-3-fg)' }
+                          : (stickyPaper('kuning', entry.id) as CSSProperties)
+                      }
+                      className={[
+                        'relative mt-1.5 block h-14 w-full rounded-sm',
+                        entry.id === 'bergaris' ? 'pt-4' : 'pt-3',
+                      ].join(' ')}
+                    >
+                      <span className="mx-3 mt-1 block h-1.5 w-2/3 rounded-full bg-current opacity-40" />
+                      <span className="mx-3 mt-1.5 block h-1.5 w-1/2 rounded-full bg-current opacity-25" />
+                    </span>
+                    <span className="text-sm font-medium text-fg">{entry.label}</span>
+                    <span className="text-xs text-fg-muted">{entry.hint}</span>
+                  </button>
+                );
+              })}
+            </div>
+          </SettingsSection>
         </SettingsGroup>
 
         <SettingsGroup id="settings-tampilan" label="Tampilan">
@@ -508,19 +566,6 @@ export default function SettingsPage(): JSX.Element {
                 </button>
               ))}
             </div>
-          </SettingsSection>
-          <SettingsSection
-            id="warna-bagian"
-            keywords="tint header warna"
-            title="Warna bagian catatan"
-            description="Latar samar di belakang judul tiap bagian, untuk memindai posisi."
-          >
-            <Toggle
-              label="Beri warna pada judul bagian"
-              description="Identitas, S, O + penunjang, A, Terapi + Plan, dan TS masing-masing berbeda."
-              checked={settings.sectionTint}
-              onChange={(sectionTint) => patch({ sectionTint })}
-            />
           </SettingsSection>
           <SettingsSection
             id="watermark"
@@ -607,51 +652,6 @@ export default function SettingsPage(): JSX.Element {
               checked={settings.showCardNote === true}
               onChange={(showCardNote) => patch({ showCardNote })}
             />
-          </SettingsSection>
-          <SettingsSection
-            id="tampilan-sticky"
-            keywords="sticky note catatan tempel post-it kertas paku bergaris gaya tampilan"
-            title="Tampilan sticky note"
-            description="Gaya kertas untuk sticky note di papan. Hanya mengubah tampilan; isi dan warna catatan tidak berubah."
-          >
-            <div role="radiogroup" aria-label="Tampilan sticky note" className="grid grid-cols-2 gap-2 sm:grid-cols-3">
-              {STICKY_STYLES.map((entry) => {
-                const on = stickyStyleOf(settings.stickyStyle) === entry.id;
-                return (
-                  <button
-                    key={entry.id}
-                    type="button"
-                    role="radio"
-                    aria-checked={on}
-                    onClick={() => patch({ stickyStyle: entry.id })}
-                    className={[
-                      'flex min-h-tap flex-col items-start gap-2 rounded-xl border p-2.5 text-left',
-                      on ? 'border-accent bg-[var(--accent-soft)]' : 'border-border bg-surface',
-                    ].join(' ')}
-                  >
-                    {/* A small sample drawn with the note's own rules, so the picker cannot drift from the board. */}
-                    <span
-                      aria-hidden="true"
-                      data-sticky={entry.id}
-                      style={
-                        entry.id === 'klasik'
-                          ? { backgroundColor: 'var(--card-step-3-bg)', color: 'var(--card-step-3-fg)' }
-                          : (stickyPaper('kuning', entry.id) as CSSProperties)
-                      }
-                      className={[
-                        'relative mt-1.5 block h-14 w-full rounded-sm',
-                        entry.id === 'bergaris' ? 'pt-4' : 'pt-3',
-                      ].join(' ')}
-                    >
-                      <span className="mx-3 mt-1 block h-1.5 w-2/3 rounded-full bg-current opacity-40" />
-                      <span className="mx-3 mt-1.5 block h-1.5 w-1/2 rounded-full bg-current opacity-25" />
-                    </span>
-                    <span className="text-sm font-medium text-fg">{entry.label}</span>
-                    <span className="text-xs text-fg-muted">{entry.hint}</span>
-                  </button>
-                );
-              })}
-            </div>
           </SettingsSection>
           <SettingsSection
             id="checklist"

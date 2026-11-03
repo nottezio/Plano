@@ -165,6 +165,7 @@ function StickyNoteCardView({
     <div
       ref={rootRef}
       data-sticky={look}
+      data-kind={note.kind}
       onDragOver={(event) => {
         // A summary sticky holds no images: its content lives on the patients.
         if (note.kind || !event.dataTransfer.types.includes('Files')) return;
@@ -226,8 +227,8 @@ function StickyNoteCardView({
       <div className="flex items-center gap-1 px-2 pt-1.5">
         <span
           className={[
-            'flex-1 text-[11px] font-semibold uppercase tracking-wide opacity-60',
-            look === 'bergaris' ? 'pl-9' : '',
+            'flex-1 text-[11px] font-semibold uppercase tracking-wide opacity-80',
+            look === 'bergaris' && !note.kind ? 'pl-9' : '',
           ].join(' ')}
         >
           {note.kind === 'catatan'
@@ -269,7 +270,7 @@ function StickyNoteCardView({
           title={armed ? 'Ketuk lagi untuk menghapus' : 'Hapus'}
           className={[
             'flex min-h-tap min-w-tap items-center justify-center rounded text-sm',
-            armed ? 'bg-black/15 font-semibold' : 'opacity-60',
+            armed ? 'bg-black/15 font-semibold' : 'opacity-80',
           ].join(' ')}
         >
           {armed ? 'Hapus?' : '×'}
@@ -353,7 +354,7 @@ function StickyNoteCardView({
       ) : null}
 
       {imageStatus ? (
-        <p role="status" className="px-2.5 pb-2 text-xs opacity-70">
+        <p role="status" className="px-2.5 pb-2 text-xs opacity-80">
           {imageStatus}
         </p>
       ) : dropping ? (

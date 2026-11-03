@@ -359,7 +359,8 @@
     background-size: 20px 16px;
     background-repeat: repeat-x;
   }
-  [data-sticky='bergaris']::after {
+  /* The margin belongs to a note you WRITE. A summary note (Catatan pasien, Lab hari ini) lists rows, and the line would run through them. */
+  [data-sticky='bergaris']:not([data-kind])::after {
     top: 16px;
     bottom: 0;
     left: 34px;
@@ -367,7 +368,8 @@
     background: rgb(214 64 64 / 0.55);
     box-shadow: 3px 0 0 rgb(214 64 64 / 0.32);
   }
-  [data-sticky='bergaris'] textarea {
+  /* Only the note's own text area (a direct child): the summary note's rows hold text areas of their own, which are not on this grid. */
+  [data-sticky='bergaris'] > textarea {
     padding-left: 2.75rem;
     padding-top: 6px;
     font-size: 14px;

@@ -33,7 +33,7 @@ export function PatientSummaryRows({
         ))}
       </ul>
     ) : (
-      <p className="text-sm opacity-70">Belum ada pasien di papan ini.</p>
+      <p className="text-sm opacity-80">Belum ada pasien di papan ini.</p>
     );
   }
 
@@ -54,7 +54,7 @@ export function PatientSummaryRows({
       ))}
     </ul>
   ) : (
-    <p className="text-sm opacity-70">
+    <p className="text-sm opacity-80">
       Tidak ada lab bertanggal hari ini di Plan SOAP, misalnya “- Cek DL, SE (30/10/2026)”.
     </p>
   );

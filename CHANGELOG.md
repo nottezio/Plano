@@ -5,6 +5,12 @@ Catatan teknis lengkap (akar masalah, perbaikan) ada di CHANGES.md.
 
 Entri teratas harus versi yang sedang dirilis; tes gagal bila belum ditulis.
 
+## `2026-11-03.7`
+- **Semua yang berhubungan dengan tema kini ada di Pengaturan → Tema.** **Warna bagian catatan** (dari Tampilan) dan **Tampilan sticky note** (dari Papan & harian) dipindah ke sana, di samping Mode warna dan Warna aplikasi.
+- **Sticky note lebih terbaca di mode Senja** (dan tema lain): judul "Catatan pasien" / "Lab hari ini", tombol ×, dan tulisan "tidak ada lab" tadinya terlalu pucat (kontras 3,3 sampai 3,9 : 1); kini semuanya di atas 4,5 : 1 di kelima tampilan.
+- **Tampilan "Kertas bergaris" tidak lagi menggaris-bawahi dan menggeser isi sticky note ringkasan** (Catatan pasien, Lab hari ini); garis tepi merahnya hanya muncul di catatan yang Anda tulis sendiri.
+- **Baris yang aktif di Senja lebih terbaca:** tulisan menu samping yang aktif dan baris terpilih memakai warna sorot yang sedikit lebih tipis, sehingga kontrasnya cukup (4,0 jadi 4,65 : 1).
+
 ## `2026-11-03.6`
 - **Sticky note kini bisa dipilih tampilannya di Pengaturan → Papan & harian → Tampilan sticky note.** Lima pilihan: **Post-it** (kertas tempel dengan garis perekat dan sudut melengkung, bawaan baru), **Dipaku** (kertas netral dengan paku berwarna), **Kertas bergaris** (seperti buku saku dokter), **Kertas tenang** (paling sederhana, tanpa miring), dan **Klasik** (kartu berwarna seperti sebelumnya). Hanya tampilan yang berubah: isi, warna, ukuran, dan posisi catatan tetap.
 - Kertas dibuat lebih redup di tema gelap dan Senja supaya tidak menyilaukan saat jaga malam; tulisan tetap gelap dan terbaca jelas.

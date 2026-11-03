@@ -310,7 +310,8 @@
   --pemantauan-bg: #fea09d;
   --pemantauan-fg: #101524;
   --focus-ring: #aab9ff;
-  --accent-soft: #aab9ff33;
+  /* 13%, not 20%: a light accent on a stronger tint put the active sidebar label and the text of a selected row under 4.5:1 (check:contrast now holds it). */
+  --accent-soft: #aab9ff22;
   --danger-soft: #fea09d33;
   --warn-soft: #f7cb583d;
   --overlay: rgb(12 15 26 / 62%);
@@ -449,8 +450,8 @@
 
 /* Senja's ground is lighter than Gelap's, so two accents lift a step to stay
    >= 4.5:1 as text on its surfaces (checked by scripts/check-contrast.mjs). */
-.dark[data-theme='senja'][data-palette='ungu'] { --accent: #c0b0fd; --accent-soft: #c0b0fd33; --focus-ring: #c0b0fd; }
-.dark[data-theme='senja'][data-palette='rose'] { --accent: #ff9aa9; --accent-soft: #ff9aa933; --focus-ring: #ff9aa9; }
+.dark[data-theme='senja'][data-palette='ungu'] { --accent: #c0b0fd; --accent-soft: #c0b0fd22; --focus-ring: #c0b0fd; }
+.dark[data-theme='senja'][data-palette='rose'] { --accent: #ff9aa9; --accent-soft: #ff9aa91f; --focus-ring: #ff9aa9; }
 
 /* ---- Backgrounds ----
    "hangat": warm paper in light mode; "pekat": true black in dark mode
