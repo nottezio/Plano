@@ -274,3 +274,133 @@
 .settings-list:not(:has(section:not([hidden]))) .settings-empty {
   display: block;
 }
+
+/*
+  Sticky note looks (3 Nov 2026). `StickyNoteCard` sets `data-sticky` and the
+  `--paper-bg` / `--paper-fg` / `--pin` variables (domain/boardNotes
+  `stickyPaper`); everything else is here, as CSS only: nothing to download,
+  so it works offline. `klasik` has no rules: it is the card look the component
+  already draws. Decoration lives in `::before` / `::after` and never takes a
+  click (`pointer-events: none`). The settings picker reuses these rules on a
+  small sample, so they must not depend on the note's size.
+*/
+@layer components {
+  [data-sticky]:not([data-sticky='klasik']) {
+    background-color: var(--paper-bg);
+    color: var(--paper-fg);
+  }
+  [data-sticky]::before,
+  [data-sticky]::after {
+    content: '';
+    position: absolute;
+    pointer-events: none;
+  }
+  [data-sticky='klasik']::before,
+  [data-sticky='klasik']::after {
+    content: none;
+  }
+
+  /* Post-it: a sticky strip across the top, a lifted shadow, a curled corner. */
+  [data-sticky='postit'] {
+    border-radius: 1px 1px 3px 3px;
+    transform: rotate(-1deg);
+    box-shadow:
+      0 1px 1px rgb(0 0 0 / 0.22),
+      0 14px 18px -10px rgb(0 0 0 / 0.45),
+      0 18px 12px -12px rgb(0 0 0 / 0.3);
+  }
+  [data-sticky='postit']::before {
+    inset: 0 0 auto 0;
+    height: 26px;
+    border-radius: 1px 1px 0 0;
+    background: linear-gradient(to bottom, rgb(0 0 0 / 0.085), rgb(0 0 0 / 0.02) 70%, transparent);
+  }
+  [data-sticky='postit']::after {
+    right: 0;
+    bottom: 0;
+    width: 34px;
+    height: 34px;
+    clip-path: polygon(100% 0, 100% 100%, 0 100%);
+    background: linear-gradient(135deg, rgb(0 0 0 / 0.2) 0 48%, rgb(255 255 255 / 0.4) 52%, rgb(255 255 255 / 0.08) 100%);
+  }
+
+  /* Dipaku: neutral paper under a push-pin whose colour is the note's colour. */
+  [data-sticky='dipaku'] {
+    border-radius: 2px;
+    transform: rotate(0.9deg);
+    box-shadow: 0 1px 2px rgb(0 0 0 / 0.2), 0 12px 16px -8px rgb(0 0 0 / 0.4);
+  }
+  [data-sticky='dipaku']::before {
+    top: -7px;
+    left: 50%;
+    z-index: 2;
+    width: 20px;
+    height: 20px;
+    margin-left: -10px;
+    border-radius: 50%;
+    background:
+      radial-gradient(circle at 34% 30%, rgb(255 255 255 / 0.85) 0 9%, transparent 10%),
+      radial-gradient(circle at 50% 55%, var(--pin, #e0463f) 0 58%, color-mix(in srgb, var(--pin, #e0463f) 70%, black) 100%);
+    box-shadow: 0 5px 5px -1px rgb(0 0 0 / 0.45), inset 0 -2px 3px rgb(0 0 0 / 0.35);
+  }
+
+  /* Bergaris: legal-pad paper, a perforated top, a red margin, rules every 22px. */
+  [data-sticky='bergaris'] {
+    border-radius: 1px;
+    transform: rotate(-0.5deg);
+    box-shadow: 0 1px 1px rgb(0 0 0 / 0.2), 0 12px 16px -9px rgb(0 0 0 / 0.4);
+  }
+  [data-sticky='bergaris']::before {
+    inset: 0 0 auto 0;
+    height: 16px;
+    border-bottom: 1px solid rgb(0 0 0 / 0.16);
+    background-color: rgb(0 0 0 / 0.07);
+    background-image: radial-gradient(circle at 10px 8px, rgb(0 0 0 / 0.34) 0 2px, transparent 2.6px);
+    background-size: 20px 16px;
+    background-repeat: repeat-x;
+  }
+  [data-sticky='bergaris']::after {
+    top: 16px;
+    bottom: 0;
+    left: 34px;
+    width: 1px;
+    background: rgb(214 64 64 / 0.55);
+    box-shadow: 3px 0 0 rgb(214 64 64 / 0.32);
+  }
+  [data-sticky='bergaris'] textarea {
+    padding-left: 2.75rem;
+    padding-top: 6px;
+    font-size: 14px;
+    line-height: 22px;
+    background-image: repeating-linear-gradient(to bottom, transparent 0 21px, var(--paper-rule) 21px 22px);
+    background-position: 0 6px;
+    background-attachment: local;
+  }
+
+  /* Tenang: flat paper, a hairline edge, a soft top edge and a small peeled corner. */
+  [data-sticky='tenang'] {
+    border: 1px solid rgb(0 0 0 / 0.1);
+    border-radius: 2px;
+    box-shadow: 0 1px 2px rgb(0 0 0 / 0.22), 0 6px 10px -6px rgb(0 0 0 / 0.4);
+  }
+  [data-sticky='tenang']::before {
+    inset: 0 0 auto 0;
+    height: 5px;
+    border-radius: 2px 2px 0 0;
+    background: linear-gradient(rgb(0 0 0 / 0.13), transparent);
+  }
+  [data-sticky='tenang']::after {
+    right: 0;
+    bottom: 0;
+    width: 20px;
+    height: 20px;
+    background: linear-gradient(135deg, transparent 50%, rgb(0 0 0 / 0.13) 50%);
+  }
+
+  /* Paper never inherits the klasik tilt when the user turns motion off. */
+  @media (prefers-reduced-motion: reduce) {
+    [data-sticky] {
+      transform: none;
+    }
+  }
+}

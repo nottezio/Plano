@@ -5,6 +5,10 @@ Catatan teknis lengkap (akar masalah, perbaikan) ada di CHANGES.md.
 
 Entri teratas harus versi yang sedang dirilis; tes gagal bila belum ditulis.
 
+## `2026-11-03.6`
+- **Sticky note kini bisa dipilih tampilannya di Pengaturan → Papan & harian → Tampilan sticky note.** Lima pilihan: **Post-it** (kertas tempel dengan garis perekat dan sudut melengkung, bawaan baru), **Dipaku** (kertas netral dengan paku berwarna), **Kertas bergaris** (seperti buku saku dokter), **Kertas tenang** (paling sederhana, tanpa miring), dan **Klasik** (kartu berwarna seperti sebelumnya). Hanya tampilan yang berubah: isi, warna, ukuran, dan posisi catatan tetap.
+- Kertas dibuat lebih redup di tema gelap dan Senja supaya tidak menyilaukan saat jaga malam; tulisan tetap gelap dan terbaca jelas.
+
 ## `2026-11-03.5`
 - **Tombol "Hanya pasien dr. …" di denah kini jelas saat aktif.** Saat dipilih, tombol terisi penuh dengan warna aksen dan teks tebal, tidak lagi hanya garis yang sedikit lebih terang.
 - **Kotak cari di List Maker tidak lagi menempel ke baris tab di atasnya.** Jaraknya kini sama dengan jarak antarbagian lain.

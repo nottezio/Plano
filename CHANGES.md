@@ -1,5 +1,14 @@
 # Plano — CHANGES
 
+## `2026-11-03.6` — Sticky note looks, chosen in Settings
+
+- **Why.** Avi, 3 Nov: the note did not look like a sticky note (in Senja it is a dark blue rectangle with a pale tape strip and a dark triangle for the fold, i.e. a card). Four mocks were shown (A Post-it, B pinned, C ruled legal pad, D quiet paper) and Avi asked for all of them to be selectable.
+- **Setting.** `settings.stickyStyle?: StickyStyle` (`postit` default, `dipaku`, `bergaris`, `tenang`, `klasik`); absent or unknown reads as the default (`stickyStyleOf`), so an older profile or a newer build cannot break the board. Pengaturan → Papan & harian → "Tampilan sticky note": a radio group whose samples are drawn with the notes' own CSS, so the picker cannot drift from the board. `klasik` is the previous look, unchanged.
+- **Implementation.** `StickyNoteCard` sets `data-sticky` and the `--paper-bg`, `--paper-fg`, `--pin` variables (`stickyPaper`); the decoration (strip, curl, pin, perforation, margin, rules, peeled corner) is CSS only in `index.css` under `[data-sticky]`, as `::before`/`::after`, `pointer-events: none`; no images, fonts or downloads, so it works offline. The tape and fold spans render for `klasik` only. The ruled look sets the textarea to 14 px on a 22 px grid with the rules on the textarea (`background-attachment: local`), so they scroll with the text; summary sticky notes (Catatan pasien, Lab) show the margin but no rules, as their rows are not on that grid. `prefers-reduced-motion` drops the tilt.
+- **Colour.** `--paper-<colour>-bg/-fg` and `--paper-neutral-*` in all three theme blocks, dimmed in dark and Senja (the ink stays `#1d1b16`), so `check:contrast` holds all 21 pairs automatically (lowest 6.98:1). `--pin-<colour>` is the same on every theme. In `dipaku` the colour is the pin, the paper is neutral, and the palette swatches show the pins.
+- **Tests.** `boardNotes.test.ts`: the list, the default and unknown-value fallback, the paper/pin variables, and that every colour has a paper pair in each of the three theme blocks.
+- **Checked.** All five looks in the Firebase emulator at 1280 px (light and the near-black dark theme) and at 412 px (light); the Settings picker in light and on a phone. **Not checked:** Senja itself (it shares the dark values), the canvas board mode with dragging and resizing, a note with attached images, a note on a real ward device, the 'Catatan pasien' and 'Lab hari ini' summary notes in the new looks.
+
 ## `2026-11-03.5` — DPJP chip: active state readable
 
 - **Cause.** The pressed chip only changed border (`border-fg`) and a near-identical fill (`bg-surface-2`), so on the dark theme it looked almost the same as idle (Avi's screenshots).

@@ -1,9 +1,16 @@
 import { describe, expect, it } from 'vitest';
 
+import { readFileSync } from 'node:fs';
+
 import {
   activeBoardNotes,
+  DEFAULT_STICKY_STYLE,
   noteIdFromCanvasId,
+  STICKY_COLORS,
+  STICKY_STYLES,
   stickyCanvasId,
+  stickyPaper,
+  stickyStyleOf,
   stickyTone,
   type BoardNotes,
 } from './boardNotes';
@@ -77,5 +84,47 @@ describe('notes per board (Pasien saya / Titipan)', () => {
 
   it('without a scope, every note (as before)', () => {
     expect(activeBoardNotes(notes)).toHaveLength(2);
+  });
+});
+
+describe('sticky note looks', () => {
+  it('lists each look once, with the default among them', () => {
+    const ids = STICKY_STYLES.map((entry) => entry.id);
+    expect(new Set(ids).size).toBe(ids.length);
+    expect(ids).toContain(DEFAULT_STICKY_STYLE);
+    expect(ids).toContain('klasik');
+  });
+
+  it('reads a missing or unknown value as the default, so an old profile or a newer build never breaks the board', () => {
+    expect(stickyStyleOf(undefined)).toBe(DEFAULT_STICKY_STYLE);
+    expect(stickyStyleOf('hologram')).toBe(DEFAULT_STICKY_STYLE);
+    expect(stickyStyleOf(null)).toBe(DEFAULT_STICKY_STYLE);
+    expect(stickyStyleOf('bergaris')).toBe('bergaris');
+  });
+
+  it('paints the note in its own colour, but a push-pinned note on neutral paper with the colour on the pin', () => {
+    expect(stickyPaper('hijau', 'postit')).toEqual({
+      '--paper-bg': 'var(--paper-hijau-bg)',
+      '--paper-fg': 'var(--paper-hijau-fg)',
+      '--pin': 'var(--pin-hijau)',
+    });
+    const pinned = stickyPaper('biru', 'dipaku');
+    expect(pinned['--paper-bg']).toBe('var(--paper-neutral-bg)');
+    expect(pinned['--pin']).toBe('var(--pin-biru)');
+  });
+
+  it('falls back to yellow for a colour it does not know', () => {
+    expect(stickyPaper('nope' as never, 'postit')['--paper-bg']).toBe('var(--paper-kuning-bg)');
+  });
+
+  it('has a paper pair (held by check:contrast) and a pin for every colour, in every theme block', () => {
+    const css = readFileSync(new URL('../styles/tokens.css', import.meta.url), 'utf8');
+    const names = [...STICKY_COLORS.map((c) => c.id), 'neutral'];
+    for (const name of names) {
+      // Once per theme block: light, dark, Senja.
+      expect(css.match(new RegExp(`--paper-${name}-bg:`, 'g'))?.length).toBe(3);
+      expect(css.match(new RegExp(`--paper-${name}-fg:`, 'g'))?.length).toBe(3);
+    }
+    for (const color of STICKY_COLORS) expect(css).toContain(`--pin-${color.id}:`);
   });
 });

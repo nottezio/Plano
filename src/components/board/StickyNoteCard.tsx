@@ -1,4 +1,4 @@
-import { memo, useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { memo, useEffect, useLayoutEffect, useRef, useState, type CSSProperties } from 'react';
 
 import {
   removeBoardNote,
@@ -11,7 +11,8 @@ import {
   loadBoardImage,
   removeImageFromNote,
 } from '@/data/repositories/boardImages.repo';
-import { STICKY_COLORS, stickyTone, type BoardNote, type StickyColor } from '@/domain/boardNotes';
+import { STICKY_COLORS, stickyPaper, stickyStyleOf, stickyTone, type BoardNote, type StickyColor } from '@/domain/boardNotes';
+import { useSession } from '@/store/useSession';
 import type { BoardCard } from '@/domain/board';
 import type { ClinicalDate } from '@/domain/types';
 import { PatientSummaryRows } from './PatientSummaryRows';
@@ -155,10 +156,15 @@ function StickyNoteCardView({
   }, [armed]);
 
   const tone = stickyTone(note.color);
+  // The look chosen in Pengaturan → Papan & harian; absent or unknown reads as the default.
+  const look = useSession((state) => stickyStyleOf(state.settings().stickyStyle));
+  const paper = look !== 'klasik';
+  const paperVars = paper ? (stickyPaper(note.color, look) as CSSProperties) : undefined;
 
   return (
     <div
       ref={rootRef}
+      data-sticky={look}
       onDragOver={(event) => {
         // A summary sticky holds no images: its content lives on the patients.
         if (note.kind || !event.dataTransfer.types.includes('Files')) return;
@@ -176,7 +182,7 @@ function StickyNoteCardView({
         setDropping(false);
         void attach([...event.dataTransfer.files]);
       }}
-      style={{ backgroundColor: tone.bg, color: tone.fg }}
+      style={paper ? paperVars : { backgroundColor: tone.bg, color: tone.fg }}
       className={[
         /*
           Made to look like PAPER, not like a card, because on a board of
@@ -185,8 +191,14 @@ function StickyNoteCardView({
           square-ish corners, a strip of tape across the top, a folded corner
           at the bottom right, a tilt, and no header band at all.
         */
-        'group relative rounded-sm pt-2 shadow-[0_6px_14px_rgba(0,0,0,0.35)]',
-        '[transform:rotate(-0.6deg)]',
+        'group relative',
+        look === 'klasik'
+          ? 'rounded-sm pt-2 shadow-[0_6px_14px_rgba(0,0,0,0.35)] [transform:rotate(-0.6deg)]'
+          : look === 'bergaris'
+            ? 'pt-5'
+            : look === 'dipaku'
+              ? 'pt-3'
+              : 'pt-2',
         dropping ? 'outline-dashed outline-2 outline-offset-2 outline-current' : '',
         fitHeight ? 'flex h-full flex-col' : '',
       ].join(' ')}
@@ -197,18 +209,32 @@ function StickyNoteCardView({
         above a capped card for exactly this. A tint of the note's own ink
         rather than white, which disappears on a pale note.
       */}
-      <span
-        aria-hidden="true"
-        className="pointer-events-none absolute -top-2 left-1/2 h-4 w-16 -translate-x-1/2 rotate-2 rounded-[2px] bg-[color-mix(in_srgb,currentColor_40%,transparent)] shadow-card"
-      />
-      {/* The folded corner. */}
-      <span
-        aria-hidden="true"
-        className="pointer-events-none absolute bottom-0 right-0 h-4 w-4 bg-[linear-gradient(135deg,transparent_50%,rgba(0,0,0,0.22)_50%)]"
-      />
+      {look === 'klasik' ? (
+        <>
+          <span
+            aria-hidden="true"
+            className="pointer-events-none absolute -top-2 left-1/2 h-4 w-16 -translate-x-1/2 rotate-2 rounded-[2px] bg-[color-mix(in_srgb,currentColor_40%,transparent)] shadow-card"
+          />
+          {/* The folded corner. */}
+          <span
+            aria-hidden="true"
+            className="pointer-events-none absolute bottom-0 right-0 h-4 w-4 bg-[linear-gradient(135deg,transparent_50%,rgba(0,0,0,0.22)_50%)]"
+          />
+        </>
+      ) : null}
+      {/* The other looks draw their tape, pin, strip, rules and corner in CSS (`index.css`, `[data-sticky]`). */}
       <div className="flex items-center gap-1 px-2 pt-1.5">
-        <span className="flex-1 text-[11px] font-semibold uppercase tracking-wide opacity-60">
-          {note.kind === 'catatan' ? '📌 Catatan pasien' : note.kind === 'lab' ? '🧪 Lab hari ini' : '📌 Catatan'}
+        <span
+          className={[
+            'flex-1 text-[11px] font-semibold uppercase tracking-wide opacity-60',
+            look === 'bergaris' ? 'pl-9' : '',
+          ].join(' ')}
+        >
+          {note.kind === 'catatan'
+            ? `${paper ? '' : '📌 '}Catatan pasien`
+            : note.kind === 'lab'
+              ? `${paper ? '' : '🧪 '}Lab hari ini`
+              : `${paper ? '' : '📌 '}Catatan`}
         </span>
 
         {/* Colour: a dot that opens the palette in place. */}
@@ -223,7 +249,7 @@ function StickyNoteCardView({
           <span
             aria-hidden="true"
             className="h-3.5 w-3.5 rounded-full border border-black/20"
-            style={{ backgroundColor: tone.fg }}
+            style={{ backgroundColor: paper ? 'color-mix(in srgb, var(--paper-bg) 55%, black)' : tone.fg }}
           />
         </button>
 
@@ -253,7 +279,9 @@ function StickyNoteCardView({
       {paletteOpen ? (
         <div role="group" aria-label="Warna" className="flex flex-wrap gap-1.5 px-2 pb-1">
           {STICKY_COLORS.map((color) => {
-            const swatch = stickyTone(color.id);
+            const swatch = paper
+              ? { bg: look === 'dipaku' ? `var(--pin-${color.id})` : `var(--paper-${color.id}-bg)` }
+              : stickyTone(color.id);
             return (
               <button
                 key={color.id}
@@ -312,7 +340,7 @@ function StickyNoteCardView({
           'w-full resize-none bg-transparent px-2.5 pb-2.5 pt-1 text-sm leading-snug outline-none placeholder:opacity-50',
           fitHeight ? 'min-h-0 flex-1 overflow-y-auto' : 'overflow-hidden',
         ].join(' ')}
-        style={{ color: tone.fg }}
+        style={{ color: paper ? 'var(--paper-fg)' : tone.fg }}
       />
       )}
 

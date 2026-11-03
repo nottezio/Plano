@@ -1,4 +1,5 @@
 import type { Timestamp } from 'firebase/firestore';
+import type { StickyStyle } from './boardNotes';
 
 /**
  * SPEC 6.2 — the domain model.
@@ -259,6 +260,12 @@ export interface UserSettings {
    * Absent on older profiles, which reads as off.
    */
   showCardNote?: boolean;
+  /**
+   * How a sticky note looks (3 Nov 2026): `postit`, `dipaku`, `bergaris`,
+   * `tenang`, or `klasik` (the card look it had before). Absent on older
+   * profiles, which reads as the default (`postit`); see `stickyStyleOf`.
+   */
+  stickyStyle?: StickyStyle;
   copyPresets: CopyPreset[];
   privacy: PrivacySettings;
   theme: 'system' | 'light' | 'dark' | 'senja';

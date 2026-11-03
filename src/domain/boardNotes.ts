@@ -90,6 +90,52 @@ export function stickyTone(color: StickyColor): { bg: string; fg: string } {
 }
 
 /**
+ * How a sticky note LOOKS (2026-11-03, Avi: "add all and let the user choose in
+ * settings"). One component, five looks, chosen in Pengaturan → Papan & harian.
+ *
+ * - `postit`   — the default: pale paper, a sticky strip, a curled corner.
+ * - `dipaku`   — neutral paper under a push-pin; the colour lives on the pin.
+ * - `bergaris` — ruled legal-pad paper with a margin line.
+ * - `tenang`   — flat paper, a hairline edge, a small peeled corner.
+ * - `klasik`   — what it was before: a card in the note's card colour, with tape.
+ *
+ * Stored as `settings.stickyStyle`; absent (older profiles) or unknown reads as
+ * the default, so a value this build does not know can never break the board.
+ */
+export type StickyStyle = 'postit' | 'dipaku' | 'bergaris' | 'tenang' | 'klasik';
+
+export const DEFAULT_STICKY_STYLE: StickyStyle = 'postit';
+
+export const STICKY_STYLES: ReadonlyArray<{ id: StickyStyle; label: string; hint: string }> = [
+  { id: 'postit', label: 'Post-it', hint: 'Kertas tempel klasik' },
+  { id: 'dipaku', label: 'Dipaku', hint: 'Kertas netral, warna ada di paku' },
+  { id: 'bergaris', label: 'Kertas bergaris', hint: 'Seperti buku saku dokter' },
+  { id: 'tenang', label: 'Kertas tenang', hint: 'Paling sederhana, tanpa miring' },
+  { id: 'klasik', label: 'Klasik', hint: 'Kartu berwarna seperti sebelumnya' },
+];
+
+export function stickyStyleOf(value: unknown): StickyStyle {
+  return STICKY_STYLES.some((entry) => entry.id === value) ? (value as StickyStyle) : DEFAULT_STICKY_STYLE;
+}
+
+/**
+ * The paper look's colours, as CSS variables set on the note (`--paper-bg`,
+ * `--paper-fg`, `--pin`). The ink is always dark, on every theme: the paper is
+ * dimmed in the dark themes rather than the ink being lightened, so the page
+ * never glares on a night shift. `bg`/`fg` pairs are held by `check:contrast`.
+ */
+export function stickyPaper(color: StickyColor, style: StickyStyle): Record<string, string> {
+  const own = STICKY_COLORS.some((entry) => entry.id === color) ? color : 'kuning';
+  // The push-pin note is neutral paper; the note's colour is the pin.
+  const paper = style === 'dipaku' ? 'neutral' : own;
+  return {
+    '--paper-bg': `var(--paper-${paper}-bg)`,
+    '--paper-fg': `var(--paper-${paper}-fg)`,
+    '--pin': `var(--pin-${own})`,
+  };
+}
+
+/**
  * The notes on the board: not deleted, oldest first.
  *
  * Oldest first so a new note is placed AFTER the existing ones by the canvas's
