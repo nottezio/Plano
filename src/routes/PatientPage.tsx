@@ -1440,7 +1440,32 @@ export default function PatientPage(): JSX.Element {
               )}
             </button>
           ) : null}
+          {dpjpHasInfo ? (
+            // Last, so Catatan, Checklist and Periksa lagi (the findings chip) keep the positions they
+            // had and stay on screen at 412 px. Who, and the one time-sensitive fact (a clinic today
+            // or tomorrow); where the report goes, the format and the other clinics are under this row.
+            <button
+              type="button"
+              aria-expanded={dpjpInfoOpen}
+              aria-label={dpjp ? `Info DPJP ${dpjp.initials}` : 'Info pasien'}
+              onClick={toggleDpjpInfo}
+              className={chip('plain')}
+            >
+              <span className="font-semibold">{dpjp ? dpjp.initials : 'Info'}</span>
+              {poli && poli.inDays <= 1 ? (
+                <span className="text-fg-muted">{poli.inDays === 0 ? 'Poli hari ini' : 'Poli besok'}</span>
+              ) : null}
+              {isTrioDpjp(dpjp?.id) ? <span className="font-medium text-accent">6MWT</span> : null}
+              <span aria-hidden="true" className="text-fg-faint">
+                {dpjpInfoOpen ? '▴' : '▾'}
+              </span>
+            </button>
+          ) : null}
         </div>
+
+        {dpjpHasInfo && dpjpInfoOpen ? (
+          <div className="space-y-0.5 border-b border-border px-4 py-2 sm:hidden">{renderDpjpDetails()}</div>
+        ) : null}
 
         <Sheet
           open={phoneSheet === 'notes'}
@@ -1483,54 +1508,14 @@ export default function PatientPage(): JSX.Element {
     );
   };
 
-  const renderDpjpLine = (): JSX.Element => (
-    <>
-        {dpjpFormat ||
-        poli ||
-        (dpjp && !poli) ||
-        dpjp?.delivery ||
-        isTrioDpjp(dpjp?.id) ||
-        patient.diagnoses.length > 0 ? (
-          <div className="space-y-0.5 border-b border-border px-4 py-1">
-            {/*
-              DECLUTTER (2026-10-05). Five or six grey lines above every note,
-              read once on arrival and then scrolled past forty times. Folded
-              to ONE line — who, where the report goes, the shape, 6MWT, the
-              next clinic — with the full sentences a tap away. 6MWT keeps its
-              accent in the summary: it is the one standing instruction.
-            */}
-            <button
-              type="button"
-              aria-expanded={dpjpInfoOpen}
-              onClick={toggleDpjpInfo}
-              className="flex min-h-tap w-full items-center gap-2 text-left text-xs text-fg-muted [@media(pointer:fine)]:min-h-7"
-            >
-              {dpjp ? (
-                <span className="shrink-0 rounded border border-border px-1 font-semibold text-fg">
-                  {dpjp.initials}
-                </span>
-              ) : null}
-              <span className="min-w-0 flex-1 truncate">
-                {[
-                  dpjp?.delivery ? shortDelivery(dpjp.delivery) : null,
-                  dpjpFormat ? REPORT_FORMAT_LABELS[dpjpFormat.format] : null,
-                  poli
-                    ? `Poli ${weekdayName(poli.weekday)}${poli.inDays === 0 ? ' (hari ini)' : poli.inDays === 1 ? ' (besok)' : ''}`
-                    : null,
-                  !dpjp && patient.diagnoses.length > 0 ? patient.diagnoses.join(', ') : null,
-                ]
-                  .filter(Boolean)
-                  .join(' · ')}
-                {isTrioDpjp(dpjp?.id) ? (
-                  <span className="font-medium text-accent"> · rencanakan 6MWT</span>
-                ) : null}
-              </span>
-              <span aria-hidden="true" className="shrink-0 text-fg-faint">
-                {dpjpInfoOpen ? '▴' : '▾'}
-              </span>
-            </button>
-            {dpjpInfoOpen ? (
-            <div className="space-y-0.5 pb-1">
+  /** Something to say about the consultant: the same condition that decides whether the DPJP row exists. */
+  const dpjpHasInfo = Boolean(
+    dpjpFormat || poli || (dpjp && !poli) || dpjp?.delivery || isTrioDpjp(dpjp?.id) || patient.diagnoses.length > 0,
+  );
+
+  /** The full sentences behind the DPJP line (and, on a phone, behind its chip). */
+  const renderDpjpDetails = (): JSX.Element => (
+    <div className="space-y-0.5 pb-1">
             {/*
               A standing instruction, shown for the three consultants whose
               patients get one — not a checklist item.
@@ -1599,8 +1584,65 @@ export default function PatientPage(): JSX.Element {
                 {patient.diagnoses.join(', ')}
               </p>
             ) : null}
-            </div>
-            ) : null}
+    </div>
+  );
+
+  /*
+    Below `sm` the DPJP summary row is gone: its information became one chip in
+    the tool-chip row (`renderPhoneChips`), and its sentences open under that
+    row. Two stacked rows (DPJP line, then chips) were 114 px of a phone screen
+    before the note (2026-11-03, "so crowded"). From `sm` up nothing changed.
+  */
+  const renderDpjpLine = (): JSX.Element =>
+    !headerHasTools ? (
+      <></>
+    ) : (
+    <>
+        {dpjpFormat ||
+        poli ||
+        (dpjp && !poli) ||
+        dpjp?.delivery ||
+        isTrioDpjp(dpjp?.id) ||
+        patient.diagnoses.length > 0 ? (
+          <div className="space-y-0.5 border-b border-border px-4 py-1">
+            {/*
+              DECLUTTER (2026-10-05). Five or six grey lines above every note,
+              read once on arrival and then scrolled past forty times. Folded
+              to ONE line — who, where the report goes, the shape, 6MWT, the
+              next clinic — with the full sentences a tap away. 6MWT keeps its
+              accent in the summary: it is the one standing instruction.
+            */}
+            <button
+              type="button"
+              aria-expanded={dpjpInfoOpen}
+              onClick={toggleDpjpInfo}
+              className="flex min-h-tap w-full items-center gap-2 text-left text-xs text-fg-muted [@media(pointer:fine)]:min-h-7"
+            >
+              {dpjp ? (
+                <span className="shrink-0 rounded border border-border px-1 font-semibold text-fg">
+                  {dpjp.initials}
+                </span>
+              ) : null}
+              <span className="min-w-0 flex-1 truncate">
+                {[
+                  dpjp?.delivery ? shortDelivery(dpjp.delivery) : null,
+                  dpjpFormat ? REPORT_FORMAT_LABELS[dpjpFormat.format] : null,
+                  poli
+                    ? `Poli ${weekdayName(poli.weekday)}${poli.inDays === 0 ? ' (hari ini)' : poli.inDays === 1 ? ' (besok)' : ''}`
+                    : null,
+                  !dpjp && patient.diagnoses.length > 0 ? patient.diagnoses.join(', ') : null,
+                ]
+                  .filter(Boolean)
+                  .join(' · ')}
+                {isTrioDpjp(dpjp?.id) ? (
+                  <span className="font-medium text-accent"> · rencanakan 6MWT</span>
+                ) : null}
+              </span>
+              <span aria-hidden="true" className="shrink-0 text-fg-faint">
+                {dpjpInfoOpen ? '▴' : '▾'}
+              </span>
+            </button>
+            {dpjpInfoOpen ? renderDpjpDetails() : null}
           </div>
         ) : null}
 
@@ -1975,7 +2017,9 @@ export default function PatientPage(): JSX.Element {
 
         {otherDevice ? (
           <Banner tone="muted">
-            <span className="flex-1">
+            {/* One line on a phone (it was two); the full sentence from `sm`. */}
+            <span className="flex-1 sm:hidden">Dibuka juga di perangkat lain ({otherDevice}).</span>
+            <span className="hidden flex-1 sm:inline">
               Perangkat lain ({otherDevice}) sedang membuka catatan ini. Anda tetap bisa
               menulis.
             </span>

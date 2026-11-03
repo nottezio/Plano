@@ -1,5 +1,13 @@
 # Plano — CHANGES
 
+## `2026-11-03.1` — Phone patient page: the DPJP row folded into the chips row
+
+- **Why.** Avi, 3 Nov: "so crowded". Measured on a 412 px phone: the note began 273 px down (the sticky header 101 px; then the DPJP summary row 53, the tool-chip row 61, the date strip 57). On a phone with the browser toolbar showing (~650 px) that is about 40% of what is visible.
+- **Change (below 640 px only).** `renderDpjpLine` returns nothing on a phone. The DPJP information is one chip, last in `renderPhoneChips` (initials, "Poli hari ini" / "Poli besok" when the clinic is today or tomorrow, an accent "6MWT" for the three consultants who get that instruction, and a chevron); its sentences (`renderDpjpDetails`, extracted from the old row so both layouts share them) open under the chips row. The chip is LAST so Catatan, Checklist and Periksa lagi keep their positions: first, it pushed the amber findings chip off the right edge at 412 px. Note now starts at 220 px (−53).
+- **Also.** The "other device has this note open" banner is one line on a phone (it was two).
+- **Not done, and why.** Merging the name into the top bar (option A, which Avi accepted in principle) does not fit: the back button, sync dot, Visite, Salin and ⋯ leave about 140 px for a title at 412 px, which truncates real names, and the "Salin RM" button has no other home. `IdentityBar`'s own comments make identity the one thing that must never be guessed at, so it is unchanged. Hiding the sticky header on scroll (option C) was not chosen.
+- **Not verified.** 412 px in the emulator only (no 360 px, dark, Senja); a patient with several clinic lines; a patient with no DPJP (the chip reads "Info").
+
 ## `2026-11-02.7` — Section bands one line above their headings when the note starts with blank lines
 
 - **Root cause.** `buildBands` draws each heading as a `display: block` span and drops the newline after it (a block already ends its line). When a note, or a section, starts on a blank line, the first "heading" is the EMPTY first line: an empty block has no line box, so there was nothing for the dropped newline to end and the blank line disappeared from the mirror. Every band below sat one line higher than the textarea's text. A Versi trimmed to "Penunjang terbaru saja" starts with blank lines, which is how Avi's screenshot got there.

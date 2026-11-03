@@ -5,6 +5,10 @@ Catatan teknis lengkap (akar masalah, perbaikan) ada di CHANGES.md.
 
 Entri teratas harus versi yang sedang dirilis; tes gagal bila belum ditulis.
 
+## `2026-11-03.1`
+- **Halaman pasien di HP lebih lega: catatan mulai sekitar 53 px lebih atas.** Baris ringkasan DPJP digabung ke baris tombol di bawah identitas sebagai satu tombol di ujung kanan (inisial DPJP, dan "Poli hari ini" / "Poli besok" bila ada). Ketuk tombol itu untuk membuka kalimat lengkapnya (ke mana laporan dikirim, format, poli berikutnya), tepat di bawah barisnya. Catatan, Checklist, dan Periksa lagi tetap di tempatnya. Di layar lebar tidak ada perubahan.
+- **Pemberitahuan "perangkat lain sedang membuka catatan ini" di HP kini satu baris.**
+
 ## `2026-11-02.7`
 - **Warna judul bagian di Versi SOAP kini tepat di belakang judulnya.** Bila catatan diawali baris kosong (mis. setelah *Penunjang terbaru saja*), setiap pita warna sempat tampil satu baris di atas judulnya sendiri. Sudah diperbaiki; teks tidak berubah.
 
