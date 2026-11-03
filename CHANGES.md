@@ -1,5 +1,13 @@
 # Plano — CHANGES
 
+## `2026-11-03.3` — Our Plan after a KJS discharge-therapy list no longer copies as TS
+
+- **Root cause.** `regionsOf` keeps a TS block open until a "Mohon izin …" heading, so a consultant's own `Plan:` stays inside their reply (2026-10-10). The ward also lists a co-managing team's discharge therapy (KJS) under our Terapi as a bare `TS Pulmo` + drug bullets and goes straight on to our `*Plan:*`. That Plan was copied under "Terapi + TS" and the Plan chip was empty.
+- **Corpus.** Parser audit over the 27 Oct export (417 entries, 130 patients): 18 Plan-like headings sat inside TS blocks. Every consultant reply among them had its own assessment line (`A/`, `Assessment`, `Diagnosis`) before the Plan; the 4 blocks without one were KJS lists followed by our Plan (confirmed by Avi). Two other assessment-less blocks used `Planning` and were the consultants'.
+- **Fix.** `PLAN_ONLY` + `CONSULT_ASSESSMENT` in `sectionSlices.ts`: a heading that owns its line and is exactly "Plan" (any bold, colon optional) ends a TS block that has no assessment line yet. "Planning" and "Plan Diagnostik / Monitoring" never do. After the fix the audit shows exactly those 4 moved; patients with an entry lacking a Plan block 16 → 13. Three tests; the KJS one fails without the fix.
+- **Audit findings left alone (0 cases in the export).** Unbulleted report fields under O, dated or prefixed TS headings, echo `A : 12 cm/s`, CRLF bodies, emoji / NBSP / numbered headings. Not changed without corpus evidence.
+- **Not done.** One entry writes a TS block between O and our own `Diagnosis:` heading (not a "Mohon izin" form), so A, Terapi and Plan stay inside that TS block. Ambiguous with a consultant's Diagnosis; left. The Lt. 4 / Lt. 5 colleague exports were not on this machine, so only Avi's own notes were audited. Not checked in the app.
+
 ## `2026-11-03.2` — Report "- Plan :" field no longer opens the Plan; Transfusi PRC calculator
 
 - **Root cause (parser).** A PJT Lt. 4 note had a pacemaker interrogation report under O (`*Laporan Interrogate 22/1/26*`, `- Summary : ...`, `- Plan : Check 1 year`). The known-alias matcher accepts `- ` as decoration and ` :` as the delimiter, so `- Plan : Check 1 year` was read as OUR Plan heading. The Plan section then ran from that line through every study below it (echo full study, bedside echo, hemodynamics, lung ultrasound), and the real `*Plan:*` was merged in after them.

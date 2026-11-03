@@ -83,6 +83,22 @@ const CONSULT_HEADING = /^\s*[*_]*\s*TS\b/i;
  */
 const OWN_HEADING = /^\s*[*_]*\s*mohon\s+i[zj]i?n\b/i;
 
+/**
+ * Our Plan after a KJS discharge-therapy list (2026-11-03, Avi).
+ *
+ * ROOT CAUSE: the ward lists a co-managing team's discharge therapy under our
+ * Terapi as a bare `TS Pulmo` + drug bullets, then goes straight on to our
+ * `*Plan:*`. Only "Mohon izin …" ended a TS block, so our Plan was copied
+ * under "Terapi + TS" and "Plan" came out empty (5 entries, 4 patients in the
+ * 27 Oct export). A consultant's REPLY always carries its own assessment
+ * (A/, Assessment, Diagnosis) before its Plan; in that export every TS block
+ * without one was followed by OUR plan. So a heading that is exactly "Plan"
+ * ends a TS block that has no assessment yet. "Planning" and "Plan
+ * Diagnostik" never do: in the export those were the consultants'.
+ */
+const PLAN_ONLY = /^\s*[*_]*\s*plan\s*[*_]*\s*:?\s*[*_]*\s*$/i;
+const CONSULT_ASSESSMENT = /^\s*[*_]*\s*(?:A\s*\/|asses|diagnos)/im;
+
 export interface Region {
   group: CopyGroupId;
   start: number;
@@ -111,6 +127,7 @@ export function regionsOf(
   const sections = parseSections(body, aliases);
   const starts: Array<{ group: CopyGroupId; start: number; textStart: number }> = [];
   let inConsult = false;
+  let consultStart = 0;
 
   for (const section of sections) {
     if (section.headerLine === null) continue;
@@ -129,11 +146,17 @@ export function regionsOf(
     if (CONSULT_HEADING.test(section.headerLine)) {
       starts.push({ group: 'terapi', start: section.start, textStart: section.start });
       inConsult = true;
+      consultStart = section.start;
       continue;
     }
 
     // The consultant's own A/, Th/, P/, Plan Diagnostik… stay in their block.
-    if (inConsult && !OWN_HEADING.test(section.headerLine)) continue;
+    const ourPlanAfterKjs =
+      section.sectionId === 'p' &&
+      section.ownsLine &&
+      PLAN_ONLY.test(section.headerLine) &&
+      !CONSULT_ASSESSMENT.test(body.slice(consultStart, section.start));
+    if (inConsult && !OWN_HEADING.test(section.headerLine) && !ourPlanAfterKjs) continue;
 
     /**
      * A boundary heading opens a block whether or not it owns its line.

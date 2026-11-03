@@ -88,6 +88,42 @@ describe('a TS reply is one block (2026-10-10)', () => {
   });
 });
 
+describe('our Plan after a KJS discharge-therapy list (2026-11-03)', () => {
+  const kjs = (plan: string, ts: string[]) =>
+    [
+      '*Mohon izin kami terapi dengan:*',
+      '- Furosemide 40 mg/12 jam/IV',
+      '',
+      'TS Pulmo',
+      ...ts,
+      '',
+      plan,
+      '- Monitoring tanda vital',
+      '',
+      '*TS EMD*',
+      'A/ DM tipe 2',
+      'P/ GDS/hari',
+    ].join('\n');
+
+  it('ends the TS list at our own "*Plan :*"', () => {
+    const note = kjs('*Plan :*', ['- Levofloxacin 750 mg/24 jam/oral', '- N-acetylsistein 200 mg/8 jam/oral']);
+    expect(sliceGroups(note, ALIASES, ['plan'])).toBe('*Plan :*\n- Monitoring tanda vital');
+    expect(sliceGroups(note, ALIASES, ['terapi'])).toContain('- Levofloxacin 750 mg/24 jam/oral');
+    expect(sliceGroups(note, ALIASES, ['terapi'])).toContain('P/ GDS/hari');
+  });
+
+  it('keeps a Plan inside a TS reply that has its own assessment', () => {
+    const note = kjs('Plan:', ['Assessment:', '- Efusi pleura']);
+    expect(sliceGroups(note, ALIASES, ['plan'])).toBe('');
+    expect(sliceGroups(note, ALIASES, ['terapi'])).toContain('Plan:\n- Monitoring tanda vital');
+  });
+
+  it('never lets "Planning" end a TS block', () => {
+    const note = kjs('Planning :', ['- Pain management']);
+    expect(sliceGroups(note, ALIASES, ['plan'])).toBe('');
+  });
+});
+
 describe('leaving out a block\'s heading (28 Oct 2026)', () => {
   it('drops the bare heading line of the chosen block, nothing else', () => {
     expect(sliceGroups(NOTE, ALIASES, ['a'])).toBe('*Mohon izin kami assess dengan:*\n- Congestive Heart Failure NYHA IV');

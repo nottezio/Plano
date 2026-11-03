@@ -5,6 +5,9 @@ Catatan teknis lengkap (akar masalah, perbaikan) ada di CHANGES.md.
 
 Entri teratas harus versi yang sedang dirilis; tes gagal bila belum ditulis.
 
+## `2026-11-03.3`
+- **Plan tidak lagi ikut tersalin sebagai "Terapi + TS" setelah daftar terapi KJS.** Bila terapi pulang dari TS (mis. "TS Pulmo" + daftar obat) ditulis di bawah Terapi lalu langsung diikuti *Plan:*, Plan kita kini tersalin sebagai Plan. Balasan konsul TS yang punya assessment sendiri tetap utuh di "Terapi + TS".
+
 ## `2026-11-03.2`
 - **Kalkulator baru: Transfusi PRC.** Di Kalkulator → Ginjal & cairan: isi berat badan, Hb sekarang, Hb target dan volume per kantong; hasilnya volume PRC (ΔHb × BB × 4) dan perkiraan jumlah kantong, dengan baris siap salin. Periksa ulang Hb setelah transfusi.
 - **Bagian Plan tidak lagi mulai dari "- Plan : ..." di dalam laporan.** Baris seperti "- Plan : Check 1 year" di laporan interogasi pacemaker (atau laporan lain di bawah O) sempat dibaca sebagai Plan pasien, sehingga Plan berisi semua hasil echo di bawahnya. Kini baris itu tetap milik laporannya, dan Plan dimulai dari judul *Plan:* yang sebenarnya.
