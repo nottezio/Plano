@@ -5,6 +5,10 @@ Catatan teknis lengkap (akar masalah, perbaikan) ada di CHANGES.md.
 
 Entri teratas harus versi yang sedang dirilis; tes gagal bila belum ditulis.
 
+## `2026-11-03.5`
+- **Tombol "Hanya pasien dr. …" di denah kini jelas saat aktif.** Saat dipilih, tombol terisi penuh dengan warna aksen dan teks tebal, tidak lagi hanya garis yang sedikit lebih terang.
+- **Kotak cari di List Maker tidak lagi menempel ke baris tab di atasnya.** Jaraknya kini sama dengan jarak antarbagian lain.
+
 ## `2026-11-03.4`
 - **Cari inisial DPJP di denah List Maker.** Ketik inisial DPJP (mis. "ks") di kotak cari: muncul tombol "Hanya pasien dr. KS". Ketuk untuk menyorot hanya pasien DPJP itu di denah (termasuk pasien KJS yang dibagi dengannya); kata lain di kotak cari tetap berlaku bersama. Ketuk lagi untuk melepas.
 

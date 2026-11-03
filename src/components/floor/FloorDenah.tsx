@@ -507,7 +507,7 @@ export function FloorDenah({
               aria-pressed={onlyId === id}
               onClick={() => setOnly(onlyId === id ? null : id)}
               className={`flex min-h-tap items-center gap-2 rounded-full border px-3 text-xs font-medium transition-colors [@media(pointer:fine)]:min-h-9 ${
-                onlyId === id ? 'border-fg bg-surface-2 text-fg' : 'border-border text-fg-muted hover:text-fg'
+                onlyId === id ? 'border-accent bg-accent font-semibold text-on-accent' : 'border-border text-fg-muted hover:text-fg'
               }`}
             >
               Hanya pasien {dpjpTitle(id)}

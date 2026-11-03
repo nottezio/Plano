@@ -1,5 +1,11 @@
 # Plano — CHANGES
 
+## `2026-11-03.5` — DPJP chip: active state readable
+
+- **Cause.** The pressed chip only changed border (`border-fg`) and a near-identical fill (`bg-surface-2`), so on the dark theme it looked almost the same as idle (Avi's screenshots).
+- **Fix.** Pressed = solid `bg-accent text-on-accent`, semibold, the same as the other pressed pills (`MarksField`, `FeedbackForm`). Not checked on the light theme or Senja.
+- **Search box spacing.** `ListMakerPage` forced `!mt-0` (8 px under the tabs); Avi saw it collide with the tab bar. Removed, so it gets the default section gap (16 px). Not seen rendered; phone width not checked.
+
 ## `2026-11-03.4` — Denah search offers "only this DPJP" when a DPJP code is typed
 
 - **Why.** Typing "ks" already matched the DPJP code, but as a word-prefix over the whole line, so it also hit residents and names starting with "ks". Avi wanted a clean per-DPJP highlight.

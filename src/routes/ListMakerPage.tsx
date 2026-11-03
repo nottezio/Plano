@@ -348,8 +348,8 @@ export default function ListMakerPage(): JSX.Element {
             ) : null}
 
             {(tab === 'denah' || tab === 'list') && view.active.length > 0 ? (
-              // `!mt-0`: the search belongs to the tabs above it (8 px), not a section of its own (16 px).
-              <div className="relative !mt-0">
+              // Default section spacing: at 8 px the box read as colliding with the tab bar (Avi, 3 Nov).
+              <div className="relative">
                 <input
                   type="search"
                   value={search}
