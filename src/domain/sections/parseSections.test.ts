@@ -591,3 +591,26 @@ describe('Lt. 5 export of 30-10-2026: headings the alias table did not list', ()
     expect(ids(['S:', '- Baik', 'TS Paru', 'O', '- x'].join('\n')).filter((id) => !id.startsWith('custom_'))).toEqual(['s']);
   });
 });
+
+describe('a report field is not the note\'s heading (PJT Lt. 4, 03-11-2026)', () => {
+  const ids = (body: string) => assertLossless(body).filter((s) => s.headerLine !== null && !s.sectionId.startsWith('custom_')).map((s) => s.sectionId);
+
+  it('keeps "- Plan : Check 1 year" inside the interrogation report', () => {
+    const body = [
+      '*S:*', '- Sesak berkurang', '*O:*', 'Compos Mentis',
+      '*Laporan Interrogate 22/1/26*', '- Summary : Pacemaker is pacing and sensing appropriately', '- Plan : Check 1 year',
+      '*Echocardiography Bedside 03-11-2026*', '- Mildly Abnormal LV Systolic Function',
+      'Echo Hemodynamic 3-11-2026', 'BP 140/77 mmHg',
+      '*Mohon izin kami assess dengan:*', '- CHF', '*Mohon izin kami terapi dengan:*', '- Furosemide',
+      '*Plan:*', '- Monitoring hemodinamik',
+    ].join('\n');
+    expect(ids(body)).toEqual(['s', 'o', 'a', 'terapi', 'p']);
+    const plan = copyableSections(body).find((s) => s.sectionId === 'p');
+    expect(plan?.text).toBe('- Monitoring hemodinamik');
+  });
+
+  it('still reads an unbulleted or own-line Plan after a report as the heading', () => {
+    expect(ids(['O:', '*Lab 03-11*', 'Hb 12', 'Plan: cek ulang'].join('\n'))).toEqual(['o', 'p']);
+    expect(ids(['O:', '*Lab 03-11*', 'Hb 12', '- Plan:', '- cek ulang'].join('\n'))).toEqual(['o', 'p']);
+  });
+});

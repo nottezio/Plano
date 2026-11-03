@@ -5,6 +5,7 @@ import {
   URINE_OUTPUT_SOURCES,
   calculateUrineOutput,
 } from '@/domain/calc/urineOutput';
+import { TRANSFUSION_SOURCES, calculateTransfusion } from '@/domain/calc/transfusion';
 import {
   EFFECTIVE_EXAMPLE,
   EFFECTIVE_SOURCES,
@@ -204,6 +205,44 @@ export function UrineOutputCard(): JSX.Element {
         </ResultBlock>
       ) : (
         <Empty>Isi ketiganya. Tanpa berat badan tidak ada laju yang bisa dihitung.</Empty>
+      )}
+    </CalcCard>
+  );
+}
+
+export function TransfusionCard(): JSX.Element {
+  const [weight, setWeight] = useState('');
+  const [hbNow, setHbNow] = useState('');
+  const [hbTarget, setHbTarget] = useState('');
+  const [bag, setBag] = useState('250');
+
+  const result = useMemo(
+    () =>
+      typed(weight, hbNow, hbTarget, bag)
+        ? calculateTransfusion({
+            weightKg: Number(weight),
+            hbNow: Number(hbNow),
+            hbTarget: Number(hbTarget),
+            bagMl: Number(bag),
+          })
+        : null,
+    [weight, hbNow, hbTarget, bag],
+  );
+
+  return (
+    <CalcCard title="Transfusi PRC" formula="(Hb target − Hb sekarang) × berat badan × 4" sources={TRANSFUSION_SOURCES}>
+      <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+        <NumberField label="Berat (kg)" value={weight} onChange={setWeight} />
+        <NumberField label="Hb sekarang (g/dL)" value={hbNow} onChange={setHbNow} />
+        <NumberField label="Hb target (g/dL)" value={hbTarget} onChange={setHbTarget} />
+        <NumberField label="Per kantong (cc)" value={bag} onChange={setBag} />
+      </div>
+      {result ? (
+        <ResultBlock line={result.line}>
+          <Big value={result.volumeMl} unit="cc PRC" caption={`± ${result.bags} kantong · periksa ulang Hb setelah transfusi`} />
+        </ResultBlock>
+      ) : (
+        <Empty>Isi berat badan dan kedua Hb; Hb target harus di atas Hb sekarang.</Empty>
       )}
     </CalcCard>
   );

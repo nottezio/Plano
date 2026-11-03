@@ -8,6 +8,7 @@ import {
   LinkCard,
   OsmolalityCard,
   SodiumGlucoseCard,
+  TransfusionCard,
   UnitConverterCard,
   UrineOutputCard,
 } from '@/components/calc/ClinicalCards';
@@ -68,6 +69,7 @@ export default function CalculatorPage(): JSX.Element {
         <Group id="calc-cairan" label="Ginjal & cairan">
           <UrineOutputCard />
           <OsmolalityCard />
+          <TransfusionCard />
         </Group>
 
         <Group id="calc-antikoagulan" label="Antikoagulan">

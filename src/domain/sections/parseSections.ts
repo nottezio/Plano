@@ -504,6 +504,23 @@ function isVitalField(line: Line, hit: HeaderHit): boolean {
   return /^\s*\d/.test(line.text.slice(hit.headerEnd - line.start));
 }
 
+/**
+ * `- Plan : Check 1 year` inside a pacemaker interrogation report is the
+ * report's own field, not the note's Plan heading.
+ *
+ * Bulleted, with its value on the same line, under a report heading in the O
+ * region: every echo, interrogation and resume block that carries a "Plan :"
+ * or "Diagnosis :" line opened OUR Plan or Assessment there, and the Plan
+ * section ran from that line through every study below it. A real heading
+ * owns its line or stands unbulleted; a bulleted label with a value is a list
+ * item of the block it sits in.
+ */
+function isReportField(line: Line, hit: HeaderHit, previous: HeaderHit | undefined): boolean {
+  if (!previous?.sectionId.startsWith('custom_')) return false;
+  if (!['s', 'a', 'p', 'terapi'].includes(hit.sectionId)) return false;
+  return /^[ \t]*[-•]/.test(line.text) && line.text.slice(hit.headerEnd - line.start).trim() !== '';
+}
+
 function bareLetter(line: Line, seen: ReadonlySet<SectionId>, aliases: readonly SectionAlias[]): HeaderHit | null {
   const letter = BARE_LETTER_RE.exec(line.text)?.[1];
   const later = (ids: readonly SectionId[]): boolean => ids.some((id) => seen.has(id));
@@ -555,6 +572,8 @@ export function parseSections(
       (barePlan && !inConsult && (lastOwn === 'terapi' || lastOwn === 'a') ? detectHeader(line, barePlan, table) : null) ??
       (inConsult ? null : bareLetter(line, seenOwn, table));
     if (!hit) continue;
+    // Before `lastOwn`: a skipped field must not count as our Plan having begun.
+    if (inObjective && isReportField(line, hit, hits[hits.length - 1])) continue;
     if (!hit.sectionId.startsWith('custom_')) {
       lastOwn = hit.sectionId;
       seenOwn.add(hit.sectionId);

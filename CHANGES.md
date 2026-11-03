@@ -1,5 +1,12 @@
 # Plano — CHANGES
 
+## `2026-11-03.2` — Report "- Plan :" field no longer opens the Plan; Transfusi PRC calculator
+
+- **Root cause (parser).** A PJT Lt. 4 note had a pacemaker interrogation report under O (`*Laporan Interrogate 22/1/26*`, `- Summary : ...`, `- Plan : Check 1 year`). The known-alias matcher accepts `- ` as decoration and ` :` as the delimiter, so `- Plan : Check 1 year` was read as OUR Plan heading. The Plan section then ran from that line through every study below it (echo full study, bedside echo, hemodynamics, lung ultrasound), and the real `*Plan:*` was merged in after them.
+- **Fix.** `isReportField` in `parseSections.ts`: in the O region, when the previous heading is a report block (a `custom_` section), a BULLETED line naming S, A, P or Terapi with a value on the same line is that report's field, not a heading. It is skipped before `lastOwn` is set, so it does not count as the Plan having begun. An unbulleted `Plan: x` or a `- Plan:` that owns its line after a report still opens the Plan (tested).
+- **Calculator.** `domain/calc/transfusion.ts` + `TransfusionCard` (Kalkulator → Ginjal & cairan): PRC volume = ΔHb × BB × 4, bag count from a user-entered cc per kantong (default 250, since it varies by blood bank). Sources on the card: Morris et al., Arch Dis Child 2005 (formula table; notes these formulae underestimate), and NICE NG24 (1 unit ≈ +1 g/dL in a 70 kg adult, single-unit then reassess).
+- **Not done.** No whole-blood (×6) factor: no citable source found for it. No thresholds or targets (FFP, TC, cryo dosing not added). Not added to the floating calculator on the SOAP page. Calculator not rendered in the browser or on a phone. The parser rule was not run against the Lt. 4 / Lt. 5 export corpus.
+
 ## `2026-11-03.1` — Phone patient page: the DPJP row folded into the chips row
 
 - **Why.** Avi, 3 Nov: "so crowded". Measured on a 412 px phone: the note began 273 px down (the sticky header 101 px; then the DPJP summary row 53, the tool-chip row 61, the date strip 57). On a phone with the browser toolbar showing (~650 px) that is about 40% of what is visible.

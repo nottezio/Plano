@@ -5,6 +5,10 @@ Catatan teknis lengkap (akar masalah, perbaikan) ada di CHANGES.md.
 
 Entri teratas harus versi yang sedang dirilis; tes gagal bila belum ditulis.
 
+## `2026-11-03.2`
+- **Kalkulator baru: Transfusi PRC.** Di Kalkulator → Ginjal & cairan: isi berat badan, Hb sekarang, Hb target dan volume per kantong; hasilnya volume PRC (ΔHb × BB × 4) dan perkiraan jumlah kantong, dengan baris siap salin. Periksa ulang Hb setelah transfusi.
+- **Bagian Plan tidak lagi mulai dari "- Plan : ..." di dalam laporan.** Baris seperti "- Plan : Check 1 year" di laporan interogasi pacemaker (atau laporan lain di bawah O) sempat dibaca sebagai Plan pasien, sehingga Plan berisi semua hasil echo di bawahnya. Kini baris itu tetap milik laporannya, dan Plan dimulai dari judul *Plan:* yang sebenarnya.
+
 ## `2026-11-03.1`
 - **Halaman pasien di HP lebih lega: catatan mulai sekitar 53 px lebih atas.** Baris ringkasan DPJP digabung ke baris tombol di bawah identitas sebagai satu tombol di ujung kanan (inisial DPJP, dan "Poli hari ini" / "Poli besok" bila ada). Ketuk tombol itu untuk membuka kalimat lengkapnya (ke mana laporan dikirim, format, poli berikutnya), tepat di bawah barisnya. Catatan, Checklist, dan Periksa lagi tetap di tempatnya. Di layar lebar tidak ada perubahan.
 - **Pemberitahuan "perangkat lain sedang membuka catatan ini" di HP kini satu baris.**
