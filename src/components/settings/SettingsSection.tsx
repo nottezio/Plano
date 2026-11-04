@@ -74,6 +74,7 @@ export function SettingsSection({
   description,
   keywords,
   badge,
+  value,
   children,
   collapsible = true,
   defaultOpen = false,
@@ -83,6 +84,8 @@ export function SettingsSection({
   description?: string | undefined;
   keywords?: string;
   badge?: string | undefined;
+  /** The current choice, readable without opening the section. */
+  value?: string | undefined;
   children: ReactNode;
   collapsible?: boolean;
   defaultOpen?: boolean;
@@ -126,6 +129,7 @@ export function SettingsSection({
             className="flex min-h-tap w-full items-center gap-3 rounded-xl p-4 text-left focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent"
           >
             <SectionHeading title={title} description={description} badge={badge} />
+            {value ? <span className="max-w-[40%] shrink-0 truncate text-xs font-semibold text-fg-muted">{value}</span> : null}
             <span
               aria-hidden="true"
               className={[
@@ -204,6 +208,19 @@ export function SettingsGroup({
       >
         {label}
       </h2>
+      {children}
+    </div>
+  );
+}
+
+/** Sections that change the same kind of thing, under a small label. Hides itself like a group. */
+export function SettingsSubgroup({ label, children }: { label: string; children: ReactNode }): JSX.Element {
+  const headingId = useId();
+  return (
+    <div role="group" aria-labelledby={headingId} className="settings-group space-y-2 pt-2">
+      <p id={headingId} className="px-1 text-sm font-semibold text-fg">
+        {label}
+      </p>
       {children}
     </div>
   );

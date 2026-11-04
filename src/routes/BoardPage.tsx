@@ -67,6 +67,7 @@ import {
 } from '@/domain/board';
 import { useBoardLayout } from '@/hooks/useBoardLayout';
 import { BoardRow, BoardRowHeader } from '@/components/board/BoardRow';
+import { BOARD_ORDERS, BoardViewMenu } from '@/components/board/BoardViewMenu';
 import { PatientCompactCard } from '@/components/board/PatientCompactCard';
 import { pendingFilters } from '@/domain/checklist';
 import { useSession } from '@/store/useSession';
@@ -386,8 +387,8 @@ export default function BoardPage(): JSX.Element {
    * than a thing you can describe.
    */
   const canvasWidth = useMediaQuery('(min-width: 1024px)');
-  /** Chosen in Pengaturan. Wide screens only: a phone keeps the list it has. */
-  const [chosenLayout] = useBoardLayout();
+  /** Chosen in the board's Tampilan menu. Wide screens only: a phone keeps the list it has. */
+  const [chosenLayout, setChosenLayout] = useBoardLayout();
   const layout = canvasWidth ? chosenLayout : 'standar';
   /*
     Rows have no hand-placed position to honour, so Urutan sendiri reads as the
@@ -485,9 +486,9 @@ export default function BoardPage(): JSX.Element {
   const rawBoardNotes = useSession((state) => state.profile?.boardNotes);
   const boardNotes = useMemo(() => activeBoardNotes(rawBoardNotes, scope), [rawBoardNotes, scope]);
   const showStickies = !searching && !selecting;
-  /** Both compact layouts carry Catatan on the patient, so its summary sticky would only repeat it. It returns with Standar. */
+  /** Papan Kerja has a Catatan column, and a sticky above the rows would push them off the screen. */
   const placedNotes = useMemo(
-    () => (layout === 'standar' ? boardNotes : boardNotes.filter((entry) => entry.note.kind !== 'catatan')),
+    () => (layout === 'baris' ? boardNotes.filter((entry) => entry.note.kind !== 'catatan') : boardNotes),
     [boardNotes, layout],
   );
   const addSticky = (kind?: StickyKind): void => {
@@ -578,7 +579,7 @@ export default function BoardPage(): JSX.Element {
         fitHeight={fitHeight}
         onHeightBounds={onHeightBounds}
         maxPreviewLines={maxPreviewLines}
-        dense={dense}
+        dense={dense && !canvasWidth}
         collapsed={cardsFolded.has(card.patient.id)}
         onToggleCollapsed={toggleFolded}
         onLongPress={setQuickPatientId}
@@ -883,26 +884,6 @@ export default function BoardPage(): JSX.Element {
   */
   const headerHidden = useHideOnScroll(headerRef, !canvasWidth && !searching && !selecting);
 
-  /** The order dropdown: in the single row on a laptop, row two on a phone. */
-  const orderControl = (
-    <label className={`${CONTROL} flex min-w-0 flex-1 items-center gap-1 rounded-lg border border-border bg-surface pl-3 text-xs text-fg-muted lg:flex-none`}>
-      Urutan
-      <select
-        value={order}
-        onChange={(event) => changeOrder(event.target.value as BoardOrder)}
-        aria-label="Urutan kartu"
-        className="min-w-0 flex-1 cursor-pointer bg-transparent py-1.5 pr-2 font-semibold text-fg outline-none"
-      >
-        <option value="recent">Terbaru</option>
-        <option value="location">Denah</option>
-        <option value="visite">Urutan visite</option>
-        <option value="dpjp">Per DPJP</option>
-        <option value="status">Status hari ini</option>
-        {layout === 'baris' ? null : <option value="custom">Urutan sendiri</option>}
-      </select>
-    </label>
-  );
-
   /**
    * The same select, as a compact button for the phone row (2026-10-08).
    *
@@ -922,12 +903,11 @@ export default function BoardPage(): JSX.Element {
         aria-label="Urutan kartu"
         className="absolute inset-0 cursor-pointer opacity-0"
       >
-        <option value="recent">Terbaru</option>
-        <option value="location">Denah</option>
-        <option value="visite">Urutan visite</option>
-        <option value="dpjp">Per DPJP</option>
-        <option value="status">Status hari ini</option>
-        <option value="custom">Urutan sendiri</option>
+        {BOARD_ORDERS.map((entry) => (
+          <option key={entry.id} value={entry.id}>
+            {entry.label}
+          </option>
+        ))}
       </select>
     </label>
   );
@@ -1007,7 +987,18 @@ export default function BoardPage(): JSX.Element {
           </div>
         ) : null}
 
-        {canvasWidth ? orderControl : null}
+        {canvasWidth ? (
+          <BoardViewMenu
+            layout={layout}
+            order={order}
+            onOrder={changeOrder}
+            onLayout={(next) => {
+              setChosenLayout(next);
+              // Denah draws no cards: asking for a card layout means leaving it.
+              if (order === 'location') changeOrder('visite');
+            }}
+          />
+        ) : null}
 
         {/* Phone and tablet: order and the occasional actions in the SAME
             row as search. Pilih stays visible while selecting, because it is
@@ -1050,7 +1041,7 @@ export default function BoardPage(): JSX.Element {
               >
                 <span aria-hidden="true">📌</span> Sticky Note
               </button>
-              {layout === 'standar' ? (
+              {layout !== 'baris' ? (
                 <button
                   type="button"
                   {...CLOSES_MENU}
@@ -1076,18 +1067,6 @@ export default function BoardPage(): JSX.Element {
             <Button size="sm" variant="quiet" className="shrink-0 text-fg" onClick={() => setLabOpen(true)}>
               Format lab
             </Button>
-            {layout === 'standar' ? (
-              <Button
-                size="sm"
-                variant="quiet"
-                aria-pressed={dense}
-                onClick={() => setDense(!dense)}
-                title="Kartu ringkas: satu baris diagnosis"
-                className={`shrink-0 ${dense ? 'bg-bg-subtle text-accent' : 'text-fg'}`}
-              >
-                {dense ? 'Ringkas' : 'Normal'}
-              </Button>
-            ) : null}
             <SelectButton selecting={selecting} onToggle={() => (selecting ? leaveSelection() : setSelecting(true))} />
           </>
         ) : null}
@@ -1380,7 +1359,7 @@ export default function BoardPage(): JSX.Element {
                         order === 'custom' && !selecting ? onDragHandleDown : undefined
                       }
                       dragging={draggingId === card.patient.id}
-                      dense={dense}
+                      dense={dense && !canvasWidth}
                       // Phone and tablet list only: on a laptop a sideways
                       // drag is a text selection, and in custom order it is
                       // the drag handle's.

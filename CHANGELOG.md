@@ -5,6 +5,11 @@ Catatan teknis lengkap (akar masalah, perbaikan) ada di CHANGES.md.
 
 Entri teratas harus versi yang sedang dirilis; tes gagal bila belum ditulis.
 
+## `2026-11-04.6`
+- **Satu pintu untuk tampilan papan.** Tombol **Tampilan** di papan kini menggabungkan tata letak (Standar, Kartu Ringkas, Papan Kerja) dan urutan. Dropdown Urutan, tombol Normal/Ringkas dan bagian Tata letak papan di Pengaturan dihapus, jadi tidak perlu lagi menebak mana yang berlaku. Di ponsel tidak berubah: tetap daftar dengan pilihan urutan dan Ringkas.
+- **Sticky Catatan pasien kembali di Kartu Ringkas.** Sebelumnya ikut disembunyikan, sekarang tampil lagi dan bisa ditambah dari menu Tambah. Di Papan Kerja tetap tidak tampil, karena Catatan sudah punya kolom sendiri dan sticky akan mendorong baris ke bawah.
+- **Pengaturan → Tema lebih rapi.** Pilihan dikelompokkan menjadi **Warna**, **Teks & jarak** dan **Papan pasien**, dan tiap baris menampilkan pilihan yang sedang aktif tanpa perlu dibuka.
+
 ## `2026-11-04.5`
 - **Tata letak papan baru, bisa dipilih di Pengaturan → Tema → Tata letak papan.** Hanya untuk layar lebar dan tersimpan per perangkat; ponsel tetap memakai daftar biasa. Pilihan **Standar** adalah tampilan yang sekarang.
 - **Kartu Ringkas:** kartu pendek berisi bed (`421/4`), nama, DPJP, RM, status, satu baris diagnosis dengan jumlahnya ("Dx (18)"), dan Catatan. Kanvas, stiker dan pengaturan warna kartu tetap bisa dipakai. Pada uji dengan 18 pasien contoh dan catatan panjang, 12 pasien terlihat utuh dalam satu layar laptop, dari sebelumnya 6.

@@ -8,6 +8,7 @@ import {
   SettingsGroup,
   SettingsSearchProvider,
   SettingsSection,
+  SettingsSubgroup,
   Toggle,
   openSettingsSection,
 } from '@/components/settings/SettingsSection';
@@ -32,8 +33,7 @@ import { STICKY_STYLES, stickyPaper, stickyStyleOf } from '@/domain/boardNotes';
 import { CANVAS_BACKGROUNDS, canvasBackgroundOf } from '@/domain/boardBackground';
 import { CARD_STYLES, DENSITIES, TEXT_SIZES, cardStyleOf, densityOf, textSizeOf } from '@/domain/appearance';
 import { CanvasRooms } from '@/components/board/CanvasBackdrop';
-import { BOARD_LAYOUTS } from '@/domain/boardLayout';
-import { useBoardLayout } from '@/hooks/useBoardLayout';
+import { THEMES } from '@/domain/theme';
 import {
   SEED_GREETINGS,
   SEED_NOTE_TEMPLATES,
@@ -130,7 +130,6 @@ export default function SettingsPage(): JSX.Element {
    * believed was applied. Patching by path also means two devices editing
    * different settings do not overwrite each other.
    */
-  const [boardLayout, setBoardLayout] = useBoardLayout();
   const patch = useCallback(
     (next: Partial<UserSettings>) => {
       if (!user) return;
@@ -426,316 +425,279 @@ export default function SettingsPage(): JSX.Element {
         </SettingsGroup>
 
         <SettingsGroup id="settings-tema" label="Tema">
-          <SettingsSection
-            id="tema"
-            keywords="tema mode gelap terang dark light senja lembut mata warna sistem"
-            title="Mode warna"
-            description="Terang, Gelap, atau Senja yang lembut di mata. Tersimpan di perangkat ini."
-            defaultOpen
-          >
-            <ThemePicker theme={theme} onChange={setTheme} />
-          </SettingsSection>
-          <SettingsSection
-            id="warna"
-            keywords="warna palet tema aksen latar oled hitam kertas theme palette colour color"
-            title="Warna aplikasi"
-            description="Warna tombol dan pilihan, serta latar. Tersimpan di perangkat ini. Hitam pekat hanya untuk mode Gelap."
-          >
-            <div className="space-y-3">
-              <div className="grid grid-cols-2 gap-2 min-[420px]:grid-cols-4">
-                {PALETTES.map((p) => (
-                  <button
-                    key={p.id}
-                    type="button"
-                    aria-pressed={palette === p.id}
-                    onClick={() => setPalette(p.id)}
-                    className={[
-                      'flex min-h-tap items-center gap-2 rounded-lg border px-2.5 text-sm',
-                      palette === p.id ? 'border-accent font-medium text-accent' : 'border-border text-fg-muted',
-                    ].join(' ')}
-                  >
-                    <span aria-hidden="true" className="flex shrink-0 overflow-hidden rounded-full border border-border">
-                      <span className="h-5 w-2.5" style={{ background: p.swatch[0] }} />
-                      <span className="h-5 w-2.5" style={{ background: p.swatch[1] }} />
-                    </span>
-                    {p.name}
-                  </button>
-                ))}
-              </div>
-              <div className="grid gap-2 sm:grid-cols-3">
-                {SURFACES.map((option) => (
-                  <button
-                    key={option.id}
-                    type="button"
-                    aria-pressed={surface === option.id}
-                    onClick={() => setSurface(option.id)}
-                    className={[
-                      'min-h-tap rounded-lg border px-3 py-1.5 text-left text-sm',
-                      surface === option.id ? 'border-accent font-medium text-accent' : 'border-border text-fg-muted',
-                    ].join(' ')}
-                  >
-                    {option.name}
-                    <span className="block text-xs font-normal text-fg-faint">{option.note}</span>
-                  </button>
-                ))}
-              </div>
-            </div>
-          </SettingsSection>
-          <SettingsSection
-            id="warna-bagian"
-            keywords="tint header warna"
-            title="Warna bagian catatan"
-            description="Latar samar di belakang judul tiap bagian, untuk memindai posisi."
-          >
-            <Toggle
-              label="Beri warna pada judul bagian"
-              description="Identitas, S, O + penunjang, A, Terapi + Plan, dan TS masing-masing berbeda."
-              checked={settings.sectionTint}
-              onChange={(sectionTint) => patch({ sectionTint })}
-            />
-          </SettingsSection>
-          <SettingsSection
-            id="tampilan-sticky"
-            keywords="sticky note catatan tempel post-it kertas paku bergaris gaya tampilan"
-            title="Tampilan sticky note"
-            description="Gaya kertas untuk sticky note di papan. Hanya mengubah tampilan; isi dan warna catatan tidak berubah."
-          >
-            <div role="radiogroup" aria-label="Tampilan sticky note" className="grid grid-cols-2 gap-2 sm:grid-cols-3">
-              {STICKY_STYLES.map((entry) => {
-                const on = stickyStyleOf(settings.stickyStyle) === entry.id;
-                return (
-                  <button
-                    key={entry.id}
-                    type="button"
-                    role="radio"
-                    aria-checked={on}
-                    onClick={() => patch({ stickyStyle: entry.id })}
-                    className={[
-                      'flex min-h-tap flex-col items-start gap-2 rounded-xl border p-2.5 text-left',
-                      on ? 'border-accent bg-[var(--accent-soft)]' : 'border-border bg-surface',
-                    ].join(' ')}
-                  >
-                    {/* A small sample drawn with the note's own rules, so the picker cannot drift from the board. */}
-                    <span
-                      aria-hidden="true"
-                      data-sticky={entry.id}
-                      style={
-                        entry.id === 'klasik'
-                          ? { backgroundColor: 'var(--card-step-3-bg)', color: 'var(--card-step-3-fg)' }
-                          : (stickyPaper('kuning', entry.id) as CSSProperties)
-                      }
+          <SettingsSubgroup label="Warna">
+            <SettingsSection
+              id="tema"
+              keywords="tema mode gelap terang dark light senja lembut mata warna sistem"
+              title="Mode warna"
+              value={THEMES.find((entry) => entry.id === theme)?.name}
+              description="Terang, Gelap, atau Senja yang lembut di mata. Tersimpan di perangkat ini."
+            >
+              <ThemePicker theme={theme} onChange={setTheme} />
+            </SettingsSection>
+            <SettingsSection
+              id="warna"
+              keywords="warna palet tema aksen latar oled hitam kertas theme palette colour color"
+              title="Warna aplikasi"
+              value={`${PALETTES.find((entry) => entry.id === palette)?.name ?? ''} · ${SURFACES.find((entry) => entry.id === surface)?.name ?? ''}`}
+              description="Warna tombol dan pilihan, serta latar. Tersimpan di perangkat ini. Hitam pekat hanya untuk mode Gelap."
+            >
+              <div className="space-y-3">
+                <p className="text-xs font-semibold text-fg-muted">Warna tombol dan pilihan</p>
+                <div className="grid grid-cols-2 gap-2 min-[420px]:grid-cols-4">
+                  {PALETTES.map((p) => (
+                    <button
+                      key={p.id}
+                      type="button"
+                      aria-pressed={palette === p.id}
+                      onClick={() => setPalette(p.id)}
                       className={[
-                        'relative mt-1.5 block h-14 w-full rounded-sm',
-                        entry.id === 'bergaris' ? 'pt-4' : 'pt-3',
+                        'flex min-h-tap items-center gap-2 rounded-lg border px-2.5 text-sm',
+                        palette === p.id ? 'border-accent font-medium text-accent' : 'border-border text-fg-muted',
                       ].join(' ')}
                     >
-                      <span className="mx-3 mt-1 block h-1.5 w-2/3 rounded-full bg-current opacity-40" />
-                      <span className="mx-3 mt-1.5 block h-1.5 w-1/2 rounded-full bg-current opacity-25" />
-                    </span>
-                    <span className="text-sm font-medium text-fg">{entry.label}</span>
-                    <span className="text-xs text-fg-muted">{entry.hint}</span>
-                  </button>
-                );
-              })}
-            </div>
-          </SettingsSection>
-          <SettingsSection
-            id="latar-kanvas"
-            keywords="latar kanvas background papan titik gabus denah vinyet polos kisi"
-            title="Latar kanvas"
-            description="Latar di belakang kartu saat papan memakai Urutan sendiri (kanvas). Hanya tampilan; posisi kartu dan coretan tidak berubah."
-          >
-            <div role="radiogroup" aria-label="Latar kanvas" className="grid grid-cols-2 gap-2 sm:grid-cols-3">
-              {CANVAS_BACKGROUNDS.map((entry) => {
-                const on = canvasBackgroundOf(settings.canvasBackground) === entry.id;
-                return (
-                  <button
-                    key={entry.id}
-                    type="button"
-                    role="radio"
-                    aria-checked={on}
-                    onClick={() => patch({ canvasBackground: entry.id })}
-                    className={[
-                      'flex min-h-tap flex-col items-start gap-2 rounded-xl border p-2.5 text-left',
-                      on ? 'border-accent bg-[var(--accent-soft)]' : 'border-border bg-surface',
-                    ].join(' ')}
-                  >
-                    {/* A small sample drawn with the board's own rules, so the picker cannot drift from it. */}
-                    <span
-                      aria-hidden="true"
-                      data-canvas-bg={entry.id}
-                      className="relative block h-14 w-full overflow-hidden rounded-md border border-border"
-                    >
-                      {entry.id === 'denah' ? <CanvasRooms rows={3} compact /> : null}
-                      <span className="absolute left-2 top-2 h-7 w-9 rounded bg-surface shadow-card" />
-                      <span className="absolute left-14 top-4 h-7 w-9 rounded bg-surface shadow-card" />
-                    </span>
-                    <span className="text-sm font-medium text-fg">{entry.label}</span>
-                    <span className="text-xs text-fg-muted">{entry.hint}</span>
-                  </button>
-                );
-              })}
-            </div>
-          </SettingsSection>
-          <SettingsSection
-            id="tata-letak-papan"
-            keywords="tata letak papan kartu ringkas papan kerja baris daftar ramai padat tampilan"
-            title="Tata letak papan"
-            description="Cara pasien ditampilkan di Aktif. Hanya berlaku di layar lebar dan tersimpan di perangkat ini; ponsel tetap memakai daftar biasa."
-          >
-            <div role="radiogroup" aria-label="Tata letak papan" className="grid grid-cols-1 gap-2 sm:grid-cols-3">
-              {BOARD_LAYOUTS.map((entry) => {
-                const on = boardLayout === entry.id;
-                return (
-                  <button
-                    key={entry.id}
-                    type="button"
-                    role="radio"
-                    aria-checked={on}
-                    onClick={() => setBoardLayout(entry.id)}
-                    className={[
-                      'flex min-h-tap flex-col items-start gap-2 rounded-xl border p-2.5 text-left',
-                      on ? 'border-accent bg-[var(--accent-soft)]' : 'border-border bg-surface',
-                    ].join(' ')}
-                  >
-                    <span aria-hidden="true" className="flex h-[4.5rem] w-full gap-1 overflow-hidden rounded-md border border-border bg-bg-subtle p-1.5">
-                      {entry.id === 'baris' ? (
-                        <span className="flex w-full flex-col justify-between">
-                          {[0, 1, 2, 3, 4].map((row) => (
-                            <span key={row} className="flex items-center gap-1">
-                              <span className="h-1.5 w-3 rounded-full bg-fg-faint" />
-                              <span className="h-1.5 w-1/3 rounded-full bg-border-strong" />
-                              <span className="h-1.5 flex-1 rounded-full bg-border" />
-                            </span>
-                          ))}
-                        </span>
-                      ) : (
-                        [0, 1, 2].map((column) => (
-                          <span key={column} className="flex flex-1 flex-col gap-1">
-                            {(entry.id === 'kartu' ? [0, 1] : [0]).map((card) => (
-                              <span key={card} className="block flex-1 rounded border border-border bg-surface p-0.5">
-                                <span className="block h-1 w-2/3 rounded-full bg-fg-faint" />
-                                <span className="mt-0.5 block h-1 w-full rounded-full bg-border-strong" />
-                              </span>
-                            ))}
-                          </span>
-                        ))
-                      )}
-                    </span>
-                    <span className="text-sm font-medium text-fg">{entry.label}</span>
-                    <span className="text-xs text-fg-muted">{entry.hint}</span>
-                  </button>
-                );
-              })}
-            </div>
-          </SettingsSection>
-          <SettingsSection
-            id="kepadatan"
-            keywords="kepadatan padat ramai jarak kompak longgar padding baris"
-            title="Kepadatan"
-            description="Jarak di dalam kartu pasien, baris daftar dan kepala halaman pasien. Tombol tetap 44 px; isi tidak berubah."
-          >
-            <div role="radiogroup" aria-label="Kepadatan" className="grid grid-cols-3 gap-2">
-              {DENSITIES.map((entry) => {
-                const on = densityOf(settings.density) === entry.id;
-                return (
-                  <button
-                    key={entry.id}
-                    type="button"
-                    role="radio"
-                    aria-checked={on}
-                    onClick={() => patch({ density: entry.id })}
-                    className={[
-                      'flex min-h-tap flex-col items-start gap-2 rounded-xl border p-2.5 text-left',
-                      on ? 'border-accent bg-[var(--accent-soft)]' : 'border-border bg-surface',
-                    ].join(' ')}
-                  >
-                    {/* Drawn with the app's own spacing variables, so the sample cannot drift from the board. */}
-                    <span aria-hidden="true" data-density={entry.id} className="block h-[4.5rem] w-full overflow-hidden rounded-md border border-border bg-bg-subtle p-d-card">
-                      <span className="block h-2 w-2/3 rounded-full bg-fg-faint" />
-                      <span className="mt-d-gap block h-1.5 w-full rounded-full bg-border-strong" />
-                      <span className="mt-d-gap block h-1.5 w-3/4 rounded-full bg-border-strong" />
-                      <span className="mt-d-flag block h-2 w-1/3 rounded-full bg-border-strong" />
-                    </span>
-                    <span className="text-sm font-medium text-fg">{entry.label}</span>
-                    <span className="text-xs text-fg-muted">{entry.hint}</span>
-                  </button>
-                );
-              })}
-            </div>
-          </SettingsSection>
-          <SettingsSection
-            id="ukuran-teks"
-            keywords="ukuran teks huruf font besar kecil catatan"
-            title="Ukuran teks"
-            description="Teks catatan SOAP, judul kartu pasien dan baris daftar. Label kecil (11 px) tetap."
-          >
-            <div role="radiogroup" aria-label="Ukuran teks" className="grid grid-cols-3 gap-2">
-              {TEXT_SIZES.map((entry) => {
-                const on = textSizeOf(settings.textSize) === entry.id;
-                return (
-                  <button
-                    key={entry.id}
-                    type="button"
-                    role="radio"
-                    aria-checked={on}
-                    onClick={() => patch({ textSize: entry.id })}
-                    className={[
-                      'flex min-h-tap flex-col items-start gap-2 rounded-xl border p-2.5 text-left',
-                      on ? 'border-accent bg-[var(--accent-soft)]' : 'border-border bg-surface',
-                    ].join(' ')}
-                  >
-                    <span aria-hidden="true" data-text-size={entry.id} className="flex h-[4.5rem] w-full items-center rounded-md border border-border bg-bg-subtle px-2 text-note text-fg">
-                      Aa 120/80
-                    </span>
-                    <span className="text-sm font-medium text-fg">{entry.label}</span>
-                    <span className="text-xs text-fg-muted">{entry.hint}</span>
-                  </button>
-                );
-              })}
-            </div>
-          </SettingsSection>
-          <SettingsSection
-            id="gaya-kartu"
-            keywords="gaya kartu pasien pastel netral garis tepi outline warna chip status"
-            title="Gaya kartu pasien"
-            description="Cara papan menampilkan warna checklist. Warna tetap berasal dari checklist; identitas, DPJP, Pemantauan dan H-1 / Pulang selalu terlihat."
-          >
-            <div role="radiogroup" aria-label="Gaya kartu pasien" className="grid grid-cols-3 gap-2">
-              {CARD_STYLES.map((entry) => {
-                const on = cardStyleOf(settings.cardStyle) === entry.id;
-                return (
-                  <button
-                    key={entry.id}
-                    type="button"
-                    role="radio"
-                    aria-checked={on}
-                    onClick={() => patch({ cardStyle: entry.id })}
-                    className={[
-                      'flex min-h-tap flex-col items-start gap-2 rounded-xl border p-2.5 text-left',
-                      on ? 'border-accent bg-[var(--accent-soft)]' : 'border-border bg-surface',
-                    ].join(' ')}
-                  >
-                    {/* Drawn with the board card's own rules (data-patient-card), so the sample cannot drift from it. */}
-                    <span aria-hidden="true" data-sample-style={entry.id} data-density="normal" data-text-size="normal" className="block w-full">
-                      <span
-                        data-patient-card
-                        data-color-token="step-6"
-                        className="block overflow-hidden rounded-xl border border-black/5 bg-token p-d-card text-token-fg dark:border-white/10"
-                      >
-                        <span className="card-band -mx-d-card -mt-d-card mb-d-flag block border-b border-[color-mix(in_srgb,var(--token-fg)_10%,transparent)] bg-black/[0.05] px-d-card py-d-band text-xs font-semibold dark:bg-white/[0.04]">
-                          Nama pasien
-                        </span>
-                        <span className="card-status inline-block text-[11px] font-semibold">5/8 · Cek lab</span>
+                      <span aria-hidden="true" className="flex shrink-0 overflow-hidden rounded-full border border-border">
+                        <span className="h-5 w-2.5" style={{ background: p.swatch[0] }} />
+                        <span className="h-5 w-2.5" style={{ background: p.swatch[1] }} />
                       </span>
-                    </span>
-                    <span className="text-sm font-medium text-fg">{entry.label}</span>
-                    <span className="text-xs text-fg-muted">{entry.hint}</span>
-                  </button>
-                );
-              })}
-            </div>
-          </SettingsSection>
+                      {p.name}
+                    </button>
+                  ))}
+                </div>
+                <p className="text-xs font-semibold text-fg-muted">Latar</p>
+                <div className="grid gap-2 sm:grid-cols-3">
+                  {SURFACES.map((option) => (
+                    <button
+                      key={option.id}
+                      type="button"
+                      aria-pressed={surface === option.id}
+                      onClick={() => setSurface(option.id)}
+                      className={[
+                        'min-h-tap rounded-lg border px-3 py-1.5 text-left text-sm',
+                        surface === option.id ? 'border-accent font-medium text-accent' : 'border-border text-fg-muted',
+                      ].join(' ')}
+                    >
+                      {option.name}
+                      <span className="block text-xs font-normal text-fg-faint">{option.note}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </SettingsSection>
+            <SettingsSection
+              id="warna-bagian"
+              keywords="tint header warna"
+              title="Warna bagian catatan"
+              value={settings.sectionTint ? 'Aktif' : 'Mati'}
+              description="Latar samar di belakang judul tiap bagian, untuk memindai posisi."
+            >
+              <Toggle
+                label="Beri warna pada judul bagian"
+                description="Identitas, S, O + penunjang, A, Terapi + Plan, dan TS masing-masing berbeda."
+                checked={settings.sectionTint}
+                onChange={(sectionTint) => patch({ sectionTint })}
+              />
+            </SettingsSection>
+          </SettingsSubgroup>
+          <SettingsSubgroup label="Teks &amp; jarak">
+            <SettingsSection
+              id="ukuran-teks"
+              keywords="ukuran teks huruf font besar kecil catatan"
+              title="Ukuran teks"
+              value={TEXT_SIZES.find((entry) => entry.id === textSizeOf(settings.textSize))?.label}
+              description="Teks catatan SOAP, judul kartu pasien dan baris daftar. Label kecil (11 px) tetap."
+            >
+              <div role="radiogroup" aria-label="Ukuran teks" className="grid grid-cols-3 gap-2">
+                {TEXT_SIZES.map((entry) => {
+                  const on = textSizeOf(settings.textSize) === entry.id;
+                  return (
+                    <button
+                      key={entry.id}
+                      type="button"
+                      role="radio"
+                      aria-checked={on}
+                      onClick={() => patch({ textSize: entry.id })}
+                      className={[
+                        'flex min-h-tap flex-col items-start gap-2 rounded-xl border p-2.5 text-left',
+                        on ? 'border-accent bg-[var(--accent-soft)]' : 'border-border bg-surface',
+                      ].join(' ')}
+                    >
+                      <span aria-hidden="true" data-text-size={entry.id} className="flex h-[4.5rem] w-full items-center rounded-md border border-border bg-bg-subtle px-2 text-note text-fg">
+                        Aa 120/80
+                      </span>
+                      <span className="text-sm font-medium text-fg">{entry.label}</span>
+                      <span className="text-xs text-fg-muted">{entry.hint}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            </SettingsSection>
+            <SettingsSection
+              id="kepadatan"
+              keywords="kepadatan padat ramai jarak kompak longgar padding baris"
+              title="Kepadatan"
+              value={DENSITIES.find((entry) => entry.id === densityOf(settings.density))?.label}
+              description="Jarak di dalam kartu pasien, baris daftar dan kepala halaman pasien. Tombol tetap 44 px; isi tidak berubah."
+            >
+              <div role="radiogroup" aria-label="Kepadatan" className="grid grid-cols-3 gap-2">
+                {DENSITIES.map((entry) => {
+                  const on = densityOf(settings.density) === entry.id;
+                  return (
+                    <button
+                      key={entry.id}
+                      type="button"
+                      role="radio"
+                      aria-checked={on}
+                      onClick={() => patch({ density: entry.id })}
+                      className={[
+                        'flex min-h-tap flex-col items-start gap-2 rounded-xl border p-2.5 text-left',
+                        on ? 'border-accent bg-[var(--accent-soft)]' : 'border-border bg-surface',
+                      ].join(' ')}
+                    >
+                      {/* Drawn with the app's own spacing variables, so the sample cannot drift from the board. */}
+                      <span aria-hidden="true" data-density={entry.id} className="block h-[4.5rem] w-full overflow-hidden rounded-md border border-border bg-bg-subtle p-d-card">
+                        <span className="block h-2 w-2/3 rounded-full bg-fg-faint" />
+                        <span className="mt-d-gap block h-1.5 w-full rounded-full bg-border-strong" />
+                        <span className="mt-d-gap block h-1.5 w-3/4 rounded-full bg-border-strong" />
+                        <span className="mt-d-flag block h-2 w-1/3 rounded-full bg-border-strong" />
+                      </span>
+                      <span className="text-sm font-medium text-fg">{entry.label}</span>
+                      <span className="text-xs text-fg-muted">{entry.hint}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            </SettingsSection>
+          </SettingsSubgroup>
+          <SettingsSubgroup label="Papan pasien">
+            <SettingsSection
+              id="gaya-kartu"
+              keywords="gaya kartu pasien pastel netral garis tepi outline warna chip status"
+              title="Gaya kartu pasien"
+              value={CARD_STYLES.find((entry) => entry.id === cardStyleOf(settings.cardStyle))?.label}
+              description="Cara papan menampilkan warna checklist. Warna tetap berasal dari checklist; identitas, DPJP, Pemantauan dan H-1 / Pulang selalu terlihat."
+            >
+              <div role="radiogroup" aria-label="Gaya kartu pasien" className="grid grid-cols-3 gap-2">
+                {CARD_STYLES.map((entry) => {
+                  const on = cardStyleOf(settings.cardStyle) === entry.id;
+                  return (
+                    <button
+                      key={entry.id}
+                      type="button"
+                      role="radio"
+                      aria-checked={on}
+                      onClick={() => patch({ cardStyle: entry.id })}
+                      className={[
+                        'flex min-h-tap flex-col items-start gap-2 rounded-xl border p-2.5 text-left',
+                        on ? 'border-accent bg-[var(--accent-soft)]' : 'border-border bg-surface',
+                      ].join(' ')}
+                    >
+                      {/* Drawn with the board card's own rules (data-patient-card), so the sample cannot drift from it. */}
+                      <span aria-hidden="true" data-sample-style={entry.id} data-density="normal" data-text-size="normal" className="block w-full">
+                        <span
+                          data-patient-card
+                          data-color-token="step-6"
+                          className="block overflow-hidden rounded-xl border border-black/5 bg-token p-d-card text-token-fg dark:border-white/10"
+                        >
+                          <span className="card-band -mx-d-card -mt-d-card mb-d-flag block border-b border-[color-mix(in_srgb,var(--token-fg)_10%,transparent)] bg-black/[0.05] px-d-card py-d-band text-xs font-semibold dark:bg-white/[0.04]">
+                            Nama pasien
+                          </span>
+                          <span className="card-status inline-block text-[11px] font-semibold">5/8 · Cek lab</span>
+                        </span>
+                      </span>
+                      <span className="text-sm font-medium text-fg">{entry.label}</span>
+                      <span className="text-xs text-fg-muted">{entry.hint}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            </SettingsSection>
+            <SettingsSection
+              id="tampilan-sticky"
+              keywords="sticky note catatan tempel post-it kertas paku bergaris gaya tampilan"
+              title="Tampilan sticky note"
+              value={STICKY_STYLES.find((entry) => entry.id === stickyStyleOf(settings.stickyStyle))?.label}
+              description="Gaya kertas untuk sticky note di papan. Hanya mengubah tampilan; isi dan warna catatan tidak berubah."
+            >
+              <div role="radiogroup" aria-label="Tampilan sticky note" className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+                {STICKY_STYLES.map((entry) => {
+                  const on = stickyStyleOf(settings.stickyStyle) === entry.id;
+                  return (
+                    <button
+                      key={entry.id}
+                      type="button"
+                      role="radio"
+                      aria-checked={on}
+                      onClick={() => patch({ stickyStyle: entry.id })}
+                      className={[
+                        'flex min-h-tap flex-col items-start gap-2 rounded-xl border p-2.5 text-left',
+                        on ? 'border-accent bg-[var(--accent-soft)]' : 'border-border bg-surface',
+                      ].join(' ')}
+                    >
+                      {/* A small sample drawn with the note's own rules, so the picker cannot drift from the board. */}
+                      <span
+                        aria-hidden="true"
+                        data-sticky={entry.id}
+                        style={
+                          entry.id === 'klasik'
+                            ? { backgroundColor: 'var(--card-step-3-bg)', color: 'var(--card-step-3-fg)' }
+                            : (stickyPaper('kuning', entry.id) as CSSProperties)
+                        }
+                        className={[
+                          'relative mt-1.5 block h-14 w-full rounded-sm',
+                          entry.id === 'bergaris' ? 'pt-4' : 'pt-3',
+                        ].join(' ')}
+                      >
+                        <span className="mx-3 mt-1 block h-1.5 w-2/3 rounded-full bg-current opacity-40" />
+                        <span className="mx-3 mt-1.5 block h-1.5 w-1/2 rounded-full bg-current opacity-25" />
+                      </span>
+                      <span className="text-sm font-medium text-fg">{entry.label}</span>
+                      <span className="text-xs text-fg-muted">{entry.hint}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            </SettingsSection>
+            <SettingsSection
+              id="latar-kanvas"
+              keywords="latar kanvas background papan titik gabus denah vinyet polos kisi"
+              title="Latar kanvas"
+              value={CANVAS_BACKGROUNDS.find((entry) => entry.id === canvasBackgroundOf(settings.canvasBackground))?.label}
+              description="Latar di belakang kartu saat papan memakai Urutan sendiri (kanvas). Hanya tampilan; posisi kartu dan coretan tidak berubah."
+            >
+              <div role="radiogroup" aria-label="Latar kanvas" className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+                {CANVAS_BACKGROUNDS.map((entry) => {
+                  const on = canvasBackgroundOf(settings.canvasBackground) === entry.id;
+                  return (
+                    <button
+                      key={entry.id}
+                      type="button"
+                      role="radio"
+                      aria-checked={on}
+                      onClick={() => patch({ canvasBackground: entry.id })}
+                      className={[
+                        'flex min-h-tap flex-col items-start gap-2 rounded-xl border p-2.5 text-left',
+                        on ? 'border-accent bg-[var(--accent-soft)]' : 'border-border bg-surface',
+                      ].join(' ')}
+                    >
+                      {/* A small sample drawn with the board's own rules, so the picker cannot drift from it. */}
+                      <span
+                        aria-hidden="true"
+                        data-canvas-bg={entry.id}
+                        className="relative block h-14 w-full overflow-hidden rounded-md border border-border"
+                      >
+                        {entry.id === 'denah' ? <CanvasRooms rows={3} compact /> : null}
+                        <span className="absolute left-2 top-2 h-7 w-9 rounded bg-surface shadow-card" />
+                        <span className="absolute left-14 top-4 h-7 w-9 rounded bg-surface shadow-card" />
+                      </span>
+                      <span className="text-sm font-medium text-fg">{entry.label}</span>
+                      <span className="text-xs text-fg-muted">{entry.hint}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            </SettingsSection>
+          </SettingsSubgroup>
         </SettingsGroup>
 
         <SettingsGroup id="settings-tampilan" label="Tampilan">

@@ -1,5 +1,12 @@
 # Plano — CHANGES
 
+## `2026-11-04.6` — One Tampilan menu, Catatan sticky back in Kartu Ringkas, Tema grouped
+
+- **Two doors for one question.** Root cause: 2026-11-04.5 put the layout in Pengaturan while the order stayed on the board, and the Normal/Ringkas button was a third control over the same cards, so nothing showed which one was in charge. Fix: `BoardViewMenu` on the board holds Tata letak and Urutan. The order dropdown, the Normal/Ringkas button (desktop) and the Pengaturan section are gone. `dense` now applies below `lg` only, so a desktop that stored `ringkas` shows full cards in Standar; use Kartu Ringkas there. Phone controls are unchanged. Choosing a layout from Denah moves to Urutan visite, because Denah draws no cards. `BOARD_ORDERS` also feeds the phone select, replacing a second copy of the labels.
+- **Missing sticky.** Root cause: 2026-11-04.5 deliberately filtered the `catatan` sticky out of both new layouts, reasoning that the card repeats it. Avi uses it. `placedNotes` now filters only in `baris`, where it would push rows off the screen. A sticky hidden during a tidy keeps its old position, so if it lands on cards, press Rapikan.
+- **Tema.** Eight flat sections are now `SettingsSubgroup`s by what they change: Warna (mode, aplikasi, bagian catatan), Teks & jarak (ukuran, kepadatan), Papan pasien (gaya kartu, sticky, latar kanvas). `SettingsSection` gained `value`, shown on the collapsed row (closes the "Settings rows hide values" gap for Tema only). Warna aplikasi labels its two choices. Mode warna no longer opens by default. Search still hides an emptied subgroup through `.settings-group`.
+- **Checked (emulator, made-up patients, 1426 x 746).** Menu: all three layouts and all orders, Denah exit, Urutan sendiri absent in Papan Kerja with the stored order kept, Escape closes. Stickies: `catatan` and `lab` on Kartu Ringkas in canvas and list, only `lab` in Papan Kerja, add entry present. Tema: subgroups, values on rows, search. **Not checked:** a ward device, real data, phone width for Tema, light theme and Senja for the new menu, screen-reader behaviour of the radio groups (no arrow-key roving; Tab moves between choices).
+
 ## `2026-11-04.5` — Kartu Ringkas and Papan Kerja, switchable in Settings
 
 - **Why.** Avi: the board is crowded at the current census, and asked for both layouts switchable in Settings, per device, with Catatan typed in place and one diagnosis line plus a count. Measured on the emulator first (18 made-up patients with long notes, 1426 x 746): Standar shows 6 whole patients.
