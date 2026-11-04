@@ -2,6 +2,7 @@ import { DEFAULT_REMINDER_KINDS } from '@/domain/reminders';
 import { useSlowWait } from '@/lib/loadTiming';
 import { privateText } from '@/domain/identity';
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { CanvasBackdrop } from '@/components/board/CanvasBackdrop';
 import { PhoneCanvas, type PhoneSticky } from '@/components/board/PhoneCanvas';
 import { readingOrder, sanitizePhoneGrid, type PhoneGrid } from '@/domain/board/phoneGrid';
 import { mergeScope, sanitizePhoneShelves, type PhoneShelf } from '@/domain/board/phoneShelf';
@@ -1214,6 +1215,7 @@ export default function BoardPage(): JSX.Element {
               worse one, because the gaps arranged on a desktop survive as dead
               space you scroll through.
             */
+            <CanvasBackdrop>
             <CanvasBoard
               enabled
               // Each view has its own shelves (2026-10-17).
@@ -1270,7 +1272,9 @@ export default function BoardPage(): JSX.Element {
               }}
               renderItem={renderCanvasItem}
             />
+            </CanvasBackdrop>
           ) : cards.length > 0 && order === 'custom' && phoneView === 'canvas' ? (
+            <CanvasBackdrop>
             <PhoneCanvas
               ids={phoneIds}
               cards={phoneCards}
@@ -1283,6 +1287,7 @@ export default function BoardPage(): JSX.Element {
               onLongPress={setQuickPatientId}
               onOpenSticky={setPhoneStickyId}
             />
+            </CanvasBackdrop>
           ) : cards.length > 0 ? (
             <>
             {/*

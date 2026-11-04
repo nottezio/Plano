@@ -5,6 +5,10 @@ Catatan teknis lengkap (akar masalah, perbaikan) ada di CHANGES.md.
 
 Entri teratas harus versi yang sedang dirilis; tes gagal bila belum ditulis.
 
+## `2026-11-04.1`
+- **Latar kanvas kini bisa dipilih di Pengaturan → Tema → Latar kanvas.** Enam pilihan untuk papan kanvas (Urutan sendiri): **Titik** (kisi titik halus, bawaan baru), **Polos** (seperti sebelumnya), **Papan tulis** (papan dengan kisi tipis), **Gabus**, **Vinyet lembut**, dan **Denah ruangan** (kotak kamar samar, tanpa tulisan). Hanya latar yang berubah: kartu, sticky note, posisi, dan coretan pena tidak berubah, dan coretan tetap tampil di atas latar.
+- Berlaku di kanvas desktop maupun kanvas di HP.
+
 ## `2026-11-03.8`
 - **Blok "NURSE STATION" di Denah kini terbaca di mode Senja.** Sebelumnya tulisan putih di atas kuning terang (hampir tak terlihat); kini latar kuning samar dengan tulisan biasa, di Denah List Maker dan Denah papan.
 - **Tombol hapus (Ya, hapus / Hapus catatan / Hapus revisi / konfirmasi hapus) kini terbaca di mode Gelap dan Senja.** Tulisannya putih di atas merah muda pucat (kontras sekitar 2 : 1); kini tulisan gelap di tema gelap, putih tetap di tema terang.

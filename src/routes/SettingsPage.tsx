@@ -29,6 +29,8 @@ import { useLock } from '@/store/useLock';
 import { updateSettings } from '@/data/repositories/settings.repo';
 import type { SoapLayout, WatermarkMode } from '@/domain/types';
 import { STICKY_STYLES, stickyPaper, stickyStyleOf } from '@/domain/boardNotes';
+import { CANVAS_BACKGROUNDS, canvasBackgroundOf } from '@/domain/boardBackground';
+import { CanvasRooms } from '@/components/board/CanvasBackdrop';
 import {
   SEED_GREETINGS,
   SEED_NOTE_TEMPLATES,
@@ -525,6 +527,44 @@ export default function SettingsPage(): JSX.Element {
                     >
                       <span className="mx-3 mt-1 block h-1.5 w-2/3 rounded-full bg-current opacity-40" />
                       <span className="mx-3 mt-1.5 block h-1.5 w-1/2 rounded-full bg-current opacity-25" />
+                    </span>
+                    <span className="text-sm font-medium text-fg">{entry.label}</span>
+                    <span className="text-xs text-fg-muted">{entry.hint}</span>
+                  </button>
+                );
+              })}
+            </div>
+          </SettingsSection>
+          <SettingsSection
+            id="latar-kanvas"
+            keywords="latar kanvas background papan titik gabus denah vinyet polos kisi"
+            title="Latar kanvas"
+            description="Latar di belakang kartu saat papan memakai Urutan sendiri (kanvas). Hanya tampilan; posisi kartu dan coretan tidak berubah."
+          >
+            <div role="radiogroup" aria-label="Latar kanvas" className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+              {CANVAS_BACKGROUNDS.map((entry) => {
+                const on = canvasBackgroundOf(settings.canvasBackground) === entry.id;
+                return (
+                  <button
+                    key={entry.id}
+                    type="button"
+                    role="radio"
+                    aria-checked={on}
+                    onClick={() => patch({ canvasBackground: entry.id })}
+                    className={[
+                      'flex min-h-tap flex-col items-start gap-2 rounded-xl border p-2.5 text-left',
+                      on ? 'border-accent bg-[var(--accent-soft)]' : 'border-border bg-surface',
+                    ].join(' ')}
+                  >
+                    {/* A small sample drawn with the board's own rules, so the picker cannot drift from it. */}
+                    <span
+                      aria-hidden="true"
+                      data-canvas-bg={entry.id}
+                      className="relative block h-14 w-full overflow-hidden rounded-md border border-border"
+                    >
+                      {entry.id === 'denah' ? <CanvasRooms rows={3} compact /> : null}
+                      <span className="absolute left-2 top-2 h-7 w-9 rounded bg-surface shadow-card" />
+                      <span className="absolute left-14 top-4 h-7 w-9 rounded bg-surface shadow-card" />
                     </span>
                     <span className="text-sm font-medium text-fg">{entry.label}</span>
                     <span className="text-xs text-fg-muted">{entry.hint}</span>

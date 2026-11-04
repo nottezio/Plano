@@ -153,6 +153,11 @@
   --paper-neutral-bg: #fbf8ef;
   --paper-neutral-fg: #1d1b16;
   --paper-rule: rgb(60 100 180 / 0.28);
+  /* Canvas board backgrounds (3 Nov 2026, domain/boardBackground). Decorative only: no text sits on them. */
+  --board-chalk-bg: #f7f8f4;
+  --board-cork-bg: #cfae82;
+  --board-cork-dark: rgb(90 55 20 / 0.3);
+  --board-cork-light: rgb(255 240 210 / 0.45);
   --pin-kuning: #e8b923;
   --pin-oranye: #ee7a2b;
   --pin-merah: #e0568f;
@@ -277,6 +282,10 @@
   --paper-neutral-bg: #d9d4c6;
   --paper-neutral-fg: #1d1b16;
   --paper-rule: rgb(70 100 160 / 0.34);
+  --board-chalk-bg: #141f1d;
+  --board-cork-bg: #3a2e24;
+  --board-cork-dark: rgb(0 0 0 / 0.28);
+  --board-cork-light: rgb(255 220 170 / 0.12);
   --card-step-9-fg: #f2f6fa;
   --card-step-10-fg: #f2f6fa;
   --card-step-11-fg: #f2f6fa;
@@ -400,6 +409,10 @@
   --paper-neutral-bg: #d9d4c6;
   --paper-neutral-fg: #1d1b16;
   --paper-rule: rgb(70 100 160 / 0.34);
+  --board-chalk-bg: #1f2d2b;
+  --board-cork-bg: #4a3a2d;
+  --board-cork-dark: rgb(0 0 0 / 0.28);
+  --board-cork-light: rgb(255 220 170 / 0.12);
   --card-step-9-fg: #f9f6f1;
   --card-step-10-fg: #f9f6f1;
   --card-step-11-fg: #f9f6f1;

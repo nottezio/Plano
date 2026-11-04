@@ -1,5 +1,6 @@
 import type { Timestamp } from 'firebase/firestore';
 import type { StickyStyle } from './boardNotes';
+import type { CanvasBackground } from './boardBackground';
 
 /**
  * SPEC 6.2 — the domain model.
@@ -266,6 +267,12 @@ export interface UserSettings {
    * profiles, which reads as the default (`postit`); see `stickyStyleOf`.
    */
   stickyStyle?: StickyStyle;
+  /**
+   * The canvas board's background (3 Nov 2026): `titik` (default), `polos`,
+   * `papan`, `gabus`, `vinyet` or `denah`. Absent on older profiles, which
+   * reads as the default; see `canvasBackgroundOf`.
+   */
+  canvasBackground?: CanvasBackground;
   copyPresets: CopyPreset[];
   privacy: PrivacySettings;
   theme: 'system' | 'light' | 'dark' | 'senja';
