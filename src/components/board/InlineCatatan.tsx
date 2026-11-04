@@ -12,7 +12,7 @@ const LINES_WHILE_TYPING = 12;
  * The same field and the same hook as the summary sticky and the patient page,
  * so all three are one note and merge the same way. The text is never changed
  * for display: at rest the box shows a few lines and says how many more there
- * are; on focus it opens up, and past twelve lines it scrolls.
+ * are; the ✎ button (or Tab) opens it up, and past twelve lines it scrolls.
  */
 export function InlineCatatan({
   patient,
@@ -51,6 +51,7 @@ export function InlineCatatan({
 
   return (
     <div className="min-w-0">
+      <div className="flex items-start gap-1">
       <textarea
         ref={ref}
         value={sync.value}
@@ -65,12 +66,32 @@ export function InlineCatatan({
         placeholder="Tulis catatan…"
         aria-label={`Catatan pasien ${name}`}
         className={[
-          'block w-full resize-none rounded bg-transparent text-xs leading-snug [overflow-wrap:anywhere] placeholder:text-[color-mix(in_srgb,currentColor_75%,transparent)]',
-          focused ? 'overflow-y-auto bg-black/10 dark:bg-white/10' : 'overflow-hidden',
-          readOnly ? 'pointer-events-none' : 'hover:bg-black/5 dark:hover:bg-white/5',
+          'block min-w-0 flex-1 resize-none rounded bg-transparent text-xs leading-snug [overflow-wrap:anywhere] placeholder:text-[color-mix(in_srgb,currentColor_75%,transparent)]',
+          // At rest a click passes through to the card's link: the note covers too much of the card to catch it.
+          focused ? 'overflow-y-auto bg-black/10 dark:bg-white/10' : 'pointer-events-none overflow-hidden',
         ].join(' ')}
         style={{ color: 'inherit' }}
       />
+      {readOnly ? null : (
+        <button
+          type="button"
+          aria-label={`Ubah catatan ${name}`}
+          title="Ubah catatan"
+          // Keeps the caret in the note when it is already open.
+          onPointerDown={(event) => event.preventDefault()}
+          onClick={(event) => {
+            event.preventDefault();
+            event.stopPropagation();
+            const node = ref.current;
+            node?.focus();
+            node?.setSelectionRange(node.value.length, node.value.length);
+          }}
+          className="-my-1 flex min-h-tap w-6 shrink-0 items-center justify-center rounded text-sm leading-none hover:bg-black/15 dark:hover:bg-white/15 [@media(pointer:fine)]:my-0 [@media(pointer:fine)]:min-h-5"
+        >
+          <span aria-hidden="true">✎</span>
+        </button>
+      )}
+      </div>
       {hiddenLines > 0 ? <p className="text-[11px] font-semibold opacity-80">+{hiddenLines} baris</p> : null}
     </div>
   );

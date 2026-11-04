@@ -84,7 +84,7 @@ export function StatusButton({
         event.stopPropagation();
         onOpen(card.patient.id);
       }}
-      className="-my-1 block min-h-tap w-full rounded text-left text-xs hover:bg-black/5 dark:hover:bg-white/5 [@media(pointer:fine)]:my-0 [@media(pointer:fine)]:min-h-0"
+      className="-my-1 block min-h-tap w-fit max-w-full rounded text-left text-xs hover:bg-black/5 dark:hover:bg-white/5 [@media(pointer:fine)]:my-0 [@media(pointer:fine)]:min-h-0"
     >
       {soap === 'today' ? null : (
         <span className="block font-semibold">
@@ -109,42 +109,39 @@ export function StatusButton({
   );
 }
 
-/** The first diagnosis and how many there are; the eye opens the whole list. */
+/**
+ * The first diagnosis, whole, and how many there are. It wraps: a diagnosis cut
+ * mid-phrase tells you nothing. Dx opens the note at its diagnosis section.
+ */
 export function DiagnosisLine({
   card,
-  onPreview,
+  onDiagnosis,
 }: {
   card: BoardCard;
-  onPreview?: ((patientId: string) => void) | undefined;
+  onDiagnosis?: ((patientId: string) => void) | undefined;
 }): JSX.Element {
   const { first, count } = diagnosisSummary(card.preview);
   const added = card.dxChanges?.added.length ?? 0;
   if (!first) return <p className="text-xs italic opacity-80">Belum ada catatan hari ini.</p>;
   return (
-    <p className="flex min-w-0 items-center gap-1.5 text-xs">
+    <p className="min-w-0 break-words text-xs">
       {/* The label comes first, so a line of diagnosis cannot be read as a line of Catatan. */}
-      {count > 1 ? (
-        <button
-          type="button"
-          disabled={!onPreview}
-          aria-label={`Lihat ${count} diagnosis ${card.name}`}
-          title="Lihat semua diagnosis"
-          onClick={(event) => {
-            event.preventDefault();
-            event.stopPropagation();
-            onPreview?.(card.patient.id);
-          }}
-          className="-my-2 flex min-h-tap shrink-0 items-center rounded font-semibold tabular-nums underline decoration-dotted underline-offset-2 [@media(pointer:fine)]:my-0 [@media(pointer:fine)]:min-h-0"
-        >
-          Dx ({count})
-        </button>
-      ) : (
-        <span className="shrink-0 font-semibold">Dx</span>
-      )}
-      <span className="min-w-0 truncate opacity-80" title={first}>
-        {first}
-      </span>
-      {added > 0 ? <span className="shrink-0 font-semibold">+{added} baru</span> : null}
+      <button
+        type="button"
+        disabled={!onDiagnosis}
+        aria-label={`Lihat ${count} diagnosis ${card.name}`}
+        title="Lihat diagnosis di catatan"
+        onClick={(event) => {
+          event.preventDefault();
+          event.stopPropagation();
+          onDiagnosis?.(card.patient.id);
+        }}
+        className="-my-2 mr-1.5 inline-flex min-h-tap items-center rounded align-baseline font-semibold tabular-nums underline decoration-dotted underline-offset-2 [@media(pointer:fine)]:my-0 [@media(pointer:fine)]:min-h-0"
+      >
+        Dx{count > 1 ? ` (${count})` : ''}
+      </button>
+      <span className="opacity-80">{first}</span>
+      {added > 0 ? <span className="ml-1.5 whitespace-nowrap font-semibold">+{added} baru</span> : null}
     </p>
   );
 }
@@ -211,9 +208,11 @@ function PatientCompactCardView({
   checked = false,
   onToggleSelected,
   onPreview,
+  onDiagnosis,
   onVisite,
 }: {
   card: BoardCard;
+  onDiagnosis?: ((patientId: string) => void) | undefined;
   onChecklist: (patientId: string) => void;
   selectable?: boolean;
   checked?: boolean;
@@ -235,7 +234,7 @@ function PatientCompactCardView({
       }}
       className={[
         `group/board relative ${STRETCHED_LINK}`,
-        'rounded-xl border border-black/5 bg-token p-d-card text-token-fg shadow-card transition-shadow hover:shadow-pop dark:border-white/10',
+        'rounded-xl border border-black/5 bg-token p-d-card text-token-fg shadow-card transition-shadow hover:border-[color-mix(in_srgb,var(--token-fg)_45%,transparent)] hover:shadow-pop dark:border-white/10',
         card.pemantauan ? 'ring-2 ring-[var(--danger)]' : '',
         selectable && checked ? 'outline outline-2 outline-offset-1 outline-accent' : '',
       ].join(' ')}
@@ -279,7 +278,7 @@ function PatientCompactCardView({
       </div>
       <div className="mt-d-gap space-y-d-gap">
         <StatusButton card={card} onOpen={onChecklist} disabled={selectable} />
-        <DiagnosisLine card={card} onPreview={onPreview} />
+        <DiagnosisLine card={card} onDiagnosis={onDiagnosis} />
         {/* A well in the card's own colour: Catatan is what gets acted on, and a second hue would collide with the checklist colour. */}
         <div className="rounded-md bg-black/15 px-1.5 py-1 font-medium dark:bg-black/25">
           <InlineCatatan patient={patient} name={card.name} readOnly={selectable} />

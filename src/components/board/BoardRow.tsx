@@ -40,8 +40,10 @@ function BoardRowView({
   checked = false,
   onToggleSelected,
   onPreview,
+  onDiagnosis,
   onVisite,
 }: {
+  onDiagnosis?: ((patientId: string) => void) | undefined;
   card: BoardCard;
   /** First patient of a new room: drawn with a stronger line above it. */
   roomStart?: boolean;
@@ -105,7 +107,7 @@ function BoardRowView({
         <StatusButton card={card} onOpen={onChecklist} disabled={selectable} />
       </div>
       <div className="hidden min-w-0 xl:block">
-        <DiagnosisLine card={card} onPreview={onPreview} />
+        <DiagnosisLine card={card} onDiagnosis={onDiagnosis} />
       </div>
       <InlineCatatan patient={patient} name={card.name} readOnly={selectable} linesAtRest={2} />
       <FlagRow card={card} dischargeStrip={dischargeStripOf(card)} className="!mt-0" />

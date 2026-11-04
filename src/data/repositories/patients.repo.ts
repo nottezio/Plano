@@ -172,13 +172,22 @@ const PREVIEW_LIMIT = 1600;
  * card, because "nothing written yet" is better said by showing the beginning
  * of what was.
  */
+function findAssessment(sections: ReturnType<typeof parseSections>): ReturnType<typeof parseSections>[number] | undefined {
+  return sections.find((section) => section.sectionId === 'a' || namesDiagnosis(section.label));
+}
+
+/** Where the note's diagnosis section starts, or null if it has none. Same rule as the card's preview. */
+export function assessmentStart(body: string): number | null {
+  return findAssessment(parseSections(body, DEFAULT_SECTION_ALIASES))?.start ?? null;
+}
+
 export function buildPreview(body: string, aliases?: readonly SectionAlias[]): string {
   const resolved = aliases ?? DEFAULT_SECTION_ALIASES;
   const sections = parseSections(body, resolved);
 
   // The heading must NAME the diagnosis ("Plan Diagnostik" does not): the
   // same rule Ringkas uses (`namesDiagnosis`).
-  const assessment = sections.find((section) => section.sectionId === 'a' || namesDiagnosis(section.label));
+  const assessment = findAssessment(sections);
 
   /*
     A consult reply's assessment is its cardiology conclusion, a heading whose

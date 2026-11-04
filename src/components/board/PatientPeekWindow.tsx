@@ -1,5 +1,6 @@
 import { cardTitle } from '@/domain/board';
-import { useEffect, useId, useMemo, useState } from 'react';
+import { useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { assessmentStart } from '@/data/repositories/patients.repo';
 import { itemsForPatientDay } from '@/domain/checklistDay';
 import { useClipboardNote } from '@/store/useClipboardNote';
 import { Link } from 'react-router-dom';
@@ -41,7 +42,10 @@ export function PatientPeekWindow({
   z,
   onFocus,
   onClose,
+  focusDiagnosis = 0,
 }: {
+  /** Raised each time the Dx button asks for this patient's diagnosis section. */
+  focusDiagnosis?: number;
   patient: Patient;
   today: ClinicalDate;
   /** Position in the open stack, used to cascade the first placement. */
@@ -234,6 +238,25 @@ export function PatientPeekWindow({
           ? toWhatsApp(body, settings.whatsappBullet)
           : body;
 
+  const diagnosisAt = focusDiagnosis > 0 && view === 'asli' ? assessmentStart(shown) : null;
+  const scrollerRef = useRef<HTMLDivElement>(null);
+  const diagnosisRef = useRef<HTMLSpanElement>(null);
+  const scrolledFor = useRef(0);
+  useLayoutEffect(() => {
+    if (focusDiagnosis === scrolledFor.current || loading || body === null) return;
+    // The offset is into the note as written, so the other views cannot be scrolled by it.
+    if (view !== 'asli') {
+      setView('asli');
+      return;
+    }
+    scrolledFor.current = focusDiagnosis;
+    const scroller = scrollerRef.current;
+    const target = diagnosisRef.current;
+    if (scroller && target) {
+      scroller.scrollTop += target.getBoundingClientRect().top - scroller.getBoundingClientRect().top - 12;
+    }
+  }, [focusDiagnosis, loading, body, view]);
+
   // The board's privacy rule, on the window that opens from the board.
   const initialsOnly = settings.privacy.boardShowInitialsOnly;
   const title = cardTitle(patient, initialsOnly, false);
@@ -315,7 +338,7 @@ export function PatientPeekWindow({
         </div>
       </div>
 
-      <div className="min-h-0 flex-1 overflow-auto px-4 py-3">
+      <div ref={scrollerRef} className="min-h-0 flex-1 overflow-auto px-4 py-3">
         {loading ? (
           <p className="py-6 text-center text-xs text-fg-muted">Memuat…</p>
         ) : body && body.trim().length > 0 ? (
@@ -335,7 +358,14 @@ export function PatientPeekWindow({
             }
             className="whitespace-pre-wrap font-mono text-xs leading-relaxed text-fg"
           >
-            {shown}
+            {diagnosisAt === null ? (
+              shown
+            ) : (
+              <>
+                {shown.slice(0, diagnosisAt)}
+                <span ref={diagnosisRef}>{shown.slice(diagnosisAt)}</span>
+              </>
+            )}
           </pre>
         ) : (
           <p className="py-6 text-center text-xs text-fg-muted">

@@ -5,6 +5,11 @@ Catatan teknis lengkap (akar masalah, perbaikan) ada di CHANGES.md.
 
 Entri teratas harus versi yang sedang dirilis; tes gagal bila belum ditulis.
 
+## `2026-11-05.1`
+- **Diagnosis di Kartu Ringkas dan Papan Kerja tidak lagi terpotong.** Diagnosis pertama kini tampil utuh dan turun ke baris berikutnya bila panjang.
+- **Tombol Dx membuka preview tepat di bagian diagnosis.** Bila preview pasien itu sudah terbuka, jendelanya maju dan digulir ke sana.
+- **Kartu kini benar-benar mudah diklik.** Kotak Catatan dan baris status tadinya menangkap klik di sebagian besar kartu. Sekarang klik di mana saja membuka pasien, termasuk di atas teks Catatan. **Untuk mengetik Catatan, klik tombol ✎ di kotak Catatan** (atau pindah ke sana dengan Tab). Sticky Catatan pasien tetap bisa langsung diketik.
+
 ## `2026-11-04.7`
 - **Catatan dan diagnosis kini mudah dibedakan di Kartu Ringkas.** Catatan ada di kotak sendiri dengan teks lebih tebal, sedangkan baris diagnosis lebih samar dan diawali label "Dx".
 - **Seluruh kartu kini bisa diklik untuk membuka pasien,** tidak hanya namanya. Berlaku di Kartu Ringkas dan Papan Kerja. Tombol, RM, status dan kotak Catatan tetap berfungsi seperti biasa.

@@ -1,5 +1,11 @@
 # Plano — CHANGES
 
+## `2026-11-05.1` — Compact layouts: whole diagnosis, Dx jumps to it, card really clickable
+
+- **Cut-off diagnosis.** Root cause: `DiagnosisLine` truncated to one line to save height, and a phrase cut in the middle says nothing. It now wraps in normal flow. Cards and rows with a long first diagnosis are taller, so fewer may fit a screen.
+- **Dx.** Opens the preview and scrolls to the diagnosis section. `assessmentStart` shares `findAssessment` with `buildPreview`, so the jump and the card agree on what the diagnosis is. `BoardPage` counts asks per patient (`diagnosisAsks`), so a second press on an open window scrolls again. The `pre` is split at the offset only for the ref: the text and what is selected do not change. The offset applies to the note as written, so Dx returns the window to Asli. A note with no diagnosis section opens at the top. Dx is now a button with a single diagnosis too.
+- **Clicking the card.** Root cause: the stretched link of 2026-11-04.7 worked, but what sat above it covered most of the card: a full-width status button and a full-width textarea. Fix: status is `w-fit`; the textarea is `pointer-events-none` until focused, with a ✎ button (or Tab) to edit. This reverses click-to-type from 2026-11-04.5 on these two layouts, a trade the owner may want to weigh; the summary sticky still types directly. Hovering a compact card shows a stronger edge.
+
 ## `2026-11-04.7` — Compact card: Catatan readable apart from diagnosis, whole card opens; preview no longer flashes
 
 - **Preview flash.** Root cause: `PatientPeekWindow` initialised `pos` to (0, 0) and set the real position in a `useEffect`, which runs after paint, so one frame showed in the top-left corner. An old bug, on every board layout. Fix: a lazy `useState` initialiser. The window is keyed by patient, so `index` at mount is the index at open; the `openIndex` and `dragged` refs had no other job and are gone.

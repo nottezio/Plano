@@ -266,6 +266,16 @@ export default function BoardPage(): JSX.Element {
     );
   }, []);
 
+  /** How many times Dx asked each window for its diagnosis section; a new count scrolls it there again. */
+  const [diagnosisAsks, setDiagnosisAsks] = useState<Readonly<Record<string, number>>>({});
+  const openDiagnosis = useCallback(
+    (id: string): void => {
+      openPreview(id);
+      setDiagnosisAsks((current) => ({ ...current, [id]: (current[id] ?? 0) + 1 }));
+    },
+    [openPreview],
+  );
+
   /** Cards folded to name and DPJP, remembered per device. */
   const [cardsFolded, toggleFolded] = usePersistentIdSet('visite.board.cardsFolded');
   const [selecting, setSelecting] = useState(false);
@@ -538,6 +548,7 @@ export default function BoardPage(): JSX.Element {
       checked={selected.has(card.patient.id)}
       onToggleSelected={toggleSelected}
       onPreview={selecting ? undefined : openPreview}
+      onDiagnosis={selecting ? undefined : openDiagnosis}
       onVisite={selecting ? undefined : setVisiteId}
     />
   );
@@ -1337,6 +1348,7 @@ export default function BoardPage(): JSX.Element {
                         checked={selected.has(card.patient.id)}
                         onToggleSelected={toggleSelected}
                         onPreview={selecting ? undefined : openPreview}
+                        onDiagnosis={selecting ? undefined : openDiagnosis}
                         onVisite={selecting ? undefined : setVisiteId}
                       />
                     ))}
@@ -1499,6 +1511,7 @@ export default function BoardPage(): JSX.Element {
             today={today}
             index={index}
             z={40 + index}
+            focusDiagnosis={diagnosisAsks[id] ?? 0}
             onFocus={() =>
               setPreviewIds((current) =>
                 current.at(-1) === id ? current : [...current.filter((x) => x !== id), id],

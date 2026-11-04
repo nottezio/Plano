@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest';
 import { EMPTY_FILTERS, diagnosisSummary, availableLabels, availableWards, boardTickStates, buildCard, cardTitle, filterPatients, groupLabel, hasActiveFilters, initials, kjsRole, matchesQuery, orderPatients, previewLines, sortPatients } from './board';
 import { DEFAULT_CHECKLIST } from './defaults';
 import { buildSearchBlobFor, makePatient } from './testFactories';
-import { buildPreview } from '@/data/repositories/patients.repo';
+import { assessmentStart, buildPreview } from '@/data/repositories/patients.repo';
 
 const ITEMS = DEFAULT_CHECKLIST.map((item) => ({ ...item }));
 const TODAY = '2026-08-06';
@@ -168,6 +168,16 @@ describe('previewLines', () => {
 
   it('handles an empty preview', () => {
     expect(previewLines('')).toEqual([]);
+  });
+});
+
+describe('assessmentStart', () => {
+  it('points at the diagnosis heading, or null when the note has none', () => {
+    const body = 'S: sesak\nO: TD 120/80\n\nDiagnosa Utama :\n- CHF\n\nPlan:\n- Monitoring';
+    const at = assessmentStart(body);
+    expect(at).not.toBeNull();
+    expect(body.slice(at as number).startsWith('Diagnosa Utama')).toBe(true);
+    expect(assessmentStart('sesak sejak 3 hari')).toBeNull();
   });
 });
 
