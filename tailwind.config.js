@@ -28,6 +28,20 @@ export default {
       spacing: {
         'safe-top': 'env(safe-area-inset-top)',
         'safe-bottom': 'env(safe-area-inset-bottom)',
+        // Kepadatan (Pengaturan → Tema): the values live in styles/index.css under [data-density].
+        'd-card': 'var(--d-card)',
+        'd-card-s': 'var(--d-card-s)',
+        'd-band': 'var(--d-band)',
+        'd-gap': 'var(--d-gap)',
+        'd-flag': 'var(--d-flag)',
+        'd-row': 'var(--d-row)',
+      },
+      // Ukuran teks (Pengaturan → Tema): the documented ramp times one factor, --tf.
+      // `note` is the SOAP text, `ctitle` card titles and list rows, `cbody` the 12 px card lines.
+      fontSize: {
+        note: ['calc(0.9375rem * var(--tf))', { lineHeight: 'calc(1.75rem * var(--tf))' }],
+        ctitle: ['calc(0.875rem * var(--tf))', { lineHeight: '1.375' }],
+        cbody: ['calc(0.75rem * var(--tf))', { lineHeight: '1.375' }],
       },
       boxShadow: {
         card: 'var(--shadow-card)',

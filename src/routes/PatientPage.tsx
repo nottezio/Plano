@@ -1751,7 +1751,7 @@ export default function PatientPage(): JSX.Element {
           day they belong to.
         */}
         <header id="patient-sticky-header" className="sticky top-0 z-30 border-b border-border bg-surface pt-[env(safe-area-inset-top)] lg:pt-0">
-        <div className="flex items-center gap-2 px-4 py-1.5">
+        <div className="flex items-center gap-2 px-4 py-d-row">
           {/* Browser back exists, but on an installed PWA there is no chrome to
               show it, and on desktop the note fills the window. */}
           <Button size="icon" variant="quiet" onClick={goUp} aria-label="Kembali" className="-ml-2 shrink-0">

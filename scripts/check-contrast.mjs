@@ -165,5 +165,41 @@ for (const selector of [':root', '.dark', ".dark[data-theme='senja']"]) {
     }
   }
 }
+// Gaya kartu pasien (4 Nov 2026, Pengaturan → Tema). `netral` and `garis` paint the card on the
+// surface instead of the pastel, so the card's text (and its 70% secondary text) must clear 4.5:1
+// on the surface, on the netral identity band (`bg-subtle`) and on the garis band (the token
+// accent at 12% over the surface). The garis edge is a 2 px non-text mark: 3:1 against the surface.
+{
+  const tokens = [...Array.from({ length: 12 }, (_, i) => `step-${i + 1}`), 'done', 'neutral'];
+  for (const selector of [':root', '.dark', ".dark[data-theme='senja']"]) {
+    const map = vars(blockOf(selector));
+    const fg = map.get('fg');
+    const surface = map.get('surface');
+    const grounds = [['surface', surface], ['netral band', map.get('bg-subtle')]];
+    for (const [label, ground] of grounds) {
+      for (const [what, text] of [['fg', fg], ['fg 70%', mix(fg, ground, 0.7)]]) {
+        const r = ratio(text, ground);
+        const ok = r >= 4.5;
+        if (!ok) failures++;
+        console.log(`${ok ? 'PASS' : 'FAIL'} ${selector.padEnd(6)} ${('card ' + label + ' ' + what).padEnd(26)} ${r.toFixed(2)}:1`);
+      }
+    }
+    for (const token of tokens) {
+      const accent = map.get(`card-${token}-accent`);
+      if (!accent) continue;
+      const band = mix(accent, surface, 0.12);
+      for (const [what, text] of [['fg', fg], ['fg 70%', mix(fg, band, 0.7)]]) {
+        const r = ratio(text, band);
+        const ok = r >= 4.5;
+        if (!ok) failures++;
+        console.log(`${ok ? 'PASS' : 'FAIL'} ${selector.padEnd(6)} ${('garis band ' + token + ' ' + what).padEnd(26)} ${r.toFixed(2)}:1`);
+      }
+      const edge = ratio(accent, surface);
+      const edgeOk = edge >= 3;
+      if (!edgeOk) failures++;
+      console.log(`${edgeOk ? 'PASS' : 'FAIL'} ${selector.padEnd(6)} ${('garis edge ' + token).padEnd(26)} ${edge.toFixed(2)}:1`);
+    }
+  }
+}
 console.log(failures === 0 ? '\nAll card colours meet 4.5:1.' : `\n${failures} failing pair(s).`);
 process.exit(failures === 0 ? 0 : 1);

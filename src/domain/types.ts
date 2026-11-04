@@ -1,6 +1,7 @@
 import type { Timestamp } from 'firebase/firestore';
 import type { StickyStyle } from './boardNotes';
 import type { CanvasBackground } from './boardBackground';
+import type { CardStyle, Density, TextSize } from './appearance';
 
 /**
  * SPEC 6.2 — the domain model.
@@ -273,6 +274,13 @@ export interface UserSettings {
    * reads as the default; see `canvasBackgroundOf`.
    */
   canvasBackground?: CanvasBackground;
+  /**
+   * Optional looks (4 Nov 2026), all in Pengaturan → Tema; absent reads as the
+   * default (`normal`, `normal`, `pastel`). See `appearance.ts`.
+   */
+  density?: Density;
+  textSize?: TextSize;
+  cardStyle?: CardStyle;
   copyPresets: CopyPreset[];
   privacy: PrivacySettings;
   theme: 'system' | 'light' | 'dark' | 'senja';

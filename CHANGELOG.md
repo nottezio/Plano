@@ -5,6 +5,13 @@ Catatan teknis lengkap (akar masalah, perbaikan) ada di CHANGES.md.
 
 Entri teratas harus versi yang sedang dirilis; tes gagal bila belum ditulis.
 
+## `2026-11-04.2`
+- **Tiga pilihan tampilan baru di Pengaturan → Tema, semuanya opsional (bawaan tidak berubah).**
+- **Kepadatan** (Kompak / Normal / Longgar): jarak di dalam kartu pasien, baris daftar List Maker dan kepala halaman pasien. Tombol tetap 44 px, jadi kartu tidak mengecil sebanyak jarak antar-teksnya; ikon kartu tetap 28 × 44 px.
+- **Ukuran teks** (Kecil / Normal / Besar): teks catatan SOAP (14 / 15 / 17 px), judul kartu pasien, baris diagnosis di kartu dan baris daftar List Maker. Label kecil 11 px tidak ikut berubah. Lapisan warna bagian dan penanda baris di catatan ikut membesar atau mengecil dengan teksnya, jadi tidak bergeser.
+- **Gaya kartu pasien** (Pastel / Netral / Garis tepi): Pastel adalah tampilan sekarang. **Netral**: kartu putih, warna checklist hanya di chip status ("4/8 · Lapor DPJP") dan di segmen progres. **Garis tepi**: kartu putih dengan garis tepi 2 px berwarna checklist dan pita identitas yang samar berwarna. Nama, bed, RM, DPJP, strip Pemantauan, dan strip H-1 / Pulang tetap terlihat di ketiganya. Tidak ada garis warna di satu sisi saja.
+- Pilihan ini tersimpan di profil, jadi ikut ke perangkat lain.
+
 ## `2026-11-04.1`
 - **Latar kanvas kini bisa dipilih di Pengaturan → Tema → Latar kanvas.** Enam pilihan untuk papan kanvas (Urutan sendiri): **Titik** (kisi titik halus, bawaan baru), **Polos** (seperti sebelumnya), **Papan tulis** (papan dengan kisi tipis), **Gabus**, **Vinyet lembut**, dan **Denah ruangan** (kotak kamar samar, tanpa tulisan). Hanya latar yang berubah: kartu, sticky note, posisi, dan coretan pena tidak berubah, dan coretan tetap tampil di atas latar.
 - Berlaku di kanvas desktop maupun kanvas di HP.

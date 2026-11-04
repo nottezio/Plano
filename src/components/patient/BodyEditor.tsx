@@ -62,7 +62,7 @@ export interface BodyEditorHandle {
 }
 
 export const METRICS =
-  'whitespace-pre-wrap break-words px-4 py-3 text-[15px] leading-7 font-sans tracking-normal';
+  'whitespace-pre-wrap break-words px-4 py-3 text-note font-sans tracking-normal';
 
 export function BodyEditor({
   value,

@@ -30,6 +30,7 @@ import { updateSettings } from '@/data/repositories/settings.repo';
 import type { SoapLayout, WatermarkMode } from '@/domain/types';
 import { STICKY_STYLES, stickyPaper, stickyStyleOf } from '@/domain/boardNotes';
 import { CANVAS_BACKGROUNDS, canvasBackgroundOf } from '@/domain/boardBackground';
+import { CARD_STYLES, DENSITIES, TEXT_SIZES, cardStyleOf, densityOf, textSizeOf } from '@/domain/appearance';
 import { CanvasRooms } from '@/components/board/CanvasBackdrop';
 import {
   SEED_GREETINGS,
@@ -565,6 +566,113 @@ export default function SettingsPage(): JSX.Element {
                       {entry.id === 'denah' ? <CanvasRooms rows={3} compact /> : null}
                       <span className="absolute left-2 top-2 h-7 w-9 rounded bg-surface shadow-card" />
                       <span className="absolute left-14 top-4 h-7 w-9 rounded bg-surface shadow-card" />
+                    </span>
+                    <span className="text-sm font-medium text-fg">{entry.label}</span>
+                    <span className="text-xs text-fg-muted">{entry.hint}</span>
+                  </button>
+                );
+              })}
+            </div>
+          </SettingsSection>
+          <SettingsSection
+            id="kepadatan"
+            keywords="kepadatan padat ramai jarak kompak longgar padding baris"
+            title="Kepadatan"
+            description="Jarak di dalam kartu pasien, baris daftar dan kepala halaman pasien. Tombol tetap 44 px; isi tidak berubah."
+          >
+            <div role="radiogroup" aria-label="Kepadatan" className="grid grid-cols-3 gap-2">
+              {DENSITIES.map((entry) => {
+                const on = densityOf(settings.density) === entry.id;
+                return (
+                  <button
+                    key={entry.id}
+                    type="button"
+                    role="radio"
+                    aria-checked={on}
+                    onClick={() => patch({ density: entry.id })}
+                    className={[
+                      'flex min-h-tap flex-col items-start gap-2 rounded-xl border p-2.5 text-left',
+                      on ? 'border-accent bg-[var(--accent-soft)]' : 'border-border bg-surface',
+                    ].join(' ')}
+                  >
+                    {/* Drawn with the app's own spacing variables, so the sample cannot drift from the board. */}
+                    <span aria-hidden="true" data-density={entry.id} className="block h-[4.5rem] w-full overflow-hidden rounded-md border border-border bg-bg-subtle p-d-card">
+                      <span className="block h-2 w-2/3 rounded-full bg-fg-faint" />
+                      <span className="mt-d-gap block h-1.5 w-full rounded-full bg-border-strong" />
+                      <span className="mt-d-gap block h-1.5 w-3/4 rounded-full bg-border-strong" />
+                      <span className="mt-d-flag block h-2 w-1/3 rounded-full bg-border-strong" />
+                    </span>
+                    <span className="text-sm font-medium text-fg">{entry.label}</span>
+                    <span className="text-xs text-fg-muted">{entry.hint}</span>
+                  </button>
+                );
+              })}
+            </div>
+          </SettingsSection>
+          <SettingsSection
+            id="ukuran-teks"
+            keywords="ukuran teks huruf font besar kecil catatan"
+            title="Ukuran teks"
+            description="Teks catatan SOAP, judul kartu pasien dan baris daftar. Label kecil (11 px) tetap."
+          >
+            <div role="radiogroup" aria-label="Ukuran teks" className="grid grid-cols-3 gap-2">
+              {TEXT_SIZES.map((entry) => {
+                const on = textSizeOf(settings.textSize) === entry.id;
+                return (
+                  <button
+                    key={entry.id}
+                    type="button"
+                    role="radio"
+                    aria-checked={on}
+                    onClick={() => patch({ textSize: entry.id })}
+                    className={[
+                      'flex min-h-tap flex-col items-start gap-2 rounded-xl border p-2.5 text-left',
+                      on ? 'border-accent bg-[var(--accent-soft)]' : 'border-border bg-surface',
+                    ].join(' ')}
+                  >
+                    <span aria-hidden="true" data-text-size={entry.id} className="flex h-[4.5rem] w-full items-center rounded-md border border-border bg-bg-subtle px-2 text-note text-fg">
+                      Aa 120/80
+                    </span>
+                    <span className="text-sm font-medium text-fg">{entry.label}</span>
+                    <span className="text-xs text-fg-muted">{entry.hint}</span>
+                  </button>
+                );
+              })}
+            </div>
+          </SettingsSection>
+          <SettingsSection
+            id="gaya-kartu"
+            keywords="gaya kartu pasien pastel netral garis tepi outline warna chip status"
+            title="Gaya kartu pasien"
+            description="Cara papan menampilkan warna checklist. Warna tetap berasal dari checklist; identitas, DPJP, Pemantauan dan H-1 / Pulang selalu terlihat."
+          >
+            <div role="radiogroup" aria-label="Gaya kartu pasien" className="grid grid-cols-3 gap-2">
+              {CARD_STYLES.map((entry) => {
+                const on = cardStyleOf(settings.cardStyle) === entry.id;
+                return (
+                  <button
+                    key={entry.id}
+                    type="button"
+                    role="radio"
+                    aria-checked={on}
+                    onClick={() => patch({ cardStyle: entry.id })}
+                    className={[
+                      'flex min-h-tap flex-col items-start gap-2 rounded-xl border p-2.5 text-left',
+                      on ? 'border-accent bg-[var(--accent-soft)]' : 'border-border bg-surface',
+                    ].join(' ')}
+                  >
+                    {/* Drawn with the board card's own rules (data-patient-card), so the sample cannot drift from it. */}
+                    <span aria-hidden="true" data-card-style={entry.id} className="block w-full">
+                      <span
+                        data-patient-card
+                        data-color-token="step-6"
+                        className="block overflow-hidden rounded-xl border border-black/5 bg-token p-d-card text-token-fg dark:border-white/10"
+                      >
+                        <span className="card-band -mx-d-card -mt-d-card mb-d-flag block border-b border-[color-mix(in_srgb,var(--token-fg)_10%,transparent)] bg-black/[0.05] px-d-card py-d-band text-xs font-semibold dark:bg-white/[0.04]">
+                          Nama pasien
+                        </span>
+                        <span className="card-status inline-block text-[11px] font-semibold">5/8 · Cek lab</span>
+                      </span>
                     </span>
                     <span className="text-sm font-medium text-fg">{entry.label}</span>
                     <span className="text-xs text-fg-muted">{entry.hint}</span>

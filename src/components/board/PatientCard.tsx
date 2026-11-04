@@ -287,6 +287,7 @@ function PatientCardView({
           }
           data-patient-id={patient.id}
           data-color-token={card.colorToken}
+          data-patient-card
           className={[
             'flex min-w-0 items-center gap-2 rounded-lg border border-black/5 bg-token px-3 py-1 text-token-fg shadow-card dark:border-white/10',
             dragging ? 'opacity-40' : '',
@@ -311,7 +312,7 @@ function PatientCardView({
           {/* Wraps, never truncates — the rule the full card's name keeps,
               for the same reason: a name cut short is a patient you cannot
               tell apart from the next. */}
-          <span className="min-w-0 flex-1 break-words text-sm leading-snug">
+          <span className="min-w-0 flex-1 break-words text-ctitle">
             <span className="font-semibold">{card.title}</span>
             {/* Initials, as on the full card's badge. The full name is on the
                 title attribute for the one time it is needed. */}
@@ -322,7 +323,7 @@ function PatientCardView({
             </span>
           ) : null}
           {card.progress.total > 0 ? (
-            <span className="shrink-0 text-[11px] font-semibold tabular-nums opacity-75" aria-label={`${card.progress.doneCount} dari ${card.progress.total} selesai`}>
+            <span className="card-status shrink-0 text-[11px] font-semibold tabular-nums opacity-75" aria-label={`${card.progress.doneCount} dari ${card.progress.total} selesai`}>
               {card.progress.complete ? '✓' : `${card.progress.doneCount}/${card.progress.total}`}
             </span>
           ) : null}
@@ -400,6 +401,7 @@ function PatientCardView({
       // every card's rectangle on each move.
       data-patient-id={patient.id}
       data-color-token={card.colorToken}
+      data-patient-card
       onPointerDown={startPress}
       onPointerUp={cancelPress}
       onPointerLeave={cancelPress}
@@ -412,7 +414,7 @@ function PatientCardView({
         // `p-2.5`, not `p-3`: part of the compact pass — with twelve cards on a
         // board every pixel of padding is paid twelve times.
         'block min-w-0 border border-black/5 bg-token text-token-fg shadow-card transition-shadow hover:shadow-pop dark:border-white/10',
-        dense ? 'p-2' : 'p-2.5',
+        dense ? 'p-d-card-s' : 'p-d-card',
         // `min-h-0` is what lets the middle actually shrink: a flex child
         // defaults to `min-height: auto`, which refuses to go below its content
         // and would push the progress strip out of the bottom of the card
@@ -501,7 +503,7 @@ function PatientCardView({
           className={[
             // Bleed matches the card's own padding (p-2 dense, p-2.5), so the
             // strip meets the border instead of overshooting it.
-            dense ? '-mx-2 -mt-2 px-2' : '-mx-2.5 -mt-2.5 px-2.5',
+            dense ? '-mx-d-card-s -mt-d-card-s px-d-card-s' : '-mx-d-card -mt-d-card px-d-card',
             'rounded-t-xl py-1 text-[11px] font-semibold uppercase tracking-wide',
             stripShown ? '' : 'mb-2',
           ].join(' ')}
@@ -524,9 +526,9 @@ function PatientCardView({
       {stripShown ? (
         <p
           className={[
-            dense ? '-mx-2 px-2' : '-mx-2.5 px-2.5',
+            dense ? '-mx-d-card-s px-d-card-s' : '-mx-d-card px-d-card',
             'mb-2 flex items-center gap-1.5 py-1 text-[11px] font-bold uppercase tracking-wide',
-            card.pemantauan ? '' : dense ? '-mt-2 rounded-t-xl' : '-mt-2.5 rounded-t-xl',
+            card.pemantauan ? '' : dense ? '-mt-d-card-s rounded-t-xl' : '-mt-d-card rounded-t-xl',
           ].join(' ')}
           style={{
             backgroundColor: STAGE_TOKEN[dischargeStrip ?? 'h1'],
@@ -589,7 +591,7 @@ function PatientCardView({
         recorded on the discharge wash. This is the same colour at a different
         weight, which is a separation the eye reads without having to be told.
       */}
-      <div className="-mx-2.5 -mt-2.5 mb-1.5 border-b border-[color-mix(in_srgb,var(--token-fg)_10%,transparent)] bg-black/[0.05] px-2.5 py-1.5 dark:bg-white/[0.04]">
+      <div className="card-band -mx-d-card -mt-d-card mb-d-flag border-b border-[color-mix(in_srgb,var(--token-fg)_10%,transparent)] bg-black/[0.05] px-d-card py-d-band dark:bg-white/[0.04]">
       {/*
         TWO COLUMNS: everything that wraps on the left, the eye fixed on the
         right. It is not decoration — it is what stops the blank row.
@@ -676,7 +678,7 @@ function PatientCardView({
           the name can only lose width down to a point, and past that the
           badges wrap instead.
         */}
-        <h3 className="max-w-full break-words text-sm font-semibold leading-snug">
+        <h3 className="max-w-full break-words text-ctitle font-semibold">
           {card.name}
         </h3>
 
@@ -727,7 +729,7 @@ function PatientCardView({
         {card.dpjp ? (
           <span
             title={`DPJP: ${card.dpjp.name}`}
-            className="rounded-full bg-black/10 px-1.5 text-xs font-semibold dark:bg-white/15"
+            className="card-dpjp rounded-full bg-black/10 px-1.5 text-xs font-semibold dark:bg-white/15"
           >
             {card.dpjp.initials}
           </span>
@@ -880,7 +882,7 @@ function PatientCardView({
       {/* `leading-snug`: a list of diagnoses reads fine at 1.375, and
           `relaxed` spent a fifth of the body's height between the lines. */}
       {lines.length > 0 && dense ? (
-        <p className="mt-0.5 line-clamp-1 text-xs leading-snug opacity-90">
+        <p className="mt-0.5 line-clamp-1 text-cbody opacity-90">
           {lines.map((line) => line.replace(/^\s*(?:[-*•]|\d+[.)])\s+/, '')).join(' · ')}
         </p>
       ) : lines.length > 0 ? (
@@ -888,15 +890,15 @@ function PatientCardView({
           {/* Phone (2026-10-08): the diagnoses run on one line each, clamped
               to two, so a long problem list cannot make one card a screen
               tall. The whole list is one tap away, on the patient page. */}
-          <p className="mt-1 line-clamp-2 text-xs leading-snug opacity-90 sm:hidden">
+          <p className="mt-d-gap line-clamp-2 text-cbody opacity-90 sm:hidden">
             {lines.map((line) => line.replace(/^\s*(?:[-*•]|\d+[.)])\s+/, '')).join(' · ')}
           </p>
-          <p className="mt-1 hidden whitespace-pre-line text-xs leading-snug opacity-90 sm:block">
+          <p className="mt-d-gap hidden whitespace-pre-line text-cbody opacity-90 sm:block">
             {lines.join('\n')}
           </p>
         </>
       ) : (
-        <p className="mt-1 text-xs italic opacity-60">Belum ada catatan hari ini.</p>
+        <p className="mt-d-gap text-cbody italic opacity-60">Belum ada catatan hari ini.</p>
       )}
 
       {patient.labels.length > 0 && !dense ? (
@@ -924,7 +926,7 @@ function PatientCardView({
         of the diagnosis list; this one is labelled "Chief:" and never clipped.
       */}
       {patient.pinned || card.chief ? (
-        <p className={`mt-1 flex min-w-0 items-center gap-1.5 text-xs ${fitHeight ? 'shrink-0' : ''}`}>
+        <p className={`mt-d-gap flex min-w-0 items-center gap-1.5 text-xs ${fitHeight ? 'shrink-0' : ''}`}>
           {patient.pinned ? (
             <span aria-label="Pinned" className="shrink-0 opacity-70">
               ★
@@ -1189,7 +1191,7 @@ function ClampedBody({
             // A fade rather than a clean edge: a straight cut through a line of
             // text reads as a rendering fault, and the first response to a
             // rendering fault is to distrust the rest of the card.
-            backgroundImage: 'linear-gradient(to bottom, transparent, var(--token-bg))',
+            backgroundImage: 'linear-gradient(to bottom, transparent, var(--card-face, var(--token-bg)))',
           }}
         />
       ) : null}
@@ -1325,7 +1327,7 @@ function StatusRail({ card }: { card: BoardCard }): JSX.Element {
   const soap = soapState(card);
   const next = shortStepLabel(progress.pendingLabel);
   return (
-    <div className="mb-1 flex items-center gap-2 text-xs">
+    <div className="mb-d-gap flex items-center gap-2 text-xs">
       {/*
         Only the exception is written (2026-10-31). "● SOAP hari ini" was the
         same words on every card once the round was under way, and it took the
@@ -1364,7 +1366,7 @@ function StatusRail({ card }: { card: BoardCard }): JSX.Element {
           <span className="min-w-6 flex-1">
             <ProgressStrip progress={progress} />
           </span>
-          <span className="min-w-0 max-w-[60%] truncate tabular-nums opacity-80" title={progress.pendingLabel ?? 'Semua selesai'}>
+          <span className="card-status min-w-0 max-w-[60%] truncate tabular-nums opacity-80" title={progress.pendingLabel ?? 'Semua selesai'}>
             {progress.complete ? '✓ selesai' : `${progress.doneCount}/${progress.total}${next ? ` · ${next}` : ''}`}
           </span>
         </>
@@ -1491,7 +1493,7 @@ function FlagRow({
   const shown = flags.filter((flag) => flag.always || budget-- > 0);
   const hidden = flags.length - shown.length;
   return (
-    <div className={`mt-1.5 flex flex-wrap items-center gap-1 ${className}`}>
+    <div className={`mt-d-flag flex flex-wrap items-center gap-1 ${className}`}>
       {shown.map((flag) => flag.node)}
       {hidden > 0 ? (
         <span

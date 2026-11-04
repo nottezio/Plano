@@ -20,6 +20,7 @@ import { useViewerOnly } from '@/components/auth/viewerOnly';
 import { TopBar } from './TopBar';
 import { UpdateBanner } from './UpdateBanner';
 import { MoveBanner } from './MoveBanner';
+import { applyAppearance } from '@/domain/appearance';
 import { ClipboardPill } from './ClipboardPill';
 
 /**
@@ -114,6 +115,13 @@ export function AppShell({
   // `nonAsciiPreview` for why the default sits on this side.
   useSanitizedCopy(!useUI((state) => state.nonAsciiPreview));
   const initialsOnly = useSession((state) => state.settings().privacy.boardShowInitialsOnly);
+  // Kepadatan, Ukuran teks and Gaya kartu (Pengaturan → Tema): three attributes on <html>, once for the whole app.
+  const density = useSession((state) => state.settings().density);
+  const textSize = useSession((state) => state.settings().textSize);
+  const cardStyle = useSession((state) => state.settings().cardStyle);
+  useEffect(() => {
+    applyAppearance({ density, textSize, cardStyle });
+  }, [density, textSize, cardStyle]);
 
   /**
    * The browser tab / window title.

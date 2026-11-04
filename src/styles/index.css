@@ -471,3 +471,89 @@
     grid-column: 3;
   }
 }
+
+/*
+  Optional looks (4 Nov 2026): Kepadatan, Ukuran teks and Gaya kartu pasien, chosen in
+  Pengaturan → Tema. `applyAppearance` (domain/appearance.ts) puts the three choices on <html>;
+  the defaults below are the app as it was, so an absent attribute changes nothing.
+
+  Only spacing, the documented type ramp and the card face move. 44 px tap targets, the
+  Pemantauan strip, the H-1 / Pulang strips, the DPJP chip and every stored text and colour
+  token are untouched.
+*/
+:root {
+  --d-card: 0.625rem;
+  --d-card-s: calc(var(--d-card) - 0.125rem);
+  --d-band: 0.375rem;
+  --d-gap: 0.25rem;
+  --d-flag: 0.375rem;
+  --d-row: 0.375rem;
+  --tf: 1;
+}
+[data-density='kompak'] {
+  --d-card: 0.375rem;
+  --d-band: 0.1875rem;
+  --d-gap: 0.125rem;
+  --d-flag: 0.1875rem;
+  --d-row: 0.1875rem;
+}
+[data-density='longgar'] {
+  --d-card: 0.875rem;
+  --d-band: 0.5625rem;
+  --d-gap: 0.4375rem;
+  --d-flag: 0.5625rem;
+  --d-row: 0.625rem;
+}
+/* The 11 px captions stay 11 px: a factor below 1 would take them under the legible floor. */
+[data-text-size='kecil'] {
+  --tf: 0.92;
+}
+[data-text-size='besar'] {
+  --tf: 1.15;
+}
+
+/*
+  Gaya kartu. The checklist colour is a token (data-color-token) and stays one; only where it is
+  painted changes.
+    netral  white card; the colour is the status chip (and the progress segments, as ever).
+    garis   white card with a 2 px edge in the token's accent and an accent-tinted identity band.
+  No side stripe and no band: the colour sits on the whole edge or in a chip, never on one side.
+  `--card-face` is what the clipped-body fade fades into.
+*/
+[data-patient-card] {
+  --card-face: var(--token-bg);
+}
+[data-card-style='netral'] [data-patient-card],
+[data-card-style='garis'] [data-patient-card] {
+  --card-face: var(--surface);
+  background-color: var(--surface);
+  color: var(--fg);
+  border-color: var(--border);
+}
+[data-card-style='netral'] [data-patient-card] .card-band {
+  background-color: var(--bg-subtle);
+}
+[data-card-style='netral'] [data-patient-card] .card-status {
+  border-radius: 9999px;
+  background-color: var(--token-bg);
+  color: var(--token-fg);
+  box-shadow: inset 0 0 0 1px var(--token-accent);
+  padding: 0 0.5rem;
+  opacity: 1;
+}
+[data-card-style='garis'] [data-patient-card] {
+  /* Draws the second pixel inside the border, so the edge is 2 px with no layout shift. */
+  outline: 1px solid var(--token-accent);
+  outline-offset: -1px;
+  border-color: var(--token-accent);
+}
+[data-card-style='garis'] [data-patient-card] .card-band {
+  background-color: color-mix(in srgb, var(--token-accent) 12%, var(--surface));
+}
+/* The DPJP chip sits inside the location line's 70% opacity; a tinted fill under it dropped Senja to 3.4:1.
+   On the white styles it is an outlined chip instead (still a chip, same size). */
+[data-card-style='netral'] [data-patient-card] .card-dpjp,
+[data-card-style='garis'] [data-patient-card] .card-dpjp {
+  background-color: transparent;
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, currentColor 45%, transparent);
+}

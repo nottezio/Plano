@@ -185,7 +185,7 @@ export function ListPanel({
             const isOpen = openKey === patient.key;
             return (
               <li key={patient.key}>
-                <div className="flex items-start gap-2 py-1.5 pl-3 pr-2">
+                <div className="flex items-start gap-2 py-d-row pl-3 pr-2">
                   <button type="button" onClick={() => onOpen(patient)} className="min-w-0 flex-1 text-left">
                     <PatientRowText patient={patient} />
                   </button>
@@ -349,7 +349,7 @@ function PatientRowText({ patient }: { patient: FloorPatient }): JSX.Element {
     patient.gantiChief ? `ganti chief → dr. ${patient.gantiChief.replace(/^dr\.?\s*/i, '')}` : '',
   ].filter(Boolean);
   return (
-    <span className="block text-xs leading-snug">
+    <span className="block text-cbody">
       <span className="mr-1 inline-block rounded bg-bg-subtle px-1.5 font-semibold tabular-nums">
         {patient.room || '—'}
         {patient.bed ? `/${patient.bed}` : ''}
