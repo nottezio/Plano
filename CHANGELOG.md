@@ -5,6 +5,19 @@ Catatan teknis lengkap (akar masalah, perbaikan) ada di CHANGES.md.
 
 Entri teratas harus versi yang sedang dirilis; tes gagal bila belum ditulis.
 
+## `2026-11-04.5`
+- **Tata letak papan baru, bisa dipilih di Pengaturan → Tema → Tata letak papan.** Hanya untuk layar lebar dan tersimpan per perangkat; ponsel tetap memakai daftar biasa. Pilihan **Standar** adalah tampilan yang sekarang.
+- **Kartu Ringkas:** kartu pendek berisi bed (`421/4`), nama, DPJP, RM, status, satu baris diagnosis dengan jumlahnya ("Dx (18)"), dan Catatan. Kanvas, stiker dan pengaturan warna kartu tetap bisa dipakai. Pada uji dengan 18 pasien contoh dan catatan panjang, 12 pasien terlihat utuh dalam satu layar laptop, dari sebelumnya 6.
+- **Papan Kerja:** satu baris per pasien, urut menurut rute visite, sehingga tiap kolom (bed, status, Catatan, pengingat) bisa dibaca lurus ke bawah. Klik nama untuk membuka pasien, klik ikon mata untuk preview.
+- **Catatan bisa langsung diketik di kedua tata letak.** Isinya sama dengan Catatan di halaman pasien dan sticky Catatan pasien. Saat diklik, kotaknya melebar; teks tidak pernah diubah. Karena Catatan sudah ada di tiap pasien, sticky Catatan pasien disembunyikan di kedua tata letak dan kembali saat memilih Standar.
+- **Status kini tombol.** Di kedua tata letak, klik status untuk membuka checklist. Pasien yang selesai hanya menampilkan "✓ Selesai", supaya yang masih perlu dikerjakan lebih mudah terlihat.
+- Saat tata letak diganti, kanvas dirapikan sekali mengikuti tinggi kartu yang baru. Urutan tetap, dan tombol Undo tersedia.
+
+## `2026-11-04.4`
+- **Pencarian kini menemukan kamar dan bed.** Mengetik `407`, `kamar 407`, `407/5` atau `bed 5` sebelumnya bisa menjawab "tidak ada pasien" padahal pasiennya ada, karena nomor kamar tidak ikut dicari. Kini ditemukan, termasuk untuk pasien lama.
+- **Sticky Catatan pasien tidak lagi menutupi papan.** Dengan catatan panjang, sticky ini bisa setinggi beberapa layar sehingga di Urutan visite, Per DPJP, Status dan Terbaru kartu pasien baru terlihat setelah digulir jauh. Kini tingginya dibatasi dan isinya digulir di dalam sticky. Di kanvas, tinggi yang Anda atur sendiri tetap dipakai.
+- **Rapikan kini mengikuti tinggi kartu yang sebenarnya.** Kartu panjang tidak lagi menumpuk kartu di bawahnya (yang bisa menutupi chip pengingat), dan kartu pendek tidak lagi menyisakan celah besar, termasuk saat Ringkas. Urutan kartu tetap, dan Undo tetap ada.
+
 ## `2026-11-04.3`
 - **Warna pita identitas di kartu pasien tidak lagi keluar dari sudut kartu yang membulat.** Pada kartu tanpa strip Pemantauan atau H-1, pita nama (latar sedikit lebih gelap) bersudut siku dan menonjol di dua sudut atas; kini ikut membulat. Berlaku di papan dan kanvas, di semua gaya kartu.
 - **Contoh di Pengaturan → Tema tidak lagi ikut berubah saat pilihan diklik.** Contoh Gaya kartu pasien, Kepadatan "Normal", Ukuran teks "Normal" dan ukuran contoh kartu mengikuti pilihan yang aktif, sehingga ketiga pilihan tampak sama. Kini tiap contoh tetap menampilkan gayanya sendiri.

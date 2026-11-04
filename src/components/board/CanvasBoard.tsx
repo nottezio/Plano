@@ -32,6 +32,8 @@ import {
 import { applyRemoteShelves, shelfKey } from '@/domain/board/shelfSync';
 import { scrollParentOf } from '@/lib/scrollParent';
 
+const PACKED_KEY = 'visite.board.canvasPackedFor';
+
 /**
  * The free canvas: drag a card anywhere, set its width, cap its height.
  *
@@ -64,7 +66,10 @@ export function CanvasBoard({
   seed,
   onStoredChange,
   scope = 'mine',
+  packFor,
 }: {
+  /** The card layout in use; the board is tidied once when it changes. */
+  packFor?: string | undefined;
   /** The board view (Pasien saya / Titipan): each has its own shelves (2026-10-17). */
   scope?: string | undefined;
   /**
@@ -602,6 +607,49 @@ export function CanvasBoard({
     return Math.max(lowest, shelves) + 160;
   }, [ids, layouts, stored, shelfIds, shelfHeights]);
 
+  /**
+   * Rapikan. Reads each card's height as drawn at the press: `tidy` otherwise
+   * assumes ROW_STEP, which left gaps under short cards and ran long ones over
+   * the row below. A card not on screen (filtered out) keeps the assumption.
+   */
+  const tidyNow = (): void => {
+    const heights: Record<string, number> = {};
+    surfaceRef.current?.querySelectorAll<HTMLElement>('[data-canvas-id]').forEach((node) => {
+      if (node.dataset.canvasId) heights[node.dataset.canvasId] = node.offsetHeight;
+    });
+    setUndo(layouts);
+    applyLayouts(tidy(placementIds, layouts, columns, { ...heights, ...shelfHeights }));
+  };
+
+  /*
+    A different card layout means different card heights, so the board is
+    tidied once after a switch: otherwise Kartu Ringkas keeps the gaps of the
+    tall cards, and going back runs tall cards over each other. Only on that
+    deliberate switch, keeping the reading order, with Undo on offer.
+  */
+  const tidyLatest = useRef(tidyNow);
+  tidyLatest.current = tidyNow;
+  useEffect(() => {
+    if (!enabled || !packFor) return undefined;
+    let packed: string | null = null;
+    try {
+      packed = localStorage.getItem(PACKED_KEY);
+    } catch {
+      return undefined;
+    }
+    if ((packed ?? 'standar') === packFor) return undefined;
+    // After the cards have drawn at their new height.
+    const timer = window.setTimeout(() => {
+      tidyLatest.current();
+      try {
+        localStorage.setItem(PACKED_KEY, packFor);
+      } catch {
+        // Per-device convenience only.
+      }
+    }, 300);
+    return () => window.clearTimeout(timer);
+  }, [enabled, packFor]);
+
   if (!enabled) return <div ref={surfaceRef} className="hidden" />;
 
   return (
@@ -623,10 +671,7 @@ export function CanvasBoard({
               ) : null}
               <button
                 type="button"
-                onClick={() => {
-                  setUndo(layouts);
-                  applyLayouts(tidy(placementIds, layouts, columns, shelfHeights));
-                }}
+                onClick={tidyNow}
                 title="Rapatkan kartu, tanpa mengubah urutan yang sudah diatur"
                 className="min-h-tap shrink-0 rounded-lg px-2.5 text-xs font-medium text-fg-muted hover:bg-bg-subtle [@media(pointer:fine)]:min-h-9"
               >

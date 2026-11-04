@@ -311,7 +311,13 @@ function StickyNoteCardView({
       {note.kind && today ? (
         <div
           ref={listRef}
-          className={['px-2.5 pb-2.5 pt-1', fitHeight ? 'min-h-0 flex-1 overflow-y-auto' : ''].join(' ')}
+          // Uncapped it grows with the ward, and above the list orders it pushed
+          // every patient card off the first screen. It scrolls inside instead.
+          // A height the user set on the canvas (`fitHeight`) still wins.
+          className={[
+            'px-2.5 pb-2.5 pt-1',
+            fitHeight ? 'min-h-0 flex-1 overflow-y-auto' : 'max-h-[min(50dvh,24rem)] overflow-y-auto',
+          ].join(' ')}
         >
           <PatientSummaryRows kind={note.kind} cards={cards} today={today} />
         </div>

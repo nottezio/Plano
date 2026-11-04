@@ -63,7 +63,11 @@ import {
   EMPTY_FILTERS,
   type BoardFilters,
   type BoardOrder,
+  type BoardCard,
 } from '@/domain/board';
+import { useBoardLayout } from '@/hooks/useBoardLayout';
+import { BoardRow, BoardRowHeader } from '@/components/board/BoardRow';
+import { PatientCompactCard } from '@/components/board/PatientCompactCard';
 import { pendingFilters } from '@/domain/checklist';
 import { useSession } from '@/store/useSession';
 import { Button, Segmented } from '@/components/common/ui';
@@ -172,7 +176,7 @@ export default function BoardPage(): JSX.Element {
    * because it is a per-device view preference, not a fact about the user —
    * the phone in your pocket and the laptop at the desk are used differently.
    */
-  const [order, setOrder] = useState<BoardOrder>(() => {
+  const [storedOrder, setOrder] = useState<BoardOrder>(() => {
     try {
       const stored = localStorage.getItem('visite.boardOrder');
       return stored === 'location' || stored === 'visite' || stored === 'dpjp' || stored === 'status' || stored === 'custom'
@@ -382,6 +386,15 @@ export default function BoardPage(): JSX.Element {
    * than a thing you can describe.
    */
   const canvasWidth = useMediaQuery('(min-width: 1024px)');
+  /** Chosen in Pengaturan. Wide screens only: a phone keeps the list it has. */
+  const [chosenLayout] = useBoardLayout();
+  const layout = canvasWidth ? chosenLayout : 'standar';
+  /*
+    Rows have no hand-placed position to honour, so Urutan sendiri reads as the
+    ward route there. Only for display: the stored choice comes back with the
+    canvas.
+  */
+  const order: BoardOrder = layout === 'baris' && storedOrder === 'custom' ? 'visite' : storedOrder;
   /**
    * On a phone in Urutan sendiri: the laptop's canvas scaled down, or the
    * plain list. Per device, like the order itself.
@@ -472,6 +485,11 @@ export default function BoardPage(): JSX.Element {
   const rawBoardNotes = useSession((state) => state.profile?.boardNotes);
   const boardNotes = useMemo(() => activeBoardNotes(rawBoardNotes, scope), [rawBoardNotes, scope]);
   const showStickies = !searching && !selecting;
+  /** Both compact layouts carry Catatan on the patient, so its summary sticky would only repeat it. It returns with Standar. */
+  const placedNotes = useMemo(
+    () => (layout === 'standar' ? boardNotes : boardNotes.filter((entry) => entry.note.kind !== 'catatan')),
+    [boardNotes, layout],
+  );
   const addSticky = (kind?: StickyKind): void => {
     // Written on the board on screen, and shown only there.
     if (uid) createBoardNote(uid, kind === 'lab' ? 'biru' : 'kuning', scopeRef.current, kind);
@@ -511,6 +529,18 @@ export default function BoardPage(): JSX.Element {
     if (next !== currentStickers) persistStickers(next);
   }, [loading, fromCache, error, stickersScope, scope, scopeIds, currentStickers, persistStickers]);
 
+  const compactCard = (card: BoardCard): JSX.Element => (
+    <PatientCompactCard
+      card={card}
+      onChecklist={setQuickPatientId}
+      selectable={selecting}
+      checked={selected.has(card.patient.id)}
+      onToggleSelected={toggleSelected}
+      onPreview={selecting ? undefined : openPreview}
+      onVisite={selecting ? undefined : setVisiteId}
+    />
+  );
+
   /** One canvas cell: a sticky note or a patient card. Shared by the laptop canvas and the phone viewer. */
   const renderCanvasItem = (
     id: string,
@@ -541,6 +571,7 @@ export default function BoardPage(): JSX.Element {
     }
     const card = cards.find((entry) => entry.patient.id === id);
     if (!card) return null;
+    if (layout === 'kartu') return compactCard(card);
     return (
       <PatientCard
         card={card}
@@ -867,7 +898,7 @@ export default function BoardPage(): JSX.Element {
         <option value="visite">Urutan visite</option>
         <option value="dpjp">Per DPJP</option>
         <option value="status">Status hari ini</option>
-        <option value="custom">Urutan sendiri</option>
+        {layout === 'baris' ? null : <option value="custom">Urutan sendiri</option>}
       </select>
     </label>
   );
@@ -1019,16 +1050,18 @@ export default function BoardPage(): JSX.Element {
               >
                 <span aria-hidden="true">📌</span> Sticky Note
               </button>
-              <button
-                type="button"
-                {...CLOSES_MENU}
-                onClick={() => addSticky('catatan')}
-                disabled={!uid}
-                title="Catatan pasien semua pasien di papan, bisa diedit dan sinkron dengan halaman SOAP"
-                className={ADD_ITEM}
-              >
-                <span aria-hidden="true">📋</span> Sticky Catatan pasien
-              </button>
+              {layout === 'standar' ? (
+                <button
+                  type="button"
+                  {...CLOSES_MENU}
+                  onClick={() => addSticky('catatan')}
+                  disabled={!uid}
+                  title="Catatan pasien semua pasien di papan, bisa diedit dan sinkron dengan halaman SOAP"
+                  className={ADD_ITEM}
+                >
+                  <span aria-hidden="true">📋</span> Sticky Catatan pasien
+                </button>
+              ) : null}
               <button
                 type="button"
                 {...CLOSES_MENU}
@@ -1043,16 +1076,18 @@ export default function BoardPage(): JSX.Element {
             <Button size="sm" variant="quiet" className="shrink-0 text-fg" onClick={() => setLabOpen(true)}>
               Format lab
             </Button>
-            <Button
-              size="sm"
-              variant="quiet"
-              aria-pressed={dense}
-              onClick={() => setDense(!dense)}
-              title="Kartu ringkas: satu baris diagnosis"
-              className={`shrink-0 ${dense ? 'bg-bg-subtle text-accent' : 'text-fg'}`}
-            >
-              {dense ? 'Ringkas' : 'Normal'}
-            </Button>
+            {layout === 'standar' ? (
+              <Button
+                size="sm"
+                variant="quiet"
+                aria-pressed={dense}
+                onClick={() => setDense(!dense)}
+                title="Kartu ringkas: satu baris diagnosis"
+                className={`shrink-0 ${dense ? 'bg-bg-subtle text-accent' : 'text-fg'}`}
+              >
+                {dense ? 'Ringkas' : 'Normal'}
+              </Button>
+            ) : null}
             <SelectButton selecting={selecting} onToggle={() => (selecting ? leaveSelection() : setSelecting(true))} />
           </>
         ) : null}
@@ -1227,13 +1262,14 @@ export default function BoardPage(): JSX.Element {
                 new note takes the next free slot instead of pushing every
                 arranged card down one.
               */
+              packFor={layout}
               ids={[
                 ...cards.map((card) => card.patient.id),
-                ...(showStickies ? boardNotes.map((entry) => stickyCanvasId(entry.id)) : []),
+                ...(showStickies ? placedNotes.map((entry) => stickyCanvasId(entry.id)) : []),
               ]}
               layoutIds={[
                 ...scopeIds,
-                ...boardNotes.map((entry) => stickyCanvasId(entry.id)),
+                ...placedNotes.map((entry) => stickyCanvasId(entry.id)),
               ]}
               actionsSlot={canvasActions}
               addSlot={addSlot}
@@ -1265,7 +1301,8 @@ export default function BoardPage(): JSX.Element {
               // for how the two differ.
               isUncapped={(id) => {
                 if (noteIdFromCanvasId(id) !== null) return false;
-                if (cardsFolded.has(id)) return 'folded';
+                // Kartu Ringkas has one height, what it holds: no cap and no height grip.
+                if (layout === 'kartu' || cardsFolded.has(id)) return 'folded';
                 // A note never uncaps a card any more: it opens in a
                 // floating panel (PatientCard → NotePopover).
                 return false;
@@ -1296,25 +1333,44 @@ export default function BoardPage(): JSX.Element {
               nowhere a note could be "left" among the cards; a row of their
               own keeps them findable and out of the patient order.
             */}
-            {showStickies && boardNotes.length > 0 && uid ? (
+            {showStickies && placedNotes.length > 0 && uid ? (
               <MasonryGrid>
-                {boardNotes.map((entry) => (
+                {placedNotes.map((entry) => (
                   <MasonryItem key={stickyCanvasId(entry.id)}>
                     <StickyNoteCard uid={uid} id={entry.id} note={entry.note} cards={summaryCards} today={today} />
                   </MasonryItem>
                 ))}
               </MasonryGrid>
             ) : null}
+            {layout === 'baris' ? <div className="px-4 pt-2"><BoardRowHeader /></div> : null}
             {groups.map((group) => (
               <section key={group.label || 'all'}>
                 {group.label ? <SectionHeading label={`${group.label} · ${group.cards.length}`} /> : null}
-                {/* Grid masonry rather than CSS multi-column, so a card with
-                    its note open can span two columns and grow to the RIGHT.
-                    Nothing inside a multicol column can be wider than the
-                    column — see MasonryGrid for why that ruled it out. */}
+                {layout === 'baris' ? (
+                  <div className="px-4">
+                    {group.cards.map((card, at) => (
+                      <BoardRow
+                        key={card.patient.id}
+                        card={card}
+                        roomStart={at > 0 && group.cards[at - 1]?.patient.room !== card.patient.room}
+                        onChecklist={setQuickPatientId}
+                        selectable={selecting}
+                        checked={selected.has(card.patient.id)}
+                        onToggleSelected={toggleSelected}
+                        onPreview={selecting ? undefined : openPreview}
+                        onVisite={selecting ? undefined : setVisiteId}
+                      />
+                    ))}
+                  </div>
+                ) : (
+                /* Grid masonry rather than CSS multi-column, so a card with
+                   its note open can span two columns and grow to the RIGHT.
+                   Nothing inside a multicol column can be wider than the
+                   column — see MasonryGrid for why that ruled it out. */
                 <MasonryGrid>
                   {group.cards.map((card) => (
                     <MasonryItem key={card.patient.id}>
+                    {layout === 'kartu' ? compactCard(card) : (
                     <PatientCard
                       card={card}
                       collapsed={cardsFolded.has(card.patient.id)}
@@ -1340,9 +1396,11 @@ export default function BoardPage(): JSX.Element {
                     }
                       onVisite={selecting ? undefined : setVisiteId}
                     />
+                    )}
                     </MasonryItem>
                   ))}
                 </MasonryGrid>
+                )}
               </section>
             ))}
             </>

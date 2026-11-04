@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { EMPTY_FILTERS, availableLabels, availableWards, boardTickStates, buildCard, cardTitle, filterPatients, groupLabel, hasActiveFilters, initials, kjsRole, matchesQuery, orderPatients, previewLines, sortPatients } from './board';
+import { EMPTY_FILTERS, diagnosisSummary, availableLabels, availableWards, boardTickStates, buildCard, cardTitle, filterPatients, groupLabel, hasActiveFilters, initials, kjsRole, matchesQuery, orderPatients, previewLines, sortPatients } from './board';
 import { DEFAULT_CHECKLIST } from './defaults';
 import { buildSearchBlobFor, makePatient } from './testFactories';
 import { buildPreview } from '@/data/repositories/patients.repo';
@@ -171,6 +171,18 @@ describe('previewLines', () => {
   });
 });
 
+describe('diagnosisSummary', () => {
+  it('gives the first diagnosis and the count, leaving out headings and the problem list', () => {
+    const preview = 'Diagnosa Utama :\n- CHF NYHA III\n- AF NVR\n\nProblem :\n- Dyspnea';
+    expect(diagnosisSummary(preview)).toEqual({ first: 'CHF NYHA III', count: 2 });
+  });
+
+  it('copes with an empty preview and with text that has no bullets', () => {
+    expect(diagnosisSummary('')).toEqual({ first: '', count: 0 });
+    expect(diagnosisSummary('sesak sejak 3 hari')).toEqual({ first: 'sesak sejak 3 hari', count: 1 });
+  });
+});
+
 describe('matchesQuery', () => {
   const patient = makePatient({
     name: 'Tn. Budi Santoso',
@@ -198,6 +210,20 @@ describe('matchesQuery', () => {
 
   it('matches everything on an empty query', () => {
     expect(matchesQuery(patient, '')).toBe(true);
+  });
+
+  it('finds a patient by room and bed, however the place is typed', () => {
+    const roomed = makePatient({ name: 'Tn. Budi', room: '407', bed: '5' });
+    for (const query of ['407', 'kamar 407', 'bed 5', '407/5']) {
+      expect(matchesQuery(roomed, query)).toBe(true);
+    }
+    expect(matchesQuery(roomed, '408')).toBe(false);
+  });
+
+  it('reads "bed 5" as one phrase, so an RM holding a 5 does not match it', () => {
+    const elsewhere = makePatient({ name: 'Tn. Budi', mrn: '555555', room: '407', bed: '2' });
+    expect(matchesQuery(elsewhere, 'bed 5')).toBe(false);
+    expect(matchesQuery(elsewhere, 'bed 2')).toBe(true);
   });
 
   it('falls back to the name when searchBlob is missing', () => {

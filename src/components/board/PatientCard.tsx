@@ -1213,7 +1213,7 @@ function ClampedBody({
  * 44 px, pulled into the text row with negative margins, so the row stays the
  * height of its text.
  */
-function RmChip({
+export function RmChip({
   mrn,
   hidden,
   patientId,
@@ -1375,7 +1375,7 @@ function StatusRail({ card }: { card: BoardCard }): JSX.Element {
   );
 }
 
-function FlagRow({
+export function FlagRow({
   card,
   dischargeStrip,
   className = '',

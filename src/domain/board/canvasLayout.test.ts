@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 
 import {
+  GAP_PX,
   MIN_CARD_H,
   MIN_CARD_PX,
   ROW_STEP,
@@ -160,6 +161,30 @@ describe('tidy', () => {
     const result = tidy(['left', 'right'], layouts, 4);
     expect(result.left!.y).toBe(result.right!.y);
     expect(result.left!.x).toBeLessThan(result.right!.x);
+  });
+
+  it('makes each row as tall as its tallest measured card', () => {
+    const layouts = {
+      short: { x: 0, y: 0, w: 0.5, hMax: 0 },
+      long: { x: 0.5, y: 0, w: 0.5, hMax: 0 },
+      next: { x: 0, y: 260, w: 0.5, hMax: 0 },
+    };
+    const packed = tidy(['short', 'long', 'next'], layouts, 2, { short: 100, long: 474, next: 90 });
+    expect(packed.next!.y).toBe(474 + GAP_PX);
+    const closed = tidy(['short', 'long', 'next'], layouts, 2, { short: 100, long: 120, next: 90 });
+    expect(closed.next!.y).toBe(120 + GAP_PX);
+  });
+
+  it('keeps the order when pressed again on rows packed closer than ROW_STEP', () => {
+    const start = {
+      a: { x: 0, y: 0, w: 0.5, hMax: 0 },
+      b: { x: 0.5, y: 0, w: 0.5, hMax: 0 },
+      c: { x: 0, y: 260, w: 0.5, hMax: 0 },
+      d: { x: 0.5, y: 260, w: 0.5, hMax: 0 },
+    };
+    const heights = { a: 46, b: 46, c: 46, d: 46 };
+    const once = tidy(['a', 'b', 'c', 'd'], start, 2, heights);
+    expect(tidy(['a', 'b', 'c', 'd'], once, 2, heights)).toEqual(once);
   });
 
   it('carries widths and height caps through untouched', () => {

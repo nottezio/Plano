@@ -318,6 +318,20 @@ export function previewLines(preview: string, max = 4): string[] {
     .slice(0, max);
 }
 
+/**
+ * The first diagnosis and how many there are, for the compact layouts. Headings
+ * ("Diagnosa Utama :") are not diagnoses, and the "Problem :" block that follows
+ * them is not counted. Display only: the stored text is not touched.
+ */
+export function diagnosisSummary(preview: string): { first: string; count: number } {
+  const lines = previewLines(preview, Number.POSITIVE_INFINITY);
+  const problems = lines.findIndex((line, at) => at > 0 && /^problem\b.*:\s*$/i.test(line));
+  const items = (problems > 0 ? lines.slice(0, problems) : lines)
+    .filter((line) => !/:\s*$/.test(line))
+    .map((line) => line.replace(/^(?:[-*•]|\d+[.)])\s+/, ''));
+  return { first: items[0] ?? '', count: items.length };
+}
+
 export interface BoardFilters {
   query: string;
   wards: string[];
@@ -342,7 +356,8 @@ export const EMPTY_FILTERS: BoardFilters = {
  * nothing.
  */
 export function matchesQuery(patient: Patient, query: string): boolean {
-  const tokens = query.trim().toLowerCase().split(/\s+/).filter(Boolean);
+  // "bed 5" and "kamar 407" are one thing: split, the 5 would match any RM with a 5.
+  const tokens = query.trim().toLowerCase().match(/(?:bed|kamar)\s+\S+|\S+/g) ?? [];
   if (tokens.length === 0) return true;
   const haystack = patientHaystack(patient);
   return tokens.every((token) => haystack.includes(token));
@@ -356,11 +371,19 @@ export function patientHaystack(patient: Patient): string {
   // The preview is included because a patient with no typed name is titled by
   // their note — searching for the words on the card must find the card.
   const dpjp = patient.dpjpId ? dpjpById(patient.dpjpId) : undefined;
+  const room = patient.room?.trim() ?? '';
+  const bed = patient.bed?.trim() ?? '';
 
   return [
     patient.searchBlob,
     patient.name ?? '',
     patient.preview ?? '',
+    // Built here, not in `searchBlob`, so patients saved before this are found
+    // too. Every way a resident says a place: "407", "kamar 407", "bed 5", "407/5".
+    room ? `kamar ${room}` : '',
+    // Lowercased below with the rest, so a bed "3B" is found as "bed 3b".
+    bed ? `bed ${bed}` : '',
+    room && bed ? `${room}/${bed}` : '',
     // The note written when the patient was archived ("catatan arsip").
     patient.archive?.note ?? '',
     // Searchable by consultant, by full name or by initials: "AHN" and

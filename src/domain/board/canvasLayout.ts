@@ -492,19 +492,37 @@ export function tidy(
   ids: readonly string[],
   layouts: CanvasLayouts,
   columns: number,
-  /** Measured heights (a shelf's): its rows are kept clear of what follows. */
+  /**
+   * What each card measures now. A row is as tall as its tallest card, so a
+   * short card closes up and a long one no longer runs over the row below.
+   */
   heights: Readonly<Record<string, number>> = {},
 ): CanvasLayouts {
-  const band = ROW_STEP / 2;
-  const ordered = [...ids]
+  /*
+    Rows found from the cards, not from a fixed grid of ROW_STEP bands. On that
+    grid short cards packed closer than a band read as one row, so a second
+    press shuffled the order it was meant to keep.
+  */
+  const byY = [...ids]
     .filter((id) => layouts[id])
-    .sort((left, right) => {
-      const a = layouts[left] as CardLayout;
-      const b = layouts[right] as CardLayout;
-      const rowA = Math.round(a.y / band);
-      const rowB = Math.round(b.y / band);
-      return rowA === rowB ? a.x - b.x : rowA - rowB;
-    });
+    .sort((left, right) => (layouts[left] as CardLayout).y - (layouts[right] as CardLayout).y);
+  const rows: string[][] = [];
+  let rowTop = 0;
+  let tolerance = 0;
+  for (const id of byY) {
+    const layout = layouts[id] as CardLayout;
+    const row = rows[rows.length - 1];
+    if (row && layout.y - rowTop <= tolerance) {
+      row.push(id);
+      continue;
+    }
+    rows.push([id]);
+    rowTop = layout.y;
+    tolerance = Math.min(ROW_STEP, heights[id] || layout.hMax || ROW_STEP) / 2;
+  }
+  const ordered = rows.flatMap((row) =>
+    row.sort((left, right) => (layouts[left] as CardLayout).x - (layouts[right] as CardLayout).x),
+  );
 
   const next: CanvasLayouts = {};
   const defaultWidth = 1 / columns;

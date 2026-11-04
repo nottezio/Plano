@@ -32,6 +32,8 @@ import { STICKY_STYLES, stickyPaper, stickyStyleOf } from '@/domain/boardNotes';
 import { CANVAS_BACKGROUNDS, canvasBackgroundOf } from '@/domain/boardBackground';
 import { CARD_STYLES, DENSITIES, TEXT_SIZES, cardStyleOf, densityOf, textSizeOf } from '@/domain/appearance';
 import { CanvasRooms } from '@/components/board/CanvasBackdrop';
+import { BOARD_LAYOUTS } from '@/domain/boardLayout';
+import { useBoardLayout } from '@/hooks/useBoardLayout';
 import {
   SEED_GREETINGS,
   SEED_NOTE_TEMPLATES,
@@ -128,6 +130,7 @@ export default function SettingsPage(): JSX.Element {
    * believed was applied. Patching by path also means two devices editing
    * different settings do not overwrite each other.
    */
+  const [boardLayout, setBoardLayout] = useBoardLayout();
   const patch = useCallback(
     (next: Partial<UserSettings>) => {
       if (!user) return;
@@ -566,6 +569,58 @@ export default function SettingsPage(): JSX.Element {
                       {entry.id === 'denah' ? <CanvasRooms rows={3} compact /> : null}
                       <span className="absolute left-2 top-2 h-7 w-9 rounded bg-surface shadow-card" />
                       <span className="absolute left-14 top-4 h-7 w-9 rounded bg-surface shadow-card" />
+                    </span>
+                    <span className="text-sm font-medium text-fg">{entry.label}</span>
+                    <span className="text-xs text-fg-muted">{entry.hint}</span>
+                  </button>
+                );
+              })}
+            </div>
+          </SettingsSection>
+          <SettingsSection
+            id="tata-letak-papan"
+            keywords="tata letak papan kartu ringkas papan kerja baris daftar ramai padat tampilan"
+            title="Tata letak papan"
+            description="Cara pasien ditampilkan di Aktif. Hanya berlaku di layar lebar dan tersimpan di perangkat ini; ponsel tetap memakai daftar biasa."
+          >
+            <div role="radiogroup" aria-label="Tata letak papan" className="grid grid-cols-1 gap-2 sm:grid-cols-3">
+              {BOARD_LAYOUTS.map((entry) => {
+                const on = boardLayout === entry.id;
+                return (
+                  <button
+                    key={entry.id}
+                    type="button"
+                    role="radio"
+                    aria-checked={on}
+                    onClick={() => setBoardLayout(entry.id)}
+                    className={[
+                      'flex min-h-tap flex-col items-start gap-2 rounded-xl border p-2.5 text-left',
+                      on ? 'border-accent bg-[var(--accent-soft)]' : 'border-border bg-surface',
+                    ].join(' ')}
+                  >
+                    <span aria-hidden="true" className="flex h-[4.5rem] w-full gap-1 overflow-hidden rounded-md border border-border bg-bg-subtle p-1.5">
+                      {entry.id === 'baris' ? (
+                        <span className="flex w-full flex-col justify-between">
+                          {[0, 1, 2, 3, 4].map((row) => (
+                            <span key={row} className="flex items-center gap-1">
+                              <span className="h-1.5 w-3 rounded-full bg-fg-faint" />
+                              <span className="h-1.5 w-1/3 rounded-full bg-border-strong" />
+                              <span className="h-1.5 flex-1 rounded-full bg-border" />
+                            </span>
+                          ))}
+                        </span>
+                      ) : (
+                        [0, 1, 2].map((column) => (
+                          <span key={column} className="flex flex-1 flex-col gap-1">
+                            {(entry.id === 'kartu' ? [0, 1] : [0]).map((card) => (
+                              <span key={card} className="block flex-1 rounded border border-border bg-surface p-0.5">
+                                <span className="block h-1 w-2/3 rounded-full bg-fg-faint" />
+                                <span className="mt-0.5 block h-1 w-full rounded-full bg-border-strong" />
+                              </span>
+                            ))}
+                          </span>
+                        ))
+                      )}
                     </span>
                     <span className="text-sm font-medium text-fg">{entry.label}</span>
                     <span className="text-xs text-fg-muted">{entry.hint}</span>

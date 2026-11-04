@@ -7,7 +7,14 @@ import type { ChecklistProgress } from '@/domain/checklist';
  * any form of colour blindness. N is whatever the user configured; nothing
  * here assumes seven.
  */
-export function ProgressStrip({ progress }: { progress: ChecklistProgress }): JSX.Element {
+export function ProgressStrip({
+  progress,
+  mono = false,
+}: {
+  progress: ChecklistProgress;
+  /** One colour, the card's own, instead of one per step. */
+  mono?: boolean;
+}): JSX.Element {
   return (
     <div
       className="flex gap-[3px]"
@@ -17,7 +24,7 @@ export function ProgressStrip({ progress }: { progress: ChecklistProgress }): JS
       {progress.segments.map((segment) => (
         <span
           key={segment.itemId}
-          data-color-token={segment.colorToken}
+          data-color-token={mono ? undefined : segment.colorToken}
           className={[
             'h-1.5 flex-1 rounded-full',
             segment.done ? 'bg-token-accent' : 'bg-[color-mix(in_srgb,var(--token-accent)_25%,transparent)]',
