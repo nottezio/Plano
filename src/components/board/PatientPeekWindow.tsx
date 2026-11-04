@@ -1,5 +1,5 @@
 import { cardTitle } from '@/domain/board';
-import { useEffect, useId, useMemo, useRef, useState } from 'react';
+import { useEffect, useId, useMemo, useState } from 'react';
 import { itemsForPatientDay } from '@/domain/checklistDay';
 import { useClipboardNote } from '@/store/useClipboardNote';
 import { Link } from 'react-router-dom';
@@ -63,7 +63,19 @@ export function PatientPeekWindow({
    * persisted — reopening puts it back at the default, which is the behaviour
    * of every inspector that is not also a layout.
    */
-  const [pos, setPos] = useState({ x: 0, y: 0 });
+  /*
+    Worked out before the first paint. It used to start at (0, 0) and move in an
+    effect, so every window flashed in the top-left corner first.
+
+    Offset from the top-right and CASCADED by how many are already open: two
+    windows landing on the same pixel look like one. By the index AT OPEN only:
+    following the live index moved a back window 28 px under the press that
+    raised it.
+  */
+  const [pos, setPos] = useState(() => {
+    const step = index * 28;
+    return { x: Math.max(16, window.innerWidth - 460 - step), y: 96 + step };
+  });
   const [tab, setTab] = useState<PeekTab | null>(null);
   /**
    * How the note is SHOWN: as written, or as SIMGOS or WhatsApp would receive
@@ -80,7 +92,6 @@ export function PatientPeekWindow({
   const toggleTab = (next: PeekTab): void =>
     setTab((current) => (current === next ? null : next));
   const [size, setSize] = useState({ w: 420, h: 380 });
-  const dragged = useRef(false);
 
   const settings = useSession((state) => state.settings());
   /*
@@ -112,26 +123,6 @@ export function PatientPeekWindow({
     const views = todoViews(patient.todos ?? [], patient.todoTicks, today);
     return { done: views.filter((view) => view.done).length, total: views.length };
   })();
-
-  const openIndex = useRef<number | null>(null);
-  useEffect(() => {
-    // Placed once, offset from the top-right and CASCADED by how many are
-    // already open — two windows landing on the same pixel look like one, and
-    // the second appears not to have opened at all.
-    //
-    // By the index AT OPEN, kept in a ref: pressing a back window re-sorts the
-    // stack, and following the live index moved the window 28 px under the
-    // press, so the tap landed on something else.
-    if (openIndex.current === null) openIndex.current = index;
-    if (!dragged.current) {
-      const step = openIndex.current * 28;
-      setPos({
-        x: Math.max(16, window.innerWidth - 460 - step),
-        y: 96 + step,
-      });
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- placed once per patient; see above
-  }, [patient.id]);
 
   useEffect(() => {
     let cancelled = false;
@@ -193,7 +184,6 @@ export function PatientPeekWindow({
 
     const handle = event.currentTarget as HTMLElement;
     handle.setPointerCapture(event.pointerId);
-    dragged.current = true;
 
     const startX = event.clientX;
     const startY = event.clientY;

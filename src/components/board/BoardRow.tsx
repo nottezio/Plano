@@ -4,7 +4,7 @@ import { Link } from 'react-router-dom';
 import type { BoardCard } from '@/domain/board';
 import { InlineCatatan } from './InlineCatatan';
 import { FlagRow, RmChip } from './PatientCard';
-import { DiagnosisLine, RowActions, StatusButton, WatchTags, dischargeStripOf, placeOf } from './PatientCompactCard';
+import { DiagnosisLine, RowActions, STRETCHED_LINK, StatusButton, WatchTags, dischargeStripOf, placeOf } from './PatientCompactCard';
 
 /** Below xl the diagnosis column goes: the count of columns is what a 1024 px screen cannot afford. */
 const COLUMNS =
@@ -63,7 +63,7 @@ function BoardRowView({
         onChecklist(patient.id);
       }}
       className={[
-        `group/board ${COLUMNS} items-start px-3 py-1.5 text-fg hover:bg-bg-subtle`,
+        `group/board relative ${STRETCHED_LINK} ${COLUMNS} items-start px-3 py-1.5 text-fg hover:bg-bg-subtle`,
         roomStart ? 'border-t border-border-strong' : 'border-t border-border',
         card.pemantauan ? 'rounded-md ring-2 ring-inset ring-[var(--danger)]' : '',
         selectable && checked ? 'bg-[var(--accent-soft)]' : '',
@@ -81,7 +81,7 @@ function BoardRowView({
                 }
               : undefined
           }
-          className="block break-words text-ctitle font-semibold hover:underline"
+          className="block break-words text-ctitle font-semibold after:absolute after:inset-0"
         >
           {selectable ? <span aria-hidden="true">{checked ? '☑ ' : '☐ '}</span> : null}
           {card.name}

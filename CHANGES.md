@@ -1,5 +1,11 @@
 # Plano — CHANGES
 
+## `2026-11-04.7` — Compact card: Catatan readable apart from diagnosis, whole card opens; preview no longer flashes
+
+- **Preview flash.** Root cause: `PatientPeekWindow` initialised `pos` to (0, 0) and set the real position in a `useEffect`, which runs after paint, so one frame showed in the top-left corner. An old bug, on every board layout. Fix: a lazy `useState` initialiser. The window is keyed by patient, so `index` at mount is the index at open; the `openIndex` and `dragged` refs had no other job and are gone.
+- **Catatan vs diagnosis.** Root cause: both were 12 px lines in the card's ink with nothing between them. Catatan now sits in a neutral well (`bg-black/15`, no second hue on the checklist colour) at medium weight; the diagnosis line leads with "Dx" at 80% opacity. The label moved to the front in Papan Kerja too, since `DiagnosisLine` is shared.
+- **Opening a card.** Root cause: `PatientCompactCard` was built as a div so the note could sit outside a link, which left only the name clickable. Fix: `STRETCHED_LINK`, the name's link covers the card or row through `::after`, with buttons and the textarea raised above it. Ctrl+click and keyboard focus keep working because it is still one real link. Text on the card can no longer be selected by drag, except in the note.
+
 ## `2026-11-04.6` — One Tampilan menu, Catatan sticky back in Kartu Ringkas, Tema grouped
 
 - **Two doors for one question.** Root cause: 2026-11-04.5 put the layout in Pengaturan while the order stayed on the board, and the Normal/Ringkas button was a third control over the same cards, so nothing showed which one was in charge. Fix: `BoardViewMenu` on the board holds Tata letak and Urutan. The order dropdown, the Normal/Ringkas button (desktop) and the Pengaturan section are gone. `dense` now applies below `lg` only, so a desktop that stored `ringkas` shows full cards in Standar; use Kartu Ringkas there. Phone controls are unchanged. Choosing a layout from Denah moves to Urutan visite, because Denah draws no cards. `BOARD_ORDERS` also feeds the phone select, replacing a second copy of the labels.

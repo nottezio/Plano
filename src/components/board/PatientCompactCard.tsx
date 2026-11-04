@@ -9,6 +9,12 @@ import { InlineCatatan } from './InlineCatatan';
 import { FlagRow, RmChip } from './PatientCard';
 import { ProgressStrip } from './ProgressStrip';
 
+/**
+ * The name's link is stretched over the whole card or row, so anywhere opens the
+ * patient (and Ctrl+click still opens a tab). Controls and the note sit above it.
+ */
+export const STRETCHED_LINK = '[&_button]:relative [&_button]:z-10 [&_textarea]:relative [&_textarea]:z-10';
+
 /** `421/4`, the way the ward list writes it. */
 export function placeOf(card: BoardCard): string {
   const room = card.patient.room?.trim();
@@ -116,10 +122,7 @@ export function DiagnosisLine({
   if (!first) return <p className="text-xs italic opacity-80">Belum ada catatan hari ini.</p>;
   return (
     <p className="flex min-w-0 items-center gap-1.5 text-xs">
-      <span className="min-w-0 truncate opacity-90" title={first}>
-        {first}
-      </span>
-      {added > 0 ? <span className="shrink-0 font-semibold">+{added} baru</span> : null}
+      {/* The label comes first, so a line of diagnosis cannot be read as a line of Catatan. */}
       {count > 1 ? (
         <button
           type="button"
@@ -131,11 +134,17 @@ export function DiagnosisLine({
             event.stopPropagation();
             onPreview?.(card.patient.id);
           }}
-          className="-my-2 flex min-h-tap shrink-0 items-center rounded px-1 font-semibold tabular-nums underline decoration-dotted underline-offset-2 [@media(pointer:fine)]:my-0 [@media(pointer:fine)]:min-h-0"
+          className="-my-2 flex min-h-tap shrink-0 items-center rounded font-semibold tabular-nums underline decoration-dotted underline-offset-2 [@media(pointer:fine)]:my-0 [@media(pointer:fine)]:min-h-0"
         >
           Dx ({count})
         </button>
-      ) : null}
+      ) : (
+        <span className="shrink-0 font-semibold">Dx</span>
+      )}
+      <span className="min-w-0 truncate opacity-80" title={first}>
+        {first}
+      </span>
+      {added > 0 ? <span className="shrink-0 font-semibold">+{added} baru</span> : null}
     </p>
   );
 }
@@ -225,7 +234,8 @@ function PatientCompactCardView({
         onChecklist(patient.id);
       }}
       className={[
-        'group/board rounded-xl border border-black/5 bg-token p-d-card text-token-fg shadow-card transition-shadow hover:shadow-pop dark:border-white/10',
+        `group/board relative ${STRETCHED_LINK}`,
+        'rounded-xl border border-black/5 bg-token p-d-card text-token-fg shadow-card transition-shadow hover:shadow-pop dark:border-white/10',
         card.pemantauan ? 'ring-2 ring-[var(--danger)]' : '',
         selectable && checked ? 'outline outline-2 outline-offset-1 outline-accent' : '',
       ].join(' ')}
@@ -241,7 +251,7 @@ function PatientCompactCardView({
                 }
               : undefined
           }
-          className="flex min-w-0 flex-1 flex-wrap items-baseline gap-x-1.5"
+          className="flex min-w-0 flex-1 flex-wrap items-baseline gap-x-1.5 after:absolute after:inset-0 after:rounded-xl"
         >
           {selectable ? (
             <span aria-hidden="true" className="self-center text-xs">
@@ -270,7 +280,10 @@ function PatientCompactCardView({
       <div className="mt-d-gap space-y-d-gap">
         <StatusButton card={card} onOpen={onChecklist} disabled={selectable} />
         <DiagnosisLine card={card} onPreview={onPreview} />
-        <InlineCatatan patient={patient} name={card.name} readOnly={selectable} />
+        {/* A well in the card's own colour: Catatan is what gets acted on, and a second hue would collide with the checklist colour. */}
+        <div className="rounded-md bg-black/15 px-1.5 py-1 font-medium dark:bg-black/25">
+          <InlineCatatan patient={patient} name={card.name} readOnly={selectable} />
+        </div>
       </div>
       <FlagRow card={card} dischargeStrip={dischargeStripOf(card)} />
     </div>

@@ -5,6 +5,11 @@ Catatan teknis lengkap (akar masalah, perbaikan) ada di CHANGES.md.
 
 Entri teratas harus versi yang sedang dirilis; tes gagal bila belum ditulis.
 
+## `2026-11-04.7`
+- **Catatan dan diagnosis kini mudah dibedakan di Kartu Ringkas.** Catatan ada di kotak sendiri dengan teks lebih tebal, sedangkan baris diagnosis lebih samar dan diawali label "Dx".
+- **Seluruh kartu kini bisa diklik untuk membuka pasien,** tidak hanya namanya. Berlaku di Kartu Ringkas dan Papan Kerja. Tombol, RM, status dan kotak Catatan tetap berfungsi seperti biasa.
+- **Preview tidak lagi muncul sekejap di pojok kiri atas.** Jendela kini langsung tampil di tempatnya.
+
 ## `2026-11-04.6`
 - **Satu pintu untuk tampilan papan.** Tombol **Tampilan** di papan kini menggabungkan tata letak (Standar, Kartu Ringkas, Papan Kerja) dan urutan. Dropdown Urutan, tombol Normal/Ringkas dan bagian Tata letak papan di Pengaturan dihapus, jadi tidak perlu lagi menebak mana yang berlaku. Di ponsel tidak berubah: tetap daftar dengan pilihan urutan dan Ringkas.
 - **Sticky Catatan pasien kembali di Kartu Ringkas.** Sebelumnya ikut disembunyikan, sekarang tampil lagi dan bisa ditambah dari menu Tambah. Di Papan Kerja tetap tidak tampil, karena Catatan sudah punya kolom sendiri dan sticky akan mendorong baris ke bawah.
