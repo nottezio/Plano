@@ -5,6 +5,10 @@ Catatan teknis lengkap (akar masalah, perbaikan) ada di CHANGES.md.
 
 Entri teratas harus versi yang sedang dirilis; tes gagal bila belum ditulis.
 
+## `2026-11-04.3`
+- **Warna pita identitas di kartu pasien tidak lagi keluar dari sudut kartu yang membulat.** Pada kartu tanpa strip Pemantauan atau H-1, pita nama (latar sedikit lebih gelap) bersudut siku dan menonjol di dua sudut atas; kini ikut membulat. Berlaku di papan dan kanvas, di semua gaya kartu.
+- **Contoh di Pengaturan → Tema tidak lagi ikut berubah saat pilihan diklik.** Contoh Gaya kartu pasien, Kepadatan "Normal", Ukuran teks "Normal" dan ukuran contoh kartu mengikuti pilihan yang aktif, sehingga ketiga pilihan tampak sama. Kini tiap contoh tetap menampilkan gayanya sendiri.
+
 ## `2026-11-04.2`
 - **Tiga pilihan tampilan baru di Pengaturan → Tema, semuanya opsional (bawaan tidak berubah).**
 - **Kepadatan** (Kompak / Normal / Longgar): jarak di dalam kartu pasien, baris daftar List Maker dan kepala halaman pasien. Tombol tetap 44 px, jadi kartu tidak mengecil sebanyak jarak antar-teksnya; ikon kartu tetap 28 × 44 px.

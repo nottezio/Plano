@@ -662,7 +662,7 @@ export default function SettingsPage(): JSX.Element {
                     ].join(' ')}
                   >
                     {/* Drawn with the board card's own rules (data-patient-card), so the sample cannot drift from it. */}
-                    <span aria-hidden="true" data-card-style={entry.id} className="block w-full">
+                    <span aria-hidden="true" data-sample-style={entry.id} data-density="normal" data-text-size="normal" className="block w-full">
                       <span
                         data-patient-card
                         data-color-token="step-6"

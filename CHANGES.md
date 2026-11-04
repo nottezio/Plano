@@ -1,5 +1,11 @@
 # Plano — CHANGES
 
+## `2026-11-04.3` — Identity band no longer pokes out of the card's rounded corners
+
+- **Root cause.** The identity band (`.card-band`) bleeds to the card edge with negative margins and square corners; the card is `rounded-xl` without `overflow-hidden`. When no Pemantauan / H-1 strip sits above it (the strips carry their own `rounded-t-xl`) the band's tint showed past the border at both top corners. It existed before 2026-11-04.2 but the new styles made it obvious (Avi's screenshots, board and canvas).
+- **Fix.** `[data-patient-card] > .card-band:first-child` gets an 11 px top radius (card radius minus its 1 px border). A band below a strip is untouched. CSS only; checked in the emulator that the rule applies to the strip-less cards only. **Not checked:** the corner pixels at zoom in Garis (2 px edge), a card with an attached note.
+- **Picker samples followed the live setting (Avi's screenshots).** Root cause: the page's `data-card-style` sits on `<html>`, so `[data-card-style='netral'] [data-patient-card]` matched inside every sample whatever the sample's own wrapper said (all three looked like the active one); `[data-density='normal']` and `[data-text-size='normal']` had no rule of their own, so a sample pinned to Normal inherited the page's variables; and the card sample's size followed the page density and text size. Fix: card-style rules are written as `html[data-card-style=X] [data-patient-card]:not([data-sample-style] *)` plus `[data-sample-style=X] [data-patient-card]` for samples; explicit `normal` blocks; card samples pinned with `data-density="normal" data-text-size="normal"`. Checked in the emulator: all 20 samples (sticky 5, canvas 6, density 3, text size 3, card style 3) are unchanged while the page's density, text size and card style are flipped.
+
 ## `2026-11-04.2` — Three optional looks: Kepadatan, Ukuran teks, Gaya kartu pasien
 
 - **Why.** Avi called the phone UI "so crowded"; asked for three settings in Pengaturan → Tema, selectable like the sticky look and the canvas background, all optional. Mocked first (Terang/Senja, phone/desktop). Avi rejected the mock's bottom "pita" band on style (b) as AI-slop, so Netral is a neutral card with the colour only in the status chip. Decision: implement all three, defaults unchanged.
