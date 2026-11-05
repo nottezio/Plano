@@ -2866,16 +2866,6 @@ export default function PatientPage(): JSX.Element {
                     onToggle: checklist.toggle,
                     disabled: locked,
                     loading: checklist.loading,
-                    full: (
-                      <ChecklistPills
-                        items={dayItems}
-                        states={checklist.states}
-                        progress={checklist.progress}
-                        onToggle={checklist.toggle}
-                        disabled={locked}
-                        orientation="vertical"
-                      />
-                    ),
                   },
                   todos: {
                     title: 'Custom Checklist',

@@ -5,6 +5,12 @@ Catatan teknis lengkap (akar masalah, perbaikan) ada di CHANGES.md.
 
 Entri teratas harus versi yang sedang dirilis; tes gagal bila belum ditulis.
 
+## `2026-11-06.3`
+- **Daftar tanggal di panel samping tidak lagi menutup sendiri** saat Anda berpindah hari dengan panah. Yang terbuka tetap terbuka (di Tab status, tab Tanggal tetap dipilih).
+
+## `2026-11-06.2`
+- **Checklist di panel samping kini sama rupa saat tertutup dan terbuka.** Sebelumnya membuka Checklist mengganti baris bulat dengan kartu berwarna penuh, strip progres kedua, dan teks “3/7 selesai”. Sekarang yang terbuka hanya menambah langkah yang sudah selesai (dicoret, bulatnya terisi), dengan gaya baris dan satu strip yang sama.
+
 ## `2026-11-06.1`
 - **Panah kiri/kanan untuk berpindah tanggal** di bagian Tanggal pada panel samping (Tab status dan Rail warna). Panah kiri ke hari sebelumnya, kanan ke hari berikutnya, tanpa membuka daftar. Saat daftar tanggal dibuka, daftar langsung menggulir ke tanggal terbaru.
 

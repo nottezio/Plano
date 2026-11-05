@@ -1,5 +1,17 @@
 # Plano — CHANGES
 
+## `2026-11-06.3` — Date list stays open when stepping days
+
+- **Root cause.** `PatientPage` keys `RailPanels`/`TabPanels` by `patient-day` (so kept rows and the auto tab reset per day). Stepping a day remounted them and `useState(false)` closed the date list each time.
+- **Fix.** Two module-level flags remember only "date list open" and "Tanggal tab picked" across the remount; the per-day reset of everything else is unchanged. Reset on reload.
+- **Not done.** Not seen in the running app. The page-level flash while the new day's note loads (outside the panel) is not touched. The flags are shared across patients.
+
+## `2026-11-06.2` — Rail warna Checklist: open and closed share one design
+
+- **Root cause.** The closed view drew `Row`s (ring + label); the opened view swapped in `ChecklistPills` (filled colour cards, its own `ProgressStrip`, "n/7 selesai" footer), so opening looked like a different widget with a doubled strip. Two components for one list.
+- **Fix.** `PanelList.full` is optional. The Checklist no longer passes it; opening a list without `full` renders `Rows all` (every row, done included, same ring/strip). Custom Checklist keeps `PatientTodos` as its `full` (it adds and edits). Tab status "Daftar lengkap" follows the same rule.
+- **Not done.** Not viewed in the running app. Custom Checklist's opened view (`PatientTodos`) still has its own look; not touched.
+
 ## `2026-11-06.1` — Date arrows and newest-first scroll in the SOAP side panel
 
 - **Why.** Avi: the closed Tanggal row in Rail warna needed left/right arrows, and the opened list should land on the newest day.

@@ -30,8 +30,12 @@ export interface PanelList {
   disabled?: boolean;
   /** The ticks have not arrived, so `rows` would read every step as open. */
   loading?: boolean;
-  /** The complete list with its own controls. */
-  full: ReactNode;
+  /**
+   * The complete list with its own controls (adding, editing). Absent for a
+   * list that is only ticks: opening it then shows every row, done ones
+   * included, drawn exactly like the closed view.
+   */
+  full?: ReactNode;
 }
 
 export interface PanelContent {
@@ -64,6 +68,14 @@ function DatesBody({ rail }: { rail: ReactNode }): JSX.Element {
     </div>
   );
 }
+
+/*
+  The panels are keyed by patient and day, so stepping to another day rebuilds
+  them and a plain `useState(false)` closed the date list on every press. These
+  hold just that one choice across the rebuild; they reset on reload.
+*/
+let datesOpenKept = false;
+let tanggalTabKept = false;
 
 function StepButton({
   dir,
@@ -142,8 +154,18 @@ function Row({
   );
 }
 
-function Rows({ list, coloured }: { list: PanelList; coloured: boolean }): JSX.Element | null {
-  const rows = useShownRows(list);
+function Rows({
+  list,
+  coloured,
+  all = false,
+}: {
+  list: PanelList;
+  coloured: boolean;
+  /** Every row, done ones too, instead of the open steps. */
+  all?: boolean;
+}): JSX.Element | null {
+  const shown = useShownRows(list);
+  const rows = all ? (list.loading ? [] : list.rows) : shown;
   if (rows.length === 0) return null;
   return (
     <div>
@@ -190,7 +212,7 @@ function TabList({ list }: { list: PanelList }): JSX.Element {
         <IconChevronRight aria-hidden="true" className="h-3 w-3 rotate-90" />
         Tutup daftar lengkap
       </button>
-      {list.full}
+      {list.full ?? <Rows list={list} coloured={false} all />}
     </>
   ) : (
     <>
@@ -219,7 +241,11 @@ function TabList({ list }: { list: PanelList }): JSX.Element {
  */
 export function TabPanels({ content }: { content: PanelContent }): JSX.Element {
   const { notes, checklist, todos, dates } = content;
-  const [picked, setPicked] = useState<SidePanelTab | null>(null);
+  const [picked, setPickedState] = useState<SidePanelTab | null>(tanggalTabKept ? 'tanggal' : null);
+  const setPicked = (id: SidePanelTab): void => {
+    tanggalTabKept = id === 'tanggal';
+    setPickedState(id);
+  };
   // Fixed the first time the lists have loaded, so ticking the last open step
   // does not throw the body over to another tab.
   const auto = useRef<SidePanelTab | null>(null);
@@ -302,7 +328,11 @@ function RailList({ list, coloured }: { list: PanelList; coloured: boolean }): J
           <ProgressStrip progress={list.progress} mono={!coloured} />
         </div>
       ) : null}
-      {full ? <div>{list.full}</div> : <Rows list={list} coloured={coloured} />}
+      {full ? (
+        list.full ? <div>{list.full}</div> : <Rows list={list} coloured={coloured} all />
+      ) : (
+        <Rows list={list} coloured={coloured} />
+      )}
     </section>
   );
 }
@@ -311,7 +341,9 @@ function RailList({ list, coloured }: { list: PanelList; coloured: boolean }): J
 export function RailPanels({ content, top }: { content: PanelContent; top: ReactNode }): JSX.Element {
   const { notes, checklist, todos, dates } = content;
   const [notesOpen, setNotesOpen] = useState(false);
-  const [datesOpen, setDatesOpen] = useState(false);
+  const [datesOpen, setDatesOpenState] = useState(datesOpenKept);
+  const setDatesOpen = (next: (open: boolean) => boolean): void =>
+    setDatesOpenState((open) => (datesOpenKept = next(open)));
   const note = notes.value.trim();
 
   return (
