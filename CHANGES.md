@@ -1,5 +1,13 @@
 # Plano — CHANGES
 
+## `2026-11-05.5` — Settings: six categories, one at a time
+
+- **Why.** Avi: Settings was a cluttered mess. Cause: ~30 collapsed accordions in eight groups, each header carrying a 2-3 line description, in one long scroll. The groups overlapped (Utama, Tema, Tampilan, Papan & harian all held appearance; Akun and Privasi each appeared twice), and a collapsed row showed no value, so the page had to be opened row by row to read its state.
+- **What.** Six categories (`CATEGORIES` in `SettingsPage.tsx`), one open at a time. The open one is `?k=` in the URL, so the phone back gesture returns to the category list and a reload keeps the place. Phone: a list of categories, then the category. From `lg`: a pinned left rail with the first category open by default. A collapsed row is now title plus current value; the description moved inside, above the controls. Sections are one divided list per subgroup instead of a stack of bordered cards. Search still spans every category: while a query is typed every group renders so its sections can match; otherwise `SettingsGroup` renders only the open one, so a phone mounts one category's editors, not six.
+- **Values.** Added a `value` to Format catatan, Preset salin, Privasi, Watermark, Hari rawat, Catatan di kartu, Tata letak SOAP, Bullet WhatsApp, Checklist harian and Akun. Section code was moved verbatim between groups; no setting, key or write path changed.
+- **Removed.** The chip jump bar and the group scroll-spy (`GroupNav`, `GROUPS`): categories replace them.
+- **Not done or not checked.** Simple Mode is still undecided and not part of this. `openSettingsSection` only reaches a section in the open category (its one caller, Tentang, is in the same category as Yang baru). No old deep links to a group id exist in the repo; any bookmark to a hash lands on the first category. Ward device not checked.
+
 ## `2026-11-05.4` — Catatan scroll holds its state
 
 - **Why.** Avi: it closed on every click elsewhere. That was the outside-press listener of 2026-11-05.3, now removed. Open or closed is kept per patient in `visite.board.catatanOpen` (this device), so it also survives a remount: layout switch, visit to the patient, reload. Each card rereads the list before writing, because `usePersistentIdSet` holds a copy per instance and one per card would overwrite the others. Esc now acts only with focus inside the scroll, so it cannot close all of them.

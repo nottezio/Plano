@@ -5,6 +5,11 @@ Catatan teknis lengkap (akar masalah, perbaikan) ada di CHANGES.md.
 
 Entri teratas harus versi yang sedang dirilis; tes gagal bila belum ditulis.
 
+## `2026-11-05.5`
+- **Pengaturan kini dibagi dalam enam kategori, bukan satu daftar panjang.** Di ponsel, Pengaturan dibuka sebagai daftar kategori (Laporan & salin, Papan & harian, Tampilan, Privasi & data, Akun & aplikasi, Lanjutan); ketuk satu untuk melihat isinya, gestur kembali membawa Anda ke daftar. Di layar lebar, kategori ada di kolom kiri dan yang pertama langsung terbuka.
+- **Baris pengaturan lebih ringkas.** Tiap baris hanya menampilkan nama dan pilihan saat ini (mis. Watermark: Berulang, Privasi: PIN · Inisial), jadi Anda bisa memeriksa tanpa membuka. Penjelasannya ada di dalam baris, di atas pilihannya.
+- **Pengaturan yang tadinya terpecah kini satu tempat.** Tema dan Tampilan menyatu di Tampilan; Privasi dan Akun yang dulu muncul dua kali kini masing-masing satu. Pencarian tetap menemukan pengaturan di semua kategori. Isi dan perilaku setiap pengaturan tidak berubah.
+
 ## `2026-11-05.4`
 - **Gulungan Catatan kini tetap seperti yang ditinggalkan.** Yang terbuka tidak lagi menutup sendiri saat mengklik hal lain, dan tetap terbuka setelah berpindah tata letak, membuka pasien, atau memuat ulang. Untuk menutupnya, klik barisnya atau tekan Esc saat kursor ada di dalamnya. Tersimpan per pasien, per perangkat.
 - **Warna gulungan kini mengikuti warna kartu,** sedikit lebih gelap, jadi tidak lagi tampak terpisah dari kartunya.
