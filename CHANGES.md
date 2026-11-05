@@ -1,5 +1,11 @@
 # Plano — CHANGES
 
+## `2026-11-05.7` — Typo findings in their own dropdown
+
+- **Why.** Avi: many typos would crowd the checker box. Root cause: `PatientPage` rendered every `soapFindings` entry in one list, and `typo` is the only kind that can appear up to 5 times.
+- **What.** The list is split: `typo` findings go into a closed `<details>` ("Kemungkinan salah ketik (n)") under the rule findings; everything else, including `gibberish`, stays in the main list. The "Periksa lagi" badge and the board count still include typos. Logic in `soapTypos.ts` unchanged.
+- **Not done or not checked.** Not looked at in the browser (phone sheet, side panel, dark mode); the open state is not remembered between renders of the box.
+
 ## `2026-11-05.6` — SOAP checker: random keystrokes and typos
 
 - **Why.** Avi: the checker should catch text typed by accident (`a3e 3rjiwj`) and typos. No existing rule looked at the words themselves. Root cause of the gap: every rule compares two numbers or two sections; nothing judged a token.

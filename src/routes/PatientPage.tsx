@@ -57,7 +57,7 @@ import { archiveSummary } from '@/domain/archive';
 import { fillPatientFromNote, healCardPreview, writeCheckCount } from '@/data/repositories/patients.repo';
 import { parsePatientFacts } from '@/domain/parsePatient';
 import { carryForward, carryForwardSummary } from '@/domain/carryForward';
-import { checkSoap } from '@/domain/format/soapCheck';
+import { checkSoap, type SoapFinding } from '@/domain/format/soapCheck';
 import { migrateLegacyDischarge } from '@/domain/discharge';
 import { readReferenceRanges } from '@/components/settings/ReferenceRanges';
 import { AiError, aiEnabled, askClaudeStructured } from '@/lib/ai';
@@ -1226,8 +1226,8 @@ export default function PatientPage(): JSX.Element {
               Ordered by urgency, and tagged with it, so the list reads top-down
               as "fill these in, then update what was copied, then check".
             */}
-            <ul className={where === 'sheet' ? 'space-y-3' : 'mt-1 space-y-1'}>
-              {soapFindings.map((finding) => (
+            {(() => {
+              const row = (finding: SoapFinding) => (
                 <li key={finding.kind + finding.message} className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
                   <FindingTag level={finding.level} />
                   <span className="min-w-0 flex-1 text-fg">{finding.message}</span>
@@ -1311,8 +1311,26 @@ export default function PatientPage(): JSX.Element {
                     />
                   ) : null}
                 </li>
-              ))}
-            </ul>
+              );
+              // Typos get their own collapsed list (2026-11-05): there can be
+              // many, and they would bury the findings that need a decision.
+              const typos = soapFindings.filter((finding) => finding.kind === 'typo');
+              const rules = soapFindings.filter((finding) => finding.kind !== 'typo');
+              const listClass = where === 'sheet' ? 'space-y-3' : 'mt-1 space-y-1';
+              return (
+                <>
+                  {rules.length > 0 ? <ul className={listClass}>{rules.map(row)}</ul> : null}
+                  {typos.length > 0 ? (
+                    <details className="mt-1">
+                      <summary className="min-h-tap cursor-pointer font-medium text-accent [@media(pointer:fine)]:min-h-0">
+                        Kemungkinan salah ketik ({typos.length})
+                      </summary>
+                      <ul className={listClass}>{typos.map(row)}</ul>
+                    </details>
+                  ) : null}
+                </>
+              );
+            })()}
 
             {/*
               The AI trigger lives here, and it is a PRESS — never automatic.
