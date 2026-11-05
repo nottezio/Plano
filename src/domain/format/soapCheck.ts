@@ -2,6 +2,7 @@ import { consultCovered, dpjpSpecialties } from './specialties';
 import { frozenRanges, isFrozen } from './frozenText';
 import { SELESAI_HEADING } from './insertTerapi';
 import { checkMashed, checkTypos } from './soapTypos';
+import { addressMarks } from '@/domain/address';
 import { unchangedDayMarkers } from '@/domain/dayMarkers';
 import { aliasesOrDefault } from '@/domain/sections/aliases';
 import { parseSections, type ParsedSection } from '@/domain/sections/parseSections';
@@ -52,6 +53,7 @@ export type SoapFindingKind =
   | 'opening-kind'
   | 'opening-place'
   | 'trio-6mwt'
+  | 'address'
   | 'duplicate-heading'
   | 'therapy-also-finished'
   | 'ekg-ticked-missing'
@@ -286,6 +288,8 @@ export interface SoapCheckContext {
   place?: { ward?: string | undefined; room?: string | undefined; bed?: string | undefined };
   /** The DPJP's initials when it is one of the trio (AFG, AFM, ZD), else null. */
   trio?: string | null;
+  /** The DPJP is a professor ("Prof. …"): true, a "dr." : false, not known : null / absent. */
+  dpjpIsProf?: boolean | null;
   /** Days from the note's day to the planned discharge: 1 = H-1, 0 = today. */
   dischargeInDays?: number | null;
   /** The note's clinical day (ISO), for checks about "today's" entries. */
@@ -1156,6 +1160,29 @@ function checkContext(body: string, context: SoapCheckContext): SoapFinding[] {
         level: 'cek',
         message: `Ruangan di pembuka (${describePlace(pick(written))}) beda dengan data pasien (${describePlace(pick(registered))}).`,
         ...(anchorText ? { anchor: anchorText, at: opening.at + opening.text.indexOf(anchorText) } : {}),
+      });
+    }
+  }
+
+  /*
+    The sapaan (2026-11-05): a Prof is addressed "Prof", a dr. is addressed
+    "dokter", in the pembuka and the penutup. Konsul and perpindahan notes
+    address the consultant or the receiving team, not the DPJP, so they are
+    not judged. Only the primary DPJP is compared; unknown DPJP → silent.
+  */
+  if (context.dpjpIsProf !== undefined && context.dpjpIsProf !== null && !/perpindahan|pindah|konsul/i.test(opening?.text ?? '')) {
+    const expected = context.dpjpIsProf ? 'Prof' : 'dokter';
+    const wrong = addressMarks(body).filter((mark) => mark.form !== expected);
+    const first = wrong[0];
+    if (first) {
+      const parts = [...new Set(wrong.map((mark) => mark.part))].join(' dan ');
+      findings.push({
+        kind: 'address',
+        level: 'cek',
+        message: `Sapaan di ${parts} “${first.word}”, padahal DPJP-nya ${context.dpjpIsProf ? 'Prof' : 'dr.'}. Seharusnya “${expected}”.`,
+        anchor: first.word,
+        at: first.at,
+        occurrences: wrong.map((mark) => ({ at: mark.at, text: mark.word })),
       });
     }
   }

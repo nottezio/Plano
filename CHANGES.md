@@ -1,5 +1,11 @@
 # Plano — CHANGES
 
+## `2026-11-05.8` — SOAP checker: sapaan against the DPJP
+
+- **Why.** Avi: the pembuka and penutup should address a Prof as "Prof" and a dr. as "dokter". `address.ts` already knew how to find and rewrite the sapaan ("Ganti ke Prof"), but nothing compared it with the patient's DPJP.
+- **What.** New finding `address` (level `cek`, one finding, every wrong sapaan in `occurrences`). `address.ts`: `addressLines` now maps line → `pembuka`/`penutup` (was a set), `eachVocative` passes the offset, new `addressMarks(body)`. `SoapCheckContext.dpjpIsProf` is set in `PatientPage` from the primary DPJP's registry name (`/^prof\b/i`); unknown DPJP → null → silent. Konsul and perpindahan notes are skipped (they address the consultant or receiving team). Titles (`Prof. dr. …`) and DPJP lines are ignored, as `address.ts` already did.
+- **Not done or not checked.** Only the primary DPJP is compared: a note with a Prof and a dr. as co-DPJP is judged by the first. "dokter" in the first three lines used as a noun (not a sapaan) would be flagged, the same limit "Ganti ke Prof" has. No "Ganti" button on the finding; it only asks. Not looked at in the browser; not run on real note exports.
+
 ## `2026-11-05.7` — Typo findings in their own dropdown
 
 - **Why.** Avi: many typos would crowd the checker box. Root cause: `PatientPage` rendered every `soapFindings` entry in one list, and `typo` is the only kind that can appear up to 5 times.

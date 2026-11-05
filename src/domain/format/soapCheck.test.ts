@@ -892,3 +892,34 @@ describe('post-PCI labs (22 Oct 2026)', () => {
     expect(finding(note(['- Rencana PCI (pasien menolak)']))).toBeUndefined();
   });
 });
+
+describe('sapaan against the DPJP (2026-11-05)', () => {
+  const body = (greeting: string, closing: string) =>
+    `${greeting}, mohon izin melaporkan follow up pasien di *PJT Lt. 4 Kamar 420 bed 2* atas nama :\n\n*S:*\n- sesak berkurang\n\nTerima kasih ${closing}.`;
+  const address = (text: string, dpjpIsProf: boolean | null) =>
+    checkSoap({ body: text, context: { dpjpIsProf } }).filter((finding) => finding.kind === 'address');
+
+  it('names the part and the right sapaan when a Prof is addressed as dokter', () => {
+    const [finding] = address(body('Tabe dokter', 'dokter'), true);
+    expect(finding?.message).toBe('Sapaan di pembuka dan penutup “dokter”, padahal DPJP-nya Prof. Seharusnya “Prof”.');
+    expect(finding?.occurrences).toHaveLength(2);
+  });
+
+  it('flags a dr. DPJP addressed as Prof, only in the part that is wrong', () => {
+    const text = body('Tabe dokter', 'Prof');
+    const [finding] = address(text, false);
+    expect(finding?.message).toMatch(/^Sapaan di penutup “Prof”/);
+    expect(text.slice(finding!.at!, finding!.at! + 4)).toBe('Prof');
+  });
+
+  it('matching sapaan, an unknown DPJP and a konsul opening are silent', () => {
+    expect(address(body('Tabe Prof', 'Prof'), true)).toEqual([]);
+    expect(address(body('Tabe dokter', 'dokter'), false)).toEqual([]);
+    expect(address(body('Tabe dokter', 'Prof'), null)).toEqual([]);
+    expect(address(body('Tabe dokter', 'Prof').replace('follow up', 'konsul'), false)).toEqual([]);
+  });
+
+  it('a Prof named as a title in the opening is not a sapaan', () => {
+    expect(address('Tabe dokter, mohon izin melaporkan pasien Prof. dr. Peter Kabo atas nama :\n\n*S:*\n- sesak', false)).toEqual([]);
+  });
+});

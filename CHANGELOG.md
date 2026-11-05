@@ -5,6 +5,9 @@ Catatan teknis lengkap (akar masalah, perbaikan) ada di CHANGES.md.
 
 Entri teratas harus versi yang sedang dirilis; tes gagal bila belum ditulis.
 
+## `2026-11-05.8`
+- **Pemeriksa SOAP kini mengecek sapaan di pembuka dan penutup terhadap DPJP.** DPJP Prof disapa “Prof”, DPJP dr. disapa “dokter”. Bila tidak cocok, temuannya menyebut bagian yang salah (pembuka, penutup, atau keduanya) dan sapaan yang seharusnya. Catatan konsul dan perpindahan tidak dinilai, begitu juga DPJP yang belum dikenali.
+
 ## `2026-11-05.7`
 - **Kemungkinan salah ketik kini punya daftar sendiri** di kotak Periksa lagi: satu baris “Kemungkinan salah ketik (n)” yang tertutup, ketuk untuk membukanya. Temuan lain tidak lagi tertimbun bila salah ketiknya banyak.
 

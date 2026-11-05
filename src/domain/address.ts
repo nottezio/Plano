@@ -34,21 +34,23 @@ const CLOSING_HINT = /(terima\s*kasih|terimakasih|arahan)/i;
 /** Rewrites or inspects the vocatives in one line; titles and DPJP lines are skipped. */
 function eachVocative(
   line: string,
-  visit: (word: string, sentenceStart: boolean) => string,
+  visit: (word: string, sentenceStart: boolean, offset: number) => string,
 ): string {
   if (DPJP_LINE.test(line)) return line;
   return line.replace(WORD, (word, _group: string, offset: number) => {
     const isProf = /^prof$/i.test(word);
     if (isProf && BEFORE_TITLE.test(line.slice(offset + word.length))) return word;
     const before = line.slice(0, offset).trimEnd();
-    return visit(word, before === '' || /[.!?]$/.test(before));
+    return visit(word, before === '' || /[.!?]$/.test(before), offset);
   });
 }
 
-/** Line indexes of the opening paragraph and the closing line. */
-function addressLines(body: string): Set<number> {
+export type AddressPart = 'pembuka' | 'penutup';
+
+/** Line indexes of the opening paragraph and the closing line, each with its part. */
+function addressLines(body: string): Map<number, AddressPart> {
   const lines = body.split('\n');
-  const out = new Set<number>();
+  const out = new Map<number, AddressPart>();
 
   const first = lines.findIndex((line) => line.trim() !== '');
   if (first >= 0) {
@@ -56,14 +58,14 @@ function addressLines(body: string): Set<number> {
     // sentence written on separate lines are still the opening.
     for (let i = first; i < lines.length && i < first + 3; i++) {
       if ((lines[i] ?? '').trim() === '') break;
-      out.add(i);
+      out.set(i, 'pembuka');
     }
   }
 
   for (let i = lines.length - 1; i > first; i--) {
     const line = lines[i] ?? '';
     if (line.trim() === '') continue;
-    if (isClosingLine(line)) out.add(i);
+    if (isClosingLine(line)) out.set(i, 'penutup');
     break;
   }
   return out;
@@ -132,10 +134,37 @@ export function addressIn(text: string): AddressForm | null {
  */
 export function noteAddress(body: string): AddressForm {
   const lines = body.split('\n');
-  const targets = [...addressLines(body)].sort((a, b) => b - a);
+  const targets = [...addressLines(body).keys()].sort((a, b) => b - a);
   for (const index of targets) {
     const form = addressIn(lines[index] ?? '');
     if (form) return form;
   }
   return 'dokter';
+}
+
+export interface AddressMark {
+  part: AddressPart;
+  form: AddressForm;
+  /** As written: `Prof`, `dokter`, `dok`. */
+  word: string;
+  /** Offset in `body`. */
+  at: number;
+}
+
+/** Every address in the opening and the closing, with where it sits. */
+export function addressMarks(body: string): AddressMark[] {
+  const targets = addressLines(body);
+  const marks: AddressMark[] = [];
+  let lineStart = 0;
+  body.split('\n').forEach((line, index) => {
+    const part = targets.get(index);
+    if (part) {
+      eachVocative(line, (word, _sentenceStart, offset) => {
+        marks.push({ part, form: /^prof$/i.test(word) ? 'Prof' : 'dokter', word, at: lineStart + offset });
+        return word;
+      });
+    }
+    lineStart += line.length + 1;
+  });
+  return marks;
 }

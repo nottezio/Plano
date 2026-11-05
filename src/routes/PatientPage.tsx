@@ -782,12 +782,13 @@ export default function PatientPage(): JSX.Element {
       hariRawat,
       place: { ward: patient?.ward, room: patient?.room, bed: patient?.bed },
       trio: isTrioDpjp(dpjp?.id) ? (dpjp?.initials ?? null) : null,
+      dpjpIsProf: dpjp ? /^prof\b/i.test(dpjp.name) : null,
       dischargeInDays: plannedDischarge ? daysBetween(selected, plannedDischarge) : null,
       date: selected,
       // The board's EKG chip, ticked for THIS day (ticks are kept per day).
       ekgDone: patient?.reminderDone?.date === selected && patient.reminderDone.ids.includes('ekg'),
     }),
-    [hariRawat, patient?.ward, patient?.room, patient?.bed, patient?.reminderDone, dpjp?.id, dpjp?.initials, plannedDischarge, selected],
+    [hariRawat, patient?.ward, patient?.room, patient?.bed, patient?.reminderDone, dpjp, plannedDischarge, selected],
   );
   /** Per finding with several places: which one "Tampilkan" goes to next. */
   const [occurrenceStep, setOccurrenceStep] = useState<Record<string, number>>({});
