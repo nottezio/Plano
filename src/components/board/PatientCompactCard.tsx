@@ -6,6 +6,7 @@ import { diagnosisSummary, shortStepLabel, soapState, type BoardCard } from '@/d
 import { STAGE_TOKEN } from '@/domain/discharge';
 import { isTrioDpjp } from '@/domain/dpjp';
 import { InlineCatatan } from './InlineCatatan';
+import { HoverDetail } from './HoverDetail';
 import { FlagRow, RmChip } from './PatientCard';
 import { ProgressStrip } from './ProgressStrip';
 
@@ -124,6 +125,8 @@ export function DiagnosisLine({
   const added = card.dxChanges?.added.length ?? 0;
   if (!first) return <p className="text-xs italic opacity-80">Belum ada catatan hari ini.</p>;
   return (
+    // The preview as stored: one line says nothing the card does not already say.
+    <HoverDetail title="Diagnosis" text={card.preview.includes('\n') ? card.preview : ''}>
     <p className="min-w-0 break-words text-xs">
       {/* The label comes first, so a line of diagnosis cannot be read as a line of Catatan. */}
       <button
@@ -143,6 +146,7 @@ export function DiagnosisLine({
       <span className="opacity-80">{first}</span>
       {added > 0 ? <span className="ml-1.5 whitespace-nowrap font-semibold">+{added} baru</span> : null}
     </p>
+    </HoverDetail>
   );
 }
 
@@ -277,14 +281,17 @@ function PatientCompactCardView({
         <WatchTags card={card} />
       </div>
       <div className="mt-d-gap space-y-d-gap">
-        <StatusButton card={card} onOpen={onChecklist} disabled={selectable} />
+        {/* Reminders share the status line: on their own row they cost every card a line. */}
+        <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+          <StatusButton card={card} onOpen={onChecklist} disabled={selectable} />
+          <FlagRow card={card} dischargeStrip={dischargeStripOf(card)} className="!mt-0" />
+        </div>
         <DiagnosisLine card={card} onDiagnosis={onDiagnosis} />
         {/* A well in the card's own colour: Catatan is what gets acted on, and a second hue would collide with the checklist colour. */}
         <div className="rounded-md bg-black/15 px-1.5 py-1 font-medium dark:bg-black/25">
           <InlineCatatan patient={patient} name={card.name} readOnly={selectable} />
         </div>
       </div>
-      <FlagRow card={card} dischargeStrip={dischargeStripOf(card)} />
     </div>
   );
 }

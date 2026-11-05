@@ -5,6 +5,10 @@ Catatan teknis lengkap (akar masalah, perbaikan) ada di CHANGES.md.
 
 Entri teratas harus versi yang sedang dirilis; tes gagal bila belum ditulis.
 
+## `2026-11-05.2`
+- **Penanda di Kartu Ringkas kini sebaris dengan status.** Pengingat seperti Urine output dan EKG, juga KJS, tidak lagi memakai baris sendiri, jadi kartu lebih pendek.
+- **Arahkan mouse ke diagnosis atau Catatan untuk melihat isi lengkapnya**, di Kartu Ringkas dan Papan Kerja. Kotak muncul di samping kartu, teksnya bisa disorot, dan Esc menutupnya. Kotak hanya muncul bila ada yang belum terlihat di kartu.
+
 ## `2026-11-05.1`
 - **Diagnosis di Kartu Ringkas dan Papan Kerja tidak lagi terpotong.** Diagnosis pertama kini tampil utuh dan turun ke baris berikutnya bila panjang.
 - **Tombol Dx membuka preview tepat di bagian diagnosis.** Bila preview pasien itu sudah terbuka, jendelanya maju dan digulir ke sana.

@@ -2,6 +2,7 @@ import { useLayoutEffect, useRef, useState } from 'react';
 
 import { usePatientNotes } from '@/components/patient/PatientNotes';
 import type { Patient } from '@/domain/types';
+import { HoverDetail } from './HoverDetail';
 
 const LINES_AT_REST = 3;
 const LINES_WHILE_TYPING = 12;
@@ -50,7 +51,7 @@ export function InlineCatatan({
   }, [sync.value, focused, linesAtRest]);
 
   return (
-    <div className="min-w-0">
+    <HoverDetail title="Catatan" text={hiddenLines > 0 ? sync.value : ''} disabled={focused}>
       <div className="flex items-start gap-1">
       <textarea
         ref={ref}
@@ -93,6 +94,6 @@ export function InlineCatatan({
       )}
       </div>
       {hiddenLines > 0 ? <p className="text-[11px] font-semibold opacity-80">+{hiddenLines} baris</p> : null}
-    </div>
+    </HoverDetail>
   );
 }

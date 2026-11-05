@@ -1,5 +1,11 @@
 # Plano — CHANGES
 
+## `2026-11-05.2` — Kartu Ringkas: flags on the status line; hover detail on diagnosis and Catatan
+
+- **Banner height.** `FlagRow` had its own row at the bottom of the card, while the status line above it was mostly empty. It now shares that line and wraps only when it does not fit. Papan Kerja keeps its Penanda column.
+- **Hover detail.** New `HoverDetail`, used by `DiagnosisLine` and `InlineCatatan`. The stretched link covers the text, so hover cannot come from the text's own events; raising the text above the link would break click-to-open and Ctrl+click. It tests the pointer against the zone's rectangle from listeners on the card. Portalled to `body`, since the canvas clips. Diagnosis shows `card.preview` as stored (already redacted when initials-only is on); Catatan shows the full note. Nothing is shown when the card already shows it all.
+- **Not done.** Mouse only: no keyboard or touch trigger (Dx and the ✎ button remain the way in). The Standar layout is unchanged. `card.preview` is capped at `PREVIEW_LIMIT`, so a very long diagnosis section still ends in an ellipsis.
+
 ## `2026-11-05.1` — Compact layouts: whole diagnosis, Dx jumps to it, card really clickable
 
 - **Cut-off diagnosis.** Root cause: `DiagnosisLine` truncated to one line to save height, and a phrase cut in the middle says nothing. It now wraps in normal flow. Cards and rows with a long first diagnosis are taller, so fewer may fit a screen.
