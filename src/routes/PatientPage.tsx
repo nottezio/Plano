@@ -2850,6 +2850,7 @@ export default function PatientPage(): JSX.Element {
             <>
               {renderChecker('side')}
               {(() => {
+                const around = neighbourDates(railDates, selected);
                 const content: PanelContent = {
                   notes: { value: notesSync.value, editor: <PatientNotes sync={notesSync} bare /> },
                   checklist: {
@@ -2905,6 +2906,8 @@ export default function PatientPage(): JSX.Element {
                     count: railDates.length,
                     current: formatShortDateNoWeekday(selected),
                     rail: dateRail,
+                    ...(around.prev ? { prev: () => goToDate(around.prev!) } : {}),
+                    ...(around.next ? { next: () => goToDate(around.next!) } : {}),
                   },
                 };
                 const viewKey = `${patient.id}-${selected}`;
@@ -3058,6 +3061,23 @@ function buildRail(
   const dates = new Set<ClinicalDate>(entryDates);
   dates.add(today);
   return [...dates].sort();
+}
+
+/**
+ * The days either side of `selected` in the rail, for the arrows in the side
+ * panel. The admission note sits above every day, so its only neighbour is the
+ * first day; a day that is not in the rail (picked via "Tanggal lain") still
+ * gets the nearest ones on each side.
+ */
+function neighbourDates(
+  rail: readonly ClinicalDate[],
+  selected: ClinicalDate,
+): { prev?: ClinicalDate; next?: ClinicalDate } {
+  if (isIgdEntry(selected)) return rail[0] ? { next: rail[0] } : {};
+  const before = rail.filter((date) => date < selected);
+  const next = rail.find((date) => date > selected);
+  const prev = before[before.length - 1];
+  return { ...(prev ? { prev } : {}), ...(next ? { next } : {}) };
 }
 
 

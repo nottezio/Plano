@@ -1,4 +1,4 @@
-import { useRef, useState, type ReactNode } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 
 import { ProgressStrip } from '@/components/board/ProgressStrip';
 import { IconCheck, IconChevronRight } from '@/components/common/Icons';
@@ -38,7 +38,51 @@ export interface PanelContent {
   notes: { value: string; editor: ReactNode };
   checklist: PanelList;
   todos: PanelList;
-  dates: { count: number; current: string; rail: ReactNode };
+  dates: {
+    count: number;
+    current: string;
+    rail: ReactNode;
+    /** Step to the earlier / later day; absent at either end of the rail. */
+    prev?: () => void;
+    next?: () => void;
+  };
+}
+
+/**
+ * The date list, opened at its newest day. The rail runs oldest to newest, so
+ * a long admission opened at the top showed the first week and hid today.
+ */
+function DatesBody({ rail }: { rail: ReactNode }): JSX.Element {
+  const ref = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const el = ref.current;
+    if (el) el.scrollTop = el.scrollHeight;
+  }, []);
+  return (
+    <div ref={ref} className="max-h-72 overflow-y-auto">
+      {rail}
+    </div>
+  );
+}
+
+function StepButton({
+  dir,
+  onStep,
+}: {
+  dir: 'prev' | 'next';
+  onStep: (() => void) | undefined;
+}): JSX.Element {
+  return (
+    <button
+      type="button"
+      onClick={onStep}
+      disabled={!onStep}
+      aria-label={dir === 'prev' ? 'Tanggal sebelumnya' : 'Tanggal berikutnya'}
+      className="flex min-h-tap min-w-tap items-center justify-center rounded-md text-fg-muted hover:bg-bg-subtle disabled:opacity-30 disabled:hover:bg-transparent [@media(pointer:fine)]:min-h-6 [@media(pointer:fine)]:min-w-6"
+    >
+      <IconChevronRight aria-hidden="true" className={`h-3 w-3 ${dir === 'prev' ? 'rotate-180' : ''}`} />
+    </button>
+  );
 }
 
 const openCount = (list: PanelList): number => list.rows.filter((row) => !row.done).length;
@@ -222,7 +266,7 @@ export function TabPanels({ content }: { content: PanelContent }): JSX.Element {
         {tab === 'catatan' ? notes.editor : null}
         {tab === 'checklist' ? <TabList key="checklist" list={checklist} /> : null}
         {tab === 'todos' ? <TabList key="todos" list={todos} /> : null}
-        {tab === 'tanggal' ? <div className="max-h-72 overflow-y-auto">{dates.rail}</div> : null}
+        {tab === 'tanggal' ? <DatesBody rail={dates.rail} /> : null}
       </div>
     </div>
   );
@@ -290,12 +334,24 @@ export function RailPanels({ content, top }: { content: PanelContent; top: React
       <RailList list={checklist} coloured />
       <RailList list={todos} coloured={false} />
       <section className={SECTION}>
-        <button type="button" onClick={() => setDatesOpen((open) => !open)} aria-expanded={datesOpen} className={HEADER}>
-          <span className="flex-1">Tanggal{dates.count > 1 ? ` · ${dates.count} hari` : ''}</span>
-          <span className="font-medium tabular-nums">{dates.current}</span>
-          <Chevron open={datesOpen} />
-        </button>
-        {datesOpen ? <div className="max-h-72 overflow-y-auto">{dates.rail}</div> : null}
+        {/* Not one button: the arrows are buttons too, and buttons cannot nest. */}
+        <div className="flex items-center gap-1">
+          <button
+            type="button"
+            onClick={() => setDatesOpen((open) => !open)}
+            aria-expanded={datesOpen}
+            className={`${HEADER.replace('w-full', 'min-w-0 flex-1')}`}
+          >
+            <span className="truncate">Tanggal{dates.count > 1 ? ` · ${dates.count} hari` : ''}</span>
+            <Chevron open={datesOpen} />
+          </button>
+          <StepButton dir="prev" onStep={dates.prev} />
+          <span className="min-w-[3.25rem] text-center text-xs font-medium tabular-nums text-fg-muted">
+            {dates.current}
+          </span>
+          <StepButton dir="next" onStep={dates.next} />
+        </div>
+        {datesOpen ? <DatesBody rail={dates.rail} /> : null}
       </section>
     </div>
   );

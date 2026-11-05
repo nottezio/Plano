@@ -1,5 +1,12 @@
 # Plano — CHANGES
 
+## `2026-11-06.1` — Date arrows and newest-first scroll in the SOAP side panel
+
+- **Why.** Avi: the closed Tanggal row in Rail warna needed left/right arrows, and the opened list should land on the newest day.
+- **What.** `RailPanels` header is no longer one button (buttons cannot nest): toggle (label + chevron), prev/next `StepButton`s around the current date. `PanelContent.dates` gains optional `prev`/`next`; `PatientPage` fills them from `neighbourDates` (nearest rail day either side; SOAP Awal's only neighbour is the first day). `DatesBody` scrolls to the bottom on mount, because the rail runs oldest to newest and a long admission opened at the first week. Also used by the Tab status Tanggal tab, same list.
+- **Root cause of the scroll.** Not a bug in the scroll code: the container simply never set `scrollTop`, so it opened at the top of an ascending list.
+- **Not done.** No unit test for `neighbourDates` (private helper in the page file). Opening the list does not centre the selected day when it is not the newest, by request (newest).
+
 ## `2026-11-05.9` — Two optional SOAP sidebars: Tab status and Rail warna
 
 - **Why.** Avi found the panel sidebar weak: five equal boxes, the open steps buried in the fourth and cut off by `truncate`, ticking two clicks away because `SidePanel` previews are read-only. Chose two of three mocked directions, as options rather than a replacement.
