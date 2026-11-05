@@ -788,6 +788,7 @@ export function CanvasBoard({
             // Found by a dropped sticker, to know which card it landed on.
             data-canvas-id={id}
             data-active={active ? 'true' : undefined}
+            data-front={id === frontId ? '' : undefined}
             onPointerDownCapture={() => {
               if (frontId !== id) setFrontId(id);
             }}
@@ -1169,6 +1170,7 @@ function ShelfBox({
     <div
       data-shelf-id={id}
       data-active={active ? 'true' : undefined}
+      data-front={front ? '' : undefined}
       onPointerDownCapture={onFront}
       className="group absolute"
       style={{

@@ -5,6 +5,10 @@ Catatan teknis lengkap (akar masalah, perbaikan) ada di CHANGES.md.
 
 Entri teratas harus versi yang sedang dirilis; tes gagal bila belum ditulis.
 
+## `2026-11-05.4`
+- **Gulungan Catatan kini tetap seperti yang ditinggalkan.** Yang terbuka tidak lagi menutup sendiri saat mengklik hal lain, dan tetap terbuka setelah berpindah tata letak, membuka pasien, atau memuat ulang. Untuk menutupnya, klik barisnya atau tekan Esc saat kursor ada di dalamnya. Tersimpan per pasien, per perangkat.
+- **Warna gulungan kini mengikuti warna kartu,** sedikit lebih gelap, jadi tidak lagi tampak terpisah dari kartunya.
+
 ## `2026-11-05.3`
 - **Catatan kini satu baris yang bisa digulung**, di Kartu Ringkas dan Papan Kerja. Kartu tidak lagi bertambah tinggi saat Catatan ditambah. Klik barisnya untuk membukanya ke bawah dan membaca atau mengetik langsung. Hanya gulungannya yang memanjang, di atas kartu lain, sedangkan ukuran kartu tetap. Klik di tempat lain atau tekan Esc untuk menggulungnya kembali, dan isinya tersimpan seperti biasa. Tombol ✎ tidak diperlukan lagi.
 - **Kotak penggeser di preview kini berwarna sesuai bagian catatan yang sedang dibaca:** abu-abu identitas, hijau S, biru O, kuning Assessment, merah muda Terapi dan Plan, ungu TS.
