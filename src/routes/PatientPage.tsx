@@ -37,6 +37,8 @@ import type { CarryChange } from '@/domain/versionCarry';
 import { PatientNotes, usePatientNotes } from '@/components/patient/PatientNotes';
 import { PatientTodos } from '@/components/patient/PatientTodos';
 import { SidePanel } from '@/components/patient/SidePanel';
+import { RailPanels, TabPanels, type PanelContent } from '@/components/patient/SidePanelLists';
+import { tickTodo } from '@/components/patient/tickTodo';
 import { previewTodos, todoViews } from '@/domain/patientTodos';
 import { DocumentPanel } from '@/components/patient/DocumentPanel';
 import { ScrollToTop } from '@/components/patient/ScrollToTop';
@@ -1152,7 +1154,8 @@ export default function PatientPage(): JSX.Element {
    * and so hosts the checker and the DPJP card (from 1280 px, where it is
    * visible). Otherwise both stay above the note, as before.
    */
-  const sideHosts = layout === 'panel' && paneOpen && paneView === 'pasien';
+  const optionalSide = layout === 'tab' || layout === 'rail';
+  const sideHosts = layout !== 'klasik' && paneOpen && paneView === 'pasien';
 
   const renderChecker = (where: 'main' | 'side' | 'sheet'): JSX.Element => (
     <>
@@ -1169,7 +1172,8 @@ export default function PatientPage(): JSX.Element {
             }
           >
             <span className="min-w-0 flex-1 truncate">
-              <span aria-hidden="true" className="text-accent">✓</span> Tidak ada yang janggal dari aturan biasa
+              <span aria-hidden="true" className="text-accent">✓</span>{' '}
+              {optionalSide && where === 'side' ? 'Aturan: tidak ada temuan' : 'Tidak ada yang janggal dari aturan biasa'}
             </span>
             {aiEnabled('check') ? (
             <button
@@ -1674,10 +1678,11 @@ export default function PatientPage(): JSX.Element {
    * does not. Who the report goes to, in what shape, the standing 6MWT, and
    * the next two clinics.
    */
-  const renderDpjpSide = (): JSX.Element | null => {
+  const renderDpjpSide = (variant: 'card' | 'quiet' | 'bare' = 'card'): JSX.Element | null => {
     if (!dpjp && patient.diagnoses.length === 0) return null;
     return (
       <DpjpSideCard
+        variant={variant}
         dpjp={dpjp ? { id: dpjp.id, initials: dpjp.initials, name: dpjp.name } : null}
         rows={[
           ...(dpjp?.delivery ? [{ label: 'Kirim', value: describeDelivery(dpjp.delivery) }] : []),
@@ -2641,13 +2646,15 @@ export default function PatientPage(): JSX.Element {
         <aside
           className={[
             'sticky top-0 shrink-0 flex-col gap-4',
-            layout === 'panel' ? 'w-[320px]' : 'w-[300px]',
+            layout !== 'klasik' ? 'w-[320px]' : 'w-[300px]',
             // Panel layout: a FIXED-height column, so it is always its own
             // scroll container. `max-h` alone leaves the column as tall as its
             // content until that content exceeds the viewport, and an expanded
             // panel in the middle of a long stack could then run past the
             // bottom with the scroll belonging to the page instead.
-            layout === 'panel' ? 'h-[var(--app-h,100dvh)] gap-3' : 'max-h-[var(--app-h,100dvh)]',
+            layout !== 'klasik' ? 'h-[var(--app-h,100dvh)] gap-3' : 'max-h-[var(--app-h,100dvh)]',
+            // A full second scrollbar beside the page's was the loudest thing in the column.
+            optionalSide ? '[scrollbar-width:thin]' : '',
             // The scrollbar's space is reserved whether or not it is showing.
             // Without this the column lost ~15px the moment a panel was
             // expanded enough to overflow, so every card reflowed and the
@@ -2839,7 +2846,81 @@ export default function PatientPage(): JSX.Element {
             </>
           ) : null}
 
-          {paneView === 'pasien' && layout !== 'panel' ? (
+          {paneView === 'pasien' && optionalSide ? (
+            <>
+              {renderChecker('side')}
+              {(() => {
+                const content: PanelContent = {
+                  notes: { value: notesSync.value, editor: <PatientNotes sync={notesSync} bare /> },
+                  checklist: {
+                    title: 'Checklist',
+                    tabLabel: 'Checklist',
+                    rows: activeChecklistItems.map((item) => ({
+                      id: item.id,
+                      label: item.label,
+                      done: checklist.states[item.id]?.done === true,
+                      colorToken: item.colorToken,
+                    })),
+                    progress: checklist.progress,
+                    onToggle: checklist.toggle,
+                    disabled: locked,
+                    loading: checklist.loading,
+                    full: (
+                      <ChecklistPills
+                        items={dayItems}
+                        states={checklist.states}
+                        progress={checklist.progress}
+                        onToggle={checklist.toggle}
+                        disabled={locked}
+                        orientation="vertical"
+                      />
+                    ),
+                  },
+                  todos: {
+                    title: 'Custom Checklist',
+                    tabLabel: 'Custom',
+                    rows: todoViewsForSummary.map((view) => ({
+                      id: view.id,
+                      label: view.label,
+                      done: view.done,
+                      ...(view.doneYesterday ? { hint: 'sudah kemarin' } : {}),
+                    })),
+                    progress: {
+                      total: todoViewsForSummary.length,
+                      doneCount: todoDone,
+                      complete: todoSummary.tone === 'done',
+                      segments: todoViewsForSummary.map((view) => ({
+                        itemId: view.id,
+                        label: view.label,
+                        colorToken: '',
+                        done: view.done,
+                      })),
+                      pendingLabel: null,
+                      pendingItemId: null,
+                    },
+                    onToggle: (id) => tickTodo(patient, selected, id),
+                    full: <PatientTodos patient={patient} date={selected} compact />,
+                  },
+                  dates: {
+                    count: railDates.length,
+                    current: formatShortDateNoWeekday(selected),
+                    rail: dateRail,
+                  },
+                };
+                const viewKey = `${patient.id}-${selected}`;
+                return layout === 'tab' ? (
+                  <>
+                    {renderDpjpSide('quiet')}
+                    <TabPanels key={viewKey} content={content} />
+                  </>
+                ) : (
+                  <RailPanels key={viewKey} content={content} top={renderDpjpSide('bare')} />
+                );
+              })()}
+            </>
+          ) : null}
+
+          {paneView === 'pasien' && layout === 'klasik' ? (
             <>
           <PatientNotes sync={notesSync} />
 

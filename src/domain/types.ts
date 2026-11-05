@@ -130,7 +130,7 @@ export interface PrivacySettings {
  * where everything fits, and changing where someone's checklist lives without
  * asking is not an improvement to them.
  */
-export type SoapLayout = 'klasik' | 'panel';
+export type SoapLayout = 'klasik' | 'panel' | 'tab' | 'rail';
 
 /**
  * How the patient watermark is drawn.

@@ -1,5 +1,15 @@
 # Plano — CHANGES
 
+## `2026-11-05.9` — Two optional SOAP sidebars: Tab status and Rail warna
+
+- **Why.** Avi found the panel sidebar weak: five equal boxes, the open steps buried in the fourth and cut off by `truncate`, ticking two clicks away because `SidePanel` previews are read-only. Chose two of three mocked directions, as options rather than a replacement.
+- **What.** `SoapLayout` gains `tab` and `rail`; default stays `klasik`, and old builds read an unknown value as Klasik, so no migration. New `SidePanelLists.tsx` (`TabPanels`, `RailPanels`), `domain/sidePanelLists.ts` (`firstOpenTab`, `keepShown`, tested). `tickTodo.ts` is moved out of `PatientTodos` so both views write one way. `DpjpSideCard` gains `variant` (`quiet`, `bare`). In these two layouts only: checker reads "Aturan: tidak ada temuan" (the old line was cut off by the AI button), empty Poli row hidden, thin sidebar scrollbar.
+- **Decisions.** Checklist and Custom Checklist stay separate (Avi). A ticked row stays in place until the patient or day changes, so the next row cannot slide under the pointer. Custom Checklist has no colours, so its rail is neutral.
+- **Bug found while testing.** A step ticked earlier came back as open on reopening a patient. Root cause: the panel read the rows before the checklist document had answered, when every step resolves to not done, and `keepShown` remembered them all. The tab choice had the same race. The panels now wait for `loading`, and `useChecklist.loading` compares which document answered instead of a flag set in the effect, which said "loaded" for one render after a day change.
+- **Unchanged behaviour carried over.** Custom Checklist ticks are not blocked on a locked day, same as `PatientTodos`; Checklist ticks are.
+- **Checked.** Emulator at 1440 px: both layouts in Senja + hijau and Light, ticking from the closed view, ticks surviving a reload, Daftar lengkap, Catatan and Tanggal tabs. Driven by script because the app window was hidden, so hover and real pointer or keyboard use were not exercised.
+- **Not checked.** A long standing note, a locked day, a DPJP with an upcoming Poli, Dark and the other palettes by eye, a ward device.
+
 ## `2026-11-05.8` — SOAP checker: sapaan against the DPJP
 
 - **Why.** Avi: the pembuka and penutup should address a Prof as "Prof" and a dr. as "dokter". `address.ts` already knew how to find and rewrite the sapaan ("Ganti ke Prof"), but nothing compared it with the patient's DPJP.

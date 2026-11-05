@@ -5,6 +5,9 @@ Catatan teknis lengkap (akar masalah, perbaikan) ada di CHANGES.md.
 
 Entri teratas harus versi yang sedang dirilis; tes gagal bila belum ditulis.
 
+## `2026-11-05.9`
+- **Dua pilihan baru untuk panel samping halaman SOAP**, di Pengaturan → Tata letak halaman SOAP. **Tab status**: empat tab menampilkan semua hitungan sekaligus, satu isi terbuka, dan tab pertama yang masih ada sisa terbuka sendiri. **Rail warna**: tiap checklist punya rail seperti di kartu pasien. Di keduanya, langkah yang belum selesai bisa langsung dicentang tanpa membuka daftar. Tata letak Klasik dan Panel tidak berubah.
+
 ## `2026-11-05.8`
 - **Pemeriksa SOAP kini mengecek sapaan di pembuka dan penutup terhadap DPJP.** DPJP Prof disapa “Prof”, DPJP dr. disapa “dokter”. Bila tidak cocok, temuannya menyebut bagian yang salah (pembuka, penutup, atau keduanya) dan sapaan yang seharusnya. Catatan konsul dan perpindahan tidak dinilai, begitu juga DPJP yang belum dikenali.
 

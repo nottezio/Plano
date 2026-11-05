@@ -802,16 +802,18 @@ export default function SettingsPage(): JSX.Element {
           <SettingsSubgroup label="Halaman catatan">
             <SettingsSection
               id="tata-letak"
-              keywords="layout panel klasik soap"
+              keywords="layout panel klasik soap tab status rail warna"
               title="Tata letak halaman SOAP"
-            value={(settings.soapLayout ?? 'klasik') === 'panel' ? 'Panel' : 'Klasik'}
+            value={{ klasik: 'Klasik', panel: 'Panel', tab: 'Tab status', rail: 'Rail warna' }[settings.soapLayout ?? 'klasik']}
               description="Susunan panel di samping catatan."
             >
-              <div className="flex gap-2">
+              <div className="grid grid-cols-2 gap-2">
                 {(
                   [
                     ['klasik', 'Klasik', 'Semua panel terbuka, urutan lama.'],
                     ['panel', 'Panel', 'Catatan · Checklist · Custom Checklist · Tanggal, semua mulai tertutup dengan ringkasan di judulnya.'],
+                    ['tab', 'Tab status', 'Empat tab menampilkan semua hitungan, satu isi terbuka. Centang langsung dari daftar.'],
+                    ['rail', 'Rail warna', 'Rail warna seperti di kartu pasien, yang belum selesai terlihat dan bisa langsung dicentang.'],
                   ] as Array<[SoapLayout, string, string]>
                 ).map(([value, label, note]) => (
                   <button

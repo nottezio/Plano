@@ -38,22 +38,25 @@ export function useChecklist(
 ): ChecklistController {
   const today = useClinicalToday();
   const [checklist, setChecklist] = useState<DailyChecklist | null>(null);
-  const [loading, setLoading] = useState(true);
+  // Which document has answered, not a flag: a flag set in the effect leaves one
+  // render after a day change that says "loaded" over the previous day's ticks.
+  const key = `${patientId}/${date}`;
+  const [answered, setAnswered] = useState<string | null>(null);
+  const loading = answered !== key;
 
   useEffect(() => {
     if (!patientId || !enabled) return;
-    setLoading(true);
 
     return subscribeChecklist(
       patientId,
       date,
       (next) => {
         setChecklist(next);
-        setLoading(false);
+        setAnswered(`${patientId}/${date}`);
       },
       (error) => {
         console.error('[checklist] subscription failed', error);
-        setLoading(false);
+        setAnswered(`${patientId}/${date}`);
       },
     );
   }, [patientId, date, enabled]);

@@ -11,10 +11,11 @@ import {
   setRepeat,
   todoHistory,
   todoViews,
-  toggleTodo,
 } from '@/domain/patientTodos';
 import { formatShortDate } from '@/domain/clinicalDate';
 import type { ClinicalDate, Patient } from '@/domain/types';
+
+import { tickTodo } from './tickTodo';
 
 /**
  * A checklist belonging to one patient.
@@ -129,11 +130,7 @@ export function PatientTodos({
       <li key={todo.id} className="flex items-start gap-2">
               <button
                 type="button"
-                onClick={() => {
-                  const change = toggleTodo(todos, patient.todoTicks, date, todo.id);
-                  if (change.todos) save(change.todos);
-                  if (change.ticks) writeTicks(change.ticks);
-                }}
+                onClick={() => tickTodo(patient, date, todo.id)}
                 aria-pressed={todo.done}
                 className="flex min-h-tap flex-1 items-start gap-2 text-left"
               >

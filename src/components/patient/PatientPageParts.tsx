@@ -120,11 +120,15 @@ export function DpjpSideCard({
   dpjp,
   rows,
   today,
+  variant = 'card',
 }: {
   dpjp: { id: string; initials: string; name: string } | null;
   rows: ReadonlyArray<{ label: string; value: ReactNode; strong?: boolean }>;
   today: ClinicalDate;
+  /** `quiet` drops the label and an empty Poli row; `bare` also drops the card, for a host that has one. */
+  variant?: 'card' | 'quiet' | 'bare';
 }): JSX.Element {
+  const quiet = variant !== 'card';
   const [weekOpen, setWeekOpen] = useState(false);
   const week = useMemo(() => (dpjp ? weekPoli(dpjp.id, today) : []), [dpjp, today]);
   const next = dpjp ? (upcomingPoli(dpjp.id, today, 1)[0] ?? null) : null;
@@ -135,10 +139,12 @@ export function DpjpSideCard({
         ? 'Besok'
         : `${weekdayName(entry.weekday)} ${entry.date.slice(8)}/${entry.date.slice(5, 7)}`;
   return (
-    <section className="shrink-0 overflow-hidden rounded-xl border border-border bg-surface">
+    <section className={variant === 'bare' ? 'border-b border-border' : 'shrink-0 overflow-hidden rounded-xl border border-border bg-surface'}>
       <div className="flex min-h-tap items-center gap-2 px-3 [@media(pointer:fine)]:min-h-10">
-        <span className="shrink-0 text-xs font-semibold uppercase tracking-wider text-fg-faint">DPJP</span>
-        <span className="min-w-0 flex-1 truncate text-xs font-medium" title={dpjp?.name}>
+        {quiet ? null : (
+          <span className="shrink-0 text-xs font-semibold uppercase tracking-wider text-fg-faint">DPJP</span>
+        )}
+        <span className={`min-w-0 flex-1 truncate ${quiet ? 'text-[13px] font-semibold' : 'text-xs font-medium'}`} title={dpjp?.name}>
           {dpjp ? dpjp.name : <span className="text-fg-faint">belum dikenali</span>}
         </span>
         {dpjp ? (
@@ -147,15 +153,15 @@ export function DpjpSideCard({
           </span>
         ) : null}
       </div>
-      {rows.length > 0 || dpjp ? (
-        <dl className="grid grid-cols-[auto_minmax(0,1fr)] gap-x-3 gap-y-1 border-t border-border px-3 py-2 text-xs">
+      {rows.length > 0 || (dpjp && (next || !quiet)) ? (
+        <dl className={`grid grid-cols-[auto_minmax(0,1fr)] gap-x-3 gap-y-1 px-3 text-xs ${quiet ? 'pb-2.5' : 'border-t border-border py-2'}`}>
           {rows.map((row) => (
             <div key={row.label} className="contents">
               <dt className="text-fg-faint">{row.label}</dt>
               <dd className={row.strong ? 'font-medium text-accent' : 'text-fg-muted'}>{row.value}</dd>
             </div>
           ))}
-          {dpjp ? (
+          {dpjp && (next || !quiet) ? (
             <div className="contents">
               <dt className="text-fg-faint">Poli</dt>
               <dd className="min-w-0 text-fg-muted">
