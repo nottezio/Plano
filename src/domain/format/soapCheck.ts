@@ -1,6 +1,7 @@
 import { consultCovered, dpjpSpecialties } from './specialties';
 import { frozenRanges, isFrozen } from './frozenText';
 import { SELESAI_HEADING } from './insertTerapi';
+import { checkMashed, checkTypos } from './soapTypos';
 import { unchangedDayMarkers } from '@/domain/dayMarkers';
 import { aliasesOrDefault } from '@/domain/sections/aliases';
 import { parseSections, type ParsedSection } from '@/domain/sections/parseSections';
@@ -56,7 +57,9 @@ export type SoapFindingKind =
   | 'ekg-ticked-missing'
   | 'heparin-without-aptt'
   | 'warfarin-without-inr'
-  | 'post-pci-labs';
+  | 'post-pci-labs'
+  | 'gibberish'
+  | 'typo';
 
 /**
  * How urgent, which is also the order they are listed in:
@@ -580,6 +583,8 @@ export function checkSoap(input: SoapCheckInput): SoapFinding[] {
 
   findings.push(...checkSections(sections, previous, aliases));
   findings.push(...checkUnfilled(body));
+  const frozenParts = frozenRanges(body, aliases);
+  findings.push(...checkMashed(body, frozenParts), ...checkTypos(body, previous, frozenParts));
   findings.push(...checkHariRawat(body, previous));
   findings.push(...checkDuplicates(sections));
   findings.push(...checkDuplicateHeadings(body));

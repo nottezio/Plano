@@ -5,6 +5,10 @@ Catatan teknis lengkap (akar masalah, perbaikan) ada di CHANGES.md.
 
 Entri teratas harus versi yang sedang dirilis; tes gagal bila belum ditulis.
 
+## `2026-11-05.6`
+- **Pemeriksa SOAP kini mengenali teks yang asal ketik**, seperti “a3e 3rjiwj”, “asdfgh”, “aaaaa” atau kata tanpa huruf hidup. Temuannya menyebut kata itu dan bisa dilompati dengan “Tampilkan”. Singkatan umum (SpO2, HbA1c, 3x1, 24jam, 6MWT, mmHg) tidak dianggap.
+- **Pemeriksa juga menandai kemungkinan salah ketik**: kata yang tertulis sekali, tapi beda satu huruf dari kata yang tertulis dua kali atau lebih di catatan ini atau catatan kemarin (mis. “pasein” di samping “pasien”). Nama (huruf awal kapital), kata pendek, dan teks konsulen yang ditempel dilewati. Pemeriksa hanya bertanya, tidak mengubah teks.
+
 ## `2026-11-05.5`
 - **Pengaturan kini dibagi dalam enam kategori, bukan satu daftar panjang.** Di ponsel, Pengaturan dibuka sebagai daftar kategori (Laporan & salin, Papan & harian, Tampilan, Privasi & data, Akun & aplikasi, Lanjutan); ketuk satu untuk melihat isinya, gestur kembali membawa Anda ke daftar. Di layar lebar, kategori ada di kolom kiri dan yang pertama langsung terbuka.
 - **Baris pengaturan lebih ringkas.** Tiap baris hanya menampilkan nama dan pilihan saat ini (mis. Watermark: Berulang, Privasi: PIN · Inisial), jadi Anda bisa memeriksa tanpa membuka. Penjelasannya ada di dalam baris, di atas pilihannya.

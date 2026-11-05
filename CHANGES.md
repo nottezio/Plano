@@ -1,5 +1,12 @@
 # Plano — CHANGES
 
+## `2026-11-05.6` — SOAP checker: random keystrokes and typos
+
+- **Why.** Avi: the checker should catch text typed by accident (`a3e 3rjiwj`) and typos. No existing rule looked at the words themselves. Root cause of the gap: every rule compares two numbers or two sections; nothing judged a token.
+- **What.** New `soapTypos.ts`, called from `checkSoap`. `gibberish` (one finding, every hit in `occurrences`): lower-case letters+number+letters (`a3e`), a number then 3+ letters that are not a unit (`3rjiwj`), 4+ same letter, 4 neighbouring keys on one row, lower-case words with no vowel or 6 consonants in a row. `typo` (one finding each, max 5): a plain word of 5+ letters that starts lower case, is written once, is not in yesterday's note, and is one edit (substitution, insertion, deletion, swap) from a word with the same first letter written 2+ times across today and yesterday. Both skip frozen ranges (`frozenText.ts`). Both are level `cek` and never edit text.
+- **Why no dictionary.** The corpus is Indonesian, English, drug names and ward shorthand; a general list would flag most of every note. Both checks use shapes and the note's own spellings instead.
+- **Not done or not checked.** No real-note corpus run: false-positive rate on real exports is unknown (SPEC wants corpus-driven rules). A typo that is the only spelling in the note is not seen. A mash with a vowel and no keyboard run (`asjdkh`) passes. Two valid spellings one letter apart (`nafas`/`napas`) can be flagged. A typo carried forward from yesterday is not flagged, and a correct word is flagged if yesterday misspelled it twice. Capitalised typos are skipped. Not checked in the app UI or on a ward device.
+
 ## `2026-11-05.5` — Settings: six categories, one at a time
 
 - **Why.** Avi: Settings was a cluttered mess. Cause: ~30 collapsed accordions in eight groups, each header carrying a 2-3 line description, in one long scroll. The groups overlapped (Utama, Tema, Tampilan, Papan & harian all held appearance; Akun and Privasi each appeared twice), and a collapsed row showed no value, so the page had to be opened row by row to read its state.
