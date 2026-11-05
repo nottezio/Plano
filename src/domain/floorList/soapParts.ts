@@ -1,5 +1,6 @@
 import { parseSections } from '@/domain/sections/parseSections';
 import { tintFor, type SectionTint } from '@/domain/sections/sectionTint';
+import type { SectionAlias } from '@/domain/types';
 
 /**
  * A colleague's SOAP cut into the parts a reader jumps between (12.12, Avi:
@@ -31,9 +32,9 @@ function labelFor(sectionId: string, headerLine: string | null): string {
   return MAIN[sectionId] ?? flat;
 }
 
-export function soapParts(text: string): SoapPart[] {
+export function soapParts(text: string, aliases?: readonly SectionAlias[]): SoapPart[] {
   const starts: Array<{ at: number; label: string; tint: SectionTint }> = [];
-  for (const section of parseSections(text)) {
+  for (const section of parseSections(text, aliases)) {
     if (!section.ownsLine || !(section.sectionId in MAIN)) continue;
     starts.push({ at: section.start, label: labelFor(section.sectionId, section.headerLine), tint: tintFor(section.sectionId, section.label) });
   }

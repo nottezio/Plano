@@ -109,7 +109,7 @@ function BoardRowView({
       <div className="hidden min-w-0 xl:block">
         <DiagnosisLine card={card} onDiagnosis={onDiagnosis} />
       </div>
-      <InlineCatatan patient={patient} name={card.name} readOnly={selectable} linesAtRest={2} />
+      <InlineCatatan patient={patient} name={card.name} readOnly={selectable} />
       <FlagRow card={card} dischargeStrip={dischargeStripOf(card)} className="!mt-0" />
       <RowActions card={card} onPreview={onPreview} onVisite={onVisite} />
     </div>

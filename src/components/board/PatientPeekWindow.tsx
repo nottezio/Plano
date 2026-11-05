@@ -1,6 +1,8 @@
 import { cardTitle } from '@/domain/board';
-import { useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { assessmentStart } from '@/data/repositories/patients.repo';
+import { soapParts } from '@/domain/floorList/soapParts';
+import type { SectionTint } from '@/domain/sections/sectionTint';
 import { itemsForPatientDay } from '@/domain/checklistDay';
 import { useClipboardNote } from '@/store/useClipboardNote';
 import { Link } from 'react-router-dom';
@@ -240,8 +242,53 @@ export function PatientPeekWindow({
 
   const diagnosisAt = focusDiagnosis > 0 && view === 'asli' ? assessmentStart(shown) : null;
   const scrollerRef = useRef<HTMLDivElement>(null);
-  const diagnosisRef = useRef<HTMLSpanElement>(null);
   const scrolledFor = useRef(0);
+  const aliases = settings.sectionAliases;
+  /* Slices of the text as shown, one per part of the note, also cut at the diagnosis for Dx to scroll to. */
+  const pieces = useMemo(() => {
+    const out: Array<{ at: number; text: string; tint: SectionTint }> = [];
+    let at = 0;
+    for (const part of soapParts(shown, aliases)) {
+      const end = at + part.text.length;
+      if (diagnosisAt !== null && diagnosisAt > at && diagnosisAt < end) {
+        out.push({ at, text: shown.slice(at, diagnosisAt), tint: part.tint });
+        out.push({ at: diagnosisAt, text: shown.slice(diagnosisAt, end), tint: part.tint });
+      } else {
+        out.push({ at, text: part.text, tint: part.tint });
+      }
+      at = end;
+    }
+    return out;
+  }, [shown, aliases, diagnosisAt]);
+
+  /*
+    The scroller's box takes the colour of the part of the note level with it:
+    the same fraction down the text as the box is down its track, so the first
+    line colours it at the top and the last line at the bottom.
+  */
+  const paintThumb = useCallback((): void => {
+    const scroller = scrollerRef.current;
+    if (!scroller) return;
+    const travel = scroller.scrollHeight - scroller.clientHeight;
+    const progress = travel > 0 ? scroller.scrollTop / travel : 0;
+    const level = scroller.getBoundingClientRect().top + scroller.clientHeight * progress;
+    let tint: string | undefined;
+    for (const piece of scroller.querySelectorAll<HTMLElement>('[data-at]')) {
+      // The first part counts from the very top: the text starts below the scroller's padding.
+      if (tint && piece.getBoundingClientRect().top > level) break;
+      tint = piece.dataset.tint ?? tint;
+    }
+    scroller.style.scrollbarColor = `${tint ? `var(--sec-bar-${tint})` : 'var(--border-strong)'} transparent`;
+  }, []);
+  useLayoutEffect(() => {
+    const scroller = scrollerRef.current;
+    if (!scroller) return undefined;
+    paintThumb();
+    const observer = new ResizeObserver(paintThumb);
+    observer.observe(scroller);
+    return () => observer.disconnect();
+  }, [paintThumb, pieces]);
+
   useLayoutEffect(() => {
     if (focusDiagnosis === scrolledFor.current || loading || body === null) return;
     // The offset is into the note as written, so the other views cannot be scrolled by it.
@@ -251,11 +298,11 @@ export function PatientPeekWindow({
     }
     scrolledFor.current = focusDiagnosis;
     const scroller = scrollerRef.current;
-    const target = diagnosisRef.current;
+    const target = scroller?.querySelector(`[data-at="${diagnosisAt}"]`);
     if (scroller && target) {
       scroller.scrollTop += target.getBoundingClientRect().top - scroller.getBoundingClientRect().top - 12;
     }
-  }, [focusDiagnosis, loading, body, view]);
+  }, [focusDiagnosis, loading, body, view, diagnosisAt]);
 
   // The board's privacy rule, on the window that opens from the board.
   const initialsOnly = settings.privacy.boardShowInitialsOnly;
@@ -338,7 +385,7 @@ export function PatientPeekWindow({
         </div>
       </div>
 
-      <div ref={scrollerRef} className="min-h-0 flex-1 overflow-auto px-4 py-3">
+      <div ref={scrollerRef} onScroll={paintThumb} className="min-h-0 flex-1 overflow-auto px-4 py-3">
         {loading ? (
           <p className="py-6 text-center text-xs text-fg-muted">Memuat…</p>
         ) : body && body.trim().length > 0 ? (
@@ -358,14 +405,11 @@ export function PatientPeekWindow({
             }
             className="whitespace-pre-wrap font-mono text-xs leading-relaxed text-fg"
           >
-            {diagnosisAt === null ? (
-              shown
-            ) : (
-              <>
-                {shown.slice(0, diagnosisAt)}
-                <span ref={diagnosisRef}>{shown.slice(diagnosisAt)}</span>
-              </>
-            )}
+            {pieces.map((piece) => (
+              <span key={piece.at} data-at={piece.at} data-tint={piece.tint ?? undefined}>
+                {piece.text}
+              </span>
+            ))}
           </pre>
         ) : (
           <p className="py-6 text-center text-xs text-fg-muted">

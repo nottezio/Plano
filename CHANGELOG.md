@@ -5,6 +5,12 @@ Catatan teknis lengkap (akar masalah, perbaikan) ada di CHANGES.md.
 
 Entri teratas harus versi yang sedang dirilis; tes gagal bila belum ditulis.
 
+## `2026-11-05.3`
+- **Catatan kini satu baris yang bisa digulung**, di Kartu Ringkas dan Papan Kerja. Kartu tidak lagi bertambah tinggi saat Catatan ditambah. Klik barisnya untuk membukanya ke bawah dan membaca atau mengetik langsung. Hanya gulungannya yang memanjang, di atas kartu lain, sedangkan ukuran kartu tetap. Klik di tempat lain atau tekan Esc untuk menggulungnya kembali, dan isinya tersimpan seperti biasa. Tombol ✎ tidak diperlukan lagi.
+- **Kotak penggeser di preview kini berwarna sesuai bagian catatan yang sedang dibaca:** abu-abu identitas, hijau S, biru O, kuning Assessment, merah muda Terapi dan Plan, ungu TS.
+- **Posisi kartu kini tersimpan untuk tiap tata letak.** Standar dan Kartu Ringkas punya susunan sendiri, jadi berpindah tata letak tidak lagi merapikan kartu yang sudah diatur. Saat kembali, kartu ada di tempat semula. Tersimpan per perangkat. Susunan yang sudah terhapus oleh versi sebelumnya tidak bisa dikembalikan.
+- **Klik pada teks diagnosis kini membuka pasien.** Sebelumnya teks itu menangkap klik dan tidak terjadi apa-apa.
+
 ## `2026-11-05.2`
 - **Penanda di Kartu Ringkas kini sebaris dengan status.** Pengingat seperti Urine output dan EKG, juga KJS, tidak lagi memakai baris sendiri, jadi kartu lebih pendek.
 - **Arahkan mouse ke diagnosis atau Catatan untuk melihat isi lengkapnya**, di Kartu Ringkas dan Papan Kerja. Kotak muncul di samping kartu, teksnya bisa disorot, dan Esc menutupnya. Kotak hanya muncul bila ada yang belum terlihat di kartu.

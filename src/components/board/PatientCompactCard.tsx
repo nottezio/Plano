@@ -123,7 +123,7 @@ export function DiagnosisLine({
 }): JSX.Element {
   const { first, count } = diagnosisSummary(card.preview);
   const added = card.dxChanges?.added.length ?? 0;
-  if (!first) return <p className="text-xs italic opacity-80">Belum ada catatan hari ini.</p>;
+  if (!first) return <p className="pointer-events-none text-xs italic opacity-80">Belum ada catatan hari ini.</p>;
   return (
     // The preview as stored: one line says nothing the card does not already say.
     <HoverDetail title="Diagnosis" text={card.preview.includes('\n') ? card.preview : ''}>
@@ -143,7 +143,8 @@ export function DiagnosisLine({
       >
         Dx{count > 1 ? ` (${count})` : ''}
       </button>
-      <span className="opacity-80">{first}</span>
+      {/* Opacity paints this above the stretched link, which would swallow the click. */}
+      <span className="pointer-events-none opacity-80">{first}</span>
       {added > 0 ? <span className="ml-1.5 whitespace-nowrap font-semibold">+{added} baru</span> : null}
     </p>
     </HoverDetail>
@@ -287,10 +288,7 @@ function PatientCompactCardView({
           <FlagRow card={card} dischargeStrip={dischargeStripOf(card)} className="!mt-0" />
         </div>
         <DiagnosisLine card={card} onDiagnosis={onDiagnosis} />
-        {/* A well in the card's own colour: Catatan is what gets acted on, and a second hue would collide with the checklist colour. */}
-        <div className="rounded-md bg-black/15 px-1.5 py-1 font-medium dark:bg-black/25">
-          <InlineCatatan patient={patient} name={card.name} readOnly={selectable} />
-        </div>
+        <InlineCatatan patient={patient} name={card.name} readOnly={selectable} />
       </div>
     </div>
   );

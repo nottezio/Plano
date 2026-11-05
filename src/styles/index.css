@@ -408,6 +408,78 @@
 }
 
 /*
+  The Catatan scroll (5 Nov 2026, InlineCatatan), in the app's own surfaces. The
+  body is absolute inside a root that keeps one bar's height, so unrolling grows
+  only the scroll and the card does not change size. The edge at its foot is what
+  travels down. `0fr` to `1fr` animates to the note's real height without
+  measuring it.
+*/
+@layer components {
+  .note-scroll-body {
+    --unroll: 320ms;
+    position: absolute;
+    inset: 0 0 auto;
+    overflow: hidden;
+    border-radius: 0.5rem;
+    color: var(--fg);
+    background: var(--surface-raised);
+    box-shadow: inset 0 0 0 1px var(--border-strong);
+    transition:
+      min-width var(--unroll) cubic-bezier(0.3, 0.8, 0.3, 1),
+      box-shadow var(--unroll) ease;
+  }
+  .note-scroll[data-open] .note-scroll-body {
+    /* A narrow Papan Kerja column still opens wide enough to read. */
+    min-width: 13rem;
+    box-shadow:
+      inset 0 0 0 1px var(--border-strong),
+      var(--shadow-pop);
+  }
+  .note-scroll-bar:hover:not(:disabled) {
+    background: color-mix(in srgb, var(--fg) 6%, transparent);
+  }
+  /* The body clips, so the ring goes inside. */
+  .note-scroll-bar:focus-visible {
+    outline-offset: -2px;
+  }
+  .note-scroll-chevron {
+    transition: transform var(--unroll) ease;
+  }
+  .note-scroll[data-open] .note-scroll-chevron {
+    transform: rotate(180deg);
+  }
+  .note-scroll-sheet {
+    display: grid;
+    grid-template-rows: 0fr;
+    visibility: hidden;
+    transition:
+      grid-template-rows var(--unroll) cubic-bezier(0.3, 0.8, 0.3, 1),
+      visibility 0s linear var(--unroll);
+  }
+  .note-scroll[data-open] .note-scroll-sheet {
+    grid-template-rows: 1fr;
+    visibility: visible;
+    transition-delay: 0s;
+  }
+  /* The rolled edge: under the bar when closed, at the foot of the sheet when open. */
+  .note-scroll-edge {
+    position: absolute;
+    inset: auto 0 0;
+    height: 3px;
+    pointer-events: none;
+    background: color-mix(in srgb, var(--fg) 18%, transparent);
+  }
+  /* Above the neighbouring cards however it was opened, keyboard included. Inline z-index needs the !important. */
+  [data-canvas-id]:has(.note-scroll[data-open]),
+  [data-shelf-id]:has(.note-scroll[data-open]) {
+    z-index: 35 !important;
+  }
+  [data-shelf-id] section:has(.note-scroll[data-open]) {
+    overflow: visible;
+  }
+}
+
+/*
   Canvas board backgrounds (3 Nov 2026). `CanvasBackdrop` sets `data-canvas-bg`;
   the settings picker reuses these rules on a small sample. CSS only, so it
   works offline; the pen strokes and the cards are drawn above it.

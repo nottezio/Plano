@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 
 import { ADD_ITEM, CLOSES_MENU } from './BoardAddMenu';
@@ -23,8 +23,11 @@ import {
   columnsFor,
   mergeLayouts,
   placeAll,
+  readArrangement,
   readLayouts,
+  restoreArrangement,
   tidy,
+  writeArrangement,
   writeLayouts,
   type CardLayout,
   type CanvasLayouts,
@@ -622,14 +625,15 @@ export function CanvasBoard({
   };
 
   /*
-    A different card layout means different card heights, so the board is
-    tidied once after a switch: otherwise Kartu Ringkas keeps the gaps of the
-    tall cards, and going back runs tall cards over each other. Only on that
-    deliberate switch, keeping the reading order, with Undo on offer.
+    A different card layout means different card heights, so each layout keeps
+    its own arrangement: the one being left is saved, and the one being entered
+    comes back as it was. Tidied only on the first visit to a layout, when there
+    is nothing to come back to: otherwise Kartu Ringkas keeps the gaps of the
+    tall cards, and going back runs tall cards over each other.
   */
   const tidyLatest = useRef(tidyNow);
   tidyLatest.current = tidyNow;
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (!enabled || !packFor) return undefined;
     let packed: string | null = null;
     try {
@@ -637,18 +641,31 @@ export function CanvasBoard({
     } catch {
       return undefined;
     }
-    if ((packed ?? 'standar') === packFor) return undefined;
-    // After the cards have drawn at their new height.
-    const timer = window.setTimeout(() => {
-      tidyLatest.current();
+    const from = packed ?? 'standar';
+    if (from === packFor) return undefined;
+    const markPacked = (): void => {
       try {
         localStorage.setItem(PACKED_KEY, packFor);
       } catch {
         // Per-device convenience only.
       }
+    };
+    writeArrangement(from, storedRef.current);
+    const saved = readArrangement(packFor);
+    if (saved) {
+      applyLayoutsReplacing(restoreArrangement(storedRef.current, saved));
+      // An Undo from before this switch belongs to the other layout.
+      setUndo(null);
+      markPacked();
+      return undefined;
+    }
+    // After the cards have drawn at their new height.
+    const timer = window.setTimeout(() => {
+      tidyLatest.current();
+      markPacked();
     }, 300);
     return () => window.clearTimeout(timer);
-  }, [enabled, packFor]);
+  }, [enabled, packFor, applyLayoutsReplacing]);
 
   if (!enabled) return <div ref={surfaceRef} className="hidden" />;
 

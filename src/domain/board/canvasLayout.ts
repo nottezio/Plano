@@ -168,6 +168,63 @@ export function removeShelf(layouts: CanvasLayouts, shelfId: string, ids: readon
 
 const KEY = 'visite.boardCanvasLayout';
 
+const BY_LAYOUT_KEY = 'visite.board.canvasByLayout';
+
+/** What the given card layout's canvas looked like when it was last left, or null if never. */
+export function readArrangement(layout: string): CanvasLayouts | null {
+  try {
+    const all: unknown = JSON.parse(localStorage.getItem(BY_LAYOUT_KEY) ?? '{}');
+    const own = (all as Record<string, unknown> | null)?.[layout];
+    return own ? sanitizeLayouts(own) : null;
+  } catch {
+    return null;
+  }
+}
+
+export function writeArrangement(layout: string, layouts: CanvasLayouts): void {
+  try {
+    const all: unknown = JSON.parse(localStorage.getItem(BY_LAYOUT_KEY) ?? '{}');
+    localStorage.setItem(BY_LAYOUT_KEY, JSON.stringify({ ...(all as object | null), [layout]: layouts }));
+  } catch (error) {
+    console.warn('[board] canvas arrangement not saved', error);
+  }
+}
+
+/**
+ * Put a layout's saved arrangement back (Standar and Kartu Ringkas each keep
+ * their own, 5 Nov 2026: cards differ in height, so one set of positions cannot
+ * suit both, and tidying on each switch threw hand placement away).
+ *
+ * Only where things SIT comes from `saved`. What a thing IS comes from `current`,
+ * because it may have changed in the other layout: which shelf a card is on, a
+ * shelf's name, a shelf since removed (not brought back). A card with no saved
+ * place loses its current one, which belongs to the other layout, so it is
+ * auto-placed in a free slot instead of landing on top of an arranged card.
+ */
+export function restoreArrangement(current: CanvasLayouts, saved: CanvasLayouts): CanvasLayouts {
+  const next: CanvasLayouts = {};
+  for (const [id, entry] of Object.entries(current)) {
+    const own = saved[id];
+    if (own) {
+      const { hMaxWithNote: _other, ...rest } = entry;
+      next[id] = {
+        ...rest,
+        x: own.x,
+        y: own.y,
+        w: own.w,
+        hMax: own.hMax,
+        ...(own.hMaxWithNote ? { hMaxWithNote: true as const } : {}),
+      };
+    } else if (isShelfId(id) || entry.shelf) {
+      next[id] = entry;
+    }
+  }
+  for (const [id, entry] of Object.entries(saved)) {
+    if (!current[id] && !isShelfId(id)) next[id] = unshelve(entry);
+  }
+  return next;
+}
+
 /** Below this a card is unreadable, whatever fraction says. */
 export const MIN_CARD_PX = 240;
 /**

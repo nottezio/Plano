@@ -100,6 +100,13 @@
   --sec-a: #fef3c7;
   --sec-terapi: #fdf2f8;
   --sec-ts: #f5f3ff;
+  /* The same parts at full strength, for the preview's scroller (5 Nov 2026): --sec-* are too faint to see on a thin bar. */
+  --sec-bar-identitas: #64748b;
+  --sec-bar-s: #059669;
+  --sec-bar-o: #2563eb;
+  --sec-bar-a: #d97706;
+  --sec-bar-terapi: #db2777;
+  --sec-bar-ts: #7c3aed;
   --note-red: #dc2626;
   --note-amber: #b45309;
   --note-green: #15803d;
@@ -241,6 +248,12 @@
   --sec-a: #241f10;
   --sec-terapi: #241522;
   --sec-ts: #1c1730;
+  --sec-bar-identitas: #94a3b8;
+  --sec-bar-s: #34d399;
+  --sec-bar-o: #60a5fa;
+  --sec-bar-a: #fbbf24;
+  --sec-bar-terapi: #f472b6;
+  --sec-bar-ts: #a78bfa;
   --note-red: #f87171;
   --note-amber: #fbbf24;
   --note-green: #4ade80;
@@ -368,6 +381,12 @@
   --sec-a: #493f27;
   --sec-terapi: #4e3746;
   --sec-ts: #433b52;
+  --sec-bar-identitas: #a8b3c4;
+  --sec-bar-s: #34d399;
+  --sec-bar-o: #7ab4fb;
+  --sec-bar-a: #fbbf24;
+  --sec-bar-terapi: #f58ac4;
+  --sec-bar-ts: #b7a2fb;
   --note-red: #fea09d;
   --note-amber: #f7cb58;
   --note-green: #65e287;

@@ -1,99 +1,143 @@
-import { useLayoutEffect, useRef, useState } from 'react';
+import { useEffect, useId, useLayoutEffect, useRef, useState } from 'react';
 
 import { usePatientNotes } from '@/components/patient/PatientNotes';
 import type { Patient } from '@/domain/types';
 import { HoverDetail } from './HoverDetail';
 
-const LINES_AT_REST = 3;
-const LINES_WHILE_TYPING = 12;
+const LINES_UNROLLED = 12;
 
 /**
- * Catatan typed where it is read, in Kartu Ringkas and Papan Kerja.
+ * Catatan as a rolled scroll, in Kartu Ringkas and Papan Kerja.
  *
- * The same field and the same hook as the summary sticky and the patient page,
- * so all three are one note and merge the same way. The text is never changed
- * for display: at rest the box shows a few lines and says how many more there
- * are; the ✎ button (or Tab) opens it up, and past twelve lines it scrolls.
+ * Rolled it is one line, whatever the note holds, so adding Catatan never makes
+ * a card taller. A press unrolls it downward as a layer over what is below, so
+ * only the scroll grows and the card keeps its size; a press elsewhere or Esc
+ * rolls it back. The same field and the same hook as the summary sticky and the
+ * patient page, so all three are one note and merge the same way. The text is
+ * never changed for display: the rolled line only shows its first line.
  */
 export function InlineCatatan({
   patient,
   name,
   readOnly = false,
-  linesAtRest = LINES_AT_REST,
 }: {
   patient: Patient;
   name: string;
-  /** Papan Kerja shows two: every line is paid for by the whole row. */
-  linesAtRest?: number;
-  /** While selecting, a tap means "tick this patient". */
+  /** While selecting, a tap means "tick this patient": the press passes through to the card. */
   readOnly?: boolean;
 }): JSX.Element {
   const sync = usePatientNotes(patient);
-  const ref = useRef<HTMLTextAreaElement>(null);
-  const [focused, setFocused] = useState(false);
+  const rootRef = useRef<HTMLDivElement>(null);
+  const rollRef = useRef<HTMLButtonElement>(null);
+  const lineRef = useRef<HTMLSpanElement>(null);
+  const areaRef = useRef<HTMLTextAreaElement>(null);
+  const sheetId = useId();
+  const [wantOpen, setWantOpen] = useState(false);
   const [hiddenLines, setHiddenLines] = useState(0);
+  const [lineCut, setLineCut] = useState(false);
+  const open = wantOpen && !readOnly;
+  const firstLine = sync.value.split('\n').find((line) => line.trim())?.trim() ?? '';
 
   useLayoutEffect(() => {
-    const node = ref.current;
+    const node = areaRef.current;
     if (!node) return undefined;
     const measure = (): void => {
       const line = Number.parseFloat(getComputedStyle(node).lineHeight) || 16;
       node.style.height = 'auto';
       const full = node.scrollHeight;
-      const limit = line * (focused ? LINES_WHILE_TYPING : linesAtRest);
-      node.style.height = `${Math.min(full, limit)}px`;
-      setHiddenLines(focused ? 0 : Math.max(0, Math.ceil((full - limit - 1) / line)));
+      node.style.height = `${Math.min(full, line * LINES_UNROLLED)}px`;
+      setHiddenLines(Math.max(0, Math.ceil((full - line - 1) / line)));
+      const shown = lineRef.current;
+      if (!open && shown) setLineCut(shown.scrollWidth > shown.clientWidth);
     };
     measure();
     const observer = new ResizeObserver(measure);
     observer.observe(node);
     return () => observer.disconnect();
-  }, [sync.value, focused, linesAtRest]);
+  }, [sync.value, open]);
+
+  useEffect(() => {
+    if (!open) {
+      areaRef.current?.blur();
+      return undefined;
+    }
+    // Nothing to read yet, so the press can only have meant "write".
+    if (!sync.value.trim()) areaRef.current?.focus();
+    const onDown = (event: PointerEvent): void => {
+      if (!rootRef.current?.contains(event.target as Node)) setWantOpen(false);
+    };
+    const onKey = (event: KeyboardEvent): void => {
+      if (event.key !== 'Escape') return;
+      // Only the scroll: an open preview window listens for Esc on the window.
+      event.stopPropagation();
+      setWantOpen(false);
+      rollRef.current?.focus();
+    };
+    document.addEventListener('pointerdown', onDown);
+    document.addEventListener('keydown', onKey);
+    return () => {
+      document.removeEventListener('pointerdown', onDown);
+      document.removeEventListener('keydown', onKey);
+    };
+    // Focus only on opening, not on each keystroke of a note that was empty.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open]);
 
   return (
-    <HoverDetail title="Catatan" text={hiddenLines > 0 ? sync.value : ''} disabled={focused}>
-      <div className="flex items-start gap-1">
-      <textarea
-        ref={ref}
-        value={sync.value}
-        readOnly={readOnly}
-        onChange={(event) => sync.setValue(event.target.value)}
-        onFocus={() => setFocused(true)}
-        onBlur={() => {
-          setFocused(false);
-          sync.flush();
-        }}
-        rows={1}
-        placeholder="Tulis catatan…"
-        aria-label={`Catatan pasien ${name}`}
-        className={[
-          'block min-w-0 flex-1 resize-none rounded bg-transparent text-xs leading-snug [overflow-wrap:anywhere] placeholder:text-[color-mix(in_srgb,currentColor_75%,transparent)]',
-          // At rest a click passes through to the card's link: the note covers too much of the card to catch it.
-          focused ? 'overflow-y-auto bg-black/10 dark:bg-white/10' : 'pointer-events-none overflow-hidden',
-        ].join(' ')}
-        style={{ color: 'inherit' }}
-      />
-      {readOnly ? null : (
-        <button
-          type="button"
-          aria-label={`Ubah catatan ${name}`}
-          title="Ubah catatan"
-          // Keeps the caret in the note when it is already open.
-          onPointerDown={(event) => event.preventDefault()}
-          onClick={(event) => {
-            event.preventDefault();
-            event.stopPropagation();
-            const node = ref.current;
-            node?.focus();
-            node?.setSelectionRange(node.value.length, node.value.length);
-          }}
-          className="-my-1 flex min-h-tap w-6 shrink-0 items-center justify-center rounded text-sm leading-none hover:bg-black/15 dark:hover:bg-white/15 [@media(pointer:fine)]:my-0 [@media(pointer:fine)]:min-h-5"
-        >
-          <span aria-hidden="true">✎</span>
-        </button>
-      )}
+    <HoverDetail title="Catatan" text={hiddenLines > 0 || lineCut ? sync.value : ''} disabled={open}>
+      <div
+        ref={rootRef}
+        className={`note-scroll relative min-h-tap [@media(pointer:fine)]:min-h-7 ${open ? 'z-30' : 'z-10'} ${readOnly ? 'pointer-events-none' : ''}`}
+        data-open={open ? '' : undefined}
+      >
+        <div className="note-scroll-body">
+          <button
+            ref={rollRef}
+            type="button"
+            disabled={readOnly}
+            aria-expanded={open}
+            aria-controls={sheetId}
+            aria-label={`${open ? 'Gulung' : 'Buka'} catatan ${name}`}
+            title={open ? 'Gulung catatan' : 'Buka catatan'}
+            onClick={(event) => {
+              event.preventDefault();
+              event.stopPropagation();
+              setWantOpen((current) => !current);
+            }}
+            className="note-scroll-bar flex min-h-tap w-full items-center gap-1.5 px-2 text-left text-xs [@media(pointer:fine)]:min-h-7"
+          >
+            <span
+              ref={lineRef}
+              className={`min-w-0 flex-1 truncate ${open ? 'text-[11px] font-semibold uppercase tracking-wide text-fg-muted' : firstLine ? 'font-medium' : 'text-fg-muted'}`}
+            >
+              {open ? 'Catatan' : firstLine || 'Tulis catatan…'}
+            </span>
+            {!open && hiddenLines > 0 ? <span className="shrink-0 rounded bg-bg-subtle px-1 text-[11px] font-semibold tabular-nums text-fg-muted">+{hiddenLines}</span> : null}
+            <svg aria-hidden="true" viewBox="0 0 10 10" width="10" height="10" className="note-scroll-chevron shrink-0 text-fg-muted">
+              <path d="M2 3.5 5 6.5 8 3.5" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+          </button>
+          <div id={sheetId} className="note-scroll-sheet">
+            <div className="min-h-0 overflow-hidden">
+              <div className="border-t border-border px-2 pb-2.5 pt-1.5">
+                <textarea
+                  ref={areaRef}
+                  value={sync.value}
+                  readOnly={readOnly}
+                  onChange={(event) => sync.setValue(event.target.value)}
+                  onBlur={() => sync.flush()}
+                  rows={1}
+                  placeholder="Tulis catatan…"
+                  aria-label={`Catatan pasien ${name}`}
+                  className="block w-full resize-none overflow-y-auto rounded bg-transparent text-xs leading-snug [overflow-wrap:anywhere] placeholder:text-fg-muted"
+                  style={{ color: 'inherit' }}
+                />
+              </div>
+            </div>
+          </div>
+          <span aria-hidden="true" className="note-scroll-edge" />
+        </div>
       </div>
-      {hiddenLines > 0 ? <p className="text-[11px] font-semibold opacity-80">+{hiddenLines} baris</p> : null}
     </HoverDetail>
   );
 }

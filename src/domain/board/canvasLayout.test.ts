@@ -9,10 +9,67 @@ import {
   columnsFor,
   mergeLayouts,
   placeAll,
+  readArrangement,
+  restoreArrangement,
   tidy,
   readLayouts,
+  writeArrangement,
   writeLayouts,
 } from './canvasLayout';
+
+describe('restoreArrangement', () => {
+  const saved = {
+    a: { x: 0.5, y: 900, w: 0.4, hMax: 300, hMaxWithNote: true as const },
+    gone: { x: 0.1, y: 100, w: 0.2, hMax: 0, shelf: 'rak:old', shelfAt: 1 },
+    'rak:removed': { x: 0, y: 0, w: 0.2, hMax: 0, title: 'Lama' },
+  };
+
+  it('takes where a card sits from the saved layout, and which shelf it is on from now', () => {
+    const current = { a: { x: 0, y: 0, w: 0.25, hMax: 0, shelf: 'rak:1', shelfAt: 5 } };
+    expect(restoreArrangement(current, saved).a).toEqual({ x: 0.5, y: 900, w: 0.4, hMax: 300, hMaxWithNote: true, shelf: 'rak:1', shelfAt: 5 });
+  });
+
+  it('keeps a shelf made since, and does not bring back one removed since', () => {
+    const shelf = { x: 0.2, y: 40, w: 0.3, hMax: 0, title: 'Baru' };
+    const next = restoreArrangement({ 'rak:new': shelf }, saved);
+    expect(next['rak:new']).toEqual(shelf);
+    expect(next['rak:removed']).toBeUndefined();
+  });
+
+  it('lets a card admitted since be auto-placed, not sit at its place in the other layout', () => {
+    const next = restoreArrangement({ fresh: { x: 0.5, y: 900, w: 0.25, hMax: 0 } }, saved);
+    expect(next.fresh).toBeUndefined();
+  });
+
+  it('keeps a card only the saved layout knows, off any shelf (the other list on the board)', () => {
+    expect(restoreArrangement({}, saved).gone).toEqual({ x: 0.1, y: 100, w: 0.2, hMax: 0 });
+  });
+});
+
+describe('readArrangement', () => {
+  const store = new Map<string, string>();
+
+  beforeEach(() => {
+    store.clear();
+    (globalThis as { localStorage?: unknown }).localStorage = {
+      getItem: (key: string) => store.get(key) ?? null,
+      setItem: (key: string, value: string) => void store.set(key, value),
+    };
+  });
+
+  it('keeps each layout apart, and has nothing for one never left', () => {
+    writeArrangement('standar', { a: { x: 0.1, y: 10, w: 0.2, hMax: 0 } });
+    writeArrangement('kartu', { a: { x: 0.7, y: 70, w: 0.2, hMax: 0 } });
+    expect(readArrangement('standar')?.a?.x).toBe(0.1);
+    expect(readArrangement('kartu')?.a?.x).toBe(0.7);
+    expect(readArrangement('baris')).toBeNull();
+  });
+
+  it('survives damaged storage', () => {
+    localStorage.setItem('visite.board.canvasByLayout', '{nope');
+    expect(readArrangement('standar')).toBeNull();
+  });
+});
 
 describe('placeAll', () => {
   it('leaves a hand-placed card exactly where it was put', () => {
