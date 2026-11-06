@@ -1,5 +1,14 @@
 # Plano — CHANGES
 
+## `2026-11-06.4` — Roster listener can resume: the departures cutoff is a calendar day
+
+Console, Avi (6 Nov): reads rose after `2026-10-31.11`/`.12`: 58K, 43K, 65K, 70K, 55K on 1-5 Nov (no-cost 50K); peak connections 17 (was ~10), writes +38% week on week. Cloud Monitoring, 7 days: ~70-75% QUERY, ~25-30% LOOKUP; hourly follows ward hours and nearly stops at night, so no idle loop.
+
+- **Root cause (a bug from `2026-10-31.12`).** `subscribeRoster` filtered `leftAt >= new Date(now - 30 d).toISOString()`, a value to the millisecond. A different filter is a different query, and a new query has no resume token, so every List Maker mount re-read every departure, even seconds after leaving. The old whole-collection listener could resume within 30 min. The October emulator count (390 → 150) compared first attaches only and missed this.
+- **Fix.** `rosterLeftSince(now, days)` in `domain/floorList/floor.ts`: a local calendar date, so the query is identical all day and moves at local midnight, when the first attach of the day pays anyway. `YYYY-MM-DD` sorts correctly against the ISO `leftAt`. The local-versus-UTC mix moves the window by hours at most. Same field and operator, no index or rules change. Test added.
+- **Checked.** `npm run verify`. Emulator, the SDK's IndexedDB `targets` store, three mounts each: the fixed query kept one target with a resume token; the old millisecond cutoff added a new target per mount (1, 2, 3). Test floor deleted. This shows the query can resume, not what production bills.
+- **Not done.** Reads saved are not measured: the audit's model gives ~8K/day (range 4-15K), resting on an assumed mount count, and the emulator does not bill. Query Insights cannot split reads: it omits listeners. Left out as owner decisions: shorter departures window, active feed linger, archive attach on board search, autosave debounce. Left out as small: presence interval beats, older-days stamp, note search cache, Visite named-day read. The 834 rule errors on the Usage page are not traced.
+
 ## `2026-11-06.3` — Date list stays open when stepping days
 
 - **Root cause.** `PatientPage` keys `RailPanels`/`TabPanels` by `patient-day` (so kept rows and the auto tab reset per day). Stepping a day remounted them and `useState(false)` closed the date list each time.

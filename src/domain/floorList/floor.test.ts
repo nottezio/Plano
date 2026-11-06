@@ -18,6 +18,7 @@ import {
   legacyColourDate,
   localOf,
   localStamp,
+  rosterLeftSince,
   newRosterPatient,
   pasteDiff,
   rosterName,
@@ -514,5 +515,19 @@ describe('manualAddAction (2026-10-31: a hand-entered patient never overwrites a
   it('brings back a patient who left, keeping the record', () => {
     expect(manualAddAction({ status: 'pulang' })).toBe('readmit');
     expect(manualAddAction({ status: 'pindah' })).toBe('readmit');
+  });
+});
+
+describe('rosterLeftSince (6 Nov 2026: a moving cutoff is a new query on every mount)', () => {
+  it('stays the same all local day', () => {
+    const morning = rosterLeftSince(new Date(2026, 10, 6, 0, 1), 30);
+    expect(morning).toBe('2026-10-07');
+    expect(rosterLeftSince(new Date(2026, 10, 6, 23, 59, 59), 30)).toBe(morning);
+  });
+  it('moves on at local midnight', () => {
+    expect(rosterLeftSince(new Date(2026, 10, 7, 0, 0), 30)).toBe('2026-10-08');
+  });
+  it('still lets through a departure made on the cutoff day', () => {
+    expect('2026-10-07T03:00:00.000Z' >= rosterLeftSince(new Date(2026, 10, 6, 12), 30)).toBe(true);
   });
 });

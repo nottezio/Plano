@@ -40,7 +40,7 @@ import {
   floorVisitNoteDoc,
 } from '../paths';
 import { trackWrite } from '../syncStatus';
-import { legacyColourDate, type Edition, type FloorDoc, type FloorRole, type RosterPatient, type StatusChange } from '@/domain/floorList/floor';
+import { legacyColourDate, rosterLeftSince, type Edition, type FloorDoc, type FloorRole, type RosterPatient, type StatusChange } from '@/domain/floorList/floor';
 import { readSectionTitles, type SectionTitles } from '@/domain/floorList/analysis';
 import { isMarkColor, MARK_PREFIX, readMarks, type FloorMark, type PatientTag } from '@/domain/floorList/marks';
 import { manualFullText, type FloorPatient } from '@/domain/floorList/report';
@@ -246,6 +246,10 @@ export const ROSTER_LEFT_DAYS = 30;
  * Maker open after 30 min away re-read all of it (Firestore charges a listen
  * that has been gone that long as a new query). Two queries now, joined when
  * both have answered. `leftAt` is an ISO string, so it compares as text.
+ *
+ * The cutoff is a calendar day (`rosterLeftSince`): a changed filter value is
+ * a new query with no resume token, so a cutoff to the millisecond re-read
+ * every departure on every return to the screen.
  */
 export function subscribeRoster(floorId: string, callback: (roster: RosterPatient[]) => void, onError: (e: Error) => void): Unsubscribe {
   const read = (docs: readonly QueryDocumentSnapshot[]): RosterPatient[] =>
@@ -255,7 +259,7 @@ export function subscribeRoster(floorId: string, callback: (roster: RosterPatien
   const emit = (): void => {
     if (here && left) callback([...here, ...left]);
   };
-  const since = new Date(Date.now() - ROSTER_LEFT_DAYS * 86_400_000).toISOString();
+  const since = rosterLeftSince(new Date(), ROSTER_LEFT_DAYS);
   const offHere = onSnapshot(
     query(floorPatientsCol(floorId), where('status', '==', 'dirawat')),
     (snapshot) => {

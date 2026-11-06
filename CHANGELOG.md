@@ -5,6 +5,9 @@ Catatan teknis lengkap (akar masalah, perbaikan) ada di CHANGES.md.
 
 Entri teratas harus versi yang sedang dirilis; tes gagal bila belum ditulis.
 
+## `2026-11-06.4`
+- **List Maker lebih hemat kuota saat bolak-balik.** Pasien yang sudah pulang/pindah tidak lagi dibaca ulang setiap kali Anda kembali ke List Maker. Tampilan tidak berubah.
+
 ## `2026-11-06.3`
 - **Daftar tanggal di panel samping tidak lagi menutup sendiri** saat Anda berpindah hari dengan panah. Yang terbuka tetap terbuka (di Tab status, tab Tanggal tetap dipilih).
 

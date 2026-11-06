@@ -688,6 +688,11 @@ export function localStamp(at: Date): string {
   return `${at.getFullYear()}-${pad(at.getMonth() + 1)}-${pad(at.getDate())}T${pad(at.getHours())}:${pad(at.getMinutes())}`;
 }
 
+/** The live roster's departures cutoff: the same all local day, so its listener can resume. */
+export function rosterLeftSince(now: Date, days: number): string {
+  return localStamp(new Date(now.getTime() - days * 86_400_000)).slice(0, 10);
+}
+
 /** Patients who left since `since` (ISO), for the separate Pindah/Pulang note. */
 export function leftSince(roster: readonly RosterPatient[], since: string): RosterPatient[] {
   return roster.filter((p) => p.status !== 'dirawat' && p.leftAt && p.leftAt > since).sort((a, b) => (a.leftAt < b.leftAt ? -1 : 1));
