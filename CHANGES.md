@@ -1,5 +1,13 @@
 # Plano — CHANGES
 
+## `2026-11-07.1` — Summary stickies follow the visit route: pins and ward spelling no longer break it
+
+Avi (7 Nov): Catatan pasien sticky showed 406 before 421/3 and 421/5; it must run 420 first, 410 last on PJT Lantai 4.
+
+- **Root cause (two, both inferred from code; the screenshot's data was not inspected).** (1) `orderPatients` always puts pinned patients above the sorted rest, so a pinned 406 led the sticky. (2) `compareLocation` compared raw `ward` strings; `compareVisit` already canonicalised wards, but a mismatch fell through to the raw comparison, so "PJT Lt. 4" and "PJT Lantai 4" patients split into two blocks.
+- **Fix.** `summaryCards` in `BoardPage.tsx` orders unpinned copies of the patients; `compareLocation` in `domain/board.ts` compares `canonicalWard`. The route itself (`denahPlan.ts`) was already 420, 421, 412-419, 411, 401-410 and is unchanged.
+- **Not done.** No test added; which of the two causes hit 406 is unconfirmed.
+
 ## `2026-11-06.4` — Roster listener can resume: the departures cutoff is a calendar day
 
 Console, Avi (6 Nov): reads rose after `2026-10-31.11`/`.12`: 58K, 43K, 65K, 70K, 55K on 1-5 Nov (no-cost 50K); peak connections 17 (was ~10), writes +38% week on week. Cloud Monitoring, 7 days: ~70-75% QUERY, ~25-30% LOOKUP; hourly follows ward hours and nearly stops at night, so no idle loop.

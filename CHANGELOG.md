@@ -5,6 +5,9 @@ Catatan teknis lengkap (akar masalah, perbaikan) ada di CHANGES.md.
 
 Entri teratas harus versi yang sedang dirilis; tes gagal bila belum ditulis.
 
+## `2026-11-07.1`
+- **Sticky Catatan pasien kini mengikuti urutan visite.** PJT Lantai 4 mulai dari kamar 420 dan berakhir di kamar 410. Pasien yang di-pin tidak lagi naik ke atas sticky, dan penulisan ruang “PJT Lt. 4” dan “PJT Lantai 4” dianggap satu ruang.
+
 ## `2026-11-06.4`
 - **List Maker lebih hemat kuota saat bolak-balik.** Pasien yang sudah pulang/pindah tidak lagi dibaca ulang setiap kali Anda kembali ke List Maker. Tampilan tidak berubah.
 

@@ -751,7 +751,8 @@ export default function BoardPage(): JSX.Element {
   const summaryCards = useMemo(() => {
     const byId = new Map(cards.map((card) => [card.patient.id, card]));
     return orderPatients(
-      cards.map((card) => card.patient),
+      // Unpinned: a pin lifts a card on the board, but the sticky is a walking list (420 first, 410 last).
+      cards.map((card) => ({ ...card.patient, pinned: false })),
       'visite',
     ).flatMap((patient) => byId.get(patient.id) ?? []);
   }, [cards]);

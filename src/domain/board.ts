@@ -489,7 +489,8 @@ function locationKey(value: string | undefined): [number, string] {
 
 function compareLocation(a: Patient, b: Patient): number {
   // Ward first, alphabetically: a ward is a place you walk to, not a number.
-  const wardDiff = (a.ward ?? '').localeCompare(b.ward ?? '', 'id');
+  // Canonical, so "PJT Lt. 4" and "PJT Lantai 4" are one ward, not two that split the route.
+  const wardDiff = canonicalWard(a.ward ?? '').localeCompare(canonicalWard(b.ward ?? ''), 'id');
   if (wardDiff !== 0) return wardDiff;
 
   const [aRoom, aRoomText] = locationKey(a.room);
