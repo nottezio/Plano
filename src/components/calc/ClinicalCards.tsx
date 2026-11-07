@@ -5,6 +5,7 @@ import {
   URINE_OUTPUT_SOURCES,
   calculateUrineOutput,
 } from '@/domain/calc/urineOutput';
+import { FLUID_BALANCE_SOURCES, calculateFluidBalance } from '@/domain/calc/fluidBalance';
 import { TRANSFUSION_SOURCES, calculateTransfusion } from '@/domain/calc/transfusion';
 import {
   EFFECTIVE_EXAMPLE,
@@ -205,6 +206,55 @@ export function UrineOutputCard(): JSX.Element {
         </ResultBlock>
       ) : (
         <Empty>Isi ketiganya. Tanpa berat badan tidak ada laju yang bisa dihitung.</Empty>
+      )}
+    </CalcCard>
+  );
+}
+
+/** An empty field is "not measured", never zero. */
+const optional = (value: string): number | null => (value.trim() === '' ? null : Number(value));
+
+export function FluidBalanceCard(): JSX.Element {
+  const [oral, setOral] = useState('');
+  const [iv, setIv] = useState('');
+  const [otherIn, setOtherIn] = useState('');
+  const [urine, setUrine] = useState('');
+  const [otherOut, setOtherOut] = useState('');
+  const [hours, setHours] = useState('24');
+
+  const result = calculateFluidBalance({
+    intake: [
+      { label: 'oral', ml: optional(oral) },
+      { label: 'IV', ml: optional(iv) },
+      { label: 'lain', ml: optional(otherIn) },
+    ],
+    output: [
+      { label: 'urine', ml: optional(urine) },
+      { label: 'lain', ml: optional(otherOut) },
+    ],
+    hours: Number(hours),
+  });
+
+  return (
+    <CalcCard title="Balans cairan" formula="total input − total output" sources={FLUID_BALANCE_SOURCES}>
+      <div className="space-y-3">
+        <div className="grid grid-cols-3 items-end gap-2">
+          <NumberField label="Oral/enteral (cc)" value={oral} onChange={setOral} />
+          <NumberField label="Infus/IV (cc)" value={iv} onChange={setIv} />
+          <NumberField label="Obat, transfusi (cc)" value={otherIn} onChange={setOtherIn} />
+        </div>
+        <div className="grid grid-cols-3 items-end gap-2">
+          <NumberField label="Urine (cc)" value={urine} onChange={setUrine} />
+          <NumberField label="Drain, NGT, muntah, BAB (cc)" value={otherOut} onChange={setOtherOut} />
+          <NumberField label="Lama (jam)" value={hours} onChange={setHours} />
+        </div>
+      </div>
+      {result ? (
+        <ResultBlock line={result.line}>
+          <Big value={result.balanceMl > 0 ? `+${String(result.balanceMl)}` : result.balanceMl} unit="cc" />
+        </ResultBlock>
+      ) : (
+        <Empty>Isi minimal satu input dan satu output.</Empty>
       )}
     </CalcCard>
   );

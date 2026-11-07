@@ -14,6 +14,7 @@ import { Button } from '@/components/common/ui';
  */
 export function PatientHeaderActions({
   locked,
+  loading,
   noteEmpty,
   calcOpen,
   paneOpen,
@@ -29,6 +30,8 @@ export function PatientHeaderActions({
   onActions,
 }: {
   locked: boolean;
+  /** The day's note is still loading: the tools hold their place, unclickable, so the row does not shift when it arrives. */
+  loading: boolean;
   noteEmpty: boolean;
   calcOpen: boolean;
   paneOpen: boolean;
@@ -46,8 +49,8 @@ export function PatientHeaderActions({
 }): JSX.Element {
   return (
     <>
-      {!locked ? (
-        <>
+      {!locked || loading ? (
+        <div className={`contents ${loading ? 'invisible' : ''}`}>
           <Button size="sm" className="hidden shrink-0 sm:inline-flex" onClick={onLab}>
             Lab
           </Button>
@@ -59,7 +62,7 @@ export function PatientHeaderActions({
           <Button size="sm" className="hidden shrink-0 sm:inline-flex" onClick={onOpening} disabled={noteEmpty}>
             Pembuka
           </Button>
-        </>
+        </div>
       ) : null}
       <Button
         size="icon"

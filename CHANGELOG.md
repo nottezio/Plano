@@ -5,6 +5,19 @@ Catatan teknis lengkap (akar masalah, perbaikan) ada di CHANGES.md.
 
 Entri teratas harus versi yang sedang dirilis; tes gagal bila belum ditulis.
 
+## `2026-11-07.4`
+- **Balans cairan kini cukup input dikurangi output.** IWL, air metabolisme, dan berat badan dihapus, sesuai praktik bangsal.
+- **SOAP Checker memahami “Meropenem (H-5) 6/11”.** Tanggal tepat setelah hitungan hari dibaca sebagai tanggal mulai, lalu dibandingkan dengan tanggal catatan.
+
+## `2026-11-07.3`
+- **SOAP Checker kini mengenali lima hal baru.** RM atau nama di catatan yang berbeda dengan data pasien; TTV yang mustahil dan pasti salah ketik (mis. TD 1200/80); hitungan urine output atau balance yang tidak cocok dengan angkanya sendiri; rencana cek yang tanggalnya sudah lewat tapi hasilnya belum tertulis; dan hitungan hari yang tidak cocok dengan tanggal mulainya. Checker hanya mengingatkan, catatan tidak diubah.
+
+## `2026-11-07.2`
+- **Chief kini tampil di Kartu Ringkas dan Papan Kerja.** Nama chief ada di bawah baris DPJP dan RM, jadi langsung terlihat kepada siapa catatan dilaporkan.
+- **List Maker: sorot beberapa DPJP sekaligus.** Di Denah ada baris “Sorot DPJP”: pilih satu atau beberapa DPJP, pasien mereka tersorot dan yang lain meredup. Pilihan diingat di perangkat ini. Ini menggantikan tombol “Hanya pasien …” yang hanya bisa satu.
+- **Kalkulator baru: Balans cairan.** Input dikurangi output, lengkap dengan baris siap salin. Laju IWL dan air metabolisme Anda isi sendiri; bila kosong, tidak ikut dihitung.
+- **Tampilan lebih tenang saat pindah halaman.** Layar tidak lagi kosong sesaat saat membuka halaman, lebar konten tidak berubah antar halaman, kartu tidak lagi melompat saat kembali ke Aktif, dan editor SOAP tidak lagi terdorong turun setelah catatan dimuat. Tulisan “Catatan terkunci” juga tidak lagi muncul sekilas saat catatan sedang dimuat.
+
 ## `2026-11-07.1`
 - **Sticky Catatan pasien kini mengikuti urutan visite.** PJT Lantai 4 mulai dari kamar 420 dan berakhir di kamar 410. Pasien yang di-pin tidak lagi naik ke atas sticky, dan penulisan ruang “PJT Lt. 4” dan “PJT Lantai 4” dianggap satu ruang.
 

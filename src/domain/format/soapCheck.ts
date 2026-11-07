@@ -1,13 +1,14 @@
 import { consultCovered, dpjpSpecialties } from './specialties';
 import { frozenRanges, isFrozen } from './frozenText';
 import { SELESAI_HEADING } from './insertTerapi';
+import { checkBalanceArithmetic, checkCounterAgainstStart, checkIdentity, checkPlannedResult, checkUrineArithmetic } from './soapConsistency';
 import { checkMashed, checkTypos } from './soapTypos';
 import { addressMarks } from '@/domain/address';
 import { unchangedDayMarkers } from '@/domain/dayMarkers';
 import { aliasesOrDefault } from '@/domain/sections/aliases';
 import { parseSections, type ParsedSection } from '@/domain/sections/parseSections';
 import type { SectionAlias, SectionId } from '@/domain/types';
-import { readVitalSigns } from '@/domain/vitals';
+import { impossibleVitals, readVitalSigns } from '@/domain/vitals';
 
 /**
  * Checks a note against yesterday's for the things that get forgotten.
@@ -61,7 +62,12 @@ export type SoapFindingKind =
   | 'warfarin-without-inr'
   | 'post-pci-labs'
   | 'gibberish'
-  | 'typo';
+  | 'typo'
+  | 'identity-mismatch'
+  | 'vitals-impossible'
+  | 'arithmetic'
+  | 'planned-no-result'
+  | 'counter-vs-start';
 
 /**
  * How urgent, which is also the order they are listed in:
@@ -296,6 +302,9 @@ export interface SoapCheckContext {
   date?: string;
   /** The board's "EKG" reminder is ticked done for the note's day. */
   ekgDone?: boolean;
+  /** The record's identity, compared with the note's identity line. */
+  name?: string | undefined;
+  mrn?: string | undefined;
 }
 
 const LEVEL_ORDER: Record<SoapFindingLevel, number> = { isi: 0, kemarin: 1, cek: 2 };
@@ -317,6 +326,18 @@ export function checkSoap(input: SoapCheckInput): SoapFinding[] {
   const sections = parseSections(body, aliases);
   const signs = readVitalSigns(body, aliases);
   const vitals: Record<string, string> = { ...signs.readings };
+
+  // First of its level: every other finding is about a note that may not be this patient's.
+  if (input.context) findings.push(...checkIdentity(body, input.context));
+
+  for (const { key, raw } of impossibleVitals(body, aliases)) {
+    findings.push({
+      kind: 'vitals-impossible',
+      level: 'cek',
+      message: `${key} ${raw} tidak mungkin. Salah ketik?`,
+      ...anchorFor(body, raw),
+    });
+  }
 
   if (signs.blank.length > 0) {
     findings.push({
@@ -588,6 +609,13 @@ export function checkSoap(input: SoapCheckInput): SoapFinding[] {
   findings.push(...checkSections(sections, previous, aliases));
   findings.push(...checkUnfilled(body));
   const frozenParts = frozenRanges(body, aliases);
+  findings.push(...checkUrineArithmetic(readUrineOutput(body)), ...checkBalanceArithmetic(body));
+  if (input.context?.date) {
+    findings.push(
+      ...checkPlannedResult(body, plan, frozenParts, input.context.date),
+      ...checkCounterAgainstStart(body, frozenParts, input.context.date),
+    );
+  }
   findings.push(...checkMashed(body, frozenParts), ...checkTypos(body, previous, frozenParts));
   findings.push(...checkHariRawat(body, previous));
   findings.push(...checkDuplicates(sections));

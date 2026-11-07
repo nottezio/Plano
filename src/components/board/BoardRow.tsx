@@ -4,7 +4,7 @@ import { Link } from 'react-router-dom';
 import type { BoardCard } from '@/domain/board';
 import { InlineCatatan } from './InlineCatatan';
 import { FlagRow, RmChip } from './PatientCard';
-import { DiagnosisLine, RowActions, STRETCHED_LINK, StatusButton, WatchTags, dischargeStripOf, placeOf } from './PatientCompactCard';
+import { ChiefLine, DiagnosisLine, RowActions, STRETCHED_LINK, StatusButton, WatchTags, dischargeStripOf, placeOf } from './PatientCompactCard';
 
 /** Below xl the diagnosis column goes: the count of columns is what a 1024 px screen cannot afford. */
 const COLUMNS =
@@ -102,6 +102,7 @@ function BoardRowView({
           ) : null}
           <WatchTags card={card} />
         </div>
+        <ChiefLine card={card} />
       </div>
       <div className="min-w-0 rounded-md bg-token px-1.5 py-0.5 text-token-fg">
         <StatusButton card={card} onOpen={onChecklist} disabled={selectable} />

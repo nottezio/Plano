@@ -789,8 +789,10 @@ export default function PatientPage(): JSX.Element {
       date: selected,
       // The board's EKG chip, ticked for THIS day (ticks are kept per day).
       ekgDone: patient?.reminderDone?.date === selected && patient.reminderDone.ids.includes('ekg'),
+      name: patient?.name,
+      mrn: patient?.mrn,
     }),
-    [hariRawat, patient?.ward, patient?.room, patient?.bed, patient?.reminderDone, dpjp, plannedDischarge, selected],
+    [hariRawat, patient?.ward, patient?.room, patient?.bed, patient?.reminderDone, patient?.name, patient?.mrn, dpjp, plannedDischarge, selected],
   );
   /** Per finding with several places: which one "Tampilkan" goes to next. */
   const [occurrenceStep, setOccurrenceStep] = useState<Record<string, number>>({});
@@ -1823,6 +1825,7 @@ export default function PatientPage(): JSX.Element {
 
           <PatientHeaderActions
             locked={locked}
+            loading={entryLoading}
             noteEmpty={editor.value.trim().length === 0}
             calcOpen={calcOpen}
             paneOpen={paneOpen}
@@ -2056,7 +2059,8 @@ export default function PatientPage(): JSX.Element {
           </Banner>
         ) : null}
 
-        {locked ? (
+        {/* Not while loading: `locked` holds the editor then, but the note is not locked. */}
+        {locked && !entryLoading ? (
           <Banner tone="muted">
             <span className="flex-1">
               Catatan terkunci{autoLocked ? ' otomatis setelah 48 jam' : ''}.
@@ -2297,6 +2301,9 @@ export default function PatientPage(): JSX.Element {
           and the whole reason the jaga note is a separate document is that its
           text must not end up in the morning note.
         */}
+        {/* Unseen until the day's note arrives: the rows above it only appear
+            then, and pushed a visible editor down by up to 260 px. */}
+        <div className={`contents ${entryLoading ? 'invisible' : ''}`}>
         {activeShiftNote && carryPending?.id === activeShiftNote.id ? (
           <CarryPendingPanel
             pending={carryPending.changes}
@@ -2434,6 +2441,7 @@ export default function PatientPage(): JSX.Element {
           >
             Riwayat perubahan
           </button>
+        </div>
         </div>
 
         {/*

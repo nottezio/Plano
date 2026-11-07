@@ -218,6 +218,61 @@ export function readVitalSigns(body: string, aliases?: readonly SectionAlias[]):
 }
 
 /**
+ * Limits of what can be a reading at all, NOT reference ranges: a value outside
+ * them is a typing slip (`TD 1200/80`, `Suhu 365`), never a patient to treat.
+ * Deliberately wide, so a shocked or tachyarrhythmic patient stays inside.
+ */
+const POSSIBLE: Record<Exclude<VitalKey, 'Tekanan darah'>, readonly [number, number]> = {
+  Nadi: [20, 350],
+  Pernapasan: [5, 80],
+  Suhu: [30, 44],
+  SpO2: [40, 100],
+};
+
+/** What follows a vital's name, whatever its length: `readSegment` refuses `Nadi 1234` as a reading. */
+function rawReading(segment: string, allowShort: boolean): { key: VitalKey; raw: string; short: boolean } | null {
+  for (const pattern of PATTERNS) {
+    if (pattern.short && !allowShort) continue;
+    const match = pattern.regex.exec(segment);
+    if (!match) continue;
+    const end = (match[1]?.length ?? 0) + (match[2]?.length ?? 0);
+    if (/[a-z0-9]/i.test(segment.charAt(end))) continue;
+    const raw = /^\d+(?:[.,]\d+)?(?:\s*\/\s*\d+)?/.exec(segment.slice(end + (match[3]?.length ?? 0)));
+    return raw ? { key: pattern.key, raw: raw[0], short: pattern.short } : null;
+  }
+  return null;
+}
+
+function isImpossible({ key, raw, short }: { key: VitalKey; raw: string; short: boolean }): boolean {
+  const numbers = raw.split('/').map((part) => Number(part.trim().replace(',', '.')));
+  const first = numbers[0] ?? 0;
+  const second = numbers[1];
+  if (key === 'Tekanan darah') {
+    if (second === undefined) return false;
+    return first < 40 || first > 300 || second < 20 || second > 200 || first <= second;
+  }
+  // `T 120/80` is a blood pressure under a one-letter label, not a temperature.
+  if (second !== undefined) return false;
+  const [low, high] = POSSIBLE[key];
+  // One letter, high side only: in `P 2 tablet` or `S 1` the small number is not a vital.
+  return first > high || (!short && first < low);
+}
+
+/** Readings that cannot be real, as written, in note order. */
+export function impossibleVitals(body: string, aliases?: readonly SectionAlias[]): Array<{ key: VitalKey; raw: string }> {
+  const found: Array<{ key: VitalKey; raw: string }> = [];
+  walk(body, aliases, (line, inObjective) => {
+    for (const [index, part] of splitSegments(line).entries()) {
+      if (index % 2 === 1) continue;
+      const vital = rawReading(part, inObjective);
+      if (vital && isImpossible(vital)) found.push({ key: vital.key, raw: vital.raw });
+    }
+    return line;
+  });
+  return found;
+}
+
+/**
  * Empty the READINGS, keep everything else as written.
  *
  * Carry-forward used to replace each vital LINE with the seed template's

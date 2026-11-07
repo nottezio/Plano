@@ -57,6 +57,16 @@ export function WatchTags({ card }: { card: BoardCard }): JSX.Element | null {
   );
 }
 
+/** Who the note is handed to, so never clipped away with the rest of a short card. Same wording as the full card. */
+export function ChiefLine({ card, className = '' }: { card: BoardCard; className?: string }): JSX.Element | null {
+  if (!card.chief) return null;
+  return (
+    <p className={`pointer-events-none truncate text-xs ${className}`} title={`Chief: ${card.chief}`}>
+      <span className="opacity-70">Chief</span> <b className="font-semibold">{card.chief}</b>
+    </p>
+  );
+}
+
 /**
  * What is left on this patient: a button, because ticking the checklist is a
  * main job and right-click on a card is not something anyone finds. One colour
@@ -281,6 +291,7 @@ function PatientCompactCardView({
         ) : null}
         <WatchTags card={card} />
       </div>
+      <ChiefLine card={card} className="mt-0.5" />
       <div className="mt-d-gap space-y-d-gap">
         {/* Reminders share the status line: on their own row they cost every card a line. */}
         <div className="flex flex-wrap items-center gap-x-2 gap-y-1">

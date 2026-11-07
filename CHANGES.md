@@ -1,5 +1,41 @@
 # Plano — CHANGES
 
+## `2026-11-07.4` — Owner answers: no IWL; a date right after a counter is its start
+
+Avi (7 Nov): "We dont use IWL"; `Meropenem (H-5) 6/11` means it starts from 6/11. Settles both questions left open in `.2` and `.3`.
+
+- **Balans cairan.** `fluidBalance.ts` is now input minus output; IWL, air metabolisme and weight are removed. Air metabolisme went by my inference, not Avi's words: alone it could only raise the balance. The Cox citation went too, since nothing rests on it. The `arithmetic` checker rule still counts IWL or air metabolisme when a note's own balance line names them, so a line written that way is not falsely flagged.
+- **`counter-vs-start`.** A date right after a counter, optional `)`, is its start, per counter, so several counters on one line are each judged by their own date. A date further along the line (`ganti ke Azitromisin 6-11`) is not read. Day 0 and day 1 conventions are still both accepted, and the expected day in the message counts the start as day 1.
+- **Not done.** Not run on real notes, so it is unknown how often a post-procedure counter (`post PPM H-2 05-11`) has a date meaning something other than the start. Checked in the emulator on 7 Nov: the card has six fields and gives the right line; `(H-5) 6/11` is flagged and `(H-2) 6/11` is not. Not on a ward device.
+
+## `2026-11-07.3` — SOAP checker: five rules that compare a note with itself and its record
+
+Avi (7 Nov) chose batch 1 of the recommendations. New file `domain/format/soapConsistency.ts`, plus `impossibleVitals` in `domain/vitals.ts`. All fire only on a mismatch between things written, are silent on shapes they do not recognise, and edit nothing.
+
+- **`identity-mismatch`.** First RM line against `patient.mrn` (leading zeros ignored), else the name before the first `/` or `,` against `patient.name`. Three shared letters count as one word, so a spelling variant agrees; initials say nothing. Listed first in its level.
+- **`vitals-impossible`.** The existing reader refuses a number too long to be a reading, so `TD 1200/80` and `Nadi 1234` never reached the checker; hence a raw reading of its own. Limits are what can be a reading at all, not reference ranges: TD 40-300/20-200 with systolic above diastolic, nadi 20-350, RR 5-80, suhu 30-44, SpO2 40-100. One-letter labels are judged on the high side only, because `P 2 tablet` is not a pernapasan. These limits are my judgement, with no cited source.
+- **`arithmetic`.** A urine line with volume, hours, weight and rate, within the rounding the rate was written to; one balance line with input, output and a written total, IWL and air metabolisme counted when named.
+- **`planned-no-result`.** A Plan line starting `cek`/`periksa`, dated before the note's day, whose test words appear nowhere outside the Plan. Narrower than proposed: past days only, since a test dated today is normally still pending at the morning round and would fire on every fresh plan.
+- **`counter-vs-start`.** Only on a line saying `mulai`/`start`/`sejak`; day 0 and day 1 conventions both accepted. Narrower than proposed: a bare `Meropenem (H-5) 6/11` is left alone, because the date can mean started, as of or ending.
+- **Not done.** Not run against a real note export, so the false-alarm rate is unknown; only invented notes in `soapConsistency.test.ts` and the existing suite. A balance spread over several lines is not read. Name check not tried on real records.
+
+## `2026-11-07.2` — Flicker causes measured and fixed; chief on compact cards; several DPJPs in the denah; Balans cairan
+
+Avi (7 Nov): pages and objects flicker or change size when moving between pages or expanding/collapsing; no chief on Kartu Ringkas; wants several DPJPs highlighted; a fluid balance calculator.
+
+- **Flicker, root causes (each measured per frame in the emulator, dev build, 1283 px wide, with a layout-shift observer).**
+  1. Whole app blank on a route's first open (`#main` width 0 for 70-490 ms, dev timing): the top `Suspense fallback={null}` hid the old tree while the chunk loaded. Fix: `v7_startTransition` on `HistoryRouter`, so the old page stays until the new one is ready.
+  2. Content width changed by 10 px between pages (1041 vs 1051): `#main` only had a scrollbar on long pages, and also gained one when something expanded past the fold. Fix: `scrollbar-gutter: stable`.
+  3. Masonry cards painted piled up, then jumped (y 86 to 374, layout shift 0.136 on every return to Aktif): `MasonryItem` measured in `useEffect` and held the span in state starting at 1. Fix: `useLayoutEffect`, and the span is written straight to the DOM so a `ResizeObserver` pass also lands before paint.
+  4. Canvas cards drew at the 1200 px fallback and slid to place through the 120 ms `left/width` transition on every return to Aktif (x 1132 to 1013, w 300 to 260). Fix: width measured in a layout effect, and cards are not rendered until it is known. Only moving the measure would not do: reading layout there starts the transition from the wrong first draw.
+  5. Patient page: while the entry loaded, `locked` is true (that lock stops a blank editor wiping a note), so the page showed a false "Catatan terkunci" banner with a live "Buka kunci", hid the header tools, and then the empty-day rows pushed a visible editor down 260 px (layout shift 0.08). Fix: no banner while loading; header tools keep their place, invisible and unclickable; the editor slot and status row stay invisible until the entry arrives. The lock itself is unchanged. This also covers the day-switch flash left open in `2026-11-06.3`.
+- **After.** Same probe: no zero-width frames, width constant, layout shift 0 on all board and calculator moves, 0 on opening an empty day, 0.0017 opening a day with a note (a header row moves 33 px; left as is).
+- **Chief.** `ChiefLine` in `PatientCompactCard`, used by Kartu Ringkas and Papan Kerja. They never rendered `card.chief`; only `PatientCard` did.
+- **Several DPJPs.** The denah filter was one id, offered only after typing a code, and typing two codes was an AND no patient can satisfy. Now `dpjpsOnFloor` drives always-visible chips, `matchesPicked` is any picked DPJP AND the other typed words, and picks persist through `usePersistentIdSet`. `dpjpOffers` is removed. Screen only: Word/PDF are unchanged. Auto marks (`MarksField`) already allowed several DPJPs and are untouched.
+- **Balans cairan.** `domain/calc/fluidBalance.ts`, on the Kalkulator page and the floating calculator. Empty means not measured, never zero; no result until there is an input and an output. The line says "Balance" so `readFlows` in the checker reads it, ASCII only.
+- **Decision to confirm.** No default IWL or air metabolisme rate ships. Ward notes use 15 and 5 cc/kgBB/hari, but no primary source for those figures was found (Cox 1987 reviews estimation; only its abstract was read and it gives no figure). The calculator rule is that every figure is cited, so they are typed fields. Fever correction is left out for the same reason.
+- **Not done.** Not seen on a ward device or a production build, so blank-frame times are dev timings. `scrollbar-gutter` not checked on phones, where overlay scrollbars should make it a no-op. Denah chips checked in the emulator with six demo patients (KS then PT: 4 highlighted, 2 dimmed, saved), not on real floor data. No render tests for the layout fixes. Seen and left: on the canvas, invisible resize grips stick out 8 px past a card at the right edge, so `#main` can scroll sideways by 8 px; card geometry matches the baseline, so this is not new.
+
 ## `2026-11-07.1` — Summary stickies follow the visit route: pins and ward spelling no longer break it
 
 Avi (7 Nov): Catatan pasien sticky showed 406 before 421/3 and 421/5; it must run 420 first, 410 last on PJT Lantai 4.

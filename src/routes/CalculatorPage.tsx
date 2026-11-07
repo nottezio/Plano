@@ -5,6 +5,7 @@ import { CHIP_ROW, PageBody, PageHeader, SectionLabel } from '@/components/commo
 import { HeparinCard } from '@/components/calc/HeparinCard';
 import { WarfarinCard } from '@/components/calc/WarfarinCard';
 import {
+  FluidBalanceCard,
   LinkCard,
   OsmolalityCard,
   SodiumGlucoseCard,
@@ -68,6 +69,7 @@ export default function CalculatorPage(): JSX.Element {
 
         <Group id="calc-cairan" label="Ginjal & cairan">
           <UrineOutputCard />
+          <FluidBalanceCard />
           <OsmolalityCard />
           <TransfusionCard />
         </Group>

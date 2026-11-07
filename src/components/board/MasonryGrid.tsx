@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useLayoutEffect, useRef } from 'react';
 import type { ReactNode } from 'react';
 
 /**
@@ -51,11 +51,12 @@ export function MasonryGrid({ children }: { children: ReactNode }): JSX.Element 
 
 export function MasonryItem({ children }: { children: ReactNode }): JSX.Element {
   const ref = useRef<HTMLDivElement>(null);
-  const [span, setSpan] = useState(1);
 
+  // Written to the DOM, not React state: state lands a frame late, so cards were
+  // painted piled up at span 1 on every visit to the board, then jumped apart.
   const measure = useCallback(() => {
     const node = ref.current;
-    if (!node) return;
+    if (!node?.parentElement) return;
     /**
      * `getBoundingClientRect` rather than `offsetHeight`: heights here are
      * fractional far more often than not — a 13 px line at a non-integer
@@ -66,10 +67,10 @@ export function MasonryItem({ children }: { children: ReactNode }): JSX.Element 
     const height = node.getBoundingClientRect().height;
     // The gap is added first because the last row of an item does not carry
     // one; without it every item is short by exactly one gap.
-    setSpan(Math.max(1, Math.ceil((height + GAP) / (ROW + GAP))));
+    node.parentElement.style.gridRowEnd = `span ${String(Math.max(1, Math.ceil((height + GAP) / (ROW + GAP))))}`;
   }, []);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     const node = ref.current;
     if (!node) return undefined;
     measure();
@@ -79,7 +80,7 @@ export function MasonryItem({ children }: { children: ReactNode }): JSX.Element 
   }, [measure]);
 
   return (
-    <div style={{ gridRowEnd: `span ${String(span)}` }}>
+    <div>
       <div ref={ref}>{children}</div>
     </div>
   );

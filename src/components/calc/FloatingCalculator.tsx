@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useId, useMemo, useRef, useState, type PointerEvent } from 'react';
 
 import {
+  FluidBalanceCard,
   OsmolalityCard,
   SodiumGlucoseCard,
   UnitConverterCard,
@@ -468,6 +469,7 @@ export function FloatingCalculator({
           }
         >
           <UrineOutputCard />
+          <FluidBalanceCard />
           <OsmolalityCard />
           <SodiumGlucoseCard />
           <HeparinCard noteBody={noteBody} onInsertTerapi={onInsertTerapi} />

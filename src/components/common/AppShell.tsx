@@ -191,9 +191,11 @@ export function AppShell({
             <TopBar title={title} badge={titleBadge} />
           </div>
         ) : null}
+        {/* scrollbar-gutter: the scrollbar's width stays reserved, so content does
+            not change width between pages or when something expands past the fold. */}
         <main
           id="main"
-          className="relative min-h-0 flex-1 overflow-y-auto pb-[calc(env(safe-area-inset-bottom)+64px)] sm:pb-0"
+          className="relative min-h-0 flex-1 overflow-y-auto pb-[calc(env(safe-area-inset-bottom)+64px)] [scrollbar-gutter:stable] sm:pb-0"
         >
           <MoveBanner />
           <IosInstallHint />

@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import type { FloorPatient } from './report';
-import { dpjpOffers, isDpjpPatient, matchesSearch, searchWords } from './search';
+import { dpjpsOnFloor, isDpjpPatient, matchesPicked, matchesSearch, searchWords } from './search';
 
 const P: FloorPatient = {
   key: 'rm:123456',
@@ -54,13 +54,24 @@ describe('list / denah search', () => {
     expect(hit('')).toBe(true);
   });
 
-  it('offers "only this DPJP" for a whole typed code, A–Z, own and shared KJS patients', () => {
+  it('lists every DPJP on the floor A–Z, own and shared KJS patients', () => {
     const ks = { ...P, dpjpId: 'ks' };
     const shared = { ...P, key: 'rm:2', dpjpId: 'pt', kjsDpjpIds: ['ks'] };
-    expect(dpjpOffers(searchWords('pt ks'), [ks, shared])).toEqual(['ks', 'pt']);
-    expect(dpjpOffers(searchWords('k'), [ks])).toEqual([]);
-    expect(dpjpOffers(searchWords('mz'), [ks])).toEqual([]);
+    expect(dpjpsOnFloor([shared, ks])).toEqual(['ks', 'pt']);
     expect(isDpjpPatient(shared, 'ks')).toBe(true);
     expect(isDpjpPatient(ks, 'pt')).toBe(false);
+  });
+
+  it('highlights patients of ANY picked DPJP, and still applies other typed words', () => {
+    const ks = { ...P, dpjpId: 'ks', kjsDpjpIds: [] };
+    const pt = { ...P, key: 'rm:2', dpjpId: 'pt', kjsDpjpIds: [] };
+    const im = { ...P, key: 'rm:3', dpjpId: 'im', kjsDpjpIds: [] };
+    const picked = ['ks', 'pt'];
+    expect([ks, pt, im].map((p) => matchesPicked(p, [], picked))).toEqual([true, true, false]);
+    // Both codes typed and picked: neither is required as text.
+    expect([ks, pt, im].map((p) => matchesPicked(p, searchWords('ks pt'), picked))).toEqual([true, true, false]);
+    expect(matchesPicked(ks, searchWords('tidakadadimanapun'), picked)).toBe(false);
+    // Nothing picked: the plain search, every word required.
+    expect(matchesPicked(ks, searchWords('ks pt'), [])).toBe(false);
   });
 });

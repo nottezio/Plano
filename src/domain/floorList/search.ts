@@ -45,13 +45,10 @@ export const dpjpWord = (id: string): string => (dpjpById(id)?.initials ?? id).t
 export const isDpjpPatient = (p: Pick<FloorPatient, 'dpjpId' | 'kjsDpjpIds'>, id: string): boolean =>
   p.dpjpId === id || p.kjsDpjpIds.includes(id);
 
-/**
- * DPJPs with a patient here whose initials were typed as a whole word, A–Z:
- * the denah offers "only this DPJP" for them (the word is a filter then, not text to find).
- */
-export function dpjpOffers(words: readonly string[], patients: readonly FloorPatient[]): string[] {
+/** Every DPJP with a patient here, own or shared KJS, A–Z: the denah's highlight chips. */
+export function dpjpsOnFloor(patients: readonly FloorPatient[]): string[] {
   const ids = new Set(patients.flatMap((p) => [p.dpjpId, ...p.kjsDpjpIds]).filter((id): id is string => !!id));
-  return [...ids].filter((id) => words.includes(dpjpWord(id))).sort((a, b) => dpjpWord(a).localeCompare(dpjpWord(b)));
+  return [...ids].sort((a, b) => dpjpWord(a).localeCompare(dpjpWord(b)));
 }
 
 /** True when every word of the query is found (at the start of a word, or a number anywhere in one). */
@@ -59,4 +56,15 @@ export function matchesSearch(patient: FloorPatient, words: readonly string[]): 
   if (words.length === 0) return true;
   const text = haystack(patient);
   return words.every((word) => (/^[\d ]+$/.test(word) ? text.includes(word) : text.includes(` ${word}`)));
+}
+
+/**
+ * The denah's search with DPJPs picked: a patient of ANY picked DPJP, matching
+ * the typed words. A picked code that was also typed is the filter, not text to
+ * find, or "ks pt" with both picked would need one patient to hold both codes.
+ */
+export function matchesPicked(patient: FloorPatient, words: readonly string[], picked: readonly string[]): boolean {
+  if (picked.length === 0) return matchesSearch(patient, words);
+  const rest = words.filter((word) => !picked.some((id) => dpjpWord(id) === word));
+  return picked.some((id) => isDpjpPatient(patient, id)) && matchesSearch(patient, rest);
 }

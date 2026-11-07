@@ -7,8 +7,9 @@ import { handoverLine } from '@/domain/floorList/docx';
 import { markCss, type FloorMark } from '@/domain/floorList/marks';
 import type { FloorPatient } from '@/domain/floorList/report';
 import { holderBoxes, residentGroups } from '@/domain/floorList/residents';
+import { usePersistentIdSet } from '@/hooks/usePersistentIdSet';
 import { setPrintSettings, usePrintSettings } from '@/hooks/usePrintSettings';
-import { dpjpOffers, dpjpWord, isDpjpPatient, matchesSearch } from '@/domain/floorList/search';
+import { dpjpsOnFloor, dpjpWord, matchesPicked } from '@/domain/floorList/search';
 import { placeBeds } from '@/domain/floorList/beds';
 import { SoapBadge } from './SoapBadge';
 import { planLayout } from '@/domain/floorList/layout';
@@ -421,13 +422,13 @@ export function FloorDenah({
   marks?: readonly FloorMark[];
 }): JSX.Element {
   const sorted = [...patients].sort(byRoute(ward));
-  const searching = words.length > 0;
-  // A typed DPJP code ("ks") offers "only their patients"; once chosen, the code is the filter, not text to find.
-  const [only, setOnly] = useState<string | null>(null);
-  const offers = dpjpOffers(words, sorted);
-  const onlyId = only && offers.includes(only) ? only : null;
-  const rest = onlyId ? words.filter((w) => w !== dpjpWord(onlyId)) : words;
-  const hits = searching ? sorted.filter((p) => (!onlyId || isDpjpPatient(p, onlyId)) && matchesSearch(p, rest)) : [];
+  // Several DPJPs at once (7 Nov 2026): chips, remembered on this device; a DPJP with no patient here is ignored.
+  const onFloor = dpjpsOnFloor(sorted);
+  const [pickedIds, togglePicked] = usePersistentIdSet('plano.denah.dpjp');
+  const picked = onFloor.filter((id) => pickedIds.has(id));
+  const clearPicked = (): void => picked.forEach((id) => togglePicked(id));
+  const searching = words.length > 0 || picked.length > 0;
+  const hits = searching ? sorted.filter((p) => matchesPicked(p, words, picked)) : [];
   const hitKeys = new Set(hits.map((p) => p.key));
   const find = (p: FloorPatient): Found => (!searching ? undefined : hitKeys.has(p.key) ? 'hit' : 'dim');
   // The lists below the plan show the matches only; the plan dims the rest.
@@ -498,25 +499,32 @@ export function FloorDenah({
           </p>
         ) : null}
       </div>
-      {offers.length > 0 ? (
-        <div className="flex flex-wrap gap-2">
-          {offers.map((id) => (
+      {onFloor.length > 0 ? (
+        <div role="group" aria-label="Sorot pasien DPJP" className="flex flex-wrap items-center gap-2">
+          <span className="text-xs font-medium text-fg-muted">Sorot DPJP</span>
+          {onFloor.map((id) => (
             <button
               key={id}
               type="button"
-              aria-pressed={onlyId === id}
-              onClick={() => setOnly(onlyId === id ? null : id)}
-              className={`flex min-h-tap items-center gap-2 rounded-full border px-3 text-xs font-medium transition-colors [@media(pointer:fine)]:min-h-9 ${
-                onlyId === id ? 'border-accent bg-accent font-semibold text-on-accent' : 'border-border text-fg-muted hover:text-fg'
+              aria-pressed={picked.includes(id)}
+              title={`Sorot pasien ${dpjpTitle(id)}`}
+              onClick={() => togglePicked(id)}
+              className={`flex min-h-tap items-center rounded-full border px-3 text-xs font-medium transition-colors [@media(pointer:fine)]:min-h-8 ${
+                picked.includes(id) ? 'border-accent bg-accent font-semibold text-on-accent' : 'border-border text-fg-muted hover:text-fg'
               }`}
             >
-              Hanya pasien {dpjpTitle(id)}
+              {dpjpWord(id).toUpperCase()}
             </button>
           ))}
+          {picked.length > 0 ? (
+            <button type="button" onClick={clearPicked} className="min-h-tap px-1 text-xs text-fg-muted underline [@media(pointer:fine)]:min-h-8">
+              Hapus sorotan
+            </button>
+          ) : null}
         </div>
       ) : null}
       {searching ? (
-        <Section title={`Hasil cari (${hits.length})`}>
+        <Section title={`${words.length > 0 ? 'Hasil cari' : 'Pasien DPJP disorot'} (${hits.length})`}>
           {hits.length === 0 ? (
             <p className="text-[12px] text-fg-muted">Tidak ada pasien yang cocok.</p>
           ) : (

@@ -48,7 +48,8 @@ createRoot(container).render(
   <StrictMode>
     <ErrorBoundary>
       {/* basename lets the same bundle serve "/" and "/<repo>/" on Pages. */}
-      <HistoryRouter history={appRouterHistory} basename={import.meta.env.BASE_URL}>
+      {/* startTransition: a route still loading keeps the old page up. Without it Suspense hid the whole app for that long. */}
+      <HistoryRouter history={appRouterHistory} basename={import.meta.env.BASE_URL} future={{ v7_startTransition: true, v7_relativeSplatPath: false }}>
         {/* Browser-like tabs, installed desktop app only (2026-10-16). */}
         <DesktopTabs>
           <AuthGate>

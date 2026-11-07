@@ -164,8 +164,11 @@ export function CanvasBoard({
    * measurement rather than a breakpoint guess — the sidebar collapses, the
    * window resizes, and a fraction multiplied by the wrong width puts every
    * card in the wrong place at once.
+   *
+   * Before paint, and cards wait for it (see below): they used to draw at the
+   * 1200 px fallback, then slide to their place on every visit to the board.
    */
-  useEffect(() => {
+  useLayoutEffect(() => {
     const node = surfaceRef.current;
     if (!node) return;
     const observer = new ResizeObserver(() => {
@@ -767,7 +770,7 @@ export function CanvasBoard({
           />
         );
       })}
-      {ids.map((id) => {
+      {(width > 0 ? ids : []).map((id) => {
         const lifted = live?.id === id && !live.layout.shelf;
         if (shelfOf(stored, id) && !lifted) return null;
         const base = layouts[id] ?? (lifted ? live.layout : undefined);
