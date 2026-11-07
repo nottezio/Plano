@@ -17,6 +17,7 @@ const FLOOR: FloorDoc = {
   nicknames: {},
   chiefs: '',
   chiefBangsal: 'Kirana',
+  holidays: [],
   juniors: '',
   marks: [],
   analysisTitles: {},
@@ -81,7 +82,7 @@ describe('buildTray', () => {
     expect(rows[0]?.actions.map((a) => a.label)).toEqual(['Tandai usul', 'Sudah pasti H-1']);
   });
 
-  it('shows the chief handover at any hour (also hours before 07.00), as a Terima that writes the chief and a log line', () => {
+  it('shows the chief handover at any weekday hour (also hours before 07.00), as a Terima that writes the chief and a log line', () => {
     const roster = [rostered()];
     const { rows } = buildTray(roster, FLOOR, DATE, MON_0700);
     expect(rows).toHaveLength(1);

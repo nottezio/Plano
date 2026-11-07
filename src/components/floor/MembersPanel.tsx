@@ -4,8 +4,10 @@ import { IconChevronRight } from '@/components/common/Icons';
 import { TwoTapButton } from '@/components/common/TwoTapButton';
 import { Button, Callout, Section } from '@/components/common/ui';
 import {
+  addHoliday,
   cancelInvite,
   deleteFloor,
+  removeHoliday,
   writeJuniors,
   inviteMember,
   removeMember,
@@ -16,6 +18,7 @@ import {
 import { canEdit, chiefsOf, isOwner, type FloorDoc, type FloorRole } from '@/domain/floorList/floor';
 import { collapseNicknames, confirmQuestion, memberRole, saveErrorMessage, transferQuestion } from '@/domain/floorList/membersView';
 import { ChiefsField } from './ChiefsField';
+import { HolidaysField } from './HolidaysField';
 import { MarksField } from './MarksField';
 import type { FloorPatient } from '@/domain/floorList/report';
 
@@ -298,6 +301,20 @@ export function MembersPanel({
               hint="Merah dan hijau tetap. Tambah warna lain yang dipakai lantai ini (mis. pre-op, tunggu ICU), lalu pilih di tab List. Ikut tampil di denah dan Word."
             >
               <MarksField floorId={floor.id} marks={floor.marks} editable={editor} />
+            </Section>
+          </Group>
+
+          <Group title="Ganti chief">
+            <Section
+              title="Tanggal merah"
+              hint="Hari kerja yang libur. Tidak ada ganti chief pada hari itu; saran berikutnya muncul pukul 07.00 sehari sebelum hari kerja. Sabtu dan Minggu tidak perlu ditulis."
+            >
+              <HolidaysField
+                holidays={floor.holidays}
+                editable={editor}
+                onAdd={(iso) => run(() => addHoliday(floor.id, iso))}
+                onRemove={(iso) => run(() => removeHoliday(floor.id, iso))}
+              />
             </Section>
           </Group>
         </div>

@@ -451,7 +451,7 @@ service cloud.firestore {
           && request.resource.data.roles[request.auth.uid] == 'edit'
           && request.resource.data.memberIds.size() <= 60)
         || transfersOwnership()
-        || (isFloorEditor() && changed().hasOnly(['nicknames', 'manual', 'chiefs', 'chiefBangsal', 'juniors', 'marks', 'analysisTitles', 'updatedAt']))
+        || (isFloorEditor() && changed().hasOnly(['nicknames', 'manual', 'chiefs', 'chiefBangsal', 'holidays', 'juniors', 'marks', 'analysisTitles', 'updatedAt']))
         || acceptsInvite()
         || leaves()
       ) || (seesLists() && (acceptsInvite() || leaves()));

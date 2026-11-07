@@ -5,6 +5,12 @@ Catatan teknis lengkap (akar masalah, perbaikan) ada di CHANGES.md.
 
 Entri teratas harus versi yang sedang dirilis; tes gagal bila belum ditulis.
 
+## `2026-11-07.6`
+- **Tanggal merah bisa ditandai di Setelan list.** Pada hari yang ditandai tidak ada saran ganti chief; saran berikutnya muncul pukul 07.00, tepat 24 jam sebelum hari kerja berikutnya. Tiap list punya daftarnya sendiri, dan anggota yang bisa mengedit bisa mengisinya.
+
+## `2026-11-07.5`
+- **Saran ganti chief tidak lagi muncul sepanjang akhir pekan.** Saran untuk Senin 07.00 kini baru tampil sejak Minggu 07.00, tepat 24 jam sebelumnya. Dari Jumat 16.00 sampai saat itu sarannya disembunyikan, supaya chief tidak terganti terlalu awal. Abaikan yang diketuk sebelum Minggu 07.00 tidak lagi menyembunyikan saran hari Senin. Hari kerja tidak berubah.
+
 ## `2026-11-07.4`
 - **Balans cairan kini cukup input dikurangi output.** IWL, air metabolisme, dan berat badan dihapus, sesuai praktik bangsal.
 - **SOAP Checker memahami “Meropenem (H-5) 6/11”.** Tanggal tepat setelah hitungan hari dibaca sebagai tanggal mulai, lalu dibandingkan dengan tanggal catatan.

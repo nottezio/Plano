@@ -91,6 +91,9 @@ describe('List Maker floor rules (24 Oct 2026)', () => {
   it('lets an edit member set the Chief Bangsal', () => {
     expect(RULES).toMatch(/isFloorEditor\(\) && changed\(\)\.hasOnly\(\[[^\]]*'chiefBangsal'/);
   });
+  it('lets an edit member mark tanggal merah', () => {
+    expect(RULES).toMatch(/isFloorEditor\(\) && changed\(\)\.hasOnly\(\[[^\]]*'holidays'/);
+  });
   it('lets only floor editors write the Catatan Visite', () => {
     expect(RULES).toContain('match /visitNote/{noteId}');
     expect(RULES).toMatch(/allow create, update: if allowed\(\) && editsV\(\) && noteId == 'main'/);

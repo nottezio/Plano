@@ -47,6 +47,8 @@ export interface FloorDoc {
   chiefs: string;
   /** The chief who takes the floor's patients in jam dinas (24 Oct 2026, `chiefHandover.ts`); '' = not set. */
   chiefBangsal: string;
+  /** Tanggal merah the editors marked, ISO (7 Nov 2026, `chiefHandover.ts`): days off for the chief handover. */
+  holidays: string[];
   /**
    * The floor's junior residents, comma-separated (12.12, Avi: "a floor
    * roster so the app recognises the residents' names"). Names read from a

@@ -12,31 +12,56 @@ import { effective, type FloorDoc, type RosterPatient } from './floor';
  * WHY NO ENTRY TIME: the rule only needs "now is jam dinas and the chief is
  * not the Chief Bangsal". A patient who arrived in jam dinas already has the
  * Chief Bangsal, so nothing is suggested; one from Friday night shows up on
- * Monday 07.00. Tanggal merah are not known (no holiday list): the list maker
- * taps Abaikan, which lasts until the next jam dinas.
+ * Monday 07.00.
  *
  * EARLY (1 Nov 2026): the list is printed hours before 07.00, so a handover
  * that only appeared at 07.00 came too late. The suggestion is open all the
  * time now, from the end of the previous jam dinas (16.00) on, and Terima
  * changes the chief at once so the printed list is already right.
  *
+ * 24 HOURS (7 Nov 2026, owner): weekend and holiday shifts run 07.00-19.00 and
+ * 19.00-07.00, and the handover should not show more than 24 hours before the
+ * change. So after a working day it opens at 16.00, and after a day off at
+ * 07.00: Sunday 07.00 for Monday 07.00, and nothing from Friday 16.00 until then.
+ *
+ * TANGGAL MERAH (7 Nov 2026, owner): the list's editors mark them in Setelan
+ * (`floor.holidays`). A marked weekday is a day off like Sunday. One not marked
+ * still reads as a working day, and the list maker taps Abaikan.
+ *
  * Only ever a SUGGESTION: the chief changes on a tap (Terima), never by itself.
  */
 
+const START_HOUR = 7;
 const END_HOUR = 16;
 
-const isWeekday = (at: Date): boolean => at.getDay() >= 1 && at.getDay() <= 5;
+/** A local date as `floor.holidays` stores it. */
+export const localIso = (at: Date): string =>
+  `${at.getFullYear()}-${String(at.getMonth() + 1).padStart(2, '0')}-${String(at.getDate()).padStart(2, '0')}`;
+
+const isWorkDay = (at: Date, holidays: readonly string[]): boolean =>
+  at.getDay() >= 1 && at.getDay() <= 5 && !holidays.includes(localIso(at));
+
+const dayAfter = (at: Date): Date => new Date(at.getFullYear(), at.getMonth(), at.getDate() + 1);
+
+/** Today's handover until the end of jam dinas, or tomorrow's within 24 hours of 07.00. */
+function handoverOpen(now: Date, holidays: readonly string[]): boolean {
+  const hour = now.getHours();
+  return (isWorkDay(now, holidays) && hour < END_HOUR) || (isWorkDay(dayAfter(now), holidays) && hour >= START_HOUR);
+}
 
 /**
- * Where an Abaikan stops holding: the latest weekday 16.00 that is not after
- * `now` (the end of the last jam dinas). Dismissed in Monday's jam dinas or
- * on Monday's early morning, it holds through Monday; from Monday 16.00 the
- * Tuesday handover is a new question.
+ * Where an Abaikan stops holding: the moment the current handover opened, the
+ * latest eve of a working day (16.00 after a working day, 07.00 after a day off)
+ * not after `now`. Dismissed on Sunday or in Monday's jam dinas, it holds through
+ * Monday; from Monday 16.00 the Tuesday handover is a new question.
  */
-export function handoverCycleStart(now: Date): Date {
-  const at = new Date(now.getFullYear(), now.getMonth(), now.getDate(), END_HOUR);
-  while (at > now || !isWeekday(at)) at.setDate(at.getDate() - 1);
-  return at;
+export function handoverCycleStart(now: Date, holidays: readonly string[] = []): Date {
+  for (let back = 0; ; back += 1) {
+    const at = new Date(now.getFullYear(), now.getMonth(), now.getDate() - back);
+    if (!isWorkDay(dayAfter(at), holidays)) continue;
+    at.setHours(isWorkDay(at, holidays) ? END_HOUR : START_HOUR);
+    if (at <= now) return at;
+  }
 }
 
 export interface ChiefSuggestion {
@@ -67,7 +92,8 @@ function samePerson(a: string, b: string): boolean {
 
 /**
  * The patients to hand to the Chief Bangsal (or to their Ganti chief, a
- * planned handover to someone else). Open at any hour (see EARLY above).
+ * planned handover to someone else). Open except in the gap before the eve of
+ * a working day (see EARLY, 24 HOURS and TANGGAL MERAH above).
  */
 export function chiefSuggestions(
   roster: readonly RosterPatient[],
@@ -76,8 +102,8 @@ export function chiefSuggestions(
   now: Date,
 ): ChiefSuggestion[] {
   const bangsal = floor.chiefBangsal.trim();
-  if (!bangsal) return [];
-  const cycleStart = handoverCycleStart(now);
+  if (!bangsal || !handoverOpen(now, floor.holidays)) return [];
+  const cycleStart = handoverCycleStart(now, floor.holidays);
   const out: ChiefSuggestion[] = [];
   for (const entry of roster) {
     if (entry.status !== 'dirawat') continue;

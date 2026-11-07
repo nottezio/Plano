@@ -60,7 +60,7 @@ const STATUS: GuideStep = {
   points: [
     'Kotak **Saran** di atas Denah/List mengumpulkan usulan: Plan yang menyebut H-1/pulang, dan pasien yang perlu ganti chief.',
     'Saran tidak pernah berjalan sendiri: ketuk **Terima** (atau **Tandai**) untuk memakai, **Abaikan** untuk menolak.',
-    'Isi **Chief Bangsal** di bagian atas. Saran ganti chief sudah muncul sejak 16.00 hari sebelumnya, jadi terima dulu sebelum list dicetak.',
+    'Isi **Chief Bangsal** di bagian atas. Saran ganti chief sudah muncul sejak 16.00 hari sebelumnya (untuk Senin dan setelah tanggal merah: sejak 07.00 hari sebelumnya), jadi terima dulu sebelum list dicetak. Tanggal merah ditandai di Setelan.',
   ],
 };
 

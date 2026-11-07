@@ -17,6 +17,7 @@ const FLOOR: FloorDoc = {
   nicknames: {},
   chiefs: '',
   chiefBangsal: 'Kirana',
+  holidays: [],
   juniors: '',
   marks: [],
   analysisTitles: {},
@@ -60,22 +61,97 @@ const run = (roster: RosterPatient[], now = MON_0700, floor = FLOOR) =>
   chiefSuggestions(roster, floor, DATE, now).map(({ from, to }) => ({ from, to }));
 
 describe('handoverCycleStart', () => {
-  it('is the latest weekday 16.00 not after now', () => {
-    expect(handoverCycleStart(at(26, 10))).toEqual(at(23, 16)); // Monday jam dinas → Friday 16.00
-    expect(handoverCycleStart(at(26, 5))).toEqual(at(23, 16)); // Monday early morning
+  it('is the latest Monday-to-Thursday 16.00 or Sunday 07.00 not after now', () => {
+    expect(handoverCycleStart(at(26, 10))).toEqual(at(25, 7)); // Monday jam dinas → Sunday 07.00
+    expect(handoverCycleStart(at(26, 5))).toEqual(at(25, 7)); // Monday early morning
+    expect(handoverCycleStart(at(25, 7))).toEqual(at(25, 7));
     expect(handoverCycleStart(at(26, 16))).toEqual(at(26, 16));
     expect(handoverCycleStart(at(26, 20))).toEqual(at(26, 16));
-    expect(handoverCycleStart(at(31, 10))).toEqual(at(30, 16)); // Saturday → Friday 16.00
+    expect(handoverCycleStart(at(30, 10))).toEqual(at(29, 16)); // Friday jam dinas → Thursday 16.00
+    expect(handoverCycleStart(at(31, 10))).toEqual(at(29, 16)); // Saturday → Thursday 16.00
+    expect(handoverCycleStart(at(25, 6))).toEqual(at(22, 16)); // Sunday before it opens
+  });
+
+  it('treats a tanggal merah as a day off', () => {
+    const wednesday = ['2026-10-28'];
+    expect(handoverCycleStart(at(27, 20), wednesday)).toEqual(at(26, 16)); // no handover on the holiday itself
+    expect(handoverCycleStart(at(28, 10), wednesday)).toEqual(at(28, 7));
+    expect(handoverCycleStart(at(29, 10), wednesday)).toEqual(at(28, 7));
   });
 });
 
 describe('chiefSuggestions', () => {
-  it('suggests the Chief Bangsal for a patient of the previous chief, at any hour (early, for the printed list)', () => {
+  it('suggests the Chief Bangsal for a patient of the previous chief, at any weekday hour (early, for the printed list)', () => {
     const roster = [rostered({ chief: 'Bima' })];
     expect(run(roster)).toEqual([{ from: 'Bima', to: 'Kirana' }]);
     expect(run(roster, at(26, 3))).toEqual([{ from: 'Bima', to: 'Kirana' }]); // 4 h before the change
-    expect(run(roster, at(23, 17))).toEqual([{ from: 'Bima', to: 'Kirana' }]); // Friday evening
-    expect(run(roster, at(31, 10))).toEqual([{ from: 'Bima', to: 'Kirana' }]); // Saturday
+    expect(run(roster, at(26, 20))).toEqual([{ from: 'Bima', to: 'Kirana' }]); // Monday evening, for Tuesday
+  });
+
+  it('is hidden over the weekend until 24 hours before Monday 07.00', () => {
+    const roster = [rostered({ chief: 'Bima' })];
+    const shown = [{ from: 'Bima', to: 'Kirana' }];
+    expect(run(roster, at(23, 15, 59))).toEqual(shown); // Friday jam dinas
+    expect(run(roster, at(23, 16))).toEqual([]); // Friday, end of jam dinas
+    expect(run(roster, at(24, 20))).toEqual([]); // Saturday night
+    expect(run(roster, at(25, 6, 59))).toEqual([]);
+    expect(run(roster, at(25, 7))).toEqual(shown); // Sunday 07.00: exactly 24 hours before
+    expect(run(roster, at(25, 22))).toEqual(shown); // Sunday night
+  });
+
+  describe('tanggal merah', () => {
+    const roster = [rostered({ chief: 'Bima' })];
+    const shown = [{ from: 'Bima', to: 'Kirana' }];
+    const off = (...holidays: string[]): FloorDoc => ({ ...FLOOR, holidays });
+
+    it('a weekday off: nothing from 16.00 the day before until 07.00 on the day', () => {
+      const floor = off('2026-10-28'); // Wednesday
+      expect(run(roster, at(27, 15, 59), floor)).toEqual(shown); // Tuesday's own handover
+      expect(run(roster, at(27, 16), floor)).toEqual([]);
+      expect(run(roster, at(28, 6, 59), floor)).toEqual([]);
+      expect(run(roster, at(28, 7), floor)).toEqual(shown); // 24 hours before Thursday 07.00
+      expect(run(roster, at(29, 3), floor)).toEqual(shown);
+    });
+
+    it('a Monday off: Sunday stays quiet and Monday 07.00 opens for Tuesday', () => {
+      const floor = off('2026-10-26');
+      expect(run(roster, at(25, 7), floor)).toEqual([]);
+      expect(run(roster, at(26, 6, 59), floor)).toEqual([]);
+      expect(run(roster, at(26, 7), floor)).toEqual(shown);
+    });
+
+    it('Thursday and Friday off: the gap runs through the weekend to Sunday 07.00', () => {
+      const floor = off('2026-10-29', '2026-10-30');
+      expect(run(roster, at(28, 15, 59), floor)).toEqual(shown);
+      expect(run(roster, at(28, 16), floor)).toEqual([]);
+      expect(run(roster, at(30, 10), floor)).toEqual([]);
+      expect(run(roster, at(32, 6, 59), floor)).toEqual([]); // Sunday 1 November
+      expect(run(roster, at(32, 7), floor)).toEqual(shown);
+    });
+
+    it('marked on a weekend it changes nothing', () => {
+      const floor = off('2026-10-31');
+      expect(run(roster, at(30, 15), floor)).toEqual(shown);
+      expect(run(roster, at(32, 7), floor)).toEqual(shown);
+    });
+
+    it('an Abaikan before the holiday was marked does not hide the next handover', () => {
+      const dismissed = [rostered({ chief: 'Bima', chiefDismissed: at(27, 10).toISOString() })];
+      const floor = off('2026-10-28');
+      expect(run(dismissed, at(27, 15), floor)).toEqual([]);
+      expect(run(dismissed, at(28, 7), floor)).toEqual(shown);
+    });
+  });
+
+  it('an Abaikan from before the handover opened does not hide it', () => {
+    const friday = [rostered({ chief: 'Bima', chiefDismissed: at(23, 10).toISOString() })];
+    expect(run(friday, at(23, 15))).toEqual([]);
+    expect(run(friday, at(25, 7))).toEqual([{ from: 'Bima', to: 'Kirana' }]);
+    const saturday = [rostered({ chief: 'Bima', chiefDismissed: at(24, 20).toISOString() })];
+    expect(run(saturday, at(25, 7))).toEqual([{ from: 'Bima', to: 'Kirana' }]);
+    const sunday = [rostered({ chief: 'Bima', chiefDismissed: at(25, 8).toISOString() })];
+    expect(run(sunday, at(26, 10))).toEqual([]); // the answer to Monday's handover holds through Monday
+    expect(run(sunday, at(26, 16))).toEqual([{ from: 'Bima', to: 'Kirana' }]);
   });
 
   it('a name variant of the Chief Bangsal is the same person', () => {

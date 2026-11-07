@@ -88,6 +88,7 @@ export function readFloor(id: string, data: DocumentData): FloorDoc {
     nicknames: record(data.nicknames, text),
     chiefs: str(data.chiefs),
     chiefBangsal: str(data.chiefBangsal),
+    holidays: Array.isArray(data.holidays) ? data.holidays.filter((v: unknown): v is string => typeof v === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(v)) : [],
     juniors: str(data.juniors),
     marks: readMarks(data.marks),
     analysisTitles: readSectionTitles(data.analysisTitles),
@@ -539,6 +540,15 @@ export function writeChiefs(floorId: string, chiefs: string): Promise<void> {
 /** The jam-dinas chief (24 Oct 2026, `chiefHandover.ts`): one name, '' = none. */
 export function writeChiefBangsal(floorId: string, name: string): Promise<void> {
   return trackWrite(updateDoc(floorDoc(floorId), 'chiefBangsal', name, 'updatedAt', serverTimestamp()));
+}
+
+/** One date at a time, so two editors marking different days cannot overwrite each other. */
+export function addHoliday(floorId: string, iso: string): Promise<void> {
+  return trackWrite(updateDoc(floorDoc(floorId), 'holidays', arrayUnion(iso), 'updatedAt', serverTimestamp()));
+}
+
+export function removeHoliday(floorId: string, iso: string): Promise<void> {
+  return trackWrite(updateDoc(floorDoc(floorId), 'holidays', arrayRemove(iso), 'updatedAt', serverTimestamp()));
 }
 
 export function writeNickname(floorId: string, sender: string, nickname: string): Promise<void> {

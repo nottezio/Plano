@@ -49,6 +49,7 @@ const FLOOR: FloorDoc = {
   nicknames: { 'dr. Muh Bima Contoh': 'Dani' },
   chiefs: '',
   chiefBangsal: '',
+  holidays: [],
   juniors: '',
   marks: [],
   analysisTitles: {},

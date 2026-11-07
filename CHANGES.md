@@ -1,5 +1,24 @@
 # Plano — CHANGES
 
+## `2026-11-07.6` — Tanggal merah for the chief handover
+
+Avi (7 Nov) chose to add this after `.5` left weekday holidays unknown.
+
+- **Data.** `FloorDoc.holidays`: ISO dates, per list, written with `arrayUnion` / `arrayRemove` so two editors cannot overwrite each other. `readFloor` drops anything not shaped like a date. An old floor without the field reads as none.
+- **Rules.** `firestore.rules` adds `holidays` to what a floor editor may change. `firestore-deploy.yml` deploys it on push to main. Until that run finishes, an editor who is not the owner gets the "Perubahan belum tersimpan" message; the owner is not affected.
+- **Logic.** `chiefHandover.ts` now has one test for both weekends and holidays: open on a working day until 16.00, or from 07.00 if tomorrow is a working day. `handoverCycleStart` follows the same days: the latest eve of a working day, 16.00 after a working day and 07.00 after a day off. Behaviour with no holidays is the same as `.5`.
+- **UI.** Setelan gains a "Ganti chief" group with `HolidaysField`: a `DateField` that adds on pick, then upcoming dates with their weekday and Hapus. Past dates stay stored but are not shown. Viewers see the list read-only.
+- **Not done.** No built-in national calendar, because cuti bersama changes by decree and a wrong date would silently hide a handover. Marking is per list, so each ward enters its own. A holiday hides only the chief suggestions: it does not touch Morning Report's own day range or anything else.
+
+## `2026-11-07.5` — Chief handover opens 24 hours before the change, not all weekend
+
+Avi (7 Nov), seeing Monday's handover in the Saran tray on Saturday night: weekend and holiday shifts run 07.00-19.00 and 19.00-07.00, and the notification should appear 24 hours before the actual change. Read as: Sunday 07.00 for Monday 07.00.
+
+- **Root cause.** The 1 Nov EARLY change made `chiefSuggestions` open at every hour so Terima could land before the list is printed. On weekdays the next jam dinas is always under 24 hours away, so that was fine; from Friday 16.00 it is 63 hours away, and nothing bounded it. The in-app guide already said "sejak 16.00 hari sebelumnya", which the code did not do on a weekend.
+- **Second cause, same line of code.** `handoverCycleStart` used Friday 16.00 as the start of Monday's cycle, so an Abaikan tapped on Saturday because it was too early also hid Monday's real suggestion.
+- **Fix.** `handoverOpen` hides chief rows from Friday 16.00 to Sunday 07.00. `handoverCycleStart` is now the moment the current handover opened: the latest Monday-to-Thursday 16.00 or Sunday 07.00. Dismissals already made this weekend expire on Sunday 07.00 with no migration. Discharge rows are untouched. Monday to Thursday and Friday before 16.00 behave as before.
+- **Not done.** No holiday list (added in `.6`). No suggestions are made for the 07.00 and 19.00 weekend shift changes. Terima still changes the chief at once, so a tap on Sunday morning shows the new chief for all of Sunday. Patients with no chief are hidden in the same gap. Not checked in the app or on a ward device: tests cover the clock boundaries only.
+
 ## `2026-11-07.4` — Owner answers: no IWL; a date right after a counter is its start
 
 Avi (7 Nov): "We dont use IWL"; `Meropenem (H-5) 6/11` means it starts from 6/11. Settles both questions left open in `.2` and `.3`.
