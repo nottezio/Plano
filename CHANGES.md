@@ -1,5 +1,14 @@
 # Plano — CHANGES
 
+## `2026-11-08.1` — Stabilo on SOAP lines
+
+Avi (8 Nov): after copying yesterday's SOAP it is easy to forget which lines are still unchanged.
+
+- **Why not in the text.** The SOAP is one string that is copied verbatim, so a marker cannot live in it. A mark is the line's trimmed text + occurrence (`domain/lineMarks.ts`, anchor shared with bookmarks), painted by a mirror layer (`MarkerBands`) behind the textarea.
+- **Disappears on edit.** Unlike bookmarks it is not re-anchored: an edited line stops resolving, so the mark goes. It would return only if the old text were typed back.
+- **Storage.** `localStorage` per patient (`plano.marks.<id>`), capped at 200. No Firestore: 0 reads, 0 writes.
+- **Not done.** No sync across devices, one colour, lines only (a selection marks the whole lines it touches), not checked on a ward device or with a very long note.
+
 ## `2026-11-07.6` — Tanggal merah for the chief handover
 
 Avi (7 Nov) chose to add this after `.5` left weekday holidays unknown.

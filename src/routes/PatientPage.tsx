@@ -108,6 +108,7 @@ import {
 } from '@/domain/clinicalDate';
 import { useBodyEditor } from '@/hooks/useBodyEditor';
 import { useLineBookmarks } from '@/hooks/useLineBookmarks';
+import { useLineMarks } from '@/hooks/useLineMarks';
 import { useClinicalToday } from '@/hooks/useClinicalToday';
 import { useChecklist } from '@/hooks/useChecklist';
 import { useShiftNotes } from '@/hooks/useShiftNotes';
@@ -449,6 +450,8 @@ export default function PatientPage(): JSX.Element {
     selectedShiftNoteId === null
       ? null
       : (shiftNotes.notes.find((note) => note.id === selectedShiftNoteId) ?? null);
+
+  const lineMarks = useLineMarks(patientId ?? null, editor.value);
 
   /**
    * Line bookmarks on the day's SOAP. Off while the entry loads (the body is
@@ -2373,6 +2376,7 @@ export default function PatientPage(): JSX.Element {
               starts: lineBookmarks.resolved.map((entry) => entry.start),
               onToggle: lineBookmarks.toggleAt,
             }}
+            marks={{ spans: lineMarks.spans, onToggle: lineMarks.toggle }}
             tint={settings.sectionTint}
             readOnly={locked}
             {...(settings.showWatermark

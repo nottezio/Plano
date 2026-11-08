@@ -80,6 +80,7 @@ export function BodyEditor({
   handleRef,
   history,
   bookmarks,
+  marks,
 }: {
   value: string;
   onChange: (next: string) => void;
@@ -138,6 +139,13 @@ export function BodyEditor({
     | {
         starts: readonly number[];
         onToggle: (offset: number) => void;
+      }
+    | undefined;
+  /** Marker lines (day SOAP only): where they are, and the toggle for the selection's lines. */
+  marks?:
+    | {
+        spans: readonly { start: number; end: number }[];
+        onToggle: (start: number, end: number) => void;
       }
     | undefined;
   /**
@@ -681,6 +689,7 @@ export function BodyEditor({
           the start of each bookmarked line. Positions come from layout, not
           from counting newlines, for the reason recorded on `resize`.
         */}
+        {marks && marks.spans.length > 0 ? <MarkerBands body={value} spans={marks.spans} /> : null}
         {bookmarks && bookmarks.starts.length > 0 ? (
           <BookmarkMarks body={value} starts={bookmarks.starts} />
         ) : null}
@@ -713,7 +722,7 @@ export function BodyEditor({
               start: event.currentTarget.selectionStart,
               end: event.currentTarget.selectionEnd,
             };
-            if (bookmarks) trackCaret(event.currentTarget);
+            if (bookmarks || marks) trackCaret(event.currentTarget);
           }}
           onChange={(event) => {
             lastKeyAt.current = Date.now();
@@ -900,6 +909,17 @@ export function BodyEditor({
                 },
               }
             : {})}
+          {...(marks
+            ? {
+                marker: {
+                  pressed: marks.spans.some((span) => span.start === caretLine),
+                  onToggle: () => {
+                    const node = ref.current;
+                    if (node) marks.onToggle(node.selectionStart, node.selectionEnd);
+                  },
+                },
+              }
+            : {})}
           snippetPreview={(snippetId) =>
             SNIPPETS.find((entry) => entry.id === snippetId)?.build(date, ward) ?? ''
           }
@@ -1000,6 +1020,36 @@ function BookmarkMarks({
       </span>,
     );
     from = at;
+  }
+  parts.push(<span key="end">{`${body.slice(from)}\u200b`}</span>);
+  return (
+    <div
+      aria-hidden="true"
+      className={`${METRICS} pointer-events-none absolute inset-0 select-none text-transparent`}
+    >
+      {parts}
+    </div>
+  );
+}
+
+/** Marker paint behind the text for marked lines; same mirror technique as `BookmarkMarks`. */
+function MarkerBands({
+  body,
+  spans,
+}: {
+  body: string;
+  spans: readonly { start: number; end: number }[];
+}): JSX.Element {
+  const parts: JSX.Element[] = [];
+  let from = 0;
+  for (const { start, end } of spans) {
+    parts.push(<span key={`t${start}`}>{body.slice(from, start)}</span>);
+    parts.push(
+      <span key={`m${start}`} className="rounded-sm bg-[var(--warn-soft)]">
+        {body.slice(start, end)}
+      </span>,
+    );
+    from = end;
   }
   parts.push(<span key="end">{`${body.slice(from)}\u200b`}</span>);
   return (

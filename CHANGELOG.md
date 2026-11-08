@@ -5,6 +5,9 @@ Catatan teknis lengkap (akar masalah, perbaikan) ada di CHANGES.md.
 
 Entri teratas harus versi yang sedang dirilis; tes gagal bila belum ditulis.
 
+## `2026-11-08.1`
+- **Stabilo untuk baris SOAP yang belum diubah.** Blok teks (atau taruh kursor di satu baris), lalu ketuk ikon stabilo di toolbar: baris itu diberi warna kuning supaya tidak terlewat saat menyalin SOAP kemarin. Begitu barisnya kamu ubah, warnanya hilang sendiri. Ketuk lagi untuk menghapus. Tanda hanya ada di perangkat ini dan tidak ikut tersalin.
+
 ## `2026-11-07.6`
 - **Tanggal merah bisa ditandai di Setelan list.** Pada hari yang ditandai tidak ada saran ganti chief; saran berikutnya muncul pukul 07.00, tepat 24 jam sebelum hari kerja berikutnya. Tiap list punya daftarnya sendiri, dan anggota yang bisa mengedit bisa mengisinya.
 

@@ -36,6 +36,7 @@ export function FormatToolbar({
   aliases,
   history,
   bookmark,
+  marker,
 }: {
   disabled: boolean;
   /** Undo/redo for the note; absent where there is none. */
@@ -57,6 +58,8 @@ export function FormatToolbar({
   aliases?: readonly SectionAlias[] | undefined;
   /** Bookmark the caret's line (day SOAP only); pressed when it already is. */
   bookmark?: { pressed: boolean; onToggle: () => void } | undefined;
+  /** Marker over the selected lines (day SOAP only): "not changed yet". */
+  marker?: { pressed: boolean; onToggle: () => void } | undefined;
 }): JSX.Element {
   const [menu, setMenu] = useState<'insert' | 'tidy' | null>(null);
   const rootRef = useRef<HTMLDivElement>(null);
@@ -132,6 +135,19 @@ export function FormatToolbar({
                   d="M6 4h12v16l-6-4-6 4z"
                   fill={bookmark.pressed ? 'currentColor' : 'none'}
                 />
+              </Svg>
+            </Tool>
+          ) : null}
+          {marker ? (
+            // Like a bookmark, kept off the note: works on a locked note too.
+            <Tool
+              title={marker.pressed ? 'Hapus stabilo baris ini' : 'Stabilo baris terpilih (belum diubah)'}
+              disabled={false}
+              pressed={marker.pressed}
+              onClick={marker.onToggle}
+            >
+              <Svg>
+                <path d="m9 11-5 5v4h4l5-5M9 11l6-6 4 4-6 6zM4 21h16" />
               </Svg>
             </Tool>
           ) : null}
