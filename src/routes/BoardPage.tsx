@@ -5,7 +5,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } fro
 import { CanvasBackdrop } from '@/components/board/CanvasBackdrop';
 import { PhoneCanvas, type PhoneSticky } from '@/components/board/PhoneCanvas';
 import { readingOrder, sanitizePhoneGrid, type PhoneGrid } from '@/domain/board/phoneGrid';
-import { mergeScope, sanitizePhoneShelves, type PhoneShelf } from '@/domain/board/phoneShelf';
+import { mergeScope, sanitizePhoneShelves, shelvedIds, type PhoneShelf } from '@/domain/board/phoneShelf';
 import { canvasShelfId, layoutsWithShelves, shelfPatch, shelvesFromLayouts } from '@/domain/board/shelfSync';
 import { parseSharedCanvas, type CanvasLayouts } from '@/domain/board/canvasLayout';
 import { dropLegacyPhoneShelves, patchSharedCanvas, savePhoneGrid, saveSharedCanvas } from '@/data/repositories/boardCanvas.repo';
@@ -749,13 +749,16 @@ export default function BoardPage(): JSX.Element {
 
   /** Summary stickies list patients in "Urutan visite" (the ward route), whatever order the board shows. */
   const summaryCards = useMemo(() => {
-    const byId = new Map(cards.map((card) => [card.patient.id, card]));
+    // A shelved patient is done on the floor: its catatan has no place in a walking list.
+    const shelved = shelvedIds(allPhoneShelves);
+    const listed = cards.filter((card) => !shelved.has(card.patient.id));
+    const byId = new Map(listed.map((card) => [card.patient.id, card]));
     return orderPatients(
       // Unpinned: a pin lifts a card on the board, but the sticky is a walking list (420 first, 410 last).
-      cards.map((card) => ({ ...card.patient, pinned: false })),
+      listed.map((card) => ({ ...card.patient, pinned: false })),
       'visite',
     ).flatMap((patient) => byId.get(patient.id) ?? []);
-  }, [cards]);
+  }, [cards, allPhoneShelves]);
 
   /** Visite steps bed to bed in the order the board shows. */
   const visitePatients = useMemo(() => cards.map((card) => card.patient), [cards]);

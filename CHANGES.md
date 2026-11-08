@@ -1,5 +1,15 @@
 # Plano — CHANGES
 
+## `2026-11-08.2` — Shelved patients leave the summary stickies
+
+Avi (8 Nov): a patient moved into Shelf still showed in the Catatan pasien sticky.
+
+- **Root cause.** `summaryCards` in `BoardPage` was built from `cards` only. Shelf membership lives in the shared canvas layouts (`allPhoneShelves`), which nothing in that memo read, so shelved patients stayed in the list.
+- **Fix.** `summaryCards` drops ids in `shelvedIds(allPhoneShelves)`. Reversible: taking a patient off the shelf lists it again.
+- **Side effect.** `summaryCards` feeds every summary sticky (Catatan pasien, Lab hari ini, the phone blocks), so shelved patients leave all of them. Narrow it to Catatan only if that is unwanted.
+- **Firestore.** No change: 0 reads, 0 writes (shelf data was already loaded).
+- **Not done.** Not checked in the browser, and no new test (the filter is inline in a memo).
+
 ## `2026-11-08.1` — Stabilo on SOAP lines
 
 Avi (8 Nov): after copying yesterday's SOAP it is easy to forget which lines are still unchanged.
