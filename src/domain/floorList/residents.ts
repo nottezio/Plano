@@ -8,12 +8,19 @@ export interface ResidentGroups {
   juniors: Array<[string, FloorPatient[]]>;
   /** "Divisi Aritmia" → patients held by that division (13.9): listed, not counted. */
   divisions: Array<[string, FloorPatient[]]>;
-  /** Nobody holds them (no junior). Its own field so it can go last (19 Oct 2026). */
+  /** Followed up, but no junior written yet. */
+  unassigned: FloorPatient[];
+  /**
+   * Tagged "tidak di-follow up" (9 Nov 2026, Avi: titipan, chosen DPJPs):
+   * listed, counted for nobody. Its own field so it can go last (19 Oct 2026).
+   */
   unheld: FloorPatient[];
 }
 
-/** Renamed from "Tidak ada yang pegang" (19 Oct 2026, Avi). */
+/** Renamed from "Tidak ada yang pegang" (19 Oct 2026, Avi). Since 9 Nov 2026: tagged patients only. */
 export const NO_JUNIOR = 'Tidak di-FU';
+/** A followed-up patient with no junior yet (before 9 Nov 2026 these sat in "Tidak di-FU"). */
+export const NO_JUNIOR_YET = 'Belum ada junior';
 
 export interface HolderBox {
   name: string;
@@ -32,6 +39,7 @@ export function holderBoxes(groups: ResidentGroups): HolderBox[] {
   return [
     ...groups.juniors.map(([name, list]) => ({ name, list, division: false })),
     ...groups.divisions.map(([name, list]) => ({ name, list, division: true })),
+    ...(groups.unassigned.length > 0 ? [{ name: NO_JUNIOR_YET, list: groups.unassigned, division: false }] : []),
     ...(groups.unheld.length > 0 ? [{ name: NO_JUNIOR, list: groups.unheld, division: false }] : []),
   ];
 }
@@ -47,6 +55,7 @@ export function residentGroups(sorted: readonly FloorPatient[]): ResidentGroups 
   const chiefs = new Map<string, number>();
   const juniors = new Map<string, FloorPatient[]>();
   const divisions = new Map<string, FloorPatient[]>();
+  const unassigned: FloorPatient[] = [];
   const unheld: FloorPatient[] = [];
   for (const p of sorted) {
     if (p.division) {
@@ -54,12 +63,17 @@ export function residentGroups(sorted: readonly FloorPatient[]): ResidentGroups 
       divisions.set(key, [...(divisions.get(key) ?? []), p]);
       continue;
     }
+    // Not followed up: like a division patient, nobody's count.
+    if (p.tags?.some((t) => t.noFollowUp)) {
+      unheld.push(p);
+      continue;
+    }
     if (p.chief) chiefs.set(p.chief, (chiefs.get(p.chief) ?? 0) + 1);
     if (!p.junior) {
-      unheld.push(p);
+      unassigned.push(p);
       continue;
     }
     juniors.set(p.junior, [...(juniors.get(p.junior) ?? []), p]);
   }
-  return { chiefs: [...chiefs], juniors: [...juniors], divisions: [...divisions], unheld };
+  return { chiefs: [...chiefs], juniors: [...juniors], divisions: [...divisions], unassigned, unheld };
 }

@@ -183,10 +183,10 @@ export function MarksField({ floorId, marks, editable }: { floorId: string; mark
                     )
                   }
                 />
-                Tidak di-follow up (tanpa Ganti chief)
+                Tidak di-follow up
               </label>
             ) : mark.noFollowUp ? (
-              <p className="text-xs text-fg-muted">Tidak di-follow up (tanpa Ganti chief)</p>
+              <p className="text-xs text-fg-muted">Tidak di-follow up</p>
             ) : null}
           </li>
         ))}

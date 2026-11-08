@@ -19,7 +19,8 @@ describe('residentGroups', () => {
       ['Bima', ['a', 'd']],
       ['Sari', ['b']],
     ]);
-    expect(groups.unheld.map((x) => x.key)).toEqual(['e']);
+    expect(groups.unassigned.map((x) => x.key)).toEqual(['e']);
+    expect(groups.unheld).toEqual([]);
     expect(groups.divisions.map(([n, l]) => [n, l.length])).toEqual([['Divisi Aritmia', 1]]);
   });
 });
@@ -29,7 +30,7 @@ describe('holderBoxes (19 Oct 2026)', () => {
     expect(NO_JUNIOR).toBe('Tidak di-FU');
     const boxes = holderBoxes(
       residentGroups([
-        p('e', {}),
+        p('e', { tags: [{ label: 'Titipan', color: 'grey', noFollowUp: true }] }),
         p('a', { junior: 'Bima' }),
         p('c', { division: 'Aritmia' }),
         p('b', { junior: 'Sari' }),
@@ -40,6 +41,22 @@ describe('holderBoxes (19 Oct 2026)', () => {
       ['Sari', ['b'], false],
       ['Divisi Aritmia', ['c'], true],
       ['Tidak di-FU', ['e'], false],
+    ]);
+  });
+
+  it('"Tidak di-FU" holds only tagged patients; no junior yet is its own box (9 Nov 2026)', () => {
+    const noFu = [{ label: 'Titipan', color: 'grey' as const, noFollowUp: true as const }];
+    const groups = residentGroups([
+      p('t', { junior: 'Bima', chief: 'Kirana', tags: noFu }),
+      p('a', { junior: 'Bima', chief: 'Kirana' }),
+      p('e', { chief: 'Kirana' }),
+      p('x', { tags: [{ label: 'Pre-op', color: 'purple' }] }),
+    ]);
+    expect(groups.chiefs).toEqual([['Kirana', 2]]);
+    expect(holderBoxes(groups).map((b) => [b.name, b.list.map((x) => x.key)])).toEqual([
+      ['Bima', ['a']],
+      ['Belum ada junior', ['e', 'x']],
+      ['Tidak di-FU', ['t']],
     ]);
   });
 

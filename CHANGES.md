@@ -1,5 +1,15 @@
 # Plano — CHANGES
 
+## `2026-11-09.3` — "Tidak di-FU" box = tagged patients only
+
+Avi (9 Nov): the "Tidak di-FU" holder box listed every patient without a junior (13 on the floor, most of them followed up); it should hold only patients tagged "tidak di-follow up".
+
+- **Root cause.** Not a bug in the new mark: `residentGroups` (`residents.ts`) has filled "Tidak di-FU" with `!p.junior` since 19 Oct, when the box meant "nobody holds them". The 09.2 mark flag never reached it.
+- **Fix.** A patient with a `noFollowUp` tag goes to `unheld` ("Tidak di-FU", last box) and, like a division patient, counts for no chief. A followed-up patient with no junior goes to a new `unassigned` box, "Belum ada junior", before it, still counted for its chief. One function, so the app (FloorDenah), Word (docx) and PDF (printHtml) all change together.
+- **Label.** The Setelan checkbox reads "Tidak di-follow up" (owner: "(tanpa Ganti chief)" dropped).
+- **Firestore.** None: derived from data already on screen.
+- **Not done.** Not checked in the app or in an opened Word/PDF. Editions saved before 09.2 carry no `noFollowUp` on their tags, so re-exporting an old edition puts its no-junior patients in "Belum ada junior" and shows no "Tidak di-FU" box.
+
 ## `2026-11-09.2` — "Tidak di-follow up" marks skip Ganti chief
 
 Avi (9 Nov): Ganti chief should only offer patients the ward follows up. Not followed up: chosen DPJPs, and titipan (non-cardio patients listed only to be observed).

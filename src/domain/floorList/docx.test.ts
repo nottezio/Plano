@@ -112,7 +112,7 @@ describe('Denah docx', () => {
     const residents = xml.slice(xml.indexOf('dr. Kepala'));
     expect(residents).toContain('<w:tbl>');
     expect(residents).toContain('Muda (');
-    expect(residents).toContain('Tidak di-FU (');
+    expect(residents).toContain('Belum ada junior (');
     expect(xml).toContain('Operkan ke Tmn Lain:');
     expect(xml).toContain('Ganti Chief:');
     expect(xml).toContain('dr. Kepala  3');
