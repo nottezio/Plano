@@ -505,10 +505,14 @@ export function manualAddAction(existing: Pick<RosterPatient, 'status'> | null |
   return existing.status === 'dirawat' ? 'onList' : 'readmit';
 }
 
-export function newRosterPatient(report: FloorPatient, at: string, by: string): RosterPatient {
+/**
+ * The per-stay fields of a patient, blank: what a new patient starts with and
+ * what a readmission resets (8 Nov 2026, Avi: a patient back for a new
+ * admission came with the chief and junior of the earlier stay). The record,
+ * its log and `addedAt` are kept.
+ */
+export function readmitFields(): Omit<RosterPatient, 'key' | 'report' | 'log' | 'addedAt'> {
   return {
-    key: report.key,
-    report,
     status: 'dirawat',
     pindahKe: '',
     leftAt: '',
@@ -525,9 +529,11 @@ export function newRosterPatient(report: FloorPatient, at: string, by: string): 
     operkan: '',
     gantiChief: '',
     chiefDismissed: '',
-    addedAt: at,
-    log: [{ at, by, what: 'Masuk list' }],
   };
+}
+
+export function newRosterPatient(report: FloorPatient, at: string, by: string): RosterPatient {
+  return { key: report.key, report, ...readmitFields(), addedAt: at, log: [{ at, by, what: 'Masuk list' }] };
 }
 
 // ── paste ──────────────────────────────────────────────────────────────────

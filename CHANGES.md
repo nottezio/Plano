@@ -1,5 +1,14 @@
 # Plano — CHANGES
 
+## `2026-11-08.3` — A readmission starts a new stay in List Maker
+
+Avi (8 Nov): a new patient entered tonight was matched to his earlier admission and came back with that stay's Chief and Resident.
+
+- **Root cause.** Patients are filed by RM (`floors/{id}/patients/{key}`), so a returning patient finds his old record (`pasteDiff` → `readmit`, or `manualAddAction` → `readmit`). Both readmit paths wrote only `status`, `leftAt`, `pindahKe`. The hand-set fields of the earlier stay (`junior`, `chief`, colour and dates, `division`, `tags`/`tagsOff`, `operkan`, `gantiChief`, …) stayed, and `effective()` puts a hand override first, so the old names showed.
+- **Fix.** `readmitFields()` in `floor.ts` is the blank per-stay part of a patient. `newRosterPatient` is built from it, and both readmit writes (`PastePanel`, `ManualPatientSheet`) send it. The record, its log and `addedAt` are kept. `RosterChange.fields` now accepts any per-stay field.
+- **Firestore.** Same writes as before (one batch, the same document), only more fields in the update. 0 new reads.
+- **Not done.** Not checked in the app or emulator. `addedAt` keeps the first admission, so on a floor with no earlier list the "Pasien baru" fallback still misses a readmission (parked with the shift-based "pasien baru" idea). Readmissions already made keep their old Chief/Resident until set by hand.
+
 ## `2026-11-08.2` — Shelved patients leave the summary stickies
 
 Avi (8 Nov): a patient moved into Shelf still showed in the Catatan pasien sticky.

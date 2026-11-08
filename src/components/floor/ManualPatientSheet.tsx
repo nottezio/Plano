@@ -3,7 +3,7 @@ import { useEffect, useState } from 'react';
 import { Sheet } from '@/components/common/Sheet';
 import { Button, Callout, Field, INPUT } from '@/components/common/ui';
 import { addRosterPatient, readRosterPatients, writeRosterBatch, writeRosterReport } from '@/data/repositories/floors.repo';
-import { manualAddAction, newRosterPatient, type RosterPatient } from '@/domain/floorList/floor';
+import { manualAddAction, newRosterPatient, readmitFields, type RosterPatient } from '@/domain/floorList/floor';
 import { DPJPS } from '@/domain/dpjp';
 import { planRooms, wardPlan } from '@/domain/denahPlan';
 import { manualPatient, type FloorPatient } from '@/domain/floorList/report';
@@ -121,7 +121,7 @@ export function ManualPatientSheet({
       if (action === 'readmit' && existing) {
         await writeRosterBatch(floorId, [
           { kind: 'report', key: existing.key, report: patient },
-          { kind: 'fields', key: existing.key, fields: { status: 'dirawat', leftAt: '', pindahKe: '' }, log: { at, by: myName, what: 'Masuk lagi (pasien manual)' } },
+          { kind: 'fields', key: existing.key, fields: readmitFields(), log: { at, by: myName, what: 'Masuk lagi (pasien manual)' } },
         ]);
       } else {
         await addRosterPatient(floorId, newRosterPatient(patient, at, myName));

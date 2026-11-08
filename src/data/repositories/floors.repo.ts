@@ -388,7 +388,7 @@ export type RosterChange =
   | {
       kind: 'fields';
       key: string;
-      fields: Partial<Pick<RosterPatient, 'status' | 'pindahKe' | 'leftAt' | 'chief' | 'gantiChief' | 'chiefDismissed'>>;
+      fields: Partial<Omit<RosterPatient, 'key' | 'report' | 'log' | 'addedAt'>>;
       log?: StatusChange | undefined;
     };
 

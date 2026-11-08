@@ -5,6 +5,9 @@ Catatan teknis lengkap (akar masalah, perbaikan) ada di CHANGES.md.
 
 Entri teratas harus versi yang sedang dirilis; tes gagal bila belum ditulis.
 
+## `2026-11-08.3`
+- **Pasien yang dirawat lagi mulai dari nol di List Maker.** Pasien yang pernah pulang atau pindah lalu masuk lagi tidak lagi membawa Chief, Junior, warna, tanda, divisi, dan catatan operan dari rawatan sebelumnya. Riwayat (log) pasien tetap tersimpan.
+
 ## `2026-11-08.2`
 - **Pasien di Shelf tidak lagi muncul di sticky.** Catatan pasien yang dipindah ke Shelf kini hilang dari sticky Catatan pasien (juga dari sticky ringkasan lain). Keluarkan dari Shelf, dan catatannya muncul lagi.
 

@@ -3,7 +3,7 @@ import { useRef, useState } from 'react';
 import { Button, Callout } from '@/components/common/ui';
 import { readRosterPatients, saveRestorePoint, writeRosterBatch, type RosterChange } from '@/data/repositories/floors.repo';
 import { formatDmy } from '@/domain/dateDmy';
-import { localStamp, newRosterPatient, pasteDiff, updatedReport, type FloorDoc, type PasteDiff, type RosterPatient } from '@/domain/floorList/floor';
+import { localStamp, newRosterPatient, pasteDiff, readmitFields, updatedReport, type FloorDoc, type PasteDiff, type RosterPatient } from '@/domain/floorList/floor';
 import { splitChat } from '@/domain/floorList/chat';
 import { latestOf, onFloorNumber, readReports, type FloorPatient } from '@/domain/floorList/report';
 import { touchedPoint, type RestorePointMeta } from '@/domain/floorList/restore';
@@ -151,7 +151,7 @@ export function PastePanel({ floor, roster, myName }: { floor: FloorDoc; roster:
         }),
         ...back.flatMap(({ before, report }): RosterChange[] => [
           { kind: 'report', key: before.key, report },
-          { kind: 'fields', key: before.key, fields: { status: 'dirawat', leftAt: '', pindahKe: '' }, log: log('Masuk lagi (dari Tempel)') },
+          { kind: 'fields', key: before.key, fields: readmitFields(), log: log('Masuk lagi (dari Tempel)') },
         ]),
       ];
       /*

@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import {
   manualAddAction,
+  readmitFields,
   canEdit,
   chiefsOf,
   clearMarkFields,
@@ -516,6 +517,17 @@ describe('manualAddAction (2026-10-31: a hand-entered patient never overwrites a
   it('brings back a patient who left, keeping the record', () => {
     expect(manualAddAction({ status: 'pulang' })).toBe('readmit');
     expect(manualAddAction({ status: 'pindah' })).toBe('readmit');
+  });
+});
+
+describe('readmitFields (8 Nov 2026: a readmission is a new stay)', () => {
+  it('clears the chief, junior and every other hand-set field of the earlier stay', () => {
+    const fields = readmitFields();
+    expect(fields).toMatchObject({ status: 'dirawat', leftAt: '', pindahKe: '', chief: '', junior: '', division: '', tags: [], tagsOff: [], colour: 'none', operkan: '', gantiChief: '' });
+  });
+  it('is exactly the per-stay part of a new patient', () => {
+    const { key: _key, report: _report, log: _log, addedAt: _addedAt, ...stay } = newRosterPatient(patient({}), '2026-11-08T12:00:00.000Z', 'Saya');
+    expect(readmitFields()).toEqual(stay);
   });
 });
 
