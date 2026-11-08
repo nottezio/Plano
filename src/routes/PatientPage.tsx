@@ -451,7 +451,7 @@ export default function PatientPage(): JSX.Element {
       ? null
       : (shiftNotes.notes.find((note) => note.id === selectedShiftNoteId) ?? null);
 
-  const lineMarks = useLineMarks(patientId ?? null, editor.value);
+  const lineMarks = useLineMarks(patientId ?? null, editor.value, selected);
 
   /**
    * Line bookmarks on the day's SOAP. Off while the entry loads (the body is

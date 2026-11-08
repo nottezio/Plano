@@ -1,5 +1,10 @@
 # Plano — CHANGES
 
+## `2026-11-09.4` — Stabilo is per day
+
+- **Root cause.** Marks were keyed by patient and matched by line text, so any day's note holding the same text showed them (carry-forward copies are mostly identical lines). Now keyed `plano.marks.<patient>.<day>`; the hook takes the selected day.
+- **Not done.** Old `plano.marks.<patient>` entries are left in localStorage unused (not migrated: they cannot tell which day they belonged to). Not checked in the app.
+
 ## `2026-11-09.3` — "Tidak di-FU" box = tagged patients only
 
 Avi (9 Nov): the "Tidak di-FU" holder box listed every patient without a junior (13 on the floor, most of them followed up); it should hold only patients tagged "tidak di-follow up".

@@ -5,6 +5,9 @@ Catatan teknis lengkap (akar masalah, perbaikan) ada di CHANGES.md.
 
 Entri teratas harus versi yang sedang dirilis; tes gagal bila belum ditulis.
 
+## `2026-11-09.4`
+- **Stabilo SOAP kini hanya berlaku di hari tempat kamu menandainya.** Sebelumnya tanda ikut muncul di SOAP hari lain yang barisnya sama. Tanda lama tidak dipakai lagi.
+
 ## `2026-11-09.3`
 - **Kotak "Tidak di-FU" kini hanya berisi pasien bertanda "Tidak di-follow up".** Pasien yang di-follow up tapi belum ada juniornya pindah ke kotak baru, "Belum ada junior". Pasien "Tidak di-FU" tidak dihitung untuk chief mana pun. Berlaku di layar, Word, dan PDF.
 - Centang di Setelan kini cukup bertuliskan "Tidak di-follow up".
