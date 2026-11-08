@@ -21,6 +21,7 @@ import { SoapFloat } from '@/components/floor/SoapFloat';
 import { acceptInvite, createFloor, readLegacy, rosterHasAny, writeChiefBangsal, writeChiefs, writeRosterBatch } from '@/data/repositories/floors.repo';
 import { wardPlan } from '@/domain/denahPlan';
 import { EDITIONS_PAGE } from '@/domain/floorList/editionGroups';
+import { shiftBaseline, shiftStart } from '@/domain/floorList/chiefHandover';
 import { canEdit, chiefsOf, isOwner, localStamp, newRosterPatient, rosterView, type FloorDoc } from '@/domain/floorList/floor';
 import { searchWords } from '@/domain/floorList/search';
 import { AnalysisPanel } from '@/components/floor/AnalysisPanel';
@@ -85,16 +86,34 @@ export default function ListMakerPage(): JSX.Element {
   const { roster, state: rosterState } = useRoster(floor?.id ?? null);
   // 60 only for Analisis; Riwayat shares the latest page and reads older ones on demand (25 Oct 2026, quota).
   const editions = useEditions(floor?.id ?? null, tab === 'analisis' ? 60 : EDITIONS_PAGE);
-  // "Pasien baru" (13.10): not on the last list sent before this date.
+  /*
+    "Pasien baru": today, not on the newest list saved before this shift began
+    (8 Nov 2026); another date keeps the 13.10 rule, not on the last list
+    before that date. The shift start is a string so it only changes at a shift.
+  */
+  const holidaysKey = (floor?.holidays ?? []).join(',');
+  const [shiftAt, setShiftAt] = useState(() => shiftStart(new Date(), floor?.holidays ?? []).toISOString());
+  useEffect(() => {
+    const holidays = holidaysKey ? holidaysKey.split(',') : [];
+    const tick = (): void => {
+      const next = shiftStart(new Date(), holidays).toISOString();
+      setShiftAt((current) => (current === next ? current : next));
+    };
+    tick();
+    const timer = window.setInterval(tick, 60_000);
+    return () => window.clearInterval(timer);
+  }, [holidaysKey]);
+  const onToday = date === today;
   const previous = useMemo(() => {
+    if (onToday) return shiftBaseline(editions, shiftAt);
     const last = editions.find((e) => e.date < date);
     return last ? new Set(last.patients.map((p) => p.key)) : null;
-  }, [editions, date]);
+  }, [editions, date, onToday, shiftAt]);
   // SOAPs that came after the last sent list are marked "SOAP baru" (13.11).
   const lastSent = editions[0] ? localStamp(new Date(editions[0].createdAt)) : '';
   const view = useMemo(
-    () => (floor ? rosterView(floor, roster, date, previous, lastSent) : { active: [], left: [] }),
-    [floor, roster, date, previous, lastSent],
+    () => (floor ? rosterView(floor, roster, date, previous, lastSent, onToday ? shiftAt : undefined) : { active: [], left: [] }),
+    [floor, roster, date, previous, lastSent, onToday, shiftAt],
   );
   // One search for the list and the denah (13.7): switching tabs keeps it.
   const [search, setSearch] = useState(kept.search);

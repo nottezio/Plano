@@ -418,6 +418,8 @@ export function rosterView(
   previous?: ReadonlySet<string> | null,
   /** When the last list was sent (local stamp): SOAPs after it are marked (13.11). */
   lastSent?: string,
+  /** Today's list (8 Nov 2026): with no list before the shift, new = added since this ISO time (the shift start). */
+  newSince?: string,
 ): RosterView {
   /*
     Without a previous list, "new" = added on the list date — on the LOCAL
@@ -425,7 +427,8 @@ export function rosterView(
     (the 04:00 list-making hours) carried yesterday's UTC date and never got
     the "Pasien baru" tag.
   */
-  const isNew = (p: RosterPatient): boolean => (previous ? !previous.has(p.key) : localOf(p.addedAt).slice(0, 10) === date);
+  const isNew = (p: RosterPatient): boolean =>
+    previous ? !previous.has(p.key) : newSince ? p.addedAt >= newSince : localOf(p.addedAt).slice(0, 10) === date;
   return {
     active: roster
       .filter((p) => p.status === 'dirawat')

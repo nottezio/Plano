@@ -1,4 +1,4 @@
-import { effective, type FloorDoc, type RosterPatient } from './floor';
+import { effective, type Edition, type FloorDoc, type RosterPatient } from './floor';
 
 /**
  * Chief Bangsal handover suggestions (24 Oct 2026).
@@ -33,6 +33,8 @@ import { effective, type FloorDoc, type RosterPatient } from './floor';
 
 const START_HOUR = 7;
 const END_HOUR = 16;
+/** A day off's day shift ends at 19.00 (7 Nov 2026, owner). */
+const OFF_END_HOUR = 19;
 
 /** A local date as `floor.holidays` stores it. */
 export const localIso = (at: Date): string =>
@@ -62,6 +64,33 @@ export function handoverCycleStart(now: Date, holidays: readonly string[] = []):
     at.setHours(isWorkDay(at, holidays) ? END_HOUR : START_HOUR);
     if (at <= now) return at;
   }
+}
+
+/**
+ * When the current shift began (8 Nov 2026, Avi: "pasien baru" = not on the
+ * previous shift's list): 07.00 and 16.00 on a working day, 07.00 and 19.00
+ * on a day off or tanggal merah.
+ */
+export function shiftStart(now: Date, holidays: readonly string[] = []): Date {
+  for (let back = 0; ; back += 1) {
+    const day = new Date(now.getFullYear(), now.getMonth(), now.getDate() - back);
+    const late = new Date(day);
+    late.setHours(isWorkDay(day, holidays) ? END_HOUR : OFF_END_HOUR);
+    if (late <= now) return late;
+    day.setHours(START_HOUR);
+    if (day <= now) return day;
+  }
+}
+
+/**
+ * The keys on the newest list saved (Simpan edisi) before `before`, an ISO
+ * time; null when there is none. A list saved in the current shift, a re-send
+ * included, never counts, so the tags hold all shift.
+ */
+export function shiftBaseline(editions: readonly Edition[], before: string): ReadonlySet<string> | null {
+  let last: Edition | null = null;
+  for (const edition of editions) if (edition.createdAt < before && (!last || edition.createdAt > last.createdAt)) last = edition;
+  return last ? new Set(last.patients.map((p) => p.key)) : null;
 }
 
 export interface ChiefSuggestion {

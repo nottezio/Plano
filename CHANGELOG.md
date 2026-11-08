@@ -5,6 +5,10 @@ Catatan teknis lengkap (akar masalah, perbaikan) ada di CHANGES.md.
 
 Entri teratas harus versi yang sedang dirilis; tes gagal bila belum ditulis.
 
+## `2026-11-09.1`
+- **Tanda "Pasien baru" kini mengikuti shift, bukan hari.** Pasien diberi tanda bila belum ada di list terakhir yang disimpan (Simpan edisi) sebelum shift sekarang dimulai: 07.00 dan 16.00 pada hari kerja, 07.00 dan 19.00 pada hari libur dan tanggal merah. Menyimpan ulang list di shift yang sama tidak menghapus tandanya.
+- **"Pasien baru" hanya tampil di Plano.** Tanda ini tidak ikut tercetak di Word/PDF.
+
 ## `2026-11-08.3`
 - **Pasien yang dirawat lagi mulai dari nol di List Maker.** Pasien yang pernah pulang atau pindah lalu masuk lagi tidak lagi membawa Chief, Junior, warna, tanda, divisi, dan catatan operan dari rawatan sebelumnya. Riwayat (log) pasien tetap tersimpan.
 

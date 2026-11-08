@@ -38,7 +38,7 @@ export type MarkAuto =
   | { kind: 'tanpa-junior' };
 
 export const AUTO_LABEL: Record<MarkAuto['kind'], string> = {
-  baru: 'Pasien baru (belum ada di list kemarin)',
+  baru: 'Pasien baru (belum ada di list shift sebelumnya)',
   dpjp: 'DPJP tertentu',
   btkv: 'KJS BTKV',
   kjs: 'Konsul / KJS dari DPJP lain',
@@ -112,8 +112,11 @@ export function autoMatches(auto: MarkAuto | undefined, facts: AutoFacts): boole
 export function tagsOf(marks: readonly FloorMark[], hand: readonly string[], off: readonly string[], facts: AutoFacts): PatientTag[] {
   return marks
     .filter((m) => hand.includes(m.id) || (autoMatches(m.auto, facts) && !off.includes(m.id)))
-    .map((m) => ({ label: m.label, color: m.color, ...(m.print === false ? { print: false as const } : {}) }));
+    .map((m) => ({ label: m.label, color: m.color, ...(screenOnly(m) ? { print: false as const } : {}) }));
 }
+
+/** Off paper: set so by the floor, or "Pasien baru", a working tag for the list maker only (8 Nov 2026, Avi). */
+export const screenOnly = (mark: FloorMark): boolean => mark.print === false || mark.auto?.kind === 'baru';
 
 /** 13.7 stored a hand mark as `colour` = "m:<id>"; read as a tag since 13.10. */
 export const MARK_PREFIX = 'm:';

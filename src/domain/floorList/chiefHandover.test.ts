@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
-import { chiefSuggestions, handoverCycleStart } from './chiefHandover';
-import { newRosterPatient, type FloorDoc, type RosterPatient } from './floor';
+import { chiefSuggestions, handoverCycleStart, shiftBaseline, shiftStart } from './chiefHandover';
+import { newRosterPatient, type Edition, type FloorDoc, type RosterPatient } from './floor';
 import type { FloorPatient } from './report';
 
 const FLOOR: FloorDoc = {
@@ -59,6 +59,38 @@ const MON_0700 = at(26, 7);
 const DATE = '2026-10-26';
 const run = (roster: RosterPatient[], now = MON_0700, floor = FLOOR) =>
   chiefSuggestions(roster, floor, DATE, now).map(({ from, to }) => ({ from, to }));
+
+describe('shiftStart (8 Nov 2026: "pasien baru" against the previous shift)', () => {
+  // November 2026: Sun 8, Mon 9, Tue 10.
+  const nov = (day: number, hour: number, minute = 0): Date => new Date(2026, 10, day, hour, minute);
+  it('working day: 07.00 and 16.00', () => {
+    expect(shiftStart(nov(9, 10))).toEqual(nov(9, 7));
+    expect(shiftStart(nov(9, 16))).toEqual(nov(9, 16));
+    expect(shiftStart(nov(9, 17))).toEqual(nov(9, 16));
+    expect(shiftStart(nov(10, 4))).toEqual(nov(9, 16));
+  });
+  it('day off: 07.00 and 19.00', () => {
+    expect(shiftStart(nov(8, 18))).toEqual(nov(8, 7));
+    expect(shiftStart(nov(8, 20))).toEqual(nov(8, 19));
+    expect(shiftStart(nov(9, 5))).toEqual(nov(8, 19));
+  });
+  it('a tanggal merah is a day off', () => {
+    expect(shiftStart(nov(10, 17), ['2026-11-10'])).toEqual(nov(10, 7));
+    expect(shiftStart(nov(10, 20), ['2026-11-10'])).toEqual(nov(10, 19));
+  });
+});
+
+describe('shiftBaseline', () => {
+  const edition = (createdAt: string, keys: string[]): Edition =>
+    ({ id: createdAt, date: createdAt.slice(0, 10), time: '', text: '', createdBy: '', createdAt, patients: keys.map((key) => ({ key })) }) as unknown as Edition;
+  it('the newest list saved before the shift began; a re-send in this shift does not count', () => {
+    const editions = [edition('2026-11-09T20:30:00.000Z', ['a', 'b', 'c']), edition('2026-11-09T20:00:00.000Z', ['a', 'b']), edition('2026-11-09T02:00:00.000Z', ['a'])];
+    expect(shiftBaseline(editions, '2026-11-09T08:00:00.000Z')).toEqual(new Set(['a']));
+  });
+  it('none before the shift: null', () => {
+    expect(shiftBaseline([edition('2026-11-09T20:00:00.000Z', ['a'])], '2026-11-09T08:00:00.000Z')).toBeNull();
+  });
+});
 
 describe('handoverCycleStart', () => {
   it('is the latest Monday-to-Thursday 16.00 or Sunday 07.00 not after now', () => {

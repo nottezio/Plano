@@ -38,6 +38,14 @@ describe('floor marks', () => {
     expect(printedTags(tags).map((t) => t.label)).toEqual(['Pre-op']);
   });
 
+  it('"Pasien baru" is never printed, whatever its print setting (8 Nov 2026)', () => {
+    const marks = readMarks([{ id: 'k1', label: 'Baru', color: 'blue', auto: { kind: 'baru' } }]);
+    const facts = { isNew: true, dpjpId: null, btkv: false, kjs: false, division: false, junior: '' };
+    const tags = tagsOf(marks, [], [], facts);
+    expect(tags.map((t) => t.label)).toEqual(['Baru']);
+    expect(printedTags(tags)).toEqual([]);
+  });
+
   it('makes ids that are not taken', () => {
     const marks = readMarks([{ id: 'k2', label: 'Konsul', color: 'teal' }]);
     expect(newMarkId(marks)).toBe('k3');

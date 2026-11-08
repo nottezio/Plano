@@ -144,7 +144,9 @@ export function MarksField({ floorId, marks, editable }: { floorId: string; mark
             {editable ? <AutoRule mark={mark} onChange={(auto) => save(marks.map((m) => (m.id === mark.id ? withAuto(m, auto) : m)))} /> : mark.auto ? (
               <p className="text-xs text-fg-muted">Otomatis: {describeAuto(mark.auto)}</p>
             ) : null}
-            {editable ? (
+            {mark.auto?.kind === 'baru' ? (
+              <p className="text-xs text-fg-muted">Hanya di layar</p>
+            ) : editable ? (
               // Screen only (13.12): a working mark stays off the Word/PDF sent to consultants.
               <label className="flex min-h-8 items-center gap-1.5 text-xs text-fg-muted">
                 <input

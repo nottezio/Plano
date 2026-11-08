@@ -1,5 +1,17 @@
 # Plano — CHANGES
 
+## `2026-11-09.1` — "Pasien baru" against the previous shift, screen only
+
+Avi (8 Nov): new patients should be marked against the previous shift's list, so the list maker sees whose DPJP and resident still need setting. List times vary, so the shift comes from the clock, not from list times. Also: the tag must not be printed.
+
+- **Shift.** `shiftStart` (`chiefHandover.ts`, next to the jam dinas hours): 07.00 and 16.00 on a working day, 07.00 and 19.00 on a day off or a `floor.holidays` date.
+- **Baseline.** `shiftBaseline`: the newest edition (Simpan edisi) with `createdAt` before the shift start. A save in the current shift, a correction re-send included, never counts, so the tags hold all shift. Today's list only; another date keeps the 13.10 day rule. With no list before the shift, new = `addedAt` since the shift start (`rosterView`'s new `newSince`).
+- **"Sent" = saved.** Plano cannot see the WhatsApp send. A list not saved with Simpan edisi leaves an older baseline: patients stay "baru" longer, never shorter.
+- **Ticking.** `ListMakerPage` keeps the shift start as an ISO string, checked once a minute, so memos re-run only when the shift changes.
+- **Print.** `screenOnly` in `marks.ts`: the "baru" auto mark never goes to Word/PDF, whatever its print setting. Setelan shows "Hanya di layar" for it instead of the checkbox.
+- **Firestore.** 0 new reads and writes: the editions page is already subscribed on this screen.
+- **Not done.** Not checked in the app. Only the loaded editions page is searched: if every loaded edition is from the current shift, the fallback (`addedAt`) applies. A readmission keeps its first `addedAt`, so that fallback misses it. No "where from" label, tag not held until a resident is set, an in-floor room move is not "baru".
+
 ## `2026-11-08.3` — A readmission starts a new stay in List Maker
 
 Avi (8 Nov): a new patient entered tonight was matched to his earlier admission and came back with that stay's Chief and Resident.
