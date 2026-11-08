@@ -137,7 +137,8 @@ export function chiefSuggestions(
   for (const entry of roster) {
     if (entry.status !== 'dirawat') continue;
     const seen = effective(entry, floor, date);
-    if (seen.division) continue;
+    // Held by a division, or tagged "tidak di-follow up" (titipan, chosen DPJPs): not the ward's to hand over.
+    if (seen.division || seen.tags?.some((t) => t.noFollowUp)) continue;
     const from = seen.chief;
     const to = entry.gantiChief.trim() || bangsal;
     if (from && samePerson(from, to)) continue;

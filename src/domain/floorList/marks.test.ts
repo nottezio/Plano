@@ -46,6 +46,19 @@ describe('floor marks', () => {
     expect(printedTags(tags)).toEqual([]);
   });
 
+  it('"Tidak di-follow up" survives reading and reaches the tag; printing is its own choice (9 Nov 2026)', () => {
+    const marks = readMarks([
+      { id: 'k1', label: 'Titipan', color: 'grey', noFollowUp: true, print: false },
+      { id: 'k2', label: 'Tidak FU', color: 'teal', noFollowUp: true },
+      { id: 'k3', label: 'Pre-op', color: 'purple', noFollowUp: 'ya' },
+    ]);
+    expect(marks.map((m) => m.noFollowUp)).toEqual([true, true, undefined]);
+    const facts = { isNew: false, dpjpId: null, btkv: false, kjs: false, division: false, junior: '' };
+    const tags = tagsOf(marks, ['k1', 'k2', 'k3'], [], facts);
+    expect(tags.map((t) => t.noFollowUp)).toEqual([true, true, undefined]);
+    expect(printedTags(tags).map((t) => t.label)).toEqual(['Tidak FU', 'Pre-op']);
+  });
+
   it('makes ids that are not taken', () => {
     const marks = readMarks([{ id: 'k2', label: 'Konsul', color: 'teal' }]);
     expect(newMarkId(marks)).toBe('k3');

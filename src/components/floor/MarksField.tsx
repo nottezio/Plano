@@ -167,6 +167,27 @@ export function MarksField({ floorId, marks, editable }: { floorId: string; mark
             ) : mark.print === false ? (
               <p className="text-xs text-fg-muted">Hanya di layar</p>
             ) : null}
+            {editable ? (
+              // 9 Nov 2026: titipan or chosen DPJPs; Ganti chief skips a patient with this tag.
+              <label className="flex min-h-8 items-center gap-1.5 text-xs text-fg-muted">
+                <input
+                  type="checkbox"
+                  checked={mark.noFollowUp === true}
+                  onChange={(e) =>
+                    save(
+                      marks.map((m) => {
+                        if (m.id !== mark.id) return m;
+                        const { noFollowUp: _old, ...rest } = m;
+                        return e.target.checked ? { ...rest, noFollowUp: true as const } : rest;
+                      }),
+                    )
+                  }
+                />
+                Tidak di-follow up (tanpa Ganti chief)
+              </label>
+            ) : mark.noFollowUp ? (
+              <p className="text-xs text-fg-muted">Tidak di-follow up (tanpa Ganti chief)</p>
+            ) : null}
           </li>
         ))}
       </ul>

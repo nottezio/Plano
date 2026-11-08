@@ -1,5 +1,15 @@
 # Plano — CHANGES
 
+## `2026-11-09.2` — "Tidak di-follow up" marks skip Ganti chief
+
+Avi (9 Nov): Ganti chief should only offer patients the ward follows up. Not followed up: chosen DPJPs, and titipan (non-cardio patients listed only to be observed).
+
+- **Mark flag.** `FloorMark.noFollowUp` (`marks.ts`), read by `readMarks`, carried onto the tag by `tagsOf`. A checkbox per mark in `MarksField`, next to the print one; printing stays its own choice.
+- **Rule.** `chiefSuggestions` skips a patient whose tags include a `noFollowUp` one, as it already skipped division patients. The mark's existing ways apply: auto "DPJP tertentu", set by hand (titipan), or turned off for one patient (`tagsOff`).
+- **Not changed.** "Pasien baru" still tags these patients (owner's choice).
+- **Firestore.** 0 new reads or listeners. Ticking the box is one write to the floor doc's `marks`, as any mark edit; the floor listener was already open.
+- **Not done.** Not checked in the app. Patients already tagged need nothing new: the flag acts as soon as a mark has it.
+
 ## `2026-11-09.1` — "Pasien baru" against the previous shift, screen only
 
 Avi (8 Nov): new patients should be marked against the previous shift's list, so the list maker sees whose DPJP and resident still need setting. List times vary, so the shift comes from the clock, not from list times. Also: the tag must not be printed.

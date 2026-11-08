@@ -213,6 +213,20 @@ describe('chiefSuggestions', () => {
     expect(run([rostered({ chief: 'Bima' })], MON_0700, { ...FLOOR, chiefBangsal: '' })).toEqual([]);
   });
 
+  it('skips a patient tagged "tidak di-follow up", by hand (titipan) or by its DPJP (9 Nov 2026)', () => {
+    const marks = [
+      { id: 'k1', label: 'Titipan', color: 'grey' as const, noFollowUp: true as const },
+      { id: 'k2', label: 'Tidak FU', color: 'teal' as const, auto: { kind: 'dpjp' as const, ids: ['x1'] }, noFollowUp: true as const },
+      { id: 'k3', label: 'Pre-op', color: 'purple' as const },
+    ];
+    const floor = { ...FLOOR, marks };
+    expect(run([rostered({ chief: 'Bima', tags: ['k1'] })], MON_0700, floor)).toEqual([]);
+    expect(run([rostered({ chief: 'Bima', report: report({ dpjpId: 'x1' }) })], MON_0700, floor)).toEqual([]);
+    // Turned off for this one patient: followed up after all.
+    expect(run([rostered({ chief: 'Bima', report: report({ dpjpId: 'x1' }), tagsOff: ['k2'] })], MON_0700, floor)).toEqual([{ from: 'Bima', to: 'Kirana' }]);
+    expect(run([rostered({ chief: 'Bima', tags: ['k3'] })], MON_0700, floor)).toEqual([{ from: 'Bima', to: 'Kirana' }]);
+  });
+
   it('Abaikan lasts until the end of that jam dinas (16.00), then the next handover is asked again', () => {
     const roster = [rostered({ chief: 'Bima', chiefDismissed: at(26, 10).toISOString() })];
     expect(run(roster, at(26, 11))).toEqual([]);

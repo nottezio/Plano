@@ -5,6 +5,9 @@ Catatan teknis lengkap (akar masalah, perbaikan) ada di CHANGES.md.
 
 Entri teratas harus versi yang sedang dirilis; tes gagal bila belum ditulis.
 
+## `2026-11-09.2`
+- **Tanda "Tidak di-follow up".** Di Setelan → tanda, centang "Tidak di-follow up (tanpa Ganti chief)" pada sebuah tanda. Pasien dengan tanda itu tidak lagi ditawarkan Ganti chief. Pakai tanda otomatis "DPJP tertentu" untuk DPJP yang tidak di-follow up, atau pasang dengan tangan untuk pasien titipan. Ikut dicetak atau tidak tetap bisa dipilih.
+
 ## `2026-11-09.1`
 - **Tanda "Pasien baru" kini mengikuti shift, bukan hari.** Pasien diberi tanda bila belum ada di list terakhir yang disimpan (Simpan edisi) sebelum shift sekarang dimulai: 07.00 dan 16.00 pada hari kerja, 07.00 dan 19.00 pada hari libur dan tanggal merah. Menyimpan ulang list di shift yang sama tidak menghapus tandanya.
 - **"Pasien baru" hanya tampil di Plano.** Tanda ini tidak ikut tercetak di Word/PDF.
