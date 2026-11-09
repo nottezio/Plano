@@ -19,9 +19,10 @@ import { PastePanel } from '@/components/floor/PastePanel';
 import { RosterDatalists } from '@/components/floor/PatientControls';
 import { SoapFloat } from '@/components/floor/SoapFloat';
 import { acceptInvite, createFloor, readLegacy, rosterHasAny, writeChiefBangsal, writeChiefs, writeRosterBatch } from '@/data/repositories/floors.repo';
+import { formatDmy } from '@/domain/dateDmy';
 import { wardPlan } from '@/domain/denahPlan';
 import { EDITIONS_PAGE } from '@/domain/floorList/editionGroups';
-import { shiftBaseline, shiftStart } from '@/domain/floorList/chiefHandover';
+import { shiftEdition, shiftStart } from '@/domain/floorList/chiefHandover';
 import { canEdit, chiefsOf, isOwner, localStamp, newRosterPatient, rosterView, type FloorDoc } from '@/domain/floorList/floor';
 import { searchWords } from '@/domain/floorList/search';
 import { AnalysisPanel } from '@/components/floor/AnalysisPanel';
@@ -104,11 +105,13 @@ export default function ListMakerPage(): JSX.Element {
     return () => window.clearInterval(timer);
   }, [holidaysKey]);
   const onToday = date === today;
-  const previous = useMemo(() => {
-    if (onToday) return shiftBaseline(editions, shiftAt);
-    const last = editions.find((e) => e.date < date);
-    return last ? new Set(last.patients.map((p) => p.key)) : null;
-  }, [editions, date, onToday, shiftAt]);
+  // The previous shift's list: the "Pasien baru" baseline and the Denah snapshot (9 Nov 2026).
+  const previousEdition = useMemo(
+    () => (onToday ? shiftEdition(editions, shiftAt) : (editions.find((e) => e.date < date) ?? null)),
+    [editions, date, onToday, shiftAt],
+  );
+  const previous = useMemo(() => (previousEdition ? new Set(previousEdition.patients.map((p) => p.key)) : null), [previousEdition]);
+  const [snapshot, setSnapshot] = useState(false);
   // SOAPs that came after the last sent list are marked "SOAP baru" (13.11).
   const lastSent = editions[0] ? localStamp(new Date(editions[0].createdAt)) : '';
   const view = useMemo(
@@ -394,8 +397,38 @@ export default function ListMakerPage(): JSX.Element {
             {(tab === 'denah' || tab === 'list') && editable ? (
               <SuggestionTray floor={floor} roster={roster} active={view.active} date={date} myName={myName} onOpen={setOpen} />
             ) : null}
+            {tab === 'denah' && previousEdition ? (
+              /*
+                Snapshot (9 Nov 2026, Avi): the Denah as the previous shift's list
+                left it, to compare with now. Drawn from that saved edition
+                (Simpan edisi), already loaded: read-only, no new read.
+              */
+              <div className="flex flex-wrap items-center gap-2 text-xs">
+                <Button size="sm" variant={snapshot ? 'primary' : 'secondary'} aria-pressed={snapshot} onClick={() => setSnapshot(!snapshot)}>
+                  {snapshot ? '← Denah sekarang' : 'Shift sebelumnya'}
+                </Button>
+                {snapshot ? (
+                  <span className="text-fg-muted">
+                    List {formatDmy(previousEdition.date)} {previousEdition.time}, disimpan {formatDmy(localStamp(new Date(previousEdition.createdAt)).slice(0, 10))}{' '}
+                    {localStamp(new Date(previousEdition.createdAt)).slice(11, 16)} · {previousEdition.patients.length} pasien
+                  </span>
+                ) : null}
+              </div>
+            ) : null}
             {tab === 'denah' ? (
-              view.active.length === 0 ? (
+              snapshot && previousEdition ? (
+                <FloorDenah
+                  plan={wardPlan(floor.ward)}
+                  ward={floor.ward}
+                  patients={previousEdition.patients}
+                  // Opens the patient as they are now; one who has left since has nothing to open.
+                  onOpen={(p) => {
+                    if (view.active.some((a) => a.key === p.key)) setOpen(p);
+                  }}
+                  words={words}
+                  marks={floor.marks}
+                />
+              ) : view.active.length === 0 ? (
                 <p className="text-sm text-fg-muted">Belum ada pasien di list.{editable ? ' Tempel pesan SOAP di tab Tempel.' : ''}</p>
               ) : (
                 <FloorDenah plan={wardPlan(floor.ward)} ward={floor.ward} patients={view.active} onOpen={setOpen} words={words} marks={floor.marks} />

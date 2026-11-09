@@ -1,5 +1,14 @@
 # Plano — CHANGES
 
+## `2026-11-09.7` — Denah snapshot of the previous shift
+
+Avi (9 Nov): a snapshot of the previous shift's Denah, to compare within the shift; the button on the Denah tab.
+
+- **Source.** `shiftEdition` (`chiefHandover.ts`) returns the edition `shiftBaseline` already used (newest saved before the shift start); on another date, the last edition before it, as before. `ListMakerPage` computes it once: its keys stay the "Pasien baru" baseline, its `patients` (stored with residents, colours and tags as sent) draw the snapshot through the same `FloorDenah`.
+- **Open.** Tapping a patient in the snapshot opens them as they are now; one who has left since opens nothing.
+- **Firestore.** 0 new reads: the editions page is already subscribed on this screen.
+- **Not done.** Not checked in the app. Only the loaded editions page is searched (same limit as the baseline). Tags in the snapshot are as saved, not re-derived.
+
 ## `2026-11-09.6` — Tabs and search on one row; Pulang confirmation
 
 - **Bar.** `ListMakerTabs`: from `lg` the tab strip (`shrink-0`) and the search (`flex-1`) share one row; below `lg` they stack as in .09.5. `--lm-tabs-h` is still measured off the whole bar, so the List side panel follows.

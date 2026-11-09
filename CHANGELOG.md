@@ -5,6 +5,9 @@ Catatan teknis lengkap (akar masalah, perbaikan) ada di CHANGES.md.
 
 Entri teratas harus versi yang sedang dirilis; tes gagal bila belum ditulis.
 
+## `2026-11-09.7`
+- **Denah shift sebelumnya.** Di tab Denah, tombol "Shift sebelumnya" menampilkan denah dari list terakhir yang disimpan sebelum shift ini dimulai (Simpan edisi), untuk dibandingkan dengan denah sekarang. Ketuk "← Denah sekarang" untuk kembali. Tombol muncul bila list itu ada.
+
 ## `2026-11-09.6`
 - **Tab dan kotak cari List Maker kini satu baris** di layar lebar, jadi bagian yang menempel di atas lebih pendek. Di HP tetap bertumpuk.
 - **Pulang minta konfirmasi** bila pasien belum ditandai pulang hari ini (hijau), supaya salah pencet tidak mengeluarkan pasien dari list. Pasien hijau langsung pulang seperti biasa.

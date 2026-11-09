@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { chiefSuggestions, handoverCycleStart, shiftBaseline, shiftStart } from './chiefHandover';
+import { chiefSuggestions, handoverCycleStart, shiftBaseline, shiftEdition, shiftStart } from './chiefHandover';
 import { newRosterPatient, type Edition, type FloorDoc, type RosterPatient } from './floor';
 import type { FloorPatient } from './report';
 
@@ -89,6 +89,11 @@ describe('shiftBaseline', () => {
   });
   it('none before the shift: null', () => {
     expect(shiftBaseline([edition('2026-11-09T20:00:00.000Z', ['a'])], '2026-11-09T08:00:00.000Z')).toBeNull();
+  });
+  it('shiftEdition hands back that same list, for the Denah snapshot (9 Nov 2026)', () => {
+    const editions = [edition('2026-11-09T20:30:00.000Z', ['a', 'b']), edition('2026-11-09T02:00:00.000Z', ['a'])];
+    expect(shiftEdition(editions, '2026-11-09T08:00:00.000Z')?.createdAt).toBe('2026-11-09T02:00:00.000Z');
+    expect(shiftEdition([], '2026-11-09T08:00:00.000Z')).toBeNull();
   });
 });
 

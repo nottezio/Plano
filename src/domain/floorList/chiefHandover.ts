@@ -88,9 +88,15 @@ export function shiftStart(now: Date, holidays: readonly string[] = []): Date {
  * included, never counts, so the tags hold all shift.
  */
 export function shiftBaseline(editions: readonly Edition[], before: string): ReadonlySet<string> | null {
+  const last = shiftEdition(editions, before);
+  return last ? new Set(last.patients.map((p) => p.key)) : null;
+}
+
+/** The newest edition saved before `before`: the previous shift's list (also its Denah snapshot, 9 Nov 2026). */
+export function shiftEdition(editions: readonly Edition[], before: string): Edition | null {
   let last: Edition | null = null;
   for (const edition of editions) if (edition.createdAt < before && (!last || edition.createdAt > last.createdAt)) last = edition;
-  return last ? new Set(last.patients.map((p) => p.key)) : null;
+  return last;
 }
 
 export interface ChiefSuggestion {
