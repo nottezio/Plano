@@ -350,7 +350,32 @@ export default function ListMakerPage(): JSX.Element {
                 <FloorVisitNote key={floor.id} floorId={floor.id} uid={uid} editable={editable} />
               </Suspense>
             </Sheet>
-            <ListMakerTabs tab={tab} tabs={tabs} onTab={setTab} />
+            <ListMakerTabs tab={tab} tabs={tabs} onTab={setTab}>
+              {(tab === 'denah' || tab === 'list') && view.active.length > 0 ? (
+                // Floating (9 Nov 2026, Avi): pinned with the tabs, so it stays in reach down a long list.
+                <div className="relative">
+                  <input
+                    type="search"
+                    value={search}
+                    onChange={(e) => setSearch(e.target.value)}
+                    placeholder="Cari nama, RM, kamar (417/2), residen, diagnosis…"
+                    aria-label="Cari pasien"
+                    // The clear button below is ours; the browser's own would be a second ✕.
+                    className={`${INPUT} pr-10 [&::-webkit-search-cancel-button]:appearance-none`}
+                  />
+                  {search ? (
+                    <button
+                      type="button"
+                      onClick={() => setSearch('')}
+                      aria-label="Hapus pencarian"
+                      className="absolute right-0 top-0 flex h-full min-w-tap items-center justify-center text-fg-muted hover:text-fg"
+                    >
+                      <IconClose width="16" height="16" />
+                    </button>
+                  ) : null}
+                </div>
+              ) : null}
+            </ListMakerTabs>
 
             {rosterEmpty && legacyCount > 0 ? (
               <Callout title="Ada data lama">
@@ -364,31 +389,6 @@ export default function ListMakerPage(): JSX.Element {
                   </Button>
                 </div>
               </Callout>
-            ) : null}
-
-            {(tab === 'denah' || tab === 'list') && view.active.length > 0 ? (
-              // Default section spacing: at 8 px the box read as colliding with the tab bar (Avi, 3 Nov).
-              <div className="relative">
-                <input
-                  type="search"
-                  value={search}
-                  onChange={(e) => setSearch(e.target.value)}
-                  placeholder="Cari nama, RM, kamar (417/2), residen, diagnosis…"
-                  aria-label="Cari pasien"
-                  // The clear button below is ours; the browser's own would be a second ✕.
-                  className={`${INPUT} pr-10 [&::-webkit-search-cancel-button]:appearance-none`}
-                />
-                {search ? (
-                  <button
-                    type="button"
-                    onClick={() => setSearch('')}
-                    aria-label="Hapus pencarian"
-                    className="absolute right-0 top-0 flex h-full min-w-tap items-center justify-center text-fg-muted hover:text-fg"
-                  >
-                    <IconClose width="16" height="16" />
-                  </button>
-                ) : null}
-              </div>
             ) : null}
 
             {(tab === 'denah' || tab === 'list') && editable ? (

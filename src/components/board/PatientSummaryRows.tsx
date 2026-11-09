@@ -3,6 +3,7 @@ import { useCallback, useLayoutEffect, useRef } from 'react';
 import { usePatientNotes } from '@/components/patient/PatientNotes';
 import type { BoardCard } from '@/domain/board';
 import type { StickyKind } from '@/domain/boardNotes';
+import { labDueOn } from '@/domain/labPlan';
 import type { ClinicalDate } from '@/domain/types';
 
 /**
@@ -38,7 +39,7 @@ export function PatientSummaryRows({
   }
 
   const due = cards
-    .map((card) => ({ card, plans: (card.patient.labPlans ?? []).filter((plan) => plan.date === today) }))
+    .map((card) => ({ card, plans: (card.patient.labPlans ?? []).filter((plan) => labDueOn(plan, today)) }))
     .filter((entry) => entry.plans.length > 0);
   return due.length > 0 ? (
     <ul className="space-y-2">
@@ -55,7 +56,7 @@ export function PatientSummaryRows({
     </ul>
   ) : (
     <p className="text-sm opacity-80">
-      Tidak ada lab bertanggal hari ini di Plan SOAP, misalnya “- Cek DL, SE (30/10/2026)”.
+      Tidak ada lab untuk hari ini di Plan SOAP, misalnya “- Cek DL, SE (30/10/2026)” atau “- Cek APTT/hari”.
     </p>
   );
 }

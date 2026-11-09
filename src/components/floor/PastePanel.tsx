@@ -1,8 +1,10 @@
 import { useRef, useState } from 'react';
 
+import { RevisionLine } from '@/components/common/RevisionLine';
 import { Button, Callout } from '@/components/common/ui';
 import { readRosterPatients, saveRestorePoint, writeRosterBatch, type RosterChange } from '@/data/repositories/floors.repo';
 import { formatDmy } from '@/domain/dateDmy';
+import { diffRevision } from '@/domain/format/revisionDiff';
 import { localStamp, newRosterPatient, pasteDiff, readmitFields, updatedReport, type FloorDoc, type PasteDiff, type RosterPatient } from '@/domain/floorList/floor';
 import { splitChat } from '@/domain/floorList/chat';
 import { latestOf, onFloorNumber, readReports, type FloorPatient } from '@/domain/floorList/report';
@@ -26,6 +28,35 @@ interface Reading {
 
 const where = (p: FloorPatient): string => `${p.room}${p.bed ? `/${p.bed}` : ''}`;
 const when = (p: FloorPatient): string => (p.sentAt ? `${formatDmy(p.sentAt.slice(0, 10))} ${p.sentAt.slice(11, 16)}` : '');
+
+/**
+ * What each newer SOAP changes against the stored one, changed lines only
+ * (9 Nov 2026, Avi). Closed by default; the diff is computed only when open.
+ * Formatting (bold markers, blank lines) is not a change, as in Bandingkan.
+ */
+function PasteChanges({ updated }: { updated: PasteDiff['updated'] }): JSX.Element {
+  const [open, setOpen] = useState(false);
+  return (
+    <details onToggle={(e) => setOpen(e.currentTarget.open)} className="rounded-lg border border-border">
+      <summary className="flex min-h-9 cursor-pointer items-center px-2 font-semibold">Lihat perubahan ({updated.length})</summary>
+      {open ? (
+        <div className="space-y-3 border-t border-border p-2">
+          {updated.map(({ before, report }) => {
+            const rows = diffRevision(before.report.full, report.full, { ignoreFormatting: true }).rows.filter((row) => row.kind !== 'same');
+            return (
+              <div key={before.key} className="space-y-0.5">
+                <p className="font-semibold">
+                  {where(report)} {report.name}
+                </p>
+                {rows.length > 0 ? rows.map((row, at) => <RevisionLine key={at} row={row} />) : <p className="text-fg-muted">Isi sama, hanya pesan yang lebih baru.</p>}
+              </div>
+            );
+          })}
+        </div>
+      ) : null}
+    </details>
+  );
+}
 
 /**
  * Tempel (12.12): paste WhatsApp messages (or open an "Export chat"
@@ -302,9 +333,12 @@ export function PastePanel({ floor, roster, myName }: { floor: FloorDoc; roster:
           ) : null}
 
           {d.updated.length > 0 ? (
-            <p className="text-fg-muted">
-              SOAP diperbarui: {d.updated.map(({ report }) => `${where(report)} ${report.name}`).join(' · ')}
-            </p>
+            <>
+              <p className="text-fg-muted">
+                SOAP diperbarui: {d.updated.map(({ report }) => `${where(report)} ${report.name}`).join(' · ')}
+              </p>
+              <PasteChanges updated={d.updated} />
+            </>
           ) : null}
 
           {d.readmit.length > 0 ? (

@@ -1,5 +1,6 @@
 import { useState } from 'react';
 
+import { IconChevronRight } from '@/components/common/Icons';
 import { Button, INPUT } from '@/components/common/ui';
 import { writeMarks } from '@/data/repositories/floors.repo';
 import { dpjpById } from '@/domain/dpjp';
@@ -17,6 +18,17 @@ function withAuto(mark: FloorMark, auto: MarkAuto | undefined): FloorMark {
 
 function describeAuto(auto: MarkAuto): string {
   return auto.kind === 'dpjp' ? `pasien ${auto.ids.map(code).join(', ')}` : AUTO_LABEL[auto.kind];
+}
+
+/** The tag's rules in one line, for its row: "Otomatis: pasien NP · Hanya di layar · Tidak di-follow up". */
+function markNotes(mark: FloorMark): string {
+  return [
+    mark.auto ? `Otomatis: ${describeAuto(mark.auto)}` : '',
+    mark.auto?.kind === 'baru' || mark.print === false ? 'Hanya di layar' : '',
+    mark.noFollowUp ? 'Tidak di-follow up' : '',
+  ]
+    .filter(Boolean)
+    .join(' · ');
 }
 
 /**
@@ -77,16 +89,26 @@ function AutoRule({ mark, onChange }: { mark: FloorMark; onChange: (auto: MarkAu
  * The floor's own colours (13.7): a label and a colour from the palette.
  * Set on a patient in the List tab, like red/green. Deleting a mark here
  * takes it off every patient (they show no colour; nothing else changes).
+ *
+ * One row per tag with its rules in one line (9 Nov 2026, Avi: a card per
+ * tag, each with its DPJP chips open, ran the list far down Setelan). Its
+ * editor opens under the row, one tag at a time.
  */
 export function MarksField({ floorId, marks, editable }: { floorId: string; marks: readonly FloorMark[]; editable: boolean }): JSX.Element {
   const [label, setLabel] = useState('');
   const [color, setColor] = useState<MarkColor>(COLORS.find((c) => !marks.some((m) => m.color === c)) ?? 'blue');
+  // The tag whose editor is open.
+  const [openId, setOpenId] = useState<string | null>(null);
   const save = (next: readonly FloorMark[]): void => void writeMarks(floorId, next);
+  const update = (id: string, change: (mark: FloorMark) => FloorMark): void => save(marks.map((m) => (m.id === id ? change(m) : m)));
   const add = (): void => {
     const text = label.trim();
     if (!text || marks.some((m) => m.label.toLowerCase() === text.toLowerCase())) return;
-    const next = [...marks, { id: newMarkId(marks), label: text, color }];
+    const id = newMarkId(marks);
+    const next = [...marks, { id, label: text, color }];
     save(next);
+    // Open at once: a new tag is usually set up right away.
+    setOpenId(id);
     setLabel('');
     setColor(COLORS.find((c) => !next.some((m) => m.color === c)) ?? color);
   };
@@ -94,102 +116,108 @@ export function MarksField({ floorId, marks, editable }: { floorId: string; mark
   return (
     <div className="space-y-2">
       <ul className="space-y-1">
-        <li className="flex items-center gap-2 text-xs">
+        <li className="flex items-center gap-2 px-2 text-xs">
           <span className="h-3 w-3 shrink-0 rounded-full" style={{ background: 'var(--note-red)' }} />
           <span className="flex-1">H-1 (merah) · tetap</span>
         </li>
-        <li className="flex items-center gap-2 text-xs">
+        <li className="flex items-center gap-2 px-2 text-xs">
           <span className="h-3 w-3 shrink-0 rounded-full" style={{ background: 'var(--note-green)' }} />
           <span className="flex-1">Pulang hari ini (hijau) · tetap</span>
         </li>
-        {marks.map((mark) => (
-          // One card per tag: the name row, then the rule and the print choice, all on the card's own left edge.
-          <li key={mark.id} className="space-y-2 rounded-lg border border-border p-2 text-xs">
-            <div className="flex items-center gap-1.5">
+        {marks.map((mark) => {
+          const open = editable && openId === mark.id;
+          const notes = markNotes(mark);
+          const summary = (
+            <>
               <span className="h-3 w-3 shrink-0 rounded-full" style={{ background: markCss(mark.color) }} />
+              <span className="min-w-0 flex-1">
+                <span className="block truncate font-semibold">{mark.label}</span>
+                {notes ? <span className="block truncate text-fg-muted">{notes}</span> : null}
+              </span>
+            </>
+          );
+          return (
+            <li key={mark.id} className="rounded-lg border border-border text-xs">
               {editable ? (
-                <>
-                  <input
-                    key={mark.label}
-                    defaultValue={mark.label}
-                    aria-label={`Nama warna ${mark.label}`}
-                    onBlur={(e) => {
-                      const text = e.target.value.trim();
-                      if (text && text !== mark.label) save(marks.map((m) => (m.id === mark.id ? { ...m, label: text } : m)));
-                    }}
-                    className={`${INPUT} !w-0 min-w-0 flex-1 text-xs`}
-                  />
-                  <select
-                    aria-label={`Warna ${mark.label}`}
-                    value={mark.color}
-                    onChange={(e) => save(marks.map((m) => (m.id === mark.id ? { ...m, color: e.target.value as MarkColor } : m)))}
-                    className={`${INPUT} !w-28 shrink-0 text-xs`}
-                  >
-                    {COLORS.map((c) => (
-                      <option key={c} value={c}>
-                        {MARK_COLORS[c].name}
-                      </option>
-                    ))}
-                  </select>
-                  <Button size="sm" variant="ghost" aria-label={`Hapus warna ${mark.label}`} onClick={() => save(marks.filter((m) => m.id !== mark.id))}>
-                    Hapus
-                  </Button>
-                </>
+                <button
+                  type="button"
+                  aria-expanded={open}
+                  onClick={() => setOpenId(open ? null : mark.id)}
+                  className="flex min-h-tap w-full items-center gap-2 px-2 py-1 text-left [@media(pointer:fine)]:min-h-9"
+                >
+                  {summary}
+                  <IconChevronRight width="14" height="14" aria-hidden="true" className={`shrink-0 text-fg-muted transition-transform ${open ? 'rotate-90' : ''}`} />
+                </button>
               ) : (
-                <span style={{ color: markCss(mark.color) }} className="font-semibold">
-                  {mark.label}
-                </span>
+                <div className="flex min-h-9 items-center gap-2 px-2 py-1">{summary}</div>
               )}
-            </div>
-            {editable ? <AutoRule mark={mark} onChange={(auto) => save(marks.map((m) => (m.id === mark.id ? withAuto(m, auto) : m)))} /> : mark.auto ? (
-              <p className="text-xs text-fg-muted">Otomatis: {describeAuto(mark.auto)}</p>
-            ) : null}
-            {mark.auto?.kind === 'baru' ? (
-              <p className="text-xs text-fg-muted">Hanya di layar</p>
-            ) : editable ? (
-              // Screen only (13.12): a working mark stays off the Word/PDF sent to consultants.
-              <label className="flex min-h-8 items-center gap-1.5 text-xs text-fg-muted">
-                <input
-                  type="checkbox"
-                  checked={mark.print !== false}
-                  onChange={(e) =>
-                    save(
-                      marks.map((m) => {
-                        if (m.id !== mark.id) return m;
-                        const { print: _old, ...rest } = m;
-                        return e.target.checked ? rest : { ...rest, print: false as const };
-                      }),
-                    )
-                  }
-                />
-                Ikut dicetak di Word/PDF
-              </label>
-            ) : mark.print === false ? (
-              <p className="text-xs text-fg-muted">Hanya di layar</p>
-            ) : null}
-            {editable ? (
-              // 9 Nov 2026: titipan or chosen DPJPs; Ganti chief skips a patient with this tag.
-              <label className="flex min-h-8 items-center gap-1.5 text-xs text-fg-muted">
-                <input
-                  type="checkbox"
-                  checked={mark.noFollowUp === true}
-                  onChange={(e) =>
-                    save(
-                      marks.map((m) => {
-                        if (m.id !== mark.id) return m;
-                        const { noFollowUp: _old, ...rest } = m;
-                        return e.target.checked ? { ...rest, noFollowUp: true as const } : rest;
-                      }),
-                    )
-                  }
-                />
-                Tidak di-follow up
-              </label>
-            ) : mark.noFollowUp ? (
-              <p className="text-xs text-fg-muted">Tidak di-follow up</p>
-            ) : null}
-          </li>
-        ))}
+              {open ? (
+                <div className="space-y-2 border-t border-border p-2">
+                  <div className="flex items-center gap-1.5">
+                    <input
+                      key={mark.label}
+                      defaultValue={mark.label}
+                      aria-label={`Nama warna ${mark.label}`}
+                      onBlur={(e) => {
+                        const text = e.target.value.trim();
+                        if (text && text !== mark.label) update(mark.id, (m) => ({ ...m, label: text }));
+                      }}
+                      className={`${INPUT} !w-0 min-w-0 flex-1 text-xs`}
+                    />
+                    <select
+                      aria-label={`Warna ${mark.label}`}
+                      value={mark.color}
+                      onChange={(e) => update(mark.id, (m) => ({ ...m, color: e.target.value as MarkColor }))}
+                      className={`${INPUT} !w-28 shrink-0 text-xs`}
+                    >
+                      {COLORS.map((c) => (
+                        <option key={c} value={c}>
+                          {MARK_COLORS[c].name}
+                        </option>
+                      ))}
+                    </select>
+                    <Button size="sm" variant="ghost" aria-label={`Hapus warna ${mark.label}`} onClick={() => save(marks.filter((m) => m.id !== mark.id))}>
+                      Hapus
+                    </Button>
+                  </div>
+                  <AutoRule mark={mark} onChange={(auto) => update(mark.id, (m) => withAuto(m, auto))} />
+                  {mark.auto?.kind === 'baru' ? (
+                    <p className="text-xs text-fg-muted">Hanya di layar</p>
+                  ) : (
+                    // Screen only (13.12): a working mark stays off the Word/PDF sent to consultants.
+                    <label className="flex min-h-8 items-center gap-1.5 text-xs text-fg-muted">
+                      <input
+                        type="checkbox"
+                        checked={mark.print !== false}
+                        onChange={(e) =>
+                          update(mark.id, (m) => {
+                            const { print: _old, ...rest } = m;
+                            return e.target.checked ? rest : { ...rest, print: false as const };
+                          })
+                        }
+                      />
+                      Ikut dicetak di Word/PDF
+                    </label>
+                  )}
+                  {/* 9 Nov 2026: titipan or chosen DPJPs; Ganti chief skips a patient with this tag. */}
+                  <label className="flex min-h-8 items-center gap-1.5 text-xs text-fg-muted">
+                    <input
+                      type="checkbox"
+                      checked={mark.noFollowUp === true}
+                      onChange={(e) =>
+                        update(mark.id, (m) => {
+                          const { noFollowUp: _old, ...rest } = m;
+                          return e.target.checked ? { ...rest, noFollowUp: true as const } : rest;
+                        })
+                      }
+                    />
+                    Tidak di-follow up
+                  </label>
+                </div>
+              ) : null}
+            </li>
+          );
+        })}
       </ul>
       {editable ? (
         <div className="flex items-center gap-1.5">

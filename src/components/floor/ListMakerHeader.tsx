@@ -182,10 +182,13 @@ export function ListMakerTabs<T extends string>({
   tab,
   tabs,
   onTab,
+  children,
 }: {
   tab: T;
   tabs: ReadonlyArray<readonly [T, string]>;
   onTab: (tab: T) => void;
+  /** Pinned with the tabs (the search, 9 Nov 2026), so `--lm-tabs-h` counts it too. */
+  children?: ReactNode;
 }): JSX.Element {
   /*
     The bar's real height, for whatever pins itself under it (the List tab's
@@ -228,6 +231,7 @@ export function ListMakerTabs<T extends string>({
           );
         })}
       </ScrollStrip>
+      {children ? <div className="mt-2">{children}</div> : null}
     </div>
   );
 }

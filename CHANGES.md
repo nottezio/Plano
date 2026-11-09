@@ -1,5 +1,17 @@
 # Plano — CHANGES
 
+## `2026-11-09.5` — Floating search, paste diff, daily labs, list bold, compact tags
+
+Avi (9 Nov), five requests in one message.
+
+- **Search.** The List Maker search moved into the sticky tab bar (`ListMakerTabs` takes `children`), so it stays on screen while scrolling. It is measured into `--lm-tabs-h`, so the List tab's pinned side panel still sits below it.
+- **Tempel diff.** `PasteChanges` in `PastePanel`: a closed `<details>` under "SOAP diperbarui". When opened, `diffRevision(before.report.full, report.full, { ignoreFormatting: true })` per patient, `same` rows dropped. `RevisionLine` moved from `CompareSheet` to `components/common/RevisionLine.tsx`, shared.
+- **Daily labs.** `labPlans` (`labPlan.ts`) also reads an undated lab line below the assessment that says `/hari`, `per hari`, `tiap hari` or `setiap hari` as `{ daily: true, text }`. `/3 hari` is not daily. `labDueOn` is the one filter for the sticky (`PatientSummaryRows`) and its copy text (`BoardPage`). Before, only dated lines counted, so "Cek APTT/hari" never showed.
+- **List bold.** `buildFloorList`: the A/P body goes through `unbold` (the `formatters` `BOLD_RE`/`SINGLE_BOLD_RE`, the same spans Word reads as bold), and the KJS heading is plain `KJS`. The patient line stays bold. Applies to Salin teks, Word: List and PDF, which share the text. `report.ts` still reads a plain `KJS` heading (tested).
+- **Tags in Setelan.** `MarksField`: one row per tag (dot, name, rules in one truncated line), the editor opens under it, one at a time. A new tag opens at once. Viewers see the rows only.
+- **Firestore.** Search, diff, bold and tag layout: 0 reads or writes. Daily labs: `Patient.labPlans` changes for patients whose plan has a daily lab line, so `healCardPreview` writes it once per such patient on the next heal (one write, plus one read on each open listener that holds the patient). Then nothing new. No new listener or query.
+- **Not done.** Not checked in the app (no browser run). A daily line stays due every day until the plan drops it; it has no end date. The WhatsApp text also loses the A/P bold (one text feeds all three outputs).
+
 ## `2026-11-09.4` — Stabilo is per day
 
 - **Root cause.** Marks were keyed by patient and matched by line text, so any day's note holding the same text showed them (carry-forward copies are mostly identical lines). Now keyed `plano.marks.<patient>.<day>`; the hook takes the selected day.

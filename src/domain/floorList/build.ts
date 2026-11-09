@@ -1,6 +1,7 @@
 import { formatLongDate } from '@/domain/clinicalDate';
 import { dpjpById } from '@/domain/dpjp';
 import { visitIndex } from '@/domain/denahPlan';
+import { BOLD_RE, SINGLE_BOLD_RE } from '@/domain/format/formatters';
 import { otherDepartmentUtama, type FloorPatient } from './report';
 
 /**
@@ -134,6 +135,11 @@ export function countLabel(n: number, extra: { btkv: number; kjs: number }): str
   return extra.kjs > 0 ? `${own} + ${extra.kjs} KJS` : own;
 }
 
+/** WhatsApp bold markers off (the same spans the Word export reads as bold); the text is kept. */
+export function unbold(text: string): string {
+  return text.replace(BOLD_RE, '$1').replace(SINGLE_BOLD_RE, '$1$2');
+}
+
 export function buildFloorList(patients: readonly FloorPatient[], options: ListOptions): string {
   const counts = floorCounts(patients);
   const floor = /\d+/.exec(options.ward)?.[0] ?? '';
@@ -163,11 +169,12 @@ export function buildFloorList(patients: readonly FloorPatient[], options: ListO
     own.forEach((patient, k) => {
       if (k > 0) out.push('');
       out.push(`*${k + 1}. ${patientLine(patient)}*`);
-      if (patient.body) out.push(patient.body);
+      // Only the patient's line is bold (9 Nov 2026, Avi): the A/P's own `*Plan:*` is not.
+      if (patient.body) out.push(unbold(patient.body));
     });
     const kjs = sorted.filter((patient) => patient.kjsDpjpIds.includes(id));
     if (kjs.length > 0) {
-      out.push('', '*KJS*');
+      out.push('', 'KJS');
       kjs.forEach((patient, k) => out.push(`${k + 1}. ${patientLine(patient)}`));
     }
   }

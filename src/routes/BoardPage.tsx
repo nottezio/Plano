@@ -28,6 +28,7 @@ import { pruneDetachedStickers } from '@/domain/board/stickers';
 import { useBoardDrawing } from '@/hooks/useBoardDrawing';
 import { createBoardNote } from '@/data/repositories/boardNotes.repo';
 import { activeBoardNotes, noteIdFromCanvasId, stickyCanvasId, type StickyKind } from '@/domain/boardNotes';
+import { labDueOn } from '@/domain/labPlan';
 import { useMediaQuery } from '@/hooks/useMediaQuery';
 import { usePersistentIdSet } from '@/hooks/usePersistentIdSet';
 import { MasonryGrid, MasonryItem } from '@/components/board/MasonryGrid';
@@ -790,7 +791,7 @@ export default function BoardPage(): JSX.Element {
                   text: summaryCards
                     .flatMap((card) =>
                       (card.patient.labPlans ?? [])
-                        .filter((plan) => plan.date === today)
+                        .filter((plan) => labDueOn(plan, today))
                         .map((plan) => `${card.name}: ${plan.text}`),
                     )
                     .join('\n'),

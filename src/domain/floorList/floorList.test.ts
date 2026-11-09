@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { splitChat } from './chat';
-import { buildFloorList, countLabel, patientLine, splitFloorList } from './build';
+import { buildFloorList, countLabel, patientLine, splitFloorList, unbold } from './build';
 import { effective, newRosterPatient, pasteDiff } from './floor';
 import { dischargeFlag, usulH1, latestOf, latestPatients, listBody, manualPatient, nicknameOf, onFloorNumber, otherDepartmentUtama, readReport, readReports } from './report';
 
@@ -297,7 +297,15 @@ describe('buildFloorList', () => {
 
   it('prints each patient bold with residents, then the A/P; KJS patients under the KJS DPJP', () => {
     expect(text).toContain('*🫀 dr. KS : 1 pasien*\n*1. 417 Bed 4/KS/Ny. Contoh Pertama /1234567/12-07-1969/57 tahun - dr. Contoh*\nDiagnosis:');
-    expect(text).toContain('*KJS*\n1. 421 Bed 3/ZD/Ny. Contoh Ketiga / 31-12-1957 / 68 tahun / RM 824614 - dr. Muda / dr. Kepala');
+    expect(text).toContain('\nKJS\n1. 421 Bed 3/ZD/Ny. Contoh Ketiga / 31-12-1957 / 68 tahun / RM 824614 - dr. Muda / dr. Kepala');
+  });
+
+  it('only the patient line is bold: the A/P loses its own bold, the text stays (9 Nov 2026)', () => {
+    expect(unbold('*Plan :*\n- Cek *DL* (09/11/2026)\n**Terapi**\n2 * 3 = 6')).toBe('Plan :\n- Cek DL (09/11/2026)\nTerapi\n2 * 3 = 6');
+    const kjsHead = buildFloorList(present, { ward: 'PJT Lantai 4', date: '2026-11-09', time: '04.00' });
+    // The plain heading still reads back as a KJS heading.
+    const back = readReports({ sentAt: '2026-11-09T04:00', sender: 'dr. A', text: kjsHead, index: 0 });
+    expect(back.find((p) => p.kjsDpjpIds.length > 0)?.kjsDpjpIds).toEqual(['mz']);
   });
 
   it('patientLine marks KJS BTKV before the residents', () => {

@@ -15,15 +15,25 @@ import type { ClinicalDate } from './types';
  * only shows the ones dated today (see the "Lab hari ini" sticky).
  */
 export interface LabPlan {
-  date: ClinicalDate;
+  /** The day it is due. Absent on a daily line. */
+  date?: ClinicalDate;
+  /** "- Cek APTT/hari" (9 Nov 2026, Avi): due every day the plan still says so. */
+  daily?: true;
   /** The line as written, trimmed. Never rewritten. */
   text: string;
+}
+
+/** Shows on the "Lab hari ini" sticky for `day`. */
+export function labDueOn(plan: LabPlan, day: ClinicalDate): boolean {
+  return plan.daily === true || plan.date === day;
 }
 
 const BELOW = new Set(['a', 'p', 'terapi']);
 const DATE_RE = /(\d{1,2})[-/.](\d{1,2})[-/.](\d{4}|\d{2})\b/;
 // shortcut: keyword match, not a lab vocabulary; widen when a real plan line is missed.
 const LAB_RE = /\b(?:lab|laboratorium|cek|periksa)\b/i;
+// "/hari", "per hari", "tiap hari"; not "/3 hari", which is due only some days.
+const DAILY_RE = /\/\s*hari\b|\b(?:per|tiap|setiap)\s+hari\b/i;
 const NOT_LAB_RE = /\b(?:ekg|ecg|echo|ekokardiogra\w*|thorax|thoraks|toraks|foto|rontgen|x-?ray|ct|msct|usg|cag|pci|ptca|angiografi|holter|treadmill)\b/i;
 /** Keeps the patient document small whatever a plan holds. */
 const MAX_PLANS = 12;
@@ -38,6 +48,7 @@ export function labPlans(body: string): LabPlan[] {
     const match = DATE_RE.exec(line);
     const date = match ? isoDate(match[1] ?? '', match[2] ?? '', match[3] ?? '') : null;
     if (date) plans.push({ date: date as ClinicalDate, text: line.trim() });
+    else if (DAILY_RE.test(line)) plans.push({ daily: true, text: line.trim() });
     if (plans.length === MAX_PLANS) break;
   }
   return plans;

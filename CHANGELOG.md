@@ -5,6 +5,13 @@ Catatan teknis lengkap (akar masalah, perbaikan) ada di CHANGES.md.
 
 Entri teratas harus versi yang sedang dirilis; tes gagal bila belum ditulis.
 
+## `2026-11-09.5`
+- **Kotak cari di List Maker kini melayang.** Kotak cari menempel di bawah tab Denah/List, jadi tetap terjangkau saat menggulir list yang panjang.
+- **Tempel: lihat perubahan SOAP.** Setelah Baca, buka "Lihat perubahan" untuk melihat baris yang berubah saja pada tiap SOAP yang diperbarui. Tertutup secara bawaan.
+- **Lab hari ini memuat lab harian.** Baris Plan seperti "- Cek APTT/hari" kini muncul setiap hari di sticky Lab hari ini, tanpa perlu tanggal. "/3 hari" tidak ikut.
+- **List: hanya baris pasien yang tebal.** Tebal pada "Plan" dan judul "KJS" dihapus, di teks WhatsApp, Word, dan PDF. Isi teks tidak berubah.
+- **Setelan → tanda kini ringkas.** Tiap tanda jadi satu baris berisi nama dan aturannya. Ketuk untuk mengubah; hanya satu yang terbuka.
+
 ## `2026-11-09.4`
 - **Stabilo SOAP kini hanya berlaku di hari tempat kamu menandainya.** Sebelumnya tanda ikut muncul di SOAP hari lain yang barisnya sama. Tanda lama tidak dipakai lagi.
 
