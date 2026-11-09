@@ -36,6 +36,16 @@ export const IconBoard = (props: IconProps): JSX.Element => (
   </Base>
 );
 
+/** List Maker: rows with bullets, so it does not share Aktif's board glyph on the phone bar. */
+export const IconList = (props: IconProps): JSX.Element => (
+  <Base {...props}>
+    <path d="M9 6h11M9 12h11M9 18h11" />
+    <circle cx="4.5" cy="6" r="1" />
+    <circle cx="4.5" cy="12" r="1" />
+    <circle cx="4.5" cy="18" r="1" />
+  </Base>
+);
+
 /** Helper: a clipboard, so it no longer borrows Checklist's glyph. */
 export const IconClipboard = (props: IconProps): JSX.Element => (
   <Base {...props}>

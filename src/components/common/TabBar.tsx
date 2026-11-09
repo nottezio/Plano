@@ -13,6 +13,7 @@ import {
   IconChecklist,
   IconClipboard,
   IconDocuments,
+  IconList,
   IconMore,
   IconNote,
   IconSettings,
@@ -61,13 +62,19 @@ const TOOLS: readonly Destination[] = [
   { to: '/kalkulator', label: 'Kalkulator', Icon: IconCalculator },
   { to: '/checklist', label: 'Checklist', Icon: IconChecklist },
   { to: '/helper', label: 'Helper', Icon: IconClipboard, wip: true },
-  { to: '/list', label: 'List Maker', Icon: IconBoard, wip: true },
+  { to: '/list', label: 'List Maker', Icon: IconList, wip: true },
 ];
 
 const SETTINGS: Destination = { to: '/pengaturan', label: 'Pengaturan', Icon: IconSettings };
 
+/*
+  The phone bar (10 Nov 2026, Avi): List Maker takes Dokumen's place, since it
+  is opened far more on a phone; Dokumen moves into "Lainnya".
+*/
+const PHONE_BAR: readonly Destination[] = WARD.filter((item) => item.to !== '/dokumen').concat(TOOLS.filter((item) => item.to === '/list'));
+
 /** Everything behind "Lainnya" on a phone. */
-const MORE: readonly Destination[] = [...TOOLS, SETTINGS];
+const MORE: readonly Destination[] = [...WARD, ...TOOLS, SETTINGS].filter((item) => !PHONE_BAR.includes(item));
 
 function WipTag({ className = '' }: { className?: string }): JSX.Element {
   return (
@@ -186,9 +193,9 @@ export function TabBar(): JSX.Element {
         <span className="hidden text-[15px] font-semibold tracking-tight lg:inline">Plano</span>
       </div>
 
-      {/* Phone bar: the three ward screens and "Lainnya". */}
+      {/* Phone bar: Aktif, Arsip, List Maker and "Lainnya". */}
       <div className="flex flex-1 sm:hidden">
-        {WARD.map((item) => (
+        {PHONE_BAR.map((item) => (
           <NavItem key={item.to} item={item} phone />
         ))}
         <button
@@ -257,7 +264,7 @@ export function TabBar(): JSX.Element {
         open={moreOpen}
         onOpenChange={setMoreOpen}
         title="Lainnya"
-        description="Catatan lepas, kalkulator, checklist, Helper, dan pengaturan."
+        description="Dokumen, catatan lepas, kalkulator, checklist, Helper, dan pengaturan."
       >
         <div className="flex flex-col p-2">
           {MORE.map(({ to, label, Icon, wip }) => {

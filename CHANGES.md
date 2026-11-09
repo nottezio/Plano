@@ -1,5 +1,14 @@
 # Plano — CHANGES
 
+## `2026-11-10.2` — List Maker on the phone bar
+
+Avi (10 Nov): on a phone, List Maker in Dokumen's place for quicker access.
+
+- **TabBar.** The phone bar renders `PHONE_BAR` (WARD minus Dokumen, plus List Maker); "Lainnya" is every other destination, Dokumen first. Rail and sidebar unchanged. `moreActive` still lights "Lainnya" while Dokumen is open.
+- **Icon.** New `IconList` for List Maker (rail, sidebar, phone bar); it used `IconBoard`, the same glyph as Aktif, which would sit side by side on the bar.
+- **Firestore.** None.
+- **Not done.** Not checked in the app or on a phone; the "List Maker" label is not measured at 360 px (it truncates if it does not fit).
+
 ## `2026-11-10.1` — Pasien baru baseline by Jam list
 
 Avi (10 Nov): Simpan edisi happens sometimes before the shift starts, sometimes after.

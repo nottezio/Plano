@@ -5,6 +5,9 @@ Catatan teknis lengkap (akar masalah, perbaikan) ada di CHANGES.md.
 
 Entri teratas harus versi yang sedang dirilis; tes gagal bila belum ditulis.
 
+## `2026-11-10.2`
+- **List Maker di bar bawah HP.** Di HP, bar bawah kini Aktif, Arsip, List Maker, Lainnya. Dokumen pindah ke Lainnya. Tablet dan layar lebar tidak berubah. List Maker juga punya ikon sendiri, tidak lagi sama dengan Aktif.
+
 ## `2026-11-10.1`
 - **Pasien baru kini mengikuti Jam list, bukan jam simpan.** List shift sebelumnya dipilih dari tanggal dan Jam list-nya (04.00, 16.00, 19.00), jadi list 04.00 yang baru disimpan pukul 07.40 tetap dihitung sebagai list pagi. Sebelumnya list itu terlewat, dan semua pasien semalam ikut tertanda Pasien baru seharian. Bila ada dua list dengan Jam list yang sama, yang disimpan terakhir dipakai. Jam list tanpa angka ("—") tetap memakai jam simpan. Denah "Shift sebelumnya" ikut aturan yang sama. SOAP baru tidak berubah.
 
