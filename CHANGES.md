@@ -1,5 +1,12 @@
 # Plano — CHANGES
 
+## `2026-11-09.6` — Tabs and search on one row; Pulang confirmation
+
+- **Bar.** `ListMakerTabs`: from `lg` the tab strip (`shrink-0`) and the search (`flex-1`) share one row; below `lg` they stack as in .09.5. `--lm-tabs-h` is still measured off the whole bar, so the List side panel follows.
+- **Pulang.** `PatientControls`: Pulang on a patient whose shown `discharge` is not `'today'` opens the existing `ConfirmDialog` (names the patient); green patients go at once. Same component for the List row and the denah SOAP window.
+- **Firestore.** 0 new reads or writes; Pulang writes the same fields as before, once, after the confirm.
+- **Not done.** Not checked in the app. The 1024-1280 px range is not measured: with all six tabs the search may be narrow there.
+
 ## `2026-11-09.5` — Floating search, paste diff, daily labs, list bold, compact tags
 
 Avi (9 Nov), five requests in one message.

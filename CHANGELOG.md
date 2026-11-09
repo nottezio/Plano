@@ -5,6 +5,10 @@ Catatan teknis lengkap (akar masalah, perbaikan) ada di CHANGES.md.
 
 Entri teratas harus versi yang sedang dirilis; tes gagal bila belum ditulis.
 
+## `2026-11-09.6`
+- **Tab dan kotak cari List Maker kini satu baris** di layar lebar, jadi bagian yang menempel di atas lebih pendek. Di HP tetap bertumpuk.
+- **Pulang minta konfirmasi** bila pasien belum ditandai pulang hari ini (hijau), supaya salah pencet tidak mengeluarkan pasien dari list. Pasien hijau langsung pulang seperti biasa.
+
 ## `2026-11-09.5`
 - **Kotak cari di List Maker kini melayang.** Kotak cari menempel di bawah tab Denah/List, jadi tetap terjangkau saat menggulir list yang panjang.
 - **Tempel: lihat perubahan SOAP.** Setelah Baca, buka "Lihat perubahan" untuk melihat baris yang berubah saja pada tiap SOAP yang diperbarui. Tertutup secara bawaan.

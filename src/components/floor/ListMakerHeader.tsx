@@ -211,8 +211,9 @@ export function ListMakerTabs<T extends string>({
     };
   }, []);
   return (
-    <div ref={bar} className="sticky top-0 z-20 -mx-4 bg-bg px-4 pb-2 pt-1">
-      <ScrollStrip outerClassName="rounded-xl border border-border bg-bg-subtle sm:w-fit" fade="from-bg-subtle" className="flex p-0.5" label="Tampilan" role="tablist">
+    // Tabs and search on one row from lg (9 Nov 2026, Avi): the pinned bar takes half the height.
+    <div ref={bar} className="sticky top-0 z-20 -mx-4 bg-bg px-4 pb-2 pt-1 lg:flex lg:items-center lg:gap-3">
+      <ScrollStrip outerClassName="rounded-xl border border-border bg-bg-subtle sm:w-fit lg:shrink-0" fade="from-bg-subtle" className="flex p-0.5" label="Tampilan" role="tablist">
         {tabs.map(([key, label]) => {
           const on = key === tab;
           return (
@@ -231,7 +232,7 @@ export function ListMakerTabs<T extends string>({
           );
         })}
       </ScrollStrip>
-      {children ? <div className="mt-2">{children}</div> : null}
+      {children ? <div className="mt-2 lg:mt-0 lg:min-w-0 lg:flex-1">{children}</div> : null}
     </div>
   );
 }

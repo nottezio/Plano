@@ -1,5 +1,6 @@
 import { useState, type ReactNode } from 'react';
 
+import { ConfirmDialog } from '@/components/common/ConfirmDialog';
 import { DateField } from '@/components/common/DateField';
 import { Button, INPUT } from '@/components/common/ui';
 import { writeRosterFields, writeRosterPlace } from '@/data/repositories/floors.repo';
@@ -116,6 +117,11 @@ export function PatientControls({
   const stamp = (what: string): StatusChange => ({ at: new Date().toISOString(), by: myName, what });
   const set = (fields: Parameters<typeof writeRosterFields>[2], what?: string): void => {
     void writeRosterFields(floor.id, entry.key, fields, what ? stamp(what) : undefined);
+  };
+  const [confirmPulang, setConfirmPulang] = useState(false);
+  const pulang = (): void => {
+    set({ status: 'pulang', leftAt: new Date().toISOString() }, 'Pulang');
+    onGone?.();
   };
 
   const roomsSelect =
@@ -322,13 +328,23 @@ export function PatientControls({
         <div className="flex flex-wrap items-center gap-1.5">
           <Action
             tone="var(--note-green)"
-            onClick={() => {
-              set({ status: 'pulang', leftAt: new Date().toISOString() }, 'Pulang');
-              onGone?.();
-            }}
+            // Not green (pulang hari ini): asked first, a mispress takes a patient off the list (9 Nov 2026, Avi).
+            onClick={() => (patient.discharge === 'today' ? pulang() : setConfirmPulang(true))}
           >
             ✓ Pulang
           </Action>
+          {confirmPulang ? (
+            <ConfirmDialog
+              title={`Pulangkan ${patient.name}?`}
+              description="Pasien ini belum ditandai pulang hari ini. Ia keluar dari list dan masuk catatan pulang/pindah."
+              confirmLabel="Pulang"
+              onCancel={() => setConfirmPulang(false)}
+              onConfirm={() => {
+                setConfirmPulang(false);
+                pulang();
+              }}
+            />
+          ) : null}
           <Action
             tone="var(--warn-strong)"
             pressed={open === 'pindah'}
