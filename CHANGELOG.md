@@ -5,6 +5,9 @@ Catatan teknis lengkap (akar masalah, perbaikan) ada di CHANGES.md.
 
 Entri teratas harus versi yang sedang dirilis; tes gagal bila belum ditulis.
 
+## `2026-11-10.1`
+- **Pasien baru kini mengikuti Jam list, bukan jam simpan.** List shift sebelumnya dipilih dari tanggal dan Jam list-nya (04.00, 16.00, 19.00), jadi list 04.00 yang baru disimpan pukul 07.40 tetap dihitung sebagai list pagi. Sebelumnya list itu terlewat, dan semua pasien semalam ikut tertanda Pasien baru seharian. Bila ada dua list dengan Jam list yang sama, yang disimpan terakhir dipakai. Jam list tanpa angka ("—") tetap memakai jam simpan. Denah "Shift sebelumnya" ikut aturan yang sama. SOAP baru tidak berubah.
+
 ## `2026-11-09.7`
 - **Denah shift sebelumnya.** Di tab Denah, tombol "Shift sebelumnya" menampilkan denah dari list terakhir yang disimpan sebelum shift ini dimulai (Simpan edisi), untuk dibandingkan dengan denah sekarang. Ketuk "← Denah sekarang" untuk kembali. Tombol muncul bila list itu ada.
 

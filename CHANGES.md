@@ -1,5 +1,15 @@
 # Plano — CHANGES
 
+## `2026-11-10.1` — Pasien baru baseline by Jam list
+
+Avi (10 Nov): Simpan edisi happens sometimes before the shift starts, sometimes after.
+
+- **Root cause.** `shiftEdition` picked the newest edition with `createdAt` before the shift start. A 04.00 list saved at 07.40 failed that test, so at 13.00 the baseline fell back to the day before's 16.00/19.00 list: every patient admitted overnight read as "Pasien baru" all day, and the Denah snapshot showed the older list. An early save (16.00 list at 15.00) was already fine.
+- **Fix.** Each edition's moment is its `date` plus the first `HH.MM`/`HH:MM` in its free-text `time` (the Jam list, defaulted 04.00/16.00/19.00 by `ListPanel`), local clock. The baseline is the newest edition whose moment is at or before the shift start; ties go to the later `createdAt`. A `time` with no clock reading (`—`) falls back to `createdAt` before the shift start, as before. `shiftBaseline` and the Denah snapshot use the same function. Off-today (`e.date < date`) is unchanged.
+- **SOAP baru unchanged.** Still "arrived after the newest saved edition's `createdAt`" (Avi: as before).
+- **Firestore.** 0 new reads or writes: the editions page is already subscribed on this screen.
+- **Not done.** Not checked in the app or against real save times. Known trade-off: a re-send before 10.00 keeps the 04.00 default, so it counts as the morning list and patients added between 07.00 and that re-send lose the tag, unless the list maker types the real time. Tests added for late, early, tied, after-start and no-time lists.
+
 ## `2026-11-09.7` — Denah snapshot of the previous shift
 
 Avi (9 Nov): a snapshot of the previous shift's Denah, to compare within the shift; the button on the Denah tab.

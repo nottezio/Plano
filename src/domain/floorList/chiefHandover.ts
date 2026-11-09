@@ -83,19 +83,48 @@ export function shiftStart(now: Date, holidays: readonly string[] = []): Date {
 }
 
 /**
- * The keys on the newest list saved (Simpan edisi) before `before`, an ISO
- * time; null when there is none. A list saved in the current shift, a re-send
- * included, never counts, so the tags hold all shift.
+ * The keys on the previous shift's list (see `shiftEdition`); null when there
+ * is none. A list for the current shift, a re-send included, never counts, so
+ * the tags hold all shift.
  */
 export function shiftBaseline(editions: readonly Edition[], before: string): ReadonlySet<string> | null {
   const last = shiftEdition(editions, before);
   return last ? new Set(last.patients.map((p) => p.key)) : null;
 }
 
-/** The newest edition saved before `before`: the previous shift's list (also its Denah snapshot, 9 Nov 2026). */
+/** The moment a list is for, from its date and Jam list ("04.00", "16.00 shift"), as an ISO time; null when the Jam list holds no time. */
+function listMoment(edition: Edition): string | null {
+  const time = /(\d{1,2})[.:](\d{2})/.exec(edition.time);
+  const [year, month, day] = edition.date.split('-').map(Number);
+  if (!time || !year || !month || !day) return null;
+  const [hour, minute] = [Number(time[1]), Number(time[2])];
+  if (hour > 23 || minute > 59) return null;
+  return new Date(year, month - 1, day, hour, minute).toISOString();
+}
+
+/**
+ * The previous shift's list (also its Denah snapshot, 9 Nov 2026): the newest
+ * list whose date and Jam list are at or before `before`, the shift start.
+ *
+ * BY JAM LIST (10 Nov 2026, Avi): the list maker saves early or late. A 04.00
+ * list saved at 07.40 was "saved after the shift began" and skipped, so the
+ * day before's list became the baseline and every overnight patient read as
+ * "Pasien baru" all day. The Jam list says which list it is, whenever it was
+ * saved. Two lists with one Jam list: the one saved last. A Jam list with no
+ * time ("—") falls back to when it was saved.
+ */
 export function shiftEdition(editions: readonly Edition[], before: string): Edition | null {
   let last: Edition | null = null;
-  for (const edition of editions) if (edition.createdAt < before && (!last || edition.createdAt > last.createdAt)) last = edition;
+  let lastAt = '';
+  for (const edition of editions) {
+    const moment = listMoment(edition);
+    if (moment ? moment > before : edition.createdAt >= before) continue;
+    const at = moment ?? edition.createdAt;
+    if (!last || at > lastAt || (at === lastAt && edition.createdAt > last.createdAt)) {
+      last = edition;
+      lastAt = at;
+    }
+  }
   return last;
 }
 

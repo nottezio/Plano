@@ -95,6 +95,36 @@ describe('shiftBaseline', () => {
     expect(shiftEdition(editions, '2026-11-09T08:00:00.000Z')?.createdAt).toBe('2026-11-09T02:00:00.000Z');
     expect(shiftEdition([], '2026-11-09T08:00:00.000Z')).toBeNull();
   });
+  describe('by Jam list, not by when it was saved (10 Nov 2026)', () => {
+    const at = (day: number, hour: number, minute = 0): string => new Date(2026, 10, day, hour, minute).toISOString();
+    const list = (id: string, date: string, time: string, savedAt: string): Edition =>
+      ({ id, date, time, text: '', createdBy: '', createdAt: savedAt, patients: [] }) as unknown as Edition;
+    const pick = (editions: Edition[], shift: string): string | undefined => shiftEdition(editions, shift)?.id;
+    it('a 04.00 list saved late (07.40) is still the day shift baseline', () => {
+      const editions = [list('pagi', '2026-11-09', '04.00', at(9, 7, 40)), list('sore', '2026-11-08', '19.00', at(8, 19, 5))];
+      expect(pick(editions, at(9, 7))).toBe('pagi');
+    });
+    it('a 16.00 list saved early or late counts from 16.00, not before', () => {
+      for (const saved of [at(9, 15), at(9, 17, 10)]) {
+        const editions = [list('sore', '2026-11-09', '16.00 shift', saved), list('pagi', '2026-11-09', '04.00', at(9, 4, 9))];
+        expect(pick(editions, at(9, 7))).toBe('pagi');
+        expect(pick(editions, at(9, 16))).toBe('sore');
+      }
+    });
+    it('two lists with one Jam list: the one saved last', () => {
+      const editions = [list('first', '2026-11-09', '04.00', at(9, 3, 50)), list('again', '2026-11-09', '04.00', at(9, 7, 40))];
+      expect(pick(editions, at(9, 7))).toBe('again');
+    });
+    it('a list with a Jam list after the shift start waits for the next shift', () => {
+      const editions = [list('resend', '2026-11-09', '08.30', at(9, 8, 30)), list('pagi', '2026-11-09', '04.00', at(9, 4, 9))];
+      expect(pick(editions, at(9, 7))).toBe('pagi');
+    });
+    it('a Jam list with no time falls back to when it was saved', () => {
+      const editions = [list('dash', '2026-11-09', '—', at(9, 7, 40)), list('pagi', '2026-11-09', '04.00', at(9, 4, 9))];
+      expect(pick(editions, at(9, 7))).toBe('pagi');
+      expect(pick(editions, at(9, 16))).toBe('dash');
+    });
+  });
 });
 
 describe('handoverCycleStart', () => {
