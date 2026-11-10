@@ -5,6 +5,9 @@ Catatan teknis lengkap (akar masalah, perbaikan) ada di CHANGES.md.
 
 Entri teratas harus versi yang sedang dirilis; tes gagal bila belum ditulis.
 
+## `2026-11-11.1`
+- **List Maker kini mengenali konsul dari TS BTKV.** Laporan dengan baris DPJP bercetak miring (`_DPJP BTKV (Utama): …_`) atau pembuka "konsul pasien dari TS (BTKV)" kini ditandai KJS BTKV, termasuk bila dokter BTKV-nya belum ada di daftar DPJP. Tempel ulang laporannya agar tanda ini muncul pada pasien yang sudah ada.
+
 ## `2026-11-10.13`
 - **Bagian atas List Maker lebih rapi.** Pilihan list di kiri atas, Panduan dan Catatan Visite di kanan atas. Tanggal list, Chief Bangsal, dan Chief kini satu baris di layar lebar, sehingga tab naik lebih ke atas.
 - **Denah: kontrol dalam satu baris.** Shift sebelumnya, Tampilkan usul H-1, dan Sorot DPJP kini sebaris. Sorot DPJP bisa dibuka dan ditutup; angka di tombolnya menunjukkan berapa DPJP yang sedang disorot.

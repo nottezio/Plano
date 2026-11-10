@@ -225,6 +225,20 @@ describe('readReport', () => {
     const p = readReport(messages[4]!)!;
     expect(p).toMatchObject({ dpjpId: 'afg', btkv: true, room: '415', bed: '1', junior: '', senderNick: 'Contoh' });
   });
+
+  it('marks KJS BTKV from an italic "_DPJP BTKV (Utama)_" line and a "TS (BTKV)" opening (11 Nov 2026)', () => {
+    const read = (opening: string, dpjpLine: string) =>
+      readReport({
+        sentAt: '2026-11-10T07:00',
+        sender: 'dr. Contoh',
+        index: 0,
+        text: [opening, '', '*Tn. Contoh Lima/01-01-1971/55 tahun/RM 01600705*', '', dpjpLine, '_DPJP Kardio : Dr.dr. Akhtar Fajar Muzakkir, Sp.JP(K)_'].join('\n'),
+      })!;
+    const konsul = 'Tabe dokter, mohon izin melaporkan konsul pasien dari *TS (BTKV) dr. Bedah Contoh* di *PJT lantai 4 Kamar 415 Bed 1* atas nama :';
+    const plain = 'Tabe dokter, mohon izin melaporkan follow up pasien di *PJT lantai 4 Kamar 415 Bed 1* atas nama :';
+    expect(read(plain, '_DPJP BTKV (Utama): Dr. dr. Bedah Contoh, Sp.BTKV_')).toMatchObject({ dpjpId: 'afm', btkv: true });
+    expect(read(konsul, '_DPJP Utama: dr. Bedah Contoh_').btkv).toBe(true);
+  });
 });
 
 describe('latestPatients', () => {

@@ -1,5 +1,14 @@
 # Plano — CHANGES
 
+## `2026-11-11.1` — List Maker: KJS BTKV from an italic DPJP line or "TS (BTKV)"
+
+Avi (11 Nov): a consult from TS BTKV (PJT Lt. 4) was not marked KJS BTKV.
+
+- **Root cause.** The BTKV surgeon was not in the DPJP registry, so `btkv` rested on two text fallbacks in `readReport`, and both missed. The DPJP-line check skipped leading punctuation with `^\W*`, but `_` is a word character: the italic line `_DPJP BTKV (Utama): …_` never matched. The opening check wanted `TS BTKV` and the message said `TS (BTKV)`.
+- **Fix.** `^[\W_]*DPJP…` and `\bTS\s+\(?\s*BTKV\b`. Test added in `floorList.test.ts` (invented patient).
+- **Firestore cost.** None: parsing only, no read, listener or write changed.
+- **Not done.** Patients already on a list keep their old `btkv` until the report is pasted again. Not checked in the emulator or on a ward device.
+
 ## `2026-11-10.13` — List Maker header layout, one-line Denah toolbar, Analisis order, draggable lists, tag palette
 
 Avi (10 Nov, screenshot at 1920 px): the upper section is weirdly positioned; the Denah's three control rows take too much height (make Sorot DPJP collapsible); Analisis summary and "Hari ini per pasien" always on top; drag lists so PJT Lantai 4 opens first; more tag colours or a palette picker.

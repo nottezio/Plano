@@ -406,9 +406,10 @@ export function readReport(message: ChatMessage): FloorPatient | null {
     kjsDpjpIds: kjs,
     btkv:
       btkvDpjp ||
-      /KJS\s+(?:TS\s+)?BTKV|\bTS\s+BTKV\b/i.test(lines.slice(0, opening + 1).join(' ')) ||
-      // "DPJP BTKV (Utama) : …" for a surgeon the registry does not know.
-      lines.some((line) => /^\W*DPJP[^:\n]*\bBTKV\b|^\W*DPJP[^\n]*Sp\.?\s*BTKV/i.test(line)),
+      /KJS\s+(?:TS\s+)?BTKV|\bTS\s+\(?\s*BTKV\b/i.test(lines.slice(0, opening + 1).join(' ')) ||
+      // "DPJP BTKV (Utama) : …" for a surgeon the registry does not know. `[\W_]`, not `\W`:
+      // the line is often italic ("_DPJP BTKV (Utama): …_") and `_` is a word character.
+      lines.some((line) => /^[\W_]*DPJP[^:\n]*\bBTKV\b|^[\W_]*DPJP[^\n]*Sp\.?\s*BTKV/i.test(line)),
     body,
     full: text.trim(),
     chief,
