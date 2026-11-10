@@ -915,9 +915,9 @@ export function dpjpFullName(code: string): string {
   return found ? found.name : `dr. ${code.toUpperCase()}`;
 }
 
-function dmy(date: string): string {
+function dmy(date: string, sep: '/' | '-' = '/'): string {
   const [year, month, day] = date.split('-');
-  return `${day}/${month}/${year}`;
+  return [day, month, year].join(sep);
 }
 
 /** "RSWS, CVCU/HCU/ICU PJT, PJT Lt. 4 dan PJT Lt. 5". */
@@ -937,6 +937,206 @@ export interface CensusGroupInput {
   place: Place;
   patients: Array<{ identity: string; diagnoses: string[] }>;
 }
+
+// ───────────────────────────────────────────────────────────────
+// Per-DPJP header
+// ───────────────────────────────────────────────────────────────
+
+/**
+ * The header each DPJP's own group chat uses (SENSUS PASIEN KARDIOLOGI,
+ * export of 10 Nov 2026). The residents keep one wording per DPJP, down to
+ * which places are named first and whether the date has dashes or slashes, so
+ * the header follows the DPJP. The patient blocks below it are the same for
+ * everyone. A DPJP not in this table gets the default header.
+ *
+ * Two things the chat could not settle, so they stay as they were: bold and
+ * italic (the export drops them) and the date (a few residents mistyped it; the
+ * date is always the census date).
+ */
+interface HeaderCounts {
+  total: number;
+  /** The places named in the header (the lists the user pasted). */
+  shown: readonly Place[];
+  /** Patients reported at one place. */
+  at: (place: Place) => number;
+}
+
+interface HeaderStyle {
+  /** Fixes the greeting and the closing line; the Dokter/Prof switch only applies to DPJPs without a style. */
+  address: CensusAddress;
+  greeting: string;
+  /** The name as this DPJP's group writes it. */
+  name?: string;
+  /** A blank line above and below the name. */
+  spaced?: boolean;
+  places: (places: readonly Place[]) => string;
+  dateSep?: '-';
+  /** Wraps "Selasa, 10/11/2026"; default is in parentheses. */
+  dated?: (when: string) => string;
+  /** Lines under the "Di …" line, blank lines included. */
+  tail: (counts: HeaderCounts) => string[];
+}
+
+const hasPlace = (places: readonly Place[], place: Place): boolean => places.includes(place);
+const commaList = (parts: ReadonlyArray<string | false>): string => parts.filter(Boolean).join(', ');
+const FLOORS: ReadonlyArray<readonly [Place, number]> = [['LT4', 4], ['LT5', 5], ['LT6', 6]];
+
+/** "Lt. 4, 5, dan 6" (`last: ', dan'`) or "Lt. 4 dan 5 dan 6" (`last: ' dan'`); '' when no floor is covered. */
+function floorsText(places: readonly Place[], last: ', dan' | ' dan'): string {
+  const numbers = FLOORS.filter(([place]) => hasPlace(places, place)).map(([, number]) => number);
+  if (numbers.length === 0) return '';
+  const list =
+    numbers.length < 3 || last === ' dan' ? numbers.join(' dan ') : `${numbers.slice(0, -1).join(', ')}, dan ${numbers.at(-1)}`;
+  return `Lt. ${list}`;
+}
+
+/** The default places, with the floors written together ("PJT Lt. 4, 5, dan 6"). */
+const mergedFloors =
+  (last: ', dan' | ' dan') =>
+  (places: readonly Place[]): string => {
+    const floors = floorsText(places, last);
+    return commaList([
+      ...(['RSWS', 'RSUH', 'IGD', 'CVCU'] as const).map((place) => hasPlace(places, place) && PLACE_LABEL[place]),
+      floors && `PJT ${floors}`,
+      hasPlace(places, 'PJT') && PLACE_LABEL.PJT,
+    ]);
+  };
+
+const totalLine = (text: (n: number) => string) => (counts: HeaderCounts) => ['', `*${text(counts.total)}*`];
+const upperTotal = totalLine((n) => `TOTAL Pasien : ${n} Pasien`);
+
+const HEADER_STYLES: Readonly<Record<string, HeaderStyle>> = {
+  KS: {
+    address: 'dokter',
+    greeting: 'Assalamualaikum. Tabe Dokter, mohon izin melaporkan sensus pasien',
+    name: 'Dr. dr. Khalid Saleh, Sp.PD-KKV, FINASIM, M.Kes, FISQua',
+    spaced: true,
+    places: mergedFloors(', dan'),
+    dateSep: '-',
+    tail: upperTotal,
+  },
+  MZ: {
+    address: 'dokter',
+    greeting: 'Assalamualaikum. Tabe Dokter, mohon izin melaporkan Sensus pasien:',
+    name: 'Prof. Dr. dr. Muzakkir Amir, Sp. JP (K)',
+    places: mergedFloors(' dan'),
+    dateSep: '-',
+    // Total, then RSWS / RSUH / PJT counts, then a rule, with no blank line in between.
+    tail: ({ total, shown, at }) => [
+      `*TOTAL: ${total} Pasien*`,
+      ...(shown.includes('RSWS') ? [`RSWS: ${at('RSWS')} Pasien`] : []),
+      ...(shown.includes('RSUH') ? [`RSUH: ${at('RSUH')} Pasien`] : []),
+      `PJT: ${total - at('RSWS') - at('RSUH')} Pasien`,
+      '-'.repeat(82),
+    ],
+  },
+  PK: {
+    address: 'prof',
+    greeting: 'Selamat pagi Prof. Tabe Prof, mohon izin melaporkan Sensus pasien',
+    spaced: true,
+    places: (places) => {
+      const pjt = commaList([hasPlace(places, 'IGD') && 'IGD', floorsText(places, ', dan'), hasPlace(places, 'CVCU') && 'HCU, CVCU, ICU']);
+      return commaList([
+        hasPlace(places, 'RSWS') && 'RSWS',
+        hasPlace(places, 'RSUH') && 'RSUH',
+        pjt && `PJT ${pjt}`,
+        hasPlace(places, 'PJT') && PLACE_LABEL.PJT,
+      ]);
+    },
+    dateSep: '-',
+    tail: upperTotal,
+  },
+  PT: {
+    address: 'dokter',
+    greeting: 'Assalamualaikum. Tabe Dokter, mohon izin melaporkan Sensus pasien',
+    name: 'dr. Pendrik Tandean, SpPD-KKV',
+    spaced: true,
+    places: (places) => {
+      const floors = floorsText(places, ', dan');
+      const door = commaList([hasPlace(places, 'IGD') && 'IGD', hasPlace(places, 'CVCU') && 'CVCU, HCU, ICU']);
+      return commaList([
+        hasPlace(places, 'RSWS') && 'RSWS',
+        hasPlace(places, 'RSUH') && 'RSUH',
+        door ? `${door} PJT${floors ? ` ${floors}` : ''}` : floors && `PJT ${floors}`,
+        hasPlace(places, 'PJT') && PLACE_LABEL.PJT,
+      ]);
+    },
+    dateSep: '-',
+    tail: upperTotal,
+  },
+  AFM: {
+    address: 'dokter',
+    greeting: 'Assalamualaikum. Tabe Dokter, mohon izin melaporkan Sensus pasien  :',
+    name: 'Dr. dr. Akhtar Fajar Muzakkir, Sp. JP Subsp. IKKV(K), KI(K)',
+    spaced: true,
+    places: (places) => {
+      const floors = floorsText(places, ', dan');
+      return commaList([
+        hasPlace(places, 'RSUH') && 'RSUH',
+        hasPlace(places, 'RSWS') && 'RSWS',
+        hasPlace(places, 'IGD') && PLACE_LABEL.IGD,
+        floors && `PJT ${floors}`,
+        hasPlace(places, 'CVCU') && 'HCU, CVCU, ICU',
+        hasPlace(places, 'PJT') && PLACE_LABEL.PJT,
+      ]);
+    },
+    dateSep: '-',
+    dated: (when) => `(${when} jam 06.00)`,
+    tail: upperTotal,
+  },
+  AHA: {
+    address: 'dokter',
+    greeting: 'Assalamualaikum. Tabe Dokter, mohon izin melaporkan sensus pasien',
+    name: 'Dr. dr. Abdul Hakim Alkatiri, SpJP(K)',
+    spaced: true,
+    places: placesText,
+    dated: (when) => `(${when}) jam 06.00`,
+    tail: ({ total }) => ['____________________________', `*Total Pasien : ${total} pasien*`],
+  },
+  AHN: {
+    address: 'dokter',
+    greeting: 'Assalamualaikum. Tabe Dokter, mohon izin melaporkan sensus pasien',
+    name: 'Dr. dr. Az Hafid Nashar, Sp.JP (K)',
+    // RSWS, the floors, then CVCU/HCU/ICU without "PJT"; no parentheses around the date.
+    places: (places) =>
+      commaList([
+        hasPlace(places, 'RSWS') && 'RSWS',
+        hasPlace(places, 'RSUH') && 'RSUH',
+        hasPlace(places, 'IGD') && PLACE_LABEL.IGD,
+        placesText(places.filter((place) => place === 'LT4' || place === 'LT5' || place === 'LT6')),
+        hasPlace(places, 'CVCU') && 'CVCU/HCU/ICU',
+        hasPlace(places, 'PJT') && PLACE_LABEL.PJT,
+      ]),
+    dated: (when) => when,
+    tail: totalLine((n) => `Total Pasien : ${n} pasien`),
+  },
+  AFG: {
+    address: 'dokter',
+    greeting: 'Assalamualaikum. Tabe Dokter, mohon izin melaporkan sensus pasien',
+    name: 'dr. Aussie Fitriani Ghaznawie, Sp.JP, Subsp EKO(K)',
+    places: placesText,
+    tail: totalLine((n) => `Total pasien: ${n} Orang`),
+  },
+  ZD: {
+    address: 'dokter',
+    greeting: 'Assalamualaikum. Tabe Dokter, mohon izin melaporkan sensus pasien',
+    places: placesText,
+    // A second total for the PJT patients alone (not RSWS or RSUH).
+    tail: ({ total, at }) => ['', `*Total Pasien : ${total} pasien*`, '', `*Total Pasien PJT : ${total - at('RSWS') - at('RSUH')} pasien*`],
+  },
+  IM: {
+    address: 'dokter',
+    greeting: 'Assalamualaikum. Tabe Dokter, mohon izin melaporkan sensus pasien',
+    places: placesText,
+    tail: totalLine((n) => `Total Pasien : ${n} pasien`),
+  },
+  ARB: {
+    address: 'dokter',
+    greeting: 'Assalamualaikum. Tabe Dokter, mohon izin melaporkan sensus pasien',
+    places: placesText,
+    tail: totalLine((n) => `Total Pasien : ${n} pasien`),
+  },
+};
 
 /**
  * The message, from groups already decided (by the rules or by AI).
@@ -960,14 +1160,22 @@ export function formatCensus(input: {
     patients: input.groups.filter((group) => group.place === place).flatMap((group) => group.patients),
   })).filter((group) => group.patients.length > 0 || covered.has(group.place));
   const total = groups.reduce((sum, group) => sum + group.patients.length, 0);
-  const addressee = input.address === 'prof' ? 'Prof' : 'Dokter';
+  const style = HEADER_STYLES[input.code.toUpperCase()];
+  const address = style?.address ?? input.address;
+  const addressee = address === 'prof' ? 'Prof' : 'Dokter';
+  const shown = groups.map((group) => group.place);
+  const when = `${dayName(input.date)}, ${dmy(input.date, style?.dateSep)}`;
+  const name = `_*${style?.name ?? dpjpFullName(input.code)}*_`;
 
   const head = [
-    `Assalamualaikum. Tabe ${addressee}, mohon izin melaporkan sensus pasien`,
-    `_*${dpjpFullName(input.code)}*_`,
-    `Di ${placesText(groups.map((group) => group.place)) || '-'} (${dayName(input.date)}, ${dmy(input.date)})`,
-    '',
-    `*Total Pasien : ${total} pasien*`,
+    style?.greeting ?? `Assalamualaikum. Tabe ${addressee}, mohon izin melaporkan sensus pasien`,
+    ...(style?.spaced ? ['', name, ''] : [name]),
+    `Di ${(style?.places ?? placesText)(shown) || '-'} ${(style?.dated ?? ((text: string) => `(${text})`))(when)}`,
+    ...(style?.tail ?? totalLine((n) => `Total Pasien : ${n} pasien`))({
+      total,
+      shown,
+      at: (place) => groups.find((group) => group.place === place)?.patients.length ?? 0,
+    }),
   ].join('\n');
 
   const blocks = groups.map((group) => {
@@ -982,7 +1190,7 @@ export function formatCensus(input: {
     return [title, ...rows].join('\n\n').replace(/^(\*[^\n]*\*)\n\n/, '$1\n');
   });
 
-  return [head, ...blocks, `Tabe terima kasih ${input.address === 'prof' ? 'Prof' : 'dokter'}.`].join('\n\n');
+  return [head, ...blocks, `Tabe terima kasih ${address === 'prof' ? 'Prof' : 'dokter'}.`].join('\n\n');
 }
 
 /** The rules' census for one DPJP. A DPJP with no patients still gets one: every place at 0. */

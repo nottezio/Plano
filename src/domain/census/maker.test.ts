@@ -7,6 +7,7 @@ import {
   dpjpCounts,
   dpjpFullName,
   entriesFor,
+  formatCensus,
   knownCodes,
   parseLists,
   parseSource,
@@ -348,12 +349,15 @@ describe('the whole census', () => {
     const sources = parseAll(LT4, ICU, RSWS, LT56, RSUH);
     const text = buildCensus({ sources, code: 'MZ', date: '2026-10-08', address: 'dokter' }).text;
     const lines = text.split('\n');
-    expect(lines.slice(0, 5)).toEqual([
-      'Assalamualaikum. Tabe Dokter, mohon izin melaporkan sensus pasien',
-      `_*${dpjpFullName('MZ')}*_`,
-      'Di RSWS, RSUH, CVCU/HCU/ICU PJT, PJT Lt. 4, PJT Lt. 5 dan PJT Lt. 6 (Kamis, 08/10/2026)',
-      '',
-      '*Total Pasien : 7 pasien*',
+    expect(lines.slice(0, 8)).toEqual([
+      'Assalamualaikum. Tabe Dokter, mohon izin melaporkan Sensus pasien:',
+      '_*Prof. Dr. dr. Muzakkir Amir, Sp. JP (K)*_',
+      'Di RSWS, RSUH, CVCU/HCU/ICU PJT, PJT Lt. 4 dan 5 dan 6 (Kamis, 08-10-2026)',
+      '*TOTAL: 7 Pasien*',
+      'RSWS: 1 Pasien',
+      'RSUH: 0 Pasien',
+      'PJT: 6 Pasien',
+      '-'.repeat(82),
     ]);
     expect(lines.filter((line) => /^\*.* : \d+ pasien\*$/.test(line) && !line.startsWith('*Total'))).toEqual([
       '*RSWS : 1 pasien*',
@@ -374,27 +378,163 @@ describe('the whole census', () => {
   it('reports only the places a pasted list covers', () => {
     // No RSWS or RSUH list pasted: saying "RSWS : 0" would be a claim nobody checked.
     const text = buildCensus({ sources: parseAll(LT4), code: 'MZ', date: '2026-10-08', address: 'dokter' }).text;
-    expect(text).toContain('Di PJT Lt. 4 (Kamis, 08/10/2026)');
+    expect(text).toContain('Di PJT Lt. 4 (Kamis, 08-10-2026)');
     expect(text).not.toContain('RSWS');
   });
 
   it('still writes a census for a DPJP with nobody listed', () => {
     const text = buildCensus({ sources: parseAll(LT4, ICU), code: 'AFM', date: '2026-10-08', address: 'dokter' }).text;
-    expect(text).toContain('*Total Pasien : 0 pasien*');
+    expect(text).toContain('*TOTAL Pasien : 0 Pasien*');
     expect(text).toContain('*CVCU/HCU/ICU PJT : 0 pasien*\n\n*PJT Lt. 4 : 0 pasien*');
   });
 
-  it('addresses a Prof when asked', () => {
+  it('addresses a Prof when asked, for a DPJP without a header of their own', () => {
     const sources = parseAll(LT4);
-    const text = buildCensus({ sources, code: 'MZ', date: '2026-10-08', address: 'prof' }).text;
+    const text = buildCensus({ sources, code: 'SM', date: '2026-10-08', address: 'prof' }).text;
     expect(text.startsWith('Assalamualaikum. Tabe Prof,')).toBe(true);
     expect(text.endsWith('Tabe terima kasih Prof.')).toBe(true);
+  });
+
+  it('keeps the wording of the DPJP group, whatever the Dokter/Prof switch says', () => {
+    const text = buildCensus({ sources: parseAll(LT4), code: 'MZ', date: '2026-10-08', address: 'prof' }).text;
+    expect(text.startsWith('Assalamualaikum. Tabe Dokter,')).toBe(true);
+    expect(text.endsWith('Tabe terima kasih dokter.')).toBe(true);
   });
 
   it('counts every DPJP once per patient across lists', () => {
     const counts = dpjpCounts(parseAll(LT4, ICU, RSWS, LT56, RSUH));
     expect(counts.find((row) => row.code === 'ZD')?.count).toBe(5);
     expect(counts.find((row) => row.code === 'MZ')?.count).toBe(7);
+  });
+});
+
+/*
+  2026-11-10: the headers each DPJP group chat uses (SENSUS PASIEN
+  KARDIOLOGI), taken from the 10 Nov messages. 2026-11-10 is a Tuesday.
+*/
+describe('the header follows the own group of each DPJP', () => {
+  type Counts = Partial<Record<'RSWS' | 'RSUH' | 'IGD' | 'CVCU' | 'LT4' | 'LT5' | 'LT6', number>>;
+  const head = (code: string, counts: Counts): string => {
+    const groups = Object.entries(counts).map(([place, n]) => ({
+      place: place as keyof Counts,
+      patients: Array.from({ length: n }, () => ({ identity: 'x', diagnoses: [] as string[] })),
+    }));
+    const text = formatCensus({
+      code,
+      date: '2026-11-10',
+      address: 'dokter',
+      groups,
+      covers: Object.keys(counts) as Array<keyof Counts>,
+    });
+    return text.split(/\n\n(?=\*(?:RSWS|RSUH|IGD PJT|CVCU|PJT Lt)[^\n]* : \d+ pasien\*)/)[0]!;
+  };
+
+  it('KS: floors together, a blank line around the name, TOTAL in capitals', () => {
+    expect(head('KS', { RSWS: 9, LT4: 2, LT5: 2, LT6: 1 })).toBe(
+      [
+        'Assalamualaikum. Tabe Dokter, mohon izin melaporkan sensus pasien',
+        '',
+        '_*Dr. dr. Khalid Saleh, Sp.PD-KKV, FINASIM, M.Kes, FISQua*_',
+        '',
+        'Di RSWS, PJT Lt. 4, 5, dan 6 (Selasa, 10-11-2026)',
+        '',
+        '*TOTAL Pasien : 14 Pasien*',
+      ].join('\n'),
+    );
+  });
+
+  it('MZ: counts for RSWS and PJT under the total, then a rule', () => {
+    expect(head('MZ', { RSWS: 5, LT4: 6, LT5: 4, LT6: 2 })).toBe(
+      [
+        'Assalamualaikum. Tabe Dokter, mohon izin melaporkan Sensus pasien:',
+        '_*Prof. Dr. dr. Muzakkir Amir, Sp. JP (K)*_',
+        'Di RSWS, PJT Lt. 4 dan 5 dan 6 (Selasa, 10-11-2026)',
+        '*TOTAL: 17 Pasien*',
+        'RSWS: 5 Pasien',
+        'PJT: 12 Pasien',
+        '-'.repeat(82),
+      ].join('\n'),
+    );
+  });
+
+  it('PT: IGD, CVCU, HCU, ICU written out in front of "PJT Lt. 4, 5, dan 6"', () => {
+    expect(head('PT', { RSWS: 6, IGD: 0, CVCU: 2, LT4: 1, LT5: 2, LT6: 0 })).toBe(
+      [
+        'Assalamualaikum. Tabe Dokter, mohon izin melaporkan Sensus pasien',
+        '',
+        '_*dr. Pendrik Tandean, SpPD-KKV*_',
+        '',
+        'Di RSWS, IGD, CVCU, HCU, ICU PJT Lt. 4, 5, dan 6 (Selasa, 10-11-2026)',
+        '',
+        '*TOTAL Pasien : 11 Pasien*',
+      ].join('\n'),
+    );
+  });
+
+  it('PK: greets as Prof, lists PJT IGD first and HCU, CVCU, ICU last, and closes to Prof', () => {
+    const groups = [{ place: 'CVCU' as const, patients: [{ identity: 'x', diagnoses: [] as string[] }] }];
+    const text = formatCensus({ code: 'PK', date: '2026-11-10', address: 'dokter', groups, covers: ['IGD', 'CVCU', 'LT4', 'LT5', 'LT6'] });
+    expect(text.split('\n').slice(0, 5)).toEqual([
+      'Selamat pagi Prof. Tabe Prof, mohon izin melaporkan Sensus pasien',
+      '',
+      '_*Prof. dr. Peter Kabo, Ph.D, Sp.FK, Sp.JP(K)*_',
+      '',
+      'Di PJT IGD, Lt. 4, 5, dan 6, HCU, CVCU, ICU (Selasa, 10-11-2026)',
+    ]);
+    expect(text.endsWith('Tabe terima kasih Prof.')).toBe(true);
+  });
+
+  it('AHA: "jam 06.00" after the date and a rule above the total', () => {
+    expect(head('AHA', { RSWS: 1, RSUH: 0, CVCU: 3, LT4: 2, LT5: 1, LT6: 1 })).toBe(
+      [
+        'Assalamualaikum. Tabe Dokter, mohon izin melaporkan sensus pasien',
+        '',
+        '_*Dr. dr. Abdul Hakim Alkatiri, SpJP(K)*_',
+        '',
+        'Di RSWS, RSUH, CVCU/HCU/ICU PJT, PJT Lt. 4, PJT Lt. 5 dan PJT Lt. 6 (Selasa, 10/11/2026) jam 06.00',
+        '____________________________',
+        '*Total Pasien : 8 pasien*',
+      ].join('\n'),
+    );
+  });
+
+  it('AHN: floors before CVCU/HCU/ICU, no parentheses around the date', () => {
+    expect(head('AHN', { RSWS: 2, CVCU: 1, LT4: 2, LT5: 1, LT6: 1 })).toBe(
+      [
+        'Assalamualaikum. Tabe Dokter, mohon izin melaporkan sensus pasien',
+        '_*Dr. dr. Az Hafid Nashar, Sp.JP (K)*_',
+        'Di RSWS, PJT Lt. 4, PJT Lt. 5 dan PJT Lt. 6, CVCU/HCU/ICU Selasa, 10/11/2026',
+        '',
+        '*Total Pasien : 7 pasien*',
+      ].join('\n'),
+    );
+  });
+
+  it('ZD: a second total for the PJT patients alone', () => {
+    expect(head('ZD', { RSWS: 1, CVCU: 1, LT4: 3, LT5: 6, LT6: 1 }).split('\n').slice(-3)).toEqual([
+      '*Total Pasien : 12 pasien*',
+      '',
+      '*Total Pasien PJT : 11 pasien*',
+    ]);
+  });
+
+  it('AFG: "Orang" in the total; AFM: RSUH first and "jam 06.00" inside the parentheses', () => {
+    expect(head('AFG', { RSWS: 1, LT4: 5 }).split('\n').at(-1)).toBe('*Total pasien: 6 Orang*');
+    expect(head('AFM', { RSUH: 0, RSWS: 1, CVCU: 0, LT4: 0, LT5: 0, LT6: 0 })).toContain(
+      'Di RSUH, RSWS, PJT Lt. 4, 5, dan 6, HCU, CVCU, ICU (Selasa, 10-11-2026 jam 06.00)',
+    );
+  });
+
+  it('a DPJP with no header of their own gets the default one', () => {
+    expect(head('SM', { LT4: 1 })).toBe(
+      [
+        'Assalamualaikum. Tabe Dokter, mohon izin melaporkan sensus pasien',
+        `_*${dpjpFullName('SM')}*_`,
+        'Di PJT Lt. 4 (Selasa, 10/11/2026)',
+        '',
+        '*Total Pasien : 1 pasien*',
+      ].join('\n'),
+    );
   });
 });
 

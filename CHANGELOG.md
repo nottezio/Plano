@@ -5,6 +5,9 @@ Catatan teknis lengkap (akar masalah, perbaikan) ada di CHANGES.md.
 
 Entri teratas harus versi yang sedang dirilis; tes gagal bila belum ditulis.
 
+## `2026-11-10.9`
+- **Judul sensus mengikuti grup tiap DPJP.** Sapaan, nama lengkap, urutan tempat, format tanggal ("10-11-2026" atau "10/11/2026"), baris "TOTAL" dan penutup kini ditulis seperti di grup chat Sensus Pasien Kardiologi, untuk dr. KS, Prof. MZ, dr. PT, Prof. PK, dr. AFM, dr. AHA, dr. AHN, dr. AFG, dr. ZD, Prof. IM dan dr. ARB. Contoh: MZ mendapat rincian RSWS dan PJT di bawah total, AHA ditambah "jam 06.00", ZD mendapat "Total Pasien PJT". DPJP lain tetap memakai judul lama, dan pilihan Dokter/Prof hanya berlaku untuk mereka.
+
 ## `2026-11-10.8`
 - **Tombol di List Maker lebih sulit salah tekan.** Di "Atur" pasien, Pulang dan Pindah ruangan kini tombol besar dan tebal, berdampingan dengan jarak lebar. Kamar/bed, Ubah isi dan Hapus menjadi tombol kecil berwarna netral di baris terpisah di bawahnya. Tombol pindah kini bertuliskan tujuannya ("Pindahkan ke ICU") dan berdiri sendiri di bawah pilihan tujuan. Tombol Atur di tiap baris pasien lebih lebar dan lebih jauh dari baris yang membuka SOAP.
 

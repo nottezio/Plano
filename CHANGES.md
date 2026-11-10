@@ -1,5 +1,17 @@
 # Plano — CHANGES
 
+## `2026-11-10.9` — Sensus Maker: header per DPJP, from the group chat
+
+Avi (10 Nov), with the SENSUS PASIEN KARDIOLOGI export (9 and 10 Nov): adjust the WhatsApp header for each DPJP to what that DPJP's group uses.
+
+- **Root cause.** `formatCensus` wrote one header for everyone (greeting, name from `DPJPS`, all places with every floor spelled out, slash date, `*Total Pasien : n pasien*`). The residents keep one wording per DPJP: KS writes "PJT Lt. 4, 5, dan 6" with blank lines around the name, MZ adds an RSWS/PJT breakdown and a rule, PT writes "IGD, CVCU, HCU, ICU PJT Lt. 4, 5, dan 6", PK greets as Prof and lists PJT IGD first, AHA adds "jam 06.00", ZD adds "Total Pasien PJT", and so on.
+- **Fix.** New `HEADER_STYLES` table in `census/maker.ts`, keyed by DPJP code (KS, MZ, PK, PT, AFM, AHA, AHN, AFG, ZD, IM, ARB). Each style gives the greeting, name (only where the group writes it differently from `DPJPS`), whether the name has blank lines around it, a `places` function over the pasted lists' coverage (so a place is named only if a list covers it, as before), the date separator and wrapper, and the lines under "Di …". `formatCensus` uses the style when there is one; `dmy` takes a separator. A DPJP without a style gets the old header.
+- **Dokter/Prof switch.** A style fixes its own address (PK is Prof, the rest Dokter), also for the closing line, as the chat does. The switch still decides for DPJPs without a style.
+- **Date.** Always the census date. A few residents mistyped it in the chat (9-10-2026, 11/11/2026 on the 10th); not copied.
+- **Tests.** Header tests for KS, MZ, PT, PK, AHA, AHN, ZD, AFG, AFM and the default; the old MZ/AFM header assertions moved to the new wording.
+- **Firestore.** None: text only.
+- **Not done.** Patient blocks, place titles and the closing line are unchanged (AFM and PT-style variants such as "Pusat Jantung Terpadu : 1 pasien" or "Lantai 5" in the body not copied). Bold and italic are as before: the export does not show them. Places a group never named (for example CVCU in KS's header) use the default label. DPJPs not in the chat (SM, MAA, YP…) keep the default header. Not run in the app on a real list.
+
 ## `2026-11-10.8` — List Maker: status buttons told apart by size and shape
 
 Avi (10 Nov): easy to misspress a List Maker button in a rush, "by its shape and color alone".
