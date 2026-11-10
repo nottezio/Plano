@@ -1,7 +1,5 @@
-import ListMakerPage from '@/routes/ListMakerPage';
-
 import { ViewerOnly } from './viewerOnly';
-import { useEffect, useState, type ReactNode } from 'react';
+import { Suspense, lazy, useEffect, useState, type ReactNode } from 'react';
 
 import { Footer } from '@/components/common/Footer';
 import { describeDevice } from '@/data/deviceId';
@@ -22,6 +20,9 @@ import { useSlowWait } from '@/lib/loadTiming';
 import { useSession } from '@/store/useSession';
 import { SignOutButton } from './SignOutButton';
 import { APP_VERSION } from '@/version.js';
+
+// Lazy, as in App.tsx: a static import here put the whole List Maker in the startup chunk for everyone.
+const ListMakerPage = lazy(() => import('@/routes/ListMakerPage'));
 
 /**
  * Shows the app only to an account the admin has approved, once access control
@@ -65,7 +66,9 @@ export function AccessGate({ children }: { children: ReactNode }): JSX.Element {
   if (decision === 'viewer') {
     return (
       <ViewerOnly.Provider value>
-        <ListMakerPage />
+        <Suspense fallback={null}>
+          <ListMakerPage />
+        </Suspense>
       </ViewerOnly.Provider>
     );
   }

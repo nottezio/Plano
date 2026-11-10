@@ -125,7 +125,9 @@ export default defineConfig({
         manualChunks: (id: string) => {
           if (!id.includes('node_modules')) return undefined;
           if (id.includes('@firebase') || id.includes('/firebase/')) return 'firebase';
-          if (id.includes('react-router') || id.includes('/react-dom/') || id.includes('/react/')) {
+          // Match the package folders exactly: a bare '/react/' also matched '@tiptap/react/', which pulled
+          // the whole editor (ProseMirror) into this startup chunk.
+          if (/\/node_modules\/(react|react-dom|react-router|react-router-dom|scheduler)\//.test(id)) {
             return 'react';
           }
           return undefined;

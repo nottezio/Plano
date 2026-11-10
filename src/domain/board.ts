@@ -219,6 +219,40 @@ export function previewDiff(previous: string, current: string): DxChanges {
   return { added, changed, removed };
 }
 
+/**
+ * Cards built for one set of inputs, by patient object. With the patient feed
+ * keeping unchanged patients as the same objects, a snapshot that changed one
+ * patient rebuilds one card, and the other memoised cards see the same `card`
+ * prop and skip their render.
+ */
+export interface CardCache {
+  inputs: readonly unknown[];
+  byPatient: WeakMap<Patient, BoardCard>;
+}
+
+/** `buildCard` for each patient, reusing `cache` when the other inputs are the same objects. */
+export function buildCards(
+  cache: CardCache | null,
+  patients: readonly Patient[],
+  items: readonly ChecklistItemDef[],
+  today: ClinicalDate,
+  showInitialsOnly: boolean,
+  reminderKinds: readonly ReminderKind[] = DEFAULT_REMINDER_KINDS,
+): { cache: CardCache; cards: BoardCard[] } {
+  const inputs = [items, today, showInitialsOnly, reminderKinds];
+  const reuse = cache !== null && cache.inputs.every((value, at) => value === inputs[at]);
+  const next: CardCache = reuse ? cache : { inputs, byPatient: new WeakMap() };
+  const cards = patients.map((patient) => {
+    let card = next.byPatient.get(patient);
+    if (!card) {
+      card = buildCard(patient, items, today, showInitialsOnly, reminderKinds);
+      next.byPatient.set(patient, card);
+    }
+    return card;
+  });
+  return { cache: next, cards };
+}
+
 export function buildCard(
   patient: Patient,
   items: readonly ChecklistItemDef[],

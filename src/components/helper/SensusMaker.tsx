@@ -66,6 +66,7 @@ import { formatDmy } from '@/domain/dateDmy';
 import { SaveResultButton } from './SaveResult';
 import { ChangeSummary, SensusHistory } from './SensusHistory';
 import { saveSensusDay, subscribeSensusDays } from '@/data/repositories/sensusDays.repo';
+import { useDebouncedValue } from '@/hooks/useDebouncedValue';
 import { snapFromAi, snapFromEntry, type CensusSnapshot } from '@/domain/census/evolution';
 
 /**
@@ -133,7 +134,39 @@ export function SensusMaker(): JSX.Element {
     if (uid) void updateSettings(uid, { sensusDpjps: next });
   };
 
-  useEffect(() => saveStore(store), [store]);
+  /*
+    The device copy is written 400 ms after the last change, not per keystroke
+    (2026-11-10, lag): it stringifies every stored date. Leaving the page or
+    hiding the app writes at once. Never once signed out: sign-out clears this
+    key, and the page it then reloads would write it back.
+  */
+  const storeRef = useRef(store);
+  storeRef.current = store;
+  const savedRef = useRef<SensusStore | null>(null);
+  useEffect(() => {
+    const flush = (): void => {
+      if (savedRef.current === storeRef.current || !useSession.getState().user) return;
+      savedRef.current = storeRef.current;
+      saveStore(storeRef.current);
+    };
+    const onVisibility = (): void => {
+      if (document.visibilityState === 'hidden') flush();
+    };
+    document.addEventListener('visibilitychange', onVisibility);
+    window.addEventListener('pagehide', flush);
+    return () => {
+      document.removeEventListener('visibilitychange', onVisibility);
+      window.removeEventListener('pagehide', flush);
+      flush();
+    };
+  }, []);
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      savedRef.current = store;
+      saveStore(store);
+    }, 400);
+    return () => window.clearTimeout(timer);
+  }, [store]);
   const inputSync = useSensusInputSync(uid, store, setStore, today);
 
   const filled = state.lists.filter((list) => list.text.trim());
@@ -143,21 +176,47 @@ export function SensusMaker(): JSX.Element {
    * `texts[i]` is the text `sources[i]` was read from, so "Bandingkan" points
    * at the right lines; `boxOf[i]` is the box it came from.
    */
-  const { sources, texts, boxOf } = useMemo(() => {
-    const kinds = filled.map((list) => (list.kind === 'auto' ? undefined : list.kind));
-    const parts = filled.flatMap((list, box) =>
+  /*
+    Parsed from the text as it stood 300 ms after the last keystroke, not on
+    every keystroke (2026-11-10, lag). Parsing costs ~1.5 ms per KB on a laptop
+    and ran twice over every box per key, so a morning's lists froze typing on
+    a phone. The boxes themselves show the live text. A date change parses at
+    once, so another date never shows this one's census.
+  */
+  const liveLists = useMemo(() => ({ date: censusDate, lists: day.lists }), [censusDate, day.lists]);
+  const settled = useDebouncedValue(liveLists, 300);
+  const parseLists = settled.date === censusDate ? settled.lists : day.lists;
+  /** Unchanged lists are not parsed again: typing in one box re-reads that box only. */
+  const parseCache = useRef(new Map<string, ParsedSource>());
+  const { sources, texts, boxOf, boxAt } = useMemo(() => {
+    const boxes = parseLists.filter((list) => list.text.trim());
+    const kinds = boxes.map((list) => (list.kind === 'auto' ? undefined : list.kind));
+    const parts = boxes.flatMap((list, box) =>
       (kinds[box] ? [list.text] : splitLists(list.text)).map((text) => ({ text, box })),
     );
-    const parse = (known?: ReadonlySet<string>): ParsedSource[] =>
-      parts.map((part) => parseSource(part.text, known, kinds[part.box]));
+    const cache = parseCache.current;
+    // shortcut: cleared whole when it grows past 200 entries; an LRU would only matter for far more boxes.
+    if (cache.size > 200) cache.clear();
+    const parse = (known?: ReadonlySet<string>): ParsedSource[] => {
+      const knownKey = known ? [...known].sort().join(',') : '-';
+      return parts.map((part) => {
+        const key = `${kinds[part.box] ?? ''}${knownKey}${part.text}`;
+        let parsed = cache.get(key);
+        if (!parsed) {
+          parsed = parseSource(part.text, known, kinds[part.box]);
+          cache.set(key, parsed);
+        }
+        return parsed;
+      });
+    };
     return {
       sources: parse(knownCodes(parse())),
       texts: parts.map((part) => part.text),
       boxOf: parts.map((part) => part.box),
+      /** Box number of each list position (-1 for an empty one), for the labels above the boxes. */
+      boxAt: parseLists.map((list) => (list.text.trim() ? boxes.indexOf(list) : -1)),
     };
-    // `filled` is derived from state.lists on every render.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [day.lists]);
+  }, [parseLists]);
 
   const allCounts = useMemo(() => dpjpCounts(sources), [sources]);
   /**
@@ -501,7 +560,7 @@ export function SensusMaker(): JSX.Element {
           ) : null}
           <div className="space-y-3">
             {state.lists.map((list, index) => {
-              const box = filled.indexOf(list);
+              const box = boxAt[index] ?? -1;
               const parsedAll = box >= 0 ? sources.filter((_, i) => boxOf[i] === box) : [];
               return (
                 <div key={index} className="overflow-hidden rounded-xl border border-border bg-surface">

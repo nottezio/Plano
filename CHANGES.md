@@ -1,5 +1,38 @@
 # Plano — CHANGES
 
+## `2026-11-10.6` — Sensus Maker: device copy saved after a pause, flushed on hide
+
+Avi (10 Nov) approved delaying the local save, with flush on hide.
+
+- **Root cause.** `useEffect(() => saveStore(store), [store])` ran `JSON.stringify` over the whole Sensus store (every kept date's lists) and a synchronous `localStorage.setItem` on every keystroke.
+- **Fix.** Written 400 ms after the last change. `visibilitychange` to hidden, `pagehide` and unmount write any unsaved state at once. The first save after mount still runs (it removes the v1 key, as before).
+- **Sign-out.** A flush never writes once `useSession` has no user: sign-out clears this key in `clearDeviceUserState` and then reloads, and a `pagehide` flush would otherwise write the patient lists back after the clear.
+- **Data safety.** The account copy is unchanged (`useSensusInputSync`, its own debounce). Worst case is a browser killed while visible within 400 ms of a keystroke: that keystroke is missing from the device copy only.
+- **Firestore.** None.
+- **Not done.** Not checked in the app or on a phone; the sign-out path was reasoned from `signOutAndClear`'s order, not run.
+
+## `2026-11-10.5` — Sensus Maker typing lag; board redraws only the changed card
+
+Avi (10 Nov): Sensus Maker has the heaviest lag. Same audit as .4.
+
+- **Root cause, Sensus Maker.** The `sources` memo keyed on `day.lists`, which changes on every keystroke, and parsed every part of every box twice (`parse()` for `knownCodes`, then `parse(known)`). Bench on fixture lists (vitest, this laptop): ~1.5 ms per KB, linear; 15 KB = 26 ms, 59 KB = 92 ms per keystroke, before `buildCensus` and the rest of the render. A phone is several times slower (not measured).
+- **Fix.** Parsing reads the lists 300 ms after the last change (`useDebouncedValue` on `{date, lists}`; a date change parses at once). Each part's `ParsedSource` is cached by kind + known codes + text, so typing in one box re-parses that box only; other boxes are hits. Cache cleared past 200 entries. The labels above the boxes take their box number from the parsed lists (`boxAt`), not `filled.indexOf(list)`, which compared live objects with parsed ones.
+- **Root cause, board.** `subscribePatients` mapped `snapshot.docs` with `data()` on every snapshot, so every patient object was new each time (one patient's save, or a metadata-only sync with `includeMetadataChanges`). `cards` then rebuilt every `BoardCard`, and every `memo(PatientCard)` got a new `card` prop and redrew.
+- **Fix.** `reuseUnchanged` keeps the previous object for every doc not in `docChanges()` (metadata-only changes are not listed, and their data is identical). `buildCards` keeps a `WeakMap<Patient, BoardCard>` while items, today, initials mode and reminder kinds are the same objects. Tests in `boardCardCache.test.ts`.
+- **Firestore.** None: same listeners, same reads and writes; only how snapshots are mapped in memory.
+- **Not done.** Not measured in the app or on a phone (no profiler run, no real morning lists). `saveStore` still `JSON.stringify`s the whole Sensus store to localStorage on every keystroke; debouncing it would delay the local copy, which needs the owner's OK. `subscribeIncomingTransfers` and `subscribePatient` still map fresh objects (small, single-doc). PatientPage not profiled.
+
+## `2026-11-10.4` — Startup bundle: editor and List Maker out of the cold-start chunks
+
+Performance audit (10 Nov). Two regressions had put code that App.tsx meant to lazy-load into the chunks every cold start parses.
+
+- **Root cause 1.** `manualChunks` sent any id containing `/react/` to the `react` chunk. `node_modules/@tiptap/react/` matches that substring, so `@tiptap/react` (and the ProseMirror code only it reached) landed in `react`, which `index.html` modulepreloads. The editor's ~320 kB min was parsed on every start although only the lazy `NoteBody` uses it.
+- **Root cause 2.** `AccessGate` imported `ListMakerPage` statically for the viewer role, so the `lazy()` in App.tsx did nothing and List Maker (~170 kB min) sat in `index`.
+- **Fix.** `manualChunks` matches the package folders exactly (`/node_modules/(react|react-dom|react-router|react-router-dom|scheduler)/`). `AccessGate` lazy-loads `ListMakerPage` inside its own `Suspense`.
+- **Measured (vite build, this machine).** Startup JS (index + react + firebase): 2,309 kB min / 690 kB gzip before, 1,810 kB / 534 kB after. `react` 485 → 163 kB; `index` 1,046 → 869 kB; `NoteBody` 143 → 462 kB (now holds the editor); new `ListMakerPage` chunk 169 kB. Precache total unchanged (~3.08 MB): offline is unchanged. Load-time gain on a ward phone not measured.
+- **Firestore.** None.
+- **Not done.** Not opened in the app; viewer role (List Maker only) not exercised in the emulator; first open of a note or List Maker now waits for its chunk (from the precache, so offline still works). Runtime re-render cost on the board (every patient snapshot rebuilds every card) found in the same audit, not changed here.
+
 ## `2026-11-10.3` — Sensus Maker: stray letter before the assess heading
 
 Avi (10 Nov): ARB's patient at 515 bed 2 came out with no diagnosis.

@@ -53,6 +53,7 @@ import {
   availableLabels,
   availableWards,
   buildCard,
+  buildCards,
   filterPatients,
   hasActiveFilters,
   groupLabel,
@@ -65,6 +66,7 @@ import {
   type BoardFilters,
   type BoardOrder,
   type BoardCard,
+  type CardCache,
 } from '@/domain/board';
 import { useBoardLayout } from '@/hooks/useBoardLayout';
 import { BoardRow, BoardRowHeader } from '@/components/board/BoardRow';
@@ -714,6 +716,7 @@ export default function BoardPage(): JSX.Element {
     void dropLegacyPhoneShelves(uid).catch((error: unknown) => console.warn('[board] old phone shelves not cleared', error));
   }, [uid, legacyPhoneShelves, allPhoneShelves, writeShelves]);
 
+  const cardCache = useRef<CardCache | null>(null);
   const cards = useMemo(() => {
     const matched = filterPatients(
       patients.filter((patient) =>
@@ -723,9 +726,15 @@ export default function BoardPage(): JSX.Element {
       items,
       today,
     );
-    const built = orderPatients(matched, order, customIds).map((patient) =>
-      buildCard(patient, items, today, settings.privacy.boardShowInitialsOnly, reminderKinds),
+    const { cache, cards: built } = buildCards(
+      cardCache.current,
+      orderPatients(matched, order, customIds),
+      items,
+      today,
+      settings.privacy.boardShowInitialsOnly,
+      reminderKinds,
     );
+    cardCache.current = cache;
     // "Status hari ini": what still needs doing first, in walking order
     // within each status (orderPatients already sorted by location). Pinned
     // cards stay on top, as in every order. `sort` is stable.

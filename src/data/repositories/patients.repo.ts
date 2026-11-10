@@ -16,7 +16,6 @@ import {
   where,
   type DocumentData,
   type DocumentReference,
-  type QuerySnapshot,
   type Unsubscribe,
 } from 'firebase/firestore';
 import { nanoid } from 'nanoid';
@@ -898,12 +897,18 @@ export interface PatientsSnapshot {
   hasPendingWrites: boolean;
 }
 
-function mapSnapshot(snapshot: QuerySnapshot): PatientsSnapshot {
-  return {
-    patients: snapshot.docs.map((entry) => entry.data() as Patient),
-    fromCache: snapshot.metadata.fromCache,
-    hasPendingWrites: snapshot.metadata.hasPendingWrites,
-  };
+/**
+ * The list for a snapshot, keeping the previous object for every patient the
+ * snapshot did not change. `data()` builds new objects for ALL documents on
+ * every snapshot, so one patient's save (or a metadata-only sync) handed every
+ * screen a fully new list, and every memoised card on the board redrew.
+ */
+export function reuseUnchanged(
+  docs: ReadonlyArray<{ id: string; data: () => unknown }>,
+  changed: ReadonlySet<string>,
+  previous: ReadonlyMap<string, Patient>,
+): Patient[] {
+  return docs.map((entry) => (!changed.has(entry.id) && previous.get(entry.id)) || (entry.data() as Patient));
 }
 
 /**
@@ -927,11 +932,23 @@ export function subscribePatients(
     orderBy('createdAt', 'desc'),
   );
 
+  // Per listener: a restarted listener starts empty, and its first snapshot reports every doc as added.
+  let previous = new Map<string, Patient>();
   return onSnapshot(
     q,
     // Cache-first so the board paints with no signal, then re-renders on sync.
     { includeMetadataChanges: true },
-    (snapshot) => callback(mapSnapshot(snapshot)),
+    (snapshot) => {
+      // docChanges() leaves out metadata-only changes, whose data is identical.
+      const changed = new Set(snapshot.docChanges().map((change) => change.doc.id));
+      const patients = reuseUnchanged(snapshot.docs, changed, previous);
+      previous = new Map(snapshot.docs.map((entry, at) => [entry.id, patients[at] as Patient]));
+      callback({
+        patients,
+        fromCache: snapshot.metadata.fromCache,
+        hasPendingWrites: snapshot.metadata.hasPendingWrites,
+      });
+    },
     onError,
   );
 }

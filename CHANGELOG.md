@@ -5,6 +5,16 @@ Catatan teknis lengkap (akar masalah, perbaikan) ada di CHANGES.md.
 
 Entri teratas harus versi yang sedang dirilis; tes gagal bila belum ditulis.
 
+## `2026-11-10.6`
+- **Sensus Maker lebih ringan lagi saat mengetik.** Salinan list di perangkat disimpan sesaat setelah berhenti mengetik, bukan pada setiap huruf. Menutup atau menyembunyikan aplikasi tetap langsung menyimpannya.
+
+## `2026-11-10.5`
+- **Sensus Maker tidak lagi tersendat saat mengetik.** List dibaca ulang setelah jeda singkat (0,3 detik), bukan pada setiap huruf, dan kotak yang tidak diubah tidak dibaca ulang. Hasil sensus muncul sesaat setelah berhenti mengetik.
+- **Papan lebih ringan.** Saat satu pasien berubah, hanya kartu pasien itu yang digambar ulang, bukan semua kartu.
+
+## `2026-11-10.4`
+- **Aplikasi terbuka lebih cepat.** Saat dibuka, Plano kini memuat sekitar 500 kB kode lebih sedikit (kira-kira seperlima). Editor catatan dan List Maker baru dimuat saat dipakai. Tidak ada yang berubah di layar.
+
 ## `2026-11-10.3`
 - **Sensus Maker kini membaca judul diagnosis yang diawali huruf nyasar.** Judul seperti "F*Mohon izin kami assess dengan*" (ada "F" terketik sebelum tanda tebal) sebelumnya tidak dikenali, sehingga pasien itu tampil tanpa diagnosis di sensus.
 
