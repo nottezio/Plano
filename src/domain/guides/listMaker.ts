@@ -67,17 +67,18 @@ const STATUS: GuideStep = {
 const SEND: GuideStep = {
   id: 'list',
   title: '4. Kirim dan cetak list',
-  lead: 'Tab **List** menampilkan list siap kirim, dengan **Jam list** dan pratinjau pesan WhatsApp.',
+  lead: 'Tombol kirim dan cetak ada di samping tab, di semua tab. Tab **List** menampilkan pratinjau pesan WhatsApp.',
   points: [
     '**Salin teks** untuk dikirim ke grup WhatsApp.',
-    '**Word: Denah** atau **PDF** (denah + list, 1 file) untuk dicetak.',
-    '**Simpan edisi** setelah mengirim: list berikutnya menandai **Pasien baru** dan **SOAP baru** sejak edisi ini.',
+    '**Cetak**: **Word: List**, **Word: Denah** atau **PDF** (denah + list, 1 file).',
+    '**Simpan edisi** (isi **Jam list** di sana) setelah mengirim: list berikutnya menandai **Pasien baru** dan **SOAP baru** sejak edisi ini.',
   ],
 };
 
 const SEND_VIEWER: GuideStep = {
   ...SEND,
-  points: ['**Salin teks** untuk dikirim ke WhatsApp, atau **Word: Denah** / **PDF** untuk dicetak.'],
+  lead: 'Tombol kirim dan cetak ada di samping tab, di semua tab.',
+  points: ['**Salin teks** untuk dikirim ke WhatsApp, atau **Cetak** untuk Word / PDF.'],
 };
 
 const MORE: GuideStep = {
@@ -86,7 +87,7 @@ const MORE: GuideStep = {
   lead: 'Yang lain, bila perlu.',
   points: [
     '**Riwayat**: edisi list yang pernah disimpan; salin, cetak ulang, atau pulihkan list ke edisi itu.',
-    '**Analisis**: pergerakan hari ini (masuk, pulang, pindah kamar), hitungan seminggu, dan riwayat perubahan.',
+    '**Analisis**: **Bagi pasien** ke residen lantai, pergerakan hari ini (masuk, pulang, pindah kamar), hitungan seminggu, dan riwayat perubahan.',
     '**Setelan**: undang anggota lewat email (lihat saja, atau lihat dan edit), atur junior dan nama panggilan.',
   ],
 };
@@ -95,7 +96,7 @@ const MORE_VIEWER: GuideStep = {
   ...MORE,
   points: [
     '**Riwayat**: edisi list yang pernah disimpan.',
-    '**Analisis**: pergerakan hari ini (masuk, pulang, pindah kamar), hitungan seminggu, dan riwayat perubahan.',
+    '**Analisis**: **Bagi pasien** ke residen lantai, pergerakan hari ini (masuk, pulang, pindah kamar), hitungan seminggu, dan riwayat perubahan.',
   ],
 };
 

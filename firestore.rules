@@ -369,7 +369,8 @@ service cloud.firestore {
      * - the OWNER manages everything on the floor document (name, roles,
      *   invites, members) but cannot hand the floor to someone else;
      * - an EDIT member may change only the nicknames, the chiefs, the Chief
-     *   Bangsal (24 Oct 2026), the junior roster (12.12) and the
+     *   Bangsal (24 Oct 2026), the junior roster (12.12), the shift-only
+     *   residents and the Pasien baru badge (10 Nov 2026) and the
      *   (pre-12.12) hand-entered patients;
      * - an invitee may accept: add THEMSELVES, with exactly the invited role,
      *   and remove their own invite — nothing else;
@@ -451,7 +452,7 @@ service cloud.firestore {
           && request.resource.data.roles[request.auth.uid] == 'edit'
           && request.resource.data.memberIds.size() <= 60)
         || transfersOwnership()
-        || (isFloorEditor() && changed().hasOnly(['nicknames', 'manual', 'chiefs', 'chiefBangsal', 'holidays', 'juniors', 'marks', 'analysisTitles', 'updatedAt']))
+        || (isFloorEditor() && changed().hasOnly(['nicknames', 'manual', 'chiefs', 'chiefBangsal', 'holidays', 'juniors', 'guestJuniors', 'newBadge', 'marks', 'analysisTitles', 'updatedAt']))
         || acceptsInvite()
         || leaves()
       ) || (seesLists() && (acceptsInvite() || leaves()));

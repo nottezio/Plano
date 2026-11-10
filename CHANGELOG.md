@@ -5,6 +5,15 @@ Catatan teknis lengkap (akar masalah, perbaikan) ada di CHANGES.md.
 
 Entri teratas harus versi yang sedang dirilis; tes gagal bila belum ditulis.
 
+## `2026-11-10.12`
+- **Bagi pasien di tab Analisis.** Pasien yang belum dipegang residen lantai (tanpa junior, atau junior-nya residen jaga yang besok tidak dinas di lantai ini) diusulkan ke residen lantai secara adil: pasien MZ dulu (satu per residen, untuk slide), lalu Trio (AFM, AFG, ZD) merata, lalu sisanya ke residen yang pasiennya paling sedikit, menghitung pasien yang sudah dipegang. Tiap usulan bisa diganti atau dilewati; tidak ada yang berubah sebelum menekan **Terapkan**. Pasien yang sudah dipegang residen lantai, pasien divisi, dan pasien "tidak di-follow up" tidak disentuh.
+- **Setelan: Residen lantai dan Bukan residen lantai ini.** Roster junior kini dua kotak: residen yang dinas di lantai ini (yang menerima pasien dari Bagi pasien), dan residen yang hanya jaga di sini. Nama keduanya tetap dikenali dari SOAP.
+- **Lencana Pasien baru.** Pasien baru (termasuk pindahan) kini diberi lencana sendiri, seperti SOAP baru, tanpa perlu membuat warna. Teks, warna, dan aktif/nonaktif diatur di Setelan → Lencana pasien baru. Warna "Pasien baru" yang lama tidak lagi dipasang otomatis; lencana memakai teks dan warnanya. Hanya di layar, tidak ikut dicetak.
+
+## `2026-11-10.11`
+- **Salin teks, Cetak dan Simpan edisi ada di semua tab List Maker.** Tiga tombol terpisah kini menempel di samping tab, tidak lagi hanya di tab List. **Cetak** membuka pilihan Word: List, Word: Denah, PDF dan Atur cetak. **Simpan edisi** menampilkan jam list-nya; ketuk untuk mengubah Jam list lalu simpan. Di ponsel tombolnya hanya ikon, di samping kotak cari; di layar laptop yang sempit, Cetak hanya ikon dan Simpan edisi menampilkan jamnya saja.
+- **Lompat cepat di Denah.** Tombol mengambang di kanan bawah membawa langsung ke Denah, Per DPJP, atau Residen.
+
 ## `2026-11-10.10`
 - **List baru langsung menampilkan pasien.** Setelah membuat list baru (atau menerima undangan), pasien yang ditempel kadang tidak muncul di Denah dan List sampai halaman dimuat ulang. Kini list menyusul sendiri dalam beberapa detik. Hal yang sama untuk Riwayat, titik pulih, dan Catatan Visite.
 

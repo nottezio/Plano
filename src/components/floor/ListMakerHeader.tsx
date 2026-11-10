@@ -182,11 +182,14 @@ export function ListMakerTabs<T extends string>({
   tab,
   tabs,
   onTab,
+  actions,
   children,
 }: {
   tab: T;
   tabs: ReadonlyArray<readonly [T, string]>;
   onTab: (tab: T) => void;
+  /** Salin teks, Cetak, Simpan edisi (10 Nov 2026): pinned with the tabs, on every tab. */
+  actions?: ReactNode;
   /** Pinned with the tabs (the search, 9 Nov 2026), so `--lm-tabs-h` counts it too. */
   children?: ReactNode;
 }): JSX.Element {
@@ -211,9 +214,20 @@ export function ListMakerTabs<T extends string>({
     };
   }, []);
   return (
-    // Tabs and search on one row from lg (9 Nov 2026, Avi): the pinned bar takes half the height.
-    <div ref={bar} className="sticky top-0 z-20 -mx-4 bg-bg px-4 pb-2 pt-1 lg:flex lg:items-center lg:gap-3">
-      <ScrollStrip outerClassName="rounded-xl border border-border bg-bg-subtle sm:w-fit lg:shrink-0" fade="from-bg-subtle" className="flex p-0.5" label="Tampilan" role="tablist">
+    /*
+      Phone: tabs, then the search with the action buttons beside it (no extra row).
+      From 640 px: tabs with the actions at the row's end, the search below.
+      From 1536 px: one row. The tab strip shrinks and scrolls before the actions wrap.
+    */
+    <div ref={bar} className="sticky top-0 z-20 -mx-4 flex flex-wrap items-center gap-2 bg-bg px-4 pb-2 pt-1">
+      <ScrollStrip
+        // basis 0 keeps it on the actions' line (a wrapping row wraps before it shrinks); max-w-fit stops it growing past its tabs.
+        outerClassName="order-1 w-full rounded-xl border border-border bg-bg-subtle sm:w-auto sm:max-w-fit sm:flex-1 sm:basis-0"
+        fade="from-bg-subtle"
+        className="flex p-0.5"
+        label="Tampilan"
+        role="tablist"
+      >
         {tabs.map(([key, label]) => {
           const on = key === tab;
           return (
@@ -232,7 +246,8 @@ export function ListMakerTabs<T extends string>({
           );
         })}
       </ScrollStrip>
-      {children ? <div className="mt-2 lg:mt-0 lg:min-w-0 lg:flex-1">{children}</div> : null}
+      {actions ? <div className="order-3 ml-auto flex shrink-0 items-center gap-1.5 sm:order-2 2xl:order-3">{actions}</div> : null}
+      {children ? <div className="order-2 min-w-0 flex-1 basis-0 sm:order-3 sm:basis-full 2xl:order-2 2xl:basis-0">{children}</div> : null}
     </div>
   );
 }

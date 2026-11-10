@@ -13,6 +13,7 @@ import { FloorDenah } from '@/components/floor/FloorDenah';
 import { PageGuide } from '@/components/common/PageGuide';
 import { LIST_MAKER_GUIDE_KEY, listMakerGuideSteps } from '@/domain/guides/listMaker';
 import { ListPanel } from '@/components/floor/ListPanel';
+import { defaultListTime, ListActions } from '@/components/floor/ListActions';
 import { MembersPanel } from '@/components/floor/MembersPanel';
 import { ManualPatientSheet } from '@/components/floor/ManualPatientSheet';
 import { PastePanel } from '@/components/floor/PastePanel';
@@ -26,6 +27,7 @@ import { shiftEdition, shiftStart } from '@/domain/floorList/chiefHandover';
 import { canEdit, chiefsOf, isOwner, localStamp, newRosterPatient, rosterView, type FloorDoc } from '@/domain/floorList/floor';
 import { searchWords } from '@/domain/floorList/search';
 import { AnalysisPanel } from '@/components/floor/AnalysisPanel';
+import { AssignPanel } from '@/components/floor/AssignPanel';
 import { ListMakerHeader, ListMakerTabs } from '@/components/floor/ListMakerHeader';
 import { EditionsPanel } from '@/components/floor/EditionsPanel';
 import { SuggestionTray } from '@/components/floor/SuggestionTray';
@@ -112,6 +114,8 @@ export default function ListMakerPage(): JSX.Element {
   );
   const previous = useMemo(() => (previousEdition ? new Set(previousEdition.patients.map((p) => p.key)) : null), [previousEdition]);
   const [snapshot, setSnapshot] = useState(false);
+  // The Jam list: heads the copied text and the exports, and names the saved edition.
+  const [listTime, setListTime] = useState(() => defaultListTime(new Date()));
   // SOAPs that came after the last sent list are marked "SOAP baru" (13.11).
   const lastSent = editions[0] ? localStamp(new Date(editions[0].createdAt)) : '';
   const view = useMemo(
@@ -353,7 +357,25 @@ export default function ListMakerPage(): JSX.Element {
                 <FloorVisitNote key={floor.id} floorId={floor.id} uid={uid} editable={editable} />
               </Suspense>
             </Sheet>
-            <ListMakerTabs tab={tab} tabs={tabs} onTab={setTab}>
+            <ListMakerTabs
+              tab={tab}
+              tabs={tabs}
+              onTab={setTab}
+              actions={
+                <ListActions
+                  key={floor.id}
+                  floor={floor}
+                  roster={roster}
+                  view={view}
+                  date={date}
+                  editable={Boolean(editable)}
+                  myName={myName}
+                  editions={editions}
+                  time={listTime}
+                  onTime={setListTime}
+                />
+              }
+            >
               {(tab === 'denah' || tab === 'list') && view.active.length > 0 ? (
                 // Floating (9 Nov 2026, Avi): pinned with the tabs, so it stays in reach down a long list.
                 <div className="relative">
@@ -445,10 +467,12 @@ export default function ListMakerPage(): JSX.Element {
                 onOpen={setOpen}
                 myName={myName}
                 editions={editions}
+                time={listTime}
                 words={words}
               />
             ) : null}
             {tab === 'tempel' && editable ? <PastePanel key={floor.id} floor={floor} roster={roster} myName={myName} /> : null}
+            {tab === 'analisis' ? <AssignPanel key={`assign-${floor.id}`} floor={floor} active={view.active} editable={Boolean(editable)} myName={myName} onOpen={setOpen} /> : null}
             {tab === 'analisis' ? <AnalysisPanel key={floor.id} floorId={floor.id} titles={floor.analysisTitles} canRename={editable} ward={floor.ward || floor.name} roster={roster} view={view} date={date} editions={editions} onOpen={setOpen} /> : null}
             {tab === 'riwayat' ? (
               <EditionsPanel key={floor.id} floor={floor} editions={editions} editable={editable} roster={roster} myName={myName} />

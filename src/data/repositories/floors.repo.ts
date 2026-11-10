@@ -42,7 +42,7 @@ import {
 import { trackWrite } from '../syncStatus';
 import { legacyColourDate, rosterLeftSince, type Edition, type FloorDoc, type FloorRole, type RosterPatient, type StatusChange } from '@/domain/floorList/floor';
 import { readSectionTitles, type SectionTitles } from '@/domain/floorList/analysis';
-import { isMarkColor, MARK_PREFIX, readMarks, type FloorMark, type PatientTag } from '@/domain/floorList/marks';
+import { isMarkColor, MARK_PREFIX, readMarks, readNewBadge, type FloorMark, type NewBadge, type PatientTag } from '@/domain/floorList/marks';
 import { manualFullText, type FloorPatient } from '@/domain/floorList/report';
 import { fromParts, KEEP_POINTS, restored, toParts, type RestorePlan, type RestorePoint, type RestorePointMeta } from '@/domain/floorList/restore';
 
@@ -90,6 +90,8 @@ export function readFloor(id: string, data: DocumentData): FloorDoc {
     chiefBangsal: str(data.chiefBangsal),
     holidays: Array.isArray(data.holidays) ? data.holidays.filter((v: unknown): v is string => typeof v === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(v)) : [],
     juniors: str(data.juniors),
+    guestJuniors: str(data.guestJuniors),
+    newBadge: readNewBadge(data.newBadge),
     marks: readMarks(data.marks),
     analysisTitles: readSectionTitles(data.analysisTitles),
   };
@@ -573,6 +575,16 @@ export function deleteRosterPatient(floorId: string, key: string): Promise<void>
 
 export function writeJuniors(floorId: string, juniors: string): Promise<void> {
   return trackWrite(updateDoc(floorDoc(floorId), 'juniors', juniors, 'updatedAt', serverTimestamp()));
+}
+
+/** Residents who only take shifts here (10 Nov 2026): recognised, never given patients by Bagi pasien. */
+export function writeGuestJuniors(floorId: string, names: string): Promise<void> {
+  return trackWrite(updateDoc(floorDoc(floorId), 'guestJuniors', names, 'updatedAt', serverTimestamp()));
+}
+
+/** The Pasien baru badge (10 Nov 2026): text, colour, on/off. */
+export function writeNewBadge(floorId: string, badge: NewBadge): Promise<void> {
+  return trackWrite(updateDoc(floorDoc(floorId), 'newBadge', plain(badge), 'updatedAt', serverTimestamp()));
 }
 
 /** The floor's own colours (13.7): the whole list, small and edited in one place. */

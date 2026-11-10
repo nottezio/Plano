@@ -85,6 +85,8 @@ export interface FloorPatient {
   gantiChief?: string | undefined;
   /** On the list view only: the SOAP arrived after the last sent list, or is from before today (13.11). */
   soap?: 'baru' | 'lama' | undefined;
+  /** On the list view only: the Pasien baru badge, when it is on (10 Nov 2026, `newBadgeOf`). Never printed. */
+  newBadge?: { label: string; color: PatientTag['color'] } | undefined;
   /** A DPJP code written on a sent list that is not one of ours ("TM/…", 13.10): printed as written. */
   dpjpCode?: string | undefined;
   /** Held by a cardiology division, not the ward residents (13.9, `divisionOf`). */

@@ -1,4 +1,5 @@
 import { formatDmy } from '@/domain/dateDmy';
+import { markCss } from '@/domain/floorList/marks';
 import { soapStamp, type FloorPatient } from '@/domain/floorList/report';
 
 /**
@@ -8,6 +9,26 @@ import { soapStamp, type FloorPatient } from '@/domain/floorList/report';
  * date, the one shown is older.
  */
 export function SoapBadge({ patient }: { patient: FloorPatient }): JSX.Element | null {
+  const fresh = patient.newBadge ? (
+    // Pasien baru (10 Nov 2026): set per list in Setelan; screen only.
+    <span
+      title="Belum ada di list shift sebelumnya"
+      className="ml-1 inline-block rounded-full border px-1.5 align-middle text-[11px] font-semibold leading-4"
+      style={{ borderColor: markCss(patient.newBadge.color), color: markCss(patient.newBadge.color) }}
+    >
+      {patient.newBadge.label}
+    </span>
+  ) : null;
+  const soap = soapBadge(patient);
+  return fresh || soap ? (
+    <>
+      {fresh}
+      {soap}
+    </>
+  ) : null;
+}
+
+function soapBadge(patient: FloorPatient): JSX.Element | null {
   const at = soapStamp(patient);
   if (patient.soap === 'baru') {
     return (

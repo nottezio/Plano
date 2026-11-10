@@ -1,11 +1,9 @@
-import { useMemo, useState, type ReactNode } from 'react';
+import { useMemo, useState } from 'react';
 
-import { IconCopy, IconDocuments, IconLayers, IconPrinter } from '@/components/common/Icons';
-import { Button, INPUT } from '@/components/common/ui';
-import { saveEdition, saveRestorePoint, writeRosterFields } from '@/data/repositories/floors.repo';
+import { Button } from '@/components/common/ui';
+import { writeRosterFields } from '@/data/repositories/floors.repo';
 import { formatDmy } from '@/domain/dateDmy';
 import { buildFloorList, byRoute, dpjpCodeOf, patientLine } from '@/domain/floorList/build';
-import { wardPlan } from '@/domain/denahPlan';
 import {
   chiefsOf,
   leftNote,
@@ -19,33 +17,25 @@ import {
   type StatusChange,
 } from '@/domain/floorList/floor';
 import { markCss } from '@/domain/floorList/marks';
-import { editionPoint } from '@/domain/floorList/restore';
 import type { FloorPatient } from '@/domain/floorList/report';
 import { matchesSearch } from '@/domain/floorList/search';
 import { copyText } from '@/lib/clipboard';
-import { usePrintSettings } from '@/hooks/usePrintSettings';
 import { SoapBadge } from './SoapBadge';
 import { PatientControls } from './PatientControls';
 import { ListMessage } from './ListMessage';
 import { ManualPatientSheet } from './ManualPatientSheet';
 import { PasteFloat } from './PasteFloat';
-import { exportDenah, exportList, exportPdf, PrintSetup } from './PrintSetup';
 
 
 /** The patient card's tint by its colour on this list (12.12): red H-1, green pulang hari ini. */
 const FLAG_TEXT = { tomorrow: 'var(--note-red)', today: 'var(--note-green)' } as const;
 
-/** A prefill only (free text): the usual send times of the floor. */
-function defaultTime(now: Date): string {
-  const h = now.getHours();
-  return h < 10 ? '04.00' : h < 18 ? '16.00' : '19.00';
-}
-
 /**
  * List (12.12): the roster on this list date, with every decision by hand —
  * residents, colour (or a planned discharge date), Pulang / Pindah — each
- * logged and undoable; SOAP suggestions as chips; the message; "Simpan
- * edisi" with a free-text time; and the separate Pulang/Pindah note.
+ * logged and undoable; SOAP suggestions as chips; the message preview and
+ * the separate Pulang/Pindah note. Salin teks, Cetak and Simpan edisi sit
+ * with the tabs on every tab (`ListActions`, 10 Nov 2026).
  */
 export function ListPanel({
   floor,
@@ -56,6 +46,7 @@ export function ListPanel({
   onOpen,
   myName,
   editions,
+  time,
   words = [],
 }: {
   floor: FloorDoc;
@@ -66,12 +57,12 @@ export function ListPanel({
   onOpen: (patient: FloorPatient) => void;
   myName: string;
   editions: readonly Edition[];
+  /** The Jam list, set in Simpan edisi; heads the message preview. */
+  time: string;
   /** The page's search (13.7): only matching cards are shown. */
   words?: readonly string[];
 }): JSX.Element {
   const [copied, setCopied] = useState('');
-  const [time, setTime] = useState(() => defaultTime(new Date()));
-  const [saved, setSaved] = useState('');
   const [manualOpen, setManualOpen] = useState(false);
   // Tempel over the list (2026-10-16).
   const [pasteOpen, setPasteOpen] = useState(false);
@@ -93,43 +84,8 @@ export function ListPanel({
     void copyText(value).then((ok) => setCopied(ok ? label : ''));
   };
 
-  const [savingEdition, setSavingEdition] = useState(false);
   /** The one patient whose controls are open (13.15). */
   const [openKey, setOpenKey] = useState<string | null>(null);
-  const saveThisEdition = (): void => {
-    /*
-      Saved once (13.14: Riwayat showed the 19.00 list twice — a double tap).
-      The same list as the last edition is not saved again (the local copy of
-      a new edition arrives at once, offline too), and the button rests for a
-      moment so a double tap never reaches it. Not awaited: offline, the write
-      resolves only when the server confirms.
-    */
-    const last = editions[0];
-    if (savingEdition) return;
-    if (last && last.date === date && last.time === (time.trim() || '—') && last.text === text) {
-      setSaved(`Edisi ${formatDmy(date)} ${time} sudah tersimpan.`);
-      return;
-    }
-    setSavingEdition(true);
-    window.setTimeout(() => setSavingEdition(false), 2500);
-    const createdAt = new Date().toISOString();
-    const editionId = saveEdition(floor.id, {
-      date,
-      time: time.trim() || '—',
-      text,
-      patients: view.active,
-      createdAt,
-      createdBy: myName,
-    });
-    // The roster as it stands with this list (2026-10-16): restorable from Riwayat.
-    saveRestorePoint(floor.id, editionPoint(roster, { label: `Edisi ${formatDmy(date)} ${time.trim() || '—'}`, createdAt, createdBy: myName, editionId }));
-    setSaved(`Edisi ${formatDmy(date)} ${time} tersimpan.`);
-  };
-
-  // The print setup on this device (2026-10-16): every export uses it.
-  const printSettings = usePrintSettings();
-  const [setupOpen, setSetupOpen] = useState(false);
-  const printInput = { ward: floor.ward, date, plan: wardPlan(floor.ward), patients: view.active, listText: text };
 
   return (
     <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_24rem]">
@@ -250,48 +206,6 @@ export function ListPanel({
 
       {/* Pinned under the sub-tab bar (`sticky top-0`; its measured height is `--lm-tabs-h`), not behind it; a tall panel scrolls inside itself so its bottom is reachable. */}
       <div className="min-w-0 space-y-3 lg:sticky lg:top-[calc(var(--lm-tabs-h,4.5rem)+0.5rem)] lg:max-h-[calc(var(--app-h,100dvh)-var(--lm-tabs-h,4.5rem)-1rem)] lg:self-start lg:overflow-y-auto lg:overscroll-contain">
-        {/*
-          Send and export (13.15, Avi: "the export UI is weird"): one card —
-          the list's time and Simpan edisi first (what the list maker does),
-          then the four outputs as labelled tiles.
-        */}
-        <section className="space-y-3 rounded-2xl border border-border bg-surface p-3">
-          <div className="flex items-end gap-2">
-            <label className="block">
-              <span className="mb-1 block text-xs text-fg-muted">Jam list</span>
-              <input value={time} onChange={(e) => setTime(e.target.value)} aria-label="Jam list" className={`${INPUT} !w-24`} />
-            </label>
-            {editable ? (
-              <Button variant="primary" onClick={saveThisEdition} disabled={view.active.length === 0 || savingEdition}>
-                {savingEdition ? 'Tersimpan ✓' : 'Simpan edisi'}
-              </Button>
-            ) : null}
-          </div>
-          {saved ? <p className="text-xs text-fg-muted">{saved} Lihat di tab Riwayat.</p> : null}
-          <div>
-            <p className="mb-1.5 text-[11px] font-semibold uppercase tracking-wide text-fg-faint">Kirim / ekspor</p>
-            <div className="grid grid-cols-2 gap-2">
-              <ExportTile icon={<IconCopy width={18} height={18} />} title={copied === 'list' ? 'Tersalin ✓' : 'Salin teks'} note="untuk WhatsApp" onClick={() => copy(text, 'list')} />
-              <ExportTile
-                icon={<IconDocuments width={18} height={18} />}
-                title="Word: List"
-                note={`${printSettings.list.columns} kolom, ${printSettings.list.fontPt} pt`}
-                onClick={() => exportList(printInput, printSettings, date)}
-              />
-              <ExportTile icon={<IconLayers width={18} height={18} />} title="Word: Denah" note="denah, DPJP, residen" onClick={() => exportDenah(printInput, printSettings, date)} />
-              <ExportTile icon={<IconPrinter width={18} height={18} />} title="PDF" note="denah + list, 1 file" onClick={() => exportPdf(printInput, printSettings)} />
-            </div>
-            <button
-              type="button"
-              onClick={() => setSetupOpen(true)}
-              className="mt-2 flex min-h-tap w-full items-center justify-center rounded-xl border border-dashed border-border text-xs font-semibold text-fg-muted hover:border-accent hover:text-fg [@media(pointer:fine)]:min-h-9"
-            >
-              Atur cetak — orientasi, huruf, pratinjau
-            </button>
-            <PrintSetup open={setupOpen} onOpenChange={setSetupOpen} input={printInput} stamp={date} />
-          </div>
-        </section>
-
         {gone.length > 0 ? (
           <div className="space-y-1 rounded-xl border border-border bg-surface p-3 text-xs">
             <div className="flex items-center gap-2">
@@ -314,23 +228,6 @@ export function ListPanel({
         </details>
       </div>
     </div>
-  );
-}
-
-/** One export as a tile: icon, what it is, what it holds. */
-function ExportTile({ icon, title, note, onClick }: { icon: ReactNode; title: string; note: string; onClick: () => void }): JSX.Element {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className="flex min-h-tap items-center gap-2 rounded-xl border border-border bg-bg-subtle px-2.5 py-2 text-left hover:border-accent"
-    >
-      <span className="shrink-0 text-accent">{icon}</span>
-      <span className="min-w-0">
-        <span className="block text-xs font-semibold">{title}</span>
-        <span className="block text-[11px] text-fg-muted">{note}</span>
-      </span>
-    </button>
   );
 }
 

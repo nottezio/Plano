@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { autoMatches, newMarkId, printedTags, readMarks, tagsOf } from './marks';
+import { autoMatches, DEFAULT_NEW_BADGE, newBadgeOf, newMarkId, printedTags, readMarks, readNewBadge, tagsOf } from './marks';
 
 describe('floor marks', () => {
   it('reads only well-formed marks: known colour, a label, a unique id', () => {
@@ -38,12 +38,15 @@ describe('floor marks', () => {
     expect(printedTags(tags).map((t) => t.label)).toEqual(['Pre-op']);
   });
 
-  it('"Pasien baru" is never printed, whatever its print setting (8 Nov 2026)', () => {
+  it('the "Pasien baru" rule retired into the badge: no tag, and the badge takes its text and colour (10 Nov 2026)', () => {
     const marks = readMarks([{ id: 'k1', label: 'Baru', color: 'blue', auto: { kind: 'baru' } }]);
     const facts = { isNew: true, dpjpId: null, btkv: false, kjs: false, division: false, junior: '' };
-    const tags = tagsOf(marks, [], [], facts);
-    expect(tags.map((t) => t.label)).toEqual(['Baru']);
-    expect(printedTags(tags)).toEqual([]);
+    expect(tagsOf(marks, [], [], facts)).toEqual([]);
+    expect(newBadgeOf({ marks, newBadge: null })).toEqual({ label: 'Baru', color: 'blue', on: true });
+    expect(newBadgeOf({ marks: [], newBadge: null })).toEqual(DEFAULT_NEW_BADGE);
+    expect(newBadgeOf({ marks, newBadge: { label: 'Pindahan', color: 'pink', on: false } }).label).toBe('Pindahan');
+    expect(readNewBadge({ label: '  ', color: 'nope' })).toBeNull();
+    expect(readNewBadge({ label: '', color: 'teal' })).toEqual({ ...DEFAULT_NEW_BADGE, color: 'teal' });
   });
 
   it('"Tidak di-follow up" survives reading and reaches the tag; printing is its own choice (9 Nov 2026)', () => {

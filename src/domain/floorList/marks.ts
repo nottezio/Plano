@@ -37,8 +37,13 @@ export type MarkAuto =
   | { kind: 'divisi' }
   | { kind: 'tanpa-junior' };
 
+/**
+ * "baru" is retired (10 Nov 2026, Avi): Pasien baru is a badge of its own
+ * (`NewBadge`), not a mark. A stored "baru" rule still reads, so the badge can
+ * take its label and colour, but never matches.
+ */
 export const AUTO_LABEL: Record<MarkAuto['kind'], string> = {
-  baru: 'Pasien baru (belum ada di list shift sebelumnya)',
+  baru: 'Pasien baru (kini lencana sendiri)',
   dpjp: 'DPJP tertentu',
   btkv: 'KJS BTKV',
   kjs: 'Konsul / KJS dari DPJP lain',
@@ -97,7 +102,8 @@ export function autoMatches(auto: MarkAuto | undefined, facts: AutoFacts): boole
   if (!auto) return false;
   switch (auto.kind) {
     case 'baru':
-      return facts.isNew;
+      // Retired: the Pasien baru badge shows it instead (a mark would show it twice).
+      return false;
     case 'dpjp':
       return facts.dpjpId !== null && auto.ids.includes(facts.dpjpId);
     case 'btkv':
@@ -129,6 +135,37 @@ export function tagsOf(marks: readonly FloorMark[], hand: readonly string[], off
 
 /** Off paper: set so by the floor, or "Pasien baru", a working tag for the list maker only (8 Nov 2026, Avi). */
 export const screenOnly = (mark: FloorMark): boolean => mark.print === false || mark.auto?.kind === 'baru';
+
+/**
+ * The "Pasien baru" badge (10 Nov 2026, Avi): put on every newly entered
+ * patient by itself, like "SOAP baru"; its text, colour and on/off set per
+ * list in Setelan. Screen only, never printed.
+ */
+export interface NewBadge {
+  label: string;
+  color: MarkColor;
+  on: boolean;
+}
+
+export function readNewBadge(raw: unknown): NewBadge | null {
+  if (!raw || typeof raw !== 'object') return null;
+  const { label, color, on } = raw as Record<string, unknown>;
+  if (typeof label !== 'string' || !isMarkColor(color)) return null;
+  return { label: label.trim().slice(0, 30) || DEFAULT_NEW_BADGE.label, color, on: on !== false };
+}
+
+export const DEFAULT_NEW_BADGE: NewBadge = { label: 'Pasien baru', color: 'teal', on: true };
+
+/**
+ * The badge in use: the one set in Setelan; else, for a list that had a
+ * "Pasien baru" mark, that mark's text and colour (so nothing looks different
+ * the day the mark retires); else the default.
+ */
+export function newBadgeOf(floor: { newBadge?: NewBadge | null | undefined; marks?: readonly FloorMark[] | undefined }): NewBadge {
+  if (floor.newBadge) return floor.newBadge;
+  const old = (floor.marks ?? []).find((m) => m.auto?.kind === 'baru');
+  return old ? { label: old.label, color: old.color, on: true } : DEFAULT_NEW_BADGE;
+}
 
 /** 13.7 stored a hand mark as `colour` = "m:<id>"; read as a tag since 13.10. */
 export const MARK_PREFIX = 'm:';

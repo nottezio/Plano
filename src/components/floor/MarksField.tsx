@@ -54,7 +54,8 @@ function AutoRule({ mark, onChange }: { mark: FloorMark; onChange: (auto: MarkAu
         className={`${INPUT} text-xs`}
       >
         <option value="">Otomatis: tidak</option>
-        {(Object.keys(AUTO_LABEL) as Array<MarkAuto['kind']>).map((k) => (
+        {/* "baru" is retired into the Pasien baru badge: listed only on a mark that still has it. */}
+        {(Object.keys(AUTO_LABEL) as Array<MarkAuto['kind']>).filter((k) => k !== 'baru' || kind === 'baru').map((k) => (
           <option key={k} value={k}>
             Otomatis: {AUTO_LABEL[k]}
           </option>
@@ -182,7 +183,9 @@ export function MarksField({ floorId, marks, editable }: { floorId: string; mark
                   </div>
                   <AutoRule mark={mark} onChange={(auto) => update(mark.id, (m) => withAuto(m, auto))} />
                   {mark.auto?.kind === 'baru' ? (
-                    <p className="text-xs text-fg-muted">Hanya di layar</p>
+                    <p className="text-xs text-fg-muted">
+                      Pasien baru kini ditandai oleh Lencana pasien baru di bawah; warna ini tidak lagi dipasang otomatis. Hapus atau pilih aturan lain.
+                    </p>
                   ) : (
                     // Screen only (13.12): a working mark stays off the Word/PDF sent to consultants.
                     <label className="flex min-h-8 items-center gap-1.5 text-xs text-fg-muted">

@@ -171,9 +171,10 @@ function RoomBox({
   );
 }
 
-function Section({ title, children }: { title: string; children: ReactNode }): JSX.Element {
+function Section({ title, id, children }: { title: string; id?: string | undefined; children: ReactNode }): JSX.Element {
   return (
-    <section className="space-y-2">
+    // Lands under the pinned tab bar when jumped to (`JumpBar`).
+    <section id={id} className="scroll-mt-[calc(var(--lm-tabs-h,4.5rem)+0.5rem)] space-y-2">
       <h3 className="text-xs font-semibold uppercase tracking-wide text-fg-faint">{title}</h3>
       {children}
     </section>
@@ -537,7 +538,7 @@ export function FloorDenah({
         </Section>
       ) : null}
       {plan ? (
-        <Section title={`Denah ${ward}`}>
+        <Section title={`Denah ${ward}`} id={JUMP_IDS.denah}>
           <DenahCanvas>
             <div className="grid grid-cols-2 gap-2">
               {plan.header.map((slot) => (
@@ -594,7 +595,7 @@ export function FloorDenah({
       ) : null}
 
       {strays.length > 0 ? (
-        <Section title={plan ? 'Di luar denah' : `Pasien ${ward}`}>
+        <Section title={plan ? 'Di luar denah' : `Pasien ${ward}`} id={plan ? undefined : JUMP_IDS.denah}>
           <div className="rounded-lg border border-border bg-surface p-2">
             {strays.map((p) => (
               <PatientButton key={p.key} patient={p} onOpen={onOpen} found={find(p)} />
@@ -603,7 +604,7 @@ export function FloorDenah({
         </Section>
       ) : null}
 
-      <Section title="Per DPJP">
+      <Section title="Per DPJP" id={JUMP_IDS.dpjp}>
         <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3">
           {order.map((id) => {
             const own = shown.filter((p) => p.dpjpId === id);
@@ -634,7 +635,7 @@ export function FloorDenah({
         </div>
       </Section>
 
-      <Section title="Residen">
+      <Section title="Residen" id={JUMP_IDS.residen}>
         <div className="flex flex-wrap items-center gap-2">
           {chiefs.length > 0 ? (
             <p className="min-w-0 flex-1 text-[12px]">{chiefs.map(([name, n]) => `dr. ${name} ${n}`).join(' · ')}</p>
@@ -717,7 +718,44 @@ export function FloorDenah({
         ) : null}{' '}
         · Ketuk pasien untuk SOAP lengkap.
       </p>
+      <JumpBar />
     </div>
     </ShowUsul.Provider>
+  );
+}
+
+const JUMP_IDS = { denah: 'lm-jump-denah', dpjp: 'lm-jump-dpjp', residen: 'lm-jump-residen' } as const;
+
+/**
+ * Floating jumps to the three parts of a long Denah page (10 Nov 2026, Avi):
+ * the plan, Per DPJP, Residen. Bottom right, above the phone tab bar.
+ */
+function JumpBar(): JSX.Element {
+  const jump = (id: string): void => {
+    const smooth = !window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    document.getElementById(id)?.scrollIntoView({ behavior: smooth ? 'smooth' : 'auto', block: 'start' });
+  };
+  return (
+    <nav
+      aria-label="Lompat ke bagian"
+      className="fixed bottom-[calc(env(safe-area-inset-bottom)+80px)] right-3 z-30 flex rounded-full border border-border bg-surface p-0.5 shadow-pop sm:bottom-6 sm:right-6 print:hidden"
+    >
+      {(
+        [
+          [JUMP_IDS.denah, 'Denah'],
+          [JUMP_IDS.dpjp, 'Per DPJP'],
+          [JUMP_IDS.residen, 'Residen'],
+        ] as const
+      ).map(([id, label]) => (
+        <button
+          key={id}
+          type="button"
+          onClick={() => jump(id)}
+          className="min-h-tap rounded-full px-3 text-xs font-semibold text-fg-muted hover:bg-bg-subtle hover:text-fg [@media(pointer:fine)]:min-h-9"
+        >
+          {label}
+        </button>
+      ))}
+    </nav>
   );
 }

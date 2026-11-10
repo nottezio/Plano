@@ -52,6 +52,8 @@ const FLOOR: FloorDoc = {
   chiefBangsal: '',
   holidays: [],
   juniors: '',
+  guestJuniors: '',
+  newBadge: null,
   marks: [],
   analysisTitles: {},
 };
@@ -315,14 +317,21 @@ describe('floor tags (13.10)', () => {
 
   it('rules: the DPJP\'s patients and new patients get the tag by themselves; turned off per patient', () => {
     expect(effective(rostered({ dpjpId: 'np' }), floor, '2026-10-12').tags?.map((t) => t.label)).toEqual(['Pasien NP']);
-    expect(effective(rostered({ dpjpId: 'np' }), floor, '2026-10-12', true).tags?.map((t) => t.label)).toEqual(['Pasien NP', 'Baru']);
+    // A new patient: the retired "Baru" mark no longer tags; the badge carries its text and colour (10 Nov 2026).
+    const fresh = effective(rostered({ dpjpId: 'np' }), floor, '2026-10-12', true);
+    expect(fresh.tags?.map((t) => t.label)).toEqual(['Pasien NP']);
+    expect(fresh.newBadge).toEqual({ label: 'Baru', color: 'blue' });
+    expect(effective(rostered({ dpjpId: 'np' }), { ...floor, newBadge: { label: 'Pindahan', color: 'pink', on: false } }, '2026-10-12', true).newBadge).toBeUndefined();
     expect(effective(rostered({ dpjpId: 'np' }, { tagsOff: ['k2'] }), floor, '2026-10-12').tags).toBeUndefined();
   });
 
   it('new = not on the last list before this date; without one, added on this date', () => {
     const fresh = rostered({ key: 'rm:5', rm: '5' }, { addedAt: '2026-10-12T03:00:00.000Z' });
     const old = rostered({ key: 'rm:6', rm: '6' }, { addedAt: '2026-10-10T03:00:00.000Z' });
-    const label = (v: ReturnType<typeof rosterView>, key: string) => v.active.find((p) => p.key === key)?.tags?.map((t) => t.label) ?? [];
+    const label = (v: ReturnType<typeof rosterView>, key: string) => {
+      const badge = v.active.find((p) => p.key === key)?.newBadge;
+      return badge ? [badge.label] : [];
+    };
     const plain = rosterView(floor, [fresh, old], '2026-10-12');
     expect([label(plain, 'rm:5'), label(plain, 'rm:6')]).toEqual([['Baru'], []]);
     const sent = rosterView(floor, [fresh, old], '2026-10-12', new Set(['rm:5']));
@@ -333,7 +342,7 @@ describe('floor tags (13.10)', () => {
     // An ISO time whose LOCAL clock reads 04:30 on the list date, whatever zone the tests run in.
     const early = rostered({ key: 'rm:7', rm: '7' }, { addedAt: new Date('2026-10-12T04:30:00').toISOString() });
     const view = rosterView(floor, [early], '2026-10-12');
-    expect(view.active[0]!.tags?.map((t) => t.label)).toEqual(['Baru']);
+    expect(view.active[0]!.newBadge?.label).toBe('Baru');
   });
 
   it('a mark the floor deleted shows nothing', () => {

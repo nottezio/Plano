@@ -1,6 +1,6 @@
 import { dpjpById } from '@/domain/dpjp';
 import type { SectionTitles } from './analysis';
-import { tagsOf, type FloorMark } from './marks';
+import { newBadgeOf, tagsOf, type FloorMark, type NewBadge } from './marks';
 import { nameKey } from './slaber';
 import { dischargeFlag, isSummaryOf, soapStamp, usulH1, type DischargeFlag, type FloorPatient } from './report';
 
@@ -56,6 +56,15 @@ export interface FloorDoc {
    * roster spelling).
    */
   juniors: string;
+  /**
+   * Residents who take shifts on this floor but do not work it in jam dinas
+   * (10 Nov 2026, Avi), comma-separated. Their names are recognised like the
+   * juniors', but Bagi pasien never gives them patients: a new patient sent
+   * by tonight's resident still needs a floor resident for tomorrow.
+   */
+  guestJuniors: string;
+  /** The Pasien baru badge as set in Setelan; null = not set (`newBadgeOf`). */
+  newBadge: NewBadge | null;
   /** The floor's own colours besides red/green (13.7, `marks.ts`). */
   marks: FloorMark[];
   /** The names the editors gave Analisis sections (26 Oct 2026, `analysis.ts`); {} = the defaults. */
@@ -325,7 +334,12 @@ export const holderLabel = (division: string): string => ((DIVISIONS as readonly
 
 export function effective(
   patient: RosterPatient,
-  floor: Pick<FloorDoc, 'nicknames' | 'chiefs'> & { juniors?: string | undefined; marks?: readonly FloorMark[] | undefined },
+  floor: Pick<FloorDoc, 'nicknames' | 'chiefs'> & {
+    juniors?: string | undefined;
+    guestJuniors?: string | undefined;
+    marks?: readonly FloorMark[] | undefined;
+    newBadge?: NewBadge | null | undefined;
+  },
   date: string,
   /** Not on the previous day's list (13.10, the "pasien baru" rule). */
   isNew = false,
@@ -337,7 +351,7 @@ export function effective(
   let chief = patient.chief;
   if (!division) {
     const chiefs = chiefsOf(floor.chiefs);
-    const juniors = chiefsOf(floor.juniors ?? '');
+    const juniors = [...chiefsOf(floor.juniors ?? ''), ...chiefsOf(floor.guestJuniors ?? '')];
     // Either roster may hold the name: a chief writes himself as "FU" at times.
     const everyone = [...juniors, ...chiefs];
     junior = rosterName(patient.junior || report.junior || floor.nicknames[report.sender] || report.senderNick || '', juniors.length > 0 ? everyone : []);
@@ -367,7 +381,9 @@ export function effective(
           dpjpCode: report.dpjpCode || (dpjpById(report.dpjpId)?.initials ?? ''),
         }
       : {};
+  const badge = isNew ? newBadgeOf(floor) : null;
   const notes = {
+    ...(badge?.on ? { newBadge: { label: badge.label, color: badge.color } } : {}),
     ...(patient.operkan ? { operkan: patient.operkan } : {}),
     ...(patient.gantiChief ? { gantiChief: patient.gantiChief } : {}),
   };
