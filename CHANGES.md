@@ -1,5 +1,15 @@
 # Plano — CHANGES
 
+## `2026-11-10.10` — A new list showed no patients until a reload
+
+Found while reviewing List Maker on the emulator (10 Nov): created a list, pasted 4 patients ("Tersimpan: 4 pasien baru"), and Denah and List still said "Belum ada pasien" until a reload. Console: `[floors] roster FirebaseError … Null value error` at the `patients` read rule.
+
+- **Root cause.** `ListMakerPage` picks `params.get('f') ?? floors[0]`, and `subscribeMyFloors` delivers the new floor from the local cache while `createFloor`'s write is still in flight. `useRoster` attaches at once; the server runs the `patients` read rule (`request.auth.uid in floorP().memberIds`) against a floor document it does not hold yet, so `get()` is null and the listen is refused. Firestore ends a refused listener for good and nothing re-attached it, since `floorId` did not change. The same race applies to the editions, restore points and visit-note listeners, and to accepting an invite (membership arrives locally before the server has it).
+- **Fix.** `retryDenied` in `floors.repo.ts`: when a listener fails with `permission-denied`, attach the same query again after 1, 2, 4 and 8 s, then report the error as before. Any other error is reported at once; unsubscribing cancels a pending retry. Used by `subscribeRoster` (both queries), `subscribeEditions`, `subscribeRestorePoints` and `subscribeVisitNote`. Offline nothing changes: a listener does not error offline, and the cache keeps serving it.
+- **Firestore cost.** Normal open: unchanged (same queries, same values, so resume still works). Only after a refusal: one more listen attempt per retry, at most 4 per listener (5 listeners on a list), each billed as a denied read at most; then the attached listener bills one read per document on the list as usual. Grows only with how often a list is created or joined, not with patients.
+- **Tests.** `retryDenied.test.ts`: retries a refusal up to `DENIED_RETRIES` then reports; another error is reported at once; unsubscribing stops a pending retry.
+- **Not done.** Other listeners outside List Maker were not changed. A member truly removed from a list now sees the error about 15 s later than before (after the retries). Not checked against production Firestore; checked on the emulator only.
+
 ## `2026-11-10.9` — Sensus Maker: header per DPJP, from the group chat
 
 Avi (10 Nov), with the SENSUS PASIEN KARDIOLOGI export (9 and 10 Nov): adjust the WhatsApp header for each DPJP to what that DPJP's group uses.

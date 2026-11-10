@@ -5,6 +5,9 @@ Catatan teknis lengkap (akar masalah, perbaikan) ada di CHANGES.md.
 
 Entri teratas harus versi yang sedang dirilis; tes gagal bila belum ditulis.
 
+## `2026-11-10.10`
+- **List baru langsung menampilkan pasien.** Setelah membuat list baru (atau menerima undangan), pasien yang ditempel kadang tidak muncul di Denah dan List sampai halaman dimuat ulang. Kini list menyusul sendiri dalam beberapa detik. Hal yang sama untuk Riwayat, titik pulih, dan Catatan Visite.
+
 ## `2026-11-10.9`
 - **Judul sensus mengikuti grup tiap DPJP.** Sapaan, nama lengkap, urutan tempat, format tanggal ("10-11-2026" atau "10/11/2026"), baris "TOTAL" dan penutup kini ditulis seperti di grup chat Sensus Pasien Kardiologi, untuk dr. KS, Prof. MZ, dr. PT, Prof. PK, dr. AFM, dr. AHA, dr. AHN, dr. AFG, dr. ZD, Prof. IM dan dr. ARB. Contoh: MZ mendapat rincian RSWS dan PJT di bawah total, AHA ditambah "jam 06.00", ZD mendapat "Total Pasien PJT". DPJP lain tetap memakai judul lama, dan pilihan Dokter/Prof hanya berlaku untuk mereka.
 
