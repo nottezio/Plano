@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { soapParts } from './soapParts';
+import { soapGroups, soapParts } from './soapParts';
 
 const SOAP = [
   'Tabe dokter, mohon izin melaporkan follow up pasien di PJT Lantai 4 Kamar 417 Bed 1 atas nama:',
@@ -44,5 +44,23 @@ describe('soapParts (12.12)', () => {
 
   it('joined back, the parts are the text unchanged', () => {
     expect(soapParts(SOAP).map((p) => p.text).join('')).toBe(SOAP);
+  });
+});
+
+describe('soapGroups (Tempel changes, 10 Nov 2026)', () => {
+  it('sorts the parts into Identitas, S, O, A, P (Terapi and Plan) and KJS (TS blocks)', () => {
+    const groups = soapGroups(SOAP);
+    expect(groups.Identitas).toContain('Tn. Contoh');
+    expect(groups.S).toContain('- baik');
+    expect(groups.O).toContain('Sinus rhythm');
+    expect(groups.A).toContain('- CHF');
+    expect(groups.P).toContain('- Furosemide');
+    expect(groups.P).toContain('- Monitoring');
+    expect(groups.KJS).toContain('- Frailty');
+    expect(groups.P).not.toContain('Frailty');
+  });
+  it('joined back in order, the groups are the text unchanged', () => {
+    const groups = soapGroups(SOAP);
+    expect(['Identitas', 'S', 'O', 'A', 'P', 'KJS'].map((g) => groups[g as keyof typeof groups]).join('')).toBe(SOAP);
   });
 });

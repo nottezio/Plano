@@ -54,3 +54,23 @@ export function soapParts(text: string, aliases?: readonly SectionAlias[]): Soap
   });
   return parts;
 }
+
+/** The groups Tempel's "Lihat perubahan" sorts a SOAP's changes into (10 Nov 2026, Avi), in reading order. */
+export const SOAP_GROUPS = ['Identitas', 'S', 'O', 'A', 'P', 'KJS'] as const;
+export type SoapGroup = (typeof SOAP_GROUPS)[number];
+
+function groupOf(part: SoapPart): SoapGroup {
+  if (part.tint === 'ts') return 'KJS';
+  if (part.label === '') return 'Identitas';
+  if (part.label === 'S' || part.label === 'O') return part.label;
+  if (part.label === 'Terapi' || part.label === 'Plan') return 'P';
+  // "Assessment", or an early "Diagnosis" summary shown as written.
+  return 'A';
+}
+
+/** The SOAP's text per group: its parts joined, so each group can be compared on its own. */
+export function soapGroups(text: string, aliases?: readonly SectionAlias[]): Record<SoapGroup, string> {
+  const out: Record<SoapGroup, string> = { Identitas: '', S: '', O: '', A: '', P: '', KJS: '' };
+  for (const part of soapParts(text, aliases)) out[groupOf(part)] += part.text;
+  return out;
+}

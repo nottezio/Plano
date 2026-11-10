@@ -1,5 +1,14 @@
 # Plano — CHANGES
 
+## `2026-11-10.7` — Tempel changes grouped by S, O, A, P, KJS
+
+Avi (10 Nov): the changed-lines list under "Lihat perubahan" was too confusing; group it by S, O, A, P and KJS.
+
+- **Groups.** New `soapGroups` in `soapParts.ts` reuses `soapParts` (the jump-chip splitter: parser sections plus bare `TS …` lines) and folds the parts into Identitas, S, O, A (Assessment or an early Diagnosis), P (Terapi + Plan), KJS (every TS block). Joined in that order the groups are the text unchanged (tested).
+- **Diff.** `PasteChanges` runs `diffRevision` per group and shows only groups with a change, each under its name. A line that moved between groups now shows as removed in one and added in the other.
+- **Firestore.** None: display only, computed when the box is opened.
+- **Not done.** Not checked in the app or on real pastes. A SOAP whose headings the parser does not find puts everything under Identitas.
+
 ## `2026-11-10.6` — Sensus Maker: device copy saved after a pause, flushed on hide
 
 Avi (10 Nov) approved delaying the local save, with flush on hide.

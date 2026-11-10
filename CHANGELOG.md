@@ -5,6 +5,9 @@ Catatan teknis lengkap (akar masalah, perbaikan) ada di CHANGES.md.
 
 Entri teratas harus versi yang sedang dirilis; tes gagal bila belum ditulis.
 
+## `2026-11-10.7`
+- **Tempel: perubahan SOAP dikelompokkan.** Di "Lihat perubahan", baris yang berubah kini ditampilkan per bagian: Identitas, S, O, A, P (termasuk terapi), dan KJS (blok TS). Bagian yang tidak berubah tidak ditampilkan.
+
 ## `2026-11-10.6`
 - **Sensus Maker lebih ringan lagi saat mengetik.** Salinan list di perangkat disimpan sesaat setelah berhenti mengetik, bukan pada setiap huruf. Menutup atau menyembunyikan aplikasi tetap langsung menyimpannya.
 

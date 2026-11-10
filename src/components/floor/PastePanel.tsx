@@ -9,6 +9,7 @@ import { localStamp, newRosterPatient, pasteDiff, readmitFields, updatedReport, 
 import { splitChat } from '@/domain/floorList/chat';
 import { latestOf, onFloorNumber, readReports, type FloorPatient } from '@/domain/floorList/report';
 import { touchedPoint, type RestorePointMeta } from '@/domain/floorList/restore';
+import { SOAP_GROUPS, soapGroups } from '@/domain/floorList/soapParts';
 import { chatFromZip } from '@/lib/unzip';
 import { RestoreDialog } from './RestoreDialog';
 
@@ -33,6 +34,11 @@ const when = (p: FloorPatient): string => (p.sentAt ? `${formatDmy(p.sentAt.slic
  * What each newer SOAP changes against the stored one, changed lines only
  * (9 Nov 2026, Avi). Closed by default; the diff is computed only when open.
  * Formatting (bold markers, blank lines) is not a change, as in Bandingkan.
+ *
+ * GROUPED (10 Nov 2026, Avi: "too confusing"): one long run of changed lines
+ * did not say which part of the SOAP each belonged to. Each group (S, O, A,
+ * P, KJS = the TS blocks) is compared on its own and shown under its name;
+ * groups with no change are left out.
  */
 function PasteChanges({ updated }: { updated: PasteDiff['updated'] }): JSX.Element {
   const [open, setOpen] = useState(false);
@@ -42,13 +48,28 @@ function PasteChanges({ updated }: { updated: PasteDiff['updated'] }): JSX.Eleme
       {open ? (
         <div className="space-y-3 border-t border-border p-2">
           {updated.map(({ before, report }) => {
-            const rows = diffRevision(before.report.full, report.full, { ignoreFormatting: true }).rows.filter((row) => row.kind !== 'same');
+            const [was, now] = [soapGroups(before.report.full), soapGroups(report.full)];
+            const groups = SOAP_GROUPS.map((group) => ({
+              group,
+              rows: diffRevision(was[group], now[group], { ignoreFormatting: true }).rows.filter((row) => row.kind !== 'same'),
+            })).filter(({ rows }) => rows.length > 0);
             return (
-              <div key={before.key} className="space-y-0.5">
+              <div key={before.key} className="space-y-1">
                 <p className="font-semibold">
                   {where(report)} {report.name}
                 </p>
-                {rows.length > 0 ? rows.map((row, at) => <RevisionLine key={at} row={row} />) : <p className="text-fg-muted">Isi sama, hanya pesan yang lebih baru.</p>}
+                {groups.length > 0 ? (
+                  groups.map(({ group, rows }) => (
+                    <div key={group} className="space-y-0.5 border-l-2 border-border pl-2">
+                      <p className="text-xs font-semibold text-fg-muted">{group}</p>
+                      {rows.map((row, at) => (
+                        <RevisionLine key={at} row={row} />
+                      ))}
+                    </div>
+                  ))
+                ) : (
+                  <p className="text-fg-muted">Isi sama, hanya pesan yang lebih baru.</p>
+                )}
               </div>
             );
           })}
