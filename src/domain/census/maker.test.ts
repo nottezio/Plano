@@ -1070,6 +1070,19 @@ describe('Lt. 5-6 list of 14-10-2026', () => {
     expect(entriesFor([ward!], 'PK')[0]!.diagnoses).toEqual(['- Generalized Weakness']);
   });
 
+  it('reads the assess heading with a stray letter before the bold mark ("F*Mohon izin…*")', () => {
+    const [lt5] = parseAll(`List Pasien PJT Lantai 5
+dr. ARB : 1 pasien
+1. 515 bed 2 / Tn. Contoh Delapan / 17-04-1964 / RM 1600208 / ARB / Tsani
+F*Mohon izin kami assess dengan*
+* Chronic Coronary Syndrome CS type IV
+* Heart failure reduced Ejection Fraction
+
+*Mohon izin kami terapi dengan*
+- Aspilet 80 mg/ 24 jam/ oral`);
+    expect(entriesFor([lt5!], 'ARB')[0]!.diagnoses).toEqual(['- Chronic Coronary Syndrome CS type IV', '- Heart failure reduced Ejection Fraction']);
+  });
+
   it('leaves a patient with only a consult note without a diagnosis', () => {
     expect(entriesFor([ward!], 'IM')[0]!.diagnoses).toEqual([]);
   });

@@ -5,6 +5,9 @@ Catatan teknis lengkap (akar masalah, perbaikan) ada di CHANGES.md.
 
 Entri teratas harus versi yang sedang dirilis; tes gagal bila belum ditulis.
 
+## `2026-11-10.3`
+- **Sensus Maker kini membaca judul diagnosis yang diawali huruf nyasar.** Judul seperti "F*Mohon izin kami assess dengan*" (ada "F" terketik sebelum tanda tebal) sebelumnya tidak dikenali, sehingga pasien itu tampil tanpa diagnosis di sensus.
+
 ## `2026-11-10.2`
 - **List Maker di bar bawah HP.** Di HP, bar bawah kini Aktif, Arsip, List Maker, Lainnya. Dokumen pindah ke Lainnya. Tablet dan layar lebar tidak berubah. List Maker juga punya ikon sendiri, tidak lagi sama dengan Aktif.
 

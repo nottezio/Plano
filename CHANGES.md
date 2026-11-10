@@ -1,5 +1,14 @@
 # Plano — CHANGES
 
+## `2026-11-10.3` — Sensus Maker: stray letter before the assess heading
+
+Avi (10 Nov): ARB's patient at 515 bed 2 came out with no diagnosis.
+
+- **Root cause.** The list wrote `F*Mohon izin kami assess dengan*` (an "F" typed before the bold mark). `plain()` strips `*`, so the heading reads "FMohon izin…" and `ASSESS_HEAD_RE` (`^[-•*\s]*mohon…`) did not match. The diagnosis state never left `before`, and the bullets below were skipped.
+- **Fix.** `ASSESS_HEAD_RE` allows one optional letter before "mohon". Anchored at line start, so no mid-line text is affected. Test added in `maker.test.ts`.
+- **Firestore.** None.
+- **Not done.** Only that one stray-letter shape; the pasted list was not re-run end to end in the app. Other typos in headings (e.g. "Mohn izin") are still not read.
+
 ## `2026-11-10.2` — List Maker on the phone bar
 
 Avi (10 Nov): on a phone, List Maker in Dokumen's place for quicker access.

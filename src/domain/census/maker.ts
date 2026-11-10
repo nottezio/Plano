@@ -427,8 +427,11 @@ const DX_SUB_RE = /^diagnos[ai]s?\s+(?:utama|sekunder|tambahan|primer|banding|la
   between "izin" and "kami") and "-  Mohon izin pasien kami assess dengan :"
   (the heading itself bulleted). Up to 30 characters may stand between "izin"
   and the assess word; a leading bullet is allowed.
+  2026-11-10: "F*Mohon izin kami assess dengan*" — a letter typed before the
+  bold mark; with the marks stripped it reads "FMohon", so one letter may
+  precede "mohon".
 */
-const ASSESS_HEAD_RE = /^[-•*\s]*mohon\s+i[zj]in\b[^\n]{0,30}?\bass?es+t?\w*(?:\s+dengan)?\s*[:;]?\s*(.*)$/i;
+const ASSESS_HEAD_RE = /^[-•*\s]*[a-z]?mohon\s+i[zj]in\b[^\n]{0,30}?\bass?es+t?\w*(?:\s+dengan)?\s*[:;]?\s*(.*)$/i;
 /** A block heading written as a bullet ("-  Mohon izin pasien kami terapi dengan :"): it still ends the diagnoses. */
 const BULLET_HEAD_RE = /^mohon\s+i[zj]in\b[^\n]{0,30}?\b(?:terapi|plan)\b/i;
 const DX_STOP_RE =
