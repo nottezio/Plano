@@ -185,7 +185,7 @@ export function ListPanel({
             const isOpen = openKey === patient.key;
             return (
               <li key={patient.key}>
-                <div className="flex items-start gap-2 py-d-row pl-3 pr-2">
+                <div className="flex items-start gap-3 py-d-row pl-3 pr-2">
                   <button type="button" onClick={() => onOpen(patient)} className="min-w-0 flex-1 text-left">
                     <PatientRowText patient={patient} />
                   </button>
@@ -195,7 +195,7 @@ export function ListPanel({
                       aria-expanded={isOpen}
                       aria-label={`Atur ${patient.name}`}
                       onClick={() => setOpenKey(isOpen ? null : patient.key)}
-                      className={`min-h-tap shrink-0 rounded-lg border px-2.5 text-xs font-semibold [@media(pointer:fine)]:min-h-8 ${
+                      className={`min-h-tap min-w-[4.5rem] shrink-0 rounded-lg border px-3 text-xs font-semibold [@media(pointer:fine)]:min-h-8 ${
                         isOpen ? 'border-accent bg-[var(--accent-soft)] text-accent' : 'border-border text-fg-muted hover:text-fg'
                       }`}
                     >

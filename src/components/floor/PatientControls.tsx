@@ -325,14 +325,21 @@ export function PatientControls({
       ) : null}
 
       <Group title="Status pasien">
-        <div className="flex flex-wrap items-center gap-1.5">
-          <Action
+        {/*
+          Two kinds of button, told apart by size and shape, not colour alone
+          (10 Nov 2026, Avi: easy to mispress in a rush). The two that take a
+          patient off the list are big, bold blocks side by side; the edits
+          are small neutral pills on a row of their own below a rule, with
+          Hapus pushed to the far end.
+        */}
+        <div className="grid grid-cols-2 gap-3">
+          <LeaveAction
             tone="var(--note-green)"
             // Not green (pulang hari ini): asked first, a mispress takes a patient off the list (9 Nov 2026, Avi).
             onClick={() => (patient.discharge === 'today' ? pulang() : setConfirmPulang(true))}
           >
             ✓ Pulang
-          </Action>
+          </LeaveAction>
           {confirmPulang ? (
             <ConfirmDialog
               title={`Pulangkan ${patient.name}?`}
@@ -345,7 +352,7 @@ export function PatientControls({
               }}
             />
           ) : null}
-          <Action
+          <LeaveAction
             tone="var(--warn-strong)"
             pressed={open === 'pindah'}
             onClick={() => {
@@ -354,9 +361,10 @@ export function PatientControls({
             }}
           >
             ↗ Pindah ruangan…
-          </Action>
-          <Action
-            tone="var(--accent)"
+          </LeaveAction>
+        </div>
+        <div className="mt-3 flex flex-wrap items-center gap-2 border-t border-border pt-2.5">
+          <EditPill
             pressed={open === 'place'}
             onClick={() => {
               setOpen(open === 'place' ? null : 'place');
@@ -365,13 +373,9 @@ export function PatientControls({
             }}
           >
             ⇄ Kamar/bed…
-          </Action>
-          {patient.manual && onEditManual ? (
-            <Action tone="var(--fg-muted)" onClick={() => onEditManual(patient)}>
-              ✎ Ubah isi
-            </Action>
-          ) : null}
-          <span className="flex-1" />
+          </EditPill>
+          {patient.manual && onEditManual ? <EditPill onClick={() => onEditManual(patient)}>✎ Ubah isi</EditPill> : null}
+          <span className="min-w-6 flex-1" />
           {allowDelete ? <DeletePatient floorId={floor.id} patientKey={entry.key} name={patient.name} compact /> : null}
         </div>
 
@@ -404,16 +408,17 @@ export function PatientControls({
         ) : null}
 
         {open === 'pindah' ? (
-          <div className="mt-2 flex flex-wrap items-center gap-1.5">
+          <div className="mt-3 flex flex-wrap items-center gap-2">
             {PINDAH_CHIPS.map((chip) => (
               <Button key={chip} size="sm" variant={pindahTo === chip ? 'primary' : 'secondary'} onClick={() => setPindahTo(chip)}>
                 {chip}
               </Button>
             ))}
             <input value={pindahTo} onChange={(e) => setPindahTo(e.target.value)} placeholder="Tujuan" aria-label="Tujuan pindah" className={`${INPUT} !w-32 text-xs`} />
+            {/* Its own full-width row, named with the destination: it cannot be hit instead of a chip, and says where the patient goes. */}
             <Button
-              size="sm"
               variant="primary"
+              className="basis-full"
               disabled={!pindahTo.trim()}
               onClick={() => {
                 set({ status: 'pindah', pindahKe: pindahTo.trim(), leftAt: new Date().toISOString() }, `Pindah ke ${pindahTo.trim()}`);
@@ -421,7 +426,7 @@ export function PatientControls({
                 onGone?.();
               }}
             >
-              Simpan pindah
+              {pindahTo.trim() ? `Pindahkan ke ${pindahTo.trim()}` : 'Pilih tujuan dulu'}
             </Button>
           </div>
         ) : null}
@@ -448,19 +453,35 @@ function Labelled({ label, children }: { label: string; children: ReactNode }): 
   );
 }
 
-/** A status action in its own colour: green Pulang, amber Pindah, accent Kamar/bed. */
-function Action({ tone, pressed, onClick, children }: { tone: string; pressed?: boolean; onClick: () => void; children: ReactNode }): JSX.Element {
+/** An action that takes the patient off the list: big, bold, a thick border in its own colour (green Pulang, amber Pindah). */
+function LeaveAction({ tone, pressed, onClick, children }: { tone: string; pressed?: boolean; onClick: () => void; children: ReactNode }): JSX.Element {
   return (
     <button
       type="button"
       aria-pressed={pressed}
       onClick={onClick}
-      className="min-h-tap rounded-lg border px-3 text-xs font-semibold [@media(pointer:fine)]:min-h-9"
+      className="flex min-h-12 items-center justify-center rounded-xl border-2 px-3 text-sm font-bold"
       style={{
         borderColor: tone,
         color: tone,
-        backgroundColor: pressed ? `color-mix(in srgb, ${tone} 16%, var(--surface))` : `color-mix(in srgb, ${tone} 6%, var(--surface))`,
+        backgroundColor: `color-mix(in srgb, ${tone} ${pressed ? 20 : 10}%, var(--surface))`,
       }}
+    >
+      {children}
+    </button>
+  );
+}
+
+/** An edit that keeps the patient on the list: a small neutral pill, nothing like the two big blocks above it. */
+function EditPill({ pressed, onClick, children }: { pressed?: boolean; onClick: () => void; children: ReactNode }): JSX.Element {
+  return (
+    <button
+      type="button"
+      aria-pressed={pressed}
+      onClick={onClick}
+      className={`min-h-tap rounded-full border px-3.5 text-xs font-medium [@media(pointer:fine)]:min-h-9 ${
+        pressed ? 'border-accent bg-[var(--accent-soft)] text-accent' : 'border-border text-fg-muted hover:text-fg'
+      }`}
     >
       {children}
     </button>

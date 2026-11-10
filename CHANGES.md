@@ -1,5 +1,17 @@
 # Plano — CHANGES
 
+## `2026-11-10.8` — List Maker: status buttons told apart by size and shape
+
+Avi (10 Nov): easy to misspress a List Maker button in a rush, "by its shape and color alone".
+
+- **Root cause.** In `PatientControls` the four status actions (Pulang, Pindah ruangan…, Kamar/bed…, Ubah isi) shared one component: same height, same rounded rectangle, same 6% tint, 6 px apart in one wrapping row. Only the hue differed, so a thumb a few px off hit a neighbour, and Pulang/Pindah (which take a patient off the list) were as easy to hit as Kamar/bed (a harmless edit).
+- **Fix.** `Action` split in two. `LeaveAction` (Pulang, Pindah ruangan…): 48 px, 2 px border, bold 14 px, 10% tint, in a two-column grid with 12 px gap. `EditPill` (Kamar/bed…, Ubah isi): small neutral full-round pill, on a second row under a rule; Hapus keeps the far end of that row. The confirm rules are unchanged (Pulang still asks unless green; Hapus is still two taps).
+- **Pindah.** The save button is now its own full-width row, labelled "Pindahkan ke <tujuan>" ("Pilih tujuan dulu" while disabled), so it cannot be hit instead of a destination chip and shows where the patient goes. Chip gap 6 → 8 px. It still writes at once; no new confirm.
+- **Row.** "Atur" is wider (min 72 px) and the gap to the SOAP-opening row text 8 → 12 px.
+- **Used by** the List tab row and the SOAP window opened from the denah (`SoapFloat`), both through `PatientControls`.
+- **Firestore.** None: markup and classes only.
+- **Not done.** Not checked in the app or on a phone/ward device. Other List Maker buttons (Tempel, + Pasien manual, Simpan edisi, export tiles, Kembalikan) left as they are.
+
 ## `2026-11-10.7` — Tempel changes grouped by S, O, A, P, KJS
 
 Avi (10 Nov): the changed-lines list under "Lihat perubahan" was too confusing; group it by S, O, A, P and KJS.

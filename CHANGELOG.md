@@ -5,6 +5,9 @@ Catatan teknis lengkap (akar masalah, perbaikan) ada di CHANGES.md.
 
 Entri teratas harus versi yang sedang dirilis; tes gagal bila belum ditulis.
 
+## `2026-11-10.8`
+- **Tombol di List Maker lebih sulit salah tekan.** Di "Atur" pasien, Pulang dan Pindah ruangan kini tombol besar dan tebal, berdampingan dengan jarak lebar. Kamar/bed, Ubah isi dan Hapus menjadi tombol kecil berwarna netral di baris terpisah di bawahnya. Tombol pindah kini bertuliskan tujuannya ("Pindahkan ke ICU") dan berdiri sendiri di bawah pilihan tujuan. Tombol Atur di tiap baris pasien lebih lebar dan lebih jauh dari baris yang membuka SOAP.
+
 ## `2026-11-10.7`
 - **Tempel: perubahan SOAP dikelompokkan.** Di "Lihat perubahan", baris yang berubah kini ditampilkan per bagian: Identitas, S, O, A, P (termasuk terapi), dan KJS (blok TS). Bagian yang tidak berubah tidak ditampilkan.
 
