@@ -106,7 +106,10 @@ export function AnalysisPanel({
   floorId,
   titles,
   canRename,
+  afterToday,
 }: {
+  /** Placed right after "Hari ini, per pasien" (Bagi pasien, 10 Nov 2026): the summary and today stay on top. */
+  afterToday?: ReactNode;
   /** The floor's ward name, for the WhatsApp summary's heading. */
   ward: string;
   floorId: string;
@@ -244,6 +247,8 @@ export function AnalysisPanel({
         </Block>
       </div>
       </section>
+
+      {afterToday}
 
       <section aria-label="Tren dua minggu" className="space-y-3">
         <SectionLabel title="Dua minggu terakhir" />

@@ -20,6 +20,10 @@ export const MARK_COLORS = {
   teal: { name: 'Toska', docx: '00938A' },
   brown: { name: 'Cokelat', docx: '996633' },
   grey: { name: 'Abu-abu', docx: '7F7F7F' },
+  indigo: { name: 'Nila', docx: '4338CA' },
+  cyan: { name: 'Sian', docx: '0E7490' },
+  fuchsia: { name: 'Fuksia', docx: 'A21CAF' },
+  olive: { name: 'Zaitun', docx: '556B10' },
 } as const;
 
 export type MarkColor = keyof typeof MARK_COLORS;

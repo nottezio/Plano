@@ -12,6 +12,7 @@ import { setPrintSettings, usePrintSettings } from '@/hooks/usePrintSettings';
 import { dpjpsOnFloor, dpjpWord, matchesPicked } from '@/domain/floorList/search';
 import { placeBeds } from '@/domain/floorList/beds';
 import { SoapBadge } from './SoapBadge';
+import { IconChevronRight } from '@/components/common/Icons';
 import { planLayout } from '@/domain/floorList/layout';
 import { scrollParentOf } from '@/lib/scrollParent';
 import {
@@ -412,6 +413,7 @@ export function FloorDenah({
   onOpen,
   words = [],
   marks = [],
+  toolbarStart,
 }: {
   plan: WardPlan | null;
   ward: string;
@@ -421,12 +423,16 @@ export function FloorDenah({
   words?: readonly string[];
   /** The floor's own colours, for the legend. */
   marks?: readonly FloorMark[];
+  /** Leads the toolbar row (Shift sebelumnya, 10 Nov 2026), so the controls share one line. */
+  toolbarStart?: ReactNode;
 }): JSX.Element {
   const sorted = [...patients].sort(byRoute(ward));
   // Several DPJPs at once (7 Nov 2026): chips, remembered on this device; a DPJP with no patient here is ignored.
   const onFloor = dpjpsOnFloor(sorted);
   const [pickedIds, togglePicked] = usePersistentIdSet('plano.denah.dpjp');
   const picked = onFloor.filter((id) => pickedIds.has(id));
+  // Sorot DPJP folds behind one button (10 Nov 2026): open when a DPJP is already highlighted.
+  const [sorotOpen, setSorotOpen] = useState(() => picked.length > 0);
   const clearPicked = (): void => picked.forEach((id) => togglePicked(id));
   const searching = words.length > 0 || picked.length > 0;
   const hits = searching ? sorted.filter((p) => matchesPicked(p, words, picked)) : [];
@@ -471,6 +477,13 @@ export function FloorDenah({
     <ShowUsul.Provider value={showUsul}>
     <div className="space-y-6">
       <div className="space-y-2">
+        {/*
+          One toolbar line (10 Nov 2026, Avi: three rows took too much height): Shift sebelumnya,
+          Tampilkan usul H-1, then Sorot DPJP folded behind a toggle whose chips open in the same
+          line. It wraps only when the open chips run out of room.
+        */}
+        <div className="flex flex-wrap items-center gap-2">
+        {toolbarStart}
         <button
           type="button"
           aria-pressed={showUsul}
@@ -485,6 +498,50 @@ export function FloorDenah({
           Tampilkan usul H-1
           <span className="tabular-nums text-fg-faint">{usulPatients.length}</span>
         </button>
+        {onFloor.length > 0 ? (
+          <button
+            type="button"
+            aria-expanded={sorotOpen}
+            aria-controls="denah-sorot"
+            onClick={() => setSorotOpen(!sorotOpen)}
+            className={`flex min-h-tap items-center gap-1.5 rounded-full border px-3 text-xs font-medium transition-colors [@media(pointer:fine)]:min-h-9 ${
+              picked.length > 0 ? 'border-accent text-fg' : 'border-border text-fg-muted hover:text-fg'
+            }`}
+          >
+            Sorot DPJP
+            {picked.length > 0 ? <span className="rounded-full bg-accent px-1.5 text-[11px] font-semibold leading-4 text-on-accent">{picked.length}</span> : null}
+            <IconChevronRight
+              width={14}
+              height={14}
+              aria-hidden="true"
+              className={`transition-transform duration-150 motion-reduce:transition-none ${sorotOpen ? '-rotate-90' : 'rotate-90'}`}
+            />
+          </button>
+        ) : null}
+        {onFloor.length > 0 && sorotOpen ? (
+          <div id="denah-sorot" role="group" aria-label="Sorot pasien DPJP" className="contents">
+            {onFloor.map((id) => (
+              <button
+                key={id}
+                type="button"
+                aria-pressed={picked.includes(id)}
+                title={`Sorot pasien ${dpjpTitle(id)}`}
+                onClick={() => togglePicked(id)}
+                className={`flex min-h-tap items-center rounded-full border px-3 text-xs font-medium transition-colors [@media(pointer:fine)]:min-h-8 ${
+                  picked.includes(id) ? 'border-accent bg-accent font-semibold text-on-accent' : 'border-border text-fg-muted hover:text-fg'
+                }`}
+              >
+                {dpjpWord(id).toUpperCase()}
+              </button>
+            ))}
+          </div>
+        ) : null}
+        {picked.length > 0 ? (
+          <button type="button" onClick={clearPicked} className="min-h-tap px-1 text-xs text-fg-muted underline [@media(pointer:fine)]:min-h-8">
+            Hapus sorotan
+          </button>
+        ) : null}
+        </div>
         {showUsul && usulPatients.length > 0 ? (
           <p className="text-xs text-fg-muted">
             <span className="font-semibold text-fg">Usul H-1:</span>{' '}
@@ -500,30 +557,6 @@ export function FloorDenah({
           </p>
         ) : null}
       </div>
-      {onFloor.length > 0 ? (
-        <div role="group" aria-label="Sorot pasien DPJP" className="flex flex-wrap items-center gap-2">
-          <span className="text-xs font-medium text-fg-muted">Sorot DPJP</span>
-          {onFloor.map((id) => (
-            <button
-              key={id}
-              type="button"
-              aria-pressed={picked.includes(id)}
-              title={`Sorot pasien ${dpjpTitle(id)}`}
-              onClick={() => togglePicked(id)}
-              className={`flex min-h-tap items-center rounded-full border px-3 text-xs font-medium transition-colors [@media(pointer:fine)]:min-h-8 ${
-                picked.includes(id) ? 'border-accent bg-accent font-semibold text-on-accent' : 'border-border text-fg-muted hover:text-fg'
-              }`}
-            >
-              {dpjpWord(id).toUpperCase()}
-            </button>
-          ))}
-          {picked.length > 0 ? (
-            <button type="button" onClick={clearPicked} className="min-h-tap px-1 text-xs text-fg-muted underline [@media(pointer:fine)]:min-h-8">
-              Hapus sorotan
-            </button>
-          ) : null}
-        </div>
-      ) : null}
       {searching ? (
         <Section title={`${words.length > 0 ? 'Hasil cari' : 'Pasien DPJP disorot'} (${hits.length})`}>
           {hits.length === 0 ? (

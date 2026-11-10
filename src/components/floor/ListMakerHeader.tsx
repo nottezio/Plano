@@ -31,10 +31,13 @@ export function ListMakerHeader({
   onChiefBangsal,
   actions,
   onGuide,
+  onReorder,
 }: {
   floors: ReadonlyArray<{ id: string; name: string }>;
   floorId: string;
   onPickFloor: (id: string) => void;
+  /** The lists' new order, after a chip is dragged (10 Nov 2026); absent: no dragging. */
+  onReorder?: ((ids: string[]) => void) | undefined;
   /** Absent for a list viewer, who cannot create lists. */
   onNewFloor?: (() => void) | undefined;
   date: string;
@@ -45,7 +48,7 @@ export function ListMakerHeader({
   /** The jam-dinas chief, one name (24 Oct 2026); null: not editable here. */
   chiefBangsal: string | null;
   onChiefBangsal: (name: string) => void;
-  /** The page's one action for this list (Catatan Visite); sits in the date row. */
+  /** The page's tools (Panduan, Catatan Visite): top row from 640 px, beside the date on a phone. */
   actions?: ReactNode;
   /** Opens the page guide; on a phone it is a chip in the list strip, not a button row of its own. */
   onGuide?: () => void;
@@ -68,39 +71,89 @@ export function ListMakerHeader({
   ]
     .filter(Boolean)
     .join(' · ');
+  /*
+    Drag a list chip to reorder (10 Nov 2026, Avi): the first list is the one
+    List Maker opens. Mouse drag (HTML drag and drop); on a phone the strip
+    scrolls instead. Dropped right of where it started: after the target;
+    left: before it.
+  */
+  const canReorder = Boolean(onReorder) && floors.length > 1;
+  const [dragId, setDragId] = useState<string | null>(null);
+  const [overId, setOverId] = useState<string | null>(null);
+  const drop = (target: string): void => {
+    if (!onReorder || !dragId || dragId === target) return;
+    const ids = floors.map((f) => f.id);
+    const from = ids.indexOf(dragId);
+    const rest = ids.filter((id) => id !== dragId);
+    const at = rest.indexOf(target) + (from < ids.indexOf(target) ? 1 : 0);
+    rest.splice(at, 0, dragId);
+    onReorder(rest);
+  };
+  const endDrag = (): void => {
+    setDragId(null);
+    setOverId(null);
+  };
   return (
-    <div className="space-y-2">
-      <ScrollStrip className="flex gap-2 py-0.5 [&>*]:shrink-0 [&>*]:whitespace-nowrap" label="List">
-        {floors.map((f) => (
-          <ChoiceChip key={f.id} active={f.id === floorId} onClick={() => onPickFloor(f.id)}>
-            {f.name}
-          </ChoiceChip>
-        ))}
-        {onNewFloor ? (
-          <ChoiceChip active={false} onClick={onNewFloor}>
-          + List baru
-        </ChoiceChip>
-        ) : null}
-        {onGuide ? (
-          <span className="sm:hidden">
-            <ChoiceChip active={false} onClick={onGuide}>
-              Panduan
-            </ChoiceChip>
-          </span>
-        ) : null}
-      </ScrollStrip>
-
+    <div className="space-y-3">
       {/*
-        One block, one left edge (2026-11-01, Avi: "the placement UI is off"). The row used to be
-        date | Chief Bangsal | Chief with the Chief box as tall as its wrapped chips (four lines),
-        so a dead pocket opened under the other two, and Catatan Visite sat alone on a row of its
-        own below. Now: row 1 is date | Chief Bangsal | Catatan Visite (the action at the row's
-        end, level with the fields); row 2 is the Chief box across the block, where its chips
-        wrap to two lines instead of four. Phones keep the folded chiefs, and put the date and
-        Catatan Visite on one row (Panduan is a chip in the list strip), so the tabs start a
-        row higher (2026-11-02: the tabs were 38% down a 412 px phone).
+        Header layout (10 Nov 2026, Avi: "weirdly positioned"). Row 1: which list (the chips) and the
+        page's tools (Panduan, Catatan Visite) pinned right, where page tools are looked for; they
+        used to float mid-row next to the date inside a 48 rem block, leaving the right half of a
+        wide screen empty. Row 2: the list's own fields. From 1024 px date | Chief Bangsal | Chief
+        side by side across the full width, so the Chief chips wrap in the room left over instead of
+        a narrow box; from 640 px date | Chief Bangsal, then Chief below. Phones keep the folded
+        chiefs with Catatan Visite beside the date (Panduan is a chip in the strip).
       */}
-      <div className="grid grid-cols-1 gap-x-3 gap-y-2 min-[360px]:grid-cols-[minmax(0,10rem)_minmax(0,1fr)] sm:max-w-3xl sm:grid-cols-[minmax(0,11rem)_minmax(0,1fr)_auto] sm:items-end">
+      <div className="flex items-center gap-3">
+        <ScrollStrip outerClassName="flex-1" className="flex gap-2 py-0.5 [&>*]:shrink-0 [&>*]:whitespace-nowrap" label="List">
+          {floors.map((f) => (
+            <span
+              key={f.id}
+              draggable={canReorder}
+              onDragStart={(e) => {
+                setDragId(f.id);
+                e.dataTransfer.effectAllowed = 'move';
+                e.dataTransfer.setData('text/plain', f.id);
+              }}
+              onDragOver={(e) => {
+                if (!dragId) return;
+                e.preventDefault();
+                setOverId(f.id);
+              }}
+              onDragLeave={() => setOverId((o) => (o === f.id ? null : o))}
+              onDrop={(e) => {
+                e.preventDefault();
+                drop(f.id);
+                endDrag();
+              }}
+              onDragEnd={endDrag}
+              title={canReorder ? 'Seret untuk mengubah urutan. List pertama dibuka saat List Maker dibuka.' : undefined}
+              className={`rounded-full transition-opacity ${canReorder ? 'cursor-grab active:cursor-grabbing' : ''} ${dragId === f.id ? 'opacity-40' : ''} ${
+                overId === f.id && dragId !== f.id ? 'ring-2 ring-accent ring-offset-2 ring-offset-bg' : ''
+              }`}
+            >
+              <ChoiceChip active={f.id === floorId} onClick={() => onPickFloor(f.id)}>
+                {f.name}
+              </ChoiceChip>
+            </span>
+          ))}
+          {onNewFloor ? (
+            <ChoiceChip active={false} onClick={onNewFloor}>
+              + List baru
+            </ChoiceChip>
+          ) : null}
+          {onGuide ? (
+            <span className="sm:hidden">
+              <ChoiceChip active={false} onClick={onGuide}>
+                Panduan
+              </ChoiceChip>
+            </span>
+          ) : null}
+        </ScrollStrip>
+        {actions ? <div className="hidden shrink-0 sm:block">{actions}</div> : null}
+      </div>
+
+      <div className="grid grid-cols-1 gap-x-3 gap-y-2 min-[360px]:grid-cols-[minmax(0,10rem)_minmax(0,1fr)] sm:grid-cols-[minmax(0,11rem)_minmax(0,1fr)] sm:items-start lg:grid-cols-[minmax(0,11rem)_minmax(0,15rem)_minmax(0,1fr)]">
         <Field label="Tanggal list">
           <DateField value={date} onChange={onDate} className="w-full" />
         </Field>
@@ -139,14 +192,14 @@ export function ListMakerHeader({
           </div>
         ) : null}
         {chiefs ? (
-          <div className="min-w-0 min-[360px]:col-span-2 sm:col-span-3">
+          <div className="min-w-0 min-[360px]:col-span-2 lg:col-span-1">
             <ChiefsField chiefs={chiefs} onChange={onChiefs} wide />
           </div>
         ) : null}
         </div>
-        {actions ? <div className="min-[360px]:col-start-2 min-[360px]:row-start-1 min-[360px]:self-end sm:col-start-3">{actions}</div> : null}
+        {/* Phone: beside the date. From 640 px the tools sit in the top row instead. */}
+        {actions ? <div className="min-[360px]:col-start-2 min-[360px]:row-start-1 min-[360px]:self-end sm:hidden">{actions}</div> : null}
       </div>
-
     </div>
   );
 }

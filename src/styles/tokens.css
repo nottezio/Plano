@@ -125,6 +125,11 @@
   --mark-teal: #0f766e;
   --mark-brown: #92400e;
   --mark-grey: #475569;
+  /* 10 Nov 2026: four more hues, none red/green/amber (those mean H-1, pulang, watch). */
+  --mark-indigo: #4338ca;
+  --mark-cyan: #0e7490;
+  --mark-fuchsia: #a21caf;
+  --mark-olive: #556b10;
   --card-neutral-bg: #f4f6f8;
   --card-neutral-accent: #64748b;
   /* Chart series (Analisis, 28 Oct 2026): blue / green / purple, validated for colour-vision
@@ -265,6 +270,10 @@
   --mark-teal: #2dd4bf;
   --mark-brown: #d6a76b;
   --mark-grey: #94a3b8;
+  --mark-indigo: #a5b4fc;
+  --mark-cyan: #22d3ee;
+  --mark-fuchsia: #e879f9;
+  --mark-olive: #bccb6a;
   --card-neutral-bg: #161c24;
   --card-neutral-accent: #94a3b8;
   --chart-1: #3b82f6;
@@ -398,6 +407,10 @@
   --mark-teal: #5cd5c7;
   --mark-brown: #d7b174;
   --mark-grey: #a7b2c5;
+  --mark-indigo: #bcc5fd;
+  --mark-cyan: #74e1f2;
+  --mark-fuchsia: #f1a9f8;
+  --mark-olive: #ccd682;
   --card-neutral-bg: #3f444f;
   --card-neutral-accent: #9ca4b8;
   --chart-1: #6aa8fb;

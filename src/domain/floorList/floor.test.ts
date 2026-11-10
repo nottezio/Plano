@@ -20,6 +20,7 @@ import {
   localOf,
   localStamp,
   rosterLeftSince,
+  orderFloors,
   newRosterPatient,
   pasteDiff,
   rosterName,
@@ -551,5 +552,18 @@ describe('rosterLeftSince (6 Nov 2026: a moving cutoff is a new query on every m
   });
   it('still lets through a departure made on the cutoff day', () => {
     expect('2026-10-07T03:00:00.000Z' >= rosterLeftSince(new Date(2026, 10, 6, 12), 30)).toBe(true);
+  });
+});
+
+describe('orderFloors (dragged list order, 10 Nov 2026)', () => {
+  const lists = [
+    { id: 'a', name: '1231' },
+    { id: 'b', name: 'PJT Lantai 4' },
+    { id: 'c', name: 'Anak' },
+  ];
+  it('follows the saved order; a list not in it comes after, by name; no order = by name', () => {
+    expect(orderFloors(lists, ['b', 'a']).map((f) => f.id)).toEqual(['b', 'a', 'c']);
+    expect(orderFloors(lists, undefined).map((f) => f.name)).toEqual(['1231', 'Anak', 'PJT Lantai 4']);
+    expect(orderFloors(lists, ['gone', 'c']).map((f) => f.id)).toEqual(['c', 'a', 'b']);
   });
 });

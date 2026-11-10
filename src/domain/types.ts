@@ -143,6 +143,8 @@ export type WatermarkMode = 'ulang' | 'mengambang';
 
 export interface UserSettings {
   timezone: string;
+  /** List Maker list ids in the user's order (10 Nov 2026); the first opens first. Absent: by name. */
+  listMakerOrder?: string[];
   /** DEFAULT `klasik`. Absent on profiles written before this existed. */
   soapLayout?: SoapLayout;
   /** Daily reminder kinds for the board. Absent: EKG and Urine output. */

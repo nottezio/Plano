@@ -2,9 +2,8 @@ import { useState } from 'react';
 
 import { INPUT } from '@/components/common/ui';
 import type { FloorDoc } from '@/domain/floorList/floor';
-import { MARK_COLORS, markCss, newBadgeOf, type MarkColor, type NewBadge } from '@/domain/floorList/marks';
-
-const COLORS = Object.keys(MARK_COLORS) as MarkColor[];
+import { markCss, newBadgeOf, type NewBadge } from '@/domain/floorList/marks';
+import { MarkColorPicker } from './MarkColorPicker';
 
 /**
  * The Pasien baru badge (10 Nov 2026, Avi): on or off, its text ("Pasien
@@ -50,20 +49,9 @@ export function NewBadgeField({ floor, editable, onSave }: { floor: FloorDoc; ed
           aria-label="Teks lencana pasien baru"
           className={`${INPUT} !w-44 text-xs`}
         />
-        <select
-          value={badge.color}
-          onChange={(e) => save({ ...badge, label, color: e.target.value as MarkColor })}
-          aria-label="Warna lencana pasien baru"
-          className={`${INPUT} !w-32 text-xs`}
-        >
-          {COLORS.map((c) => (
-            <option key={c} value={c}>
-              {MARK_COLORS[c].name}
-            </option>
-          ))}
-        </select>
         {preview}
       </div>
+      <MarkColorPicker label="Warna lencana pasien baru" value={badge.color} onChange={(color) => save({ ...badge, label, color })} />
     </div>
   );
 }

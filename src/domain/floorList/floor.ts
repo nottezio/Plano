@@ -156,6 +156,12 @@ export interface Edition {
   createdBy: string;
 }
 
+/** The lists in the user's dragged order (10 Nov 2026); a list not in it yet keeps its place after them, by name. */
+export function orderFloors<T extends { id: string; name: string }>(floors: readonly T[], order: readonly string[] | undefined): T[] {
+  const rank = new Map((order ?? []).map((id, i) => [id, i]));
+  return [...floors].sort((a, b) => (rank.get(a.id) ?? Infinity) - (rank.get(b.id) ?? Infinity) || a.name.localeCompare(b.name));
+}
+
 export function chiefsOf(value: string): string[] {
   return [...new Set(value.split(/[,;\n]/).map((name) => name.trim()).filter(Boolean))];
 }

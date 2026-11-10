@@ -24,7 +24,8 @@ import { formatDmy } from '@/domain/dateDmy';
 import { wardPlan } from '@/domain/denahPlan';
 import { EDITIONS_PAGE } from '@/domain/floorList/editionGroups';
 import { shiftEdition, shiftStart } from '@/domain/floorList/chiefHandover';
-import { canEdit, chiefsOf, isOwner, localStamp, newRosterPatient, rosterView, type FloorDoc } from '@/domain/floorList/floor';
+import { canEdit, chiefsOf, isOwner, localStamp, newRosterPatient, orderFloors, rosterView, type FloorDoc } from '@/domain/floorList/floor';
+import { updateSettings } from '@/data/repositories/settings.repo';
 import { searchWords } from '@/domain/floorList/search';
 import { AnalysisPanel } from '@/components/floor/AnalysisPanel';
 import { AssignPanel } from '@/components/floor/AssignPanel';
@@ -69,7 +70,15 @@ export default function ListMakerPage(): JSX.Element {
   const myName = user?.displayName?.split(' ').slice(0, 2).join(' ') || user?.email || 'Saya';
   const today = useClinicalToday();
   const [params, setParams] = useSearchParams();
-  const { floors, invites, state, error } = useMyFloors();
+  const { floors: byName, invites, state, error } = useMyFloors();
+  // The user's dragged order (10 Nov 2026), on their profile so every device opens the same first list.
+  const order = useSession((s) => s.profile?.settings?.listMakerOrder);
+  const orderKey = (order ?? []).join(',');
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- keyed on the ids, not the array object
+  const floors = useMemo(() => orderFloors(byName, order), [byName, orderKey]);
+  const reorder = (ids: string[]): void => {
+    if (uid && ids.join(',') !== orderKey) void updateSettings(uid, { listMakerOrder: ids });
+  };
   const floorId = params.get('f') ?? floors[0]?.id ?? null;
   const floor: FloorDoc | null = floors.find((f) => f.id === floorId) ?? floors[0] ?? null;
   // The picked day lives in the URL like the sub-tab, so a tab switch (a
@@ -333,6 +342,7 @@ export default function ListMakerPage(): JSX.Element {
               chiefBangsal={editable ? floor.chiefBangsal : null}
               onChiefBangsal={(next) => void writeChiefBangsal(floor.id, next)}
               onGuide={() => setGuideAsked(true)}
+              onReorder={reorder}
               actions={
                 <div className="flex flex-wrap gap-2 max-sm:[&>button:first-child]:hidden max-sm:[&>button:last-child]:w-full">
                   <Button size="sm" onClick={() => setGuideAsked(true)}>
@@ -419,42 +429,64 @@ export default function ListMakerPage(): JSX.Element {
             {(tab === 'denah' || tab === 'list') && editable ? (
               <SuggestionTray floor={floor} roster={roster} active={view.active} date={date} myName={myName} onOpen={setOpen} />
             ) : null}
-            {tab === 'denah' && previousEdition ? (
-              /*
-                Snapshot (9 Nov 2026, Avi): the Denah as the previous shift's list
-                left it, to compare with now. Drawn from that saved edition
-                (Simpan edisi), already loaded: read-only, no new read.
-              */
-              <div className="flex flex-wrap items-center gap-2 text-xs">
-                <Button size="sm" variant={snapshot ? 'primary' : 'secondary'} aria-pressed={snapshot} onClick={() => setSnapshot(!snapshot)}>
-                  {snapshot ? '← Denah sekarang' : 'Shift sebelumnya'}
-                </Button>
-                {snapshot ? (
-                  <span className="text-fg-muted">
-                    List {formatDmy(previousEdition.date)} {previousEdition.time}, disimpan {formatDmy(localStamp(new Date(previousEdition.createdAt)).slice(0, 10))}{' '}
-                    {localStamp(new Date(previousEdition.createdAt)).slice(11, 16)} · {previousEdition.patients.length} pasien
-                  </span>
-                ) : null}
-              </div>
-            ) : null}
             {tab === 'denah' ? (
-              snapshot && previousEdition ? (
-                <FloorDenah
-                  plan={wardPlan(floor.ward)}
-                  ward={floor.ward}
-                  patients={previousEdition.patients}
-                  // Opens the patient as they are now; one who has left since has nothing to open.
-                  onOpen={(p) => {
-                    if (view.active.some((a) => a.key === p.key)) setOpen(p);
-                  }}
-                  words={words}
-                  marks={floor.marks}
-                />
-              ) : view.active.length === 0 ? (
-                <p className="text-sm text-fg-muted">Belum ada pasien di list.{editable ? ' Tempel pesan SOAP di tab Tempel.' : ''}</p>
-              ) : (
-                <FloorDenah plan={wardPlan(floor.ward)} ward={floor.ward} patients={view.active} onOpen={setOpen} words={words} marks={floor.marks} />
-              )
+              (() => {
+                /*
+                  Snapshot (9 Nov 2026, Avi): the Denah as the previous shift's list
+                  left it, to compare with now. Drawn from that saved edition
+                  (Simpan edisi), already loaded: read-only, no new read. The button
+                  leads the Denah toolbar line (10 Nov 2026).
+                */
+                const shiftControl = previousEdition ? (
+                  <>
+                    <Button size="sm" variant={snapshot ? 'primary' : 'secondary'} aria-pressed={snapshot} onClick={() => setSnapshot(!snapshot)}>
+                      {snapshot ? '← Denah sekarang' : 'Shift sebelumnya'}
+                    </Button>
+                    {snapshot ? (
+                      <span className="text-xs text-fg-muted">
+                        List {formatDmy(previousEdition.date)} {previousEdition.time}, disimpan{' '}
+                        {formatDmy(localStamp(new Date(previousEdition.createdAt)).slice(0, 10))} {localStamp(new Date(previousEdition.createdAt)).slice(11, 16)} ·{' '}
+                        {previousEdition.patients.length} pasien
+                      </span>
+                    ) : null}
+                  </>
+                ) : null;
+                if (snapshot && previousEdition) {
+                  return (
+                    <FloorDenah
+                      plan={wardPlan(floor.ward)}
+                      ward={floor.ward}
+                      patients={previousEdition.patients}
+                      // Opens the patient as they are now; one who has left since has nothing to open.
+                      onOpen={(p) => {
+                        if (view.active.some((a) => a.key === p.key)) setOpen(p);
+                      }}
+                      words={words}
+                      marks={floor.marks}
+                      toolbarStart={shiftControl}
+                    />
+                  );
+                }
+                if (view.active.length === 0) {
+                  return (
+                    <div className="space-y-3">
+                      {shiftControl ? <div className="flex flex-wrap items-center gap-2">{shiftControl}</div> : null}
+                      <p className="text-sm text-fg-muted">Belum ada pasien di list.{editable ? ' Tempel pesan SOAP di tab Tempel.' : ''}</p>
+                    </div>
+                  );
+                }
+                return (
+                  <FloorDenah
+                    plan={wardPlan(floor.ward)}
+                    ward={floor.ward}
+                    patients={view.active}
+                    onOpen={setOpen}
+                    words={words}
+                    marks={floor.marks}
+                    toolbarStart={shiftControl}
+                  />
+                );
+              })()
             ) : null}
             {tab === 'list' ? (
               <ListPanel
@@ -472,8 +504,21 @@ export default function ListMakerPage(): JSX.Element {
               />
             ) : null}
             {tab === 'tempel' && editable ? <PastePanel key={floor.id} floor={floor} roster={roster} myName={myName} /> : null}
-            {tab === 'analisis' ? <AssignPanel key={`assign-${floor.id}`} floor={floor} active={view.active} editable={Boolean(editable)} myName={myName} onOpen={setOpen} /> : null}
-            {tab === 'analisis' ? <AnalysisPanel key={floor.id} floorId={floor.id} titles={floor.analysisTitles} canRename={editable} ward={floor.ward || floor.name} roster={roster} view={view} date={date} editions={editions} onOpen={setOpen} /> : null}
+            {tab === 'analisis' ? (
+              <AnalysisPanel
+                key={floor.id}
+                floorId={floor.id}
+                titles={floor.analysisTitles}
+                canRename={editable}
+                ward={floor.ward || floor.name}
+                roster={roster}
+                view={view}
+                date={date}
+                editions={editions}
+                onOpen={setOpen}
+                afterToday={<AssignPanel key={`assign-${floor.id}`} floor={floor} active={view.active} editable={Boolean(editable)} myName={myName} onOpen={setOpen} />}
+              />
+            ) : null}
             {tab === 'riwayat' ? (
               <EditionsPanel key={floor.id} floor={floor} editions={editions} editable={editable} roster={roster} myName={myName} />
             ) : null}

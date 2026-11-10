@@ -6,6 +6,7 @@ import { writeMarks } from '@/data/repositories/floors.repo';
 import { dpjpById } from '@/domain/dpjp';
 import { LIST_DPJP_ORDER, PEDIATRI_DPJP_IDS } from '@/domain/floorList/build';
 import { AUTO_LABEL, MARK_COLORS, markCss, newMarkId, type FloorMark, type MarkAuto, type MarkColor } from '@/domain/floorList/marks';
+import { MarkColorPicker } from './MarkColorPicker';
 
 const COLORS = Object.keys(MARK_COLORS) as MarkColor[];
 const RULE_DPJPS = [...LIST_DPJP_ORDER, ...PEDIATRI_DPJP_IDS];
@@ -165,22 +166,17 @@ export function MarksField({ floorId, marks, editable }: { floorId: string; mark
                       }}
                       className={`${INPUT} !w-0 min-w-0 flex-1 text-xs`}
                     />
-                    <select
-                      aria-label={`Warna ${mark.label}`}
-                      value={mark.color}
-                      onChange={(e) => update(mark.id, (m) => ({ ...m, color: e.target.value as MarkColor }))}
-                      className={`${INPUT} !w-28 shrink-0 text-xs`}
-                    >
-                      {COLORS.map((c) => (
-                        <option key={c} value={c}>
-                          {MARK_COLORS[c].name}
-                        </option>
-                      ))}
-                    </select>
                     <Button size="sm" variant="ghost" aria-label={`Hapus warna ${mark.label}`} onClick={() => save(marks.filter((m) => m.id !== mark.id))}>
                       Hapus
                     </Button>
                   </div>
+                  <MarkColorPicker
+                    label={`Warna ${mark.label}`}
+                    value={mark.color}
+                    onChange={(color) => {
+                      if (color !== mark.color) update(mark.id, (m) => ({ ...m, color }));
+                    }}
+                  />
                   <AutoRule mark={mark} onChange={(auto) => update(mark.id, (m) => withAuto(m, auto))} />
                   {mark.auto?.kind === 'baru' ? (
                     <p className="text-xs text-fg-muted">
@@ -223,6 +219,7 @@ export function MarksField({ floorId, marks, editable }: { floorId: string; mark
         })}
       </ul>
       {editable ? (
+        <div className="space-y-1.5">
         <div className="flex items-center gap-1.5">
           <input
             value={label}
@@ -237,16 +234,11 @@ export function MarksField({ floorId, marks, editable }: { floorId: string; mark
             aria-label="Nama warna baru"
             className={`${INPUT} !w-0 min-w-0 flex-1 text-xs sm:!w-48 sm:flex-none`}
           />
-          <select aria-label="Warna baru" value={color} onChange={(e) => setColor(e.target.value as MarkColor)} className={`${INPUT} !w-28 shrink-0 text-xs`}>
-            {COLORS.map((c) => (
-              <option key={c} value={c}>
-                {MARK_COLORS[c].name}
-              </option>
-            ))}
-          </select>
           <Button size="sm" onClick={add} disabled={!label.trim()} aria-label="Tambah warna">
             <span className="mr-1 inline-block h-3 w-3 rounded-full align-middle" style={{ background: markCss(color) }} aria-hidden="true" />+
           </Button>
+        </div>
+        <MarkColorPicker label="Warna baru" value={color} onChange={setColor} />
         </div>
       ) : null}
     </div>

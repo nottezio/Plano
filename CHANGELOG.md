@@ -5,6 +5,13 @@ Catatan teknis lengkap (akar masalah, perbaikan) ada di CHANGES.md.
 
 Entri teratas harus versi yang sedang dirilis; tes gagal bila belum ditulis.
 
+## `2026-11-10.13`
+- **Bagian atas List Maker lebih rapi.** Pilihan list di kiri atas, Panduan dan Catatan Visite di kanan atas. Tanggal list, Chief Bangsal, dan Chief kini satu baris di layar lebar, sehingga tab naik lebih ke atas.
+- **Denah: kontrol dalam satu baris.** Shift sebelumnya, Tampilkan usul H-1, dan Sorot DPJP kini sebaris. Sorot DPJP bisa dibuka dan ditutup; angka di tombolnya menunjukkan berapa DPJP yang sedang disorot.
+- **Analisis: ringkasan dan "Hari ini, per pasien" selalu paling atas.** Bagi pasien ada di bawahnya.
+- **Urutan list bisa diseret.** Seret chip list (mis. PJT Lantai 4) ke depan; list pertama yang dibuka saat List Maker dibuka. Urutan disimpan di akun Anda, jadi sama di semua perangkat. Menyeret memakai mouse; di ponsel baris list tetap digeser.
+- **Warna tag lebih banyak, dengan pemilih palet.** Empat warna baru (Nila, Sian, Fuksia, Zaitun), dipilih lewat bulatan warna, bukan daftar. Semua warna terbaca di tema terang, gelap, dan Senja, dan ikut di Word.
+
 ## `2026-11-10.12`
 - **Bagi pasien di tab Analisis.** Pasien yang belum dipegang residen lantai (tanpa junior, atau junior-nya residen jaga yang besok tidak dinas di lantai ini) diusulkan ke residen lantai secara adil: pasien MZ dulu (satu per residen, untuk slide), lalu Trio (AFM, AFG, ZD) merata, lalu sisanya ke residen yang pasiennya paling sedikit, menghitung pasien yang sudah dipegang. Tiap usulan bisa diganti atau dilewati; tidak ada yang berubah sebelum menekan **Terapkan**. Pasien yang sudah dipegang residen lantai, pasien divisi, dan pasien "tidak di-follow up" tidak disentuh.
 - **Setelan: Residen lantai dan Bukan residen lantai ini.** Roster junior kini dua kotak: residen yang dinas di lantai ini (yang menerima pasien dari Bagi pasien), dan residen yang hanya jaga di sini. Nama keduanya tetap dikenali dari SOAP.
