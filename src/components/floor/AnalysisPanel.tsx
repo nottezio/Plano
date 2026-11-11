@@ -9,6 +9,9 @@ import { formatDmy } from '@/domain/dateDmy';
 import { dayName } from '@/domain/mr/morningReport';
 import {
   daySummary,
+  longStay,
+  noSoapToday,
+  overdueDischarge,
   daySummaryText,
   dpjpLoad,
   MOVE_LABEL,
@@ -29,6 +32,7 @@ import { localStamp, type Edition, type RosterPatient, type RosterView } from '@
 import type { FloorPatient } from '@/domain/floorList/report';
 import { checkSlaber, readSlaber, type Slaber } from '@/domain/floorList/slaber';
 import { docxDocumentXml } from '@/lib/unzip';
+import { useSession } from '@/store/useSession';
 
 const hm = (stamp: string): string => stamp.slice(11, 16);
 const place = (p: FloorPatient): string => `${p.room}${p.bed ? `/${p.bed}` : ''}`;
@@ -80,14 +84,27 @@ function Block({ title, count, rename, children }: { title: string; count: numbe
 
 type Holders = ReadonlyMap<string, { junior: string; chief: string }>;
 
-function Row({ patient, note, onOpen, holders }: { patient: FloorPatient; note?: string; onOpen: (p: FloorPatient) => void; holders?: Holders | null }): JSX.Element {
+function Row({
+  patient,
+  note,
+  warn = false,
+  onOpen,
+  holders,
+}: {
+  patient: FloorPatient;
+  note?: string;
+  /** The note in the warning colour (an usul waiting too long). */
+  warn?: boolean;
+  onOpen: (p: FloorPatient) => void;
+  holders?: Holders | null;
+}): JSX.Element {
   const held = holders?.get(patient.key);
   const who = held ? [held.junior || 'belum ada junior', held.chief].filter(Boolean).join(' / ') : '';
   return (
     <li>
       <button type="button" onClick={() => onOpen(patient)} className="text-left hover:underline">
         {place(patient)} {patient.name}
-        {note ? <span className="text-fg-muted"> · {note}</span> : null}
+        {note ? <span className={warn ? 'font-semibold text-[var(--warn-strong)]' : 'text-fg-muted'}> · {note}</span> : null}
         {who ? <span className="block text-xs text-fg-muted">{who}</span> : null}
       </button>
     </li>
@@ -135,6 +152,12 @@ export function AnalysisPanel({
   const trend = useMemo(() => weekCounts(date, moves, editions, 14), [date, moves, editions]);
   const load = useMemo(() => dpjpLoad(view.active), [view.active]);
   const stay = useMemo(() => stayBuckets(roster, date), [roster, date]);
+  const noSoap = useMemo(() => noSoapToday(view.active, date), [view.active, date]);
+  const overdue = useMemo(() => overdueDischarge(roster, view.active, date), [roster, view.active, date]);
+  const stayLong = useMemo(() => longStay(roster, view.active, date), [roster, view.active, date]);
+  // Turned off per account in Setelan (11 Nov 2026); on unless set false.
+  const saved = useSession((s) => s.profile?.settings?.analysisChecks);
+  const checks = { belumSoap: saved?.belumSoap !== false, terlewat: saved?.terlewat !== false, usulLama: saved?.usulLama !== false };
   const short = (iso: string): string => `${iso.slice(8, 10)}/${iso.slice(5, 7)}`;
   const flowTotals = {
     masuk: trend.reduce((n, d) => n + d.masuk, 0),
@@ -242,7 +265,14 @@ export function AnalysisPanel({
         </Block>
         <Block title={name('usulH1')} count={day.usulH1.length} rename={field('usulH1', SECTION_TITLE.usulH1)}>
           {day.usulH1.map(({ patient, days }) => (
-            <Row key={patient.key} patient={patient} note={days === 0 ? 'usul hari ini' : `usul sejak ${days} hari`} onOpen={onOpen} holders={holders} />
+            <Row
+              key={patient.key}
+              patient={patient}
+              note={days === 0 ? 'usul hari ini' : `usul sejak ${days} hari${checks.usulLama ? ' · tanyakan DPJP' : ''}`}
+              warn={checks.usulLama && days >= 1}
+              onOpen={onOpen}
+              holders={holders}
+            />
           ))}
         </Block>
         <Block title={name('pulang')} count={day.pulang.length} rename={field('pulang', SECTION_TITLE.pulang)}>
@@ -263,6 +293,25 @@ export function AnalysisPanel({
         <Block title={name('masuk')} count={day.masuk.length} rename={field('masuk', SECTION_TITLE.masuk)}>
           {day.masuk.map((m) => (
             <Row key={`${m.key}-${m.at}`} patient={m.patient} note={`${m.what === 'Masuk list' ? 'baru' : m.what.toLowerCase()} · ${hm(m.at)}`} onOpen={onOpen} holders={holders} />
+          ))}
+        </Block>
+        {checks.belumSoap ? (
+          <Block title="Belum SOAP hari ini" count={noSoap.length}>
+            {noSoap.map((p) => (
+              <Row key={p.key} patient={p} note={`terakhir ${formatDmy(p.sentAt.slice(0, 10)).slice(0, 5)} ${p.sentAt.slice(11, 16)}`} onOpen={onOpen} holders={holders} />
+            ))}
+          </Block>
+        ) : null}
+        {checks.terlewat ? (
+          <Block title="Rencana pulang terlewat (masih di lantai)" count={overdue.length}>
+            {overdue.map(({ patient, planned }) => (
+              <Row key={patient.key} patient={patient} note={`rencana ${formatDmy(planned).slice(0, 5)}`} warn onOpen={onOpen} holders={holders} />
+            ))}
+          </Block>
+        ) : null}
+        <Block title="Lama di list (8 hari atau lebih)" count={stayLong.length}>
+          {stayLong.map(({ patient, days }) => (
+            <Row key={patient.key} patient={patient} note={`${days} hari`} onOpen={onOpen} holders={holders} />
           ))}
         </Block>
       </div>

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { daySummary, daySummaryText, dpjpLoad, moveKind, movesByDay, movements, readSectionTitles, sectionTitle, SECTION_TITLE, stayBuckets, tileTitle, weekCounts } from './analysis';
+import { assignedRecently, daySummary, longStay, noSoapToday, overdueDischarge, daySummaryText, dpjpLoad, moveKind, movesByDay, movements, readSectionTitles, sectionTitle, SECTION_TITLE, stayBuckets, tileTitle, weekCounts } from './analysis';
 import { localStamp, newRosterPatient, type Edition, type RosterPatient } from './floor';
 import type { FloorPatient } from './report';
 
@@ -173,5 +173,48 @@ describe('Analisis (13.12)', () => {
     );
     expect(buckets.map((b) => b.label)).toEqual(['0–1', '2–3', '4–7', '8–14', '15+']);
     expect(buckets.map((b) => b.count)).toEqual([2, 1, 0, 1, 1]);
+  });
+});
+
+describe('Analisis checks (11 Nov 2026)', () => {
+  const DATE = '2026-11-11';
+
+  it('belum SOAP: followed-up patients whose last SOAP is before today, oldest first', () => {
+    const active = [
+      p('a', { sentAt: '2026-11-11T06:00' }),
+      p('b', { sentAt: '2026-11-10T20:00' }),
+      p('c', { sentAt: '2026-11-09T07:00' }),
+      p('d', { sentAt: '2026-11-08T07:00', division: 'Aritmia' }),
+      p('e', { sentAt: '2026-11-08T07:00', tags: [{ label: 'Titipan', color: 'grey', noFollowUp: true }] }),
+    ];
+    expect(noSoapToday(active, DATE).map((x) => x.key)).toEqual(['c', 'b']);
+  });
+
+  it('rencana pulang terlewat: still on the floor after the planned day', () => {
+    const roster = [
+      rostered('a', [], { dischargeDate: '2026-11-10' }),
+      rostered('b', [], { dischargeDate: '2026-11-11' }),
+      rostered('c', [], { dischargeDate: '2026-11-09', status: 'pulang' }),
+      rostered('d', [], { dischargeDate: '' }),
+    ];
+    expect(overdueDischarge(roster, [], DATE).map((x) => [x.patient.key, x.planned])).toEqual([['a', '2026-11-10']]);
+  });
+
+  it('long stay: from 8 days on the list, longest first', () => {
+    const roster = [rostered('a', []), rostered('b', [], { addedAt: iso('2026-11-05T08:00') }), rostered('c', [], { status: 'pulang' })];
+    expect(longStay(roster, [], '2026-10-20').map((x) => [x.patient.key, x.days])).toEqual([['a', 10]]);
+  });
+
+  it('assigned this week: counts Bagi pasien log lines per floor resident in the last 7 days', () => {
+    const roster = [
+      rostered('a', [['2026-11-10T09:00', 'Bagi pasien: junior dr. Ana']]),
+      rostered('b', [['2026-11-11T09:00', 'Bagi pasien: junior dr. ana']]),
+      rostered('c', [['2026-11-01T09:00', 'Bagi pasien: junior dr. Budi']]),
+      rostered('d', [['2026-11-11T09:00', 'Bagi pasien: junior dr. Luar']]),
+    ];
+    expect(assignedRecently(roster, ['Ana', 'Budi'], DATE)).toEqual([
+      { name: 'Ana', count: 2 },
+      { name: 'Budi', count: 0 },
+    ]);
   });
 });

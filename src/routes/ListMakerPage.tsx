@@ -524,7 +524,7 @@ export default function ListMakerPage(): JSX.Element {
                 date={date}
                 editions={editions}
                 onOpen={setOpen}
-                afterToday={<AssignPanel key={`assign-${floor.id}`} floor={floor} active={view.active} editable={Boolean(editable)} myName={myName} onOpen={setOpen} />}
+                afterToday={<AssignPanel key={`assign-${floor.id}`} floor={floor} active={view.active} roster={roster} date={date} editable={Boolean(editable)} myName={myName} onOpen={setOpen} />}
               />
             ) : null}
             {tab === 'riwayat' ? (

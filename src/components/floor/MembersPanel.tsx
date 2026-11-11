@@ -19,6 +19,7 @@ import {
 } from '@/data/repositories/floors.repo';
 import { canEdit, chiefsOf, isOwner, type FloorDoc, type FloorRole } from '@/domain/floorList/floor';
 import { collapseNicknames, confirmQuestion, memberRole, saveErrorMessage, transferQuestion } from '@/domain/floorList/membersView';
+import { AnalysisChecksField } from './AnalysisChecksField';
 import { ChiefsField } from './ChiefsField';
 import { HolidaysField } from './HolidaysField';
 import { MarksField } from './MarksField';
@@ -341,6 +342,12 @@ export function MembersPanel({
                 onAdd={(iso) => run(() => addHoliday(floor.id, iso))}
                 onRemove={(iso) => run(() => removeHoliday(floor.id, iso))}
               />
+            </Section>
+          </Group>
+
+          <Group title="Analisis">
+            <Section title="Pengecekan" hint="Daftar tambahan di tab Analisis. Tersimpan di akun Anda, tidak mengubah tampilan anggota lain.">
+              <AnalysisChecksField />
             </Section>
           </Group>
         </div>

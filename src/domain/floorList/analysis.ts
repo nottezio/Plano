@@ -270,3 +270,53 @@ export function stayBuckets(roster: readonly RosterPatient[], date: string): Arr
   const days = roster.filter((p) => p.status === 'dirawat').map((p) => daysOnList(p, date)).filter((d): d is number => d !== null && d >= 0);
   return STAY_BUCKETS.map((bucket) => ({ label: bucket.label, count: days.filter((d) => d >= bucket.from && d <= bucket.to).length }));
 }
+
+/*
+  The checks added 11 Nov 2026 (Avi: "yes, all of it"). Read from the roster
+  already on screen; nothing new is stored.
+*/
+
+/** A patient the floor follows up: not held by a division, not tagged "tidak di-follow up". */
+const followed = (p: FloorPatient): boolean => !p.division && !p.tags?.some((t) => t.noFollowUp);
+
+/** On the floor and followed up, with no SOAP dated `date`: oldest SOAP first. */
+export function noSoapToday(active: readonly FloorPatient[], date: string): FloorPatient[] {
+  return active.filter((p) => followed(p) && p.sentAt.slice(0, 10) < date).sort((a, b) => a.sentAt.localeCompare(b.sentAt));
+}
+
+/** Still on the floor after their planned discharge day: an H-1 or pulang that did not happen (or a mark nobody cleared). */
+export function overdueDischarge(
+  roster: readonly RosterPatient[],
+  active: readonly FloorPatient[],
+  date: string,
+): Array<{ patient: FloorPatient; planned: string }> {
+  return roster
+    .filter((p) => p.status === 'dirawat' && Boolean(p.dischargeDate) && p.dischargeDate < date)
+    .map((p) => ({ patient: active.find((a) => a.key === p.key) ?? p.report, planned: p.dischargeDate }))
+    .sort((a, b) => a.planned.localeCompare(b.planned));
+}
+
+/** Patients on the floor at least `from` days on the list, longest first. */
+export function longStay(roster: readonly RosterPatient[], active: readonly FloorPatient[], date: string, from = 8): Array<{ patient: FloorPatient; days: number }> {
+  return roster
+    .filter((p) => p.status === 'dirawat')
+    .map((p) => ({ patient: active.find((a) => a.key === p.key) ?? p.report, days: daysOnList(p, date) ?? -1 }))
+    .filter((x) => x.days >= from)
+    .sort((a, b) => b.days - a.days);
+}
+
+const ASSIGNED = /^Bagi pasien: junior dr\. (.+)$/;
+
+/** Patients each floor resident was given through Bagi pasien in the `days` days up to `date` (from the roster log). */
+export function assignedRecently(roster: readonly RosterPatient[], residents: readonly string[], date: string, days = 7): Array<{ name: string; count: number }> {
+  const since = addDays(date, 1 - days);
+  const counts = new Map(residents.map((r) => [r.toLowerCase(), 0]));
+  for (const p of roster) {
+    for (const entry of p.log) {
+      const name = ASSIGNED.exec(entry.what)?.[1]?.trim().toLowerCase();
+      const day = local(entry.at).slice(0, 10);
+      if (name && counts.has(name) && day >= since && day <= date) counts.set(name, counts.get(name)! + 1);
+    }
+  }
+  return residents.map((name) => ({ name, count: counts.get(name.toLowerCase()) ?? 0 }));
+}

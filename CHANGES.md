@@ -1,5 +1,16 @@
 # Plano — CHANGES
 
+## `2026-11-11.6` — Analisis checks (belum SOAP, pulang terlewat, usul lama, lama di list), 7-day Bagi pasien count, board kept
+
+Avi (11 Nov): build all five Analisis recommendations; 1-3 switchable in Setelan; keep the Bagi pasien board while rethinking it.
+
+- **Domain (`analysis.ts`, tested).** `noSoapToday(active, date)`: followed-up patients (no division, no "tidak di-follow up" tag) whose `sentAt` date is before the clinical date, oldest first. `overdueDischarge(roster, active, date)`: dirawat with `dischargeDate < date` (an H-1 marked the day before sets tomorrow's date, so this is the day after the planned discharge). `longStay(..., from = 8)`: from the 8-14 bucket up, longest first. `assignedRecently(roster, residents, date, 7)`: counts "Bagi pasien: junior dr. X" log lines per floor resident, local day within the last 7.
+- **Analisis.** Three new Blocks in "Hari ini, per pasien" (Belum SOAP, Rencana pulang terlewat, Lama di list); the usul Block colours "usul sejak n hari" with `--warn-strong` from 1 day and adds "tanyakan DPJP". Blocks follow the junior/chief toggle.
+- **Setting.** `UserSettings.analysisChecks` (`belumSoap`, `terlewat`, `usulLama`; absent or true = on), set in Setelan → Analisis (`AnalysisChecksField`) through `updateSettings`. Per account, not per list: one person turning a check off does not hide it for the floor, and no rules change was needed (the `settings` map is already the user's own).
+- **Bagi pasien.** Placements and the skip set persist in `localStorage` (`plano.assign.<floorId>`), validated on read, removed when empty (Terapkan / Kosongkan). Each clipboard shows "Dapat n pasien baru dalam 7 hari". `AssignPanel` now takes `roster` and `date`.
+- **Firestore cost.** No new reads or listeners: all from the roster already loaded. A Setelan check toggle = one write to the user's own document (its session listener re-reads that one document). Bagi pasien persistence is device-only.
+- **Not done.** The board is not shared across devices. "Belum SOAP" uses the SOAP's date, not the shift: a SOAP sent at 23.00 counts for that day. Not checked on a phone or a ward device.
+
 ## `2026-11-11.5` — List Maker: Saran one line per proposal, Shift sebelumnya floats, Bagi pasien clipboards
 
 Avi (11 Nov, screenshot): the Saran rows took too much height (one row per patient); move Shift sebelumnya into the floating Denah/Per DPJP/Residen bar; Bagi pasien should be fun: a clipboard per resident with their patients, cards for unheld patients, dragged onto a clipboard instead of picked from a dropdown.

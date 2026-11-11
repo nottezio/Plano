@@ -1,15 +1,46 @@
-import { useMemo, useState, type DragEvent } from 'react';
+import { useEffect, useMemo, useState, type DragEvent } from 'react';
 
 import { Button, Callout } from '@/components/common/ui';
 import { IconClose } from '@/components/common/Icons';
 import { writeRosterBatch, type RosterChange } from '@/data/repositories/floors.repo';
+import { assignedRecently } from '@/domain/floorList/analysis';
 import { assignGroup, loadsWith, needsHolder, proposeAssignment, residentOf } from '@/domain/floorList/assign';
 import { byRoute, dpjpCodeOf } from '@/domain/floorList/build';
-import { chiefsOf, type FloorDoc } from '@/domain/floorList/floor';
+import { chiefsOf, type FloorDoc, type RosterPatient } from '@/domain/floorList/floor';
 import type { FloorPatient } from '@/domain/floorList/report';
 
 const GROUP_LABEL = { mz: 'MZ', trio: 'Trio', lain: '' } as const;
 const DRAG_TYPE = 'text/plain';
+
+/** The board as left (11 Nov 2026, Avi: "I'm still rethinking it, don't reset it"): per list, on this device. */
+interface Board {
+  skip: string[];
+  placed: Record<string, string>;
+}
+const boardKey = (floorId: string): string => `plano.assign.${floorId}`;
+
+function readBoard(floorId: string): Board {
+  try {
+    const raw = JSON.parse(localStorage.getItem(boardKey(floorId)) ?? 'null') as Partial<Board> | null;
+    const skip = Array.isArray(raw?.skip) ? raw.skip.filter((x): x is string => typeof x === 'string') : [];
+    const placed =
+      raw?.placed && typeof raw.placed === 'object'
+        ? Object.fromEntries(Object.entries(raw.placed).filter((e): e is [string, string] => typeof e[1] === 'string'))
+        : {};
+    return { skip, placed };
+  } catch {
+    return { skip: [], placed: {} };
+  }
+}
+
+function writeBoard(floorId: string, board: Board): void {
+  try {
+    if (board.skip.length === 0 && Object.keys(board.placed).length === 0) localStorage.removeItem(boardKey(floorId));
+    else localStorage.setItem(boardKey(floorId), JSON.stringify(board));
+  } catch {
+    // A private window or full storage: the board just is not kept.
+  }
+}
 
 /**
  * Bagi pasien as clipboards (11 Nov 2026, Avi: "make it fun… drag the card to
@@ -20,6 +51,12 @@ const DRAG_TYPE = 'text/plain';
  * fills the clipboards from `proposeAssignment` (MZ, Trio, then total load),
  * leaving out the residents switched off under "Ikut diusulkan".
  *
+ * The board (placements and "Ikut diusulkan") is kept on the device per
+ * list until Terapkan or Kosongkan papan, so leaving the tab does not lose
+ * it. Each clipboard also shows how many patients Bagi pasien gave that
+ * resident in the last 7 days (from the roster log), so today's share can
+ * even out the week.
+ *
  * Nothing is written until Terapkan, which sets the junior on the placed
  * patients only. Firestore: no read (the roster is already loaded);
  * Terapkan = one write per placed patient, in one batch.
@@ -27,12 +64,17 @@ const DRAG_TYPE = 'text/plain';
 export function AssignPanel({
   floor,
   active,
+  roster,
+  date,
   editable,
   myName,
   onOpen,
 }: {
   floor: FloorDoc;
   active: readonly FloorPatient[];
+  /** Everyone ever on the list, for the 7-day count. */
+  roster: readonly RosterPatient[];
+  date: string;
   editable: boolean;
   myName: string;
   onOpen: (patient: FloorPatient) => void;
@@ -42,9 +84,12 @@ export function AssignPanel({
   const sorted = useMemo(() => [...active].sort(byRoute(floor.ward)), [active, floor.ward]);
   const open = useMemo(() => sorted.filter((p) => needsHolder(p, residents)), [sorted, residents]);
   // Residents "Usulkan" leaves out (11 Nov 2026: the list maker usually takes the fewest). Not saved.
-  const [skip, setSkip] = useState<readonly string[]>([]);
+  const [initial] = useState(() => readBoard(floor.id));
+  const [skip, setSkip] = useState<readonly string[]>(initial.skip);
   // Card key → resident, as placed by hand or by Usulkan. Read against `open`, so a patient someone else took drops out.
-  const [placed, setPlaced] = useState<Readonly<Record<string, string>>>({});
+  const [placed, setPlaced] = useState<Readonly<Record<string, string>>>(initial.placed);
+  useEffect(() => writeBoard(floor.id, { skip: [...skip], placed: { ...placed } }), [floor.id, skip, placed]);
+  const week = useMemo(() => new Map(assignedRecently(roster, residents, date).map((x) => [x.name, x.count])), [roster, residents, date]);
   // Tap mode: the card picked up, waiting for a clipboard.
   const [held, setHeld] = useState<string | null>(null);
   const [over, setOver] = useState<string | null>(null);
@@ -178,6 +223,7 @@ export function AssignPanel({
                         pasien · MZ {load.after.mz} · Trio {load.after.trio}
                       </span>
                     ) : null}
+                    <span className="w-full text-[11px] text-fg-muted">Dapat {week.get(r) ?? 0} pasien baru dalam 7 hari</span>
                   </div>
                   {target ? (
                     <button

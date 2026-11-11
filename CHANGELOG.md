@@ -5,6 +5,12 @@ Catatan teknis lengkap (akar masalah, perbaikan) ada di CHANGES.md.
 
 Entri teratas harus versi yang sedang dirilis; tes gagal bila belum ditulis.
 
+## `2026-11-11.6`
+- **Analisis: tiga pengecekan baru di "Hari ini, per pasien".** "Belum SOAP hari ini" (pasien yang diikuti lantai tanpa SOAP bertanggal hari ini, dengan jam SOAP terakhirnya), "Rencana pulang terlewat" (masih di lantai setelah tanggal rencana pulang), dan usul H-1 yang sudah sehari atau lebih ditandai warna peringatan. Ketiganya bisa dimatikan di Setelan → Analisis; pilihan tersimpan di akun Anda dan tidak mengubah tampilan anggota lain.
+- **Analisis: "Lama di list (8 hari atau lebih)"**, pasien yang paling lama di list, bisa diketuk untuk membuka pasiennya.
+- **Bagi pasien: jumlah 7 hari.** Tiap papan residen menulis berapa pasien baru yang ia dapat dari Bagi pasien dalam 7 hari terakhir, supaya pembagian hari ini bisa menyeimbangkan minggunya.
+- **Bagi pasien tidak lagi kosong sendiri.** Kartu yang sudah ditaruh dan pilihan "Ikut diusulkan" disimpan di perangkat ini per list sampai Terapkan atau Kosongkan papan, jadi aman ditinggal ke tab lain atau dimuat ulang.
+
 ## `2026-11-11.5`
 - **Saran lebih ringkas.** Satu baris per jenis saran (mis. "Plan menyebut H-1", "Ganti chief → dr. Didi"), pasiennya berupa chip: ketuk nama untuk membuka pasien, ✓ untuk menerima satu, × untuk mengabaikan satu. Tombol di ujung baris berlaku untuk semua pasien di baris itu.
 - **Shift sebelumnya pindah ke tombol melayang** (di samping Denah, Per DPJP, Residen), jadi bisa diketuk dari mana saja di halaman. Keterangan list yang sedang dilihat tetap di atas denah.
