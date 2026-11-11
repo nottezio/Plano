@@ -17,6 +17,7 @@ import { planLayout } from '@/domain/floorList/layout';
 import { scrollParentOf } from '@/lib/scrollParent';
 import {
   clampZoom,
+  MAX_ZOOM,
   pinchStart,
   pinchStep,
   readStoredZoom,
@@ -53,6 +54,14 @@ function readUsulToggle(): boolean {
   }
 }
 
+/**
+ * The plan drawn at a phone's own width (12 Nov 2026), not the 880 px desk plan
+ * scaled to 40 %: there the 12 px lines came out near 5 px and needed a pinch
+ * for every room. A compact plan line is the bed, the name and the DPJP code;
+ * the full line stays in the SOAP the tap opens and in the lists below the plan.
+ */
+const Compact = createContext(false);
+
 /** While searching (13.7): a match is highlighted, the rest dimmed — the plan keeps every bed in place. */
 type Found = 'hit' | 'dim' | undefined;
 
@@ -74,9 +83,34 @@ function PatientButton({
   const residents = [patient.junior, patient.chief].filter(Boolean).map((n) => `dr. ${n}`).join(' / ');
   const flag = patient.discharge;
   const usul = useContext(ShowUsul) && patient.usul === true;
+  const compact = useContext(Compact) && !showPlace;
   const print = usePrintSettings();
   // Red/green colour the line; a floor tag only colours itself (13.10).
   const colour = flag ? FLAG_COLOR[flag] : undefined;
+  if (compact) {
+    return (
+      <button
+        type="button"
+        onClick={() => onOpen(patient)}
+        title={patient.identity}
+        className={`flex w-full min-w-0 items-center gap-1 rounded-md px-1 py-1 text-left text-xs leading-snug text-fg hover:bg-bg-subtle focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent ${
+          usul ? 'bg-[var(--warn-soft)]' : ''
+        } ${found === 'dim' ? 'opacity-30' : found === 'hit' ? 'outline outline-2 outline-accent' : ''}`}
+        style={colour ? { color: colour } : undefined}
+      >
+        {number !== undefined ? <span className="shrink-0 tabular-nums text-fg-muted">{number}</span> : null}
+        <span className="min-w-0 truncate">
+          {patient.name || patient.identity}
+          {code ? <span className="text-fg-muted"> · {code}</span> : null}
+        </span>
+        {flag ? <span className="sr-only"> ({FLAG_LABEL[flag]})</span> : null}
+        {usul ? <span className="sr-only"> (usul H-1)</span> : null}
+        <span className="ml-auto flex shrink-0 items-center">
+          <SoapBadge patient={patient} compact />
+        </span>
+      </button>
+    );
+  }
   return (
     <button
       type="button"
@@ -146,22 +180,39 @@ function RoomBox({
   find: (patient: FloorPatient) => Found;
 }): JSX.Element {
   const { beds, loose } = placeBeds(slot, patients);
+  const compact = useContext(Compact);
+  /*
+    Empty beds as one count (12 Nov 2026): a bare "1. 2. 3." line per empty bed made the
+    six-bed rooms the tallest boxes on the plan with nothing in them. A patient keeps the
+    number of the bed they are in.
+  */
+  const free = beds.filter((p) => !p).length;
+  const freeText = free === 0 ? '' : slot.beds > 1 ? `${free} kosong` : 'kosong';
   return (
-    <div className="rounded-lg border border-border bg-surface p-2">
-      <p className="text-center text-xs font-bold uppercase tracking-wide">
-        Kamar {slot.room}
-        {slot.subtitle ? <span className="block font-semibold normal-case">{slot.subtitle}</span> : null}
-      </p>
+    <div className={`rounded-lg border border-border bg-surface ${compact ? 'p-1.5' : 'p-2'}`}>
+      {compact ? (
+        <p className="flex items-baseline justify-between gap-1 px-1 text-xs font-bold tabular-nums">
+          <span className="min-w-0 truncate">
+            {slot.room}
+            {slot.subtitle ? <span className="ml-1 font-medium text-fg-muted">{slot.subtitle}</span> : null}
+          </span>
+          {freeText ? <span className="shrink-0 text-[11px] font-normal text-fg-faint">{freeText}</span> : null}
+        </p>
+      ) : (
+        <p className="text-center text-xs font-bold uppercase tracking-wide">
+          Kamar {slot.room}
+          {slot.subtitle ? <span className="block font-semibold normal-case">{slot.subtitle}</span> : null}
+          {freeText ? <span className="block text-[11px] font-normal normal-case tracking-normal text-fg-faint">{freeText}</span> : null}
+        </p>
+      )}
       <ol className="mt-1 space-y-0.5">
-        {beds.map((patient, i) => (
-          <li key={i} className="min-h-5 text-[12px] text-fg-faint">
-            {patient ? (
+        {beds.map((patient, i) =>
+          patient ? (
+            <li key={i} className="min-h-5 text-[12px]">
               <PatientButton patient={patient} number={slot.beds > 1 ? i + 1 : undefined} onOpen={onOpen} showPlace={false} found={find(patient)} />
-            ) : slot.beds > 1 ? (
-              <span className="px-1">{i + 1}.</span>
-            ) : null}
-          </li>
-        ))}
+            </li>
+          ) : null,
+        )}
         {loose.map((patient) => (
           <li key={patient.key}>
             <PatientButton patient={patient} onOpen={onOpen} showPlace={false} found={find(patient)} />
@@ -184,6 +235,8 @@ function Section({ title, id, children }: { title: string; id?: string | undefin
 
 /** The width the plan is drawn at: the desk layout, room text at full size. */
 const DESK_WIDTH = 880;
+/** Below this the plan is drawn compact at the screen's own width (a phone); between it and DESK_WIDTH, scaled. */
+const COMPACT_BELOW = 600;
 const ZOOM_KEY = 'plano.listmaker.denahZoom';
 
 /**
@@ -227,7 +280,10 @@ function DenahCanvas({ children }: { children: ReactNode }): JSX.Element {
     return () => observer.disconnect();
   }, []);
   const narrow = width < DESK_WIDTH;
-  const fit = narrow ? width / DESK_WIDTH : 1;
+  const compact = width < COMPACT_BELOW;
+  // Compact: drawn at the screen's width, so "fit" is full size and a pinch only enlarges.
+  const drawWidth = compact ? width : DESK_WIDTH;
+  const fit = narrow ? width / drawWidth : 1;
   const scale = narrow ? clampZoom(zoom ?? fit, fit) : 1;
   const atFit = scale <= fit + 0.001;
 
@@ -335,7 +391,8 @@ function DenahCanvas({ children }: { children: ReactNode }): JSX.Element {
   // Double-tap on empty plan: fit <-> readable (full desk size), about the tap.
   // Not on a button: a patient's first tap already opened the SOAP.
   const toggleAt = useRef((_point: { x: number; y: number }): void => undefined);
-  toggleAt.current = (point) => zoomTo(atFit ? 1 : fit, point);
+  // Scaled plan: fit <-> full size. Compact plan (already full size): fit <-> 2×.
+  toggleAt.current = (point) => zoomTo(atFit ? (compact ? MAX_ZOOM : 1) : fit, point);
   useEffect(() => {
     const box = outer.current;
     if (!box || !narrow) return undefined;
@@ -372,8 +429,9 @@ function DenahCanvas({ children }: { children: ReactNode }): JSX.Element {
   }, [narrow]);
 
   return (
+    <Compact.Provider value={compact}>
     <div>
-      {narrow ? (
+      {narrow && !compact ? (
         <p className="mb-1 text-right text-xs text-fg-faint">Cubit dua jari, atau ketuk dua kali di area kosong</p>
       ) : null}
       {/*
@@ -389,11 +447,13 @@ function DenahCanvas({ children }: { children: ReactNode }): JSX.Element {
         className={`relative ${narrow && !atFit ? 'overflow-x-auto overscroll-x-contain' : 'overflow-hidden'}`}
         style={narrow ? { height: height * scale, touchAction: 'pan-x pan-y' } : undefined}
       >
-        <div style={narrow ? { width: DESK_WIDTH * scale, height: height * scale } : undefined}>
+        <div style={narrow ? { width: drawWidth * scale, height: height * scale } : undefined}>
           <div
             ref={inner}
+            data-compact={compact || undefined}
+            className="group/plan"
             style={{
-              width: narrow ? DESK_WIDTH : undefined,
+              width: narrow ? drawWidth : undefined,
               transform: narrow && scale !== 1 ? `scale(${scale})` : undefined,
               transformOrigin: 'top left',
             }}
@@ -403,6 +463,7 @@ function DenahCanvas({ children }: { children: ReactNode }): JSX.Element {
         </div>
       </div>
     </div>
+    </Compact.Provider>
   );
 }
 
@@ -414,7 +475,6 @@ export function FloorDenah({
   words = [],
   marks = [],
   toolbarStart,
-  jumpStart,
 }: {
   plan: WardPlan | null;
   ward: string;
@@ -426,8 +486,6 @@ export function FloorDenah({
   marks?: readonly FloorMark[];
   /** Leads the toolbar row (Shift sebelumnya, 10 Nov 2026), so the controls share one line. */
   toolbarStart?: ReactNode;
-  /** Leads the floating jump bar (Shift sebelumnya, 11 Nov 2026, Avi): reachable from anywhere on the page. */
-  jumpStart?: ReactNode;
 }): JSX.Element {
   const sorted = [...patients].sort(byRoute(ward));
   // Several DPJPs at once (7 Nov 2026): chips, remembered on this device; a DPJP with no patient here is ignored.
@@ -453,6 +511,9 @@ export function FloorDenah({
     (id) => !(LIST_DPJP_ORDER as readonly string[]).includes(id) && !isPediatri(id),
   );
   const order = [...LIST_DPJP_ORDER, ...extra, ...PEDIATRI_DPJP_IDS];
+  const hasPatients = (id: string): boolean => shown.some((p) => p.dpjpId === id || p.kjsDpjpIds.includes(id));
+  const withPatients = order.filter(hasPatients);
+  const withoutPatients = order.filter((id) => !hasPatients(id));
 
   // Residents: chief counts, one block per junior, then division patients (13.9).
   const groups = residentGroups(shown);
@@ -576,7 +637,7 @@ export function FloorDenah({
       {plan ? (
         <Section title={`Denah ${ward}`} id={JUMP_IDS.denah}>
           <DenahCanvas>
-            <div className="grid grid-cols-2 gap-2">
+            <div className="grid grid-cols-2 gap-2 group-data-[compact]/plan:grid-cols-[repeat(2,minmax(0,1fr))] group-data-[compact]/plan:gap-1.5">
               {plan.header.map((slot) => (
                 <RoomBox key={slot.room} slot={slot} patients={inRoom(slot.room)} onOpen={onOpen} find={find} />
               ))}
@@ -595,31 +656,32 @@ export function FloorDenah({
               });
               return (
                 <div
-                  className="mt-2 grid grid-cols-[1fr_0.7fr_1fr] gap-2"
-                  style={{ gridTemplateRows: `repeat(${layout.rows}, minmax(3.5rem, auto))` }}
+                  className="mt-2 grid grid-cols-[1fr_0.7fr_1fr] gap-2 group-data-[compact]/plan:mt-1.5 group-data-[compact]/plan:grid-cols-[minmax(0,1fr)_minmax(0,0.5fr)_minmax(0,1fr)] group-data-[compact]/plan:gap-1.5"
+                  style={{ gridTemplateRows: `repeat(${layout.rows}, minmax(3rem, auto))` }}
                 >
                   {layout.left.map((cell) => (
-                    <div key={cell.slot.room} style={place(cell.row, cell.span, 1)} className="flex [&>*]:flex-1">
+                    <div key={cell.slot.room} style={place(cell.row, cell.span, 1)} className="flex min-w-0 [&>*]:min-w-0 [&>*]:flex-1">
                       <RoomBox slot={cell.slot} patients={inRoom(cell.slot.room)} onOpen={onOpen} find={find} />
                     </div>
                   ))}
                   {layout.landmark ? (
                     <div
                       style={place(layout.landmark.row, layout.landmark.span, 2)}
-                      className="flex items-center justify-center rounded-lg border border-[var(--warn-strong)] bg-[var(--warn-soft)] p-2 text-center text-xs font-bold uppercase leading-tight tracking-wide text-fg"
+                      className="flex items-center justify-center rounded-lg border border-[var(--warn-strong)] bg-[var(--warn-soft)] p-2 text-center text-xs font-bold uppercase leading-tight tracking-wide text-fg group-data-[compact]/plan:p-1 group-data-[compact]/plan:text-[11px]"
                     >
-                      {layout.landmark.label}
-                      <br />
-                      {ward}
+                      <span>
+                        {layout.landmark.label}
+                        <span className="block group-data-[compact]/plan:hidden">{ward}</span>
+                      </span>
                     </div>
                   ) : null}
                   {layout.centre.map((cell) => (
-                    <div key={cell.slot.room} style={place(cell.row, cell.span, 2)} className="flex [&>*]:flex-1">
+                    <div key={cell.slot.room} style={place(cell.row, cell.span, 2)} className="flex min-w-0 [&>*]:min-w-0 [&>*]:flex-1">
                       <RoomBox slot={cell.slot} patients={inRoom(cell.slot.room)} onOpen={onOpen} find={find} />
                     </div>
                   ))}
                   {layout.right.map((cell) => (
-                    <div key={cell.slot.room} style={place(cell.row, cell.span, 3)} className="flex [&>*]:flex-1">
+                    <div key={cell.slot.room} style={place(cell.row, cell.span, 3)} className="flex min-w-0 [&>*]:min-w-0 [&>*]:flex-1">
                       <RoomBox slot={cell.slot} patients={inRoom(cell.slot.room)} onOpen={onOpen} find={find} />
                     </div>
                   ))}
@@ -641,8 +703,8 @@ export function FloorDenah({
       ) : null}
 
       <Section title="Per DPJP" id={JUMP_IDS.dpjp}>
-        <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3">
-          {order.map((id) => {
+        <div className="grid grid-cols-1 items-start gap-2 sm:grid-cols-2 lg:grid-cols-3">
+          {withPatients.map((id) => {
             const own = shown.filter((p) => p.dpjpId === id);
             const kjs = shown.filter((p) => p.kjsDpjpIds.includes(id));
             return (
@@ -669,6 +731,12 @@ export function FloorDenah({
             );
           })}
         </div>
+        {/* A DPJP with nobody here is one name in a line, not an empty box (12 Nov 2026). */}
+        {withoutPatients.length > 0 ? (
+          <p className="text-xs text-fg-muted">
+            <span className="font-semibold">Tanpa pasien:</span> {withoutPatients.map((id) => dpjpTitle(id)).join(' · ')}
+          </p>
+        ) : null}
       </Section>
 
       <Section title="Residen" id={JUMP_IDS.residen}>
@@ -754,7 +822,6 @@ export function FloorDenah({
         ) : null}{' '}
         · Ketuk pasien untuk SOAP lengkap.
       </p>
-      <JumpBar start={jumpStart} />
     </div>
     </ShowUsul.Provider>
   );
@@ -763,25 +830,18 @@ export function FloorDenah({
 const JUMP_IDS = { denah: 'lm-jump-denah', dpjp: 'lm-jump-dpjp', residen: 'lm-jump-residen' } as const;
 
 /**
- * Floating jumps to the three parts of a long Denah page (10 Nov 2026, Avi):
- * the plan, Per DPJP, Residen. Bottom right, above the phone tab bar.
+ * Jumps to the three parts of a long Denah page (10 Nov 2026, Avi): the plan,
+ * Per DPJP, Residen. In the pinned tab bar since 12 Nov 2026: floating at the
+ * bottom right it sat on top of the page (Saran's buttons on a phone, the
+ * right-hand rooms on a desk), whatever was scrolled under it.
  */
-function JumpBar({ start }: { start?: ReactNode }): JSX.Element {
+export function DenahJumps(): JSX.Element {
   const jump = (id: string): void => {
     const smooth = !window.matchMedia('(prefers-reduced-motion: reduce)').matches;
     document.getElementById(id)?.scrollIntoView({ behavior: smooth ? 'smooth' : 'auto', block: 'start' });
   };
   return (
-    <nav
-      aria-label="Lompat ke bagian"
-      className="fixed bottom-[calc(env(safe-area-inset-bottom)+80px)] right-3 z-30 flex items-center rounded-full border border-border bg-surface p-0.5 shadow-pop sm:bottom-6 sm:right-6 print:hidden"
-    >
-      {start ? (
-        <>
-          {start}
-          <span aria-hidden="true" className="mx-0.5 h-5 w-px bg-border" />
-        </>
-      ) : null}
+    <nav aria-label="Lompat ke bagian" className="flex min-w-0 shrink-0 items-center rounded-xl border border-border bg-bg-subtle p-0.5 print:hidden">
       {(
         [
           [JUMP_IDS.denah, 'Denah'],
@@ -793,9 +853,17 @@ function JumpBar({ start }: { start?: ReactNode }): JSX.Element {
           key={id}
           type="button"
           onClick={() => jump(id)}
-          className="min-h-tap rounded-full px-3 text-xs font-semibold text-fg-muted hover:bg-bg-subtle hover:text-fg [@media(pointer:fine)]:min-h-9"
+          className="min-h-tap whitespace-nowrap rounded-lg px-2 text-xs sm:px-2.5 font-semibold text-fg-muted hover:bg-surface hover:text-fg [@media(pointer:fine)]:min-h-8"
         >
-          {label}
+          {/* "Per" dropped on a phone, where the jumps share the pinned row with ⋯ and Simpan. */}
+          {label === 'Per DPJP' ? (
+            <>
+              <span className="sm:hidden">DPJP</span>
+              <span className="max-sm:hidden">Per DPJP</span>
+            </>
+          ) : (
+            label
+          )}
         </button>
       ))}
     </nav>

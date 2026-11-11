@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 
-import { IconCheck, IconCopy, IconDocuments, IconLayers, IconPrinter } from '@/components/common/Icons';
+import { IconCheck, IconCopy, IconDocuments, IconLayers, IconMore, IconPrinter } from '@/components/common/Icons';
 import { Button, INPUT } from '@/components/common/ui';
 import { saveEdition, saveRestorePoint } from '@/data/repositories/floors.repo';
 import { formatDmy } from '@/domain/dateDmy';
@@ -35,6 +35,8 @@ export function ListActions({
   editions,
   time,
   onTime,
+  tight = false,
+  menuStart,
 }: {
   floor: FloorDoc;
   roster: readonly RosterPatient[];
@@ -45,10 +47,14 @@ export function ListActions({
   editions: readonly Edition[];
   time: string;
   onTime: (time: string) => void;
+  /** The phone row is shared (the Denah jumps): Simpan shows only its time there. */
+  tight?: boolean;
+  /** Leads the phone's ⋯ menu (Shift sebelumnya on the Denah). */
+  menuStart?: ReactNode;
 }): JSX.Element {
   const text = useMemo(() => buildFloorList(view.active, { ward: floor.ward, date, time }), [view.active, floor.ward, date, time]);
   const [copied, setCopied] = useState(false);
-  const [open, setOpen] = useState<'print' | 'save' | null>(null);
+  const [open, setOpen] = useState<'print' | 'save' | 'more' | null>(null);
   const [saved, setSaved] = useState('');
   const [savingEdition, setSavingEdition] = useState(false);
   const printSettings = usePrintSettings();
@@ -91,41 +97,12 @@ export function ListActions({
     setSaved(`Edisi ${formatDmy(date)} ${time} tersimpan.`);
   };
 
-  const toggle = (which: 'print' | 'save'): void => setOpen((current) => (current === which ? null : which));
+  const toggle = (which: 'print' | 'save' | 'more'): void => setOpen((current) => (current === which ? null : which));
   const close = (): void => setOpen(null);
+  const copy = (): void => void copyText(text).then((ok) => setCopied(ok));
 
-  return (
+  const printItems = (
     <>
-      <Button
-        size="sm"
-        icon={<IconCopy width={16} height={16} />}
-        onClick={() => void copyText(text).then((ok) => setCopied(ok))}
-        aria-label="Salin teks untuk WhatsApp"
-        title="Salin teks untuk WhatsApp"
-      >
-        <span className="max-sm:sr-only">{copied ? 'Tersalin ✓' : 'Salin teks'}</span>
-      </Button>
-
-      <Popover
-        open={open === 'print'}
-        onClose={close}
-        label="Cetak dan ekspor"
-        trigger={
-          <Button
-            size="sm"
-            icon={<IconPrinter width={16} height={16} />}
-            aria-expanded={open === 'print'}
-            aria-haspopup="true"
-            aria-label="Cetak"
-            title="Cetak / ekspor"
-            onClick={() => toggle('print')}
-          >
-            {/* Icon only below 1280 px, so the six tabs keep their room beside the buttons. */}
-            <span className="max-xl:sr-only">Cetak ▾</span>
-          </Button>
-        }
-      >
-        <div className="grid gap-1.5">
           <MenuItem
             icon={<IconDocuments width={18} height={18} />}
             title="Word: List"
@@ -163,8 +140,68 @@ export function ListActions({
           >
             Atur cetak — orientasi, huruf, pratinjau
           </button>
-        </div>
-      </Popover>
+    </>
+  );
+
+  return (
+    <>
+      {/*
+        A phone gets one ⋯ menu for Salin teks and Cetak (12 Nov 2026): three bordered icon
+        buttons beside the search squeezed it to "Cari nama, RM, kar". From 640 px they are
+        separate buttons again, as before.
+      */}
+      <div className="sm:hidden">
+        <Popover
+          open={open === 'more'}
+          onClose={close}
+          label="Salin dan cetak"
+          trigger={
+            <Button size="icon" aria-expanded={open === 'more'} aria-haspopup="true" aria-label="Salin dan cetak" onClick={() => toggle('more')}>
+              <IconMore width={18} height={18} />
+            </Button>
+          }
+        >
+          <div className="grid gap-1.5">
+            {menuStart}
+            <MenuItem icon={<IconCopy width={18} height={18} />} title={copied ? 'Tersalin ✓' : 'Salin teks'} note="untuk grup WhatsApp" onClick={copy} />
+            {printItems}
+          </div>
+        </Popover>
+      </div>
+      <Button
+        size="sm"
+        icon={<IconCopy width={16} height={16} />}
+        onClick={copy}
+        aria-label="Salin teks untuk WhatsApp"
+        title="Salin teks untuk WhatsApp"
+        className="max-sm:hidden"
+      >
+        {copied ? 'Tersalin ✓' : 'Salin teks'}
+      </Button>
+
+      <div className="max-sm:hidden">
+        <Popover
+          open={open === 'print'}
+          onClose={close}
+          label="Cetak dan ekspor"
+          trigger={
+            <Button
+              size="sm"
+              icon={<IconPrinter width={16} height={16} />}
+              aria-expanded={open === 'print'}
+              aria-haspopup="true"
+              aria-label="Cetak"
+              title="Cetak / ekspor"
+              onClick={() => toggle('print')}
+            >
+              {/* Icon only below 1280 px, so the seven tabs keep their room beside the buttons. */}
+              <span className="max-xl:sr-only">Cetak ▾</span>
+            </Button>
+          }
+        >
+          <div className="grid gap-1.5">{printItems}</div>
+        </Popover>
+      </div>
       <PrintSetup open={setupOpen} onOpenChange={setSetupOpen} input={printInput} stamp={date} />
 
       {editable ? (
@@ -176,12 +213,13 @@ export function ListActions({
             <Button
               size="sm"
               variant="primary"
-              icon={<IconCheck width={16} height={16} />}
+              icon={<IconCheck width={16} height={16} className={tight ? 'max-sm:hidden' : undefined} />}
               aria-expanded={open === 'save'}
               aria-haspopup="true"
               aria-label={`Simpan edisi, jam ${time.trim() || '—'}`}
               onClick={() => toggle('save')}
             >
+              <span className={tight ? 'max-sm:sr-only xl:hidden' : 'xl:hidden'}>Simpan</span>
               <span className="max-xl:hidden">Simpan edisi</span>
               <span className="rounded bg-black/15 px-1 tabular-nums">{time.trim() || '—'}</span>
             </Button>

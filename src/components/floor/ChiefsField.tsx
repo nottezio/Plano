@@ -15,6 +15,7 @@ export function ChiefsField({
   id = 'floor-chief-input',
   noun = 'chief',
   wide = false,
+  inline = false,
 }: {
   chiefs: string[];
   onChange: (next: string[]) => void;
@@ -24,6 +25,8 @@ export function ChiefsField({
   noun?: string;
   /** Fill the column it sits in (the List Maker head, 13.15) instead of 18 rem. */
   wide?: boolean;
+  /** The label inside the box, before the chips (List Maker head, 12 Nov 2026): no label row above. */
+  inline?: boolean;
 }): JSX.Element {
   const [draft, setDraft] = useState('');
   const add = (): void => {
@@ -31,12 +34,16 @@ export function ChiefsField({
     if (name && !chiefs.includes(name)) onChange([...chiefs, name]);
     setDraft('');
   };
+  const labelEl = (
+    <label htmlFor={id} className={inline ? 'shrink-0 whitespace-nowrap pl-1.5 pr-0.5 text-xs text-fg-muted' : 'mb-1 block text-xs font-medium text-fg-muted'}>
+      {label}
+    </label>
+  );
   return (
     <div className="min-w-0">
-      <label htmlFor={id} className="mb-1 block text-xs font-medium text-fg-muted">
-        {label}
-      </label>
+      {inline ? null : labelEl}
       <div className={`flex min-h-tap ${wide ? 'w-full' : 'w-72'} max-w-full flex-wrap items-center gap-1 rounded-xl border border-border bg-surface px-1.5 py-1 focus-within:border-accent [@media(pointer:fine)]:min-h-10`}>
+        {inline ? labelEl : null}
         {chiefs.map((name) => (
           <span key={name} className="inline-flex h-7 items-center gap-0.5 rounded-full bg-bg-subtle pl-2.5 text-sm">
             {name}
@@ -61,7 +68,7 @@ export function ChiefsField({
             }
           }}
           onBlur={add}
-          placeholder={chiefs.length > 0 ? `+ ${noun}` : `Nama ${noun}`}
+          placeholder={chiefs.length > 0 ? `+ ${noun}` : inline ? 'nama' : `Nama ${noun}`}
           aria-label={`Tambah ${noun}`}
           className="h-7 min-w-[5rem] flex-1 bg-transparent px-1 text-sm text-fg outline-none placeholder:text-fg-faint"
         />

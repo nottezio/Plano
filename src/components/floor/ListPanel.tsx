@@ -20,12 +20,18 @@ import { markCss } from '@/domain/floorList/marks';
 import type { FloorPatient } from '@/domain/floorList/report';
 import { matchesSearch } from '@/domain/floorList/search';
 import { copyText } from '@/lib/clipboard';
-import { SoapBadge } from './SoapBadge';
+import { IconMore } from '@/components/common/Icons';
+import { NewDot, SoapBadge } from './SoapBadge';
 import { PatientControls } from './PatientControls';
 import { ListMessage } from './ListMessage';
 import { ManualPatientSheet } from './ManualPatientSheet';
-import { PasteFloat } from './PasteFloat';
 import { DischargeChip, FLAG_TEXT } from './DischargeChip';
+
+/**
+ * The list's columns from 1024 px (12 Nov 2026): one table row per patient, so the
+ * full width is used. Below 1024 px the same cells read as two lines.
+ */
+const COLUMNS = 'lg:grid-cols-[4.5rem_minmax(0,1.5fr)_3.5rem_6.5rem_3.5rem_minmax(0,1fr)_minmax(0,1fr)]';
 
 /**
  * List (12.12): the roster on this list date, with every decision by hand —
@@ -61,8 +67,11 @@ export function ListPanel({
 }): JSX.Element {
   const [copied, setCopied] = useState('');
   const [manualOpen, setManualOpen] = useState(false);
-  // Tempel over the list (2026-10-16).
-  const [pasteOpen, setPasteOpen] = useState(false);
+  /*
+    The WhatsApp preview opens beside the list on a desk (12 Nov 2026). It was a folded box in a
+    24 rem column of its own, which left a third of a wide screen empty beside the list.
+  */
+  const [previewOpen, setPreviewOpen] = useState(false);
   const [editing, setEditing] = useState<FloorPatient | null>(null);
   const chiefs = chiefsOf(floor.chiefs);
   const byKey = useMemo(() => new Map(roster.map((p) => [p.key, p])), [roster]);
@@ -83,19 +92,30 @@ export function ListPanel({
 
   /** The one patient whose controls are open (13.15). */
   const [openKey, setOpenKey] = useState<string | null>(null);
+  const fresh = all.filter((p) => p.newBadge);
+  const side = previewOpen || gone.length > 0;
 
   return (
-    <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_24rem]">
+    <div className={side ? 'grid gap-4 lg:grid-cols-[minmax(0,1fr)_24rem]' : ''}>
       <div className="min-w-0 space-y-2">
-        <div className="flex flex-wrap items-center gap-2">
-          <h3 className="flex-1 text-xs font-semibold uppercase tracking-wide text-fg-faint">
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+          <h3 className="text-xs font-semibold uppercase tracking-wide text-fg-faint">
             Di lantai ({words.length > 0 ? `${sorted.length} dari ${all.length}` : all.length})
           </h3>
-          {editable ? (
-            <Button size="sm" variant={pasteOpen ? 'primary' : 'secondary'} onClick={() => setPasteOpen((v) => !v)} aria-pressed={pasteOpen}>
-              Tempel
-            </Button>
+          {fresh[0]?.newBadge ? (
+            <span className="inline-flex items-center text-xs text-fg-muted">
+              <NewDot label={fresh[0].newBadge.label} color={markCss(fresh[0].newBadge.color)} />
+              <span className="ml-1.5 tabular-nums">
+                {fresh.length} {fresh[0].newBadge.label.toLowerCase()}
+              </span>
+            </span>
           ) : null}
+          <span className="flex-1" />
+          <Button size="sm" variant={previewOpen ? 'primary' : 'secondary'} onClick={() => setPreviewOpen((v) => !v)} aria-pressed={previewOpen}>
+            <span>
+              Pratinjau<span className="max-sm:hidden"> WhatsApp</span>
+            </span>
+          </Button>
           {editable ? (
             <Button
               size="sm"
@@ -104,10 +124,11 @@ export function ListPanel({
                 setManualOpen(true);
               }}
             >
-              + Pasien manual
+              <span>
+                +<span className="max-sm:hidden"> Pasien</span> manual
+              </span>
             </Button>
           ) : null}
-          {pasteOpen && editable ? <PasteFloat floor={floor} roster={roster} myName={myName} onClose={() => setPasteOpen(false)} /> : null}
         </div>
         <ManualPatientSheet
           open={manualOpen}
@@ -132,28 +153,41 @@ export function ListPanel({
           the row opens the SOAP, as on the denah.
         */}
         <ul className="divide-y divide-border overflow-hidden rounded-xl border border-border bg-surface">
+          {sorted.length > 0 ? (
+            <li aria-hidden="true" className="hidden bg-bg-subtle py-1.5 pl-3 pr-12 text-[11px] font-semibold uppercase tracking-wide text-fg-faint lg:block">
+              <span className={`grid gap-x-3 ${COLUMNS}`}>
+                <span>Kamar</span>
+                <span>Pasien</span>
+                <span>Umur</span>
+                <span>RM</span>
+                <span>DPJP</span>
+                <span>Residen</span>
+                <span>Catatan</span>
+              </span>
+            </li>
+          ) : null}
           {sorted.map((patient) => {
             const entry = byKey.get(patient.key);
             if (!entry) return null;
             const isOpen = openKey === patient.key;
             return (
               <li key={patient.key}>
-                <div className="flex items-start gap-3 py-d-row pl-3 pr-2">
-                  <button type="button" onClick={() => onOpen(patient)} className="min-w-0 flex-1 text-left">
+                <div className="flex items-center gap-1 py-1 pl-3 pr-1 lg:py-0">
+                  <button type="button" onClick={() => onOpen(patient)} title={patient.identity} className="min-w-0 flex-1 py-1 text-left lg:py-0">
                     <PatientRowText patient={patient} />
                   </button>
                   {editable ? (
-                    <button
-                      type="button"
+                    <Button
+                      size="icon"
+                      variant={isOpen ? 'secondary' : 'ghost'}
                       aria-expanded={isOpen}
                       aria-label={`Atur ${patient.name}`}
+                      title="Atur status, residen, warna"
                       onClick={() => setOpenKey(isOpen ? null : patient.key)}
-                      className={`min-h-tap min-w-[4.5rem] shrink-0 rounded-lg border px-3 text-xs font-semibold [@media(pointer:fine)]:min-h-8 ${
-                        isOpen ? 'border-accent bg-[var(--accent-soft)] text-accent' : 'border-border text-fg-muted hover:text-fg'
-                      }`}
+                      className="shrink-0 text-fg-muted"
                     >
-                      Atur {isOpen ? '▴' : '▾'}
-                    </button>
+                      <IconMore width={18} height={18} />
+                    </Button>
                   ) : null}
                 </div>
                 {isOpen && editable ? (
@@ -202,6 +236,7 @@ export function ListPanel({
       </div>
 
       {/* Pinned under the sub-tab bar (`sticky top-0`; its measured height is `--lm-tabs-h`), not behind it; a tall panel scrolls inside itself so its bottom is reachable. */}
+      {side ? (
       <div className="min-w-0 space-y-3 lg:sticky lg:top-[calc(var(--lm-tabs-h,4.5rem)+0.5rem)] lg:max-h-[calc(var(--app-h,100dvh)-var(--lm-tabs-h,4.5rem)-1rem)] lg:self-start lg:overflow-y-auto lg:overscroll-contain">
         {gone.length > 0 ? (
           <div className="space-y-1 rounded-xl border border-border bg-surface p-3 text-xs">
@@ -217,62 +252,103 @@ export function ListPanel({
           </div>
         ) : null}
 
-        <details className="rounded-xl border border-border bg-surface">
-          <summary className="cursor-pointer px-3 py-2 text-xs font-semibold">Pratinjau pesan WhatsApp</summary>
-          <div className="border-t border-border">
-            <ListMessage text={text} />
-          </div>
-        </details>
+        {previewOpen ? (
+          <section aria-label="Pratinjau pesan WhatsApp" className="rounded-xl border border-border bg-surface">
+            <h3 className="px-3 py-2 text-xs font-semibold">Pratinjau pesan WhatsApp</h3>
+            <div className="border-t border-border">
+              <ListMessage text={text} />
+            </div>
+          </section>
+        ) : null}
       </div>
+      ) : null}
     </div>
   );
 }
 
+/** The age written in the identity line ("58 tahun", "63 th"), for the row; '' when there is none. */
+export function ageOf(identity: string): string {
+  const m = /(?:^|[\s/])(\d{1,3})\s*(?:tahun|thn|th)\b/i.exec(identity);
+  return m ? `${m[1]} th` : '';
+}
+
+/** " · " between the bits of the second line; gone from 1024 px, where each bit is a column. */
+const DOT = (
+  <span aria-hidden="true" className="text-fg-faint lg:hidden">
+    {' · '}
+  </span>
+);
+
 /**
- * A patient as one easy line: place and DPJP code as small chips, the
- * identity (red/green when H-1 / pulang), then residents and marks below.
+ * A patient as a person reads them (12 Nov 2026, Avi: "non-human UI"): place, name and age on the
+ * first line; RM, DPJP code, residents and notes muted below. The identity line was shown as
+ * written ("Tn. X/08-02-1963/63 tahun/RM 1800954"), which wrapped to two bold lines on a phone and
+ * buried the name. The stored identity is untouched: it is the row's tooltip and stays whole in the
+ * SOAP the row opens. From 1024 px the same cells are table columns.
  */
 function PatientRowText({ patient }: { patient: FloorPatient }): JSX.Element {
   const colour = patient.discharge ? FLAG_TEXT[patient.discharge] : undefined;
   const code = dpjpCodeOf(patient);
   const residents = [patient.junior, patient.chief].filter(Boolean).map((n) => `dr. ${n}`).join(' / ');
+  const age = ageOf(patient.identity);
   const notes = [
     patient.btkv ? 'KJS BTKV' : '',
     patient.division ? `${holderLabel(patient.division)} · tidak di-FU` : '',
     patient.operkan ? `operkan → dr. ${patient.operkan.replace(/^dr\.?\s*/i, '')}` : '',
     patient.gantiChief ? `ganti chief → dr. ${patient.gantiChief.replace(/^dr\.?\s*/i, '')}` : '',
   ].filter(Boolean);
+  const tags = patient.tags ?? [];
   return (
-    <span className="block text-cbody">
-      <span className="mr-1 inline-block rounded bg-bg-subtle px-1.5 font-semibold tabular-nums">
+    <span className={`grid grid-cols-[3.25rem_minmax(0,1fr)] items-center gap-x-2.5 text-cbody lg:min-h-11 lg:gap-x-3 ${COLUMNS}`}>
+      <span className="row-span-2 self-center rounded bg-bg-subtle px-1 py-0.5 text-center text-xs font-semibold tabular-nums lg:row-span-1 lg:justify-self-start lg:bg-transparent lg:px-0 lg:text-left">
         {patient.room || '—'}
         {patient.bed ? `/${patient.bed}` : ''}
       </span>
-      {code ? <span className="mr-1 inline-block rounded border border-border px-1 text-[11px] font-semibold text-fg-muted">{code}</span> : null}
-      {/* A word, not a stripe down the row's edge: the colour was already on the identity. */}
-      {patient.discharge ? (
-        <span className="mr-1">
+      <span className="flex min-w-0 items-center gap-1 lg:contents">
+        <span className="flex min-w-0 items-center gap-1.5">
+          {/* A word, not a stripe down the row's edge: the colour is also on the name. */}
           <DischargeChip patient={patient} />
-        </span>
-      ) : null}
-      <span className="font-semibold" style={colour ? { color: colour } : undefined}>
-        {patient.identity}
-      </span>
-      <span className="mt-0.5 block text-xs text-fg-muted">
-        {residents || <span className="text-fg-faint">belum ada residen</span>}
-        {notes.map((n) => (
-          <span key={n}> · {n}</span>
-        ))}
-        <SoapBadge patient={patient} />
-        {(patient.tags ?? []).map((tag) => (
-          <span
-            key={tag.label}
-            className="ml-1 inline-block rounded-full border px-1.5 text-[11px] font-semibold"
-            style={{ borderColor: markCss(tag.color), color: markCss(tag.color) }}
-          >
-            {tag.label}
+          <span className="truncate font-semibold" style={colour ? { color: colour } : undefined}>
+            {patient.name || patient.identity}
           </span>
-        ))}
+          <span className="flex shrink-0 items-center">
+            <SoapBadge patient={patient} />
+          </span>
+        </span>
+        {age ? (
+          <span className="shrink-0 text-fg-muted">
+            <span aria-hidden="true" className="lg:hidden">
+              ·{' '}
+            </span>
+            {age}
+          </span>
+        ) : (
+          <span className="hidden lg:block" />
+        )}
+      </span>
+      <span className="truncate text-xs text-fg-muted lg:contents">
+        <span className="tabular-nums lg:truncate">{patient.rm ? `RM ${patient.rm}` : ''}</span>
+        {patient.rm && code ? DOT : null}
+        <span className="font-semibold lg:truncate">{code}</span>
+        {code || patient.rm ? DOT : null}
+        <span className="lg:truncate">{residents || <span className="text-fg-faint">belum ada residen</span>}</span>
+        <span className="lg:flex lg:min-w-0 lg:flex-wrap lg:items-center lg:gap-1">
+          {notes.map((n, i) => (
+            <span key={n}>
+              {i === 0 ? DOT : <span aria-hidden="true">{' · '}</span>}
+              {n}
+            </span>
+          ))}
+          {tags.map((tag) => (
+            <span
+              key={tag.label}
+              className="ml-1 inline-block rounded-full border px-1.5 text-[11px] font-semibold lg:ml-0"
+              style={{ borderColor: markCss(tag.color), color: markCss(tag.color) }}
+            >
+              {tag.label}
+            </span>
+          ))}
+        </span>
       </span>
     </span>
   );

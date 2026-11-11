@@ -14,11 +14,16 @@ const LIMIT = 6;
 type Fields = Parameters<typeof writeRosterFields>[2];
 type ChiefFields = Extract<RosterChange, { kind: 'fields' }>['fields'];
 
+/**
+ * Folded unless left open on this device (12 Nov 2026): open by default, twelve
+ * proposals filled a phone screen above the first patient. Folded, the line
+ * still names every proposal and its count.
+ */
 function readOpen(): boolean {
   try {
-    return localStorage.getItem(KEY) !== '0';
+    return localStorage.getItem(KEY) === '1';
   } catch {
-    return true;
+    return false;
   }
 }
 
@@ -90,20 +95,23 @@ export function SuggestionTray({
 
   if (rows.length === 0) return null;
   const discharge = rows.filter((row) => row.kind === 'discharge').length;
-  const summary = [discharge > 0 ? `${discharge} soal pulang` : '', rows.length - discharge > 0 ? `${rows.length - discharge} ganti chief` : '']
-    .filter(Boolean)
-    .join(' · ');
+  const summary = open
+    ? [discharge > 0 ? `${discharge} soal pulang` : '', rows.length - discharge > 0 ? `${rows.length - discharge} ganti chief` : '']
+        .filter(Boolean)
+        .join(' · ')
+    : groups.map((group) => `${group.rows.length} ${group.title}`).join(' · ');
 
   return (
     <section aria-label="Saran" className="overflow-hidden rounded-xl border border-border bg-surface shadow-card">
       <button type="button" aria-expanded={open} onClick={() => toggle(!open)} className="flex min-h-tap w-full items-center gap-2 px-3 text-left">
         <IconBell width={16} height={16} className="shrink-0 text-fg-muted" />
-        <span className="text-sm font-semibold">Saran</span>
+        <span className="text-sm font-semibold max-sm:sr-only">Saran</span>
         <span className="inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-[var(--warn-soft)] px-1.5 text-[11px] font-semibold tabular-nums">
           {rows.length}
         </span>
         <span className="min-w-0 flex-1 truncate text-xs text-fg-muted">{summary}</span>
-        <IconChevronRight width={16} height={16} className={`shrink-0 text-fg-faint transition-transform duration-200 ${open ? 'rotate-90' : ''}`} />
+        <span className="shrink-0 text-xs font-semibold text-accent">{open ? 'Tutup' : 'Tinjau'}</span>
+        <IconChevronRight width={16} height={16} className={`shrink-0 text-accent transition-transform duration-200 motion-reduce:transition-none ${open ? '-rotate-90' : ''}`} />
       </button>
       <p aria-live="polite" className="sr-only">
         {said}

@@ -57,22 +57,28 @@ export function VisitPanel({
         </Button>
       </div>
 
+      {/*
+        From 1024 px Dx | Tx | Plan stand side by side after the patient (12 Nov 2026): stacked,
+        each card used the left third of a wide screen and was twice as tall as its text.
+      */}
       <ol className="space-y-2">
         {rows.map((row, k) => (
-          <li key={row.patient.key} className="rounded-xl border border-border bg-surface p-3">
-            <button type="button" onClick={() => onOpen(row.patient)} className="flex w-full flex-wrap items-center gap-x-2 gap-y-1 text-left hover:underline">
-              <span className="text-sm font-semibold tabular-nums">
-                {k + 1}. {row.patient.room || '—'}
-                {row.patient.bed ? `/${row.patient.bed}` : ''}
-              </span>
-              <span className="min-w-0 text-sm font-semibold">{row.patient.name || row.patient.identity}</span>
-              <DischargeChip patient={row.patient} long />
-              {row.kjs ? <span className="rounded border border-border px-1 text-[11px] font-semibold text-fg-muted">KJS</span> : null}
-            </button>
-            <p className="mt-0.5 text-xs text-fg-muted">
-              {[row.patient.junior, row.patient.chief].filter(Boolean).map((n) => `dr. ${n.replace(/^dr\.?\s*/i, '')}`).join(' / ') || 'belum ada residen'}
-            </p>
-            <dl className="mt-2 grid gap-x-3 gap-y-1.5 text-cbody sm:grid-cols-[3.5rem_1fr]">
+          <li key={row.patient.key} className="rounded-xl border border-border bg-surface p-3 lg:grid lg:grid-cols-[14rem_repeat(3,minmax(0,1fr))] lg:gap-x-5">
+            <div className="min-w-0">
+              <button type="button" onClick={() => onOpen(row.patient)} className="flex w-full flex-wrap items-center gap-x-2 gap-y-1 text-left hover:underline">
+                <span className="text-sm font-semibold tabular-nums">
+                  {k + 1}. {row.patient.room || '—'}
+                  {row.patient.bed ? `/${row.patient.bed}` : ''}
+                </span>
+                <span className="min-w-0 text-sm font-semibold">{row.patient.name || row.patient.identity}</span>
+                <DischargeChip patient={row.patient} long />
+                {row.kjs ? <span className="rounded border border-border px-1 text-[11px] font-semibold text-fg-muted">KJS</span> : null}
+              </button>
+              <p className="mt-0.5 text-xs text-fg-muted">
+                {[row.patient.junior, row.patient.chief].filter(Boolean).map((n) => `dr. ${n.replace(/^dr\.?\s*/i, '')}`).join(' / ') || 'belum ada residen'}
+              </p>
+            </div>
+            <dl className="mt-2 grid gap-x-3 gap-y-1.5 text-cbody sm:grid-cols-[3.5rem_1fr] lg:col-span-3 lg:mt-0 lg:grid-cols-3 lg:gap-x-5">
               {(
                 [
                   ['Dx', row.dx],
@@ -80,9 +86,9 @@ export function VisitPanel({
                   ['Plan', row.plan],
                 ] as const
               ).map(([title, lines]) => (
-                <div key={title} className="contents">
-                  <dt className="text-xs font-semibold text-fg-muted sm:pt-0.5">{title}</dt>
-                  <dd className="whitespace-pre-wrap break-words">{lines.length > 0 ? lines.join('\n') : <span className="text-fg-faint">—</span>}</dd>
+                <div key={title} className="contents lg:block lg:min-w-0">
+                  <dt className="text-xs font-semibold text-fg-muted sm:pt-0.5 lg:pt-0">{title}</dt>
+                  <dd className="whitespace-pre-wrap break-words lg:mt-0.5">{lines.length > 0 ? lines.join('\n') : <span className="text-fg-faint">—</span>}</dd>
                 </div>
               ))}
             </dl>

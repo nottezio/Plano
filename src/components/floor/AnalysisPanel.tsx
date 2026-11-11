@@ -71,7 +71,14 @@ function Tile({ label, value, tone, rename }: { label: string; value: number; to
   );
 }
 
-function Block({ title, count, rename, children }: { title: string; count: number; rename?: ReactNode; children: ReactNode }): JSX.Element {
+/**
+ * An empty section is left out (12 Nov 2026): eight boxes saying "—", each stretched to the
+ * height of the one full box in its row, made the empty space the loudest thing on the tab.
+ * Their names are one quiet line under the grid instead. Shown while renaming, so every
+ * section's name can still be edited.
+ */
+function Block({ title, count, rename, children }: { title: string; count: number; rename?: ReactNode; children: ReactNode }): JSX.Element | null {
+  if (count === 0 && !rename) return null;
   return (
     <section className="rounded-xl border border-border bg-surface p-2 text-xs">
       <h3 className="mb-1 font-semibold">
@@ -194,6 +201,23 @@ export function AnalysisPanel({
       if (ok) window.setTimeout(() => setCopied(false), 2000);
     });
   };
+  // The empty sections' names, in the order of the grid above (the Blocks it leaves out).
+  const empties = (
+    [
+      [name('pulangHariIni'), day.pulangHariIni.length],
+      [name('rencanaH1'), day.rencanaH1.length],
+      [name('usulH1'), day.usulH1.length],
+      [name('pulang'), day.pulang.length],
+      [name('pindah'), day.pindah.length],
+      [name('kamar'), day.kamar.length],
+      [name('masuk'), day.masuk.length],
+      ...(checks.belumSoap ? ([['Belum SOAP hari ini', noSoap.length]] as const) : []),
+      ...(checks.terlewat ? ([['Rencana pulang terlewat', overdue.length]] as const) : []),
+      ['Lama di list (8 hari atau lebih)', stayLong.length],
+    ] as ReadonlyArray<readonly [string, number]>
+  )
+    .filter(([, n]) => n === 0)
+    .map(([title]) => title);
   const from = week[0]?.date ?? date;
   const history = moves.filter((m) => m.at.slice(0, 10) >= from && m.at.slice(0, 10) <= date && (filter === 'semua' || m.kind === filter));
 
@@ -252,7 +276,7 @@ export function AnalysisPanel({
           Tampilkan junior &amp; chief
         </label>
       </div>
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+      <div className="grid items-start gap-3 sm:grid-cols-2 lg:grid-cols-3">
         <Block title={name('pulangHariIni')} count={day.pulangHariIni.length} rename={field('pulangHariIni', SECTION_TITLE.pulangHariIni)}>
           {day.pulangHariIni.map((p) => (
             <Row key={p.key} patient={p} onOpen={onOpen} holders={holders} />
@@ -315,6 +339,11 @@ export function AnalysisPanel({
           ))}
         </Block>
       </div>
+      {empties.length > 0 && !renaming ? (
+        <p className="text-xs text-fg-muted">
+          <span className="font-semibold">Kosong hari ini:</span> {empties.join(' · ')}
+        </p>
+      ) : null}
       </section>
 
       {afterToday}

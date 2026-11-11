@@ -164,11 +164,12 @@ export function MembersPanel({
           {problem}
         </Callout>
       ) : null}
-      <p role="status" aria-live="polite" className="h-4 px-1 text-xs text-fg-muted">
+      {/* Takes room only while it has something to say (12 Nov 2026): an empty 16 px line plus its gap sat as a dead band under the tabs. */}
+      <p role="status" aria-live="polite" className={saved ? 'px-1 text-xs text-fg-muted' : 'sr-only'}>
         {saved}
       </p>
 
-      <div className="grid gap-5 lg:grid-cols-2 lg:items-start">
+      <div className="grid max-w-3xl gap-5">
         <Group title="Tim">
           <Section title={`Anggota (${floor.memberIds.length})`}>
             <ul className="space-y-1.5">

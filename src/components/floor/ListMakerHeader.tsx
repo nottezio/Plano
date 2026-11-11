@@ -3,7 +3,7 @@ import { useLayoutEffect, useRef, useState, type ReactNode } from 'react';
 import { DateField } from '@/components/common/DateField';
 import { IconChevronRight } from '@/components/common/Icons';
 import { ScrollStrip } from '@/components/common/ScrollStrip';
-import { ChoiceChip, Field } from '@/components/common/ui';
+import { ChoiceChip } from '@/components/common/ui';
 import { ChiefsField } from './ChiefsField';
 
 /**
@@ -30,7 +30,6 @@ export function ListMakerHeader({
   chiefBangsal,
   onChiefBangsal,
   actions,
-  onGuide,
   onReorder,
 }: {
   floors: ReadonlyArray<{ id: string; name: string }>;
@@ -48,10 +47,8 @@ export function ListMakerHeader({
   /** The jam-dinas chief, one name (24 Oct 2026); null: not editable here. */
   chiefBangsal: string | null;
   onChiefBangsal: (name: string) => void;
-  /** The page's tools (Panduan, Catatan Visite): top row from 640 px, beside the date on a phone. */
+  /** The page's tools (Panduan, Catatan Visite): the end of the head's one line. */
   actions?: ReactNode;
-  /** Opens the page guide; on a phone it is a chip in the list strip, not a button row of its own. */
-  onGuide?: () => void;
 }): JSX.Element {
   /*
     On a phone the two chief fields are folded behind one summary line
@@ -93,19 +90,41 @@ export function ListMakerHeader({
     setDragId(null);
     setOverId(null);
   };
+  /*
+    One line (12 Nov 2026, Avi: "overlap, empty spaces, non-human UI"). Before, the head was three
+    rows on a phone (lists; date + Catatan Visite; the folded chiefs) and two on a desk (lists +
+    tools; labelled fields), so the first patient sat on the second screen of a phone. Now: the
+    lists, the date, the chiefs and the tools share one line. A phone scrolls it sideways, the
+    chiefs folded behind one chip that opens their fields below; from 640 px it wraps, the chief
+    fields inline with their label inside the box.
+  */
+  const chiefFields = (suffix: string): JSX.Element => (
+    <>
+      {chiefBangsal !== null ? (
+        // One name: a new chip replaces the old one.
+        <div className="min-w-0 sm:w-56">
+          <ChiefsField
+            chiefs={chiefBangsal ? [chiefBangsal] : []}
+            onChange={(next) => onChiefBangsal(next.at(-1) ?? '')}
+            label="Chief Bangsal"
+            id={`floor-chief-bangsal-input${suffix}`}
+            noun="chief bangsal"
+            wide
+            inline
+          />
+        </div>
+      ) : null}
+      {chiefs ? (
+        <div className="min-w-0 sm:min-w-[12rem] sm:flex-1">
+          <ChiefsField chiefs={chiefs} onChange={onChiefs} id={`floor-chief-input${suffix}`} wide inline />
+        </div>
+      ) : null}
+    </>
+  );
   return (
-    <div className="space-y-3">
-      {/*
-        Header layout (10 Nov 2026, Avi: "weirdly positioned"). Row 1: which list (the chips) and the
-        page's tools (Panduan, Catatan Visite) pinned right, where page tools are looked for; they
-        used to float mid-row next to the date inside a 48 rem block, leaving the right half of a
-        wide screen empty. Row 2: the list's own fields. From 1024 px date | Chief Bangsal | Chief
-        side by side across the full width, so the Chief chips wrap in the room left over instead of
-        a narrow box; from 640 px date | Chief Bangsal, then Chief below. Phones keep the folded
-        chiefs with Catatan Visite beside the date (Panduan is a chip in the strip).
-      */}
-      <div className="flex items-center gap-3">
-        <ScrollStrip outerClassName="flex-1" className="flex gap-2 py-0.5 [&>*]:shrink-0 [&>*]:whitespace-nowrap" label="List">
+    <div className="space-y-2">
+      <div className="-mx-4 flex items-center gap-2 overflow-x-auto px-4 py-0.5 [scrollbar-width:none] max-sm:[&>*]:shrink-0 sm:mx-0 sm:flex-wrap sm:overflow-visible sm:px-0 [&::-webkit-scrollbar]:hidden">
+        <div role="group" aria-label="List" className="flex items-center gap-2 [&>*]:shrink-0 [&>*]:whitespace-nowrap">
           {floors.map((f) => (
             <span
               key={f.id}
@@ -142,64 +161,41 @@ export function ListMakerHeader({
               + List baru
             </ChoiceChip>
           ) : null}
-          {onGuide ? (
-            <span className="sm:hidden">
-              <ChoiceChip active={false} onClick={onGuide}>
-                Panduan
-              </ChoiceChip>
-            </span>
-          ) : null}
-        </ScrollStrip>
-        {actions ? <div className="hidden shrink-0 sm:block">{actions}</div> : null}
-      </div>
-
-      <div className="grid grid-cols-1 gap-x-3 gap-y-2 min-[360px]:grid-cols-[minmax(0,10rem)_minmax(0,1fr)] sm:grid-cols-[minmax(0,11rem)_minmax(0,1fr)] sm:items-start lg:grid-cols-[minmax(0,11rem)_minmax(0,15rem)_minmax(0,1fr)]">
-        <Field label="Tanggal list">
-          <DateField value={date} onChange={onDate} className="w-full" />
-        </Field>
+        </div>
+        <span aria-hidden="true" className="hidden h-6 w-px bg-border sm:block" />
+        <div className="flex items-center gap-2">
+          <span aria-hidden="true" className="hidden text-xs text-fg-muted 2xl:inline">
+            Tanggal list
+          </span>
+          <DateField value={date} onChange={onDate} ariaLabel="Tanggal list" className="w-[9.5rem] sm:w-[10.5rem]" inputClassName="max-sm:rounded-full max-sm:text-xs" />
+        </div>
         {editsChiefs ? (
           <button
             type="button"
             onClick={toggleChiefs}
             aria-expanded={chiefsOpen}
             aria-controls="list-chiefs"
-            className="flex min-h-tap w-full items-center gap-3 self-end rounded-xl border border-border bg-surface px-3 py-2 text-left min-[360px]:col-span-2 transition-colors [@media(hover:hover)]:hover:bg-bg-subtle focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent sm:hidden"
+            className={`flex min-h-tap max-w-[15rem] items-center gap-1 rounded-full border px-3 text-xs transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent sm:hidden ${
+              chiefsOpen ? 'border-accent bg-[var(--accent-soft)] text-accent' : 'border-border bg-surface text-fg'
+            }`}
           >
-            <span className="min-w-0 flex-1">
-              <span className="block text-xs text-fg-muted">{chiefsOpen ? 'Tutup chief' : 'Atur chief'}</span>
-              <span className="block truncate text-sm font-medium text-fg">{summary}</span>
-            </span>
+            <span className="truncate">{summary}</span>
             <IconChevronRight
-              width={18}
-              height={18}
+              width={14}
+              height={14}
               aria-hidden="true"
               className={`shrink-0 text-fg-muted transition-transform duration-150 motion-reduce:transition-none ${chiefsOpen ? '-rotate-90' : 'rotate-90'}`}
             />
           </button>
         ) : null}
-        <div id="list-chiefs" className={`${chiefsOpen ? 'contents' : 'hidden'} sm:contents`}>
-        {chiefBangsal !== null ? (
-          // One name: a new chip replaces the old one.
-          <div className="min-w-0 min-[360px]:col-span-2 sm:col-span-1">
-            <ChiefsField
-              chiefs={chiefBangsal ? [chiefBangsal] : []}
-              onChange={(next) => onChiefBangsal(next.at(-1) ?? '')}
-              label="Chief Bangsal"
-              id="floor-chief-bangsal-input"
-              noun="chief bangsal"
-              wide
-            />
-          </div>
-        ) : null}
-        {chiefs ? (
-          <div className="min-w-0 min-[360px]:col-span-2 lg:col-span-1">
-            <ChiefsField chiefs={chiefs} onChange={onChiefs} wide />
-          </div>
-        ) : null}
-        </div>
-        {/* Phone: beside the date. From 640 px the tools sit in the top row instead. */}
-        {actions ? <div className="min-[360px]:col-start-2 min-[360px]:row-start-1 min-[360px]:self-end sm:hidden">{actions}</div> : null}
+        {editsChiefs ? <div className="hidden sm:contents">{chiefFields('')}</div> : null}
+        {actions ? <div className="flex items-center gap-2 sm:ml-auto">{actions}</div> : null}
       </div>
+      {editsChiefs ? (
+        <div id="list-chiefs" className={chiefsOpen ? 'space-y-2 sm:hidden' : 'hidden'}>
+          {chiefFields('-phone')}
+        </div>
+      ) : null}
     </div>
   );
 }

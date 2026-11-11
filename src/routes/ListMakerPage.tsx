@@ -2,14 +2,14 @@ import { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState } fro
 import { useSearchParams } from 'react-router-dom';
 
 import { AppShell } from '@/components/common/AppShell';
-import { IconClose } from '@/components/common/Icons';
+import { IconClose, IconSearch } from '@/components/common/Icons';
 import { Sheet } from '@/components/common/Sheet';
 import { useMiniWindow } from '@/store/useMiniWindow';
 
 // The note editor brings TipTap; it loads when Catatan Visite is opened.
 const FloorVisitNote = lazy(() => import('@/components/floor/FloorVisitNote').then((m) => ({ default: m.FloorVisitNote })));
 import { Button, Callout, Field, INPUT } from '@/components/common/ui';
-import { FloorDenah } from '@/components/floor/FloorDenah';
+import { DenahJumps, FloorDenah } from '@/components/floor/FloorDenah';
 import { PageGuide } from '@/components/common/PageGuide';
 import { LIST_MAKER_GUIDE_KEY, listMakerGuideSteps } from '@/domain/guides/listMaker';
 import { ListPanel } from '@/components/floor/ListPanel';
@@ -178,6 +178,37 @@ export default function ListMakerPage(): JSX.Element {
   // Panduan (2 Nov 2026): opens by itself once per device; the button asks again.
   const [guideAsked, setGuideAsked] = useState(false);
   const guideHandled = useCallback(() => setGuideAsked(false), []);
+  /*
+    The pinned bar on a phone's Denah holds the jumps, ⋯ and Simpan (12 Nov 2026), so the search
+    folds to an icon there and opens in place of the jumps; it stays open while it has text.
+  */
+  const onDenah = tab === 'denah';
+  const searchFolds = onDenah && !wide;
+  const [searchOpen, setSearchOpen] = useState(false);
+  const searchShown = searchOpen || search !== '';
+  /*
+    Shift sebelumnya (9 Nov 2026, Avi): the Denah as the previous shift's list left it, to compare
+    with now. Reachable from anywhere on the page (11 Nov): in the pinned bar from 640 px, in the
+    phone's ⋯ menu below that.
+  */
+  const shiftToggle = (where: 'bar' | 'menu'): JSX.Element => (
+    <button
+      type="button"
+      aria-pressed={snapshot}
+      onClick={() => setSnapshot(!snapshot)}
+      className={
+        where === 'bar'
+          ? `min-h-tap whitespace-nowrap rounded-xl px-3 text-xs font-semibold [@media(pointer:fine)]:min-h-9 ${
+              snapshot ? 'bg-accent text-on-accent' : 'border border-border text-fg-muted hover:bg-bg-subtle hover:text-fg'
+            }`
+          : `flex min-h-tap w-full items-center rounded-xl border px-2.5 text-left text-xs font-semibold ${
+              snapshot ? 'border-accent bg-[var(--accent-soft)] text-accent' : 'border-border bg-bg-subtle text-fg hover:border-accent'
+            }`
+      }
+    >
+      {snapshot ? '← Kembali ke sekarang' : 'Shift sebelumnya'}
+    </button>
+  );
 
   // New floor form.
   const [name, setName] = useState('PJT Lantai 4');
@@ -343,11 +374,10 @@ export default function ListMakerPage(): JSX.Element {
               onChiefs={(next) => void writeChiefs(floor.id, next.join(', '))}
               chiefBangsal={editable ? floor.chiefBangsal : null}
               onChiefBangsal={(next) => void writeChiefBangsal(floor.id, next)}
-              onGuide={() => setGuideAsked(true)}
               onReorder={reorder}
               actions={
-                <div className="flex flex-wrap gap-2 max-sm:[&>button:first-child]:hidden max-sm:[&>button:last-child]:w-full">
-                  <Button size="sm" onClick={() => setGuideAsked(true)}>
+                <>
+                  <Button size="sm" variant="ghost" onClick={() => setGuideAsked(true)}>
                     Panduan
                   </Button>
                   <Button
@@ -361,7 +391,7 @@ export default function ListMakerPage(): JSX.Element {
                   >
                     Catatan Visite{desk ? ' ⧉' : ''}
                   </Button>
-                </div>
+                </>
               }
             />
             <Sheet open={visitOpen} onOpenChange={setVisitOpen} title="Catatan Visite">
@@ -374,42 +404,66 @@ export default function ListMakerPage(): JSX.Element {
               tabs={tabs}
               onTab={setTab}
               actions={
-                <ListActions
-                  key={floor.id}
-                  floor={floor}
-                  roster={roster}
-                  view={view}
-                  date={date}
-                  editable={Boolean(editable)}
-                  myName={myName}
-                  editions={editions}
-                  time={listTime}
-                  onTime={setListTime}
-                />
+                // Send, print and save act on the day's list: not on Setelan or Riwayat (12 Nov 2026), whose own copies are inside them.
+                tab === 'anggota' || tab === 'riwayat' ? undefined : (
+                  <ListActions
+                    key={floor.id}
+                    floor={floor}
+                    roster={roster}
+                    view={view}
+                    date={date}
+                    editable={Boolean(editable)}
+                    myName={myName}
+                    editions={editions}
+                    time={listTime}
+                    onTime={setListTime}
+                    tight={onDenah}
+                    menuStart={onDenah && previousEdition ? shiftToggle('menu') : undefined}
+                  />
+                )
               }
             >
               {(tab === 'denah' || tab === 'list') && view.active.length > 0 ? (
-                // Floating (9 Nov 2026, Avi): pinned with the tabs, so it stays in reach down a long list.
-                <div className="relative">
-                  <input
-                    type="search"
-                    value={search}
-                    onChange={(e) => setSearch(e.target.value)}
-                    placeholder="Cari nama, RM, kamar (417/2), residen, diagnosis…"
-                    aria-label="Cari pasien"
-                    // The clear button below is ours; the browser's own would be a second ✕.
-                    className={`${INPUT} pr-10 [&::-webkit-search-cancel-button]:appearance-none`}
-                  />
-                  {search ? (
-                    <button
-                      type="button"
-                      onClick={() => setSearch('')}
-                      aria-label="Hapus pencarian"
-                      className="absolute right-0 top-0 flex h-full min-w-tap items-center justify-center text-fg-muted hover:text-fg"
-                    >
-                      <IconClose width="16" height="16" />
-                    </button>
+                <div className="flex items-center gap-2">
+                  {/* The Denah's jumps (12 Nov 2026): pinned here, not floating over the page. */}
+                  {onDenah && !(searchFolds && searchShown) ? (
+                    <>
+                      {previousEdition ? <span className="hidden sm:inline-flex">{shiftToggle('bar')}</span> : null}
+                      <DenahJumps />
+                    </>
                   ) : null}
+                  {searchFolds && !searchShown ? (
+                    <Button size="icon" aria-label="Cari pasien" onClick={() => setSearchOpen(true)} className="ml-auto">
+                      <IconSearch width={18} height={18} />
+                    </Button>
+                  ) : (
+                    // Floating (9 Nov 2026, Avi): pinned with the tabs, so it stays in reach down a long list.
+                    <div className="relative min-w-0 flex-1">
+                      <input
+                        type="search"
+                        value={search}
+                        onChange={(e) => setSearch(e.target.value)}
+                        onBlur={() => {
+                          if (!search) setSearchOpen(false);
+                        }}
+                        autoFocus={searchFolds}
+                        placeholder={wide ? 'Cari nama, RM, kamar (417/2), residen, diagnosis…' : 'Cari pasien'}
+                        aria-label="Cari pasien"
+                        // The clear button below is ours; the browser's own would be a second ✕.
+                        className={`${INPUT} pr-10 [&::-webkit-search-cancel-button]:appearance-none`}
+                      />
+                      {search ? (
+                        <button
+                          type="button"
+                          onClick={() => setSearch('')}
+                          aria-label="Hapus pencarian"
+                          className="absolute right-0 top-0 flex h-full min-w-tap items-center justify-center text-fg-muted hover:text-fg"
+                        >
+                          <IconClose width="16" height="16" />
+                        </button>
+                      ) : null}
+                    </div>
+                  )}
                 </div>
               ) : null}
             </ListMakerTabs>
@@ -439,19 +493,7 @@ export default function ListMakerPage(): JSX.Element {
                   (Simpan edisi), already loaded: read-only, no new read. The button
                   leads the Denah toolbar line (10 Nov 2026).
                 */
-                // Shift sebelumnya rides the floating jump bar (11 Nov 2026, Avi); its note stays in the toolbar.
-                const shiftButton = previousEdition ? (
-                  <button
-                    type="button"
-                    aria-pressed={snapshot}
-                    onClick={() => setSnapshot(!snapshot)}
-                    className={`min-h-tap rounded-full px-3 text-xs font-semibold [@media(pointer:fine)]:min-h-9 ${
-                      snapshot ? 'bg-accent text-on-accent' : 'text-fg-muted hover:bg-bg-subtle hover:text-fg'
-                    }`}
-                  >
-                    {snapshot ? '← Sekarang' : 'Shift sebelumnya'}
-                  </button>
-                ) : null;
+                // The Shift sebelumnya button is in the pinned bar (`shiftToggle`); its note stays in the toolbar.
                 const shiftNote =
                   snapshot && previousEdition ? (
                     <span className="text-xs text-fg-muted">
@@ -473,14 +515,13 @@ export default function ListMakerPage(): JSX.Element {
                       words={words}
                       marks={floor.marks}
                       toolbarStart={shiftNote}
-                      jumpStart={shiftButton}
                     />
                   );
                 }
                 if (view.active.length === 0) {
                   return (
                     <div className="space-y-3">
-                      {shiftButton ? <div className="flex flex-wrap items-center gap-2 rounded-full">{shiftButton}</div> : null}
+                      {previousEdition ? <div className="flex flex-wrap items-center gap-2">{shiftToggle('bar')}</div> : null}
                       <p className="text-sm text-fg-muted">Belum ada pasien di list.{editable ? ' Tempel pesan SOAP di tab Tempel.' : ''}</p>
                     </div>
                   );
@@ -493,7 +534,6 @@ export default function ListMakerPage(): JSX.Element {
                     onOpen={setOpen}
                     words={words}
                     marks={floor.marks}
-                    jumpStart={shiftButton}
                   />
                 );
               })()

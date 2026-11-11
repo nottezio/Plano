@@ -16,7 +16,7 @@ const WELCOME: GuideStep = {
   lead: 'List Maker menyusun list pasien lantai dari pesan SOAP yang dikirim rekan di grup WhatsApp, dan membaginya ke tim lantai.',
   points: [
     'Satu list = satu lantai atau tim. Semua anggota melihat list yang sama, langsung tersinkron.',
-    'Tab di atas: **Denah**, **List**, **Tempel**, **Analisis**, **Riwayat**, **Setelan**.',
+    'Tab di atas: **Denah**, **List**, **Visite DPJP**, **Tempel**, **Analisis**, **Riwayat**, **Setelan**.',
     'Panduan ini bisa dibuka lagi kapan saja dari tombol **Panduan**.',
   ],
 };
@@ -25,7 +25,7 @@ const WELCOME_VIEWER: GuideStep = {
   ...WELCOME,
   points: [
     'Akun Anda hanya bisa melihat list ini; pengisian dilakukan oleh anggota yang bisa mengedit.',
-    'Tab di atas: **Denah**, **List**, **Analisis**, **Riwayat**, **Setelan**.',
+    'Tab di atas: **Denah**, **List**, **Visite DPJP**, **Analisis**, **Riwayat**, **Setelan**.',
     'Panduan ini bisa dibuka lagi kapan saja dari tombol **Panduan**.',
   ],
 };
@@ -67,9 +67,9 @@ const STATUS: GuideStep = {
 const SEND: GuideStep = {
   id: 'list',
   title: '4. Kirim dan cetak list',
-  lead: 'Tombol kirim dan cetak ada di samping tab, di semua tab. Tab **List** menampilkan pratinjau pesan WhatsApp.',
+  lead: 'Tombol kirim dan cetak ada di samping tab. Tab **List** menampilkan pratinjau pesan WhatsApp lewat **Pratinjau WhatsApp**.',
   points: [
-    '**Salin teks** untuk dikirim ke grup WhatsApp.',
+    '**Salin teks** untuk dikirim ke grup WhatsApp. Di HP, Salin teks dan Cetak ada di tombol **⋯**.',
     '**Cetak**: **Word: List**, **Word: Denah** atau **PDF** (denah + list, 1 file).',
     '**Simpan edisi** (isi **Jam list** di sana) setelah mengirim: list berikutnya menandai **Pasien baru** dan **SOAP baru** sejak edisi ini.',
   ],
@@ -77,7 +77,7 @@ const SEND: GuideStep = {
 
 const SEND_VIEWER: GuideStep = {
   ...SEND,
-  lead: 'Tombol kirim dan cetak ada di samping tab, di semua tab.',
+  lead: 'Tombol kirim dan cetak ada di samping tab (di HP: tombol **⋯**).',
   points: ['**Salin teks** untuk dikirim ke WhatsApp, atau **Cetak** untuk Word / PDF.'],
 };
 
