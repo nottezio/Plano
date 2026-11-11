@@ -5,6 +5,11 @@ Catatan teknis lengkap (akar masalah, perbaikan) ada di CHANGES.md.
 
 Entri teratas harus versi yang sedang dirilis; tes gagal bila belum ditulis.
 
+## `2026-11-11.5`
+- **Saran lebih ringkas.** Satu baris per jenis saran (mis. "Plan menyebut H-1", "Ganti chief → dr. Didi"), pasiennya berupa chip: ketuk nama untuk membuka pasien, ✓ untuk menerima satu, × untuk mengabaikan satu. Tombol di ujung baris berlaku untuk semua pasien di baris itu.
+- **Shift sebelumnya pindah ke tombol melayang** (di samping Denah, Per DPJP, Residen), jadi bisa diketuk dari mana saja di halaman. Keterangan list yang sedang dilihat tetap di atas denah.
+- **Bagi pasien kini papan klip.** Tiap residen lantai punya papan berisi pasien yang sedang dipegangnya. Pasien tanpa pemegang tampil sebagai kartu: seret ke papan residen (di ponsel: ketuk kartu, lalu ketuk "Taruh di papan"), seret kembali atau ketuk × untuk melepas. "Usulkan" mengisi papan otomatis dengan aturan yang sama (MZ, Trio, lalu yang paling sedikit); "Ikut diusulkan" memilih siapa yang ikut. Tidak ada yang tersimpan sebelum Terapkan.
+
 ## `2026-11-11.4`
 - **Cek No. RM dan nama pada hasil lab.** Saat Format hasil lab dibuka dari halaman pasien, No. RM dan nama di PDF lab dicocokkan dengan pasien. No. RM yang berbeda memunculkan peringatan merah sebelum menyisipkan (angka nol di depan diabaikan). Bila RM tidak tersedia, nama yang dicocokkan: peringatan hanya muncul bila tidak ada satu kata nama pun yang sama. Perbedaan ejaan, gelar (Tn., Ny.), singkatan (Abd.) dan salah satu huruf tidak dianggap berbeda.
 - **Tampilan jendela lebih lega.** Di jendela laptop yang tidak terlalu tinggi, Catatan pasien, Checklist, dan Periksa kini satu baris chip seperti di ponsel, sehingga catatan langsung terlihat. Panel bertumpuk tetap ada di tablet yang tinggi.

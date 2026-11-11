@@ -98,3 +98,29 @@ export function buildTray(roster: readonly RosterPatient[], floor: FloorDoc, dat
 
   return { rows };
 }
+
+/** One line of the tray (11 Nov 2026, Avi: a row per kind, not per patient): the same proposal for many patients. */
+export interface TrayGroup {
+  id: string;
+  kind: TrayRow['kind'];
+  /** "Plan menyebut H-1", "Ganti chief → dr. Didi". */
+  title: string;
+  rows: TrayRow[];
+}
+
+/**
+ * Rows with the same proposal and the same answers, in first-seen order. A
+ * chief row's lead names the outgoing chief, which differs per patient; only
+ * the incoming one is the proposal, so chief rows group by it.
+ */
+export function groupTray(rows: readonly TrayRow[]): TrayGroup[] {
+  const groups = new Map<string, TrayGroup>();
+  for (const row of rows) {
+    const title = row.kind === 'chief' ? `Ganti chief → ${row.strong}` : `${row.lead} ${row.strong}`;
+    const id = `${row.kind}|${title}|${row.actions.map((a) => a.label).join('|')}`;
+    const group = groups.get(id);
+    if (group) group.rows.push(row);
+    else groups.set(id, { id, kind: row.kind, title, rows: [row] });
+  }
+  return [...groups.values()];
+}

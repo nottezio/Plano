@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import { newRosterPatient, type FloorDoc, type RosterPatient } from './floor';
 import type { FloorPatient } from './report';
-import { buildTray, doneText } from './suggestionTray';
+import { buildTray, doneText, groupTray } from './suggestionTray';
 
 const FLOOR: FloorDoc = {
   id: 'f1',
@@ -115,6 +115,24 @@ describe('buildTray', () => {
       rostered({ key: 'rm:2', rm: '2', body: PLAN_H1, chief: 'Kirana' }),
     ];
     expect(buildTray(roster, FLOOR, DATE, MON_0700).rows.map((r) => r.kind)).toEqual(['discharge', 'chief']);
+  });
+});
+
+describe('groupTray (11 Nov 2026)', () => {
+  it('one line per proposal: H-1 together, usul apart, chief by the incoming chief', () => {
+    const roster = [
+      rostered({ key: 'rm:1', rm: '1', body: PLAN_H1, chief: 'Kirana' }),
+      rostered({ key: 'rm:2', rm: '2', body: PLAN_USUL, chief: 'Kirana' }),
+      rostered({ key: 'rm:3', rm: '3', body: PLAN_H1, chief: 'Kirana' }),
+      rostered({ key: 'rm:4', rm: '4', chief: 'Ari' }),
+      rostered({ key: 'rm:5', rm: '5', chief: 'Budi' }),
+    ];
+    const groups = groupTray(buildTray(roster, FLOOR, DATE, MON_0700).rows);
+    expect(groups.map((g) => [g.title, g.rows.map((r) => r.key)])).toEqual([
+      ['Plan menyebut H-1', ['rm:1', 'rm:3']],
+      ['Plan menyebut usul H-1 (belum pasti)', ['rm:2']],
+      ['Ganti chief → dr. Kirana', ['rm:4', 'rm:5']],
+    ]);
   });
 });
 

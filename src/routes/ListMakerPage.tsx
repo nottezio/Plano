@@ -437,20 +437,27 @@ export default function ListMakerPage(): JSX.Element {
                   (Simpan edisi), already loaded: read-only, no new read. The button
                   leads the Denah toolbar line (10 Nov 2026).
                 */
-                const shiftControl = previousEdition ? (
-                  <>
-                    <Button size="sm" variant={snapshot ? 'primary' : 'secondary'} aria-pressed={snapshot} onClick={() => setSnapshot(!snapshot)}>
-                      {snapshot ? '← Denah sekarang' : 'Shift sebelumnya'}
-                    </Button>
-                    {snapshot ? (
-                      <span className="text-xs text-fg-muted">
-                        List {formatDmy(previousEdition.date)} {previousEdition.time}, disimpan{' '}
-                        {formatDmy(localStamp(new Date(previousEdition.createdAt)).slice(0, 10))} {localStamp(new Date(previousEdition.createdAt)).slice(11, 16)} ·{' '}
-                        {previousEdition.patients.length} pasien
-                      </span>
-                    ) : null}
-                  </>
+                // Shift sebelumnya rides the floating jump bar (11 Nov 2026, Avi); its note stays in the toolbar.
+                const shiftButton = previousEdition ? (
+                  <button
+                    type="button"
+                    aria-pressed={snapshot}
+                    onClick={() => setSnapshot(!snapshot)}
+                    className={`min-h-tap rounded-full px-3 text-xs font-semibold [@media(pointer:fine)]:min-h-9 ${
+                      snapshot ? 'bg-accent text-on-accent' : 'text-fg-muted hover:bg-bg-subtle hover:text-fg'
+                    }`}
+                  >
+                    {snapshot ? '← Sekarang' : 'Shift sebelumnya'}
+                  </button>
                 ) : null;
+                const shiftNote =
+                  snapshot && previousEdition ? (
+                    <span className="text-xs text-fg-muted">
+                      Shift sebelumnya: list {formatDmy(previousEdition.date)} {previousEdition.time}, disimpan{' '}
+                      {formatDmy(localStamp(new Date(previousEdition.createdAt)).slice(0, 10))} {localStamp(new Date(previousEdition.createdAt)).slice(11, 16)} ·{' '}
+                      {previousEdition.patients.length} pasien
+                    </span>
+                  ) : null;
                 if (snapshot && previousEdition) {
                   return (
                     <FloorDenah
@@ -463,14 +470,15 @@ export default function ListMakerPage(): JSX.Element {
                       }}
                       words={words}
                       marks={floor.marks}
-                      toolbarStart={shiftControl}
+                      toolbarStart={shiftNote}
+                      jumpStart={shiftButton}
                     />
                   );
                 }
                 if (view.active.length === 0) {
                   return (
                     <div className="space-y-3">
-                      {shiftControl ? <div className="flex flex-wrap items-center gap-2">{shiftControl}</div> : null}
+                      {shiftButton ? <div className="flex flex-wrap items-center gap-2 rounded-full">{shiftButton}</div> : null}
                       <p className="text-sm text-fg-muted">Belum ada pasien di list.{editable ? ' Tempel pesan SOAP di tab Tempel.' : ''}</p>
                     </div>
                   );
@@ -483,7 +491,7 @@ export default function ListMakerPage(): JSX.Element {
                     onOpen={setOpen}
                     words={words}
                     marks={floor.marks}
-                    toolbarStart={shiftControl}
+                    jumpStart={shiftButton}
                   />
                 );
               })()

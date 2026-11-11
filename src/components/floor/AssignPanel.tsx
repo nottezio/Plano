@@ -1,22 +1,28 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useState, type DragEvent } from 'react';
 
-import { Button, Callout, INPUT } from '@/components/common/ui';
+import { Button, Callout } from '@/components/common/ui';
+import { IconClose } from '@/components/common/Icons';
 import { writeRosterBatch, type RosterChange } from '@/data/repositories/floors.repo';
-import { assignGroup, loadsWith, needsHolder, proposeAssignment, type Load } from '@/domain/floorList/assign';
+import { assignGroup, loadsWith, needsHolder, proposeAssignment, residentOf } from '@/domain/floorList/assign';
 import { byRoute, dpjpCodeOf } from '@/domain/floorList/build';
 import { chiefsOf, type FloorDoc } from '@/domain/floorList/floor';
 import type { FloorPatient } from '@/domain/floorList/report';
 
 const GROUP_LABEL = { mz: 'MZ', trio: 'Trio', lain: '' } as const;
+const DRAG_TYPE = 'text/plain';
 
 /**
- * Bagi pasien (10 Nov 2026, Avi): the patients no floor resident holds,
- * proposed to the floor residents by `proposeAssignment` (MZ, then Trio, then
- * total load). Each row can be changed or skipped; nothing is written until
- * Terapkan, which sets the junior on those patients only.
+ * Bagi pasien as clipboards (11 Nov 2026, Avi: "make it fun… drag the card to
+ * the resident box… like a clipboard"). Each floor resident has a clipboard
+ * with the patients they already follow; every patient no floor resident
+ * holds is a card. Drag a card onto a clipboard (or tap the card, then the
+ * clipboard: phones have no drag), drag it back to take it off. "Usulkan"
+ * fills the clipboards from `proposeAssignment` (MZ, Trio, then total load),
+ * leaving out the residents switched off under "Ikut diusulkan".
  *
- * Firestore: no read (the roster is already loaded); Terapkan = one write per
- * patient given out, in one batch.
+ * Nothing is written until Terapkan, which sets the junior on the placed
+ * patients only. Firestore: no read (the roster is already loaded);
+ * Terapkan = one write per placed patient, in one batch.
  */
 export function AssignPanel({
   floor,
@@ -34,36 +40,82 @@ export function AssignPanel({
   const residentsKey = floor.juniors;
   const residents = useMemo(() => chiefsOf(residentsKey), [residentsKey]);
   const sorted = useMemo(() => [...active].sort(byRoute(floor.ward)), [active, floor.ward]);
-  // Residents left out of the share (11 Nov 2026, Avi: the list maker usually takes the fewest). Not saved: set per sitting.
-  const [skip, setSkip] = useState<ReadonlySet<string>>(new Set());
-  const proposal = useMemo(() => proposeAssignment(sorted, residents, skip), [sorted, residents, skip]);
-  // Hand changes per patient key; '' = skip this patient for now.
-  const [changed, setChanged] = useState<Record<string, string>>({});
-  const [done, setDone] = useState('');
-  // Every patient needing a holder, even with everyone left out (then all read "lewati").
   const open = useMemo(() => sorted.filter((p) => needsHolder(p, residents)), [sorted, residents]);
+  // Residents "Usulkan" leaves out (11 Nov 2026: the list maker usually takes the fewest). Not saved.
+  const [skip, setSkip] = useState<readonly string[]>([]);
+  // Card key → resident, as placed by hand or by Usulkan. Read against `open`, so a patient someone else took drops out.
+  const [placed, setPlaced] = useState<Readonly<Record<string, string>>>({});
+  // Tap mode: the card picked up, waiting for a clipboard.
+  const [held, setHeld] = useState<string | null>(null);
+  const [over, setOver] = useState<string | null>(null);
+  const [done, setDone] = useState('');
+
   const chosen = useMemo(() => {
     const out = new Map<string, string>();
-    for (const { key } of open) {
-      const pick = changed[key] ?? proposal.get(key);
-      if (pick) out.set(key, pick);
+    for (const p of open) {
+      const to = placed[p.key];
+      if (to && residents.includes(to)) out.set(p.key, to);
     }
     return out;
-  }, [open, proposal, changed]);
-  const loads = loadsWith(sorted, residents, chosen);
+  }, [open, placed, residents]);
+  const loads = useMemo(() => new Map(loadsWith(sorted, residents, chosen).map((l) => [l.name, l])), [sorted, residents, chosen]);
+  const waiting = open.filter((p) => !chosen.has(p.key));
 
+  const place = (key: string, to: string | null): void => {
+    setPlaced((prev) => {
+      const { [key]: _old, ...rest } = prev;
+      return to ? { ...rest, [key]: to } : rest;
+    });
+    setHeld(null);
+    setDone('');
+  };
+  const propose = (): void => {
+    setPlaced(Object.fromEntries(proposeAssignment(sorted, residents, new Set(skip))));
+    setHeld(null);
+    setDone('');
+  };
   const apply = (): void => {
     const at = new Date().toISOString();
-    const changes: RosterChange[] = open.flatMap((p) => {
-      const to = chosen.get(p.key);
-      return to ? [{ kind: 'fields' as const, key: p.key, fields: { junior: to }, log: { at, by: myName, what: `Bagi pasien: junior dr. ${to}` } }] : [];
-    });
+    const changes: RosterChange[] = [...chosen].map(([key, to]) => ({
+      kind: 'fields' as const,
+      key,
+      fields: { junior: to },
+      log: { at, by: myName, what: `Bagi pasien: junior dr. ${to}` },
+    }));
     if (changes.length === 0) return;
     // Not awaited: offline the batch resolves only when the server confirms; the cache shows it at once.
     void writeRosterBatch(floor.id, changes);
-    setChanged({});
+    setPlaced({});
     setDone(`${changes.length} pasien dibagi.`);
   };
+
+  const dropOn = (target: string | null) => ({
+    onDragOver: (e: DragEvent) => {
+      if (!editable) return;
+      e.preventDefault();
+      setOver(target ?? '');
+    },
+    onDragLeave: () => setOver(null),
+    onDrop: (e: DragEvent) => {
+      e.preventDefault();
+      setOver(null);
+      const key = e.dataTransfer.getData(DRAG_TYPE);
+      if (open.some((p) => p.key === key)) place(key, target);
+    },
+  });
+
+  const card = (p: FloorPatient, placedHere: boolean): JSX.Element => (
+    <PatientCard
+      key={p.key}
+      patient={p}
+      editable={editable}
+      placed={placedHere}
+      held={held === p.key}
+      onPick={() => setHeld(held === p.key ? null : p.key)}
+      onOpen={() => onOpen(p)}
+      onReturn={() => place(p.key, null)}
+    />
+  );
 
   return (
     <section className="space-y-3 rounded-2xl border border-border bg-surface p-3">
@@ -72,117 +124,127 @@ export function AssignPanel({
         <span className="text-xs text-fg-muted">{open.length} pasien belum dipegang residen lantai</span>
       </div>
       <p className="text-xs text-fg-muted">
-        Hanya pasien tanpa junior, atau yang junior-nya bukan residen lantai (mis. jaga malam). Pasien yang sudah dipegang residen lantai, pasien
-        divisi, dan pasien “tidak di-follow up” tidak disentuh. Urutan: MZ dulu (satu per residen), lalu Trio (AFM, AFG, ZD) merata, lalu sisanya ke
-        yang pasiennya paling sedikit.
+        Seret kartu pasien ke papan residen{editable ? ' (atau ketuk kartu, lalu ketuk papannya)' : ''}. Pasien yang sudah dipegang residen lantai,
+        pasien divisi, dan pasien “tidak di-follow up” tidak ikut. Usulkan mengisi papan otomatis: MZ dulu, lalu Trio (AFM, AFG, ZD) merata, lalu
+        sisanya ke yang pasiennya paling sedikit.
       </p>
 
       {residents.length === 0 ? (
         <Callout tone="info">Isi dulu Residen lantai di tab Setelan.</Callout>
       ) : (
-        <div role="group" aria-label="Residen yang ikut dibagi" className="flex flex-wrap items-center gap-1.5 text-xs">
-          <span className="text-fg-muted">Ikut dibagi:</span>
-          {residents.map((r) => {
-            const on = !skip.has(r);
-            return (
-              <button
-                key={r}
-                type="button"
-                aria-pressed={on}
-                onClick={() => {
-                  setSkip((s) => {
-                    const next = new Set(s);
-                    if (on) next.add(r);
-                    else next.delete(r);
-                    return next;
-                  });
-                  setChanged({});
-                }}
-                className={`min-h-8 rounded-full border px-2.5 font-semibold ${on ? 'border-accent bg-accent text-on-accent' : 'border-border text-fg-muted line-through'}`}
-              >
-                dr. {r}
-              </button>
-            );
-          })}
-        </div>
-      )}
-
-      {residents.length === 0 ? null : open.length === 0 ? (
-        <p className="text-xs text-fg-muted">{done || 'Semua pasien sudah dipegang residen lantai.'}</p>
-      ) : (
         <>
-          <ul className="divide-y divide-border overflow-hidden rounded-xl border border-border">
-            {open.map((p) => {
-              const group = GROUP_LABEL[assignGroup(p)];
-              const code = dpjpCodeOf(p);
+          {/* The waiting cards: also where a card is dropped to take it off a clipboard. */}
+          <div
+            {...dropOn(null)}
+            className={`min-h-16 rounded-xl border border-dashed p-2 transition-colors ${over === '' ? 'border-accent bg-[var(--accent-soft)]' : 'border-border'}`}
+          >
+            <p className="mb-1.5 text-xs font-semibold text-fg-muted">
+              Belum dipegang <span className="tabular-nums">{waiting.length}</span>
+            </p>
+            {waiting.length > 0 ? (
+              <ul className="flex flex-wrap gap-1.5">{waiting.map((p) => card(p, false))}</ul>
+            ) : (
+              <p className="text-xs text-fg-muted">{done || (open.length === 0 ? 'Semua pasien sudah dipegang residen lantai.' : 'Semua kartu sudah di papan.')}</p>
+            )}
+          </div>
+
+          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+            {residents.map((r) => {
+              const load = loads.get(r);
+              const kept = sorted.filter((p) => !p.division && !p.tags?.some((t) => t.noFollowUp) && residentOf(p.junior, residents) === r);
+              const fresh = open.filter((p) => chosen.get(p.key) === r);
+              const target = editable && held !== null;
               return (
-                <li key={p.key} className="flex flex-wrap items-center gap-2 px-3 py-2">
-                  <button type="button" onClick={() => onOpen(p)} className="min-w-0 flex-1 text-left text-xs">
-                    <span className="mr-1 inline-block rounded bg-bg-subtle px-1.5 font-semibold tabular-nums">
-                      {p.room || '—'}
-                      {p.bed ? `/${p.bed}` : ''}
-                    </span>
-                    {code ? <span className="mr-1 inline-block rounded border border-border px-1 text-[11px] font-semibold text-fg-muted">{code}</span> : null}
-                    {group ? <span className="mr-1 inline-block rounded-full bg-[var(--accent-soft)] px-1.5 text-[11px] font-semibold text-accent">{group}</span> : null}
-                    <span className="font-semibold">{p.name || p.identity}</span>
-                    <span className="block text-fg-muted">{p.junior ? `sekarang dr. ${p.junior} (bukan residen lantai)` : 'belum ada junior'}</span>
-                  </button>
-                  {editable ? (
-                    <select
-                      value={changed[p.key] ?? proposal.get(p.key) ?? ''}
-                      onChange={(e) => setChanged((c) => ({ ...c, [p.key]: e.target.value }))}
-                      aria-label={`Residen untuk ${p.name || p.identity}`}
-                      className={`${INPUT} !w-36 text-xs`}
+                <div
+                  key={r}
+                  {...dropOn(r)}
+                  className={`relative rounded-xl border bg-bg-subtle px-2.5 pb-2.5 pt-4 transition-colors ${
+                    over === r ? 'border-accent ring-2 ring-accent' : target ? 'border-accent' : 'border-border'
+                  }`}
+                >
+                  {/* The clip. */}
+                  <span aria-hidden="true" className="absolute -top-1.5 left-1/2 h-3.5 w-14 -translate-x-1/2 rounded-md border border-border bg-surface shadow-card" />
+                  <div className="mb-2 flex flex-wrap items-baseline gap-x-2">
+                    <h4 className="min-w-0 flex-1 truncate text-sm font-semibold">dr. {r}</h4>
+                    {load ? (
+                      <span className="text-xs tabular-nums text-fg-muted">
+                        {load.after.total > load.before.total ? (
+                          <>
+                            {load.before.total} → <strong className="text-fg">{load.after.total}</strong>
+                          </>
+                        ) : (
+                          load.after.total
+                        )}{' '}
+                        pasien · MZ {load.after.mz} · Trio {load.after.trio}
+                      </span>
+                    ) : null}
+                  </div>
+                  {target ? (
+                    <button
+                      type="button"
+                      onClick={() => held && place(held, r)}
+                      className="mb-2 min-h-tap w-full rounded-lg border border-dashed border-accent text-xs font-semibold text-accent [@media(pointer:fine)]:min-h-9"
                     >
-                      {residents.map((r) => (
-                        <option key={r} value={r}>
-                          dr. {r}
-                        </option>
+                      Taruh di papan dr. {r}
+                    </button>
+                  ) : null}
+                  {fresh.length > 0 ? <ul className="mb-2 flex flex-wrap gap-1.5">{fresh.map((p) => card(p, true))}</ul> : null}
+                  {kept.length > 0 ? (
+                    <ul className="space-y-0.5 rounded-lg bg-surface p-1.5 text-xs">
+                      {kept.map((p) => (
+                        <li key={p.key}>
+                          <button type="button" onClick={() => onOpen(p)} className="flex w-full items-baseline gap-1.5 text-left hover:underline">
+                            <span className="shrink-0 font-semibold tabular-nums">
+                              {p.room || '—'}
+                              {p.bed ? `/${p.bed}` : ''}
+                            </span>
+                            <span className="min-w-0 flex-1 truncate">{p.name || p.identity}</span>
+                            <Badges patient={p} />
+                          </button>
+                        </li>
                       ))}
-                      <option value="">— lewati —</option>
-                    </select>
-                  ) : (
-                    <span className="text-xs font-semibold">{proposal.get(p.key) ? `dr. ${proposal.get(p.key)}` : '—'}</span>
-                  )}
-                </li>
+                    </ul>
+                  ) : fresh.length === 0 ? (
+                    <p className="rounded-lg bg-surface p-1.5 text-xs text-fg-muted">Belum memegang pasien.</p>
+                  ) : null}
+                </div>
               );
             })}
-          </ul>
-
-          <div className="overflow-x-auto">
-            <table className="w-full text-xs">
-              <thead className="text-fg-muted">
-                <tr>
-                  <th className="py-1 pr-2 text-left font-medium">Residen</th>
-                  <th className="px-2 py-1 text-right font-medium">Total</th>
-                  <th className="px-2 py-1 text-right font-medium">MZ</th>
-                  <th className="py-1 pl-2 text-right font-medium">Trio</th>
-                </tr>
-              </thead>
-              <tbody>
-                {loads.map((l) => (
-                  <tr key={l.name} className="border-t border-border">
-                    <td className="py-1 pr-2">dr. {l.name}</td>
-                    <Cell before={l.before} after={l.after} k="total" />
-                    <Cell before={l.before} after={l.after} k="mz" />
-                    <Cell before={l.before} after={l.after} k="trio" last />
-                  </tr>
-                ))}
-              </tbody>
-            </table>
           </div>
 
           {editable ? (
-            <div className="flex flex-wrap items-center gap-2">
-              <Button variant="primary" onClick={apply} disabled={chosen.size === 0}>
-                Terapkan ({chosen.size})
-              </Button>
-              {Object.keys(changed).length > 0 ? (
-                <Button variant="ghost" onClick={() => setChanged({})}>
-                  Kembali ke usulan
+            <>
+              <div className="flex flex-wrap items-center gap-1.5 text-xs">
+                <span className="text-fg-muted">Ikut diusulkan:</span>
+                {residents.map((r) => {
+                  const on = !skip.includes(r);
+                  return (
+                    <button
+                      key={r}
+                      type="button"
+                      aria-pressed={on}
+                      onClick={() => setSkip((s) => (on ? [...s, r] : s.filter((x) => x !== r)))}
+                      className={`min-h-8 rounded-full border px-2.5 font-semibold ${on ? 'border-accent bg-accent text-on-accent' : 'border-border text-fg-muted line-through'}`}
+                    >
+                      dr. {r}
+                    </button>
+                  );
+                })}
+              </div>
+              <div className="flex flex-wrap items-center gap-2">
+                <Button variant="primary" onClick={apply} disabled={chosen.size === 0}>
+                  Terapkan ({chosen.size})
                 </Button>
-              ) : null}
-            </div>
+                <Button variant="secondary" onClick={propose} disabled={open.length === 0 || skip.length === residents.length}>
+                  Usulkan
+                </Button>
+                {chosen.size > 0 ? (
+                  <Button variant="ghost" onClick={() => setPlaced({})}>
+                    Kosongkan papan
+                  </Button>
+                ) : null}
+              </div>
+            </>
           ) : null}
         </>
       )}
@@ -190,18 +252,72 @@ export function AssignPanel({
   );
 }
 
-function Cell({ before, after, k, last = false }: { before: Load; after: Load; k: keyof Load; last?: boolean }): JSX.Element {
-  const grew = after[k] > before[k];
+function Badges({ patient }: { patient: FloorPatient }): JSX.Element {
+  const group = GROUP_LABEL[assignGroup(patient)];
+  const code = dpjpCodeOf(patient);
   return (
-    <td className={`py-1 text-right tabular-nums ${last ? 'pl-2' : 'px-2'}`}>
-      {grew ? (
-        <>
-          <span className="text-fg-muted">{before[k]} → </span>
-          <strong>{after[k]}</strong>
-        </>
-      ) : (
-        after[k]
-      )}
-    </td>
+    <>
+      {code ? <span className="shrink-0 rounded border border-border px-1 text-[11px] font-semibold text-fg-muted">{code}</span> : null}
+      {group && group !== code ? <span className="shrink-0 rounded-full bg-[var(--accent-soft)] px-1.5 text-[11px] font-semibold text-accent">{group}</span> : null}
+    </>
+  );
+}
+
+/** A patient waiting for (or newly placed with) a resident: drag it, or tap to pick it up. */
+function PatientCard({
+  patient,
+  editable,
+  placed,
+  held,
+  onPick,
+  onOpen,
+  onReturn,
+}: {
+  patient: FloorPatient;
+  editable: boolean;
+  placed: boolean;
+  held: boolean;
+  onPick: () => void;
+  onOpen: () => void;
+  onReturn: () => void;
+}): JSX.Element {
+  const label = `${patient.room || '—'}${patient.bed ? `/${patient.bed}` : ''} ${patient.name || patient.identity}`;
+  return (
+    <li
+      draggable={editable}
+      onDragStart={(e) => {
+        e.dataTransfer.setData(DRAG_TYPE, patient.key);
+        e.dataTransfer.effectAllowed = 'move';
+      }}
+      className={`flex max-w-full items-center gap-1 rounded-lg border bg-surface py-0.5 pl-2 pr-0.5 text-xs shadow-card ${
+        held ? 'border-accent ring-2 ring-accent' : placed ? 'border-accent' : 'border-border'
+      } ${editable ? 'cursor-grab active:cursor-grabbing' : ''}`}
+    >
+      <button
+        type="button"
+        aria-pressed={editable ? held : undefined}
+        aria-label={editable ? `${held ? 'Batal pilih' : 'Pilih'} ${label}` : label}
+        onClick={() => (editable ? onPick() : onOpen())}
+        className="flex min-h-8 min-w-0 items-center gap-1.5 text-left"
+      >
+        <span className="shrink-0 font-semibold tabular-nums">
+          {patient.room || '—'}
+          {patient.bed ? `/${patient.bed}` : ''}
+        </span>
+        <span className="min-w-0 truncate">{patient.name || patient.identity}</span>
+        <Badges patient={patient} />
+      </button>
+      {placed && editable ? (
+        <button
+          type="button"
+          aria-label={`Lepas ${label} dari papan`}
+          title="Lepas"
+          onClick={onReturn}
+          className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-fg-muted hover:bg-bg-subtle hover:text-fg"
+        >
+          <IconClose width={14} height={14} />
+        </button>
+      ) : null}
+    </li>
   );
 }

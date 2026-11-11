@@ -414,6 +414,7 @@ export function FloorDenah({
   words = [],
   marks = [],
   toolbarStart,
+  jumpStart,
 }: {
   plan: WardPlan | null;
   ward: string;
@@ -425,6 +426,8 @@ export function FloorDenah({
   marks?: readonly FloorMark[];
   /** Leads the toolbar row (Shift sebelumnya, 10 Nov 2026), so the controls share one line. */
   toolbarStart?: ReactNode;
+  /** Leads the floating jump bar (Shift sebelumnya, 11 Nov 2026, Avi): reachable from anywhere on the page. */
+  jumpStart?: ReactNode;
 }): JSX.Element {
   const sorted = [...patients].sort(byRoute(ward));
   // Several DPJPs at once (7 Nov 2026): chips, remembered on this device; a DPJP with no patient here is ignored.
@@ -751,7 +754,7 @@ export function FloorDenah({
         ) : null}{' '}
         · Ketuk pasien untuk SOAP lengkap.
       </p>
-      <JumpBar />
+      <JumpBar start={jumpStart} />
     </div>
     </ShowUsul.Provider>
   );
@@ -763,7 +766,7 @@ const JUMP_IDS = { denah: 'lm-jump-denah', dpjp: 'lm-jump-dpjp', residen: 'lm-ju
  * Floating jumps to the three parts of a long Denah page (10 Nov 2026, Avi):
  * the plan, Per DPJP, Residen. Bottom right, above the phone tab bar.
  */
-function JumpBar(): JSX.Element {
+function JumpBar({ start }: { start?: ReactNode }): JSX.Element {
   const jump = (id: string): void => {
     const smooth = !window.matchMedia('(prefers-reduced-motion: reduce)').matches;
     document.getElementById(id)?.scrollIntoView({ behavior: smooth ? 'smooth' : 'auto', block: 'start' });
@@ -771,8 +774,14 @@ function JumpBar(): JSX.Element {
   return (
     <nav
       aria-label="Lompat ke bagian"
-      className="fixed bottom-[calc(env(safe-area-inset-bottom)+80px)] right-3 z-30 flex rounded-full border border-border bg-surface p-0.5 shadow-pop sm:bottom-6 sm:right-6 print:hidden"
+      className="fixed bottom-[calc(env(safe-area-inset-bottom)+80px)] right-3 z-30 flex items-center rounded-full border border-border bg-surface p-0.5 shadow-pop sm:bottom-6 sm:right-6 print:hidden"
     >
+      {start ? (
+        <>
+          {start}
+          <span aria-hidden="true" className="mx-0.5 h-5 w-px bg-border" />
+        </>
+      ) : null}
       {(
         [
           [JUMP_IDS.denah, 'Denah'],

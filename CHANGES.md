@@ -1,5 +1,15 @@
 # Plano — CHANGES
 
+## `2026-11-11.5` — List Maker: Saran one line per proposal, Shift sebelumnya floats, Bagi pasien clipboards
+
+Avi (11 Nov, screenshot): the Saran rows took too much height (one row per patient); move Shift sebelumnya into the floating Denah/Per DPJP/Residen bar; Bagi pasien should be fun: a clipboard per resident with their patients, cards for unheld patients, dragged onto a clipboard instead of picked from a dropdown.
+
+- **Saran.** `groupTray(rows)` (domain, tested) groups rows by kind + proposal + answer labels; chief rows group by the incoming chief (the outgoing one differs per patient). `SuggestionTray` draws a line per group: title + count, patient chips (name opens; ✓ only on one-answer lines; × dismisses), then the line's answers for all ("Abaikan semua", "Tandai semua", "Terima semua"; an usul line keeps both answers). First 6 chips, then "+n lagi". The tapped-row "ghost" animation is gone: the chip leaves with the snapshot (local cache, at once), and the last action is read out through a polite live region. The bottom "Terima semua chief" bar folded into the chief lines.
+- **Shift sebelumnya.** `FloorDenah` gained `jumpStart`, drawn at the start of the floating `JumpBar` with a divider. The page passes the toggle there ("Shift sebelumnya" / "← Sekarang"); the "list … disimpan … · n pasien" note stays as `toolbarStart`. With no patients on the list (no Denah), the button stays inline above the message.
+- **Bagi pasien.** `AssignPanel` rewritten: a "Belum dipegang" drop zone of cards, and a clipboard per floor resident (clip, before → after total, MZ and Trio counts, newly placed cards, then the patients they already hold). HTML5 drag-and-drop for a mouse; tap a card, then "Taruh di papan dr. X", for touch and keyboard (HTML5 DnD does not fire on touch). "Usulkan" fills the clipboards from `proposeAssignment` with the "Ikut diusulkan" skip set; "Kosongkan papan" clears. Placements live in component state, read against the current open list, so a patient someone else took drops out. Terapkan writes `junior` and a log line per placed patient in one batch, as before.
+- **Firestore cost.** No new reads, listeners or writes. Saran's "… semua" is one batch per line (was one per chief group plus one write per discharge tap); per-chip taps are one write each, as before.
+- **Not done.** Touch drag (tap-to-place instead). The skip set and placements are not saved. Not checked on a phone or a ward device.
+
 ## `2026-11-11.4` — Lab RM and name cross-check; windowed patient page uses chips when short
 
 Avi (11 Nov, four screenshots of the Plano window at full screen, ~1050, ~770 and ~515 CSS px wide): check the name on a lab PDF against the patient, loosely; fix the spacing of the windowed app.
