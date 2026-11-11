@@ -5,6 +5,9 @@ Catatan teknis lengkap (akar masalah, perbaikan) ada di CHANGES.md.
 
 Entri teratas harus versi yang sedang dirilis; tes gagal bila belum ditulis.
 
+## `2026-11-11.3`
+- **Pemilih warna kini ringkas.** Roda warna tersembunyi di balik tombol kecil berisi warna yang dipilih; ketuk untuk membuka roda dan palet, ketuk di luar atau tekan Esc untuk menutup. Warna tag baru dan lencana pasien baru kini sebaris dengan isian namanya.
+
 ## `2026-11-11.2`
 - **Analisis: tampilkan junior & chief.** Centang "Tampilkan junior & chief" di "Hari ini, per pasien" untuk melihat siapa yang memegang tiap pasien.
 - **Bagi pasien: pilih siapa yang ikut dibagi.** Ketuk nama residen di "Ikut dibagi" untuk mengeluarkannya dari pembagian (mis. list maker). Pasien yang sudah dipegangnya tetap miliknya.

@@ -208,18 +208,21 @@ export function ListActions({
 }
 
 /** A small panel under its button; a tap outside or Escape closes it. */
-function Popover({
+export function Popover({
   open,
   onClose,
   label,
   trigger,
   children,
+  align = 'right',
 }: {
   open: boolean;
   onClose: () => void;
   label: string;
   trigger: ReactNode;
   children: ReactNode;
+  /** Which edge of the trigger the panel lines up with. */
+  align?: 'left' | 'right';
 }): JSX.Element {
   const box = useRef<HTMLDivElement>(null);
   const closeRef = useRef(onClose);
@@ -246,7 +249,7 @@ function Popover({
         <div
           role="dialog"
           aria-label={label}
-          className="absolute right-0 top-full z-30 mt-2 w-72 max-w-[calc(100vw-2rem)] rounded-2xl border border-border bg-surface p-3 shadow-pop"
+          className={`absolute ${align === 'left' ? 'left-0' : 'right-0'} top-full z-30 mt-2 w-72 max-w-[calc(100vw-2rem)] rounded-2xl border border-border bg-surface p-3 shadow-pop`}
         >
           {children}
         </div>

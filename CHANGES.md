@@ -1,5 +1,14 @@
 # Plano — CHANGES
 
+## `2026-11-11.3` — Colour picker folded into a dropdown
+
+Avi (11 Nov, screenshot): the wheel took too much room in Setelan; make it a dropdown, as other apps do.
+
+- `MarkColorPicker` is now a swatch button (colour, name, chevron; `aria-haspopup="dialog"`, `aria-expanded`) that opens the wheel and palette in the `Popover` from `ListActions`. That `Popover` is now exported with `align`. It closes on an outside pointerdown, on Escape, or after a palette pick; the wheel stays open while dragging. Palette is 3 per row beside the wheel: the panel measured 288×160 px in the emulator (was 304 tall when it wrapped).
+- MarksField: the new-tag colour sits between the name field and "+". NewBadgeField: the colour sits beside the text field.
+- Firestore cost: unchanged (one write per pick, on release).
+- Not checked on a phone; the 288 px panel is capped at the viewport width minus 2 rem.
+
 ## `2026-11-11.2` — Analisis holders toggle, Bagi pasien exclusions, hue-wheel tag colour
 
 Avi (11 Nov): show junior and chief in "Hari ini, per pasien"; leave someone (usually the list maker) out of Bagi pasien; a colour wheel instead of swatches.

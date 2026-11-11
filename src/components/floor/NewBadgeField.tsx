@@ -49,9 +49,9 @@ export function NewBadgeField({ floor, editable, onSave }: { floor: FloorDoc; ed
           aria-label="Teks lencana pasien baru"
           className={`${INPUT} !w-44 text-xs`}
         />
+        <MarkColorPicker label="Warna lencana pasien baru" value={badge.color} onChange={(color) => save({ ...badge, label, color })} />
         {preview}
       </div>
-      <MarkColorPicker label="Warna lencana pasien baru" value={badge.color} onChange={(color) => save({ ...badge, label, color })} />
     </div>
   );
 }

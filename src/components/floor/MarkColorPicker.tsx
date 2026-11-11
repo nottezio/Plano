@@ -1,6 +1,8 @@
 import { useEffect, useState, type KeyboardEvent, type PointerEvent } from 'react';
 
+import { IconChevronRight } from '@/components/common/Icons';
 import { MARK_COLORS, hueColor, hueOf, markCss, markInfo, type MarkColor } from '@/domain/floorList/marks';
+import { Popover } from './ListActions';
 
 const PRESETS = Object.keys(MARK_COLORS) as Array<keyof typeof MARK_COLORS>;
 /** The ring's gradient, drawn with the theme's own lightness and chroma, so it shows what a tag will look like. */
@@ -27,6 +29,7 @@ function hueAt(e: PointerEvent<HTMLDivElement>): number {
  * Firestore: a drag writes once, on release; arrow keys write on key-up.
  */
 export function MarkColorPicker({ value, onChange, label }: { value: MarkColor; onChange: (color: MarkColor) => void; label: string }): JSX.Element {
+  const [open, setOpen] = useState(false);
   const [draft, setDraft] = useState<MarkColor>(value);
   useEffect(() => setDraft(value), [value]);
   const hue = hueOf(draft);
@@ -44,8 +47,30 @@ export function MarkColorPicker({ value, onChange, label }: { value: MarkColor; 
     setDraft(hueColor((hue ?? 0) + delta));
   };
 
+  // Folded (11 Nov 2026, Avi: the wheel took too much room): a swatch button opens it, as in other apps.
   return (
-    <div role="group" aria-label={label} className="flex flex-wrap items-center gap-3">
+    <Popover
+      open={open}
+      onClose={() => setOpen(false)}
+      label={label}
+      align="left"
+      trigger={
+        <button
+          type="button"
+          aria-haspopup="dialog"
+          aria-expanded={open}
+          aria-label={`${label}: ${markInfo(value).name}`}
+          title={label}
+          onClick={() => setOpen((o) => !o)}
+          className="inline-flex min-h-tap items-center gap-1.5 rounded-lg border border-border px-2 text-xs text-fg-muted [@media(pointer:fine)]:min-h-9"
+        >
+          <span aria-hidden="true" className="h-4 w-4 rounded-full" style={{ background: markCss(value) }} />
+          <span>{markInfo(value).name}</span>
+          <IconChevronRight width="12" height="12" aria-hidden="true" className={`transition-transform ${open ? '-rotate-90' : 'rotate-90'}`} />
+        </button>
+      }
+    >
+    <div role="group" aria-label={label} className="flex items-center gap-2">
       <div
         role="slider"
         tabIndex={0}
@@ -79,7 +104,7 @@ export function MarkColorPicker({ value, onChange, label }: { value: MarkColor; 
           />
         ) : null}
       </div>
-      <div role="radiogroup" aria-label={`${label}: palet`} className="flex max-w-[12rem] flex-wrap gap-0.5">
+      <div role="radiogroup" aria-label={`${label}: palet`} className="flex max-w-[7.5rem] flex-wrap gap-0.5">
         {PRESETS.map((c) => {
           const on = c === draft;
           return (
@@ -93,6 +118,7 @@ export function MarkColorPicker({ value, onChange, label }: { value: MarkColor; 
               onClick={() => {
                 setDraft(c);
                 commit(c);
+                setOpen(false);
               }}
               className="flex min-h-tap min-w-tap items-center justify-center rounded-full [@media(pointer:fine)]:min-h-8 [@media(pointer:fine)]:min-w-8"
             >
@@ -106,5 +132,6 @@ export function MarkColorPicker({ value, onChange, label }: { value: MarkColor; 
         })}
       </div>
     </div>
+    </Popover>
   );
 }

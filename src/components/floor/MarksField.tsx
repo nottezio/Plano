@@ -234,11 +234,11 @@ export function MarksField({ floorId, marks, editable }: { floorId: string; mark
             aria-label="Nama warna baru"
             className={`${INPUT} !w-0 min-w-0 flex-1 text-xs sm:!w-48 sm:flex-none`}
           />
+          <MarkColorPicker label="Warna baru" value={color} onChange={setColor} />
           <Button size="sm" onClick={add} disabled={!label.trim()} aria-label="Tambah warna">
-            <span className="mr-1 inline-block h-3 w-3 rounded-full align-middle" style={{ background: markCss(color) }} aria-hidden="true" />+
+            +
           </Button>
         </div>
-        <MarkColorPicker label="Warna baru" value={color} onChange={setColor} />
         </div>
       ) : null}
     </div>
