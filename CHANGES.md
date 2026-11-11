@@ -1,5 +1,15 @@
 # Plano — CHANGES
 
+## `2026-11-11.7` — Visite DPJP tab, H-1/Pulang on Bagi pasien, SOAP float header by status
+
+Avi (11 Nov, screenshot of the floating SOAP box): show H-1 / pulang hari ini in Bagi pasien; a visite summary per DPJP (patients in visit order with Dx, Tx, Plan); colour the float's header by status and make junior/chief easy to find.
+
+- **Visite DPJP.** `dpjpVisit.ts` (domain, tested): `visitDpjps` lists DPJPs in the list message's DPJP order (`dpjpOrder`, now exported from `build.ts`) with own + KJS counts; `dpjpVisit` takes that DPJP's own and KJS patients in `byRoute` order and picks Dx/Tx/Plan with Visite mode's `visiteSummary` (same Salin boundary rules, last A block, TS blocks left out). Hand-entered patients use their three typed fields. `dpjpVisitText` is the copy text. `VisitPanel` is the new "Visite DPJP" tab (after List): DPJP chips, Salin, one card per patient (tap opens the SoapFloat). Lines are slices of the stored SOAP, never rewritten.
+- **Shared chip.** `DischargeChip` (+ `FLAG_TEXT`, moved out of `ListPanel`) draws the H-1 / Pulang word; used by ListPanel, AssignPanel (`Badges`: waiting cards and clipboard rows), SoapFloat and VisitPanel. Each clipboard also counts "Pulang hari ini n · H-1 n" of the patients that resident holds.
+- **SoapFloat header.** Background `color-mix(--note-red|--note-green 16%, --surface)` for H-1 / pulang hari ini, with the long chip by the name. Junior and Chief moved off the grey meta line into their own row of bordered `text-sm` chips ("Junior dr. X", "Chief dr. Y"; "Belum ada residen" when neither).
+- **Firestore cost.** None: no read, listener or write added or changed. Everything comes from the roster already loaded.
+- **Not done.** A patient with no registry DPJP id (only a free `dpjpCode`) does not appear in Visite DPJP. Usul H-1 is not shown on Bagi pasien or the header. The DPJP picked is not remembered. Contrast of the muted RM line on the tinted header was not measured by tool; not checked on a phone or a ward device.
+
 ## `2026-11-11.6` — Analisis checks (belum SOAP, pulang terlewat, usul lama, lama di list), 7-day Bagi pasien count, board kept
 
 Avi (11 Nov): build all five Analisis recommendations; 1-3 switchable in Setelan; keep the Bagi pasien board while rethinking it.

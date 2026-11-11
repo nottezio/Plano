@@ -29,6 +29,7 @@ import { updateSettings } from '@/data/repositories/settings.repo';
 import { searchWords } from '@/domain/floorList/search';
 import { AnalysisPanel } from '@/components/floor/AnalysisPanel';
 import { AssignPanel } from '@/components/floor/AssignPanel';
+import { VisitPanel } from '@/components/floor/VisitPanel';
 import { ListMakerHeader, ListMakerTabs } from '@/components/floor/ListMakerHeader';
 import { EditionsPanel } from '@/components/floor/EditionsPanel';
 import { SuggestionTray } from '@/components/floor/SuggestionTray';
@@ -42,7 +43,7 @@ import { useViewerOnly } from '@/components/auth/viewerOnly';
 import { useEditions, useMyFloors, useRoster } from '@/hooks/useFloor';
 import { useSession } from '@/store/useSession';
 
-type Tab = 'denah' | 'list' | 'tempel' | 'analisis' | 'riwayat' | 'anggota';
+type Tab = 'denah' | 'list' | 'visite' | 'tempel' | 'analisis' | 'riwayat' | 'anggota';
 
 const WIP = (
   <span className="rounded-full border border-danger px-2 py-0.5 text-[11px] font-semibold text-danger">WIP</span>
@@ -206,6 +207,7 @@ export default function ListMakerPage(): JSX.Element {
   const tabs: ReadonlyArray<readonly [Tab, string]> = [
     ['denah', 'Denah'],
     ['list', 'List'],
+    ['visite', 'Visite DPJP'],
     ...(editable ? ([['tempel', 'Tempel']] as const) : []),
     ['analisis', 'Analisis'],
     ['riwayat', 'Riwayat'],
@@ -511,6 +513,7 @@ export default function ListMakerPage(): JSX.Element {
                 words={words}
               />
             ) : null}
+            {tab === 'visite' ? <VisitPanel patients={view.active} ward={floor.ward} date={date} onOpen={setOpen} /> : null}
             {tab === 'tempel' && editable ? <PastePanel key={floor.id} floor={floor} roster={roster} myName={myName} /> : null}
             {tab === 'analisis' ? (
               <AnalysisPanel

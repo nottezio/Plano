@@ -25,10 +25,7 @@ import { PatientControls } from './PatientControls';
 import { ListMessage } from './ListMessage';
 import { ManualPatientSheet } from './ManualPatientSheet';
 import { PasteFloat } from './PasteFloat';
-
-
-/** The patient card's tint by its colour on this list (12.12): red H-1, green pulang hari ini. */
-const FLAG_TEXT = { tomorrow: 'var(--note-red)', today: 'var(--note-green)' } as const;
+import { DischargeChip, FLAG_TEXT } from './DischargeChip';
 
 /**
  * List (12.12): the roster on this list date, with every decision by hand —
@@ -252,10 +249,10 @@ function PatientRowText({ patient }: { patient: FloorPatient }): JSX.Element {
         {patient.bed ? `/${patient.bed}` : ''}
       </span>
       {code ? <span className="mr-1 inline-block rounded border border-border px-1 text-[11px] font-semibold text-fg-muted">{code}</span> : null}
-      {patient.discharge && colour ? (
-        // A word, not a stripe down the row's edge: the colour was already on the identity.
-        <span className="mr-1 inline-block rounded-full border px-1.5 text-[11px] font-semibold" style={{ borderColor: colour, color: colour }}>
-          {patient.discharge === 'tomorrow' ? 'H-1' : 'Pulang'}
+      {/* A word, not a stripe down the row's edge: the colour was already on the identity. */}
+      {patient.discharge ? (
+        <span className="mr-1">
+          <DischargeChip patient={patient} />
         </span>
       ) : null}
       <span className="font-semibold" style={colour ? { color: colour } : undefined}>

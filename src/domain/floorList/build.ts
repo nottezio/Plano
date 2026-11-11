@@ -109,7 +109,7 @@ export interface ListOptions {
   time: string;
 }
 
-function dpjpOrder(patients: readonly FloorPatient[]): string[] {
+export function dpjpOrder(patients: readonly FloorPatient[]): string[] {
   const seen = new Set<string>([...LIST_DPJP_ORDER]);
   const extra = patients
     .flatMap((patient) => [patient.dpjpId, ...patient.kjsDpjpIds])

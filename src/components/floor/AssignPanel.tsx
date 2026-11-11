@@ -8,6 +8,7 @@ import { assignGroup, loadsWith, needsHolder, proposeAssignment, residentOf } fr
 import { byRoute, dpjpCodeOf } from '@/domain/floorList/build';
 import { chiefsOf, type FloorDoc, type RosterPatient } from '@/domain/floorList/floor';
 import type { FloorPatient } from '@/domain/floorList/report';
+import { DischargeChip, FLAG_TEXT } from './DischargeChip';
 
 const GROUP_LABEL = { mz: 'MZ', trio: 'Trio', lain: '' } as const;
 const DRAG_TYPE = 'text/plain';
@@ -224,6 +225,7 @@ export function AssignPanel({
                       </span>
                     ) : null}
                     <span className="w-full text-[11px] text-fg-muted">Dapat {week.get(r) ?? 0} pasien baru dalam 7 hari</span>
+                    <GoingHome patients={kept} />
                   </div>
                   {target ? (
                     <button
@@ -303,9 +305,24 @@ function Badges({ patient }: { patient: FloorPatient }): JSX.Element {
   const code = dpjpCodeOf(patient);
   return (
     <>
+      <DischargeChip patient={patient} />
       {code ? <span className="shrink-0 rounded border border-border px-1 text-[11px] font-semibold text-fg-muted">{code}</span> : null}
       {group && group !== code ? <span className="shrink-0 rounded-full bg-[var(--accent-soft)] px-1.5 text-[11px] font-semibold text-accent">{group}</span> : null}
     </>
+  );
+}
+
+/** How many of a resident's patients go home today or tomorrow (11 Nov 2026, Avi): a load that is about to lighten. */
+function GoingHome({ patients }: { patients: readonly FloorPatient[] }): JSX.Element | null {
+  const today = patients.filter((p) => p.discharge === 'today').length;
+  const h1 = patients.filter((p) => p.discharge === 'tomorrow').length;
+  if (today + h1 === 0) return null;
+  return (
+    <span className="w-full text-[11px] font-semibold">
+      {today > 0 ? <span style={{ color: FLAG_TEXT.today }}>Pulang hari ini {today}</span> : null}
+      {today > 0 && h1 > 0 ? <span className="text-fg-muted"> · </span> : null}
+      {h1 > 0 ? <span style={{ color: FLAG_TEXT.tomorrow }}>H-1 {h1}</span> : null}
+    </span>
   );
 }
 

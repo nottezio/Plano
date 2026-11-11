@@ -5,6 +5,11 @@ Catatan teknis lengkap (akar masalah, perbaikan) ada di CHANGES.md.
 
 Entri teratas harus versi yang sedang dirilis; tes gagal bila belum ditulis.
 
+## `2026-11-11.7`
+- **Visite DPJP (tab baru di List Maker).** Pilih DPJP yang sedang visite: pasiennya tampil sesuai urutan rute visite, masing-masing dengan Dx, Tx, dan Plan yang diambil dari SOAP apa adanya (blok TS tidak ikut). Pasien KJS ikut dan diberi tanda KJS. Ketuk pasien untuk membuka SOAP lengkap; Salin memberi ringkasannya sebagai satu pesan WhatsApp.
+- **Bagi pasien: H-1 dan pulang hari ini terlihat.** Kartu pasien dan daftar di papan tiap residen kini menampilkan chip H-1 (merah) atau Pulang (hijau), dan tiap papan menulis berapa pasiennya yang pulang hari ini dan H-1.
+- **Kotak SOAP melayang lebih jelas.** Kepala kotak berwarna merah untuk H-1 dan hijau untuk pulang hari ini, dengan tulisan statusnya. Junior dan chief kini tampil besar di baris sendiri.
+
 ## `2026-11-11.6`
 - **Analisis: tiga pengecekan baru di "Hari ini, per pasien".** "Belum SOAP hari ini" (pasien yang diikuti lantai tanpa SOAP bertanggal hari ini, dengan jam SOAP terakhirnya), "Rencana pulang terlewat" (masih di lantai setelah tanggal rencana pulang), dan usul H-1 yang sudah sehari atau lebih ditandai warna peringatan. Ketiganya bisa dimatikan di Setelan → Analisis; pilihan tersimpan di akun Anda dan tidak mengubah tampilan anggota lain.
 - **Analisis: "Lama di list (8 hari atau lebih)"**, pasien yang paling lama di list, bisa diketuk untuk membuka pasiennya.

@@ -10,6 +10,7 @@ import { useMediaQuery } from '@/hooks/useMediaQuery';
 import { clampGeometry, currentViewport, dragGeometry, readStoredGeometry, type Geometry } from '@/lib/floatGeometry';
 import { localStamp, type FloorDoc, type RosterPatient } from '@/domain/floorList/floor';
 import { DeletePatient } from './DeletePatient';
+import { DischargeChip, FLAG_TEXT } from './DischargeChip';
 import { PatientControls } from './PatientControls';
 import { SoapParts } from './SoapParts';
 
@@ -210,17 +211,38 @@ export function SoapFloat({
         onPointerMove={move}
         onPointerUp={end}
         onPointerCancel={end}
-        className={`flex flex-wrap items-start gap-2 border-b border-border px-4 py-3 ${floating ? 'cursor-move select-none touch-none' : ''}`}
+        // Tinted by the list's colour (11 Nov 2026, Avi): red H-1, green pulang hari ini, seen before a word is read.
+        style={patient.discharge ? { background: `color-mix(in srgb, ${FLAG_TEXT[patient.discharge]} 16%, var(--surface))` } : undefined}
+        className={`flex flex-wrap items-start gap-2 rounded-t-2xl border-b border-border px-4 py-3 ${floating ? 'cursor-move select-none touch-none' : ''}`}
       >
         <div className="min-w-0 flex-1">
-          <p className="text-sm font-semibold leading-snug">
-            {patient.room}
-            {patient.bed ? ` Bed ${patient.bed}` : ''} · {patient.name}
+          <p className="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm font-semibold leading-snug">
+            <span>
+              {patient.room}
+              {patient.bed ? ` Bed ${patient.bed}` : ''} · {patient.name}
+            </span>
+            <DischargeChip patient={patient} long />
           </p>
-          <p className="mt-0.5 text-xs text-fg-muted">
-            {[dpjp?.initials, patient.rm ? `RM ${patient.rm}` : '', [patient.junior, patient.chief].filter(Boolean).join(' / ')]
-              .filter(Boolean)
-              .join(' · ')}
+          <p className="mt-0.5 text-xs text-fg-muted">{[dpjp?.initials, patient.rm ? `RM ${patient.rm}` : ''].filter(Boolean).join(' · ')}</p>
+          {/* Who holds the patient, large enough to find at a glance during the visit. */}
+          <p className="mt-1.5 flex flex-wrap gap-1.5 text-sm">
+            {patient.junior || patient.chief ? (
+              (
+                [
+                  ['Junior', patient.junior],
+                  ['Chief', patient.chief],
+                ] as const
+              )
+                .filter(([, name]) => name)
+                .map(([role, name]) => (
+                  <span key={role} className="rounded-lg border border-border bg-surface px-2 py-0.5">
+                    <span className="text-xs text-fg-muted">{role} </span>
+                    <span className="font-semibold">dr. {name.replace(/^dr\.?\s*/i, '')}</span>
+                  </span>
+                ))
+            ) : (
+              <span className="text-xs text-fg-muted">Belum ada residen</span>
+            )}
           </p>
           {sent ? (
             <p className="mt-0.5 text-xs text-fg-faint">
