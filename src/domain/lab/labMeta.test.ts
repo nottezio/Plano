@@ -1,6 +1,17 @@
 import { describe, expect, it } from 'vitest';
 
-import { DEFAULT_LAB_TITLE, headingDate, labTitleFor, labUnitLabel, readLabMeta } from './labMeta';
+import {
+  DEFAULT_LAB_TITLE,
+  headingDate,
+  labIdentityCheck,
+  labNameMismatches,
+  labPatientNames,
+  labRmNumbers,
+  labTitleFor,
+  labUnitLabel,
+  namesCouldMatch,
+  readLabMeta,
+} from './labMeta';
 import { labHeading } from './parseLab';
 
 /** Header rows as the PDF reader rebuilds them (cells joined by one space). Names anonymised. */
@@ -65,5 +76,76 @@ describe('heading', () => {
     expect(labUnitLabel('HCU PJT')).toBe('HCU PJT');
     expect(labUnitLabel('Poli Aritmia')).toBe('Poli Aritmia');
     expect(labTitleFor({ dates: [], date: null, unit: null })).toBe(DEFAULT_LAB_TITLE);
+  });
+});
+
+describe('lab patient name cross-check', () => {
+  it('reads the name off the header row, stopping at the next label', () => {
+    expect(labPatientNames(header('21/09/2026 12:49:58', '21/09/2026 14:00:00', 'IGD Jantung'))).toEqual([
+      'CONTOH PASIEN',
+    ]);
+    expect(labPatientNames('  Nama                  : TN. BUDI SANTOSO                 Tgl. Registrasi : 1/1/26')).toEqual([
+      'TN. BUDI SANTOSO',
+    ]);
+    expect(labPatientNames('Nama Pasien : NY. SITTI AMINAH\nNama Tindakan : Echo')).toEqual(['NY. SITTI AMINAH']);
+  });
+
+  it('accepts the usual spelling drift between the report and the app', () => {
+    expect(namesCouldMatch('TN. ABDUL HAFID ALWI', 'Tn. Abdul Hafid Alwi')).toBe(true);
+    expect(namesCouldMatch('ABD. HAFID', 'Tn. Abdul Hafid Alwi')).toBe(true); // abbreviation, dropped word
+    expect(namesCouldMatch('NY. MARYLIN', 'Ny. Marilyn Tandi')).toBe(true); // one-letter typo
+    expect(namesCouldMatch('BY. NY. SUARNI', 'Ny. Suarni')).toBe(true);
+  });
+
+  it('flags a name that shares no word with the patient', () => {
+    expect(namesCouldMatch('TN. IRWAN', 'Tn. Abdul Hafid Alwi')).toBe(false);
+    expect(namesCouldMatch('MUHAMMAD RIZAL', 'Muhammad Akbar')).toBe(false); // Muhammad alone is not evidence
+  });
+
+  it('makes no claim when a side has no usable word', () => {
+    expect(namesCouldMatch('TN. M', 'Tn. Abdul Hafid')).toBe(true);
+  });
+
+  it('lists only the mismatching names across several reports', () => {
+    const text = 'Nama : TN. ABDUL HAFID Tgl. Registrasi : 1/1/26\n\nNama : TN. IRWAN Tgl. Registrasi : 1/1/26';
+    expect(labNameMismatches(text, 'Tn. Abdul Hafid Alwi')).toEqual(['TN. IRWAN']);
+  });
+});
+
+describe('lab RM cross-check', () => {
+  const report = (rm: string, name: string): string =>
+    `No. RM : ${rm} No. Registrasi : 2609142110
+Nama : ${name} Tgl. Registrasi : 1/1/26`;
+
+  it('reads the RM off the header row', () => {
+    expect(labRmNumbers(report('01761685', 'TN. CONTOH'))).toEqual(['01761685']);
+    expect(labRmNumbers('No RM: 17-61-685')).toEqual(['17-61-685']);
+  });
+
+  it('ignores leading zeros and separators', () => {
+    expect(labIdentityCheck(report('01761685', 'TN. CONTOH'), { name: 'Tn. Contoh', mrn: '1761685' })).toEqual({
+      rm: [],
+      names: [],
+    });
+  });
+
+  it('flags a different RM even when the name looks alike', () => {
+    expect(labIdentityCheck(report('00567263', 'TN. CONTOH'), { name: 'Tn. Contoh', mrn: '1761685' }).rm).toEqual([
+      '00567263',
+    ]);
+  });
+
+  it('trusts a matching RM over a name that shares no word', () => {
+    expect(labIdentityCheck(report('1761685', 'TN. LAIN'), { name: 'Tn. Contoh', mrn: '1761685' }).names).toEqual([]);
+  });
+
+  it('falls back to the name when either side has no RM', () => {
+    expect(labIdentityCheck(report('1761685', 'TN. LAIN'), { name: 'Tn. Contoh' })).toEqual({
+      rm: [],
+      names: ['TN. LAIN'],
+    });
+    expect(labIdentityCheck('Nama : TN. LAIN Tgl. Registrasi : 1/1/26', { name: 'Tn. Contoh', mrn: '1761685' }).names).toEqual(
+      ['TN. LAIN'],
+    );
   });
 });

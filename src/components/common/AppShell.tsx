@@ -209,8 +209,13 @@ export function AppShell({
         </main>
       </div>
       {/* Phone/tablet: floating above the tab bar. Desktop: in the sidebar. */}
-      <div className="pointer-events-none fixed inset-x-3 bottom-[calc(env(safe-area-inset-bottom)+72px)] z-40 flex justify-start sm:bottom-4 lg:hidden">
-        <ClipboardPill className="pointer-events-auto max-w-[min(100%,22rem)]" />
+      {/* From `sm` it starts past the 76 px nav rail, not on top of it. The
+          surface underneath: the warn tint is translucent, and floating over
+          the note it let the note's text show through the pill's. */}
+      <div className="pointer-events-none fixed inset-x-3 bottom-[calc(env(safe-area-inset-bottom)+72px)] z-40 flex justify-start sm:bottom-4 sm:left-[88px] lg:hidden">
+        <div className="pointer-events-auto max-w-[min(100%,22rem)] rounded-lg bg-surface">
+          <ClipboardPill />
+        </div>
       </div>
       <UpdateBanner />
     </div>

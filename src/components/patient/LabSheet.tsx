@@ -12,7 +12,7 @@ import { copyText } from '@/lib/clipboard';
 import { preprocessForOcr } from '@/lib/ocrPreprocess';
 import { extractPdfText, isPdf } from '@/lib/pdfText';
 import { isClinicalDate } from '@/domain/clinicalDate';
-import { headingDate, labTitleFor, readLabMeta } from '@/domain/lab/labMeta';
+import { headingDate, labIdentityCheck, labTitleFor, readLabMeta } from '@/domain/lab/labMeta';
 import type { ClinicalDate } from '@/domain/types';
 
 /**
@@ -35,7 +35,12 @@ export function LabSheet({
   date,
   onInsert,
   placement,
+  patientName,
+  patientMrn,
 }: {
+  /** The open patient's name and RM, to flag a report printed for someone else. Absent off a patient page. */
+  patientName?: string | null | undefined;
+  patientMrn?: string | null | undefined;
   open: boolean;
   onOpenChange: (open: boolean) => void;
   date: ClinicalDate;
@@ -121,6 +126,10 @@ export function LabSheet({
     See `domain/lab/labMeta`.
   */
   const meta = useMemo(() => readLabMeta(raw), [raw]);
+  const identity = useMemo(
+    () => labIdentityCheck(raw, { name: patientName, mrn: patientMrn }),
+    [raw, patientName, patientMrn],
+  );
   const title = titleOverride ?? labTitleFor(meta);
   const labDate = dateOverride ?? meta.date ?? date;
   const dateSource = dateOverride ? 'manual' : meta.date ? 'report' : 'note';
@@ -423,6 +432,19 @@ export function LabSheet({
 
         {/* RESULT: what goes into the note, and the two things to check. */}
         <Section title="Hasil">
+          {/* First in the column: a wrong-patient report is the one mistake the numbers cannot reveal. */}
+          {identity.rm.length > 0 ? (
+            <Callout tone="danger" role="alert" title="No. RM di lab berbeda dengan pasien ini">
+              Lab: RM {identity.rm.join(', ')} · Pasien: RM {patientMrn}. Pastikan ini berkas yang
+              benar sebelum menyisipkan.
+            </Callout>
+          ) : null}
+          {identity.names.length > 0 ? (
+            <Callout tone="danger" role="alert" title="Nama di lab berbeda dengan pasien ini">
+              Lab: {identity.names.join(', ')} · Pasien: {patientName}. Pastikan ini berkas yang
+              benar sebelum menyisipkan.
+            </Callout>
+          ) : null}
           <div className="flex gap-2">
             <Field label="Judul blok" htmlFor="lab-title" className="flex-1">
               <input

@@ -134,6 +134,21 @@ const HistorySummarySheetWhenOpen = memoWhileClosed(HistorySummarySheet);
 const SoapTidySheetWhenOpen = memoWhileClosed(SoapTidySheet);
 const PatientActionsSheetWhenOpen = memoWhileClosed(PatientActionsSheet);
 const LabSheetWhenOpen = memoWhileClosed(LabSheet);
+
+/*
+  Panels or chips below the desktop sidebar (2026-11-11).
+
+  Catatan pasien, Checklist, Custom Checklist and Periksa lagi used to stack
+  open above the note from 640 px wide, on the theory that a tablet "has the
+  height". A laptop window at that width does not: about 700 px tall, the
+  panels filled the first screen and the note started below the fold. So the
+  stacked panels need BOTH the width and real height (a portrait tablet);
+  every shorter window gets the phone's one-row chips, each opening its panel
+  in a sheet. From 1280 px the sidebar holds them and both are hidden.
+  Full literal strings so Tailwind's scanner sees the classes.
+*/
+const PANELS_ONLY = 'hidden [@media(min-width:640px)_and_(max-width:1279px)_and_(min-height:900px)]:block';
+const CHIPS_ONLY = '[@media(min-width:640px)_and_(max-width:1279px)_and_(min-height:900px)]:hidden xl:hidden';
 const OpeningSheetWhenOpen = memoWhileClosed(OpeningSheet);
 const NewVersionSheetWhenOpen = memoWhileClosed(NewVersionSheet);
 const CopySheetWhenOpen = memoWhileClosed(CopySheet);
@@ -1426,7 +1441,7 @@ export default function PatientPage(): JSX.Element {
     const notesFilled = notesSync.value.trim().length > 0;
     return (
       <>
-        <div className="flex gap-2 overflow-x-auto border-b border-border px-4 py-2 [scrollbar-width:none] sm:hidden [&::-webkit-scrollbar]:hidden">
+        <div className={`flex gap-2 overflow-x-auto border-b border-border px-4 py-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden ${CHIPS_ONLY}`}>
           <button type="button" onClick={() => setPhoneSheet('notes')} className={chip('plain')}>
             Catatan
             <span
@@ -1477,7 +1492,8 @@ export default function PatientPage(): JSX.Element {
               aria-expanded={dpjpInfoOpen}
               aria-label={dpjp ? `Info DPJP ${dpjp.initials}` : 'Info pasien'}
               onClick={toggleDpjpInfo}
-              className={chip('plain')}
+              // From `sm` the DPJP line under the header says this already.
+              className={`${chip('plain')} sm:hidden`}
             >
               <span className="font-semibold">{dpjp ? dpjp.initials : 'Info'}</span>
               {poli && poli.inDays <= 1 ? (
@@ -1970,20 +1986,20 @@ export default function PatientPage(): JSX.Element {
           and then scrolled past on every visit.
 
           Here each is a chip that answers its own question in a word ("ada",
-          "3/10", "3") and opens the full panel in a sheet. Tablet keeps the
-          stacked panels (it has the height); desktop keeps its sidebar.
+          "3/10", "3") and opens the full panel in a sheet. Only a TALL tablet
+          keeps the stacked panels; desktop keeps its sidebar (see PANELS_ONLY).
         */}
         {renderPhoneChips()}
 
-        <div className="hidden sm:block xl:hidden">
+        <div className={PANELS_ONLY}>
           <PatientNotes sync={notesSync} />
         </div>
 
-        <div className="hidden sm:block xl:hidden">
+        <div className={PANELS_ONLY}>
           <PatientTodos patient={patient} date={selected} />
         </div>
 
-        <div className="hidden sm:block xl:hidden">
+        <div className={PANELS_ONLY}>
           <ChecklistPills
             items={dayItems}
             states={checklist.states}
@@ -2193,7 +2209,7 @@ export default function PatientPage(): JSX.Element {
         */}
         {/* In the panel layout on a laptop the checker lives in the sidebar, so
             it stays in view while the note scrolls; here it is the fallback. */}
-        <div className={['hidden sm:block', sideHosts ? 'xl:hidden' : ''].join(' ')}>{renderChecker('main')}</div>
+        <div className={sideHosts ? PANELS_ONLY : `${PANELS_ONLY} xl:block`}>{renderChecker('main')}</div>
 
         {staleMarkers ? (
           <Banner tone="warn">
@@ -2953,6 +2969,8 @@ export default function PatientPage(): JSX.Element {
       </div>
 
       <LabSheetWhenOpen
+        patientName={patient.name}
+        patientMrn={patient.mrn}
         open={labOpen}
         onOpenChange={setLabOpen}
         date={selected}

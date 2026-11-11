@@ -5,6 +5,11 @@ Catatan teknis lengkap (akar masalah, perbaikan) ada di CHANGES.md.
 
 Entri teratas harus versi yang sedang dirilis; tes gagal bila belum ditulis.
 
+## `2026-11-11.4`
+- **Cek No. RM dan nama pada hasil lab.** Saat Format hasil lab dibuka dari halaman pasien, No. RM dan nama di PDF lab dicocokkan dengan pasien. No. RM yang berbeda memunculkan peringatan merah sebelum menyisipkan (angka nol di depan diabaikan). Bila RM tidak tersedia, nama yang dicocokkan: peringatan hanya muncul bila tidak ada satu kata nama pun yang sama. Perbedaan ejaan, gelar (Tn., Ny.), singkatan (Abd.) dan salah satu huruf tidak dianggap berbeda.
+- **Tampilan jendela lebih lega.** Di jendela laptop yang tidak terlalu tinggi, Catatan pasien, Checklist, dan Periksa kini satu baris chip seperti di ponsel, sehingga catatan langsung terlihat. Panel bertumpuk tetap ada di tablet yang tinggi.
+- **Pill clipboard tidak menutupi menu lagi.** Di layar sedang, pill clipboard kini berada di samping menu kiri dan latarnya tidak tembus pandang.
+
 ## `2026-11-11.3`
 - **Pemilih warna kini ringkas.** Roda warna tersembunyi di balik tombol kecil berisi warna yang dipilih; ketuk untuk membuka roda dan palet, ketuk di luar atau tekan Esc untuk menutup. Warna tag baru dan lencana pasien baru kini sebaris dengan isian namanya.
 

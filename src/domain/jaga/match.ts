@@ -37,7 +37,7 @@ export function nameTokens(name: string): string[] {
  * Muhammads. One edit, on words of five letters or more, is the narrowest rule
  * that catches the observed cases and cannot reach a different given name.
  */
-function sameWord(left: string, right: string): boolean {
+export function sameWord(left: string, right: string): boolean {
   if (left === right) return true;
   if (left.length < 5 || right.length < 5) return false;
   if (Math.abs(left.length - right.length) > 1) return false;

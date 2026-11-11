@@ -1,5 +1,17 @@
 # Plano — CHANGES
 
+## `2026-11-11.4` — Lab RM and name cross-check; windowed patient page uses chips when short
+
+Avi (11 Nov, four screenshots of the Plano window at full screen, ~1050, ~770 and ~515 CSS px wide): check the name on a lab PDF against the patient, loosely; fix the spacing of the windowed app.
+
+- **Lab name check.** `labMeta.labPatientNames` reads every `Nama[ Pasien] :` value (ending at a run of spaces or the next header label). `namesCouldMatch` passes when ANY name-word is shared after `nameTokens` (titles and words of 2 letters or fewer, Muhammad/Andi dropped), folding dj/j, tj/c, oe/u, y/i and doubled letters, and allowing one typo (`sameWord`, now exported from `jaga/match`) or a prefix (`ABD` / `Abdul`). It flags only names that share nothing. A side with no usable word makes no claim. `LabSheet` takes an optional `patientName` (PatientPage passes it; BoardPage does not) and shows a danger callout at the top of Hasil. It warns and does not block. Tests added (invented names).
+- **RM check (same build, asked after the name check).** `labRmNumbers` reads `No[.] RM` / `No. Rekam Medis` values; `labIdentityCheck` compares them to `patient.mrn` as digits without leading zeros (`01761685` = `1761685`). A different RM is its own danger callout. When the report prints the patient's own RM, the name is not checked (the RM is the identifier, so a name mismatch there is a spelling problem). With no RM on either side, the name check runs alone.
+- **Root cause of the crowded window.** Stacked panels showed from `sm` (640 px) up to `xl`, on the assumption that a tablet has the height. A laptop window at 1056×~700 CSS px (the screenshots are at 150% scaling) does not: Catatan pasien, the custom checklist rows, the workflow pills and the day rail filled the first screen, and the note started below the fold. The phone layout at 515 px showed the note at once.
+- **Fix.** `PANELS_ONLY` / `CHIPS_ONLY` in PatientPage: the stacked panels (and the main Periksa lagi) need 640–1279 px wide AND ≥900 px tall. Every shorter window below `xl` gets the phone chip row, which opens each panel in its sheet. The DPJP chip stays phone-only because from `sm` the DPJP line under the header already shows it. Desktop `xl` is unchanged.
+- **Clipboard pill.** The floating pill (sm–lg) sat at `left: 12px` over the 76 px nav rail; it now starts at 88 px. `--warn-soft` is translucent, so the note's text showed through it; it now sits on an opaque `bg-surface`.
+- **Firestore cost.** None: no read, listener or write changed.
+- **Not done.** Single-column width (`max-w-3xl`) and gutters unchanged. The 900 px height cut-off is chosen, not measured on a ward tablet.
+
 ## `2026-11-11.3` — Colour picker folded into a dropdown
 
 Avi (11 Nov, screenshot): the wheel took too much room in Setelan; make it a dropdown, as other apps do.
