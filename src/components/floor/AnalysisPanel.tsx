@@ -78,12 +78,17 @@ function Block({ title, count, rename, children }: { title: string; count: numbe
   );
 }
 
-function Row({ patient, note, onOpen }: { patient: FloorPatient; note?: string; onOpen: (p: FloorPatient) => void }): JSX.Element {
+type Holders = ReadonlyMap<string, { junior: string; chief: string }>;
+
+function Row({ patient, note, onOpen, holders }: { patient: FloorPatient; note?: string; onOpen: (p: FloorPatient) => void; holders?: Holders | null }): JSX.Element {
+  const held = holders?.get(patient.key);
+  const who = held ? [held.junior || 'belum ada junior', held.chief].filter(Boolean).join(' / ') : '';
   return (
     <li>
       <button type="button" onClick={() => onOpen(patient)} className="text-left hover:underline">
         {place(patient)} {patient.name}
         {note ? <span className="text-fg-muted"> · {note}</span> : null}
+        {who ? <span className="block text-xs text-fg-muted">{who}</span> : null}
       </button>
     </li>
   );
@@ -136,6 +141,15 @@ export function AnalysisPanel({
     pulang: trend.reduce((n, d) => n + d.pulang, 0),
     pindah: trend.reduce((n, d) => n + d.pindah, 0),
   };
+  /** Who holds each patient (11 Nov 2026, Avi): the list's residents for those on the floor, the last known for those gone. */
+  const [showHolders, setShowHolders] = useState(false);
+  const holders = useMemo<Holders | null>(() => {
+    if (!showHolders) return null;
+    const map = new Map<string, { junior: string; chief: string }>();
+    for (const r of roster) map.set(r.key, { junior: r.junior || r.report.junior, chief: r.chief || r.report.chief });
+    for (const p of view.active) map.set(p.key, { junior: p.junior, chief: p.chief });
+    return map;
+  }, [showHolders, roster, view.active]);
   const [filter, setFilter] = useState<MoveKind | 'semua'>('semua');
   const [copied, setCopied] = useState(false);
   const [renaming, setRenaming] = useState(false);
@@ -208,41 +222,47 @@ export function AnalysisPanel({
       </section>
 
       <section aria-label="Rincian hari ini" className="space-y-3">
-      <SectionLabel title="Hari ini, per pasien" />
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <SectionLabel title="Hari ini, per pasien" />
+        <label className="flex min-h-8 items-center gap-1.5 text-xs text-fg-muted">
+          <input type="checkbox" checked={showHolders} onChange={(e) => setShowHolders(e.target.checked)} />
+          Tampilkan junior &amp; chief
+        </label>
+      </div>
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
         <Block title={name('pulangHariIni')} count={day.pulangHariIni.length} rename={field('pulangHariIni', SECTION_TITLE.pulangHariIni)}>
           {day.pulangHariIni.map((p) => (
-            <Row key={p.key} patient={p} onOpen={onOpen} />
+            <Row key={p.key} patient={p} onOpen={onOpen} holders={holders} />
           ))}
         </Block>
         <Block title={name('rencanaH1')} count={day.rencanaH1.length} rename={field('rencanaH1', SECTION_TITLE.rencanaH1)}>
           {day.rencanaH1.map((p) => (
-            <Row key={p.key} patient={p} onOpen={onOpen} />
+            <Row key={p.key} patient={p} onOpen={onOpen} holders={holders} />
           ))}
         </Block>
         <Block title={name('usulH1')} count={day.usulH1.length} rename={field('usulH1', SECTION_TITLE.usulH1)}>
           {day.usulH1.map(({ patient, days }) => (
-            <Row key={patient.key} patient={patient} note={days === 0 ? 'usul hari ini' : `usul sejak ${days} hari`} onOpen={onOpen} />
+            <Row key={patient.key} patient={patient} note={days === 0 ? 'usul hari ini' : `usul sejak ${days} hari`} onOpen={onOpen} holders={holders} />
           ))}
         </Block>
         <Block title={name('pulang')} count={day.pulang.length} rename={field('pulang', SECTION_TITLE.pulang)}>
           {day.pulang.map((p) => (
-            <Row key={p.key} patient={p.report} note={hm(localOf(p.leftAt))} onOpen={onOpen} />
+            <Row key={p.key} patient={p.report} note={hm(localOf(p.leftAt))} onOpen={onOpen} holders={holders} />
           ))}
         </Block>
         <Block title={name('pindah')} count={day.pindah.length} rename={field('pindah', SECTION_TITLE.pindah)}>
           {day.pindah.map((p) => (
-            <Row key={p.key} patient={p.report} note={`ke ${p.pindahKe || '…'} · ${hm(localOf(p.leftAt))}`} onOpen={onOpen} />
+            <Row key={p.key} patient={p.report} note={`ke ${p.pindahKe || '…'} · ${hm(localOf(p.leftAt))}`} onOpen={onOpen} holders={holders} />
           ))}
         </Block>
         <Block title={name('kamar')} count={day.kamar.length} rename={field('kamar', SECTION_TITLE.kamar)}>
           {day.kamar.map((m) => (
-            <Row key={`${m.key}-${m.at}`} patient={m.patient} note={`${m.what.replace(/^Pindah kamar\s*/i, '')} · ${hm(m.at)}`} onOpen={onOpen} />
+            <Row key={`${m.key}-${m.at}`} patient={m.patient} note={`${m.what.replace(/^Pindah kamar\s*/i, '')} · ${hm(m.at)}`} onOpen={onOpen} holders={holders} />
           ))}
         </Block>
         <Block title={name('masuk')} count={day.masuk.length} rename={field('masuk', SECTION_TITLE.masuk)}>
           {day.masuk.map((m) => (
-            <Row key={`${m.key}-${m.at}`} patient={m.patient} note={`${m.what === 'Masuk list' ? 'baru' : m.what.toLowerCase()} · ${hm(m.at)}`} onOpen={onOpen} />
+            <Row key={`${m.key}-${m.at}`} patient={m.patient} note={`${m.what === 'Masuk list' ? 'baru' : m.what.toLowerCase()} · ${hm(m.at)}`} onOpen={onOpen} holders={holders} />
           ))}
         </Block>
       </div>

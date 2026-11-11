@@ -73,9 +73,11 @@ const ORDER: Record<AssignGroup, number> = { mz: 0, trio: 1, lain: 2 };
  * The proposal: each patient needing a holder → a floor resident.
  * `patients` in route order (the order ties fall in within a group).
  */
-export function proposeAssignment(patients: readonly FloorPatient[], residents: readonly string[]): Map<string, string> {
+export function proposeAssignment(patients: readonly FloorPatient[], residents: readonly string[], skip: ReadonlySet<string> = new Set()): Map<string, string> {
   const out = new Map<string, string>();
-  if (residents.length === 0) return out;
+  // `skip` (11 Nov 2026, Avi): residents left out of the share, e.g. the list maker; their own patients still count as held.
+  const targets = residents.filter((r) => !skip.has(r));
+  if (targets.length === 0) return out;
   const loads = keptLoads(patients, residents);
   const open = patients
     .map((p, i) => ({ p, i, group: assignGroup(p) }))
@@ -86,8 +88,8 @@ export function proposeAssignment(patients: readonly FloorPatient[], residents: 
       const l = loads.get(name)!;
       return group === 'mz' ? [l.mz, l.total] : group === 'trio' ? [l.trio, l.total] : [l.total];
     };
-    let best = residents[0]!;
-    for (const name of residents.slice(1)) {
+    let best = targets[0]!;
+    for (const name of targets.slice(1)) {
       const [a, b] = [score(name), score(best)];
       const diff = a.findIndex((v, k) => v !== b[k]);
       if (diff >= 0 && a[diff]! < b[diff]!) best = name;

@@ -5,6 +5,11 @@ Catatan teknis lengkap (akar masalah, perbaikan) ada di CHANGES.md.
 
 Entri teratas harus versi yang sedang dirilis; tes gagal bila belum ditulis.
 
+## `2026-11-11.2`
+- **Analisis: tampilkan junior & chief.** Centang "Tampilkan junior & chief" di "Hari ini, per pasien" untuk melihat siapa yang memegang tiap pasien.
+- **Bagi pasien: pilih siapa yang ikut dibagi.** Ketuk nama residen di "Ikut dibagi" untuk mengeluarkannya dari pembagian (mis. list maker). Pasien yang sudah dipegangnya tetap miliknya.
+- **Roda warna untuk tag dan lencana.** Pilih warna dengan menyeret atau mengetuk roda; kecerahannya mengikuti tema sehingga tetap terbaca di mode terang, gelap, dan Senja, dan tercetak dengan warna yang sama di Word/PDF. Palet lama tetap ada di sampingnya.
+
 ## `2026-11-11.1`
 - **List Maker kini mengenali konsul dari TS BTKV.** Laporan dengan baris DPJP bercetak miring (`_DPJP BTKV (Utama): …_`) atau pembuka "konsul pasien dari TS (BTKV)" kini ditandai KJS BTKV, termasuk bila dokter BTKV-nya belum ada di daftar DPJP. Tempel ulang laporannya agar tanda ini muncul pada pasien yang sudah ada.
 

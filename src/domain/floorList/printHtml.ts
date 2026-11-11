@@ -4,7 +4,7 @@ import { inlineRuns } from '@/domain/format/soapDocx';
 import { placeBeds } from './beds';
 import { byRoute, dpjpCodeOf, dpjpTitle, isPediatri, LIST_DPJP_ORDER, PEDIATRI_DPJP_IDS } from './build';
 import { planLayout, type RoomCell } from './layout';
-import { MARK_COLORS, printedTags } from './marks';
+import { markInfo, printedTags } from './marks';
 import type { FloorPatient } from './report';
 import { holderBoxes, residentGroups } from './residents';
 import { handoverLine } from './docx';
@@ -46,7 +46,7 @@ export function patientHtml(patient: FloorPatient, options: { number?: number | 
   const tags =
     usul +
     printedTags(patient.tags)
-      .map((t) => ` <b style="color:${hex(MARK_COLORS[t.color].docx)}">[${esc(t.label)}]</b>`)
+      .map((t) => ` <b style="color:${hex(markInfo(t.color).docx)}">[${esc(t.label)}]</b>`)
       .join('');
   return (
     `<span${style}>${options.number !== undefined ? `${options.number}. ` : ''}${esc(place)}${codeHtml}${esc(patient.identity)}` +
@@ -197,7 +197,7 @@ function denahBody(input: PrintInput, settings: PrintSettings): string {
   const strays = sorted.filter((p) => !known.has(p.room));
   const title = `DENAH PASIEN ${input.ward.replace(/^PJT\s+/i, '').toUpperCase()} (${formatDmy(input.date)})`;
   const legendTags = [...new Map(sorted.flatMap((p) => printedTags(p.tags)).map((t) => [t.label, t])).values()]
-    .map((t) => ` – <span style="color:${hex(MARK_COLORS[t.color].docx)}">${esc(t.label)}</span>`)
+    .map((t) => ` – <span style="color:${hex(markInfo(t.color).docx)}">${esc(t.label)}</span>`)
     .concat(
       sorted.some((p) => p.usul)
         ? [` – <span style="color:${hex(usulStyle(sorted.find((p) => p.usul)!).docx)}">[${esc(usulStyle(sorted.find((p) => p.usul)!).label)}]</span> Usul H-1 (belum disetujui)`]

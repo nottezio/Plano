@@ -1,5 +1,15 @@
 # Plano — CHANGES
 
+## `2026-11-11.2` — Analisis holders toggle, Bagi pasien exclusions, hue-wheel tag colour
+
+Avi (11 Nov): show junior and chief in "Hari ini, per pasien"; leave someone (usually the list maker) out of Bagi pasien; a colour wheel instead of swatches.
+
+- **Holders.** `AnalysisPanel` checkbox (off by default, not saved). Patients on the floor show the effective junior/chief from `view.active`; those gone show the roster override, else the SOAP's. Built only while the box is ticked.
+- **Bagi pasien.** `proposeAssignment(patients, residents, skip)`: skipped residents get nothing new but still count as holders, so their own patients are not re-offered. The open list is now every patient that `needsHolder`, so with everyone skipped the rows read "lewati" rather than "Semua pasien sudah dipegang". The skip set lives in component state for that sitting. Test added.
+- **Colour wheel.** A new `MarkColor` form `h<0-359>`. Only the hue is free: `markCss` renders `oklch(var(--hue-l) var(--hue-c) h)`, with lightness and chroma per theme in `tokens.css` (light 0.5/0.14, dark 0.8/0.12, Senja 0.85/0.1). `check-contrast.mjs` now checks every 5° in all three themes as a mark on its 8% tint. The lowest are light 4.61:1 at 195°, dark 7.64:1 and Senja 5.74:1. Word/PDF get `oklchHex(0.5, 0.14, h)` through `markInfo`. `MarkColorPicker` is a ring (pointer drag with capture, plus arrow keys at 5° or 15° with Shift, as role=slider) with the named palette beside it. Grey and brown can't sit on a fixed-chroma ring.
+- **Firestore cost.** No new reads or listeners. A wheel drag writes once on release, and arrow keys write on key-up, both to the existing marks/newBadge field on the list doc (each write bills a read on that doc's open listeners, as any colour change did). Holders and exclusions write nothing.
+- **Not done.** The skip set isn't saved. A device without OKLCH (Chrome < 111, Safari < 15.4) shows no colour for a wheel-picked tag. Not checked on a phone or a ward device.
+
 ## `2026-11-11.1` — List Maker: KJS BTKV from an italic DPJP line or "TS (BTKV)"
 
 Avi (11 Nov): a consult from TS BTKV (PJT Lt. 4) was not marked KJS BTKV.

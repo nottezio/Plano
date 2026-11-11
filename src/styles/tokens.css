@@ -130,6 +130,9 @@
   --mark-cyan: #0e7490;
   --mark-fuchsia: #a21caf;
   --mark-olive: #556b10;
+  /* 11 Nov 2026: the colour wheel picks only a hue; lightness and chroma are the theme's (PRINT_HUE in marks.ts = these). */
+  --hue-l: 0.5;
+  --hue-c: 0.14;
   --card-neutral-bg: #f4f6f8;
   --card-neutral-accent: #64748b;
   /* Chart series (Analisis, 28 Oct 2026): blue / green / purple, validated for colour-vision
@@ -274,6 +277,8 @@
   --mark-cyan: #22d3ee;
   --mark-fuchsia: #e879f9;
   --mark-olive: #bccb6a;
+  --hue-l: 0.8;
+  --hue-c: 0.12;
   --card-neutral-bg: #161c24;
   --card-neutral-accent: #94a3b8;
   --chart-1: #3b82f6;
@@ -411,6 +416,8 @@
   --mark-cyan: #74e1f2;
   --mark-fuchsia: #f1a9f8;
   --mark-olive: #ccd682;
+  --hue-l: 0.85;
+  --hue-c: 0.1;
   --card-neutral-bg: #3f444f;
   --card-neutral-accent: #9ca4b8;
   --chart-1: #6aa8fb;

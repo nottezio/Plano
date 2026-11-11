@@ -49,6 +49,15 @@ describe('Bagi pasien (10 Nov 2026)', () => {
     expect(proposeAssignment(patients, []).size).toBe(0);
   });
 
+  it('a resident left out (the list maker) gets none, and keeps their own patients (11 Nov 2026)', () => {
+    const patients = [p('k1', 'ks', 'Ana'), p('n1', 'mz'), p('n2', 'afm'), p('n3', 'ks')];
+    const out = proposeAssignment(patients, RES, new Set(['Ana']));
+    expect(out.has('k1')).toBe(false);
+    expect([...out.values()].every((r) => r !== 'Ana')).toBe(true);
+    expect(out.size).toBe(3);
+    expect(proposeAssignment(patients, RES, new Set(RES)).size).toBe(0);
+  });
+
   it('before/after follow a choice changed by hand', () => {
     const patients = [p('a', 'mz'), p('b', 'ks', 'Budi')];
     const loads = loadsWith(patients, RES, new Map([['a', 'Budi']]));

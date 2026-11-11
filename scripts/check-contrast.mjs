@@ -87,6 +87,38 @@ for (const selector of [':root', '.dark', ".dark[data-theme='senja']"]) {
     console.log(`${ok ? 'PASS' : 'FAIL'} ${selector.padEnd(6)} ${name.padEnd(16)} ${r.toFixed(2)}:1`);
   }
 }
+// The colour wheel (11 Nov 2026): every hue at the theme's --hue-l/--hue-c, as a mark (text on its 8% tint).
+// Same OKLCH → sRGB as oklchHex in src/domain/floorList/marks.ts.
+const oklchHex = (l, c, hue) => {
+  const a = c * Math.cos((hue * Math.PI) / 180);
+  const b = c * Math.sin((hue * Math.PI) / 180);
+  const L = (l + 0.3963377774 * a + 0.2158037573 * b) ** 3;
+  const M = (l - 0.1055613458 * a - 0.0638541728 * b) ** 3;
+  const S = (l - 0.0894841775 * a - 1.291485548 * b) ** 3;
+  const lin = [4.0767416621 * L - 3.3077115913 * M + 0.2309699292 * S, -1.2684380046 * L + 2.6097574011 * M - 0.3413193965 * S, -0.0041960863 * L - 0.7034186147 * M + 1.707614701 * S];
+  return '#' + lin.map((v) => Math.min(1, Math.max(0, v))).map((x) => Math.round((x <= 0.0031308 ? 12.92 * x : 1.055 * x ** (1 / 2.4) - 0.055) * 255).toString(16).padStart(2, '0')).join('');
+};
+for (const selector of [':root', '.dark', ".dark[data-theme='senja']"]) {
+  const block = blockOf(selector);
+  const l = Number(/--hue-l:\s*([\d.]+)/.exec(block)?.[1]);
+  const c = Number(/--hue-c:\s*([\d.]+)/.exec(block)?.[1]);
+  const surface = vars(block).get('surface');
+  if (!l || !c || !surface) {
+    failures++;
+    console.log(`FAIL ${selector} --hue-l/--hue-c missing`);
+    continue;
+  }
+  let worst = Infinity;
+  let at = 0;
+  for (let hue = 0; hue < 360; hue += 5) {
+    const fg = oklchHex(l, c, hue);
+    const r = ratio(fg, mix(fg, surface, 0.08));
+    if (r < worst) [worst, at] = [r, hue];
+  }
+  const ok = worst >= 4.5;
+  if (!ok) failures++;
+  console.log(`${ok ? 'PASS' : 'FAIL'} ${selector.padEnd(6)} hue wheel (worst ${at}°) ${worst.toFixed(2)}:1`);
+}
 // Palettes (13.15): on-accent text on the accent, and the accent as text on
 // the surface, in both modes; the warm/black backgrounds keep the text tokens.
 for (const [, mode, name, body] of css.matchAll(/(:root|\.dark)\[data-palette='(\w+)'\]\s*\{([^}]*)\}/g)) {

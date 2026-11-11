@@ -1,6 +1,26 @@
 import { describe, expect, it } from 'vitest';
 
-import { autoMatches, DEFAULT_NEW_BADGE, newBadgeOf, newMarkId, printedTags, readMarks, readNewBadge, tagsOf } from './marks';
+import { autoMatches, DEFAULT_NEW_BADGE, hueColor, isMarkColor, markCss, markInfo, newBadgeOf, newMarkId, oklchHex, printedTags, readMarks, readNewBadge, tagsOf } from './marks';
+
+describe('colour wheel (11 Nov 2026)', () => {
+  it('stores a hue as "h<deg>", reads it back, and rejects anything else', () => {
+    expect(hueColor(370)).toBe('h10');
+    expect(hueColor(-5)).toBe('h355');
+    expect(isMarkColor('h200')).toBe(true);
+    expect(isMarkColor('h360')).toBe(false);
+    expect(isMarkColor('#ff0000')).toBe(false);
+    expect(readMarks([{ id: 'a', label: 'Pre-op', color: 'h200' }])[0]?.color).toBe('h200');
+  });
+
+  it('draws with the theme lightness and prints a matching Word colour', () => {
+    expect(markCss('h200')).toBe('oklch(var(--hue-l) var(--hue-c) 200)');
+    expect(markCss('teal')).toBe('var(--mark-teal)');
+    expect(oklchHex(1, 0, 0)).toBe('FFFFFF');
+    expect(oklchHex(0, 0, 0)).toBe('000000');
+    expect(markInfo('h200').docx).toMatch(/^[0-9A-F]{6}$/);
+    expect(markInfo('blue').docx).toBe('0070C0');
+  });
+});
 
 describe('floor marks', () => {
   it('reads only well-formed marks: known colour, a label, a unique id', () => {

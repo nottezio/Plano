@@ -5,7 +5,7 @@ import { storeZip } from '@/lib/zip';
 import { placeBeds } from './beds';
 import { planLayout, type RoomCell } from './layout';
 import { byRoute, dpjpCodeOf, dpjpTitle, isPediatri, LIST_DPJP_ORDER, PEDIATRI_DPJP_IDS } from './build';
-import { MARK_COLORS, printedTags } from './marks';
+import { markInfo, printedTags } from './marks';
 import { holderBoxes, residentGroups } from './residents';
 import { DEFAULT_PRINT, forPrint, halfPoints, usulPrintOf, type DenahPrint, type ListPrint, type UsulPrint } from './printSettings';
 import type { FloorPatient } from './report';
@@ -80,7 +80,7 @@ export function patientRuns(patient: FloorPatient, options: { number?: number | 
   if (patient.btkv) out.push(tint({ text: ' (KJS BTKV)', bold: true }));
   if (residents) out.push({ text: ` - ${residents}`, bold: true });
   if (patient.usul) out.push({ text: ` [${usulStyle(patient).label}]`, bold: true, color: usulStyle(patient).docx });
-  for (const tag of printedTags(patient.tags)) out.push({ text: ` [${tag.label}]`, bold: true, color: MARK_COLORS[tag.color].docx });
+  for (const tag of printedTags(patient.tags)) out.push({ text: ` [${tag.label}]`, bold: true, color: markInfo(tag.color).docx });
   return out;
 }
 
@@ -442,7 +442,7 @@ export function buildDenahDocx(input: DenahDocInput, print: DenahPrint = DEFAULT
     { text: ' H-1 – ' },
     { text: 'Hijau', color: GREEN },
     { text: more ? ' Pulang Hari ini' : ' Pulang Hari ini.' },
-    ...marks.flatMap((m): Styled[] => [{ text: ' – ' }, { text: m.label, color: MARK_COLORS[m.color].docx }]),
+    ...marks.flatMap((m): Styled[] => [{ text: ' – ' }, { text: m.label, color: markInfo(m.color).docx }]),
     ...(usulPatient ? [{ text: ' – ' }, { text: `[${usulStyle(usulPatient).label}]`, color: usulStyle(usulPatient).docx }, { text: ' Usul H-1 (belum disetujui)' }] : []),
     ...(more ? [{ text: '.' }] : []),
   ]);

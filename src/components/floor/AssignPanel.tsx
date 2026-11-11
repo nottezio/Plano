@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react';
 
 import { Button, Callout, INPUT } from '@/components/common/ui';
 import { writeRosterBatch, type RosterChange } from '@/data/repositories/floors.repo';
-import { assignGroup, loadsWith, proposeAssignment, type Load } from '@/domain/floorList/assign';
+import { assignGroup, loadsWith, needsHolder, proposeAssignment, type Load } from '@/domain/floorList/assign';
 import { byRoute, dpjpCodeOf } from '@/domain/floorList/build';
 import { chiefsOf, type FloorDoc } from '@/domain/floorList/floor';
 import type { FloorPatient } from '@/domain/floorList/report';
@@ -34,19 +34,22 @@ export function AssignPanel({
   const residentsKey = floor.juniors;
   const residents = useMemo(() => chiefsOf(residentsKey), [residentsKey]);
   const sorted = useMemo(() => [...active].sort(byRoute(floor.ward)), [active, floor.ward]);
-  const proposal = useMemo(() => proposeAssignment(sorted, residents), [sorted, residents]);
+  // Residents left out of the share (11 Nov 2026, Avi: the list maker usually takes the fewest). Not saved: set per sitting.
+  const [skip, setSkip] = useState<ReadonlySet<string>>(new Set());
+  const proposal = useMemo(() => proposeAssignment(sorted, residents, skip), [sorted, residents, skip]);
   // Hand changes per patient key; '' = skip this patient for now.
   const [changed, setChanged] = useState<Record<string, string>>({});
   const [done, setDone] = useState('');
+  // Every patient needing a holder, even with everyone left out (then all read "lewati").
+  const open = useMemo(() => sorted.filter((p) => needsHolder(p, residents)), [sorted, residents]);
   const chosen = useMemo(() => {
     const out = new Map<string, string>();
-    for (const [key, to] of proposal) {
-      const pick = changed[key] ?? to;
+    for (const { key } of open) {
+      const pick = changed[key] ?? proposal.get(key);
       if (pick) out.set(key, pick);
     }
     return out;
-  }, [proposal, changed]);
-  const open = sorted.filter((p) => proposal.has(p.key));
+  }, [open, proposal, changed]);
   const loads = loadsWith(sorted, residents, chosen);
 
   const apply = (): void => {
@@ -76,7 +79,35 @@ export function AssignPanel({
 
       {residents.length === 0 ? (
         <Callout tone="info">Isi dulu Residen lantai di tab Setelan.</Callout>
-      ) : open.length === 0 ? (
+      ) : (
+        <div role="group" aria-label="Residen yang ikut dibagi" className="flex flex-wrap items-center gap-1.5 text-xs">
+          <span className="text-fg-muted">Ikut dibagi:</span>
+          {residents.map((r) => {
+            const on = !skip.has(r);
+            return (
+              <button
+                key={r}
+                type="button"
+                aria-pressed={on}
+                onClick={() => {
+                  setSkip((s) => {
+                    const next = new Set(s);
+                    if (on) next.add(r);
+                    else next.delete(r);
+                    return next;
+                  });
+                  setChanged({});
+                }}
+                className={`min-h-8 rounded-full border px-2.5 font-semibold ${on ? 'border-accent bg-accent text-on-accent' : 'border-border text-fg-muted line-through'}`}
+              >
+                dr. {r}
+              </button>
+            );
+          })}
+        </div>
+      )}
+
+      {residents.length === 0 ? null : open.length === 0 ? (
         <p className="text-xs text-fg-muted">{done || 'Semua pasien sudah dipegang residen lantai.'}</p>
       ) : (
         <>
@@ -111,7 +142,7 @@ export function AssignPanel({
                       <option value="">— lewati —</option>
                     </select>
                   ) : (
-                    <span className="text-xs font-semibold">dr. {proposal.get(p.key)}</span>
+                    <span className="text-xs font-semibold">{proposal.get(p.key) ? `dr. ${proposal.get(p.key)}` : '—'}</span>
                   )}
                 </li>
               );
