@@ -5,6 +5,10 @@ Catatan teknis lengkap (akar masalah, perbaikan) ada di CHANGES.md.
 
 Entri teratas harus versi yang sedang dirilis; tes gagal bila belum ditulis.
 
+## `2026-11-12.3`
+- **Kotak kamar di Denah kembali menulis setiap bed**, di ponsel dan layar lebar. Bed kosong ditulis "2. -" di tempatnya, dan kamar satu bed juga bernomor "1.". Hitungan "n kosong" dihapus, jadi letak bed kosong terlihat lagi seperti di lembar bangsal.
+- **Tombol Tempel kembali di tab List.** Kotak Tempel mengambang di atas list, jadi list tetap terbaca dan langsung berubah saat tempel disimpan. Baru: kursor langsung di kotak pesan, penjelasannya satu baris, **Esc** menutup kotak, dan **Kecilkan** melipat kotak jadi satu baris tanpa menghapus pesan yang sudah ditempel.
+
 ## `2026-11-12.2`
 - **Bagian atas List Maker rapi lagi dengan banyak chief.** Di layar lebar, Chief Bangsal dan Chief kini satu baris sendiri di bawah list dan tanggal. Kotak Chief memakai sisa lebar layar, jadi belasan chip chief mengalir ke samping, bukan menumpuk tinggi dan membuat celah kosong di kiri dan kanan.
 - **Per DPJP kembali menampilkan semua DPJP**, termasuk yang belum punya pasien di lantai, seperti sebelumnya. Baris "Tanpa pasien" dihapus.

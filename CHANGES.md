@@ -1,5 +1,15 @@
 # Plano — CHANGES
 
+## `2026-11-12.3` — Denah room boxes list every bed again; Tempel float back on the List tab
+
+Avi: the room box must show every bed as before, an empty one as a numbered dash, and single-bed rooms numbered too, on phone and desk.
+
+- **Root cause:** build 12.1 changed `RoomBox` (`src/components/floor/FloorDenah.tsx`) to drop empty beds and print an "n kosong" count in the room title, to shorten six-bed rooms. That hid which bed was free, which is what the ward reads the plan for. Single-bed rooms never had a number (`number` was `undefined` when `slot.beds === 1`).
+- **Fix:** every bed renders its `<li>` again: a patient as before, an empty bed as `{n}. -`. The patient number is always `i + 1`, single-bed rooms included. The "n kosong" count is gone from both the desk and the compact (phone) title. The compact patient line now prints `1.` with a dot, to match the empty line.
+- **Tempel float restored** (Avi: "restore and improve it"). Build 12.1 deleted `PasteFloat.tsx` and the List-tab Tempel button to unclutter the List head, which left only the Tempel tab, where the list cannot be seen while pasting. Restored from da3f0b1 and wired back into `ListPanel`. Improvements: `PastePanel` takes `compact` (one-line intro, 6 rows, `autoFocus` on the textarea); Esc on the box closes it; "Kecilkan" folds it to its header. The body is hidden, not unmounted, so the pasted text, the review and the undo point survive the fold.
+- **Firestore cost:** none new. The float renders the same `PastePanel` as the Tempel tab, so its reads and writes per Baca/Simpan are unchanged; opening or folding the box reads nothing.
+- **Not done:** not checked on a ward device. The float still closes when leaving the List tab (as before 12.1), and its draft goes with it. Six-bed rooms are taller again on the phone plan, by design. Loose patients (no bed match) still render unnumbered, unchanged.
+
 ## `2026-11-12.2` — List Maker fixes after 12.1: two-row head, every DPJP box, legible tinted SOAP header, Analisis/Setelan spacing
 
 Avi tested 12.1 with real data (one list: 14 chiefs, 25 patients, 6 members) at ~1900 px, dark theme. Reproduced on the emulator with invented names.

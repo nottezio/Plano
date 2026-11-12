@@ -93,7 +93,18 @@ function PasteChanges({ updated }: { updated: PasteDiff['updated'] }): JSX.Eleme
  *
  * Nobody is ever removed by a paste. The raw paste is never stored.
  */
-export function PastePanel({ floor, roster, myName }: { floor: FloorDoc; roster: readonly RosterPatient[]; myName: string }): JSX.Element {
+export function PastePanel({
+  floor,
+  roster,
+  myName,
+  compact = false,
+}: {
+  floor: FloorDoc;
+  roster: readonly RosterPatient[];
+  myName: string;
+  /** In the floating box (12 Nov 2026): a one-line intro and the cursor already in the box. */
+  compact?: boolean;
+}): JSX.Element {
   const [text, setText] = useState('');
   const [reading, setReading] = useState<Reading | null>(null);
   const [skipFresh, setSkipFresh] = useState<Set<string>>(new Set());
@@ -233,12 +244,16 @@ export function PastePanel({ floor, roster, myName }: { floor: FloorDoc; roster:
 
   return (
     <div className="space-y-3">
+      {compact ? (
+        <p className="text-xs text-fg-muted">SOAP, list dari rekan, atau file Export chat. Ditinjau dulu sebelum disimpan; tidak ada pasien yang dikeluarkan.</p>
+      ) : (
       <p className="text-xs text-fg-muted">
         Tempel pesan SOAP dari grup WhatsApp (boleh banyak sekaligus), <strong>list pasien yang dikirim rekan</strong>, atau
         buka file <strong>Export chat</strong> (.zip atau .txt). SOAP selalu didahulukan; dari list hanya diagnosis,
         terapi dan plan. Perubahan ditampilkan dulu sebelum disimpan. <strong>Tidak ada pasien yang dikeluarkan</strong> oleh
         tempel — pulang/pindah hanya lewat tab List.
       </p>
+      )}
       <textarea
         value={text}
         onChange={(event) => {
@@ -247,7 +262,8 @@ export function PastePanel({ floor, roster, myName }: { floor: FloorDoc; roster:
           // A lookup still running belongs to the old text.
           readTurn.current += 1;
         }}
-        rows={8}
+        rows={compact ? 6 : 8}
+        autoFocus={compact}
         placeholder="Tempel pesan WhatsApp di sini…"
         aria-label="Pesan WhatsApp"
         className="w-full rounded-xl border border-border bg-surface p-3 font-mono text-xs"

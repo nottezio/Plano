@@ -25,6 +25,7 @@ import { NewDot, SoapBadge } from './SoapBadge';
 import { PatientControls } from './PatientControls';
 import { ListMessage } from './ListMessage';
 import { ManualPatientSheet } from './ManualPatientSheet';
+import { PasteFloat } from './PasteFloat';
 import { DischargeChip, FLAG_TEXT } from './DischargeChip';
 
 /**
@@ -72,6 +73,8 @@ export function ListPanel({
     24 rem column of its own, which left a third of a wide screen empty beside the list.
   */
   const [previewOpen, setPreviewOpen] = useState(false);
+  // Tempel over the list (2026-10-16; back in 12.3 after 12.1 dropped it).
+  const [pasteOpen, setPasteOpen] = useState(false);
   const [editing, setEditing] = useState<FloorPatient | null>(null);
   const chiefs = chiefsOf(floor.chiefs);
   const byKey = useMemo(() => new Map(roster.map((p) => [p.key, p])), [roster]);
@@ -117,6 +120,11 @@ export function ListPanel({
             </span>
           </Button>
           {editable ? (
+            <Button size="sm" variant={pasteOpen ? 'primary' : 'secondary'} onClick={() => setPasteOpen((v) => !v)} aria-pressed={pasteOpen}>
+              Tempel
+            </Button>
+          ) : null}
+          {editable ? (
             <Button
               size="sm"
               onClick={() => {
@@ -130,6 +138,7 @@ export function ListPanel({
             </Button>
           ) : null}
         </div>
+        {pasteOpen && editable ? <PasteFloat floor={floor} roster={roster} myName={myName} onClose={() => setPasteOpen(false)} /> : null}
         <ManualPatientSheet
           open={manualOpen}
           onOpenChange={setManualOpen}

@@ -98,7 +98,7 @@ function PatientButton({
         } ${found === 'dim' ? 'opacity-30' : found === 'hit' ? 'outline outline-2 outline-accent' : ''}`}
         style={colour ? { color: colour } : undefined}
       >
-        {number !== undefined ? <span className="shrink-0 tabular-nums text-fg-muted">{number}</span> : null}
+        {number !== undefined ? <span className="shrink-0 tabular-nums text-fg-muted">{number}.</span> : null}
         <span className="min-w-0 truncate">
           {patient.name || patient.identity}
           {code ? <span className="text-fg-muted"> · {code}</span> : null}
@@ -182,12 +182,10 @@ function RoomBox({
   const { beds, loose } = placeBeds(slot, patients);
   const compact = useContext(Compact);
   /*
-    Empty beds as one count (12 Nov 2026): a bare "1. 2. 3." line per empty bed made the
-    six-bed rooms the tallest boxes on the plan with nothing in them. A patient keeps the
-    number of the bed they are in.
+    Every bed keeps its numbered line, an empty one as "2. -", single-bed rooms too
+    (12 Nov 2026, build 12.3, Avi): the box reads like the ward sheet. Build 12.1 had
+    folded empty beds into an "n kosong" count, which hid where the free bed was.
   */
-  const free = beds.filter((p) => !p).length;
-  const freeText = free === 0 ? '' : slot.beds > 1 ? `${free} kosong` : 'kosong';
   return (
     <div className={`rounded-lg border border-border bg-surface ${compact ? 'p-1.5' : 'p-2'}`}>
       {compact ? (
@@ -196,23 +194,23 @@ function RoomBox({
             {slot.room}
             {slot.subtitle ? <span className="ml-1 font-medium text-fg-muted">{slot.subtitle}</span> : null}
           </span>
-          {freeText ? <span className="shrink-0 text-[11px] font-normal text-fg-faint">{freeText}</span> : null}
         </p>
       ) : (
         <p className="text-center text-xs font-bold uppercase tracking-wide">
           Kamar {slot.room}
           {slot.subtitle ? <span className="block font-semibold normal-case">{slot.subtitle}</span> : null}
-          {freeText ? <span className="block text-[11px] font-normal normal-case tracking-normal text-fg-faint">{freeText}</span> : null}
         </p>
       )}
       <ol className="mt-1 space-y-0.5">
-        {beds.map((patient, i) =>
-          patient ? (
-            <li key={i} className="min-h-5 text-[12px]">
-              <PatientButton patient={patient} number={slot.beds > 1 ? i + 1 : undefined} onOpen={onOpen} showPlace={false} found={find(patient)} />
-            </li>
-          ) : null,
-        )}
+        {beds.map((patient, i) => (
+          <li key={i} className={`min-h-5 ${compact ? 'text-xs' : 'text-[12px]'} text-fg-faint`}>
+            {patient ? (
+              <PatientButton patient={patient} number={i + 1} onOpen={onOpen} showPlace={false} found={find(patient)} />
+            ) : (
+              <span className="px-1 tabular-nums">{i + 1}. -</span>
+            )}
+          </li>
+        ))}
         {loose.map((patient) => (
           <li key={patient.key}>
             <PatientButton patient={patient} onOpen={onOpen} showPlace={false} found={find(patient)} />
