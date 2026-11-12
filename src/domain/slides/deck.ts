@@ -29,10 +29,12 @@ export type DeckSlide =
       fontPt: number;
     }
   | { kind: 'images'; id: string; title: string; layout: ImageLayout; photos: DeckPhoto[]; text?: string }
-  | { kind: 'text'; id: string; title: string; body: string }
+  | { kind: 'text'; id: string; title: string; body: string; fontPt: number; align: 'l' | 'ctr' }
   | { kind: 'lab'; id: 'lab'; title: string; dates: string[]; rows: Array<{ label: string; cells: string[] }> }
   | { kind: 'closing'; id: 'closing' };
 
 export interface Deck {
   slides: DeckSlide[];
+  /** 4:3 slides (taller), for a long SOAP. Absent = 16:9. */
+  tall?: boolean;
 }

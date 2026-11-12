@@ -5,6 +5,13 @@ Catatan teknis lengkap (akar masalah, perbaikan) ada di CHANGES.md.
 
 Entri teratas harus versi yang sedang dirilis; tes gagal bila belum ditulis.
 
+## `2026-11-13.3`
+- **Slide tinggi (opsional) untuk SOAP panjang.** Di editor Slide MZ ada pilihan **Slide tinggi (4:3)**. Bila dicentang, semua slide di deck jadi lebih tinggi (lebar sama), sehingga SOAP atau slide CPPT yang panjang muat tanpa mengecilkan teks. Ini berlaku untuk seluruh deck, bukan satu slide saja (satu file PowerPoint hanya punya satu ukuran slide). Tanda "terlalu panjang" memberi petunjuk bila perlu. Tabel SOAP tetap memakai tinggi baris judul yang sama; tambahan tinggi masuk ke isi.
+
+## `2026-11-13.2`
+- **Slide teks kini menyesuaikan ukuran teks seperti slide referensi.** Teks dibungkus di dalam kotak dan mengecil dari 24 pt sampai muat (batas bawah 8 pt), jadi tidak lagi terpotong di bawah slide. Ukuran bisa diatur sendiri dengan **A−** / **A+** (atau kembali ke **Otomatis**), dan perataan bisa **Rata kiri** atau **Tengah**. Bila ukuran pilihan terlalu besar, slide diberi tanda "terlalu panjang".
+- **Slide CPPT (ketik bebas).** Tombol baru **Slide CPPT** menambah slide berkolom Identitas / Anamnesis dan Pemeriksaan Fisik / Diagnosis dan Terapi yang diisi dengan mengetik sendiri (tanggal bisa dipilih), untuk hari yang tidak ada di catatan Plano atau catatan yang ditulis di tempat lain. Ukuran teksnya menyesuaikan seperti slide SOAP.
+
 ## `2026-11-13.1`
 - **Tautan Slide MZ juga di panel samping.** Kartu DPJP di panel Pasien (tampilan dengan panel samping) kini punya baris **Slide → Slide MZ ›**, bukan hanya baris DPJP di atas catatan.
 - **Slide SOAP lebih rapi:** hanya judul bagian utama (S, O, Diagnosis, Terapi, Plan) yang ditebalkan; sub-judul seperti "Faktor Risiko Kardiovaskular" dan "Premedikasi pra-tindakan" ditulis biasa. Judul "Mohon izin kami assess dengan" dan "Mohon izin kami terapi dengan" ditulis "Diagnosis:" dan "Terapi:" di slide. Catatan SOAP tidak berubah.

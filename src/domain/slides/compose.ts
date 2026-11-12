@@ -6,7 +6,8 @@ import { headingDate } from '@/domain/lab/labMeta';
 import type { ClinicalDate, Patient, SectionAlias } from '@/domain/types';
 import type { Deck, DeckPhoto, DeckSlide } from './deck';
 import { IMAGE_KINDS, type DeckState } from './deckState';
-import { fitSoapFont } from './fit';
+import { fitSoapFont, fitTextPt, textFitsAt } from './fit';
+import { geometryFor, slideHeight, TEXT_PT } from './geometry';
 import { applyLabOverrides, labGridFromDays, mergeLabGrids, type LabGrid } from './labTable';
 import { soapColumns } from './soapColumns';
 
@@ -32,6 +33,8 @@ export interface SlideMeta {
   overrideKey?: string;
   /** SOAP slides: hash of the unedited source text, stamped on an override when it is made. */
   sourceHash?: string;
+  /** A hand-typed CPPT slide: its id in `state.cpptSlides` (it has no note to override). */
+  cpptId?: string;
 }
 
 export interface Composed {
@@ -96,6 +99,8 @@ export function composeDeck(input: {
   aliases?: readonly SectionAlias[];
 }): Composed {
   const { patient, state } = input;
+  const tall = Boolean(state.tall);
+  const slideH = slideHeight(tall);
   const days = input.days.filter((day) => day.body.trim());
   const slides = new Map<string, { slide: DeckSlide; meta: Omit<SlideMeta, 'hidden'> }>();
   const defaults: string[] = [];
@@ -128,7 +133,7 @@ export function composeDeck(input: {
     const col2 = override?.col2 ?? source.col2;
     const col3 = override?.col3 ?? source.col3;
     const edited = override?.col2 !== undefined || override?.col3 !== undefined;
-    const fit = fitSoapFont(col2, col3);
+    const fit = fitSoapFont(col2, col3, slideH);
     add(
       {
         kind: 'soap',
@@ -147,6 +152,16 @@ export function composeDeck(input: {
         overrideKey: key,
         sourceHash,
       },
+    );
+  }
+
+  // Hand-typed CPPT slides: SOAP layout, by date, after the days Plano has notes for.
+  for (const cppt of [...(state.cpptSlides ?? [])].sort((a, b) => a.date.localeCompare(b.date))) {
+    const fit = fitSoapFont(cppt.col2, cppt.col3, slideH);
+    const day = headingDate(cppt.date);
+    add(
+      { kind: 'soap', id: cppt.id, date: cppt.date, identitas: [day, '', location].join('\n').trimEnd(), col2: cppt.col2, col3: cppt.col3, fontPt: fit.pt },
+      { label: `CPPT ${day}`.trim(), ...plain, overflow: fit.overflow, cpptId: cppt.id },
     );
   }
 
@@ -169,7 +184,15 @@ export function composeDeck(input: {
   }
 
   for (const text of state.textSlides) {
-    add({ kind: 'text', id: text.id, title: text.title, body: text.body }, { label: text.title, ...plain });
+    // Like the reference slide's autofit: shrink from 24 pt until the wrapped text fits. A manual size is kept, and flagged when it overflows.
+    const fit =
+      text.pt !== undefined
+        ? { pt: text.pt, overflow: !textFitsAt(text.body, geometryFor(tall).textOnly, text.pt) }
+        : fitTextPt(text.body, geometryFor(tall).textOnly, TEXT_PT.max, TEXT_PT.floor);
+    add(
+      { kind: 'text', id: text.id, title: text.title, body: text.body, fontPt: fit.pt, align: text.align === 'center' ? 'ctr' : 'l' },
+      { label: text.title, ...plain, overflow: fit.overflow },
+    );
   }
 
   const grid = mergeLabGrids(state.importedLab ?? EMPTY_GRID, labGridFromDays(days));
@@ -183,7 +206,7 @@ export function composeDeck(input: {
   const hidden = new Set(state.hidden);
   const ordered = orderIds(defaults, state.order).map((id) => slides.get(id)!);
   return {
-    deck: { slides: ordered.filter((entry) => !hidden.has(entry.slide.id)).map((entry) => entry.slide) },
+    deck: { slides: ordered.filter((entry) => !hidden.has(entry.slide.id)).map((entry) => entry.slide), ...(tall ? { tall: true } : {}) },
     meta: ordered.map((entry) => ({ ...entry.meta, hidden: hidden.has(entry.slide.id) })),
     labGrid: grid,
   };

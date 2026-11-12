@@ -90,6 +90,23 @@ describe('pptx writer', () => {
     }
   });
 
+  it('a text slide uses its font size and centres its paragraphs on request', () => {
+    const text = (align: 'l' | 'ctr'): Deck => ({ slides: [{ kind: 'text', id: 't', title: 'USG', body: '- Fatty liver', fontPt: 28, align }] });
+    const centred = (d: Deck) => (slideXml(d, 1).match(/algn="ctr"/g) ?? []).length;
+    expect(slideXml(text('l'), 1)).toContain('sz="2800"');
+    // The boxed title is always centred (1); the body adds one more only when centred.
+    expect(centred(text('l'))).toBe(1);
+    expect(centred(text('ctr'))).toBe(2);
+  });
+
+  it('a tall deck writes a 4:3 slide size and a taller SOAP body row', () => {
+    const part = (d: Deck, name: string) => decoder.decode(pptxParts(d).find((p) => p.name === name)!.data);
+    expect(part(deck, 'ppt/presentation.xml')).toContain('cy="6858000"');
+    const tall: Deck = { ...deck, tall: true };
+    expect(part(tall, 'ppt/presentation.xml')).toContain('cy="9144000"');
+    expect(part(tall, 'ppt/slides/slide2.xml')).toContain(`<a:tr h="${9_144_000 - GEOMETRY.soapHeaderH}">`);
+  });
+
   it('escapes note text', () => {
     expect(slideXml({ slides: [soap('a < b & c')] }, 1)).toContain('a &lt; b &amp; c');
   });

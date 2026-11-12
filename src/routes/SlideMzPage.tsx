@@ -4,8 +4,8 @@ import { nanoid } from 'nanoid';
 import { AppShell } from '@/components/common/AppShell';
 import { ConfirmDialog } from '@/components/common/ConfirmDialog';
 import { IconBack, IconEye, IconPlus, IconRefresh, IconShare } from '@/components/common/Icons';
-import { Button, Callout } from '@/components/common/ui';
-import { ImageEditor, LabEditor, OldVersionToggle, SoapEditor, TextEditor } from '@/components/slides/SlideEditors';
+import { Button, Callout, CheckRow } from '@/components/common/ui';
+import { CpptEditor, ImageEditor, LabEditor, OldVersionToggle, SoapEditor, TextEditor } from '@/components/slides/SlideEditors';
 import { SlidePreview } from '@/components/slides/SlidePreview';
 import { AddImageSheet, ImportReviewSheet, StartChooser, usePptxPicker } from '@/components/slides/SlideSheets';
 import { SlideCleanupNotice } from '@/components/slides/SlideCleanupNotice';
@@ -86,6 +86,7 @@ export default function SlideMzPage(): JSX.Element {
     if (blob && patient) void deliverFile(blob, slideMzFileName(patient.name, today));
   };
   const overflowCount = meta.filter((m) => m.overflow && !m.hidden).length;
+  const tall = Boolean(state?.tall);
   const imageState = current?.kind === 'images' ? state?.imageSlides.find((s) => s.id === current.id) : undefined;
   const replacing = Boolean(state && (Object.keys(state.importedDays).length > 0 || state.imageSlides.some((s) => s.id.startsWith('imp-'))));
 
@@ -120,6 +121,20 @@ export default function SlideMzPage(): JSX.Element {
               >
                 Slide teks
               </Button>
+              <Button
+                size="sm"
+                icon={<IconPlus className="h-4 w-4" aria-hidden="true" />}
+                onClick={() => {
+                  const id = `cppt-${nanoid(8)}`;
+                  update((s) => ({
+                    ...s,
+                    cpptSlides: [...(s.cpptSlides ?? []), { id, date: today, col2: 'S :\n\nO :\n', col3: 'Diagnosis:\n\nTerapi:\n\nPlan\n' }],
+                  }));
+                  setSelected(id);
+                }}
+              >
+                Slide CPPT
+              </Button>
               <Button size="sm" onClick={picker.pick}>
                 Impor .pptx
               </Button>
@@ -145,6 +160,21 @@ export default function SlideMzPage(): JSX.Element {
         ) : null}
         {picker.error && deck.status !== 'start' ? <Callout tone="danger" role="alert" title={picker.error} /> : null}
 
+        {deck.status === 'ready' && state ? (
+          <CheckRow
+            checked={tall}
+            onChange={(on) => update((current) => ({ ...current, tall: on }))}
+            title="Slide tinggi (4:3)"
+            detail={
+              tall
+                ? 'Semua slide di deck ini lebih tinggi, supaya SOAP panjang muat. Bukan 16:9 lagi.'
+                : overflowCount
+                  ? `${overflowCount} slide terlalu panjang. Slide tinggi memberi ruang lebih (berlaku untuk semua slide).`
+                  : 'Opsional: semua slide lebih tinggi untuk SOAP panjang.'
+            }
+          />
+        ) : null}
+
         {deck.status === 'loading' || patientLoading ? <p className="text-sm text-fg-muted">Memuat…</p> : null}
         {deck.status === 'error' ? <Callout tone="danger" role="alert" title="Catatan pasien tidak bisa dimuat." /> : null}
         {deck.status === 'start' ? <StartChooser onNew={deck.startNew} onImportClick={picker.pick} error={picker.error} /> : null}
@@ -160,7 +190,7 @@ export default function SlideMzPage(): JSX.Element {
                     <div className={`rounded-xl border p-1.5 ${active ? 'border-accent bg-[var(--accent-soft)]' : 'border-border bg-surface'}`}>
                       <button type="button" className="block w-full text-left" aria-current={active ? 'true' : undefined} onClick={() => setSelected(m.id)}>
                         {slide ? (
-                          <SlidePreview slide={slide} urls={deck.urls} />
+                          <SlidePreview slide={slide} urls={deck.urls} tall={tall} />
                         ) : (
                           <div className="flex aspect-video items-center justify-center rounded-md bg-bg-subtle text-xs text-fg-muted">Disembunyikan</div>
                         )}
@@ -198,6 +228,7 @@ export default function SlideMzPage(): JSX.Element {
                 <SlidePreview
                   slide={currentSlide}
                   urls={deck.urls}
+                  tall={tall}
                   editable={currentSlide.kind === 'images'}
                   onMovePhoto={(imageId, rect) =>
                     update((s) => ({
@@ -218,12 +249,17 @@ export default function SlideMzPage(): JSX.Element {
               )}
 
               <div className="space-y-3 rounded-2xl border border-border bg-surface p-4">
-                {current.kind === 'soap' ? <OldVersionToggle meta={current} state={state} update={update} /> : null}
-                {current.kind === 'soap' && currentSlide?.kind === 'soap' ? <SoapEditor slide={currentSlide} meta={current} update={update} /> : null}
+                {current.kind === 'soap' && current.cpptId ? <CpptEditor cpptId={current.cpptId} meta={current} state={state} update={update} /> : null}
+                {current.kind === 'soap' && !current.cpptId ? <OldVersionToggle meta={current} state={state} update={update} /> : null}
+                {current.kind === 'soap' && !current.cpptId && currentSlide?.kind === 'soap' ? (
+                  <SoapEditor slide={currentSlide} meta={current} update={update} />
+                ) : null}
                 {current.kind === 'images' && imageState ? (
                   <ImageEditor slideState={imageState} update={update} urls={deck.urls} onRemoveImage={(id) => void deck.removeImage(id)} />
                 ) : null}
-                {current.kind === 'text' ? <TextEditor slideId={current.id} state={state} update={update} /> : null}
+                {current.kind === 'text' && currentSlide?.kind === 'text' ? (
+                  <TextEditor slide={currentSlide} meta={current} state={state} update={update} />
+                ) : null}
                 {current.kind === 'lab' ? <LabEditor composed={composed} state={state} update={update} /> : null}
                 {current.kind === 'title' ? (
                   <p className="text-sm text-fg-muted">Judul diambil dari data pasien (nama, umur, RM, ruangan). Ubah di halaman pasien.</p>

@@ -1,7 +1,7 @@
 import { storeZip } from '@/lib/zip';
 import { escapeXml, inlineRuns, type Run } from '@/domain/format/soapDocx';
 import type { Deck, DeckPhoto, DeckSlide } from './deck';
-import { FONT, GEOMETRY, PALETTE_B, SLIDE_H, SLIDE_W, type Rect } from './geometry';
+import { FONT, GEOMETRY, PALETTE_B, SLIDE_W, geometryFor, slideHeight, type Rect } from './geometry';
 
 /**
  * Slide MZ → .pptx, written by hand.
@@ -90,13 +90,13 @@ export function isSectionLabel(line: string): boolean {
 }
 
 /** A note's lines as paragraphs: markers become formatting, nothing is reworded. */
-function noteParagraphs(text: string, pt: number): string {
+function noteParagraphs(text: string, pt: number, align: 'l' | 'ctr' = 'l'): string {
   return text
     .split('\n')
     .map((line) =>
       isSectionLabel(line)
-        ? paragraphXml([{ text: line }], { pt, color: PALETTE_B.sec, bold: true })
-        : paragraphXml(inlineRuns(line), { pt, color: PALETTE_B.ink }),
+        ? paragraphXml([{ text: line }], { pt, color: PALETTE_B.sec, bold: true, align })
+        : paragraphXml(inlineRuns(line), { pt, color: PALETTE_B.ink, align }),
     )
     .join('');
 }
@@ -231,39 +231,39 @@ function slideXml(background: string, shapes: string): string {
 
 const LAYOUT_REL = { id: 'rId1', type: `${REL}/slideLayout`, target: '../slideLayouts/slideLayout1.xml' };
 
-function buildSlide(slide: DeckSlide, media: Media[]): BuiltSlide {
+function buildSlide(slide: DeckSlide, media: Media[], geo: typeof GEOMETRY, slideH: number): BuiltSlide {
   const ids = new Ids();
   const rels: BuiltSlide['rels'] = [LAYOUT_REL];
   const plainBg = solid(PALETTE_B.bg);
 
   switch (slide.kind) {
     case 'title': {
-      const sub = shape(ids, 'Subtitle', GEOMETRY.titleSub, {
+      const sub = shape(ids, 'Subtitle', geo.titleSub, {
         body: txBody(plainParagraphs([slide.subtitle], { pt: 18, color: PALETTE_B.subInk, align: 'ctr' }), 't', true),
       });
-      return { xml: slideXml(gradientBg, boxedTitle(ids, GEOMETRY.titleBox, slide.heading, 32, true) + sub), rels };
+      return { xml: slideXml(gradientBg, boxedTitle(ids, geo.titleBox, slide.heading, 32, true) + sub), rels };
     }
 
     case 'soap': {
-      const [c1, c2, c3] = GEOMETRY.soapCols;
+      const [c1, c2, c3] = geo.soapCols;
       const header = {
-        h: GEOMETRY.soapHeaderH,
+        h: geo.soapHeaderH,
         cells: [headerCell('Identitas', 18), headerCell('Anamnesis dan Pemeriksaan Fisik', 18), headerCell('Diagnosis dan Terapi', 18)],
       };
       const identitas = plainParagraphs(slide.identitas.split('\n'), { pt: slide.fontPt, color: PALETTE_B.ink });
       const body = {
-        h: SLIDE_H - GEOMETRY.soapHeaderH,
+        h: slideH - geo.soapHeaderH,
         cells: [
           cellXml({ paragraphs: identitas, fill: PALETTE_B.idCol }),
           cellXml({ paragraphs: noteParagraphs(slide.col2, slide.fontPt), fill: PALETTE_B.body }),
           cellXml({ paragraphs: noteParagraphs(slide.col3, slide.fontPt), fill: PALETTE_B.body2 }),
         ],
       };
-      return { xml: slideXml(plainBg, table(ids, 'SOAP', GEOMETRY.soapTable, [c1, c2, c3], [header, body])), rels };
+      return { xml: slideXml(plainBg, table(ids, 'SOAP', geo.soapTable, [c1, c2, c3], [header, body])), rels };
     }
 
     case 'images': {
-      const frames = GEOMETRY.photos[slide.layout];
+      const frames = geo.photos[slide.layout];
       let shapes = '';
       slide.photos.forEach((photo, index) => {
         const frame = frames[Math.min(index, frames.length - 1)]!;
@@ -275,27 +275,28 @@ function buildSlide(slide: DeckSlide, media: Media[]): BuiltSlide {
         shapes += picture(ids, relId, photoRect(photo, frame));
       });
       if (slide.layout === 'photoText') {
-        shapes += shape(ids, 'Text', GEOMETRY.photoTextBox, {
+        shapes += shape(ids, 'Text', geo.photoTextBox, {
           fill: PALETTE_B.body,
           line: { hex: PALETTE_B.grid, w: GRID_LINE_EMU },
           body: txBody(noteParagraphs(slide.text ?? '', 12), 't', true),
         });
       }
-      return { xml: slideXml(plainBg, shapes + boxedTitle(ids, GEOMETRY.pageTitle, [slide.title], 24)), rels };
+      return { xml: slideXml(plainBg, shapes + boxedTitle(ids, geo.pageTitle, [slide.title], 24)), rels };
     }
 
     case 'text': {
-      const box = shape(ids, 'Text', GEOMETRY.textOnly, {
+      const box = shape(ids, 'Text', geo.textOnly, {
         fill: PALETTE_B.body,
         line: { hex: PALETTE_B.grid, w: GRID_LINE_EMU },
-        body: txBody(noteParagraphs(slide.body, 14), 't', true),
+        // The size is already fitted (or chosen), so no PowerPoint autofit on top of it.
+        body: txBody(noteParagraphs(slide.body, slide.fontPt, slide.align), 't'),
       });
-      return { xml: slideXml(plainBg, box + boxedTitle(ids, GEOMETRY.pageTitle, [slide.title], 24)), rels };
+      return { xml: slideXml(plainBg, box + boxedTitle(ids, geo.pageTitle, [slide.title], 24)), rels };
     }
 
     case 'lab': {
-      const rect = GEOMETRY.labTable;
-      const first = Math.round(rect.w * GEOMETRY.labFirstColShare);
+      const rect = geo.labTable;
+      const first = Math.round(rect.w * geo.labFirstColShare);
       const n = Math.max(1, slide.dates.length);
       const rest = rect.w - first;
       const columns = [first, ...Array.from({ length: n }, (_, i) => Math.floor(rest / n) + (i < rest % n ? 1 : 0))];
@@ -310,12 +311,12 @@ function buildSlide(slide: DeckSlide, media: Media[]): BuiltSlide {
         );
         return { h: rowH, cells: [label, ...cells] };
       });
-      const shapes = table(ids, 'Lab', rect, columns, [header, ...rows]) + boxedTitle(ids, GEOMETRY.pageTitle, [slide.title], 24);
+      const shapes = table(ids, 'Lab', rect, columns, [header, ...rows]) + boxedTitle(ids, geo.pageTitle, [slide.title], 24);
       return { xml: slideXml(plainBg, shapes), rels };
     }
 
     case 'closing':
-      return { xml: slideXml(plainBg, boxedTitle(ids, GEOMETRY.closingBox, ['Terima kasih'], 32)), rels };
+      return { xml: slideXml(plainBg, boxedTitle(ids, geo.closingBox, ['Terima kasih'], 32)), rels };
   }
 }
 
@@ -364,12 +365,12 @@ function themeXml(): string {
   );
 }
 
-function presentationXml(count: number): string {
+function presentationXml(count: number, slideH: number): string {
   const ids = Array.from({ length: count }, (_, i) => `<p:sldId id="${256 + i}" r:id="rId${i + 3}"/>`).join('');
   return (
     `${XML_HEAD}<p:presentation xmlns:a="${NS_A}" xmlns:r="${NS_R}" xmlns:p="${NS_P}" saveSubsetFonts="1">` +
     '<p:sldMasterIdLst><p:sldMasterId id="2147483648" r:id="rId1"/></p:sldMasterIdLst>' +
-    `<p:sldIdLst>${ids}</p:sldIdLst><p:sldSz cx="${SLIDE_W}" cy="${SLIDE_H}"/><p:notesSz cx="6858000" cy="9144000"/></p:presentation>`
+    `<p:sldIdLst>${ids}</p:sldIdLst><p:sldSz cx="${SLIDE_W}" cy="${slideH}"/><p:notesSz cx="6858000" cy="9144000"/></p:presentation>`
   );
 }
 
@@ -409,7 +410,10 @@ export function pptxParts(deck: Deck): Array<{ name: string; data: Uint8Array }>
   const encoder = new TextEncoder();
   const text = (name: string, xml: string): { name: string; data: Uint8Array } => ({ name, data: encoder.encode(xml) });
   const media: Media[] = [];
-  const built = deck.slides.map((slide) => buildSlide(slide, media));
+  const tall = Boolean(deck.tall);
+  const geo = geometryFor(tall);
+  const slideH = slideHeight(tall);
+  const built = deck.slides.map((slide) => buildSlide(slide, media, geo, slideH));
   const count = built.length;
 
   const presentationRels = [
@@ -430,7 +434,7 @@ export function pptxParts(deck: Deck): Array<{ name: string; data: Uint8Array }>
     ),
     text('docProps/core.xml', CORE_XML),
     text('docProps/app.xml', appXml(count)),
-    text('ppt/presentation.xml', presentationXml(count)),
+    text('ppt/presentation.xml', presentationXml(count, slideH)),
     text('ppt/_rels/presentation.xml.rels', relsXml(presentationRels)),
     text('ppt/theme/theme1.xml', themeXml()),
     text('ppt/slideMasters/slideMaster1.xml', MASTER_XML),

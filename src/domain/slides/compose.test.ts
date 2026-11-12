@@ -77,6 +77,39 @@ describe('composeDeck', () => {
     expect(c.labGrid.dates).toEqual(['2026-10-02']);
   });
 
+  it('a free-text slide fits its text by default and honours a manual size and centring', () => {
+    const textSlides = [{ id: 't1', title: 'USG', body: '- Fatty liver' }];
+    const textOf = (s: DeckState) => composeDeck(base(s)).deck.slides.find((x) => x.id === 't1');
+    expect(textOf({ ...emptyDeckState('p1'), textSlides })).toMatchObject({ kind: 'text', fontPt: 24, align: 'l' });
+    expect(textOf({ ...emptyDeckState('p1'), textSlides: [{ ...textSlides[0]!, pt: 40, align: 'center' }] })).toMatchObject({ fontPt: 40, align: 'ctr' });
+  });
+
+  it('a manual size that cannot fit flags the slide', () => {
+    const body = Array(30).fill('baris').join('\n');
+    const c = composeDeck(base({ textSlides: [{ id: 't1', title: 'x', body, pt: 60 }] }));
+    expect(c.meta.find((m) => m.id === 't1')?.overflow).toBe(true);
+  });
+
+  it('a CPPT slide is a SOAP slide typed by hand, after the note days, dated and sized like one', () => {
+    const c = composeDeck(base({ cpptSlides: [{ id: 'cppt-1', date: '2026-10-09', col2: 'S :\n- ketik', col3: 'Diagnosis:\n- x' }] }));
+    expect(c.meta.map((m) => m.id).slice(1, 4)).toEqual(['soap-2026-10-02', 'soap-2026-10-03', 'cppt-1']);
+    expect(c.deck.slides.find((s) => s.id === 'cppt-1')).toMatchObject({
+      kind: 'soap', date: '2026-10-09', col2: 'S :\n- ketik', identitas: expect.stringMatching(/^09-10-2026/),
+    });
+    expect(c.meta.find((m) => m.id === 'cppt-1')).toMatchObject({ cpptId: 'cppt-1', label: 'CPPT 09-10-2026' });
+  });
+
+  it('a tall deck gives a long CPPT room, and the deck says it is tall', () => {
+    const col2 = Array.from({ length: 55 }, () => '- baris pendek').join('\n');
+    const cppt = [{ id: 'cppt-1', date: '2026-10-09', col2, col3: '' }];
+    const flat = composeDeck(base({ cpptSlides: cppt }));
+    const tall = composeDeck(base({ cpptSlides: cppt, tall: true }));
+    expect(flat.meta.find((m) => m.id === 'cppt-1')?.overflow).toBe(true);
+    expect(tall.meta.find((m) => m.id === 'cppt-1')?.overflow).toBe(false);
+    expect(tall.deck.tall).toBe(true);
+    expect(flat.deck.tall).toBeUndefined();
+  });
+
   it('a hidden slide is in meta but not in the deck', () => {
     const c = composeDeck(base({ hidden: ['soap-2026-10-02'] }));
     expect(c.deck.slides.some((s) => s.id === 'soap-2026-10-02')).toBe(false);

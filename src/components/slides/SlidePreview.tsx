@@ -1,8 +1,8 @@
-import { useRef, useState, type CSSProperties, type KeyboardEvent, type PointerEvent, type ReactNode } from 'react';
+import { createContext, useContext, useRef, useState, type CSSProperties, type KeyboardEvent, type PointerEvent, type ReactNode } from 'react';
 import { inlineRuns } from '@/domain/format/soapDocx';
 import type { DeckPhoto, DeckSlide } from '@/domain/slides/deck';
 import { nudge, rectAfterDrag, rectAfterResize } from '@/domain/slides/editMath';
-import { GEOMETRY, PALETTE_B, SLIDE_H, SLIDE_W, type Rect } from '@/domain/slides/geometry';
+import { PALETTE_B, SLIDE_H, SLIDE_W, geometryFor, slideHeight, type Rect } from '@/domain/slides/geometry';
 import { isSectionLabel, photoRect } from '@/domain/slides/pptx';
 
 /**
@@ -14,17 +14,26 @@ import { isSectionLabel, photoRect } from '@/domain/slides/pptx';
  * picture of the file, and it should look the same in Senja or dark mode.
  */
 
-const box = (r: Rect): CSSProperties => ({
+/** The slide's height in EMU (16:9 or the tall 4:3 deck), for the components below the preview. */
+const SlideH = createContext<number>(SLIDE_H);
+
+const boxIn = (r: Rect, slideH: number): CSSProperties => ({
   position: 'absolute',
   left: `${(r.x / SLIDE_W) * 100}%`,
-  top: `${(r.y / SLIDE_H) * 100}%`,
+  top: `${(r.y / slideH) * 100}%`,
   width: `${(r.w / SLIDE_W) * 100}%`,
-  height: `${(r.h / SLIDE_H) * 100}%`,
+  height: `${(r.h / slideH) * 100}%`,
 });
+/** Position helper bound to the surrounding slide's height. */
+const useBox = (): ((r: Rect) => CSSProperties) => {
+  const slideH = useContext(SlideH);
+  return (r) => boxIn(r, slideH);
+};
 const pt = (size: number): string => `${(size / 9.6).toFixed(3)}cqw`;
 const hex = (value: string): string => `#${value}`;
 
 function BoxedTitle({ rect, lines, size, bold = false }: { rect: Rect; lines: readonly string[]; size: number; bold?: boolean }): JSX.Element {
+  const box = useBox();
   return (
     <div
       style={{
@@ -52,9 +61,12 @@ function BoxedTitle({ rect, lines, size, bold = false }: { rect: Rect; lines: re
 }
 
 /** Note text as on the slide: section-only lines bold in the section colour, everything else as typed. */
-function NoteText({ text, size }: { text: string; size: number }): JSX.Element {
+function NoteText({ text, size, align = 'l' }: { text: string; size: number; align?: 'l' | 'ctr' }): JSX.Element {
   return (
-    <div style={{ fontSize: pt(size), color: hex(PALETTE_B.ink) }} className="whitespace-pre-wrap leading-[1.2]">
+    <div
+      style={{ fontSize: pt(size), color: hex(PALETTE_B.ink), textAlign: align === 'ctr' ? 'center' : 'left' }}
+      className="whitespace-pre-wrap leading-[1.2]"
+    >
       {text.split('\n').map((line, i) => {
         const label = isSectionLabel(line);
         return (
@@ -91,6 +103,7 @@ interface PhotoProps {
 
 /** A photo; when editable it drags, resizes from its corner, and nudges with the arrow keys. */
 function Photo({ photo, frame, url, editable, label, onMove }: PhotoProps): JSX.Element {
+  const box = useBox();
   const placed = photoRect(photo, frame);
   const [live, setLive] = useState<Rect | null>(null);
   const start = useRef<{ x: number; y: number; rect: Rect; mode: 'move' | 'resize'; scale: number } | null>(null);
@@ -162,6 +175,7 @@ function Photo({ photo, frame, url, editable, label, onMove }: PhotoProps): JSX.
 }
 
 function Table({ rect, columns, rows, children }: { rect: Rect; columns: readonly number[]; rows: string; children: ReactNode }): JSX.Element {
+  const box = useBox();
   const total = columns.reduce((a, b) => a + b, 0);
   return (
     <div
@@ -190,13 +204,19 @@ export function SlidePreview({
   editable = false,
   onMovePhoto,
   className = '',
+  tall = false,
 }: {
   slide: DeckSlide;
   urls: ReadonlyMap<string, string>;
   editable?: boolean;
   onMovePhoto?: (imageId: string, rect: Rect) => void;
   className?: string;
+  /** 4:3 slides (the optional taller deck). */
+  tall?: boolean;
 }): JSX.Element {
+  const GEOMETRY = geometryFor(tall);
+  const slideH = slideHeight(tall);
+  const box = (r: Rect): CSSProperties => boxIn(r, slideH);
   let content: ReactNode;
   let background = hex(PALETTE_B.bg);
 
@@ -222,7 +242,7 @@ export function SlidePreview({
         </div>
       );
       content = (
-        <Table rect={GEOMETRY.soapTable} columns={GEOMETRY.soapCols} rows={`${(GEOMETRY.soapHeaderH / SLIDE_H) * 100}% 1fr`}>
+        <Table rect={GEOMETRY.soapTable} columns={GEOMETRY.soapCols} rows={`${(GEOMETRY.soapHeaderH / slideH) * 100}% 1fr`}>
           <div className="contents">
             {head('Identitas')}
             {head('Anamnesis dan Pemeriksaan Fisik')}
@@ -270,7 +290,7 @@ export function SlidePreview({
       content = (
         <>
           <div style={{ ...box(GEOMETRY.textOnly), ...cellStyle(PALETTE_B.body) }}>
-            <NoteText text={slide.body} size={14} />
+            <NoteText text={slide.body} size={slide.fontPt} align={slide.align} />
           </div>
           <BoxedTitle rect={GEOMETRY.pageTitle} lines={[slide.title]} size={24} />
         </>
@@ -323,9 +343,9 @@ export function SlidePreview({
     <div
       data-slide=""
       style={{ background, fontFamily: "'Gill Sans MT','Gill Sans',Calibri,sans-serif" }}
-      className={`relative aspect-video w-full select-none overflow-hidden rounded-md shadow-card ring-1 ring-black/10 [container-type:size] ${className}`}
+      className={`relative ${tall ? 'aspect-[4/3]' : 'aspect-video'} w-full select-none overflow-hidden rounded-md shadow-card ring-1 ring-black/10 [container-type:size] ${className}`}
     >
-      {content}
+      <SlideH.Provider value={slideH}>{content}</SlideH.Provider>
     </div>
   );
 }

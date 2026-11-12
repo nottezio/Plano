@@ -1,5 +1,23 @@
 # Plano — CHANGES
 
+## `2026-11-13.3` — Slide MZ: optional tall deck (4:3)
+
+Avi: a long CPPT does not fit; asked for height, not two columns. A .pptx has one slide size per file, so a single taller slide is not possible; agreed on an optional deck-wide taller size.
+
+- **What:** `DeckState.tall` (optional) → `Deck.tall`. `geometry.ts` builds the geometry from a slide height (`geometryFor(tall)`, `slideHeight(tall)`, `SLIDE_H_TALL` = 9 144 000 EMU, same width, 4:3). Every rectangle stays a percentage of the slide, so photos, titles and the lab table scale with the height; only the SOAP header row keeps its absolute height, so the extra room goes to the text. `fitSoapFont` and the text-slide fit take the taller body into account; the writer sets `p:sldSz` and the SOAP body row from the deck's height; the preview gets a `tall` prop (aspect 4:3, positions from the same height via a context). One checkbox in the editor, with a hint showing how many slides are flagged.
+- **Firestore cost:** none. Stored in the local deck only.
+- **Not done:** titles and boxed headings are taller too (percent of height), not kept at the 16:9 height. A deck with custom photo positions keeps their absolute positions after toggling. Import does not switch a 4:3 file to tall automatically. Not opened in PowerPoint, not checked in the browser.
+
+## `2026-11-13.2` — Slide MZ: free-text slide fitting, free-text CPPT slide
+
+Avi, from a USG slide and an echo slide he typed: the free-text slide should wrap like the reference slide, with the ability to centre and enlarge the text; and add a free-text CPPT slide.
+
+- **Root cause (cut-off text):** the text slide wrote a fixed 14 pt, and the writer asked PowerPoint to autofit. PowerPoint applies autofit only when someone edits the box, so an opened file kept 14 pt and a long echo report ran off the slide. The reference echo slide stores its shrink (24 pt base, `fontScale`) in the file.
+- **Fix:** `fitTextPt` / `textFitsAt` (`fit.ts`) wrap the text to the box width and pick the largest size from 24 pt down to 8 pt that fits, in `compose`; the writer draws that size with no autofit. `TextSlideState` gained optional `pt` (manual size) and `align` (`left`/`center`); a manual size that cannot fit sets the slide's overflow flag. Editor: A− / A+ (2 pt steps, 8 to 72), Otomatis, Rata kiri / Tengah. Existing text slides have neither field and so fit automatically, left-aligned.
+- **CPPT slide:** `DeckState.cpptSlides` (`{ id, date, col2, col3 }`), composed into the same SOAP-kind slide (same table, same 10.5 to 9 pt fit, same bold headings), placed after the days Plano has notes for, by date; `SlideMeta.cpptId` routes it to its own editor (date, two text boxes). Decks saved before this have no `cpptSlides`; it is optional and read as empty. A new CPPT slide starts with S / O and Diagnosis / Terapi / Plan headings and today's date.
+- **Firestore cost:** unchanged (none).
+- **Not done:** I read "free-text CPPT slide" as the 3-column slide typed by hand; if a different layout was meant, this is the part to redo. The 24 pt base and the character-width estimate (0.45 em) are measured from the reference, not verified against PowerPoint's own wrapping of Gill Sans, so a line may wrap one word earlier or later. Not checked in the browser or opened in PowerPoint.
+
 ## `2026-11-13.1` — Slide MZ: side-panel link, heading style; review fixes for .14
 
 Avi, after using .14: the Slide MZ link did not appear in the other panel style; only S, O, Diagnosis and Terapi should be bold; "mohon izin…" headings should read Diagnosis / Terapi.

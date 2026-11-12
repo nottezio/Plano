@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { fitSoapFont } from './fit';
+import { fitSoapFont, fitTextPt, textFitsAt } from './fit';
+import { GEOMETRY, slideHeight } from './geometry';
 import { soapColumns } from './soapColumns';
 
 // Synthetic notes, shaped like ward reports; no real patient.
@@ -75,7 +76,33 @@ describe('soapColumns', () => {
   });
 });
 
+describe('fitTextPt (free-text slide shrink-to-fit)', () => {
+  const box = GEOMETRY.textOnly;
+
+  it('short text keeps the 24 pt maximum', () => {
+    expect(fitTextPt('- baik', box, 24, 8)).toEqual({ pt: 24, overflow: false });
+  });
+
+  it('a long report shrinks until it fits, wrapped to the box width', () => {
+    const text = Array.from({ length: 40 }, (_, i) => `- Baris ${i} dengan teks panjang `.repeat(2)).join('\n');
+    const r = fitTextPt(text, box, 24, 8);
+    expect(r.overflow).toBe(false);
+    expect(r.pt).toBeLessThan(24);
+    expect(textFitsAt(text, box, r.pt)).toBe(true);
+  });
+
+  it('flags overflow at the floor', () => {
+    expect(fitTextPt('x '.repeat(20000), box, 24, 8)).toEqual({ pt: 8, overflow: true });
+  });
+});
+
 describe('fitSoapFont', () => {
+  it('a long SOAP that overflows a 16:9 slide fits a tall (4:3) one', () => {
+    const long = Array.from({ length: 55 }, () => '- baris pendek').join('\n');
+    expect(fitSoapFont(long, '').overflow).toBe(true);
+    expect(fitSoapFont(long, '', slideHeight(true)).overflow).toBe(false);
+  });
+
   it('short text keeps 10.5 pt', () => {
     expect(fitSoapFont('S :\n- baik', 'Diagnosis:\n- x')).toEqual({ pt: 10.5, overflow: false });
   });

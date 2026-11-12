@@ -40,6 +40,17 @@ export interface TextSlideState {
   id: string;
   title: string;
   body: string;
+  /** Manual size; absent = fit the box (24 pt down). */
+  pt?: number | undefined;
+  align?: 'left' | 'center' | undefined;
+}
+
+/** A SOAP-layout slide typed by hand: a day Plano has no note for, or a note written elsewhere. */
+export interface CpptSlideState {
+  id: string;
+  date: ClinicalDate;
+  col2: string;
+  col3: string;
 }
 
 export interface SoapOverride {
@@ -60,6 +71,10 @@ export interface DeckState {
   importedDays: Record<ClinicalDate, { col2: string; col3: string }>;
   imageSlides: ImageSlideState[];
   textSlides: TextSlideState[];
+  /** Added after the first release: decks saved earlier on a device do not have it. */
+  cpptSlides?: CpptSlideState[];
+  /** Taller (4:3) slides for the whole deck, for a long SOAP. */
+  tall?: boolean;
   labOverrides: Record<string, string>;
   labDates?: ClinicalDate[];
   importedLab?: LabGrid;

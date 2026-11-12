@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { GEOMETRY, PALETTE_B, SLIDE_W, pct } from './geometry';
+import { GEOMETRY, PALETTE_B, SLIDE_H, SLIDE_W, geometryFor, pct, slideHeight } from './geometry';
 
 /** WCAG 2 contrast ratio; the repo's own helper lives in a script, not in src. */
 function luminance(hex: string): number {
@@ -32,6 +32,16 @@ describe('slide geometry', () => {
     expect(GEOMETRY.photos.three).toHaveLength(3);
     expect(GEOMETRY.photos.four).toHaveLength(4);
     expect(GEOMETRY.photos.photoText).toHaveLength(1);
+  });
+
+  it('a tall deck is 4:3: same width, taller slide, the SOAP header row keeps its height', () => {
+    expect(slideHeight(false)).toBe(SLIDE_H);
+    expect(slideHeight(true)).toBe(9_144_000);
+    const tall = geometryFor(true);
+    expect(tall.textOnly.h).toBeGreaterThan(GEOMETRY.textOnly.h);
+    expect(tall.soapHeaderH).toBe(GEOMETRY.soapHeaderH);
+    expect(tall.soapCols).toEqual(GEOMETRY.soapCols);
+    expect(geometryFor(false)).toBe(GEOMETRY);
   });
 
   it('palette text pairs reach 4.5:1', () => {

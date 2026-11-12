@@ -4,7 +4,15 @@ import { Button, Callout, CheckRow, Field, INPUT, Segmented } from '@/components
 import { headingDate } from '@/domain/lab/labMeta';
 import type { Composed, SlideMeta } from '@/domain/slides/compose';
 import type { DeckSlide } from '@/domain/slides/deck';
-import { IMAGE_KINDS, IMAGE_KIND_LABEL, type DeckState, type ImageKind, type ImageSlideState } from '@/domain/slides/deckState';
+import {
+  IMAGE_KINDS,
+  IMAGE_KIND_LABEL,
+  type CpptSlideState,
+  type DeckState,
+  type ImageKind,
+  type ImageSlideState,
+  type TextSlideState,
+} from '@/domain/slides/deckState';
 import type { ImageLayout } from '@/domain/slides/geometry';
 
 /**
@@ -176,21 +184,91 @@ export function ImageEditor({
   );
 }
 
-export function TextEditor({ slideId, state, update }: { slideId: string; state: DeckState; update: Update }): JSX.Element | null {
+const TEXT_STEP_PT = 2;
+const TEXT_MIN_PT = 8;
+const TEXT_MAX_PT = 72;
+
+export function TextEditor({
+  slide,
+  meta,
+  state,
+  update,
+}: {
+  slide: Extract<DeckSlide, { kind: 'text' }>;
+  meta: SlideMeta;
+  state: DeckState;
+  update: Update;
+}): JSX.Element | null {
   const id = useId();
-  const slide = state.textSlides.find((s) => s.id === slideId);
-  if (!slide) return null;
-  const patch = (change: { title?: string; body?: string }): void =>
-    update((s) => ({ ...s, textSlides: s.textSlides.map((t) => (t.id === slideId ? { ...t, ...change } : t)) }));
+  const saved = state.textSlides.find((s) => s.id === slide.id);
+  if (!saved) return null;
+  const patch = (change: Partial<TextSlideState>): void =>
+    update((s) => ({ ...s, textSlides: s.textSlides.map((t) => (t.id === slide.id ? { ...t, ...change } : t)) }));
+  const size = (by: number): void => patch({ pt: Math.min(TEXT_MAX_PT, Math.max(TEXT_MIN_PT, slide.fontPt + by)) });
+  const auto = saved.pt === undefined;
   return (
     <div className="space-y-3">
       <Field label="Judul slide" htmlFor={`${id}-t`}>
-        <input id={`${id}-t`} className={INPUT} value={slide.title} onChange={(e) => patch({ title: e.target.value })} />
+        <input id={`${id}-t`} className={INPUT} value={saved.title} onChange={(e) => patch({ title: e.target.value })} />
       </Field>
       <Field label="Isi" htmlFor={`${id}-b`}>
-        <textarea id={`${id}-b`} className={TEXTAREA} value={slide.body} onChange={(e) => patch({ body: e.target.value })} />
+        <textarea id={`${id}-b`} className={TEXTAREA} value={saved.body} onChange={(e) => patch({ body: e.target.value })} />
       </Field>
-      <Button size="sm" variant="danger" onClick={() => update((s) => ({ ...s, textSlides: s.textSlides.filter((t) => t.id !== slideId) }))}>
+      <div className="flex flex-wrap items-center gap-2" role="group" aria-label="Ukuran teks">
+        <span className="text-xs font-medium text-fg-muted">Ukuran teks</span>
+        <Button size="sm" aria-label="Perkecil teks" onClick={() => size(-TEXT_STEP_PT)}>
+          A−
+        </Button>
+        <span className="min-w-[4.5rem] text-center text-sm text-fg">
+          {slide.fontPt} pt{auto ? ' · otomatis' : ''}
+        </span>
+        <Button size="sm" aria-label="Perbesar teks" onClick={() => size(TEXT_STEP_PT)}>
+          A+
+        </Button>
+        <Button size="sm" variant="quiet" disabled={auto} onClick={() => patch({ pt: undefined })}>
+          Otomatis
+        </Button>
+      </div>
+      <Segmented
+        label="Perataan teks"
+        value={saved.align ?? 'left'}
+        onChange={(align) => patch({ align })}
+        options={[
+          ['left', 'Rata kiri'],
+          ['center', 'Tengah'],
+        ]}
+        size="sm"
+      />
+      {meta.overflow ? <p className="text-xs font-semibold text-danger">Terlalu panjang untuk ukuran ini: kecilkan teks atau pilih Otomatis.</p> : null}
+      <Button size="sm" variant="danger" onClick={() => update((s) => ({ ...s, textSlides: s.textSlides.filter((t) => t.id !== slide.id) }))}>
+        Hapus slide ini
+      </Button>
+    </div>
+  );
+}
+
+/** A SOAP-layout slide typed by hand (a day with no Plano note, or a note written elsewhere). */
+export function CpptEditor({ cpptId, meta, state, update }: { cpptId: string; meta: SlideMeta; state: DeckState; update: Update }): JSX.Element | null {
+  const id = useId();
+  const saved = (state.cpptSlides ?? []).find((c) => c.id === cpptId);
+  if (!saved) return null;
+  const patch = (change: Partial<CpptSlideState>): void =>
+    update((s) => ({ ...s, cpptSlides: (s.cpptSlides ?? []).map((c) => (c.id === cpptId ? { ...c, ...change } : c)) }));
+  return (
+    <div className="space-y-3">
+      <Field label="Tanggal" htmlFor={`${id}-d`}>
+        <DateField id={`${id}-d`} value={saved.date} onChange={(date) => patch({ date })} />
+      </Field>
+      <p className={`text-xs ${meta.overflow ? 'font-semibold text-danger' : 'text-fg-muted'}`}>
+        {meta.overflow ? 'Terlalu panjang: teks sudah 9 pt dan masih keluar slide. Persingkat teksnya.' : 'Ketik bebas; ukuran teks menyesuaikan.'}
+      </p>
+      <Field label="Anamnesis dan Pemeriksaan Fisik" htmlFor={`${id}-c2`}>
+        <textarea id={`${id}-c2`} className={TEXTAREA} value={saved.col2} onChange={(e) => patch({ col2: e.target.value })} />
+      </Field>
+      <Field label="Diagnosis dan Terapi" htmlFor={`${id}-c3`}>
+        <textarea id={`${id}-c3`} className={TEXTAREA} value={saved.col3} onChange={(e) => patch({ col3: e.target.value })} />
+      </Field>
+      <Button size="sm" variant="danger" onClick={() => update((s) => ({ ...s, cpptSlides: (s.cpptSlides ?? []).filter((c) => c.id !== cpptId) }))}>
         Hapus slide ini
       </Button>
     </div>
