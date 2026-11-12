@@ -339,13 +339,14 @@ function PatientRowText({ patient }: { patient: FloorPatient }): JSX.Element {
           <span className="hidden lg:block" />
         )}
       </span>
-      <span className="truncate text-xs text-fg-muted lg:contents">
+      {/* lg:whitespace-normal (12.6): `truncate`'s nowrap is inherited through `contents`, so the residents ran into the next column. */}
+      <span className="truncate text-xs text-fg-muted lg:contents lg:whitespace-normal">
         <span className="tabular-nums lg:truncate">{patient.rm ? `RM ${patient.rm}` : ''}</span>
         {patient.rm && code ? DOT : null}
         <span className="font-semibold lg:truncate">{code}</span>
         {code || patient.rm ? DOT : null}
         {/* Residents wrap on the desk table (build 12.5): truncated, the chief read "dr. Avi / dr. ...". */}
-        <span className="lg:break-words">{residents || <span className="text-fg-faint">belum ada residen</span>}</span>
+        <span className="min-w-0 lg:break-words">{residents || <span className="text-fg-faint">belum ada residen</span>}</span>
         <span className="lg:flex lg:min-w-0 lg:flex-wrap lg:items-center lg:gap-1">
           {notes.map((n, i) => (
             <span key={n}>

@@ -12,7 +12,11 @@ import { soapStamp, type FloorPatient } from '@/domain/floorList/report';
  * readers and on hover.
  */
 export function SoapBadge({ patient, compact = false }: { patient: FloorPatient; compact?: boolean }): JSX.Element | null {
-  const fresh = patient.newBadge ? <NewDot label={patient.newBadge.label} color={markCss(patient.newBadge.color)} /> : null;
+  const fresh = !patient.newBadge ? null : compact ? (
+    <NewDot label={patient.newBadge.label} color={markCss(patient.newBadge.color)} />
+  ) : (
+    <NewPill label={patient.newBadge.label} color={markCss(patient.newBadge.color)} />
+  );
   const soap = soapBadge(patient, compact);
   return fresh || soap ? (
     <>
@@ -32,6 +36,22 @@ export function NewDot({ label, color }: { label: string; color: string }): JSX.
     <span title={`${label}: belum ada di list shift sebelumnya`} className="ml-1 inline-flex h-4 items-center align-middle">
       <span aria-hidden="true" className="h-2 w-2 rounded-full" style={{ background: color }} />
       <span className="sr-only">{label}</span>
+    </span>
+  );
+}
+
+/**
+ * Pasien baru as a tinted pill with its label (12 Nov 2026, build 12.6, Avi: the dot was not
+ * noticeable on the List and desk Denah). The phone plan keeps the dot: its boxes have no room.
+ */
+function NewPill({ label, color }: { label: string; color: string }): JSX.Element {
+  return (
+    <span
+      title={`${label}: belum ada di list shift sebelumnya`}
+      className="ml-1 inline-block rounded-full border px-1.5 align-middle text-[11px] font-bold leading-4"
+      style={{ borderColor: color, color, background: `color-mix(in srgb, ${color} 18%, transparent)` }}
+    >
+      {label}
     </span>
   );
 }

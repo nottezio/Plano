@@ -653,7 +653,12 @@ export function FloorDenah({
               });
               return (
                 <div
-                  className="mt-2 grid grid-cols-[1fr_0.7fr_1fr] gap-2 group-data-[compact]/plan:mt-1.5 group-data-[compact]/plan:grid-cols-[minmax(0,1fr)_minmax(0,0.5fr)_minmax(0,1fr)] group-data-[compact]/plan:gap-1.5"
+                  className={`mt-2 grid grid-cols-[1fr_0.7fr_1fr] gap-2 group-data-[compact]/plan:mt-1.5 group-data-[compact]/plan:gap-1.5 ${
+                    // A room in the middle column (411) needs room for a name (12.6): at 0.5fr it broke letter by letter.
+                    layout.centre.length > 0
+                      ? 'group-data-[compact]/plan:grid-cols-[minmax(0,1fr)_minmax(0,0.85fr)_minmax(0,1fr)]'
+                      : 'group-data-[compact]/plan:grid-cols-[minmax(0,1fr)_minmax(0,0.5fr)_minmax(0,1fr)]'
+                  }`}
                   style={{ gridTemplateRows: `repeat(${layout.rows}, minmax(3rem, auto))` }}
                 >
                   {layout.left.map((cell) => (

@@ -1,5 +1,19 @@
 # Plano — CHANGES
 
+## `2026-11-12.6` — Residen overlap, visible Pasien baru badge, wider middle column on the phone plan
+
+Avi (desk screenshots, phone screenshot): "dr. Qalby / dr. Did" ran under "KJS BTKV"; the pasbar/pasper badge was hard to see; room 411 on the phone plan broke "Ny. Haniah Wahid" one letter per line.
+
+- **Root cause (overlap):** the List row's RM/DPJP/Residen/notes wrapper is `truncate lg:contents`. `display: contents` removes the box but not inherited CSS, so `white-space: nowrap` still reached the Residen span; 12.5's `lg:break-words` could never wrap, and a long residents line overflowed into the notes column. 12.5's Residen fix was therefore ineffective on the desk table.
+- **Fix:** `lg:whitespace-normal` on the wrapper (RM and code keep their own `lg:truncate`), `min-w-0` on the Residen span.
+- **Root cause (badge):** the Pasien baru badge was an 8 px dot (`NewDot`) beside a bright SOAP pill, easy to miss.
+- **Fix:** `SoapBadge` shows `NewPill` (label, border and text in the badge colour, 18% tint) outside compact mode: List and desk Denah. The compact phone plan keeps the dot; the List head legend still uses `NewDot`.
+- **Root cause (411):** the compact plan's middle column is `0.5fr` (~65 px on a 375 px phone), sized for the nurse-station landmark; a room placed there (`layout.centre`) left ~40 px for a name, and 12.5's `break-words` then broke inside words.
+- **Fix:** the middle column is `0.85fr` when `layout.centre` has rooms, `0.5fr` otherwise.
+- **Laptop "mobile view" (no code change):** the friend's screenshot shows the `⇤` button, which only renders from 1280 px (`xl:inline-flex`), so the window is desk width and the side panel is just closed (`contextPaneOpen`, stored per device). Clicking `⇤` opens it.
+- **Firestore cost:** none. No reads, writes or listeners changed.
+- **Not done:** no ward-device check; the phone side columns are ~15% narrower when a middle room exists, so more names wrap there; the pane toggle stays an unlabeled arrow.
+
 ## `2026-11-12.5` — Names wrap instead of truncating: phone Denah rooms, List residents
 
 Avi (phone screenshot; desk screenshot ~1900 px with the side panel): "Tn. Safrizal · A…", "Ny. Debora M…" on the phone plan; "dr. Avi / dr. ..." in the List Residen column.

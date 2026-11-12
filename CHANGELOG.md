@@ -5,6 +5,11 @@ Catatan teknis lengkap (akar masalah, perbaikan) ada di CHANGES.md.
 
 Entri teratas harus versi yang sedang dirilis; tes gagal bila belum ditulis.
 
+## `2026-11-12.6`
+- **Kolom Residen tidak lagi menimpa KJS BTKV di tab List.** Nama chief yang panjang kini turun ke baris berikutnya di dalam kolomnya.
+- **Lencana pasien baru (pasbar/pasper) lebih jelas.** Di List dan Denah layar lebar, titik kecil diganti label berwarna dengan teksnya. Di Denah ponsel tetap titik.
+- **Kamar di kolom tengah Denah ponsel (mis. 411) lebih lebar,** jadi nama tidak lagi pecah per huruf.
+
 ## `2026-11-12.5`
 - **Nama tidak terpotong lagi di Denah ponsel.** Nama pasien dan kode DPJP di kotak kamar kini turun ke baris berikutnya bila panjang, bukan berakhir dengan "…".
 - **Nama chief terbaca utuh di tab List** (layar lebar). Kolom Residen kini turun ke baris berikutnya, bukan "dr. Avi / dr. ...".
