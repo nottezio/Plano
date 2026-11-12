@@ -1,5 +1,5 @@
 import { formatDmy } from '@/domain/dateDmy';
-import { planRooms, type DenahRoomSlot, type WardPlan } from '@/domain/denahPlan';
+import { inAnnex, planRooms, type DenahRoomSlot, type WardPlan } from '@/domain/denahPlan';
 import { inlineRuns } from '@/domain/format/soapDocx';
 import { placeBeds } from './beds';
 import { byRoute, dpjpCodeOf, dpjpTitle, isPediatri, LIST_DPJP_ORDER, PEDIATRI_DPJP_IDS } from './build';
@@ -65,29 +65,45 @@ function roomHtml(slot: DenahRoomSlot, patients: readonly FloorPatient[]): strin
   );
 }
 
-function floorHtml(plan: WardPlan, ward: string, inRoom: (room: string) => FloorPatient[]): string {
+function floorHtml(
+  plan: WardPlan,
+  ward: string,
+  inRoom: (room: string) => FloorPatient[],
+  annexPatients: readonly FloorPatient[],
+): string {
   const layout = planLayout(plan);
+  // Three columns each for 510 and 511 (the two halves of the page).
   const header = plan.header
-    .map((slot) => `<td colspan="2">${roomHtml(slot, inRoom(slot.room))}</td>`)
+    .map((slot) => `<td colspan="3">${roomHtml(slot, inRoom(slot.room))}</td>`)
     .join('');
-  const cell = (cells: readonly RoomCell[], i: number, span = 1): string => {
+  // Each side is two grid columns, so 508 A and B can split one.
+  const cell = (cells: readonly RoomCell[], i: number): string => {
     const found = cells.find((c) => c.row === i);
-    if (found) return `<td${span > 1 ? ` colspan="${span}"` : ''}${found.span > 1 ? ` rowspan="${found.span}"` : ''}>${roomHtml(found.slot, inRoom(found.slot.room))}</td>`;
+    if (found) {
+      const rowspan = found.span > 1 ? ` rowspan="${found.span}"` : '';
+      const html = (slot: DenahRoomSlot): string => roomHtml(slot, inRoom(slot.room));
+      return found.slots.length === 2
+        ? found.slots.map((slot) => `<td${rowspan}>${html(slot)}</td>`).join('')
+        : `<td colspan="2"${rowspan}>${html(found.slots[0]!)}</td>`;
+    }
     // Covered by a room above that spans rows: no cell.
     if (cells.some((c) => i > c.row && i < c.row + c.span)) return '';
-    return `<td${span > 1 ? ` colspan="${span}"` : ''}></td>`;
+    return '<td colspan="2"></td>';
   };
   const rows: string[] = [];
   for (let i = 0; i < layout.rows; i += 1) {
     const mark = layout.landmark;
+    const note = layout.annex;
     let centre: string;
     if (mark && i === mark.row) {
       centre = `<td colspan="2" rowspan="${mark.span}" class="landmark">${esc(mark.label)}<br>${esc(ward.toUpperCase())}</td>`;
-    } else if (mark && i > mark.row && i < mark.row + mark.span) centre = '';
-    else centre = cell(layout.centre, i, 2);
+    } else if (note && i === note.row) {
+      centre = `<td colspan="2" rowspan="${note.span}"><div class="room">${esc(note.label)}</div>${annexPatients.map((p, n) => line(patientHtml(p, { number: n + 1 }))).join('')}</td>`;
+    } else if ((mark && i > mark.row && i < mark.row + mark.span) || (note && i > note.row && i < note.row + note.span)) centre = '';
+    else centre = cell(layout.centre, i);
     rows.push(`<tr>${cell(layout.left, i)}${centre}${cell(layout.right, i)}</tr>`);
   }
-  return `<table class="plan"><colgroup><col style="width:39%"><col style="width:11%"><col style="width:11%"><col style="width:39%"></colgroup>${header ? `<tr>${header}</tr>` : ''}${rows.join('')}</table>`;
+  return `<table class="plan"><colgroup><col style="width:19.5%"><col style="width:19.5%"><col style="width:11%"><col style="width:11%"><col style="width:19.5%"><col style="width:19.5%"></colgroup>${header ? `<tr>${header}</tr>` : ''}${rows.join('')}</table>`;
 }
 
 function dpjpHtml(sorted: readonly FloorPatient[]): string {
@@ -194,7 +210,8 @@ function denahBody(input: PrintInput, settings: PrintSettings): string {
   const sorted = [...forPrint(input.patients, settings.denah)].sort(byRoute(input.ward));
   const known = new Set(input.plan ? planRooms(input.plan).map((s) => s.room) : []);
   const inRoom = (room: string): FloorPatient[] => sorted.filter((p) => p.room === room);
-  const strays = sorted.filter((p) => !known.has(p.room));
+  const plan = input.plan;
+  const strays = sorted.filter((p) => !known.has(p.room) && !(plan && inAnnex(plan, p.room)));
   const title = `DENAH PASIEN ${input.ward.replace(/^PJT\s+/i, '').toUpperCase()} (${formatDmy(input.date)})`;
   const legendTags = [...new Map(sorted.flatMap((p) => printedTags(p.tags)).map((t) => [t.label, t])).values()]
     .map((t) => ` – <span style="color:${hex(markInfo(t.color).docx)}">${esc(t.label)}</span>`)
@@ -205,7 +222,7 @@ function denahBody(input: PrintInput, settings: PrintSettings): string {
     )
     .join('');
   return `<h1>${esc(title)}</h1>
-${input.plan ? floorHtml(input.plan, input.ward, inRoom) : ''}
+${plan ? floorHtml(plan, input.ward, inRoom, sorted.filter((p) => inAnnex(plan, p.room))) : ''}
 ${strays.length > 0 ? line(`<b>${input.plan ? 'Di luar denah:' : `Pasien ${esc(input.ward)}:`}</b>`) + strays.map((p, n) => line(patientHtml(p, { number: n + 1 }))).join('') : ''}
 ${dpjpHtml(sorted)}
 <div class="legend"><span style="color:${RED}">Merah</span> H-1 – <span style="color:${GREEN}">Hijau</span> Pulang Hari ini${legendTags}.</div>

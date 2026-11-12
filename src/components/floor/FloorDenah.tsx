@@ -1,6 +1,6 @@
 import { createContext, useContext, useEffect, useLayoutEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react';
 
-import { planRooms, type DenahRoomSlot, type WardPlan } from '@/domain/denahPlan';
+import { inAnnex, planRooms, type DenahRoomSlot, type WardPlan } from '@/domain/denahPlan';
 import { byRoute, dpjpCodeOf, dpjpTitle, isPediatri, LIST_DPJP_ORDER, PEDIATRI_DPJP_IDS } from '@/domain/floorList/build';
 import { isAmberDpjp } from '@/domain/floorList/printSettings';
 import { handoverLine } from '@/domain/floorList/docx';
@@ -13,7 +13,7 @@ import { dpjpsOnFloor, dpjpWord, matchesPicked } from '@/domain/floorList/search
 import { placeBeds } from '@/domain/floorList/beds';
 import { SoapBadge } from './SoapBadge';
 import { IconChevronRight } from '@/components/common/Icons';
-import { planLayout } from '@/domain/floorList/layout';
+import { planLayout, type RoomCell } from '@/domain/floorList/layout';
 import { scrollParentOf } from '@/lib/scrollParent';
 import {
   clampZoom,
@@ -449,7 +449,7 @@ export function FloorDenah({
   const rooms = plan ? planRooms(plan) : [];
   const known = new Set(rooms.map((slot) => slot.room));
   const inRoom = (room: string): FloorPatient[] => sorted.filter((p) => p.room === room);
-  const strays = sorted.filter((p) => !known.has(p.room));
+  const strays = sorted.filter((p) => !known.has(p.room) && !(plan && inAnnex(plan, p.room)));
 
   // DPJP tables: the floor's order, then anyone else with a patient, then pediatri.
   const extra = [...new Set(sorted.map((p) => p.dpjpId).filter((id): id is string => !!id))].filter(
@@ -597,16 +597,32 @@ export function FloorDenah({
                 gridRow: `${row + 1} / span ${span}`,
                 gridColumn: String(column),
               });
+              // One or two rooms (508 A and B) in a cell, side by side.
+              const rooms = (cell: RoomCell): JSX.Element[] =>
+                cell.slots.map((slot) => <RoomBox key={slot.room} slot={slot} patients={inRoom(slot.room)} onOpen={onOpen} find={find} />);
+              const annexPatients = layout.annex ? sorted.filter((p) => inAnnex(plan, p.room)) : [];
               return (
                 <div
                   className="mt-2 grid grid-cols-[1fr_0.7fr_1fr] gap-2"
                   style={{ gridTemplateRows: `repeat(${layout.rows}, minmax(3rem, auto))` }}
                 >
                   {layout.left.map((cell) => (
-                    <div key={cell.slot.room} style={place(cell.row, cell.span, 1)} className="flex min-w-0 [&>*]:min-w-0 [&>*]:flex-1">
-                      <RoomBox slot={cell.slot} patients={inRoom(cell.slot.room)} onOpen={onOpen} find={find} />
+                    <div key={cell.slots[0]!.room} style={place(cell.row, cell.span, 1)} className="flex min-w-0 gap-2 [&>*]:min-w-0 [&>*]:flex-1">
+                      {rooms(cell)}
                     </div>
                   ))}
+                  {layout.annex ? (
+                    <div style={place(layout.annex.row, layout.annex.span, 2)} className="min-w-0 rounded-lg border border-dashed border-border bg-surface p-2">
+                      <p className="text-center text-xs font-bold uppercase tracking-wide">{layout.annex.label}</p>
+                      <ol className="mt-1 space-y-0.5">
+                        {annexPatients.map((p, i) => (
+                          <li key={p.key}>
+                            <PatientButton patient={p} number={i + 1} onOpen={onOpen} found={find(p)} />
+                          </li>
+                        ))}
+                      </ol>
+                    </div>
+                  ) : null}
                   {layout.landmark ? (
                     <div
                       style={place(layout.landmark.row, layout.landmark.span, 2)}
@@ -619,13 +635,13 @@ export function FloorDenah({
                     </div>
                   ) : null}
                   {layout.centre.map((cell) => (
-                    <div key={cell.slot.room} style={place(cell.row, cell.span, 2)} className="flex min-w-0 [&>*]:min-w-0 [&>*]:flex-1">
-                      <RoomBox slot={cell.slot} patients={inRoom(cell.slot.room)} onOpen={onOpen} find={find} />
+                    <div key={cell.slots[0]!.room} style={place(cell.row, cell.span, 2)} className="flex min-w-0 gap-2 [&>*]:min-w-0 [&>*]:flex-1">
+                      {rooms(cell)}
                     </div>
                   ))}
                   {layout.right.map((cell) => (
-                    <div key={cell.slot.room} style={place(cell.row, cell.span, 3)} className="flex min-w-0 [&>*]:min-w-0 [&>*]:flex-1">
-                      <RoomBox slot={cell.slot} patients={inRoom(cell.slot.room)} onOpen={onOpen} find={find} />
+                    <div key={cell.slots[0]!.room} style={place(cell.row, cell.span, 3)} className="flex min-w-0 gap-2 [&>*]:min-w-0 [&>*]:flex-1">
+                      {rooms(cell)}
                     </div>
                   ))}
                 </div>

@@ -5,6 +5,11 @@ Catatan teknis lengkap (akar masalah, perbaikan) ada di CHANGES.md.
 
 Entri teratas harus versi yang sedang dirilis; tes gagal bila belum ditulis.
 
+## `2026-11-12.8`
+- **Denah PJT Lantai 5 ditambahkan.** List Maker kini menggambar Lantai 5 sesuai lembar di dinding: 510 dan 511 di atas, kamar 509–502 di kiri (508 A dan 508 B berdampingan), 512–519 di kanan, dan 501 Super VIP di tengah. Jumlah bed tiap kamar mengikuti lembar, dan sisi kiri dan kanan sama lebar.
+- **Kotak Lantai 6 di tengah denah.** List Lantai 5 juga memuat pasien Lantai 6; mereka kini ada di kotak "LANTAI 6" (tampil di layar, Word, dan cetak), bukan di "Di luar denah".
+- **Urutan visite Lantai 5** searah jarum jam: 510, 511, 512–519, 501, 502–507, 508 A, 508 B, 509.
+
 ## `2026-11-12.7`
 - **Denah di HP kembali seperti dulu.** Denah digambar selebar layar desktop lalu diperkecil agar muat, dan bisa dicubit dua jari atau diketuk dua kali untuk memperbesar. Tampilan ringkas yang dipakai sejak 12.1 dihapus.
 - **Label Pasien baru tetap berwarna** di Denah, sama seperti di List.

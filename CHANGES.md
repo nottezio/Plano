@@ -1,5 +1,18 @@
 # Plano — CHANGES
 
+## `2026-11-12.8` — PJT Lantai 5 Denah
+
+Avi gave the PJT Lantai 5 sheet (12-11-2026) and asked for it in List Maker.
+
+- **Root cause of "no Denah":** `wardPlan` only knew PJT Lantai 4, so Lantai 5 fell back to the flowing numeric grid. The layout is data in `src/domain/denahPlan.ts`; adding `PJT_LANTAI_5` to `PLANS` is the whole change, `planLayout`, the screen Denah and the Word denah all read it.
+- **Layout:** header 510 and 511 (6 beds each); left 509, 508 B + 508 A (side by side), 507, 506, 505, 504, 503, 502 (1 bed each); right 512–516 (2 beds), 517–519 (4 beds); centre nurse station (1 row), the Lantai 6 box (6 rows), 501 Super VIP. Eight rows on both sides. Bed counts are the numbered slots on the sheet.
+- **Model changes:** `DenahRoomSlot.beside` puts a room in the previous room's row; `DenahColumn.annex` is a centre box for another floor's patients (room prefix `6`). `RoomCell.slot` became `RoomCell.slots` (one or two rooms). `inAnnex` keeps those patients out of "Di luar denah" on screen, Word and print.
+- **Renderers:** screen puts the pair in one flex cell. Word and print now use a six-column grid (each side and the centre split in two) so 508 A/B and the 510/511 header need no nested tables; both sides are the same width.
+- **Visit route:** clockwise from 510 (Avi): 510, 511, 512–519, 501, 502–507, 508 A, 508 B, 509. The order of 508 A before 508 B was confirmed by Avi.
+- **Tests:** `denahPlan.test.ts` and `denah.test.ts` used Lantai 5 as their "no plan" example; they now use Lantai 6. New tests cover the Lantai 5 rooms, rows, annex, route, and the Word and print tables.
+- **Firestore cost:** none. No reads, writes or listeners changed.
+- **Not done:** a patient recorded as plain room `508` (not `508 A` or `508 B`) lands in "Di luar denah". The annex takes any room starting with 6, so a Lantai 5 room recorded wrongly as 6xx would show there too. Not checked on a ward device or in the browser; Word was only checked as generated XML, not opened in Word.
+
 ## `2026-11-12.7` — phone Denah back to the scaled desk plan
 
 Avi: a friend does not like the phone Denah and wants the old one back.

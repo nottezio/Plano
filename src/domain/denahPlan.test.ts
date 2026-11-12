@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest';
 
 import { placeInPlan } from './denah';
-import { planRooms, wardPlan } from './denahPlan';
+import { inAnnex, planRooms, visitIndex, wardPlan } from './denahPlan';
+import { planLayout } from './floorList/layout';
 import type { Patient } from './types';
 
 const patient = (over: Partial<Patient>): Patient =>
@@ -16,8 +17,23 @@ describe('wardPlan', () => {
   it('returns null for a ward with no transcribed sheet', () => {
     // The ordinary case, not a failure: a ward is only laid out against the
     // wall once somebody has checked it against the wall.
-    expect(wardPlan('PJT Lantai 5')).toBeNull();
+    expect(wardPlan('PJT Lantai 6')).toBeNull();
     expect(wardPlan('CVCU')).toBeNull();
+  });
+
+  it('knows PJT Lantai 5, room for room, with the sheet bed counts', () => {
+    const rooms = planRooms(wardPlan('PJT Lt. 5')!);
+    expect(rooms.map((room) => room.room).sort()).toEqual(
+      [
+        '501', '502', '503', '504', '505', '506', '507', '508 A', '508 B', '509',
+        '510', '511', '512', '513', '514', '515', '516', '517', '518', '519',
+      ].sort(),
+    );
+    const beds = new Map(rooms.map((r) => [r.room, r.beds]));
+    expect(beds.get('510')).toBe(6);
+    expect(beds.get('513')).toBe(2);
+    expect(beds.get('518')).toBe(4);
+    expect(beds.get('501')).toBe(1);
   });
 
   it('matches the printed sheet, room for room', () => {
@@ -38,6 +54,41 @@ describe('wardPlan', () => {
     expect(beds.get('419')).toBe(4);
     expect(beds.get('413')).toBe(2);
     expect(beds.get('410')).toBe(1);
+  });
+});
+
+describe('PJT Lantai 5 layout', () => {
+  const plan = wardPlan('PJT Lt. 5')!;
+  const layout = planLayout(plan);
+
+  it('puts 508 B and 508 A side by side, so both sides have eight rows', () => {
+    expect(layout.rows).toBe(8);
+    expect(layout.left).toHaveLength(8);
+    expect(layout.right).toHaveLength(8);
+    expect(layout.left[1]?.slots.map((s) => s.room)).toEqual(['508 B', '508 A']);
+  });
+
+  it('gives the centre a nurse station row, the Lantai 6 box, then 501 at the bottom', () => {
+    expect(layout.landmark).toMatchObject({ row: 0, span: 1 });
+    expect(layout.annex).toMatchObject({ label: 'LANTAI 6', row: 1, span: 6 });
+    expect(layout.centre[0]).toMatchObject({ row: 7, span: 1 });
+    expect(layout.centre[0]?.slots[0]?.room).toBe('501');
+  });
+
+  it('keeps Lantai 6 rooms out of "Di luar denah"', () => {
+    expect(inAnnex(plan, '604')).toBe(true);
+    expect(inAnnex(plan, '505')).toBe(false);
+    expect(inAnnex(wardPlan('PJT Lantai 4')!, '604')).toBe(false);
+  });
+
+  it('visits clockwise from 510 to 509, with 501 between 519 and 502', () => {
+    const at = (room: string): number => visitIndex('PJT Lt. 5', room)!;
+    expect(at('510')).toBe(0);
+    expect(at('511')).toBe(1);
+    expect(at('519')).toBeLessThan(at('501'));
+    expect(at('501')).toBeLessThan(at('502'));
+    expect(at('508 A')).toBeLessThan(at('508 B'));
+    expect(at('509')).toBe(19);
   });
 });
 
@@ -98,7 +149,7 @@ describe('ward names as recorded, not as printed', () => {
   });
 
   it('still does not match a different floor', () => {
-    for (const ward of ['PJT Lt. 5', 'PJT Lantai 5', 'CVCU']) {
+    for (const ward of ['PJT Lt. 6', 'PJT Lantai 6', 'CVCU']) {
       expect(wardPlan(ward)).toBeNull();
     }
   });

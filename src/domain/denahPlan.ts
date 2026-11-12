@@ -37,6 +37,8 @@ export interface DenahRoomSlot {
   subtitle?: string;
   /** Numbered slots on the sheet. */
   beds: number;
+  /** Stands beside the room before it, in the same row (508 A and B on Lantai 5). */
+  beside?: boolean;
 }
 
 export interface DenahColumn {
@@ -47,6 +49,12 @@ export interface DenahColumn {
    * nurse station" is how the rooms either side are actually described.
    */
   landmark?: string;
+  /**
+   * A box between the landmark and the rooms that holds the patients of another
+   * floor the list also covers (the "LANTAI 6" box on the Lantai 5 sheet): every
+   * patient whose room starts with `roomPrefix`.
+   */
+  annex?: { label: string; roomPrefix: string };
   rooms?: DenahRoomSlot[];
 }
 
@@ -110,7 +118,64 @@ const PJT_LANTAI_4: WardPlan = {
   ],
 };
 
+/**
+ * PJT Lantai 5, from the sheet of 2026-11-12. 510 and 511 run across the top;
+ * 508 A and 508 B (isolasi) sit side by side. The "LANTAI 6" box in the middle
+ * is an annex: the Lantai 5 list also covers Lantai 6, whose patients go there.
+ */
+const PJT_LANTAI_5: WardPlan = {
+  ward: 'PJT Lantai 5',
+  header: [
+    { room: '510', beds: 6 },
+    { room: '511', beds: 6 },
+  ],
+  columns: [
+    [
+      {
+        rooms: [
+          { room: '509', subtitle: 'VIP', beds: 1 },
+          { room: '508 B', subtitle: 'Isolasi', beds: 1 },
+          { room: '508 A', subtitle: 'Isolasi', beds: 1, beside: true },
+          { room: '507', subtitle: 'VIP', beds: 1 },
+          { room: '506', subtitle: 'VIP', beds: 1 },
+          { room: '505', beds: 1 },
+          { room: '504', subtitle: 'VIP', beds: 1 },
+          { room: '503', subtitle: 'VIP', beds: 1 },
+          { room: '502', subtitle: 'VIP', beds: 1 },
+        ],
+      },
+    ],
+    [
+      { landmark: 'NURSE STATION' },
+      { annex: { label: 'LANTAI 6', roomPrefix: '6' } },
+      { rooms: [{ room: '501', subtitle: 'SUPER VIP', beds: 1 }] },
+    ],
+    [
+      {
+        rooms: [
+          { room: '512', beds: 2 },
+          { room: '513', beds: 2 },
+          { room: '514', beds: 2 },
+          { room: '515', beds: 2 },
+          { room: '516', beds: 2 },
+          { room: '517', beds: 4 },
+          { room: '518', beds: 4 },
+          { room: '519', beds: 4 },
+        ],
+      },
+    ],
+  ],
+  // Clockwise from 510 (Avi, 2026-11-12): across the top, down the right, 501, up the left to 509.
+  visitRoute: [
+    '510', '511',
+    '512', '513', '514', '515', '516', '517', '518', '519',
+    '501',
+    '502', '503', '504', '505', '506', '507', '508 A', '508 B', '509',
+  ],
+};
+
 const PLANS: readonly WardPlan[] = [
+  PJT_LANTAI_5,
   {
     ...PJT_LANTAI_4,
     visitRoute: [
@@ -162,7 +227,7 @@ function normalise(ward: string): string {
 /**
  * The plan for a ward, or `null` when there is no transcribed sheet.
  *
- * Null is the ordinary case, not a failure: Lantai 5, CVCU and IGD have no
+ * Null is the ordinary case, not a failure: Lantai 6, CVCU and IGD have no
  * transcribed plan and fall back to the flowing grid. A ward is only laid out
  * against the wall when somebody has actually checked it against the wall.
  */
@@ -179,6 +244,17 @@ export function planRooms(plan: WardPlan): DenahRoomSlot[] {
       column.flatMap((block) => block.rooms ?? []),
     ),
   ];
+}
+
+/** The plan's annex box (patients of another floor), or null. */
+export function planAnnex(plan: WardPlan): { label: string; roomPrefix: string } | null {
+  return plan.columns[1].find((block) => block.annex)?.annex ?? null;
+}
+
+/** Whether a room belongs in the plan's annex box, so it is not "Di luar denah". */
+export function inAnnex(plan: WardPlan, room: string | undefined): boolean {
+  const annex = planAnnex(plan);
+  return !!annex && !!room && room.startsWith(annex.roomPrefix);
 }
 
 /**

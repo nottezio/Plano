@@ -1,9 +1,9 @@
 import { formatDmy } from '@/domain/dateDmy';
-import { planRooms, type DenahRoomSlot, type WardPlan } from '@/domain/denahPlan';
+import { inAnnex, planRooms, type DenahRoomSlot, type WardPlan } from '@/domain/denahPlan';
 import { escapeXml, inlineRuns, DOCX_MIME, type Run } from '@/domain/format/soapDocx';
 import { storeZip } from '@/lib/zip';
 import { placeBeds } from './beds';
-import { planLayout, type RoomCell } from './layout';
+import { planLayout, type GridCell, type RoomCell } from './layout';
 import { byRoute, dpjpCodeOf, dpjpTitle, isPediatri, LIST_DPJP_ORDER, PEDIATRI_DPJP_IDS } from './build';
 import { markInfo, printedTags } from './marks';
 import { holderBoxes, residentGroups } from './residents';
@@ -242,50 +242,69 @@ function roomContent(slot: DenahRoomSlot, patients: readonly FloorPatient[]): st
 /** The text width of a denah page: A4 less 1.27 cm each side, portrait or landscape. */
 const textWidth = (landscape: boolean): number => (landscape ? PAGE.height : PAGE.width) - 2 * 720;
 
-function floorTable(plan: WardPlan, ward: string, inRoom: (room: string) => FloorPatient[], textW: number): string {
-  // L | centre (two grid columns, so 420/421 can split the centre) | R.
+function floorTable(
+  plan: WardPlan,
+  ward: string,
+  inRoom: (room: string) => FloorPatient[],
+  annexPatients: readonly FloorPatient[],
+  textW: number,
+): string {
+  // Six grid columns: left (two, so 508 A and B can split it) | centre (two, so
+  // 510/511 can split the page) | right (two). Both sides are the same width.
   const sideWidth = Math.round(textW * 0.39);
   const half = Math.round((textW - 2 * sideWidth) / 2);
-  const grid = [sideWidth, half, textW - 2 * sideWidth - half, sideWidth];
+  const sideHalf = Math.round(sideWidth / 2);
+  const grid = [sideHalf, sideWidth - sideHalf, half, textW - 2 * sideWidth - half, sideHalf, sideWidth - sideHalf];
   const layout = planLayout(plan);
 
   const rows: Cell[][] = [];
   const header = plan.header;
   if (header.length > 0) {
     rows.push([
-      { width: grid[0]! + grid[1]!, span: 2, content: header[0] ? roomContent(header[0], inRoom(header[0].room)) : '' },
-      { width: grid[2]! + grid[3]!, span: 2, content: header[1] ? roomContent(header[1], inRoom(header[1].room)) : '' },
+      { width: grid[0]! + grid[1]! + grid[2]!, span: 3, content: header[0] ? roomContent(header[0], inRoom(header[0].room)) : '' },
+      { width: grid[3]! + grid[4]! + grid[5]!, span: 3, content: header[1] ? roomContent(header[1], inRoom(header[1].room)) : '' },
     ]);
   }
 
-  /** The cell of one column at row i: its start (restart if it spans), a continuation, or empty. */
-  const at = (cells: readonly RoomCell[], i: number, width: number, span = 1): Cell => {
+  const mergeOf = (b: GridCell, i: number): Pick<Cell, 'vMerge'> =>
+    b.span > 1 ? { vMerge: i === b.row ? 'restart' : 'continue' } : {};
+
+  /** The cells of one side or the centre (two grid columns from `from`) at row i: start (restart if it spans), continuation, or empty. */
+  const at = (cells: readonly RoomCell[], i: number, from: number): Cell[] => {
+    const widths = [grid[from]!, grid[from + 1]!];
     const cell = cells.find((c) => i >= c.row && i < c.row + c.span);
-    if (!cell) return { width, span, content: '' };
-    if (cell.row === i) {
-      return { width, span, content: roomContent(cell.slot, inRoom(cell.slot.room)), ...(cell.span > 1 ? { vMerge: 'restart' as const } : {}) };
+    if (!cell) return [{ width: widths[0]! + widths[1]!, span: 2, content: '' }];
+    const start = cell.row === i;
+    const merge = mergeOf(cell, i);
+    if (cell.slots.length === 2) {
+      return cell.slots.map((slot, k) => ({ width: widths[k]!, content: start ? roomContent(slot, inRoom(slot.room)) : '', ...merge }));
     }
-    return { width, span, content: '', vMerge: 'continue' };
+    const slot = cell.slots[0]!;
+    return [{ width: widths[0]! + widths[1]!, span: 2, content: start ? roomContent(slot, inRoom(slot.room)) : '', ...merge }];
+  };
+
+  /** A full-width centre box (nurse station, annex) at row i, or null when i is outside it. */
+  const box = (b: GridCell | null, i: number, make: () => Partial<Cell>): Cell | null => {
+    if (!b || i < b.row || i >= b.row + b.span) return null;
+    return { width: grid[2]! + grid[3]!, span: 2, content: '', ...(i === b.row ? make() : {}), ...mergeOf(b, i) };
   };
 
   for (let i = 0; i < layout.rows; i += 1) {
-    const centreWidth = grid[1]! + grid[2]!;
     const mark = layout.landmark;
-    let centre: Cell;
-    if (mark && i >= mark.row && i < mark.row + mark.span) {
-      centre =
-        i === mark.row
-          ? {
-              width: centreWidth,
-              span: 2,
-              fill: ORANGE_FILL,
-              vCenter: true,
-              ...(mark.span > 1 ? { vMerge: 'restart' as const } : {}),
-              content: para([{ text: mark.label, bold: true }], { center: true }) + para([{ text: ward.toUpperCase(), bold: true }], { center: true }),
-            }
-          : { width: centreWidth, span: 2, content: '', vMerge: 'continue' };
-    } else centre = at(layout.centre, i, centreWidth, 2);
-    rows.push([at(layout.left, i, grid[0]!), centre, at(layout.right, i, grid[3]!)]);
+    const note = layout.annex;
+    const centre =
+      box(mark, i, () => ({
+        fill: ORANGE_FILL,
+        vCenter: true,
+        content: para([{ text: mark!.label, bold: true }], { center: true }) + para([{ text: ward.toUpperCase(), bold: true }], { center: true }),
+      })) ??
+      box(note, i, () => ({
+        content:
+          para([{ text: note!.label, bold: true }], { center: true }) +
+          annexPatients.map((p, n) => para(patientRuns(p, { number: n + 1 }))).join(''),
+      })) ??
+      at(layout.centre, i, 2)[0]!;
+    rows.push([...at(layout.left, i, 0), centre, ...at(layout.right, i, 4)]);
   }
   return tableXml(grid, rows);
 }
@@ -383,11 +402,15 @@ export function denahDocumentXml(input: DenahDocInput, print: DenahPrint = DEFAU
   const sorted = [...forPrint(input.patients, print)].sort(byRoute(input.ward));
   const known = new Set(input.plan ? planRooms(input.plan).map((s) => s.room) : []);
   const inRoom = (room: string): FloorPatient[] => sorted.filter((p) => p.room === room);
-  const strays = sorted.filter((p) => !known.has(p.room));
+  const plan = input.plan;
+  const strays = sorted.filter((p) => !known.has(p.room) && !(plan && inAnnex(plan, p.room)));
   const title = `DENAH PASIEN ${input.ward.replace(/^PJT\s+/i, '').toUpperCase()} (${formatDmy(input.date)})`;
 
   const parts: string[] = [para([{ text: title, bold: true }])];
-  if (input.plan) parts.push(floorTable(input.plan, input.ward, inRoom, textW), '<w:p/>');
+  if (plan) {
+    const annexPatients = sorted.filter((p) => inAnnex(plan, p.room));
+    parts.push(floorTable(plan, input.ward, inRoom, annexPatients, textW), '<w:p/>');
+  }
   if (strays.length > 0) {
     parts.push(para([{ text: input.plan ? 'Di luar denah:' : `Pasien ${input.ward}:`, bold: true }]));
     strays.forEach((p, n) => parts.push(para(patientRuns(p, { number: n + 1 }))));

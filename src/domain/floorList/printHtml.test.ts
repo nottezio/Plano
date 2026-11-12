@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
+import { wardPlan } from '@/domain/denahPlan';
 import { denahListHtml, patientHtml, previewHtml } from './printHtml';
 import { DEFAULT_PRINT } from './printSettings';
 import type { FloorPatient } from './report';
@@ -117,5 +118,24 @@ describe('Residen as a list follows the screen (20 Oct 2026)', () => {
       { ...DEFAULT_PRINT, denah: { ...DEFAULT_PRINT.denah, residentsList: true } },
     );
     expect(residents(html)).toMatch(/<tr><td><div class="holder">Bima[^]*?<\/td><\/tr><tr><td><div class="holder">Kirana/);
+  });
+});
+
+describe('Denah of PJT Lantai 5 on paper', () => {
+  const html = denahListHtml({
+    ward: 'PJT Lantai 5',
+    date: '2026-11-12',
+    plan: wardPlan('PJT Lantai 5'),
+    patients: [p({ key: 'rm:6', identity: 'Tn. Enam / RM 6', room: '604', bed: '' }), p({ key: 'rm:8', identity: 'Ny. Isolasi / RM 8', room: '508 A', bed: '1' })],
+    listText: '',
+  });
+
+  it('has six equal-sided columns, 508 A beside 508 B, and the Lantai 6 box holding its patient', () => {
+    expect(html.match(/<col /g)).toHaveLength(6);
+    expect(html).toContain('KAMAR 508 B');
+    expect(html).toContain('KAMAR 508 A');
+    expect(html).toContain('LANTAI 6');
+    expect(html).toContain('Tn. Enam');
+    expect(html).not.toContain('Di luar denah');
   });
 });

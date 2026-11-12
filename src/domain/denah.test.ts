@@ -30,10 +30,10 @@ describe('buildDenah', () => {
   });
 
   it('separates wards', () => {
-    const denah = buildDenah([at('a', 'PJT Lt 4', '401'), at('b', 'PJT Lt 5', '517')]);
-    // `PJT Lt 4` canonicalises to the plan's own spelling; Lantai 5 has no
+    const denah = buildDenah([at('a', 'PJT Lt 4', '401'), at('b', 'PJT Lt 6', '617')]);
+    // `PJT Lt 4` canonicalises to the plan's own spelling; Lantai 6 has no
     // transcribed plan, so it keeps the name as written.
-    expect(denah.map((ward) => ward.ward)).toEqual(['PJT Lantai 4', 'PJT Lt 5']);
+    expect(denah.map((ward) => ward.ward)).toEqual(['PJT Lantai 4', 'PJT Lt 6']);
   });
 
   it('puts non-numeric rooms after the numbered ones', () => {
