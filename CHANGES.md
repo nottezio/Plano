@@ -1,5 +1,16 @@
 # Plano — CHANGES
 
+## `2026-11-12.7` — phone Denah back to the scaled desk plan
+
+Avi: a friend does not like the phone Denah and wants the old one back.
+
+- **What changed:** build 12.1 drew the plan at the phone's own width under 600 px ("compact": bed, name and DPJP code only, dots instead of SOAP words). That mode is removed. The Denah is drawn at 880 px and scaled to fit, as before 12.1, with the same pinch and double-tap zoom, the "Kamar N" headers, full lines and SOAP words.
+- **Removed with it:** the `Compact` context and `COMPACT_BELOW` in `FloorDenah.tsx`, the `group-data-[compact]` grid classes (including 12.6's wider middle column), and the `compact` prop of `SoapBadge`. `NewDot` stays, the List head legend uses it.
+- **Kept:** 12.6's Pasien baru pill now shows in the Denah at every width. 12.5's name wrapping on the List tab is unchanged.
+- **Side effect:** the 12.5 and 12.6 phone-plan fixes (wrapping, room 411 width) no longer apply there, as the compact plan they fixed is gone; on the scaled plan a long name wraps inside its box at 880 px.
+- **Firestore cost:** none. No reads, writes or listeners changed.
+- **Not done:** no ward-device check. Phone text in the plan is small again (about 5 px at 375 px wide before zoom), which is why 12.1 made the compact plan; whether to offer both as a setting is left to the owner.
+
 ## `2026-11-12.6` — Residen overlap, visible Pasien baru badge, wider middle column on the phone plan
 
 Avi (desk screenshots, phone screenshot): "dr. Qalby / dr. Did" ran under "KJS BTKV"; the pasbar/pasper badge was hard to see; room 411 on the phone plan broke "Ny. Haniah Wahid" one letter per line.

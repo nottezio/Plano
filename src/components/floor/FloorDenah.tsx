@@ -17,7 +17,6 @@ import { planLayout } from '@/domain/floorList/layout';
 import { scrollParentOf } from '@/lib/scrollParent';
 import {
   clampZoom,
-  MAX_ZOOM,
   pinchStart,
   pinchStep,
   readStoredZoom,
@@ -54,14 +53,6 @@ function readUsulToggle(): boolean {
   }
 }
 
-/**
- * The plan drawn at a phone's own width (12 Nov 2026), not the 880 px desk plan
- * scaled to 40 %: there the 12 px lines came out near 5 px and needed a pinch
- * for every room. A compact plan line is the bed, the name and the DPJP code;
- * the full line stays in the SOAP the tap opens and in the lists below the plan.
- */
-const Compact = createContext(false);
-
 /** While searching (13.7): a match is highlighted, the rest dimmed — the plan keeps every bed in place. */
 type Found = 'hit' | 'dim' | undefined;
 
@@ -83,35 +74,9 @@ function PatientButton({
   const residents = [patient.junior, patient.chief].filter(Boolean).map((n) => `dr. ${n}`).join(' / ');
   const flag = patient.discharge;
   const usul = useContext(ShowUsul) && patient.usul === true;
-  const compact = useContext(Compact) && !showPlace;
   const print = usePrintSettings();
   // Red/green colour the line; a floor tag only colours itself (13.10).
   const colour = flag ? FLAG_COLOR[flag] : undefined;
-  if (compact) {
-    return (
-      <button
-        type="button"
-        onClick={() => onOpen(patient)}
-        title={patient.identity}
-        className={`flex w-full min-w-0 items-start gap-1 rounded-md px-1 py-1 text-left text-xs leading-snug text-fg hover:bg-bg-subtle focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent ${
-          usul ? 'bg-[var(--warn-soft)]' : ''
-        } ${found === 'dim' ? 'opacity-30' : found === 'hit' ? 'outline outline-2 outline-accent' : ''}`}
-        style={colour ? { color: colour } : undefined}
-      >
-        {number !== undefined ? <span className="shrink-0 tabular-nums text-fg-muted">{number}.</span> : null}
-        {/* Wraps, never cut (12 Nov 2026, build 12.5, Avi): a truncated name on the phone plan read "Tn. Safrizal · A…". */}
-        <span className="min-w-0 break-words">
-          {patient.name || patient.identity}
-          {code ? <span className="text-fg-muted"> · {code}</span> : null}
-        </span>
-        {flag ? <span className="sr-only"> ({FLAG_LABEL[flag]})</span> : null}
-        {usul ? <span className="sr-only"> (usul H-1)</span> : null}
-        <span className="ml-auto flex h-[1.1rem] shrink-0 items-center">
-          <SoapBadge patient={patient} compact />
-        </span>
-      </button>
-    );
-  }
   return (
     <button
       type="button"
@@ -181,30 +146,20 @@ function RoomBox({
   find: (patient: FloorPatient) => Found;
 }): JSX.Element {
   const { beds, loose } = placeBeds(slot, patients);
-  const compact = useContext(Compact);
   /*
     Every bed keeps its numbered line, an empty one as "2. -", single-bed rooms too
     (12 Nov 2026, build 12.3, Avi): the box reads like the ward sheet. Build 12.1 had
     folded empty beds into an "n kosong" count, which hid where the free bed was.
   */
   return (
-    <div className={`rounded-lg border border-border bg-surface ${compact ? 'p-1.5' : 'p-2'}`}>
-      {compact ? (
-        <p className="flex items-baseline justify-between gap-1 px-1 text-xs font-bold tabular-nums">
-          <span className="min-w-0 truncate">
-            {slot.room}
-            {slot.subtitle ? <span className="ml-1 font-medium text-fg-muted">{slot.subtitle}</span> : null}
-          </span>
-        </p>
-      ) : (
-        <p className="text-center text-xs font-bold uppercase tracking-wide">
-          Kamar {slot.room}
-          {slot.subtitle ? <span className="block font-semibold normal-case">{slot.subtitle}</span> : null}
-        </p>
-      )}
+    <div className="rounded-lg border border-border bg-surface p-2">
+      <p className="text-center text-xs font-bold uppercase tracking-wide">
+        Kamar {slot.room}
+        {slot.subtitle ? <span className="block font-semibold normal-case">{slot.subtitle}</span> : null}
+      </p>
       <ol className="mt-1 space-y-0.5">
         {beds.map((patient, i) => (
-          <li key={i} className={`min-h-5 ${compact ? 'text-xs' : 'text-[12px]'} text-fg-faint`}>
+          <li key={i} className="min-h-5 text-[12px] text-fg-faint">
             {patient ? (
               <PatientButton patient={patient} number={i + 1} onOpen={onOpen} showPlace={false} found={find(patient)} />
             ) : (
@@ -234,8 +189,6 @@ function Section({ title, id, children }: { title: string; id?: string | undefin
 
 /** The width the plan is drawn at: the desk layout, room text at full size. */
 const DESK_WIDTH = 880;
-/** Below this the plan is drawn compact at the screen's own width (a phone); between it and DESK_WIDTH, scaled. */
-const COMPACT_BELOW = 600;
 const ZOOM_KEY = 'plano.listmaker.denahZoom';
 
 /**
@@ -279,10 +232,7 @@ function DenahCanvas({ children }: { children: ReactNode }): JSX.Element {
     return () => observer.disconnect();
   }, []);
   const narrow = width < DESK_WIDTH;
-  const compact = width < COMPACT_BELOW;
-  // Compact: drawn at the screen's width, so "fit" is full size and a pinch only enlarges.
-  const drawWidth = compact ? width : DESK_WIDTH;
-  const fit = narrow ? width / drawWidth : 1;
+  const fit = narrow ? width / DESK_WIDTH : 1;
   const scale = narrow ? clampZoom(zoom ?? fit, fit) : 1;
   const atFit = scale <= fit + 0.001;
 
@@ -390,8 +340,7 @@ function DenahCanvas({ children }: { children: ReactNode }): JSX.Element {
   // Double-tap on empty plan: fit <-> readable (full desk size), about the tap.
   // Not on a button: a patient's first tap already opened the SOAP.
   const toggleAt = useRef((_point: { x: number; y: number }): void => undefined);
-  // Scaled plan: fit <-> full size. Compact plan (already full size): fit <-> 2×.
-  toggleAt.current = (point) => zoomTo(atFit ? (compact ? MAX_ZOOM : 1) : fit, point);
+  toggleAt.current = (point) => zoomTo(atFit ? 1 : fit, point);
   useEffect(() => {
     const box = outer.current;
     if (!box || !narrow) return undefined;
@@ -428,9 +377,8 @@ function DenahCanvas({ children }: { children: ReactNode }): JSX.Element {
   }, [narrow]);
 
   return (
-    <Compact.Provider value={compact}>
     <div>
-      {narrow && !compact ? (
+      {narrow ? (
         <p className="mb-1 text-right text-xs text-fg-faint">Cubit dua jari, atau ketuk dua kali di area kosong</p>
       ) : null}
       {/*
@@ -446,13 +394,12 @@ function DenahCanvas({ children }: { children: ReactNode }): JSX.Element {
         className={`relative ${narrow && !atFit ? 'overflow-x-auto overscroll-x-contain' : 'overflow-hidden'}`}
         style={narrow ? { height: height * scale, touchAction: 'pan-x pan-y' } : undefined}
       >
-        <div style={narrow ? { width: drawWidth * scale, height: height * scale } : undefined}>
+        <div style={narrow ? { width: DESK_WIDTH * scale, height: height * scale } : undefined}>
           <div
             ref={inner}
-            data-compact={compact || undefined}
             className="group/plan"
             style={{
-              width: narrow ? drawWidth : undefined,
+              width: narrow ? DESK_WIDTH : undefined,
               transform: narrow && scale !== 1 ? `scale(${scale})` : undefined,
               transformOrigin: 'top left',
             }}
@@ -462,7 +409,6 @@ function DenahCanvas({ children }: { children: ReactNode }): JSX.Element {
         </div>
       </div>
     </div>
-    </Compact.Provider>
   );
 }
 
@@ -634,7 +580,7 @@ export function FloorDenah({
       {plan ? (
         <Section title={`Denah ${ward}`} id={JUMP_IDS.denah}>
           <DenahCanvas>
-            <div className="grid grid-cols-2 gap-2 group-data-[compact]/plan:grid-cols-[repeat(2,minmax(0,1fr))] group-data-[compact]/plan:gap-1.5">
+            <div className="grid grid-cols-2 gap-2">
               {plan.header.map((slot) => (
                 <RoomBox key={slot.room} slot={slot} patients={inRoom(slot.room)} onOpen={onOpen} find={find} />
               ))}
@@ -653,12 +599,7 @@ export function FloorDenah({
               });
               return (
                 <div
-                  className={`mt-2 grid grid-cols-[1fr_0.7fr_1fr] gap-2 group-data-[compact]/plan:mt-1.5 group-data-[compact]/plan:gap-1.5 ${
-                    // A room in the middle column (411) needs room for a name (12.6): at 0.5fr it broke letter by letter.
-                    layout.centre.length > 0
-                      ? 'group-data-[compact]/plan:grid-cols-[minmax(0,1fr)_minmax(0,0.85fr)_minmax(0,1fr)]'
-                      : 'group-data-[compact]/plan:grid-cols-[minmax(0,1fr)_minmax(0,0.5fr)_minmax(0,1fr)]'
-                  }`}
+                  className="mt-2 grid grid-cols-[1fr_0.7fr_1fr] gap-2"
                   style={{ gridTemplateRows: `repeat(${layout.rows}, minmax(3rem, auto))` }}
                 >
                   {layout.left.map((cell) => (
@@ -669,11 +610,11 @@ export function FloorDenah({
                   {layout.landmark ? (
                     <div
                       style={place(layout.landmark.row, layout.landmark.span, 2)}
-                      className="flex items-center justify-center rounded-lg border border-[var(--warn-strong)] bg-[var(--warn-soft)] p-2 text-center text-xs font-bold uppercase leading-tight tracking-wide text-fg group-data-[compact]/plan:p-1 group-data-[compact]/plan:text-[11px]"
+                      className="flex items-center justify-center rounded-lg border border-[var(--warn-strong)] bg-[var(--warn-soft)] p-2 text-center text-xs font-bold uppercase leading-tight tracking-wide text-fg"
                     >
                       <span>
                         {layout.landmark.label}
-                        <span className="block group-data-[compact]/plan:hidden">{ward}</span>
+                        <span className="block">{ward}</span>
                       </span>
                     </div>
                   ) : null}

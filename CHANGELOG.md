@@ -5,6 +5,10 @@ Catatan teknis lengkap (akar masalah, perbaikan) ada di CHANGES.md.
 
 Entri teratas harus versi yang sedang dirilis; tes gagal bila belum ditulis.
 
+## `2026-11-12.7`
+- **Denah di HP kembali seperti dulu.** Denah digambar selebar layar desktop lalu diperkecil agar muat, dan bisa dicubit dua jari atau diketuk dua kali untuk memperbesar. Tampilan ringkas yang dipakai sejak 12.1 dihapus.
+- **Label Pasien baru tetap berwarna** di Denah, sama seperti di List.
+
 ## `2026-11-12.6`
 - **Kolom Residen tidak lagi menimpa KJS BTKV di tab List.** Nama chief yang panjang kini turun ke baris berikutnya di dalam kolomnya.
 - **Lencana pasien baru (pasbar/pasper) lebih jelas.** Di List dan Denah layar lebar, titik kecil diganti label berwarna dengan teksnya. Di Denah ponsel tetap titik.
