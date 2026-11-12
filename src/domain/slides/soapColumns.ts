@@ -16,12 +16,23 @@ import type { SectionAlias, SectionId } from '@/domain/types';
 
 const RIGHT_COLUMN: ReadonlySet<SectionId> = new Set<SectionId>(['a', 'terapi', 'p']);
 
+/** The slide's heading for a WhatsApp-style "Mohon izin kami assess / terapi dengan :" heading (owner, 2026-11-13). */
+const PLAIN_HEADING: Partial<Record<SectionId, string>> = { a: 'Diagnosis:', terapi: 'Terapi:' };
+
 export function soapColumns(
   body: string,
   frame: { identity?: string; rm?: string },
   aliases?: readonly SectionAlias[],
 ): { col2: string; col3: string } {
-  const text = stripReportFrame(body, frame);
+  let text = stripReportFrame(body, frame);
+  // Slide copy only: the stored note keeps its own wording. Right to left so earlier offsets stay valid.
+  for (const section of [...parseSections(text, aliases)].reverse()) {
+    const plain = PLAIN_HEADING[section.sectionId];
+    if (!plain || !section.headerLine || !/\b(?:mohon|izin|ijin)\b/i.test(section.headerLine)) continue;
+    const after = section.start + section.headerLine.length;
+    const sameLine = after < text.length && text[after] !== '\n';
+    text = `${text.slice(0, section.start)}${plain}${sameLine ? ' ' : ''}${text.slice(after)}`;
+  }
   const split = parseSections(text, aliases).find((section) => RIGHT_COLUMN.has(section.sectionId));
   if (!split) return { col2: text.trim(), col3: '' };
   return { col2: text.slice(0, split.start).trim(), col3: text.slice(split.start).trim() };

@@ -3,7 +3,7 @@ import { inlineRuns } from '@/domain/format/soapDocx';
 import type { DeckPhoto, DeckSlide } from '@/domain/slides/deck';
 import { nudge, rectAfterDrag, rectAfterResize } from '@/domain/slides/editMath';
 import { GEOMETRY, PALETTE_B, SLIDE_H, SLIDE_W, type Rect } from '@/domain/slides/geometry';
-import { photoRect } from '@/domain/slides/pptx';
+import { isSectionLabel, photoRect } from '@/domain/slides/pptx';
 
 /**
  * The slide as the export will draw it, from the same geometry, in percent of
@@ -56,7 +56,7 @@ function NoteText({ text, size }: { text: string; size: number }): JSX.Element {
   return (
     <div style={{ fontSize: pt(size), color: hex(PALETTE_B.ink) }} className="whitespace-pre-wrap leading-[1.2]">
       {text.split('\n').map((line, i) => {
-        const label = /^(plan|planning)$/i.test(line.trim()) || /^[^:]{1,40}:$/.test(line.trim());
+        const label = isSectionLabel(line);
         return (
           <div key={i} style={label ? { color: hex(PALETTE_B.sec), fontWeight: 700 } : undefined}>
             {label || !line

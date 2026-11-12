@@ -81,10 +81,12 @@ function paragraphXml(runs: readonly Run[], style: TextStyle): string {
   return `<a:p>${pPr}${content}${end}</a:p>`;
 }
 
-/** `S :`, `Diagnosis:`, `Plan`: a line that only names a section. Drawn bold in the section colour. */
+/**
+ * A main SOAP heading on its own line (`S :`, `O:`, `Diagnosis:`, `Terapi:`, `Plan`): drawn bold in
+ * the section colour. Sub-labels (`Faktor Risiko Kardiovaskular :`) stay plain (owner, 2026-11-13).
+ */
 export function isSectionLabel(line: string): boolean {
-  const t = line.trim();
-  return /^(plan|planning)$/i.test(t) || /^[^:]{1,40}:$/.test(t);
+  return /^[*_\s]*(?:S|O|A|P|Assessment|Diagnosis|Diagnosa|Terapi|Plan|Planning)\s*:?[*_\s]*$/i.test(line);
 }
 
 /** A note's lines as paragraphs: markers become formatting, nothing is reworded. */

@@ -1,5 +1,16 @@
 # Plano — CHANGES
 
+## `2026-11-13.1` — Slide MZ: side-panel link, heading style; review fixes for .14
+
+Avi, after using .14: the Slide MZ link did not appear in the other panel style; only S, O, Diagnosis and Terapi should be bold; "mohon izin…" headings should read Diagnosis / Terapi.
+
+- **Root cause (link):** the link was added only to the folded DPJP line above the note (`renderDpjpDetails`). The desktop panel draws the same facts through `renderDpjpSide` → `DpjpSideCard` rows, which still printed the delivery note "ada slide tersendiri" as text. Now a "Slide" row with the link; the MZ check (`mzSlides`, any DPJP line) is computed once and used by both.
+- **Bold:** `isSectionLabel` (writer and preview) bolded any short line ending in ":". It now matches only S/O/A/P, Assessment, Diagnosis/Diagnosa, Terapi, Plan/Planning. Plan kept bold as a main heading (not named by Avi; drop it if wanted).
+- **Headings:** `soapColumns` replaces the header prefix of an `a` / `terapi` section whose header contains mohon/izin/ijin with "Diagnosis:" / "Terapi:" in the slide copy only; same-line text kept.
+- **Recorded here, shipped in the .14 commit (whole-change review, each with a failing test first):** IndexedDB writes now resolve on transaction commit (a quota abort after the request succeeded was silently lost); imported photo ids include the patient id (they collided across patients in the shared store); the lab table never ends with zero date columns (PowerPoint repair); the IGD admission entry sorts first and is labelled "IGD" (`compareEntryDates`); local slides are deleted only after the archive write succeeds; an empty title writes one empty paragraph.
+- **Firestore cost:** unchanged (no new reads or writes).
+- **Not done:** review Minors deferred: no flush on `visibilitychange`; deleting an image slide leaves its photos in IndexedDB until archive; photos still encoding when the editor closes become orphans; import notice says "4:3" for any non-16:9 file; archived-patient notice also shows for trashed patients and its delete has no error feedback; preview object URLs can break under StrictMode in dev. Side-panel link not checked in the browser.
+
 ## `2026-11-12.14` — Slide MZ (daily PPTX for Prof. MZ's patients)
 
 Avi: Prof. MZ is reported to with a PowerPoint deck every day (updated SOAP plus photos of investigations); automate it. Design choices were his: keep the reference decks' object positions exactly, Palette B colours, no "lanjutan" slide, photos local only (no sync yet), labs as a table, any penunjang image, editing inside Plano, link on the MZ delivery line, delete local slides on archive with a warning, and import + rebuild for handed-over decks.

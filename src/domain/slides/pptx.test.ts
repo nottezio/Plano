@@ -2,7 +2,7 @@
 import { describe, expect, it } from 'vitest';
 import type { Deck, DeckPhoto, DeckSlide } from './deck';
 import { GEOMETRY } from './geometry';
-import { buildPptx, photoRect, pptxParts } from './pptx';
+import { buildPptx, isSectionLabel, photoRect, pptxParts } from './pptx';
 
 // Synthetic content only. Bytes are a placeholder; the writer never decodes images.
 const photo: DeckPhoto = { imageId: 'img1', bytes: new Uint8Array([1, 2, 3]), mime: 'image/jpeg', widthPx: 1600, heightPx: 1200 };
@@ -81,6 +81,13 @@ describe('pptx writer', () => {
     const bodies = xml.match(/<p:txBody>[\s\S]*?<\/p:txBody>/g) ?? [];
     expect(bodies.length).toBeGreaterThan(0);
     for (const body of bodies) expect(body).toContain('<a:p>');
+  });
+
+  it('bolds only the main SOAP headings, not sub-labels like Faktor Risiko', () => {
+    for (const line of ['S :', 'O:', 'Diagnosis:', 'Terapi:', 'Plan', 'Plan:', 'A :', 'P:']) expect(isSectionLabel(line), line).toBe(true);
+    for (const line of ['Faktor Risiko Kardiovaskular :', 'Premedikasi pra-tindakan:', 'EKG PJT Lt. 4 (12-11-2026)']) {
+      expect(isSectionLabel(line), line).toBe(false);
+    }
   });
 
   it('escapes note text', () => {

@@ -5,6 +5,10 @@ Catatan teknis lengkap (akar masalah, perbaikan) ada di CHANGES.md.
 
 Entri teratas harus versi yang sedang dirilis; tes gagal bila belum ditulis.
 
+## `2026-11-13.1`
+- **Tautan Slide MZ juga di panel samping.** Kartu DPJP di panel Pasien (tampilan dengan panel samping) kini punya baris **Slide → Slide MZ ›**, bukan hanya baris DPJP di atas catatan.
+- **Slide SOAP lebih rapi:** hanya judul bagian utama (S, O, Diagnosis, Terapi, Plan) yang ditebalkan; sub-judul seperti "Faktor Risiko Kardiovaskular" dan "Premedikasi pra-tindakan" ditulis biasa. Judul "Mohon izin kami assess dengan" dan "Mohon izin kami terapi dengan" ditulis "Diagnosis:" dan "Terapi:" di slide. Catatan SOAP tidak berubah.
+
 ## `2026-11-12.14`
 - **Slide MZ: PowerPoint harian untuk pasien Prof. MZ.** Di halaman pasien yang ber-DPJP MZ, baris "Kirim sendiri ke grup Prof MZ" kini punya tautan **Slide MZ ›**. Plano menyusun slide sendiri dengan tata letak yang sama seperti slide yang biasa dikirim (judul, satu slide SOAP per hari rawat dengan kolom Identitas / Anamnesis dan Pemeriksaan Fisik / Diagnosis dan Terapi, slide gambar, tabel laboratorium, Terima kasih), dengan warna baru.
 - **Gambar penunjang:** tambahkan foto EKG, foto thorax, echo, lab, luka, laporan tindakan atau lainnya. Satu slide memuat 1 sampai 4 foto atau foto + teks. Foto bisa digeser dan diubah ukurannya, boleh keluar dari slide; judul slide tetap di atas.

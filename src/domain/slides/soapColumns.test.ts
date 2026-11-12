@@ -61,6 +61,15 @@ describe('soapColumns', () => {
     expect(r.col2).toContain('TD 120/80');
   });
 
+  it('"Mohon izin … assess / terapi dengan" headings read Diagnosis: / Terapi: on the slide', () => {
+    const r = soapColumns('S :\n- baik\nMohon izin kami assess dengan :\n- CHF\nMohon izin kami terapi dengan:\n- Furosemid', {});
+    expect(r.col3).toBe('Diagnosis:\n- CHF\nTerapi:\n- Furosemid');
+  });
+
+  it('text on the same line as a "Mohon izin" heading is kept', () => {
+    expect(soapColumns('S :\n- baik\nMohon izin kami assess dengan: CHF', {}).col3).toBe('Diagnosis: CHF');
+  });
+
   it('a Terapi heading without Diagnosis still starts col3', () => {
     expect(soapColumns('S :\n- baik\nTerapi:\n- Obat', {}).col3.startsWith('Terapi:')).toBe(true);
   });

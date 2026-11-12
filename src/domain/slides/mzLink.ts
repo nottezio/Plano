@@ -1,5 +1,3 @@
-import type { Patient } from '@/domain/types';
-
 /** Registry id of Prof. Muzakkir Amir (`dpjp.ts`). */
 export const MZ_ID = 'mz';
 
@@ -8,7 +6,10 @@ export const MZ_ID = 'mz';
  * whether as the main consultant, a co-managing one, or only detected in
  * today's note.
  */
-export function hasMz(patient: Partial<Pick<Patient, 'dpjpId' | 'dpjpIds'>>, detectedIds: readonly string[]): boolean {
+export function hasMz(
+  patient: { dpjpId?: string | undefined; dpjpIds?: readonly string[] | undefined },
+  detectedIds: readonly string[],
+): boolean {
   return patient.dpjpId === MZ_ID || Boolean(patient.dpjpIds?.includes(MZ_ID)) || detectedIds.includes(MZ_ID);
 }
 
