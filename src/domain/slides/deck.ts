@@ -29,7 +29,7 @@ export type DeckSlide =
       fontPt: number;
     }
   | { kind: 'images'; id: string; title: string; layout: ImageLayout; photos: DeckPhoto[]; text?: string }
-  | { kind: 'text'; id: string; title: string; body: string; fontPt: number; align: 'l' | 'ctr' }
+  | { kind: 'text'; id: string; title: string; body: string; fontPt: number; align: 'l' | 'ctr'; rect: Rect }
   | { kind: 'lab'; id: 'lab'; title: string; dates: string[]; rows: Array<{ label: string; cells: string[] }> }
   | { kind: 'closing'; id: 'closing' };
 

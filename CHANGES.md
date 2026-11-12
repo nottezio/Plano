@@ -1,5 +1,14 @@
 # Plano — CHANGES
 
+## `2026-11-13.5` — Slide MZ: scrolling slide list, draggable text box
+
+Avi: make the slide list on the left scroll independently (with design care for spacing); make the free-text slide's text a freely draggable text box.
+
+- **List:** `<ol>` is `position: sticky` (top 0.5 rem) with its own scroll and a thin scrollbar on md+, capped at `100dvh - 8rem` and the grid given the same minimum height. First try capped at `100dvh - 2rem`: scrolled to the end, `main`'s bottom padding pushed the list's top 64 px off the screen, because a sticky box cannot leave its container. Measured in the emulator at 1366×800: top stays at 8 px from scroll 300 to the end. Reorder / hide buttons only render on the selected slide (inactive items are thumbnail + label), and the selected slide scrolls into view (`block: nearest`) when it changes, e.g. after adding one. The phone strip is unchanged (horizontal).
+- **Text box:** `TextSlideState.rect` (optional) → `DeckSlide` text `rect`; default is the reference slide's text area. The photo drag code is now one `Draggable` (move, corner handle, arrow-key nudge), used by photos (`aspect` resize) and the text box (`free` resize via `rectAfterBoxResize`, minimum 5 % of the slide width). The size fit (`fitTextPt` / `textFitsAt`) uses the box's own size, so a smaller box shrinks the text and a bigger one grows it; the writer places the text shape at `rect`. Reset posisi in the text editor.
+- **Firestore cost:** none (local deck state only).
+- **Not done:** the SOAP / CPPT table slides are still full-slide tables, not movable. The text box can overlap the boxed title (the title stays on top). Drag checked with synthetic pointer events in the emulator, not with a real mouse or touch; not opened in PowerPoint.
+
 ## `2026-11-13.4` — Pelimpahan of the day (AFG->ZD)
 
 Avi: "add the ability to add a Pelimpahan for the day … the DPJP inisial in the list and denah would be like AFG->ZD". Pelimpahan = the main DPJP is on leave (cuti) and another covers.

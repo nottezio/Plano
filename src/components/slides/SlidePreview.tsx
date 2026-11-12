@@ -1,7 +1,7 @@
 import { createContext, useContext, useRef, useState, type CSSProperties, type KeyboardEvent, type PointerEvent, type ReactNode } from 'react';
 import { inlineRuns } from '@/domain/format/soapDocx';
 import type { DeckPhoto, DeckSlide } from '@/domain/slides/deck';
-import { nudge, rectAfterDrag, rectAfterResize } from '@/domain/slides/editMath';
+import { nudge, rectAfterBoxResize, rectAfterDrag, rectAfterResize } from '@/domain/slides/editMath';
 import { PALETTE_B, SLIDE_H, SLIDE_W, geometryFor, slideHeight, type Rect } from '@/domain/slides/geometry';
 import { isSectionLabel, photoRect } from '@/domain/slides/pptx';
 
@@ -92,19 +92,20 @@ function NoteText({ text, size, align = 'l' }: { text: string; size: number; ali
   );
 }
 
-interface PhotoProps {
-  photo: DeckPhoto;
-  frame: Rect;
-  url: string | undefined;
+interface DraggableProps {
+  rect: Rect;
   editable: boolean;
   label: string;
-  onMove?: (rect: Rect) => void;
+  /** `aspect`: a picture, resized with its proportions kept. `free`: a text box, width and height independently. */
+  resize: 'aspect' | 'free';
+  onMove?: ((rect: Rect) => void) | undefined;
+  style?: CSSProperties;
+  children: ReactNode;
 }
 
-/** A photo; when editable it drags, resizes from its corner, and nudges with the arrow keys. */
-function Photo({ photo, frame, url, editable, label, onMove }: PhotoProps): JSX.Element {
+/** Drag to move, bottom-right handle to resize, arrow keys to nudge. May leave the slide; the title stays on top. */
+function Draggable({ rect: placed, editable, label, resize, onMove, style, children }: DraggableProps): JSX.Element {
   const box = useBox();
-  const placed = photoRect(photo, frame);
   const [live, setLive] = useState<Rect | null>(null);
   const start = useRef<{ x: number; y: number; rect: Rect; mode: 'move' | 'resize'; scale: number } | null>(null);
   const rect = live ?? placed;
@@ -123,7 +124,8 @@ function Photo({ photo, frame, url, editable, label, onMove }: PhotoProps): JSX.
     if (!s) return;
     const dx = (event.clientX - s.x) * s.scale;
     const dy = (event.clientY - s.y) * s.scale;
-    setLive(s.mode === 'move' ? rectAfterDrag(s.rect, dx, dy) : rectAfterResize(s.rect, dx));
+    if (s.mode === 'move') setLive(rectAfterDrag(s.rect, dx, dy));
+    else setLive(resize === 'free' ? rectAfterBoxResize(s.rect, dx, dy) : rectAfterResize(s.rect, dx));
   };
   const end = (): void => {
     if (start.current && live) onMove?.(live);
@@ -139,7 +141,7 @@ function Photo({ photo, frame, url, editable, label, onMove }: PhotoProps): JSX.
 
   return (
     <div
-      style={{ ...box(rect), zIndex: 1, boxShadow: '0 0.3cqw 0.8cqw rgba(0,0,0,0.18)', outlineColor: hex(PALETTE_B.accent) }}
+      style={{ ...box(rect), zIndex: 1, outlineColor: hex(PALETTE_B.accent), ...style }}
       className={editable ? 'cursor-move touch-none outline-dashed outline-2 outline-offset-2 focus-visible:outline-solid' : ''}
       {...(editable
         ? {
@@ -154,11 +156,7 @@ function Photo({ photo, frame, url, editable, label, onMove }: PhotoProps): JSX.
           }
         : {})}
     >
-      {url ? (
-        <img src={url} alt="" draggable={false} className="pointer-events-none h-full w-full select-none object-fill" />
-      ) : (
-        <div className="h-full w-full" style={{ background: hex(PALETTE_B.boxLine) }} />
-      )}
+      {children}
       {editable ? (
         <span
           aria-hidden="true"
@@ -171,6 +169,25 @@ function Photo({ photo, frame, url, editable, label, onMove }: PhotoProps): JSX.
         />
       ) : null}
     </div>
+  );
+}
+
+function Photo({ photo, frame, url, editable, label, onMove }: {
+  photo: DeckPhoto;
+  frame: Rect;
+  url: string | undefined;
+  editable: boolean;
+  label: string;
+  onMove?: (rect: Rect) => void;
+}): JSX.Element {
+  return (
+    <Draggable rect={photoRect(photo, frame)} editable={editable} label={label} resize="aspect" onMove={onMove} style={{ boxShadow: '0 0.3cqw 0.8cqw rgba(0,0,0,0.18)' }}>
+      {url ? (
+        <img src={url} alt="" draggable={false} className="pointer-events-none h-full w-full select-none object-fill" />
+      ) : (
+        <div className="h-full w-full" style={{ background: hex(PALETTE_B.boxLine) }} />
+      )}
+    </Draggable>
   );
 }
 
@@ -203,6 +220,7 @@ export function SlidePreview({
   urls,
   editable = false,
   onMovePhoto,
+  onMoveText,
   className = '',
   tall = false,
 }: {
@@ -210,6 +228,7 @@ export function SlidePreview({
   urls: ReadonlyMap<string, string>;
   editable?: boolean;
   onMovePhoto?: (imageId: string, rect: Rect) => void;
+  onMoveText?: (rect: Rect) => void;
   className?: string;
   /** 4:3 slides (the optional taller deck). */
   tall?: boolean;
@@ -289,9 +308,9 @@ export function SlidePreview({
     case 'text':
       content = (
         <>
-          <div style={{ ...box(GEOMETRY.textOnly), ...cellStyle(PALETTE_B.body) }}>
+          <Draggable rect={slide.rect} editable={editable} label="Kotak teks" resize="free" onMove={onMoveText} style={cellStyle(PALETTE_B.body)}>
             <NoteText text={slide.body} size={slide.fontPt} align={slide.align} />
-          </div>
+          </Draggable>
           <BoxedTitle rect={GEOMETRY.pageTitle} lines={[slide.title]} size={24} />
         </>
       );

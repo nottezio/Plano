@@ -70,6 +70,11 @@ export default function SlideMzPage(): JSX.Element {
     if (selected && !meta.some((m) => m.id === selected)) setSelected(null);
   }, [meta, selected]);
 
+  const currentId = current?.id;
+  useEffect(() => {
+    if (currentId) document.getElementById(`slide-item-${currentId}`)?.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+  }, [currentId]);
+
   const move = (id: string, by: -1 | 1): void => {
     const ids = meta.map((m) => m.id);
     const at = ids.indexOf(id);
@@ -180,13 +185,16 @@ export default function SlideMzPage(): JSX.Element {
         {deck.status === 'start' ? <StartChooser onNew={deck.startNew} onImportClick={picker.pick} error={picker.error} /> : null}
 
         {deck.status === 'ready' && composed && state && current ? (
-          <div className="grid gap-4 md:grid-cols-[15rem_minmax(0,1fr)]">
-            <ol aria-label="Daftar slide" className="flex gap-2 overflow-x-auto pb-1 md:block md:space-y-1.5 md:overflow-visible">
+          <div className="grid gap-4 md:min-h-[calc(100dvh-8rem)] md:grid-cols-[15rem_minmax(0,1fr)]">
+            <ol
+              aria-label="Daftar slide"
+              className="flex gap-2 overflow-x-auto pb-1 [scrollbar-width:thin] md:sticky md:top-2 md:block md:max-h-[calc(100dvh-8rem)] md:space-y-2 md:self-start md:overflow-y-auto md:overflow-x-hidden md:overscroll-contain md:pb-2 md:pr-1 md:[scrollbar-gutter:stable]"
+            >
               {meta.map((m, index) => {
                 const slide = composed.deck.slides.find((s) => s.id === m.id);
                 const active = m.id === current.id;
                 return (
-                  <li key={m.id} className={`w-44 shrink-0 md:w-auto ${m.hidden ? 'opacity-60' : ''}`}>
+                  <li key={m.id} id={`slide-item-${m.id}`} className={`w-44 shrink-0 md:w-auto ${m.hidden ? 'opacity-60' : ''}`}>
                     <div className={`rounded-xl border p-1.5 ${active ? 'border-accent bg-[var(--accent-soft)]' : 'border-border bg-surface'}`}>
                       <button type="button" className="block w-full text-left" aria-current={active ? 'true' : undefined} onClick={() => setSelected(m.id)}>
                         {slide ? (
@@ -200,7 +208,8 @@ export default function SlideMzPage(): JSX.Element {
                         {m.overflow ? <span className="block text-xs font-semibold text-danger">terlalu panjang</span> : null}
                         {m.staleOverride ? <span className="block text-xs font-semibold text-fg">⚠ SOAP berubah sejak diedit</span> : null}
                       </button>
-                      <div className="mt-1 flex justify-end gap-0.5">
+                      {active ? (
+                      <div className="mt-1 flex justify-end gap-0.5 border-t border-border pt-1">
                         <Button size="icon" variant="quiet" aria-label={`Naikkan slide ${index + 1}`} disabled={index === 0} onClick={() => move(m.id, -1)}>
                           ↑
                         </Button>
@@ -217,6 +226,7 @@ export default function SlideMzPage(): JSX.Element {
                           <IconEye className="h-4 w-4" aria-hidden="true" />
                         </Button>
                       </div>
+                      ) : null}
                     </div>
                   </li>
                 );
@@ -229,7 +239,10 @@ export default function SlideMzPage(): JSX.Element {
                   slide={currentSlide}
                   urls={deck.urls}
                   tall={tall}
-                  editable={currentSlide.kind === 'images'}
+                  editable={currentSlide.kind === 'images' || currentSlide.kind === 'text'}
+                  onMoveText={(rect) =>
+                    update((s) => ({ ...s, textSlides: s.textSlides.map((t) => (t.id === current.id ? { ...t, rect } : t)) }))
+                  }
                   onMovePhoto={(imageId, rect) =>
                     update((s) => ({
                       ...s,

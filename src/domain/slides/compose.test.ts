@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { DeckPhoto } from './deck';
 import { composeDeck, orderIds, soapSourceHash, titleLines, type DeckPatient } from './compose';
+import { GEOMETRY } from './geometry';
 import { defaultCaption, emptyDeckState, layoutForCount, type DeckState, type ImageSlideState } from './deckState';
 
 // Synthetic patient and notes only.
@@ -82,6 +83,16 @@ describe('composeDeck', () => {
     const textOf = (s: DeckState) => composeDeck(base(s)).deck.slides.find((x) => x.id === 't1');
     expect(textOf({ ...emptyDeckState('p1'), textSlides })).toMatchObject({ kind: 'text', fontPt: 24, align: 'l' });
     expect(textOf({ ...emptyDeckState('p1'), textSlides: [{ ...textSlides[0]!, pt: 40, align: 'center' }] })).toMatchObject({ fontPt: 40, align: 'ctr' });
+  });
+
+  it('a free-text box defaults to the reference area; a moved and resized one is kept and fits to its own size', () => {
+    const body = Array(18).fill('- baris contoh').join('\n');
+    const small = { x: 1_000_000, y: 1_500_000, w: 3_000_000, h: 1_200_000 };
+    const textOf = (rect?: typeof small) =>
+      composeDeck(base({ textSlides: [{ id: 't1', title: 'x', body, ...(rect ? { rect } : {}) }] })).deck.slides.find((x) => x.id === 't1');
+    expect(textOf()).toMatchObject({ rect: GEOMETRY.textOnly });
+    expect(textOf(small)).toMatchObject({ rect: small });
+    expect((textOf(small) as { fontPt: number }).fontPt).toBeLessThan((textOf() as { fontPt: number }).fontPt);
   });
 
   it('a manual size that cannot fit flags the slide', () => {

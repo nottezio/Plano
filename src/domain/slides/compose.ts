@@ -185,12 +185,13 @@ export function composeDeck(input: {
 
   for (const text of state.textSlides) {
     // Like the reference slide's autofit: shrink from 24 pt until the wrapped text fits. A manual size is kept, and flagged when it overflows.
+    const rect = text.rect ?? geometryFor(tall).textOnly;
     const fit =
       text.pt !== undefined
-        ? { pt: text.pt, overflow: !textFitsAt(text.body, geometryFor(tall).textOnly, text.pt) }
-        : fitTextPt(text.body, geometryFor(tall).textOnly, TEXT_PT.max, TEXT_PT.floor);
+        ? { pt: text.pt, overflow: !textFitsAt(text.body, rect, text.pt) }
+        : fitTextPt(text.body, rect, TEXT_PT.max, TEXT_PT.floor);
     add(
-      { kind: 'text', id: text.id, title: text.title, body: text.body, fontPt: fit.pt, align: text.align === 'center' ? 'ctr' : 'l' },
+      { kind: 'text', id: text.id, title: text.title, body: text.body, fontPt: fit.pt, align: text.align === 'center' ? 'ctr' : 'l', rect },
       { label: text.title, ...plain, overflow: fit.overflow },
     );
   }

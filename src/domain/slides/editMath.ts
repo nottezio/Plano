@@ -23,6 +23,11 @@ export function rectAfterResize(start: Rect, dx: number): Rect {
   return { ...start, w, h: Math.round((start.h * w) / start.w) };
 }
 
+/** A text box: bottom-right handle, width and height change independently (it is not a picture). */
+export function rectAfterBoxResize(start: Rect, dx: number, dy: number): Rect {
+  return { ...start, w: Math.max(MIN_W, Math.round(start.w + dx)), h: Math.max(MIN_W, Math.round(start.h + dy)) };
+}
+
 export function nudge(rect: Rect, key: string, big: boolean): Rect | null {
   const step = big ? BIG_STEP : STEP;
   switch (key) {

@@ -285,7 +285,7 @@ function buildSlide(slide: DeckSlide, media: Media[], geo: typeof GEOMETRY, slid
     }
 
     case 'text': {
-      const box = shape(ids, 'Text', geo.textOnly, {
+      const box = shape(ids, 'Text', slide.rect, {
         fill: PALETTE_B.body,
         line: { hex: PALETTE_B.grid, w: GRID_LINE_EMU },
         // The size is already fitted (or chosen), so no PowerPoint autofit on top of it.

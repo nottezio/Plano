@@ -239,7 +239,13 @@ export function TextEditor({
         ]}
         size="sm"
       />
-      {meta.overflow ? <p className="text-xs font-semibold text-danger">Terlalu panjang untuk ukuran ini: kecilkan teks atau pilih Otomatis.</p> : null}
+      <div className="flex flex-wrap items-center gap-2">
+        <p className="min-w-0 flex-1 text-xs text-fg-faint">Seret kotak teks di pratinjau untuk memindah, tarik titik di sudutnya untuk mengubah ukuran kotak.</p>
+        <Button size="sm" variant="quiet" disabled={!saved.rect} onClick={() => patch({ rect: undefined })}>
+          Reset posisi
+        </Button>
+      </div>
+      {meta.overflow ? <p className="text-xs font-semibold text-danger">Terlalu panjang untuk ukuran ini: kecilkan teks, perbesar kotaknya, atau pilih Otomatis.</p> : null}
       <Button size="sm" variant="danger" onClick={() => update((s) => ({ ...s, textSlides: s.textSlides.filter((t) => t.id !== slide.id) }))}>
         Hapus slide ini
       </Button>

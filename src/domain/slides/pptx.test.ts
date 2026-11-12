@@ -91,7 +91,9 @@ describe('pptx writer', () => {
   });
 
   it('a text slide uses its font size and centres its paragraphs on request', () => {
-    const text = (align: 'l' | 'ctr'): Deck => ({ slides: [{ kind: 'text', id: 't', title: 'USG', body: '- Fatty liver', fontPt: 28, align }] });
+    const text = (align: 'l' | 'ctr'): Deck => ({
+      slides: [{ kind: 'text', id: 't', title: 'USG', body: '- Fatty liver', fontPt: 28, align, rect: GEOMETRY.textOnly }],
+    });
     const centred = (d: Deck) => (slideXml(d, 1).match(/algn="ctr"/g) ?? []).length;
     expect(slideXml(text('l'), 1)).toContain('sz="2800"');
     // The boxed title is always centred (1); the body adds one more only when centred.
@@ -105,6 +107,13 @@ describe('pptx writer', () => {
     const tall: Deck = { ...deck, tall: true };
     expect(part(tall, 'ppt/presentation.xml')).toContain('cy="9144000"');
     expect(part(tall, 'ppt/slides/slide2.xml')).toContain(`<a:tr h="${9_144_000 - GEOMETRY.soapHeaderH}">`);
+  });
+
+  it('a free-text box is written where the resident put it', () => {
+    const moved: Deck = {
+      slides: [{ kind: 'text', id: 't', title: 'USG', body: 'x', fontPt: 14, align: 'l', rect: { x: 1_000_000, y: 1_500_000, w: 3_000_000, h: 1_200_000 } }],
+    };
+    expect(slideXml(moved, 1)).toContain('<a:off x="1000000" y="1500000"/><a:ext cx="3000000" cy="1200000"/>');
   });
 
   it('escapes note text', () => {

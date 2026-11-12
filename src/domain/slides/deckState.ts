@@ -43,6 +43,8 @@ export interface TextSlideState {
   /** Manual size; absent = fit the box (24 pt down). */
   pt?: number | undefined;
   align?: 'left' | 'center' | undefined;
+  /** Where the resident put the text box; absent = the reference slide's area. */
+  rect?: Rect | undefined;
 }
 
 /** A SOAP-layout slide typed by hand: a day Plano has no note for, or a note written elsewhere. */

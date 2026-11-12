@@ -5,6 +5,10 @@ Catatan teknis lengkap (akar masalah, perbaikan) ada di CHANGES.md.
 
 Entri teratas harus versi yang sedang dirilis; tes gagal bila belum ditulis.
 
+## `2026-11-13.5`
+- **Slide MZ: daftar slide bisa di-scroll sendiri.** Daftar slide di kiri kini menempel di layar dan punya gulir sendiri, jadi tidak ikut hilang saat halaman digulir dan tidak keluar batas bila slide banyak. Kontrol naik / turun / sembunyikan hanya muncul di slide yang sedang dipilih supaya daftar tetap ringkas, dan slide yang dipilih otomatis terlihat di daftar.
+- **Slide teks: teks kini kotak teks yang bebas digeser.** Di pratinjau, seret kotak teks ke mana saja, dan tarik titik di sudutnya untuk mengubah lebar dan tinggi kotak (bebas, tidak harus proporsional). Ukuran teks menyesuaikan kotaknya; **Reset posisi** mengembalikannya ke posisi bawaan.
+
 ## `2026-11-13.4`
 - **Pelimpahan DPJP per hari.** Setelan → Tampilan list → "Pelimpahan DPJP": pilih tanggal, DPJP yang cuti dan penggantinya. Pada hari itu kode DPJP di list, denah, Salin teks, list pendek, Word dan PDF tertulis seperti **AFG->ZD**. Pasien tetap di kotak DPJP aslinya, dan hari lain tidak berubah.
 

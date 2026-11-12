@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { SLIDE_W } from './geometry';
-import { nudge, rectAfterDrag, rectAfterResize, slideMzFileName } from './editMath';
+import { nudge, rectAfterBoxResize, rectAfterDrag, rectAfterResize, slideMzFileName } from './editMath';
 
 describe('photo moves', () => {
   it('drag moves by the delta and may leave the slide', () => {
@@ -15,6 +15,12 @@ describe('photo moves', () => {
 
   it('resize grows from the top-left corner', () => {
     expect(rectAfterResize({ x: 10, y: 20, w: 1_000_000, h: 500_000 }, 1_000_000)).toEqual({ x: 10, y: 20, w: 2_000_000, h: 1_000_000 });
+  });
+
+  it('a free resize (text box) changes width and height independently, with a minimum', () => {
+    expect(rectAfterBoxResize({ x: 0, y: 0, w: 1_000_000, h: 2_000_000 }, 500_000, -300_000)).toEqual({ x: 0, y: 0, w: 1_500_000, h: 1_700_000 });
+    const tiny = rectAfterBoxResize({ x: 0, y: 0, w: 1_000_000, h: 800_000 }, -9_000_000, -9_000_000);
+    expect(tiny).toMatchObject({ w: Math.round(SLIDE_W * 0.05), h: Math.round(SLIDE_W * 0.05) });
   });
 
   it('arrow nudge is 1 % of the slide, 5 % with Shift', () => {
