@@ -142,6 +142,40 @@ export function unbold(text: string): string {
   return text.replace(BOLD_RE, '$1').replace(SINGLE_BOLD_RE, '$1$2');
 }
 
+// The message's own framing, which the list already says elsewhere: the greeting and "mohon izin
+// melaporkan … atas nama:" line, the DPJP lines, Chief/Junior (all in the patient's header), and
+// "Selanjutnya mohon arahan dokter. Terima kasih" in its spellings ("arahannya", "arahanta").
+// `[\W_]*`: WhatsApp italics (`_DPJP …_`) and bold (`*…*`) wrap a line, and `\W` alone would not skip the underscore.
+const OPENING_LINE = /^[\W_]*(?:assalamu|selamat\s+(?:pagi|siang|sore|malam)\b)|\bi[jz]in\s+melaporkan\b/i;
+const CLOSING_LINE = /^[\W_]*(?:(?:selanjutnya|tabe)\b.*(?:\barah\w*|terima\s+kasih)|terima\s+kasih\b)/i;
+const DPJP_LINE = /^[\W_]*dpjp\b/i;
+const CHIEF_LINE = /^[\W_]*(?:chief|junior)\s*:/i;
+const squash = (text: string): string => text.replace(/[\s*_]/g, '').toLowerCase();
+
+/**
+ * The whole SOAP of a patient for the list text, minus the lines the list already carries: the
+ * opening, the name line (the header's), the DPJP lines, Chief/Junior and the closing. The
+ * clinical text between them is untouched.
+ */
+export function soapForList(patient: Pick<FloorPatient, 'full' | 'identity' | 'rm'>): string {
+  const idKey = squash(patient.identity);
+  const rm = patient.rm.replace(/^0+/, '');
+  const rmLine = rm ? new RegExp(`\\bRM\\s*:?\\s*0*${rm}\\b`, 'i') : null;
+  return patient.full
+    .split('\n')
+    .filter((raw, i) => {
+      const line = raw.trim();
+      if (!line) return true;
+      if (OPENING_LINE.test(line) || CLOSING_LINE.test(line) || DPJP_LINE.test(line)) return false;
+      // The name line and Chief/Junior sit in the first lines; an RM further down is a lab or a report.
+      if (i < 8 && (CHIEF_LINE.test(line) || squash(line) === idKey || (rmLine?.test(line) && line.includes('/')))) return false;
+      return true;
+    })
+    .join('\n')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim();
+}
+
 export function buildFloorList(patients: readonly FloorPatient[], options: ListOptions): string {
   const counts = floorCounts(patients);
   const floor = /\d+/.exec(options.ward)?.[0] ?? '';
@@ -172,7 +206,7 @@ export function buildFloorList(patients: readonly FloorPatient[], options: ListO
       if (k > 0) out.push('');
       out.push(`*${k + 1}. ${patientLine(patient)}*`);
       // Only the patient's line is bold (9 Nov 2026, Avi): the A/P's own `*Plan:*` is not.
-      const text = options.trioFullSoap && isTrioDpjp(patient.dpjpId) && patient.full ? patient.full : patient.body;
+      const text = options.trioFullSoap && isTrioDpjp(patient.dpjpId) && patient.full ? soapForList(patient) : patient.body;
       if (text) out.push(unbold(text));
     });
     const kjs = sorted.filter((patient) => patient.kjsDpjpIds.includes(id));

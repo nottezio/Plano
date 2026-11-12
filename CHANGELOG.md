@@ -5,6 +5,9 @@ Catatan teknis lengkap (akar masalah, perbaikan) ada di CHANGES.md.
 
 Entri teratas harus versi yang sedang dirilis; tes gagal bila belum ditulis.
 
+## `2026-11-12.12`
+- **SOAP lengkap pasien Trio kini tanpa pembuka, nama, DPJP, dan penutup.** Yang dibuang dari teks list: baris salam dan "mohon izin melaporkan … atas nama:", baris nama (sudah ada di header pasien), baris DPJP (utama, pelimpahan, GH, Pulmo, dll.), Chief dan Junior, serta baris penutup "Selanjutnya mohon arahan dokter. Terima kasih" dengan variasi ejaannya. Isi klinisnya tidak diubah.
+
 ## `2026-11-12.11`
 - **SOAP lengkap pasien Trio di list WhatsApp.** Setelan → Tampilan list kini punya pilihan "SOAP lengkap pasien Trio". Bila aktif, pasien AFM, AFG dan ZD ditulis dengan SOAP lengkapnya di teks list (Salin teks), bukan hanya assess, terapi dan plan. Mati secara bawaan, dan berlaku untuk semua anggota list.
 - Hitungan pasien per DPJP di tampilan list tidak lagi ikut menghitung baris bernomor di dalam SOAP.

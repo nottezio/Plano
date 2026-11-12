@@ -1,5 +1,14 @@
 # Plano — CHANGES
 
+## `2026-11-12.12` — Trio full SOAP without the message's framing
+
+Avi, after seeing a real list with .11: do not copy the whole SOAP for trio. Leave out the name (the header already has it), the opening, the DPJP lines and the closing.
+
+- **What:** `soapForList` in `build.ts` filters `patient.full` line by line. Dropped: the greeting / "mohon izin melaporkan … atas nama" line (`OPENING_LINE`), the name line (equal to the patient's `identity` ignoring `*`, `_` and spaces, or an "RM <this patient's RM>" line containing `/`, only in the first 8 lines), every line starting with DPJP, Chief / Junior lines (first 8 lines, they are in the header too), and the closing "Selanjutnya / Tabe … mohon arahan(nya/ta) … terima kasih" and bare "Terima kasih" lines, wherever they sit (several messages carry the closing after the diagnosis block, before S:). Everything else is untouched, including `_Pasien dikonsulkan…_` notes, TS blocks and labs.
+- **Bug caught while testing:** the line patterns used `^\W*`, which does not skip `_`, so italic DPJP lines (`_DPJP Utama: …_`, the usual WhatsApp style) survived. Now `^[\W_]*`.
+- **Firestore cost:** none; list text only.
+- **Not done:** the filter is by pattern, not by position: an unusual opening or closing wording that matches none of the patterns stays in. A real clinical line that happens to start with "DPJP" or "Terima kasih" would be dropped. Checked with invented messages in tests, not with the real list pasted by Avi. Not checked in the browser.
+
 ## `2026-11-12.11` — Trio patients: full SOAP in the list message (Setelan)
 
 Avi: "Add an option in setelan, for trio patients, to include the full soap in the list Whatsapp".

@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { splitChat } from './chat';
-import { buildFloorList, countLabel, patientLine, splitFloorList, unbold } from './build';
+import { buildFloorList, countLabel, patientLine, soapForList, splitFloorList, unbold } from './build';
 import { effective, newRosterPatient, pasteDiff } from './floor';
 import { dischargeFlag, usulH1, latestOf, latestPatients, listBody, manualPatient, nicknameOf, onFloorNumber, otherDepartmentUtama, readReport, readReports, type FloorPatient } from './report';
 
@@ -855,7 +855,28 @@ describe('Trio patients with the full SOAP in the list (Setelan)', () => {
   const patient = (over: Partial<FloorPatient>): FloorPatient =>
     ({
       key: 'rm:1', rm: '1', name: 'Tn. Contoh', identity: 'Tn. Contoh / RM 1', room: '417', bed: '1', floor: '4',
-      dpjpId: 'zd', kjsDpjpIds: [], btkv: false, body: 'Diagnosis:\n- CHF', full: 'Mohon izin melaporkan.\n\n*S :*\n- sesak\n\nEcho:\n1. Mitral: mild MR\n2. Aorta: normal\n\nDiagnosis:\n- CHF',
+      dpjpId: 'zd', kjsDpjpIds: [], btkv: false, body: 'Diagnosis:\n- CHF', full: [
+        'Assalamualaikum dokter. Tabe dokter, mohon izin melaporkan follow up pasien di PJT Lantai 4 Kamar 417 Bed 1 atas nama:',
+        '',
+        '*Tn. Contoh / RM 1*',
+        '',
+        '_DPJP Utama: Dr. dr. Contoh, Sp.JP_',
+        'DPJP GH : Prof. Contoh',
+        'Chief : Ija',
+        '',
+        '*S :*',
+        '- sesak',
+        '',
+        'Echo:',
+        '1. Mitral: mild MR',
+        '2. Aorta: normal',
+        '',
+        'Diagnosis:',
+        '- CHF',
+        '',
+        'Selanjutnya mohon arahan dokter. Terima kasih dokter.',
+        'Tabe mohon arahanta dokter, Terima kasih dokter',
+      ].join('\n'),
       chief: '', junior: '', senderNick: '', sender: '', sentAt: '2026-11-12T07:00', index: 0, discharge: null, ...over,
     }) as FloorPatient;
   const trio = patient({});
@@ -868,11 +889,20 @@ describe('Trio patients with the full SOAP in the list (Setelan)', () => {
     expect(text).not.toContain('- sesak');
   });
 
-  it('prints the whole SOAP of trio patients (AFM, AFG, ZD) only, with no bold markers inside it', () => {
+  it('prints the SOAP of trio patients (AFM, AFG, ZD) only, with no bold markers inside it', () => {
     const text = buildFloorList([trio, other], { ...options, trioFullSoap: true });
-    expect(text).toContain('Mohon izin melaporkan.\n\nS :\n- sesak');
+    expect(text).toContain('S :\n- sesak\n\nEcho:\n1. Mitral: mild MR\n2. Aorta: normal\n\nDiagnosis:\n- CHF');
     expect(text.match(/- sesak/g)).toHaveLength(1);
     expect(text).not.toContain('*S :*');
+  });
+
+  it('leaves out the opening, the name line, the DPJP and Chief lines and the closing lines', () => {
+    const text = buildFloorList([trio, other], { ...options, trioFullSoap: true });
+    for (const gone of ['Assalamualaikum', 'mohon izin melaporkan', 'DPJP Utama', 'DPJP GH', 'Chief : Ija', 'Terima kasih', 'arahan']) {
+      expect(text).not.toContain(gone);
+    }
+    // The name stays once: in the patient's own header line.
+    expect(text.match(/Tn\. Contoh \/ RM 1/g)).toHaveLength(1);
   });
 
   it('still counts two patients, not the numbered lines inside a SOAP', () => {
@@ -880,5 +910,34 @@ describe('Trio patients with the full SOAP in the list (Setelan)', () => {
     const parts = splitFloorList(text).parts;
     expect(parts.find((part) => part.heading.includes('ZD'))?.count).toBe(1);
     expect(parts.reduce((sum, part) => sum + part.count, 0)).toBe(2);
+  });
+});
+
+describe('soapForList: the framing lines in their other spellings', () => {
+  const soap = (lines: string[]) => soapForList({ full: lines.join('\n'), identity: 'Ny. Contoh / 01-01-1960 / 66 tahun / RM 1600001', rm: '1600001' });
+
+  it('drops the variants of the opening, the identity and the closing, and keeps the clinical text', () => {
+    const text = soap([
+      'Assalamualaikum wr wb. Tabe dokter, mohon izin melaporkan perpindahan  pasien dari  CVCU bed 4 ke PJT Lantai 5 kamar 511 bed 4 atas nama:',
+      'Ny. Contoh/ 01-01-1960/ 66 tahun/ RM 1600001',
+      'DPJP Kardio: dr. Contoh, Sp.JP',
+      '_DPJP Pulmo:  Dr. Contoh_',
+      '_Pasien dirujuk dari RS lain dengan STEMI_',
+      'Diagnosis:',
+      '- STEMI',
+      'Selanjutnya mohon arahan dokter. Terima kasih, dokter.',
+      'S/',
+      '- nyeri dada',
+      'Laboratorium PJT (10-11-2026)',
+      'RM 1600001 / lab ulang',
+      'Tabe selanjutnya mohon arahannya dokter, terima kasih dokter.',
+      'Tabe mohon arahanta dokter, Terima kasih dokter',
+    ]);
+    expect(text).toBe('_Pasien dirujuk dari RS lain dengan STEMI_\nDiagnosis:\n- STEMI\nS/\n- nyeri dada\nLaboratorium PJT (10-11-2026)\nRM 1600001 / lab ulang');
+  });
+
+  it('only drops the name line from the top, so an RM written in a report further down stays', () => {
+    const lines = ['Diagnosis:', ...Array.from({ length: 16 }, (_, i) => `- baris ${String(i)}`), 'Echo untuk RM 1600001 / 2026'];
+    expect(soap(lines)).toContain('Echo untuk RM 1600001 / 2026');
   });
 });
