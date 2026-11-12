@@ -5,6 +5,10 @@ Catatan teknis lengkap (akar masalah, perbaikan) ada di CHANGES.md.
 
 Entri teratas harus versi yang sedang dirilis; tes gagal bila belum ditulis.
 
+## `2026-11-13.6`
+- **Slide MZ: foto dan kotak teks menempel otomatis (snap) seperti PowerPoint.** Saat digeser, tepi dan tengah foto atau kotak teks menempel ke tepi dan tengah slide, ke judul, dan ke tepi dan tengah objek lain; garis putus-putus oranye menunjukkan garis yang dipakai. Saat diubah ukurannya, tepi kanan dan bawah ikut menempel. Tahan **Alt** untuk mematikan snap sementara.
+- **Slide MZ: tampilan editor dirapikan.** Ruang kerja kini tiga panel yang pas di layar tanpa menggulir halaman: daftar slide (kiri), pratinjau (tengah), dan pengaturan slide (kanan, hanya setinggi isinya). Tiap panel digulir sendiri. Baris atas dipadatkan: "Slide tinggi (4:3)" jadi kotak centang kecil (menampilkan jumlah slide yang terlalu panjang), tombol tambah (Gambar, Teks, CPPT, Impor) dikelompokkan terpisah dari Perbarui dan Unduh, dan kotak isian lebih rapat. Di layar sedang, pratinjau dan pengaturan ditumpuk dalam satu panel; di ponsel tetap berderet ke bawah.
+
 ## `2026-11-13.5`
 - **Slide MZ: daftar slide bisa di-scroll sendiri.** Daftar slide di kiri kini menempel di layar dan punya gulir sendiri, jadi tidak ikut hilang saat halaman digulir dan tidak keluar batas bila slide banyak. Kontrol naik / turun / sembunyikan hanya muncul di slide yang sedang dipilih supaya daftar tetap ringkas, dan slide yang dipilih otomatis terlihat di daftar.
 - **Slide teks: teks kini kotak teks yang bebas digeser.** Di pratinjau, seret kotak teks ke mana saja, dan tarik titik di sudutnya untuk mengubah lebar dan tinggi kotak (bebas, tidak harus proporsional). Ukuran teks menyesuaikan kotaknya; **Reset posisi** mengembalikannya ke posisi bawaan.

@@ -22,7 +22,7 @@ import type { ImageLayout } from '@/domain/slides/geometry';
 
 type Update = (change: (state: DeckState) => DeckState) => void;
 
-const TEXTAREA = `${INPUT} h-56 resize-y py-2 font-mono text-xs leading-relaxed`;
+const TEXTAREA = `${INPUT} h-44 resize-y py-2 font-mono text-xs leading-relaxed`;
 
 export function SoapEditor({ slide, meta, update }: { slide: Extract<DeckSlide, { kind: 'soap' }>; meta: SlideMeta; update: Update }): JSX.Element {
   const id = useId();
@@ -176,7 +176,7 @@ export function ImageEditor({
           </li>
         ))}
       </ul>
-      <p className="text-xs text-fg-faint">Seret foto di pratinjau untuk memindah, tarik titik di sudutnya untuk mengubah ukuran. Foto boleh keluar dari slide.</p>
+      <p className="text-xs text-fg-faint">Seret foto di pratinjau untuk memindah, tarik titik di sudutnya untuk mengubah ukuran. Foto menempel otomatis ke tepi dan tengah (tahan Alt untuk mematikan) dan boleh keluar dari slide.</p>
       <Button size="sm" variant="danger" onClick={remove}>
         Hapus slide ini
       </Button>
@@ -240,7 +240,7 @@ export function TextEditor({
         size="sm"
       />
       <div className="flex flex-wrap items-center gap-2">
-        <p className="min-w-0 flex-1 text-xs text-fg-faint">Seret kotak teks di pratinjau untuk memindah, tarik titik di sudutnya untuk mengubah ukuran kotak.</p>
+        <p className="min-w-0 flex-1 text-xs text-fg-faint">Seret kotak teks di pratinjau untuk memindah, tarik titik di sudutnya untuk mengubah ukuran kotak. Menempel otomatis; tahan Alt untuk mematikan.</p>
         <Button size="sm" variant="quiet" disabled={!saved.rect} onClick={() => patch({ rect: undefined })}>
           Reset posisi
         </Button>

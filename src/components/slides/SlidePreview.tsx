@@ -2,6 +2,7 @@ import { createContext, useContext, useRef, useState, type CSSProperties, type K
 import { inlineRuns } from '@/domain/format/soapDocx';
 import type { DeckPhoto, DeckSlide } from '@/domain/slides/deck';
 import { nudge, rectAfterBoxResize, rectAfterDrag, rectAfterResize } from '@/domain/slides/editMath';
+import { snapMove, snapResize, type Guides } from '@/domain/slides/snap';
 import { PALETTE_B, SLIDE_H, SLIDE_W, geometryFor, slideHeight, type Rect } from '@/domain/slides/geometry';
 import { isSectionLabel, photoRect } from '@/domain/slides/pptx';
 
@@ -92,6 +93,9 @@ function NoteText({ text, size, align = 'l' }: { text: string; size: number; ali
   );
 }
 
+/** How close, in screen pixels, an edge must be to a line to snap to it. Alt turns snapping off. */
+const SNAP_PX = 6;
+
 interface DraggableProps {
   rect: Rect;
   editable: boolean;
@@ -99,13 +103,17 @@ interface DraggableProps {
   /** `aspect`: a picture, resized with its proportions kept. `free`: a text box, width and height independently. */
   resize: 'aspect' | 'free';
   onMove?: ((rect: Rect) => void) | undefined;
+  /** Rectangles (other objects, the title) whose edges and centres this one snaps to. */
+  snapTargets?: readonly Rect[];
+  onGuides?: (guides: Guides | null) => void;
   style?: CSSProperties;
   children: ReactNode;
 }
 
 /** Drag to move, bottom-right handle to resize, arrow keys to nudge. May leave the slide; the title stays on top. */
-function Draggable({ rect: placed, editable, label, resize, onMove, style, children }: DraggableProps): JSX.Element {
+function Draggable({ rect: placed, editable, label, resize, onMove, snapTargets = [], onGuides, style, children }: DraggableProps): JSX.Element {
   const box = useBox();
+  const slideH = useContext(SlideH);
   const [live, setLive] = useState<Rect | null>(null);
   const start = useRef<{ x: number; y: number; rect: Rect; mode: 'move' | 'resize'; scale: number } | null>(null);
   const rect = live ?? placed;
@@ -124,10 +132,22 @@ function Draggable({ rect: placed, editable, label, resize, onMove, style, child
     if (!s) return;
     const dx = (event.clientX - s.x) * s.scale;
     const dy = (event.clientY - s.y) * s.scale;
-    if (s.mode === 'move') setLive(rectAfterDrag(s.rect, dx, dy));
-    else setLive(resize === 'free' ? rectAfterBoxResize(s.rect, dx, dy) : rectAfterResize(s.rect, dx));
+    const raw =
+      s.mode === 'move' ? rectAfterDrag(s.rect, dx, dy) : resize === 'free' ? rectAfterBoxResize(s.rect, dx, dy) : rectAfterResize(s.rect, dx);
+    if (event.altKey) {
+      setLive(raw);
+      onGuides?.(null);
+      return;
+    }
+    const snapped =
+      s.mode === 'move'
+        ? snapMove(raw, snapTargets, slideH, SNAP_PX * s.scale)
+        : snapResize(raw, snapTargets, slideH, SNAP_PX * s.scale, resize === 'aspect');
+    setLive(snapped.rect);
+    onGuides?.(snapped.guides);
   };
   const end = (): void => {
+    onGuides?.(null);
     if (start.current && live) onMove?.(live);
     start.current = null;
     setLive(null);
@@ -172,16 +192,18 @@ function Draggable({ rect: placed, editable, label, resize, onMove, style, child
   );
 }
 
-function Photo({ photo, frame, url, editable, label, onMove }: {
+function Photo({ photo, frame, url, editable, label, onMove, snapTargets, onGuides }: {
   photo: DeckPhoto;
   frame: Rect;
   url: string | undefined;
   editable: boolean;
   label: string;
   onMove?: (rect: Rect) => void;
+  snapTargets: readonly Rect[];
+  onGuides: (guides: Guides | null) => void;
 }): JSX.Element {
   return (
-    <Draggable rect={photoRect(photo, frame)} editable={editable} label={label} resize="aspect" onMove={onMove} style={{ boxShadow: '0 0.3cqw 0.8cqw rgba(0,0,0,0.18)' }}>
+    <Draggable rect={photoRect(photo, frame)} editable={editable} label={label} resize="aspect" onMove={onMove} snapTargets={snapTargets} onGuides={onGuides} style={{ boxShadow: '0 0.3cqw 0.8cqw rgba(0,0,0,0.18)' }}>
       {url ? (
         <img src={url} alt="" draggable={false} className="pointer-events-none h-full w-full select-none object-fill" />
       ) : (
@@ -234,6 +256,7 @@ export function SlidePreview({
   tall?: boolean;
 }): JSX.Element {
   const GEOMETRY = geometryFor(tall);
+  const [guides, setGuides] = useState<Guides | null>(null);
   const slideH = slideHeight(tall);
   const box = (r: Rect): CSSProperties => boxIn(r, slideH);
   let content: ReactNode;
@@ -289,6 +312,8 @@ export function SlidePreview({
               key={photo.imageId}
               photo={photo}
               frame={frames[Math.min(index, frames.length - 1)]!}
+              snapTargets={[GEOMETRY.pageTitle, ...frames, ...slide.photos.flatMap((other, j) => (j === index ? [] : [photoRect(other, frames[Math.min(j, frames.length - 1)]!)]))]}
+              onGuides={setGuides}
               url={urls.get(photo.imageId)}
               editable={editable}
               label={`Foto ${index + 1}`}
@@ -308,7 +333,7 @@ export function SlidePreview({
     case 'text':
       content = (
         <>
-          <Draggable rect={slide.rect} editable={editable} label="Kotak teks" resize="free" onMove={onMoveText} style={cellStyle(PALETTE_B.body)}>
+          <Draggable rect={slide.rect} editable={editable} label="Kotak teks" resize="free" onMove={onMoveText} snapTargets={[GEOMETRY.pageTitle, GEOMETRY.textOnly]} onGuides={setGuides} style={cellStyle(PALETTE_B.body)}>
             <NoteText text={slide.body} size={slide.fontPt} align={slide.align} />
           </Draggable>
           <BoxedTitle rect={GEOMETRY.pageTitle} lines={[slide.title]} size={24} />
@@ -365,6 +390,12 @@ export function SlidePreview({
       className={`relative ${tall ? 'aspect-[4/3]' : 'aspect-video'} w-full select-none overflow-hidden rounded-md shadow-card ring-1 ring-black/10 [container-type:size] ${className}`}
     >
       <SlideH.Provider value={slideH}>{content}</SlideH.Provider>
+      {guides?.x.map((x) => (
+        <div key={`gx${x}`} aria-hidden="true" className="pointer-events-none absolute inset-y-0 z-[4]" style={{ left: `${(x / SLIDE_W) * 100}%`, borderLeft: `1px dashed ${hex(PALETTE_B.accent)}` }} />
+      ))}
+      {guides?.y.map((y) => (
+        <div key={`gy${y}`} aria-hidden="true" className="pointer-events-none absolute inset-x-0 z-[4]" style={{ top: `${(y / slideH) * 100}%`, borderTop: `1px dashed ${hex(PALETTE_B.accent)}` }} />
+      ))}
     </div>
   );
 }

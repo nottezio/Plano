@@ -1,5 +1,15 @@
 # Plano — CHANGES
 
+## `2026-11-13.6` — Slide MZ: snapping, editor layout rework
+
+Avi: auto-snap for moving images and the text box like PowerPoint; the editor UI is wonky (dead space, loose padding), rework it.
+
+- **Snap (`domain/slides/snap.ts`, pure):** `snapMove` snaps a box's left / centre / right and top / middle / bottom to the slide's edges and centre and to the same lines of the title, the layout frames and the other photos (text box: the title and the default text area); `snapResize` snaps the right and bottom edges (free for a text box; for a picture the closer edge decides the width and the height follows the proportions). Distance is 6 screen pixels, converted to EMU with the slide's rendered width; Alt turns it off. `Draggable` reports the matched lines and `SlidePreview` draws them as dashed accent lines, cleared on release. Keyboard nudges are not snapped.
+- **Layout:** header compacted to one row (back link, title, tall checkbox, grouped quiet add buttons, Perbarui, primary Unduh); the "Slide tinggi" row was removed (its hint lives in the checkbox title and a red "n terlalu panjang" count). Workspace is `list | preview | inspector` at xl (list | preview + inspector stacked at md) in a fixed `100dvh - 5.5rem` height, each pane scrolling itself, so the page never scrolls; the inspector is `self-start` (only as tall as its content) with `xl:!mt-0` against the `space-y` margin that offset it by 12 px. Container widened to `max-w-[110rem]`; paddings and textarea heights reduced (`h-44`).
+- **Checked (emulator, 1600×900):** page scroll 0, list scrolls, inspector 567 px for a text slide and not scrolling; a text box dragged 3 px off the slide centre locked to it and showed one guide, guides gone on release (scripted pointer events, not a real mouse).
+- **Firestore cost:** none.
+- **Not done:** layout not checked at md or phone widths after the change, nor in light or Senja theme; snapping to other objects checked in unit tests only; guide lines not styled per theme; not opened in PowerPoint.
+
 ## `2026-11-13.5` — Slide MZ: scrolling slide list, draggable text box
 
 Avi: make the slide list on the left scroll independently (with design care for spacing); make the free-text slide's text a freely draggable text box.

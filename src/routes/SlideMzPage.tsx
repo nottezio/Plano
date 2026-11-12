@@ -4,7 +4,7 @@ import { nanoid } from 'nanoid';
 import { AppShell } from '@/components/common/AppShell';
 import { ConfirmDialog } from '@/components/common/ConfirmDialog';
 import { IconBack, IconEye, IconPlus, IconRefresh, IconShare } from '@/components/common/Icons';
-import { Button, Callout, CheckRow } from '@/components/common/ui';
+import { Button, Callout } from '@/components/common/ui';
 import { CpptEditor, ImageEditor, LabEditor, OldVersionToggle, SoapEditor, TextEditor } from '@/components/slides/SlideEditors';
 import { SlidePreview } from '@/components/slides/SlidePreview';
 import { AddImageSheet, ImportReviewSheet, StartChooser, usePptxPicker } from '@/components/slides/SlideSheets';
@@ -97,26 +97,38 @@ export default function SlideMzPage(): JSX.Element {
 
   return (
     <AppShell title="Slide MZ">
-      <div className="mx-auto w-full max-w-6xl space-y-4 px-4 pb-24 pt-3">
-        <div className="flex flex-wrap items-center gap-2">
+      <div className="mx-auto w-full max-w-[110rem] space-y-2 px-3 pb-4 pt-2 md:px-4">
+        <div className="flex flex-wrap items-center gap-x-1.5 gap-y-1">
           <Link
             to={`/p/${patientId}`}
-            className="inline-flex min-h-tap items-center gap-1 rounded-lg px-2 text-sm text-fg-muted hover:bg-bg-subtle hover:text-fg"
+            className="inline-flex min-h-tap items-center gap-1 rounded-lg px-1.5 text-sm text-fg-muted hover:bg-bg-subtle hover:text-fg [@media(pointer:fine)]:min-h-9"
           >
             <IconBack className="h-4 w-4" aria-hidden="true" />
             {patient?.name ?? 'Pasien'}
           </Link>
-          <h1 className="mr-auto text-lg font-semibold text-fg">Slide MZ</h1>
+          <h1 className="mr-auto text-base font-semibold text-fg">Slide MZ</h1>
           {deck.status === 'ready' ? (
             <>
-              <Button size="sm" icon={<IconRefresh className="h-4 w-4" aria-hidden="true" />} disabled={deck.busy} onClick={() => void deck.refreshFromSoap()}>
-                Perbarui dari SOAP
-              </Button>
-              <Button size="sm" icon={<IconPlus className="h-4 w-4" aria-hidden="true" />} onClick={() => setAddOpen(true)}>
+              <label
+                className="inline-flex min-h-tap cursor-pointer items-center gap-1.5 rounded-lg px-2 text-xs text-fg-muted hover:bg-bg-subtle [@media(pointer:fine)]:min-h-9"
+                title="Semua slide di deck lebih tinggi (4:3) supaya SOAP panjang muat. Bukan 16:9 lagi."
+              >
+                <input
+                  type="checkbox"
+                  checked={tall}
+                  onChange={(e) => update((current) => ({ ...current, tall: e.target.checked }))}
+                  className="h-4 w-4 accent-accent"
+                />
+                Slide tinggi (4:3)
+                {overflowCount > 0 && !tall ? <span className="font-semibold text-danger">· {overflowCount} terlalu panjang</span> : null}
+              </label>
+              <span aria-hidden="true" className="mx-0.5 hidden h-5 w-px bg-border sm:block" />
+              <Button size="sm" variant="quiet" icon={<IconPlus className="h-4 w-4" aria-hidden="true" />} onClick={() => setAddOpen(true)}>
                 Gambar
               </Button>
               <Button
                 size="sm"
+                variant="quiet"
                 icon={<IconPlus className="h-4 w-4" aria-hidden="true" />}
                 onClick={() => {
                   const id = `txt-${nanoid(8)}`;
@@ -124,10 +136,11 @@ export default function SlideMzPage(): JSX.Element {
                   setSelected(id);
                 }}
               >
-                Slide teks
+                Teks
               </Button>
               <Button
                 size="sm"
+                variant="quiet"
                 icon={<IconPlus className="h-4 w-4" aria-hidden="true" />}
                 onClick={() => {
                   const id = `cppt-${nanoid(8)}`;
@@ -138,10 +151,14 @@ export default function SlideMzPage(): JSX.Element {
                   setSelected(id);
                 }}
               >
-                Slide CPPT
+                CPPT
               </Button>
-              <Button size="sm" onClick={picker.pick}>
+              <Button size="sm" variant="quiet" onClick={picker.pick}>
                 Impor .pptx
+              </Button>
+              <span aria-hidden="true" className="mx-0.5 hidden h-5 w-px bg-border sm:block" />
+              <Button size="sm" icon={<IconRefresh className="h-4 w-4" aria-hidden="true" />} disabled={deck.busy} onClick={() => void deck.refreshFromSoap()}>
+                Perbarui dari SOAP
               </Button>
               <Button
                 size="sm"
@@ -165,30 +182,15 @@ export default function SlideMzPage(): JSX.Element {
         ) : null}
         {picker.error && deck.status !== 'start' ? <Callout tone="danger" role="alert" title={picker.error} /> : null}
 
-        {deck.status === 'ready' && state ? (
-          <CheckRow
-            checked={tall}
-            onChange={(on) => update((current) => ({ ...current, tall: on }))}
-            title="Slide tinggi (4:3)"
-            detail={
-              tall
-                ? 'Semua slide di deck ini lebih tinggi, supaya SOAP panjang muat. Bukan 16:9 lagi.'
-                : overflowCount
-                  ? `${overflowCount} slide terlalu panjang. Slide tinggi memberi ruang lebih (berlaku untuk semua slide).`
-                  : 'Opsional: semua slide lebih tinggi untuk SOAP panjang.'
-            }
-          />
-        ) : null}
-
         {deck.status === 'loading' || patientLoading ? <p className="text-sm text-fg-muted">Memuat…</p> : null}
         {deck.status === 'error' ? <Callout tone="danger" role="alert" title="Catatan pasien tidak bisa dimuat." /> : null}
         {deck.status === 'start' ? <StartChooser onNew={deck.startNew} onImportClick={picker.pick} error={picker.error} /> : null}
 
         {deck.status === 'ready' && composed && state && current ? (
-          <div className="grid gap-4 md:min-h-[calc(100dvh-8rem)] md:grid-cols-[15rem_minmax(0,1fr)]">
+          <div className="grid gap-3 md:h-[calc(100dvh-5.5rem)] md:grid-cols-[12.5rem_minmax(0,1fr)] xl:grid-cols-[12.5rem_minmax(0,1fr)_21rem]">
             <ol
               aria-label="Daftar slide"
-              className="flex gap-2 overflow-x-auto pb-1 [scrollbar-width:thin] md:sticky md:top-2 md:block md:max-h-[calc(100dvh-8rem)] md:space-y-2 md:self-start md:overflow-y-auto md:overflow-x-hidden md:overscroll-contain md:pb-2 md:pr-1 md:[scrollbar-gutter:stable]"
+              className="flex gap-2 overflow-x-auto pb-1 [scrollbar-width:thin] md:row-span-2 md:block md:h-full md:space-y-1.5 md:overflow-y-auto md:overflow-x-hidden md:overscroll-contain md:pb-1 md:pr-1 md:[scrollbar-gutter:stable] xl:row-span-1"
             >
               {meta.map((m, index) => {
                 const slide = composed.deck.slides.find((s) => s.id === m.id);
@@ -233,7 +235,8 @@ export default function SlideMzPage(): JSX.Element {
               })}
             </ol>
 
-            <section aria-label="Slide terpilih" className="min-w-0 space-y-4">
+            <div className="min-w-0 space-y-3 md:col-start-2 md:h-full md:overflow-y-auto md:overscroll-contain [scrollbar-width:thin] xl:contents">
+              <section aria-label="Slide terpilih" className="min-w-0 space-y-3 xl:h-full xl:overflow-y-auto xl:overscroll-contain [scrollbar-width:thin]">
               {currentSlide ? (
                 <SlidePreview
                   slide={currentSlide}
@@ -261,7 +264,11 @@ export default function SlideMzPage(): JSX.Element {
                 />
               )}
 
-              <div className="space-y-3 rounded-2xl border border-border bg-surface p-4">
+              </section>
+              <aside
+                aria-label="Pengaturan slide"
+                className="space-y-3 rounded-xl border border-border bg-surface p-3 [scrollbar-width:thin] xl:col-start-3 xl:row-start-1 xl:!mt-0 xl:max-h-full xl:self-start xl:overflow-y-auto xl:overscroll-contain"
+              >
                 {current.kind === 'soap' && current.cpptId ? <CpptEditor cpptId={current.cpptId} meta={current} state={state} update={update} /> : null}
                 {current.kind === 'soap' && !current.cpptId ? <OldVersionToggle meta={current} state={state} update={update} /> : null}
                 {current.kind === 'soap' && !current.cpptId && currentSlide?.kind === 'soap' ? (
@@ -278,8 +285,8 @@ export default function SlideMzPage(): JSX.Element {
                   <p className="text-sm text-fg-muted">Judul diambil dari data pasien (nama, umur, RM, ruangan). Ubah di halaman pasien.</p>
                 ) : null}
                 {current.kind === 'closing' ? <p className="text-sm text-fg-muted">Slide penutup.</p> : null}
-              </div>
-            </section>
+              </aside>
+            </div>
           </div>
         ) : null}
       </div>
