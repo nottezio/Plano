@@ -16,6 +16,7 @@ import {
   setMemberRole,
   writeNickname,
   writeNewBadge,
+  writeTrioFullSoap,
 } from '@/data/repositories/floors.repo';
 import { canEdit, chiefsOf, isOwner, type FloorDoc, type FloorRole } from '@/domain/floorList/floor';
 import { collapseNicknames, confirmQuestion, memberRole, saveErrorMessage, transferQuestion } from '@/domain/floorList/membersView';
@@ -330,6 +331,20 @@ export function MembersPanel({
               hint="Muncul sendiri pada pasien yang belum ada di list shift sebelumnya (pasien baru atau pindahan), seperti SOAP baru. Hanya di layar, tidak ikut dicetak."
             >
               <NewBadgeField floor={floor} editable={editor} onSave={(badge) => run(() => writeNewBadge(floor.id, badge))} />
+            </Section>
+            <Section
+              title="SOAP lengkap pasien Trio"
+              hint="Pasien AFM, AFG dan ZD ditulis dengan SOAP lengkapnya di list WhatsApp, bukan hanya assess, terapi dan plan. List jadi jauh lebih panjang. Berlaku untuk semua anggota list ini."
+            >
+              <label className="flex min-h-8 items-center gap-2 text-sm">
+                <input
+                  type="checkbox"
+                  checked={floor.trioFullSoap}
+                  disabled={!editor}
+                  onChange={(e) => run(() => writeTrioFullSoap(floor.id, e.target.checked))}
+                />
+                Tulis SOAP lengkap pasien Trio di list
+              </label>
             </Section>
           </Group>
 

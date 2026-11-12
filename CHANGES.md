@@ -1,5 +1,16 @@
 # Plano — CHANGES
 
+## `2026-11-12.11` — Trio patients: full SOAP in the list message (Setelan)
+
+Avi: "Add an option in setelan, for trio patients, to include the full soap in the list Whatsapp".
+
+- **What:** `FloorDoc.trioFullSoap` (boolean, default off, stored on `floors/{id}`; absent reads as false). `buildFloorList` takes `trioFullSoap`; for a patient whose DPJP is in `TRIO_DPJP_IDS` (AFM, AFG, ZD) it prints `patient.full` (the whole message) instead of `patient.body` (the A/P), through the same `unbold`, so only the patient's own line is bold. KJS references are unchanged. `ListPanel` and `ListActions` pass the flag, so the copied text, the coloured view and Word-from-text all follow it.
+- **Setelan:** a checkbox under Tampilan list (`MembersPanel`), written by `writeTrioFullSoap` (one leaf write, same as `writeNewBadge`). Editors only; viewers see it disabled. The setting is per list, so every member copies the same text.
+- **Rules:** `trioFullSoap` added to the editor `hasOnly` allowlist in `firestore.rules`. Until `firestore-deploy.yml` has deployed it, the toggle's write is refused (permission denied); nothing else is affected.
+- **Side fix:** `splitFloorList` counted any numbered line as a patient (`1. Mitral…` inside a SOAP, numbered plans). It now counts the bold "*N. …*" lines, and the unbolded ones after "KJS". Needed because a full SOAP is full of numbered lines.
+- **Firestore cost:** reads: none added (the field rides on the list document already listened to; a toggle re-delivers that one document to each open listener, about 1 read per member per toggle). Writes: 1 per toggle.
+- **Not done:** the edition snapshot, Word list and print use the stored list text, so they carry the full SOAP only for lists sent after the option was on. The message includes the SOAP's own greeting and closing lines as written. No length limit or warning; a long list may exceed what WhatsApp accepts in one paste. Not checked in the browser or on a ward device.
+
 ## `2026-11-12.10` — Lantai 6 reports in the Lantai 5 list; "Lantai 5 dan 6"
 
 Avi pasted a Lantai 6 SOAP ("PJT lantai 6 kamar 604"): the Lantai 5 list did not register it.

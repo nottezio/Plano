@@ -52,7 +52,7 @@ export function ListActions({
   /** Leads the phone's ⋯ menu (Shift sebelumnya on the Denah). */
   menuStart?: ReactNode;
 }): JSX.Element {
-  const text = useMemo(() => buildFloorList(view.active, { ward: floor.ward, date, time }), [view.active, floor.ward, date, time]);
+  const text = useMemo(() => buildFloorList(view.active, { ward: floor.ward, date, time, trioFullSoap: floor.trioFullSoap }), [view.active, floor.ward, date, time, floor.trioFullSoap]);
   const [copied, setCopied] = useState(false);
   const [open, setOpen] = useState<'print' | 'save' | 'more' | null>(null);
   const [saved, setSaved] = useState('');

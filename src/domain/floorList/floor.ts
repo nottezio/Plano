@@ -69,6 +69,8 @@ export interface FloorDoc {
   marks: FloorMark[];
   /** The names the editors gave Analisis sections (26 Oct 2026, `analysis.ts`); {} = the defaults. */
   analysisTitles: SectionTitles;
+  /** Trio patients (AFM, AFG, ZD) print their whole SOAP in the list message, not only the A/P (Setelan). */
+  trioFullSoap: boolean;
 }
 
 /** On the floor, or gone (and how). */

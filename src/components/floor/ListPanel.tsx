@@ -78,7 +78,7 @@ export function ListPanel({
   const [editing, setEditing] = useState<FloorPatient | null>(null);
   const chiefs = chiefsOf(floor.chiefs);
   const byKey = useMemo(() => new Map(roster.map((p) => [p.key, p])), [roster]);
-  const text = useMemo(() => buildFloorList(view.active, { ward: floor.ward, date, time }), [view.active, floor.ward, date, time]);
+  const text = useMemo(() => buildFloorList(view.active, { ward: floor.ward, date, time, trioFullSoap: floor.trioFullSoap }), [view.active, floor.ward, date, time, floor.trioFullSoap]);
   const all = [...view.active].sort(byRoute(floor.ward));
   const sorted = words.length > 0 ? all.filter((p) => matchesSearch(p, words)) : all;
   const lastEdition = editions[0];

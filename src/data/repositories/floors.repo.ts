@@ -94,6 +94,7 @@ export function readFloor(id: string, data: DocumentData): FloorDoc {
     newBadge: readNewBadge(data.newBadge),
     marks: readMarks(data.marks),
     analysisTitles: readSectionTitles(data.analysisTitles),
+    trioFullSoap: data.trioFullSoap === true,
   };
 }
 
@@ -585,6 +586,11 @@ export function writeGuestJuniors(floorId: string, names: string): Promise<void>
 /** The Pasien baru badge (10 Nov 2026): text, colour, on/off. */
 export function writeNewBadge(floorId: string, badge: NewBadge): Promise<void> {
   return trackWrite(updateDoc(floorDoc(floorId), 'newBadge', plain(badge), 'updatedAt', serverTimestamp()));
+}
+
+/** Trio patients print their whole SOAP in the list message (a boolean on the list document). */
+export function writeTrioFullSoap(floorId: string, on: boolean): Promise<void> {
+  return trackWrite(updateDoc(floorDoc(floorId), 'trioFullSoap', on, 'updatedAt', serverTimestamp()));
 }
 
 /** The floor's own colours (13.7): the whole list, small and edited in one place. */

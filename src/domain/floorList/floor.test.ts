@@ -57,6 +57,7 @@ const FLOOR: FloorDoc = {
   newBadge: null,
   marks: [],
   analysisTitles: {},
+  trioFullSoap: false,
 };
 
 function patient(over: Partial<FloorPatient>): FloorPatient {

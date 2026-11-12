@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest';
 import { splitChat } from './chat';
 import { buildFloorList, countLabel, patientLine, splitFloorList, unbold } from './build';
 import { effective, newRosterPatient, pasteDiff } from './floor';
-import { dischargeFlag, usulH1, latestOf, latestPatients, listBody, manualPatient, nicknameOf, onFloorNumber, otherDepartmentUtama, readReport, readReports } from './report';
+import { dischargeFlag, usulH1, latestOf, latestPatients, listBody, manualPatient, nicknameOf, onFloorNumber, otherDepartmentUtama, readReport, readReports, type FloorPatient } from './report';
 
 /*
   The floor's WhatsApp group, re-typed with invented patients and residents
@@ -848,5 +848,37 @@ describe('A Lantai 6 follow-up in the Lantai 5 list', () => {
   it('is on the floors a Lantai 5 list accepts, and not on Lantai 4', () => {
     expect(['5', '6'].some((n) => onFloorNumber(lt6, n))).toBe(true);
     expect(['4'].some((n) => onFloorNumber(lt6, n))).toBe(false);
+  });
+});
+
+describe('Trio patients with the full SOAP in the list (Setelan)', () => {
+  const patient = (over: Partial<FloorPatient>): FloorPatient =>
+    ({
+      key: 'rm:1', rm: '1', name: 'Tn. Contoh', identity: 'Tn. Contoh / RM 1', room: '417', bed: '1', floor: '4',
+      dpjpId: 'zd', kjsDpjpIds: [], btkv: false, body: 'Diagnosis:\n- CHF', full: 'Mohon izin melaporkan.\n\n*S :*\n- sesak\n\nEcho:\n1. Mitral: mild MR\n2. Aorta: normal\n\nDiagnosis:\n- CHF',
+      chief: '', junior: '', senderNick: '', sender: '', sentAt: '2026-11-12T07:00', index: 0, discharge: null, ...over,
+    }) as FloorPatient;
+  const trio = patient({});
+  const other = patient({ key: 'rm:2', rm: '2', identity: 'Ny. Contoh Dua / RM 2', room: '418', dpjpId: 'ks' });
+  const options = { ward: 'PJT Lantai 4', date: '2026-11-12', time: '04.00' };
+
+  it('prints only the A/P when the option is off', () => {
+    const text = buildFloorList([trio, other], options);
+    expect(text).toContain('Diagnosis:\n- CHF');
+    expect(text).not.toContain('- sesak');
+  });
+
+  it('prints the whole SOAP of trio patients (AFM, AFG, ZD) only, with no bold markers inside it', () => {
+    const text = buildFloorList([trio, other], { ...options, trioFullSoap: true });
+    expect(text).toContain('Mohon izin melaporkan.\n\nS :\n- sesak');
+    expect(text.match(/- sesak/g)).toHaveLength(1);
+    expect(text).not.toContain('*S :*');
+  });
+
+  it('still counts two patients, not the numbered lines inside a SOAP', () => {
+    const text = buildFloorList([trio, other], { ...options, trioFullSoap: true });
+    const parts = splitFloorList(text).parts;
+    expect(parts.find((part) => part.heading.includes('ZD'))?.count).toBe(1);
+    expect(parts.reduce((sum, part) => sum + part.count, 0)).toBe(2);
   });
 });

@@ -5,6 +5,10 @@ Catatan teknis lengkap (akar masalah, perbaikan) ada di CHANGES.md.
 
 Entri teratas harus versi yang sedang dirilis; tes gagal bila belum ditulis.
 
+## `2026-11-12.11`
+- **SOAP lengkap pasien Trio di list WhatsApp.** Setelan → Tampilan list kini punya pilihan "SOAP lengkap pasien Trio". Bila aktif, pasien AFM, AFG dan ZD ditulis dengan SOAP lengkapnya di teks list (Salin teks), bukan hanya assess, terapi dan plan. Mati secara bawaan, dan berlaku untuk semua anggota list.
+- Hitungan pasien per DPJP di tampilan list tidak lagi ikut menghitung baris bernomor di dalam SOAP.
+
 ## `2026-11-12.10`
 - **Laporan pasien Lantai 6 kini masuk ke list Lantai 5.** Tempel SOAP "PJT lantai 6 kamar 604" dan pasien dibaca, lalu muncul di kotak "LANTAI 6" pada denah. Sebelumnya laporan itu dianggap lantai lain dan tidak disimpan.
 - **Denah Lantai 5 kini bernama "PJT Lantai 5 dan 6"** di pilihan Denah, judul denah, Word dan cetak.

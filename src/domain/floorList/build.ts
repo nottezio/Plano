@@ -1,5 +1,5 @@
 import { formatLongDate } from '@/domain/clinicalDate';
-import { dpjpById } from '@/domain/dpjp';
+import { dpjpById, isTrioDpjp } from '@/domain/dpjp';
 import { visitIndex } from '@/domain/denahPlan';
 import { BOLD_RE, SINGLE_BOLD_RE } from '@/domain/format/formatters';
 import { otherDepartmentUtama, type FloorPatient } from './report';
@@ -107,6 +107,8 @@ export interface ListOptions {
   date: string;
   /** "04.00". */
   time: string;
+  /** Trio patients (AFM, AFG, ZD) print their whole SOAP, not only the A/P (Setelan). */
+  trioFullSoap?: boolean;
 }
 
 export function dpjpOrder(patients: readonly FloorPatient[]): string[] {
@@ -170,7 +172,8 @@ export function buildFloorList(patients: readonly FloorPatient[], options: ListO
       if (k > 0) out.push('');
       out.push(`*${k + 1}. ${patientLine(patient)}*`);
       // Only the patient's line is bold (9 Nov 2026, Avi): the A/P's own `*Plan:*` is not.
-      if (patient.body) out.push(unbold(patient.body));
+      const text = options.trioFullSoap && isTrioDpjp(patient.dpjpId) && patient.full ? patient.full : patient.body;
+      if (text) out.push(unbold(text));
     });
     const kjs = sorted.filter((patient) => patient.kjsDpjpIds.includes(id));
     if (kjs.length > 0) {
@@ -201,7 +204,14 @@ export function splitFloorList(text: string): { intro: string; parts: ListPart[]
   const parts = chunks.map((chunk) => {
     const [first = '', ...rest] = chunk.split('\n');
     const body = rest.join('\n').trim();
-    const count = body.split('\n').filter((line) => /^\*?\d+\.\s/.test(line)).length;
+    // Own patients are the bold "*N. …*" lines; the KJS ones follow a "KJS" line, unbolded. A numbered
+    // line inside a SOAP (full SOAP of a trio patient, a numbered plan) is not a patient.
+    let inKjs = false;
+    let count = 0;
+    for (const line of body.split('\n')) {
+      if (line === 'KJS') inKjs = true;
+      else if (inKjs ? /^\d+\.\s/.test(line) : /^\*\d+\.\s/.test(line)) count += 1;
+    }
     return { heading: first.replace(/^\*|\*$/g, ''), body, count };
   });
   return { intro: intro.trimEnd(), parts };
