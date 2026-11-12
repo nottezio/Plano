@@ -1,5 +1,14 @@
 # Plano — CHANGES
 
+## `2026-11-12.4` — List tab: patient name no longer cut
+
+Avi (screenshot, ~1900 px with the Catatan pulang side panel open): names read "T..", "Ny. ...".
+
+- **Root cause:** in `PatientRowText` (`ListPanel.tsx`) the name sat between the Pulang chip and the SOAP badge in one non-wrapping flex row. Both chips are `shrink-0`, and the name was the only `truncate` item, so with the side panel open (the Pasien column about 250 px) the chips took the width and the name collapsed to an ellipsis. "SOAP baru 10:45" also spilled into the Umur column.
+- **Fix:** the name comes first, wraps instead of truncating, and the cell is `flex-wrap`, so the chips drop under the name when there is no room. Pasien column 1.5fr → 2.2fr.
+- **Firestore cost:** none. Render only.
+- **Not done:** not checked on a ward device. Rows with chips are taller when the column is narrow, by design.
+
 ## `2026-11-12.3` — Denah room boxes list every bed again; Tempel float back on the List tab
 
 Avi: the room box must show every bed as before, an empty one as a numbered dash, and single-bed rooms numbered too, on phone and desk.

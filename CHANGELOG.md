@@ -5,6 +5,9 @@ Catatan teknis lengkap (akar masalah, perbaikan) ada di CHANGES.md.
 
 Entri teratas harus versi yang sedang dirilis; tes gagal bila belum ditulis.
 
+## `2026-11-12.4`
+- **Nama pasien di tab List terbaca utuh lagi.** Nama kini ditulis pertama dan tidak dipotong. Chip Pulang dan SOAP pindah ke bawah nama bila tempatnya tidak cukup, dan kolom Pasien lebih lebar.
+
 ## `2026-11-12.3`
 - **Kotak kamar di Denah kembali menulis setiap bed**, di ponsel dan layar lebar. Bed kosong ditulis "2. -" di tempatnya, dan kamar satu bed juga bernomor "1.". Hitungan "n kosong" dihapus, jadi letak bed kosong terlihat lagi seperti di lembar bangsal.
 - **Tombol Tempel kembali di tab List.** Kotak Tempel mengambang di atas list, jadi list tetap terbaca dan langsung berubah saat tempel disimpan. Baru: kursor langsung di kotak pesan, penjelasannya satu baris, **Esc** menutup kotak, dan **Kecilkan** melipat kotak jadi satu baris tanpa menghapus pesan yang sudah ditempel.

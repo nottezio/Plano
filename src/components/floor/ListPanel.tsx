@@ -32,7 +32,7 @@ import { DischargeChip, FLAG_TEXT } from './DischargeChip';
  * The list's columns from 1024 px (12 Nov 2026): one table row per patient, so the
  * full width is used. Below 1024 px the same cells read as two lines.
  */
-const COLUMNS = 'lg:grid-cols-[4.5rem_minmax(0,1.5fr)_3.5rem_6.5rem_3.5rem_minmax(0,1fr)_minmax(0,1fr)]';
+const COLUMNS = 'lg:grid-cols-[4.5rem_minmax(0,2.2fr)_3.5rem_6.5rem_3.5rem_minmax(0,1fr)_minmax(0,1fr)]';
 
 /**
  * List (12.12): the roster on this list date, with every decision by hand —
@@ -314,12 +314,16 @@ function PatientRowText({ patient }: { patient: FloorPatient }): JSX.Element {
         {patient.bed ? `/${patient.bed}` : ''}
       </span>
       <span className="flex min-w-0 items-center gap-1 lg:contents">
-        <span className="flex min-w-0 items-center gap-1.5">
-          {/* A word, not a stripe down the row's edge: the colour is also on the name. */}
-          <DischargeChip patient={patient} />
-          <span className="truncate font-semibold" style={colour ? { color: colour } : undefined}>
+        {/*
+          The name first and never cut (12 Nov 2026, build 12.4, Avi): the chips could not
+          shrink, so a narrow column cut the name to "T..". Now the cell wraps and the
+          chips drop under the name when there is no room beside it.
+        */}
+        <span className="flex min-w-0 flex-wrap items-center gap-x-1.5 gap-y-0.5 lg:py-1.5">
+          <span className="min-w-0 break-words font-semibold" style={colour ? { color: colour } : undefined}>
             {patient.name || patient.identity}
           </span>
+          <DischargeChip patient={patient} />
           <span className="flex shrink-0 items-center">
             <SoapBadge patient={patient} />
           </span>
