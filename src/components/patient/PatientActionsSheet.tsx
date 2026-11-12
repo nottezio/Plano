@@ -1,6 +1,7 @@
 import { useEffect, useState, type ReactNode } from 'react';
 import { DateField } from '@/components/common/DateField';
 import { useNavigate } from 'react-router-dom';
+import { SlideCleanupNotice, deleteSlidesAfterArchive } from '@/components/slides/SlideCleanupNotice';
 
 import { Sheet } from '@/components/common/Sheet';
 import {
@@ -387,6 +388,7 @@ export function PatientActionsSheet({
 
         {!archived ? (
           <Section title="Arsipkan" hint="Hilang dari papan, tetap tersimpan lengkap dan tetap bisa disalin.">
+            <SlideCleanupNotice patientIds={[patient.id]} archived={false} />
             <ChipRow>
               {(Object.keys(ARCHIVE_REASON_LABELS) as ArchiveReason[]).map((value) => (
                 <ChoiceChip key={value} active={reason === value} onClick={() => setReason(value)}>
@@ -408,7 +410,7 @@ export function PatientActionsSheet({
               disabled={!reason}
               onClick={() => {
                 if (!reason) return;
-                void archivePatient(patient.id, reason, note);
+                void deleteSlidesAfterArchive(archivePatient(patient.id, reason, note), [patient.id]);
                 close();
                 navigate('/');
               }}

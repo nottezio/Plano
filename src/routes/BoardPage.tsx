@@ -1,4 +1,5 @@
 import { DEFAULT_REMINDER_KINDS } from '@/domain/reminders';
+import { SlideCleanupNotice, deleteSlidesAfterArchive } from '@/components/slides/SlideCleanupNotice';
 import { useSlowWait } from '@/lib/loadTiming';
 import { privateText } from '@/domain/identity';
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
@@ -318,7 +319,9 @@ export default function BoardPage(): JSX.Element {
 
   const archiveSelected = (reason: ArchiveReason): void => {
     for (const patientId of selected) {
-      void archivePatient(patientId, reason).catch((error: unknown) =>
+      const archived = archivePatient(patientId, reason);
+      void deleteSlidesAfterArchive(archived, [patientId]);
+      void archived.catch((error: unknown) =>
         console.error('[board] archive rejected', error),
       );
     }
@@ -1146,6 +1149,9 @@ export default function BoardPage(): JSX.Element {
           */}
           {archiveReason !== null && selected.size > 0 ? (
             <div className="flex flex-wrap items-center gap-2 border-t border-border pt-2">
+              <div className="w-full">
+                <SlideCleanupNotice patientIds={[...selected]} archived={false} />
+              </div>
               <span className="text-xs text-fg-muted">Alasan:</span>
               {(Object.keys(ARCHIVE_REASON_LABELS) as ArchiveReason[]).map((reason) => (
                 <Button key={reason} size="sm" onClick={() => archiveSelected(reason)}>

@@ -22,6 +22,12 @@ async function inflate(data: Uint8Array<ArrayBuffer>): Promise<Uint8Array<ArrayB
 
 /** Every `.txt` / `.md` in the archive (or the files `wanted` matches), decoded as UTF-8. */
 export async function zipTexts(buffer: ArrayBuffer, wanted: RegExp = /\.(txt|md)$/i): Promise<ZipText[]> {
+  const decoder = new TextDecoder('utf-8');
+  return (await zipEntries(buffer, wanted)).map((entry) => ({ name: entry.name, text: decoder.decode(entry.data) }));
+}
+
+/** Every entry `wanted` matches, as bytes (Slide MZ reads a .pptx's slides and pictures). */
+export async function zipEntries(buffer: ArrayBuffer, wanted: RegExp = /./): Promise<Array<{ name: string; data: Uint8Array }>> {
   const view = new DataView(buffer);
   const bytes = new Uint8Array(buffer);
   // End of central directory: signature 0x06054b50, searched from the end (comment ≤ 64 KB).
@@ -36,7 +42,7 @@ export async function zipTexts(buffer: ArrayBuffer, wanted: RegExp = /\.(txt|md)
   const count = u16(view, eocd + 10);
   let at = u32(view, eocd + 16);
   const decoder = new TextDecoder('utf-8');
-  const out: ZipText[] = [];
+  const out: Array<{ name: string; data: Uint8Array }> = [];
   for (let n = 0; n < count; n += 1) {
     if (u32(view, at) !== 0x02014b50) break;
     const method = u16(view, at + 10);
@@ -51,7 +57,7 @@ export async function zipTexts(buffer: ArrayBuffer, wanted: RegExp = /\.(txt|md)
     const start = local + 30 + u16(view, local + 26) + u16(view, local + 28);
     const raw = bytes.slice(start, start + size);
     const data = method === 0 ? raw : method === 8 ? await inflate(raw) : null;
-    if (data) out.push({ name, text: decoder.decode(data) });
+    if (data) out.push({ name, data });
   }
   return out;
 }

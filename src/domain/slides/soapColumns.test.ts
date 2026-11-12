@@ -1,0 +1,84 @@
+import { describe, expect, it } from 'vitest';
+import { fitSoapFont } from './fit';
+import { soapColumns } from './soapColumns';
+
+// Synthetic notes, shaped like ward reports; no real patient.
+const SYNTH_SOAP = [
+  'S :',
+  '- Sesak berkurang, nyeri dada tidak ada',
+  'O :',
+  'Tensi : 120/80 mmHg',
+  'Nadi : 80 x/menit',
+  'Diagnosis:',
+  '- Contoh diagnosis',
+  'Terapi:',
+  '- Obat contoh 1x1',
+  'Plan',
+  '- EKG/hari',
+].join('\n');
+
+const SYNTH_REPORT_WITH_FRAME = [
+  'Selamat pagi dokter, izin melaporkan pasien atas nama:',
+  'Tn. Contoh / 54 tahun / RM 1234567',
+  '_DPJP Utama : Prof. Contoh_',
+  'Chief : dr. A',
+  'Junior : dr. B',
+  '',
+  SYNTH_SOAP,
+  '',
+  'Selanjutnya mohon arahan dokter. Terima kasih',
+].join('\n');
+
+const SYNTH_WITH_KOMORBID = ['S :', '- Lemas', 'Komorbid :', '- Hipertensi', 'O :', 'TD 130/80', 'Diagnosis:', '- Contoh'].join('\n');
+
+describe('soapColumns', () => {
+  it('puts S and O in col2 and A/Terapi/Plan in col3, text unchanged', () => {
+    const r = soapColumns(SYNTH_SOAP, {});
+    expect(r.col2.startsWith('S :')).toBe(true);
+    expect(r.col3.startsWith('Diagnosis:')).toBe(true);
+    expect(SYNTH_SOAP.includes(r.col2) && SYNTH_SOAP.includes(r.col3)).toBe(true);
+    expect(r.col3).toContain('Terapi:');
+    expect(r.col3).toContain('- EKG/hari');
+  });
+
+  it('drops opening, DPJP/Chief/Junior and closing lines', () => {
+    const r = soapColumns(SYNTH_REPORT_WITH_FRAME, { identity: 'Tn. Contoh / 54 tahun / RM 1234567', rm: '1234567' });
+    expect(`${r.col2}\n${r.col3}`).not.toMatch(/izin melaporkan|DPJP|Chief|Junior|Terima kasih|RM 1234567/);
+    expect(r.col2.startsWith('S :')).toBe(true);
+  });
+
+  it('keeps an unfamiliar heading inside its block', () => {
+    expect(soapColumns(SYNTH_WITH_KOMORBID, {}).col2).toContain('Komorbid :\n- Hipertensi');
+  });
+
+  it('no S boundary: clinical text still lands in col2', () => {
+    expect(soapColumns('Pasien baik.\nDiagnosis:\n- CHF', {}).col2).toContain('Pasien baik.');
+  });
+
+  it('no A boundary: everything in col2', () => {
+    const r = soapColumns('S :\n- sesak\nO :\nTD 120/80', {});
+    expect(r.col3).toBe('');
+    expect(r.col2).toContain('TD 120/80');
+  });
+
+  it('a Terapi heading without Diagnosis still starts col3', () => {
+    expect(soapColumns('S :\n- baik\nTerapi:\n- Obat', {}).col3.startsWith('Terapi:')).toBe(true);
+  });
+});
+
+describe('fitSoapFont', () => {
+  it('short text keeps 10.5 pt', () => {
+    expect(fitSoapFont('S :\n- baik', 'Diagnosis:\n- x')).toEqual({ pt: 10.5, overflow: false });
+  });
+
+  it('long text stops at 9 pt and flags overflow', () => {
+    expect(fitSoapFont('x '.repeat(9000), '')).toEqual({ pt: 9, overflow: true });
+  });
+
+  it('text just over 10.5 pt capacity steps down without overflow', () => {
+    const lines = Array.from({ length: 42 }, () => '- baris pendek').join('\n');
+    const r = fitSoapFont(lines, '');
+    expect(r.overflow).toBe(false);
+    expect(r.pt).toBeLessThan(10.5);
+  });
+});

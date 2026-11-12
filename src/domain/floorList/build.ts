@@ -158,10 +158,19 @@ const squash = (text: string): string => text.replace(/[\s*_]/g, '').toLowerCase
  * clinical text between them is untouched.
  */
 export function soapForList(patient: Pick<FloorPatient, 'full' | 'identity' | 'rm'>): string {
-  const idKey = squash(patient.identity);
-  const rm = patient.rm.replace(/^0+/, '');
+  return stripReportFrame(patient.full, { identity: patient.identity, rm: patient.rm });
+}
+
+/**
+ * A report minus its frame (opening, name line, DPJP lines, Chief/Junior, closing). Shared by
+ * the list's Trio full SOAP and Slide MZ, which both show the clinical text under a header that
+ * already names the patient. Lines are dropped whole; no kept line is changed.
+ */
+export function stripReportFrame(body: string, frame: { identity?: string; rm?: string }): string {
+  const idKey = frame.identity ? squash(frame.identity) : null;
+  const rm = (frame.rm ?? '').replace(/^0+/, '');
   const rmLine = rm ? new RegExp(`\\bRM\\s*:?\\s*0*${rm}\\b`, 'i') : null;
-  return patient.full
+  return body
     .split('\n')
     .filter((raw, i) => {
       const line = raw.trim();

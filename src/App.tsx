@@ -20,6 +20,7 @@ const SettingsPage = lazy(() => import('@/routes/SettingsPage'));
 const AccountPage = lazy(() => import('@/routes/AccountPage'));
 const AdminPage = lazy(() => import('@/routes/AdminPage'));
 const ListMakerPage = lazy(() => import('@/routes/ListMakerPage'));
+const SlideMzPage = lazy(() => import('@/routes/SlideMzPage'));
 
 /**
  * Route table (SPEC 4 / 5). Paths are user-visible Bahasa Indonesia; the
@@ -45,6 +46,8 @@ export default function App(): JSX.Element {
         <Route path="/pengaturan" element={<SettingsPage />} />
         <Route path="/akun" element={<AccountPage />} />
         <Route path="/p/:patientId" element={<PatientPage />} />
+        {/* A static segment outranks `:date`, so this never reads as a day. */}
+        <Route path="/p/:patientId/slide-mz" element={<SlideMzPage />} />
         <Route path="/p/:patientId/:date" element={<PatientPage />} />
         {/* Unlinked for everyone but the admin; see AdminPage. */}
         <Route path="/admin" element={<AdminPage />} />

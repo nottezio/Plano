@@ -5,6 +5,13 @@ Catatan teknis lengkap (akar masalah, perbaikan) ada di CHANGES.md.
 
 Entri teratas harus versi yang sedang dirilis; tes gagal bila belum ditulis.
 
+## `2026-11-12.14`
+- **Slide MZ: PowerPoint harian untuk pasien Prof. MZ.** Di halaman pasien yang ber-DPJP MZ, baris "Kirim sendiri ke grup Prof MZ" kini punya tautan **Slide MZ ›**. Plano menyusun slide sendiri dengan tata letak yang sama seperti slide yang biasa dikirim (judul, satu slide SOAP per hari rawat dengan kolom Identitas / Anamnesis dan Pemeriksaan Fisik / Diagnosis dan Terapi, slide gambar, tabel laboratorium, Terima kasih), dengan warna baru.
+- **Gambar penunjang:** tambahkan foto EKG, foto thorax, echo, lab, luka, laporan tindakan atau lainnya. Satu slide memuat 1 sampai 4 foto atau foto + teks. Foto bisa digeser dan diubah ukurannya, boleh keluar dari slide; judul slide tetap di atas.
+- **Edit di Plano:** teks SOAP di slide, urutan slide, sembunyikan slide, dan isi tabel lab bisa diubah. Perubahan hanya untuk slide; catatan SOAP tidak berubah. Teks yang terlalu panjang dikecilkan sampai 9 pt, lalu slide diberi tanda "terlalu panjang".
+- **Lanjutkan slide lama:** pasien titipan yang sudah punya slide? Pilih "Lanjutkan dari .pptx", lalu slide SOAP, gambar dan tabel lab dari file itu dibangun ulang dalam gaya yang sama.
+- **Tersimpan di perangkat ini saja** (belum sync). Saat pasien diarsipkan, slide dan gambarnya dihapus dari perangkat ini setelah peringatan.
+
 ## `2026-11-12.13`
 - **Salin list pendek.** Tombol baru "Pendek" di samping Salin teks (di ponsel: menu ⋯ → Salin list pendek) menyalin list WhatsApp versi ringkas: judul "List pasien pendek" dengan hari, tanggal dan jam, jumlah Total / Follow up / Non-Follow Up, lalu satu baris per pasien (kamar, identitas, kode DPJP, residen) per DPJP, tanpa assess, terapi dan plan, dengan garis pemisah dan kalimat penutup. Salin teks yang biasa tidak berubah.
 
