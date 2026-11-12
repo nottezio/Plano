@@ -1,5 +1,16 @@
 # Plano — CHANGES
 
+## `2026-11-12.10` — Lantai 6 reports in the Lantai 5 list; "Lantai 5 dan 6"
+
+Avi pasted a Lantai 6 SOAP ("PJT lantai 6 kamar 604"): the Lantai 5 list did not register it.
+
+- **Root cause (1):** `PastePanel` took the list's floor number from the ward ("PJT Lantai 5" → `5`) and `onFloorNumber` dropped every report whose floor was `6`, filing it as "another floor". The reader itself was fine (room `604`, floor `6`).
+- **Fix (1):** `wardFloors(ward)` in `denahPlan.ts` returns the ward's own floor plus the plan's annex floor (`['5','6']` for Lantai 5); `PastePanel` accepts a report on any of them. Lantai 4 still takes only `4`. Those patients show in the LANTAI 6 box through the 12.8 annex.
+- **Root cause (2), found while testing:** 12.8 keyed the isolation rooms `508 A` / `508 B`, but the reader produces `508A` / `508B` (`report.ts readPlace`, tested since Oct). A real 508 patient would never have landed in the box. Keys are now `508A` / `508B`, which also changes the printed header to "KAMAR 508A".
+- **Rename:** `WardPlan.label` ("PJT Lantai 5 dan 6") with `wardLabel()`, used in the new-list dropdown, the Denah title and the Word and print titles. The stored ward stays "PJT Lantai 5", so matching and existing lists are unchanged. The nurse-station box still says PJT Lantai 5; the board Denah and file names still use the plain ward.
+- **Firestore cost:** none; the filter runs on messages already read.
+- **Not done:** the real Lt 6 message was not run through the app, only an invented one of the same shape in a test. Other Lantai 6 report shapes (moves, "pindah") are untested. Any Lt 6 room not starting with 6 is not caught. Not checked in the browser or on a ward device.
+
 ## `2026-11-12.9` — Lantai 5 in the new-list Denah choice
 
 Avi: "No denah lt 6 option?" The create form showed only PJT Lantai 4.

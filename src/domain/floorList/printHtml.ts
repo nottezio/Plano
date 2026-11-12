@@ -1,5 +1,5 @@
 import { formatDmy } from '@/domain/dateDmy';
-import { inAnnex, planRooms, type DenahRoomSlot, type WardPlan } from '@/domain/denahPlan';
+import { inAnnex, planRooms, wardLabel, type DenahRoomSlot, type WardPlan } from '@/domain/denahPlan';
 import { inlineRuns } from '@/domain/format/soapDocx';
 import { placeBeds } from './beds';
 import { byRoute, dpjpCodeOf, dpjpTitle, isPediatri, LIST_DPJP_ORDER, PEDIATRI_DPJP_IDS } from './build';
@@ -212,7 +212,7 @@ function denahBody(input: PrintInput, settings: PrintSettings): string {
   const inRoom = (room: string): FloorPatient[] => sorted.filter((p) => p.room === room);
   const plan = input.plan;
   const strays = sorted.filter((p) => !known.has(p.room) && !(plan && inAnnex(plan, p.room)));
-  const title = `DENAH PASIEN ${input.ward.replace(/^PJT\s+/i, '').toUpperCase()} (${formatDmy(input.date)})`;
+  const title = `DENAH PASIEN ${wardLabel(input.ward).replace(/^PJT\s+/i, '').toUpperCase()} (${formatDmy(input.date)})`;
   const legendTags = [...new Map(sorted.flatMap((p) => printedTags(p.tags)).map((t) => [t.label, t])).values()]
     .map((t) => ` – <span style="color:${hex(markInfo(t.color).docx)}">${esc(t.label)}</span>`)
     .concat(

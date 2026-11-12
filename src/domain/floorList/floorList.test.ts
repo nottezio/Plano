@@ -823,3 +823,30 @@ describe('Lt. 5 export of 30-10-2026 (another floor, other habits)', () => {
     expect(twice[0]!.body).toBe('Diagnosis:\n- Chronic Coronary Syndrome');
   });
 });
+
+describe('A Lantai 6 follow-up in the Lantai 5 list', () => {
+  const lt6 = readReport({
+    sentAt: '2026-11-12T07:00',
+    sender: 'dr. Contoh',
+    index: 0,
+    text: [
+      'Assalamualaikum dokter. Tabe Dokter, mohon izin melaporkan follow up di *PJT lantai 6 kamar 604* atas nama:',
+      '',
+      '*Tn. Contoh Enam / 01-01-1970 / 56 thn / RM 1600604*',
+      '',
+      '_DPJP Utama dan tindakan : Dr. dr. Khalid Saleh, Sp.PD-KKV_',
+      '',
+      '*S :*',
+      '- baik',
+    ].join('\n'),
+  })!;
+
+  it('reads room 604 on floor 6', () => {
+    expect([lt6.room, lt6.floor]).toEqual(['604', '6']);
+  });
+
+  it('is on the floors a Lantai 5 list accepts, and not on Lantai 4', () => {
+    expect(['5', '6'].some((n) => onFloorNumber(lt6, n))).toBe(true);
+    expect(['4'].some((n) => onFloorNumber(lt6, n))).toBe(false);
+  });
+});

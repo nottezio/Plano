@@ -5,6 +5,11 @@ Catatan teknis lengkap (akar masalah, perbaikan) ada di CHANGES.md.
 
 Entri teratas harus versi yang sedang dirilis; tes gagal bila belum ditulis.
 
+## `2026-11-12.10`
+- **Laporan pasien Lantai 6 kini masuk ke list Lantai 5.** Tempel SOAP "PJT lantai 6 kamar 604" dan pasien dibaca, lalu muncul di kotak "LANTAI 6" pada denah. Sebelumnya laporan itu dianggap lantai lain dan tidak disimpan.
+- **Denah Lantai 5 kini bernama "PJT Lantai 5 dan 6"** di pilihan Denah, judul denah, Word dan cetak.
+- **Perbaikan kamar 508 A dan 508 B:** pasien di kamar itu kini benar-benar masuk ke kotaknya di denah (sebelumnya kunci kamar tidak cocok dengan yang dibaca dari SOAP).
+
 ## `2026-11-12.9`
 - **PJT Lantai 5 muncul di pilihan Denah saat membuat list baru.** Sebelumnya hanya Lantai 4 yang bisa dipilih. Pasien Lantai 6 tidak punya denah sendiri: mereka ada di kotak "LANTAI 6" pada denah Lantai 5.
 

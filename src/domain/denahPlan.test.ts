@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { placeInPlan } from './denah';
-import { inAnnex, planRooms, planWards, visitIndex, wardPlan } from './denahPlan';
+import { inAnnex, planRooms, planWards, visitIndex, wardFloors, wardLabel, wardPlan } from './denahPlan';
 import { planLayout } from './floorList/layout';
 import type { Patient } from './types';
 
@@ -25,7 +25,7 @@ describe('wardPlan', () => {
     const rooms = planRooms(wardPlan('PJT Lt. 5')!);
     expect(rooms.map((room) => room.room).sort()).toEqual(
       [
-        '501', '502', '503', '504', '505', '506', '507', '508 A', '508 B', '509',
+        '501', '502', '503', '504', '505', '506', '507', '508A', '508B', '509',
         '510', '511', '512', '513', '514', '515', '516', '517', '518', '519',
       ].sort(),
     );
@@ -71,7 +71,7 @@ describe('PJT Lantai 5 layout', () => {
     expect(layout.rows).toBe(8);
     expect(layout.left).toHaveLength(8);
     expect(layout.right).toHaveLength(8);
-    expect(layout.left[1]?.slots.map((s) => s.room)).toEqual(['508 B', '508 A']);
+    expect(layout.left[1]?.slots.map((s) => s.room)).toEqual(['508B', '508A']);
   });
 
   it('gives the centre a nurse station row, the Lantai 6 box, then 501 at the bottom', () => {
@@ -93,7 +93,7 @@ describe('PJT Lantai 5 layout', () => {
     expect(at('511')).toBe(1);
     expect(at('519')).toBeLessThan(at('501'));
     expect(at('501')).toBeLessThan(at('502'));
-    expect(at('508 A')).toBeLessThan(at('508 B'));
+    expect(at('508A')).toBeLessThan(at('508B'));
     expect(at('509')).toBe(19);
   });
 });
@@ -158,5 +158,20 @@ describe('ward names as recorded, not as printed', () => {
     for (const ward of ['PJT Lt. 6', 'PJT Lantai 6', 'CVCU']) {
       expect(wardPlan(ward)).toBeNull();
     }
+  });
+});
+
+describe('Lantai 5 dan 6', () => {
+  it('goes by "PJT Lantai 5 dan 6" for people, but still matches as Lantai 5', () => {
+    expect(wardLabel('PJT Lt. 5')).toBe('PJT Lantai 5 dan 6');
+    expect(wardPlan('PJT Lt. 5')?.ward).toBe('PJT Lantai 5');
+    expect(wardLabel('PJT Lantai 4')).toBe('PJT Lantai 4');
+    expect(wardLabel('CVCU')).toBe('CVCU');
+  });
+
+  it('files reports of both floors in the Lantai 5 list, only its own in Lantai 4', () => {
+    expect(wardFloors('PJT Lantai 5')).toEqual(['5', '6']);
+    expect(wardFloors('PJT Lantai 4')).toEqual(['4']);
+    expect(wardFloors('CVCU')).toEqual(['']);
   });
 });

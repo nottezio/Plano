@@ -1,6 +1,6 @@
 import { createContext, useContext, useEffect, useLayoutEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react';
 
-import { inAnnex, planRooms, type DenahRoomSlot, type WardPlan } from '@/domain/denahPlan';
+import { inAnnex, planRooms, wardLabel, type DenahRoomSlot, type WardPlan } from '@/domain/denahPlan';
 import { byRoute, dpjpCodeOf, dpjpTitle, isPediatri, LIST_DPJP_ORDER, PEDIATRI_DPJP_IDS } from '@/domain/floorList/build';
 import { isAmberDpjp } from '@/domain/floorList/printSettings';
 import { handoverLine } from '@/domain/floorList/docx';
@@ -578,7 +578,7 @@ export function FloorDenah({
         </Section>
       ) : null}
       {plan ? (
-        <Section title={`Denah ${ward}`} id={JUMP_IDS.denah}>
+        <Section title={`Denah ${wardLabel(ward)}`} id={JUMP_IDS.denah}>
           <DenahCanvas>
             <div className="grid grid-cols-2 gap-2">
               {plan.header.map((slot) => (

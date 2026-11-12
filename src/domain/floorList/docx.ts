@@ -1,5 +1,5 @@
 import { formatDmy } from '@/domain/dateDmy';
-import { inAnnex, planRooms, type DenahRoomSlot, type WardPlan } from '@/domain/denahPlan';
+import { inAnnex, planRooms, wardLabel, type DenahRoomSlot, type WardPlan } from '@/domain/denahPlan';
 import { escapeXml, inlineRuns, DOCX_MIME, type Run } from '@/domain/format/soapDocx';
 import { storeZip } from '@/lib/zip';
 import { placeBeds } from './beds';
@@ -404,7 +404,7 @@ export function denahDocumentXml(input: DenahDocInput, print: DenahPrint = DEFAU
   const inRoom = (room: string): FloorPatient[] => sorted.filter((p) => p.room === room);
   const plan = input.plan;
   const strays = sorted.filter((p) => !known.has(p.room) && !(plan && inAnnex(plan, p.room)));
-  const title = `DENAH PASIEN ${input.ward.replace(/^PJT\s+/i, '').toUpperCase()} (${formatDmy(input.date)})`;
+  const title = `DENAH PASIEN ${wardLabel(input.ward).replace(/^PJT\s+/i, '').toUpperCase()} (${formatDmy(input.date)})`;
 
   const parts: string[] = [para([{ text: title, bold: true }])];
   if (plan) {

@@ -126,14 +126,14 @@ describe('Denah of PJT Lantai 5 on paper', () => {
     ward: 'PJT Lantai 5',
     date: '2026-11-12',
     plan: wardPlan('PJT Lantai 5'),
-    patients: [p({ key: 'rm:6', identity: 'Tn. Enam / RM 6', room: '604', bed: '' }), p({ key: 'rm:8', identity: 'Ny. Isolasi / RM 8', room: '508 A', bed: '1' })],
+    patients: [p({ key: 'rm:6', identity: 'Tn. Enam / RM 6', room: '604', bed: '' }), p({ key: 'rm:8', identity: 'Ny. Isolasi / RM 8', room: '508A', bed: '1' })],
     listText: '',
   });
 
   it('has six equal-sided columns, 508 A beside 508 B, and the Lantai 6 box holding its patient', () => {
     expect(html.match(/<col /g)).toHaveLength(6);
-    expect(html).toContain('KAMAR 508 B');
-    expect(html).toContain('KAMAR 508 A');
+    expect(html).toContain('KAMAR 508B');
+    expect(html).toContain('KAMAR 508A');
     expect(html).toContain('LANTAI 6');
     expect(html).toContain('Tn. Enam');
     expect(html).not.toContain('Di luar denah');

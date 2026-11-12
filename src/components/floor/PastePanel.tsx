@@ -7,6 +7,7 @@ import { formatDmy } from '@/domain/dateDmy';
 import { diffRevision } from '@/domain/format/revisionDiff';
 import { localStamp, newRosterPatient, pasteDiff, readmitFields, updatedReport, type FloorDoc, type PasteDiff, type RosterPatient } from '@/domain/floorList/floor';
 import { splitChat } from '@/domain/floorList/chat';
+import { wardFloors } from '@/domain/denahPlan';
 import { latestOf, onFloorNumber, readReports, type FloorPatient } from '@/domain/floorList/report';
 import { touchedPoint, type RestorePointMeta } from '@/domain/floorList/restore';
 import { SOAP_GROUPS, soapGroups } from '@/domain/floorList/soapParts';
@@ -118,7 +119,8 @@ export function PastePanel({
   const [undoing, setUndoing] = useState<RestorePointMeta | null>(null);
   // Each Baca's number: only the latest one may show its answer (the lookup is async).
   const readTurn = useRef(0);
-  const floorNumber = /\d+/.exec(floor.ward)?.[0] ?? '';
+  // Lantai 5's list also carries Lantai 6 (its annex box), so both floors are this list's.
+  const floorNumbers = wardFloors(floor.ward);
 
   const read = async (raw: string): Promise<void> => {
     setError('');
@@ -136,7 +138,7 @@ export function PastePanel({
     const messages = parsed.map((m) => ({ ...m, sender: m.sender === 'You' ? myName : m.sender, sentAt: m.sentAt || now }));
     const all = messages.flatMap(readReports);
     // Another floor (moved out, CVCU) or no floor yet (IGD) is shown, not filed.
-    const reports = all.filter((p) => onFloorNumber(p, floorNumber));
+    const reports = all.filter((p) => floorNumbers.some((n) => onFloorNumber(p, n)));
     const otherFloor = all.filter((p) => !reports.includes(p));
     /*
       The live roster holds only the last 30 days of departures. A key it does

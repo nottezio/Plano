@@ -229,7 +229,7 @@ describe('Denah docx, PJT Lantai 5', () => {
     plan: wardPlan('PJT Lantai 5'),
     patients: [
       patient({ key: 'rm:6', rm: '6', identity: 'Tn. Enam / RM 6', room: '604', bed: '', floor: '5' }),
-      patient({ key: 'rm:8', rm: '8', identity: 'Ny. Isolasi / RM 8', room: '508 A', bed: '1', floor: '5' }),
+      patient({ key: 'rm:8', rm: '8', identity: 'Ny. Isolasi / RM 8', room: '508A', bed: '1', floor: '5' }),
     ],
   });
 
@@ -238,8 +238,8 @@ describe('Denah docx, PJT Lantai 5', () => {
     const grid = [...xml.matchAll(/<w:gridCol w:w="(\d+)"/g)].slice(0, 6).map((m) => Number(m[1]));
     expect(grid).toHaveLength(6);
     expect(grid[0]! + grid[1]!).toBe(grid[4]! + grid[5]!);
-    expect(xml).toContain('KAMAR 508 B');
-    expect(xml).toContain('KAMAR 508 A');
+    expect(xml).toContain('KAMAR 508B');
+    expect(xml).toContain('KAMAR 508A');
     expect(xml).toContain('LANTAI 6');
     expect(xml).toContain('Tn. Enam');
     expect(xml).not.toContain('Di luar denah');

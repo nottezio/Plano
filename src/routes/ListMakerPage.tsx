@@ -21,7 +21,7 @@ import { RosterDatalists } from '@/components/floor/PatientControls';
 import { SoapFloat } from '@/components/floor/SoapFloat';
 import { acceptInvite, createFloor, readLegacy, rosterHasAny, writeChiefBangsal, writeChiefs, writeRosterBatch } from '@/data/repositories/floors.repo';
 import { formatDmy } from '@/domain/dateDmy';
-import { planWards, wardPlan } from '@/domain/denahPlan';
+import { planWards, wardLabel, wardPlan } from '@/domain/denahPlan';
 import { EDITIONS_PAGE } from '@/domain/floorList/editionGroups';
 import { shiftEdition, shiftStart } from '@/domain/floorList/chiefHandover';
 import { canEdit, chiefsOf, isOwner, localStamp, newRosterPatient, orderFloors, rosterView, type FloorDoc } from '@/domain/floorList/floor';
@@ -339,7 +339,7 @@ export default function ListMakerPage(): JSX.Element {
               <select id="floor-ward" value={ward} onChange={(e) => setWard(e.target.value)} className={INPUT}>
                 {planWards().map((w) => (
                   <option key={w} value={w}>
-                    {w}
+                    {wardLabel(w)}
                   </option>
                 ))}
               </select>

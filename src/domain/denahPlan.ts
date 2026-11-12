@@ -61,6 +61,8 @@ export interface DenahColumn {
 export interface WardPlan {
   /** Matched against `patient.ward`, case- and spacing-insensitively. */
   ward: string;
+  /** How the Denah is named for people when that differs from `ward` ("PJT Lantai 5 dan 6"). */
+  label?: string;
   /** Full-width rooms across the top, before the three columns. */
   header: DenahRoomSlot[];
   /** Left, centre, right — in the order the sheet is read. */
@@ -125,6 +127,7 @@ const PJT_LANTAI_4: WardPlan = {
  */
 const PJT_LANTAI_5: WardPlan = {
   ward: 'PJT Lantai 5',
+  label: 'PJT Lantai 5 dan 6',
   header: [
     { room: '510', beds: 6 },
     { room: '511', beds: 6 },
@@ -134,8 +137,8 @@ const PJT_LANTAI_5: WardPlan = {
       {
         rooms: [
           { room: '509', subtitle: 'VIP', beds: 1 },
-          { room: '508 B', subtitle: 'Isolasi', beds: 1 },
-          { room: '508 A', subtitle: 'Isolasi', beds: 1, beside: true },
+          { room: '508B', subtitle: 'Isolasi', beds: 1 },
+          { room: '508A', subtitle: 'Isolasi', beds: 1, beside: true },
           { room: '507', subtitle: 'VIP', beds: 1 },
           { room: '506', subtitle: 'VIP', beds: 1 },
           { room: '505', beds: 1 },
@@ -170,7 +173,7 @@ const PJT_LANTAI_5: WardPlan = {
     '510', '511',
     '512', '513', '514', '515', '516', '517', '518', '519',
     '501',
-    '502', '503', '504', '505', '506', '507', '508 A', '508 B', '509',
+    '502', '503', '504', '505', '506', '507', '508A', '508B', '509',
   ],
 };
 
@@ -244,6 +247,23 @@ export function planRooms(plan: WardPlan): DenahRoomSlot[] {
       column.flatMap((block) => block.rooms ?? []),
     ),
   ];
+}
+
+/** The name a ward's Denah goes by on screen and paper ("PJT Lantai 5 dan 6"); the ward as written when its plan has no label. */
+export function wardLabel(ward: string): string {
+  return wardPlan(ward)?.label ?? ward;
+}
+
+/**
+ * The floor numbers whose reports belong in a ward's list: its own digit, plus
+ * the annex floor (Lantai 5's list also carries Lantai 6). `['']` when the
+ * ward has no digit, which `onFloorNumber` treats as "any floor".
+ */
+export function wardFloors(ward: string): string[] {
+  const own = /\d+/.exec(ward)?.[0] ?? '';
+  const plan = wardPlan(ward);
+  const extra = plan ? planAnnex(plan)?.roomPrefix : undefined;
+  return extra ? [own, extra] : [own];
 }
 
 /** Every ward that has a transcribed plan, for the "Denah" choice of a new list. */
