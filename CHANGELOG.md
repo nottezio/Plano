@@ -5,6 +5,13 @@ Catatan teknis lengkap (akar masalah, perbaikan) ada di CHANGES.md.
 
 Entri teratas harus versi yang sedang dirilis; tes gagal bila belum ditulis.
 
+## `2026-11-12.2`
+- **Bagian atas List Maker rapi lagi dengan banyak chief.** Di layar lebar, Chief Bangsal dan Chief kini satu baris sendiri di bawah list dan tanggal. Kotak Chief memakai sisa lebar layar, jadi belasan chip chief mengalir ke samping, bukan menumpuk tinggi dan membuat celah kosong di kiri dan kanan.
+- **Per DPJP kembali menampilkan semua DPJP**, termasuk yang belum punya pasien di lantai, seperti sebelumnya. Baris "Tanpa pasien" dihapus.
+- **Kotak SOAP berwarna (H-1 merah, pulang hijau) terbaca di semua tema.** Teks abu-abu (inisial DPJP, RM, waktu laporan), chip Junior/Chief, dan tombol Update SOAP, Salin, Atur pasien kini punya warna dan garis tepi yang menyesuaikan warna kepala kotak, termasuk di tema gelap dan Senja.
+- **Analisis lebih rapi.** Kartu "Hari ini, per pasien" kini tersusun rapat dalam kolom tanpa lubang, dan daftar panjang (mis. Belum SOAP) tampil penuh tanpa gulir di dalam kotak. Jarak antarbagian lebih rapat.
+- **Setelan kembali dua kolom di layar lebar**, dan baris anggota lebih ringkas.
+
 ## `2026-11-12.1`
 - **List Maker lebih lega dan lebih mudah dibaca.** Bagian atas kini satu baris: list, tanggal, chief, Catatan Visite, dan Panduan. Di ponsel baris ini digeser ke samping, dan chief dibuka dengan satu chip. Pasien pertama kini terlihat di layar pertama ponsel.
 - **Tombol Denah · Per DPJP · Residen tidak lagi menutupi isi halaman.** Tombolnya pindah ke bilah yang menempel di atas, bersama Shift sebelumnya (di ponsel: Shift sebelumnya ada di tombol **⋯**). Di Denah ponsel, pencarian menjadi ikon kaca pembesar.

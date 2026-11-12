@@ -95,14 +95,18 @@ export function ListMakerHeader({
     rows on a phone (lists; date + Catatan Visite; the folded chiefs) and two on a desk (lists +
     tools; labelled fields), so the first patient sat on the second screen of a phone. Now: the
     lists, the date, the chiefs and the tools share one line. A phone scrolls it sideways, the
-    chiefs folded behind one chip that opens their fields below; from 640 px it wraps, the chief
-    fields inline with their label inside the box.
+    chiefs folded behind one chip that opens their fields below.
+
+    From 640 px the chiefs have their own row under it (12 Nov 2026, build 12.2). Inline in the one
+    wrapping line, the Chief box was a flex item squeezed to its 12 rem minimum, so 14 chiefs wrapped
+    into about 8 rows (350 px), and the line's items-center floated the chips, date and tools in the
+    middle of that height. Now: Chief Bangsal at a fixed width, Chief taking the rest of the row.
   */
   const chiefFields = (suffix: string): JSX.Element => (
     <>
       {chiefBangsal !== null ? (
         // One name: a new chip replaces the old one.
-        <div className="min-w-0 sm:w-56">
+        <div className="min-w-0 sm:w-64 sm:shrink-0">
           <ChiefsField
             chiefs={chiefBangsal ? [chiefBangsal] : []}
             onChange={(next) => onChiefBangsal(next.at(-1) ?? '')}
@@ -115,7 +119,7 @@ export function ListMakerHeader({
         </div>
       ) : null}
       {chiefs ? (
-        <div className="min-w-0 sm:min-w-[12rem] sm:flex-1">
+        <div className="min-w-0 sm:flex-1">
           <ChiefsField chiefs={chiefs} onChange={onChiefs} id={`floor-chief-input${suffix}`} wide inline />
         </div>
       ) : null}
@@ -188,9 +192,9 @@ export function ListMakerHeader({
             />
           </button>
         ) : null}
-        {editsChiefs ? <div className="hidden sm:contents">{chiefFields('')}</div> : null}
         {actions ? <div className="flex items-center gap-2 sm:ml-auto">{actions}</div> : null}
       </div>
+      {editsChiefs ? <div className="hidden items-start gap-2 sm:flex">{chiefFields('')}</div> : null}
       {editsChiefs ? (
         <div id="list-chiefs" className={chiefsOpen ? 'space-y-2 sm:hidden' : 'hidden'}>
           {chiefFields('-phone')}

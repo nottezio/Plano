@@ -87,6 +87,28 @@ for (const selector of [':root', '.dark', ".dark[data-theme='senja']"]) {
     console.log(`${ok ? 'PASS' : 'FAIL'} ${selector.padEnd(6)} ${name.padEnd(16)} ${r.toFixed(2)}:1`);
   }
 }
+// The SOAP float's tinted header (12 Nov 2026, `tintedHeader` in SoapFloat.tsx): red/green at 16% over
+// the surface; the muted text there is --fg mixed 78% toward that tint, the chips a 6% wash. Text 4.5:1,
+// the 45% border a visible edge (1.3:1, as for Senja's border).
+for (const selector of [':root', '.dark', ".dark[data-theme='senja']"]) {
+  const map = vars(blockOf(selector));
+  for (const flag of ['note-red', 'note-green']) {
+    const header = mix(map.get(flag), map.get('surface'), 0.16);
+    const chip = mix(map.get(flag), map.get('surface'), 0.06);
+    const pairs = [
+      ['fg', map.get('fg'), header, 4.5],
+      ['muted', mix(map.get('fg'), header, 0.78), header, 4.5],
+      ['muted on chip', mix(map.get('fg'), header, 0.78), chip, 4.5],
+      ['border', mix(map.get(flag), map.get('surface'), 0.45), header, 1.3],
+    ];
+    for (const [what, fg, bg, min] of pairs) {
+      const r = ratio(fg, bg);
+      const ok = r >= min;
+      if (!ok) failures++;
+      console.log(`${ok ? 'PASS' : 'FAIL'} ${selector.padEnd(6)} float ${flag.replace('note-', '')} ${what.padEnd(13)} ${r.toFixed(2)}:1`);
+    }
+  }
+}
 // The colour wheel (11 Nov 2026): every hue at the theme's --hue-l/--hue-c, as a mark (text on its 8% tint).
 // Same OKLCH → sRGB as oklchHex in src/domain/floorList/marks.ts.
 const oklchHex = (l, c, hue) => {

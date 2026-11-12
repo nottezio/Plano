@@ -510,10 +510,8 @@ export function FloorDenah({
   const extra = [...new Set(sorted.map((p) => p.dpjpId).filter((id): id is string => !!id))].filter(
     (id) => !(LIST_DPJP_ORDER as readonly string[]).includes(id) && !isPediatri(id),
   );
+  // Every DPJP box, empty or not (12 Nov 2026, build 12.2, Avi): the boxes are where the ward expects them, as on the sheet.
   const order = [...LIST_DPJP_ORDER, ...extra, ...PEDIATRI_DPJP_IDS];
-  const hasPatients = (id: string): boolean => shown.some((p) => p.dpjpId === id || p.kjsDpjpIds.includes(id));
-  const withPatients = order.filter(hasPatients);
-  const withoutPatients = order.filter((id) => !hasPatients(id));
 
   // Residents: chief counts, one block per junior, then division patients (13.9).
   const groups = residentGroups(shown);
@@ -703,8 +701,8 @@ export function FloorDenah({
       ) : null}
 
       <Section title="Per DPJP" id={JUMP_IDS.dpjp}>
-        <div className="grid grid-cols-1 items-start gap-2 sm:grid-cols-2 lg:grid-cols-3">
-          {withPatients.map((id) => {
+        <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3">
+          {order.map((id) => {
             const own = shown.filter((p) => p.dpjpId === id);
             const kjs = shown.filter((p) => p.kjsDpjpIds.includes(id));
             return (
@@ -731,12 +729,6 @@ export function FloorDenah({
             );
           })}
         </div>
-        {/* A DPJP with nobody here is one name in a line, not an empty box (12 Nov 2026). */}
-        {withoutPatients.length > 0 ? (
-          <p className="text-xs text-fg-muted">
-            <span className="font-semibold">Tanpa pasien:</span> {withoutPatients.map((id) => dpjpTitle(id)).join(' · ')}
-          </p>
-        ) : null}
       </Section>
 
       <Section title="Residen" id={JUMP_IDS.residen}>

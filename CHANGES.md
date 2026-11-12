@@ -1,5 +1,28 @@
 # Plano — CHANGES
 
+## `2026-11-12.2` — List Maker fixes after 12.1: two-row head, every DPJP box, legible tinted SOAP header, Analisis/Setelan spacing
+
+Avi tested 12.1 with real data (one list: 14 chiefs, 25 patients, 6 members) at ~1900 px, dark theme. Reproduced on the emulator with invented names.
+
+- **Root causes.**
+  - *Head.* From 640 px the list chips, date, both chief fields and the tools were one `flex-wrap items-center` row, the chief fields put in it with `sm:contents`. The Chief box (`sm:min-w-[12rem] sm:flex-1`) was squeezed to the space left on its line (~270 px), so 14 chips wrapped into ~8 rows (~350 px tall), and `items-center` floated every other item in the middle of that height.
+  - *Per DPJP.* 12.1 deliberately drew only DPJPs with patients (`withPatients`) and listed the rest on one line; the owner wants every box, as on the sheet.
+  - *Tinted SOAP header.* 11.7 changed only the header's background (`--note-red|green` 16% over `--surface`). The tokens on top of it did not follow: `--fg-faint` fell to 2.5:1 (light) / 3.3:1 (dark) / 4.1:1 (Senja) on the tint, and `--border` to ~1.0:1, so the button and chip outlines vanished.
+  - *Analisis.* The today grid was `items-start` with empty Blocks removed: each row started under its tallest card, and a long Block scrolled inside `max-h-64`.
+  - *Setelan.* 12.1 made it one `max-w-3xl` column, leaving half of a wide screen empty.
+- **Fixes.**
+  - `ListMakerHeader`: the chief fields leave the first row; from 640 px they are their own `flex items-start` row: Chief Bangsal `sm:w-64 sm:shrink-0`, Chief `sm:flex-1` (min-width removed). Phone (<640) unchanged: one sideways strip, the summary chip opening the fields below.
+  - `FloorDenah`: maps `order` again (no `withPatients`/`withoutPatients`, no "Tanpa pasien:" line), grid back to stretch; empty boxes keep `min-h-10`.
+  - `SoapFloat`: `tintedHeader(flag)` sets, on the header only, `--fg-muted` and `--fg-faint` = `--fg` mixed 78% toward the header tint, `--border` = flag 45% over surface, and `--chip-bg` = flag 6% over surface. The Junior/Chief chips use `bg-[var(--chip-bg,var(--surface))]`, the header buttons `bg-[var(--chip-bg,transparent)]` (`HEADER_BUTTON`). Untinted headers look as before.
+  - `scripts/check-contrast.mjs`: new block for the float header (fg, muted, muted on chip ≥ 4.5:1; border ≥ 1.3:1) for red and green in light, dark and Senja. Lowest text: Senja green muted 5.03:1.
+  - `AnalysisPanel`: the today cards are CSS columns (`columns-1 sm:columns-2 lg:columns-3`, `break-inside-avoid`, `mb-3`), Block lists no longer capped at `max-h-64`; panel `space-y-8` → `space-y-6`. "Kosong hari ini" kept. Reading order in the cards is now down each column, not across rows.
+  - `MembersPanel`: `lg:grid-cols-2 lg:items-start` again; the empty status line stays `sr-only`; member rows `py-1.5`, role select `min-h-9` on a fine pointer.
+- **Firestore cost.** None: no read, listener or write added or changed. Layout and CSS variables only.
+- **Not done.**
+  - The sticky tab bar and Denah toolbar spacing were checked but not changed.
+  - The `hangat`/`pekat` surface variants are not in the new contrast block (only the three theme blocks).
+  - Not checked: a real ward device, 360 px, keyboard-only use, a viewer account.
+
 ## `2026-11-12.1` — List Maker layout: one-line head, pinned Denah jumps, compact phone denah, readable rows
 
 Avi (12 Nov): "a lot of overlap, spacing/padding issues, empty spaces, non-human UI" in the List Maker. Reviewed in the emulator with 18 invented patients at 390 px (dark) and 1366 px (light); a before/after mockup was approved ("Build all three batches").

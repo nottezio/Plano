@@ -84,7 +84,7 @@ function Block({ title, count, rename, children }: { title: string; count: numbe
       <h3 className="mb-1 font-semibold">
         {rename ?? title} <span className="font-normal text-fg-muted">({count})</span>
       </h3>
-      {count === 0 ? <p className="text-fg-faint">—</p> : <ol className="max-h-64 space-y-0.5 overflow-y-auto">{children}</ol>}
+      {count === 0 ? <p className="text-fg-faint">—</p> : <ol className="space-y-0.5">{children}</ol>}
     </section>
   );
 }
@@ -237,7 +237,7 @@ export function AnalysisPanel({
   };
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-6">
       <section aria-label="Ringkasan hari ini" className="space-y-3">
       <p className="text-xs text-fg-muted">Tanggal {formatDmy(date)} — dibaca dari catatan perubahan tiap pasien di list (siapa, kapan), tanpa input tambahan.</p>
 
@@ -276,7 +276,12 @@ export function AnalysisPanel({
           Tampilkan junior &amp; chief
         </label>
       </div>
-      <div className="grid items-start gap-3 sm:grid-cols-2 lg:grid-cols-3">
+      {/*
+        Packed in columns (12 Nov 2026, build 12.2): in a grid with items-start each row began under
+        its tallest card, so one long list (Belum SOAP, 24 rows) left holes beside it. Each card now
+        shows its whole list instead of scrolling inside a 16 rem box.
+      */}
+      <div className="columns-1 gap-3 sm:columns-2 lg:columns-3 [&>*]:mb-3 [&>*]:break-inside-avoid">
         <Block title={name('pulangHariIni')} count={day.pulangHariIni.length} rename={field('pulangHariIni', SECTION_TITLE.pulangHariIni)}>
           {day.pulangHariIni.map((p) => (
             <Row key={p.key} patient={p} onOpen={onOpen} holders={holders} />

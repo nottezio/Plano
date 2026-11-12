@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react';
+import { useEffect, useRef, useState, type CSSProperties, type PointerEvent as ReactPointerEvent } from 'react';
 
 import { writeRosterReport } from '@/data/repositories/floors.repo';
 import { dpjpById } from '@/domain/dpjp';
@@ -69,6 +69,28 @@ function readStored(): Geometry {
     // Unreadable: the default.
   }
   return defaultGeometry();
+}
+
+const HEADER_BUTTON = 'min-h-tap rounded-lg border border-border bg-[var(--chip-bg,transparent)] px-3 text-xs font-medium';
+
+/**
+ * The tinted header's own text and edge colours (12 Nov 2026, Avi: on the red/green header of
+ * 11.7 the grey meta lines and the chips' and buttons' edges disappeared, worst in dark). The
+ * tint changed only the background: `--fg-faint` fell to 2.5:1 (light) and 3.3:1 (dark) on it,
+ * and `--border` to about 1.0:1, so the buttons lost their outline. Inside the header the muted
+ * and faint text are mixed from `--fg` toward the tint, the borders from the flag colour, and the
+ * chips and buttons sit on a lighter wash of it. Checked in `scripts/check-contrast.mjs`.
+ */
+function tintedHeader(flag: string): CSSProperties {
+  const bg = `color-mix(in srgb, ${flag} 16%, var(--surface))`;
+  const muted = `color-mix(in srgb, var(--fg) 78%, ${bg})`;
+  return {
+    background: bg,
+    '--fg-muted': muted,
+    '--fg-faint': muted,
+    '--border': `color-mix(in srgb, ${flag} 45%, var(--surface))`,
+    '--chip-bg': `color-mix(in srgb, ${flag} 6%, var(--surface))`,
+  } as CSSProperties;
 }
 
 export function SoapFloat({
@@ -212,7 +234,7 @@ export function SoapFloat({
         onPointerUp={end}
         onPointerCancel={end}
         // Tinted by the list's colour (11 Nov 2026, Avi): red H-1, green pulang hari ini, seen before a word is read.
-        style={patient.discharge ? { background: `color-mix(in srgb, ${FLAG_TEXT[patient.discharge]} 16%, var(--surface))` } : undefined}
+        style={patient.discharge ? tintedHeader(FLAG_TEXT[patient.discharge]) : undefined}
         className={`flex flex-wrap items-start gap-2 rounded-t-2xl border-b border-border px-4 py-3 ${floating ? 'cursor-move select-none touch-none' : ''}`}
       >
         <div className="min-w-0 flex-1">
@@ -235,7 +257,7 @@ export function SoapFloat({
               )
                 .filter(([, name]) => name)
                 .map(([role, name]) => (
-                  <span key={role} className="rounded-lg border border-border bg-surface px-2 py-0.5">
+                  <span key={role} className="rounded-lg border border-border bg-[var(--chip-bg,var(--surface))] px-2 py-0.5">
                     <span className="text-xs text-fg-muted">{role} </span>
                     <span className="font-semibold">dr. {name.replace(/^dr\.?\s*/i, '')}</span>
                   </span>
@@ -265,7 +287,7 @@ export function SoapFloat({
         {!editing ? (
           <div className="flex basis-full flex-wrap items-center gap-2">
             {editable && patient.manual && onEditManual ? (
-              <button type="button" onClick={() => onEditManual(patient)} className="min-h-tap rounded-lg border border-border px-3 text-xs font-medium">
+              <button type="button" onClick={() => onEditManual(patient)} className={HEADER_BUTTON}>
                 Ubah isi
               </button>
             ) : null}
@@ -276,7 +298,7 @@ export function SoapFloat({
                   setDraft(patient.full);
                   setEditing(true);
                 }}
-                className="min-h-tap rounded-lg border border-border px-3 text-xs font-medium"
+                className={HEADER_BUTTON}
               >
                 Update SOAP
               </button>
@@ -286,7 +308,7 @@ export function SoapFloat({
               onClick={() => {
                 void copyText(patient.full).then((ok) => setCopied(ok));
               }}
-              className="min-h-tap rounded-lg border border-border px-3 text-xs font-medium"
+              className={HEADER_BUTTON}
             >
               {copied ? 'Tersalin' : 'Salin'}
             </button>
@@ -295,7 +317,7 @@ export function SoapFloat({
                 type="button"
                 onClick={toggleAtur}
                 aria-expanded={atur}
-                className={`min-h-tap rounded-lg border px-3 text-xs font-medium ${atur ? 'border-accent bg-accent text-on-accent' : 'border-border'}`}
+                className={`min-h-tap rounded-lg border px-3 text-xs font-medium ${atur ? 'border-accent bg-accent text-on-accent' : 'border-border bg-[var(--chip-bg,transparent)]'}`}
               >
                 {atur && !floating ? 'Kembali ke SOAP' : 'Atur pasien'}
               </button>
