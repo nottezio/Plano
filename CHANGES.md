@@ -1,5 +1,14 @@
 # Plano — CHANGES
 
+## `2026-11-12.5` — Names wrap instead of truncating: phone Denah rooms, List residents
+
+Avi (phone screenshot; desk screenshot ~1900 px with the side panel): "Tn. Safrizal · A…", "Ny. Debora M…" on the phone plan; "dr. Avi / dr. ..." in the List Residen column.
+
+- **Root cause:** same as 12.4, in two more places. The compact `PatientButton` (`FloorDenah.tsx`) put name + DPJP code in one `truncate` span beside a `shrink-0` SOAP dot, in a room box ~150 px wide. The List table's Residen cell was `lg:truncate` in a `minmax(0,1fr)` column, so the chief (written second) was always the part cut off.
+- **Fix:** both spans now `break-words` instead of `truncate`; the compact button aligns to the top (`items-start`) so the number and the SOAP dot stay on the first line of a wrapped name.
+- **Firestore cost:** none. Render only.
+- **Not done:** not checked on a ward device. Rooms and rows with long names are taller, by design. Other `truncate` cells in the List table (RM, DPJP code) are left as they are: short fixed-width values.
+
 ## `2026-11-12.4` — List tab: patient name no longer cut
 
 Avi (screenshot, ~1900 px with the Catatan pulang side panel open): names read "T..", "Ny. ...".

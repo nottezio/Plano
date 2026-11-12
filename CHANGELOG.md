@@ -5,6 +5,10 @@ Catatan teknis lengkap (akar masalah, perbaikan) ada di CHANGES.md.
 
 Entri teratas harus versi yang sedang dirilis; tes gagal bila belum ditulis.
 
+## `2026-11-12.5`
+- **Nama tidak terpotong lagi di Denah ponsel.** Nama pasien dan kode DPJP di kotak kamar kini turun ke baris berikutnya bila panjang, bukan berakhir dengan "…".
+- **Nama chief terbaca utuh di tab List** (layar lebar). Kolom Residen kini turun ke baris berikutnya, bukan "dr. Avi / dr. ...".
+
 ## `2026-11-12.4`
 - **Nama pasien di tab List terbaca utuh lagi.** Nama kini ditulis pertama dan tidak dipotong. Chip Pulang dan SOAP pindah ke bawah nama bila tempatnya tidak cukup, dan kolom Pasien lebih lebar.
 

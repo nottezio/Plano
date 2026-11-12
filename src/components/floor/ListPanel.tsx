@@ -344,7 +344,8 @@ function PatientRowText({ patient }: { patient: FloorPatient }): JSX.Element {
         {patient.rm && code ? DOT : null}
         <span className="font-semibold lg:truncate">{code}</span>
         {code || patient.rm ? DOT : null}
-        <span className="lg:truncate">{residents || <span className="text-fg-faint">belum ada residen</span>}</span>
+        {/* Residents wrap on the desk table (build 12.5): truncated, the chief read "dr. Avi / dr. ...". */}
+        <span className="lg:break-words">{residents || <span className="text-fg-faint">belum ada residen</span>}</span>
         <span className="lg:flex lg:min-w-0 lg:flex-wrap lg:items-center lg:gap-1">
           {notes.map((n, i) => (
             <span key={n}>

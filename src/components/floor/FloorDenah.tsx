@@ -93,19 +93,20 @@ function PatientButton({
         type="button"
         onClick={() => onOpen(patient)}
         title={patient.identity}
-        className={`flex w-full min-w-0 items-center gap-1 rounded-md px-1 py-1 text-left text-xs leading-snug text-fg hover:bg-bg-subtle focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent ${
+        className={`flex w-full min-w-0 items-start gap-1 rounded-md px-1 py-1 text-left text-xs leading-snug text-fg hover:bg-bg-subtle focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent ${
           usul ? 'bg-[var(--warn-soft)]' : ''
         } ${found === 'dim' ? 'opacity-30' : found === 'hit' ? 'outline outline-2 outline-accent' : ''}`}
         style={colour ? { color: colour } : undefined}
       >
         {number !== undefined ? <span className="shrink-0 tabular-nums text-fg-muted">{number}.</span> : null}
-        <span className="min-w-0 truncate">
+        {/* Wraps, never cut (12 Nov 2026, build 12.5, Avi): a truncated name on the phone plan read "Tn. Safrizal · A…". */}
+        <span className="min-w-0 break-words">
           {patient.name || patient.identity}
           {code ? <span className="text-fg-muted"> · {code}</span> : null}
         </span>
         {flag ? <span className="sr-only"> ({FLAG_LABEL[flag]})</span> : null}
         {usul ? <span className="sr-only"> (usul H-1)</span> : null}
-        <span className="ml-auto flex shrink-0 items-center">
+        <span className="ml-auto flex h-[1.1rem] shrink-0 items-center">
           <SoapBadge patient={patient} compact />
         </span>
       </button>
