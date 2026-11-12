@@ -246,6 +246,11 @@ export function planRooms(plan: WardPlan): DenahRoomSlot[] {
   ];
 }
 
+/** Every ward that has a transcribed plan, for the "Denah" choice of a new list. */
+export function planWards(): string[] {
+  return PLANS.map((plan) => plan.ward).sort((a, b) => a.localeCompare(b, undefined, { numeric: true }));
+}
+
 /** The plan's annex box (patients of another floor), or null. */
 export function planAnnex(plan: WardPlan): { label: string; roomPrefix: string } | null {
   return plan.columns[1].find((block) => block.annex)?.annex ?? null;

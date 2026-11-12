@@ -1,5 +1,15 @@
 # Plano — CHANGES
 
+## `2026-11-12.9` — Lantai 5 in the new-list Denah choice
+
+Avi: "No denah lt 6 option?" The create form showed only PJT Lantai 4.
+
+- **Root cause:** the Denah `<select>` in `ListMakerPage.tsx` had one hardcoded `<option>`. 12.8 added the Lantai 5 plan, but no plan can be picked while the list is hardcoded, so a Lantai 5 list could not be created.
+- **Fix:** `planWards()` in `denahPlan.ts` returns every ward with a plan; the select maps over it, so the next plan appears without touching the form.
+- **Lantai 6:** there is no Lantai 6 plan or sheet; its patients sit in the LANTAI 6 box of the Lantai 5 plan. Not added as an option on purpose.
+- **Firestore cost:** none.
+- **Not done:** the form was not opened in the browser; the default name and ward of a new list are still PJT Lantai 4.
+
 ## `2026-11-12.8` — PJT Lantai 5 Denah
 
 Avi gave the PJT Lantai 5 sheet (12-11-2026) and asked for it in List Maker.

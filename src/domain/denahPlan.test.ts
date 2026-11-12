@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { placeInPlan } from './denah';
-import { inAnnex, planRooms, visitIndex, wardPlan } from './denahPlan';
+import { inAnnex, planRooms, planWards, visitIndex, wardPlan } from './denahPlan';
 import { planLayout } from './floorList/layout';
 import type { Patient } from './types';
 
@@ -54,6 +54,12 @@ describe('wardPlan', () => {
     expect(beds.get('419')).toBe(4);
     expect(beds.get('413')).toBe(2);
     expect(beds.get('410')).toBe(1);
+  });
+});
+
+describe('planWards', () => {
+  it('lists every ward with a plan, for the new-list choice', () => {
+    expect(planWards()).toEqual(['PJT Lantai 4', 'PJT Lantai 5']);
   });
 });
 

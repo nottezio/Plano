@@ -5,6 +5,9 @@ Catatan teknis lengkap (akar masalah, perbaikan) ada di CHANGES.md.
 
 Entri teratas harus versi yang sedang dirilis; tes gagal bila belum ditulis.
 
+## `2026-11-12.9`
+- **PJT Lantai 5 muncul di pilihan Denah saat membuat list baru.** Sebelumnya hanya Lantai 4 yang bisa dipilih. Pasien Lantai 6 tidak punya denah sendiri: mereka ada di kotak "LANTAI 6" pada denah Lantai 5.
+
 ## `2026-11-12.8`
 - **Denah PJT Lantai 5 ditambahkan.** List Maker kini menggambar Lantai 5 sesuai lembar di dinding: 510 dan 511 di atas, kamar 509–502 di kiri (508 A dan 508 B berdampingan), 512–519 di kanan, dan 501 Super VIP di tengah. Jumlah bed tiap kamar mengikuti lembar, dan sisi kiri dan kanan sama lebar.
 - **Kotak Lantai 6 di tengah denah.** List Lantai 5 juga memuat pasien Lantai 6; mereka kini ada di kotak "LANTAI 6" (tampil di layar, Word, dan cetak), bukan di "Di luar denah".
