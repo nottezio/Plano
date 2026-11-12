@@ -1,5 +1,16 @@
 # Plano — CHANGES
 
+## `2026-11-13.4` — Pelimpahan of the day (AFG->ZD)
+
+Avi: "add the ability to add a Pelimpahan for the day … the DPJP inisial in the list and denah would be like AFG->ZD". Pelimpahan = the main DPJP is on leave (cuti) and another covers.
+
+- **Storage:** `FloorDoc.pelimpahan: string[]`, entries `YYYY-MM-DD:from>to` (DPJP registry ids), added and removed with `arrayUnion`/`arrayRemove` like `holidays`. One leaf write; no new listener or read. `firestore.rules` editor allowlist gains `pelimpahan` (deployed by `firestore-deploy.yml`; until then adding one is refused).
+- **Display:** `effective()` looks up `pelimpahanOn(floor.pelimpahan, date, report.dpjpId)` and sets `FloorPatient.pelimpahan` (the covering DPJP's initials). `dpjpCodeOf` prints `AFG->ZD`, so the list text, short list, Denah, Word, PDF and the search all follow, as every one of them goes through it. The field is also read back in `readPatient`, so a saved edition keeps it.
+- **Filing is unchanged:** the patient stays in AFG's block and counts for AFG; only the printed code changes. A patient held by a division is left alone.
+- **UI:** `PelimpahanField` in Setelan → Tampilan list (date, who is away, who covers, Tambah; upcoming ones with Hapus). Editors only.
+- **Firestore cost:** reads: none added (rides on the list document already listened to; a change re-delivers that one document, about 1 read per open member). Writes: 1 per add or remove.
+- **Not done:** the day is picked in Setelan, not on the List tab. Only the patient's own DPJP is covered (not a KJS consultant). Several covers for one DPJP on one day are not prevented (the first entry wins). Past entries are not pruned. A list text already copied or saved earlier that day is not rewritten. Not checked in the browser or on a ward device.
+
 ## `2026-11-13.3` — Slide MZ: optional tall deck (4:3)
 
 Avi: a long CPPT does not fit; asked for height, not two columns. A .pptx has one slide size per file, so a single taller slide is not possible; agreed on an optional deck-wide taller size.

@@ -71,6 +71,28 @@ export interface FloorDoc {
   analysisTitles: SectionTitles;
   /** Trio patients (AFM, AFG, ZD) print their whole SOAP in the list message, not only the A/P (Setelan). */
   trioFullSoap: boolean;
+  /** Pelimpahan by day, "YYYY-MM-DD:afg>zd": that day the first DPJP is on leave and the second covers (`pelimpahanOn`). */
+  pelimpahan: string[];
+}
+
+const PELIMPAHAN = /^(\d{4}-\d{2}-\d{2}):([a-z0-9]+)>([a-z0-9]+)$/;
+
+export const pelimpahanEntry = (date: string, from: string, to: string): string => `${date}:${from}>${to}`;
+export const isPelimpahanEntry = (value: string): boolean => PELIMPAHAN.test(value);
+
+export function parsePelimpahan(entry: string): { date: string; from: string; to: string } | null {
+  const match = PELIMPAHAN.exec(entry);
+  return match ? { date: match[1]!, from: match[2]!, to: match[3]! } : null;
+}
+
+/** The DPJP covering for `dpjpId` on `date`, or null. */
+export function pelimpahanOn(entries: readonly string[] | undefined, date: string, dpjpId: string | null): string | null {
+  if (!dpjpId) return null;
+  for (const entry of entries ?? []) {
+    const match = PELIMPAHAN.exec(entry);
+    if (match && match[1] === date && match[2] === dpjpId) return match[3] ?? null;
+  }
+  return null;
 }
 
 /** On the floor, or gone (and how). */
@@ -347,6 +369,7 @@ export function effective(
     guestJuniors?: string | undefined;
     marks?: readonly FloorMark[] | undefined;
     newBadge?: NewBadge | null | undefined;
+    pelimpahan?: readonly string[] | undefined;
   },
   date: string,
   /** Not on the previous day's list (13.10, the "pasien baru" rule). */
@@ -390,7 +413,11 @@ export function effective(
         }
       : {};
   const badge = isNew ? newBadgeOf(floor) : null;
+  // Only the patient's own DPJP (not a division's consultant) shows the cover: "AFG->ZD".
+  const cover = division ? null : pelimpahanOn(floor.pelimpahan, date, report.dpjpId);
+  const coverInitials = cover ? dpjpById(cover)?.initials : undefined;
   const notes = {
+    ...(coverInitials ? { pelimpahan: coverInitials } : {}),
     ...(badge?.on ? { newBadge: { label: badge.label, color: badge.color } } : {}),
     ...(patient.operkan ? { operkan: patient.operkan } : {}),
     ...(patient.gantiChief ? { gantiChief: patient.gantiChief } : {}),

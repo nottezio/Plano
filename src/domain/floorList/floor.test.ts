@@ -12,6 +12,10 @@ import {
   colourOn,
   divisionOf,
   effective,
+  isPelimpahanEntry,
+  parsePelimpahan,
+  pelimpahanEntry,
+  pelimpahanOn,
   holderLabel,
   isOwner,
   leftNote,
@@ -37,6 +41,7 @@ import {
   type RosterPatient,
 } from './floor';
 import type { FloorPatient } from './report';
+import { dpjpCodeOf } from './build';
 
 const FLOOR: FloorDoc = {
   id: 'f1',
@@ -58,6 +63,7 @@ const FLOOR: FloorDoc = {
   marks: [],
   analysisTitles: {},
   trioFullSoap: false,
+  pelimpahan: [],
 };
 
 function patient(over: Partial<FloorPatient>): FloorPatient {
@@ -566,5 +572,31 @@ describe('orderFloors (dragged list order, 10 Nov 2026)', () => {
     expect(orderFloors(lists, ['b', 'a']).map((f) => f.id)).toEqual(['b', 'a', 'c']);
     expect(orderFloors(lists, undefined).map((f) => f.name)).toEqual(['1231', 'Anak', 'PJT Lantai 4']);
     expect(orderFloors(lists, ['gone', 'c']).map((f) => f.id)).toEqual(['c', 'a', 'b']);
+  });
+});
+
+describe('Pelimpahan of the day', () => {
+  const entry = pelimpahanEntry('2026-11-14', 'afg', 'zd');
+
+  it('writes and reads an entry', () => {
+    expect(entry).toBe('2026-11-14:afg>zd');
+    expect(isPelimpahanEntry(entry)).toBe(true);
+    expect(isPelimpahanEntry('2026-11-14:afg')).toBe(false);
+    expect(parsePelimpahan(entry)).toEqual({ date: '2026-11-14', from: 'afg', to: 'zd' });
+  });
+
+  it('covers only that DPJP, on that day', () => {
+    expect(pelimpahanOn([entry], '2026-11-14', 'afg')).toBe('zd');
+    expect(pelimpahanOn([entry], '2026-11-15', 'afg')).toBeNull();
+    expect(pelimpahanOn([entry], '2026-11-14', 'zd')).toBeNull();
+    expect(pelimpahanOn([entry], '2026-11-14', null)).toBeNull();
+  });
+
+  it('prints the code as AFG->ZD on that day only, and leaves the patient filed under AFG', () => {
+    const seen = effective(rostered({ dpjpId: 'afg' }), { ...FLOOR, pelimpahan: [entry] }, '2026-11-14');
+    expect([seen.dpjpId, seen.pelimpahan, dpjpCodeOf(seen)]).toEqual(['afg', 'ZD', 'AFG->ZD']);
+    const other = effective(rostered({ dpjpId: 'afg' }), { ...FLOOR, pelimpahan: [entry] }, '2026-11-15');
+    expect([other.pelimpahan, dpjpCodeOf(other)]).toEqual([undefined, 'AFG']);
+    expect(dpjpCodeOf(effective(rostered({ dpjpId: 'ks' }), { ...FLOOR, pelimpahan: [entry] }, '2026-11-14'))).toBe('KS');
   });
 });

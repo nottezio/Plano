@@ -40,7 +40,7 @@ import {
   floorVisitNoteDoc,
 } from '../paths';
 import { trackWrite } from '../syncStatus';
-import { legacyColourDate, rosterLeftSince, type Edition, type FloorDoc, type FloorRole, type RosterPatient, type StatusChange } from '@/domain/floorList/floor';
+import { isPelimpahanEntry, legacyColourDate, rosterLeftSince, type Edition, type FloorDoc, type FloorRole, type RosterPatient, type StatusChange } from '@/domain/floorList/floor';
 import { readSectionTitles, type SectionTitles } from '@/domain/floorList/analysis';
 import { isMarkColor, MARK_PREFIX, readMarks, readNewBadge, type FloorMark, type NewBadge, type PatientTag } from '@/domain/floorList/marks';
 import { manualFullText, type FloorPatient } from '@/domain/floorList/report';
@@ -95,6 +95,7 @@ export function readFloor(id: string, data: DocumentData): FloorDoc {
     marks: readMarks(data.marks),
     analysisTitles: readSectionTitles(data.analysisTitles),
     trioFullSoap: data.trioFullSoap === true,
+    pelimpahan: Array.isArray(data.pelimpahan) ? data.pelimpahan.filter((v: unknown): v is string => typeof v === 'string' && isPelimpahanEntry(v)) : [],
   };
 }
 
@@ -129,6 +130,7 @@ export function readPatient(raw: unknown): FloorPatient | null {
     ...(p.fromList === true ? { fromList: true } : {}),
     ...readTags(p.tags, p.mark),
     ...(typeof p.dpjpCode === 'string' && p.dpjpCode ? { dpjpCode: p.dpjpCode } : {}),
+    ...(typeof p.pelimpahan === 'string' && p.pelimpahan ? { pelimpahan: p.pelimpahan } : {}),
     ...(typeof p.operkan === 'string' && p.operkan ? { operkan: p.operkan } : {}),
     ...(typeof p.gantiChief === 'string' && p.gantiChief ? { gantiChief: p.gantiChief } : {}),
     ...(p.usul === true ? { usul: true } : {}),
@@ -615,6 +617,15 @@ export function writeChiefBangsal(floorId: string, name: string): Promise<void> 
 /** One date at a time, so two editors marking different days cannot overwrite each other. */
 export function addHoliday(floorId: string, iso: string): Promise<void> {
   return trackWrite(updateDoc(floorDoc(floorId), 'holidays', arrayUnion(iso), 'updatedAt', serverTimestamp()));
+}
+
+/** A pelimpahan of a day ("2026-11-14:afg>zd"); past ones stay stored, unseen, like the holidays. */
+export function addPelimpahan(floorId: string, entry: string): Promise<void> {
+  return trackWrite(updateDoc(floorDoc(floorId), 'pelimpahan', arrayUnion(entry), 'updatedAt', serverTimestamp()));
+}
+
+export function removePelimpahan(floorId: string, entry: string): Promise<void> {
+  return trackWrite(updateDoc(floorDoc(floorId), 'pelimpahan', arrayRemove(entry), 'updatedAt', serverTimestamp()));
 }
 
 export function removeHoliday(floorId: string, iso: string): Promise<void> {

@@ -31,8 +31,10 @@ export function isPediatri(id: string | null): boolean {
 
 /** "417 Bed 4/KS/<identity> (KJS BTKV) - dr. Junior / dr. Chief". */
 /** The DPJP code printed on a line: ours, or the one written on a sent list ("TM", 13.10). */
-export function dpjpCodeOf(patient: Pick<FloorPatient, 'dpjpId' | 'dpjpCode'>): string {
-  return patient.dpjpId ? (dpjpById(patient.dpjpId)?.initials ?? '') : (patient.dpjpCode ?? '');
+export function dpjpCodeOf(patient: Pick<FloorPatient, 'dpjpId' | 'dpjpCode'> & { pelimpahan?: string | undefined }): string {
+  const own = patient.dpjpId ? (dpjpById(patient.dpjpId)?.initials ?? '') : (patient.dpjpCode ?? '');
+  // Pelimpahan of the day: "AFG->ZD", the DPJP on leave then the one covering.
+  return own && patient.pelimpahan ? `${own}->${patient.pelimpahan}` : own;
 }
 
 export function patientLine(patient: FloorPatient): string {

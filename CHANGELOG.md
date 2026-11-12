@@ -5,6 +5,9 @@ Catatan teknis lengkap (akar masalah, perbaikan) ada di CHANGES.md.
 
 Entri teratas harus versi yang sedang dirilis; tes gagal bila belum ditulis.
 
+## `2026-11-13.4`
+- **Pelimpahan DPJP per hari.** Setelan → Tampilan list → "Pelimpahan DPJP": pilih tanggal, DPJP yang cuti dan penggantinya. Pada hari itu kode DPJP di list, denah, Salin teks, list pendek, Word dan PDF tertulis seperti **AFG->ZD**. Pasien tetap di kotak DPJP aslinya, dan hari lain tidak berubah.
+
 ## `2026-11-13.3`
 - **Slide tinggi (opsional) untuk SOAP panjang.** Di editor Slide MZ ada pilihan **Slide tinggi (4:3)**. Bila dicentang, semua slide di deck jadi lebih tinggi (lebar sama), sehingga SOAP atau slide CPPT yang panjang muat tanpa mengecilkan teks. Ini berlaku untuk seluruh deck, bukan satu slide saja (satu file PowerPoint hanya punya satu ukuran slide). Tanda "terlalu panjang" memberi petunjuk bila perlu. Tabel SOAP tetap memakai tinggi baris judul yang sama; tambahan tinggi masuk ke isi.
 

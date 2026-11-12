@@ -24,6 +24,7 @@ const FLOOR: FloorDoc = {
   marks: [],
   analysisTitles: {},
   trioFullSoap: false,
+  pelimpahan: [],
 };
 
 function report(over: Partial<FloorPatient> = {}): FloorPatient {

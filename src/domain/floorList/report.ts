@@ -89,6 +89,8 @@ export interface FloorPatient {
   newBadge?: { label: string; color: PatientTag['color'] } | undefined;
   /** A DPJP code written on a sent list that is not one of ours ("TM/…", 13.10): printed as written. */
   dpjpCode?: string | undefined;
+  /** Pelimpahan of the day: the initials of the DPJP covering for this patient's own DPJP ("ZD" → printed "AFG->ZD"). */
+  pelimpahan?: string | undefined;
   /** Held by a cardiology division, not the ward residents (13.9, `divisionOf`). */
   division?: string | undefined;
 }

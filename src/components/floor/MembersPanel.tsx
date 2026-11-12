@@ -5,9 +5,11 @@ import { TwoTapButton } from '@/components/common/TwoTapButton';
 import { Button, Callout, Section } from '@/components/common/ui';
 import {
   addHoliday,
+  addPelimpahan,
   cancelInvite,
   deleteFloor,
   removeHoliday,
+  removePelimpahan,
   writeJuniors,
   writeGuestJuniors,
   inviteMember,
@@ -25,6 +27,7 @@ import { ChiefsField } from './ChiefsField';
 import { HolidaysField } from './HolidaysField';
 import { MarksField } from './MarksField';
 import { NewBadgeField } from './NewBadgeField';
+import { PelimpahanField } from './PelimpahanField';
 import type { FloorPatient } from '@/domain/floorList/report';
 
 const ROLE_LABEL: Record<FloorRole, string> = { edit: 'Lihat dan edit', view: 'Lihat saja' };
@@ -331,6 +334,17 @@ export function MembersPanel({
               hint="Muncul sendiri pada pasien yang belum ada di list shift sebelumnya (pasien baru atau pindahan), seperti SOAP baru. Hanya di layar, tidak ikut dicetak."
             >
               <NewBadgeField floor={floor} editable={editor} onSave={(badge) => run(() => writeNewBadge(floor.id, badge))} />
+            </Section>
+            <Section
+              title="Pelimpahan DPJP"
+              hint="DPJP yang cuti dan siapa penggantinya pada hari itu. Di hari itu kode DPJP pada list dan denah tertulis seperti AFG->ZD; pasien tetap di kotak DPJP aslinya."
+            >
+              <PelimpahanField
+                entries={floor.pelimpahan}
+                editable={editor}
+                onAdd={(entry) => run(() => addPelimpahan(floor.id, entry))}
+                onRemove={(entry) => run(() => removePelimpahan(floor.id, entry))}
+              />
             </Section>
             <Section
               title="SOAP lengkap pasien Trio"
