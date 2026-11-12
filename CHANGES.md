@@ -1,5 +1,15 @@
 # Plano — CHANGES
 
+## `2026-11-12.13` — Salin list pendek
+
+Avi: "Add the ability to salin the list whatsapp to be like this also" (a hand-written short list: counts, a block per DPJP with one line per patient, rules, closing).
+
+- **What:** `buildShortList` and `shortLine` in `build.ts`; a second copy button in `ListActions` ("Pendek", and a menu item on a phone). Same patients and order as the long list (`view.active`, visit route). Header "Jumat, 13-11-2026 pukul 04:00" (weekday from `formatLongDate`, dashes, the time's `.` turned into `:`). Line = place / identity / DPJP code / junior (no chief, no A/P). Each DPJP block (empty ones too, like the long list) ends with 47 underscores; closing line last.
+- **Non-Follow Up** = a patient held by a division or tagged `noFollowUp` (the Residen rule); Follow up = total minus that.
+- **Where it differs from the sample:** the sample's header had a stray " ," after "mengirimkan" (dropped); DPJP order follows the app's list order, not the sample's hand order (KS, PT, AHA, AFG, MZ, AHN, ARB, ZD, AFM, IM, PK, MAA, NP, then pediatri) and includes MAA; DPJP titles are written one way ("dr. KS: 1 pasien", "Prof. MZ"), not the sample's mixed spelling; a patient filed under another DPJP as KJS is listed under a "KJS:" line in that DPJP's block, as in the long list.
+- **Firestore cost:** none; text built from the roster already loaded.
+- **Not done:** not saved with an edition (Simpan edisi still stores the long list only), no Word/print version, no per-list setting for the wording. Not checked in the browser or on a phone.
+
 ## `2026-11-12.12` — Trio full SOAP without the message's framing
 
 Avi, after seeing a real list with .11: do not copy the whole SOAP for trio. Leave out the name (the header already has it), the opening, the DPJP lines and the closing.

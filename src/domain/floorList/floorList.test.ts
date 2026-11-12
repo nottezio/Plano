@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { splitChat } from './chat';
-import { buildFloorList, countLabel, patientLine, soapForList, splitFloorList, unbold } from './build';
+import { buildFloorList, buildShortList, countLabel, patientLine, soapForList, splitFloorList, unbold } from './build';
 import { effective, newRosterPatient, pasteDiff } from './floor';
 import { dischargeFlag, usulH1, latestOf, latestPatients, listBody, manualPatient, nicknameOf, onFloorNumber, otherDepartmentUtama, readReport, readReports, type FloorPatient } from './report';
 
@@ -939,5 +939,41 @@ describe('soapForList: the framing lines in their other spellings', () => {
   it('only drops the name line from the top, so an RM written in a report further down stays', () => {
     const lines = ['Diagnosis:', ...Array.from({ length: 16 }, (_, i) => `- baris ${String(i)}`), 'Echo untuk RM 1600001 / 2026'];
     expect(soap(lines)).toContain('Echo untuk RM 1600001 / 2026');
+  });
+});
+
+describe('buildShortList (List pasien pendek)', () => {
+  const p = (over: Partial<FloorPatient>): FloorPatient =>
+    ({
+      key: 'rm:1', rm: '1', name: 'Tn. Contoh', identity: 'Tn. Contoh / 01-01-1970 / 56 tahun / RM 1', room: '417', bed: '2', floor: '4',
+      dpjpId: 'ks', kjsDpjpIds: [], btkv: false, body: 'Diagnosis:\n- CHF', full: '', chief: 'Ija', junior: 'Naima', senderNick: '', sender: '',
+      sentAt: '2026-11-13T04:00', index: 0, discharge: null, ...over,
+    }) as FloorPatient;
+  const options = { ward: 'PJT Lantai 4', date: '2026-11-13', time: '04.00' };
+  const patients = [
+    p({}),
+    p({ key: 'rm:2', rm: '2', identity: 'Ny. Contoh Dua / RM 2', room: '418', bed: '', dpjpId: 'zd', junior: 'Lummi' }),
+    p({ key: 'rm:3', rm: '3', identity: 'Tn. Contoh Tiga / RM 3', room: '419', bed: '1', dpjpId: 'zd', junior: '', tags: [{ label: 'Tidak di-FU', color: 'grey', noFollowUp: true }] as FloorPatient['tags'] }),
+  ];
+  const text = buildShortList(patients, options);
+
+  it('heads the list with the weekday, the date as dd-mm-yyyy and the time with a colon', () => {
+    expect(text.split('\n')[0]).toBe('*Tabe dokter izin mengirimkan List pasien pendek Jumat, 13-11-2026 pukul 04:00*');
+  });
+
+  it('counts Total, Follow up and Non-Follow Up', () => {
+    expect(text).toContain('Total pasien : 3 Pasien\nFollow up: 2 Pasien\nNon-Follow Up: 1 Pasien');
+  });
+
+  it('writes one line per patient (place / identity / code / junior, no A/P, no chief), a block per DPJP closed by a rule', () => {
+    expect(text).toContain('- dr. KS: 1 pasien\n1. 417 Bed 2 / Tn. Contoh / 01-01-1970 / 56 tahun / RM 1 / KS / Naima\n' + '_'.repeat(47));
+    expect(text).toContain('- dr. ZD: 2 pasien\n1. 418 / Ny. Contoh Dua / RM 2 / ZD / Lummi\n2. 419 Bed 1 / Tn. Contoh Tiga / RM 3 / ZD\n');
+    expect(text).toContain('- dr. AHA: 0 pasien\n' + '_'.repeat(47));
+    expect(text).not.toContain('Diagnosis');
+    expect(text).not.toContain('Ija');
+  });
+
+  it('ends with the closing line', () => {
+    expect(text.endsWith('\n\nTabe dokter, selanjutnya mohon arahannya dokter. Terima kasih dokter')).toBe(true);
   });
 });

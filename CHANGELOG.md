@@ -5,6 +5,9 @@ Catatan teknis lengkap (akar masalah, perbaikan) ada di CHANGES.md.
 
 Entri teratas harus versi yang sedang dirilis; tes gagal bila belum ditulis.
 
+## `2026-11-12.13`
+- **Salin list pendek.** Tombol baru "Pendek" di samping Salin teks (di ponsel: menu ⋯ → Salin list pendek) menyalin list WhatsApp versi ringkas: judul "List pasien pendek" dengan hari, tanggal dan jam, jumlah Total / Follow up / Non-Follow Up, lalu satu baris per pasien (kamar, identitas, kode DPJP, residen) per DPJP, tanpa assess, terapi dan plan, dengan garis pemisah dan kalimat penutup. Salin teks yang biasa tidak berubah.
+
 ## `2026-11-12.12`
 - **SOAP lengkap pasien Trio kini tanpa pembuka, nama, DPJP, dan penutup.** Yang dibuang dari teks list: baris salam dan "mohon izin melaporkan … atas nama:", baris nama (sudah ada di header pasien), baris DPJP (utama, pelimpahan, GH, Pulmo, dll.), Chief dan Junior, serta baris penutup "Selanjutnya mohon arahan dokter. Terima kasih" dengan variasi ejaannya. Isi klinisnya tidak diubah.
 

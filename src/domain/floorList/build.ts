@@ -219,6 +219,51 @@ export function buildFloorList(patients: readonly FloorPatient[], options: ListO
   return out.join('\n').replace(/\n{3,}/g, '\n\n').trimEnd();
 }
 
+const SHORT_RULE = '_'.repeat(47);
+
+/** "512 Bed 2 / Tn. X / 08-11-1957 / RM 1 / KS / Naima": place, identity, DPJP code, junior; no A/P, no chief. */
+export function shortLine(patient: FloorPatient): string {
+  const place = patient.room ? `${patient.room}${patient.bed ? ` Bed ${patient.bed}` : ''}` : '';
+  return [place, patient.identity, dpjpCodeOf(patient), patient.junior].filter(Boolean).join(' / ');
+}
+
+/** Held by a division or tagged "tidak di-FU": counted as the list's Non-Follow Up (the Residen rule). */
+function isNonFollowUp(patient: FloorPatient): boolean {
+  return Boolean(patient.division) || Boolean(patient.tags?.some((tag) => tag.noFollowUp));
+}
+
+/**
+ * The short list (13 Nov 2026, Avi): who is on the floor, by DPJP, one line each
+ * and no A/P — "Total pasien / Follow up / Non-Follow Up", a block per DPJP closed
+ * by a rule, and the closing line. Dated "Jumat, 13-11-2026 pukul 04:00".
+ */
+export function buildShortList(patients: readonly FloorPatient[], options: ListOptions): string {
+  const sorted = [...patients].sort(byRoute(options.ward));
+  const nonFollowUp = sorted.filter(isNonFollowUp).length;
+  const weekday = formatLongDate(options.date).split(',')[0] ?? '';
+  const [year, month, day] = options.date.split('-');
+  const out: string[] = [
+    `*Tabe dokter izin mengirimkan List pasien pendek ${weekday}, ${day ?? ''}-${month ?? ''}-${year ?? ''} pukul ${options.time.replace('.', ':')}*`,
+    `Total pasien : ${sorted.length} Pasien`,
+    `Follow up: ${sorted.length - nonFollowUp} Pasien`,
+    `Non-Follow Up: ${nonFollowUp} Pasien`,
+    '',
+  ];
+  for (const id of dpjpOrder(sorted)) {
+    const own = sorted.filter((patient) => patient.dpjpId === id);
+    const kjs = sorted.filter((patient) => patient.kjsDpjpIds.includes(id));
+    out.push(`- ${dpjpTitle(id)}: ${own.length} pasien${kjs.length > 0 ? ` + ${kjs.length} KJS` : ''}`);
+    own.forEach((patient, k) => out.push(`${k + 1}. ${shortLine(patient)}`));
+    if (kjs.length > 0) {
+      out.push('KJS:');
+      kjs.forEach((patient, k) => out.push(`${k + 1}. ${shortLine(patient)}`));
+    }
+    out.push(SHORT_RULE);
+  }
+  out.push('', 'Tabe dokter, selanjutnya mohon arahannya dokter. Terima kasih dokter');
+  return out.join('\n');
+}
+
 export interface ListPart {
   /** "🫀 dr. KS : 2 pasien" (bold stars removed). */
   heading: string;

@@ -5,7 +5,7 @@ import { Button, INPUT } from '@/components/common/ui';
 import { saveEdition, saveRestorePoint } from '@/data/repositories/floors.repo';
 import { formatDmy } from '@/domain/dateDmy';
 import { wardPlan } from '@/domain/denahPlan';
-import { buildFloorList } from '@/domain/floorList/build';
+import { buildFloorList, buildShortList } from '@/domain/floorList/build';
 import type { Edition, FloorDoc, RosterPatient, RosterView } from '@/domain/floorList/floor';
 import { editionPoint } from '@/domain/floorList/restore';
 import { usePrintSettings } from '@/hooks/usePrintSettings';
@@ -53,7 +53,8 @@ export function ListActions({
   menuStart?: ReactNode;
 }): JSX.Element {
   const text = useMemo(() => buildFloorList(view.active, { ward: floor.ward, date, time, trioFullSoap: floor.trioFullSoap }), [view.active, floor.ward, date, time, floor.trioFullSoap]);
-  const [copied, setCopied] = useState(false);
+  const short = useMemo(() => buildShortList(view.active, { ward: floor.ward, date, time }), [view.active, floor.ward, date, time]);
+  const [copied, setCopied] = useState<'teks' | 'pendek' | null>(null);
   const [open, setOpen] = useState<'print' | 'save' | 'more' | null>(null);
   const [saved, setSaved] = useState('');
   const [savingEdition, setSavingEdition] = useState(false);
@@ -63,7 +64,7 @@ export function ListActions({
 
   useEffect(() => {
     if (!copied) return undefined;
-    const timer = window.setTimeout(() => setCopied(false), 2000);
+    const timer = window.setTimeout(() => setCopied(null), 2000);
     return () => window.clearTimeout(timer);
   }, [copied]);
 
@@ -99,7 +100,8 @@ export function ListActions({
 
   const toggle = (which: 'print' | 'save' | 'more'): void => setOpen((current) => (current === which ? null : which));
   const close = (): void => setOpen(null);
-  const copy = (): void => void copyText(text).then((ok) => setCopied(ok));
+  const copy = (): void => void copyText(text).then((ok) => setCopied(ok ? 'teks' : null));
+  const copyShort = (): void => void copyText(short).then((ok) => setCopied(ok ? 'pendek' : null));
 
   const printItems = (
     <>
@@ -163,7 +165,8 @@ export function ListActions({
         >
           <div className="grid gap-1.5">
             {menuStart}
-            <MenuItem icon={<IconCopy width={18} height={18} />} title={copied ? 'Tersalin ✓' : 'Salin teks'} note="untuk grup WhatsApp" onClick={copy} />
+            <MenuItem icon={<IconCopy width={18} height={18} />} title={copied === 'teks' ? 'Tersalin ✓' : 'Salin teks'} note="untuk grup WhatsApp" onClick={copy} />
+            <MenuItem icon={<IconCopy width={18} height={18} />} title={copied === 'pendek' ? 'Tersalin ✓' : 'Salin list pendek'} note="tanpa assess, terapi, plan" onClick={copyShort} />
             {printItems}
           </div>
         </Popover>
@@ -176,7 +179,17 @@ export function ListActions({
         title="Salin teks untuk WhatsApp"
         className="max-sm:hidden"
       >
-        {copied ? 'Tersalin ✓' : 'Salin teks'}
+        {copied === 'teks' ? 'Tersalin ✓' : 'Salin teks'}
+      </Button>
+      <Button
+        size="sm"
+        icon={<IconCopy width={16} height={16} />}
+        onClick={copyShort}
+        aria-label="Salin list pendek untuk WhatsApp"
+        title="Salin list pendek: satu baris per pasien, tanpa assess, terapi, plan"
+        className="max-sm:hidden"
+      >
+        {copied === 'pendek' ? 'Tersalin ✓' : 'Pendek'}
       </Button>
 
       <div className="max-sm:hidden">
