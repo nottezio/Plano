@@ -1,4 +1,5 @@
 import { logSessionEvent } from '@/lib/sessionLog';
+import { recordWrite } from '@/lib/usageMeter';
 import { useUI } from '@/store/useUI';
 
 /**
@@ -60,6 +61,7 @@ function publish(): void {
  * (optimistic UI) or await it (explicit "saved" confirmation) unchanged.
  */
 export function trackWrite<T>(promise: Promise<T>): Promise<T> {
+  recordWrite();
   pending += 1;
   publish();
 

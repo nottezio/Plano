@@ -1,6 +1,5 @@
 import {
   addDoc,
-  onSnapshot,
   orderBy,
   query,
   serverTimestamp,
@@ -8,6 +7,7 @@ import {
   type Timestamp,
   type Unsubscribe,
 } from 'firebase/firestore';
+import { onSnapshot } from '../meteredFirestore';
 
 import { feedbackCol, feedbackDoc } from '../paths';
 import { trackWrite } from '../syncStatus';

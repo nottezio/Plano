@@ -3,11 +3,8 @@ import {
   deleteDoc,
   deleteField,
   doc,
-  getDoc,
-  getDocs,
   increment,
   limit,
-  onSnapshot,
   orderBy,
   query,
   serverTimestamp,
@@ -16,11 +13,11 @@ import {
   where,
   type DocumentData,
   type Unsubscribe,
-  getCountFromServer,
   getDocsFromCache,
   documentId,
   type QueryDocumentSnapshot,
 } from 'firebase/firestore';
+import { getDoc, getDocs, onSnapshot, getCountFromServer } from '../meteredFirestore';
 
 import { getDeviceId } from '../deviceId';
 import { PRUNABLE_REASONS, prunableRevisions, REVISION_CAP } from '@/domain/revisionPrune';
@@ -127,6 +124,22 @@ export async function fetchEntryBodies(
    */
   const snapshot = await getDocs(query(entriesCol(patientId)));
   return toBodies(snapshot.docs);
+}
+
+/** The days of one patient the admin console opens at once. */
+const ADMIN_ENTRIES_LIMIT = 7;
+
+/**
+ * Admin only; the rules refuse everyone else. A patient's newest days, newest
+ * first, read once: at most 7 reads. The bodies are returned exactly as stored.
+ */
+export async function adminRecentEntries(
+  patientId: string,
+): Promise<Array<{ date: ClinicalDate; body: string }>> {
+  const snapshot = await getDocs(
+    query(entriesCol(patientId), orderBy(documentId(), 'desc'), limit(ADMIN_ENTRIES_LIMIT)),
+  );
+  return toBodies(snapshot.docs).sort((a, b) => (a.date < b.date ? 1 : -1));
 }
 
 /**

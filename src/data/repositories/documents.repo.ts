@@ -1,5 +1,4 @@
 import {
-  onSnapshot,
   orderBy,
   query,
   serverTimestamp,
@@ -10,6 +9,7 @@ import {
   type DocumentData,
   type Unsubscribe,
 } from 'firebase/firestore';
+import { onSnapshot } from '../meteredFirestore';
 import { nanoid } from 'nanoid';
 
 import { db } from '../firebase';

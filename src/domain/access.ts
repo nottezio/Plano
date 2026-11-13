@@ -18,7 +18,17 @@
  * WHAT THE ADMIN CAN SEE
  *
  * Only `access/{uid}`: email, name, first and last seen, device, app version,
- * and the counts each app reports about itself. Not `users/{uid}`, which also
+ * the address it was opened from, and the counts each app reports about itself.
+ * Since 13 Nov 2026 also the List Maker floor DOCUMENTS (name, ward, owner,
+ * members and roles; read only), never a roster or a sent list.
+ *
+ * Since 13 Nov 2026 also PATIENTS and their daily NOTES, read only (owner's
+ * decision: residents can already open any patient in the hospital system by
+ * RM, and the admin needs to support them). Safeguards: the console stamps
+ * `lastAdminViewAt` on the account BEFORE it reads and refuses to read if the
+ * stamp fails; the account sees that stamp and a plain statement in Akun; the
+ * admin has no write on patients; and `users/{uid}` (settings, Catatan notes,
+ * the AI key) stays closed to the admin. Not `users/{uid}`, which also
  * holds Catatan notes. Firestore rules cannot hide one field of a document, so
  * the only way to keep those notes out of the admin's browser is to never
  * grant the read.
@@ -29,9 +39,23 @@
  * what the SCREEN shows. A client that ignores it gets denied by the server.
  */
 
-export const ADMIN_UID = 'Wh7oXHHQfadqM8UWQubBi2iyj0i2';
+import type { AccessNotice } from './notice';
+import type { DeviceUsage } from './usage';
+
+export const ADMIN_UID ='Wh7oXHHQfadqM8UWQubBi2iyj0i2';
 
 export const isAdmin = (uid: string | null | undefined): boolean => uid === ADMIN_UID;
+
+/** The admin's "last opened" stamp is refreshed at most this often per account. */
+export const ADMIN_VIEW_STAMP_EVERY_MS = 60 * 60 * 1000;
+
+/**
+ * Whether the stamp is recent enough to leave alone. So the time an account
+ * sees in Akun is never more than an hour behind the admin's last look, while
+ * reopening the same account does not write every time.
+ */
+export const stampIsFresh = (lastAdminViewAt: Date | null, now: number): boolean =>
+  lastAdminViewAt !== null && now - lastAdminViewAt.getTime() < ADMIN_VIEW_STAMP_EVERY_MS;
 
 /** `viewer` (22 Oct 2026): admitted to read List Maker lists only. */
 export type AccessStatus = 'pending' | 'approved' | 'viewer' | 'revoked';
@@ -49,8 +73,22 @@ export const REGISTRY_KEYS = [
   'lastSeenAt',
   'device',
   'appVersion',
+  'host',
   'stats',
+  'usage',
 ] as const;
+
+/** Where Plano moved to (hosting migration, Nov 2026). The admin tab counts who is there. */
+export const NEW_HOST = 'tabulaplano.web.app';
+
+/** The `config/access` document, as the app reads it. */
+export interface AccessConfig {
+  enforce: boolean;
+  /** Apps older than this are asked to update. `null` = no minimum. Never blocks use. */
+  minVersion: string | null;
+  /** A message to every account, from the admin; `null` = none. Expiry is judged on the device. */
+  notice: AccessNotice | null;
+}
 
 export interface AccessStats {
   /** Patients on this device's copy, archived and trashed included. */
@@ -70,6 +108,14 @@ export interface AccessRecord {
   lastSeenAt: Date | null;
   device: string;
   appVersion: string;
+  /** The address the app was opened from (`location.host`); '' until a newer app reports it. */
+  host: string;
+  /** A message for this account only, from the admin. */
+  notice: AccessNotice | null;
+  /** What each of the account's devices estimates it read and wrote (key = device). */
+  usage: Record<string, DeviceUsage>;
+  /** When the admin last opened this account's patients (admin-written; the account sees it). */
+  lastAdminViewAt: Date | null;
   stats: (AccessStats & { at: Date | null }) | null;
   decidedAt: Date | null;
 }

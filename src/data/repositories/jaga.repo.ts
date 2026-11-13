@@ -1,11 +1,11 @@
 import {
   deleteField,
   FieldPath,
-  onSnapshot,
   serverTimestamp,
   setDoc,
   type Unsubscribe,
 } from 'firebase/firestore';
+import { onSnapshot } from '../meteredFirestore';
 
 import { getDeviceId } from '../deviceId';
 import { jagaCol, jagaDoc } from '../paths';

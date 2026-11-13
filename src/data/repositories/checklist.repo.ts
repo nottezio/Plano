@@ -1,9 +1,9 @@
 import {
-  onSnapshot,
   serverTimestamp,
   setDoc,
   type Unsubscribe,
 } from 'firebase/firestore';
+import { onSnapshot } from '../meteredFirestore';
 
 import { getDeviceId } from '../deviceId';
 import { checklistDoc } from '../paths';

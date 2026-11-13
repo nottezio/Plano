@@ -1,4 +1,5 @@
-import { onSnapshot, query, serverTimestamp, setDoc, where, type Unsubscribe } from 'firebase/firestore';
+import { query, serverTimestamp, setDoc, where, type Unsubscribe } from 'firebase/firestore';
+import { onSnapshot } from '../meteredFirestore';
 
 import { sensusDayDoc, sensusDaysCol } from '../paths';
 import { trackWrite } from '../syncStatus';

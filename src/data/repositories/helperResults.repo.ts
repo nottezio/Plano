@@ -1,6 +1,5 @@
 import {
   limit,
-  onSnapshot,
   orderBy,
   query,
   serverTimestamp,
@@ -8,6 +7,7 @@ import {
   updateDoc,
   type Unsubscribe,
 } from 'firebase/firestore';
+import { onSnapshot } from '../meteredFirestore';
 
 import { helperResultDoc, helperResultsCol } from '../paths';
 import { trackWrite } from '../syncStatus';

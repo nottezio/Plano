@@ -2,11 +2,6 @@ import {
   addDoc,
   doc,
   arrayRemove,
-  getDoc,
-  getDocFromServer,
-  getDocs,
-  getDocsFromServer,
-  getCountFromServer,
   deleteDoc,
   writeBatch,
   limit,
@@ -15,7 +10,6 @@ import {
   arrayUnion,
   deleteField,
   FieldPath,
-  onSnapshot,
   query,
   serverTimestamp,
   setDoc,
@@ -25,6 +19,7 @@ import {
   type QueryDocumentSnapshot,
   type Unsubscribe,
 } from 'firebase/firestore';
+import { getDoc, getDocFromServer, getDocs, getDocsFromServer, getCountFromServer, onSnapshot } from '../meteredFirestore';
 
 import {
   floorDaysCol,
@@ -230,6 +225,26 @@ export function subscribeMyFloors(uid: string, callback: (floors: FloorDoc[]) =>
     (snapshot) => callback(snapshot.docs.map((d) => readFloor(d.id, d.data()))),
     onError,
   );
+}
+
+/** The most floors the admin console loads at once (it is a handful of wards). */
+const ADMIN_FLOORS_LIMIT = 100;
+
+/**
+ * Admin only; the rules refuse everyone else. Every floor DOCUMENT, newest
+ * change first: name, ward, owner, members. Never a roster or a sent list.
+ * One read per floor per call, no listener.
+ */
+export async function adminListFloors(): Promise<{ floor: FloorDoc; updatedAt: Date | null }[]> {
+  const snapshot = await getDocs(query(floorsCol(), limit(ADMIN_FLOORS_LIMIT)));
+  return snapshot.docs
+    .map((d) => {
+      const stamp: unknown = d.data().updatedAt;
+      const updatedAt =
+        stamp && typeof (stamp as { toDate?: unknown }).toDate === 'function' ? (stamp as { toDate: () => Date }).toDate() : null;
+      return { floor: readFloor(d.id, d.data()), updatedAt };
+    })
+    .sort((a, b) => (b.updatedAt?.getTime() ?? 0) - (a.updatedAt?.getTime() ?? 0));
 }
 
 /** Floors that invited my email and are waiting for me to accept. */

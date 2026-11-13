@@ -2,7 +2,9 @@ import { ViewerOnly } from './viewerOnly';
 import { Suspense, lazy, useEffect, useState, type ReactNode } from 'react';
 
 import { Footer } from '@/components/common/Footer';
-import { describeDevice } from '@/data/deviceId';
+import { MinVersionBanner } from '@/components/common/MinVersionBanner';
+import { NoticeBanner } from '@/components/common/NoticeBanner';
+import { describeDevice, getDeviceId } from '@/data/deviceId';
 import {
   measureLocalCopy,
   registerSelf,
@@ -14,9 +16,14 @@ import {
   STATS_EVERY_MS,
   decideAccess,
   isDue,
+  type AccessConfig,
   type AccessStatus,
 } from '@/domain/access';
+import { isOlderVersion } from '@/domain/appVersion';
+import type { AccessNotice } from '@/domain/notice';
 import { useSlowWait } from '@/lib/loadTiming';
+import { buildUsageReport, meterSetOwner } from '@/lib/usageMeter';
+import { useAdminView } from '@/store/useAdminView';
 import { useSession } from '@/store/useSession';
 import { SignOutButton } from './SignOutButton';
 import { APP_VERSION } from '@/version.js';
@@ -35,71 +42,108 @@ const ListMakerPage = lazy(() => import('@/routes/ListMakerPage'));
  */
 export function AccessGate({ children }: { children: ReactNode }): JSX.Element {
   const user = useSession((state) => state.user);
-  const [enforce, setEnforce] = useState<boolean | null>(null);
+  const [config, setConfig] = useState<AccessConfig | null>(null);
   const [status, setStatus] = useState<AccessStatus | null | undefined>(undefined);
+  const [ownNotice, setOwnNotice] = useState<AccessNotice | null>(null);
   const [failed, setFailed] = useState(false);
 
   const uid = user?.uid ?? null;
 
   useEffect(() => {
     if (!uid) return undefined;
-    setEnforce(null);
+    meterSetOwner(uid);
+    useAdminView.setState({ lastAdminViewAt: null });
+    setConfig(null);
     setStatus(undefined);
+    setOwnNotice(null);
     setFailed(false);
-    return subscribeOwnAccess(uid, setEnforce, setStatus, (error) => {
-      console.error('[access] could not read access state', error);
-      setFailed(true);
-    });
+    return subscribeOwnAccess(
+      uid,
+      setConfig,
+      (next, notice, viewedAt) => {
+        setStatus(next);
+        setOwnNotice(notice);
+        useAdminView.setState({ lastAdminViewAt: viewedAt });
+      },
+      (error) => {
+        console.error('[access] could not read access state', error);
+        setFailed(true);
+      },
+    );
   }, [uid]);
 
   useRegistration(uid, user?.email ?? '', user?.displayName ?? '', status);
 
   const google = user?.providerData.some((provider) => provider.providerId === 'google.com') ?? false;
-  const decision = uid ? decideAccess({ uid, enforce, status, google }) : 'allowed';
+  const decision = uid ? decideAccess({ uid, enforce: config?.enforce ?? null, status, google }) : 'allowed';
   useSlowWait('memeriksa akses', decision === 'unknown');
 
   if (!uid) return <>{children}</>;
 
-  if (decision === 'allowed') return <>{children}</>;
+  // The admin's minimum version: a nudge to update, never a block.
+  const banner =
+    config?.minVersion && isOlderVersion(APP_VERSION, config.minVersion) ? (
+      <MinVersionBanner minimum={config.minVersion} />
+    ) : null;
 
-  // List viewer: the List Maker alone, read-only; the rest of the app never mounts.
-  if (decision === 'viewer') {
-    return (
-      <ViewerOnly.Provider value>
-        <Suspense fallback={null}>
-          <ListMakerPage />
-        </Suspense>
-      </ViewerOnly.Provider>
-    );
-  }
+  const view = ((): ReactNode => {
+    if (decision === 'allowed') {
+      return (
+        <>
+          {children}
+          {banner}
+        </>
+      );
+    }
 
-  if (decision === 'unknown') {
-    return (
-      <Screen title="Memeriksa akses…">
-        {failed
-          ? 'Tidak dapat memeriksa akses. Periksa koneksi, lalu muat ulang.'
-          : 'Pemeriksaan pertama di perangkat ini memerlukan koneksi internet.'}
-      </Screen>
-    );
-  }
+    // List viewer: the List Maker alone, read-only; the rest of the app never mounts.
+    if (decision === 'viewer') {
+      return (
+        <ViewerOnly.Provider value>
+          <Suspense fallback={null}>
+            <ListMakerPage />
+          </Suspense>
+          {banner}
+        </ViewerOnly.Provider>
+      );
+    }
 
-  if (decision === 'not-google') {
+    if (decision === 'unknown') {
+      return (
+        <Screen title="Memeriksa akses…">
+          {failed
+            ? 'Tidak dapat memeriksa akses. Periksa koneksi, lalu muat ulang.'
+            : 'Pemeriksaan pertama di perangkat ini memerlukan koneksi internet.'}
+        </Screen>
+      );
+    }
+
+    if (decision === 'not-google') {
+      return (
+        <Screen title="Masuk dengan Google">
+          Plano kini hanya bisa dipakai dengan akun Google. Akun ini masuk dengan email dan kata
+          sandi. Keluar, lalu masuk lagi dengan Google.
+          <span className="mt-2 block font-mono text-xs text-fg-faint">{user?.email}</span>
+        </Screen>
+      );
+    }
+
     return (
-      <Screen title="Masuk dengan Google">
-        Plano kini hanya bisa dipakai dengan akun Google. Akun ini masuk dengan email dan kata
-        sandi. Keluar, lalu masuk lagi dengan Google.
+      <Screen title={decision === 'revoked' ? 'Akses dicabut' : 'Menunggu persetujuan'}>
+        {decision === 'revoked'
+          ? 'Akses akun ini ke Plano telah dicabut oleh admin.'
+          : 'Akun ini sudah terdaftar. Plano akan terbuka otomatis setelah admin menyetujuinya.'}
         <span className="mt-2 block font-mono text-xs text-fg-faint">{user?.email}</span>
       </Screen>
     );
-  }
+  })();
 
+  // The admin's message sits beside every screen, the waiting and revoked ones too.
   return (
-    <Screen title={decision === 'revoked' ? 'Akses dicabut' : 'Menunggu persetujuan'}>
-      {decision === 'revoked'
-        ? 'Akses akun ini ke Plano telah dicabut oleh admin.'
-        : 'Akun ini sudah terdaftar. Plano akan terbuka otomatis setelah admin menyetujuinya.'}
-      <span className="mt-2 block font-mono text-xs text-fg-faint">{user?.email}</span>
-    </Screen>
+    <>
+      {view}
+      <NoticeBanner key={uid} uid={uid} own={ownNotice} everyone={config?.notice ?? null} />
+    </>
   );
 }
 
@@ -165,13 +209,17 @@ function useRegistration(
             displayName,
             device: describeDevice(),
             appVersion: APP_VERSION,
+            host: window.location.host,
           }).then(() => writeStamp(LAST_SEEN_KEY, uid, now))
         : Promise.resolve();
 
     void registered
       .then(async () => {
         if (!isDue(readStamp(STATS_KEY, uid), now, STATS_EVERY_MS)) return;
-        await reportStats(uid, await measureLocalCopy());
+        await reportStats(uid, await measureLocalCopy(uid), {
+          deviceId: getDeviceId(),
+          report: buildUsageReport(),
+        });
         writeStamp(STATS_KEY, uid, now);
       })
       .catch((error: unknown) => {

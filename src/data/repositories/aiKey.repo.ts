@@ -1,4 +1,5 @@
-import { onSnapshot, serverTimestamp, setDoc, type Unsubscribe } from 'firebase/firestore';
+import { serverTimestamp, setDoc, type Unsubscribe } from 'firebase/firestore';
+import { onSnapshot } from '../meteredFirestore';
 
 import { aiPrivateDoc } from '../paths';
 import { trackWrite } from '../syncStatus';

@@ -3,13 +3,12 @@ import {
   arrayRemove,
   arrayUnion,
   updateDoc,
-  getDoc,
-  onSnapshot,
   serverTimestamp,
   setDoc,
   type DocumentData,
   type Unsubscribe,
 } from 'firebase/firestore';
+import { getDoc, onSnapshot } from '../meteredFirestore';
 import type { User } from 'firebase/auth';
 
 import { userDoc } from '../paths';

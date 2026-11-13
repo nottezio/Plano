@@ -5,6 +5,25 @@ Catatan teknis lengkap (akar masalah, perbaikan) ada di CHANGES.md.
 
 Entri teratas harus versi yang sedang dirilis; tes gagal bila belum ditulis.
 
+## `2026-11-13.17`
+- **Akses admin ke data pasien, dengan pemberitahuan.** Admin Plano kini dapat membuka pasien dan catatan harian sebuah akun, hanya untuk dibaca, bila perlu untuk dukungan. Di halaman Akun ada bagian **Akses admin** yang menjelaskan hal ini dan menampilkan kapan admin terakhir membukanya (atau "Belum pernah dibuka admin"). Waktu itu dicatat sebelum data dibuka. Admin tidak bisa mengubah data, dan Pengaturan serta Catatan pribadi Anda tidak terbuka bagi admin.
+
+## `2026-11-13.16`
+- **Admin melihat daftar List Maker yang dibuat pengguna:** nama list, bangsal, pemilik, anggota dan perannya, serta undangan yang menunggu. Hanya pengaturan list; isi roster dan list terkirim tidak dibuka.
+
+## `2026-11-13.15`
+- **Admin melihat perkiraan pemakaian kuota tiap akun.** Tiap aplikasi menghitung sendiri berapa dokumen yang dibaca dan berapa kali menulis, lalu mengirimkan hitungan itu bersama laporan 6 jamannya (tidak ada penulisan tambahan). Tidak ada isi catatan yang dikirim, hanya jumlah dan nama koleksi.
+
+## `2026-11-13.14`
+- **Pesan dari admin.** Admin bisa mengirim pesan ke semua akun atau ke satu akun, dengan batas waktu (1 jam sampai 7 hari, tanpa batas, atau atur sendiri). Pesan muncul di atas layar dan bisa ditutup; pesan yang sudah ditutup tidak muncul lagi di perangkat itu. Pesan hilang sendiri saat waktunya habis, tanpa perlu memuat ulang. Pesan juga tampil di layar "Menunggu persetujuan".
+
+## `2026-11-13.13`
+- **Versi minimum.** Admin bisa menetapkan versi minimum; aplikasi yang lebih lama menampilkan ajakan "Perbarui Plano" dengan tombol Periksa. Hanya ajakan: catatan tetap aman dan bisa dipakai, juga saat offline. Banner hilang sendiri setelah aplikasi diperbarui.
+- **Admin melihat dari alamat mana Plano dibuka.** Di halaman admin tampak berapa akun aktif yang sudah pindah ke alamat baru, dan tiap akun diberi tanda alamat baru atau lama.
+
+## `2026-11-13.12`
+- **Halaman admin dibagi menjadi tab (Akun, Laporan).** Hanya terlihat oleh admin; tampilan dan fungsi akun dan laporan tidak berubah. Tab yang dipilih tersimpan di alamat halaman, dan laporan hanya dibaca saat tab Laporan dibuka.
+
 ## `2026-11-13.11`
 - **Hapus pasien ikut menghapus Slide MZ di perangkat ini.** Saat pasien dipindah ke sampah lewat "Hapus pasien", slide dan gambarnya dihapus dari perangkat (peringatan dan tautan unduh .pptx tampil di konfirmasi). Mengosongkan sampah juga menghapusnya untuk semua pasien yang dibuang. Memulihkan pasien dari sampah tidak mengembalikan slide. Memindahkan beberapa pasien sekaligus dari papan ke sampah belum menghapus slide; itu terjadi saat sampah dikosongkan.
 

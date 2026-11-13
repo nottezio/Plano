@@ -1,4 +1,5 @@
-import { FieldPath, arrayRemove, arrayUnion, getDoc, updateDoc, writeBatch } from 'firebase/firestore';
+import { FieldPath, arrayRemove, arrayUnion, updateDoc, writeBatch } from 'firebase/firestore';
+import { getDoc } from '../meteredFirestore';
 import { nanoid } from 'nanoid';
 
 import { db } from '../firebase';

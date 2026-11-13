@@ -90,7 +90,7 @@ service cloud.firestore {
     // What a user's own app may write to its access record: never `status`.
     // Mirrored by REGISTRY_KEYS in src/domain/access.ts, checked by a test.
     function registryKeys() {
-      return ['uid', 'email', 'displayName', 'firstSeenAt', 'lastSeenAt', 'device', 'appVersion', 'stats'];
+      return ['uid', 'email', 'displayName', 'firstSeenAt', 'lastSeenAt', 'device', 'appVersion', 'host', 'stats', 'usage'];
     }
 
     // The record may not claim another account's uid or email: the admin
@@ -124,8 +124,14 @@ service cloud.firestore {
       // patient created offline was opened before its write had landed.
       // Allowing reads of non-existent documents reveals nothing: the snapshot
       // simply comes back empty.
-      allow read: if allowed()
-        && (resource == null || isMemberOf(resource.data) || isTransferTarget(resource.data));
+      //
+      // The admin reads any patient, READ ONLY, for the console's Pasien tab.
+      // Disclosed to every account in Akun ("Akses admin") with the time of the
+      // last look, which the console writes BEFORE it reads. The admin never
+      // writes a patient, and never reads `users/*` (settings, Catatan, the AI key).
+      allow read: if isAdmin()
+        || (allowed()
+            && (resource == null || isMemberOf(resource.data) || isTransferTarget(resource.data)));
 
       allow create: if allowed()
         && request.resource.data.ownerId == request.auth.uid
@@ -193,7 +199,9 @@ service cloud.firestore {
       allow delete: if isMemberOf(resource.data);
 
       match /entries/{date} {
-        allow read: if isMember(pid) || isPendingRecipient(pid);
+        // `isAdmin()` first: it short-circuits the `get()` on the parent in
+        // `isMember`, which would otherwise bill an extra read per document.
+        allow read: if isAdmin() || isMember(pid) || isPendingRecipient(pid);
         allow create: if isMember(pid);
 
         /*
@@ -436,8 +444,12 @@ service cloud.firestore {
           && request.resource.data.roles.diff(resource.data.roles).affectedKeys().hasOnly([request.resource.data.ownerUid]);
       }
 
-      allow read: if seesLists()
-        && (request.auth.uid in resource.data.memberIds || myEmail() in resource.data.inviteEmails);
+      // The admin may read the floor DOCUMENT (name, ward, owner, members and
+      // roles): the List tab of the admin console. Read only, and not the
+      // subcollections below, where the roster and the sent lists hold patients.
+      allow read: if isAdmin()
+        || (seesLists()
+            && (request.auth.uid in resource.data.memberIds || myEmail() in resource.data.inviteEmails));
       allow create: if allowed()
         && request.resource.data.ownerUid == request.auth.uid
         && request.resource.data.memberIds == [request.auth.uid]

@@ -1,4 +1,4 @@
-import { getDoc } from 'firebase/firestore';
+import { getDoc } from './meteredFirestore';
 
 import { clearOutbox, deleteOutbox, listOutbox, type OutboxRecord } from './localBase';
 import { entryDoc } from './paths';

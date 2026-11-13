@@ -1,5 +1,82 @@
 # Plano — CHANGES
 
+## `2026-11-13.17` — Admin console, phase 6: Pasien tab (read-only) with disclosure
+
+**Push `firestore.rules` first, wait for `firestore-deploy` to go green, then the app** (same as .13 and .15). The Pasien tab and the "Akses admin" notice ship in the same app build, so the admin cannot use the new read until the app is live.
+
+**Before opening anyone's patients:** residents still on an OLDER app version do not show the notice. Set the minimum version to this build (Admin → Akun → Versi minimum) and send everyone a Pesan (e.g. "Admin kini dapat membuka data pasien untuk dukungan, hanya baca; lihat Akun → Akses admin") with a 7-day expiry.
+
+Avi's decision (13 Nov 2026): residents can already open any patient in the hospital system by RM, so the admin may view users' patients; with an in-app notice and a last-viewed stamp.
+
+- **Rules:** `patients/{pid}` read and `entries/{date}` read gain `isAdmin() ||` (first, so the parent `get()` in `isMember` is skipped, saving a billed read per note). No admin write anywhere on a patient. Checklist, revisions and `users/*` (settings, Catatan, the AI key) stay closed to the admin. A new test in `access.test.ts` pins all four (reads patients/notes; not users, checklist, revisions; no admin write).
+- **Stamp before read:** opening an account writes `access/{uid}.lastAdminViewAt` first (admin-written; not a registry key, so the account cannot forge or clear it) and the tab reads nothing if that write fails or does not land within 8 s. Skipped only if the last stamp is under an hour old (`stampIsFresh`), so the time an account sees is at most an hour behind the admin's last look.
+- **Disclosure:** Akun gets "Akses admin": what the admin can and cannot do, and the last-opened time or "Belum pernah dibuka admin". Fed from the account's own access listener (no new read) via `useAdminView`. Not shown on the admin's own account.
+- **Tab:** pick an account, "Buka pasien" (one `getDocs`, `limit(50)`, grouped Aktif / Diarsipkan / Sampah), tap a patient to read its newest 7 days (`orderBy(documentId(), 'desc')`, `limit(7)`), shown as stored in a `<pre>`: never interpreted or rewritten. No edit, copy or export control. Logs only error names, never a name, RM or note.
+- **Admin's own stats fixed:** `measureLocalCopy(uid)` counted every cached patient; after this change the admin's cache can hold other accounts' patients, so it now counts only patients whose `memberIds` include the account. This also corrects any account whose cache holds a transferred patient.
+- **Firestore cost:** open an account = 1 write (at most hourly per account) + 1 read for that account's own access listener if it is open + one read per patient listed (≤ 50). Open a patient = ≤ 7 reads. No listeners, nothing for residents who are not being viewed.
+- **Not done:** floor rosters and sent-list text stay closed (a floor has many members; the per-account stamp does not cover them); no read receipts; the admin's cache still holds the viewed data until sign-out (the tab says so; sign-out clearing fails if another tab is open; not changed); exportData still reads the whole local cache, so an export from the admin's device would include viewed patients; rules not tested in the emulator (only text-checked); not seen in a browser or on a phone; the "Akses admin" wording is mine, not reviewed by Avi.
+
+## `2026-11-13.16` — Admin console, phase 5: List tab (floor documents only)
+
+Avi: view the lists people made.
+
+- **Scope narrowed from the plan on purpose:** the plan also showed a floor's roster and last sent list. Those subcollections hold patients, and the agreed safeguard (an in-app notice to users plus a last-viewed stamp) is built in phase 6. Opening patient data before it exists would reverse that decision, so this build reads the floor DOCUMENT only (name, ward, owner, member names and roles, pending invites, last change). Roster and sent-list text come with phase 6.
+- Rules: `floors/{id}` read is now `isAdmin() || <existing>`. Read only; subcollections untouched. No client write, so this needs no ordered push: until the rules deploy, the List tab shows the "not deployed yet" error and nothing else changes.
+- `adminListFloors()` in `floors.repo.ts`: one `getDocs` with `limit(100)`, sorted client-side (no `orderBy`, so a floor without `updatedAt` is not dropped). No listener.
+- **Firestore cost:** one read per floor each time the tab opens or "Muat ulang" is pressed (at most 100); nothing for residents; no growth beyond the number of floors.
+- **Not done / not verified:** rules not tested in the emulator; tab not seen in a browser or against live data; more than 100 floors would be cut (nowhere near that today); member names come from the floor's own `names` map, which can lag a renamed account.
+
+## `2026-11-13.15` — Admin console, phase 4: Kuota (estimated reads per account)
+
+**Two pushes, rules first** (new registry key `usage`; same reason and same failure as `host` in .13: `reportStats` is rejected by the old rules, caught, retried on a later open; no notes affected).
+
+Avi: see which accounts use the most Firestore quota, a warning near the limit, and error counts per user.
+
+- **Why an estimate:** Firebase shows one project-wide total and cannot attribute reads to an account. Each app counts for itself (`lib/usageMeter.ts`, last 7 days in localStorage, saved at most every 3 s and when the page hides) and reports with the existing six-hourly `reportStats`. Labelled "perkiraan" everywhere; never measured.
+- **Counting:** `src/data/meteredFirestore.ts` wraps the SDK's `onSnapshot`, `getDoc(s)`, `getDoc(s)FromServer` and `getCountFromServer`; 14 repositories and `reconcileOutbox.ts` now import them (import lines only, no call site changed). Model in `domain/usage.ts` (tested): cache = 0; a listener's first server snapshot = its documents (min 1); later = changed documents; one-off reads = documents returned; count aggregate = 1. Label = the collection shape of the reference (`patients`, `patients/entries`, `floors/days`), taken from the SDK's internal `_query` for queries, `query` if unreadable.
+- **Writes** are counted in `trackWrite` (one per call; a batch is one). **Errors** are counted in `logSessionEvent` for `error`, `write-rejected`, `profile-error`.
+- **Report:** `access/{uid}.usage.d<deviceId> = {day, reads, writes, errors, top[5], week}` inside the SAME `updateDoc` as `stats` (no extra write). Per-device key, so two devices on one account do not overwrite each other. A different account signing in on a device starts its counts from zero.
+- **Admin:** Kuota tab: estimated total today against 50.000 (amber from 30.000, red from 40.000, stated in words too), a row per reporting account sorted by today's reads with 7-day, writes, errors, device count, and its top collections. Akun rows show "N galat hari ini" in red. No new reads (it uses the access records the page already holds).
+- **Firestore cost:** none added for residents. Metering is in memory plus localStorage. One existing six-hourly write gains a few hundred bytes.
+- **Known errors:** a listener that reattaches within 30 minutes resumes free in Firestore but is counted again here, so totals lean high; a snapshot with pending local writes can double count a document; transactions (`usernames`), the export/import actions and `move.repo` are not metered; reports are up to 6 hours old and a device that last reported yesterday counts as 0 today; stale device keys (a device whose storage was cleared) stay on the document, ignored after 7 days, not pruned.
+- **Not done / not verified:** not run against the emulator or production; `labelOf` relies on a SDK-internal field (`_query`) and falls back to `query`; the Kuota tab and the new red marks not seen in a browser.
+
+## `2026-11-13.14` — Admin console, phase 3: Pesan (messages with expiry)
+
+Avi: send a notification to one user or all, able to expire. One push (no rules change).
+
+- A message is a `notice` map `{id, text (≤ 500), tone, createdAt, expiresAt|null}` on `config/access` (everyone) or `access/{uid}` (one account). Only the admin can write either: `config/access` is admin-write already, and a user's own writes to `access/{uid}` are limited to `registryKeys()`, which does not include `notice` (the rules-vs-client test keeps that list fixed).
+- No new listener: every app already listens to both documents (`subscribeOwnAccess`). `onStatus` now also receives the own notice; `AccessConfig` and `AccessRecord` carry `notice`. A notice without an id or text is ignored.
+- `domain/notice.ts` (tested): `pickNotice` shows personal before global, newest first, skipping expired and closed ones; presets and local date/time helpers.
+- **Expiry** is judged on the device against its clock, never in a query (a "now" filter would be a moving value). `NoticeBanner` sets one timer to the expiry moment so the message leaves without a reload; waits over ~24.8 days re-arm (setTimeout limit). A phone with a wrong clock shows it too long or too short.
+- Closing is kept per account in localStorage (`plano.noticeClosed.<uid>`, last 20 ids); nothing is written. Without storage the message shows again next visit.
+- `AccessGate` now renders the banner next to every screen, including waiting, revoked and the List-viewer screen.
+- Admin Pesan tab: target (all or one account), text with counter, Biasa/Penting, expiry presets or a custom date (`DateField`) and time, live preview of the exact banner, send and delete with two taps. One message per target; sending again replaces it.
+- **Firestore cost:** send to all = 1 write, then 1 read per account with the app open (their existing `config/access` listener) and 1 for the admin's. Send to one = 1 write, 1 read for that account (+1 admin's access-list listener). Delete = same. Opening the app: 0 extra reads. The Pesan tab adds 1 read per open (`config/access`) on top of the access list the page already holds.
+- **Not done / not verified:** no read receipts (who closed it); not seen in a browser or on a phone (banner position over the TopBar, 360 px width, light/Senja/dark); the Pesan tab not exercised against the live Firestore; the rules (unchanged) not tested in the emulator.
+
+## `2026-11-13.13` — Admin console, phase 2: address column and minimum version
+
+**Two pushes, rules first.** This build adds a field to the access registry. Push `firestore.rules` alone first and wait for the `firestore-deploy` run to go green, then push the app. If the app lands first, the old rules reject `host`, `registerSelf` fails (caught, `console.warn`) and that user's `lastSeenAt` stops updating until the rules deploy. No notes are affected.
+
+- `host` (`location.host`) is a new registry key: `REGISTRY_KEYS` in `access.ts` and `registryKeys()` in `firestore.rules` (the existing test keeps them equal). It rides the hourly `registerSelf` write, so no extra writes.
+- **Bug found:** `setEnforcement` used `setDoc` without merge, so any other field on `config/access` would be erased the next time enforcement was toggled. It now merges, before `minVersion` is stored there.
+- `config/access.minVersion`: admin-only (the existing rule already limits writes to the admin). `subscribeOwnAccess` now hands the app the whole config (`AccessConfig`), not just `enforce`; `subscribeEnforcement` became `subscribeAccessConfig`. A `minVersion` that is not `YYYY-MM-DD.N` is ignored.
+- `src/domain/appVersion.ts` compares versions with the build number as a number (as text, `.10` sorts before `.9`); unit-tested.
+- `MinVersionBanner` (bottom, same slot as `UpdateBanner`, hidden once an update is ready): asks for an update check once, "Periksa" repeats it. It never blocks.
+- Admin Akun tab: "Pindah alamat" (accounts active in 7 days on the new host, the old host, and not yet reporting) and "Versi minimum" (set or remove, with the count of accounts below). Row pill "alamat baru / alamat lama".
+- **Firestore cost:** no new listeners and no new reads for residents; the config and own-access listeners they already hold carry `minVersion`. Setting or removing the minimum is 1 write plus 1 read on each open app. `host` adds no writes. Admin: Akun still reads the access list and `config/access` once per open.
+- **Not done / not verified:** the rules change is not tested in the emulator (the repo has no rules tests); the banner was not seen on a phone or in a browser; the count of accounts "below" includes accounts not seen for months; the new host is hardcoded (`NEW_HOST`).
+
+## `2026-11-13.12` — Admin console, phase 1: tabs
+
+Avi: turn /admin into a fuller console (patients, lists, quota, notices). This build is the refactor only; no behaviour change for accounts.
+
+- `AdminPage.tsx` (620 lines) is now the gate, header and tab bar (`?tab=`). Tabs live in `src/routes/admin/`: `AccountsTab`, `FeedbackTab`, shared `adminUi`. Only tabs that exist are shown; later phases add Kuota, Pasien, List, Pesan.
+- One `subscribeAllAccess` listener is held by the page and passed to the tabs. `config/access` (enforcement) is now read inside the Akun tab, and the feedback list inside the Laporan tab, so each is read only while its tab is open.
+- **Firestore cost:** per open of /admin: N reads for N access records (unchanged), +1 per record write while open. Akun adds 1 read (enforcement, same as before). Laporan: one read per report, but only when that tab is opened (before: always). Switching Akun → Laporan → Akun remounts the tab's listener, so the enforcement doc (1 read) and the reports are read again on each return; Firestore resumes an identical listener free within 30 min.
+- **Not done:** no rules change; no unit test (UI-only move); not exercised in the browser by hand beyond the verify run.
+
 ## `2026-11-13.11` — Slide MZ: local deck deleted with the patient
 
 Avi: deleting a patient should delete the local PPT.

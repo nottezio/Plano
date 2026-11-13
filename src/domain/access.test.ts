@@ -2,9 +2,53 @@ import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
-import { ADMIN_UID, REGISTRY_KEYS, decideAccess, isDue } from './access';
+import { ADMIN_UID, ADMIN_VIEW_STAMP_EVERY_MS, REGISTRY_KEYS, decideAccess, isDue, stampIsFresh } from './access';
 
 const RULES = readFileSync(resolve(__dirname, '../../firestore.rules'), 'utf8');
+
+/** The rules text from `start` up to (not including) `end`, or `end` characters after `start`. */
+function rulesBetween(start: string, end: string | number): string {
+  const from = RULES.indexOf(start);
+  expect(from, `rules contain ${start}`).toBeGreaterThanOrEqual(0);
+  const to = typeof end === 'number' ? from + end : RULES.indexOf(end, from);
+  return RULES.slice(from, to);
+}
+
+describe('what the admin may read (firestore.rules)', () => {
+  it('opens patients and their daily notes, read only', () => {
+    expect(rulesBetween('match /patients/{pid} {', 'allow create')).toContain('allow read: if isAdmin()');
+    expect(rulesBetween('match /entries/{date} {', 'allow create')).toContain('allow read: if isAdmin() ||');
+  });
+
+  it("keeps settings, Catatan notes and the AI key out of the admin's reach", () => {
+    expect(rulesBetween('match /users/{uid} {', 'match /floors/{floorId} {')).not.toContain('isAdmin');
+  });
+
+  it('keeps checklists and revisions closed to the admin', () => {
+    expect(rulesBetween('match /checklist/{date} {', 400)).not.toContain('isAdmin');
+    expect(rulesBetween('match /revisions/{revisionId} {', 400)).not.toContain('isAdmin');
+  });
+
+  it('gives the admin no write on a patient or a note', () => {
+    const patient = rulesBetween('match /patients/{pid} {', 'match /users/{uid} {');
+    const writes = patient.split('\n').filter((line) => /allow (create|update|delete|write)/.test(line));
+    expect(writes.length).toBeGreaterThan(0);
+    for (const line of writes) expect(line).not.toContain('isAdmin');
+  });
+});
+
+describe('the "last opened" stamp', () => {
+  const now = Date.parse('2026-11-13T09:00:00Z');
+
+  it('is left alone for an hour, then refreshed', () => {
+    expect(stampIsFresh(new Date(now - ADMIN_VIEW_STAMP_EVERY_MS + 1), now)).toBe(true);
+    expect(stampIsFresh(new Date(now - ADMIN_VIEW_STAMP_EVERY_MS), now)).toBe(false);
+  });
+
+  it('is always written the first time', () => {
+    expect(stampIsFresh(null, now)).toBe(false);
+  });
+});
 
 describe('decideAccess', () => {
   const user = 'someone';

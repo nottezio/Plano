@@ -3,11 +3,8 @@ import {
   deleteField,
   FieldPath,
   getDocFromCache,
-  getDocFromServer,
-  getDocs,
-  getDocsFromServer,
+  limit,
   writeBatch,
-  onSnapshot,
   orderBy,
   query,
   serverTimestamp,
@@ -18,6 +15,7 @@ import {
   type DocumentReference,
   type Unsubscribe,
 } from 'firebase/firestore';
+import { getDocFromServer, getDocs, getDocsFromServer, onSnapshot } from '../meteredFirestore';
 import { nanoid } from 'nanoid';
 
 import { getDeviceId } from '../deviceId';
@@ -953,6 +951,21 @@ export function subscribePatients(
   );
 }
 
+
+/** The most patients the admin console lists for one account (it has a handful). */
+const ADMIN_PATIENTS_LIMIT = 50;
+
+/**
+ * Admin only; the rules refuse everyone else. One account's patients, read
+ * once (no listener): one read per patient, at most 50. The caller must have
+ * stamped the view first (`stampAdminView`).
+ */
+export async function adminListPatients(uid: string): Promise<Patient[]> {
+  const snapshot = await getDocs(
+    query(patientsCol(), where('memberIds', 'array-contains', uid), limit(ADMIN_PATIENTS_LIMIT)),
+  );
+  return snapshot.docs.map((entry) => ({ ...(entry.data() as Patient), id: entry.id }));
+}
 
 /**
  * Destroy a patient and everything under it, permanently.

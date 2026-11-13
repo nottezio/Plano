@@ -24,6 +24,8 @@
  * safely paste into a chat.
  */
 
+import { recordError } from './usageMeter';
+
 const KEY = 'visite.sessionLog';
 /**
  * Forty entries (twenty until the load timings joined, 2026-10-05).
@@ -63,6 +65,8 @@ export interface SessionEvent {
 }
 
 export function logSessionEvent(kind: SessionEventKind, detail?: string): void {
+  // The admin's Kuota tab shows how many errors each account hit today.
+  if (kind === 'error' || kind === 'write-rejected' || kind === 'profile-error') recordError();
   try {
     const entry: SessionEvent = {
       at: new Date().toISOString(),

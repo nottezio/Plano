@@ -1,12 +1,12 @@
 import {
   deleteDoc,
   deleteField,
-  onSnapshot,
   serverTimestamp,
   setDoc,
   type DocumentData,
   type Unsubscribe,
 } from 'firebase/firestore';
+import { onSnapshot } from '../meteredFirestore';
 
 import { sensusInputCol, sensusInputDoc } from '../paths';
 import { trackWrite } from '../syncStatus';

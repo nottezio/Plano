@@ -5,7 +5,10 @@ import { AppShell } from '@/components/common/AppShell';
 import { PageBody, SectionLabel } from '@/components/common/PageFrame';
 import { Button, Callout, Field, INPUT } from '@/components/common/ui';
 import { UsernameTakenError, claimUsername } from '@/data/repositories/usernames.repo';
+import { isAdmin } from '@/domain/access';
+import { formatDmyTime } from '@/domain/notice';
 import { parseUsername } from '@/domain/username';
+import { useAdminView } from '@/store/useAdminView';
 import { useSession } from '@/store/useSession';
 
 /**
@@ -16,6 +19,7 @@ import { useSession } from '@/store/useSession';
 export default function AccountPage(): JSX.Element {
   const user = useSession((state) => state.user);
   const current = useSession((state) => state.profile?.username);
+  const lastAdminViewAt = useAdminView((state) => state.lastAdminViewAt);
   const [draft, setDraft] = useState('');
   const [editing, setEditing] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -63,6 +67,22 @@ export default function AccountPage(): JSX.Element {
           <p className="truncate text-sm text-fg-muted">{user?.email ?? '—'}</p>
           <p className="mt-1 text-xs text-fg-faint">Nama dan email mengikuti akun Google Anda.</p>
         </section>
+
+        {isAdmin(user?.uid) ? null : (
+          <section className="space-y-2">
+            <SectionLabel title="Akses admin" />
+            <p className="text-xs leading-relaxed text-fg-muted">
+              Admin Plano dapat membuka data pasien dan catatan harian Anda, hanya untuk dibaca,
+              bila perlu untuk dukungan atau memeriksa masalah. Admin tidak bisa mengubahnya.
+              Pengaturan dan Catatan pribadi Anda tidak terbuka bagi admin.
+            </p>
+            <p role="status" className="text-xs text-fg-muted">
+              {lastAdminViewAt
+                ? `Terakhir dibuka admin: ${formatDmyTime(lastAdminViewAt)}`
+                : 'Belum pernah dibuka admin.'}
+            </p>
+          </section>
+        )}
 
         <section className="space-y-3">
           <SectionLabel title="Username" />
