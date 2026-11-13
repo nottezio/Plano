@@ -31,6 +31,7 @@ import { cardTitle } from '@/domain/board';
 import { formatShortDate } from '@/domain/clinicalDate';
 import { dpjpById } from '@/domain/dpjp';
 import { formatLocation } from '@/domain/identity';
+import { deleteSlides } from '@/data/slidesLocal';
 import { purgePatient, setPatientStatus } from '@/data/repositories/patients.repo';
 import { useArchiveText } from '@/hooks/useArchiveText';
 import { useDebouncedValue } from '@/hooks/useDebouncedValue';
@@ -472,7 +473,11 @@ function TrashButton({
   const emptyTrash = async (): Promise<void> => {
     setEmptying(true);
     try {
-      for (const patient of trashed) await purgePatient(patient.id);
+      for (const patient of trashed) {
+        await purgePatient(patient.id);
+        // Gone for good: the on-device Slide MZ deck goes with it.
+        await deleteSlides(patient.id).catch(() => undefined);
+      }
     } catch (error) {
       console.error('[trash] purge failed', error);
     } finally {

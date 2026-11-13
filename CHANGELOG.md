@@ -5,6 +5,9 @@ Catatan teknis lengkap (akar masalah, perbaikan) ada di CHANGES.md.
 
 Entri teratas harus versi yang sedang dirilis; tes gagal bila belum ditulis.
 
+## `2026-11-13.11`
+- **Hapus pasien ikut menghapus Slide MZ di perangkat ini.** Saat pasien dipindah ke sampah lewat "Hapus pasien", slide dan gambarnya dihapus dari perangkat (peringatan dan tautan unduh .pptx tampil di konfirmasi). Mengosongkan sampah juga menghapusnya untuk semua pasien yang dibuang. Memulihkan pasien dari sampah tidak mengembalikan slide. Memindahkan beberapa pasien sekaligus dari papan ke sampah belum menghapus slide; itu terjadi saat sampah dikosongkan.
+
 ## `2026-11-13.10`
 - **Slide MZ: gambar bisa ditempel dengan Ctrl+V.** Salin gambar (tangkapan layar atau gambar yang disalin), buka Slide MZ, tekan Ctrl+V: lembar "Tambah gambar" terbuka dengan gambar sudah terisi. Tempel lagi untuk menambah gambar lain.
 

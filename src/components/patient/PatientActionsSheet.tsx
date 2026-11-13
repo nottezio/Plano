@@ -433,6 +433,7 @@ export function PatientActionsSheet({
                 Bisa dipulihkan dari Arsip sampai sampah dikosongkan. Gunakan Arsipkan bila hanya
                 ingin menyelesaikan pasien.
               </p>
+              <SlideCleanupNotice patientIds={[patient.id]} archived={false} />
               <div className="mt-2 flex gap-2">
                 <Button size="sm" onClick={() => setConfirmDelete(false)}>
                   Batal
@@ -446,7 +447,7 @@ export function PatientActionsSheet({
                      * different mechanism, and deleting from here made the
                      * patient vanish without appearing in the trash.
                      */
-                    void setPatientStatus(patient.id, 'trashed');
+                    void deleteSlidesAfterArchive(setPatientStatus(patient.id, 'trashed'), [patient.id]);
                     close();
                     navigate('/');
                   }}

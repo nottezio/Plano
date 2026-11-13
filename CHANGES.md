@@ -1,5 +1,14 @@
 # Plano — CHANGES
 
+## `2026-11-13.11` — Slide MZ: local deck deleted with the patient
+
+Avi: deleting a patient should delete the local PPT.
+
+- **Root cause:** only archiving cleared the IndexedDB deck; "Hapus pasien" (status `trashed`) and emptying the trash did not, so the photos stayed on the device for good.
+- `PatientActionsSheet`: trash goes through `deleteSlidesAfterArchive` (deletes only after the status write resolves), with `SlideCleanupNotice` in the confirm. `ArchivePage.emptyTrash`: `deleteSlides` after each `purgePatient`.
+- **Firestore cost:** none.
+- **Not done:** the board's multi-select trash has no confirm, so it does not delete slides (they go at emptying the trash); a patient trashed or purged on another device leaves this device's slides until it is purged/archived here; not exercised in the browser.
+
 ## `2026-11-13.10` — Slide MZ: paste images
 
 Avi: let the user paste / Ctrl+V an image into the slide maker.

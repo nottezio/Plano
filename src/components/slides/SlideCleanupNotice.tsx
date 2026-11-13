@@ -46,7 +46,7 @@ export function SlideCleanupNotice({ patientIds, archived = true }: { patientIds
           ) : undefined
         }
       >
-        Slide dan gambar akan dihapus dari perangkat ini saat pasien diarsipkan. Tidak bisa dikembalikan. Mengaktifkan kembali pasien tidak
+        Slide dan gambar akan dihapus dari perangkat ini saat pasien diarsipkan atau dihapus (ke sampah). Tidak bisa dikembalikan. Mengaktifkan atau memulihkan pasien tidak
         mengembalikan slide.
       </Callout>
     );
