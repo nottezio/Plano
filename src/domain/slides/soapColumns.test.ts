@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { fitSoapFont, fitTextPt, textFitsAt } from './fit';
+import { fitLab, fitSoapFont, fitTextPt, textFitsAt } from './fit';
 import { GEOMETRY, slideHeight } from './geometry';
 import { soapColumns } from './soapColumns';
 
@@ -157,5 +157,30 @@ describe('fitSoapFont', () => {
     const r = fitSoapFont(lines, '');
     expect(r.overflow).toBe(false);
     expect(r.pt).toBeLessThan(10.5);
+  });
+});
+
+describe('fitLab (lab slide table)', () => {
+  const base = GEOMETRY.labTable;
+  const rows = (n: number) => Array.from({ length: n }, (_, i) => ({ label: `Pemeriksaan ${i}`, cells: ['6.260', '92.6/30.0/32.5 92.1/30.4/33.1', '17.5'] }));
+
+  it('a short table stays at 14 pt and fills its box', () => {
+    const lay = fitLab(['01-10-2026'], rows(5), base, GEOMETRY.labFirstColShare);
+    expect(lay.pt).toBe(14);
+    expect(lay.headerH + lay.rowHs.reduce((a, b) => a + b, 0)).toBeGreaterThan(base.h - 10);
+    expect(lay.rect.w).toBe(base.w);
+  });
+
+  it('twenty rows and three dates shrink the font, widen the table and still fit', () => {
+    const lay = fitLab(['01-10-2026', '02-10-2026', '03-10-2026'], rows(20), base, GEOMETRY.labFirstColShare);
+    expect(lay.pt).toBeLessThan(14);
+    expect(lay.pt).toBeGreaterThanOrEqual(7);
+    expect(lay.overflow).toBe(false);
+    expect(lay.rect.w).toBeGreaterThan(base.w);
+    expect(lay.columns.reduce((a, b) => a + b, 0)).toBe(lay.rect.w);
+  });
+
+  it('flags a table that cannot fit even at the smallest size', () => {
+    expect(fitLab(['01-10-2026'], rows(80), base, GEOMETRY.labFirstColShare).overflow).toBe(true);
   });
 });

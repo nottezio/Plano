@@ -7,7 +7,7 @@ import type { ClinicalDate, Patient, SectionAlias } from '@/domain/types';
 import type { Deck, DeckPhoto, DeckSlide } from './deck';
 import { IMAGE_KINDS, type DeckState } from './deckState';
 import { hasCrop } from './editMath';
-import { fitSoapFont, fitTextPt, textFitsAt } from './fit';
+import { fitLab, fitSoapFont, fitTextPt, textFitsAt } from './fit';
 import { geometryFor, slideHeight, TEXT_PT } from './geometry';
 import { applyLabOverrides, labGridFromDays, mergeLabGrids, type LabGrid } from './labTable';
 import { soapColumns } from './soapColumns';
@@ -131,6 +131,7 @@ export function composeDeck(input: {
     const usePlano = body !== undefined && !(override?.useOld && imported);
     const source = usePlano ? soapColumns(body, patient.mrn ? { rm: patient.mrn } : {}, input.aliases) : imported!;
     const sourceHash = soapSourceHash(source.col2, source.col3);
+    const where = override?.location ?? location;
     const col2 = override?.col2 ?? source.col2;
     const col3 = override?.col3 ?? source.col3;
     const edited = override?.col2 !== undefined || override?.col3 !== undefined;
@@ -140,7 +141,7 @@ export function composeDeck(input: {
         kind: 'soap',
         id: soapId(key),
         date,
-        identitas: [dayLabel, '', location].join('\n').trimEnd(),
+        identitas: [dayLabel, '', where].join('\n').trimEnd(),
         col2,
         col3,
         fontPt: fit.pt,
@@ -161,7 +162,7 @@ export function composeDeck(input: {
     const fit = fitSoapFont(cppt.col2, cppt.col3, slideH);
     const day = headingDate(cppt.date);
     add(
-      { kind: 'soap', id: cppt.id, date: cppt.date, identitas: [day, '', location].join('\n').trimEnd(), col2: cppt.col2, col3: cppt.col3, fontPt: fit.pt },
+      { kind: 'soap', id: cppt.id, date: cppt.date, identitas: [day, '', cppt.location ?? location].join('\n').trimEnd(), col2: cppt.col2, col3: cppt.col3, fontPt: fit.pt },
       { label: `CPPT ${day}`.trim(), ...plain, overflow: fit.overflow, cpptId: cppt.id },
     );
   }
@@ -201,7 +202,8 @@ export function composeDeck(input: {
   const grid = mergeLabGrids(state.importedLab ?? EMPTY_GRID, labGridFromDays(days));
   if (grid.dates.length > 0) {
     const table = applyLabOverrides(grid, state.labOverrides, state.labDates);
-    add({ kind: 'lab', id: 'lab', title: 'Laboratorium PJT', dates: table.dates, rows: table.rows }, { label: 'Laboratorium', ...plain });
+    const labFit = fitLab(table.dates, table.rows, geometryFor(tall).labTable, geometryFor(tall).labFirstColShare);
+    add({ kind: 'lab', id: 'lab', title: 'Laboratorium PJT', dates: table.dates, rows: table.rows }, { label: 'Laboratorium', ...plain, overflow: labFit.overflow });
   }
 
   add({ kind: 'closing', id: 'closing' }, { label: 'Terima kasih', ...plain });

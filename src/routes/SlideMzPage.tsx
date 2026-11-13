@@ -3,7 +3,7 @@ import { Link, useParams } from 'react-router-dom';
 import { nanoid } from 'nanoid';
 import { AppShell } from '@/components/common/AppShell';
 import { ConfirmDialog } from '@/components/common/ConfirmDialog';
-import { IconBack, IconEye, IconPlus, IconRefresh, IconShare } from '@/components/common/Icons';
+import { IconBack, IconPlus, IconRefresh, IconShare } from '@/components/common/Icons';
 import { Button, Callout } from '@/components/common/ui';
 import { CpptEditor, ImageEditor, LabEditor, OldVersionToggle, SoapEditor, TextEditor } from '@/components/slides/SlideEditors';
 import { SlidePreview } from '@/components/slides/SlidePreview';
@@ -94,12 +94,13 @@ export default function SlideMzPage(): JSX.Element {
   };
   const overflowCount = meta.filter((m) => m.overflow && !m.hidden).length;
   const tall = Boolean(state?.tall);
+  const currentIndex = current ? meta.findIndex((m) => m.id === current.id) : -1;
   const imageState = current?.kind === 'images' ? state?.imageSlides.find((s) => s.id === current.id) : undefined;
   const replacing = Boolean(state && (Object.keys(state.importedDays).length > 0 || state.imageSlides.some((s) => s.id.startsWith('imp-'))));
 
   return (
     <AppShell title="Slide MZ">
-      <div className="mx-auto w-full max-w-[110rem] space-y-2 px-3 pb-4 pt-2 md:px-4">
+      <div className="mx-auto flex w-full max-w-[110rem] flex-col gap-2 px-3 pb-3 pt-2 md:h-full md:px-4">
         <div className="flex flex-wrap items-center gap-x-1.5 gap-y-1">
           <Link
             to={`/p/${patientId}`}
@@ -192,7 +193,7 @@ export default function SlideMzPage(): JSX.Element {
         {deck.status === 'start' ? <StartChooser onNew={deck.startNew} onImportClick={picker.pick} error={picker.error} /> : null}
 
         {deck.status === 'ready' && composed && state && current ? (
-          <div className={`grid gap-3 md:h-[calc(100dvh-5.5rem)] md:grid-cols-[10rem_minmax(0,1fr)] ${panelOpen ? 'xl:grid-cols-[10rem_minmax(0,1fr)_17rem]' : 'xl:grid-cols-[10rem_minmax(0,1fr)]'}`}>
+          <div className={`grid gap-3 md:min-h-0 md:flex-1 md:grid-cols-[10rem_minmax(0,1fr)] ${panelOpen ? 'xl:grid-cols-[10rem_minmax(0,1fr)_17rem]' : 'xl:grid-cols-[10rem_minmax(0,1fr)]'}`}>
             <ol
               aria-label="Daftar slide"
               className="flex gap-2 overflow-x-auto pb-1 [scrollbar-width:thin] md:row-span-2 md:block md:h-full md:space-y-1.5 md:overflow-y-auto md:overflow-x-hidden md:overscroll-contain md:pb-1 md:pr-1 md:[scrollbar-gutter:stable] xl:row-span-1"
@@ -215,25 +216,6 @@ export default function SlideMzPage(): JSX.Element {
                         {m.overflow ? <span className="block text-xs font-semibold text-danger">terlalu panjang</span> : null}
                         {m.staleOverride ? <span className="block text-xs font-semibold text-fg">⚠ SOAP berubah sejak diedit</span> : null}
                       </button>
-                      {active ? (
-                      <div className="mt-1 flex justify-end gap-0.5 border-t border-border pt-1">
-                        <Button size="icon" variant="quiet" aria-label={`Naikkan slide ${index + 1}`} disabled={index === 0} onClick={() => move(m.id, -1)}>
-                          ↑
-                        </Button>
-                        <Button size="icon" variant="quiet" aria-label={`Turunkan slide ${index + 1}`} disabled={index === meta.length - 1} onClick={() => move(m.id, 1)}>
-                          ↓
-                        </Button>
-                        <Button
-                          size="icon"
-                          variant="quiet"
-                          aria-label={m.hidden ? `Tampilkan slide ${index + 1}` : `Sembunyikan slide ${index + 1}`}
-                          aria-pressed={m.hidden}
-                          onClick={() => toggleHidden(m.id)}
-                        >
-                          <IconEye className="h-4 w-4" aria-hidden="true" />
-                        </Button>
-                      </div>
-                      ) : null}
                     </div>
                   </li>
                 );
@@ -280,10 +262,27 @@ export default function SlideMzPage(): JSX.Element {
                 aria-label="Pengaturan slide"
                 className="space-y-3 rounded-xl border border-border bg-surface p-3 [scrollbar-width:thin] xl:col-start-3 xl:row-start-1 xl:!mt-0 xl:max-h-full xl:self-start xl:overflow-y-auto xl:overscroll-contain"
               >
-                {current.kind === 'soap' && current.cpptId ? <CpptEditor cpptId={current.cpptId} meta={current} state={state} update={update} /> : null}
+                <div role="group" aria-label="Urutan slide" className="grid grid-cols-3 gap-2">
+                  <Button size="sm" full disabled={currentIndex <= 0} onClick={() => move(current.id, -1)}>
+                    ↑ Naik
+                  </Button>
+                  <Button size="sm" full disabled={currentIndex >= meta.length - 1} onClick={() => move(current.id, 1)}>
+                    ↓ Turun
+                  </Button>
+                  <Button size="sm" full aria-pressed={current.hidden} onClick={() => toggleHidden(current.id)}>
+                    {current.hidden ? 'Tampilkan' : 'Sembunyikan'}
+                  </Button>
+                </div>
+                {current.kind === 'soap' && current.cpptId ? <CpptEditor
+                    cpptId={current.cpptId}
+                    meta={current}
+                    state={state}
+                    update={update}
+                    where={currentSlide?.kind === 'soap' ? currentSlide.identitas.split('\n').slice(2).join(' ') : ''}
+                  /> : null}
                 {current.kind === 'soap' && !current.cpptId ? <OldVersionToggle meta={current} state={state} update={update} /> : null}
                 {current.kind === 'soap' && !current.cpptId && currentSlide?.kind === 'soap' ? (
-                  <SoapEditor slide={currentSlide} meta={current} update={update} />
+                  <SoapEditor slide={currentSlide} meta={current} state={state} update={update} />
                 ) : null}
                 {current.kind === 'images' && imageState ? (
                   <ImageEditor slideState={imageState} update={update} urls={deck.urls} onRemoveImage={(id) => void deck.removeImage(id)} />

@@ -12,6 +12,7 @@ import {
   type DeckState,
   type ImageKind,
   type ImageSlideState,
+  type SoapOverride,
   type TextSlideState,
 } from '@/domain/slides/deckState';
 import type { ImageLayout } from '@/domain/slides/geometry';
@@ -26,7 +27,7 @@ type Update = (change: (state: DeckState) => DeckState) => void;
 
 const TEXTAREA = `${INPUT} h-44 resize-y py-2 font-mono text-xs leading-relaxed`;
 
-export function SoapEditor({ slide, meta, update }: { slide: Extract<DeckSlide, { kind: 'soap' }>; meta: SlideMeta; update: Update }): JSX.Element {
+export function SoapEditor({ slide, meta, state, update }: { slide: Extract<DeckSlide, { kind: 'soap' }>; meta: SlideMeta; state: DeckState; update: Update }): JSX.Element {
   const id = useId();
   const key = meta.overrideKey ?? slide.date;
   const setColumn = (column: 'col2' | 'col3', value: string): void =>
@@ -42,8 +43,20 @@ export function SoapEditor({ slide, meta, update }: { slide: Extract<DeckSlide, 
       else delete next[key];
       return { ...s, soapOverrides: next };
     });
+  // Resetting the text keeps what is not text: the imported-version switch and the floor line.
   const resetText = (): void =>
-    override((o) => (o?.useOld ? { sourceHash: o.sourceHash, useOld: true } : null));
+    override((o) => {
+      if (!o) return null;
+      const { col2: _c2, col3: _c3, ...rest } = o;
+      return rest.useOld || rest.location !== undefined ? rest : null;
+    });
+  const savedLocation = state.soapOverrides[key]?.location;
+  const setLocation = (value: string | undefined): void =>
+    override((o) => {
+      const { location: _drop, ...rest } = o ?? { sourceHash: meta.sourceHash ?? '' };
+      const next: SoapOverride = value === undefined ? rest : { ...rest, location: value };
+      return next.col2 !== undefined || next.col3 !== undefined || next.useOld || next.location !== undefined ? next : null;
+    });
 
   return (
     <div className="space-y-3">
@@ -66,6 +79,11 @@ export function SoapEditor({ slide, meta, update }: { slide: Extract<DeckSlide, 
       <p className={`text-xs ${meta.overflow ? 'font-semibold text-danger' : 'text-fg-muted'}`}>
         {meta.overflow ? 'Terlalu panjang: teks sudah 9 pt dan masih keluar slide. Persingkat teks slide ini.' : `Ukuran teks ${slide.fontPt} pt`}
       </p>
+      <LocationField
+        value={slide.identitas.split('\n').slice(2).join(' ')}
+        changed={savedLocation !== undefined}
+        onChange={setLocation}
+      />
       <Field label="Anamnesis dan Pemeriksaan Fisik" htmlFor={`${id}-c2`}>
         <textarea id={`${id}-c2`} className={TEXTAREA} value={slide.col2} onChange={(e) => setColumn('col2', e.target.value)} />
       </Field>
@@ -77,6 +95,23 @@ export function SoapEditor({ slide, meta, update }: { slide: Extract<DeckSlide, 
         Kembalikan ke teks SOAP
       </Button>
     </div>
+  );
+}
+
+/** The ward / floor / room line under the date: a patient who moved floors has a different one on each day's slide. */
+function LocationField({ value, changed, onChange }: { value: string; changed: boolean; onChange: (value: string | undefined) => void }): JSX.Element {
+  const id = useId();
+  return (
+    <Field label="Lantai / ruangan di slide ini" htmlFor={id} hint={changed ? 'Diubah untuk slide ini' : 'Dari data pasien'}>
+      <div className="flex gap-2">
+        <input id={id} className={INPUT} value={value} placeholder="PJT Lantai 5 Kamar 501" onChange={(e) => onChange(e.target.value)} />
+        {changed ? (
+          <Button size="sm" variant="quiet" onClick={() => onChange(undefined)}>
+            Samakan
+          </Button>
+        ) : null}
+      </div>
+    </Field>
   );
 }
 
@@ -95,7 +130,7 @@ export function OldVersionToggle({ meta, state, update }: { meta: SlideMeta; sta
           if (checked) next[key] = { sourceHash: current?.sourceHash ?? '', ...current, useOld: true };
           else if (current) {
             const { useOld: _drop, ...rest } = current;
-            if (rest.col2 !== undefined || rest.col3 !== undefined) next[key] = rest;
+            if (rest.col2 !== undefined || rest.col3 !== undefined || rest.location !== undefined) next[key] = rest;
             else delete next[key];
           }
           return { ...s, soapOverrides: next };
@@ -280,7 +315,20 @@ export function TextEditor({
 }
 
 /** A SOAP-layout slide typed by hand (a day with no Plano note, or a note written elsewhere). */
-export function CpptEditor({ cpptId, meta, state, update }: { cpptId: string; meta: SlideMeta; state: DeckState; update: Update }): JSX.Element | null {
+export function CpptEditor({
+  cpptId,
+  meta,
+  state,
+  update,
+  where,
+}: {
+  cpptId: string;
+  meta: SlideMeta;
+  state: DeckState;
+  update: Update;
+  /** The floor line the slide shows now. */
+  where: string;
+}): JSX.Element | null {
   const id = useId();
   const saved = (state.cpptSlides ?? []).find((c) => c.id === cpptId);
   if (!saved) return null;
@@ -294,6 +342,20 @@ export function CpptEditor({ cpptId, meta, state, update }: { cpptId: string; me
       <p className={`text-xs ${meta.overflow ? 'font-semibold text-danger' : 'text-fg-muted'}`}>
         {meta.overflow ? 'Terlalu panjang: teks sudah 9 pt dan masih keluar slide. Persingkat teksnya.' : 'Ketik bebas; ukuran teks menyesuaikan.'}
       </p>
+      <LocationField
+        value={where}
+        changed={saved.location !== undefined}
+        onChange={(location) =>
+          update((s) => ({
+            ...s,
+            cpptSlides: (s.cpptSlides ?? []).map((c) => {
+              if (c.id !== cpptId) return c;
+              const { location: _drop, ...rest } = c;
+              return location === undefined ? rest : { ...rest, location };
+            }),
+          }))
+        }
+      />
       <Field label="Anamnesis dan Pemeriksaan Fisik" htmlFor={`${id}-c2`}>
         <textarea id={`${id}-c2`} className={TEXTAREA} value={saved.col2} onChange={(e) => patch({ col2: e.target.value })} />
       </Field>
@@ -330,42 +392,40 @@ export function LabEditor({ composed, state, update }: { composed: Composed; sta
           ))}
         </div>
       </fieldset>
-      <div className="overflow-x-auto">
-        <table className="w-full border-collapse text-xs">
-          <thead>
-            <tr>
-              <th className="p-1 text-left font-medium text-fg-muted">Pemeriksaan</th>
-              {shown.map((date) => (
-                <th key={date} className="p-1 font-medium text-fg-muted">
-                  {headingDate(date)}
-                </th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {grid.rows.map((row) => (
-              <tr key={row.label}>
-                <th scope="row" className="p-1 text-left font-normal text-fg">
-                  {row.label}
-                </th>
-                {shown.map((date) => {
-                  const key = `${row.label}|${date}`;
-                  return (
-                    <td key={date} className="p-1">
-                      <input
-                        aria-label={`${row.label} ${headingDate(date)}`}
-                        className={`${INPUT} text-center`}
-                        value={state.labOverrides[key] ?? row.cells[date] ?? ''}
-                        onChange={(e) => update((s) => ({ ...s, labOverrides: { ...s.labOverrides, [key]: e.target.value } }))}
-                      />
-                    </td>
-                  );
-                })}
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+      {composed.meta.find((m) => m.kind === 'lab')?.overflow ? (
+        <p className="text-xs font-semibold text-danger">Terlalu banyak baris: tabel sudah 7 pt dan masih keluar slide. Kurangi kolom tanggal.</p>
+      ) : null}
+      {/* One line per test: the name above, a short input per date below. The settings panel is narrow, so a wide table of inputs cut every value off. */}
+      <ul className="space-y-2">
+        <li className="grid gap-1" style={{ gridTemplateColumns: `repeat(${Math.max(1, shown.length)}, minmax(0, 1fr))` }}>
+          {shown.map((date) => (
+            <span key={date} className="text-center text-xs font-medium text-fg-muted">
+              {headingDate(date).slice(0, 5)}
+            </span>
+          ))}
+        </li>
+        {grid.rows.map((row) => (
+          <li key={row.label}>
+            <span className="block truncate text-xs text-fg">{row.label}</span>
+            <div className="grid gap-1" style={{ gridTemplateColumns: `repeat(${Math.max(1, shown.length)}, minmax(0, 1fr))` }}>
+              {shown.map((date) => {
+                const key = `${row.label}|${date}`;
+                const value = state.labOverrides[key] ?? row.cells[date] ?? '';
+                return (
+                  <input
+                    key={date}
+                    aria-label={`${row.label} ${headingDate(date)}`}
+                    title={value}
+                    className="min-h-8 w-full min-w-0 rounded-md border border-border bg-surface px-1 text-center text-xs text-fg outline-none focus:border-accent"
+                    value={value}
+                    onChange={(e) => update((s) => ({ ...s, labOverrides: { ...s.labOverrides, [key]: e.target.value } }))}
+                  />
+                );
+              })}
+            </div>
+          </li>
+        ))}
+      </ul>
       <p className="text-xs text-fg-faint">Nilai diambil dari blok lab di catatan. Mengubah sel di sini hanya mengubah slide.</p>
     </div>
   );

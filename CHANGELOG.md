@@ -5,6 +5,12 @@ Catatan teknis lengkap (akar masalah, perbaikan) ada di CHANGES.md.
 
 Entri teratas harus versi yang sedang dirilis; tes gagal bila belum ditulis.
 
+## `2026-11-13.18`
+- **Slide MZ: halaman tidak lagi bisa digulir.** Ruang kerja (daftar slide, pratinjau, pengaturan) kini mengisi tinggi jendela, jadi bagian atas (Unduh / Bagikan) tidak ikut terguling dan tidak ada gulir ganda. Yang digulir hanya daftar slide dan panel pengaturan bila isinya panjang.
+- **Tombol urutan tidak lagi mudah salah tekan.** Naik, Turun, dan Sembunyikan dipindah dari bawah gambar mini di daftar ke bagian atas panel pengaturan, dengan tulisan dan jarak yang jelas.
+- **Lantai / ruangan per slide.** Tiap slide SOAP dan CPPT punya isian **Lantai / ruangan di slide ini** (mis. "PJT Lantai 5 Kamar 501") untuk pasien yang pindah lantai. Bawaannya dari data pasien; **Samakan** mengembalikannya.
+- **Tabel laboratorium tidak lagi meluap.** Ukuran huruf mengecil otomatis (14 pt sampai 7 pt) sampai semua baris muat, sel yang panjang membungkus, dan tabel melebar bila kolom tanggal bertambah. Bila masih tidak muat, slide ditandai "terlalu panjang". Di panel pengaturan, nilai lab kini tampil per baris dengan kolom tanggal berdampingan sehingga tidak terpotong.
+
 ## `2026-11-13.17`
 - **Akses admin ke data pasien, dengan pemberitahuan.** Admin Plano kini dapat membuka pasien dan catatan harian sebuah akun, hanya untuk dibaca, bila perlu untuk dukungan. Di halaman Akun ada bagian **Akses admin** yang menjelaskan hal ini dan menampilkan kapan admin terakhir membukanya (atau "Belum pernah dibuka admin"). Waktu itu dicatat sebelum data dibuka. Admin tidak bisa mengubah data, dan Pengaturan serta Catatan pribadi Anda tidak terbuka bagi admin.
 

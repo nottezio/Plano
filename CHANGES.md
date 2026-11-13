@@ -1,5 +1,16 @@
 # Plano — CHANGES
 
+## `2026-11-13.18` — Slide MZ: no page scroll, reorder controls, per-slide floor, lab table fit
+
+Avi (screenshots): the reorder buttons are easy to mis-press; add a floor per slide; the lab table overflows; why does the page scroll?
+
+- **Root cause (scroll):** the workspace was `md:h-[calc(100dvh-5.5rem)]`, but `AppShell`'s `main` is shorter than the window (top bar, and the app runs inside its own tab strip), so header + workspace was taller than `main` and `main` scrolled, taking the header with it. Now the page root is `md:h-full flex-col` and the workspace is `md:flex-1 md:min-h-0`: it takes whatever height `main` has. Measured at 1600×900: `main` scrollHeight 900 = clientHeight 900.
+- **Reorder:** ↑ ↓ and hide moved from under the thumbnail (three icon buttons side by side, in a list that scrolls) to a labelled three-button group at the top of the settings panel. Not shown while the panel is folded.
+- **Floor per slide:** `SoapOverride.location` and `CpptSlideState.location` replace the patient's location line on that slide; `''` is a valid (blank) value, absent = the patient's. Editing text back to the note ("Kembalikan ke teks SOAP") keeps it. Not in the title slide or image titles (those are typed).
+- **Root cause (lab):** the table was a fixed 14 pt in a box sized for the reference's 14 rows × 1 date; rows were equal-height, so 17+ rows and 3 dates (values like `92.6/30.0/32.5 92.1/30.4/33.1`) wrapped and ran off. `fitLab` (fit.ts) now picks the font from 14 down to 7 pt so every row, with wrapped cells, fits the box, widens the table 11% of the slide per extra date column (max 90%), shares spare height out, and reports overflow. Used by the writer, the preview and compose (`SlideMeta.overflow`). Cell margins on the lab table are 3.6 × 1.5 pt (were 7.2 × 3.6). The editor's lab inputs are now one line per test with the dates side by side.
+- **Firestore cost:** none.
+- **Not done:** the lab table's wrapping is an estimate (0.5 em per character), not PowerPoint's layout, and PowerPoint was not opened; the lab slide was checked in the browser with a synthetic 16-row, 3-date note (no clipped cell), not the 20-row table in the screenshot; reorder is not available with the panel folded; phone and medium widths not checked.
+
 ## `2026-11-13.17` — Admin console, phase 6: Pasien tab (read-only) with disclosure
 
 **Push `firestore.rules` first, wait for `firestore-deploy` to go green, then the app** (same as .13 and .15). The Pasien tab and the "Akses admin" notice ship in the same app build, so the admin cannot use the new read until the app is live.

@@ -56,6 +56,8 @@ export interface CpptSlideState {
   date: ClinicalDate;
   col2: string;
   col3: string;
+  /** As `SoapOverride.location`. */
+  location?: string;
 }
 
 export interface SoapOverride {
@@ -65,6 +67,8 @@ export interface SoapOverride {
   sourceHash: string;
   /** Show the imported deck's version of this day instead of Plano's note. */
   useOld?: boolean;
+  /** The ward / floor / room line of this slide when it differs from the patient's (moved floor). Absent = the patient's. */
+  location?: string;
 }
 
 export interface DeckState {

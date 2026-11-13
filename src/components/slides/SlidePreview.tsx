@@ -4,6 +4,7 @@ import type { DeckPhoto, DeckSlide, PhotoCrop } from '@/domain/slides/deck';
 import { nudge, rectAfterBoxResize, rectAfterDrag, rectAfterResize } from '@/domain/slides/editMath';
 import { snapMove, snapResize, type Guides } from '@/domain/slides/snap';
 import { PALETTE_B, SLIDE_H, SLIDE_W, geometryFor, slideHeight, type Rect } from '@/domain/slides/geometry';
+import { LAB_PAD_X_PT, LAB_PAD_Y_PT, fitLab } from '@/domain/slides/fit';
 import { isSectionLabel, photoRect } from '@/domain/slides/pptx';
 
 /**
@@ -357,13 +358,16 @@ export function SlidePreview({
       );
       break;
     case 'lab': {
-      const rect = GEOMETRY.labTable;
-      const first = Math.round(rect.w * GEOMETRY.labFirstColShare);
-      const n = Math.max(1, slide.dates.length);
-      const columns = [first, ...Array.from({ length: n }, () => (rect.w - first) / n)];
+      const lay = fitLab(slide.dates, slide.rows, GEOMETRY.labTable, GEOMETRY.labFirstColShare);
       const cell = (text: string, fill: string, center: boolean, header = false): JSX.Element => (
         <div
-          style={{ ...cellStyle(fill), fontSize: pt(14), color: header ? '#fff' : hex(PALETTE_B.ink) }}
+          style={{
+            ...cellStyle(fill),
+            padding: `${pt(LAB_PAD_Y_PT)} ${pt(LAB_PAD_X_PT)}`,
+            fontSize: pt(lay.pt),
+            lineHeight: 1.2,
+            color: header ? '#fff' : hex(PALETTE_B.ink),
+          }}
           className={`flex items-center ${center ? 'justify-center text-center' : ''}`}
         >
           {text}
@@ -371,7 +375,11 @@ export function SlidePreview({
       );
       content = (
         <>
-          <Table rect={rect} columns={columns} rows={`17.6% repeat(${Math.max(1, slide.rows.length)}, 1fr)`}>
+          <Table
+            rect={lay.rect}
+            columns={lay.columns}
+            rows={[lay.headerH, ...lay.rowHs].map((h) => `${(h / lay.rect.h) * 100}%`).join(' ')}
+          >
             {cell('Pemeriksaan', PALETTE_B.head, true, true)}
             {slide.dates.map((date) => (
               <div key={date} className="contents">

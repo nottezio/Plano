@@ -1,6 +1,7 @@
 import { storeZip } from '@/lib/zip';
 import { escapeXml, inlineRuns, type Run } from '@/domain/format/soapDocx';
 import type { Deck, DeckPhoto, DeckSlide, PhotoCrop } from './deck';
+import { LAB_PAD_X_PT, LAB_PAD_Y_PT, fitLab } from './fit';
 import { FONT, GEOMETRY, PALETTE_B, SLIDE_W, geometryFor, slideHeight, type Rect } from './geometry';
 
 /**
@@ -185,11 +186,11 @@ interface Cell {
   fill: string;
 }
 
-function cellXml(cell: Cell, anchor: 't' | 'ctr' = 't'): string {
+function cellXml(cell: Cell, anchor: 't' | 'ctr' = 't', pad = { x: 91_440, y: 45_720 }): string {
   const border = (tag: string): string => `<a:${tag} w="${GRID_LINE_EMU}">${solid(PALETTE_B.grid)}</a:${tag}>`;
   return (
     `<a:tc><a:txBody><a:bodyPr/><a:lstStyle/>${cell.paragraphs}</a:txBody>` +
-    `<a:tcPr marL="91440" marR="91440" marT="45720" marB="45720" anchor="${anchor}">` +
+    `<a:tcPr marL="${pad.x}" marR="${pad.x}" marT="${pad.y}" marB="${pad.y}" anchor="${anchor}">` +
     `${border('lnL')}${border('lnR')}${border('lnT')}${border('lnB')}${solid(cell.fill)}</a:tcPr></a:tc>`
   );
 }
@@ -308,23 +309,23 @@ function buildSlide(slide: DeckSlide, media: Media[], geo: typeof GEOMETRY, slid
     }
 
     case 'lab': {
-      const rect = geo.labTable;
-      const first = Math.round(rect.w * geo.labFirstColShare);
-      const n = Math.max(1, slide.dates.length);
-      const rest = rect.w - first;
-      const columns = [first, ...Array.from({ length: n }, (_, i) => Math.floor(rest / n) + (i < rest % n ? 1 : 0))];
-      const headerH = Math.round(rect.h * 0.176);
-      const rowH = Math.round((rect.h - headerH) / Math.max(1, slide.rows.length));
-      const header = { h: headerH, cells: [headerCell('Pemeriksaan', 14), ...slide.dates.map((d) => headerCell(d, 14))] };
+      const lay = fitLab(slide.dates, slide.rows, geo.labTable, geo.labFirstColShare);
+      const pad = { x: Math.round(LAB_PAD_X_PT * 12_700), y: Math.round(LAB_PAD_Y_PT * 12_700) };
+      const header = {
+        h: lay.headerH,
+        cells: ['Pemeriksaan', ...slide.dates].map((text) =>
+          cellXml({ paragraphs: paragraphXml([{ text }], { pt: lay.pt, color: 'FFFFFF', align: 'ctr' }), fill: PALETTE_B.head }, 'ctr', pad),
+        ),
+      };
       const rows = slide.rows.map((row, index) => {
         const fill = index % 2 === 0 ? PALETTE_B.body : PALETTE_B.body2;
-        const label = cellXml({ paragraphs: paragraphXml([{ text: row.label }], { pt: 14, color: PALETTE_B.ink }), fill }, 'ctr');
+        const label = cellXml({ paragraphs: paragraphXml([{ text: row.label }], { pt: lay.pt, color: PALETTE_B.ink }), fill }, 'ctr', pad);
         const cells = row.cells.map((value) =>
-          cellXml({ paragraphs: paragraphXml([{ text: value }], { pt: 14, color: PALETTE_B.ink, align: 'ctr' }), fill }, 'ctr'),
+          cellXml({ paragraphs: paragraphXml([{ text: value }], { pt: lay.pt, color: PALETTE_B.ink, align: 'ctr' }), fill }, 'ctr', pad),
         );
-        return { h: rowH, cells: [label, ...cells] };
+        return { h: lay.rowHs[index]!, cells: [label, ...cells] };
       });
-      const shapes = table(ids, 'Lab', rect, columns, [header, ...rows]) + boxedTitle(ids, geo.pageTitle, [slide.title], 24);
+      const shapes = table(ids, 'Lab', lay.rect, lay.columns, [header, ...rows]) + boxedTitle(ids, geo.pageTitle, [slide.title], 24);
       return { xml: slideXml(plainBg, shapes), rels };
     }
 
