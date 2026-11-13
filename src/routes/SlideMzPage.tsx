@@ -241,12 +241,17 @@ export default function SlideMzPage(): JSX.Element {
             </ol>
 
             <div className="min-w-0 space-y-3 md:col-start-2 md:h-full md:overflow-y-auto md:overscroll-contain [scrollbar-width:thin] xl:contents">
-              <section aria-label="Slide terpilih" className="min-w-0 space-y-3 xl:h-full xl:overflow-y-auto xl:overscroll-contain [scrollbar-width:thin]">
+              <section
+                aria-label="Slide terpilih"
+                className="min-w-0 space-y-3 xl:flex xl:h-full xl:items-center xl:justify-center xl:space-y-0 xl:rounded-xl xl:bg-bg-subtle xl:p-3 xl:[container-type:size]"
+              >
               {currentSlide ? (
                 <SlidePreview
                   slide={currentSlide}
                   urls={deck.urls}
                   tall={tall}
+                  // At xl the pane has a fixed height: the slide is the largest 16:9 (or 4:3) that fits it both ways.
+                  className={tall ? 'xl:!w-[min(100cqw,calc(100cqh*1.3333))]' : 'xl:!w-[min(100cqw,calc(100cqh*1.7778))]'}
                   editable={currentSlide.kind === 'images' || currentSlide.kind === 'text'}
                   onMoveText={(rect) =>
                     update((s) => ({ ...s, textSlides: s.textSlides.map((t) => (t.id === current.id ? { ...t, rect } : t)) }))

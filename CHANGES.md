@@ -1,5 +1,14 @@
 # Plano — CHANGES
 
+## `2026-11-13.8` — Slide MZ: slide fits the preview pane both ways
+
+Avi: the preview should fill its pane (screenshot: a 16:9 slide at the pane's width, a third of the pane's height empty under it).
+
+- **Root cause:** the preview was `w-full` with a 16:9 aspect, so only the pane's width limited it. The pane (about 870 × 812 with the settings panel open) is nearly square, so a 16:9 slide at that width leaves about 340 px of empty pane.
+- **Fix (xl only):** the pane is a CSS size container (`[container-type:size]`) with the slide centred on a canvas background, and the slide's width is `min(100cqw, 100cqh × 16/9)` (`× 4/3` for the tall deck), so it is the largest slide that fits both ways. Below xl the pane has no fixed height, so the old full-width behaviour stays. Measured at 1600×900: 846 × 476 with the panel open, 1130 × 636 folded.
+- **Firestore cost:** none.
+- **Not done:** with the panel open the pane is still nearly square, so a 16:9 slide cannot fill it; bands above and below remain (folding the panel or using the tall deck fills more). A floating settings panel over the canvas would use the width better but covers part of the slide; not built. Not checked at medium or phone widths or in the Senja theme.
+
 ## `2026-11-13.7` — Slide MZ: file name, bigger preview
 
 Avi: the exported file should be "PPT - Patient Name - Date (15/10/2026)"; the editor's preview ("viewhole") is too small.

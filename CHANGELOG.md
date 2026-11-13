@@ -5,6 +5,9 @@ Catatan teknis lengkap (akar masalah, perbaikan) ada di CHANGES.md.
 
 Entri teratas harus versi yang sedang dirilis; tes gagal bila belum ditulis.
 
+## `2026-11-13.8`
+- **Pratinjau slide memenuhi panelnya.** Di layar lebar, slide kini diskalakan menjadi yang terbesar yang muat di panel pratinjau, baik lebar maupun tinggi, dan diletakkan di tengah kanvas (seperti PowerPoint), bukan hanya mengikuti lebar. Bila panel pengaturan dilipat, slide memakai seluruh lebar yang ada.
+
 ## `2026-11-13.7`
 - **Nama file Slide MZ:** sekarang "PPT - Nama Pasien - 15-10-2026.pptx". Tanda garis miring tidak boleh ada di nama file, jadi tanggalnya memakai tanda hubung.
 - **Pratinjau slide lebih besar.** Daftar slide dan panel pengaturan dipersempit, dan lebarnya tidak lagi ikut membesar saat ukuran teks aplikasi diperbesar, sehingga pratinjau tidak terjepit. Tombol baru **Sembunyikan panel / Tampilkan panel** melipat panel pengaturan supaya slide memakai seluruh lebar.
