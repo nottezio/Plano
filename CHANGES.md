@@ -1,5 +1,14 @@
 # Plano — CHANGES
 
+## `2026-11-13.7` — Slide MZ: file name, bigger preview
+
+Avi: the exported file should be "PPT - Patient Name - Date (15/10/2026)"; the editor's preview ("viewhole") is too small.
+
+- **File name:** `slideMzFileName` → `PPT - <name> - <dd-mm-yyyy>.pptx`. A `/` cannot be in a file name (Windows and Android reject it), so the date keeps the dashes the rest of the app uses; the name still has unsafe characters removed.
+- **Root cause (small preview):** the list and settings columns were `rem` widths (12.5 rem + 21 rem). Avi's text-size setting scales `rem`, so on his screen the settings column was about 450 px and the slide only about 790 px. Now 10 rem and 17 rem, and a "Sembunyikan panel" button folds the settings panel away. Measured at 1600 px: preview 766 → 870 px with the panel open, 1154 px folded.
+- **Firestore cost:** none.
+- **Not done:** the columns are still `rem`, so a very large text-size setting still narrows the slide a little (less than before); the panel state is not remembered between visits; not checked at medium or phone width or in the Senja theme.
+
 ## `2026-11-13.6` — Slide MZ: snapping, editor layout rework
 
 Avi: auto-snap for moving images and the text box like PowerPoint; the editor UI is wonky (dead space, loose padding), rework it.

@@ -46,5 +46,5 @@ export function nudge(rect: Rect, key: string, big: boolean): Rect | null {
 
 export function slideMzFileName(name: string, date: ClinicalDate): string {
   const safe = name.replace(/[\\/:*?"<>|]/g, '').replace(/\s+/g, ' ').trim();
-  return `${['Slide MZ', safe, headingDate(date)].filter(Boolean).join(' ')}.pptx`;
+  return `${['PPT', safe, headingDate(date)].filter(Boolean).join(' - ')}.pptx`;
 }

@@ -32,7 +32,7 @@ describe('photo moves', () => {
 
 describe('slideMzFileName', () => {
   it('names the file after the patient and date, without unsafe characters', () => {
-    expect(slideMzFileName('Tn. A/B', '2026-11-12')).toBe('Slide MZ Tn. AB 12-11-2026.pptx');
-    expect(slideMzFileName('  ', '2026-11-12')).toBe('Slide MZ 12-11-2026.pptx');
+    expect(slideMzFileName('Tn. A/B', '2026-11-12')).toBe('PPT - Tn. AB - 12-11-2026.pptx');
+    expect(slideMzFileName('  ', '2026-11-12')).toBe('PPT - 12-11-2026.pptx');
   });
 });

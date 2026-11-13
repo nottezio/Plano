@@ -61,6 +61,8 @@ export default function SlideMzPage(): JSX.Element {
   const [addOpen, setAddOpen] = useState(false);
   const [review, setReview] = useState<ImportResult | null>(null);
   const [confirmOverflow, setConfirmOverflow] = useState(false);
+  // The settings panel can be folded away to give the slide the whole width.
+  const [panelOpen, setPanelOpen] = useState(true);
   const picker = usePptxPicker(setReview);
 
   const meta = useMemo(() => composed?.meta ?? [], [composed]);
@@ -109,6 +111,9 @@ export default function SlideMzPage(): JSX.Element {
           <h1 className="mr-auto text-base font-semibold text-fg">Slide MZ</h1>
           {deck.status === 'ready' ? (
             <>
+              <Button size="sm" variant="quiet" aria-pressed={panelOpen} onClick={() => setPanelOpen((open) => !open)}>
+                {panelOpen ? 'Sembunyikan panel' : 'Tampilkan panel'}
+              </Button>
               <label
                 className="inline-flex min-h-tap cursor-pointer items-center gap-1.5 rounded-lg px-2 text-xs text-fg-muted hover:bg-bg-subtle [@media(pointer:fine)]:min-h-9"
                 title="Semua slide di deck lebih tinggi (4:3) supaya SOAP panjang muat. Bukan 16:9 lagi."
@@ -187,7 +192,7 @@ export default function SlideMzPage(): JSX.Element {
         {deck.status === 'start' ? <StartChooser onNew={deck.startNew} onImportClick={picker.pick} error={picker.error} /> : null}
 
         {deck.status === 'ready' && composed && state && current ? (
-          <div className="grid gap-3 md:h-[calc(100dvh-5.5rem)] md:grid-cols-[12.5rem_minmax(0,1fr)] xl:grid-cols-[12.5rem_minmax(0,1fr)_21rem]">
+          <div className={`grid gap-3 md:h-[calc(100dvh-5.5rem)] md:grid-cols-[10rem_minmax(0,1fr)] ${panelOpen ? 'xl:grid-cols-[10rem_minmax(0,1fr)_17rem]' : 'xl:grid-cols-[10rem_minmax(0,1fr)]'}`}>
             <ol
               aria-label="Daftar slide"
               className="flex gap-2 overflow-x-auto pb-1 [scrollbar-width:thin] md:row-span-2 md:block md:h-full md:space-y-1.5 md:overflow-y-auto md:overflow-x-hidden md:overscroll-contain md:pb-1 md:pr-1 md:[scrollbar-gutter:stable] xl:row-span-1"
@@ -265,6 +270,7 @@ export default function SlideMzPage(): JSX.Element {
               )}
 
               </section>
+              {panelOpen ? (
               <aside
                 aria-label="Pengaturan slide"
                 className="space-y-3 rounded-xl border border-border bg-surface p-3 [scrollbar-width:thin] xl:col-start-3 xl:row-start-1 xl:!mt-0 xl:max-h-full xl:self-start xl:overflow-y-auto xl:overscroll-contain"
@@ -286,6 +292,7 @@ export default function SlideMzPage(): JSX.Element {
                 ) : null}
                 {current.kind === 'closing' ? <p className="text-sm text-fg-muted">Slide penutup.</p> : null}
               </aside>
+              ) : null}
             </div>
           </div>
         ) : null}
