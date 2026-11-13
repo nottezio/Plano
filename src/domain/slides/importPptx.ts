@@ -1,8 +1,11 @@
 import { isoDate } from '@/domain/sections/investigationHeading';
 import type { ClinicalDate } from '@/domain/types';
 import { zipEntries } from '@/lib/unzip';
+import type { PhotoCrop } from './deck';
 import { layoutForCount, type DeckState, type ImageKind } from './deckState';
+import { clampCrop, hasCrop } from './editMath';
 import { mergeLabGrids, type LabGrid } from './labTable';
+import { plainHeadings } from './soapColumns';
 
 /**
  * Continue a deck someone else started: read their .pptx and turn each slide
@@ -22,6 +25,8 @@ export interface ImportedPhoto {
   name: string;
   bytes: Uint8Array;
   mime: 'image/jpeg' | 'image/png';
+  /** The deck's own crop of the picture, kept so the photo looks the same. */
+  crop?: PhotoCrop;
 }
 
 export type ImportedSlide = { index: number } & (
@@ -112,6 +117,38 @@ function mimeOf(path: string): ImportedPhoto['mime'] | null {
   return null;
 }
 
+/**
+ * The SOAP table's header row. Decks differ in the first cell ("Identitas",
+ * "Tanggal"), so it is the shape that counts: an "Anamnesis" column next to a
+ * "Diagnosis / Terapi" one. (A deck headed "Tanggal | Anamnesis / fisis |
+ * Diagnosis / terapi" was read as unknown text before.)
+ */
+function isSoapTable(header: readonly string[]): boolean {
+  if (/^identitas/i.test(header[0]?.trim() ?? '')) return true;
+  return header.length >= 3 && /anamnesis/i.test(header[1] ?? '') && /diagnosis|terapi|assess/i.test(header[2] ?? '');
+}
+
+/** The picture's `<a:srcRect>` as a crop, or null when it shows the whole picture. */
+function cropOf(pic: string): PhotoCrop | null {
+  const attrs = /<a:srcRect\b([^>]*)>/.exec(pic)?.[1];
+  if (!attrs) return null;
+  const share = (edge: string): number => Number(new RegExp(`\\b${edge}="(-?\\d+)"`).exec(attrs)?.[1] ?? 0) / 100_000;
+  const crop = clampCrop({ l: share('l'), t: share('t'), r: share('r'), b: share('b') });
+  return hasCrop(crop) ? crop : null;
+}
+
+/**
+ * Left to right (two or three pictures) or in rows (four), as the layouts fill:
+ * the file lists pictures in the order they were added, not where they sit.
+ */
+function pictureOrder<T extends { x: number; y: number }>(pictures: T[]): T[] {
+  if (pictures.length < 2 || pictures.length > 4) return pictures;
+  const ys = pictures.map((p) => p.y);
+  const middle = (Math.min(...ys) + Math.max(...ys)) / 2;
+  const row = (p: T): number => (pictures.length === 4 && p.y > middle ? 1 : 0);
+  return [...pictures].sort((a, b) => row(a) - row(b) || a.x - b.x);
+}
+
 function labGridFromTable(rows: string[][]): LabGrid {
   const header = rows[0] ?? [];
   const columns = header.map((cell, i) => (i === 0 ? null : firstDate(cell)));
@@ -170,7 +207,7 @@ export async function readPptx(buffer: ArrayBuffer): Promise<ImportResult> {
       [...read(relPath).matchAll(/<Relationship\b[^>]*\bId="([^"]+)"[^>]*\bTarget="([^"]+)"/g)].map((m) => [m[1]!, m[2]!] as const),
     );
 
-    const photos: ImportedPhoto[] = [];
+    const placed: Array<ImportedPhoto & { x: number; y: number }> = [];
     for (const pic of xml.match(/<p:pic>[\s\S]*?<\/p:pic>/g) ?? []) {
       const relId = /r:embed="([^"]+)"/.exec(pic)?.[1];
       const target = relId ? rels.get(relId) : undefined;
@@ -182,8 +219,11 @@ export async function readPptx(buffer: ArrayBuffer): Promise<ImportResult> {
         skippedPictures += 1;
         continue;
       }
-      photos.push({ name: media.split('/').pop()!, bytes, mime });
+      const at = /<a:off x="(-?\d+)" y="(-?\d+)"/.exec(pic);
+      const crop = cropOf(pic);
+      placed.push({ name: media.split('/').pop()!, bytes, mime, ...(crop ? { crop } : {}), x: Number(at?.[1] ?? 0), y: Number(at?.[2] ?? 0) });
     }
+    const photos: ImportedPhoto[] = pictureOrder(placed).map(({ x: _x, y: _y, ...photo }) => photo);
 
     const tbls = tables(xml);
     const shapes = textShapes(xml);
@@ -191,7 +231,7 @@ export async function readPptx(buffer: ArrayBuffer): Promise<ImportResult> {
     const body = shapes.filter((s) => !s.title).map((s) => s.text).filter(Boolean).join('\n\n');
     const allText = [title, body].filter(Boolean).join('\n');
 
-    const soap = tbls.find((t) => /^identitas/i.test(t[0]?.[0]?.trim() ?? ''));
+    const soap = tbls.find((t) => isSoapTable(t[0] ?? []));
     const lab = tbls.find((t) => /^pemeriksaan/i.test(t[0]?.[0]?.trim() ?? ''));
     if (soap) {
       const row = soap[1] ?? [];
@@ -239,13 +279,24 @@ export function importToState(
 
   const addImages = (slideId: string, kind: ImageKind, title: string, date: ClinicalDate | null, list: ImportedPhoto[]): void => {
     if (list.length === 0) return;
+    const crops: Record<string, PhotoCrop> = {};
     const imageIds = list.map((photo, k) => {
       // The image store holds every patient: the id must not repeat across patients.
       const imageId = `${state.patientId}-${slideId}-${k}`;
       photos.push({ imageId, slideId, ...photo });
+      if (photo.crop) crops[imageId] = photo.crop;
       return imageId;
     });
-    next.imageSlides.push({ id: slideId, kind, title, date: date ?? '', layout: layoutForCount(list.length), imageIds, rects: {} });
+    next.imageSlides.push({
+      id: slideId,
+      kind,
+      title,
+      date: date ?? '',
+      layout: layoutForCount(list.length),
+      imageIds,
+      rects: {},
+      ...(Object.keys(crops).length > 0 ? { crops } : {}),
+    });
   };
 
   for (const slide of result.slides) {
@@ -257,7 +308,7 @@ export function importToState(
           // Decks often carry two slides for one day (morning and evening); keep both, `date#2` after `date`.
           let key = slide.date;
           for (let n = 2; key in next.importedDays; n += 1) key = `${slide.date}#${n}`;
-          next.importedDays[key] = { col2: slide.col2, col3: slide.col3 };
+          next.importedDays[key] = { col2: slide.col2, col3: plainHeadings(slide.col3) };
         } else next.textSlides.push({ id, title: 'SOAP (tanggal tidak terbaca)', body: [slide.col2, slide.col3].filter(Boolean).join('\n\n') });
         break;
       case 'images':

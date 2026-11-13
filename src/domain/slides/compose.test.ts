@@ -32,6 +32,15 @@ describe('composeDeck', () => {
     expect(c.deck.slides.filter((s) => s.kind === 'soap').map((s) => (s.kind === 'soap' ? s.date : ''))).toEqual(['2026-10-02', '2026-10-03']);
   });
 
+  it('a stored crop reaches the photo; an empty one does not', () => {
+    const photoOf = (crops: ImageSlideState['crops']) => {
+      const slide = composeDeck(base({ imageSlides: [{ ...imageSlide('i1', 'ekg', '2026-10-02'), ...(crops ? { crops } : {}) }] })).deck.slides.find((s) => s.kind === 'images');
+      return slide?.kind === 'images' ? slide.photos[0] : undefined;
+    };
+    expect(photoOf({ 'i1-p': { l: 0.1, t: 0, r: 0, b: 0 } })?.crop).toEqual({ l: 0.1, t: 0, r: 0, b: 0 });
+    expect(photoOf({ 'i1-p': { l: 0, t: 0, r: 0, b: 0 } })?.crop).toBeUndefined();
+  });
+
   it('Plano day wins over the imported day; useOld switches back', () => {
     const importedDays = { '2026-10-02': { col2: 'S :\n- versi lama', col3: 'Diagnosis:\n- lama' } };
     const soapOf = (s: DeckState) => composeDeck(base(s)).deck.slides.find((x) => x.kind === 'soap' && x.date === '2026-10-02');

@@ -1,9 +1,10 @@
-import { useId } from 'react';
+import { useId, useState } from 'react';
 import { DateField } from '@/components/common/DateField';
 import { Button, Callout, CheckRow, Field, INPUT, Segmented } from '@/components/common/ui';
 import { headingDate } from '@/domain/lab/labMeta';
 import type { Composed, SlideMeta } from '@/domain/slides/compose';
-import type { DeckSlide } from '@/domain/slides/deck';
+import type { DeckSlide, PhotoCrop } from '@/domain/slides/deck';
+import { hasCrop, rectAfterCrop } from '@/domain/slides/editMath';
 import {
   IMAGE_KINDS,
   IMAGE_KIND_LABEL,
@@ -14,6 +15,7 @@ import {
   type TextSlideState,
 } from '@/domain/slides/deckState';
 import type { ImageLayout } from '@/domain/slides/geometry';
+import { CropEditor } from './CropEditor';
 
 /**
  * One editor per slide kind. Every change goes into the local `DeckState`;
@@ -123,10 +125,24 @@ export function ImageEditor({
   urls: ReadonlyMap<string, string>;
 }): JSX.Element {
   const id = useId();
+  const [cropping, setCropping] = useState<string | null>(null);
   const patch = (change: Partial<ImageSlideState>): void =>
     update((s) => ({ ...s, imageSlides: s.imageSlides.map((slide) => (slide.id === slideState.id ? { ...slide, ...change } : slide)) }));
   const remove = (): void =>
     update((s) => ({ ...s, imageSlides: s.imageSlides.filter((slide) => slide.id !== slideState.id) }));
+  // A placed photo keeps its visible pixels where they are while its crop changes; an unplaced one just refits.
+  const setCrop = (imageId: string, next: PhotoCrop | undefined): void =>
+    update((s) => ({
+      ...s,
+      imageSlides: s.imageSlides.map((slide) => {
+        if (slide.id !== slideState.id) return slide;
+        const crops = { ...slide.crops };
+        if (hasCrop(next)) crops[imageId] = next;
+        else delete crops[imageId];
+        const placed = slide.rects[imageId];
+        return { ...slide, crops, rects: placed ? { ...slide.rects, [imageId]: rectAfterCrop(placed, slide.crops?.[imageId], next) } : slide.rects };
+      }),
+    }));
 
   return (
     <div className="space-y-3">
@@ -153,26 +169,36 @@ export function ImageEditor({
           <textarea id={`${id}-x`} className={TEXTAREA} value={slideState.text ?? ''} onChange={(e) => patch({ text: e.target.value })} />
         </Field>
       ) : null}
-      <ul className="space-y-2" aria-label="Foto di slide ini">
+      <ul className="space-y-3" aria-label="Foto di slide ini">
         {slideState.imageIds.map((imageId, index) => (
-          <li key={imageId} className="flex items-center gap-2">
-            {urls.get(imageId) ? <img src={urls.get(imageId)} alt="" className="h-10 w-14 rounded object-cover ring-1 ring-border" /> : null}
-            <span className="min-w-0 flex-1 text-xs text-fg-muted">Foto {index + 1}</span>
-            <Button
-              size="sm"
-              variant="quiet"
-              disabled={!slideState.rects[imageId]}
-              onClick={() => {
-                const rects = { ...slideState.rects };
-                delete rects[imageId];
-                patch({ rects });
-              }}
-            >
-              Reset posisi
-            </Button>
-            <Button size="sm" variant="danger" onClick={() => onRemoveImage(imageId)}>
-              Hapus
-            </Button>
+          <li key={imageId} className="space-y-2">
+            <div className="flex items-center gap-2">
+              {urls.get(imageId) ? <img src={urls.get(imageId)} alt="" className="h-10 w-14 rounded object-cover ring-1 ring-border" /> : null}
+              <span className="min-w-0 flex-1 text-xs text-fg-muted">Foto {index + 1}</span>
+              <Button size="sm" variant="danger" onClick={() => onRemoveImage(imageId)}>
+                Hapus
+              </Button>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              <Button size="sm" aria-pressed={cropping === imageId} onClick={() => setCropping(cropping === imageId ? null : imageId)}>
+                {cropping === imageId ? 'Selesai memotong' : 'Potong'}
+              </Button>
+              <Button
+                size="sm"
+                variant="quiet"
+                disabled={!slideState.rects[imageId]}
+                onClick={() => {
+                  const rects = { ...slideState.rects };
+                  delete rects[imageId];
+                  patch({ rects });
+                }}
+              >
+                Reset posisi
+              </Button>
+            </div>
+            {cropping === imageId && urls.get(imageId) ? (
+              <CropEditor url={urls.get(imageId)!} crop={slideState.crops?.[imageId]} onChange={(next) => setCrop(imageId, next)} />
+            ) : null}
           </li>
         ))}
       </ul>

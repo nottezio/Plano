@@ -1,5 +1,6 @@
 import { headingDate } from '@/domain/lab/labMeta';
 import type { ClinicalDate } from '@/domain/types';
+import type { PhotoCrop } from './deck';
 import type { ImageLayout, Rect } from './geometry';
 import type { LabGrid } from './labTable';
 
@@ -33,6 +34,8 @@ export interface ImageSlideState {
   imageIds: string[];
   /** Per image: where the resident put it. Absent = fitted in the layout frame. */
   rects: Record<string, Rect>;
+  /** Per image: the part cut away. Absent = the whole picture. */
+  crops?: Record<string, PhotoCrop>;
   text?: string;
 }
 

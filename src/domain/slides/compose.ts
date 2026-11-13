@@ -6,6 +6,7 @@ import { headingDate } from '@/domain/lab/labMeta';
 import type { ClinicalDate, Patient, SectionAlias } from '@/domain/types';
 import type { Deck, DeckPhoto, DeckSlide } from './deck';
 import { IMAGE_KINDS, type DeckState } from './deckState';
+import { hasCrop } from './editMath';
 import { fitSoapFont, fitTextPt, textFitsAt } from './fit';
 import { geometryFor, slideHeight, TEXT_PT } from './geometry';
 import { applyLabOverrides, labGridFromDays, mergeLabGrids, type LabGrid } from './labTable';
@@ -174,7 +175,8 @@ export function composeDeck(input: {
       const photo = input.photos.get(id);
       if (!photo) return [];
       const rect = image.rects[id];
-      return [rect ? { ...photo, rect } : photo];
+      const crop = image.crops?.[id];
+      return [{ ...photo, ...(rect ? { rect } : {}), ...(hasCrop(crop) ? { crop } : {}) }];
     });
     if (photos.length === 0 && !(image.layout === 'photoText' && image.text?.trim())) continue;
     add(

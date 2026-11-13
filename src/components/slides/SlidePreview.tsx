@@ -1,6 +1,6 @@
 import { createContext, useContext, useRef, useState, type CSSProperties, type KeyboardEvent, type PointerEvent, type ReactNode } from 'react';
 import { inlineRuns } from '@/domain/format/soapDocx';
-import type { DeckPhoto, DeckSlide } from '@/domain/slides/deck';
+import type { DeckPhoto, DeckSlide, PhotoCrop } from '@/domain/slides/deck';
 import { nudge, rectAfterBoxResize, rectAfterDrag, rectAfterResize } from '@/domain/slides/editMath';
 import { snapMove, snapResize, type Guides } from '@/domain/slides/snap';
 import { PALETTE_B, SLIDE_H, SLIDE_W, geometryFor, slideHeight, type Rect } from '@/domain/slides/geometry';
@@ -192,6 +192,20 @@ function Draggable({ rect: placed, editable, label, resize, onMove, snapTargets 
   );
 }
 
+/** The whole picture, scaled up and shifted so only the uncropped window shows inside the frame (same maths as `a:srcRect`). */
+function cropStyle(crop: PhotoCrop | undefined): CSSProperties {
+  const w = 1 - (crop?.l ?? 0) - (crop?.r ?? 0);
+  const h = 1 - (crop?.t ?? 0) - (crop?.b ?? 0);
+  return {
+    position: 'absolute',
+    maxWidth: 'none',
+    width: `${100 / w}%`,
+    height: `${100 / h}%`,
+    left: `${(-(crop?.l ?? 0) / w) * 100}%`,
+    top: `${(-(crop?.t ?? 0) / h) * 100}%`,
+  };
+}
+
 function Photo({ photo, frame, url, editable, label, onMove, snapTargets, onGuides }: {
   photo: DeckPhoto;
   frame: Rect;
@@ -205,7 +219,9 @@ function Photo({ photo, frame, url, editable, label, onMove, snapTargets, onGuid
   return (
     <Draggable rect={photoRect(photo, frame)} editable={editable} label={label} resize="aspect" onMove={onMove} snapTargets={snapTargets} onGuides={onGuides} style={{ boxShadow: '0 0.3cqw 0.8cqw rgba(0,0,0,0.18)' }}>
       {url ? (
-        <img src={url} alt="" draggable={false} className="pointer-events-none h-full w-full select-none object-fill" />
+        <div className="relative h-full w-full overflow-hidden">
+          <img src={url} alt="" draggable={false} style={cropStyle(photo.crop)} className="pointer-events-none select-none object-fill" />
+        </div>
       ) : (
         <div className="h-full w-full" style={{ background: hex(PALETTE_B.boxLine) }} />
       )}

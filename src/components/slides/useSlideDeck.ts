@@ -231,7 +231,8 @@ export function useSlideDeck(
         imageSlides: current.imageSlides.map((slide) => {
           const rects = { ...slide.rects };
           delete rects[imageId];
-          return { ...slide, imageIds: slide.imageIds.filter((id) => id !== imageId), rects };
+          const { [imageId]: _crop, ...crops } = slide.crops ?? {};
+          return { ...slide, imageIds: slide.imageIds.filter((id) => id !== imageId), rects, ...(slide.crops ? { crops } : {}) };
         }),
       }));
     },

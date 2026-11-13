@@ -1,6 +1,6 @@
 import { storeZip } from '@/lib/zip';
 import { escapeXml, inlineRuns, type Run } from '@/domain/format/soapDocx';
-import type { Deck, DeckPhoto, DeckSlide } from './deck';
+import type { Deck, DeckPhoto, DeckSlide, PhotoCrop } from './deck';
 import { FONT, GEOMETRY, PALETTE_B, SLIDE_W, geometryFor, slideHeight, type Rect } from './geometry';
 
 /**
@@ -36,9 +36,12 @@ const GRID_LINE_EMU = 9_525;
 export function photoRect(photo: DeckPhoto, frame: Rect): Rect {
   if (photo.rect) return photo.rect;
   if (photo.widthPx <= 0 || photo.heightPx <= 0) return frame;
-  const scale = Math.min(frame.w / photo.widthPx, frame.h / photo.heightPx);
-  const w = Math.round(photo.widthPx * scale);
-  const h = Math.round(photo.heightPx * scale);
+  // A cropped photo fits by what is left of it.
+  const visibleW = photo.widthPx * (1 - (photo.crop?.l ?? 0) - (photo.crop?.r ?? 0));
+  const visibleH = photo.heightPx * (1 - (photo.crop?.t ?? 0) - (photo.crop?.b ?? 0));
+  const scale = Math.min(frame.w / visibleW, frame.h / visibleH);
+  const w = Math.round(visibleW * scale);
+  const h = Math.round(visibleH * scale);
   return { x: frame.x + Math.round((frame.w - w) / 2), y: frame.y + Math.round((frame.h - h) / 2), w, h };
 }
 
@@ -156,11 +159,21 @@ function boxedTitle(ids: Ids, rect: Rect, lines: readonly string[], pt: number, 
   );
 }
 
-function picture(ids: Ids, relId: string, rect: Rect): string {
+/** `<a:srcRect>`: thousandths of a percent cut from each edge; zero edges are left out. */
+function srcRect(crop: PhotoCrop | undefined): string {
+  if (!crop) return '';
+  const attrs = (['l', 't', 'r', 'b'] as const)
+    .filter((edge) => crop[edge] > 0)
+    .map((edge) => ` ${edge}="${Math.round(crop[edge] * 100_000)}"`)
+    .join('');
+  return attrs ? `<a:srcRect${attrs}/>` : '';
+}
+
+function picture(ids: Ids, relId: string, rect: Rect, crop?: PhotoCrop): string {
   const id = ids.take();
   return (
     `<p:pic><p:nvPicPr><p:cNvPr id="${id}" name="Picture ${id}"/><p:cNvPicPr><a:picLocks noChangeAspect="1"/></p:cNvPicPr><p:nvPr/></p:nvPicPr>` +
-    `<p:blipFill><a:blip r:embed="${relId}"/><a:stretch><a:fillRect/></a:stretch></p:blipFill>` +
+    `<p:blipFill><a:blip r:embed="${relId}"/>${srcRect(crop)}<a:stretch><a:fillRect/></a:stretch></p:blipFill>` +
     `<p:spPr><a:xfrm>${off(rect)}</a:xfrm><a:prstGeom prst="rect"><a:avLst/></a:prstGeom>` +
     '<a:effectLst><a:outerShdw blurRad="76200" dist="25400" dir="5400000" algn="t" rotWithShape="0">' +
     '<a:srgbClr val="000000"><a:alpha val="18000"/></a:srgbClr></a:outerShdw></a:effectLst></p:spPr></p:pic>'
@@ -272,7 +285,7 @@ function buildSlide(slide: DeckSlide, media: Media[], geo: typeof GEOMETRY, slid
         media.push({ name, data: photo.bytes });
         const relId = `rId${rels.length + 1}`;
         rels.push({ id: relId, type: `${REL}/image`, target: `../media/${name}` });
-        shapes += picture(ids, relId, photoRect(photo, frame));
+        shapes += picture(ids, relId, photoRect(photo, frame), photo.crop);
       });
       if (slide.layout === 'photoText') {
         shapes += shape(ids, 'Text', geo.photoTextBox, {

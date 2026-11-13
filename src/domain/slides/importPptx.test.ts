@@ -80,6 +80,42 @@ describe('readPptx', () => {
     expect(r.slides[1]).toMatchObject({ kind: 'soap', date: '2026-09-21' });
   });
 
+  it('reads a SOAP table headed "Tanggal | Anamnesis / fisis | Diagnosis / terapi" (not only "Identitas")', async () => {
+    const r = await readPptx(
+      handDeck({
+        slides: [
+          { xml: sp('Judul') },
+          { xml: tbl([['Tanggal', 'Anamnesis / fisis', 'Diagnosis / terapi '], ['10 / 11 /2026\nPJT Lt 4', 'S:\n- Baik', 'Mohon izin kami assess dengan:\n- AF']]) },
+        ],
+      }),
+    );
+    expect(r.slides[1]).toMatchObject({ kind: 'soap', date: '2026-11-10', col2: 'S:\n- Baik' });
+    const { state } = importToState(r, [1], emptyDeckState('p1'));
+    expect(state.importedDays['2026-11-10']?.col3).toBe('Diagnosis:\n- AF');
+  });
+
+  it('keeps a picture crop and lists two pictures left to right', async () => {
+    const at = (x: number, crop = '') =>
+      `<p:pic><p:blipFill><a:blip r:embed="rId${x > 1000 ? 2 : 3}"/>${crop}</p:blipFill><p:spPr><a:xfrm><a:off x="${x}" y="500"/><a:ext cx="1" cy="1"/></a:xfrm></p:spPr></p:pic>`;
+    const r = await readPptx(
+      handDeck({
+        slides: [
+          { xml: sp('Judul') },
+          {
+            // The right picture (cropped) comes first in the file.
+            xml: sp('Chest X-Ray 27-10-2026', true) + at(5000, '<a:srcRect l="21727" r="22005"/>') + at(10),
+            rels: '<Relationship Id="rId2" Target="../media/right.jpeg"/><Relationship Id="rId3" Target="../media/left.jpeg"/>',
+          },
+        ],
+        media: { 'right.jpeg': new Uint8Array([2]), 'left.jpeg': new Uint8Array([1]) },
+      }),
+    );
+    const slide = r.slides[1];
+    expect(slide?.kind === 'images' && slide.photos.map((p) => p.name)).toEqual(['left.jpeg', 'right.jpeg']);
+    const { state, photos } = importToState(r, [1], emptyDeckState('p1'));
+    expect(state.imageSlides[0]?.crops).toEqual({ [photos[1]!.imageId]: { l: 0.21727, t: 0, r: 0.22005, b: 0 } });
+  });
+
   it('a table that is neither SOAP nor lab is unknown, not an error', async () => {
     const r = await readPptx(handDeck({ slides: [{ xml: sp('Judul') }, { xml: sp('Hasil', true) + tbl([['Obat', 'Dosis'], ['A', '1x1']]) }] }));
     expect(kinds(r)).toEqual(['title', 'unknown']);

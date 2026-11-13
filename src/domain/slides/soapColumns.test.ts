@@ -67,6 +67,47 @@ describe('soapColumns', () => {
     expect(r.col3).toBe('Diagnosis:\n- CHF\nTerapi:\n- Furosemid');
   });
 
+  it('starts at "S:": a line above it is not copied', () => {
+    const r = soapColumns('Rencana tindakan : EP Study (Selasa, 10-11-2026)\n\n*S:*\n- Berdebar\n*O:*\nTD 120/80\nDiagnosis:\n- AF', {});
+    expect(r.col2.startsWith('S:')).toBe(true);
+    expect(`${r.col2}${r.col3}`).not.toContain('Rencana tindakan : EP Study (Selasa');
+  });
+
+  it('copies the plain version: no WhatsApp bold or italic marks', () => {
+    const r = soapColumns('*S:*\n- _berdebar_ ada\n*O:*\nTD 120/80\n*Plan:*\n- Monitoring', {});
+    expect(r.col2).toBe('S:\n- berdebar ada\nO:\nTD 120/80');
+    expect(r.col3).toBe('Plan:\n- Monitoring');
+  });
+
+  describe('left column stops at the newest EKG', () => {
+    const tail = '\n\nLaboratorium PJT (29-10-2026)\nWBC: 5870\n\nFoto Thoraks PJT (26-10-2026)\nNormal';
+    const head = 'S:\n- Berdebar\nO:\nTD 120/80\n\n';
+    const right = '\nDiagnosis:\n- AF';
+
+    it('drops the older EKGs, lab and thorax after it', () => {
+      const body = `${head}EKG PJT Lt. 4 (12-11-2026)\nAF HR 100\n\nEKG PJT 10-11-2026\nAF HR 90${tail}${right}`;
+      const r = soapColumns(body, {});
+      expect(r.col2.endsWith('AF HR 100')).toBe(true);
+      expect(r.col2).not.toMatch(/10-11-2026|Laboratorium|Thoraks/);
+      expect(r.col3).toBe('Diagnosis:\n- AF');
+    });
+
+    it('picks the newest by date even when it is listed last, keeping what is above it', () => {
+      const r = soapColumns(`${head}EKG PJT 09-11-2026\nAF HR 90\n\nEKG PJT 12-11-2026\nAF HR 100${tail}${right}`, {});
+      expect(r.col2).toContain('09-11-2026');
+      expect(r.col2.endsWith('AF HR 100')).toBe(true);
+    });
+
+    it('a note without a dated EKG keeps its whole left column', () => {
+      const r = soapColumns(`${head}Laboratorium PJT (29-10-2026)\nWBC: 5870${right}`, {});
+      expect(r.col2).toContain('WBC: 5870');
+    });
+
+    it('also cuts when there is no right column', () => {
+      expect(soapColumns(`${head}EKG PJT 12-11-2026\nAF${tail}`, {}).col2.endsWith('AF')).toBe(true);
+    });
+  });
+
   it('text on the same line as a "Mohon izin" heading is kept', () => {
     expect(soapColumns('S :\n- baik\nMohon izin kami assess dengan: CHF', {}).col3).toBe('Diagnosis: CHF');
   });

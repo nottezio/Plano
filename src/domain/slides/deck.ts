@@ -7,6 +7,14 @@ import type { ImageLayout, Rect } from './geometry';
  * here reads storage or the note.
  */
 
+/** Share (0–1) of the picture cut from each edge, like PowerPoint's `srcRect`. */
+export interface PhotoCrop {
+  l: number;
+  t: number;
+  r: number;
+  b: number;
+}
+
 export interface DeckPhoto {
   imageId: string;
   bytes: Uint8Array;
@@ -15,6 +23,8 @@ export interface DeckPhoto {
   heightPx: number;
   /** Set once the resident moved or resized it; otherwise fitted inside the layout frame. */
   rect?: Rect;
+  /** Set once the resident cropped it; `rect` and the default fit then describe the visible part. */
+  crop?: PhotoCrop;
 }
 
 export type DeckSlide =

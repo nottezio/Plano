@@ -63,6 +63,17 @@ describe('pptx writer', () => {
     expect(r.x + r.w / 2).toBeCloseTo(frame.x + frame.w / 2, -1);
   });
 
+  it('a cropped photo is written with srcRect and fitted by what is left of it', () => {
+    const crop = { l: 0.25, t: 0, r: 0.25, b: 0 };
+    const cropped: Deck = { slides: [{ kind: 'images', id: 'c', title: 'Foto', layout: 'one', photos: [{ ...photo, crop }] }] };
+    const xml = slideXml(cropped, 1);
+    expect(xml).toContain('<a:srcRect l="25000" r="25000"/><a:stretch>');
+    // 1600x1200 with half the width cut is 800x1200: taller than wide.
+    const r = photoRect({ ...photo, crop }, GEOMETRY.photos.one[0]!);
+    expect(r.h).toBeGreaterThan(r.w);
+    expect(slideXml(deck, 3)).not.toContain('srcRect');
+  });
+
   it('a moved photo keeps its stored rect, even off-slide', () => {
     const moved: Deck = {
       slides: [{ kind: 'images', id: 'm', title: 'Foto', layout: 'one', photos: [{ ...photo, rect: { x: -500_000, y: 6_000_000, w: 4_000_000, h: 3_000_000 } }] }],

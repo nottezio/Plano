@@ -1,5 +1,16 @@
 # Plano — CHANGES
 
+## `2026-11-13.9` — Slide MZ: SOAP copy rules, import of "Tanggal" decks, photo crop
+
+Avi gave a resident's deck and the deck Plano built from it ("Hasil"): copy only from "S", no WhatsApp marks, stop the left column at the newest ECG, crop imported images, "the results look freaky".
+
+- **Root cause (freaky import):** `readPptx` took a table as SOAP only when its first header cell was "Identitas". This deck's header is "Tanggal | Anamnesis / fisis | Diagnosis / terapi", so every SOAP slide fell into `unknown` and came back as a "Tidak dikenali" text slide with the table flattened to ` | `-joined lines at a size nobody can read. Now `isSoapTable`: "Identitas" first cell, or a second header cell with "Anamnesis" and a third with "Diagnosis / Terapi / Assess". Run on the real deck: 4 SOAP days (09–12 Nov), 4 ECG slides, the lab table (13 rows), the chest X-ray (2 photos, one cropped), echo.
+- **Same import:** pictures were read in file order, which put the right-hand X-ray first; now sorted left to right (rows for four). The `a:srcRect` crop of each picture is kept (`ImportedPhoto.crop` → `ImageSlideState.crops`). Imported "Mohon izin kami assess / terapi dengan:" read "Diagnosis:" / "Terapi:" like Plano-built days (`plainHeadings`, extracted from `soapColumns`).
+- **Root cause (SOAP copy):** `soapColumns` kept everything above "S" in the left column on purpose ("dropping text silently would be worse"), ran on the raw WhatsApp text (so `*S:*`, `_x_` marks reached the slide), and the left column ran on through every investigation after the EKG. Now: `toPlain(stripReportFrame(...))` (the plain / SIMGOS copy, ASCII-folded), cut at the first "S" section when there is one, and the left column ends after the newest dated EKG block (heading plus lines up to a blank line or the next investigation heading; newest by date, first wins on a tie; no dated EKG = unchanged). Imported days are not touched by these three rules: they are the resident's own text.
+- **Crop:** `PhotoCrop {l,t,r,b}` (fractions), `ImageSlideState.crops`, `DeckPhoto.crop`. Written as `<a:srcRect>` before `<a:stretch>`; the default fit uses the visible part's aspect; a placed photo keeps its visible pixels where they are when the crop changes (`rectAfterCrop`, exact undo). Editor: `CropEditor` (picture with a dimmed outside, edge sliders with arrow keys, corner handles), at least 10% of the picture stays. The stored photo is never cut, so a crop can be widened again. The preview draws the window with a scaled, offset `<img>` in an `overflow: hidden` frame (same maths as `srcRect`).
+- **Firestore cost:** none (everything is local; the SOAP copy reads the notes already loaded).
+- **Not done:** no ECG cut for a note whose EKG heading has no date; not opened in PowerPoint (crop `srcRect` written to spec, unit-tested only); the duplicate of an IGD note and an imported 09-11 slide is not merged (the IGD key has no date), untick one at import; crop UI checked at 1600×900 with scripted pointer events, not with a real mouse, touch or at phone width.
+
 ## `2026-11-13.8` — Slide MZ: slide fits the preview pane both ways
 
 Avi: the preview should fill its pane (screenshot: a 16:9 slide at the pane's width, a third of the pane's height empty under it).

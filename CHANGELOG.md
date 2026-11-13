@@ -5,6 +5,13 @@ Catatan teknis lengkap (akar masalah, perbaikan) ada di CHANGES.md.
 
 Entri teratas harus versi yang sedang dirilis; tes gagal bila belum ditulis.
 
+## `2026-11-13.9`
+- **Impor .pptx: tabel SOAP berjudul "Tanggal | Anamnesis / fisis | Diagnosis / terapi" kini dikenali.** Sebelumnya hanya tabel yang kolom pertamanya "Identitas" yang dibaca sebagai SOAP, sehingga slide SOAP dari deck lain muncul sebagai teks "Tidak dikenali" yang berantakan. Kini tiap slide SOAP masuk sebagai hari SOAP, dan tulisan "Mohon izin kami assess / terapi dengan" di dalamnya ikut menjadi "Diagnosis:" / "Terapi:".
+- **Foto bisa dipotong (crop).** Di pengaturan slide gambar, tombol **Potong** membuka foto penuh dengan bingkai: seret tepi atau sudutnya (atau pakai tombol panah, Shift = 5%) untuk memilih bagian yang tampil. **Reset potongan** mengembalikan foto utuh. Potongan ikut ke file .pptx. Potongan foto di deck yang diimpor (mis. foto rontgen) kini dipertahankan, dan foto dua-gambar diurutkan kiri ke kanan seperti di slide aslinya.
+- **Salinan SOAP ke slide hanya dari "S:".** Teks di atas S (mis. "Rencana tindakan : …") tidak lagi ikut disalin.
+- **Tanpa tanda WhatsApp.** Tanda tebal (*) dan miring (_) tidak ikut disalin; teks slide sama seperti salinan versi plain / SIMGOS.
+- **Kolom Anamnesis dan Pemeriksaan Fisik berhenti di EKG terbaru.** Teks setelahnya (EKG lama, laboratorium, foto thorax, echo, laporan tindakan) tidak disalin ke slide SOAP; datanya sudah punya slide sendiri. Catatan tanpa EKG bertanggal disalin utuh.
+
 ## `2026-11-13.8`
 - **Pratinjau slide memenuhi panelnya.** Di layar lebar, slide kini diskalakan menjadi yang terbesar yang muat di panel pratinjau, baik lebar maupun tinggi, dan diletakkan di tengah kanvas (seperti PowerPoint), bukan hanya mengikuti lebar. Bila panel pengaturan dilipat, slide memakai seluruh lebar yang ada.
 

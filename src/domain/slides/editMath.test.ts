@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { SLIDE_W } from './geometry';
-import { nudge, rectAfterBoxResize, rectAfterDrag, rectAfterResize, slideMzFileName } from './editMath';
+import { clampCrop, hasCrop, NO_CROP, nudge, rectAfterBoxResize, rectAfterCrop, rectAfterDrag, rectAfterResize, slideMzFileName } from './editMath';
 
 describe('photo moves', () => {
   it('drag moves by the delta and may leave the slide', () => {
@@ -21,6 +21,22 @@ describe('photo moves', () => {
     expect(rectAfterBoxResize({ x: 0, y: 0, w: 1_000_000, h: 2_000_000 }, 500_000, -300_000)).toEqual({ x: 0, y: 0, w: 1_500_000, h: 1_700_000 });
     const tiny = rectAfterBoxResize({ x: 0, y: 0, w: 1_000_000, h: 800_000 }, -9_000_000, -9_000_000);
     expect(tiny).toMatchObject({ w: Math.round(SLIDE_W * 0.05), h: Math.round(SLIDE_W * 0.05) });
+  });
+
+  it('crop: edges stay in range and always leave a tenth of the picture', () => {
+    expect(clampCrop({ l: -1, t: 0.2, r: 0.95, b: 0.95 })).toEqual({ l: 0, t: 0.2, r: 0.9, b: 0.7 });
+    expect(hasCrop(NO_CROP)).toBe(false);
+    expect(hasCrop(undefined)).toBe(false);
+    expect(hasCrop({ ...NO_CROP, t: 0.01 })).toBe(true);
+  });
+
+  it('cropping keeps the visible pixels where they are on the slide, and undoes exactly', () => {
+    const rect = { x: 1_000_000, y: 500_000, w: 4_000_000, h: 3_000_000 };
+    const crop = { l: 0.25, t: 0.1, r: 0.25, b: 0 };
+    const cut = rectAfterCrop(rect, undefined, crop);
+    // Half the width and a tenth of the height gone, same scale: 2 000 000 x 2 700 000.
+    expect(cut).toEqual({ x: 2_000_000, y: 800_000, w: 2_000_000, h: 2_700_000 });
+    expect(rectAfterCrop(cut, crop, undefined)).toEqual(rect);
   });
 
   it('arrow nudge is 1 % of the slide, 5 % with Shift', () => {
