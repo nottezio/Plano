@@ -5,6 +5,9 @@ Catatan teknis lengkap (akar masalah, perbaikan) ada di CHANGES.md.
 
 Entri teratas harus versi yang sedang dirilis; tes gagal bila belum ditulis.
 
+## `2026-11-13.10`
+- **Slide MZ: gambar bisa ditempel dengan Ctrl+V.** Salin gambar (tangkapan layar atau gambar yang disalin), buka Slide MZ, tekan Ctrl+V: lembar "Tambah gambar" terbuka dengan gambar sudah terisi. Tempel lagi untuk menambah gambar lain.
+
 ## `2026-11-13.9`
 - **Impor .pptx: tabel SOAP berjudul "Tanggal | Anamnesis / fisis | Diagnosis / terapi" kini dikenali.** Sebelumnya hanya tabel yang kolom pertamanya "Identitas" yang dibaca sebagai SOAP, sehingga slide SOAP dari deck lain muncul sebagai teks "Tidak dikenali" yang berantakan. Kini tiap slide SOAP masuk sebagai hari SOAP, dan tulisan "Mohon izin kami assess / terapi dengan" di dalamnya ikut menjadi "Diagnosis:" / "Terapi:".
 - **Foto bisa dipotong (crop).** Di pengaturan slide gambar, tombol **Potong** membuka foto penuh dengan bingkai: seret tepi atau sudutnya (atau pakai tombol panah, Shift = 5%) untuk memilih bagian yang tampil. **Reset potongan** mengembalikan foto utuh. Potongan ikut ke file .pptx. Potongan foto di deck yang diimpor (mis. foto rontgen) kini dipertahankan, dan foto dua-gambar diurutkan kiri ke kanan seperti di slide aslinya.

@@ -1,4 +1,4 @@
-import { useId, useMemo, useRef, useState } from 'react';
+import { useEffect, useId, useMemo, useRef, useState } from 'react';
 import { DateField } from '@/components/common/DateField';
 import { Sheet } from '@/components/common/Sheet';
 import { Button, Callout, CheckRow, Field, INPUT } from '@/components/common/ui';
@@ -30,6 +30,21 @@ export function AddImageSheet({
   const [saving, setSaving] = useState(false);
   const caption = title ?? defaultCaption(kind, place, date);
 
+  // Ctrl+V anywhere on the page: a pasted picture (screenshot, copied image) opens this sheet with it added.
+  useEffect(() => {
+    const onPaste = (event: ClipboardEvent): void => {
+      const pasted = Array.from(event.clipboardData?.files ?? []).filter((f) => f.type.startsWith('image/'));
+      if (pasted.length === 0) return;
+      // Another dialog (the .pptx review) is in front: leave the paste alone.
+      if (!open && document.querySelector('[role="dialog"]')) return;
+      event.preventDefault();
+      setFiles((current) => [...current, ...pasted]);
+      onOpenChange(true);
+    };
+    document.addEventListener('paste', onPaste);
+    return () => document.removeEventListener('paste', onPaste);
+  }, [open, onOpenChange]);
+
   const submit = async (): Promise<void> => {
     setSaving(true);
     setError(null);
@@ -58,7 +73,7 @@ export function AddImageSheet({
       }
     >
       <div className="space-y-3">
-        <Field label="Foto" htmlFor={`${id}-f`} hint={files.length ? `${files.length} dipilih` : 'Kamera atau galeri'}>
+        <Field label="Foto" htmlFor={`${id}-f`} hint={files.length ? `${files.length} dipilih (pilihan di kolom ini mengganti yang sudah ada)` : 'Kamera, galeri, atau tempel dengan Ctrl+V'}>
           <input
             id={`${id}-f`}
             type="file"

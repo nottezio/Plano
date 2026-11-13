@@ -1,5 +1,14 @@
 # Plano — CHANGES
 
+## `2026-11-13.10` — Slide MZ: paste images
+
+Avi: let the user paste / Ctrl+V an image into the slide maker.
+
+- `AddImageSheet` (always mounted on the page) listens for `paste` on the document; image files in the clipboard are appended to its file list and the sheet opens. Ignored when another dialog (the .pptx review) is open. A paste with no image (text) is left alone, so text fields behave as before.
+- Picking files with the input still replaces the list (hint says so).
+- **Firestore cost:** none.
+- **Not done:** no unit test (clipboard events need a browser); checked with a synthetic paste event only, not a real Ctrl+V or a phone.
+
 ## `2026-11-13.9` — Slide MZ: SOAP copy rules, import of "Tanggal" decks, photo crop
 
 Avi gave a resident's deck and the deck Plano built from it ("Hasil"): copy only from "S", no WhatsApp marks, stop the left column at the newest ECG, crop imported images, "the results look freaky".
