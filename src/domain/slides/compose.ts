@@ -201,7 +201,7 @@ export function composeDeck(input: {
 
   const grid = mergeLabGrids(state.importedLab ?? EMPTY_GRID, labGridFromDays(days));
   if (grid.dates.length > 0) {
-    const table = applyLabOverrides(grid, state.labOverrides, state.labDates);
+    const table = applyLabOverrides(grid, state.labOverrides, state.labDates, state.labRemoved);
     const labFit = fitLab(table.dates, table.rows, geometryFor(tall).labTable, geometryFor(tall).labFirstColShare);
     add({ kind: 'lab', id: 'lab', title: 'Laboratorium PJT', dates: table.dates, rows: table.rows }, { label: 'Laboratorium', ...plain, overflow: labFit.overflow });
   }

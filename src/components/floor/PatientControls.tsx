@@ -165,6 +165,21 @@ export function PatientControls({
       */}
       <Group title="Residen">
         <div className={`grid gap-1.5 ${cols}`}>
+          {/* A note (14 Nov 2026): who received the patient; Bagi pasien prefers them. */}
+          <Labelled label="Residen penerima">
+            <input
+              key={`p-${entry.penerima}`}
+              aria-label={`Residen penerima ${patient.name}`}
+              defaultValue={entry.penerima}
+              list="floor-juniors"
+              placeholder="—"
+              onBlur={(e) => {
+                const next = e.target.value.trim();
+                if (next !== entry.penerima) set({ penerima: next }, next ? `Diterima oleh ${next}` : 'Residen penerima dihapus');
+              }}
+              className={`${INPUT} text-xs`}
+            />
+          </Labelled>
           <Labelled label="Junior">
             <input
               key={`j-${entry.junior}`}

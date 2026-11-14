@@ -111,6 +111,19 @@ describe('buildTray', () => {
     expect(a).not.toBe(b);
   });
 
+  it('reminds of a patient with no chief outside the handover window, with only Abaikan (14 Nov 2026)', () => {
+    const SAT_1000 = new Date(2026, 9, 24, 10);
+    const roster = [rostered({ key: 'rm:1', chief: '' }), rostered({ key: 'rm:2', rm: '2', chief: 'Ari' })];
+    const { rows } = buildTray(roster, FLOOR, DATE, SAT_1000);
+    expect(rows.map((r) => [r.kind, r.key])).toEqual([['nochief', 'rm:1']]);
+    expect(rows[0]?.actions).toEqual([]);
+    expect(groupTray(rows)[0]?.title).toBe('Chief belum diisi');
+    // In the window the handover row covers it, once.
+    expect(buildTray(roster, FLOOR, DATE, MON_0700).rows.filter((r) => r.key === 'rm:1').map((r) => r.kind)).toEqual(['chief']);
+    // Abaikan holds for good.
+    expect(buildTray([rostered({ chief: '' }, { chiefDismissed: SAT_1000.toISOString() })], FLOOR, DATE, SAT_1000).rows).toEqual([]);
+  });
+
   it('puts discharge proposals before chief handovers', () => {
     const roster = [
       rostered({ key: 'rm:1', rm: '1' }),

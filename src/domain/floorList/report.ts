@@ -83,6 +83,8 @@ export interface FloorPatient {
   /** The residents' handover notes on the list (13.14): handed over to, new chief. */
   operkan?: string | undefined;
   gantiChief?: string | undefined;
+  /** Residen penerima, a note (14 Nov 2026); not printed. */
+  penerima?: string | undefined;
   /** On the list view only: the SOAP arrived after the last sent list, or is from before today (13.11). */
   soap?: 'baru' | 'lama' | undefined;
   /** On the list view only: the Pasien baru badge, when it is on (10 Nov 2026, `newBadgeOf`). Never printed. */

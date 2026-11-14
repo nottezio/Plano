@@ -94,9 +94,10 @@ export function SuggestionTray({
   };
 
   if (rows.length === 0) return null;
-  const discharge = rows.filter((row) => row.kind === 'discharge').length;
+  const count = (kind: TrayRow['kind']): number => rows.filter((row) => row.kind === kind).length;
+  const [discharge, chief, noChief] = [count('discharge'), count('chief'), count('nochief')];
   const summary = open
-    ? [discharge > 0 ? `${discharge} soal pulang` : '', rows.length - discharge > 0 ? `${rows.length - discharge} ganti chief` : '']
+    ? [discharge > 0 ? `${discharge} soal pulang` : '', chief > 0 ? `${chief} ganti chief` : '', noChief > 0 ? `${noChief} belum ada chief` : '']
         .filter(Boolean)
         .join(' · ')
     : groups.map((group) => `${group.rows.length} ${group.title}`).join(' · ');
@@ -128,7 +129,7 @@ export function SuggestionTray({
             return (
               <li key={group.id} className="flex flex-wrap items-center gap-x-2 gap-y-1.5 px-3 py-2">
                 <span className="text-xs font-semibold">
-                  <span className={`rounded px-1 py-px ${group.kind === 'discharge' ? 'bg-[var(--warn-soft)]' : 'bg-bg-subtle'}`}>{group.title}</span>
+                  <span className={`rounded px-1 py-px ${group.kind !== 'chief' ? 'bg-[var(--warn-soft)]' : 'bg-bg-subtle'}`}>{group.title}</span>
                   <span className="ml-1 tabular-nums text-fg-muted">{group.rows.length}</span>
                 </span>
                 {shown.map((row) => (

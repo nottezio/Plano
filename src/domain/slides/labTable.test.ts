@@ -65,6 +65,18 @@ describe('applyLabOverrides', () => {
     expect(applyLabOverrides(six, {}, ['1999-01-01']).dates).toHaveLength(5);
   });
 
+  it('an emptied cell stays empty and a removed test is left off the slide (14 Nov 2026)', () => {
+    const grid: LabGrid = {
+      dates: ['2026-10-02'],
+      rows: [
+        { label: 'Hb (g/dL)', cells: { '2026-10-02': '14' } },
+        { label: 'N/L', cells: { '2026-10-02': '60/30' } },
+      ],
+    };
+    expect(applyLabOverrides(grid, { 'Hb (g/dL)|2026-10-02': '' }).rows[0]?.cells).toEqual(['']);
+    expect(applyLabOverrides(grid, {}, undefined, ['N/L']).rows.map((r) => r.label)).toEqual(['Hb (g/dL)']);
+  });
+
   it('picked dates replace the default window', () => {
     expect(applyLabOverrides(six, {}, ['2026-10-02']).dates).toEqual(['02-10-2026']);
   });

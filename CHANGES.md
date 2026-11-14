@@ -1,5 +1,26 @@
 # Plano — CHANGES
 
+## `2026-11-14.2` — Tempel: Residen penerima, floating box polish; Slide MZ: remove lab cells
+
+Avi: Residen penerima should also show when pasting and a new patient is detected; improve the floating Tempel box; Slide MZ: remove a lab cell because not every test is reported.
+
+- **Tempel / penerima:** `PastePanel` keeps `receivers` (key → name) for the "Pasien baru" rows; shown only for ticked rows (an unticked patient is not added), reset on each Baca, written as `penerima` on the added roster patient. The same `floor-juniors` datalist as Atur. Offline/undo unchanged: the restore point deletes added keys as before.
+- **Floating box UI:** summary line became count chips (the two that change the list are filled); new-patient rows are bordered cards with a room chip; in the compact (floating) panel Simpan is `sticky` at the bottom of the scroll area with a count, because a long review pushed it out of sight (the plain Tempel tab keeps it inline); header has a tinted background and a drag grip (desk only). Behaviour of drag, resize, fold, Esc is untouched.
+- **Slide MZ lab (root cause of "cannot remove a cell"):** an emptied input already produced an empty cell (`??` keeps `''`), but nothing said so and a whole test could not be dropped; a test not reported at all stayed as a row of blanks. Added a per-cell × (writes the `''` override) and a per-row × (new `DeckState.labRemoved`, labels; `applyLabOverrides` skips them). Removed rows list below the table with Kembalikan. A table cell is not deleted from the PPTX grid (that would break the table); it is blank.
+- **Firestore cost:** none for the deck (local). Tempel: no new read; the new `penerima` is part of the same add write.
+- **Not done:** not seen in a browser or on a phone; the sticky Simpan was not checked inside the phone bottom sheet; row removal is by label, so a renamed test label reappears; "Kembalikan semua" for lab edits not added.
+
+## `2026-11-14.1` — List Maker: Residen penerima, no-chief reminder, "Belum ada residen" sort
+
+Avi: note who received a patient (not always tomorrow's follow-up, but preferred in Bagi pasien); the handover waiting for jam dinas is right, but a patient with no chief has nobody to hand over from, so remind; a sort/highlight in List for patients without chief/junior.
+
+- **Residen penerima:** new roster field `penerima` (string, '' = none), read in `readRosterPatient`, cleared by `readmitFields`, carried to the effective `FloorPatient` as an optional note (like `operkan`). Edited in the Atur panel (Residen group, junior datalist, logged "Diterima oleh …"); shown in the List row as "diterima dr. …". Not printed (Word/PDF/WhatsApp untouched). It rides along in saved editions' patient objects but is not read back from them.
+- **Bagi pasien:** `proposeAssignment` gives a patient needing a holder to their penerima first when the penerima matches a resident in the share (`residentOf`, case-insensitive exact; skipped residents excluded), counting that load; the rest share as before.
+- **Why no chief was never reminded:** `chiefSuggestions` returns nothing outside the handover window (`handoverOpen`), and a chief-less patient outside it had no other prompt; the only hint was a List line shown when the floor has more than one chief. New `missingChief` (any hour; ward-held, `dirawat`, effective chief '', not `chiefDismissed`) feeds tray rows of kind `nochief` ("Chief belum diisi", Abaikan only, which holds for good like the existing no-chief dismissal). A patient already in a handover row is not listed twice. `wardHeld` now shares the division / no-FU filter between both.
+- **List sort:** "Belum ada residen (n)" toggle (per view, not stored) puts ward-held patients missing chief or junior first, in route order, and marks them with a warn border/background. Search still applies.
+- **Firestore cost:** no new read or listener. Writing Residen penerima = one roster write per edit (blur, skipped when unchanged), billed as one read on each open roster listener of that floor, as the other Atur fields.
+- **Not done:** not seen in a browser or on a ward device; Residen penerima is not on the hand-entry sheet (only Atur) and not shown in the Bagi pasien panel; the no-chief reminder counts a chief filled automatically (single floor chief) as present; spelling of the penerima must match the floor's junior roster for the assignment to use it.
+
 ## `2026-11-13.18` — Slide MZ: no page scroll, reorder controls, per-slide floor, lab table fit
 
 Avi (screenshots): the reorder buttons are easy to mis-press; add a floor per slide; the lab table overflows; why does the page scroll?

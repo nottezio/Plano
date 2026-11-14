@@ -86,6 +86,8 @@ export interface DeckState {
   tall?: boolean;
   labOverrides: Record<string, string>;
   labDates?: ClinicalDate[];
+  /** Test rows taken off the lab slide (14 Nov 2026, Avi: not every test is reported); the notes are untouched. */
+  labRemoved?: string[];
   importedLab?: LabGrid;
 }
 

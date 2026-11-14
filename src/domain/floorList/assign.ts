@@ -84,6 +84,13 @@ export function proposeAssignment(patients: readonly FloorPatient[], residents: 
     .filter(({ p }) => needsHolder(p, residents))
     .sort((a, b) => ORDER[a.group] - ORDER[b.group] || a.i - b.i);
   for (const { p, group } of open) {
+    // The resident who received the patient follows them up when they are in the share (14 Nov 2026, Avi).
+    const receiver = residentOf(p.penerima ?? '', targets);
+    if (receiver) {
+      add(loads.get(receiver)!, group);
+      out.set(p.key, receiver);
+      continue;
+    }
     const score = (name: string): number[] => {
       const l = loads.get(name)!;
       return group === 'mz' ? [l.mz, l.total] : group === 'trio' ? [l.trio, l.total] : [l.total];

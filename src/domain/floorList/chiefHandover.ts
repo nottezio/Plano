@@ -154,6 +154,23 @@ function samePerson(a: string, b: string): boolean {
   return x[0] !== undefined && x[0] === y[0] && initials(x.slice(1)) && initials(y.slice(1));
 }
 
+/** Followed up by the ward (no division, no "tidak di-follow up" tag) and still here. */
+function wardHeld(entry: RosterPatient, floor: FloorDoc, date: string): ReturnType<typeof effective> | null {
+  if (entry.status !== 'dirawat') return null;
+  const seen = effective(entry, floor, date);
+  return seen.division || seen.tags?.some((t) => t.noFollowUp) ? null : seen;
+}
+
+/**
+ * Patients with no chief written (14 Nov 2026, Avi): outside jam dinas the
+ * handover waits, but a patient with nobody to hand over from needs a chief
+ * now (IGD, the previous room, the Chief Jaga). A reminder, any hour; the
+ * Abaikan of a no-chief patient holds for good, as in `chiefSuggestions`.
+ */
+export function missingChief(roster: readonly RosterPatient[], floor: FloorDoc, date: string): RosterPatient[] {
+  return roster.filter((entry) => !entry.chiefDismissed && wardHeld(entry, floor, date)?.chief === '');
+}
+
 /**
  * The patients to hand to the Chief Bangsal (or to their Ganti chief, a
  * planned handover to someone else). Open except in the gap before the eve of
@@ -170,10 +187,9 @@ export function chiefSuggestions(
   const cycleStart = handoverCycleStart(now, floor.holidays);
   const out: ChiefSuggestion[] = [];
   for (const entry of roster) {
-    if (entry.status !== 'dirawat') continue;
-    const seen = effective(entry, floor, date);
     // Held by a division, or tagged "tidak di-follow up" (titipan, chosen DPJPs): not the ward's to hand over.
-    if (seen.division || seen.tags?.some((t) => t.noFollowUp)) continue;
+    const seen = wardHeld(entry, floor, date);
+    if (!seen) continue;
     const from = seen.chief;
     const to = entry.gantiChief.trim() || bangsal;
     if (from && samePerson(from, to)) continue;

@@ -1,4 +1,4 @@
-import { chiefSuggestions } from './chiefHandover';
+import { chiefSuggestions, missingChief } from './chiefHandover';
 import { suggestionActions, suggestionFor, suggestionWords, type FloorDoc, type RosterPatient, type StatusChange } from './floor';
 
 /**
@@ -25,7 +25,8 @@ export interface TrayAction {
 export interface TrayRow {
   /** Unique across kinds and reports: a new SOAP is a new suggestion for the same patient. */
   id: string;
-  kind: 'discharge' | 'chief';
+  /** 'nochief': a reminder with no answer but Abaikan; the name opens the patient to write one. */
+  kind: 'discharge' | 'chief' | 'nochief';
   key: string;
   room: string;
   bed: string;
@@ -92,6 +93,25 @@ export function buildTray(roster: readonly RosterPatient[], floor: FloorDoc, dat
           done,
         },
       ],
+      dismiss: { label: 'Abaikan', write: { fields: { chiefDismissed: now.toISOString() } }, done: 'Diabaikan' },
+    });
+  }
+
+  // Outside the handover window (or with no Chief Bangsal) a patient with no chief still needs one (14 Nov 2026).
+  const handed = new Set(chief.map((c) => c.entry.key));
+  for (const entry of missingChief(roster, floor, date)) {
+    if (handed.has(entry.key)) continue;
+    rows.push({
+      id: `n:${entry.key}`,
+      kind: 'nochief',
+      key: entry.key,
+      room: entry.report.room,
+      bed: entry.report.bed,
+      name: entry.report.name,
+      lead: 'Chief',
+      strong: 'belum diisi',
+      tail: '',
+      actions: [],
       dismiss: { label: 'Abaikan', write: { fields: { chiefDismissed: now.toISOString() } }, done: 'Diabaikan' },
     });
   }

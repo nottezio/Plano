@@ -79,8 +79,13 @@ export function ListPanel({
   const chiefs = chiefsOf(floor.chiefs);
   const byKey = useMemo(() => new Map(roster.map((p) => [p.key, p])), [roster]);
   const text = useMemo(() => buildFloorList(view.active, { ward: floor.ward, date, time, trioFullSoap: floor.trioFullSoap }), [view.active, floor.ward, date, time, floor.trioFullSoap]);
+  // Belum ada chief/junior first and marked (14 Nov 2026, Avi); a division's or "tidak di-FU" patient needs neither.
+  const [gapsFirst, setGapsFirst] = useState(false);
+  const lacks = (p: FloorPatient): boolean => !p.division && !p.tags?.some((t) => t.noFollowUp) && (!p.chief || !p.junior);
   const all = [...view.active].sort(byRoute(floor.ward));
-  const sorted = words.length > 0 ? all.filter((p) => matchesSearch(p, words)) : all;
+  const found = words.length > 0 ? all.filter((p) => matchesSearch(p, words)) : all;
+  const sorted = gapsFirst ? [...found.filter(lacks), ...found.filter((p) => !lacks(p))] : found;
+  const gaps = all.filter(lacks).length;
   const lastEdition = editions[0];
   const gone = leftSince(roster, lastEdition?.createdAt ?? '');
   const note = leftNote(gone, patientLine);
@@ -114,6 +119,13 @@ export function ListPanel({
             </span>
           ) : null}
           <span className="flex-1" />
+          {gaps > 0 || gapsFirst ? (
+            <Button size="sm" variant={gapsFirst ? 'primary' : 'secondary'} onClick={() => setGapsFirst((v) => !v)} aria-pressed={gapsFirst} title="Pasien tanpa chief atau junior di atas dan ditandai">
+              <span>
+                Belum ada residen<span className="tabular-nums"> ({gaps})</span>
+              </span>
+            </Button>
+          ) : null}
           <Button size="sm" variant={previewOpen ? 'primary' : 'secondary'} onClick={() => setPreviewOpen((v) => !v)} aria-pressed={previewOpen}>
             <span>
               Pratinjau<span className="max-sm:hidden"> WhatsApp</span>
@@ -179,8 +191,9 @@ export function ListPanel({
             const entry = byKey.get(patient.key);
             if (!entry) return null;
             const isOpen = openKey === patient.key;
+            const marked = gapsFirst && lacks(patient);
             return (
-              <li key={patient.key}>
+              <li key={patient.key} className={marked ? 'bg-[var(--warn-soft)]' : undefined}>
                 <div className="flex items-center gap-1 py-1 pl-3 pr-1 lg:py-0">
                   <button type="button" onClick={() => onOpen(patient)} title={patient.identity} className="min-w-0 flex-1 py-1 text-left lg:py-0">
                     <PatientRowText patient={patient} />
@@ -302,6 +315,7 @@ function PatientRowText({ patient }: { patient: FloorPatient }): JSX.Element {
   const age = ageOf(patient.identity);
   const notes = [
     patient.btkv ? 'KJS BTKV' : '',
+    patient.penerima ? `diterima dr. ${patient.penerima.replace(/^dr\.?\s*/i, '')}` : '',
     patient.division ? `${holderLabel(patient.division)} · tidak di-FU` : '',
     patient.operkan ? `operkan → dr. ${patient.operkan.replace(/^dr\.?\s*/i, '')}` : '',
     patient.gantiChief ? `ganti chief → dr. ${patient.gantiChief.replace(/^dr\.?\s*/i, '')}` : '',

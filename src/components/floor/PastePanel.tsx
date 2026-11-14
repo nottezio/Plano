@@ -1,7 +1,7 @@
 import { useRef, useState } from 'react';
 
 import { RevisionLine } from '@/components/common/RevisionLine';
-import { Button, Callout } from '@/components/common/ui';
+import { Button, Callout, INPUT } from '@/components/common/ui';
 import { readRosterPatients, saveRestorePoint, writeRosterBatch, type RosterChange } from '@/data/repositories/floors.repo';
 import { formatDmy } from '@/domain/dateDmy';
 import { diffRevision } from '@/domain/format/revisionDiff';
@@ -111,6 +111,8 @@ export function PastePanel({
   const [skipFresh, setSkipFresh] = useState<Set<string>>(new Set());
   const [skipMove, setSkipMove] = useState<Set<string>>(new Set());
   const [readmit, setReadmit] = useState<Set<string>>(new Set());
+  // Residen penerima per new patient (14 Nov 2026, Avi): a note, typed here so it is not an extra trip to Atur.
+  const [receivers, setReceivers] = useState<Record<string, string>>({});
   const [error, setError] = useState('');
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState('');
@@ -128,6 +130,7 @@ export function PastePanel({
     setSkipFresh(new Set());
     setSkipMove(new Set());
     setReadmit(new Set());
+    setReceivers({});
     // A message copied on its own (long-press → Salin) has no "[time] name:"
     // line. Without a time it could never be newer than the stored SOAP, so
     // Baca showed nothing to save (13.11, Avi: "Baca has no response"). It is
@@ -203,7 +206,10 @@ export function PastePanel({
       const moved = new Set(reading.diff.moved.map((m) => m.before.key));
       const back = reading.diff.readmit.filter((r) => readmit.has(r.before.key));
       const changes: RosterChange[] = [
-        ...fresh.map((report): RosterChange => ({ kind: 'add', patient: newRosterPatient(report, at, myName) })),
+        ...fresh.map((report): RosterChange => ({
+          kind: 'add',
+          patient: { ...newRosterPatient(report, at, myName), penerima: (receivers[report.key] ?? '').trim() },
+        })),
         ...reading.diff.updated.map(({ before, report }): RosterChange => {
           const acceptMove = moved.has(before.key) && !skipMove.has(before.key);
           // Not a confirmed move: the stored room/bed stays (it may have been set by hand).
@@ -310,10 +316,13 @@ export function PastePanel({
 
       {d ? (
         <div className="space-y-3 rounded-xl border border-border bg-surface p-3 text-xs">
-          <p>
-            {reading!.messages} pesan · {d.fresh.length} baru · {d.updated.length} diperbarui · {d.readmit.length} sudah keluar ·{' '}
-            {d.unchanged} tidak berubah
-          </p>
+          <ul aria-label="Hasil bacaan" className="flex flex-wrap gap-1.5">
+            <Stat n={reading!.messages} label="pesan" />
+            <Stat n={d.fresh.length} label="baru" on />
+            <Stat n={d.updated.length} label="diperbarui" on />
+            <Stat n={d.readmit.length} label="sudah keluar" />
+            <Stat n={d.unchanged} label="tidak berubah" />
+          </ul>
           {reading!.found === 0 ? (
             <Callout tone="warn" title="Tidak ada pasien terbaca">
               Pesan harus berisi baris pembuka laporan ("… atas nama:") dan identitas pasien (nama/RM) di bawahnya.
@@ -345,15 +354,36 @@ export function PastePanel({
                   memang masih dirawat.
                 </p>
               ) : null}
-              {d.fresh.map((p) => (
-                <label key={p.key} className="flex min-h-9 items-center gap-2">
-                  <input type="checkbox" checked={!skipFresh.has(p.key)} onChange={() => toggle(skipFresh, p.key, setSkipFresh)} />
-                  <span>
-                    {where(p)} {p.name} <span className="text-fg-faint">· {when(p)}{p.fromList ? ' · dari list' : ''}</span>
-                    {d.doubt[p.key] ? <span className="font-medium text-danger"> · {d.doubt[p.key]}</span> : null}
-                  </span>
-                </label>
-              ))}
+              {d.fresh.map((p) => {
+                const included = !skipFresh.has(p.key);
+                return (
+                  <div key={p.key} className={`space-y-1.5 rounded-lg border border-border p-2 ${included ? '' : 'opacity-70'}`}>
+                    <label className="flex min-h-9 items-center gap-2">
+                      <input type="checkbox" checked={included} onChange={() => toggle(skipFresh, p.key, setSkipFresh)} />
+                      <span className="min-w-0 flex-1">
+                        <span className="mr-1.5 rounded bg-bg-subtle px-1 py-0.5 font-semibold tabular-nums">{where(p) || '—'}</span>
+                        <span className="font-semibold">{p.name}</span>{' '}
+                        <span className="text-fg-faint">· {when(p)}{p.fromList ? ' · dari list' : ''}</span>
+                        {d.doubt[p.key] ? <span className="font-medium text-danger"> · {d.doubt[p.key]}</span> : null}
+                      </span>
+                    </label>
+                    {/* A note only: the receiver is not always tomorrow's follow-up (Bagi pasien prefers them). */}
+                    {included ? (
+                      <label className="flex items-center gap-2 pl-6">
+                        <span className="shrink-0 text-fg-muted">Residen penerima</span>
+                        <input
+                          value={receivers[p.key] ?? ''}
+                          onChange={(event) => setReceivers((r) => ({ ...r, [p.key]: event.target.value }))}
+                          list="floor-juniors"
+                          placeholder="—"
+                          aria-label={`Residen penerima ${p.name}`}
+                          className={`${INPUT} min-w-0 flex-1 text-xs`}
+                        />
+                      </label>
+                    ) : null}
+                  </div>
+                );
+              })}
             </fieldset>
           ) : null}
 
@@ -401,11 +431,30 @@ export function PastePanel({
             </p>
           ) : null}
 
-          <Button variant="primary" onClick={() => void save()} disabled={saving || nothing}>
-            {saving ? 'Menyimpan…' : 'Simpan'}
-          </Button>
+          {/* Kept in view in the floating box (14 Nov 2026): a long review pushed Simpan off the screen. */}
+          <div className={compact ? 'sticky -bottom-3 -mx-3 -mb-3 flex items-center gap-3 rounded-b-xl border-t border-border bg-surface px-3 py-2' : ''}>
+            <Button variant="primary" onClick={() => void save()} disabled={saving || nothing}>
+              {saving ? 'Menyimpan…' : 'Simpan'}
+            </Button>
+            {compact && !nothing ? (
+              <span className="text-xs text-fg-muted">
+                {d.fresh.length - skipFresh.size > 0 ? `${d.fresh.length - skipFresh.size} pasien baru` : ''}
+                {d.fresh.length - skipFresh.size > 0 && d.updated.length > 0 ? ' · ' : ''}
+                {d.updated.length > 0 ? `${d.updated.length} SOAP diperbarui` : ''}
+              </span>
+            ) : null}
+          </div>
         </div>
       ) : null}
     </div>
+  );
+}
+
+/** One count in the review summary; the ones that change the list are filled. */
+function Stat({ n, label, on = false }: { n: number; label: string; on?: boolean }): JSX.Element {
+  return (
+    <li className={`rounded-full px-2 py-0.5 ${on && n > 0 ? 'bg-accent font-semibold text-on-accent' : 'bg-bg-subtle text-fg-muted'}`}>
+      <span className="tabular-nums">{n}</span> {label}
+    </li>
   );
 }

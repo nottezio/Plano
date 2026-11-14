@@ -113,8 +113,16 @@ export function PasteFloat({
         onPointerMove={move}
         onPointerUp={end}
         onPointerCancel={end}
-        className={`flex touch-none select-none items-center gap-1 ${folded ? '' : 'border-b border-border'} px-3 py-1.5 ${placed ? 'cursor-move' : ''}`}
+        className={`flex touch-none select-none items-center gap-1 bg-bg-subtle px-3 py-1.5 ${folded ? 'rounded-2xl' : 'rounded-t-2xl border-b border-border'} ${placed ? 'cursor-move' : ''}`}
       >
+        {/* A grip says the header drags the box (desk only). */}
+        {placed ? (
+          <span aria-hidden="true" className="mr-1 grid shrink-0 grid-cols-2 gap-0.5">
+            {[0, 1, 2, 3, 4, 5].map((i) => (
+              <span key={i} className="h-1 w-1 rounded-full bg-fg-faint" />
+            ))}
+          </span>
+        ) : null}
         <h2 className="flex-1 text-sm font-semibold">Tempel pesan WhatsApp</h2>
         <button
           type="button"
@@ -134,7 +142,7 @@ export function PasteFloat({
         </button>
       </header>
       {/* Hidden, not unmounted, while folded: the pasted text and its review stay. */}
-      <div className={`min-h-0 flex-1 overflow-y-auto p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] ${folded ? 'hidden' : ''}`}>
+      <div className={`min-h-0 flex-1 overflow-y-auto overscroll-contain p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] ${folded ? 'hidden' : ''}`}>
         <PastePanel floor={floor} roster={roster} myName={myName} compact />
       </div>
       {placed && !folded ? (

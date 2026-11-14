@@ -160,6 +160,12 @@ export interface RosterPatient {
   operkan: string;
   gantiChief: string;
   /**
+   * Residen penerima (14 Nov 2026, Avi): who received the patient. A note
+   * only, never the junior: the receiver does not always follow up tomorrow.
+   * Bagi pasien prefers them when they are a floor resident (`proposeAssignment`).
+   */
+  penerima: string;
+  /**
    * When the Chief Bangsal suggestion was dismissed (ISO; '' = never). Hides
    * it until the next jam dinas; for a patient without a chief, for good.
    */
@@ -421,6 +427,7 @@ export function effective(
     ...(badge?.on ? { newBadge: { label: badge.label, color: badge.color } } : {}),
     ...(patient.operkan ? { operkan: patient.operkan } : {}),
     ...(patient.gantiChief ? { gantiChief: patient.gantiChief } : {}),
+    ...(patient.penerima ? { penerima: patient.penerima } : {}),
   };
   return {
     ...rest,
@@ -582,6 +589,7 @@ export function readmitFields(): Omit<RosterPatient, 'key' | 'report' | 'log' | 
     tagsOff: [],
     operkan: '',
     gantiChief: '',
+    penerima: '',
     chiefDismissed: '',
   };
 }

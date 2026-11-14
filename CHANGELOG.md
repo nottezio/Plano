@@ -5,6 +5,16 @@ Catatan teknis lengkap (akar masalah, perbaikan) ada di CHANGES.md.
 
 Entri teratas harus versi yang sedang dirilis; tes gagal bila belum ditulis.
 
+## `2026-11-14.2`
+- **Tempel: Residen penerima untuk pasien baru.** Di daftar "Pasien baru", tiap pasien yang dicentang punya isian **Residen penerima** (pilihan dari daftar junior). Tersimpan sebagai catatan saat Simpan, sama seperti isian di Atur.
+- **Kotak Tempel lebih rapi.** Ringkasan hasil bacaan jadi label (pesan, baru, diperbarui…), tiap pasien baru tampil sebagai kartu dengan kamar dan nama tebal, dan tombol **Simpan** menempel di bawah kotak dengan ringkasan jumlahnya, jadi tidak perlu menggulir ke bawah. Header diberi pegangan geser.
+- **Slide MZ: tabel lab.** Tiap sel punya tombol **×** untuk dikosongkan (tes tidak dilaporkan hari itu), dan tiap baris tes punya **×** untuk dihapus dari slide. Baris yang dihapus muncul di bawah tabel dengan tombol Kembalikan. Catatan tidak berubah.
+
+## `2026-11-14.1`
+- **Residen penerima.** Di Atur pasien (List Maker) ada isian **Residen penerima**: siapa yang menerima pasien. Hanya catatan; tidak mengubah junior, karena yang menerima belum tentu yang follow up besok. Tampil di baris pasien sebagai "diterima dr. …". Saat **Bagi pasien**, pasien diberikan dulu ke residen penerimanya bila ia residen lantai ini dan ikut dibagi; bila tidak, pembagian biasa yang menentukan.
+- **Pengingat pasien tanpa chief.** Ganti chief tetap menunggu dinas berikutnya, tetapi pasien yang belum punya chief sama sekali kini muncul di **Saran** kapan saja sebagai "Chief belum diisi". Ketuk namanya untuk membuka pasien dan mengisi chief, atau Abaikan.
+- **Tombol "Belum ada residen" di tab List.** Menaruh pasien yang belum punya chief atau junior di paling atas dan menandainya dengan warna. Pasien yang dipegang divisi atau "tidak di-FU" tidak dihitung.
+
 ## `2026-11-13.18`
 - **Slide MZ: halaman tidak lagi bisa digulir.** Ruang kerja (daftar slide, pratinjau, pengaturan) kini mengisi tinggi jendela, jadi bagian atas (Unduh / Bagikan) tidak ikut terguling dan tidak ada gulir ganda. Yang digulir hanya daftar slide dan panel pengaturan bila isinya panjang.
 - **Tombol urutan tidak lagi mudah salah tekan.** Naik, Turun, dan Sembunyikan dipindah dari bawah gambar mini di daftar ke bagian atas panel pengaturan, dengan tulisan dan jarak yang jelas.

@@ -192,6 +192,7 @@ export function readRosterPatient(key: string, data: DocumentData): RosterPatien
     tagsOff: ids(data.tagsOff),
     operkan: str(data.operkan),
     gantiChief: str(data.gantiChief),
+    penerima: str(data.penerima),
     chiefDismissed: str(data.chiefDismissed),
     addedAt: str(data.addedAt),
     log,
@@ -512,7 +513,7 @@ export function writeRosterReport(floorId: string, key: string, report: FloorPat
 export function writeRosterFields(
   floorId: string,
   key: string,
-  fields: Partial<Pick<RosterPatient, 'status' | 'pindahKe' | 'leftAt' | 'colour' | 'dischargeDate' | 'usulH1' | 'junior' | 'chief' | 'dismissed' | 'division' | 'tags' | 'tagsOff' | 'operkan' | 'gantiChief' | 'chiefDismissed'>>,
+  fields: Partial<Pick<RosterPatient, 'status' | 'pindahKe' | 'leftAt' | 'colour' | 'dischargeDate' | 'usulH1' | 'junior' | 'chief' | 'dismissed' | 'division' | 'tags' | 'tagsOff' | 'operkan' | 'gantiChief' | 'penerima' | 'chiefDismissed'>>,
   log?: StatusChange,
 ): Promise<void> {
   return trackWrite(

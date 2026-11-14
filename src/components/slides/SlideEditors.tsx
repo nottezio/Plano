@@ -1,5 +1,6 @@
 import { useId, useState } from 'react';
 import { DateField } from '@/components/common/DateField';
+import { IconClose } from '@/components/common/Icons';
 import { Button, Callout, CheckRow, Field, INPUT, Segmented } from '@/components/common/ui';
 import { headingDate } from '@/domain/lab/labMeta';
 import type { Composed, SlideMeta } from '@/domain/slides/compose';
@@ -373,6 +374,8 @@ const LAB_DEFAULT_COLUMNS = 5;
 
 export function LabEditor({ composed, state, update }: { composed: Composed; state: DeckState; update: Update }): JSX.Element {
   const grid = composed.labGrid;
+  // Only labels that are still in the grid: a stale entry would show a chip that restores nothing.
+  const removed = (state.labRemoved ?? []).filter((label) => grid.rows.some((row) => row.label === label));
   const shown = state.labDates?.length ? grid.dates.filter((d) => state.labDates!.includes(d)) : grid.dates.slice(-LAB_DEFAULT_COLUMNS);
   const toggleDate = (date: string, on: boolean): void =>
     update((s) => {
@@ -404,29 +407,73 @@ export function LabEditor({ composed, state, update }: { composed: Composed; sta
             </span>
           ))}
         </li>
-        {grid.rows.map((row) => (
+        {grid.rows.filter((row) => !removed.includes(row.label)).map((row) => (
           <li key={row.label}>
-            <span className="block truncate text-xs text-fg">{row.label}</span>
+            <div className="flex items-center gap-1">
+              <span className="min-w-0 flex-1 truncate text-xs text-fg">{row.label}</span>
+              <button
+                type="button"
+                aria-label={`Hapus baris ${row.label} dari slide`}
+                title="Hapus baris dari slide"
+                onClick={() => update((s) => ({ ...s, labRemoved: [...new Set([...(s.labRemoved ?? []), row.label])] }))}
+                className="flex h-6 w-6 shrink-0 items-center justify-center rounded text-fg-muted hover:bg-bg-subtle hover:text-fg"
+              >
+                <IconClose width={14} height={14} />
+              </button>
+            </div>
             <div className="grid gap-1" style={{ gridTemplateColumns: `repeat(${Math.max(1, shown.length)}, minmax(0, 1fr))` }}>
               {shown.map((date) => {
                 const key = `${row.label}|${date}`;
                 const value = state.labOverrides[key] ?? row.cells[date] ?? '';
                 return (
-                  <input
-                    key={date}
-                    aria-label={`${row.label} ${headingDate(date)}`}
-                    title={value}
-                    className="min-h-8 w-full min-w-0 rounded-md border border-border bg-surface px-1 text-center text-xs text-fg outline-none focus:border-accent"
-                    value={value}
-                    onChange={(e) => update((s) => ({ ...s, labOverrides: { ...s.labOverrides, [key]: e.target.value } }))}
-                  />
+                  <span key={date} className="relative block">
+                    <input
+                      aria-label={`${row.label} ${headingDate(date)}`}
+                      title={value}
+                      placeholder="—"
+                      className="min-h-8 w-full min-w-0 rounded-md border border-border bg-surface px-1 text-center text-xs text-fg outline-none focus:border-accent"
+                      style={value ? { paddingRight: '1.1rem' } : undefined}
+                      value={value}
+                      onChange={(e) => update((s) => ({ ...s, labOverrides: { ...s.labOverrides, [key]: e.target.value } }))}
+                    />
+                    {/* Not reported that day: the cell stays on the slide, empty. */}
+                    {value ? (
+                      <button
+                        type="button"
+                        aria-label={`Kosongkan ${row.label} ${headingDate(date)}`}
+                        title="Kosongkan sel"
+                        onClick={() => update((s) => ({ ...s, labOverrides: { ...s.labOverrides, [key]: '' } }))}
+                        className="absolute right-0.5 top-1/2 flex h-5 w-5 -translate-y-1/2 items-center justify-center rounded text-fg-faint hover:text-fg"
+                      >
+                        <IconClose width={12} height={12} />
+                      </button>
+                    ) : null}
+                  </span>
                 );
               })}
             </div>
           </li>
         ))}
       </ul>
-      <p className="text-xs text-fg-faint">Nilai diambil dari blok lab di catatan. Mengubah sel di sini hanya mengubah slide.</p>
+      {removed.length > 0 ? (
+        <div className="flex flex-wrap items-center gap-1.5 text-xs">
+          <span className="text-fg-muted">Dihapus dari slide:</span>
+          {removed.map((label) => (
+            <button
+              key={label}
+              type="button"
+              title="Kembalikan baris"
+              onClick={() => update((s) => ({ ...s, labRemoved: (s.labRemoved ?? []).filter((l) => l !== label) }))}
+              className="rounded-full border border-border px-2 py-0.5 hover:bg-bg-subtle"
+            >
+              {label} · Kembalikan
+            </button>
+          ))}
+        </div>
+      ) : null}
+      <p className="text-xs text-fg-faint">
+        Nilai diambil dari blok lab di catatan. Mengubah, mengosongkan, atau menghapus baris di sini hanya mengubah slide.
+      </p>
     </div>
   );
 }

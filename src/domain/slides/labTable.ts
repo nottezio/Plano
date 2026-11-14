@@ -141,13 +141,15 @@ export function applyLabOverrides(
   grid: LabGrid,
   overrides: Readonly<Record<string, string>>,
   pickedDates?: readonly ClinicalDate[],
+  removed: readonly string[] = [],
 ): { dates: string[]; rows: Array<{ label: string; cells: string[] }> } {
   const picked = pickedDates?.length ? grid.dates.filter((date) => pickedDates.includes(date)) : [];
   // Never zero columns: a table with no date column is invalid PPTX (PowerPoint "repairs" it).
   const dates = picked.length ? picked : grid.dates.slice(-DEFAULT_COLUMNS);
   return {
     dates: dates.map(headingDate),
-    rows: grid.rows.map((row) => ({
+    // A cell the user emptied stays empty (`??` keeps ''); a removed test is not on the slide at all.
+    rows: grid.rows.filter((row) => !removed.includes(row.label)).map((row) => ({
       label: row.label,
       cells: dates.map((date) => overrides[`${row.label}|${date}`] ?? row.cells[date] ?? ''),
     })),

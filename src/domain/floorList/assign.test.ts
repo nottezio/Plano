@@ -58,6 +58,14 @@ describe('Bagi pasien (10 Nov 2026)', () => {
     expect(proposeAssignment(patients, RES, new Set(RES)).size).toBe(0);
   });
 
+  it('the residen penerima gets the patient when in the share, else the fair share decides (14 Nov 2026)', () => {
+    const patients = [p('n1', 'mz', '', { penerima: 'cici' }), p('n2', 'mz', '', { penerima: 'Ana' }), p('n3', null, '', { penerima: 'Lain' })];
+    const out = proposeAssignment(patients, RES, new Set(['Ana']));
+    expect(out.get('n1')).toBe('Cici');
+    expect(out.get('n2')).toBe('Budi');
+    expect(out.has('n3')).toBe(true);
+  });
+
   it('before/after follow a choice changed by hand', () => {
     const patients = [p('a', 'mz'), p('b', 'ks', 'Budi')];
     const loads = loadsWith(patients, RES, new Map([['a', 'Budi']]));
