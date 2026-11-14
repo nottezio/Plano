@@ -13,6 +13,7 @@ import {
   divisionOf,
   effective,
   isPelimpahanEntry,
+  leftWords,
   listTitle,
   parsePelimpahan,
   pelimpahanEntry,
@@ -613,5 +614,13 @@ describe('listTitle', () => {
   });
   it('keeps the name of a list with no Denah', () => {
     expect(listTitle({ name: 'Lama', ward: '' })).toBe('Lama');
+  });
+});
+
+describe('leftWords / leftNote', () => {
+  it('says how a patient left', () => {
+    expect(leftWords({ status: 'pulang', pindahKe: '' })).toBe('pulang');
+    expect(leftWords({ status: 'pindah', pindahKe: 'ICU' })).toBe('pindah ke ICU');
+    expect(leftWords({ status: 'meninggal', pindahKe: '' })).toBe('meninggal');
   });
 });

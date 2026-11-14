@@ -28,7 +28,7 @@ import {
   type SectionKey,
   type SectionTitles,
 } from '@/domain/floorList/analysis';
-import { localStamp, type Edition, type RosterPatient, type RosterView } from '@/domain/floorList/floor';
+import { leftWords, localStamp, type Edition, type RosterPatient, type RosterView } from '@/domain/floorList/floor';
 import type { FloorPatient } from '@/domain/floorList/report';
 import { checkSlaber, readSlaber, type Slaber } from '@/domain/floorList/slaber';
 import { docxDocumentXml } from '@/lib/unzip';
@@ -246,6 +246,7 @@ export function AnalysisPanel({
         <Tile label={tile('masuk')} value={day.masuk.length} />
         <Tile label={tile('pulang')} value={day.pulang.length} />
         <Tile label={tile('pindah')} value={day.pindah.length} />
+        {day.meninggal.length > 0 ? <Tile label="Meninggal" value={day.meninggal.length} tone="var(--note-red)" /> : null}
         <Tile label={tile('pulangHariIni')} value={day.pulangHariIni.length} tone="var(--note-green)" />
         <Tile label={tile('rencanaH1')} value={day.rencanaH1.length} tone="var(--note-red)" />
         <Tile label={tile('usulH1')} value={day.usulH1.length} tone="var(--warn-strong)" />
@@ -314,6 +315,13 @@ export function AnalysisPanel({
             <Row key={p.key} patient={p.report} note={`ke ${p.pindahKe || '…'} · ${hm(localOf(p.leftAt))}`} onOpen={onOpen} holders={holders} />
           ))}
         </Block>
+        {day.meninggal.length > 0 ? (
+          <Block title="Meninggal" count={day.meninggal.length}>
+            {day.meninggal.map((p) => (
+              <Row key={p.key} patient={p.report} note={hm(localOf(p.leftAt))} onOpen={onOpen} holders={holders} />
+            ))}
+          </Block>
+        ) : null}
         <Block title={name('kamar')} count={day.kamar.length} rename={field('kamar', SECTION_TITLE.kamar)}>
           {day.kamar.map((m) => (
             <Row key={`${m.key}-${m.at}`} patient={m.patient} note={`${m.what.replace(/^Pindah kamar\s*/i, '')} · ${hm(m.at)}`} onOpen={onOpen} holders={holders} />
@@ -440,7 +448,7 @@ export function AnalysisPanel({
       <section className="space-y-3">
         <SectionLabel title="Riwayat perubahan · 7 hari" />
         <div className="flex flex-wrap gap-1.5">
-          {FILTERS.map((f) => (
+          {[...FILTERS, ...(moves.some((m) => m.kind === 'meninggal') ? (['meninggal'] as const) : [])].map((f) => (
             <button
               key={f}
               type="button"
@@ -521,7 +529,7 @@ export function AnalysisPanel({
                     {row.room}
                     {row.bed ? `/${row.bed}` : ''} {row.name} · RM {row.rm}
                     {left ? (
-                      <span className="text-fg-muted"> · di Plano: {left.status === 'pindah' ? `pindah ke ${left.pindahKe}` : 'pulang'}</span>
+                      <span className="text-fg-muted"> · di Plano: {leftWords(left)}</span>
                     ) : null}
                   </li>
                 ))}

@@ -7,6 +7,7 @@ import { buildFloorList, byRoute, dpjpCodeOf } from '@/domain/floorList/build';
 import {
   chiefsOf,
   holderLabel,
+  leftWords,
   localOf,
   type FloorDoc,
   type RosterPatient,
@@ -228,7 +229,7 @@ export function ListPanel({
               {view.left.map((p) => (
                 <li key={p.key} className="flex flex-wrap items-center gap-2">
                   <button type="button" onClick={() => onOpen(p.report)} className="min-w-0 flex-1 text-left hover:underline">
-                    {p.report.room} {p.report.name} — {p.status === 'pindah' ? `pindah ke ${p.pindahKe}` : 'pulang'}
+                    {p.report.room} {p.report.name} — {leftWords(p)}
                     {p.leftAt ? ` · ${formatDmy(localOf(p.leftAt).slice(0, 10))} ${localOf(p.leftAt).slice(11, 16)}` : ''}
                     {p.log.at(-1)?.by ? ` · ${p.log.at(-1)!.by}` : ''}
                   </button>

@@ -168,7 +168,7 @@ function readLog(raw: unknown): StatusChange[] {
 export function readRosterPatient(key: string, data: DocumentData): RosterPatient | null {
   const report = readPatient(data.report);
   if (!report) return null;
-  const status = data.status === 'pulang' || data.status === 'pindah' ? data.status : 'dirawat';
+  const status = data.status === 'pulang' || data.status === 'pindah' || data.status === 'meninggal' ? data.status : 'dirawat';
   const colour: RosterPatient['colour'] = data.colour === 'h1' || data.colour === 'today' ? data.colour : 'none';
   const ids = (v: unknown): string[] => (Array.isArray(v) ? v.filter((x): x is string => typeof x === 'string' && x.length > 0) : []);
   // 13.7 stored a hand mark as colour "m:<id>": read as a tag (13.10).

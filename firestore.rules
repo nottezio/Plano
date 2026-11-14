@@ -480,7 +480,7 @@ service cloud.firestore {
 
       // The roster (12.12): one document per patient. Members read; edit
       // members add and update (SOAP, status, residents). A patient who leaves
-      // keeps the record with status pulang/pindah; deleting is for mistakes.
+      // keeps the record with status pulang/pindah/meninggal; deleting is for mistakes.
       match /patients/{key} {
         function floorP() {
           return get(/databases/$(database)/documents/floors/$(floorId)).data;
@@ -490,7 +490,7 @@ service cloud.firestore {
           && (request.auth.uid == floorP().ownerUid
             || (request.auth.uid in floorP().roles && floorP().roles[request.auth.uid] == 'edit'))
           && request.resource.data.report is map
-          && request.resource.data.status in ['dirawat', 'pulang', 'pindah'];
+          && request.resource.data.status in ['dirawat', 'pulang', 'pindah', 'meninggal'];
         // The owner (deleting the list) or an edit member erasing one patient
         // entered by mistake (12.12). A patient who went home is "pulang".
         allow delete: if allowed()

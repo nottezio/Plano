@@ -82,6 +82,7 @@ export function AppShell({
   children,
   topBar = true,
   titleBadge,
+  documentTitle,
 }: {
   title: string;
   children: ReactNode;
@@ -94,6 +95,12 @@ export function AppShell({
   topBar?: boolean;
   /** A mark beside the phone title, e.g. Helper's WIP. */
   titleBadge?: ReactNode;
+  /**
+   * The browser/app tab's title when it should differ from the page's heading and is not a
+   * patient's name (the List Maker's list name, 14 Nov 2026), so the initials-only privacy
+   * setting does not shorten it.
+   */
+  documentTitle?: string | undefined;
 }): JSX.Element {
   const viewer = useViewerOnly();
   usePrivacyGuard();
@@ -151,11 +158,11 @@ export function AppShell({
    * list.
    */
   useEffect(() => {
-    document.title = title ? `${titleForPrivacy(title, initialsOnly)} · Plano` : 'Plano';
+    document.title = documentTitle ? `${documentTitle} · Plano` : title ? `${titleForPrivacy(title, initialsOnly)} · Plano` : 'Plano';
     return () => {
       document.title = 'Plano';
     };
-  }, [title, initialsOnly]);
+  }, [title, documentTitle, initialsOnly]);
 
   return (
     <div

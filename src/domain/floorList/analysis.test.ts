@@ -238,3 +238,27 @@ describe('Analisis checks (11 Nov 2026)', () => {
     ]);
   });
 });
+
+describe('Meninggal (14 Nov 2026)', () => {
+  const died = rostered('m', [['2026-10-13T09:00', 'Meninggal']], { status: 'meninggal', leftAt: iso('2026-10-13T09:00'), report: p('m', { kjsDpjpIds: [] }) });
+  const home = rostered('h', [['2026-10-13T10:00', 'Pulang']], { status: 'pulang', leftAt: iso('2026-10-13T10:00'), report: p('h', { kjsDpjpIds: [] }) });
+
+  it('reads the log line as its own kind, apart from Pulang', () => {
+    expect(moveKind('Meninggal')).toBe('meninggal');
+    expect(moveKind('Pulang')).toBe('pulang');
+  });
+
+  it("lists the day's deaths apart from pulang and pindah", () => {
+    const day = daySummary('2026-10-13', [died, home], [], movements([died, home]));
+    expect(day.meninggal.map((x) => x.key)).toEqual(['m']);
+    expect(day.pulang.map((x) => x.key)).toEqual(['h']);
+    expect(daySummary('2026-10-14', [died], [], []).meninggal).toEqual([]);
+  });
+
+  it('is in the WhatsApp summary only when there is one', () => {
+    const withDeath = daySummaryText(daySummary('2026-10-13', [died], [], []), 'W');
+    expect(withDeath).toContain('*Meninggal (1)*');
+    const without = daySummaryText(daySummary('2026-10-13', [home], [], []), 'W');
+    expect(without).not.toContain('Meninggal');
+  });
+});

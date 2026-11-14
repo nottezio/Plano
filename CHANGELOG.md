@@ -5,6 +5,11 @@ Catatan teknis lengkap (akar masalah, perbaikan) ada di CHANGES.md.
 
 Entri teratas harus versi yang sedang dirilis; tes gagal bila belum ditulis.
 
+## `2026-11-14.11`
+- **Pasien meninggal.** Di Atur pasien ada tombol kecil **Meninggal…** (selalu ada konfirmasi). Pasien keluar dari list dan tampil di **Sudah keluar**; bisa dikembalikan dengan **Kembalikan**.
+- **Analisis hanya menampilkan Meninggal bila ada.** Pada hari kejadian muncul hitungan **Meninggal**, bagian **Meninggal** berisi pasiennya, filter di Riwayat, dan baris di ringkasan WhatsApp. Bila tidak ada pasien meninggal, tidak ada yang muncul.
+- **Judul tab = nama list.** Tab List Maker kini bertuliskan nama list yang dibuka (mis. "PJT Lantai 5 dan 6 · Tim A"), tidak lagi "List Maker".
+
 ## `2026-11-14.10`
 - **Alasan "Mungkin pulang" terlihat lagi.** Saat pasien bertanda Mungkin pulang dibuka, kalimat dari laporan terakhirnya ("Rawat jalan hari ini", "Boleh pulang") tampil di atas, dan juga ditandai kuning di dalam pesan yang dipakai.
 

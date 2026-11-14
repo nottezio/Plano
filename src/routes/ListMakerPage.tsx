@@ -314,7 +314,7 @@ export default function ListMakerPage(): JSX.Element {
   };
 
   return (
-    <AppShell title="List Maker" titleBadge={WIP}>
+    <AppShell title="List Maker" titleBadge={WIP} documentTitle={floor ? listTitle(floor) : undefined}>
       <div className="mx-auto max-w-7xl space-y-4 px-4 pb-40 pt-0 sm:pb-24 lg:pt-4">
         {invites.map((invited) => (
           <Callout key={invited.id} title={`Undangan: ${listTitle(invited)}`}>

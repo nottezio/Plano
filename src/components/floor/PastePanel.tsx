@@ -5,7 +5,7 @@ import { Button, Callout, INPUT } from '@/components/common/ui';
 import { readRosterPatients, saveRestorePoint, writeRosterBatch, type RosterChange } from '@/data/repositories/floors.repo';
 import { formatDmy } from '@/domain/dateDmy';
 import { diffRevision } from '@/domain/format/revisionDiff';
-import { localStamp, newRosterPatient, pasteDiff, readmitFields, updatedReport, type FloorDoc, type PasteDiff, type RosterPatient } from '@/domain/floorList/floor';
+import { leftWords, localStamp, newRosterPatient, pasteDiff, readmitFields, updatedReport, type FloorDoc, type PasteDiff, type RosterPatient } from '@/domain/floorList/floor';
 import { splitChat } from '@/domain/floorList/chat';
 import { wardFloors } from '@/domain/denahPlan';
 import { latestOf, onFloorNumber, readReports, type FloorPatient } from '@/domain/floorList/report';
@@ -417,7 +417,7 @@ export function PastePanel({
                 <label key={before.key} className="flex min-h-9 items-center gap-2">
                   <input type="checkbox" checked={readmit.has(before.key)} onChange={() => toggle(readmit, before.key, setReadmit)} />
                   <span>
-                    {where(report)} {report.name} — {before.status === 'pindah' ? `pindah ke ${before.pindahKe}` : 'pulang'}{' '}
+                    {where(report)} {report.name} — {leftWords(before)}{' '}
                     <span className="text-fg-faint">· SOAP {when(report)}</span>
                   </span>
                 </label>

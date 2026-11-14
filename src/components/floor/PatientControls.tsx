@@ -119,6 +119,7 @@ export function PatientControls({
     void writeRosterFields(floor.id, entry.key, fields, what ? stamp(what) : undefined);
   };
   const [confirmPulang, setConfirmPulang] = useState(false);
+  const [confirmMeninggal, setConfirmMeninggal] = useState(false);
   const pulang = (): void => {
     set({ status: 'pulang', leftAt: new Date().toISOString() }, 'Pulang');
     onGone?.();
@@ -389,6 +390,21 @@ export function PatientControls({
           >
             ⇄ Kamar/bed…
           </EditPill>
+          {/* Quiet and always asked first (14 Nov 2026, Avi): it takes the patient off the list and into Analisis. */}
+          <EditPill onClick={() => setConfirmMeninggal(true)}>Meninggal…</EditPill>
+          {confirmMeninggal ? (
+            <ConfirmDialog
+              title={`Tandai ${patient.name} meninggal?`}
+              description="Pasien keluar dari list dan masuk ringkasan Analisis hari ini. Bisa dikembalikan dari Sudah keluar."
+              confirmLabel="Meninggal"
+              onCancel={() => setConfirmMeninggal(false)}
+              onConfirm={() => {
+                setConfirmMeninggal(false);
+                set({ status: 'meninggal', leftAt: new Date().toISOString() }, 'Meninggal');
+                onGone?.();
+              }}
+            />
+          ) : null}
           {patient.manual && onEditManual ? <EditPill onClick={() => onEditManual(patient)}>✎ Ubah isi</EditPill> : null}
           <span className="min-w-6 flex-1" />
           {allowDelete ? <DeletePatient floorId={floor.id} patientKey={entry.key} name={patient.name} compact /> : null}

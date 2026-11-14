@@ -1,5 +1,16 @@
 # Plano — CHANGES
 
+## `2026-11-14.11` — List Maker: Meninggal status; tab title shows the list name
+
+Avi: set a patient as meninggal (off the list; in Analisis summary only if there is one); show the list name as the app tab's title.
+
+- **Status:** `RosterStatus` gains `'meninggal'`. Everything keyed on `status !== 'dirawat'` already treats it as left (rosterView.left, restore, Slaber check, Tempel readmit prompt, "Sudah keluar" with Kembalikan), so no new filtering. `readRosterPatient` accepts it (an unknown value would read as dirawat, putting the patient back on the list); **firestore.rules** roster `status in [...]` gained `'meninggal'` — deploys on push, and until it deploys the write is refused (shown as "Perubahan belum tersimpan"). The `where('status','==','dirawat')` listener needs no change.
+- **UI:** quiet `Meninggal…` pill beside Kamar/bed (not a big block, so it is not mispressed), always behind a ConfirmDialog; writes `status`, `leftAt` and log "Meninggal". `leftWords(p)` ("pindah ke ICU" / "meninggal" / "pulang") replaces three copies of the pindah-else-pulang ternary (Sudah keluar, Tempel prompt, Slaber check) and feeds `leftNote`.
+- **Analisis:** `moveKind('Meninggal')` → `meninggal`; `DaySummary.meninggal`; tile, block, history filter chip and the WhatsApp summary block render only when a death happened (that day / in the 7 days); not a renamable section. Not added to the week chart or census trend. A death is not counted as Pulang.
+- **Tab title:** `AppShell` gets `documentTitle`, used raw for `document.title` (the list name via `listTitle`) so the initials-only privacy setting, meant for patient names, does not shorten it; the header still reads "List Maker". `DesktopTabs` takes the tab label from `document.title`.
+- No new reads or listeners; a death is 1 write (+1 read per open list listener).
+- Not done / not verified: nothing seen in a browser; a very long list name is truncated by the tab; no per-reason split of Sudah keluar beyond the word.
+
 ## `2026-11-14.10` — Grup WhatsApp: show why a row says "Mungkin pulang"
 
 Avi (screenshot, real export): a Mungkin pulang row gave no reason. **ROOT CAUSE:** in .9 the expanded row's old detail block, which quoted `homeHint` ("Laporan terakhir: …"), was replaced by the chat bubbles, and the bubble holds only the greeting, identity and diagnosis block, so the plan line that raised the flag appeared nowhere. Fix: the banner is back ("Mungkin pulang, dari laporan terakhir: “…”"), and the newest ("dipakai") bubble ends with that line marked in `warn-soft`. Stored data unchanged (the hint was always in the digest). Checked in the emulator (invented chat); not re-checked against the real export in the app.

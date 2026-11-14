@@ -97,7 +97,8 @@ export function pelimpahanOn(entries: readonly string[] | undefined, date: strin
 }
 
 /** On the floor, or gone (and how). */
-export type RosterStatus = 'dirawat' | 'pulang' | 'pindah';
+/** 'meninggal' (14 Nov 2026): off the list like Pulang, counted in Analisis only on a day it happened. */
+export type RosterStatus = 'dirawat' | 'pulang' | 'pindah' | 'meninggal';
 
 /** The colour set by hand: none, red (H-1), green (pulang hari ini). Floor marks are tags (13.10). */
 export type ColourMark = 'none' | 'h1' | 'today';
@@ -782,9 +783,14 @@ export function leftSince(roster: readonly RosterPatient[], since: string): Rost
   return roster.filter((p) => p.status !== 'dirawat' && p.leftAt && p.leftAt > since).sort((a, b) => (a.leftAt < b.leftAt ? -1 : 1));
 }
 
-/** The note itself: "Pindah ke ICU: 415 Bed 1/AFG/Tn. …", "Pulang: …". */
+/** How a patient left, in words: "pindah ke ICU", "meninggal", "pulang". */
+export function leftWords(p: Pick<RosterPatient, 'status' | 'pindahKe'>): string {
+  return p.status === 'pindah' ? `pindah ke ${p.pindahKe || '…'}` : p.status === 'meninggal' ? 'meninggal' : 'pulang';
+}
+
+/** The note itself: "Pindah ke ICU: 415 Bed 1/AFG/Tn. …", "Pulang: …", "Meninggal: …". */
 export function leftNote(patients: readonly RosterPatient[], line: (p: FloorPatient) => string): string {
   return patients
-    .map((p) => `${p.status === 'pindah' ? `Pindah ke ${p.pindahKe || '…'}` : 'Pulang'}: ${line({ ...p.report, junior: '', chief: '' })}`)
+    .map((p) => `${leftWords(p).replace(/^./, (c) => c.toUpperCase())}: ${line({ ...p.report, junior: '', chief: '' })}`)
     .join('\n');
 }

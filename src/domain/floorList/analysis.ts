@@ -10,12 +10,13 @@ import type { FloorPatient } from './report';
  * editions — so nothing new is stored and nothing can drift.
  */
 
-export type MoveKind = 'masuk' | 'pulang' | 'pindah' | 'kamar' | 'rencana' | 'usul' | 'lain';
+export type MoveKind = 'masuk' | 'pulang' | 'pindah' | 'meninggal' | 'kamar' | 'rencana' | 'usul' | 'lain';
 
 export const MOVE_LABEL: Record<MoveKind, string> = {
   masuk: 'Masuk',
   pulang: 'Pulang',
   pindah: 'Pindah ruangan',
+  meninggal: 'Meninggal',
   kamar: 'Pindah kamar',
   rencana: 'Rencana pulang',
   usul: 'Usul H-1',
@@ -93,6 +94,7 @@ export function moveKind(what: string): MoveKind {
   if (/^(?:Masuk list|Masuk lagi|Dikembalikan)/i.test(what)) return 'masuk';
   if (/^Pulang$/i.test(what)) return 'pulang';
   if (/^Pindah ke\b/i.test(what)) return 'pindah';
+  if (/^Meninggal$/i.test(what)) return 'meninggal';
   if (/^Pindah kamar\b/i.test(what)) return 'kamar';
   // Before the plan check below: "Usul H-1 …" contains "H-1" but decides nothing (26 Oct 2026).
   if (/^Usul H-1/i.test(what)) return 'usul';
@@ -128,6 +130,8 @@ export interface DaySummary {
   pulang: RosterPatient[];
   /** Left for another unit (ICU, CVCU, another floor) on this date. */
   pindah: RosterPatient[];
+  /** Died on this date (14 Nov 2026): shown in Analisis and the WhatsApp summary only when there is one. */
+  meninggal: RosterPatient[];
   /** Moved room or bed on the floor on this date. */
   kamar: Movement[];
   /** Came onto the list on this date (new, back, or brought back). */
@@ -147,6 +151,7 @@ export function daySummary(date: string, roster: readonly RosterPatient[], activ
     date,
     pulang: roster.filter((p) => p.status === 'pulang' && leftOn(p)),
     pindah: roster.filter((p) => p.status === 'pindah' && leftOn(p)),
+    meninggal: roster.filter((p) => p.status === 'meninggal' && leftOn(p)),
     kamar: moves.filter((m) => m.kind === 'kamar' && onDay(m)),
     masuk: moves.filter((m) => m.kind === 'masuk' && onDay(m)),
     pulangHariIni: active.filter((p) => p.discharge === 'today'),
@@ -234,6 +239,7 @@ export function daySummaryText(day: DaySummary, ward: string, titles: SectionTit
     '',
     ...block(name('pulang'), day.pulang.map((p) => line(p.report))),
     ...block(name('pindah'), day.pindah.map((p) => line(p.report, `ke ${p.pindahKe || '…'}`))),
+    ...(day.meninggal.length > 0 ? block('Meninggal', day.meninggal.map((p) => line(p.report))) : []),
     ...block(name('kamar'), day.kamar.map((mv) => line(mv.patient, mv.what.replace(/^Pindah kamar\s*/i, '')))),
     '',
     ...block(name('masuk'), day.masuk.map((mv) => line(mv.patient, mv.what === 'Masuk list' ? 'baru' : mv.what.toLowerCase()))),
