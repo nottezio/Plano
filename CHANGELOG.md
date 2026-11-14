@@ -5,6 +5,9 @@ Catatan teknis lengkap (akar masalah, perbaikan) ada di CHANGES.md.
 
 Entri teratas harus versi yang sedang dirilis; tes gagal bila belum ditulis.
 
+## `2026-11-14.10`
+- **Alasan "Mungkin pulang" terlihat lagi.** Saat pasien bertanda Mungkin pulang dibuka, kalimat dari laporan terakhirnya ("Rawat jalan hari ini", "Boleh pulang") tampil di atas, dan juga ditandai kuning di dalam pesan yang dipakai.
+
 ## `2026-11-14.9`
 - **Grup WhatsApp jadi mode sendiri di Buat Sensus.** Di atas Buat Sensus ada pilihan **List ruangan** dan **Grup WhatsApp**. Impor .zip kini hanya ada di Grup WhatsApp, dengan DPJP, pesan sensus, Salin dan Simpan sendiri, jadi impor tidak pernah mengubah sensus dari list ruangan.
 - **Ingat hari sebelumnya.** Tanggal yang pernah diimpor tampil sebagai pilihan di atas kartu impor. Pasien dari impor sebelumnya yang tidak dilaporkan lagi tetap dibawa ke sensus dengan tanda **Tanpa laporan baru**; keluarkan bila sudah pulang atau pindah. Pasien yang dikeluarkan kemarin tetap keluar.

@@ -95,7 +95,18 @@ function Marked({ text, part }: { text: string; part: string | undefined }): JSX
  * identity line and the diagnosis block as written, with what the census
  * took marked. Lets the resident check the reading against the message.
  */
-function ChatBubble({ report, today, used }: { report: ChatReport; today: string; used: boolean }): JSX.Element {
+function ChatBubble({
+  report,
+  today,
+  used,
+  homeHint,
+}: {
+  report: ChatReport;
+  today: string;
+  used: boolean;
+  /** The going-home line this report holds (newest only): why the row says "Mungkin pulang". */
+  homeHint: string | null;
+}): JSX.Element {
   const bubble = report.bubble;
   return (
     <div className="max-w-[36rem] rounded-xl rounded-tl-sm border border-border bg-bg-subtle px-2.5 py-2 shadow-card">
@@ -127,6 +138,14 @@ function ChatBubble({ report, today, used }: { report: ChatReport; today: string
                     {index === 0 && bubble.dx.length > 1 ? line : <mark className="rounded-sm bg-[var(--accent-soft)] px-0.5 text-fg">{line}</mark>}
                   </span>
                 ))}
+              </p>
+            </>
+          ) : null}
+          {homeHint ? (
+            <>
+              <p className="text-[11px] italic text-fg-faint">⋯</p>
+              <p>
+                <mark className="rounded-sm bg-[var(--warn-soft)] px-0.5 text-fg">{homeHint}</mark>
               </p>
             </>
           ) : null}
@@ -427,13 +446,23 @@ export function GroupChatImport({
                             dari impor sebelumnya; keluarkan bila sudah pulang atau pindah.
                           </p>
                         ) : null}
+                        {flags.home ? (
+                          <p className="rounded-lg bg-[var(--warn-soft)] px-2 py-1.5">
+                            <span className="font-semibold">Mungkin pulang, dari laporan terakhir: </span>“{flags.home}”
+                          </p>
+                        ) : null}
                         <p className="text-[11px] text-fg-faint">
                           Pesan di grup, terlama di atas. Bagian yang dibaca ditandai; S/O tidak ditampilkan.
                         </p>
                         <ol className="space-y-2">
                           {patient.reports.map((report, index) => (
                             <li key={index}>
-                              <ChatBubble report={report} today={digest.to} used={index === patient.reports.length - 1} />
+                              <ChatBubble
+                                report={report}
+                                today={digest.to}
+                                used={index === patient.reports.length - 1}
+                                homeHint={index === patient.reports.length - 1 ? flags.home : null}
+                              />
                             </li>
                           ))}
                         </ol>

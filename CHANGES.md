@@ -1,5 +1,9 @@
 # Plano — CHANGES
 
+## `2026-11-14.10` — Grup WhatsApp: show why a row says "Mungkin pulang"
+
+Avi (screenshot, real export): a Mungkin pulang row gave no reason. **ROOT CAUSE:** in .9 the expanded row's old detail block, which quoted `homeHint` ("Laporan terakhir: …"), was replaced by the chat bubbles, and the bubble holds only the greeting, identity and diagnosis block, so the plan line that raised the flag appeared nowhere. Fix: the banner is back ("Mungkin pulang, dari laporan terakhir: “…”"), and the newest ("dipakai") bubble ends with that line marked in `warn-soft`. Stored data unchanged (the hint was always in the digest). Checked in the emulator (invented chat); not re-checked against the real export in the app.
+
 ## `2026-11-14.9` — Buat Sensus: Grup WhatsApp as its own mode, memory of earlier imports, chat-bubble preview
 
 Avi: the import at the front of step 1 was confusing and risked replacing the current census; make it a separate tab that says "census by zip import" and remembers the previous days; the verification was confusing, show the chat as it looked.
