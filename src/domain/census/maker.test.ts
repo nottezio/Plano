@@ -15,6 +15,7 @@ import {
   readAiPatients,
   sectionDpjp,
   segmentCodes,
+  settlePlaces,
   sensusAiSystem,
   splitLists,
   unassigned,
@@ -1266,5 +1267,100 @@ describe('AI mode and the 14-10 headings', () => {
     const check = checkAiCensus({ ai, rules, sources, texts: [LT56_14] });
     expect(check.matched).toBe(1);
     expect(check.onlyAi.map((row) => [row.patient.rm, row.rules])).toEqual([['1600203', 'Aturan: pasien IM']]);
+  });
+});
+
+describe('IGD RSUH list (2026-11-14)', () => {
+  // The shapes as sent: a summary block with "Sisrute: 0 Pasien", patients
+  // with and without a DPJP code, and a bed on its own line. Names invented.
+  const IGD_RSUH = `Tabe dokter izin mengirimkan List Pasien *IGD RSUH*
+*Jumat, 13-11-2026, pukul 07.00 WITA*
+Total Pasien: 3 Pasien
+Pasien Baru: 0 Pasien
+Pasien Stagnan: 3 Pasien
+Sisrute: 0 Pasien
+
+1. *Ny. Contoh Satu/ 03-12-1947/79 Tahun/RM 278001*
+*Diagnosa*
+Chronic Coronary Syndrome CS type IV,
+Heart Failure reduced Ejection Fraction Stage C
+Plan:
+- Obs KU, TTV
+
+2. IGD RSUH Bed 7 / Ny. Contoh Dua/27-01-1977/ 49 th/RM 255002/dr. ARB*
+Diagnosis
+- Congestive Heart Failure NYHA II
+Plan
+- Monitoring Tanda vital
+
+🔴IGD bed 4
+*Tn. Contoh Tiga/ 277003 / 13-03-1964 / 62 thn / dr. ARB (KJS Interna)*
+Diagnosis
+- Mixed Shock
+
+🚑 Sisrute: 0 pasien
+
+Terima kasih dokter.`;
+
+  const RSUH_WARD = `*Assalamualaikum, dokter. Tabe dokter, izin mengirimkan List Pasien dan List Pemantauan RSUH Jumat, 13-11-2026 Jam 07.00 WITA*
+============================
+*dr. ARB (2 pasien)*
+1. ARB / IGD RSUH Bed 7 / Ny. Contoh Dua/ 27-01-1977 / 49 Tahun/ RM 255002
+Diagnosa:
+- Congestive Heart Failure NYHA II
+2. ARB / Katinting 502 Bed 3 / Tn. Contoh Empat/ 01-03-1974 / 52 Tahun/ RM 2000004
+Diagnosa:
+- NSTEMI High Risk
+
+Tabe terima kasih dokter.`;
+
+  it('is its own list kind, and reads every patient past the Sisrute summary line', () => {
+    const [igd] = parseLists(IGD_RSUH);
+    expect(igd!.kind).toBe('rsuh-igd');
+    expect(igd!.covers).toEqual(['RSUH_IGD']);
+    expect(igd!.entries.map((entry) => entry.key)).toEqual(['rm:278001', 'rm:255002', 'rm:277003']);
+    expect(igd!.entries.every((entry) => entry.place === 'RSUH_IGD')).toBe(true);
+  });
+
+  it('reads a bed written on its own line, the patient below it', () => {
+    const [igd] = parseLists(IGD_RSUH);
+    const bed4 = igd!.entries[2]!;
+    expect(bed4.dpjps).toEqual(['ARB']);
+    expect(bed4.location).toBe('IGD bed 4');
+    expect(bed4.diagnoses).toEqual(['- Mixed Shock']);
+  });
+
+  it('a patient line with no code is for checking, not for anyone', () => {
+    const sources = parseLists(IGD_RSUH);
+    expect(unassigned(sources).map((entry) => entry.key)).toEqual(['rm:278001']);
+  });
+
+  it('with the IGD list pasted, the ward list IGD patients join IGD RSUH, each once', () => {
+    const sources = settlePlaces([...parseLists(RSUH_WARD), ...parseLists(IGD_RSUH)]);
+    const arb = entriesFor(sources, 'ARB');
+    expect(arb.map((entry) => [entry.key, entry.place])).toEqual([
+      ['rm:255002', 'RSUH_IGD'],
+      ['rm:2000004', 'RSUH'],
+      ['rm:277003', 'RSUH_IGD'],
+    ]);
+    const text = buildCensus({ sources, code: 'ARB', date: '2026-11-13', address: 'dokter' }).text;
+    expect(text).toContain('Di RSUH dan IGD RSUH (Jumat, 13/11/2026)');
+    expect(text).toContain('*IGD RSUH : 2 pasien*');
+  });
+
+  it('without the IGD list, the ward list IGD patients stay under RSUH', () => {
+    const sources = settlePlaces(parseLists(RSUH_WARD));
+    expect(entriesFor(sources, 'ARB').map((entry) => entry.place)).toEqual(['RSUH', 'RSUH']);
+  });
+
+  it('still leaves out Sisrute referrals with no record number', () => {
+    const text = `Tabe dokter izin mengirimkan List Pasien IGD RSUH
+Sisrute: 1 Pasien
+1. RSUD Contoh / Ny. Rujukan / 65 tahun/ STEMI / Sudah Acc
+2. IGD RSUH Bed 1 / Tn. Contoh Lima / RM 100005 / dr. ARB
+Diagnosis
+- NSTEMI`;
+    const [igd] = parseLists(text);
+    expect(igd!.entries.map((entry) => entry.key)).toEqual(['rm:100005']);
   });
 });

@@ -15,6 +15,7 @@ import { PLACE_LABEL, type Place } from '@/domain/census/maker';
 const PLACE_TINT: Record<Place, string> = {
   RSWS: 'var(--sec-identitas)',
   RSUH: 'var(--sec-ts)',
+  RSUH_IGD: 'var(--sec-terapi)',
   IGD: 'var(--sec-terapi)',
   CVCU: 'var(--sec-a)',
   LT4: 'var(--sec-s)',

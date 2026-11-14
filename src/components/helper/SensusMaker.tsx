@@ -25,6 +25,7 @@ import {
   parseSource,
   patientCount,
   splitLists,
+  settlePlaces,
   aiGroups,
   checkAiCensus,
   aiPatientKey,
@@ -41,6 +42,8 @@ import {
   markKjs as markKjsFor,
 } from '@/domain/census/maker';
 import { compareCensus } from '@/domain/census/compare';
+import { chatSource, readDigest, type ChatDigest } from '@/domain/census/groupChat';
+import { GroupChatImport } from './GroupChatImport';
 import { SensusCompare } from './SensusCompare';
 import { CensusMessage } from './CensusMessage';
 import {
@@ -112,6 +115,7 @@ const KIND_OPTIONS: ReadonlyArray<readonly [SourceKind | 'auto', string]> = [
   ['pjt-igd', SOURCE_LABEL['pjt-igd']],
   ['rsws', SOURCE_LABEL.rsws],
   ['rsuh', SOURCE_LABEL.rsuh],
+  ['rsuh-igd', SOURCE_LABEL['rsuh-igd']],
 ];
 
 export function SensusMaker(): JSX.Element {
@@ -191,16 +195,28 @@ export function SensusMaker(): JSX.Element {
   const { sources, texts, boxOf, boxAt } = useMemo(() => {
     const boxes = parseLists.filter((list) => list.text.trim());
     const kinds = boxes.map((list) => (list.kind === 'auto' ? undefined : list.kind));
-    const parts = boxes.flatMap((list, box) =>
-      (kinds[box] ? [list.text] : splitLists(list.text)).map((text) => ({ text, box })),
-    );
+    /*
+      The group chat's box holds its digest (2026-11-14), read by
+      `chatSource`, never by the list parser. Its text for Bandingkan is the
+      digest written out, one block per patient.
+    */
+    const parts = boxes.flatMap((list, box): Array<{ text: string; box: number; chat?: ParsedSource }> => {
+      if (list.kind === 'grup-wa') {
+        const digest = readDigest(list.text);
+        if (!digest) return [];
+        const read = chatSource(digest);
+        return [{ text: read.text, box, chat: read.source }];
+      }
+      return (kinds[box] ? [list.text] : splitLists(list.text)).map((text) => ({ text, box }));
+    });
     const cache = parseCache.current;
     // shortcut: cleared whole when it grows past 200 entries; an LRU would only matter for far more boxes.
     if (cache.size > 200) cache.clear();
     const parse = (known?: ReadonlySet<string>): ParsedSource[] => {
       const knownKey = known ? [...known].sort().join(',') : '-';
       return parts.map((part) => {
-        const key = `${kinds[part.box] ?? ''}${knownKey}${part.text}`;
+        if (part.chat) return part.chat;
+        const key =`${kinds[part.box] ?? ''}${knownKey}${part.text}`;
         let parsed = cache.get(key);
         if (!parsed) {
           parsed = parseSource(part.text, known, kinds[part.box]);
@@ -210,7 +226,7 @@ export function SensusMaker(): JSX.Element {
       });
     };
     return {
-      sources: parse(knownCodes(parse())),
+      sources: settlePlaces(parse(knownCodes(parse()))),
       texts: parts.map((part) => part.text),
       boxOf: parts.map((part) => part.box),
       /** Box number of each list position (-1 for an empty one), for the labels above the boxes. */
@@ -243,7 +259,10 @@ export function SensusMaker(): JSX.Element {
       return { ...current, extra: { ...current.extra, [code]: next } };
     });
   };
-  const notPasted = PLACE_ORDER.filter((place: Place) => place !== 'PJT' && !covered.includes(place));
+  // IGD RSUH is optional: the RSUH ward list names its patients too.
+  const notPasted = PLACE_ORDER.filter(
+    (place: Place) => place !== 'PJT' && !covered.includes(place) && !(place === 'RSUH_IGD' && covered.includes('RSUH')),
+  );
   const therapyAsDx = useMemo(
     () => (code ? entriesFor(sources, code).filter((entry) => entry.dxWasTherapy) : []),
     [sources, code],
@@ -326,6 +345,18 @@ export function SensusMaker(): JSX.Element {
     });
   const setList = (index: number, patch: Partial<SensusList>): void =>
     setLists((lists) => lists.map((list, i) => (i === index ? { ...list, ...patch } : list)));
+  /** The day's group chat: one box of kind `grup-wa` holding its digest, kept first. */
+  const chatDigest = useMemo(() => {
+    const list = day.lists.find((one) => one.kind === 'grup-wa');
+    return list ? readDigest(list.text) : null;
+  }, [day.lists]);
+  const setChat = (next: ChatDigest | null): void =>
+    setLists((lists) => {
+      const rest = lists.filter((list) => list.kind !== 'grup-wa');
+      return next ? [{ text: JSON.stringify(next), kind: 'grup-wa' }, ...rest] : rest;
+    });
+  /** "List 1" counts the paste boxes only, not the chat. */
+  const listNumber = (index: number): number => state.lists.slice(0, index + 1).filter((list) => list.kind !== 'grup-wa').length;
   const otherDays = storedDays(store).filter((entry) => entry.date !== censusDate);
   const areas = useRef(new Map<number, HTMLTextAreaElement>());
   // Which box's find bar is open (one at a time; reset when the day changes).
@@ -559,14 +590,21 @@ export function SensusMaker(): JSX.Element {
             </Callout>
           ) : null}
           <div className="space-y-3">
+            <GroupChatImport
+              digest={chatDigest}
+              censusDate={censusDate}
+              onChange={setChat}
+              onRemove={() => setChat(null)}
+            />
             {state.lists.map((list, index) => {
+              if (list.kind === 'grup-wa') return null;
               const box = boxAt[index] ?? -1;
               const parsedAll = box >= 0 ? sources.filter((_, i) => boxOf[i] === box) : [];
               return (
                 <div key={index} className="overflow-hidden rounded-xl border border-border bg-surface">
                   <div className="flex flex-wrap items-center gap-2 border-b border-border px-3 py-1.5">
                     <span className="min-w-0 flex-1 truncate text-xs">
-                      <span className="font-semibold">List {index + 1}</span>
+                      <span className="font-semibold">List {listNumber(index)}</span>
                       {parsedAll.length > 0 ? (
                         <span className="text-fg-muted">
                           {' '}
@@ -579,7 +617,7 @@ export function SensusMaker(): JSX.Element {
                     {list.text.trim() ? (
                       <button
                         type="button"
-                        aria-label={`Cari di list ${index + 1}`}
+                        aria-label={`Cari di list ${listNumber(index)}`}
                         aria-pressed={findIn === index}
                         onClick={() => setFindIn(findIn === index ? null : index)}
                         className={`flex min-h-tap min-w-tap items-center justify-center rounded-lg hover:bg-bg-subtle [@media(pointer:fine)]:min-h-8 ${findIn === index ? 'text-accent' : 'text-fg-faint'}`}
@@ -588,7 +626,7 @@ export function SensusMaker(): JSX.Element {
                       </button>
                     ) : null}
                     <select
-                      aria-label={`Jenis list ${index + 1}`}
+                      aria-label={`Jenis list ${listNumber(index)}`}
                       value={list.kind}
                       onChange={(event) => setList(index, { kind: event.target.value as SourceKind | 'auto' })}
                       className="min-h-tap w-28 shrink-0 rounded-lg border border-border bg-surface px-2 text-xs sm:w-auto [@media(pointer:fine)]:min-h-8"
@@ -601,7 +639,7 @@ export function SensusMaker(): JSX.Element {
                     </select>
                     <button
                       type="button"
-                      aria-label={`Hapus list ${index + 1}`}
+                      aria-label={`Hapus list ${listNumber(index)}`}
                       onClick={() => setLists((lists) => lists.filter((_, i) => i !== index))}
                       className="flex min-h-tap min-w-tap items-center justify-center rounded-lg text-fg-faint hover:bg-[var(--danger-soft)] hover:text-danger [@media(pointer:fine)]:min-h-8"
                     >
@@ -626,7 +664,7 @@ export function SensusMaker(): JSX.Element {
                     <ListFind
                       text={list.text}
                       area={() => areas.current.get(index) ?? null}
-                      label={`list ${index + 1}`}
+                      label={`list ${listNumber(index)}`}
                       onClose={() => setFindIn(null)}
                     />
                   ) : null}
@@ -639,7 +677,7 @@ export function SensusMaker(): JSX.Element {
                     onChange={(event) => setList(index, { text: event.target.value })}
                     rows={list.text ? 6 : 3}
                     placeholder="Tempel list di sini…"
-                    aria-label={`Isi list ${index + 1}`}
+                    aria-label={`Isi list ${listNumber(index)}`}
                     spellCheck={false}
                     // Filled lists stay short on a phone: five pasted lists at full
                     // height put the census a dozen screens down. Resizable.

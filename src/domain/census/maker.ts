@@ -28,17 +28,23 @@ import { dayName } from '@/domain/mr/morningReport';
 // Types
 // ───────────────────────────────────────────────────────────────
 
-export type SourceKind = 'pjt-ward' | 'pjt-icu' | 'pjt-igd' | 'rsws' | 'rsuh' | 'unknown';
+/** `grup-wa`: a DPJP's WhatsApp group export, read by `groupChat.ts`, never by `parseSource`. */
+export type SourceKind = 'pjt-ward' | 'pjt-icu' | 'pjt-igd' | 'rsws' | 'rsuh' | 'rsuh-igd' | 'grup-wa' | 'unknown';
 
-/** Where a patient is, as the census groups them. */
-export type Place = 'RSWS' | 'RSUH' | 'IGD' | 'CVCU' | 'LT4' | 'LT5' | 'LT6' | 'PJT';
+/**
+ * Where a patient is, as the census groups them. `RSUH_IGD` (2026-11-14) is
+ * used only when an IGD RSUH list is pasted (`settlePlaces`); without one, the
+ * IGD patients the RSUH ward list names stay under RSUH as before.
+ */
+export type Place = 'RSWS' | 'RSUH' | 'RSUH_IGD' | 'IGD' | 'CVCU' | 'LT4' | 'LT5' | 'LT6' | 'PJT';
 
 /** The order the residents' censuses use: hospitals, then PJT from the door up. */
-export const PLACE_ORDER: readonly Place[] = ['RSWS', 'RSUH', 'IGD', 'CVCU', 'LT4', 'LT5', 'LT6', 'PJT'];
+export const PLACE_ORDER: readonly Place[] = ['RSWS', 'RSUH', 'RSUH_IGD', 'IGD', 'CVCU', 'LT4', 'LT5', 'LT6', 'PJT'];
 
 export const PLACE_LABEL: Record<Place, string> = {
   RSWS: 'RSWS',
   RSUH: 'RSUH',
+  RSUH_IGD: 'IGD RSUH',
   IGD: 'IGD PJT',
   CVCU: 'CVCU/HCU/ICU PJT',
   LT4: 'PJT Lt. 4',
@@ -53,6 +59,8 @@ export const SOURCE_LABEL: Record<SourceKind, string> = {
   'pjt-igd': 'IGD PJT',
   rsws: 'RSWS',
   rsuh: 'RSUH',
+  'rsuh-igd': 'IGD RSUH',
+  'grup-wa': 'Grup WhatsApp DPJP',
   unknown: 'Tidak dikenali',
 };
 
@@ -96,6 +104,8 @@ export interface CensusEntry {
    * "Bandingkan" shows beside the census row. Absent on hand-built entries.
    */
   span?: { start: number; end: number };
+  /** Read from a DPJP's WhatsApp group (`groupChat.ts`): a ward list naming the same patient wins over it. */
+  fromChat?: boolean;
 }
 
 export interface ParsedSource {
@@ -237,7 +247,12 @@ export function detectSource(text: string): {
   const lines = text.split(/\r?\n/).map(plain);
   const header = lines.find((line) => /list\s+pasien/i.test(line) && !/^\d/.test(line)) ?? '';
   if (/cvcu|hcu|icu/i.test(header)) return { kind: 'pjt-icu', label: 'CVCU/HCU/ICU PJT', floor: 'CVCU', covers: ['CVCU'] };
-  if (/\brsuh\b/i.test(header)) return { kind: 'rsuh', label: 'RSUH', floor: 'RSUH', covers: ['RSUH'] };
+  if (/\brsuh\b/i.test(header)) {
+    // 2026-11-14: the IGD RSUH list, sent on its own beside the RSUH ward list.
+    return /\bigd\b/i.test(header)
+      ? { kind: 'rsuh-igd', label: 'IGD RSUH', floor: 'RSUH_IGD', covers: ['RSUH_IGD'] }
+      : { kind: 'rsuh', label: 'RSUH', floor: 'RSUH', covers: ['RSUH'] };
+  }
   if (/\brsws\b/i.test(header)) return { kind: 'rsws', label: 'RSWS', floor: 'RSWS', covers: ['RSWS'] };
   if (/\bigd\b/i.test(header)) return { kind: 'pjt-igd', label: 'IGD PJT', floor: 'IGD', covers: ['IGD'] };
   const floor = /(?:lantai|lt)\.?\s*([456])/i.exec(header);
@@ -410,10 +425,24 @@ function isBareEntry(flat: string): boolean {
   return BARE_PLACE_RE.test(flat) && flat.includes('/') && IDENTITY_RE.test(flat);
 }
 
-function isIcuBedLine(text: string): boolean {
-  const body = text.replace(NUMBER_STRIP_RE, '').trim();
-  return ICU_LOCATION_RE.test(body) && !body.includes('/') && body.length <= 40 && !IDENTITY_RE.test(body);
+/**
+ * The bed line standing alone above its patient: CVCU's shape, and IGD RSUH's
+ * ("🔴IGD bed 4", the patient on the next line, 2026-11-14).
+ */
+function bedHeadRe(kind: SourceKind): RegExp | null {
+  if (kind === 'pjt-icu') return ICU_LOCATION_RE;
+  if (kind === 'rsuh-igd') return /^\(?\s*igd\b/i;
+  return null;
 }
+
+function isIcuBedLine(text: string, kind: SourceKind = 'pjt-icu'): boolean {
+  const head = bedHeadRe(kind);
+  const body = text.replace(NUMBER_STRIP_RE, '').trim();
+  return !!head && head.test(body) && !body.includes('/') && body.length <= 40 && !IDENTITY_RE.test(body);
+}
+
+/** A record number on a patient line. Sisrute referral requests carry none: they are not in this hospital yet. */
+const RECORD_RE = /\bRM\b\s*:?\s*\d{4,}|\d{6,}/i;
 
 const DX_HEAD_RE = /^(?:diagnos[ai]s?|diagnosa)\b\s*[:;]?\s*(.*)$/i;
 /**
@@ -431,7 +460,17 @@ const DX_SUB_RE = /^diagnos[ai]s?\s+(?:utama|sekunder|tambahan|primer|banding|la
   bold mark; with the marks stripped it reads "FMohon", so one letter may
   precede "mohon".
 */
-const ASSESS_HEAD_RE = /^[-•*\s]*[a-z]?mohon\s+i[zj]in\b[^\n]{0,30}?\bass?es+t?\w*(?:\s+dengan)?\s*[:;]?\s*(.*)$/i;
+/*
+  2026-11-14 (dr. KS's group): "Mohon izin pasien diasses dengan" and "Mohon
+  izin kami diagnosis dengan:" head the diagnoses too.
+*/
+const ASSESS_HEAD_RE =
+  /^[-•*\s]*[a-z]?mohon\s+i[zj]in\b[^\n]{0,30}?\b(?:(?:di)?ass?es+t?\w*|diagnos\w*\s+dengan)(?:\s+dengan)?\s*[:;]?\s*(.*)$/i;
+/** A line that opens a diagnosis block: where `groupChat.ts` starts reading a report's diagnoses. */
+export function isDiagnosisHeading(line: string): boolean {
+  const flat = plain(line);
+  return DX_HEAD_RE.test(flat) || DX_SUB_RE.test(flat) || ASSESS_HEAD_RE.test(flat);
+}
 /** A block heading written as a bullet ("-  Mohon izin pasien kami terapi dengan :"): it still ends the diagnoses. */
 const BULLET_HEAD_RE = /^mohon\s+i[zj]in\b[^\n]{0,30}?\b(?:terapi|plan)\b/i;
 const DX_STOP_RE =
@@ -615,6 +654,7 @@ function splitIdentityParts(
 function placeFor(kind: SourceKind, location: string | null, fallback: Place | null): Place {
   if (kind === 'rsws') return 'RSWS';
   if (kind === 'rsuh') return 'RSUH';
+  if (kind === 'rsuh-igd') return 'RSUH_IGD';
   if (kind === 'pjt-icu') return 'CVCU';
   if (kind === 'pjt-igd') return 'IGD';
   if (location && /\b(?:igd|red\s*zone|yellow\s*zone|green\s*zone)\b/i.test(location)) return 'IGD';
@@ -641,6 +681,7 @@ export function parseSource(text: string, known?: ReadonlySet<string>, kindOverr
   }
   const codes = known ?? new Set([...DPJPS.map((dpjp) => dpjp.initials.toUpperCase()), ...headerDpjps]);
   const hospital = kind === 'rsws' || kind === 'rsuh';
+  const bedHead = bedHeadRe(kind);
 
   let floor: Place | null =
     kindOverride && kindOverride !== detected.kind
@@ -648,14 +689,22 @@ export function parseSource(text: string, known?: ReadonlySet<string>, kindOverr
         ? 'RSWS'
         : kindOverride === 'rsuh'
           ? 'RSUH'
-          : kindOverride === 'pjt-icu'
-            ? 'CVCU'
-            : kindOverride === 'pjt-igd'
-              ? 'IGD'
-              : null
+          : kindOverride === 'rsuh-igd'
+            ? 'RSUH_IGD'
+            : kindOverride === 'pjt-icu'
+              ? 'CVCU'
+              : kindOverride === 'pjt-igd'
+                ? 'IGD'
+                : null
       : detected.floor;
   let section: string | null = null;
-  let mode: 'normal' | 'excluded' | 'new' = 'normal';
+  /*
+    `sisrute` is its own mode (2026-11-14). It was `excluded`, which only a
+    zone heading ends: IGD PJT has zones, IGD RSUH has none, so its summary
+    line "Sisrute: 0 Pasien" hid every patient below it (0 of 1 read). A
+    patient line with a record number now ends it too.
+  */
+  let mode: 'normal' | 'excluded' | 'sisrute' | 'new' = 'normal';
   const entries: CensusEntry[] = [];
 
   let i = 0;
@@ -678,8 +727,12 @@ export function parseSource(text: string, known?: ReadonlySet<string>, kindOverr
       continue;
     }
 
-    if (EXCLUDED_SECTION_RE.test(text) || SISRUTE_RE.test(text)) {
+    if (EXCLUDED_SECTION_RE.test(text)) {
       mode = 'excluded';
+      continue;
+    }
+    if (SISRUTE_RE.test(text)) {
+      mode = 'sisrute';
       continue;
     }
     if (ZONE_RE.test(text)) {
@@ -691,7 +744,7 @@ export function parseSource(text: string, known?: ReadonlySet<string>, kindOverr
       continue;
     }
 
-    const icuBed = kind === 'pjt-icu' && isIcuBedLine(text);
+    const icuBed = isIcuBedLine(text, kind);
     const entry =
       ENTRY_RE.exec(text) ??
       (icuBed || isBareEntry(text) ? ([text, undefined, undefined, text] as unknown as RegExpExecArray) : null);
@@ -712,7 +765,7 @@ export function parseSource(text: string, known?: ReadonlySet<string>, kindOverr
     // Bed 3 / … / dr. ARB*", "/*Tn. …").
     const original = clean(raw).replace(NUMBER_STRIP_RE, '').replace(/[*_]/g, '');
 
-    if (icuBed || (kind === 'pjt-icu' && ICU_LOCATION_RE.test(body) && !body.includes('/'))) {
+    if (icuBed || (bedHead && bedHead.test(body) && !body.includes('/'))) {
       // The CVCU shape: the bed alone, the patient on the next line.
       let j = i;
       while (j < lines.length && !plain(lines[j]!)) j += 1;
@@ -744,7 +797,7 @@ export function parseSource(text: string, known?: ReadonlySet<string>, kindOverr
       const flat = plain(line);
       if (ENTRY_RE.test(flat) && (flat.includes('/') || ICU_LOCATION_RE.test(flat.replace(ENTRY_RE, '$3')))) break;
       // The next bed, numbered or not, ends this patient.
-      if (kind === 'pjt-icu' && isIcuBedLine(flat)) break;
+      if (isIcuBedLine(flat, kind)) break;
       if (isBareEntry(flat)) break;
       if (isSeparator(line)) break;
       if (!/^\s*\d/.test(flat) && sectionDpjp(line)) break;
@@ -810,6 +863,10 @@ export function parseSource(text: string, known?: ReadonlySet<string>, kindOverr
       blockEnd = i;
     }
 
+    if (mode === 'sisrute') {
+      if (!RECORD_RE.test(identityLine)) continue;
+      mode = 'normal';
+    }
     if (mode === 'excluded') continue;
 
     const dxWasTherapy = diagnoses.length > 0 && diagnoses.every(looksLikeOrder);
@@ -886,9 +943,12 @@ export function entriesFor(sources: readonly ParsedSource[], code: string): Cens
         order.push(entry.key);
         continue;
       }
+      // A ward list's copy beats the group chat's, whichever box came first.
       const better =
-        (held.diagnoses.length === 0 && entry.diagnoses.length > 0) ||
-        (held.fromNewList && !entry.fromNewList && entry.diagnoses.length >= held.diagnoses.length);
+        !!held.fromChat !== !!entry.fromChat
+          ? !entry.fromChat
+          : (held.diagnoses.length === 0 && entry.diagnoses.length > 0) ||
+            (held.fromNewList && !entry.fromNewList && entry.diagnoses.length >= held.diagnoses.length);
       if (better) byKey.set(entry.key, entry);
     }
   }
@@ -905,9 +965,32 @@ export function dpjpCounts(sources: readonly ParsedSource[]): Array<{ code: stri
     .sort((a, b) => b.count - a.count || a.code.localeCompare(b.code));
 }
 
-/** Patients no DPJP could be read for: shown, so none is silently missing. */
+/**
+ * Patients no DPJP could be read for: shown, so none is silently missing.
+ * Not a patient another list does give a DPJP (2026-11-14): the IGD RSUH list
+ * often names no cardiology code, and the RSUH ward list names the same
+ * patient with one.
+ */
 export function unassigned(sources: readonly ParsedSource[]): CensusEntry[] {
-  return sources.flatMap((source) => source.entries.filter((entry) => entry.dpjps.length === 0));
+  const assigned = new Set(sources.flatMap((source) => source.entries.filter((e) => e.dpjps.length > 0).map((e) => e.key)));
+  return sources.flatMap((source) => source.entries.filter((entry) => entry.dpjps.length === 0 && !assigned.has(entry.key)));
+}
+
+/**
+ * The places once every list is read (2026-11-14, Avi): "IGD RSUH patients go
+ * to a separate list if that list is pasted; if the RSUH list already has them,
+ * no double list." So with an IGD RSUH list among the sources, the RSUH ward
+ * list's IGD patients ("ARB / IGD RSUH Bed 3 / …") move to IGD RSUH too, and
+ * `entriesFor` keeps each patient once. Without one, nothing moves.
+ */
+export function settlePlaces(sources: readonly ParsedSource[]): ParsedSource[] {
+  if (!sources.some((source) => source.kind === 'rsuh-igd')) return [...sources];
+  const igd = (entry: CensusEntry): boolean => entry.place === 'RSUH' && /\bigd\b/i.test(entry.asWritten);
+  return sources.map((source) =>
+    source.entries.some(igd)
+      ? { ...source, entries: source.entries.map((entry) => (igd(entry) ? { ...entry, place: 'RSUH_IGD' as const } : entry)) }
+      : source,
+  );
 }
 
 export function dpjpFullName(code: string): string {
@@ -978,6 +1061,11 @@ interface HeaderStyle {
 }
 
 const hasPlace = (places: readonly Place[], place: Place): boolean => places.includes(place);
+/** Patients in the two other hospitals, for the "PJT" counts. */
+const outsidePjt = (at: (place: Place) => number): number => at('RSWS') + at('RSUH') + at('RSUH_IGD');
+/** "RSUH, IGD RSUH" for the per-DPJP headers that name the hospitals themselves. */
+const rsuhText = (places: readonly Place[]): string =>
+  commaList([hasPlace(places, 'RSUH') && 'RSUH', hasPlace(places, 'RSUH_IGD') && 'IGD RSUH']);
 const commaList = (parts: ReadonlyArray<string | false>): string => parts.filter(Boolean).join(', ');
 const FLOORS: ReadonlyArray<readonly [Place, number]> = [['LT4', 4], ['LT5', 5], ['LT6', 6]];
 
@@ -996,7 +1084,7 @@ const mergedFloors =
   (places: readonly Place[]): string => {
     const floors = floorsText(places, last);
     return commaList([
-      ...(['RSWS', 'RSUH', 'IGD', 'CVCU'] as const).map((place) => hasPlace(places, place) && PLACE_LABEL[place]),
+      ...(['RSWS', 'RSUH', 'RSUH_IGD', 'IGD', 'CVCU'] as const).map((place) => hasPlace(places, place) && PLACE_LABEL[place]),
       floors && `PJT ${floors}`,
       hasPlace(places, 'PJT') && PLACE_LABEL.PJT,
     ]);
@@ -1026,7 +1114,8 @@ const HEADER_STYLES: Readonly<Record<string, HeaderStyle>> = {
       `*TOTAL: ${total} Pasien*`,
       ...(shown.includes('RSWS') ? [`RSWS: ${at('RSWS')} Pasien`] : []),
       ...(shown.includes('RSUH') ? [`RSUH: ${at('RSUH')} Pasien`] : []),
-      `PJT: ${total - at('RSWS') - at('RSUH')} Pasien`,
+      ...(shown.includes('RSUH_IGD') ? [`IGD RSUH: ${at('RSUH_IGD')} Pasien`] : []),
+      `PJT: ${total - outsidePjt(at)} Pasien`,
       '-'.repeat(82),
     ],
   },
@@ -1038,7 +1127,7 @@ const HEADER_STYLES: Readonly<Record<string, HeaderStyle>> = {
       const pjt = commaList([hasPlace(places, 'IGD') && 'IGD', floorsText(places, ', dan'), hasPlace(places, 'CVCU') && 'HCU, CVCU, ICU']);
       return commaList([
         hasPlace(places, 'RSWS') && 'RSWS',
-        hasPlace(places, 'RSUH') && 'RSUH',
+        rsuhText(places),
         pjt && `PJT ${pjt}`,
         hasPlace(places, 'PJT') && PLACE_LABEL.PJT,
       ]);
@@ -1056,7 +1145,7 @@ const HEADER_STYLES: Readonly<Record<string, HeaderStyle>> = {
       const door = commaList([hasPlace(places, 'IGD') && 'IGD', hasPlace(places, 'CVCU') && 'CVCU, HCU, ICU']);
       return commaList([
         hasPlace(places, 'RSWS') && 'RSWS',
-        hasPlace(places, 'RSUH') && 'RSUH',
+        rsuhText(places),
         door ? `${door} PJT${floors ? ` ${floors}` : ''}` : floors && `PJT ${floors}`,
         hasPlace(places, 'PJT') && PLACE_LABEL.PJT,
       ]);
@@ -1072,7 +1161,7 @@ const HEADER_STYLES: Readonly<Record<string, HeaderStyle>> = {
     places: (places) => {
       const floors = floorsText(places, ', dan');
       return commaList([
-        hasPlace(places, 'RSUH') && 'RSUH',
+        rsuhText(places),
         hasPlace(places, 'RSWS') && 'RSWS',
         hasPlace(places, 'IGD') && PLACE_LABEL.IGD,
         floors && `PJT ${floors}`,
@@ -1101,7 +1190,7 @@ const HEADER_STYLES: Readonly<Record<string, HeaderStyle>> = {
     places: (places) =>
       commaList([
         hasPlace(places, 'RSWS') && 'RSWS',
-        hasPlace(places, 'RSUH') && 'RSUH',
+        rsuhText(places),
         hasPlace(places, 'IGD') && PLACE_LABEL.IGD,
         placesText(places.filter((place) => place === 'LT4' || place === 'LT5' || place === 'LT6')),
         hasPlace(places, 'CVCU') && 'CVCU/HCU/ICU',
@@ -1122,7 +1211,7 @@ const HEADER_STYLES: Readonly<Record<string, HeaderStyle>> = {
     greeting: 'Assalamualaikum. Tabe Dokter, mohon izin melaporkan sensus pasien',
     places: placesText,
     // A second total for the PJT patients alone (not RSWS or RSUH).
-    tail: ({ total, at }) => ['', `*Total Pasien : ${total} pasien*`, '', `*Total Pasien PJT : ${total - at('RSWS') - at('RSUH')} pasien*`],
+    tail: ({ total, at }) => ['', `*Total Pasien : ${total} pasien*`, '', `*Total Pasien PJT : ${total - outsidePjt(at)} pasien*`],
   },
   IM: {
     address: 'dokter',

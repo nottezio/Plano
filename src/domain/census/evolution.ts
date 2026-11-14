@@ -122,6 +122,7 @@ export type Change =
 export const PLACE_SHORT: Record<Place, string> = {
   RSWS: 'RSWS',
   RSUH: 'RSUH',
+  RSUH_IGD: 'IGD RSUH',
   IGD: 'IGD',
   CVCU: 'CVCU',
   LT4: 'Lt. 4',

@@ -5,6 +5,13 @@ Catatan teknis lengkap (akar masalah, perbaikan) ada di CHANGES.md.
 
 Entri teratas harus versi yang sedang dirilis; tes gagal bila belum ditulis.
 
+## `2026-11-14.8`
+- **Buat Sensus membaca list IGD RSUH.** List IGD RSUH dikenali dari judulnya dan pasiennya masuk kelompok sendiri, **IGD RSUH**. Sebelumnya list ini terbaca 0 pasien. Bila list RSUH ruangan juga ditempel dan menyebut pasien IGD yang sama, pasien itu tetap ditulis sekali, di IGD RSUH. Tanpa list IGD RSUH, pasien IGD dari list RSUH tetap di RSUH seperti biasa.
+- **Sensus dari grup WhatsApp DPJP.** Untuk sensus pagi sebelum list ruangan datang (mis. dr. KS): di langkah 1 ada kartu **Grup WhatsApp DPJP**. Ekspor chat grup dari WhatsApp (iPhone atau Android, tanpa media), lalu **Impor .zip**. Laporan kemarin dan hari ini dibaca, satu baris per pasien: tempat dan diagnosis diambil dari laporan terbaru, laporan sebelumnya tampil sebagai riwayat saat baris diketuk.
+- **Tanda untuk dicek.** Tiap baris menunjukkan laporan terakhir dan jamnya, serta tanda **Mungkin pulang** (dengan kalimat dari laporannya), **Tanpa diagnosis**, **Pindah**, **Dx berubah**, dan KJS. Filter **Perlu dicek** menampilkan baris bertanda saja. Ketuk **Masuk** untuk mengeluarkan pasien dari sensus; tidak ada pasien yang dikeluarkan otomatis.
+- **List ruangan tetap menang.** Bila list ruangan jam 07.00 ditempel di bawahnya, pasien yang sama diambil dari list ruangan, dan Bandingkan menunjukkan bedanya.
+- **Judul diagnosis lain dikenali**: "Mohon izin pasien diasses dengan" dan "Mohon izin kami diagnosis dengan".
+
 ## `2026-11-14.7`
 - **Tombol melayang lebih tenang.** Tombol Saran (lonceng) dan Tempel (+) kini lebih kecil, bergaris tepi tanpa warna penuh, dan memudar serta mengecil saat halaman digulir, lalu kembali saat berhenti.
 
