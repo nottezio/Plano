@@ -977,3 +977,55 @@ describe('buildShortList (List pasien pendek)', () => {
     expect(text.endsWith('\n\nTabe dokter, selanjutnya mohon arahannya dokter. Terima kasih dokter')).toBe(true);
   });
 });
+
+describe('A PJT Lantai 5 dan 6 list, split by floor', () => {
+  const p = (over: Partial<FloorPatient>): FloorPatient =>
+    ({
+      key: 'rm:1', rm: '1', name: 'Tn. Contoh', identity: 'Tn. Contoh / RM 1', room: '510', bed: '1', floor: '5',
+      dpjpId: 'ks', kjsDpjpIds: [], btkv: false, body: 'Diagnosis:\n- CHF', full: '', chief: '', junior: '', senderNick: '', sender: '',
+      sentAt: '2026-11-14T04:00', index: 0, discharge: null, ...over,
+    }) as FloorPatient;
+  const patients = [
+    p({}),
+    p({ key: 'rm:2', rm: '2', identity: 'Ny. Contoh Dua / RM 2', room: '511', dpjpId: 'zd' }),
+    p({ key: 'rm:3', rm: '3', identity: 'Tn. Contoh Enam / RM 3', room: '604', floor: '6', dpjpId: 'zd' }),
+  ];
+  const options = { ward: 'PJT Lantai 5', date: '2026-11-14', time: '04.00' };
+  const text = buildFloorList(patients, options);
+
+  it('titles the list by the Denah and counts each floor', () => {
+    expect(text).toContain('*List Pasien PJT Lantai 5 dan 6, ');
+    expect(text).toContain('🟡JUMLAH PASIEN : 3 (LT 5: 2, LT 6: 1)');
+    expect(text).toContain('🫀KARDIO FU : LT 5 (2) · LT 6 (1)');
+  });
+
+  it('writes Lantai 5 with every DPJP, then Lantai 6 with only the DPJPs that have a patient there', () => {
+    const [lt5 = '', lt6 = ''] = text.split('*🏥 LANTAI 6 (1 pasien)*');
+    expect(lt5).toContain('*🏥 LANTAI 5 (2 pasien)*');
+    expect(lt5).toContain('🫀 dr. AHA : 0 pasien');
+    expect(lt5).not.toContain('Tn. Contoh Enam');
+    expect(lt6).toContain('*1. 604 Bed 1/ZD/Tn. Contoh Enam / RM 3*');
+    expect(lt6).not.toContain('dr. KS');
+    expect(lt6).not.toContain('AHA');
+  });
+
+  it('gives Lantai 6 its own part in the coloured view, and still counts three patients', () => {
+    const { parts } = splitFloorList(text);
+    expect(parts.some((part) => part.heading === '🏥 LANTAI 6 (1 pasien)' && part.count === 0)).toBe(true);
+    expect(parts.reduce((sum, part) => sum + part.count, 0)).toBe(3);
+  });
+
+  it('splits the short list the same way', () => {
+    const short = buildShortList(patients, options);
+    const [lt5 = '', lt6 = ''] = short.split('*LANTAI 6 (1 pasien)*');
+    expect(lt5).toContain('*LANTAI 5 (2 pasien)*\n- dr. KS: 1 pasien');
+    expect(lt6).toContain('- dr. ZD: 1 pasien\n1. 604 Bed 1 / Tn. Contoh Enam / RM 3 / ZD');
+    expect(lt6).not.toContain('dr. KS');
+  });
+
+  it('leaves a one-floor list as it was', () => {
+    const one = buildFloorList([p({ room: '417', floor: '4' })], { ...options, ward: 'PJT Lantai 4' });
+    expect(one).toContain('🟡JUMLAH PASIEN : 1\n🫀KARDIO FU : LT 4 (1)');
+    expect(one).not.toContain('LANTAI');
+  });
+});

@@ -19,8 +19,9 @@ import {
   writeNickname,
   writeNewBadge,
   writeTrioFullSoap,
+  writeFloorName,
 } from '@/data/repositories/floors.repo';
-import { canEdit, chiefsOf, isOwner, type FloorDoc, type FloorRole } from '@/domain/floorList/floor';
+import { canEdit, chiefsOf, isOwner, listTitle, type FloorDoc, type FloorRole } from '@/domain/floorList/floor';
 import { collapseNicknames, confirmQuestion, memberRole, saveErrorMessage, transferQuestion } from '@/domain/floorList/membersView';
 import { AnalysisChecksField } from './AnalysisChecksField';
 import { ChiefsField } from './ChiefsField';
@@ -272,6 +273,24 @@ export function MembersPanel({
 
         <div className="space-y-5">
           <Group title="Nama dan residen">
+            <Section title="Nama list" hint={`Denah adalah nama list; nama tambahan ditulis di belakangnya. Sekarang: ${listTitle(floor)}.`}>
+              {owner ? (
+                <input
+                  key={floor.name}
+                  aria-label="Nama tambahan list"
+                  defaultValue={floor.name === floor.ward ? '' : floor.name}
+                  placeholder="Nama tambahan (opsional)"
+                  maxLength={80}
+                  onBlur={(event) => {
+                    const next = event.target.value.trim();
+                    if (next !== (floor.name === floor.ward ? '' : floor.name)) run(() => writeFloorName(floor.id, next), 'Nama list diubah ✓');
+                  }}
+                  className="min-h-tap w-full rounded-lg border border-border bg-surface px-3 text-sm"
+                />
+              ) : (
+                <p className="text-xs text-fg-muted">Hanya pemilik list yang bisa mengganti nama.</p>
+              )}
+            </Section>
             <Section
               title="Residen lantai"
               hint="Junior yang dinas di lantai ini pada jam dinas. Hanya mereka yang mendapat pasien dari Bagi pasien (tab Analisis). Nama dari SOAP atau list yang ditulis sedikit berbeda ditampilkan sesuai ejaan di sini. Chief diisi di header."
@@ -392,7 +411,7 @@ export function MembersPanel({
           >
             {confirmDelete ? (
               <div className="flex flex-wrap items-center gap-2">
-                <span className="text-xs font-semibold">Hapus &quot;{floor.name}&quot;?</span>
+                <span className="text-xs font-semibold">Hapus &quot;{listTitle(floor)}&quot;?</span>
                 <Button variant="danger" size="sm" onClick={() => void remove()} disabled={deleting}>
                   {deleting ? 'Menghapus…' : 'Ya, hapus'}
                 </Button>

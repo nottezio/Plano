@@ -52,7 +52,7 @@ export function ListMessage({ text }: { text: string }): JSX.Element {
           ? parts.map((part, index) =>
               part.count > 0 ? (
                 <button
-                  key={part.heading}
+                  key={index}
                   type="button"
                   onClick={() => jump(index)}
                   style={{ backgroundColor: TINTS[index % TINTS.length] }}
@@ -70,7 +70,8 @@ export function ListMessage({ text }: { text: string }): JSX.Element {
             <pre className="whitespace-pre-wrap break-words px-3 py-2 font-sans text-xs leading-relaxed">{intro}</pre>
             {parts.map((part, index) => (
               <section
-                key={part.heading}
+                // By place: a split list (Lt 5 and 6) can have the same DPJP heading twice.
+                key={index}
                 ref={(node) => {
                   if (node) heads.current.set(index, node);
                   else heads.current.delete(index);

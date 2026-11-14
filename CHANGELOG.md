@@ -5,6 +5,15 @@ Catatan teknis lengkap (akar masalah, perbaikan) ada di CHANGES.md.
 
 Entri teratas harus versi yang sedang dirilis; tes gagal bila belum ditulis.
 
+## `2026-11-14.4`
+- **List PJT Lantai 5 dan 6 dipisah per lantai.** List WhatsApp sekarang punya bagian **LANTAI 5** lalu **LANTAI 6**, masing-masing dengan blok DPJP-nya sendiri. Jumlah di atas ditulis per lantai (mis. "LT 5 (8) · LT 6 (3)"). Di Lantai 6 hanya DPJP yang punya pasien di sana yang ditulis. Judul list memakai nama Denah "PJT Lantai 5 dan 6".
+- **List pendek ikut dipisah** dengan judul LANTAI 5 dan LANTAI 6.
+- Lantai lain tidak berubah. Word dan PDF tetap seperti sebelumnya (pasien Lantai 6 di kotak tengah denah).
+
+## `2026-11-14.3`
+- **Nama list mengikuti Denah.** Nama list sekarang Denah yang dipilih, lalu nama tambahan di belakangnya, mis. "PJT Lantai 5 dan 6 · Tim A". Saat membuat list, pilih Denah dulu; nama tambahan boleh dikosongkan. List lama yang namanya sama dengan Denahnya cukup tampil sebagai nama Denah.
+- **Ganti nama list.** Pemilik list bisa mengubah nama tambahan di tab Setelan → Nama dan residen → Nama list.
+
 ## `2026-11-14.2`
 - **Tempel: Residen penerima untuk pasien baru.** Di daftar "Pasien baru", tiap pasien yang dicentang punya isian **Residen penerima** (pilihan dari daftar junior). Tersimpan sebagai catatan saat Simpan, sama seperti isian di Atur.
 - **Kotak Tempel lebih rapi.** Ringkasan hasil bacaan jadi label (pesan, baru, diperbarui…), tiap pasien baru tampil sebagai kartu dengan kamar dan nama tebal, dan tombol **Simpan** menempel di bawah kotak dengan ringkasan jumlahnya, jadi tidak perlu menggulir ke bawah. Header diberi pegangan geser.

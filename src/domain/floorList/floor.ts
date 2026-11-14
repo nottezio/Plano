@@ -1,3 +1,4 @@
+import { wardLabel } from '@/domain/denahPlan';
 import { dpjpById } from '@/domain/dpjp';
 import type { SectionTitles } from './analysis';
 import { newBadgeOf, tagsOf, type FloorMark, type NewBadge } from './marks';
@@ -190,6 +191,19 @@ export interface Edition {
 export function orderFloors<T extends { id: string; name: string }>(floors: readonly T[], order: readonly string[] | undefined): T[] {
   const rank = new Map((order ?? []).map((id, i) => [id, i]));
   return [...floors].sort((a, b) => (rank.get(a.id) ?? Infinity) - (rank.get(b.id) ?? Infinity) || a.name.localeCompare(b.name));
+}
+
+/**
+ * The list's title (14 Nov 2026, Avi): the Denah first, the list's own name after it as the extra
+ * name — "PJT Lantai 5 dan 6 · Tim A". A name that only repeats the Denah (every list made before,
+ * whose name defaulted to the ward) adds nothing. A list with no Denah keeps its name.
+ */
+export function listTitle(floor: { name: string; ward?: string | undefined }): string {
+  const extra = floor.name.trim();
+  if (!floor.ward) return extra;
+  const label = wardLabel(floor.ward);
+  const same = (a: string): boolean => a.replace(/\s+/g, '').toLowerCase() === extra.replace(/\s+/g, '').toLowerCase();
+  return !extra || same(label) || same(floor.ward) ? label : `${label} · ${extra}`;
 }
 
 export function chiefsOf(value: string): string[] {

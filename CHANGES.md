@@ -1,5 +1,24 @@
 # Plano — CHANGES
 
+## `2026-11-14.4` — List Maker: PJT Lantai 5 dan 6 list split by floor
+
+Avi approved the example: split the list between floor 5 and 6; Lt 6 lists only DPJPs with a patient; the short list too; Word/PDF unchanged.
+
+- `floorGroups(patients, ward)` (build.ts): one group, or for a plan with an annex (`planAnnex`) the ward's floor then the annex floor, by `inAnnex(plan, room)`; a room-less patient stays on the ward's floor. `groupDpjps` keeps every DPJP on the ward's floor, only DPJPs with own or KJS patients on the annex floor.
+- `buildFloorList`: counts per floor (`JUMLAH PASIEN : 11 (LT 5: 8, LT 6: 3)`, `KARDIO FU : LT 5 (6) · LT 6 (2)` …), then `*🏥 LANTAI n (k pasien)*` + DPJP summary + DPJP blocks per floor. The Lt 6 heading follows a separator, so `splitFloorList` makes it its own part (count 0, no jump chip) and the coloured view tints it apart; per-patient counts unchanged. Title now `wardLabel(ward)` ("PJT Lantai 5 dan 6"); other wards have no label, so their text is unchanged (test).
+- `buildShortList`: `*LANTAI n (k pasien)*` before each floor's DPJP blocks; same DPJP rule.
+- `ListMessage`: React keys by index — a split list can repeat a DPJP heading ("dr. ZD : 1 pasien" on both floors).
+- No Firestore change (text only). Not done: Word/PDF unchanged as agreed; not checked in the browser.
+
+## `2026-11-14.3` — List Maker: list named by its Denah, rename
+
+Avi: rename the list; show the Denah in the list's name; the chosen Denah is the name, the typed name the extra name.
+
+- `listTitle(floor)` (floor.ts): `wardLabel(ward)` + ` · name`; a name equal to the ward or its label (ignoring case and spaces) adds nothing, so lists made before (name defaulted to the ward) read as the Denah with no data change. No ward: the name. Used by the list chips, the invite callout, the delete prompt, the admin List tab and the create form's preview.
+- Create form: Denah first, then "Nama tambahan (opsional)", empty by default; `name` stored as typed (may be '').
+- Rename: Setelan → Nama list, owner only, `writeFloorName` (one `updateDoc` of `name` + `updatedAt`) on blur, skipped when unchanged. The owner's update rule already allows it; no rules change. Cost: 1 write per rename, plus 1 read on each open listener of the floor doc (one per member with List Maker open). No new reads or listeners.
+- Not done: editors cannot rename (owner only, like Hapus list). The copied list text and Word/PDF titles are unchanged (they already use the Denah label). Lt 5 / Lt 6 split of the list: example sent for approval, not built.
+
 ## `2026-11-14.2` — Tempel: Residen penerima, floating box polish; Slide MZ: remove lab cells
 
 Avi: Residen penerima should also show when pasting and a new patient is detected; improve the floating Tempel box; Slide MZ: remove a lab cell because not every test is reported.

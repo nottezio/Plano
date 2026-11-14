@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 
 import { adminListFloors } from '@/data/repositories/floors.repo';
+import { listTitle } from '@/domain/floorList/floor';
 import { ago } from './adminUi';
 
 type Floors = Awaited<ReturnType<typeof adminListFloors>>;
@@ -100,7 +101,7 @@ function FloorRow({
         className="block w-full text-left"
       >
         <span className="flex items-center gap-2">
-          <span className="truncate text-sm font-medium">{floor.name}</span>
+          <span className="truncate text-sm font-medium">{listTitle(floor)}</span>
           {floor.ward ? (
             <span className="shrink-0 rounded-full border border-border px-2 py-0.5 text-[11px] text-fg-muted">
               {floor.ward}

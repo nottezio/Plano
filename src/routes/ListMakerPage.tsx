@@ -24,7 +24,7 @@ import { formatDmy } from '@/domain/dateDmy';
 import { planWards, wardLabel, wardPlan } from '@/domain/denahPlan';
 import { EDITIONS_PAGE } from '@/domain/floorList/editionGroups';
 import { shiftEdition, shiftStart } from '@/domain/floorList/chiefHandover';
-import { canEdit, chiefsOf, isOwner, localStamp, newRosterPatient, orderFloors, rosterView, type FloorDoc } from '@/domain/floorList/floor';
+import { canEdit, chiefsOf, isOwner, listTitle, localStamp, newRosterPatient, orderFloors, rosterView, type FloorDoc } from '@/domain/floorList/floor';
 import { updateSettings } from '@/data/repositories/settings.repo';
 import { searchWords } from '@/domain/floorList/search';
 import { AnalysisPanel } from '@/components/floor/AnalysisPanel';
@@ -211,7 +211,8 @@ export default function ListMakerPage(): JSX.Element {
   );
 
   // New floor form.
-  const [name, setName] = useState('PJT Lantai 4');
+  // The extra name only; the Denah is the list's name (14 Nov 2026).
+  const [name, setName] = useState('');
   const [ward, setWard] = useState('PJT Lantai 4');
   // A user can keep several lists (12.11): "+ List baru" opens the form again.
   const [showCreate, setShowCreate] = useState(false);
@@ -223,7 +224,7 @@ export default function ListMakerPage(): JSX.Element {
     setCreating(true);
     setCreateError('');
     try {
-      const id = await createFloor(uid, myName, name.trim() || ward, ward);
+      const id = await createFloor(uid, myName, name.trim(), ward);
       const p = new URLSearchParams(params);
       p.set('f', id);
       setParams(p, { replace: true });
@@ -297,7 +298,7 @@ export default function ListMakerPage(): JSX.Element {
     <AppShell title="List Maker" titleBadge={WIP}>
       <div className="mx-auto max-w-7xl space-y-4 px-4 pb-24 pt-0 sm:pb-10 lg:pt-4">
         {invites.map((invited) => (
-          <Callout key={invited.id} title={`Undangan: ${invited.name}`}>
+          <Callout key={invited.id} title={`Undangan: ${listTitle(invited)}`}>
             <div className="flex flex-wrap items-center gap-2">
               <span className="flex-1">
                 Anda diundang ({invited.invites[(user?.email ?? '').toLowerCase()] === 'edit' ? 'lihat dan edit' : 'lihat saja'}).
@@ -332,9 +333,6 @@ export default function ListMakerPage(): JSX.Element {
             <p className="text-xs text-fg-muted">
               Boleh lebih dari satu list (mis. per lantai atau per tim). Setelah dibuat, undang anggota di tab Setelan.
             </p>
-            <Field label="Nama list" htmlFor="floor-name">
-              <input id="floor-name" value={name} onChange={(e) => setName(e.target.value)} className={INPUT} />
-            </Field>
             <Field label="Denah" htmlFor="floor-ward">
               <select id="floor-ward" value={ward} onChange={(e) => setWard(e.target.value)} className={INPUT}>
                 {planWards().map((w) => (
@@ -344,6 +342,10 @@ export default function ListMakerPage(): JSX.Element {
                 ))}
               </select>
             </Field>
+            <Field label="Nama tambahan (opsional)" htmlFor="floor-name">
+              <input id="floor-name" value={name} maxLength={80} placeholder="mis. Tim A" onChange={(e) => setName(e.target.value)} className={INPUT} />
+            </Field>
+            <p className="text-xs text-fg-muted">Nama list: {listTitle({ name, ward })}</p>
             <div className="flex gap-2">
               <Button variant="primary" onClick={() => void create()} disabled={creating}>
                 {creating ? 'Membuat…' : 'Buat list'}

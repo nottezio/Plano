@@ -607,6 +607,11 @@ export function writeNewBadge(floorId: string, badge: NewBadge): Promise<void> {
 }
 
 /** Trio patients print their whole SOAP in the list message (a boolean on the list document). */
+/** The list's extra name (owner only; the Denah stays the list's name). */
+export function writeFloorName(floorId: string, name: string): Promise<void> {
+  return trackWrite(updateDoc(floorDoc(floorId), 'name', name, 'updatedAt', serverTimestamp()));
+}
+
 export function writeTrioFullSoap(floorId: string, on: boolean): Promise<void> {
   return trackWrite(updateDoc(floorDoc(floorId), 'trioFullSoap', on, 'updatedAt', serverTimestamp()));
 }

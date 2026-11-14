@@ -1,6 +1,6 @@
 import { formatLongDate } from '@/domain/clinicalDate';
 import { dpjpById, isTrioDpjp } from '@/domain/dpjp';
-import { visitIndex } from '@/domain/denahPlan';
+import { inAnnex, planAnnex, visitIndex, wardLabel, wardPlan } from '@/domain/denahPlan';
 import { BOLD_RE, SINGLE_BOLD_RE } from '@/domain/format/formatters';
 import { otherDepartmentUtama, type FloorPatient } from './report';
 
@@ -187,45 +187,89 @@ export function stripReportFrame(body: string, frame: { identity?: string; rm?: 
     .trim();
 }
 
+interface FloorGroup {
+  /** "5"; '' for a ward with no number. */
+  floor: string;
+  patients: FloorPatient[];
+  /** Every DPJP is listed (the ward's own floor), or only those with a patient here (the annex floor). */
+  allDpjp: boolean;
+}
+
+/**
+ * The list's floors (14 Nov 2026, Avi): one, or for a Denah with an annex box (PJT Lantai 5 dan 6)
+ * the ward's floor then the annex floor, each with its own DPJP blocks. A patient is on the annex
+ * floor when its room is in the annex (6xx); anyone else, a room-less patient too, is on the ward's.
+ */
+function floorGroups(patients: readonly FloorPatient[], ward: string): FloorGroup[] {
+  const own = /\d+/.exec(ward)?.[0] ?? '';
+  const plan = wardPlan(ward);
+  const annex = plan ? planAnnex(plan) : null;
+  if (!plan || !annex) return [{ floor: own, patients: [...patients], allDpjp: true }];
+  return [
+    { floor: own, patients: patients.filter((p) => !inAnnex(plan, p.room)), allDpjp: true },
+    { floor: annex.roomPrefix, patients: patients.filter((p) => inAnnex(plan, p.room)), allDpjp: false },
+  ];
+}
+
+/** The DPJPs a floor's blocks are written for, in the list's order. */
+function groupDpjps(group: FloorGroup, counts: FloorCounts): string[] {
+  return dpjpOrder(group.patients).filter((id) => {
+    const row = counts.byDpjp.get(id);
+    return group.allDpjp || (row !== undefined && row.own + row.kjs > 0);
+  });
+}
+
 export function buildFloorList(patients: readonly FloorPatient[], options: ListOptions): string {
-  const counts = floorCounts(patients);
-  const floor = /\d+/.exec(options.ward)?.[0] ?? '';
-  const lt = floor ? `LT ${floor}` : options.ward;
-  const order = dpjpOrder(patients);
-  const sorted = [...patients].sort(byRoute(options.ward));
+  const groups = floorGroups(patients, options.ward);
+  const counts = groups.map((group) => floorCounts(group.patients));
+  const split = groups.length > 1;
+  const total = split ? floorCounts(patients) : counts[0]!;
+  const lt = (pick: (c: FloorCounts) => number): string =>
+    groups.map((group, i) => `${group.floor ? `LT ${group.floor}` : options.ward} (${pick(counts[i]!)})`).join(' · ');
+  const perFloor = split ? ` (${groups.map((group, i) => `LT ${group.floor}: ${counts[i]!.total}`).join(', ')})` : '';
 
   const out: string[] = [
-    `Tabe dokter mohon izin mengirimkan *List Pasien ${options.ward}, ${formatLongDate(options.date)}, ${options.time} WITA*`,
-    `🟡JUMLAH PASIEN : ${counts.total}`,
-    `🫀KARDIO FU : ${lt} (${counts.kardio})`,
-    `🤕KJS BTKV: ${lt} (${counts.btkv})`,
-    `🤝KJS TS Lain : ${lt} (${counts.tsLain})`,
-    `👶🏻PEDIATRI : ${lt} (${counts.pediatri}) PEDI KJS(0)`,
+    `Tabe dokter mohon izin mengirimkan *List Pasien ${wardLabel(options.ward)}, ${formatLongDate(options.date)}, ${options.time} WITA*`,
+    `🟡JUMLAH PASIEN : ${total.total}${perFloor}`,
+    `🫀KARDIO FU : ${lt((c) => c.kardio)}`,
+    `🤕KJS BTKV: ${lt((c) => c.btkv)}`,
+    `🤝KJS TS Lain : ${lt((c) => c.tsLain)}`,
+    `👶🏻PEDIATRI : ${lt((c) => c.pediatri)} PEDI KJS(0)`,
     '',
   ];
 
-  for (const id of order) {
-    const row = counts.byDpjp.get(id) ?? { own: 0, btkv: 0, kjs: 0 };
-    out.push(`${isPediatri(id) ? '👶🏻' : '🫀'} ${dpjpTitle(id)} : ${countLabel(row.own, row)}`);
-  }
-
-  for (const id of order) {
-    const row = counts.byDpjp.get(id) ?? { own: 0, btkv: 0, kjs: 0 };
-    out.push('', SEPARATOR, `*${isPediatri(id) ? '👶🏻' : '🫀'} ${dpjpTitle(id)} : ${countLabel(row.own, row)}*`);
-    const own = sorted.filter((patient) => patient.dpjpId === id);
-    own.forEach((patient, k) => {
-      if (k > 0) out.push('');
-      out.push(`*${k + 1}. ${patientLine(patient)}*`);
-      // Only the patient's line is bold (9 Nov 2026, Avi): the A/P's own `*Plan:*` is not.
-      const text = options.trioFullSoap && isTrioDpjp(patient.dpjpId) && patient.full ? soapForList(patient) : patient.body;
-      if (text) out.push(unbold(text));
-    });
-    const kjs = sorted.filter((patient) => patient.kjsDpjpIds.includes(id));
-    if (kjs.length > 0) {
-      out.push('', 'KJS');
-      kjs.forEach((patient, k) => out.push(`${k + 1}. ${patientLine(patient)}`));
+  groups.forEach((group, g) => {
+    const floorCount = counts[g]!;
+    const order = groupDpjps(group, floorCount);
+    const sorted = [...group.patients].sort(byRoute(options.ward));
+    const heading = (id: string): string => {
+      const row = floorCount.byDpjp.get(id) ?? { own: 0, btkv: 0, kjs: 0 };
+      return `${isPediatri(id) ? '👶🏻' : '🫀'} ${dpjpTitle(id)} : ${countLabel(row.own, row)}`;
+    };
+    if (split) {
+      // The annex floor opens its own part (a separator), so the coloured view tints it apart.
+      if (g > 0) out.push('', SEPARATOR);
+      out.push(`*🏥 LANTAI ${group.floor} (${group.patients.length} pasien)*`);
     }
-  }
+    for (const id of order) out.push(heading(id));
+
+    for (const id of order) {
+      out.push('', SEPARATOR, `*${heading(id)}*`);
+      const own = sorted.filter((patient) => patient.dpjpId === id);
+      own.forEach((patient, k) => {
+        if (k > 0) out.push('');
+        out.push(`*${k + 1}. ${patientLine(patient)}*`);
+        // Only the patient's line is bold (9 Nov 2026, Avi): the A/P's own `*Plan:*` is not.
+        const text = options.trioFullSoap && isTrioDpjp(patient.dpjpId) && patient.full ? soapForList(patient) : patient.body;
+        if (text) out.push(unbold(text));
+      });
+      const kjs = sorted.filter((patient) => patient.kjsDpjpIds.includes(id));
+      if (kjs.length > 0) {
+        out.push('', 'KJS');
+        kjs.forEach((patient, k) => out.push(`${k + 1}. ${patientLine(patient)}`));
+      }
+    }
+  });
 
   return out.join('\n').replace(/\n{3,}/g, '\n\n').trimEnd();
 }
@@ -260,16 +304,21 @@ export function buildShortList(patients: readonly FloorPatient[], options: ListO
     `Non-Follow Up: ${nonFollowUp} Pasien`,
     '',
   ];
-  for (const id of dpjpOrder(sorted)) {
-    const own = sorted.filter((patient) => patient.dpjpId === id);
-    const kjs = sorted.filter((patient) => patient.kjsDpjpIds.includes(id));
-    out.push(`- ${dpjpTitle(id)}: ${own.length} pasien${kjs.length > 0 ? ` + ${kjs.length} KJS` : ''}`);
-    own.forEach((patient, k) => out.push(`${k + 1}. ${shortLine(patient)}`));
-    if (kjs.length > 0) {
-      out.push('KJS:');
-      kjs.forEach((patient, k) => out.push(`${k + 1}. ${shortLine(patient)}`));
+  const groups = floorGroups(sorted, options.ward);
+  for (const group of groups) {
+    // Split like the full list (14 Nov 2026): a heading per floor, the annex floor only with its DPJPs.
+    if (groups.length > 1) out.push(`*LANTAI ${group.floor} (${group.patients.length} pasien)*`);
+    for (const id of groupDpjps(group, floorCounts(group.patients))) {
+      const own = group.patients.filter((patient) => patient.dpjpId === id);
+      const kjs = group.patients.filter((patient) => patient.kjsDpjpIds.includes(id));
+      out.push(`- ${dpjpTitle(id)}: ${own.length} pasien${kjs.length > 0 ? ` + ${kjs.length} KJS` : ''}`);
+      own.forEach((patient, k) => out.push(`${k + 1}. ${shortLine(patient)}`));
+      if (kjs.length > 0) {
+        out.push('KJS:');
+        kjs.forEach((patient, k) => out.push(`${k + 1}. ${shortLine(patient)}`));
+      }
+      out.push(SHORT_RULE);
     }
-    out.push(SHORT_RULE);
   }
   out.push('', 'Tabe dokter, selanjutnya mohon arahannya dokter. Terima kasih dokter');
   return out.join('\n');

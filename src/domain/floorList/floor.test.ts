@@ -13,6 +13,7 @@ import {
   divisionOf,
   effective,
   isPelimpahanEntry,
+  listTitle,
   parsePelimpahan,
   pelimpahanEntry,
   pelimpahanOn,
@@ -598,5 +599,19 @@ describe('Pelimpahan of the day', () => {
     const other = effective(rostered({ dpjpId: 'afg' }), { ...FLOOR, pelimpahan: [entry] }, '2026-11-15');
     expect([other.pelimpahan, dpjpCodeOf(other)]).toEqual([undefined, 'AFG']);
     expect(dpjpCodeOf(effective(rostered({ dpjpId: 'ks' }), { ...FLOOR, pelimpahan: [entry] }, '2026-11-14'))).toBe('KS');
+  });
+});
+
+describe('listTitle', () => {
+  it('names the list by its Denah, the list name as the extra name', () => {
+    expect(listTitle({ name: 'Tim A', ward: 'PJT Lantai 5' })).toBe('PJT Lantai 5 dan 6 · Tim A');
+    expect(listTitle({ name: '', ward: 'PJT Lantai 4' })).toBe('PJT Lantai 4');
+  });
+  it('drops a name that only repeats the Denah (lists made before)', () => {
+    expect(listTitle({ name: 'PJT Lantai 5', ward: 'PJT Lantai 5' })).toBe('PJT Lantai 5 dan 6');
+    expect(listTitle({ name: 'pjt lantai 4', ward: 'PJT Lantai 4' })).toBe('PJT Lantai 4');
+  });
+  it('keeps the name of a list with no Denah', () => {
+    expect(listTitle({ name: 'Lama', ward: '' })).toBe('Lama');
   });
 });

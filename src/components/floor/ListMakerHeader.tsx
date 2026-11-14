@@ -4,6 +4,7 @@ import { DateField } from '@/components/common/DateField';
 import { IconChevronRight } from '@/components/common/Icons';
 import { ScrollStrip } from '@/components/common/ScrollStrip';
 import { ChoiceChip } from '@/components/common/ui';
+import { listTitle } from '@/domain/floorList/floor';
 import { ChiefsField } from './ChiefsField';
 
 /**
@@ -32,7 +33,7 @@ export function ListMakerHeader({
   actions,
   onReorder,
 }: {
-  floors: ReadonlyArray<{ id: string; name: string }>;
+  floors: ReadonlyArray<{ id: string; name: string; ward?: string }>;
   floorId: string;
   onPickFloor: (id: string) => void;
   /** The lists' new order, after a chip is dragged (10 Nov 2026); absent: no dragging. */
@@ -156,7 +157,7 @@ export function ListMakerHeader({
               }`}
             >
               <ChoiceChip active={f.id === floorId} onClick={() => onPickFloor(f.id)}>
-                {f.name}
+                {listTitle(f)}
               </ChoiceChip>
             </span>
           ))}
