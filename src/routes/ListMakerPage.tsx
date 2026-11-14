@@ -190,6 +190,21 @@ export default function ListMakerPage(): JSX.Element {
   const searchShown = searchOpen || search !== '';
   // Tempel from the Denah's + (14 Nov 2026): the List tab's floating box, opened over the Denah.
   const [pasteOpen, setPasteOpen] = useState(false);
+  // The floating buttons fade while anything on the page scrolls, back 600 ms after it stops.
+  const [scrolling, setScrolling] = useState(false);
+  useEffect(() => {
+    let timer: number | undefined;
+    const onScroll = (): void => {
+      setScrolling(true);
+      window.clearTimeout(timer);
+      timer = window.setTimeout(() => setScrolling(false), 600);
+    };
+    document.addEventListener('scroll', onScroll, { capture: true, passive: true });
+    return () => {
+      document.removeEventListener('scroll', onScroll, { capture: true });
+      window.clearTimeout(timer);
+    };
+  }, []);
   /*
     Shift sebelumnya (9 Nov 2026, Avi): the Denah as the previous shift's list left it, to compare
     with now. Reachable from anywhere on the page (11 Nov): in the pinned bar from 640 px, in the
@@ -499,7 +514,12 @@ export default function ListMakerPage(): JSX.Element {
               clipboard pill's row. Under the boxes (z-30), so an open box covers it rather than collides.
             */}
             {(tab === 'denah' || tab === 'list') && editable ? (
-              <div className="fixed bottom-[calc(env(safe-area-inset-bottom)+76px)] right-4 z-30 flex flex-col items-end gap-3 sm:bottom-[4.25rem] sm:left-[92px] sm:right-auto sm:items-start lg:bottom-4 lg:left-[248px]">
+              // Quieter (14 Nov 2026, Avi: "too distracting"): 40 px, outlined, no fill; faded and smaller while the page scrolls.
+              <div
+                className={`fixed bottom-[calc(env(safe-area-inset-bottom)+76px)] right-4 z-30 flex flex-col items-end gap-2 transition-[opacity,transform] duration-200 motion-reduce:transition-none sm:bottom-[4.25rem] sm:left-[92px] sm:right-auto sm:items-start lg:bottom-4 lg:left-[248px] ${
+                  scrolling ? 'scale-90 opacity-40' : ''
+                }`}
+              >
                 <SuggestionTray floor={floor} roster={roster} active={view.active} date={date} myName={myName} onOpen={setOpen} />
                 {onDenah ? (
                   <button
@@ -508,9 +528,11 @@ export default function ListMakerPage(): JSX.Element {
                     aria-expanded={pasteOpen}
                     aria-label="Tempel laporan"
                     title="Tempel laporan"
-                    className="flex h-14 w-14 items-center justify-center rounded-full bg-accent text-on-accent shadow-pop transition-transform hover:brightness-110 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent active:scale-95 motion-reduce:transition-none"
+                    className={`flex h-10 w-10 items-center justify-center rounded-full border bg-surface shadow-card transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent ${
+                      pasteOpen ? 'border-accent text-accent' : 'border-border-strong text-fg-muted hover:border-accent hover:text-accent'
+                    }`}
                   >
-                    <IconPlus width={26} height={26} strokeWidth={2.25} />
+                    <IconPlus width={20} height={20} strokeWidth={2} />
                   </button>
                 ) : null}
               </div>

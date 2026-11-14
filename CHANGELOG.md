@@ -5,6 +5,13 @@ Catatan teknis lengkap (akar masalah, perbaikan) ada di CHANGES.md.
 
 Entri teratas harus versi yang sedang dirilis; tes gagal bila belum ditulis.
 
+## `2026-11-14.7`
+- **Tombol melayang lebih tenang.** Tombol Saran (lonceng) dan Tempel (+) kini lebih kecil, bergaris tepi tanpa warna penuh, dan memudar serta mengecil saat halaman digulir, lalu kembali saat berhenti.
+
+## `2026-11-14.6`
+- **Saran jadi tabel.** Tiap pasien satu baris: siapa, sarannya, dan dua tombol **ACC** (terapkan perubahan) dan **Abaikan**. Di atas tabel ada **Terima semua** dan **Abaikan semua**. Untuk "belum ada chief" tombolnya **Isi** (membuka pasien).
+- **Salin SIMGOS: tanda tebal-miring hilang.** Teks yang ditulis `_*seperti ini*_` atau `*_seperti ini_*` di WhatsApp tidak lagi menyisakan tanda `*` atau `_` saat disalin ke SIMGOS.
+
 ## `2026-11-14.5`
 - **Tab List lebih lega.** Kotak "Catatan pulang / pindah" tidak lagi tampil di tab List; informasinya ada di tab Analisis.
 - **Saran jadi tombol melayang.** Kotak Saran di atas Denah/List diganti tombol lonceng dengan jumlah saran yang menunggu. Ketuk untuk membuka daftar saran (di HP muncul dari bawah). Tombol tidak tampil bila tidak ada saran.

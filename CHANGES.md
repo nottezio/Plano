@@ -1,5 +1,21 @@
 # Plano — CHANGES
 
+## `2026-11-14.7` — List Maker floating buttons: smaller and quieter
+
+Avi chose option C ("smaller, quieter") for the Saran/Tempel floating buttons, which he found too distracting over the Denah.
+
+- Saran bell and Tempel +: 56/48 px → 40 px, outlined `bg-surface` + `border-border-strong`, `text-fg-muted`, `shadow-card` instead of the accent fill and `shadow-pop`; accent border/text only on hover or while open. Icons 18–20 px.
+- While anything scrolls (one capture-phase passive `scroll` listener on the document in ListMakerPage) the stack goes `opacity-40 scale-90`, back 600 ms after the last scroll event; no transition under reduced motion. The stack stays clickable while faded.
+- No Firestore change. Not seen in a browser; the bell's badge colour is unchanged.
+
+## `2026-11-14.6` — Saran as a table; SIMGOS copy drops bold-italic markers
+
+Avi: the Saran panel's per-group buttons were confusing — make it a table with ACC / Abaikan per row and separate Terima semua / Abaikan semua. Out of topic: a `_*…*_` line kept its WhatsApp markers in the SIMGOS copy.
+
+- **SIMGOS — ROOT CAUSE:** `toPlain` strips `*x*` with `SINGLE_BOLD_RE`, whose opening `*` must not follow a word character, and `_x_` with `ITALIC_RE`, whose opening `_` must not follow `*`. In `_*x*_` the `*` follows `_` (a word character), so bold never matched, and italic then peeled only the outer `_`, leaving `*x*`; `*_x_*` failed the other way round. Fix: a second bold + italic pass after the first, so the inner pair goes once the outer is peeled. `TD_N_RR` and `2*1` stay intact (test). Stored text unchanged.
+- **Saran table:** `SuggestionTray` panel body is a `<table>` (Pasien / Saran / answers), one row per suggestion: ACC = the row's first proposed action (its result shown as "ACC: …"), Abaikan = dismiss; a 'nochief' row gets Isi (opens the patient). Top bar: Terima semua (rows that have an action) and Abaikan semua (every row). Same writes as before (`writeRosterFields`, `writeRosterBatch`). Dropped: the per-group lines, chips, "+n lagi", and the second discharge answer in the tray (Sudah pasti H-1 is still in Atur). `groupTray` is now unused outside its tests.
+- No Firestore change. Not seen in a browser.
+
 ## `2026-11-14.5` — List Maker: Saran/Tempel floating buttons, Lama di list per stay, SOAP box info, invite by username
 
 Avi: drop the pulang/pindah box from the List tab (Analisis has it); a floating + Tempel on Denah; Saran as a floating button; Lama di list wrong after readmission; more info on the SOAP box (penerima, first entry this stay); invite by username; Jadikan pemilik and Keluarkan styled the same. Built with three agents on separate files, reviewed here.

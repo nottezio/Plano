@@ -391,6 +391,11 @@ export function toPlain(body: string, options: AsciiOptions = {}): string {
       .replace(STRIKE_RE, '$1')
       .replace(SINGLE_BOLD_RE, '$1$2')
       .replace(ITALIC_RE, '$1$2')
+      // Bold italic, `_*x*_` or `*_x_*` (14 Nov 2026): each rule refuses a marker glued to the
+      // other (`_` is a word character; italic skips a `*` before it), so the first pass only
+      // peels the outer pair. A second pass takes the inner one.
+      .replace(SINGLE_BOLD_RE, '$1$2')
+      .replace(ITALIC_RE, '$1$2')
       // `* ` bullets become `- `, the spelling plain text has always used.
       .replace(BULLET_LINE_RE, '$1- '),
     options,

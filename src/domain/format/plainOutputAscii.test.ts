@@ -164,3 +164,13 @@ describe('symbols in Teks polos', () => {
     ]);
   });
 });
+
+describe('toPlain: bold italic from WhatsApp', () => {
+  it('drops both markers of _*x*_ and *_x_*', () => {
+    expect(toPlain('_*Saat ini tidak ditemukan tanda DVT. Pasien tidak KJS.*_')).toBe('Saat ini tidak ditemukan tanda DVT. Pasien tidak KJS.');
+    expect(toPlain('*_Pasien tidak KJS._*')).toBe('Pasien tidak KJS.');
+  });
+  it('still leaves TD_N_RR and 2*1 alone', () => {
+    expect(toPlain('TD_N_RR, Ceftriaxone 2*1 g')).toBe('TD_N_RR, Ceftriaxone 2*1 g');
+  });
+});

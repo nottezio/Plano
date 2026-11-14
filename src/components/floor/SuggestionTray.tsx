@@ -2,15 +2,12 @@ import * as Dialog from '@radix-ui/react-dialog';
 import { useEffect, useMemo, useState } from 'react';
 
 import { Button } from '@/components/common/ui';
-import { IconBell, IconCheck, IconClose } from '@/components/common/Icons';
+import { IconBell, IconClose } from '@/components/common/Icons';
 import { writeRosterBatch, writeRosterFields, type RosterChange } from '@/data/repositories/floors.repo';
 import type { FloorDoc, RosterPatient } from '@/domain/floorList/floor';
 import type { FloorPatient } from '@/domain/floorList/report';
-import { buildTray, groupTray, type TrayAction, type TrayRow } from '@/domain/floorList/suggestionTray';
+import { buildTray, type TrayAction, type TrayRow } from '@/domain/floorList/suggestionTray';
 import { useBackToClose } from '@/lib/useBackToClose';
-
-/** Patient chips shown per line before "+n": a full ward would push the list off the phone. */
-const LIMIT = 6;
 
 type Fields = Parameters<typeof writeRosterFields>[2];
 type ChiefFields = Extract<RosterChange, { kind: 'fields' }>['fields'];
@@ -54,13 +51,12 @@ export function SuggestionTray({
 
   const [open, setOpen] = useState(false);
   useBackToClose(open, () => setOpen(false));
-  // Lines showing all their patients, not the first LIMIT.
-  const [wide, setWide] = useState<readonly string[]>([]);
   // What the last tap did, read out (the chip itself leaves with the snapshot).
   const [said, setSaid] = useState('');
 
   const { rows } = useMemo(() => buildTray(roster, floor, date, now), [roster, floor, date, now]);
-  const groups = useMemo(() => groupTray(rows), [rows]);
+  // Rows with a change to accept; a 'belum ada chief' reminder has none.
+  const acceptable = rows.filter((row) => row.actions.length > 0);
 
   const stamp = (what: string) => ({ at: new Date().toISOString(), by: myName, what });
   const run = (row: TrayRow, action: TrayAction): void => {
@@ -95,11 +91,11 @@ export function SuggestionTray({
       <Dialog.Trigger
         aria-label={`Saran, ${rows.length} menunggu`}
         title="Saran"
-        className={`relative flex h-12 w-12 items-center justify-center rounded-full border shadow-pop transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent ${
-          open ? 'border-accent bg-[var(--accent-soft)] text-accent' : 'border-border-strong bg-surface text-fg hover:border-accent hover:text-accent'
+        className={`relative flex h-10 w-10 items-center justify-center rounded-full border shadow-card transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent ${
+          open ? 'border-accent bg-[var(--accent-soft)] text-accent' : 'border-border-strong bg-surface text-fg-muted hover:border-accent hover:text-accent'
         }`}
       >
-        <IconBell width={22} height={22} />
+        <IconBell width={18} height={18} />
         {rows.length > 0 ? (
           <span
             aria-hidden="true"
@@ -142,55 +138,36 @@ export function SuggestionTray({
               <IconClose width={18} height={18} />
             </Dialog.Close>
           </header>
-          {groups.length > 0 ? (
-            <ul className="min-h-0 flex-1 divide-y divide-border overflow-y-auto overscroll-contain border-t border-border">
-              {groups.map((group) => {
-                const all = wide.includes(group.id);
-                const shown = all ? group.rows : group.rows.slice(0, LIMIT);
-                const more = group.rows.length - shown.length;
-                const first = group.rows[0]!;
-                const many = group.rows.length > 1;
-                return (
-                  <li key={group.id} className="space-y-2 px-4 py-3">
-                    <div className="flex flex-wrap items-center gap-x-2 gap-y-1.5">
-                      <span className="mr-auto text-xs font-semibold">
-                        <span className={`rounded px-1.5 py-0.5 ${group.kind !== 'chief' ? 'bg-[var(--warn-soft)]' : 'bg-bg-subtle'}`}>{group.title}</span>
-                        <span className="ml-1.5 tabular-nums text-fg-muted">{group.rows.length}</span>
-                      </span>
-                      <Button size="sm" variant="quiet" onClick={() => runAll(group.rows, (row) => row.dismiss)}>
-                        {many ? 'Abaikan semua' : 'Abaikan'}
-                      </Button>
-                      {first.actions.map((action, i) => (
-                        <Button key={action.label} size="sm" onClick={() => runAll(group.rows, (row) => row.actions[i] ?? row.dismiss)}>
-                          {many ? `${action.label} semua` : action.label}
-                        </Button>
-                      ))}
-                    </div>
-                    <div className="flex flex-wrap items-center gap-1.5">
-                      {shown.map((row) => (
-                        <Chip
-                          key={row.id}
-                          row={row}
-                          answer={first.actions.length === 1 ? row.actions[0] : undefined}
-                          shown={active.find((p) => p.key === row.key)}
-                          onOpen={openPatient}
-                          onRun={run}
-                        />
-                      ))}
-                      {more > 0 || all ? (
-                        <button
-                          type="button"
-                          onClick={() => setWide((w) => (all ? w.filter((id) => id !== group.id) : [...w, group.id]))}
-                          className="min-h-8 rounded-full px-2 text-xs font-semibold text-fg-muted hover:text-fg"
-                        >
-                          {all ? 'Ringkas' : `+${more} lagi`}
-                        </button>
-                      ) : null}
-                    </div>
-                  </li>
-                );
-              })}
-            </ul>
+          {rows.length > 0 ? (
+            <>
+              {/* One answer for everything (14 Nov 2026, Avi): ACC applies each row's change; reminders only go with Abaikan semua. */}
+              <div className="flex gap-2 border-t border-border px-4 py-2">
+                <Button size="sm" variant="primary" disabled={acceptable.length === 0} onClick={() => runAll(acceptable, (row) => row.actions[0]!)}>
+                  Terima semua{acceptable.length > 0 ? ` (${acceptable.length})` : ''}
+                </Button>
+                <Button size="sm" onClick={() => runAll(rows, (row) => row.dismiss)}>
+                  Abaikan semua
+                </Button>
+              </div>
+              <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain border-t border-border">
+                <table className="w-full text-left text-xs">
+                  <thead className="sticky top-0 bg-bg-subtle text-[11px] uppercase tracking-wide text-fg-faint">
+                    <tr>
+                      <th scope="col" className="px-4 py-1.5 font-semibold">Pasien</th>
+                      <th scope="col" className="py-1.5 font-semibold">Saran</th>
+                      <th scope="col" className="px-4 py-1.5 text-right font-semibold">
+                        <span className="sr-only">Jawaban</span>
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-border">
+                    {rows.map((row) => (
+                      <Row key={row.id} row={row} shown={active.find((p) => p.key === row.key)} onOpen={openPatient} onRun={run} />
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </>
           ) : null}
         </Dialog.Content>
       </Dialog.Portal>
@@ -198,42 +175,56 @@ export function SuggestionTray({
   );
 }
 
-/** One patient on a line: the name opens it; ✓ answers it alone (one-answer lines only), × dismisses it. */
-function Chip({
+/**
+ * One patient (14 Nov 2026, Avi: the per-group buttons were confusing): who, what would change, and
+ * two answers. ACC applies the first proposed change (for "usul H-1" that is Tandai usul; Sudah pasti
+ * H-1 stays in Atur). A "belum ada chief" reminder has nothing to accept: Isi opens the patient.
+ */
+function Row({
   row,
-  answer,
   shown,
   onOpen,
   onRun,
 }: {
   row: TrayRow;
-  answer: TrayAction | undefined;
   shown: FloorPatient | undefined;
   onOpen: (patient: FloorPatient) => void;
   onRun: (row: TrayRow, action: TrayAction) => void;
 }): JSX.Element {
   const where = row.room ? `${row.room}${row.bed ? `/${row.bed}` : ''}` : '';
-  const icon = 'flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-fg-muted hover:bg-bg-subtle hover:text-fg';
+  const accept = row.actions[0];
   return (
-    <span className="inline-flex max-w-full items-center rounded-full border border-border pl-2.5 text-xs">
-      <button
-        type="button"
-        disabled={!shown}
-        onClick={() => shown && onOpen(shown)}
-        title={row.name}
-        className="min-h-8 min-w-0 truncate text-left hover:underline disabled:no-underline"
-      >
-        {where ? <span className="mr-1 font-semibold tabular-nums">{where}</span> : null}
-        {row.name}
-      </button>
-      {answer ? (
-        <button type="button" aria-label={`${answer.label}: ${row.name}`} title={answer.label} onClick={() => onRun(row, answer)} className={icon}>
-          <IconCheck width={14} height={14} />
+    <tr className="align-middle">
+      <td className="max-w-[9rem] py-2 pl-4 pr-2">
+        <button
+          type="button"
+          disabled={!shown}
+          onClick={() => shown && onOpen(shown)}
+          title={row.name}
+          className="block min-h-8 w-full truncate text-left hover:underline disabled:no-underline"
+        >
+          {where ? <span className="mr-1 font-semibold tabular-nums">{where}</span> : null}
+          {row.name}
         </button>
-      ) : null}
-      <button type="button" aria-label={`Abaikan saran untuk ${row.name}`} title="Abaikan" onClick={() => onRun(row, row.dismiss)} className={icon}>
-        <IconClose width={14} height={14} />
-      </button>
-    </span>
+      </td>
+      <td className="py-2 pr-2 text-fg-muted">
+        {row.lead} <strong className="font-semibold text-fg">{row.strong}</strong>
+        {accept ? <span className="block text-[11px] text-fg-faint">ACC: {accept.done}</span> : null}
+      </td>
+      <td className="whitespace-nowrap py-2 pr-4 text-right">
+        {accept ? (
+          <Button size="sm" variant="secondary" aria-label={`ACC ${accept.done}: ${row.name}`} onClick={() => onRun(row, accept)}>
+            ACC
+          </Button>
+        ) : shown ? (
+          <Button size="sm" variant="secondary" aria-label={`Isi chief: ${row.name}`} onClick={() => onOpen(shown)}>
+            Isi
+          </Button>
+        ) : null}
+        <Button size="sm" variant="quiet" aria-label={`Abaikan saran untuk ${row.name}`} onClick={() => onRun(row, row.dismiss)} className="ml-1">
+          Abaikan
+        </Button>
+      </td>
+    </tr>
   );
 }
