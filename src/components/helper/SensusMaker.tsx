@@ -42,8 +42,8 @@ import {
   markKjs as markKjsFor,
 } from '@/domain/census/maker';
 import { compareCensus } from '@/domain/census/compare';
-import { chatSource, readDigest, type ChatDigest } from '@/domain/census/groupChat';
-import { GroupChatImport } from './GroupChatImport';
+import { previousDigest, readDigest, type ChatDigest } from '@/domain/census/groupChat';
+import { GroupChatCensus } from './GroupChatCensus';
 import { SensusCompare } from './SensusCompare';
 import { CensusMessage } from './CensusMessage';
 import {
@@ -61,6 +61,7 @@ import {
   type SensusList,
   type SensusStore,
 } from '@/domain/census/makerStore';
+import type { ClinicalDate } from '@/domain/types';
 import { useClinicalToday } from '@/hooks/useClinicalToday';
 import { useSensusInputSync } from '@/hooks/useSensusInputSync';
 import { AiError, aiEnabled, askClaudeStructured } from '@/lib/ai';
@@ -173,7 +174,7 @@ export function SensusMaker(): JSX.Element {
   }, [store]);
   const inputSync = useSensusInputSync(uid, store, setStore, today);
 
-  const filled = state.lists.filter((list) => list.text.trim());
+  const filled = state.lists.filter((list) => list.text.trim() && list.kind !== 'grup-wa');
   /**
    * Every list in every box, in order (2026-10-14): a box may hold several —
    * the morning lists pasted together — and each is parsed as its own list.
@@ -193,29 +194,18 @@ export function SensusMaker(): JSX.Element {
   /** Unchanged lists are not parsed again: typing in one box re-reads that box only. */
   const parseCache = useRef(new Map<string, ParsedSource>());
   const { sources, texts, boxOf, boxAt } = useMemo(() => {
-    const boxes = parseLists.filter((list) => list.text.trim());
+    // The group chat's box (`grup-wa`) is the Grup WhatsApp mode's, never part of this census.
+    const boxes = parseLists.filter((list) => list.text.trim() && list.kind !== 'grup-wa');
     const kinds = boxes.map((list) => (list.kind === 'auto' ? undefined : list.kind));
-    /*
-      The group chat's box holds its digest (2026-11-14), read by
-      `chatSource`, never by the list parser. Its text for Bandingkan is the
-      digest written out, one block per patient.
-    */
-    const parts = boxes.flatMap((list, box): Array<{ text: string; box: number; chat?: ParsedSource }> => {
-      if (list.kind === 'grup-wa') {
-        const digest = readDigest(list.text);
-        if (!digest) return [];
-        const read = chatSource(digest);
-        return [{ text: read.text, box, chat: read.source }];
-      }
-      return (kinds[box] ? [list.text] : splitLists(list.text)).map((text) => ({ text, box }));
-    });
+    const parts = boxes.flatMap((list, box) =>
+      (kinds[box] ? [list.text] : splitLists(list.text)).map((text) => ({ text, box })),
+    );
     const cache = parseCache.current;
     // shortcut: cleared whole when it grows past 200 entries; an LRU would only matter for far more boxes.
     if (cache.size > 200) cache.clear();
     const parse = (known?: ReadonlySet<string>): ParsedSource[] => {
       const knownKey = known ? [...known].sort().join(',') : '-';
       return parts.map((part) => {
-        if (part.chat) return part.chat;
         const key =`${kinds[part.box] ?? ''}${knownKey}${part.text}`;
         let parsed = cache.get(key);
         if (!parsed) {
@@ -358,6 +348,27 @@ export function SensusMaker(): JSX.Element {
   /** "List 1" counts the paste boxes only, not the chat. */
   const listNumber = (index: number): number => state.lists.slice(0, index + 1).filter((list) => list.kind !== 'grup-wa').length;
   const otherDays = storedDays(store).filter((entry) => entry.date !== censusDate);
+  /** The imports of earlier days: the Grup WhatsApp mode's memory. */
+  const previousChat = useMemo(() => previousDigest(store.days, censusDate), [store.days, censusDate]);
+  const importDays = useMemo(
+    () =>
+      Object.entries(store.days)
+        .filter(([date]) => date !== censusDate)
+        .map(([date, one]) => {
+          const list = one.lists.find((entry) => entry.kind === 'grup-wa');
+          const digest = list ? readDigest(list.text) : null;
+          return digest ? { date: date as ClinicalDate, patients: digest.patients.length - digest.skipped.length } : null;
+        })
+        .filter((entry): entry is { date: ClinicalDate; patients: number } => entry !== null)
+        .sort((a, b) => b.date.localeCompare(a.date)),
+    [store.days, censusDate],
+  );
+  /**
+   * Where the census comes from (2026-11-14, Avi): the pasted ward lists, or a
+   * DPJP's WhatsApp group export. Two separate censuses; switching never
+   * changes the other one. Opens on Grup WhatsApp when that is all the day holds.
+   */
+  const [origin, setOrigin] = useState<'list' | 'grup'>(() => (chatDigest && filled.length === 0 ? 'grup' : 'list'));
   const areas = useRef(new Map<number, HTMLTextAreaElement>());
   // Which box's find bar is open (one at a time; reset when the day changes).
   const [findIn, setFindIn] = useState<number | null>(null);
@@ -502,6 +513,33 @@ export function SensusMaker(): JSX.Element {
 
   return (
     <div className="space-y-4">
+      <Segmented
+        label="Sumber sensus"
+        value={origin}
+        onChange={setOrigin}
+        options={[
+          ['list', 'List ruangan'],
+          ['grup', 'Grup WhatsApp'],
+        ]}
+      />
+      {origin === 'grup' ? (
+        <GroupChatCensus
+          today={today}
+          censusDate={censusDate}
+          onDate={setCensusDate}
+          digest={chatDigest}
+          previous={previousChat}
+          importDays={importDays}
+          address={state.address}
+          style={state.style}
+          onChange={setChat}
+          onRemove={() => setChat(null)}
+          onRecord={(snapshot) => {
+            if (uid) void saveSensusDay(uid, snapshot).catch((error: unknown) => console.error('[sensusDays] save rejected', error));
+          }}
+        />
+      ) : (
+        <>
       <div className="flex flex-wrap items-center gap-x-3 gap-y-2 rounded-2xl border border-border bg-surface px-3 py-2.5">
         <div className="min-w-0 flex-1">
           <p className="text-sm font-semibold">Sensus {code || '—'}</p>
@@ -590,12 +628,6 @@ export function SensusMaker(): JSX.Element {
             </Callout>
           ) : null}
           <div className="space-y-3">
-            <GroupChatImport
-              digest={chatDigest}
-              censusDate={censusDate}
-              onChange={setChat}
-              onRemove={() => setChat(null)}
-            />
             {state.lists.map((list, index) => {
               if (list.kind === 'grup-wa') return null;
               const box = boxAt[index] ?? -1;
@@ -922,6 +954,8 @@ export function SensusMaker(): JSX.Element {
         {currentSnapshot ? <ChangeSummary current={currentSnapshot} previous={previousDay} /> : null}
       </aside>
     </div>
+      )}
+        </>
       )}
     </div>
   );

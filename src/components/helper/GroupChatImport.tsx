@@ -4,7 +4,7 @@ import { IconCheck, IconChevronRight, IconRefresh, IconTrash, IconUpload } from 
 import { Button, Callout, ChoiceChip, ChipRow } from '@/components/common/ui';
 import { formatDmy } from '@/domain/dateDmy';
 import { DPJPS } from '@/domain/dpjp';
-import { digestChat, type ChatDigest, type ChatPatient, type ReportKind } from '@/domain/census/groupChat';
+import { digestChat, type ChatDigest, type ChatPatient, type ChatReport, type ReportKind } from '@/domain/census/groupChat';
 import { PLACE_LABEL, PLACE_ORDER } from '@/domain/census/maker';
 import type { ClinicalDate } from '@/domain/types';
 import { chatFromZip } from '@/lib/unzip';
@@ -47,6 +47,7 @@ interface Flags {
   home: string | null;
   dxChanged: boolean;
   noDx: boolean;
+  carried: boolean;
 }
 
 function flagsOf(patient: ChatPatient): Flags {
@@ -56,10 +57,12 @@ function flagsOf(patient: ChatPatient): Flags {
     home: patient.homeHint,
     dxChanged: patient.dxChanged,
     noDx: patient.diagnoses.length === 0,
+    carried: !!patient.carried,
   };
 }
 
-const needsLook = (flags: Flags): boolean => !!flags.home || flags.noDx || flags.dxChanged || !!flags.moved;
+const needsLook = (flags: Flags): boolean =>
+  !!flags.home || flags.noDx || flags.dxChanged || !!flags.moved || flags.carried;
 
 function Tag({ tone = 'plain', children }: { tone?: 'plain' | 'warn'; children: ReactNode }): JSX.Element {
   return (
@@ -73,13 +76,80 @@ function Tag({ tone = 'plain', children }: { tone?: 'plain' | 'warn'; children: 
   );
 }
 
+/** `text` with `part` marked, case-insensitively, once. */
+function Marked({ text, part }: { text: string; part: string | undefined }): JSX.Element {
+  const at = part ? text.toLowerCase().indexOf(part.toLowerCase()) : -1;
+  if (!part || at < 0) return <>{text}</>;
+  return (
+    <>
+      {text.slice(0, at)}
+      <mark className="rounded-sm bg-[var(--accent-soft)] px-0.5 text-fg">{text.slice(at, at + part.length)}</mark>
+      {text.slice(at + part.length)}
+    </>
+  );
+}
+
+/**
+ * One report as it looked in the group (2026-11-14, Avi: "give the census
+ * maker the screenshotted chat previews"): sender, time, the greeting, the
+ * identity line and the diagnosis block as written, with what the census
+ * took marked. Lets the resident check the reading against the message.
+ */
+function ChatBubble({ report, today, used }: { report: ChatReport; today: string; used: boolean }): JSX.Element {
+  const bubble = report.bubble;
+  return (
+    <div className="max-w-[36rem] rounded-xl rounded-tl-sm border border-border bg-bg-subtle px-2.5 py-2 shadow-card">
+      <p className="flex flex-wrap items-baseline gap-x-2 text-[11px]">
+        <span className="min-w-0 truncate font-semibold text-fg-muted">{report.sender || 'Pengirim tidak tertulis'}</span>
+        <span className="ml-auto tabular-nums text-fg-faint">
+          {when(report.at, today)} · {KIND_LABEL[report.kind]}
+          {used ? ' · dipakai' : ''}
+        </span>
+      </p>
+      {bubble ? (
+        <div className="mt-1 space-y-1.5 whitespace-pre-wrap break-words text-xs leading-relaxed text-fg">
+          <p>
+            {bubble.greeting.map((line, index) => (
+              <span key={index} className="block">
+                <Marked text={line} part={report.location || undefined} />
+              </span>
+            ))}
+          </p>
+          <p>
+            <mark className="rounded-sm bg-[var(--accent-soft)] px-0.5 font-medium text-fg">{bubble.identity}</mark>
+          </p>
+          {bubble.dx.length > 0 ? (
+            <>
+              <p className="text-[11px] italic text-fg-faint">⋯</p>
+              <p>
+                {bubble.dx.map((line, index) => (
+                  <span key={index} className="block">
+                    {index === 0 && bubble.dx.length > 1 ? line : <mark className="rounded-sm bg-[var(--accent-soft)] px-0.5 text-fg">{line}</mark>}
+                  </span>
+                ))}
+              </p>
+            </>
+          ) : null}
+        </div>
+      ) : (
+        <p className="mt-1 text-xs text-fg-muted">
+          {report.from ? `${report.from} → ${report.location}` : report.location || 'Tempat tidak tertulis'}
+        </p>
+      )}
+    </div>
+  );
+}
+
 export function GroupChatImport({
   digest,
+  previous,
   censusDate,
   onChange,
   onRemove,
 }: {
   digest: ChatDigest | null;
+  /** The last import before this date: its patients not reported now are carried in. */
+  previous: ChatDigest | null;
   censusDate: ClinicalDate;
   onChange: (next: ChatDigest) => void;
   onRemove: () => void;
@@ -99,7 +169,7 @@ export function GroupChatImport({
     try {
       // The List Maker's reader: iOS `_chat.txt`, Android `WhatsApp Chat with …txt`.
       const text = /\.zip$/i.test(file.name) ? await chatFromZip(await file.arrayBuffer()) : await file.text();
-      const next = digestChat({ text, file: file.name, censusDate });
+      const next = digestChat({ text, file: file.name, censusDate, previous });
       if (next.patients.length === 0) {
         setError(
           next.messages === 0
@@ -110,7 +180,7 @@ export function GroupChatImport({
       }
       // A new export of the same chat keeps what was left out by hand.
       const kept = (digest?.skipped ?? []).filter((key) => next.patients.some((p) => p.key === key));
-      onChange({ ...next, skipped: kept, code: next.code || digest?.code || '' });
+      onChange({ ...next, skipped: [...new Set([...next.skipped, ...kept])], code: next.code || digest?.code || '' });
       setOpen(null);
     } catch (caught) {
       setError(
@@ -324,6 +394,7 @@ export function GroupChatImport({
                             <span className="mr-1 tabular-nums">
                               {KIND_LABEL[last.kind]} · {when(last.at, digest.to)}
                             </span>
+                            {flags.carried ? <Tag tone="warn">Tanpa laporan baru</Tag> : null}
                             {flags.home ? <Tag tone="warn">Mungkin pulang</Tag> : null}
                             {flags.noDx ? <Tag tone="warn">Tanpa diagnosis</Tag> : null}
                             {flags.moved && last.kind !== 'pindah' ? <Tag>Pindah</Tag> : null}
@@ -350,44 +421,25 @@ export function GroupChatImport({
                     </div>
                     {expanded ? (
                       <div id={detailId} className="space-y-2 px-3 pb-3 pl-8 text-xs">
-                        {flags.home ? (
+                        {patient.carried ? (
                           <p className="rounded-lg bg-[var(--warn-soft)] px-2 py-1.5">
-                            <span className="font-semibold">Laporan terakhir: </span>“{flags.home}”
+                            Tidak ada laporan pada {formatDmy(digest.from).slice(0, 5)}–{formatDmy(digest.to).slice(0, 5)}. Dibawa
+                            dari impor sebelumnya; keluarkan bila sudah pulang atau pindah.
                           </p>
                         ) : null}
-                        <p className="break-words text-fg-muted">{patient.identity}</p>
-                        <ol className="space-y-0.5">
+                        <p className="text-[11px] text-fg-faint">
+                          Pesan di grup, terlama di atas. Bagian yang dibaca ditandai; S/O tidak ditampilkan.
+                        </p>
+                        <ol className="space-y-2">
                           {patient.reports.map((report, index) => (
-                            <li key={index} className="flex gap-2">
-                              <span className="w-24 shrink-0 tabular-nums text-fg-faint">{when(report.at, digest.to)}</span>
-                              <span className="min-w-0">
-                                <span className="font-medium">{KIND_LABEL[report.kind]}</span>
-                                {report.from ? (
-                                  <span className="text-fg-muted">
-                                    {' '}
-                                    · {report.from} → {report.location}
-                                  </span>
-                                ) : report.location ? (
-                                  <span className="text-fg-muted"> · {report.location}</span>
-                                ) : null}
-                              </span>
+                            <li key={index}>
+                              <ChatBubble report={report} today={digest.to} used={index === patient.reports.length - 1} />
                             </li>
                           ))}
                         </ol>
-                        <div>
-                          <p className="font-semibold">Diagnosis{flags.dxChanged ? ' (laporan terbaru)' : ''}</p>
-                          {patient.diagnoses.length > 0 ? (
-                            <ul className="mt-0.5 space-y-0.5 text-fg-muted">
-                              {patient.diagnoses.map((line, index) => (
-                                <li key={index}>{line}</li>
-                              ))}
-                            </ul>
-                          ) : (
-                            <p className="mt-0.5 text-fg-muted">
-                              Tidak ada blok diagnosis di laporannya; sensus menulis “-”. Cek di list ruangan.
-                            </p>
-                          )}
-                        </div>
+                        {patient.diagnoses.length === 0 ? (
+                          <p className="text-fg-muted">Tidak ada blok diagnosis di laporannya; sensus menulis “-”. Cek di list ruangan.</p>
+                        ) : null}
                       </div>
                     ) : null}
                   </li>

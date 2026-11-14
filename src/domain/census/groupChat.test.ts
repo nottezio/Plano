@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import type { ClinicalDate } from '@/domain/types';
-import { chatSource, digestChat, greetingPlace, placeOfLocation, readDigest, splitMessages } from './groupChat';
+import { chatSource, digestChat, greetingPlace, placeOfLocation, previousDigest, readDigest, splitMessages } from './groupChat';
 import { buildCensus, entriesFor, parseLists } from './maker';
 
 /*
@@ -164,5 +164,50 @@ Diagnosis:
 - CCS dari list`);
     const rows = entriesFor([source, ward!], 'KS');
     expect(rows.find((e) => e.key === 'rm:1700002')!.diagnoses).toEqual(['- CCS dari list']);
+  });
+});
+
+describe('memory of the previous import', () => {
+  const yesterday = digestChat({ text: IOS, file: 'x', censusDate: '2026-11-13' as ClinicalDate });
+  const onlyNight = [
+    '[11/14/26, 12:53:49 AM] Jul 24 - dr. Empat: ' + IGD_MOVE,
+    '[11/15/26, 6:00:00 AM] Jul 24 - dr. Empat: ' + IGD_MOVE,
+  ].join('\n');
+
+  it('keeps patients the new window does not report, marked, and what was left out stays out', () => {
+    const today = digestChat({
+      text: onlyNight,
+      file: 'y',
+      censusDate: '2026-11-15' as ClinicalDate,
+      previous: { ...yesterday, skipped: ['rm:1700003'] },
+    });
+    expect(today.patients.map((p) => [p.key, !!p.carried])).toEqual([
+      ['rm:1700003', true],
+      ['rm:1700001', false],
+      ['rm:1700002', true],
+      ['rm:1799999', true],
+    ]);
+    expect(today.skipped).toEqual(['rm:1700003']);
+  });
+
+  it('finds the newest earlier import among the stored days', () => {
+    const days = {
+      '2026-11-12': { lists: [{ kind: 'grup-wa', text: JSON.stringify({ ...yesterday, file: 'old' }) }] },
+      '2026-11-13': { lists: [{ kind: 'grup-wa', text: JSON.stringify(yesterday) }, { kind: 'auto', text: 'list' }] },
+      '2026-11-14': { lists: [{ kind: 'auto', text: 'list' }] },
+    };
+    expect(previousDigest(days, '2026-11-15')?.file).toBe('x');
+    expect(previousDigest(days, '2026-11-12')).toBeNull();
+  });
+});
+
+describe('chat bubble', () => {
+  it('keeps the greeting, the identity line and the diagnosis block as written', () => {
+    const digest = digestChat({ text: IOS, file: 'x', censusDate: DAY });
+    const bubble = digest.patients.find((p) => p.key === 'rm:1700001')!.reports.at(-1)!.bubble!;
+    expect(bubble.identity).toBe('Tn. Contoh Satu/ 27-05-1968/ 58 tahun/ RM 1700001');
+    expect(bubble.greeting[0]).toContain('ke CVCU Bed 12');
+    expect(bubble.dx).toEqual(['Mohon izin kami assess dengan :', '- NSTEMI', '- Hypertensive Heart Disease', '- Hipokalemia (3.1)']);
+    expect(digest.patients.find((p) => p.key === 'rm:1700001')!.reports.at(-1)!.sender).toBe('Jul 24 - dr. Empat');
   });
 });

@@ -45,6 +45,14 @@ export interface ChatReport {
   location: string;
   /** A transfer's origin ("IGD PJT Redzone bed 1"). */
   from?: string;
+  /** As the export names them ("Jul 26 - dr. …"). */
+  sender?: string;
+  /**
+   * What the census read, as written, for the chat-bubble preview: the
+   * greeting, the identity line and the diagnosis block (S/O left out). A few
+   * hundred characters, not the message.
+   */
+  bubble?: { greeting: string[]; identity: string; dx: string[] };
 }
 
 export interface ChatPatient {
@@ -61,6 +69,11 @@ export interface ChatPatient {
   homeHint: string | null;
   /** The two newest diagnosis blocks differ. */
   dxChanged: boolean;
+  /**
+   * Not reported in this window, kept from the previous import (2026-11-14,
+   * Avi: the census remembers the days before). In the census unless left out.
+   */
+  carried?: boolean;
 }
 
 export interface ChatDigest {
@@ -92,6 +105,7 @@ export interface ChatMessage {
   /** '' when the paste carried no readable stamp. */
   date: ClinicalDate | '';
   time: string;
+  sender: string;
   body: string;
 }
 
@@ -104,6 +118,7 @@ export function splitMessages(text: string): ChatMessage[] {
   return splitChat(text).map((message) => ({
     date: message.sentAt.slice(0, 10) as ClinicalDate | '',
     time: message.sentAt.slice(11, 16),
+    sender: message.sender,
     body: message.text,
   }));
 }
@@ -197,19 +212,27 @@ function homeHintOf(lines: readonly string[]): string | null {
 const EVALUATION_RE =
   /^saat\s+ini\s+evaluasi\b.*?\bpasien\s+(?:termasuk\s+(?:kategori\s+)?|kami\s+(?:di)?ass?es+\w*\s+dengan\s+|dengan\s+)(.+)$/i;
 
-/** The cardiology diagnoses: the first diagnosis block after the identity, read like a ward list's. */
-function diagnosesOf(lines: readonly string[]): string[] {
+/**
+ * The cardiology diagnoses: the first diagnosis block after the identity,
+ * read like a ward list's; `raw` is that block as written (for the preview).
+ */
+function diagnosesOf(lines: readonly string[]): { diagnoses: string[]; raw: string[] } {
   const head = lines.findIndex(isDiagnosisHeading);
   if (head >= 0) {
     const text = ['1. X/ RM 1000000', ...lines.slice(head)].join('\n');
     const found = parseSource(text, new Set(), 'pjt-ward').entries[0]?.diagnoses ?? [];
-    if (found.length > 0) return found;
+    if (found.length > 0) {
+      // The block as written: the heading to the first blank line after some text.
+      let end = head + 1;
+      while (end < lines.length && end - head < 30 && (lines[end]!.trim() || end === head + 1)) end += 1;
+      return { diagnoses: found, raw: lines.slice(head, end).map((line) => line.trimEnd()) };
+    }
   }
   for (const line of lines) {
     const evaluation = EVALUATION_RE.exec(clean(line));
-    if (evaluation) return [`- ${evaluation[1]!.replace(/[.\s]+$/, '')}`];
+    if (evaluation) return { diagnoses: [`- ${evaluation[1]!.replace(/[.\s]+$/, '')}`], raw: [line.trim()] };
   }
-  return [];
+  return { diagnoses: [], raw: [] };
 }
 
 export interface ReadReport {
@@ -232,11 +255,19 @@ export function readReport(message: ChatMessage): ReadReport | null {
   const kind = kindOf(greeting);
   const place = greetingPlace(greeting, kind);
   const rest = lines.slice(at + 1);
+  const dx = diagnosesOf(rest);
+  const greetingLines = lines.slice(0, at).map((line) => line.trim()).filter(Boolean);
   return {
     key: entryKey(lines[at]!),
     identity: clean(lines[at]!),
-    report: { at: `${message.date} ${message.time}`, kind, ...place },
-    diagnoses: diagnosesOf(rest),
+    report: {
+      at: `${message.date} ${message.time}`,
+      kind,
+      ...place,
+      ...(message.sender ? { sender: message.sender } : {}),
+      bubble: { greeting: greetingLines, identity: lines[at]!.trim(), dx: dx.raw },
+    },
+    diagnoses: dx.diagnoses,
     kjs: kjsOfGreeting(greeting),
     homeHint: homeHintOf(rest),
     dpjpIds: detectDpjps(message.body).map((found) => found.id),
@@ -251,7 +282,13 @@ export function readReport(message: ChatMessage): ReadReport | null {
  * The patients reported in the window (the census date and the day before),
  * each once, newest report first in what it says.
  */
-export function digestChat(input: { text: string; file: string; censusDate: ClinicalDate }): ChatDigest {
+export function digestChat(input: {
+  text: string;
+  file: string;
+  censusDate: ClinicalDate;
+  /** The last import before this census date: its patients not reported now are carried. */
+  previous?: ChatDigest | null;
+}): ChatDigest {
   const from = addDays(input.censusDate, -1);
   const all = splitMessages(input.text);
   // A message with no readable stamp cannot be placed in time; it is read, in chat order.
@@ -284,6 +321,20 @@ export function digestChat(input: { text: string; file: string; censusDate: Clin
       dxChanged: !!prevDx && prevDx.join('\n') !== lastDx.join('\n'),
     };
   });
+  /*
+    MEMORY (2026-11-14). The window is two days, so a patient last reported
+    three days ago (a quiet weekend, a missed follow-up) would just vanish.
+    The previous import's patients that this one does not report are kept,
+    marked `carried`, still in the census: dropping one is the resident's
+    call. One left out last time stays left out.
+  */
+  const previous = input.previous && input.previous.to < input.censusDate ? input.previous : null;
+  const carriedSkipped: string[] = [];
+  for (const old of previous?.patients ?? []) {
+    if (byKey.has(old.key)) continue;
+    patients.push({ ...old, carried: true, dxChanged: false });
+    if (previous!.skipped.includes(old.key)) carriedSkipped.push(old.key);
+  }
   patients.sort(
     (a, b) => PLACE_ORDER.indexOf(a.place) - PLACE_ORDER.indexOf(b.place) || a.location.localeCompare(b.location, 'id', { numeric: true }),
   );
@@ -299,8 +350,25 @@ export function digestChat(input: { text: string; file: string; censusDate: Clin
     lastAt: inWindow.length > 0 ? `${inWindow.at(-1)!.date} ${inWindow.at(-1)!.time}` : '',
     older: all.filter((m) => m.date && m.date < from).length,
     patients,
-    skipped: [],
+    skipped: carriedSkipped,
   };
+}
+
+/** The newest import stored for a day before `date`, from the days' lists. */
+export function previousDigest(
+  days: Readonly<Record<string, { lists: ReadonlyArray<{ kind: string; text: string }> }>>,
+  date: string,
+): ChatDigest | null {
+  const earlier = Object.keys(days)
+    .filter((day) => day < date)
+    .sort()
+    .reverse();
+  for (const day of earlier) {
+    const list = days[day]!.lists.find((one) => one.kind === 'grup-wa');
+    const digest = list ? readDigest(list.text) : null;
+    if (digest) return digest;
+  }
+  return null;
 }
 
 /** The stored digest (a box's text), or null when the text is not one. */

@@ -5,6 +5,12 @@ Catatan teknis lengkap (akar masalah, perbaikan) ada di CHANGES.md.
 
 Entri teratas harus versi yang sedang dirilis; tes gagal bila belum ditulis.
 
+## `2026-11-14.9`
+- **Grup WhatsApp jadi mode sendiri di Buat Sensus.** Di atas Buat Sensus ada pilihan **List ruangan** dan **Grup WhatsApp**. Impor .zip kini hanya ada di Grup WhatsApp, dengan DPJP, pesan sensus, Salin dan Simpan sendiri, jadi impor tidak pernah mengubah sensus dari list ruangan.
+- **Ingat hari sebelumnya.** Tanggal yang pernah diimpor tampil sebagai pilihan di atas kartu impor. Pasien dari impor sebelumnya yang tidak dilaporkan lagi tetap dibawa ke sensus dengan tanda **Tanpa laporan baru**; keluarkan bila sudah pulang atau pindah. Pasien yang dikeluarkan kemarin tetap keluar.
+- **Pratinjau chat.** Ketuk pasien untuk melihat pesannya seperti di grup: pengirim, jam, pembuka pesan, baris identitas, dan blok diagnosis. Bagian yang dibaca untuk sensus ditandai, laporan yang dipakai diberi tanda "dipakai".
+- Sensus dari grup masuk Riwayat saat disalin atau disimpan.
+
 ## `2026-11-14.8`
 - **Buat Sensus membaca list IGD RSUH.** List IGD RSUH dikenali dari judulnya dan pasiennya masuk kelompok sendiri, **IGD RSUH**. Sebelumnya list ini terbaca 0 pasien. Bila list RSUH ruangan juga ditempel dan menyebut pasien IGD yang sama, pasien itu tetap ditulis sekali, di IGD RSUH. Tanpa list IGD RSUH, pasien IGD dari list RSUH tetap di RSUH seperti biasa.
 - **Sensus dari grup WhatsApp DPJP.** Untuk sensus pagi sebelum list ruangan datang (mis. dr. KS): di langkah 1 ada kartu **Grup WhatsApp DPJP**. Ekspor chat grup dari WhatsApp (iPhone atau Android, tanpa media), lalu **Impor .zip**. Laporan kemarin dan hari ini dibaca, satu baris per pasien: tempat dan diagnosis diambil dari laporan terbaru, laporan sebelumnya tampil sebagai riwayat saat baris diketuk.
