@@ -1,13 +1,14 @@
+import * as Dialog from '@radix-ui/react-dialog';
 import { useEffect, useMemo, useState } from 'react';
 
 import { Button } from '@/components/common/ui';
-import { IconBell, IconCheck, IconChevronRight, IconClose } from '@/components/common/Icons';
+import { IconBell, IconCheck, IconClose } from '@/components/common/Icons';
 import { writeRosterBatch, writeRosterFields, type RosterChange } from '@/data/repositories/floors.repo';
 import type { FloorDoc, RosterPatient } from '@/domain/floorList/floor';
 import type { FloorPatient } from '@/domain/floorList/report';
 import { buildTray, groupTray, type TrayAction, type TrayRow } from '@/domain/floorList/suggestionTray';
+import { useBackToClose } from '@/lib/useBackToClose';
 
-const KEY = 'plano.listmaker.tray';
 /** Patient chips shown per line before "+n": a full ward would push the list off the phone. */
 const LIMIT = 6;
 
@@ -15,28 +16,19 @@ type Fields = Parameters<typeof writeRosterFields>[2];
 type ChiefFields = Extract<RosterChange, { kind: 'fields' }>['fields'];
 
 /**
- * Folded unless left open on this device (12 Nov 2026): open by default, twelve
- * proposals filled a phone screen above the first patient. Folded, the line
- * still names every proposal and its count.
- */
-function readOpen(): boolean {
-  try {
-    return localStorage.getItem(KEY) === '1';
-  } catch {
-    return false;
-  }
-}
-
-/**
- * Everything the Plan or the clock proposes, in one place at the top of the
- * List Maker (28 Oct 2026, replacing the two amber strips, Avi: "design and
- * revamp the notification"). A proposal never applies itself: each waits for
- * a tap, and Abaikan is always there.
+ * Everything the Plan or the clock proposes, in one place in the List Maker
+ * (28 Oct 2026, replacing the two amber strips). A proposal never applies
+ * itself: each waits for a tap, and Abaikan is always there.
  *
- * One line per proposal, not per patient (11 Nov 2026, Avi: the patient rows
- * took too much height): "Plan menyebut H-1", "Ganti chief → dr. Didi", each
- * with its patients as chips (name opens, ✓ answers one, × dismisses one) and
- * the answers for the whole line at its end.
+ * One line per proposal, not per patient (11 Nov 2026): "Plan menyebut H-1",
+ * "Ganti chief → dr. Didi", each with its patients as chips (name opens,
+ * ✓ answers one, × dismisses one) and the answers for the whole line.
+ *
+ * A floating bell with the open count since 14 Nov 2026 (Avi: the box above the
+ * Denah was poor UI): nothing above the first patient, the list opens on a tap
+ * as a panel beside the button (a bottom sheet on a phone). Non-modal: Esc, a tap
+ * outside or × closes it, and focus goes back to the bell. Hidden with nothing
+ * to answer. The caller places it (the List Maker's floating stack).
  */
 export function SuggestionTray({
   floor,
@@ -60,7 +52,8 @@ export function SuggestionTray({
     return () => window.clearInterval(timer);
   }, []);
 
-  const [open, setOpen] = useState(readOpen);
+  const [open, setOpen] = useState(false);
+  useBackToClose(open, () => setOpen(false));
   // Lines showing all their patients, not the first LIMIT.
   const [wide, setWide] = useState<readonly string[]>([]);
   // What the last tap did, read out (the chip itself leaves with the snapshot).
@@ -68,15 +61,6 @@ export function SuggestionTray({
 
   const { rows } = useMemo(() => buildTray(roster, floor, date, now), [roster, floor, date, now]);
   const groups = useMemo(() => groupTray(rows), [rows]);
-
-  const toggle = (next: boolean): void => {
-    setOpen(next);
-    try {
-      localStorage.setItem(KEY, next ? '1' : '0');
-    } catch {
-      // A private window: the choice just is not remembered.
-    }
-  };
 
   const stamp = (what: string) => ({ at: new Date().toISOString(), by: myName, what });
   const run = (row: TrayRow, action: TrayAction): void => {
@@ -92,81 +76,125 @@ export function SuggestionTray({
     void writeRosterBatch(floor.id, changes);
     setSaid(`${list.length} pasien: ${list[0] ? pick(list[0]).done : ''}`);
   };
+  // Opening a patient hands the screen to its SOAP box.
+  const openPatient = (patient: FloorPatient): void => {
+    setOpen(false);
+    onOpen(patient);
+  };
 
-  if (rows.length === 0) return null;
+  // Kept while open, so answering the last proposal does not pull the panel (and focus) away.
+  if (rows.length === 0 && !open) return null;
   const count = (kind: TrayRow['kind']): number => rows.filter((row) => row.kind === kind).length;
   const [discharge, chief, noChief] = [count('discharge'), count('chief'), count('nochief')];
-  const summary = open
-    ? [discharge > 0 ? `${discharge} soal pulang` : '', chief > 0 ? `${chief} ganti chief` : '', noChief > 0 ? `${noChief} belum ada chief` : '']
-        .filter(Boolean)
-        .join(' · ')
-    : groups.map((group) => `${group.rows.length} ${group.title}`).join(' · ');
+  const summary = [discharge > 0 ? `${discharge} soal pulang` : '', chief > 0 ? `${chief} ganti chief` : '', noChief > 0 ? `${noChief} belum ada chief` : '']
+    .filter(Boolean)
+    .join(' · ');
 
   return (
-    <section aria-label="Saran" className="overflow-hidden rounded-xl border border-border bg-surface shadow-card">
-      <button type="button" aria-expanded={open} onClick={() => toggle(!open)} className="flex min-h-tap w-full items-center gap-2 px-3 text-left">
-        <IconBell width={16} height={16} className="shrink-0 text-fg-muted" />
-        <span className="text-sm font-semibold max-sm:sr-only">Saran</span>
-        <span className="inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-[var(--warn-soft)] px-1.5 text-[11px] font-semibold tabular-nums">
-          {rows.length}
-        </span>
-        <span className="min-w-0 flex-1 truncate text-xs text-fg-muted">{summary}</span>
-        <span className="shrink-0 text-xs font-semibold text-accent">{open ? 'Tutup' : 'Tinjau'}</span>
-        <IconChevronRight width={16} height={16} className={`shrink-0 text-accent transition-transform duration-200 motion-reduce:transition-none ${open ? '-rotate-90' : ''}`} />
-      </button>
+    <Dialog.Root open={open} onOpenChange={setOpen} modal={false}>
+      <Dialog.Trigger
+        aria-label={`Saran, ${rows.length} menunggu`}
+        title="Saran"
+        className={`relative flex h-12 w-12 items-center justify-center rounded-full border shadow-pop transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent ${
+          open ? 'border-accent bg-[var(--accent-soft)] text-accent' : 'border-border-strong bg-surface text-fg hover:border-accent hover:text-accent'
+        }`}
+      >
+        <IconBell width={22} height={22} />
+        {rows.length > 0 ? (
+          <span
+            aria-hidden="true"
+            className="absolute -right-1 -top-1 inline-flex h-5 min-w-5 items-center justify-center rounded-full border border-surface bg-[var(--warn-soft)] px-1 text-[11px] font-semibold tabular-nums text-fg"
+          >
+            {rows.length}
+          </span>
+        ) : null}
+      </Dialog.Trigger>
       <p aria-live="polite" className="sr-only">
         {said}
       </p>
-
-      {open ? (
-        <ul className="divide-y divide-border border-t border-border">
-          {groups.map((group) => {
-            const all = wide.includes(group.id);
-            const shown = all ? group.rows : group.rows.slice(0, LIMIT);
-            const more = group.rows.length - shown.length;
-            const first = group.rows[0]!;
-            const many = group.rows.length > 1;
-            return (
-              <li key={group.id} className="flex flex-wrap items-center gap-x-2 gap-y-1.5 px-3 py-2">
-                <span className="text-xs font-semibold">
-                  <span className={`rounded px-1 py-px ${group.kind !== 'chief' ? 'bg-[var(--warn-soft)]' : 'bg-bg-subtle'}`}>{group.title}</span>
-                  <span className="ml-1 tabular-nums text-fg-muted">{group.rows.length}</span>
-                </span>
-                {shown.map((row) => (
-                  <Chip
-                    key={row.id}
-                    row={row}
-                    answer={first.actions.length === 1 ? row.actions[0] : undefined}
-                    shown={active.find((p) => p.key === row.key)}
-                    onOpen={onOpen}
-                    onRun={run}
-                  />
-                ))}
-                {more > 0 || all ? (
-                  <button
-                    type="button"
-                    onClick={() => setWide((w) => (all ? w.filter((id) => id !== group.id) : [...w, group.id]))}
-                    className="min-h-8 rounded-full px-2 text-xs font-semibold text-fg-muted hover:text-fg"
-                  >
-                    {all ? 'Ringkas' : `+${more} lagi`}
-                  </button>
-                ) : null}
-                <span className="ml-auto flex flex-wrap items-center gap-1">
-                  <Button size="sm" variant="quiet" onClick={() => runAll(group.rows, (row) => row.dismiss)}>
-                    {many ? 'Abaikan semua' : 'Abaikan'}
-                  </Button>
-                  {first.actions.map((action, i) => (
-                    <Button key={action.label} size="sm" onClick={() => runAll(group.rows, (row) => row.actions[i] ?? row.dismiss)}>
-                      {many ? `${action.label} semua` : action.label}
-                    </Button>
-                  ))}
-                </span>
-              </li>
-            );
-          })}
-        </ul>
-      ) : null}
-    </section>
+      <Dialog.Portal>
+        <Dialog.Content
+          onOpenAutoFocus={(event) => {
+            // Focus the panel, not its first button: no ring on a control nobody moved to (see Sheet).
+            event.preventDefault();
+            (event.currentTarget as HTMLElement | null)?.focus({ preventScroll: true });
+          }}
+          className={[
+            'fixed z-50 flex flex-col border border-border bg-surface shadow-sheet outline-none',
+            // Phone: a bottom sheet over the tab bar.
+            'inset-x-0 bottom-0 max-h-[75dvh] rounded-t-2xl pb-[env(safe-area-inset-bottom)]',
+            // From 640 px: beside the floating stack, its bottom level with the stack's (see ListMakerPage).
+            'sm:inset-x-auto sm:bottom-[4.25rem] sm:left-[160px] sm:max-h-[min(70dvh,36rem)] sm:w-[26rem] sm:rounded-2xl sm:pb-0 lg:bottom-4 lg:left-[316px]',
+          ].join(' ')}
+        >
+          <div aria-hidden="true" className="mx-auto mt-2 h-1 w-10 rounded-full bg-border sm:hidden" />
+          <header className="flex items-start gap-2 px-4 pb-2 pt-2 sm:pt-3">
+            <div className="min-w-0 flex-1">
+              <Dialog.Title className="text-[15px] font-semibold leading-tight">
+                Saran <span className="tabular-nums text-fg-muted">{rows.length}</span>
+              </Dialog.Title>
+              <Dialog.Description className="mt-0.5 text-xs text-fg-muted">{summary || 'Semua saran sudah dijawab.'}</Dialog.Description>
+            </div>
+            <Dialog.Close
+              aria-label="Tutup Saran"
+              className="-mr-2 flex min-h-tap min-w-tap items-center justify-center rounded-full text-fg-muted hover:bg-bg-subtle hover:text-fg focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent"
+            >
+              <IconClose width={18} height={18} />
+            </Dialog.Close>
+          </header>
+          {groups.length > 0 ? (
+            <ul className="min-h-0 flex-1 divide-y divide-border overflow-y-auto overscroll-contain border-t border-border">
+              {groups.map((group) => {
+                const all = wide.includes(group.id);
+                const shown = all ? group.rows : group.rows.slice(0, LIMIT);
+                const more = group.rows.length - shown.length;
+                const first = group.rows[0]!;
+                const many = group.rows.length > 1;
+                return (
+                  <li key={group.id} className="space-y-2 px-4 py-3">
+                    <div className="flex flex-wrap items-center gap-x-2 gap-y-1.5">
+                      <span className="mr-auto text-xs font-semibold">
+                        <span className={`rounded px-1.5 py-0.5 ${group.kind !== 'chief' ? 'bg-[var(--warn-soft)]' : 'bg-bg-subtle'}`}>{group.title}</span>
+                        <span className="ml-1.5 tabular-nums text-fg-muted">{group.rows.length}</span>
+                      </span>
+                      <Button size="sm" variant="quiet" onClick={() => runAll(group.rows, (row) => row.dismiss)}>
+                        {many ? 'Abaikan semua' : 'Abaikan'}
+                      </Button>
+                      {first.actions.map((action, i) => (
+                        <Button key={action.label} size="sm" onClick={() => runAll(group.rows, (row) => row.actions[i] ?? row.dismiss)}>
+                          {many ? `${action.label} semua` : action.label}
+                        </Button>
+                      ))}
+                    </div>
+                    <div className="flex flex-wrap items-center gap-1.5">
+                      {shown.map((row) => (
+                        <Chip
+                          key={row.id}
+                          row={row}
+                          answer={first.actions.length === 1 ? row.actions[0] : undefined}
+                          shown={active.find((p) => p.key === row.key)}
+                          onOpen={openPatient}
+                          onRun={run}
+                        />
+                      ))}
+                      {more > 0 || all ? (
+                        <button
+                          type="button"
+                          onClick={() => setWide((w) => (all ? w.filter((id) => id !== group.id) : [...w, group.id]))}
+                          className="min-h-8 rounded-full px-2 text-xs font-semibold text-fg-muted hover:text-fg"
+                        >
+                          {all ? 'Ringkas' : `+${more} lagi`}
+                        </button>
+                      ) : null}
+                    </div>
+                  </li>
+                );
+              })}
+            </ul>
+          ) : null}
+        </Dialog.Content>
+      </Dialog.Portal>
+    </Dialog.Root>
   );
 }
 

@@ -373,7 +373,7 @@ service cloud.firestore {
      * List Maker floors (12.8): a floor list shared by its members
      * (src/domain/floorList/floor.ts, src/data/repositories/floors.repo.ts).
      *
-     * - read: members, and anyone whose email is invited (to see the invite);
+     * - read: members, and anyone whose email or uid is invited (to see the invite);
      * - the OWNER manages everything on the floor document (name, roles,
      *   invites, members) but cannot hand the floor to someone else;
      * - an EDIT member may change only the nicknames, the chiefs, the Chief
@@ -402,19 +402,25 @@ service cloud.firestore {
       function changed() {
         return request.resource.data.diff(resource.data).affectedKeys();
       }
+      // An invite is keyed by the invitee's lowercase email or (14 Nov 2026,
+      // invite by username) by their uid; a uid never holds '@', so the two
+      // cannot collide. Either way only the account it names can accept it.
       function acceptsInvite() {
-        return myEmail() in resource.data.inviteEmails
+        return acceptsInviteAs(request.auth.uid) || acceptsInviteAs(myEmail());
+      }
+      function acceptsInviteAs(key) {
+        return key in resource.data.inviteEmails
           && !(request.auth.uid in resource.data.memberIds)
           && changed().hasOnly(['memberIds', 'roles', 'names', 'invites', 'inviteEmails', 'updatedAt'])
           && request.resource.data.memberIds.hasAll(resource.data.memberIds)
           && request.resource.data.memberIds.size() == resource.data.memberIds.size() + 1
           && request.auth.uid in request.resource.data.memberIds
           && request.resource.data.roles.diff(resource.data.roles).affectedKeys().hasOnly([request.auth.uid])
-          && request.resource.data.roles[request.auth.uid] == resource.data.invites[myEmail()]
+          && request.resource.data.roles[request.auth.uid] == resource.data.invites[key]
           && request.resource.data.names.diff(resource.data.names).affectedKeys().hasOnly([request.auth.uid])
-          && request.resource.data.invites.diff(resource.data.invites).affectedKeys().hasOnly([myEmail()])
-          && !(myEmail() in request.resource.data.invites)
-          && !(myEmail() in request.resource.data.inviteEmails);
+          && request.resource.data.invites.diff(resource.data.invites).affectedKeys().hasOnly([key])
+          && !(key in request.resource.data.invites)
+          && !(key in request.resource.data.inviteEmails);
       }
       function leaves() {
         return request.auth.uid in resource.data.memberIds
@@ -449,7 +455,9 @@ service cloud.firestore {
       // subcollections below, where the roster and the sent lists hold patients.
       allow read: if isAdmin()
         || (seesLists()
-            && (request.auth.uid in resource.data.memberIds || myEmail() in resource.data.inviteEmails));
+            && (request.auth.uid in resource.data.memberIds
+                || request.auth.uid in resource.data.inviteEmails
+                || myEmail() in resource.data.inviteEmails));
       allow create: if allowed()
         && request.resource.data.ownerUid == request.auth.uid
         && request.resource.data.memberIds == [request.auth.uid]

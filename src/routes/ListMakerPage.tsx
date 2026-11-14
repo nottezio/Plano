@@ -2,7 +2,7 @@ import { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState } fro
 import { useSearchParams } from 'react-router-dom';
 
 import { AppShell } from '@/components/common/AppShell';
-import { IconClose, IconSearch } from '@/components/common/Icons';
+import { IconClose, IconPlus, IconSearch } from '@/components/common/Icons';
 import { Sheet } from '@/components/common/Sheet';
 import { useMiniWindow } from '@/store/useMiniWindow';
 
@@ -17,6 +17,7 @@ import { defaultListTime, ListActions } from '@/components/floor/ListActions';
 import { MembersPanel } from '@/components/floor/MembersPanel';
 import { ManualPatientSheet } from '@/components/floor/ManualPatientSheet';
 import { PastePanel } from '@/components/floor/PastePanel';
+import { PasteFloat } from '@/components/floor/PasteFloat';
 import { RosterDatalists } from '@/components/floor/PatientControls';
 import { SoapFloat } from '@/components/floor/SoapFloat';
 import { acceptInvite, createFloor, readLegacy, rosterHasAny, writeChiefBangsal, writeChiefs, writeRosterBatch } from '@/data/repositories/floors.repo';
@@ -34,6 +35,7 @@ import { ListMakerHeader, ListMakerTabs } from '@/components/floor/ListMakerHead
 import { EditionsPanel } from '@/components/floor/EditionsPanel';
 import { SuggestionTray } from '@/components/floor/SuggestionTray';
 import { latestOf, type FloorPatient } from '@/domain/floorList/report';
+import { myInviteKey } from '@/domain/floorList/membersView';
 import { useClinicalToday } from '@/hooks/useClinicalToday';
 import { useMediaQuery } from '@/hooks/useMediaQuery';
 
@@ -186,6 +188,8 @@ export default function ListMakerPage(): JSX.Element {
   const searchFolds = onDenah && !wide;
   const [searchOpen, setSearchOpen] = useState(false);
   const searchShown = searchOpen || search !== '';
+  // Tempel from the Denah's + (14 Nov 2026): the List tab's floating box, opened over the Denah.
+  const [pasteOpen, setPasteOpen] = useState(false);
   /*
     Shift sebelumnya (9 Nov 2026, Avi): the Denah as the previous shift's list left it, to compare
     with now. Reachable from anywhere on the page (11 Nov): in the pinned bar from 640 px, in the
@@ -296,12 +300,12 @@ export default function ListMakerPage(): JSX.Element {
 
   return (
     <AppShell title="List Maker" titleBadge={WIP}>
-      <div className="mx-auto max-w-7xl space-y-4 px-4 pb-24 pt-0 sm:pb-10 lg:pt-4">
+      <div className="mx-auto max-w-7xl space-y-4 px-4 pb-40 pt-0 sm:pb-24 lg:pt-4">
         {invites.map((invited) => (
           <Callout key={invited.id} title={`Undangan: ${listTitle(invited)}`}>
             <div className="flex flex-wrap items-center gap-2">
               <span className="flex-1">
-                Anda diundang ({invited.invites[(user?.email ?? '').toLowerCase()] === 'edit' ? 'lihat dan edit' : 'lihat saja'}).
+                Anda diundang ({invited.invites[myInviteKey(invited, uid ?? '', user?.email)] === 'edit' ? 'lihat dan edit' : 'lihat saja'}).
               </span>
               <Button
                 size="sm"
@@ -488,8 +492,31 @@ export default function ListMakerPage(): JSX.Element {
               </Callout>
             ) : null}
 
+            {/*
+              The floating stack (14 Nov 2026, Avi): Saran's bell over Tempel's +. A phone keeps it
+              bottom-right above the tab bar; from 640 px it sits bottom-left past the nav, clear of the
+              SOAP and Tempel boxes, which open on the right. From 640 to 1024 px it rises over the
+              clipboard pill's row. Under the boxes (z-30), so an open box covers it rather than collides.
+            */}
             {(tab === 'denah' || tab === 'list') && editable ? (
-              <SuggestionTray floor={floor} roster={roster} active={view.active} date={date} myName={myName} onOpen={setOpen} />
+              <div className="fixed bottom-[calc(env(safe-area-inset-bottom)+76px)] right-4 z-30 flex flex-col items-end gap-3 sm:bottom-[4.25rem] sm:left-[92px] sm:right-auto sm:items-start lg:bottom-4 lg:left-[248px]">
+                <SuggestionTray floor={floor} roster={roster} active={view.active} date={date} myName={myName} onOpen={setOpen} />
+                {onDenah ? (
+                  <button
+                    type="button"
+                    onClick={() => setPasteOpen((v) => !v)}
+                    aria-expanded={pasteOpen}
+                    aria-label="Tempel laporan"
+                    title="Tempel laporan"
+                    className="flex h-14 w-14 items-center justify-center rounded-full bg-accent text-on-accent shadow-pop transition-transform hover:brightness-110 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent active:scale-95 motion-reduce:transition-none"
+                  >
+                    <IconPlus width={26} height={26} strokeWidth={2.25} />
+                  </button>
+                ) : null}
+              </div>
+            ) : null}
+            {pasteOpen && onDenah && editable ? (
+              <PasteFloat floor={floor} roster={roster} myName={myName} onClose={() => setPasteOpen(false)} />
             ) : null}
             {tab === 'denah' ? (
               (() => {
@@ -554,7 +581,6 @@ export default function ListMakerPage(): JSX.Element {
                 editable={editable}
                 onOpen={setOpen}
                 myName={myName}
-                editions={editions}
                 time={listTime}
                 words={words}
               />

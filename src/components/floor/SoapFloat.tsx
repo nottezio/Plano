@@ -9,6 +9,7 @@ import { useBackToClose } from '@/lib/useBackToClose';
 import { useMediaQuery } from '@/hooks/useMediaQuery';
 import { clampGeometry, currentViewport, dragGeometry, readStoredGeometry, type Geometry } from '@/lib/floatGeometry';
 import { localStamp, type FloorDoc, type RosterPatient } from '@/domain/floorList/floor';
+import { daysOnList, episodeStart } from '@/domain/floorList/analysis';
 import { DeletePatient } from './DeletePatient';
 import { DischargeChip, FLAG_TEXT } from './DischargeChip';
 import { PatientControls } from './PatientControls';
@@ -211,6 +212,10 @@ export function SoapFloat({
 
   const dpjp = patient.dpjpId ? dpjpById(patient.dpjpId) : undefined;
   const sent = patient.sentAt ? `${formatDmy(patient.sentAt.slice(0, 10))} ${patient.sentAt.slice(11, 16)}` : '';
+  // This stay on the list (a readmission starts a new one): "Masuk list 06/11/2026 · hari ke-9".
+  const start = control ? episodeStart(control.entry) : '';
+  const stayDays = control && start ? daysOnList(control.entry, control.date) : null;
+  const stay = start && stayDays !== null && stayDays >= 0 ? `Masuk list ${formatDmy(localStamp(new Date(start)).slice(0, 10))} · hari ke-${stayDays + 1}` : '';
   const layer = 40 + (stack?.layer ?? 0);
   const style =
     floating && geometry ? { left: geometry.x, top: geometry.y, width: geometry.w, height: geometry.h, zIndex: layer } : { zIndex: layer };
@@ -245,7 +250,7 @@ export function SoapFloat({
             </span>
             <DischargeChip patient={patient} long />
           </p>
-          <p className="mt-0.5 text-xs text-fg-muted">{[dpjp?.initials, patient.rm ? `RM ${patient.rm}` : ''].filter(Boolean).join(' · ')}</p>
+          <p className="mt-0.5 text-xs text-fg-muted">{[dpjp?.initials, patient.rm ? `RM ${patient.rm}` : '', stay].filter(Boolean).join(' · ')}</p>
           {/* Who holds the patient, large enough to find at a glance during the visit. */}
           <p className="mt-1.5 flex flex-wrap gap-1.5 text-sm">
             {patient.junior || patient.chief ? (
@@ -265,6 +270,13 @@ export function SoapFloat({
             ) : (
               <span className="text-xs text-fg-muted">Belum ada residen</span>
             )}
+            {/* Residen penerima: a note of who received the patient, not who holds them (lighter chip). */}
+            {patient.penerima ? (
+              <span className="rounded-lg border border-dashed border-border px-2 py-0.5">
+                <span className="text-xs text-fg-muted">Penerima </span>
+                <span className="font-medium">dr. {patient.penerima.replace(/^dr\.?\s*/i, '')}</span>
+              </span>
+            ) : null}
           </p>
           {sent ? (
             <p className="mt-0.5 text-xs text-fg-faint">

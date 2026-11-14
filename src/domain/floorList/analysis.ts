@@ -178,10 +178,24 @@ export function weekCounts(date: string, moves: readonly Movement[], editions: r
   });
 }
 
-/** Days on the list, from when the patient was added (not the hospital admission). */
+/**
+ * When the current stay on the list began (ISO; '' = unknown). A readmission keeps `addedAt`
+ * (the first time ever, 8 Nov 2026) and logs "Masuk lagi …", so the latest of those starts the
+ * stay. "Dikembalikan ke list" is not one: it undoes a mistaken Pulang/Pindah, same stay.
+ */
+export function episodeStart(patient: Pick<RosterPatient, 'addedAt' | 'log'>): string {
+  let start = patient.addedAt;
+  for (const entry of patient.log) {
+    if (/^Masuk lagi/i.test(entry.what) && local(entry.at) && (!start || Date.parse(entry.at) > Date.parse(start))) start = entry.at;
+  }
+  return start;
+}
+
+/** Days on the list in the current stay (not the hospital admission): 0 on the day it began. */
 export function daysOnList(patient: RosterPatient, date: string): number | null {
-  if (!patient.addedAt) return null;
-  const from = local(patient.addedAt).slice(0, 10);
+  const start = episodeStart(patient);
+  if (!start) return null;
+  const from = local(start).slice(0, 10);
   if (!from) return null;
   return Math.round((Date.parse(`${date}T00:00:00Z`) - Date.parse(`${from}T00:00:00Z`)) / 86_400_000);
 }

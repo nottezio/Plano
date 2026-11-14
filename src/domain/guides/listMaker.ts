@@ -58,7 +58,7 @@ const STATUS: GuideStep = {
   title: '3. Atur status dan chief',
   lead: 'Buka pasien untuk mengatur status: H-1, pulang hari ini, pulang, atau pindah.',
   points: [
-    'Kotak **Saran** di atas Denah/List mengumpulkan usulan: Plan yang menyebut H-1/pulang, dan pasien yang perlu ganti chief.',
+    'Tombol **Saran** (lonceng di pojok bawah, dengan jumlahnya) di Denah dan List membuka usulan: Plan yang menyebut H-1/pulang, dan pasien yang perlu ganti chief. Di Denah, tombol **+** di bawahnya membuka kotak Tempel.',
     'Saran tidak pernah berjalan sendiri: ketuk **Terima** (atau **Tandai**) untuk memakai, **Abaikan** untuk menolak.',
     'Isi **Chief Bangsal** di bagian atas. Saran ganti chief sudah muncul sejak 16.00 hari sebelumnya (untuk Senin dan setelah tanggal merah: sejak 07.00 hari sebelumnya), jadi terima dulu sebelum list dicetak. Tanggal merah ditandai di Setelan.',
   ],

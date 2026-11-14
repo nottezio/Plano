@@ -3,14 +3,11 @@ import { useMemo, useState } from 'react';
 import { Button } from '@/components/common/ui';
 import { writeRosterFields } from '@/data/repositories/floors.repo';
 import { formatDmy } from '@/domain/dateDmy';
-import { buildFloorList, byRoute, dpjpCodeOf, patientLine } from '@/domain/floorList/build';
+import { buildFloorList, byRoute, dpjpCodeOf } from '@/domain/floorList/build';
 import {
   chiefsOf,
-  leftNote,
   holderLabel,
-  leftSince,
   localOf,
-  type Edition,
   type FloorDoc,
   type RosterPatient,
   type RosterView,
@@ -19,7 +16,6 @@ import {
 import { markCss } from '@/domain/floorList/marks';
 import type { FloorPatient } from '@/domain/floorList/report';
 import { matchesSearch } from '@/domain/floorList/search';
-import { copyText } from '@/lib/clipboard';
 import { IconMore } from '@/components/common/Icons';
 import { NewDot, SoapBadge } from './SoapBadge';
 import { PatientControls } from './PatientControls';
@@ -38,7 +34,7 @@ const COLUMNS = 'lg:grid-cols-[4.5rem_minmax(0,2.2fr)_3.5rem_6.5rem_3.5rem_minma
  * List (12.12): the roster on this list date, with every decision by hand —
  * residents, colour (or a planned discharge date), Pulang / Pindah — each
  * logged and undoable; SOAP suggestions as chips; the message preview and
- * the separate Pulang/Pindah note. Salin teks, Cetak and Simpan edisi sit
+ * the Pulang/Pindah note is in Analisis (14 Nov 2026). Salin teks, Cetak and Simpan edisi sit
  * with the tabs on every tab (`ListActions`, 10 Nov 2026).
  */
 export function ListPanel({
@@ -49,7 +45,6 @@ export function ListPanel({
   editable,
   onOpen,
   myName,
-  editions,
   time,
   words = [],
 }: {
@@ -60,13 +55,11 @@ export function ListPanel({
   editable: boolean;
   onOpen: (patient: FloorPatient) => void;
   myName: string;
-  editions: readonly Edition[];
   /** The Jam list, set in Simpan edisi; heads the message preview. */
   time: string;
   /** The page's search (13.7): only matching cards are shown. */
   words?: readonly string[];
 }): JSX.Element {
-  const [copied, setCopied] = useState('');
   const [manualOpen, setManualOpen] = useState(false);
   /*
     The WhatsApp preview opens beside the list on a desk (12 Nov 2026). It was a folded box in a
@@ -86,22 +79,16 @@ export function ListPanel({
   const found = words.length > 0 ? all.filter((p) => matchesSearch(p, words)) : all;
   const sorted = gapsFirst ? [...found.filter(lacks), ...found.filter((p) => !lacks(p))] : found;
   const gaps = all.filter(lacks).length;
-  const lastEdition = editions[0];
-  const gone = leftSince(roster, lastEdition?.createdAt ?? '');
-  const note = leftNote(gone, patientLine);
-
   const stamp = (what: string): StatusChange => ({ at: new Date().toISOString(), by: myName, what });
   const set = (key: string, fields: Parameters<typeof writeRosterFields>[2], what?: string): void => {
     void writeRosterFields(floor.id, key, fields, what ? stamp(what) : undefined);
-  };
-  const copy = (value: string, label: string): void => {
-    void copyText(value).then((ok) => setCopied(ok ? label : ''));
   };
 
   /** The one patient whose controls are open (13.15). */
   const [openKey, setOpenKey] = useState<string | null>(null);
   const fresh = all.filter((p) => p.newBadge);
-  const side = previewOpen || gone.length > 0;
+  // The pulang/pindah note left this tab (14 Nov 2026, Avi): the Analisis tab shows the same.
+  const side = previewOpen;
 
   return (
     <div className={side ? 'grid gap-4 lg:grid-cols-[minmax(0,1fr)_24rem]' : ''}>
@@ -260,20 +247,6 @@ export function ListPanel({
       {/* Pinned under the sub-tab bar (`sticky top-0`; its measured height is `--lm-tabs-h`), not behind it; a tall panel scrolls inside itself so its bottom is reachable. */}
       {side ? (
       <div className="min-w-0 space-y-3 lg:sticky lg:top-[calc(var(--lm-tabs-h,4.5rem)+0.5rem)] lg:max-h-[calc(var(--app-h,100dvh)-var(--lm-tabs-h,4.5rem)-1rem)] lg:self-start lg:overflow-y-auto lg:overscroll-contain">
-        {gone.length > 0 ? (
-          <div className="space-y-1 rounded-xl border border-border bg-surface p-3 text-xs">
-            <div className="flex items-center gap-2">
-              <p className="flex-1 font-semibold">
-                Catatan pulang / pindah{lastEdition ? ` sejak edisi ${formatDmy(lastEdition.date)} ${lastEdition.time}` : ''}
-              </p>
-              <Button size="sm" onClick={() => copy(note, 'note')}>
-                {copied === 'note' ? 'Tersalin' : 'Salin'}
-              </Button>
-            </div>
-            <pre className="whitespace-pre-wrap break-words font-sans">{note}</pre>
-          </div>
-        ) : null}
-
         {previewOpen ? (
           <section aria-label="Pratinjau pesan WhatsApp" className="rounded-xl border border-border bg-surface">
             <h3 className="px-3 py-2 text-xs font-semibold">Pratinjau pesan WhatsApp</h3>

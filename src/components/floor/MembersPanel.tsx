@@ -22,7 +22,16 @@ import {
   writeFloorName,
 } from '@/data/repositories/floors.repo';
 import { canEdit, chiefsOf, isOwner, listTitle, type FloorDoc, type FloorRole } from '@/domain/floorList/floor';
-import { collapseNicknames, confirmQuestion, memberRole, saveErrorMessage, transferQuestion } from '@/domain/floorList/membersView';
+import { lookupUsername } from '@/data/repositories/usernames.repo';
+import {
+  collapseNicknames,
+  confirmQuestion,
+  isUidInvite,
+  memberRole,
+  parseInviteInput,
+  saveErrorMessage,
+  transferQuestion,
+} from '@/domain/floorList/membersView';
 import { AnalysisChecksField } from './AnalysisChecksField';
 import { ChiefsField } from './ChiefsField';
 import { HolidaysField } from './HolidaysField';
@@ -32,7 +41,6 @@ import { PelimpahanField } from './PelimpahanField';
 import type { FloorPatient } from '@/domain/floorList/report';
 
 const ROLE_LABEL: Record<FloorRole, string> = { edit: 'Lihat dan edit', view: 'Lihat saja' };
-const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 /** A titled card: the group a block belongs to, so the tab reads as four things, not five. */
 function Group({ title, tone = 'normal', children }: { title: string; tone?: 'normal' | 'danger'; children: ReactNode }): JSX.Element {
@@ -51,7 +59,8 @@ function Group({ title, tone = 'normal', children }: { title: string; tone?: 'no
  * Setelan (12.8, tidied 26 Oct 2026): who sees this floor's list and SOAPs, who
  * may change it, and the list's own roster, colours and nicknames.
  *
- * Members are added by the EMAIL of their Plano (Google) account; they see the
+ * Members are added by the EMAIL of their Plano (Google) account, or by
+ * username (14 Nov 2026; the invite is then keyed by their uid); they see the
  * invite on their List Maker page and accept it. Only the owner invites,
  * changes roles and removes. Everyone can leave.
  *
@@ -73,6 +82,7 @@ export function MembersPanel({
   const [email, setEmail] = useState('');
   const [role, setRole] = useState<FloorRole>('view');
   const [error, setError] = useState('');
+  const [looking, setLooking] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState('');
@@ -114,14 +124,34 @@ export function MembersPanel({
   const senders = [...new Set(patients.map((p) => p.sender).filter(Boolean))].sort();
 
   const invite = async (): Promise<void> => {
-    const key = email.trim().toLowerCase();
-    if (!EMAIL.test(key)) {
-      setError('Tulis email akun Google yang dipakai untuk masuk Plano.');
+    if (looking) return;
+    const parsed = parseInviteInput(email);
+    if ('error' in parsed) {
+      setError(parsed.error);
       return;
     }
     setError('');
     try {
-      await inviteMember(floor.id, key, role);
+      if ('email' in parsed) {
+        await inviteMember(floor.id, parsed.email, role);
+      } else {
+        setLooking(true);
+        // One read by exact handle, from the server: offline throws instead of "not found".
+        const found = await lookupUsername(parsed.handle).catch(() => undefined).finally(() => setLooking(false));
+        if (found === undefined) {
+          setError('Username tidak bisa dicek. Perlu koneksi internet.');
+          return;
+        }
+        if (!found) {
+          setError(`Username @${parsed.handle} tidak ditemukan.`);
+          return;
+        }
+        if (floor.memberIds.includes(found.uid)) {
+          setError(found.uid === uid ? 'Itu username Anda sendiri.' : `@${parsed.handle} sudah menjadi anggota list ini.`);
+          return;
+        }
+        await inviteMember(floor.id, found.uid, role, found.name ? `${found.name} (@${parsed.handle})` : `@${parsed.handle}`);
+      }
       setEmail('');
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Gagal mengundang.');
@@ -204,6 +234,7 @@ export function MembersPanel({
                           label="Jadikan pemilik"
                           ariaLabel={`Jadikan ${name} pemilik list`}
                           question={transferQuestion(name)}
+                          tone="neutral"
                           confirmLabel="Ya, pindahkan"
                           busyLabel="Memindahkan…"
                           onConfirm={() => transferOwnership(floor.id, member)}
@@ -229,14 +260,24 @@ export function MembersPanel({
           </Section>
 
           {owner ? (
-            <Section title="Undang anggota" hint="Anggota menerima undangan di List Maker miliknya dan bisa melihat SOAP lengkap pasien lantai ini.">
+            <Section
+              title="Undang anggota"
+              hint="Tulis email Google atau username (@nama) rekan. Anggota menerima undangan di List Maker miliknya dan bisa melihat SOAP lengkap pasien lantai ini."
+            >
               <div className="flex flex-wrap gap-2">
                 <input
-                  type="email"
+                  type="text"
+                  inputMode="email"
+                  autoCapitalize="none"
+                  autoCorrect="off"
+                  spellCheck={false}
                   value={email}
                   onChange={(event) => setEmail(event.target.value)}
-                  placeholder="email@gmail.com"
-                  aria-label="Email anggota"
+                  onKeyDown={(event) => {
+                    if (event.key === 'Enter') void invite();
+                  }}
+                  placeholder="email@gmail.com atau @username"
+                  aria-label="Email atau username anggota"
                   className="min-h-tap min-w-0 flex-1 rounded-lg border border-border bg-surface px-3 text-sm"
                 />
                 <select
@@ -248,23 +289,32 @@ export function MembersPanel({
                   <option value="view">{ROLE_LABEL.view}</option>
                   <option value="edit">{ROLE_LABEL.edit}</option>
                 </select>
-                <Button variant="primary" onClick={() => void invite()}>
-                  Undang
+                <Button variant="primary" onClick={() => void invite()} disabled={looking}>
+                  {looking ? 'Mencari…' : 'Undang'}
                 </Button>
               </div>
               {error ? <Callout tone="warn">{error}</Callout> : null}
               {floor.inviteEmails.length > 0 ? (
                 <ul className="space-y-1 text-xs">
-                  {floor.inviteEmails.map((invited) => (
+                  {floor.inviteEmails.map((invited) => {
+                    const byUid = isUidInvite(invited);
+                    return (
                     <li key={invited} className="flex items-center gap-2">
                       <span className="min-w-0 flex-1 truncate">
-                        {invited} · {ROLE_LABEL[floor.invites[invited] ?? 'view']} · menunggu
+                        {byUid ? floor.names[invited] || 'Akun Plano' : invited} · {ROLE_LABEL[floor.invites[invited] ?? 'view']} · menunggu
                       </span>
-                      <Button size="sm" variant="ghost" onClick={() => run(() => cancelInvite(floor.id, invited), 'Undangan dibatalkan ✓')}>
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        onClick={() =>
+                          run(() => cancelInvite(floor.id, invited, byUid && !floor.memberIds.includes(invited)), 'Undangan dibatalkan ✓')
+                        }
+                      >
                         Batalkan
                       </Button>
                     </li>
-                  ))}
+                    );
+                  })}
                 </ul>
               ) : null}
             </Section>

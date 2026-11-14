@@ -1,3 +1,5 @@
+import { isEmailInput, transferTarget } from '../transfer';
+import { parseUsername } from '../username';
 import type { FloorDoc, FloorRole } from './floor';
 
 /**
@@ -31,6 +33,31 @@ export function transferQuestion(name = ''): string {
 /** Who a list can be handed to: members other than the owner (an invite not yet accepted is not a member). */
 export function transferTargets(floor: Pick<FloorDoc, 'ownerUid' | 'memberIds'>): string[] {
   return floor.memberIds.filter((member) => member !== floor.ownerUid);
+}
+
+/**
+ * What the owner typed in Undang anggota (14 Nov 2026): an email (an '@' after
+ * the first character, as in Kirim pasien) or a username, '@' optional.
+ */
+export function parseInviteInput(raw: string): { email: string } | { handle: string } | { error: string } {
+  if (!raw.trim()) return { error: 'Tulis email Google atau username anggota.' };
+  if (isEmailInput(raw)) return transferTarget(raw, null);
+  return parseUsername(raw);
+}
+
+/**
+ * The key an invite is stored under in `invites`/`inviteEmails`: the lowercase
+ * email, or the uid for an invite made by username. A uid never holds '@', so
+ * the two cannot collide.
+ */
+export function isUidInvite(key: string): boolean {
+  return !key.includes('@');
+}
+
+/** Which key of this floor's invites names me: my email when invited by it, else my uid. */
+export function myInviteKey(floor: Pick<FloorDoc, 'inviteEmails'>, uid: string, email: string | null | undefined): string {
+  const key = (email ?? '').trim().toLowerCase();
+  return key && floor.inviteEmails.includes(key) ? key : uid;
 }
 
 /** A sender list this long folds away; a short one stays open. */

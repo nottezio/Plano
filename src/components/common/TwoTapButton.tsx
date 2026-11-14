@@ -6,7 +6,7 @@ import { Button } from './ui';
 const ASK_MS = 6000;
 
 /**
- * A destructive action behind a second tap, in the button itself (26 Oct 2026,
+ * A destructive (or weighty, `tone="neutral"`) action behind a second tap, in the button itself (26 Oct 2026,
  * Avi: removing a member was one tap on a phone).
  *
  * The first tap only asks; the question names what will happen, so the wrong
@@ -19,10 +19,17 @@ export function TwoTapButton({
   question,
   confirmLabel = 'Ya',
   busyLabel = 'Memproses…',
+  tone = 'danger',
   onConfirm,
   onError,
 }: {
   label: string;
+  /**
+   * `danger` (default) for what cannot be taken back (remove, leave);
+   * `neutral` for a weighty step that destroys nothing (hand over the list),
+   * so it does not read as a second red button beside a real one.
+   */
+  tone?: 'danger' | 'neutral';
   ariaLabel?: string;
   /** Asked after the first tap, naming the person or thing affected. */
   question: string;
@@ -45,7 +52,7 @@ export function TwoTapButton({
 
   if (!asking) {
     return (
-      <Button size="sm" variant="danger" aria-label={ariaLabel ?? label} onClick={() => setAsking(true)}>
+      <Button size="sm" variant={tone === 'danger' ? 'danger' : 'secondary'} aria-label={ariaLabel ?? label} onClick={() => setAsking(true)}>
         {label}
       </Button>
     );
@@ -64,7 +71,9 @@ export function TwoTapButton({
             .catch((error: unknown) => onError?.(error))
             .finally(() => setBusy(false));
         }}
-        className="min-h-tap rounded-lg bg-danger px-3 text-xs font-semibold text-on-danger disabled:opacity-60 [@media(pointer:fine)]:min-h-9"
+        className={`min-h-tap rounded-lg px-3 text-xs font-semibold disabled:opacity-60 [@media(pointer:fine)]:min-h-9 ${
+          tone === 'danger' ? 'bg-danger text-on-danger' : 'bg-accent text-on-accent'
+        }`}
       >
         {busy ? busyLabel : confirmLabel}
       </button>

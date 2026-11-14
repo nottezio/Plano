@@ -1,5 +1,19 @@
 # Plano — CHANGES
 
+## `2026-11-14.5` — List Maker: Saran/Tempel floating buttons, Lama di list per stay, SOAP box info, invite by username
+
+Avi: drop the pulang/pindah box from the List tab (Analisis has it); a floating + Tempel on Denah; Saran as a floating button; Lama di list wrong after readmission; more info on the SOAP box (penerima, first entry this stay); invite by username; Jadikan pemilik and Keluarkan styled the same. Built with three agents on separate files, reviewed here.
+
+- **Lama di list — ROOT CAUSE:** `daysOnList` counted from `addedAt`, the first time the patient was ever added. A readmission (Tempel or manual) keeps `addedAt` on purpose (restore points and "baru today" use it) and only resets the per-stay fields and logs "Masuk lagi (…)". So a patient back after pulang/pindah counted every day since their first stay (32 days). Fix: `episodeStart(patient)` (analysis.ts) = the latest "Masuk lagi" log time after `addedAt`, else `addedAt`; `daysOnList` uses it, so Lama di list, the stay chart and the SOAP box count the current stay. "Dikembalikan ke list" is an undo, same stay. Not fixed: readmissions from before the "Masuk lagi" log line existed (no data to tell). Tests added.
+- **SoapFloat:** meta line adds "Masuk list dd/mm/yyyy · hari ke-n" (from `episodeStart`, day 1 = entry day) when the roster entry is passed; a dashed "Penerima dr. …" chip when set.
+- **List tab:** the "Catatan pulang / pindah sejak edisi" side box and its now-unused props/state (`editions`, copy) removed from `ListPanel`.
+- **Saran:** `SuggestionTray` rewritten as a bell button (count badge, hidden at 0) opening a non-modal Radix Dialog panel (desktop beside the stack, phone bottom sheet ≤75dvh); Esc/outside/close/back close it; focus returns to the bell. All actions and domain logic unchanged; the remembered `plano.listmaker.tray` open state is gone. Guide text updated.
+- **Tempel on Denah:** a 56 px accent + (`Tempel laporan`, editors only) above the tab bar on a phone, bottom-left from 640 px (the SOAP/Tempel boxes open bottom-right there), opening the same `PasteFloat`. Switching tab closes it (a half-pasted text is lost).
+- **Invite by username:** one input, email or username (same rule as Kirim pasien). The username registry holds no email, so a username invite is keyed by the invitee's uid in the existing `invites` / `inviteEmails` (uids never contain '@', so no collision) and `names[uid]` = "Nama (@handle)" for the pending row. **firestore.rules:** `acceptsInvite()` = `acceptsInviteAs(uid) || acceptsInviteAs(myEmail())` (same checks, the key generalised); floor read also allows `request.auth.uid in inviteEmails`. Only the named account can accept (uid from auth; the registry forces uid == claimer); a pending invitee still reads only the floor document, never its subcollections. Email invites unchanged. The invite card's role now reads the right key (`myInviteKey`).
+- **TwoTapButton:** `tone` prop ('danger' default, 'neutral'); Jadikan pemilik is neutral (secondary, then accent confirm).
+- **Firestore cost (modelled, not measured):** a second invite listener (`inviteEmails array-contains uid`) — **+1 read per List Maker open per user** (min 1 when empty; resumes free within 30 min, stable value). Username invite: +1 read (handle lookup) + the usual 1 write. Everything else: no change.
+- **Not verified:** rules not compiled or emulator-tested here (deploy job compiles them on push); no UI seen in a browser (Google sign-in), any theme or width; ward device.
+
 ## `2026-11-14.4` — List Maker: PJT Lantai 5 dan 6 list split by floor
 
 Avi approved the example: split the list between floor 5 and 6; Lt 6 lists only DPJPs with a patient; the short list too; Word/PDF unchanged.

@@ -34,7 +34,9 @@ import {
   floorsCol,
   floorVisitNoteDoc,
 } from '../paths';
+import { auth } from '../firebase';
 import { trackWrite } from '../syncStatus';
+import { isUidInvite, myInviteKey } from '@/domain/floorList/membersView';
 import { isPelimpahanEntry, legacyColourDate, rosterLeftSince, type Edition, type FloorDoc, type FloorRole, type RosterPatient, type StatusChange } from '@/domain/floorList/floor';
 import { readSectionTitles, type SectionTitles } from '@/domain/floorList/analysis';
 import { isMarkColor, MARK_PREFIX, readMarks, readNewBadge, type FloorMark, type NewBadge, type PatientTag } from '@/domain/floorList/marks';
@@ -248,13 +250,28 @@ export async function adminListFloors(): Promise<{ floor: FloorDoc; updatedAt: D
     .sort((a, b) => (b.updatedAt?.getTime() ?? 0) - (a.updatedAt?.getTime() ?? 0));
 }
 
-/** Floors that invited my email and are waiting for me to accept. */
+/**
+ * Floors that invited me and are waiting for me to accept: by my email, and
+ * (14 Nov 2026) by my uid when the owner typed my username. Two listeners, as
+ * `transferTo` does in patients.repo: each query must match one rule clause.
+ * The uid is the signed-in account's, read here so the hook's call stays as is.
+ */
 export function subscribeInvites(email: string, callback: (floors: FloorDoc[]) => void, onError: (e: Error) => void): Unsubscribe {
-  return onSnapshot(
-    query(floorsCol(), where('inviteEmails', 'array-contains', email.toLowerCase())),
-    (snapshot) => callback(snapshot.docs.map((d) => readFloor(d.id, d.data()))),
-    onError,
+  const uid = auth().currentUser?.uid;
+  const keys = uid ? [email.toLowerCase(), uid] : [email.toLowerCase()];
+  const byKey = new Map<string, FloorDoc[]>();
+  const stops = keys.map((key) =>
+    onSnapshot(
+      query(floorsCol(), where('inviteEmails', 'array-contains', key)),
+      (snapshot) => {
+        byKey.set(key, snapshot.docs.map((d) => readFloor(d.id, d.data())));
+        const seen = new Set<string>();
+        callback([...byKey.values()].flat().filter((floor) => !seen.has(floor.id) && seen.add(floor.id)));
+      },
+      onError,
+    ),
   );
+  return () => stops.forEach((stop) => stop());
 }
 
 /** Re-attaches after a refusal: 1 s, 2 s, 4 s, 8 s, then the error is reported. */
@@ -659,23 +676,41 @@ export function writeNickname(floorId: string, sender: string, nickname: string)
   );
 }
 
-/** Owner: invite (or re-role an invite). */
-export function inviteMember(floorId: string, email: string, role: FloorRole): Promise<void> {
-  const key = email.trim().toLowerCase();
+/**
+ * Owner: invite (or re-role an invite) by email, or by uid (`name` given)
+ * when it came from a username: the key is then the uid, untouched (uids are
+ * case-sensitive), and the name goes in `names` so the pending row can say who.
+ */
+export function inviteMember(floorId: string, emailOrUid: string, role: FloorRole, name?: string): Promise<void> {
+  const key = isUidInvite(emailOrUid.trim()) ? emailOrUid.trim() : emailOrUid.trim().toLowerCase();
+  const withName = name !== undefined && isUidInvite(key) ? [new FieldPath('names', key), name] : [];
   return trackWrite(
-    updateDoc(floorDoc(floorId), new FieldPath('invites', key), role, 'inviteEmails', arrayUnion(key), 'updatedAt', serverTimestamp()),
+    updateDoc(
+      floorDoc(floorId),
+      new FieldPath('invites', key), role,
+      'inviteEmails', arrayUnion(key),
+      ...withName,
+      'updatedAt', serverTimestamp(),
+    ),
   );
 }
 
-export function cancelInvite(floorId: string, email: string): Promise<void> {
+/** Owner: withdraw an invite; `dropName` also clears the name a username invite stored. */
+export function cancelInvite(floorId: string, key: string, dropName = false): Promise<void> {
   return trackWrite(
-    updateDoc(floorDoc(floorId), new FieldPath('invites', email), deleteField(), 'inviteEmails', arrayRemove(email), 'updatedAt', serverTimestamp()),
+    updateDoc(
+      floorDoc(floorId),
+      new FieldPath('invites', key), deleteField(),
+      'inviteEmails', arrayRemove(key),
+      ...(dropName ? [new FieldPath('names', key), deleteField()] : []),
+      'updatedAt', serverTimestamp(),
+    ),
   );
 }
 
-/** Invitee: accept with the role the owner chose (the rules check it). */
+/** Invitee: accept with the role the owner chose (the rules check it), under whichever key invited me. */
 export function acceptInvite(floor: FloorDoc, uid: string, email: string, myName: string): Promise<void> {
-  const key = email.toLowerCase();
+  const key = myInviteKey(floor, uid, email);
   const role = floor.invites[key] ?? 'view';
   return trackWrite(
     updateDoc(

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { assignedRecently, daySummary, longStay, noSoapToday, overdueDischarge, daySummaryText, dpjpLoad, moveKind, movesByDay, movements, readSectionTitles, sectionTitle, SECTION_TITLE, stayBuckets, tileTitle, weekCounts } from './analysis';
+import { assignedRecently, daySummary, daysOnList, episodeStart, longStay, noSoapToday, overdueDischarge, daySummaryText, dpjpLoad, moveKind, movesByDay, movements, readSectionTitles, sectionTitle, SECTION_TITLE, stayBuckets, tileTitle, weekCounts } from './analysis';
 import { localStamp, newRosterPatient, type Edition, type RosterPatient } from './floor';
 import type { FloorPatient } from './report';
 
@@ -203,6 +203,26 @@ describe('Analisis checks (11 Nov 2026)', () => {
   it('long stay: from 8 days on the list, longest first', () => {
     const roster = [rostered('a', []), rostered('b', [], { addedAt: iso('2026-11-05T08:00') }), rostered('c', [], { status: 'pulang' })];
     expect(longStay(roster, [], '2026-10-20').map((x) => [x.patient.key, x.days])).toEqual([['a', 10]]);
+  });
+
+  it('long stay counts from the readmission, not the first time on the list (14 Nov 2026)', () => {
+    // On the list 10 Oct, home 20 Oct, back 06 Nov: day 8 on 14 Nov, not day 35.
+    const back = rostered('a', [
+      ['2026-10-10T08:00', 'Masuk list'],
+      ['2026-10-20T10:00', 'Pulang'],
+      ['2026-11-06T09:00', 'Masuk lagi (dari Tempel)'],
+    ]);
+    expect(episodeStart(back)).toBe(iso('2026-11-06T09:00'));
+    expect(daysOnList(back, '2026-11-14')).toBe(8);
+    expect(longStay([back], [], '2026-11-14').map((x) => x.days)).toEqual([8]);
+    expect(longStay([back], [], '2026-11-13')).toEqual([]);
+    // "Dikembalikan ke list" undoes a mistaken Pulang: the same stay.
+    const undone = rostered('b', [['2026-10-10T08:00', 'Masuk list'], ['2026-11-01T10:00', 'Pulang'], ['2026-11-01T10:05', 'Dikembalikan ke list']]);
+    expect(daysOnList(undone, '2026-11-14')).toBe(35);
+    // The latest of two readmissions wins; no log falls back to addedAt.
+    const twice = rostered('c', [['2026-10-15T08:00', 'Masuk lagi (pasien manual)'], ['2026-11-10T08:00', 'Masuk lagi (dari Tempel)']]);
+    expect(daysOnList(twice, '2026-11-14')).toBe(4);
+    expect(episodeStart({ addedAt: '', log: [] })).toBe('');
   });
 
   it('assigned this week: counts Bagi pasien log lines per floor resident in the last 7 days', () => {

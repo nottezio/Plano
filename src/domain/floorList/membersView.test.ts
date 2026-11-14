@@ -1,7 +1,42 @@
 import { describe, expect, it } from 'vitest';
 
 import type { FloorDoc } from './floor';
-import { collapseNicknames, confirmQuestion, memberRole, saveErrorMessage, transferQuestion, transferTargets } from './membersView';
+import {
+  collapseNicknames,
+  confirmQuestion,
+  isUidInvite,
+  memberRole,
+  myInviteKey,
+  parseInviteInput,
+  saveErrorMessage,
+  transferQuestion,
+  transferTargets,
+} from './membersView';
+
+describe('Undang anggota by email or username (14 Nov 2026)', () => {
+  it('reads an email as an email, lowercased', () => {
+    expect(parseInviteInput('  Rina@Gmail.com ')).toEqual({ email: 'rina@gmail.com' });
+    expect(parseInviteInput('rina@gmail')).toEqual({ error: 'Format email tidak valid.' });
+  });
+
+  it('reads anything else as a username, with or without @', () => {
+    expect(parseInviteInput('@Dr.Rina')).toEqual({ handle: 'dr.rina' });
+    expect(parseInviteInput('dr_rina')).toEqual({ handle: 'dr_rina' });
+    expect(parseInviteInput('@a')).toEqual({ error: 'Minimal 3 karakter.' });
+    expect(parseInviteInput('   ')).toEqual({ error: 'Tulis email Google atau username anggota.' });
+  });
+
+  it('tells uid keys from email keys', () => {
+    expect(isUidInvite('rina@gmail.com')).toBe(false);
+    expect(isUidInvite('Xy12abCDuid')).toBe(true);
+  });
+
+  it('accepts under the email when invited by email, else under the uid', () => {
+    expect(myInviteKey({ inviteEmails: ['rina@gmail.com'] }, 'u1', 'Rina@gmail.com')).toBe('rina@gmail.com');
+    expect(myInviteKey({ inviteEmails: ['u1'] }, 'u1', 'rina@gmail.com')).toBe('u1');
+    expect(myInviteKey({ inviteEmails: ['u1'] }, 'u1', null)).toBe('u1');
+  });
+});
 
 const floor = { ownerUid: 'o', roles: { o: 'edit', e: 'edit', v: 'view' } } as unknown as FloorDoc;
 

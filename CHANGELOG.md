@@ -5,6 +5,15 @@ Catatan teknis lengkap (akar masalah, perbaikan) ada di CHANGES.md.
 
 Entri teratas harus versi yang sedang dirilis; tes gagal bila belum ditulis.
 
+## `2026-11-14.5`
+- **Tab List lebih lega.** Kotak "Catatan pulang / pindah" tidak lagi tampil di tab List; informasinya ada di tab Analisis.
+- **Saran jadi tombol melayang.** Kotak Saran di atas Denah/List diganti tombol lonceng dengan jumlah saran yang menunggu. Ketuk untuk membuka daftar saran (di HP muncul dari bawah). Tombol tidak tampil bila tidak ada saran.
+- **Tempel dari Denah.** Di tab Denah ada tombol **+** melayang yang membuka kotak Tempel, sama seperti di tab List.
+- **Lama di list dihitung dari rawat inap sekarang.** Pasien yang pernah pulang lalu masuk lagi tidak lagi terhitung sejak pertama kali masuk list; hitungannya mulai dari saat masuk lagi.
+- **Kotak SOAP lebih lengkap.** Menampilkan tanggal pasien masuk list pada rawat inap ini dan hari ke berapa, serta Residen penerima bila diisi.
+- **Undang dengan username.** Pemilik list bisa mengundang anggota dengan email atau username (@nama).
+- **Tombol anggota dibedakan.** "Jadikan pemilik" kini bergaya netral; hanya "Keluarkan" yang merah.
+
 ## `2026-11-14.4`
 - **List PJT Lantai 5 dan 6 dipisah per lantai.** List WhatsApp sekarang punya bagian **LANTAI 5** lalu **LANTAI 6**, masing-masing dengan blok DPJP-nya sendiri. Jumlah di atas ditulis per lantai (mis. "LT 5 (8) · LT 6 (3)"). Di Lantai 6 hanya DPJP yang punya pasien di sana yang ditulis. Judul list memakai nama Denah "PJT Lantai 5 dan 6".
 - **List pendek ikut dipisah** dengan judul LANTAI 5 dan LANTAI 6.
